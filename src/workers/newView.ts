@@ -51,10 +51,10 @@ updated AS (
     "maxStreak" = CASE WHEN shouldIncrementStreak THEN GREATEST(us."maxStreak", us."currentStreak" + 1) ELSE us."maxStreak" END
   FROM u
   WHERE us."userId" = u.id
-  RETURNING us."userId", "currentStreak", "maxStreak"
+  RETURNING us."userId", "currentStreak"
 )
 /* Return the updated streak data */
-SELECT updated."currentStreak", updated."maxStreak", u.shouldIncrementStreak AS "didIncrementStreak"
+SELECT updated."currentStreak", u.shouldIncrementStreak AS "didIncrementStreak"
 FROM updated
 JOIN u ON TRUE;
 `;
@@ -98,12 +98,11 @@ const incrementReadingStreak = async (
       DEFAULT_TIMEZONE,
     ]);
 
-    const { currentStreak, maxStreak, didIncrementStreak } = results?.[0] ?? {};
+    const { currentStreak, didIncrementStreak } = results?.[0] ?? {};
 
     if (didIncrementStreak) {
       // milestones are currently defined on fibonacci sequence
-      const showStreakMilestone =
-        isFibonacci(currentStreak) || currentStreak >= maxStreak;
+      const showStreakMilestone = isFibonacci(currentStreak);
       await con.getRepository(Alerts).save({
         userId,
         showStreakMilestone,
