@@ -41,16 +41,22 @@ WITH u AS (
   FROM public.user AS users
   INNER JOIN user_streak ON user_streak."userId" = users.id
   WHERE users.id = $1
+),
+updated AS (
+  UPDATE user_streak AS us SET
+    "lastViewAt" = $2,
+    "updatedAt" = now(),
+    "currentStreak" = CASE WHEN shouldIncrementStreak THEN us."currentStreak" + 1 ELSE us."currentStreak" END,
+    "totalStreak" = CASE WHEN shouldIncrementStreak THEN us."totalStreak" + 1 ELSE us."totalStreak" END,
+    "maxStreak" = CASE WHEN shouldIncrementStreak THEN GREATEST(us."maxStreak", us."currentStreak" + 1) ELSE us."maxStreak" END
+  FROM u
+  WHERE us."userId" = u.id
+  RETURNING us."userId", "currentStreak"
 )
-UPDATE user_streak AS us SET
-  "lastViewAt" = $2,
-  "updatedAt" = now(),
-  "currentStreak" = CASE WHEN shouldIncrementStreak THEN us."currentStreak" + 1 ELSE us."currentStreak" END,
-  "totalStreak" = CASE WHEN shouldIncrementStreak THEN us."totalStreak" + 1 ELSE us."totalStreak" END,
-  "maxStreak" = CASE WHEN shouldIncrementStreak THEN GREATEST(us."maxStreak", us."currentStreak" + 1) ELSE us."maxStreak" END
-FROM u
-WHERE us."userId" = u.id
-RETURNING "currentStreak", "maxStreak"
+/* Return the updated streak data */
+SELECT updated."currentStreak", u.shouldIncrementStreak AS "didIncrementStreak"
+FROM updated
+JOIN u ON TRUE;
 `;
 
 const incrementReadingStreak = async (
@@ -92,12 +98,11 @@ const incrementReadingStreak = async (
       DEFAULT_TIMEZONE,
     ]);
 
-    const { currentStreak, maxStreak } = results?.[0]?.[0] ?? {};
+    const { currentStreak, didIncrementStreak } = results?.[0] ?? {};
 
-    if (currentStreak > 0) {
+    if (didIncrementStreak) {
       // milestones are currently defined on fibonacci sequence
-      const showStreakMilestone =
-        isFibonacci(currentStreak) || currentStreak >= maxStreak;
+      const showStreakMilestone = isFibonacci(currentStreak);
       await con.getRepository(Alerts).save({
         userId,
         showStreakMilestone,
