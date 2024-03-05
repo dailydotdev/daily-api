@@ -213,6 +213,11 @@ export const typeDefs = /* GraphQL */ `
       unreadOnly: Boolean = false
 
       """
+      Force refresh the feed
+      """
+      refresh: Boolean = false
+
+      """
       Version of the feed algorithm
       """
       version: Int = 1
@@ -619,6 +624,7 @@ interface AnonymousFeedArgs extends FeedArgs {
 interface ConfiguredFeedArgs extends FeedArgs {
   unreadOnly: boolean;
   version: number;
+  refresh?: boolean;
 }
 
 interface SourceFeedArgs extends FeedArgs {
