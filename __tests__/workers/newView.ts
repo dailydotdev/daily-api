@@ -405,5 +405,26 @@ describe('reading streaks', () => {
         .findOne({ where: { userId: 'u1' } });
       expect(alerts?.showStreakMilestone).toBe(false);
     });
+
+    it('should not set showStreakMilestone if lastViewAt is the same day', async () => {
+      await runTest(
+        '2024-01-26T19:17Z',
+        '2024-01-26T17:23Z',
+        {
+          ...defaultStreak,
+          currentStreak: 5,
+        },
+        {
+          ...defaultStreak,
+          currentStreak: 5,
+          lastViewAt: new Date('2024-01-26T19:17Z'),
+        },
+      );
+
+      const alerts = await con
+        .getRepository(Alerts)
+        .findOne({ where: { userId: 'u1' } });
+      expect(alerts).toBeNull();
+    });
   });
 });
