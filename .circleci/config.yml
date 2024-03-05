@@ -1,6 +1,6 @@
 version: 2.1
 orbs:
-  gcp-gcr: circleci/gcp-gcr@0.15.3
+  gcp-gcr: circleci/gcp-gcr@0.16.2
   pulumi: pulumi/pulumi@2.1.0
   gcp-cli: circleci/gcp-cli@3.1.1
 jobs:
