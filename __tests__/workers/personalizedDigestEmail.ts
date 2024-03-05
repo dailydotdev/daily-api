@@ -513,4 +513,39 @@ describe('personalizedDigestEmail worker', () => {
 
     expect(sendEmail).toHaveBeenCalledTimes(0);
   });
+
+  it('should truncate long posts summary', async () => {
+    const postsFixtureWithAddedData = postsFixture.map((item) => ({
+      ...item,
+      readTime: 15,
+      summary:
+        'In quis nulla lorem. Suspendisse potenti. Quisque gravida convallis urna, ut venenatis sapien. Maecenas sem odio, blandit vel auctor ut, pellentesque ac magna.',
+      upvotes: 10,
+      comments: 5,
+      views: 200,
+    }));
+
+    await saveFixtures(con, Post, postsFixtureWithAddedData);
+
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const emailData = (sendEmail as jest.Mock).mock.calls[0][0];
+    expect(emailData).toMatchSnapshot({
+      sendAt: expect.any(Number),
+      dynamicTemplateData: {
+        date: expect.any(String),
+      },
+    });
+  });
 });
