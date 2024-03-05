@@ -53,6 +53,7 @@ import {
   versionToFeedGenerator,
 } from '../integrations/feed';
 import { AuthenticationError } from 'apollo-server-errors';
+import { opentelemetry } from '../telemetry/opentelemetry';
 
 interface GQLTagsCategory {
   id: string;
@@ -887,6 +888,7 @@ const feedResolverCursor: IFieldResolver<
         offset: 0,
         cursor: page.cursor,
         allowed_post_types: args.supportedTypes,
+        ...(args?.refresh && { refresh: true }),
       }),
     warnOnPartialFirstPage: true,
   },
@@ -960,6 +962,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
     feed: (source, args: ConfiguredFeedArgs, ctx: Context, info) => {
       if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
+        if (args?.refresh) {
+          const meter = opentelemetry.metrics.getMeter('api-bg');
+          const counter = meter.createCounter('force_refresh');
+          counter.add(1);
+        }
+
         return feedResolverCursor(
           source,
           {
