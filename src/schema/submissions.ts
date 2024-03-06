@@ -27,7 +27,7 @@ interface GQLSubmission {
   reason: string;
 }
 
-interface GQLSubmissionAvailability {
+export interface GQLSubmissionAvailability {
   hasAccess: boolean;
   limit: number;
   todaySubmissionsCount: number;
@@ -82,7 +82,7 @@ export const submissionAccessThreshold = parseInt(
     DEFAULT_SUBMISSION_ACCESS_THRESHOLD,
 );
 
-const hasSubmissionAccess = (user: User) =>
+export const hasSubmissionAccess = (user: User) =>
   user.reputation >= submissionAccessThreshold;
 
 const getSubmissionsToday = (con: DataSource, user: User) => {

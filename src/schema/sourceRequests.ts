@@ -21,6 +21,8 @@ import {
 import { getRelayNodeInfo, uploadLogo } from '../common';
 import { GraphQLResolveInfo } from 'graphql';
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
+import { GQLSubmissionAvailability, hasSubmissionAccess } from './submissions';
+import { SourceRequestErrorMessage } from '../errors';
 
 export interface GQLSourceRequest {
   id: string;
@@ -57,6 +59,11 @@ export interface GQLDeclineSourceRequestInput
   extends Partial<GQLSourceRequest> {
   reason: string;
 }
+
+export type GQLSourceRequestAvailability = Pick<
+  GQLSubmissionAvailability,
+  'hasAccess'
+>;
 
 export const typeDefs = /* GraphQL */ `
   """
@@ -151,6 +158,10 @@ export const typeDefs = /* GraphQL */ `
     Used in \`before\` and \`after\` args
     """
     cursor: String!
+  }
+
+  type SourceRequestAvailability {
+    hasAccess: Boolean!
   }
 
   input DeclineSourceRequestInput {
@@ -265,6 +276,11 @@ export const typeDefs = /* GraphQL */ `
       """
       last: Int
     ): SourceRequestConnection! @auth(requires: [MODERATOR])
+
+    """
+    Information regarding the access of submitting source requests
+    """
+    sourceRequestAvailability: SourceRequestAvailability! @auth
   }
 `;
 
@@ -321,15 +337,20 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { data }: GQLDataInput<GQLRequestSourceInput>,
       ctx,
     ): Promise<GQLSourceRequest> => {
-      const info = await ctx
+      const user = await ctx
         .getRepository(User)
         .findOneByOrFail({ id: ctx.userId });
+
+      if (!hasSubmissionAccess(user)) {
+        throw new ForbiddenError(SourceRequestErrorMessage.ACCESS_DENIED);
+      }
+
       const repo = ctx.getRepository(SourceRequest);
       const sourceReq = repo.create({
         sourceUrl: data.sourceUrl,
         userId: ctx.userId,
-        userName: info.name,
-        userEmail: info.email,
+        userName: user.name,
+        userEmail: user.email,
       });
       await repo.save(sourceReq);
       return sourceReq;
@@ -436,5 +457,18 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       },
       offsetPageGenerator(100, 500),
     ),
+    sourceRequestAvailability: async (
+      _,
+      __,
+      ctx,
+    ): Promise<GQLSourceRequestAvailability> => {
+      const user = await ctx
+        .getRepository(User)
+        .findOneByOrFail({ id: ctx.userId });
+
+      return {
+        hasAccess: hasSubmissionAccess(user),
+      };
+    },
   },
 });
