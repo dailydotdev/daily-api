@@ -4,6 +4,7 @@ import {
   Source,
   User,
   UserPersonalizedDigest,
+  UserStreak,
 } from '../entity';
 import { DayOfWeek } from '../types';
 import { MailDataRequired } from '@sendgrid/mail';
@@ -104,12 +105,14 @@ const getEmailVariation = async ({
   personalizedDigest,
   posts,
   user,
+  userStreak,
   feature,
   currentDate,
 }: {
   personalizedDigest: UserPersonalizedDigest;
   posts: TemplatePostData[];
   user: User;
+  userStreak?: UserStreak;
   feature: typeof features.personalizedDigest.defaultValue;
   currentDate: Date;
 }): Promise<Partial<MailDataRequired>> => {
@@ -126,6 +129,8 @@ const getEmailVariation = async ({
       username: user.username,
       image: user.image,
       reputation: user.reputation,
+      currentStreak: userStreak?.currentStreak,
+      maxStreak: userStreak?.maxStreak,
     },
   };
 
@@ -221,10 +226,15 @@ export const getPersonalizedDigestEmailPayload = async ({
     return undefined;
   }
 
+  const userStreak = await con.getRepository(UserStreak).findOneBy({
+    userId: user.id,
+  });
+
   const variationProps = await getEmailVariation({
     personalizedDigest,
     posts,
     user,
+    userStreak,
     feature,
     currentDate,
   });
