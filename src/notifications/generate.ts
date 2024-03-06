@@ -92,7 +92,7 @@ export const notificationTitleMap: Record<
   post_mention: (ctx: NotificationPostContext & NotificationDoneByContext) =>
     `<b>${ctx.doneBy.username}</b> <span class="text-theme-color-cabbage">mentioned you</span> on a post in <b>${ctx.source.name}</b>.`,
   collection_updated: (ctx: NotificationPostContext) =>
-    `The collection "New posts from <b>${ctx.post.title}</b>" just got updated with new details`,
+    `The collection "<b>${ctx.post.title}</b>" just got updated with new details`,
   dev_card_unlocked: () => 'DevCard unlocked!',
   source_post_added: (
     ctx: NotificationPostContext & NotificationDoneByContext,
