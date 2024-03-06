@@ -105,7 +105,6 @@ const getEmailVariation = async ({
   personalizedDigest,
   posts,
   user,
-  userStreak,
   feature,
   currentDate,
 }: {
@@ -120,6 +119,7 @@ const getEmailVariation = async ({
     ([, value]) => value === personalizedDigest.preferredDay,
   );
   const userName = user.name?.trim().split(' ')[0] || user.username;
+  const userStreak = await user.streak;
   const data = {
     day_name: dayName,
     first_name: userName,
@@ -226,15 +226,10 @@ export const getPersonalizedDigestEmailPayload = async ({
     return undefined;
   }
 
-  const userStreak = await con.getRepository(UserStreak).findOneBy({
-    userId: user.id,
-  });
-
   const variationProps = await getEmailVariation({
     personalizedDigest,
     posts,
     user,
-    userStreak,
     feature,
     currentDate,
   });

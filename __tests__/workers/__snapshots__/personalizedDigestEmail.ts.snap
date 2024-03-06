@@ -76,7 +76,9 @@ Object {
     "preview": "Every Monday, we'll send you five posts you haven't read. Each post was carefully picked based on topics you love reading about. Let's get to it!",
     "title": "Ido, your personal weekly update from daily.dev is ready",
     "user": Object {
+      "currentStreak": 0,
       "image": "https://daily.dev/ido.jpg",
+      "maxStreak": 0,
       "reputation": 10,
       "username": "idoshamun",
     },
@@ -197,7 +199,9 @@ Object {
     "preview": "Every Monday, we'll send you five posts you haven't read. Each post was carefully picked based on topics you love reading about. Let's get to it!",
     "title": "Ido, your personal weekly update from daily.dev is ready",
     "user": Object {
+      "currentStreak": 0,
       "image": "https://daily.dev/ido.jpg",
+      "maxStreak": 0,
       "reputation": 10,
       "username": "idoshamun",
     },
@@ -441,7 +445,9 @@ Object {
     "preview": "Every Monday, we'll send you five posts you haven't read. Each post was carefully picked based on topics you love reading about. Let's get to it!",
     "title": "Ido, your personal weekly update from daily.dev is ready",
     "user": Object {
+      "currentStreak": 0,
       "image": "https://daily.dev/ido.jpg",
+      "maxStreak": 0,
       "reputation": 10,
       "username": "idoshamun",
     },
