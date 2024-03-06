@@ -353,6 +353,7 @@ const [apps] = deployApplicationSuite(
       topicName: debeziumTopicName,
       propsPath: './application.properties',
       propsVars: {
+        slot_name: isAdhocEnv ? "debzium_api" : "debzium",
         database_pass: config.require('debeziumDbPass'),
         database_user: config.require('debeziumDbUser'),
         database_dbname: name,
