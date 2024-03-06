@@ -11,6 +11,7 @@ import {
 import {
   NotificationDoneByContext,
   NotificationPostContext,
+  NotificationSourceContext,
 } from '../../notifications';
 import {
   NotificationPreferenceStatus,
@@ -127,7 +128,7 @@ const worker: NotificationWorker = {
             ctx: {
               ...baseCtx,
               userIds: members.map(({ userId }) => userId),
-            } as NotificationPostContext & Partial<NotificationDoneByContext>,
+            } as NotificationSourceContext & NotificationPostContext,
           });
         }
       }
