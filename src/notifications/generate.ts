@@ -92,8 +92,11 @@ export const notificationTitleMap: Record<
   post_mention: (ctx: NotificationPostContext & NotificationDoneByContext) =>
     `<b>${ctx.doneBy.username}</b> <span class="text-theme-color-cabbage">mentioned you</span> on a post in <b>${ctx.source.name}</b>.`,
   collection_updated: (ctx: NotificationPostContext) =>
-    `The collection "<b>${ctx.post.title}</b>" just got updated with new details`,
+    `The collection "New posts from <b>${ctx.post.title}</b>" just got updated with new details`,
   dev_card_unlocked: () => 'DevCard unlocked!',
+  source_post_added: (
+    ctx: NotificationPostContext & NotificationDoneByContext,
+  ) => `New posts from <b>${ctx.source.name}</b>, check them out now!`,
 };
 
 export const generateNotificationMap: Record<
@@ -307,4 +310,14 @@ export const generateNotificationMap: Record<
       )
       .targetUrl(generateDevCard)
       .uniqueKey(ctx.userIds[0]),
+  source_post_added: (
+    builder,
+    ctx: NotificationPostContext & NotificationDoneByContext,
+  ) =>
+    builder
+      .referenceSource(ctx.source)
+      .icon(NotificationIcon.Bell)
+      .avatarSource(ctx.source)
+      .targetSource(ctx.source)
+      .uniqueKey(ctx.post.id),
 };

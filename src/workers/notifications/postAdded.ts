@@ -1,5 +1,6 @@
 import { messageToJson } from '../worker';
 import {
+  NotificationPreferenceSource,
   Post,
   PostType,
   SourceType,
@@ -11,7 +12,10 @@ import {
   NotificationDoneByContext,
   NotificationPostContext,
 } from '../../notifications';
-import { NotificationType } from '../../notifications/common';
+import {
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../../notifications/common';
 import { NotificationHandlerReturn, NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
 import { buildPostContext, getSubscribedMembers } from './utils';
@@ -105,6 +109,26 @@ const worker: NotificationWorker = {
               ctx: { ...baseCtx, userIds: [post.authorId] },
             });
           }
+        }
+      }
+
+      if (source.type === SourceType.Machine) {
+        const members = await con
+          .getRepository(NotificationPreferenceSource)
+          .findBy({
+            notificationType: NotificationType.SourcePostAdded,
+            referenceId: source.id,
+            status: NotificationPreferenceStatus.Subscribed,
+          });
+
+        if (members.length) {
+          notifs.push({
+            type: NotificationType.SourcePostAdded,
+            ctx: {
+              ...baseCtx,
+              userIds: members.map(({ userId }) => userId),
+            } as NotificationPostContext & Partial<NotificationDoneByContext>,
+          });
         }
       }
     }

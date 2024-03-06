@@ -637,6 +637,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       },
     };
   },
+  source_post_added: async () => {
+    return null;
+  },
 };
 
 const formatTemplateDate = <T extends TemplateData>(data: T): T => {
