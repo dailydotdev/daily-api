@@ -44,7 +44,7 @@ export const SubmissionFailErrorMessage: Record<
     'You can’t submit your own articles as community picks, please suggest articles by other people.',
   POST_EXISTS: 'This post is already on daily.dev!',
   AUTHOR_BANNED:
-    'Unfortunately the article submitted is written by an author who violated our community guidelines and is banned. We no longer accept submissions from this author.',
+    'Unfortunately the article submitted is written by a creator who violated our community guidelines and is banned. We no longer accept submissions from this creator.',
   ACCESS_DENIED:
     'You do not have sufficient permissions and or reputation to submit a community link yet.',
   LIMIT_REACHED:

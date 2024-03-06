@@ -91,7 +91,13 @@ const instrumentations = [
     mergeItems: true,
     ignoreTrivialResolveSpans: true,
   }),
-  new PinoInstrumentation(),
+  new PinoInstrumentation({
+    logKeys: {
+      traceId: 'trace',
+      spanId: 'spanId',
+      traceFlags: 'traceSampled',
+    },
+  }),
   // Did not really get anything from IORedis
   new IORedisInstrumentation(),
   // TODO: remove this once pubsub has implemented the new tracing methods

@@ -327,6 +327,22 @@ describe('query userStreaks', () => {
     expect(res.errors).toBeFalsy();
   });
 
+  it('should return empty streak when the user has no streak yet', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserStreak).delete({ userId: loggedUser });
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      userStreak: {
+        max: 0,
+        total: 0,
+        current: 0,
+        lastViewAt: null,
+      },
+    });
+  });
+
   it('should return the user streaks when last view is null', async () => {
     loggedUser = '1';
     const res = await client.query(QUERY);
