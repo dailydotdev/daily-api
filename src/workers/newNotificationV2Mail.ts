@@ -71,6 +71,7 @@ const notificationToTemplateId: Record<NotificationType, string> = {
   squad_subscribe_to_notification: '',
   collection_updated: 'd-c051ffef97a148b6a6f14d5edb46b553',
   dev_card_unlocked: 'd-3d3402ec873640e788f549a0680c40bb',
+  source_post_added: '',
 };
 
 type TemplateData = Record<string, string | number>;
