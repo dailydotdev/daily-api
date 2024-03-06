@@ -1,5 +1,116 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`personalizedDigestEmail worker properly set showStreak to false if there is no user streak record 1`] = `
+Object {
+  "asm": Object {
+    "groupId": 23809,
+  },
+  "batchId": "test-email-batch-id",
+  "category": "Digests",
+  "dynamicTemplateData": Object {
+    "date": Any<String>,
+    "day_name": "Monday",
+    "first_name": "Ido",
+    "posts": Array [
+      Object {
+        "post_comments": 5,
+        "post_image": "https://daily.dev/image.jpg",
+        "post_link": "http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=digest",
+        "post_read_time": 15,
+        "post_summary": "In quis nulla lorem. Suspendisse potenti. Quisque gravida convallis urna, ut venenatis sapien. Maecenas sem odio, blandit vel auctor ut, pellentesque...",
+        "post_title": "P1",
+        "post_upvotes": 10,
+        "post_views": 200,
+        "source_image": "http://image.com/a",
+        "source_name": "A",
+      },
+      Object {
+        "post_comments": 5,
+        "post_image": "https://daily.dev/image.jpg",
+        "post_link": "http://localhost:5002/posts/p2?utm_source=notification&utm_medium=email&utm_campaign=digest",
+        "post_read_time": 15,
+        "post_summary": "In quis nulla lorem. Suspendisse potenti. Quisque gravida convallis urna, ut venenatis sapien. Maecenas sem odio, blandit vel auctor ut, pellentesque...",
+        "post_title": "P2",
+        "post_upvotes": 10,
+        "post_views": 200,
+        "source_image": "http://image.com/b",
+        "source_name": "B",
+      },
+      Object {
+        "post_comments": 5,
+        "post_image": "https://daily.dev/image.jpg",
+        "post_link": "http://localhost:5002/posts/p3?utm_source=notification&utm_medium=email&utm_campaign=digest",
+        "post_read_time": 15,
+        "post_summary": "In quis nulla lorem. Suspendisse potenti. Quisque gravida convallis urna, ut venenatis sapien. Maecenas sem odio, blandit vel auctor ut, pellentesque...",
+        "post_title": "P3",
+        "post_upvotes": 10,
+        "post_views": 200,
+        "source_image": "http://image.com/c",
+        "source_name": "C",
+      },
+      Object {
+        "post_comments": 5,
+        "post_image": "https://daily.dev/image.jpg",
+        "post_link": "http://localhost:5002/posts/p4?utm_source=notification&utm_medium=email&utm_campaign=digest",
+        "post_read_time": 15,
+        "post_summary": "In quis nulla lorem. Suspendisse potenti. Quisque gravida convallis urna, ut venenatis sapien. Maecenas sem odio, blandit vel auctor ut, pellentesque...",
+        "post_title": "P4",
+        "post_upvotes": 10,
+        "post_views": 200,
+        "source_image": "http://image.com/a",
+        "source_name": "A",
+      },
+      Object {
+        "post_comments": 5,
+        "post_image": "https://daily.dev/image.jpg",
+        "post_link": "http://localhost:5002/posts/p5?utm_source=notification&utm_medium=email&utm_campaign=digest",
+        "post_read_time": 15,
+        "post_summary": "In quis nulla lorem. Suspendisse potenti. Quisque gravida convallis urna, ut venenatis sapien. Maecenas sem odio, blandit vel auctor ut, pellentesque...",
+        "post_title": "P5",
+        "post_upvotes": 10,
+        "post_views": 200,
+        "source_image": "http://image.com/b",
+        "source_name": "B",
+      },
+    ],
+    "preview": "Every Monday, we'll send you five posts you haven't read. Each post was carefully picked based on topics you love reading about. Let's get to it!",
+    "title": "Ido, your personal weekly update from daily.dev is ready",
+    "user": Object {
+      "currentStreak": 0,
+      "image": "https://daily.dev/ido.jpg",
+      "maxStreak": 0,
+      "reputation": 10,
+      "showStreak": false,
+      "username": "idoshamun",
+    },
+  },
+  "from": Object {
+    "email": "informer@daily.dev",
+    "name": "daily.dev",
+  },
+  "hideWarnings": false,
+  "ipPoolName": "Transactional",
+  "replyTo": Object {
+    "email": "hi@daily.dev",
+    "name": "daily.dev",
+  },
+  "sendAt": Any<Number>,
+  "templateId": "d-328d1104d2e04fa1ab91e410e02751cb",
+  "to": Object {
+    "email": "ido@daily.dev",
+    "name": "Ido",
+  },
+  "trackingSettings": Object {
+    "clickTracking": Object {
+      "enable": true,
+    },
+    "openTracking": Object {
+      "enable": true,
+    },
+  },
+}
+`;
+
 exports[`personalizedDigestEmail worker should generate personalized digest for user in timezone ahead UTC 1`] = `
 Object {
   "asm": Object {
@@ -76,8 +187,11 @@ Object {
     "preview": "Every Monday, we'll send you five posts you haven't read. Each post was carefully picked based on topics you love reading about. Let's get to it!",
     "title": "Ido, your personal weekly update from daily.dev is ready",
     "user": Object {
+      "currentStreak": 0,
       "image": "https://daily.dev/ido.jpg",
+      "maxStreak": 0,
       "reputation": 10,
+      "showStreak": true,
       "username": "idoshamun",
     },
   },
@@ -197,8 +311,11 @@ Object {
     "preview": "Every Monday, we'll send you five posts you haven't read. Each post was carefully picked based on topics you love reading about. Let's get to it!",
     "title": "Ido, your personal weekly update from daily.dev is ready",
     "user": Object {
+      "currentStreak": 0,
       "image": "https://daily.dev/ido.jpg",
+      "maxStreak": 0,
       "reputation": 10,
+      "showStreak": true,
       "username": "idoshamun",
     },
   },
@@ -318,8 +435,11 @@ Object {
     "preview": "Every Monday, we'll send you five posts you haven't read. Each post was carefully picked based on topics you love reading about. Let's get to it!",
     "title": "Ido, your personal weekly update from daily.dev is ready",
     "user": Object {
+      "currentStreak": 0,
       "image": "https://daily.dev/ido.jpg",
+      "maxStreak": 0,
       "reputation": 10,
+      "showStreak": true,
       "username": "idoshamun",
     },
   },
@@ -439,8 +559,11 @@ Object {
     "preview": "Every Monday, we'll send you five posts you haven't read. Each post was carefully picked based on topics you love reading about. Let's get to it!",
     "title": "Ido, your personal weekly update from daily.dev is ready",
     "user": Object {
+      "currentStreak": 0,
       "image": "https://daily.dev/ido.jpg",
+      "maxStreak": 0,
       "reputation": 10,
+      "showStreak": true,
       "username": "idoshamun",
     },
   },
