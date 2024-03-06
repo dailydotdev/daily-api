@@ -69,7 +69,7 @@ export enum SourceRequestErrorKeys {
 
 export const SourceRequestErrorMessage: Record<SourceRequestErrorKeys, string> =
   {
-    ACCESS_DENIED:
+    [SourceRequestErrorKeys.AccessDenied]:
       'You do not have sufficient permissions and or reputation to submit a source request yet.',
   };
 
