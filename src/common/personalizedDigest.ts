@@ -129,8 +129,9 @@ const getEmailVariation = async ({
       username: user.username,
       image: user.image,
       reputation: user.reputation,
-      currentStreak: userStreak?.currentStreak,
-      maxStreak: userStreak?.maxStreak,
+      currentStreak: userStreak?.currentStreak || 0,
+      maxStreak: userStreak?.maxStreak || 0,
+      showStreak: !!userStreak,
     },
   };
 
