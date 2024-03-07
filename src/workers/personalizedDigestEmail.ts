@@ -66,8 +66,13 @@ const worker: Worker = {
     const emailSendDate = new Date(emailSendTimestamp);
     const previousSendDate = new Date(previousSendTimestamp);
 
-    const user = await con.getRepository(User).findOneBy({
-      id: personalizedDigest.userId,
+    const user = await con.getRepository(User).findOne({
+      where: {
+        id: personalizedDigest.userId,
+      },
+      relations: {
+        streak: true,
+      },
     });
 
     if (!user?.infoConfirmed) {
