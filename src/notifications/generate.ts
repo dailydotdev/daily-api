@@ -315,9 +315,7 @@ export const generateNotificationMap: Record<
     ctx: NotificationPostContext & NotificationDoneByContext,
   ) =>
     builder
-      .referenceSource(ctx.source)
       .icon(NotificationIcon.Bell)
       .avatarSource(ctx.source)
-      .targetSource(ctx.source)
-      .uniqueKey(ctx.post.id),
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost),
 };

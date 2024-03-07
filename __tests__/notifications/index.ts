@@ -1079,11 +1079,11 @@ describe('storeNotificationBundle', () => {
     expect(actual.notification.type).toEqual(type);
     expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(true);
-    expect(actual.notification.referenceId).toEqual('a');
-    expect(actual.notification.referenceType).toEqual('source');
+    expect(actual.notification.referenceId).toEqual('p1');
+    expect(actual.notification.referenceType).toEqual('post');
     expect(actual.notification.description).toBeFalsy();
     expect(actual.notification.targetUrl).toEqual(
-      'http://localhost:5002/sources/a',
+      'http://localhost:5002/posts/p1',
     );
     expect(actual.avatars).toEqual([
       {
@@ -1095,7 +1095,15 @@ describe('storeNotificationBundle', () => {
         type: 'source',
       },
     ]);
-    expect(actual.attachments!.length).toEqual(0);
-    expect(actual.notification.uniqueKey).toEqual('p1');
+    expect(actual.attachments!.length).toEqual(1);
+    expect(actual.attachments).toEqual([
+      {
+        image: 'https://daily.dev/image.jpg',
+
+        referenceId: 'p1',
+        title: 'P1',
+        type: 'post',
+      },
+    ]);
   });
 });
