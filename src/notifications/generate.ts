@@ -96,7 +96,7 @@ export const notificationTitleMap: Record<
   dev_card_unlocked: () => 'DevCard unlocked!',
   source_post_added: (
     ctx: NotificationPostContext & NotificationDoneByContext,
-  ) => `New posts from <b>${ctx.source.name}</b>, check them out now!`,
+  ) => `New post from <b>${ctx.source.name}</b>, check it out now!`,
 };
 
 export const generateNotificationMap: Record<
