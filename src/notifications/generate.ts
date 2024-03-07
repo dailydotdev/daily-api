@@ -94,6 +94,9 @@ export const notificationTitleMap: Record<
   collection_updated: (ctx: NotificationPostContext) =>
     `The collection "<b>${ctx.post.title}</b>" just got updated with new details`,
   dev_card_unlocked: () => 'DevCard unlocked!',
+  source_post_added: (
+    ctx: NotificationPostContext & NotificationDoneByContext,
+  ) => `New post from <b>${ctx.source.name}</b>, check it out now!`,
 };
 
 export const generateNotificationMap: Record<
@@ -307,4 +310,12 @@ export const generateNotificationMap: Record<
       )
       .targetUrl(generateDevCard)
       .uniqueKey(ctx.userIds[0]),
+  source_post_added: (
+    builder,
+    ctx: NotificationPostContext & NotificationDoneByContext,
+  ) =>
+    builder
+      .icon(NotificationIcon.Bell)
+      .avatarSource(ctx.source)
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost),
 };

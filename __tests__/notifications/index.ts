@@ -1066,4 +1066,44 @@ describe('storeNotificationBundle', () => {
     expect(actual.notification.description).toEqual('Create your new Squad');
     expect(actual.attachments.length).toEqual(0);
   });
+
+  it('should generate source_post_added notification', () => {
+    const type = NotificationType.SourcePostAdded;
+    const ctx: NotificationSourceContext & NotificationPostContext = {
+      userIds: [userId],
+      source: sourcesFixture[0] as Reference<Source>,
+      post: postsFixture[0] as Reference<Post>,
+    };
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('p1');
+    expect(actual.notification.referenceType).toEqual('post');
+    expect(actual.notification.description).toBeFalsy();
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/posts/p1',
+    );
+    expect(actual.avatars).toEqual([
+      {
+        image: 'http://image.com/a',
+        name: 'A',
+
+        referenceId: 'a',
+        targetUrl: 'http://localhost:5002/sources/a',
+        type: 'source',
+      },
+    ]);
+    expect(actual.attachments!.length).toEqual(1);
+    expect(actual.attachments).toEqual([
+      {
+        image: 'https://daily.dev/image.jpg',
+
+        referenceId: 'p1',
+        title: 'P1',
+        type: 'post',
+      },
+    ]);
+  });
 });

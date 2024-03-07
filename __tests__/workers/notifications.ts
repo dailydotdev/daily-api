@@ -540,6 +540,26 @@ describe('post added notifications', () => {
     );
     expect(subscribe).toBeFalsy();
   });
+
+  it('should add source post added notification to all source members', async () => {
+    const worker = await import('../../src/workers/notifications/postAdded');
+    await con.getRepository(NotificationPreferenceSource).save({
+      userId: '3',
+      sourceId: 'a',
+      referenceId: 'a',
+      status: NotificationPreferenceStatus.Subscribed,
+      notificationType: NotificationType.SourcePostAdded,
+    });
+    const actual = await invokeNotificationWorker(worker.default, {
+      post: postsFixture[0],
+    });
+    expect(actual.length).toEqual(1);
+    const bundle = actual[0];
+    expect(bundle.type).toEqual(NotificationType.SourcePostAdded);
+    expect((bundle.ctx as NotificationPostContext).post.id).toEqual('p1');
+    expect((bundle.ctx as NotificationPostContext).source.id).toEqual('a');
+    expect(bundle.ctx.userIds).toEqual(['3']);
+  });
 });
 
 describe('article new comment', () => {

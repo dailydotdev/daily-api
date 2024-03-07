@@ -41,6 +41,7 @@ export enum NotificationType {
   PostMention = 'post_mention',
   CollectionUpdated = 'collection_updated',
   DevCardUnlocked = 'dev_card_unlocked',
+  SourcePostAdded = 'source_post_added',
 }
 
 export enum NotificationPreferenceType {
@@ -64,6 +65,7 @@ export const notificationPreferenceMap: Partial<
   [NotificationType.SquadPostAdded]: NotificationPreferenceType.Source,
   [NotificationType.SquadMemberJoined]: NotificationPreferenceType.Source,
   [NotificationType.CollectionUpdated]: NotificationPreferenceType.Post,
+  [NotificationType.SourcePostAdded]: NotificationPreferenceType.Source,
 };
 
 export const commentReplyNotificationTypes = [
