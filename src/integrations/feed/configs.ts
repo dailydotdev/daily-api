@@ -88,13 +88,16 @@ export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
 export class FeedUserStateConfigGenerator implements FeedConfigGenerator {
   private readonly snotraClient: ISnotraClient;
   private readonly generators: Record<UserState, FeedConfigGenerator>;
+  private readonly personalizationThreshold?: number;
 
   constructor(
     snotraClient: ISnotraClient,
     generators: Record<UserState, FeedConfigGenerator>,
+    personalizationThreshold?: number,
   ) {
     this.snotraClient = snotraClient;
     this.generators = generators;
+    this.personalizationThreshold = personalizationThreshold;
   }
 
   async generate(ctx, opts): Promise<FeedConfig> {
@@ -102,6 +105,7 @@ export class FeedUserStateConfigGenerator implements FeedConfigGenerator {
       const userState = await this.snotraClient.fetchUserState({
         user_id: opts.user_id,
         providers: { personalise: {} },
+        post_rank_count: this.personalizationThreshold,
       });
       return this.generators[userState.personalise.state].generate(ctx, opts);
     });
