@@ -13,7 +13,7 @@ import {
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { PostReport, ReputationEvent } from '../../src/entity';
-import { DataSource } from 'typeorm';
+import { DataSource, LessThan } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { createSquadWelcomePost } from '../../src/common';
 
@@ -55,6 +55,7 @@ it('should create a reputation event that increases reputation', async () => {
   const events = await con
     .getRepository(ReputationEvent)
     .find({ where: { targetId: 'p1', grantById: '' } });
+  expect(events.length).toEqual(2);
   expect(events[0].amount).toEqual(100);
   expect(events[1].amount).toEqual(100);
 });
@@ -86,7 +87,7 @@ it('should not create a reputation event for the author that shared the post', a
   expect(events.length).toEqual(0);
 });
 
-it('should not create a reputation event for the author of the welcome post', async () => {
+it('should create a reputation decrease event for the author of the welcome post', async () => {
   const source = await con.getRepository(Source).findOneBy({ id: 'b' });
   const post = await createSquadWelcomePost(con, source, '2');
   const welcome = await con
@@ -99,10 +100,11 @@ it('should not create a reputation event for the author of the welcome post', as
   const events = await con
     .getRepository(ReputationEvent)
     .find({ where: { targetId: post.id, grantById: '' } });
-  expect(events.length).toEqual(0);
+  expect(events.length).toEqual(1);
+  expect(events[0].amount).toEqual(-100);
 });
 
-it('should not create a reputation event for the author of the freeform post', async () => {
+it('should create a reputation decrease event for the author of the freeform post', async () => {
   const source = await con.getRepository(Source).findOneBy({ id: 'b' });
   const post = await createSquadWelcomePost(con, source, '2');
   await con
@@ -118,5 +120,22 @@ it('should not create a reputation event for the author of the freeform post', a
   const events = await con
     .getRepository(ReputationEvent)
     .find({ where: { targetId: post.id, grantById: '' } });
-  expect(events.length).toEqual(0);
+  expect(events.length).toEqual(1);
+  expect(events[0].amount).toEqual(-100);
+});
+
+it('should create a reputation event that decreases reputation', async () => {
+  await con
+    .getRepository(Post)
+    .update({ id: 'p1' }, { authorId: '1', scoutId: '2' });
+  const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+  await expectSuccessfulBackground(worker, {
+    post,
+  });
+  const events = await con
+    .getRepository(ReputationEvent)
+    .find({ where: { targetId: 'p1', grantById: '', amount: LessThan(0) } });
+  expect(events.length).toEqual(2);
+  expect(events[0].amount).toEqual(-100);
+  expect(events[1].amount).toEqual(-100);
 });
