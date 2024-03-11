@@ -122,7 +122,7 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
         ),
         non_personalised: new FeedPreferencesConfigGenerator(
           {
-            feed_config_name: FeedConfigName.PersonaliseV25,
+            feed_config_name: FeedConfigName.PersonaliseV27,
             source_types: ['machine', 'squad'],
           },
           opts,
