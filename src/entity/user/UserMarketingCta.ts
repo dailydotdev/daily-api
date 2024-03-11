@@ -1,0 +1,30 @@
+import { Column, Entity, ManyToOne, PrimaryColumn } from 'typeorm';
+import { User } from './User';
+import { MarketingCta } from '../MarketingCTA';
+
+@Entity()
+export class UserMarketingCta {
+  @PrimaryColumn({ type: 'text' })
+  marketingCtaId: string;
+
+  @PrimaryColumn({ length: 36 })
+  userId: string;
+
+  @Column({ default: () => 'now()' })
+  createdAt: Date;
+
+  @Column({ nullable: true })
+  readAt: Date;
+
+  @ManyToOne(() => MarketingCta, {
+    lazy: true,
+    onDelete: 'CASCADE',
+  })
+  marketingCta: MarketingCta;
+
+  @ManyToOne(() => User, {
+    lazy: true,
+    onDelete: 'CASCADE',
+  })
+  user: Promise<User>;
+}
