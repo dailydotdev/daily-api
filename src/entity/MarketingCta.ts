@@ -2,15 +2,15 @@ import { Column, Entity, PrimaryColumn } from 'typeorm';
 
 export type MarketingCtaVariant = 'card' | 'popover';
 
-export type MarketingCtaFlags = Partial<{
-  tagText: string;
-  tagColor: string;
+export type MarketingCtaFlags = {
+  title: string;
+  description?: string;
+  image?: string;
+  tagText?: string;
+  tagColor?: string;
   ctaUrl: string;
   ctaText: string;
-  description: string;
-  image: string;
-  title: string;
-}>;
+};
 
 @Entity()
 export class MarketingCta {
