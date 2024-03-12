@@ -22,11 +22,6 @@ import { ConnectionArguments } from 'graphql-relay/index';
 import { FeedArgs, feedResolver, fixedIdsFeedBuilder } from '../common';
 import { GQLPost } from './posts';
 import { searchMeili } from '../integrations/meilisearch';
-import {
-  features,
-  getUserGrowthBookInstace,
-  SearchVersion,
-} from '../growthbook';
 
 type GQLSearchSession = Pick<SearchSession, 'id' | 'prompt' | 'createdAt'>;
 
@@ -129,6 +124,11 @@ export const typeDefs = /* GraphQL */ `
       The query to search for
       """
       query: String!
+
+      """
+      Version of the search algorithm
+      """
+      version: Int = 1
     ): SearchPostSuggestionsResults!
 
     """
@@ -159,6 +159,11 @@ export const typeDefs = /* GraphQL */ `
       Array of supported post types
       """
       supportedTypes: [String!]
+
+      """
+      Version of the search algorithm
+      """
+      version: Int = 1
     ): PostConnection!
   }
 
@@ -219,9 +224,21 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       getSession(ctx.userId, id),
     searchPostSuggestions: async (
       source,
-      { query }: { query: string },
+      { query, version }: { query: string; version: number },
       ctx,
     ): Promise<GQLSearchPostSuggestionsResults> => {
+      if (version === 2) {
+        const hits = await searchMeili(
+          `q=${query}&attributesToRetrieve=post_id,title`,
+        );
+        return {
+          query,
+          hits: hits.map((x) => ({
+            id: x.post_id,
+            title: x.title,
+          })),
+        };
+      }
       const hits: GQLSearchPostSuggestion[] = await ctx.con.query(
         `
             WITH search AS (${getSearchQuery('$1')})
@@ -242,17 +259,11 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
     },
     searchPosts: async (
       source,
-      args: FeedArgs & { query: string },
+      args: FeedArgs & { query: string; version: number },
       ctx,
       info,
     ): Promise<ConnectionRelay<GQLPost> & { query: string }> => {
-      const gbClient = getUserGrowthBookInstace(ctx.userId);
-      const searchVersion = gbClient.getFeatureValue(
-        features.searchVersion.id,
-        features.searchVersion.defaultValue,
-      );
-
-      if (searchVersion === SearchVersion.V1) {
+      if (args.version === 2) {
         const meilieSearchRes = await searchMeili(
           `q=${args.query}&attributesToRetrieve=post_id`,
         );

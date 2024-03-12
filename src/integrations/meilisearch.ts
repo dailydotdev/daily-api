@@ -8,6 +8,7 @@ const meiliIndex = process.env.MEILI_INDEX;
 
 type Meili = {
   post_id: string;
+  title?: string;
 };
 interface MeiliResponse {
   hits: Meili[];
