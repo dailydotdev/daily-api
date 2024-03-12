@@ -1,4 +1,4 @@
-import { Column, Entity, ManyToOne, PrimaryColumn } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 import { User } from './User';
 import { MarketingCta } from '../MarketingCta';
 
@@ -20,6 +20,7 @@ export class UserMarketingCta {
     lazy: true,
     onDelete: 'CASCADE',
   })
+  @JoinColumn({ name: 'marketingCtaId' })
   marketingCta: MarketingCta;
 
   @ManyToOne(() => User, {
