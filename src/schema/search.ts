@@ -19,8 +19,9 @@ import {
 import { Connection as ConnectionRelay } from 'graphql-relay/connection/connection';
 import graphorm from '../graphorm';
 import { ConnectionArguments } from 'graphql-relay/index';
-import { FeedArgs, feedResolver } from '../common';
+import { FeedArgs, feedResolver, fixedIdsFeedBuilder } from '../common';
 import { GQLPost } from './posts';
+import { searchMeili } from '../integrations/meilisearch';
 
 type GQLSearchSession = Pick<SearchSession, 'id' | 'prompt' | 'createdAt'>;
 
@@ -123,6 +124,11 @@ export const typeDefs = /* GraphQL */ `
       The query to search for
       """
       query: String!
+
+      """
+      Version of the search algorithm
+      """
+      version: Int = 1
     ): SearchPostSuggestionsResults!
 
     """
@@ -153,6 +159,11 @@ export const typeDefs = /* GraphQL */ `
       Array of supported post types
       """
       supportedTypes: [String!]
+
+      """
+      Version of the search algorithm
+      """
+      version: Int = 1
     ): PostConnection!
   }
 
@@ -172,6 +183,18 @@ const searchResolver = feedResolver(
       })
       .orderBy('ts_rank(tsv, search.query)', 'DESC')
       .orderBy('"createdAt"', 'DESC'),
+  offsetPageGenerator(30, 50),
+  (ctx, args, page, builder) => builder.limit(page.limit).offset(page.offset),
+  {
+    removeHiddenPosts: true,
+    removeBannedPosts: false,
+    allowPrivateSources: false,
+  },
+);
+
+const meiliSearchResolver = feedResolver(
+  (ctx, { ids }: FeedArgs & { ids: string[] }, builder, alias) =>
+    fixedIdsFeedBuilder(ctx, ids, builder, alias),
   offsetPageGenerator(30, 50),
   (ctx, args, page, builder) => builder.limit(page.limit).offset(page.offset),
   {
@@ -201,9 +224,21 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       getSession(ctx.userId, id),
     searchPostSuggestions: async (
       source,
-      { query }: { query: string },
+      { query, version }: { query: string; version: number },
       ctx,
     ): Promise<GQLSearchPostSuggestionsResults> => {
+      if (version === 2) {
+        const hits = await searchMeili(
+          `q=${query}&attributesToRetrieve=post_id,title`,
+        );
+        return {
+          query,
+          hits: hits.map((x) => ({
+            id: x.post_id,
+            title: x.title,
+          })),
+        };
+      }
       const hits: GQLSearchPostSuggestion[] = await ctx.con.query(
         `
             WITH search AS (${getSearchQuery('$1')})
@@ -224,10 +259,27 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
     },
     searchPosts: async (
       source,
-      args: FeedArgs & { query: string },
+      args: FeedArgs & { query: string; version: number },
       ctx,
       info,
     ): Promise<ConnectionRelay<GQLPost> & { query: string }> => {
+      if (args.version === 2) {
+        const meilieSearchRes = await searchMeili(
+          `q=${args.query}&attributesToRetrieve=post_id`,
+        );
+
+        const meilieArgs: FeedArgs & { ids: string[] } = {
+          ...args,
+          ids: meilieSearchRes.map((x) => x.post_id),
+        };
+
+        const res = await meiliSearchResolver(source, meilieArgs, ctx, info);
+        return {
+          ...res,
+          query: args.query,
+        };
+      }
+
       const res = await searchResolver(source, args, ctx, info);
       return {
         ...res,

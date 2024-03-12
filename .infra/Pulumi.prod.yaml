@@ -62,6 +62,12 @@ config:
       secure: AAABAAAcNFaMFyerA4UVMKYeQYf69uQ0mMfl2I0DIiKOBa6HwtbnTXoA1N4OwidUgnIRlGzdYrgQWzQTMsimcE/Yarpceg==
     magniOrigin:
       secure: AAABAHxH1dQ0e4nHwnseCd65qMd7qz3vSsKV/H0vMQIKWjxS4H7BemSLMpPGEH7YsDLUM9hEMw==
+    meiliIndex:
+      secure: AAABADypa9PiyaCl1GQdpBI+5tcJRA0G894+ZL/lqfW3iWEetKlYQg==
+    meiliOrigin:
+      secure: AAABAEueTZvzwG4iG4mZtiCnTO/NJafye14NBJQUaOWcRSs5+kymF+LMYk/Muqragwku/+7ZMuohDZ2lFQZD4sES6HiNVfBVTIkqjFh53lk=
+    meiliToken:
+      secure: AAABAIb8OOQKe7BopTHOYpKey+GCet0D+d0PKoTQBLZv6w1f6C0CjSL8SReV3toI1PVkMc9K65/WscTCZKJPO4PAIjKSrx5G
     nodeEnv: production
     ogUrl:
       secure: AAABAALHhEXgjaHbmM/389iGJ+mAweDwlWup8z1We+zmalk8DXIGAg+jjEC/58kl5VeBJw==
