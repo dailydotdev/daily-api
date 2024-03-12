@@ -15,13 +15,13 @@ export type MarketingCtaFlags = Partial<{
 @Entity()
 export class MarketingCta {
   @PrimaryColumn({ type: 'text' })
-  campaignId?: string;
+  campaignId: string;
 
   @Column({ default: () => 'now()' })
   createdAt: Date;
 
   @Column({ type: 'text' })
-  variant?: MarketingCtaVariant;
+  variant: MarketingCtaVariant;
 
   @Column({ type: 'jsonb', default: {} })
   flags: MarketingCtaFlags;
