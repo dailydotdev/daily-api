@@ -90,6 +90,7 @@ export type LoggedInBoot = BaseBoot & {
     canSubmitArticle: boolean;
   };
   accessToken: AccessToken;
+  marketingCta: null;
 };
 
 type BootMiddleware = (
@@ -399,6 +400,7 @@ const loggedInBoot = async (
       squads,
       accessToken,
       exp,
+      marketingCta: null,
       ...extra,
     };
   });

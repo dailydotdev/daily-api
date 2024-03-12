@@ -91,6 +91,7 @@ const LOGGED_IN_BODY = {
     company: null,
     cover: null,
   },
+  marketingCta: null,
 };
 
 const ANONYMOUS_BODY = {
