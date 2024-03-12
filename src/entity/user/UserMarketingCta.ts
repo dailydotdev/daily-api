@@ -1,6 +1,6 @@
 import { Column, Entity, ManyToOne, PrimaryColumn } from 'typeorm';
 import { User } from './User';
-import { MarketingCta } from '../MarketingCTA';
+import { MarketingCta } from '../MarketingCta';
 
 @Entity()
 export class UserMarketingCta {
