@@ -7,7 +7,7 @@ export class UserMarketingCta {
   @PrimaryColumn({ type: 'text' })
   marketingCtaId: string;
 
-  @PrimaryColumn({ length: 36 })
+  @PrimaryColumn({ type: 'text' })
   userId: string;
 
   @Column({ default: () => 'now()' })
