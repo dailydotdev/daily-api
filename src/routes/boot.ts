@@ -331,17 +331,24 @@ const getUser = (con: DataSource, userId: string): Promise<User> =>
   });
 
 const getMarketingCta = async (con: DataSource, userId: string) => {
+  let marketingCta: MarketingCta | null = null;
   const redisKey = generateStorageKey(
     StorageTopic.Boot,
     'marketing_cta',
     userId,
   );
-  let marketingCtaFromRedis: MarketingCta = JSON.parse(
-    await getRedisObject(redisKey),
-  );
+  const rawRedisValue = await getRedisObject(redisKey);
 
-  if (!marketingCtaFromRedis) {
-    // TODO: remove log
+  if (rawRedisValue === 'SLEEPING') {
+    // TODO: remove log or replace with proper logging
+    console.log('sleeping, not fetching from db');
+    return null;
+  } else {
+    marketingCta = JSON.parse(rawRedisValue);
+  }
+
+  if (!marketingCta) {
+    // TODO: remove log or replace with proper logging
     console.log('fetching from db');
     const userMarketingCta = await con.getRepository(UserMarketingCta).findOne({
       where: { userId, readAt: IsNull() },
@@ -350,14 +357,19 @@ const getMarketingCta = async (con: DataSource, userId: string) => {
     });
 
     if (userMarketingCta) {
-      marketingCtaFromRedis = userMarketingCta.marketingCta;
-      await setRedisObject(redisKey, JSON.stringify(marketingCtaFromRedis));
+      marketingCta = userMarketingCta.marketingCta;
+      await setRedisObject(redisKey, JSON.stringify(marketingCta));
     } else {
-      marketingCtaFromRedis = null;
+      marketingCta = null;
+      // TODO: replace 10 with ONE_HOUR_IN_SECONDS
+      await setRedisObjectWithExpiry(redisKey, 'SLEEPING', 10);
     }
+  } else {
+    // TODO: remove log or replace with proper logging
+    console.log('fetched from redis');
   }
 
-  return marketingCtaFromRedis;
+  return marketingCta;
 };
 
 const loggedInBoot = async (
