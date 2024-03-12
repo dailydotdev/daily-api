@@ -81,6 +81,11 @@ export class Feature<T extends JSONValue> {
   }
 }
 
+export enum SearchVersion {
+  Control = 'control',
+  V1 = 'v1',
+}
+
 export const features = {
   personalizedDigest: new Feature('personalized_digest', {
     templateId: 'd-328d1104d2e04fa1ab91e410e02751cb',
@@ -96,4 +101,5 @@ export const features = {
     maxPosts: 5,
     longTextLimit: 150,
   }),
+  searchVersion: new Feature('search_version', SearchVersion.Control),
 };

@@ -19,8 +19,14 @@ import {
 import { Connection as ConnectionRelay } from 'graphql-relay/connection/connection';
 import graphorm from '../graphorm';
 import { ConnectionArguments } from 'graphql-relay/index';
-import { FeedArgs, feedResolver } from '../common';
+import { FeedArgs, feedResolver, fixedIdsFeedBuilder } from '../common';
 import { GQLPost } from './posts';
+import { searchMeili } from '../integrations/meilisearch';
+import {
+  features,
+  getUserGrowthBookInstace,
+  SearchVersion,
+} from '../growthbook';
 
 type GQLSearchSession = Pick<SearchSession, 'id' | 'prompt' | 'createdAt'>;
 
@@ -181,6 +187,18 @@ const searchResolver = feedResolver(
   },
 );
 
+const meiliSearchResolver = feedResolver(
+  (ctx, { ids }: FeedArgs & { ids: string[] }, builder, alias) =>
+    fixedIdsFeedBuilder(ctx, ids, builder, alias),
+  offsetPageGenerator(30, 50),
+  (ctx, args, page, builder) => builder.limit(page.limit).offset(page.offset),
+  {
+    removeHiddenPosts: true,
+    removeBannedPosts: false,
+    allowPrivateSources: false,
+  },
+);
+
 export const resolvers: IResolvers<unknown, Context> = traceResolvers({
   Query: {
     searchSessionHistory: async (
@@ -228,6 +246,29 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       ctx,
       info,
     ): Promise<ConnectionRelay<GQLPost> & { query: string }> => {
+      const gbClient = getUserGrowthBookInstace(ctx.userId);
+      const searchVersion = gbClient.getFeatureValue(
+        features.searchVersion.id,
+        features.searchVersion.defaultValue,
+      );
+
+      if (searchVersion === SearchVersion.V1) {
+        const meilieSearchRes = await searchMeili(
+          `q=${args.query}&attributesToRetrieve=post_id`,
+        );
+
+        const meilieArgs: FeedArgs & { ids: string[] } = {
+          ...args,
+          ids: meilieSearchRes.map((x) => x.post_id),
+        };
+
+        const res = await meiliSearchResolver(source, meilieArgs, ctx, info);
+        return {
+          ...res,
+          query: args.query,
+        };
+      }
+
       const res = await searchResolver(source, args, ctx, info);
       return {
         ...res,
