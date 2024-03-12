@@ -30,12 +30,7 @@ import {
   setRedisObject,
   setRedisObjectWithExpiry,
 } from '../redis';
-import {
-  generateStorageKey,
-  getRedisMarketingCtaKey,
-  REDIS_BANNER_KEY,
-  StorageTopic,
-} from '../config';
+import { generateStorageKey, REDIS_BANNER_KEY, StorageTopic } from '../config';
 import { base64, getSourceLink, submitArticleThreshold } from '../common';
 import { AccessToken, signJwt } from '../auth';
 import { cookies, setCookie, setRawCookie } from '../cookies';
@@ -336,7 +331,11 @@ const getUser = (con: DataSource, userId: string): Promise<User> =>
   });
 
 const getMarketingCta = async (con: DataSource, userId: string) => {
-  const redisKey = getRedisMarketingCtaKey(userId);
+  const redisKey = generateStorageKey(
+    StorageTopic.Boot,
+    'marketing_cta',
+    userId,
+  );
   let marketingCtaFromRedis: MarketingCta = JSON.parse(
     await getRedisObject(redisKey),
   );

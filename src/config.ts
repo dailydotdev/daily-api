@@ -11,8 +11,6 @@ export const fallbackImages = {
 };
 
 export const REDIS_BANNER_KEY = 'boot:latest_banner';
-export const getRedisMarketingCtaKey = (userId: string) =>
-  `boot:marketing_cta:${userId}`;
 
 export enum StorageTopic {
   Boot = 'boot',
