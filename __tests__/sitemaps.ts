@@ -5,8 +5,9 @@ import nock from 'nock';
 import { saveFixtures } from './helpers';
 import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../src/db';
-import { Post, PostType, Source } from '../src/entity';
+import { Keyword, Post, PostType, Source } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
+import { keywordsFixture } from './fixture/keywords';
 let app: FastifyInstance;
 let con: DataSource;
 
@@ -64,6 +65,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   nock.cleanAll();
+  await saveFixtures(con, Keyword, keywordsFixture);
   await saveFixtures(con, Source, sourcesFixture);
   await con.getRepository(Post).insert(postsFixture);
 });
@@ -80,6 +82,20 @@ describe('GET /sitemaps/posts.txt', () => {
     expect(res.text).toEqual(`http://localhost:5002/posts/p1
 http://localhost:5002/posts/p4
 http://localhost:5002/posts/p5
+`);
+  });
+});
+
+describe('GET /sitemaps/tags.txt', () => {
+  it('should return tags ordered alphabetically', async () => {
+    const res = await request(app.server).get('/sitemaps/tags.txt').expect(200);
+    expect(res.header['content-type']).toEqual('text/plain');
+    expect(res.header['cache-control']).toBeTruthy();
+    expect(res.text).toEqual(`http://localhost:5002/tags/development
+http://localhost:5002/tags/fullstack
+http://localhost:5002/tags/golang
+http://localhost:5002/tags/rust
+http://localhost:5002/tags/webdev
 `);
   });
 });
