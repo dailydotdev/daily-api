@@ -77,6 +77,7 @@ describe('PostsRepository', () => {
       tags_str: 'javascript,webdev',
       flags_json_str:
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
+      language: 'en',
     });
     expect(posts).toContainEqual<TinybirdPost>({
       author_id: 'author2',
@@ -93,6 +94,7 @@ describe('PostsRepository', () => {
       tags_str: null,
       flags_json_str:
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
+      language: 'en',
     });
     expect(posts).toContainEqual<TinybirdPost>({
       author_id: 'scout3',
@@ -109,6 +111,7 @@ describe('PostsRepository', () => {
       tags_str: null,
       flags_json_str:
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
+      language: 'en',
     });
     expect(posts).toContainEqual<TinybirdPost>({
       author_id: 'scout4',
@@ -125,6 +128,7 @@ describe('PostsRepository', () => {
       tags_str: 'backend,data,javascript',
       flags_json_str:
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
+      language: 'en',
     });
     expect(posts).toContainEqual<TinybirdPost>({
       author_id: 'author5',
@@ -141,6 +145,7 @@ describe('PostsRepository', () => {
       tags_str: 'html,javascript',
       flags_json_str:
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
+      language: 'en',
     });
     expect(posts).toContainEqual<TinybirdPost>({
       author_id: 'scout6',
@@ -157,6 +162,7 @@ describe('PostsRepository', () => {
       tags_str: null,
       flags_json_str:
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
+      language: 'en',
     });
     expect(posts).toContainEqual<TinybirdPost>({
       author_id: null,
@@ -173,6 +179,7 @@ describe('PostsRepository', () => {
       tags_str: null,
       flags_json_str:
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
+      language: 'en',
     });
   });
 });
@@ -216,6 +223,7 @@ describe('PostsMetadataRepository', () => {
         banned: 0,
         flags_json_str:
           '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
+        language: 'en',
       },
       {
         id: 'id2',
@@ -232,6 +240,7 @@ describe('PostsMetadataRepository', () => {
         banned: 0,
         flags_json_str:
           '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
+        language: 'en',
       },
     ];
 
