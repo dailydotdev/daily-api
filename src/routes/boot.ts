@@ -332,6 +332,10 @@ const getUser = (con: DataSource, userId: string): Promise<User> =>
   });
 
 const getMarketingCta = async (con: DataSource, userId: string) => {
+  if (!userId) {
+    return null;
+  }
+
   let marketingCta: MarketingCta | null = null;
   const redisKey = generateStorageKey(
     StorageTopic.Boot,
