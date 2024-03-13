@@ -26,6 +26,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     }
 
     await deleteUser(con, req.log, userId);
-    return logout(req, res, true);
+    return logout(req, res);
   });
 }

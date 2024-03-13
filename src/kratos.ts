@@ -160,7 +160,6 @@ export const dispatchWhoami = async (
 export const logout = async (
   req: FastifyRequest,
   res: FastifyReply,
-  isDeleted = false,
 ): Promise<FastifyReply> => {
   try {
     const { res: logoutFlow } = await fetchKratos(
@@ -177,10 +176,6 @@ export const logout = async (
       req.log.warn({ err: e }, 'unexpected error while logging out');
     }
   }
-  await clearAuthentication(
-    req,
-    res,
-    isDeleted ? 'deletion logout' : 'manual logout',
-  );
+  await clearAuthentication(req, res, 'manual logout');
   return res.status(204).send();
 };
