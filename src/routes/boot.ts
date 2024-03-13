@@ -355,16 +355,12 @@ const getMarketingCta = async (
   const rawRedisValue = await getRedisObject(redisKey);
 
   if (rawRedisValue === RedisMagicValues.SLEEPING) {
-    // TODO: remove log or replace with proper logging
-    console.log('sleeping, not fetching from db');
     return null;
   } else {
     marketingCta = JSON.parse(rawRedisValue);
   }
 
   if (!marketingCta) {
-    // TODO: remove log or replace with proper logging
-    console.log('fetching from db');
     const userMarketingCta = await con.getRepository(UserMarketingCta).findOne({
       where: { userId, readAt: IsNull() },
       order: { createdAt: 'ASC' },
@@ -378,9 +374,6 @@ const getMarketingCta = async (
       marketingCta = null;
       await setRedisObject(redisKey, RedisMagicValues.SLEEPING);
     }
-  } else {
-    // TODO: remove log or replace with proper logging
-    console.log('fetched from redis');
   }
 
   return marketingCta;
