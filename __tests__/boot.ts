@@ -43,6 +43,7 @@ import {
 import {
   generateStorageKey,
   REDIS_BANNER_KEY,
+  StorageKey,
   StorageTopic,
 } from '../src/config';
 import nock from 'nock';
@@ -429,7 +430,7 @@ describe('boot marketing cta', () => {
     expect(res.body.marketingCta).toBeNull();
     expect(
       await getRedisObject(
-        generateStorageKey(StorageTopic.Boot, 'marketing_cta', userId),
+        generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, userId),
       ),
     ).toEqual(RedisMagicValues.SLEEPING);
   });
@@ -446,7 +447,7 @@ describe('boot marketing cta', () => {
     expect(res.body.marketingCta).toBeNull();
     expect(
       await getRedisObject(
-        generateStorageKey(StorageTopic.Boot, 'marketing_cta', userId),
+        generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, userId),
       ),
     ).toEqual(RedisMagicValues.SLEEPING);
   });
@@ -474,7 +475,7 @@ describe('boot marketing cta', () => {
 
     expect(
       await getRedisObject(
-        generateStorageKey(StorageTopic.Boot, 'marketing_cta', userId),
+        generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, userId),
       ),
     ).toBeNull();
 
@@ -499,7 +500,11 @@ describe('boot marketing cta', () => {
     expect(res.body.marketingCta).toMatchObject(
       JSON.parse(
         (await getRedisObject(
-          generateStorageKey(StorageTopic.Boot, 'marketing_cta', userId),
+          generateStorageKey(
+            StorageTopic.Boot,
+            StorageKey.MarketingCta,
+            userId,
+          ),
         )) as string,
       ),
     );

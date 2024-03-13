@@ -36,7 +36,12 @@ import {
   setRedisObject,
   setRedisObjectWithExpiry,
 } from '../redis';
-import { generateStorageKey, REDIS_BANNER_KEY, StorageTopic } from '../config';
+import {
+  generateStorageKey,
+  REDIS_BANNER_KEY,
+  StorageKey,
+  StorageTopic,
+} from '../config';
 import { base64, getSourceLink, submitArticleThreshold } from '../common';
 import { AccessToken, signJwt } from '../auth';
 import { cookies, setCookie, setRawCookie } from '../cookies';
@@ -349,7 +354,7 @@ const getMarketingCta = async (
   let marketingCta: MarketingCta | null = null;
   const redisKey = generateStorageKey(
     StorageTopic.Boot,
-    'marketing_cta',
+    StorageKey.MarketingCta,
     userId,
   );
   const rawRedisValue = await getRedisObject(redisKey);
