@@ -27,6 +27,7 @@ import {
   getRedisObject,
   ioRedisPool,
   ONE_DAY_IN_SECONDS,
+  RedisMagicValues,
   setRedisObject,
   setRedisObjectWithExpiry,
 } from '../redis';
@@ -339,7 +340,7 @@ const getMarketingCta = async (con: DataSource, userId: string) => {
   );
   const rawRedisValue = await getRedisObject(redisKey);
 
-  if (rawRedisValue === 'SLEEPING') {
+  if (rawRedisValue === RedisMagicValues.SLEEPING) {
     // TODO: remove log or replace with proper logging
     console.log('sleeping, not fetching from db');
     return null;
@@ -362,7 +363,7 @@ const getMarketingCta = async (con: DataSource, userId: string) => {
     } else {
       marketingCta = null;
       // TODO: replace 10 with ONE_HOUR_IN_SECONDS
-      await setRedisObjectWithExpiry(redisKey, 'SLEEPING', 10);
+      await setRedisObjectWithExpiry(redisKey, RedisMagicValues.SLEEPING, 10);
     }
   } else {
     // TODO: remove log or replace with proper logging
