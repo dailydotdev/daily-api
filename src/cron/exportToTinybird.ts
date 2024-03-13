@@ -24,6 +24,7 @@ export interface TinybirdPost {
   source_type: string;
   banned: number;
   flags_json_str: string;
+  language: string;
 }
 
 export interface PostsRepositoryDependency {
@@ -52,7 +53,8 @@ export class PostsRepository implements PostsRepositoryDependency {
               "private"::int      AS "post_private",
               "contentCuration"   AS "content_curation",
               (SELECT "s"."type" FROM "source" AS "s" WHERE "s"."id" = "sourceId") AS "source_type",
-              flags::varchar      AS flags_json_str
+              flags::varchar      AS flags_json_str,
+              "language"          AS "language"
        FROM "post"
        WHERE "metadataChangedAt" > $1
          and "sourceId" != '${UNKNOWN_SOURCE}'
@@ -121,6 +123,7 @@ export class PostsMetadataRepository
     'content_curation',
     'source_type',
     'flags_json_str',
+    'language',
   ];
 
   public async append(posts: TinybirdPost[]): Promise<PostDatasourceResult> {
