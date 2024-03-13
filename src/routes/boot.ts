@@ -1,4 +1,9 @@
-import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import {
+  FastifyBaseLogger,
+  FastifyInstance,
+  FastifyReply,
+  FastifyRequest,
+} from 'fastify';
 import createOrGetConnection from '../db';
 import { DataSource, EntityManager, IsNull } from 'typeorm';
 import { clearAuthentication, dispatchWhoami } from '../kratos';
