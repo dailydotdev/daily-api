@@ -331,8 +331,13 @@ const getUser = (con: DataSource, userId: string): Promise<User> =>
     ],
   });
 
-const getMarketingCta = async (con: DataSource, userId: string) => {
+const getMarketingCta = async (
+  con: DataSource,
+  log: FastifyBaseLogger,
+  userId: string,
+) => {
   if (!userId) {
+    log.info('no userId provided when fetching marketing cta');
     return null;
   }
 
@@ -384,7 +389,7 @@ const loggedInBoot = async (
   middleware?: BootMiddleware,
 ): Promise<LoggedInBoot | AnonymousBoot> =>
   runInSpan('loggedInBoot', async () => {
-    const { userId } = req;
+    const { userId, log } = req;
     const [
       visit,
       user,
@@ -407,7 +412,7 @@ const loggedInBoot = async (
       getSquads(con, userId),
       getAndUpdateLastBannerRedis(con),
       getExperimentation(userId, con),
-      getMarketingCta(con, userId),
+      getMarketingCta(con, log, userId),
       middleware ? middleware(con, req, res) : {},
     ]);
     if (!user) {
