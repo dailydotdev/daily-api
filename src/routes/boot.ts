@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import createOrGetConnection from '../db';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, IsNull } from 'typeorm';
 import { clearAuthentication, dispatchWhoami } from '../kratos';
 import { generateUUID } from '../ids';
 import { generateSessionId, setTrackingId } from '../tracking';
@@ -30,7 +30,12 @@ import {
   setRedisObject,
   setRedisObjectWithExpiry,
 } from '../redis';
-import { generateStorageKey, REDIS_BANNER_KEY, StorageTopic } from '../config';
+import {
+  generateStorageKey,
+  getRedisMarketingCtaKey,
+  REDIS_BANNER_KEY,
+  StorageTopic,
+} from '../config';
 import { base64, getSourceLink, submitArticleThreshold } from '../common';
 import { AccessToken, signJwt } from '../auth';
 import { cookies, setCookie, setRawCookie } from '../cookies';
@@ -43,6 +48,8 @@ import { getEncryptedFeatures } from '../growthbook';
 import { differenceInMinutes } from 'date-fns';
 import { runInSpan } from '../telemetry/opentelemetry';
 import { getUnreadNotificationsCount } from '../notifications/common';
+import { UserMarketingCta } from '../entity/user/UserMarketingCta';
+import { MarketingCta } from '../entity/MarketingCta';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -90,7 +97,7 @@ export type LoggedInBoot = BaseBoot & {
     canSubmitArticle: boolean;
   };
   accessToken: AccessToken;
-  marketingCta: null;
+  marketingCta: MarketingCta | null;
 };
 
 type BootMiddleware = (
@@ -328,6 +335,32 @@ const getUser = (con: DataSource, userId: string): Promise<User> =>
     ],
   });
 
+const getMarketingCta = async (con: DataSource, userId: string) => {
+  const redisKey = getRedisMarketingCtaKey(userId);
+  let marketingCtaFromRedis: MarketingCta = JSON.parse(
+    await getRedisObject(redisKey),
+  );
+
+  if (!marketingCtaFromRedis) {
+    // TODO: remove log
+    console.log('fetching from db');
+    const userMarketingCta = await con.getRepository(UserMarketingCta).findOne({
+      where: { userId, readAt: IsNull() },
+      order: { createdAt: 'ASC' },
+      relations: ['marketingCta'],
+    });
+
+    if (userMarketingCta) {
+      marketingCtaFromRedis = userMarketingCta.marketingCta;
+      await setRedisObject(redisKey, JSON.stringify(marketingCtaFromRedis));
+    } else {
+      marketingCtaFromRedis = null;
+    }
+  }
+
+  return marketingCtaFromRedis;
+};
+
 const loggedInBoot = async (
   con: DataSource,
   req: FastifyRequest,
@@ -347,6 +380,7 @@ const loggedInBoot = async (
       squads,
       lastBanner,
       exp,
+      marketingCta,
       extra,
     ] = await Promise.all([
       visitSection(req, res),
@@ -358,6 +392,7 @@ const loggedInBoot = async (
       getSquads(con, userId),
       getAndUpdateLastBannerRedis(con),
       getExperimentation(userId, con),
+      getMarketingCta(con, userId),
       middleware ? middleware(con, req, res) : {},
     ]);
     if (!user) {
@@ -400,7 +435,7 @@ const loggedInBoot = async (
       squads,
       accessToken,
       exp,
-      marketingCta: null,
+      marketingCta,
       ...extra,
     };
   });
