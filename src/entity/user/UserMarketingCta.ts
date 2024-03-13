@@ -17,7 +17,6 @@ export class UserMarketingCta {
   readAt: Date;
 
   @ManyToOne(() => MarketingCta, {
-    eager: true,
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'marketingCtaId' })
