@@ -1212,7 +1212,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       ctx,
       info,
     ): Promise<GQLPost[]> => {
-      if (args.post && ctx.userId) {
+      if (args.post) {
         const res = await feedGenerators['post_similarity'].generate(ctx, {
           user_id: ctx.userId,
           page_size: args.first || 3,
