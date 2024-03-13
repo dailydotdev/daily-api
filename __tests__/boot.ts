@@ -418,7 +418,7 @@ describe('boot marketing cta', () => {
     expect(res.body).not.toHaveProperty('marketingCta');
   });
 
-  it('should return null for marketing cta if user has no marketing cta', async () => {
+  it('should return null if the user has no marketing cta', async () => {
     const userId = '1';
     mockLoggedIn(userId);
     const res = await request(app.server)
@@ -435,7 +435,35 @@ describe('boot marketing cta', () => {
     ).toEqual(RedisMagicValues.SLEEPING);
   });
 
-  it('should return null for marketing cta if user has no marketing cta', async () => {
+  it('should not check the database if redis value is set to sleeping', async () => {
+    const userId = '1';
+    mockLoggedIn(userId);
+    await setRedisObject(
+      generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, userId),
+      RedisMagicValues.SLEEPING,
+    );
+
+    expect(
+      await getRedisObject(
+        generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, userId),
+      ),
+    ).toEqual(RedisMagicValues.SLEEPING);
+
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+
+    expect(res.body.marketingCta).toBeNull();
+    expect(
+      await getRedisObject(
+        generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, userId),
+      ),
+    ).toEqual(RedisMagicValues.SLEEPING);
+  });
+
+  it('should return null if user has no marketing cta on future ', async () => {
     const userId = '1';
     mockLoggedIn(userId);
     const res = await request(app.server)
