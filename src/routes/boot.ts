@@ -362,8 +362,7 @@ const getMarketingCta = async (con: DataSource, userId: string) => {
       await setRedisObject(redisKey, JSON.stringify(marketingCta));
     } else {
       marketingCta = null;
-      // TODO: replace 10 with ONE_HOUR_IN_SECONDS
-      await setRedisObjectWithExpiry(redisKey, RedisMagicValues.SLEEPING, 10);
+      await setRedisObject(redisKey, RedisMagicValues.SLEEPING);
     }
   } else {
     // TODO: remove log or replace with proper logging
