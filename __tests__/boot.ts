@@ -16,6 +16,7 @@ import {
   Feature,
   FeatureType,
   MachineSource,
+  MarketingCta,
   Post,
   Settings,
   SETTINGS_DEFAULT,
@@ -25,12 +26,18 @@ import {
   SQUAD_IMAGE_PLACEHOLDER,
   SquadSource,
   User,
+  UserMarketingCta,
   UserPostVote,
 } from '../src/entity';
 import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { notificationV2Fixture } from './fixture/notifications';
 import { usersFixture } from './fixture/user';
-import { getRedisObject, ioRedisPool, setRedisObject } from '../src/redis';
+import {
+  getRedisObject,
+  ioRedisPool,
+  RedisMagicValues,
+  setRedisObject,
+} from '../src/redis';
 import {
   generateStorageKey,
   REDIS_BANNER_KEY,
@@ -396,6 +403,105 @@ describe('logged in boot', () => {
           LOGGED_IN_BODY.user.reputation >= submitArticleThreshold,
       },
     });
+  });
+});
+
+describe('boot marketing cta', () => {
+  it('should not return marketing cta for anonymous user', async () => {
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+
+    expect(res.body).not.toHaveProperty('marketingCta');
+  });
+
+  it('should return null for marketing cta if user has no marketing cta', async () => {
+    const userId = '1';
+    mockLoggedIn(userId);
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+
+    expect(res.body.marketingCta).toBeNull();
+    expect(
+      await getRedisObject(
+        generateStorageKey(StorageTopic.Boot, 'marketing_cta', userId),
+      ),
+    ).toEqual(RedisMagicValues.SLEEPING);
+  });
+
+  it('should return null for marketing cta if user has no marketing cta', async () => {
+    const userId = '1';
+    mockLoggedIn(userId);
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+
+    expect(res.body.marketingCta).toBeNull();
+    expect(
+      await getRedisObject(
+        generateStorageKey(StorageTopic.Boot, 'marketing_cta', userId),
+      ),
+    ).toEqual(RedisMagicValues.SLEEPING);
+  });
+
+  it('should return marketing cta for user', async () => {
+    const userId = '1';
+    mockLoggedIn(userId);
+
+    await con.getRepository(MarketingCta).save({
+      campaignId: 'worlds-best-campaign',
+      variant: 'card',
+      createdAt: new Date('2024-03-13 12:00:00'),
+      flags: {
+        title: 'Join the best community in the world',
+        description: 'Join the best community in the world',
+        ctaUrl: 'http://localhost:5002',
+        ctaText: 'Join now',
+      },
+    });
+    await con.getRepository(UserMarketingCta).save({
+      marketingCtaId: 'worlds-best-campaign',
+      userId,
+      createdAt: new Date('2024-03-13 12:00:00'),
+    });
+
+    expect(
+      await getRedisObject(
+        generateStorageKey(StorageTopic.Boot, 'marketing_cta', userId),
+      ),
+    ).toBeNull();
+
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+
+    expect(res.body.marketingCta).toMatchObject({
+      campaignId: 'worlds-best-campaign',
+      variant: 'card',
+      createdAt: '2024-03-13T12:00:00.000Z',
+      flags: {
+        title: 'Join the best community in the world',
+        description: 'Join the best community in the world',
+        ctaUrl: 'http://localhost:5002',
+        ctaText: 'Join now',
+      },
+    });
+
+    expect(res.body.marketingCta).toMatchObject(
+      JSON.parse(
+        (await getRedisObject(
+          generateStorageKey(StorageTopic.Boot, 'marketing_cta', userId),
+        )) as string,
+      ),
+    );
   });
 });
 
