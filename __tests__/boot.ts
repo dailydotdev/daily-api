@@ -17,6 +17,7 @@ import {
   FeatureType,
   MachineSource,
   MarketingCta,
+  NotificationV2,
   Post,
   Settings,
   SETTINGS_DEFAULT,
@@ -27,6 +28,7 @@ import {
   SquadSource,
   User,
   UserMarketingCta,
+  UserNotification,
   UserPostVote,
 } from '../src/entity';
 import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
@@ -55,7 +57,6 @@ import { cookies } from '../src/cookies';
 import { signJwt } from '../src/auth';
 import { submitArticleThreshold } from '../src/common';
 import { saveReturnAlerts } from '../src/schema/alerts';
-import { NotificationV2, UserNotification } from '../src/entity';
 
 let app: FastifyInstance;
 let con: DataSource;
