@@ -32,6 +32,7 @@ import {
   getRedisObject,
   ioRedisPool,
   ONE_DAY_IN_SECONDS,
+  ONE_WEEK_IN_SECONDS,
   RedisMagicValues,
   setRedisObject,
   setRedisObjectWithExpiry,
@@ -374,10 +375,18 @@ const getMarketingCta = async (
 
     if (userMarketingCta) {
       marketingCta = userMarketingCta.marketingCta;
-      await setRedisObject(redisKey, JSON.stringify(marketingCta));
+      await setRedisObjectWithExpiry(
+        redisKey,
+        JSON.stringify(marketingCta),
+        ONE_WEEK_IN_SECONDS,
+      );
     } else {
       marketingCta = null;
-      await setRedisObject(redisKey, RedisMagicValues.SLEEPING);
+      await setRedisObjectWithExpiry(
+        redisKey,
+        RedisMagicValues.SLEEPING,
+        ONE_WEEK_IN_SECONDS,
+      );
     }
   }
 
