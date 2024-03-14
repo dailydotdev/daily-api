@@ -17,6 +17,10 @@ export enum StorageTopic {
   Search = 'search',
 }
 
+export enum StorageKey {
+  MarketingCta = 'marketing_cta',
+}
+
 export const generateStorageKey = (
   topic: StorageTopic,
   key: string,
