@@ -373,21 +373,12 @@ const getMarketingCta = async (
       relations: ['marketingCta'],
     });
 
-    if (userMarketingCta) {
-      marketingCta = userMarketingCta.marketingCta;
-      await setRedisObjectWithExpiry(
-        redisKey,
-        JSON.stringify(marketingCta),
-        ONE_WEEK_IN_SECONDS,
-      );
-    } else {
-      marketingCta = null;
-      await setRedisObjectWithExpiry(
-        redisKey,
-        RedisMagicValues.SLEEPING,
-        ONE_WEEK_IN_SECONDS,
-      );
-    }
+    marketingCta = userMarketingCta?.marketingCta || null;
+    const redisValue = userMarketingCta
+      ? JSON.stringify(marketingCta)
+      : RedisMagicValues.SLEEPING;
+
+    await setRedisObjectWithExpiry(redisKey, redisValue, ONE_WEEK_IN_SECONDS);
   }
 
   return marketingCta;
