@@ -413,3 +413,9 @@ export const checkAndClearUserStreak = async (
 
   return false;
 };
+
+export enum LogoutReason {
+  ManualLogout = 'manual logout',
+  UserDeleted = 'user deleted',
+  KratosSessionAlreadyAvailable = 'kratos session already available',
+}

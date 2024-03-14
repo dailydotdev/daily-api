@@ -6,6 +6,7 @@ import { cookies, setCookie } from './cookies';
 import { setTrackingId } from './tracking';
 import { generateTrackingId } from './ids';
 import { HttpError, retryFetch } from './integrations/retry';
+import { LogoutReason } from './common';
 
 const heimdallOrigin = process.env.HEIMDALL_ORIGIN;
 const kratosOrigin = process.env.KRATOS_ORIGIN;
@@ -162,10 +163,13 @@ export const logout = async (
   res: FastifyReply,
   isDeletion = false,
 ): Promise<FastifyReply> => {
-  const query = req.query as { reason?: string };
-  const reason = isDeletion
-    ? 'deletion logout'
-    : query?.reason || 'manual logout';
+  const query = req.query as { reason?: LogoutReason };
+  const reason =
+    LogoutReason[
+      isDeletion
+        ? LogoutReason.UserDeleted
+        : query?.reason || LogoutReason.ManualLogout
+    ];
 
   try {
     const { res: logoutFlow } = await fetchKratos(
