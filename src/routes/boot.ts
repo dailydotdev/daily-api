@@ -352,7 +352,6 @@ const getMarketingCta = async (
     return null;
   }
 
-  let marketingCta: MarketingCta | null = null;
   const redisKey = generateStorageKey(
     StorageTopic.Boot,
     StorageKey.MarketingCta,
@@ -362,10 +361,12 @@ const getMarketingCta = async (
 
   if (rawRedisValue === RedisMagicValues.SLEEPING) {
     return null;
-  } else {
-    marketingCta = JSON.parse(rawRedisValue);
   }
 
+  // If the vale in redis is `EMPTY`, we fallback to `null`
+  let marketingCta: MarketingCta | null = JSON.parse(rawRedisValue || null);
+
+  // If the key is not in redis, we need to fetch it from the database
   if (!marketingCta) {
     const userMarketingCta = await con.getRepository(UserMarketingCta).findOne({
       where: { userId, readAt: IsNull() },
