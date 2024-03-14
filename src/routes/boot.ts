@@ -15,11 +15,13 @@ import {
   ALERTS_DEFAULT,
   Banner,
   Feature,
+  MarketingCta,
   Settings,
   SETTINGS_DEFAULT,
   SourceMember,
   SquadSource,
   User,
+  UserMarketingCta,
 } from '../entity';
 import {
   getPermissionsForMember,
@@ -55,8 +57,6 @@ import { getEncryptedFeatures } from '../growthbook';
 import { differenceInMinutes } from 'date-fns';
 import { runInSpan } from '../telemetry/opentelemetry';
 import { getUnreadNotificationsCount } from '../notifications/common';
-import { UserMarketingCta } from '../entity/user/UserMarketingCta';
-import { MarketingCta } from '../entity/MarketingCta';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
