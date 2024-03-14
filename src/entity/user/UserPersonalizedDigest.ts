@@ -2,6 +2,19 @@ import { Column, Entity, Index, OneToOne, PrimaryColumn } from 'typeorm';
 import { User } from './';
 import { DayOfWeek } from '../../types';
 
+export enum UserPersonalizedDigestSendType {
+  workdays = 'workdays',
+}
+
+export type UserPersonalizedDigestFlags = Partial<{
+  sendType: boolean;
+}>;
+
+export type UserPersonalizedDigestFlagsPublic = Pick<
+  UserPersonalizedDigestFlags,
+  'sendType'
+>;
+
 @Entity()
 export class UserPersonalizedDigest {
   @PrimaryColumn({ type: 'text' })
@@ -22,6 +35,10 @@ export class UserPersonalizedDigest {
 
   @Column({ nullable: true })
   lastSendDate: Date;
+
+  @Column({ type: 'jsonb', default: {} })
+  @Index('IDX_user_personalized_digest_flags_sendType', { synchronize: false })
+  flags: UserPersonalizedDigestFlags = {};
 
   @OneToOne(() => User, {
     lazy: true,
