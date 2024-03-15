@@ -1,4 +1,4 @@
-import cron from '../../src/cron/personalizedDigest';
+import cron from '../../src/cron/dailyDigest';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
@@ -10,6 +10,7 @@ import {
 import { usersFixture } from '../fixture/user';
 import {
   createEmailBatchId,
+  digestPreferredHourOffset,
   notifyGeneratePersonalizedDigest,
 } from '../../src/common';
 import { logger } from '../../src/logger';
@@ -26,7 +27,11 @@ jest.mock('../../src/common', () => ({
   createEmailBatchId: jest.fn(),
 }));
 
-describe('personalizedDigest cron', () => {
+const sendType = UserPersonalizedDigestSendType.workdays;
+
+let fakePreferredHour = 9;
+
+describe('dailyDigest cron', () => {
   const preferredDay = (new Date().getDay() + 1) % 7;
 
   beforeEach(async () => {
@@ -36,6 +41,9 @@ describe('personalizedDigest cron', () => {
     await con.getRepository(UserPersonalizedDigest).clear();
 
     (createEmailBatchId as jest.Mock).mockResolvedValue('test-email-batch-id');
+
+    const currentDate = new Date();
+    fakePreferredHour = currentDate.getHours() + digestPreferredHourOffset;
   });
 
   it('should schedule generation', async () => {
@@ -45,45 +53,10 @@ describe('personalizedDigest cron', () => {
       usersToSchedule.map((item) => ({
         userId: item.id,
         preferredDay,
-      })),
-    );
-
-    await expectSuccessfulCron(cron);
-
-    const scheduledPersonalizedDigests = await con
-      .getRepository(UserPersonalizedDigest)
-      .findBy({
-        preferredDay,
-      });
-
-    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(
-      usersToSchedule.length,
-    );
-    scheduledPersonalizedDigests.forEach((personalizedDigest) => {
-      expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledWith({
-        log: expect.anything(),
-        personalizedDigest,
-        emailSendTimestamp: expect.any(Number),
-        previousSendTimestamp: expect.any(Number),
-        emailBatchId: 'test-email-batch-id',
-      });
-    });
-    (notifyGeneratePersonalizedDigest as jest.Mock).mock.calls.forEach(
-      (call) => {
-        const { emailSendTimestamp, previousSendTimestamp } = call?.[0] || {};
-
-        expect(emailSendTimestamp).toBeGreaterThan(previousSendTimestamp);
-      },
-    );
-  });
-
-  it('should only schedule generation for next day subscriptions', async () => {
-    const [, ...usersToSchedule] = usersFixture;
-
-    await con.getRepository(UserPersonalizedDigest).save(
-      usersToSchedule.map((item) => ({
-        userId: item.id,
-        preferredDay,
+        preferredHour: fakePreferredHour,
+        flags: {
+          sendType,
+        },
       })),
     );
 
@@ -123,6 +96,10 @@ describe('personalizedDigest cron', () => {
       usersToSchedule.map((item) => ({
         userId: item.id,
         preferredDay,
+        preferredHour: fakePreferredHour,
+        flags: {
+          sendType,
+        },
       })),
     );
 
@@ -133,6 +110,7 @@ describe('personalizedDigest cron', () => {
       {
         digestCount: usersToSchedule.length,
         emailBatchId: 'test-email-batch-id',
+        sendType,
       },
       'personalized digest sent',
     );
@@ -145,6 +123,10 @@ describe('personalizedDigest cron', () => {
       usersToSchedule.map((item) => ({
         userId: item.id,
         preferredDay,
+        preferredHour: fakePreferredHour,
+        flags: {
+          sendType,
+        },
       })),
     );
     const infoSpy = jest.spyOn(logger, 'info');
@@ -153,7 +135,7 @@ describe('personalizedDigest cron', () => {
 
     expect(infoSpy).toHaveBeenCalledTimes(2);
     expect(infoSpy).toHaveBeenCalledWith(
-      { emailBatchId: 'test-email-batch-id' },
+      { emailBatchId: 'test-email-batch-id', sendType },
       'starting personalized digest send',
     );
     expect(createEmailBatchId).toHaveBeenCalledTimes(1);
@@ -166,6 +148,10 @@ describe('personalizedDigest cron', () => {
       usersToSchedule.map((item) => ({
         userId: item.id,
         preferredDay,
+        preferredHour: fakePreferredHour,
+        flags: {
+          sendType,
+        },
       })),
     );
 
@@ -174,30 +160,5 @@ describe('personalizedDigest cron', () => {
     await expect(() => {
       return expectSuccessfulCron(cron);
     }).rejects.toEqual(new Error('failed to create email batch id'));
-  });
-
-  it('should not schedule generation for subscriptions with sendType', async () => {
-    const usersToSchedule = usersFixture;
-
-    await con.getRepository(UserPersonalizedDigest).save(
-      usersToSchedule.map((item) => ({
-        userId: item.id,
-        preferredDay,
-        flags: {
-          sendType: UserPersonalizedDigestSendType.workdays,
-        },
-      })),
-    );
-
-    await expectSuccessfulCron(cron);
-
-    const personalizedDigestRowsForDay = await con
-      .getRepository(UserPersonalizedDigest)
-      .findBy({
-        preferredDay,
-      });
-
-    expect(personalizedDigestRowsForDay).toHaveLength(usersToSchedule.length);
-    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(0);
   });
 });

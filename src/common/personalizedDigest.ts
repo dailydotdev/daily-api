@@ -249,3 +249,5 @@ export const getPersonalizedDigestEmailPayload = async ({
 
   return emailPayload;
 };
+
+export const digestPreferredHourOffset = 4;
