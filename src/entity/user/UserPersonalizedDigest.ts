@@ -7,7 +7,7 @@ export enum UserPersonalizedDigestSendType {
 }
 
 export type UserPersonalizedDigestFlags = Partial<{
-  sendType: boolean;
+  sendType: UserPersonalizedDigestSendType;
 }>;
 
 export type UserPersonalizedDigestFlagsPublic = Pick<
