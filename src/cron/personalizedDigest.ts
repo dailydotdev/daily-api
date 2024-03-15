@@ -25,7 +25,9 @@ const cron: Cron = {
       .from(UserPersonalizedDigest, 'upd')
       .where('upd."preferredDay" = :nextPreferredDay', {
         nextPreferredDay,
-      });
+      })
+      .andWhere(`flags->>'sendType' IS NULL`);
+
     const timestamp = Date.now();
     let digestCount = 0;
 
