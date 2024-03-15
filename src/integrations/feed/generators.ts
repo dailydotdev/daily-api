@@ -110,25 +110,25 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
         ),
       }),
     ),
-    '26': new FeedGenerator(
-      feedClient,
-      new FeedUserStateConfigGenerator(snotraClient, {
-        personalised: new FeedPreferencesConfigGenerator(
-          {
-            feed_config_name: FeedConfigName.VectorV26,
-            source_types: ['machine', 'squad'],
-          },
-          opts,
-        ),
-        non_personalised: new FeedPreferencesConfigGenerator(
-          {
-            feed_config_name: FeedConfigName.PersonaliseV27,
-            source_types: ['machine', 'squad'],
-          },
-          opts,
-        ),
-      }),
-    ),
+    // '26': new FeedGenerator(
+    //   feedClient,
+    //   new FeedUserStateConfigGenerator(snotraClient, {
+    //     personalised: new FeedPreferencesConfigGenerator(
+    //       {
+    //         feed_config_name: FeedConfigName.VectorV26,
+    //         source_types: ['machine', 'squad'],
+    //       },
+    //       opts,
+    //     ),
+    //     non_personalised: new FeedPreferencesConfigGenerator(
+    //       {
+    //         feed_config_name: FeedConfigName.PersonaliseV27,
+    //         source_types: ['machine', 'squad'],
+    //       },
+    //       opts,
+    //     ),
+    //   }),
+    // ),
     '27': new FeedGenerator(
       feedClient,
       new FeedUserStateConfigGenerator(snotraClient, {
@@ -182,5 +182,5 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
 );
 
 export const versionToFeedGenerator = (version: number): FeedGenerator => {
-  return feedGenerators[version.toString()] ?? feedGenerators['21'];
+  return feedGenerators[version.toString()] ?? feedGenerators['27'];
 };

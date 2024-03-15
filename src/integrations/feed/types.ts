@@ -86,7 +86,7 @@ export type FeedVersion =
   | '20'
   | '21'
   | '25'
-  | '26'
+  // | '26'
   | '27'
   | 'popular'
   | 'onboarding'
