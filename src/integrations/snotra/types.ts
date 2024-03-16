@@ -1,5 +1,6 @@
 export type UserStatePayload = {
   user_id: string;
+  post_rank_count?: number;
   providers: {
     personalise: Record<string, never>;
   };
