@@ -3,6 +3,7 @@ import { User } from './';
 import { DayOfWeek } from '../../types';
 
 export enum UserPersonalizedDigestSendType {
+  weekly = 'weekly',
   workdays = 'workdays',
 }
 

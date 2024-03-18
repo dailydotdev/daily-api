@@ -5,8 +5,12 @@ import {
   getPersonalizedDigestSendDate,
   notifyGeneratePersonalizedDigest,
 } from '../common';
-import { UserPersonalizedDigest } from '../entity';
+import {
+  UserPersonalizedDigest,
+  UserPersonalizedDigestSendType,
+} from '../entity';
 import { Cron } from './cron';
+import { Brackets } from 'typeorm';
 
 const cron: Cron = {
   name: 'personalized-digest',
@@ -26,7 +30,15 @@ const cron: Cron = {
       .where('upd."preferredDay" = :nextPreferredDay', {
         nextPreferredDay,
       })
-      .andWhere(`flags->>'sendType' IS NULL`);
+      .andWhere(
+        new Brackets((qb) => {
+          return qb
+            .where(`flags->>'sendType' IS NULL`)
+            .orWhere(`flags->>'sendType' = :sendType`, {
+              sendType: UserPersonalizedDigestSendType.weekly,
+            });
+        }),
+      );
 
     const timestamp = Date.now();
     let digestCount = 0;

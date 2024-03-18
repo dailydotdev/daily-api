@@ -176,7 +176,7 @@ describe('personalizedDigest cron', () => {
     }).rejects.toEqual(new Error('failed to create email batch id'));
   });
 
-  it('should not schedule generation for subscriptions with sendType', async () => {
+  it('should not schedule generation for subscriptions with different sendType', async () => {
     const usersToSchedule = usersFixture;
 
     await con.getRepository(UserPersonalizedDigest).save(
@@ -199,5 +199,30 @@ describe('personalizedDigest cron', () => {
 
     expect(personalizedDigestRowsForDay).toHaveLength(usersToSchedule.length);
     expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(0);
+  });
+
+  it('should schedule generation for subscriptions with weekly sendType', async () => {
+    const usersToSchedule = usersFixture;
+
+    await con.getRepository(UserPersonalizedDigest).save(
+      usersToSchedule.map((item) => ({
+        userId: item.id,
+        preferredDay,
+        flags: {
+          sendType: UserPersonalizedDigestSendType.weekly,
+        },
+      })),
+    );
+
+    await expectSuccessfulCron(cron);
+
+    const personalizedDigestRowsForDay = await con
+      .getRepository(UserPersonalizedDigest)
+      .findBy({
+        preferredDay,
+      });
+
+    expect(personalizedDigestRowsForDay).toHaveLength(usersToSchedule.length);
+    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(4);
   });
 });
