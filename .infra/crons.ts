@@ -66,7 +66,7 @@ export const crons: Cron[] = [
   },
   {
     name: 'daily-digest',
-    schedule: '7 * * * *',
+    schedule: '7 * * * 1-5',
     limits: {
       cpu: '250m',
       memory: '1Gi',
