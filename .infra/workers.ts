@@ -249,6 +249,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.user-readme-updated',
     subscription: 'api.user-readme-images',
   },
+  {
+    topic: 'api.v1.user-created',
+    subscription: 'api.user-created-personalized-digest-send-type',
+  },
 ];
 
 export const personalizedDigestWorkers = [

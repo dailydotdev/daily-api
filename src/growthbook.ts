@@ -7,6 +7,7 @@ import {
 } from '@growthbook/growthbook';
 import { encrypt } from './common';
 import { FastifyBaseLogger } from 'fastify';
+import { UserPersonalizedDigestSendType } from './entity';
 
 setPolyfills({
   EventSource: require('eventsource'),
@@ -96,4 +97,8 @@ export const features = {
     maxPosts: 5,
     longTextLimit: 150,
   }),
+  personalizedDigestSendType: new Feature(
+    'personalized_digest_send_type',
+    UserPersonalizedDigestSendType.weekly,
+  ),
 };

@@ -46,6 +46,7 @@ import deadLetterLog from './digestDeadLetterLog';
 import userReadmeImages from './userReadmeImages';
 import postDownvotedRep from './postDownvotedRep';
 import postDownvoteCanceledRep from './postDownvoteCanceledRep';
+import userCreatedPersonalizedDigestSendType from './userCreatedPersonalizedDigestSendType';
 
 export { Worker } from './worker';
 
@@ -89,6 +90,7 @@ export const workers: Worker[] = [
   userReadmeImages,
   cdc,
   cdcNotifications,
+  userCreatedPersonalizedDigestSendType,
   ...notificationWorkers,
 ];
 
