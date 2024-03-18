@@ -2,8 +2,6 @@ import fastq from 'fastq';
 import {
   createEmailBatchId,
   digestPreferredHourOffset,
-  getPersonalizedDigestPreviousSendDate,
-  getPersonalizedDigestSendDate,
   notifyGeneratePersonalizedDigest,
 } from '../common';
 import {
@@ -41,20 +39,15 @@ const cron: Cron = {
       });
 
     const timestamp = Date.now();
+    const oneDay = 24 * 60 * 60 * 1000;
     let digestCount = 0;
 
     const personalizedDigestStream = await personalizedDigestQuery.stream();
     const notifyQueueConcurrency = +process.env.DIGEST_QUEUE_CONCURRENCY;
     const notifyQueue = fastq.promise(
       async (personalizedDigest: UserPersonalizedDigest) => {
-        const emailSendTimestamp = getPersonalizedDigestSendDate({
-          personalizedDigest,
-          generationTimestamp: timestamp,
-        }).getTime();
-        const previousSendTimestamp = getPersonalizedDigestPreviousSendDate({
-          personalizedDigest,
-          generationTimestamp: timestamp,
-        }).getTime();
+        const emailSendTimestamp = timestamp;
+        const previousSendTimestamp = timestamp - oneDay;
 
         await notifyGeneratePersonalizedDigest({
           log: logger,
