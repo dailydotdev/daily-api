@@ -6,6 +6,7 @@ import { cookies, setCookie } from './cookies';
 import { setTrackingId } from './tracking';
 import { generateTrackingId } from './ids';
 import { HttpError, retryFetch } from './integrations/retry';
+import { LogoutReason } from './common';
 
 const heimdallOrigin = process.env.HEIMDALL_ORIGIN;
 const kratosOrigin = process.env.KRATOS_ORIGIN;
@@ -160,7 +161,13 @@ export const dispatchWhoami = async (
 export const logout = async (
   req: FastifyRequest,
   res: FastifyReply,
+  isDeletion = false,
 ): Promise<FastifyReply> => {
+  const query = req.query as { reason?: LogoutReason };
+  const reason = Object.values(LogoutReason).includes(query?.reason)
+    ? query.reason
+    : LogoutReason.ManualLogout;
+
   try {
     const { res: logoutFlow } = await fetchKratos(
       req,
@@ -176,6 +183,11 @@ export const logout = async (
       req.log.warn({ err: e }, 'unexpected error while logging out');
     }
   }
-  await clearAuthentication(req, res, 'manual logout');
+
+  await clearAuthentication(
+    req,
+    res,
+    isDeletion ? LogoutReason.UserDeleted : reason,
+  );
   return res.status(204).send();
 };
