@@ -29,7 +29,11 @@ import {
 import { SourceMemberRoles } from '../../src/roles';
 import { sourcesFixture } from '../fixture/source';
 import { usersFixture } from '../fixture/user';
-import { ISnotraClient, UserState } from '../../src/integrations/snotra';
+import {
+  ISnotraClient,
+  SnotraClient,
+  UserState,
+} from '../../src/integrations/snotra';
 import { FeedUserStateConfigGenerator } from '../../src/integrations/feed/configs';
 
 let con: DataSource;
@@ -266,5 +270,28 @@ describe('FeedUserStateConfigGenerator', () => {
       offset: 3,
     });
     expect(actual.feed_config_name).toEqual('personalise');
+  });
+
+  it('should send proper parameters to snotra', async () => {
+    const client = new SnotraClient();
+    nock('http://localhost:6001')
+      .post('/api/v1/user/profile', {
+        user_id: '1',
+        providers: {
+          personalise: {},
+        },
+        post_rank_count: 8,
+      })
+      .reply(200, { personalise: { state: 'personalised' } });
+    const generator: FeedConfigGenerator = new FeedUserStateConfigGenerator(
+      client,
+      generators,
+      8,
+    );
+    await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 2,
+      offset: 3,
+    });
   });
 });
