@@ -164,12 +164,9 @@ export const logout = async (
   isDeletion = false,
 ): Promise<FastifyReply> => {
   const query = req.query as { reason?: LogoutReason };
-  const reason =
-    LogoutReason[
-      isDeletion
-        ? LogoutReason.UserDeleted
-        : query?.reason || LogoutReason.ManualLogout
-    ];
+  const reason = Object.values(LogoutReason).includes(query?.reason)
+    ? query.reason
+    : LogoutReason.ManualLogout;
 
   try {
     const { res: logoutFlow } = await fetchKratos(
@@ -186,6 +183,11 @@ export const logout = async (
       req.log.warn({ err: e }, 'unexpected error while logging out');
     }
   }
-  await clearAuthentication(req, res, reason);
+
+  await clearAuthentication(
+    req,
+    res,
+    isDeletion ? LogoutReason.UserDeleted : reason,
+  );
   return res.status(204).send();
 };
