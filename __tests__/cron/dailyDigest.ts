@@ -308,4 +308,36 @@ describe('dailyDigest cron', () => {
     expect(scheduledPersonalizedDigests).toHaveLength(usersToSchedule.length);
     expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(0);
   });
+
+  it('should schedule send time in the future to match hours offset', async () => {
+    const usersToSchedule = usersFixture;
+
+    await con.getRepository(UserPersonalizedDigest).save(
+      usersToSchedule.map((item) => ({
+        userId: item.id,
+        preferredDay,
+        preferredHour: fakePreferredHour,
+        flags: {
+          sendType,
+        },
+      })),
+    );
+
+    const timestampBeforeCron = Date.now();
+
+    await expectSuccessfulCron(cron);
+
+    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(
+      usersToSchedule.length,
+    );
+    (notifyGeneratePersonalizedDigest as jest.Mock).mock.calls.forEach(
+      (call) => {
+        const { emailSendTimestamp } = call?.[0] || {};
+
+        expect(emailSendTimestamp).toBeGreaterThanOrEqual(
+          timestampBeforeCron + digestPreferredHourOffset * 60 * 60 * 1000,
+        );
+      },
+    );
+  });
 });

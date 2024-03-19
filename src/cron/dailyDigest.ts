@@ -10,7 +10,8 @@ import {
 import { Cron } from './cron';
 
 const sendType = UserPersonalizedDigestSendType.workdays;
-const oneDay = 24 * 60 * 60 * 1000;
+const oneHourMs = 60 * 60 * 1000;
+const oneDayMs = 24 * oneHourMs;
 
 const cron: Cron = {
   name: 'daily-digest',
@@ -34,8 +35,9 @@ const cron: Cron = {
       queryBuilder: personalizedDigestQuery,
       logger,
       handler: async ({ personalizedDigest, emailBatchId }) => {
-        const emailSendTimestamp = timestamp;
-        const previousSendTimestamp = timestamp - oneDay;
+        const hourOffsetMs = digestPreferredHourOffset * oneHourMs;
+        const emailSendTimestamp = timestamp + hourOffsetMs; // schedule send in X hours to match digest offset
+        const previousSendTimestamp = timestamp - oneDayMs;
 
         await notifyGeneratePersonalizedDigest({
           log: logger,
