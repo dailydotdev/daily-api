@@ -216,4 +216,93 @@ describe('dailyDigest cron', () => {
     expect(personalizedDigestRowsForDay).toHaveLength(usersToSchedule.length);
     expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(0);
   });
+
+  it('should not schedule generation for users with timezone behind UTC', async () => {
+    const currentDate = new Date();
+    const timezoneOffset = -4; // America/New_York
+    const fakePreferredHourTimezone =
+      currentDate.getHours() + digestPreferredHourOffset + timezoneOffset;
+    const usersToSchedule = usersFixture;
+
+    await con.getRepository(UserPersonalizedDigest).save(
+      usersToSchedule.map((item) => ({
+        userId: item.id,
+        preferredDay,
+        preferredHour: fakePreferredHourTimezone,
+        preferredTimezone: 'America/New_York',
+        flags: {
+          sendType,
+        },
+      })),
+    );
+
+    await expectSuccessfulCron(cron);
+
+    const scheduledPersonalizedDigests = await con
+      .getRepository(UserPersonalizedDigest)
+      .findBy({
+        preferredDay,
+      });
+
+    expect(scheduledPersonalizedDigests).toHaveLength(usersToSchedule.length);
+    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(4);
+  });
+
+  it('should not schedule generation for users with timezone ahead UTC', async () => {
+    const currentDate = new Date();
+    const timezoneOffset = +9; // Asia/Tokyo
+    const fakePreferredHourTimezone =
+      currentDate.getHours() + digestPreferredHourOffset + timezoneOffset;
+    const usersToSchedule = usersFixture;
+
+    await con.getRepository(UserPersonalizedDigest).save(
+      usersToSchedule.map((item) => ({
+        userId: item.id,
+        preferredDay,
+        preferredHour: fakePreferredHourTimezone,
+        preferredTimezone: 'Asia/Tokyo',
+        flags: {
+          sendType,
+        },
+      })),
+    );
+
+    await expectSuccessfulCron(cron);
+
+    const scheduledPersonalizedDigests = await con
+      .getRepository(UserPersonalizedDigest)
+      .findBy({
+        preferredDay,
+      });
+
+    expect(scheduledPersonalizedDigests).toHaveLength(usersToSchedule.length);
+    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(4);
+  });
+
+  it('should not schedule generation for users with prefferedHour in different timezone', async () => {
+    const usersToSchedule = usersFixture;
+
+    await con.getRepository(UserPersonalizedDigest).save(
+      usersToSchedule.map((item) => ({
+        userId: item.id,
+        preferredDay,
+        preferredHour: fakePreferredHour,
+        preferredTimezone: 'America/New_York',
+        flags: {
+          sendType,
+        },
+      })),
+    );
+
+    await expectSuccessfulCron(cron);
+
+    const scheduledPersonalizedDigests = await con
+      .getRepository(UserPersonalizedDigest)
+      .findBy({
+        preferredDay,
+      });
+
+    expect(scheduledPersonalizedDigests).toHaveLength(usersToSchedule.length);
+    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(0);
+  });
 });
