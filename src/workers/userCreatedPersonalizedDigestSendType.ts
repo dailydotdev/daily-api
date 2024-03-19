@@ -13,6 +13,10 @@ const worker = workerToExperimentWorker({
     const data = messageToJson<Data>(message);
     const { user } = data;
 
+    if (!user?.id) {
+      return;
+    }
+
     const growthbookClient = getUserGrowthBookInstace(user.id, {
       enableDevMode: process.env.NODE_ENV !== 'production',
       subscribeToChanges: false,
