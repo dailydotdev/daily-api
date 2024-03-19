@@ -21,10 +21,17 @@ beforeAll(async () => {
   con = await createOrGetConnection();
 });
 
-jest.mock('../../src/common', () => ({
-  ...(jest.requireActual('../../src/common') as Record<string, unknown>),
-  notifyGeneratePersonalizedDigest: jest.fn(),
+jest.mock('../../src/common/mailing', () => ({
+  ...(jest.requireActual('../../src/common/mailing') as Record<
+    string,
+    unknown
+  >),
   createEmailBatchId: jest.fn(),
+}));
+
+jest.mock('../../src/common/pubsub', () => ({
+  ...(jest.requireActual('../../src/common/pubsub') as Record<string, unknown>),
+  notifyGeneratePersonalizedDigest: jest.fn(),
 }));
 
 const sendType = UserPersonalizedDigestSendType.workdays;

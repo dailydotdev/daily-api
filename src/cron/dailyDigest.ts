@@ -1,6 +1,5 @@
-import fastq from 'fastq';
 import {
-  createEmailBatchId,
+  schedulePersonalizedDigestSubscriptions,
   digestPreferredHourOffset,
   notifyGeneratePersonalizedDigest,
 } from '../common';
@@ -10,21 +9,12 @@ import {
 } from '../entity';
 import { Cron } from './cron';
 
+const sendType = UserPersonalizedDigestSendType.workdays;
+const oneDay = 24 * 60 * 60 * 1000;
+
 const cron: Cron = {
   name: 'daily-digest',
   handler: async (con, logger) => {
-    const emailBatchId = await createEmailBatchId();
-    const sendType = UserPersonalizedDigestSendType.workdays;
-
-    if (!emailBatchId) {
-      throw new Error('failed to create email batch id');
-    }
-
-    logger.info(
-      { emailBatchId, sendType },
-      'starting personalized digest send',
-    );
-
     const personalizedDigestQuery = con
       .createQueryBuilder()
       .from(UserPersonalizedDigest, 'upd')
@@ -39,13 +29,11 @@ const cron: Cron = {
       });
 
     const timestamp = Date.now();
-    const oneDay = 24 * 60 * 60 * 1000;
-    let digestCount = 0;
 
-    const personalizedDigestStream = await personalizedDigestQuery.stream();
-    const notifyQueueConcurrency = +process.env.DIGEST_QUEUE_CONCURRENCY;
-    const notifyQueue = fastq.promise(
-      async (personalizedDigest: UserPersonalizedDigest) => {
+    await schedulePersonalizedDigestSubscriptions({
+      queryBuilder: personalizedDigestQuery,
+      logger,
+      handler: async ({ personalizedDigest, emailBatchId }) => {
         const emailSendTimestamp = timestamp;
         const previousSendTimestamp = timestamp - oneDay;
 
@@ -56,36 +44,9 @@ const cron: Cron = {
           previousSendTimestamp,
           emailBatchId,
         });
-
-        digestCount += 1;
       },
-      notifyQueueConcurrency,
-    );
-
-    personalizedDigestStream.on(
-      'data',
-      (personalizedDigest: UserPersonalizedDigest) => {
-        notifyQueue.push(personalizedDigest);
-      },
-    );
-
-    await new Promise((resolve, reject) => {
-      personalizedDigestStream.on('error', (error) => {
-        logger.error(
-          { err: error, emailBatchId, sendType },
-          'streaming personalized digest subscriptions failed',
-        );
-
-        reject(error);
-      });
-      personalizedDigestStream.on('end', resolve);
+      sendType,
     });
-    await notifyQueue.drained();
-
-    logger.info(
-      { digestCount, emailBatchId, sendType },
-      'personalized digest sent',
-    );
   },
 };
 

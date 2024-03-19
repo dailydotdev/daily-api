@@ -20,10 +20,17 @@ beforeAll(async () => {
   con = await createOrGetConnection();
 });
 
-jest.mock('../../src/common', () => ({
-  ...(jest.requireActual('../../src/common') as Record<string, unknown>),
-  notifyGeneratePersonalizedDigest: jest.fn(),
+jest.mock('../../src/common/mailing', () => ({
+  ...(jest.requireActual('../../src/common/mailing') as Record<
+    string,
+    unknown
+  >),
   createEmailBatchId: jest.fn(),
+}));
+
+jest.mock('../../src/common/pubsub', () => ({
+  ...(jest.requireActual('../../src/common/pubsub') as Record<string, unknown>),
+  notifyGeneratePersonalizedDigest: jest.fn(),
 }));
 
 describe('personalizedDigest cron', () => {
@@ -133,6 +140,7 @@ describe('personalizedDigest cron', () => {
       {
         digestCount: usersToSchedule.length,
         emailBatchId: 'test-email-batch-id',
+        sendType: UserPersonalizedDigestSendType.weekly,
       },
       'personalized digest sent',
     );
@@ -153,7 +161,10 @@ describe('personalizedDigest cron', () => {
 
     expect(infoSpy).toHaveBeenCalledTimes(2);
     expect(infoSpy).toHaveBeenCalledWith(
-      { emailBatchId: 'test-email-batch-id' },
+      {
+        emailBatchId: 'test-email-batch-id',
+        sendType: UserPersonalizedDigestSendType.weekly,
+      },
       'starting personalized digest send',
     );
     expect(createEmailBatchId).toHaveBeenCalledTimes(1);
