@@ -50,7 +50,8 @@ describe('dailyDigest cron', () => {
     (createEmailBatchId as jest.Mock).mockResolvedValue('test-email-batch-id');
 
     const currentDate = new Date();
-    fakePreferredHour = currentDate.getHours() + digestPreferredHourOffset;
+    fakePreferredHour =
+      (currentDate.getHours() + digestPreferredHourOffset) % 24;
   });
 
   it('should schedule generation', async () => {
@@ -217,11 +218,12 @@ describe('dailyDigest cron', () => {
     expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(0);
   });
 
-  it('should not schedule generation for users with timezone behind UTC', async () => {
+  it('should schedule generation for users with timezone behind UTC', async () => {
     const currentDate = new Date();
     const timezoneOffset = -4; // America/New_York
     const fakePreferredHourTimezone =
-      currentDate.getHours() + digestPreferredHourOffset + timezoneOffset;
+      (currentDate.getHours() + digestPreferredHourOffset + timezoneOffset) %
+      24;
     const usersToSchedule = usersFixture;
 
     await con.getRepository(UserPersonalizedDigest).save(
@@ -248,11 +250,12 @@ describe('dailyDigest cron', () => {
     expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(4);
   });
 
-  it('should not schedule generation for users with timezone ahead UTC', async () => {
+  it('should schedule generation for users with timezone ahead UTC', async () => {
     const currentDate = new Date();
     const timezoneOffset = +9; // Asia/Tokyo
     const fakePreferredHourTimezone =
-      currentDate.getHours() + digestPreferredHourOffset + timezoneOffset;
+      (currentDate.getHours() + digestPreferredHourOffset + timezoneOffset) %
+      24;
     const usersToSchedule = usersFixture;
 
     await con.getRepository(UserPersonalizedDigest).save(

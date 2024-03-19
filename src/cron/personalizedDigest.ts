@@ -28,7 +28,7 @@ const cron: Cron = {
           return qb
             .where(`flags->>'sendType' IS NULL`)
             .orWhere(`flags->>'sendType' = :sendType`, {
-              sendType: UserPersonalizedDigestSendType.weekly,
+              sendType,
             });
         }),
       );

@@ -67,13 +67,13 @@ export function getUserGrowthBookInstace(
     allocationClient?: ExperimentAllocationClient;
   },
 ): GrowthBook {
-  const allocationClient = params?.allocationClient;
+  const { allocationClient, ...restParams } = params || {};
 
   const gbContext: GrowthBookContext = {
-    ...params,
+    ...restParams,
     clientKey: process.env.GROWTHBOOK_CLIENT_KEY,
     attributes: {
-      ...params?.attributes,
+      ...restParams.attributes,
       userId,
     },
     features: gb.getFeatures(),
