@@ -10,7 +10,7 @@ import {
 import { usersFixture } from '../fixture/user';
 import { DayOfWeek } from '../../src/types';
 import { workers } from '../../src/workers';
-import { features } from '../../src/growthbook';
+import { ExperimentAllocationClient, features } from '../../src/growthbook';
 import { sendExperimentAllocationEvent } from '../../src/integrations/analytics';
 
 jest.mock('../../src/integrations/analytics', () => ({
@@ -23,17 +23,19 @@ jest.mock('../../src/integrations/analytics', () => ({
 
 jest.mock('../../src/growthbook', () => ({
   ...(jest.requireActual('../../src/growthbook') as Record<string, unknown>),
-  getUserGrowthBookInstace: (_userId: string, { trackingCallback }) => {
+  getUserGrowthBookInstace: (
+    _userId: string,
+    { allocationClient }: { allocationClient: ExperimentAllocationClient },
+  ) => {
     return {
       getFeatureValue: (featureId: string) => {
-        if (typeof trackingCallback === 'function') {
-          trackingCallback(
-            { key: featureId },
-            {
-              featureId,
-              variationId: 0,
-            },
-          );
+        if (allocationClient) {
+          allocationClient.push({
+            event_timestamp: new Date(),
+            user_id: _userId,
+            experiment_id: featureId,
+            variation_id: '0',
+          });
         }
 
         return Object.values(features).find(

@@ -1,41 +1,22 @@
 import { updateFlagsStatement, User } from '../common';
 import { UserPersonalizedDigest } from '../entity';
 import { features, getUserGrowthBookInstace } from '../growthbook';
-import {
-  ExperimentAllocationEvent,
-  sendExperimentAllocationEvent,
-} from '../integrations/analytics';
-import { messageToJson, Worker } from './worker';
-import fastq from 'fastq';
+import { messageToJson, workerToExperimentWorker } from './worker';
 
 interface Data {
   user: User;
 }
 
-const worker: Worker = {
+const worker = workerToExperimentWorker({
   subscription: 'api.user-created-personalized-digest-send-type',
-  handler: async (message, con) => {
+  handler: async (message, con, logger, pubsub, allocationClient) => {
     const data = messageToJson<Data>(message);
     const { user } = data;
-
-    const analyticsQueue = fastq.promise(
-      async (data: ExperimentAllocationEvent) => {
-        await sendExperimentAllocationEvent(data);
-      },
-      1,
-    );
 
     const growthbookClient = getUserGrowthBookInstace(user.id, {
       enableDevMode: process.env.NODE_ENV !== 'production',
       subscribeToChanges: false,
-      trackingCallback: async (experiment, result) => {
-        analyticsQueue.push({
-          event_timestamp: new Date(),
-          user_id: user.id,
-          experiment_id: experiment.key,
-          variation_id: result.variationId.toString(),
-        });
-      },
+      allocationClient,
     });
 
     const sendType = growthbookClient.getFeatureValue(
@@ -53,9 +34,7 @@ const worker: Worker = {
         }),
       },
     );
-
-    await analyticsQueue.drained();
   },
-};
+});
 
 export default worker;

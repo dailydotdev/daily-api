@@ -8,6 +8,11 @@ import {
 import { encrypt } from './common';
 import { FastifyBaseLogger } from 'fastify';
 import { UserPersonalizedDigestSendType } from './entity';
+import {
+  ExperimentAllocationEvent,
+  sendExperimentAllocationEvent,
+} from './integrations/analytics';
+import fastq from 'fastq';
 
 setPolyfills({
   EventSource: require('eventsource'),
@@ -58,9 +63,13 @@ export function getEncryptedFeatures(): string {
 
 export function getUserGrowthBookInstace(
   userId: string,
-  params?: Omit<GrowthBookContext, 'features'>,
+  params?: Omit<GrowthBookContext, 'features' | 'trackingCallback'> & {
+    allocationClient?: ExperimentAllocationClient;
+  },
 ): GrowthBook {
-  return new GrowthBook({
+  const allocationClient = params?.allocationClient;
+
+  const gbContext: GrowthBookContext = {
     ...params,
     clientKey: process.env.GROWTHBOOK_CLIENT_KEY,
     attributes: {
@@ -68,9 +77,21 @@ export function getUserGrowthBookInstace(
       userId,
     },
     features: gb.getFeatures(),
-  });
-}
+  };
 
+  if (allocationClient) {
+    gbContext.trackingCallback = (experiment, result) => {
+      allocationClient.push({
+        event_timestamp: new Date(),
+        user_id: userId,
+        experiment_id: experiment.key,
+        variation_id: result.variationId.toString(),
+      });
+    };
+  }
+
+  return new GrowthBook(gbContext);
+}
 export class Feature<T extends JSONValue> {
   readonly id: string;
 
@@ -102,3 +123,36 @@ export const features = {
     UserPersonalizedDigestSendType.weekly,
   ),
 };
+
+export class ExperimentAllocationClient {
+  private readonly queue: fastq.queueAsPromised<
+    ExperimentAllocationEvent,
+    void
+  >;
+
+  constructor(options?: { concurrency: number }) {
+    this.queue = fastq.promise(async (data: ExperimentAllocationEvent) => {
+      await sendExperimentAllocationEvent(data);
+    }, options?.concurrency || 1);
+  }
+
+  /**
+   * Push an allocation event to the send queue
+   *
+   * @param {ExperimentAllocationEvent} data
+   * @memberof GrowthbookAllocationClient
+   */
+  push(data: ExperimentAllocationEvent): void {
+    this.queue.push(data);
+  }
+
+  /**
+   * Wait for all pushed allocations to be sent
+   *
+   * @return {*}  {Promise<void>}
+   * @memberof GrowthbookAllocationClient
+   */
+  async waitForSend(): Promise<void> {
+    await this.queue.drained();
+  }
+}
