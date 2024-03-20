@@ -20,7 +20,7 @@ const cron: Cron = {
       .createQueryBuilder()
       .from(UserPersonalizedDigest, 'upd')
       .where(
-        '"preferredHour" - EXTRACT(HOUR FROM NOW() AT TIME ZONE "preferredTimezone") = :preferredHourOffset',
+        'clamp_to_hours("preferredHour" - EXTRACT(HOUR FROM NOW() AT TIME ZONE "preferredTimezone")) = :preferredHourOffset',
         {
           preferredHourOffset: digestPreferredHourOffset,
         },

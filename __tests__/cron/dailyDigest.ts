@@ -14,6 +14,7 @@ import {
   notifyGeneratePersonalizedDigest,
 } from '../../src/common';
 import { logger } from '../../src/logger';
+import { getTimezoneOffset } from 'date-fns-tz';
 
 let con: DataSource;
 
@@ -34,12 +35,14 @@ jest.mock('../../src/common/pubsub', () => ({
   notifyGeneratePersonalizedDigest: jest.fn(),
 }));
 
-const sendType = UserPersonalizedDigestSendType.workdays;
-
-let fakePreferredHour = 9;
+function clampToHours(num: number): number {
+  return ((num % 24) + 24) % 24;
+}
 
 describe('dailyDigest cron', () => {
-  const preferredDay = (new Date().getDay() + 1) % 7;
+  const sendType = UserPersonalizedDigestSendType.workdays;
+  const preferredDay = 3;
+  let fakePreferredHour = 9;
 
   beforeEach(async () => {
     jest.resetAllMocks();
@@ -50,11 +53,12 @@ describe('dailyDigest cron', () => {
     (createEmailBatchId as jest.Mock).mockResolvedValue('test-email-batch-id');
 
     const currentDate = new Date();
-    fakePreferredHour =
-      (currentDate.getHours() + digestPreferredHourOffset) % 24;
+    fakePreferredHour = clampToHours(
+      currentDate.getHours() + digestPreferredHourOffset,
+    );
   });
 
-  it('should schedule generation', async () => {
+  it('should schedule generation for subscription', async () => {
     const usersToSchedule = usersFixture;
 
     await con.getRepository(UserPersonalizedDigest).save(
@@ -220,10 +224,11 @@ describe('dailyDigest cron', () => {
 
   it('should schedule generation for users with timezone behind UTC', async () => {
     const currentDate = new Date();
-    const timezoneOffset = -4; // America/New_York
-    const fakePreferredHourTimezone =
-      (currentDate.getHours() + digestPreferredHourOffset + timezoneOffset) %
-      24;
+    const timezoneOffset =
+      getTimezoneOffset('America/Phoenix') / (60 * 60 * 1000);
+    const fakePreferredHourTimezone = clampToHours(
+      currentDate.getHours() + digestPreferredHourOffset + timezoneOffset,
+    );
     const usersToSchedule = usersFixture;
 
     await con.getRepository(UserPersonalizedDigest).save(
@@ -231,7 +236,7 @@ describe('dailyDigest cron', () => {
         userId: item.id,
         preferredDay,
         preferredHour: fakePreferredHourTimezone,
-        preferredTimezone: 'America/New_York',
+        preferredTimezone: 'America/Phoenix',
         flags: {
           sendType,
         },
@@ -252,10 +257,10 @@ describe('dailyDigest cron', () => {
 
   it('should schedule generation for users with timezone ahead UTC', async () => {
     const currentDate = new Date();
-    const timezoneOffset = +9; // Asia/Tokyo
-    const fakePreferredHourTimezone =
-      (currentDate.getHours() + digestPreferredHourOffset + timezoneOffset) %
-      24;
+    const timezoneOffset = getTimezoneOffset('Asia/Tokyo') / (60 * 60 * 1000);
+    const fakePreferredHourTimezone = clampToHours(
+      currentDate.getHours() + digestPreferredHourOffset + timezoneOffset,
+    );
     const usersToSchedule = usersFixture;
 
     await con.getRepository(UserPersonalizedDigest).save(
