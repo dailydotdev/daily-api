@@ -1,5 +1,6 @@
 import {
   DynamicConfig,
+  FeedConfig,
   FeedConfigGenerator,
   FeedConfigName,
   FeedResponse,
@@ -51,6 +52,10 @@ const opts = {
   includePostTypes: true,
 };
 
+const baseConfig: Partial<FeedConfig> = {
+  source_types: ['machine', 'squad'],
+};
+
 export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
   {
     // '26': new FeedGenerator(
@@ -77,42 +82,40 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
       new FeedUserStateConfigGenerator(snotraClient, {
         personalised: new FeedPreferencesConfigGenerator(
           {
+            ...baseConfig,
             feed_config_name: FeedConfigName.VectorV27,
-            source_types: ['machine', 'squad'],
           },
           opts,
         ),
         non_personalised: new FeedPreferencesConfigGenerator(
           {
+            ...baseConfig,
             feed_config_name: FeedConfigName.PersonaliseV27,
-            source_types: ['machine', 'squad'],
           },
           opts,
         ),
       }),
     ),
-    '28': new FeedGenerator(
+    '29': new FeedGenerator(
       feedClient,
-      new FeedUserStateConfigGenerator(
-        snotraClient,
-        {
-          personalised: new FeedPreferencesConfigGenerator(
-            {
-              feed_config_name: FeedConfigName.VectorV27,
-              source_types: ['machine', 'squad'],
-            },
-            opts,
-          ),
-          non_personalised: new FeedPreferencesConfigGenerator(
-            {
-              feed_config_name: FeedConfigName.PersonaliseV27,
-              source_types: ['machine', 'squad'],
-            },
-            opts,
-          ),
-        },
-        3,
-      ),
+      new FeedUserStateConfigGenerator(snotraClient, {
+        personalised: new FeedPreferencesConfigGenerator(
+          {
+            ...baseConfig,
+            feed_config_name: FeedConfigName.VectorV27,
+            allowed_languages: ['en'],
+          },
+          opts,
+        ),
+        non_personalised: new FeedPreferencesConfigGenerator(
+          {
+            ...baseConfig,
+            feed_config_name: FeedConfigName.PersonaliseV27,
+            allowed_languages: ['en'],
+          },
+          opts,
+        ),
+      }),
     ),
     popular: new FeedGenerator(
       new FeedClient(process.env.POPULAR_FEED),
