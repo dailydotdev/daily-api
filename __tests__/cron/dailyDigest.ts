@@ -15,6 +15,7 @@ import {
 } from '../../src/common';
 import { logger } from '../../src/logger';
 import { getTimezoneOffset } from 'date-fns-tz';
+import { crons } from '../../src/cron/index';
 
 let con: DataSource;
 
@@ -56,6 +57,12 @@ describe('dailyDigest cron', () => {
     fakePreferredHour = clampToHours(
       currentDate.getHours() + digestPreferredHourOffset,
     );
+  });
+
+  it('should be registered', () => {
+    const registeredWorker = crons.find((item) => item.name === cron.name);
+
+    expect(registeredWorker).toBeDefined();
   });
 
   it('should schedule generation for subscription', async () => {
