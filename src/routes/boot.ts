@@ -342,7 +342,7 @@ const getUser = (con: DataSource, userId: string): Promise<User> =>
     ],
   });
 
-const getMarketingCta = async (
+export const getMarketingCta = async (
   con: DataSource,
   log: FastifyBaseLogger,
   userId: string,

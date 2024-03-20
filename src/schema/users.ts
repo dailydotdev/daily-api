@@ -17,6 +17,7 @@ import {
   UserPersonalizedDigest,
   getAuthorPostStats,
   AcquisitionChannel,
+  UserMarketingCta,
 } from '../entity';
 import {
   AuthenticationError,
@@ -51,11 +52,14 @@ import {
 } from '../errors';
 import { deleteUser } from '../directive/user';
 import { randomInt } from 'crypto';
-import { In } from 'typeorm';
+import { In, IsNull } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
 import { DayOfWeek } from '../types';
 import { getTimezoneOffset } from 'date-fns-tz';
 import { markdown } from '../common/markdown';
+import { deleteRedisKey } from '../redis';
+import { StorageKey, StorageTopic, generateStorageKey } from '../config';
+import { getMarketingCta } from '../routes/boot';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -630,6 +634,11 @@ export const typeDefs = /* GraphQL */ `
     addUserAcquisitionChannel(
       acquisitionChannel: AcquisitionChannel!
     ): EmptyResponse @auth
+
+    """
+    Clears the user marketing CTA and marks it as read
+    """
+    clearUserMarketingCta(campaignId: String!): EmptyResponse @auth
   }
 `;
 
@@ -1285,6 +1294,31 @@ export const resolvers: IResolvers<any, Context> = {
       await ctx.con
         .getRepository(User)
         .update({ id: ctx.userId }, { acquisitionChannel });
+
+      return { _: null };
+    },
+    clearUserMarketingCta: async (
+      _,
+      { campaignId }: { campaignId: string },
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      await ctx.con
+        .getRepository(UserMarketingCta)
+        .update(
+          { userId: ctx.userId, marketingCtaId: campaignId, readAt: IsNull() },
+          { readAt: new Date() },
+        );
+
+      await deleteRedisKey(
+        generateStorageKey(
+          StorageTopic.Boot,
+          StorageKey.MarketingCta,
+          ctx.userId,
+        ),
+      );
+
+      // Preemptively fetch the next CTA and store it in Redis
+      await getMarketingCta(ctx.con, ctx.log, ctx.userId);
 
       return { _: null };
     },
