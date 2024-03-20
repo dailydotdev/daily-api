@@ -50,7 +50,7 @@ import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { DayOfWeek } from '../src/types';
 import { CampaignType, Invite } from '../src/entity/Invite';
 import { usersFixture } from './fixture/user';
-import { getRedisObject } from '../src/redis';
+import { deleteRedisKey, getRedisObject } from '../src/redis';
 import { StorageKey, StorageTopic, generateStorageKey } from '../src/config';
 
 let con: DataSource;
@@ -2743,7 +2743,6 @@ describe('addUserAcquisitionChannel mutation', () => {
 });
 
 describe('mutation clearUserMarketingCta', () => {
-  const userId = '1';
   const MUTATION = /* GraphQL */ `
     mutation ClearUserMarketingCta($campaignId: String!) {
       clearUserMarketingCta(campaignId: $campaignId) {
@@ -2751,6 +2750,17 @@ describe('mutation clearUserMarketingCta', () => {
       }
     }
   `;
+  const redisKey1 = generateStorageKey(
+    StorageTopic.Boot,
+    StorageKey.MarketingCta,
+    '1',
+  );
+  const redisKey2 = generateStorageKey(
+    StorageTopic.Boot,
+    StorageKey.MarketingCta,
+    '2',
+  );
+
   beforeEach(async () => {
     await con.getRepository(MarketingCta).save([
       {
@@ -2776,13 +2786,22 @@ describe('mutation clearUserMarketingCta', () => {
         },
       },
     ]);
+
     await con.getRepository(UserMarketingCta).save([
       {
         marketingCtaId: 'worlds-best-campaign',
-        userId,
+        userId: '1',
+        createdAt: new Date('2024-03-13 12:00:00'),
+      },
+      {
+        marketingCtaId: 'worlds-best-campaign',
+        userId: '2',
         createdAt: new Date('2024-03-13 12:00:00'),
       },
     ]);
+
+    await deleteRedisKey(redisKey1);
+    await deleteRedisKey(redisKey2);
   });
 
   it('should not allow unauthenticated users', () =>
@@ -2793,11 +2812,11 @@ describe('mutation clearUserMarketingCta', () => {
     ));
 
   it('should mark the user marketing cta as read', async () => {
-    loggedUser = userId;
+    loggedUser = '1';
 
     expect(
       await con.getRepository(UserMarketingCta).findOneBy({
-        userId,
+        userId: '1',
         marketingCtaId: 'worlds-best-campaign',
         readAt: IsNull(),
       }),
@@ -2809,25 +2828,21 @@ describe('mutation clearUserMarketingCta', () => {
 
     expect(
       await con.getRepository(UserMarketingCta).findOneBy({
-        userId,
+        userId: '1',
         marketingCtaId: 'worlds-best-campaign',
         readAt: IsNull(),
       }),
     ).toBeFalsy();
 
-    expect(
-      await getRedisObject(
-        generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, userId),
-      ),
-    ).toEqual('SLEEPING');
+    expect(await getRedisObject(redisKey1)).toEqual('SLEEPING');
   });
 
   it('should pre-load the next user marketing cta', async () => {
-    loggedUser = userId;
+    loggedUser = '1';
     await con.getRepository(UserMarketingCta).save([
       {
         marketingCtaId: 'worlds-second-best-campaign',
-        userId,
+        userId: '1',
         createdAt: new Date('2024-03-13 13:00:00'),
       },
     ]);
@@ -2837,15 +2852,7 @@ describe('mutation clearUserMarketingCta', () => {
     });
 
     expect(
-      JSON.parse(
-        (await getRedisObject(
-          generateStorageKey(
-            StorageTopic.Boot,
-            StorageKey.MarketingCta,
-            userId,
-          ),
-        )) as string,
-      ),
+      JSON.parse((await getRedisObject(redisKey1)) as string),
     ).toMatchObject({
       campaignId: 'worlds-second-best-campaign',
       variant: 'card',
@@ -2857,5 +2864,71 @@ describe('mutation clearUserMarketingCta', () => {
         ctaText: 'Join now',
       },
     });
+  });
+
+  it('should not write to redis if there is no current marketing cta', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(UserMarketingCta).update(
+      {
+        userId: '1',
+        marketingCtaId: 'worlds-best-campaign',
+        readAt: IsNull(),
+      },
+      { readAt: new Date() },
+    );
+
+    await client.mutate(MUTATION, {
+      variables: { campaignId: 'worlds-best-campaign' },
+    });
+
+    expect(JSON.parse((await getRedisObject(redisKey1)) as string)).toBeNull();
+  });
+
+  it('should not update other users marketing cta', async () => {
+    loggedUser = '1';
+
+    await client.mutate(MUTATION, {
+      variables: { campaignId: 'worlds-best-campaign' },
+    });
+
+    expect(
+      await con.getRepository(UserMarketingCta).findOneBy({
+        userId: '2',
+        marketingCtaId: 'worlds-best-campaign',
+        readAt: IsNull(),
+      }),
+    ).toBeTruthy();
+  });
+
+  it('should not update other marketing cta', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(UserMarketingCta).save([
+      {
+        marketingCtaId: 'worlds-second-best-campaign',
+        userId: '1',
+        createdAt: new Date('2024-03-13 13:00:00'),
+      },
+    ]);
+
+    await client.mutate(MUTATION, {
+      variables: { campaignId: 'worlds-best-campaign' },
+    });
+
+    expect(
+      await con.getRepository(UserMarketingCta).findOneBy({
+        userId: '1',
+        marketingCtaId: 'worlds-best-campaign',
+        readAt: IsNull(),
+      }),
+    ).toBeFalsy();
+    expect(
+      await con.getRepository(UserMarketingCta).findOneBy({
+        userId: '1',
+        marketingCtaId: 'worlds-second-best-campaign',
+        readAt: IsNull(),
+      }),
+    ).toBeTruthy();
   });
 });
