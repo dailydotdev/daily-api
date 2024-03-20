@@ -40,6 +40,7 @@ import {
   checkAndClearUserStreak,
   GQLUserStreakTz,
   toGQLEnum,
+  getUserPermalink,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -652,10 +653,6 @@ const getCurrentUser = (
     }),
     ...builder,
   }));
-
-export const getUserPermalink = (
-  user: Pick<GQLUser, 'id' | 'username'>,
-): string => `${process.env.COMMENTS_PREFIX}/${user.username ?? user.id}`;
 
 interface ReadingHistyoryArgs {
   id: string;
