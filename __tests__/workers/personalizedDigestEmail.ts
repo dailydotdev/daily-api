@@ -19,13 +19,12 @@ import {
 } from '../../src/common';
 import nock from 'nock';
 import { subDays } from 'date-fns';
-import { features } from '../../src/growthbook';
+import { ExperimentAllocationClient, features } from '../../src/growthbook';
 import { sendExperimentAllocationEvent } from '../../src/integrations/analytics';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
   sendEmail: jest.fn(),
-  createEemailBatchId: jest.fn(),
 }));
 
 jest.mock('../../src/integrations/analytics', () => ({
@@ -38,19 +37,21 @@ jest.mock('../../src/integrations/analytics', () => ({
 
 jest.mock('../../src/growthbook', () => ({
   ...(jest.requireActual('../../src/growthbook') as Record<string, unknown>),
-  getUserGrowthBookInstace: (_userId: string, { trackingCallback }) => {
+  getUserGrowthBookInstace: (
+    _userId: string,
+    { allocationClient }: { allocationClient: ExperimentAllocationClient },
+  ) => {
     return {
       loadFeatures: jest.fn(),
       getFeatures: jest.fn(),
       getFeatureValue: (featureId: string) => {
-        if (typeof trackingCallback === 'function') {
-          trackingCallback(
-            { key: featureId },
-            {
-              featureId,
-              variationId: 0,
-            },
-          );
+        if (allocationClient) {
+          allocationClient.push({
+            event_timestamp: new Date(),
+            user_id: _userId,
+            experiment_id: featureId,
+            variation_id: '0',
+          });
         }
 
         return Object.values(features).find(

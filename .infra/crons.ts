@@ -64,4 +64,12 @@ export const crons: Cron[] = [
     name: 'update-tag-recommendations',
     schedule: '5 3 * * 0',
   },
+  {
+    name: 'daily-digest',
+    schedule: '7 * * * 1-5',
+    limits: {
+      cpu: '250m',
+      memory: '1Gi',
+    },
+  }
 ];

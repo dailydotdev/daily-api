@@ -1,14 +1,10 @@
 import { getPersonalizedDigestEmailPayload, sendEmail } from '../common';
 import { User, UserPersonalizedDigest } from '../entity';
-import { messageToJson, Worker } from './worker';
+import { messageToJson, Worker, workerToExperimentWorker } from './worker';
 import { isSameDay } from 'date-fns';
 import { DataSource } from 'typeorm';
 import { features, getUserGrowthBookInstace } from '../growthbook';
-import {
-  ExperimentAllocationEvent,
-  sendExperimentAllocationEvent,
-} from '../integrations/analytics';
-import fastq from 'fastq';
+
 import deepmerge from 'deepmerge';
 
 interface Data {
@@ -47,9 +43,9 @@ const setEmailSendDate = async ({
   );
 };
 
-const worker: Worker = {
+const worker: Worker = workerToExperimentWorker({
   subscription: 'api.personalized-digest-email',
-  handler: async (message, con, logger) => {
+  handler: async (message, con, logger, pubsub, allocationClient) => {
     if (process.env.NODE_ENV === 'development') {
       return;
     }
@@ -79,24 +75,10 @@ const worker: Worker = {
       return;
     }
 
-    const analyticsQueue = fastq.promise(
-      async (data: ExperimentAllocationEvent) => {
-        await sendExperimentAllocationEvent(data);
-      },
-      1,
-    );
-
     const growthbookClient = getUserGrowthBookInstace(user.id, {
       enableDevMode: process.env.NODE_ENV !== 'production',
       subscribeToChanges: false,
-      trackingCallback: async (experiment, result) => {
-        analyticsQueue.push({
-          event_timestamp: new Date(),
-          user_id: user.id,
-          experiment_id: experiment.key,
-          variation_id: result.variationId.toString(),
-        });
-      },
+      allocationClient,
     });
 
     const featureValue = growthbookClient.getFeatureValue(
@@ -161,9 +143,7 @@ const worker: Worker = {
 
       throw error;
     }
-
-    await analyticsQueue.drained();
   },
-};
+});
 
 export default worker;

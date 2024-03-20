@@ -1,38 +1,44 @@
-import fastq from 'fastq';
 import {
-  createEmailBatchId,
   getPersonalizedDigestPreviousSendDate,
   getPersonalizedDigestSendDate,
   notifyGeneratePersonalizedDigest,
+  schedulePersonalizedDigestSubscriptions,
 } from '../common';
-import { UserPersonalizedDigest } from '../entity';
+import {
+  UserPersonalizedDigest,
+  UserPersonalizedDigestSendType,
+} from '../entity';
 import { Cron } from './cron';
+import { Brackets } from 'typeorm';
+
+const sendType = UserPersonalizedDigestSendType.weekly;
 
 const cron: Cron = {
   name: 'personalized-digest',
   handler: async (con, logger) => {
-    const emailBatchId = await createEmailBatchId();
-
-    if (!emailBatchId) {
-      throw new Error('failed to create email batch id');
-    }
-
-    logger.info({ emailBatchId }, 'starting personalized digest send');
-
     const nextPreferredDay = (new Date().getDay() + 1) % 7;
     const personalizedDigestQuery = con
       .createQueryBuilder()
       .from(UserPersonalizedDigest, 'upd')
       .where('upd."preferredDay" = :nextPreferredDay', {
         nextPreferredDay,
-      });
-    const timestamp = Date.now();
-    let digestCount = 0;
+      })
+      .andWhere(
+        new Brackets((qb) => {
+          return qb
+            .where(`flags->>'sendType' IS NULL`)
+            .orWhere(`flags->>'sendType' = :sendType`, {
+              sendType,
+            });
+        }),
+      );
 
-    const personalizedDigestStream = await personalizedDigestQuery.stream();
-    const notifyQueueConcurrency = +process.env.DIGEST_QUEUE_CONCURRENCY;
-    const notifyQueue = fastq.promise(
-      async (personalizedDigest: UserPersonalizedDigest) => {
+    const timestamp = Date.now();
+
+    await schedulePersonalizedDigestSubscriptions({
+      queryBuilder: personalizedDigestQuery,
+      logger,
+      handler: async ({ personalizedDigest, emailBatchId }) => {
         const emailSendTimestamp = getPersonalizedDigestSendDate({
           personalizedDigest,
           generationTimestamp: timestamp,
@@ -49,33 +55,9 @@ const cron: Cron = {
           previousSendTimestamp,
           emailBatchId,
         });
-
-        digestCount += 1;
       },
-      notifyQueueConcurrency,
-    );
-
-    personalizedDigestStream.on(
-      'data',
-      (personalizedDigest: UserPersonalizedDigest) => {
-        notifyQueue.push(personalizedDigest);
-      },
-    );
-
-    await new Promise((resolve, reject) => {
-      personalizedDigestStream.on('error', (error) => {
-        logger.error(
-          { err: error, emailBatchId },
-          'streaming personalized digest subscriptions failed',
-        );
-
-        reject(error);
-      });
-      personalizedDigestStream.on('end', resolve);
+      sendType,
     });
-    await notifyQueue.drained();
-
-    logger.info({ digestCount, emailBatchId }, 'personalized digest sent');
   },
 };
 
