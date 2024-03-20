@@ -41,7 +41,6 @@ import {
   GQLUserStreakTz,
   toGQLEnum,
   getUserPermalink,
-  getMarketingCta,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -61,6 +60,7 @@ import { getTimezoneOffset } from 'date-fns-tz';
 import { markdown } from '../common/markdown';
 import { deleteRedisKey } from '../redis';
 import { StorageKey, StorageTopic, generateStorageKey } from '../config';
+import { getMarketingCta } from '../routes/boot';
 
 export interface GQLUpdateUserInput {
   name: string;

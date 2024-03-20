@@ -1,6 +1,11 @@
-import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import {
+  FastifyBaseLogger,
+  FastifyInstance,
+  FastifyReply,
+  FastifyRequest,
+} from 'fastify';
 import createOrGetConnection from '../db';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, IsNull } from 'typeorm';
 import { clearAuthentication, dispatchWhoami } from '../kratos';
 import { generateUUID } from '../ids';
 import { generateSessionId, setTrackingId } from '../tracking';
@@ -16,6 +21,7 @@ import {
   SourceMember,
   SquadSource,
   User,
+  UserMarketingCta,
 } from '../entity';
 import {
   getPermissionsForMember,
@@ -28,16 +34,18 @@ import {
   getRedisObject,
   ioRedisPool,
   ONE_DAY_IN_SECONDS,
+  ONE_WEEK_IN_SECONDS,
+  RedisMagicValues,
   setRedisObject,
   setRedisObjectWithExpiry,
 } from '../redis';
-import { generateStorageKey, REDIS_BANNER_KEY, StorageTopic } from '../config';
 import {
-  base64,
-  getMarketingCta,
-  getSourceLink,
-  submitArticleThreshold,
-} from '../common';
+  generateStorageKey,
+  REDIS_BANNER_KEY,
+  StorageKey,
+  StorageTopic,
+} from '../config';
+import { base64, getSourceLink, submitArticleThreshold } from '../common';
 import { AccessToken, signJwt } from '../auth';
 import { cookies, setCookie, setRawCookie } from '../cookies';
 import { parse } from 'graphql/language/parser';
@@ -333,6 +341,49 @@ const getUser = (con: DataSource, userId: string): Promise<User> =>
       'cover',
     ],
   });
+
+export const getMarketingCta = async (
+  con: DataSource,
+  log: FastifyBaseLogger,
+  userId: string,
+) => {
+  if (!userId) {
+    log.info('no userId provided when fetching marketing cta');
+    return null;
+  }
+
+  const redisKey = generateStorageKey(
+    StorageTopic.Boot,
+    StorageKey.MarketingCta,
+    userId,
+  );
+  const rawRedisValue = await getRedisObject(redisKey);
+
+  if (rawRedisValue === RedisMagicValues.SLEEPING) {
+    return null;
+  }
+
+  // If the vale in redis is `EMPTY`, we fallback to `null`
+  let marketingCta: MarketingCta | null = JSON.parse(rawRedisValue || null);
+
+  // If the key is not in redis, we need to fetch it from the database
+  if (!marketingCta) {
+    const userMarketingCta = await con.getRepository(UserMarketingCta).findOne({
+      where: { userId, readAt: IsNull() },
+      order: { createdAt: 'ASC' },
+      relations: ['marketingCta'],
+    });
+
+    marketingCta = userMarketingCta?.marketingCta || null;
+    const redisValue = userMarketingCta
+      ? JSON.stringify(marketingCta)
+      : RedisMagicValues.SLEEPING;
+
+    await setRedisObjectWithExpiry(redisKey, redisValue, ONE_WEEK_IN_SECONDS);
+  }
+
+  return marketingCta;
+};
 
 const loggedInBoot = async (
   con: DataSource,
