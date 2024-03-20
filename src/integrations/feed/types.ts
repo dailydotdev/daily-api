@@ -51,6 +51,7 @@ export type FeedConfig = {
   source_types?: ('machine' | 'squad')[];
   cursor?: string;
   post_id?: string;
+  allowed_languages?: string[];
 };
 
 export type DynamicConfig = Omit<FeedConfig, 'total_pages'>;
@@ -78,4 +79,4 @@ export interface IFeedClient {
 
 export type FeedVersion =
   // | '26'
-  '27' | '28' | 'popular' | 'onboarding' | 'post_similarity';
+  '27' | '29' | 'popular' | 'onboarding' | 'post_similarity';
