@@ -4,6 +4,7 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   setupFilesAfterEnv: ['./__tests__/setup.ts'],
+  reporters: ['default', 'jest-junit'],
   testPathIgnorePatterns: [
     '<rootDir>/__tests__/setup.ts',
     '<rootDir>/__tests__/helpers.ts',
