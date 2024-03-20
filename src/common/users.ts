@@ -1,12 +1,26 @@
 import { getPostCommenterIds } from './post';
-import { Post, User as DbUser, UserStreak } from './../entity';
+import {
+  Post,
+  User as DbUser,
+  UserStreak,
+  MarketingCta,
+  UserMarketingCta,
+} from './../entity';
 import { differenceInDays, isSameDay } from 'date-fns';
-import { DataSource, EntityManager, In, Not } from 'typeorm';
+import { DataSource, EntityManager, In, IsNull, Not } from 'typeorm';
 import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
 import { Context } from '../Context';
 import { GraphQLResolveInfo } from 'graphql';
 import { getTodayTz } from './date';
+import { FastifyBaseLogger } from 'fastify';
+import { StorageKey, StorageTopic, generateStorageKey } from '../config';
+import {
+  ONE_WEEK_IN_SECONDS,
+  RedisMagicValues,
+  getRedisObject,
+  setRedisObjectWithExpiry,
+} from '../redis';
 
 export interface User {
   id: string;
@@ -415,6 +429,49 @@ export const checkAndClearUserStreak = async (
   }
 
   return false;
+};
+
+export const getMarketingCta = async (
+  con: DataSource,
+  log: FastifyBaseLogger,
+  userId: string,
+) => {
+  if (!userId) {
+    log.info('no userId provided when fetching marketing cta');
+    return null;
+  }
+
+  const redisKey = generateStorageKey(
+    StorageTopic.Boot,
+    StorageKey.MarketingCta,
+    userId,
+  );
+  const rawRedisValue = await getRedisObject(redisKey);
+
+  if (rawRedisValue === RedisMagicValues.SLEEPING) {
+    return null;
+  }
+
+  // If the vale in redis is `EMPTY`, we fallback to `null`
+  let marketingCta: MarketingCta | null = JSON.parse(rawRedisValue || null);
+
+  // If the key is not in redis, we need to fetch it from the database
+  if (!marketingCta) {
+    const userMarketingCta = await con.getRepository(UserMarketingCta).findOne({
+      where: { userId, readAt: IsNull() },
+      order: { createdAt: 'ASC' },
+      relations: ['marketingCta'],
+    });
+
+    marketingCta = userMarketingCta?.marketingCta || null;
+    const redisValue = userMarketingCta
+      ? JSON.stringify(marketingCta)
+      : RedisMagicValues.SLEEPING;
+
+    await setRedisObjectWithExpiry(redisKey, redisValue, ONE_WEEK_IN_SECONDS);
+  }
+
+  return marketingCta;
 };
 
 export enum LogoutReason {
