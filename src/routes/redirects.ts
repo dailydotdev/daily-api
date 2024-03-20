@@ -76,10 +76,10 @@ const redirectToMobile =
     }
 
     const ua = uaParser(req.headers['user-agent']);
-    const browser = ua.browser.name.toLowerCase();
+    const os = ua.os.name.toLowerCase();
     const url = new URL(req.raw.url, 'http://localhost');
     await sendRedirectAnalytics(con, req, res, '/mobile');
-    if (browser.includes('android')) {
+    if (os.includes('android')) {
       url.searchParams.append('id', 'dev.daily');
       return res.redirect(
         `https://play.google.com/store/apps/details${url.search}`,
