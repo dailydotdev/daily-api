@@ -1299,23 +1299,25 @@ export const resolvers: IResolvers<any, Context> = {
       { campaignId }: { campaignId: string },
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      await ctx.con
+      const updateResult = await ctx.con
         .getRepository(UserMarketingCta)
         .update(
           { userId: ctx.userId, marketingCtaId: campaignId, readAt: IsNull() },
           { readAt: new Date() },
         );
 
-      await deleteRedisKey(
-        generateStorageKey(
-          StorageTopic.Boot,
-          StorageKey.MarketingCta,
-          ctx.userId,
-        ),
-      );
+      if (updateResult.affected > 0) {
+        await deleteRedisKey(
+          generateStorageKey(
+            StorageTopic.Boot,
+            StorageKey.MarketingCta,
+            ctx.userId,
+          ),
+        );
 
-      // Preemptively fetch the next CTA and store it in Redis
-      await getMarketingCta(ctx.con, ctx.log, ctx.userId);
+        // Preemptively fetch the next CTA and store it in Redis
+        await getMarketingCta(ctx.con, ctx.log, ctx.userId);
+      }
 
       return { _: null };
     },
