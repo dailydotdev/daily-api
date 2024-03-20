@@ -36,10 +36,12 @@ import {
   View,
   UserPersonalizedDigest,
   UserStreak,
+  MarketingCta,
+  UserMarketingCta,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { getTimezonedStartOfISOWeek } from '../src/common';
-import { DataSource, In } from 'typeorm';
+import { DataSource, In, IsNull } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import request from 'supertest';
 import { FastifyInstance } from 'fastify';
@@ -48,6 +50,8 @@ import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { DayOfWeek } from '../src/types';
 import { CampaignType, Invite } from '../src/entity/Invite';
 import { usersFixture } from './fixture/user';
+import { getRedisObject } from '../src/redis';
+import { StorageKey, StorageTopic, generateStorageKey } from '../src/config';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -2735,5 +2739,123 @@ describe('addUserAcquisitionChannel mutation', () => {
       .getRepository(User)
       .findOneBy({ id: loggedUser });
     expect(updatedUser.acquisitionChannel).toEqual('friend');
+  });
+});
+
+describe('mutation clearUserMarketingCta', () => {
+  const userId = '1';
+  const MUTATION = /* GraphQL */ `
+    mutation ClearUserMarketingCta($campaignId: String!) {
+      clearUserMarketingCta(campaignId: $campaignId) {
+        _
+      }
+    }
+  `;
+  beforeEach(async () => {
+    await con.getRepository(MarketingCta).save([
+      {
+        campaignId: 'worlds-best-campaign',
+        variant: 'card',
+        createdAt: new Date('2024-03-13 12:00:00'),
+        flags: {
+          title: 'Join the best community in the world',
+          description: 'Join the best community in the world',
+          ctaUrl: 'http://localhost:5002',
+          ctaText: 'Join now',
+        },
+      },
+      {
+        campaignId: 'worlds-second-best-campaign',
+        variant: 'card',
+        createdAt: new Date('2024-03-13 13:00:00'),
+        flags: {
+          title: 'Join the second best community in the world',
+          description: 'Join the second best community in the world',
+          ctaUrl: 'http://localhost:5002',
+          ctaText: 'Join now',
+        },
+      },
+    ]);
+    await con.getRepository(UserMarketingCta).save([
+      {
+        marketingCtaId: 'worlds-best-campaign',
+        userId,
+        createdAt: new Date('2024-03-13 12:00:00'),
+      },
+    ]);
+  });
+
+  it('should not allow unauthenticated users', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { campaignId: 'worlds-best-campaign' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should mark the user marketing cta as read', async () => {
+    loggedUser = userId;
+
+    expect(
+      await con.getRepository(UserMarketingCta).findOneBy({
+        userId,
+        marketingCtaId: 'worlds-best-campaign',
+        readAt: IsNull(),
+      }),
+    ).toBeTruthy();
+
+    await client.mutate(MUTATION, {
+      variables: { campaignId: 'worlds-best-campaign' },
+    });
+
+    expect(
+      await con.getRepository(UserMarketingCta).findOneBy({
+        userId,
+        marketingCtaId: 'worlds-best-campaign',
+        readAt: IsNull(),
+      }),
+    ).toBeFalsy();
+
+    expect(
+      await getRedisObject(
+        generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, userId),
+      ),
+    ).toEqual('SLEEPING');
+  });
+
+  it('should pre-load the next user marketing cta', async () => {
+    loggedUser = userId;
+    await con.getRepository(UserMarketingCta).save([
+      {
+        marketingCtaId: 'worlds-second-best-campaign',
+        userId,
+        createdAt: new Date('2024-03-13 13:00:00'),
+      },
+    ]);
+
+    await client.mutate(MUTATION, {
+      variables: { campaignId: 'worlds-best-campaign' },
+    });
+
+    expect(
+      JSON.parse(
+        (await getRedisObject(
+          generateStorageKey(
+            StorageTopic.Boot,
+            StorageKey.MarketingCta,
+            userId,
+          ),
+        )) as string,
+      ),
+    ).toMatchObject({
+      campaignId: 'worlds-second-best-campaign',
+      variant: 'card',
+      createdAt: '2024-03-13T13:00:00.000Z',
+      flags: {
+        title: 'Join the second best community in the world',
+        description: 'Join the second best community in the world',
+        ctaUrl: 'http://localhost:5002',
+        ctaText: 'Join now',
+      },
+    });
   });
 });
