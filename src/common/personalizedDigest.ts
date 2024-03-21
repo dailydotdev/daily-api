@@ -10,7 +10,7 @@ import {
 import { DayOfWeek } from '../types';
 import { MailDataRequired } from '@sendgrid/mail';
 import { format, nextDay, previousDay } from 'date-fns';
-import { features } from '../growthbook';
+import { PersonalizedDigestFeatureConfig } from '../growthbook';
 import { feedToFilters, fixedIdsFeedBuilder } from './feedGenerator';
 import { FeedClient } from '../integrations/feed';
 import {
@@ -82,7 +82,7 @@ const getPostsTemplateData = ({
   feature,
 }: {
   posts: TemplatePostData[];
-  feature: typeof features.personalizedDigest.defaultValue;
+  feature: PersonalizedDigestFeatureConfig;
 }) => {
   return posts.map((post) => {
     return {
@@ -118,7 +118,7 @@ const getEmailVariation = async ({
   posts: TemplatePostData[];
   user: User;
   userStreak?: UserStreak;
-  feature: typeof features.personalizedDigest.defaultValue;
+  feature: PersonalizedDigestFeatureConfig;
   currentDate: Date;
 }): Promise<Partial<MailDataRequired>> => {
   const [dayName] = Object.entries(DayOfWeek).find(
@@ -179,7 +179,7 @@ export const getPersonalizedDigestEmailPayload = async ({
   emailSendDate: Date;
   currentDate: Date;
   previousSendDate: Date;
-  feature: typeof features.personalizedDigest.defaultValue;
+  feature: PersonalizedDigestFeatureConfig;
 }): Promise<MailDataRequired | undefined> => {
   const feedConfig = await feedToFilters(
     con,

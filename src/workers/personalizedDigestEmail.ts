@@ -1,9 +1,18 @@
 import { getPersonalizedDigestEmailPayload, sendEmail } from '../common';
-import { User, UserPersonalizedDigest } from '../entity';
+import {
+  User,
+  UserPersonalizedDigest,
+  UserPersonalizedDigestSendType,
+} from '../entity';
 import { messageToJson, Worker, workerToExperimentWorker } from './worker';
 import { isSameDay } from 'date-fns';
 import { DataSource } from 'typeorm';
-import { features, getUserGrowthBookInstace } from '../growthbook';
+import {
+  Feature,
+  PersonalizedDigestFeatureConfig,
+  features,
+  getUserGrowthBookInstace,
+} from '../growthbook';
 
 import deepmerge from 'deepmerge';
 
@@ -43,6 +52,14 @@ const setEmailSendDate = async ({
   );
 };
 
+const sendTypeToFeatureMap: Record<
+  UserPersonalizedDigestSendType,
+  Feature<PersonalizedDigestFeatureConfig>
+> = {
+  [UserPersonalizedDigestSendType.weekly]: features.personalizedDigest,
+  [UserPersonalizedDigestSendType.workdays]: features.dailyDigest,
+};
+
 const worker: Worker = workerToExperimentWorker({
   subscription: 'api.personalized-digest-email',
   handler: async (message, con, logger, pubsub, allocationClient) => {
@@ -75,6 +92,10 @@ const worker: Worker = workerToExperimentWorker({
       return;
     }
 
+    const featureInstance =
+      sendTypeToFeatureMap[personalizedDigest.flags.sendType] ||
+      features.personalizedDigest;
+
     const growthbookClient = getUserGrowthBookInstace(user.id, {
       enableDevMode: process.env.NODE_ENV !== 'production',
       subscribeToChanges: false,
@@ -82,15 +103,12 @@ const worker: Worker = workerToExperimentWorker({
     });
 
     const featureValue = growthbookClient.getFeatureValue(
-      features.personalizedDigest.id,
-      features.personalizedDigest.defaultValue,
+      featureInstance.id,
+      featureInstance.defaultValue,
     );
 
     // gb does not handle default values for nested objects
-    const digestFeature = deepmerge(
-      features.personalizedDigest.defaultValue,
-      featureValue,
-    );
+    const digestFeature = deepmerge(featureInstance.defaultValue, featureValue);
 
     const currentDate = new Date();
 
