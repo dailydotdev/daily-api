@@ -48,7 +48,7 @@
     "@opentelemetry/exporter-prometheus": "^0.48.0",
     "@opentelemetry/exporter-trace-otlp-grpc": "^0.48.0",
     "@opentelemetry/instrumentation-fastify": "^0.33.0",
-    "@opentelemetry/instrumentation-graphql": "^0.37.0",
+    "@opentelemetry/instrumentation-graphql": "^0.38.1",
     "@opentelemetry/instrumentation-grpc": "^0.48.0",
     "@opentelemetry/instrumentation-http": "^0.48.0",
     "@opentelemetry/instrumentation-ioredis": "^0.37.0",
