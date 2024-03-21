@@ -63,6 +63,7 @@ import {
   ONE_WEEK_IN_SECONDS,
   RedisMagicValues,
   deleteRedisKey,
+  getRedisObject,
   setRedisObjectWithExpiry,
 } from '../redis';
 import { StorageKey, StorageTopic, generateStorageKey } from '../config';
@@ -731,7 +732,7 @@ export const getMarketingCta = async (
     StorageKey.MarketingCta,
     userId,
   );
-  const rawRedisValue = RedisMagicValues.SLEEPING;
+  const rawRedisValue = await getRedisObject(redisKey);
 
   if (rawRedisValue === RedisMagicValues.SLEEPING) {
     return null;
