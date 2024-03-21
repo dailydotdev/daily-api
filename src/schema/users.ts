@@ -18,6 +18,7 @@ import {
   getAuthorPostStats,
   AcquisitionChannel,
   UserMarketingCta,
+  MarketingCta,
 } from '../entity';
 import {
   AuthenticationError,
@@ -53,14 +54,19 @@ import {
 } from '../errors';
 import { deleteUser } from '../directive/user';
 import { randomInt } from 'crypto';
-import { In, IsNull } from 'typeorm';
+import { DataSource, In, IsNull } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
 import { DayOfWeek } from '../types';
 import { getTimezoneOffset } from 'date-fns-tz';
 import { markdown } from '../common/markdown';
-import { deleteRedisKey } from '../redis';
+import {
+  ONE_WEEK_IN_SECONDS,
+  RedisMagicValues,
+  deleteRedisKey,
+  setRedisObjectWithExpiry,
+} from '../redis';
 import { StorageKey, StorageTopic, generateStorageKey } from '../config';
-import { getMarketingCta } from '../routes/boot';
+import { FastifyBaseLogger } from 'fastify';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -709,6 +715,49 @@ const userTimezone = `at time zone COALESCE(timezone, 'utc')`;
 const timestampAtTimezone = `"timestamp"::timestamptz ${userTimezone}`;
 
 const MAX_README_LENGTH = 10_000;
+
+export const getMarketingCta = async (
+  con: DataSource,
+  log: FastifyBaseLogger,
+  userId: string,
+) => {
+  if (!userId) {
+    log.info('no userId provided when fetching marketing cta');
+    return null;
+  }
+
+  const redisKey = generateStorageKey(
+    StorageTopic.Boot,
+    StorageKey.MarketingCta,
+    userId,
+  );
+  const rawRedisValue = RedisMagicValues.SLEEPING;
+
+  if (rawRedisValue === RedisMagicValues.SLEEPING) {
+    return null;
+  }
+
+  // If the vale in redis is `EMPTY`, we fallback to `null`
+  let marketingCta: MarketingCta | null = JSON.parse(rawRedisValue || null);
+
+  // If the key is not in redis, we need to fetch it from the database
+  if (!marketingCta) {
+    const userMarketingCta = await con.getRepository(UserMarketingCta).findOne({
+      where: { userId, readAt: IsNull() },
+      order: { createdAt: 'ASC' },
+      relations: ['marketingCta'],
+    });
+
+    marketingCta = userMarketingCta?.marketingCta || null;
+    const redisValue = userMarketingCta
+      ? JSON.stringify(marketingCta)
+      : RedisMagicValues.SLEEPING;
+
+    await setRedisObjectWithExpiry(redisKey, redisValue, ONE_WEEK_IN_SECONDS);
+  }
+
+  return marketingCta;
+};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
