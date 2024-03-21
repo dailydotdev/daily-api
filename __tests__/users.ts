@@ -36,10 +36,12 @@ import {
   View,
   UserPersonalizedDigest,
   UserStreak,
+  MarketingCta,
+  UserMarketingCta,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { getTimezonedStartOfISOWeek } from '../src/common';
-import { DataSource, In } from 'typeorm';
+import { DataSource, In, IsNull } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import request from 'supertest';
 import { FastifyInstance } from 'fastify';
@@ -48,6 +50,8 @@ import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { DayOfWeek } from '../src/types';
 import { CampaignType, Invite } from '../src/entity/Invite';
 import { usersFixture } from './fixture/user';
+import { deleteRedisKey, getRedisObject } from '../src/redis';
+import { StorageKey, StorageTopic, generateStorageKey } from '../src/config';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -2735,5 +2739,196 @@ describe('addUserAcquisitionChannel mutation', () => {
       .getRepository(User)
       .findOneBy({ id: loggedUser });
     expect(updatedUser.acquisitionChannel).toEqual('friend');
+  });
+});
+
+describe('mutation clearUserMarketingCta', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation ClearUserMarketingCta($campaignId: String!) {
+      clearUserMarketingCta(campaignId: $campaignId) {
+        _
+      }
+    }
+  `;
+  const redisKey1 = generateStorageKey(
+    StorageTopic.Boot,
+    StorageKey.MarketingCta,
+    '1',
+  );
+  const redisKey2 = generateStorageKey(
+    StorageTopic.Boot,
+    StorageKey.MarketingCta,
+    '2',
+  );
+
+  beforeEach(async () => {
+    await con.getRepository(MarketingCta).save([
+      {
+        campaignId: 'worlds-best-campaign',
+        variant: 'card',
+        createdAt: new Date('2024-03-13 12:00:00'),
+        flags: {
+          title: 'Join the best community in the world',
+          description: 'Join the best community in the world',
+          ctaUrl: 'http://localhost:5002',
+          ctaText: 'Join now',
+        },
+      },
+      {
+        campaignId: 'worlds-second-best-campaign',
+        variant: 'card',
+        createdAt: new Date('2024-03-13 13:00:00'),
+        flags: {
+          title: 'Join the second best community in the world',
+          description: 'Join the second best community in the world',
+          ctaUrl: 'http://localhost:5002',
+          ctaText: 'Join now',
+        },
+      },
+    ]);
+
+    await con.getRepository(UserMarketingCta).save([
+      {
+        marketingCtaId: 'worlds-best-campaign',
+        userId: '1',
+        createdAt: new Date('2024-03-13 12:00:00'),
+      },
+      {
+        marketingCtaId: 'worlds-best-campaign',
+        userId: '2',
+        createdAt: new Date('2024-03-13 12:00:00'),
+      },
+    ]);
+
+    await deleteRedisKey(redisKey1);
+    await deleteRedisKey(redisKey2);
+  });
+
+  it('should not allow unauthenticated users', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { campaignId: 'worlds-best-campaign' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should mark the user marketing cta as read', async () => {
+    loggedUser = '1';
+
+    expect(
+      await con.getRepository(UserMarketingCta).findOneBy({
+        userId: '1',
+        marketingCtaId: 'worlds-best-campaign',
+        readAt: IsNull(),
+      }),
+    ).toBeTruthy();
+
+    await client.mutate(MUTATION, {
+      variables: { campaignId: 'worlds-best-campaign' },
+    });
+
+    expect(
+      await con.getRepository(UserMarketingCta).findOneBy({
+        userId: '1',
+        marketingCtaId: 'worlds-best-campaign',
+        readAt: IsNull(),
+      }),
+    ).toBeFalsy();
+
+    expect(await getRedisObject(redisKey1)).toEqual('SLEEPING');
+  });
+
+  it('should pre-load the next user marketing cta', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserMarketingCta).save([
+      {
+        marketingCtaId: 'worlds-second-best-campaign',
+        userId: '1',
+        createdAt: new Date('2024-03-13 13:00:00'),
+      },
+    ]);
+
+    await client.mutate(MUTATION, {
+      variables: { campaignId: 'worlds-best-campaign' },
+    });
+
+    expect(
+      JSON.parse((await getRedisObject(redisKey1)) as string),
+    ).toMatchObject({
+      campaignId: 'worlds-second-best-campaign',
+      variant: 'card',
+      createdAt: '2024-03-13T13:00:00.000Z',
+      flags: {
+        title: 'Join the second best community in the world',
+        description: 'Join the second best community in the world',
+        ctaUrl: 'http://localhost:5002',
+        ctaText: 'Join now',
+      },
+    });
+  });
+
+  it('should not write to redis if there is no current marketing cta', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(UserMarketingCta).update(
+      {
+        userId: '1',
+        marketingCtaId: 'worlds-best-campaign',
+        readAt: IsNull(),
+      },
+      { readAt: new Date() },
+    );
+
+    await client.mutate(MUTATION, {
+      variables: { campaignId: 'worlds-best-campaign' },
+    });
+
+    expect(JSON.parse((await getRedisObject(redisKey1)) as string)).toBeNull();
+  });
+
+  it('should not update other users marketing cta', async () => {
+    loggedUser = '1';
+
+    await client.mutate(MUTATION, {
+      variables: { campaignId: 'worlds-best-campaign' },
+    });
+
+    expect(
+      await con.getRepository(UserMarketingCta).findOneBy({
+        userId: '2',
+        marketingCtaId: 'worlds-best-campaign',
+        readAt: IsNull(),
+      }),
+    ).toBeTruthy();
+  });
+
+  it('should not update other marketing cta', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(UserMarketingCta).save([
+      {
+        marketingCtaId: 'worlds-second-best-campaign',
+        userId: '1',
+        createdAt: new Date('2024-03-13 13:00:00'),
+      },
+    ]);
+
+    await client.mutate(MUTATION, {
+      variables: { campaignId: 'worlds-best-campaign' },
+    });
+
+    expect(
+      await con.getRepository(UserMarketingCta).findOneBy({
+        userId: '1',
+        marketingCtaId: 'worlds-best-campaign',
+        readAt: IsNull(),
+      }),
+    ).toBeFalsy();
+    expect(
+      await con.getRepository(UserMarketingCta).findOneBy({
+        userId: '1',
+        marketingCtaId: 'worlds-second-best-campaign',
+        readAt: IsNull(),
+      }),
+    ).toBeTruthy();
   });
 });

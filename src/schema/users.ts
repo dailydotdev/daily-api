@@ -17,6 +17,8 @@ import {
   UserPersonalizedDigest,
   getAuthorPostStats,
   AcquisitionChannel,
+  UserMarketingCta,
+  MarketingCta,
 } from '../entity';
 import {
   AuthenticationError,
@@ -39,6 +41,7 @@ import {
   checkAndClearUserStreak,
   GQLUserStreakTz,
   toGQLEnum,
+  getUserPermalink,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -51,11 +54,20 @@ import {
 } from '../errors';
 import { deleteUser } from '../directive/user';
 import { randomInt } from 'crypto';
-import { In } from 'typeorm';
+import { DataSource, In, IsNull } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
 import { DayOfWeek } from '../types';
 import { getTimezoneOffset } from 'date-fns-tz';
 import { markdown } from '../common/markdown';
+import {
+  ONE_WEEK_IN_SECONDS,
+  RedisMagicValues,
+  deleteRedisKey,
+  getRedisObject,
+  setRedisObjectWithExpiry,
+} from '../redis';
+import { StorageKey, StorageTopic, generateStorageKey } from '../config';
+import { FastifyBaseLogger } from 'fastify';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -630,6 +642,11 @@ export const typeDefs = /* GraphQL */ `
     addUserAcquisitionChannel(
       acquisitionChannel: AcquisitionChannel!
     ): EmptyResponse @auth
+
+    """
+    Clears the user marketing CTA and marks it as read
+    """
+    clearUserMarketingCta(campaignId: String!): EmptyResponse @auth
   }
 `;
 
@@ -643,10 +660,6 @@ const getCurrentUser = (
     }),
     ...builder,
   }));
-
-export const getUserPermalink = (
-  user: Pick<GQLUser, 'id' | 'username'>,
-): string => `${process.env.COMMENTS_PREFIX}/${user.username ?? user.id}`;
 
 interface ReadingHistyoryArgs {
   id: string;
@@ -703,6 +716,49 @@ const userTimezone = `at time zone COALESCE(timezone, 'utc')`;
 const timestampAtTimezone = `"timestamp"::timestamptz ${userTimezone}`;
 
 const MAX_README_LENGTH = 10_000;
+
+export const getMarketingCta = async (
+  con: DataSource,
+  log: FastifyBaseLogger,
+  userId: string,
+) => {
+  if (!userId) {
+    log.info('no userId provided when fetching marketing cta');
+    return null;
+  }
+
+  const redisKey = generateStorageKey(
+    StorageTopic.Boot,
+    StorageKey.MarketingCta,
+    userId,
+  );
+  const rawRedisValue = await getRedisObject(redisKey);
+
+  if (rawRedisValue === RedisMagicValues.SLEEPING) {
+    return null;
+  }
+
+  // If the vale in redis is `EMPTY`, we fallback to `null`
+  let marketingCta: MarketingCta | null = JSON.parse(rawRedisValue || null);
+
+  // If the key is not in redis, we need to fetch it from the database
+  if (!marketingCta) {
+    const userMarketingCta = await con.getRepository(UserMarketingCta).findOne({
+      where: { userId, readAt: IsNull() },
+      order: { createdAt: 'ASC' },
+      relations: ['marketingCta'],
+    });
+
+    marketingCta = userMarketingCta?.marketingCta || null;
+    const redisValue = userMarketingCta
+      ? JSON.stringify(marketingCta)
+      : RedisMagicValues.SLEEPING;
+
+    await setRedisObjectWithExpiry(redisKey, redisValue, ONE_WEEK_IN_SECONDS);
+  }
+
+  return marketingCta;
+};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
@@ -1285,6 +1341,33 @@ export const resolvers: IResolvers<any, Context> = {
       await ctx.con
         .getRepository(User)
         .update({ id: ctx.userId }, { acquisitionChannel });
+
+      return { _: null };
+    },
+    clearUserMarketingCta: async (
+      _,
+      { campaignId }: { campaignId: string },
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      const updateResult = await ctx.con
+        .getRepository(UserMarketingCta)
+        .update(
+          { userId: ctx.userId, marketingCtaId: campaignId, readAt: IsNull() },
+          { readAt: new Date() },
+        );
+
+      if (updateResult.affected > 0) {
+        await deleteRedisKey(
+          generateStorageKey(
+            StorageTopic.Boot,
+            StorageKey.MarketingCta,
+            ctx.userId,
+          ),
+        );
+
+        // Preemptively fetch the next CTA and store it in Redis
+        await getMarketingCta(ctx.con, ctx.log, ctx.userId);
+      }
 
       return { _: null };
     },

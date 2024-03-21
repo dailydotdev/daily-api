@@ -46,6 +46,9 @@ export const fetchUser = async (
   return user;
 };
 
+export const getUserPermalink = (user: Pick<User, 'id' | 'username'>): string =>
+  `${process.env.COMMENTS_PREFIX}/${user.username ?? user.id}`;
+
 export const getUserProfileUrl = (username: string): string =>
   `${process.env.COMMENTS_PREFIX}/${username}`;
 
