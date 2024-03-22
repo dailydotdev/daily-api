@@ -22,6 +22,7 @@ interface Data {
   previousSendTimestamp: number;
   emailBatchId?: string;
   deduplicate?: boolean;
+  config?: PersonalizedDigestFeatureConfig;
 }
 
 type SetEmailSendDateProps = Pick<
@@ -75,6 +76,7 @@ const worker: Worker = workerToExperimentWorker({
       previousSendTimestamp,
       emailBatchId,
       deduplicate = true,
+      config,
     } = data;
     const emailSendDate = new Date(emailSendTimestamp);
     const previousSendDate = new Date(previousSendTimestamp);
@@ -95,17 +97,22 @@ const worker: Worker = workerToExperimentWorker({
     const featureInstance =
       sendTypeToFeatureMap[personalizedDigest.flags.sendType] ||
       features.personalizedDigest;
+    let featureValue: PersonalizedDigestFeatureConfig;
 
-    const growthbookClient = getUserGrowthBookInstace(user.id, {
-      enableDevMode: process.env.NODE_ENV !== 'production',
-      subscribeToChanges: false,
-      allocationClient,
-    });
+    if (config) {
+      featureValue = config;
+    } else {
+      const growthbookClient = getUserGrowthBookInstace(user.id, {
+        enableDevMode: process.env.NODE_ENV !== 'production',
+        subscribeToChanges: false,
+        allocationClient,
+      });
 
-    const featureValue = growthbookClient.getFeatureValue(
-      featureInstance.id,
-      featureInstance.defaultValue,
-    );
+      featureValue = growthbookClient.getFeatureValue(
+        featureInstance.id,
+        featureInstance.defaultValue,
+      );
+    }
 
     // gb does not handle default values for nested objects
     const digestFeature = deepmerge(featureInstance.defaultValue, featureValue);
