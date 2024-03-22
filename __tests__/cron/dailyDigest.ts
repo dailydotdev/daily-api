@@ -16,6 +16,7 @@ import {
 import { logger } from '../../src/logger';
 import { getTimezoneOffset } from 'date-fns-tz';
 import { crons } from '../../src/cron/index';
+import { setDay } from 'date-fns';
 
 let con: DataSource;
 
@@ -57,6 +58,32 @@ describe('dailyDigest cron', () => {
     fakePreferredHour = clampToHours(
       currentDate.getHours() + digestPreferredHourOffset,
     );
+
+    jest
+      .useFakeTimers({
+        doNotFake: [
+          'hrtime',
+          'nextTick',
+          'performance',
+          'queueMicrotask',
+          'requestAnimationFrame',
+          'cancelAnimationFrame',
+          'requestIdleCallback',
+          'cancelIdleCallback',
+          'setImmediate',
+          'clearImmediate',
+          'setInterval',
+          'clearInterval',
+          'setTimeout',
+          'clearTimeout',
+        ],
+      })
+      // set day to Tuesday to avoid weekend overlaps
+      .setSystemTime(setDay(currentDate, 2));
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('should be registered', () => {
@@ -351,5 +378,32 @@ describe('dailyDigest cron', () => {
         );
       },
     );
+  });
+
+  it('should not schedule send time during weekends', async () => {
+    jest.setSystemTime(setDay(new Date(), 6)); // Saturday
+    const usersToSchedule = usersFixture;
+
+    await con.getRepository(UserPersonalizedDigest).save(
+      usersToSchedule.map((item) => ({
+        userId: item.id,
+        preferredDay,
+        preferredHour: fakePreferredHour,
+        flags: {
+          sendType,
+        },
+      })),
+    );
+
+    await expectSuccessfulCron(cron);
+
+    const scheduledPersonalizedDigests = await con
+      .getRepository(UserPersonalizedDigest)
+      .findBy({
+        preferredDay,
+      });
+
+    expect(scheduledPersonalizedDigests).toHaveLength(usersToSchedule.length);
+    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(0);
   });
 });
