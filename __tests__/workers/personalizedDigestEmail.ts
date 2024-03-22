@@ -591,4 +591,40 @@ describe('personalizedDigestEmail worker', () => {
       },
     });
   });
+
+  it('should generate personalized digest for user with provided config', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    expect(personalizedDigest).toBeTruthy();
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+      config: {
+        templateId: 'd-testtemplateidfromconfig',
+        maxPosts: 3,
+        feedConfig: 'testfeedconfig',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const emailData = (sendEmail as jest.Mock).mock.calls[0][0];
+    expect(emailData).toMatchSnapshot({
+      sendAt: expect.any(Number),
+      dynamicTemplateData: {
+        date: expect.any(String),
+      },
+    });
+
+    expect(nockScope.isDone()).toBe(true);
+    expect(nockBody).toMatchSnapshot({
+      date_from: expect.any(String),
+      date_to: expect.any(String),
+    });
+  });
 });
