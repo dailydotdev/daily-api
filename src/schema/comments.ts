@@ -18,6 +18,7 @@ import {
   SourceMember,
   SourceType,
   User,
+  PostType,
 } from '../entity';
 import { NotFoundError, TypeOrmError } from '../errors';
 import { GQLEmptyResponse } from './common';
@@ -138,6 +139,11 @@ export const typeDefs = /* GraphQL */ `
     Total number of upvotes
     """
     numUpvotes: Int!
+
+    """
+    Parent comment of this comment
+    """
+    parent: Comment
   }
 
   type CommentEdge {
@@ -206,6 +212,21 @@ export const typeDefs = /* GraphQL */ `
   }
 
   extend type Query {
+    """
+    Get the comments feed
+    """
+    commentFeed(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): CommentConnection! @auth
+
     """
     Get the comments of a post
     """
@@ -535,6 +556,35 @@ export const reportCommentReasons = new Map([
 export const resolvers: IResolvers<any, Context> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Query: traceResolverObject<any, any>({
+    commentFeed: async (
+      _,
+      args: ConnectionArguments,
+      ctx,
+      info,
+    ): Promise<Connection<GQLComment>> => {
+      return queryPaginatedByDate(
+        ctx,
+        info,
+        args,
+        { key: 'createdAt' },
+        {
+          queryBuilder: (builder) => {
+            builder.queryBuilder = builder.queryBuilder
+              .innerJoin(Post, 'p', `"${builder.alias}"."postId" = p.id`)
+              .innerJoin(Source, 's', `"p"."sourceId" = s.id`)
+              .innerJoin(User, 'u', `"${builder.alias}"."userId" = u.id`)
+              .andWhere(`s.private = false`)
+              .andWhere('p.visible = true')
+              .andWhere('p.deleted = false')
+              .andWhere('p.type != :type', { type: PostType.Welcome })
+              .andWhere('u.reputation > 10');
+
+            return builder;
+          },
+          orderByKey: 'DESC',
+        },
+      );
+    },
     postComments: async (
       _,
       args: GQLPostCommentsArgs,

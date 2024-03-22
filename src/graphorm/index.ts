@@ -383,6 +383,13 @@ const obj = new GraphORM({
             base64(`time:${new Date(node.createdAt).getTime()}`),
         },
       },
+      parent: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'parentId',
+        },
+      },
     },
   },
   FeedSettings: {
