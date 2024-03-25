@@ -32,6 +32,8 @@ import { saveComment, updateMentions } from '../src/schema/comments';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { CommentReport } from '../src/entity/CommentReport';
+import { UserComment } from '../src/entity/user/UserComment';
+import { UserVote } from '../src/common';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -1361,5 +1363,74 @@ describe('query comment', () => {
     const comment = await client.query(QUERY, { variables: { id: 'c1' } });
     expect(comment.errors).toBeFalsy();
     expect(comment.data.comment.id).toEqual('c1');
+  });
+});
+
+describe('userState field', () => {
+  const QUERY = `query PostComments($postId: ID!, $after: String, $first: Int) {
+    postComments(postId: $postId, after: $after, first: $first) {
+      pageInfo { endCursor, hasNextPage }
+      edges { node {
+        id
+        userState {
+          vote
+        }
+      } }
+    }
+    }`;
+
+  it('should return null if anonymous user', async () => {
+    const res = await client.query(QUERY, {
+      variables: { postId: 'p1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    res.data.postComments.edges.forEach((edge) => {
+      expect(edge.node.userState).toBeNull();
+    });
+  });
+
+  it('should return default state if state does not exist', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: { postId: 'p1' },
+    });
+    expect(res.errors).toBeFalsy();
+    const { vote } = con.getRepository(UserComment).create();
+
+    expect(res.errors).toBeFalsy();
+    res.data.postComments.edges.forEach((edge) => {
+      expect(edge.node.userState).toMatchObject({
+        vote,
+      });
+    });
+  });
+
+  it('should return user state', async () => {
+    loggedUser = '1';
+    const userComment = await con.getRepository(UserComment).save({
+      commentId: 'c1',
+      userId: loggedUser,
+      vote: UserVote.Up,
+    });
+    console.log(userComment);
+    expect(userComment).toBeTruthy();
+
+    const res = await client.query(QUERY, {
+      variables: { postId: 'p1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    res.data.postComments.edges.forEach((edge) => {
+      if (edge.node.id === 'c1') {
+        expect(edge.node.userState).toMatchObject({
+          vote: UserVote.Up,
+        });
+      } else {
+        expect(edge.node.userState).toMatchObject({
+          vote: UserVote.None,
+        });
+      }
+    });
   });
 });
