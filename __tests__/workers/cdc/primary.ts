@@ -8,7 +8,6 @@ import {
   ReputationType,
   PostType,
   UserPost,
-  UserPostVote,
   CampaignCtaPlacement,
   CollectionPost,
   PostRelation,
@@ -55,6 +54,7 @@ import {
   notifyUserReadmeUpdated,
   triggerTypedEvent,
   notifyReputationIncrease,
+  UserVote,
 } from '../../../src/common';
 import worker from '../../../src/workers/cdc/primary';
 import {
@@ -282,7 +282,7 @@ describe('post upvote', () => {
     userId: '1',
     postId: 'p1',
     votedAt: 0,
-    vote: UserPostVote.Up,
+    vote: UserVote.Up,
     hidden: false,
     updatedAt: 0,
     createdAt: 0,
@@ -332,7 +332,7 @@ describe('post upvote', () => {
         after: base,
         before: {
           ...base,
-          vote: UserPostVote.None,
+          vote: UserVote.None,
         },
         op: 'u',
         table: 'user_post',
@@ -352,7 +352,7 @@ describe('post upvote', () => {
       mockChangeMessage<ObjectType>({
         after: {
           ...base,
-          vote: UserPostVote.None,
+          vote: UserVote.None,
         },
         before: base,
         op: 'u',
@@ -372,11 +372,11 @@ describe('post upvote', () => {
       mockChangeMessage<ObjectType>({
         after: {
           ...base,
-          vote: UserPostVote.None,
+          vote: UserVote.None,
         },
         before: {
           ...base,
-          vote: UserPostVote.Down,
+          vote: UserVote.Down,
         },
         op: 'u',
         table: 'user_post',

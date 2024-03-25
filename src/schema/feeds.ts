@@ -8,7 +8,6 @@ import {
   Post,
   Source,
   UserPost,
-  UserPostVote,
 } from '../entity';
 import { Category } from '../entity/Category';
 import { GraphQLResolveInfo } from 'graphql';
@@ -32,6 +31,7 @@ import {
   Ranking,
   sourceFeedBuilder,
   tagFeedBuilder,
+  UserVote,
   whereKeyword,
 } from '../common';
 import { In, SelectQueryBuilder } from 'typeorm';
@@ -1106,7 +1106,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             UserPost,
             'up',
             `up."postId" = ${alias}.id AND up."userId" = :author AND vote = :vote`,
-            { author: userId, vote: UserPostVote.Up },
+            { author: userId, vote: UserVote.Up },
           ),
       upvotedPageGenerator,
       applyUpvotedPaging,

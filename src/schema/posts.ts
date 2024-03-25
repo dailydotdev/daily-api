@@ -31,6 +31,7 @@ import {
   uploadPostFile,
   UploadPreset,
   validatePost,
+  UserVote,
 } from '../common';
 import {
   ArticlePost,
@@ -51,7 +52,6 @@ import {
   PostQuestion,
   UserPost,
   UserPostFlagsPublic,
-  UserPostVote,
   updateSharePost,
   View,
   User,
@@ -153,7 +153,7 @@ export interface GQLPostUpvote {
 }
 
 export interface GQLUserPost {
-  vote: UserPostVote;
+  vote: UserVote;
   hidden: boolean;
   flags?: UserPostFlagsPublic;
   votedAt: Date | null;
@@ -1752,11 +1752,11 @@ export const resolvers: IResolvers<any, Context> = {
     },
     votePost: async (
       source,
-      { id, vote }: { id: string; vote: UserPostVote },
+      { id, vote }: { id: string; vote: UserVote },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       try {
-        if (!Object.values(UserPostVote).includes(vote)) {
+        if (!Object.values(UserVote).includes(vote)) {
           throw new ValidationError('Unsupported vote type');
         }
 
@@ -1765,29 +1765,29 @@ export const resolvers: IResolvers<any, Context> = {
         const userPostRepo = ctx.con.getRepository(UserPost);
 
         switch (vote) {
-          case UserPostVote.Up:
+          case UserVote.Up:
             await userPostRepo.save({
               postId: id,
               userId: ctx.userId,
-              vote: UserPostVote.Up,
+              vote: UserVote.Up,
               hidden: false,
             });
 
             break;
-          case UserPostVote.Down:
+          case UserVote.Down:
             await userPostRepo.save({
               postId: id,
               userId: ctx.userId,
-              vote: UserPostVote.Down,
+              vote: UserVote.Down,
               hidden: true,
             });
 
             break;
-          case UserPostVote.None:
+          case UserVote.None:
             await userPostRepo.save({
               postId: id,
               userId: ctx.userId,
-              vote: UserPostVote.None,
+              vote: UserVote.None,
               hidden: false,
             });
 

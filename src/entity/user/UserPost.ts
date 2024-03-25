@@ -9,18 +9,13 @@ import {
 } from 'typeorm';
 import { Post } from '../posts';
 import { User } from './User';
+import { UserVote } from '../../common/vote';
 
 export type UserPostFlags = Partial<{
   feedbackDismiss: boolean;
 }>;
 
 export type UserPostFlagsPublic = Pick<UserPostFlags, 'feedbackDismiss'>;
-
-export enum UserPostVote {
-  Up = 1,
-  None = 0,
-  Down = -1,
-}
 
 @Entity()
 @Index(['postId', 'userId'], { unique: true })
@@ -42,8 +37,8 @@ export class UserPost {
   @Column({ default: null, nullable: true })
   votedAt: Date;
 
-  @Column({ type: 'smallint', default: UserPostVote.None })
-  vote: UserPostVote = UserPostVote.None;
+  @Column({ type: 'smallint', default: UserVote.None })
+  vote: UserVote = UserVote.None;
 
   @Column({ type: 'boolean', default: false })
   hidden = false;

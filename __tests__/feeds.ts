@@ -1,4 +1,9 @@
-import { createSquadWelcomePost, feedToFilters, Ranking } from '../src/common';
+import {
+  createSquadWelcomePost,
+  feedToFilters,
+  Ranking,
+  UserVote,
+} from '../src/common';
 import {
   AdvancedSettings,
   ArticlePost,
@@ -20,7 +25,6 @@ import {
   SourceType,
   User,
   UserPost,
-  UserPostVote,
   View,
   WelcomePost,
   YouTubePost,
@@ -1935,25 +1939,25 @@ describe('query userUpvotedFeed', () => {
       {
         userId: '2',
         postId: 'p1',
-        vote: UserPostVote.Up,
+        vote: UserVote.Up,
         votedAt: new Date(2023, 13, 26),
       },
       {
         userId: '2',
         postId: 'p3',
-        vote: UserPostVote.Up,
+        vote: UserVote.Up,
         votedAt: new Date(2023, 13, 24),
       },
       {
         userId: '2',
         postId: 'p2',
-        vote: UserPostVote.Down,
+        vote: UserVote.Down,
         votedAt: new Date(2023, 13, 23),
       },
       {
         userId: '1',
         postId: 'p4',
-        vote: UserPostVote.Up,
+        vote: UserVote.Up,
         votedAt: new Date(2023, 13, 23),
       },
     ]);
