@@ -1,3 +1,4 @@
+import { utcToZonedTime } from 'date-fns-tz';
 import {
   schedulePersonalizedDigestSubscriptions,
   digestPreferredHourOffset,
@@ -8,6 +9,7 @@ import {
   UserPersonalizedDigestSendType,
 } from '../entity';
 import { Cron } from './cron';
+import { isWeekend } from 'date-fns';
 
 const sendType = UserPersonalizedDigestSendType.workdays;
 const oneHourMs = 60 * 60 * 1000;
@@ -38,6 +40,15 @@ const cron: Cron = {
         const hourOffsetMs = digestPreferredHourOffset * oneHourMs;
         const emailSendTimestamp = timestamp + hourOffsetMs; // schedule send in X hours to match digest offset
         const previousSendTimestamp = timestamp - oneDayMs;
+
+        const sendDateInTimezone = utcToZonedTime(
+          emailSendTimestamp,
+          personalizedDigest.preferredTimezone,
+        );
+
+        if (isWeekend(sendDateInTimezone)) {
+          return;
+        }
 
         await notifyGeneratePersonalizedDigest({
           log: logger,
