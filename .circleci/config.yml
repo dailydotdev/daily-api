@@ -63,7 +63,7 @@ jobs:
           name: Test
           command: |
             TEST=$(find __tests__ -name "*.ts" -not -path "*/fixture/*")
-            echo "$TEST" | circleci tests run --command="xargs npm run test -- --ci --reporters=default --reporters=jest-junit" --split-by=timings
+            echo "$TEST" | circleci tests run --command="xargs -I{} npm run test -- {} --ci --reporters=default --reporters=jest-junit" --split-by=timings
           environment:
             - NODE_OPTIONS: --max-old-space-size=4096
             - JEST_JUNIT_OUTPUT_DIR: ./test-results
