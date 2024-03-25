@@ -1413,7 +1413,6 @@ describe('userState field', () => {
       userId: loggedUser,
       vote: UserVote.Up,
     });
-    console.log(userComment);
     expect(userComment).toBeTruthy();
 
     const res = await client.query(QUERY, {
