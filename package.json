@@ -116,7 +116,7 @@
   "devDependencies": {
     "@faker-js/faker": "^8.4.1",
     "@fastify/static": "^7.0.1",
-    "@swc/core": "^1.4.2",
+    "@swc/core": "^1.4.11",
     "@types/express": "^4.17.21",
     "@types/jest": "^29.5.12",
     "@types/jsonwebtoken": "^9.0.5",
