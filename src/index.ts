@@ -268,7 +268,6 @@ export default async function app(
           },
           postUpvotes: true,
           sources: true,
-          source: true,
           searchTags: true,
           userReadingRankHistory: true,
           userReadHistory: true,
