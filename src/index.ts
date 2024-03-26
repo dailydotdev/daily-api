@@ -267,7 +267,6 @@ export default async function app(
             extendKey: userExtendKey,
           },
           postUpvotes: true,
-          sources: true,
           searchTags: true,
           userReadingRankHistory: true,
           userReadHistory: true,
