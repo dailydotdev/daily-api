@@ -26,7 +26,6 @@ export function traceResolver<TSource, TArgs, TReturn>(
       context.metricGraphqlCounter.add(1, {
         ['graphql.field.name']: info.fieldName,
         ['graphql.operation.name']: info.operation?.name?.value,
-        ['graphql.operation.type']: info.operation?.operation,
       });
     }
     return next(source, args, context, info);
