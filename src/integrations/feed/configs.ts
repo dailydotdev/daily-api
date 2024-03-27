@@ -1,8 +1,16 @@
-import { DynamicConfig, FeedConfig, FeedConfigGenerator } from './types';
+import {
+  DynamicConfig,
+  FeedConfig,
+  FeedConfigGenerator,
+  FeedConfigGeneratorResult,
+  FeedVersion,
+} from './types';
 import { feedToFilters } from '../../common';
 import { ISnotraClient, UserState } from '../snotra';
 import { postTypes } from '../../entity';
 import { runInSpan } from '../../telemetry/opentelemetry';
+import { LofnClient } from '../lofn';
+import { Context } from '../../Context';
 
 type Options = {
   includeAllowedTags?: boolean;
@@ -38,8 +46,10 @@ export class SimpleFeedConfigGenerator implements FeedConfigGenerator {
     this.baseConfig = baseConfig;
   }
 
-  async generate(ctx, opts): Promise<FeedConfig> {
-    return getDefaultConfig(this.baseConfig, opts);
+  async generate(ctx, opts): Promise<FeedConfigGeneratorResult> {
+    return {
+      config: getDefaultConfig(this.baseConfig, opts),
+    };
   }
 }
 
@@ -55,7 +65,7 @@ export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
     this.opts = opts;
   }
 
-  async generate(ctx, opts): Promise<FeedConfig> {
+  async generate(ctx, opts): Promise<FeedConfigGeneratorResult> {
     return runInSpan('FeedPreferencesConfigGenerator', async () => {
       const config = getDefaultConfig(this.baseConfig, opts);
       const userId = opts.user_id;
@@ -77,7 +87,7 @@ export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
           config.allowed_post_types || postTypes
         ).filter((x) => !filters.excludeTypes.includes(x));
       }
-      return config;
+      return { config };
     });
   }
 }
@@ -100,7 +110,7 @@ export class FeedUserStateConfigGenerator implements FeedConfigGenerator {
     this.personalizationThreshold = personalizationThreshold;
   }
 
-  async generate(ctx, opts): Promise<FeedConfig> {
+  async generate(ctx, opts): Promise<FeedConfigGeneratorResult> {
     return runInSpan('FeedUserStateConfigGenerator', async () => {
       const userState = await this.snotraClient.fetchUserState({
         user_id: opts.user_id,
@@ -108,6 +118,46 @@ export class FeedUserStateConfigGenerator implements FeedConfigGenerator {
         post_rank_count: this.personalizationThreshold,
       });
       return this.generators[userState.personalise.state].generate(ctx, opts);
+    });
+  }
+}
+
+type FeedLofnConfigGeneratorOptions = {
+  feed_version: FeedVersion;
+} & Options;
+
+export class FeedLofnConfigGenerator implements FeedConfigGenerator {
+  private readonly baseConfig: BaseConfig;
+  private readonly lofnClient: LofnClient;
+  private readonly opts: FeedLofnConfigGeneratorOptions;
+  private readonly feedPreferencesConfigGenerator: FeedPreferencesConfigGenerator;
+
+  constructor(baseConfig: BaseConfig, opts: FeedLofnConfigGeneratorOptions) {
+    this.baseConfig = baseConfig;
+    this.lofnClient = new LofnClient();
+    this.opts = opts;
+  }
+
+  async generate(
+    ctx: Context,
+    opts: DynamicConfig,
+  ): Promise<FeedConfigGeneratorResult> {
+    return runInSpan('FeedLofnConfigGenerator', async () => {
+      const lofnConfig = await this.lofnClient.fetchConfig({
+        user_id: opts.user_id,
+        feed_version: this.opts.feed_version,
+      });
+
+      const feedPreferencesConfigGenerator = new FeedPreferencesConfigGenerator(
+        lofnConfig.config,
+        this.opts,
+      );
+      const result = await feedPreferencesConfigGenerator.generate(ctx, opts);
+
+      return {
+        ...result,
+        tyr_metadata: lofnConfig.tyr_metadada,
+      };
     });
   }
 }

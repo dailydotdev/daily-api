@@ -23,7 +23,12 @@ export class FeedClient implements IFeedClient {
     this.fetchOptions = fetchOptions;
   }
 
-  async fetchFeed(ctx, feedId, config): Promise<FeedResponse> {
+  async fetchFeed(
+    ctx,
+    feedId,
+    config,
+    tyr_metadata = null,
+  ): Promise<FeedResponse> {
     const res = await retryFetchParse<RawFeedServiceResponse>(
       this.url,
       {
@@ -37,10 +42,19 @@ export class FeedClient implements IFeedClient {
       return { data: [] };
     }
     return {
-      data: res.data.map(({ post_id, metadata }) => [
-        post_id,
-        (metadata && JSON.stringify(metadata)) || null,
-      ]),
+      data: res.data.map(({ post_id, metadata }) => {
+        const hasMetadata = !!(metadata || tyr_metadata);
+
+        return [
+          post_id,
+          (hasMetadata &&
+            JSON.stringify({
+              ...metadata,
+              mab: tyr_metadata,
+            })) ||
+            null,
+        ];
+      }),
       cursor: res.cursor,
     };
   }

@@ -10,6 +10,7 @@ import {
 import { Context } from '../../Context';
 import { FeedClient } from './clients';
 import {
+  FeedLofnConfigGenerator,
   FeedPreferencesConfigGenerator,
   FeedUserStateConfigGenerator,
   SimpleFeedConfigGenerator,
@@ -35,9 +36,14 @@ export class FeedGenerator {
   }
 
   async generate(ctx: Context, opts: DynamicConfig): Promise<FeedResponse> {
-    const config = await this.config.generate(ctx, opts);
+    const { config, tyr_metadata } = await this.config.generate(ctx, opts);
     const userId = opts.user_id;
-    return this.client.fetchFeed(ctx, this.feedId ?? userId, config);
+    return this.client.fetchFeed(
+      ctx,
+      this.feedId ?? userId,
+      config,
+      tyr_metadata,
+    );
   }
 }
 
@@ -151,5 +157,17 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
 );
 
 export const versionToFeedGenerator = (version: number): FeedGenerator => {
+  if (version >= 30) {
+    return new FeedGenerator(
+      feedClient,
+      new FeedLofnConfigGenerator(
+        {},
+        {
+          feed_version: version.toString() as FeedVersion,
+        },
+      ),
+    );
+  }
+
   return feedGenerators[version.toString()] ?? feedGenerators['27'];
 };

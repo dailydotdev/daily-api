@@ -1,4 +1,5 @@
 import { Context } from '../../Context';
+import { TyrMetadata } from '../lofn';
 
 export type FeedResponse = {
   data: [postId: string, metadata: string | undefined][];
@@ -57,8 +58,16 @@ export type FeedConfig = {
 
 export type DynamicConfig = Omit<FeedConfig, 'total_pages'>;
 
+export type FeedConfigGeneratorResult = {
+  config: FeedConfig;
+  tyr_metadata?: TyrMetadata;
+};
+
 export interface FeedConfigGenerator {
-  generate(ctx: Context, opts: DynamicConfig): Promise<FeedConfig>;
+  generate(
+    ctx: Context,
+    opts: DynamicConfig,
+  ): Promise<FeedConfigGeneratorResult>;
 }
 
 /**
@@ -75,6 +84,7 @@ export interface IFeedClient {
     ctx: Context,
     feedId: string,
     config: FeedConfig,
+    tyr_metadata?: TyrMetadata,
   ): Promise<FeedResponse>;
 }
 

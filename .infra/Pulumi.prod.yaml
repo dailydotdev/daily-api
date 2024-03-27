@@ -60,6 +60,8 @@ config:
       secure: AAABAFUcG4T/DgIjrCzR9Ka+aUJ5cMeKCm9jCAvWVdLKqFMj4voiYjva1Lrny+7A67xRYg==
     kratosOrigin:
       secure: AAABAAAcNFaMFyerA4UVMKYeQYf69uQ0mMfl2I0DIiKOBa6HwtbnTXoA1N4OwidUgnIRlGzdYrgQWzQTMsimcE/Yarpceg==
+    lofnOrigin:
+      secure: AAABAIRUl8kPn1Lu/LW/GlRRrMbiUspNzA6kpfmv+zu8mDEaUdM+hwK8KgogU6X+LtLZP9iyIulVVeE=
     magniOrigin:
       secure: AAABAHxH1dQ0e4nHwnseCd65qMd7qz3vSsKV/H0vMQIKWjxS4H7BemSLMpPGEH7YsDLUM9hEMw==
     meiliIndex:
