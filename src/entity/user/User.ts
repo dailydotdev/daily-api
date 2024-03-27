@@ -28,7 +28,6 @@ import {
   nameRegex,
   validateRegex,
   ValidateRegex,
-  isNullOrUndefined,
 } from '../../common/object';
 import { generateTrackingId } from '../../ids';
 import { UserStreak } from './UserStreak';
@@ -384,11 +383,7 @@ export const validateUserUpdate = async (
     }
   }
 
-  if (
-    (username && username !== user.username) ||
-    !user.username ||
-    isNullOrUndefined(username)
-  ) {
+  if (('username' in data && username !== user.username) || !user.username) {
     data.username = await validateAndTransformHandle(
       username,
       'username',
