@@ -103,25 +103,32 @@ export class Feature<T extends JSONValue> {
   }
 }
 
+const digestFeatureBaseConfig = {
+  templateId: 'd-328d1104d2e04fa1ab91e410e02751cb',
+  meta: {
+    from: {
+      email: 'informer@daily.dev',
+      name: 'daily.dev',
+    },
+    category: 'Digests',
+    asmGroupId: 23809,
+  },
+  feedConfig: 'digest',
+  maxPosts: 5,
+  longTextLimit: 150,
+  newUserSendType: UserPersonalizedDigestSendType.weekly,
+};
+
+export type PersonalizedDigestFeatureConfig = typeof digestFeatureBaseConfig;
+
 export const features = {
   personalizedDigest: new Feature('personalized_digest', {
-    templateId: 'd-328d1104d2e04fa1ab91e410e02751cb',
-    meta: {
-      from: {
-        email: 'informer@daily.dev',
-        name: 'daily.dev',
-      },
-      category: 'Digests',
-      asmGroupId: 23809,
-    },
-    feedConfig: 'digest',
-    maxPosts: 5,
-    longTextLimit: 150,
+    ...digestFeatureBaseConfig,
   }),
-  personalizedDigestSendType: new Feature(
-    'personalized_digest_send_type',
-    UserPersonalizedDigestSendType.weekly,
-  ),
+  dailyDigest: new Feature('daily_personalized_digest', {
+    ...digestFeatureBaseConfig,
+    templateId: 'd-925d2759ddd641f99220b3c7c6836458',
+  }),
 };
 
 export class ExperimentAllocationClient {

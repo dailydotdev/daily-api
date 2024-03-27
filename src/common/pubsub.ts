@@ -32,6 +32,7 @@ import { Message } from '@google-cloud/pubsub';
 import { DataSource } from 'typeorm';
 import { FastifyLoggerInstance } from 'fastify';
 import pino from 'pino';
+import { PersonalizedDigestFeatureConfig } from '../growthbook';
 
 export const pubsub = new PubSub();
 const postUpvotedTopic = pubsub.topic('post-upvoted');
@@ -462,6 +463,7 @@ export const notifyGeneratePersonalizedDigest = async ({
   previousSendTimestamp,
   emailBatchId,
   deduplicate,
+  config,
 }: {
   log: EventLogger;
   personalizedDigest: UserPersonalizedDigest;
@@ -469,6 +471,7 @@ export const notifyGeneratePersonalizedDigest = async ({
   previousSendTimestamp: number;
   emailBatchId?: string;
   deduplicate?: boolean;
+  config?: PersonalizedDigestFeatureConfig;
 }): Promise<void> =>
   publishEvent(log, generatePersonalizedDigestTopic, {
     personalizedDigest,
@@ -476,6 +479,7 @@ export const notifyGeneratePersonalizedDigest = async ({
     previousSendTimestamp,
     emailBatchId,
     deduplicate: deduplicate ?? true,
+    config,
   });
 
 export const notifyPostYggdrasilIdSet = async (

@@ -152,7 +152,7 @@ describe('userCreatedAddPersonalizedDigest worker', () => {
     expect(sendExperimentAllocationEvent).toHaveBeenCalledTimes(1);
     expect(sendExperimentAllocationEvent).toHaveBeenCalledWith({
       event_timestamp: expect.any(Date),
-      experiment_id: features.personalizedDigestSendType.id,
+      experiment_id: features.dailyDigest.id,
       user_id: '1',
       variation_id: '0',
     });
