@@ -53,6 +53,7 @@ import createOrGetConnection from '../src/db';
 import { randomUUID } from 'crypto';
 import { usersFixture } from './fixture/user';
 import { base64 } from 'graphql-relay/utils/base64';
+import { baseFeedConfig } from '../src/integrations/feed/generators';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -684,7 +685,7 @@ describe('query feed', () => {
         fresh_page_size: '4',
         feed_config_name: 'vector_v27',
         user_id: '1',
-        source_types: ['machine', 'squad'],
+        ...baseFeedConfig,
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
