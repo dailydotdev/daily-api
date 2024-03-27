@@ -1721,6 +1721,16 @@ describe('mutation updateUserProfile', () => {
     );
   });
 
+  it('should not allow empty username', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { username: null } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
   it('should not allow duplicated username with different case', async () => {
     loggedUser = '1';
 
