@@ -2,7 +2,7 @@ import { FeedResponse, IFeedClient } from './types';
 import { RequestInit } from 'node-fetch';
 import { fetchOptions as globalFetchOptions } from '../../http';
 import { retryFetchParse } from '../retry';
-import { TyrMetadata } from '../lofn';
+import { GenericMetadata } from '../lofn';
 
 type RawFeedServiceResponse = {
   data: { post_id: string; metadata: Record<string, string> }[];
@@ -28,7 +28,7 @@ export class FeedClient implements IFeedClient {
     ctx,
     feedId,
     config,
-    tyr_metadata: TyrMetadata = undefined,
+    extraMetadata: GenericMetadata = undefined,
   ): Promise<FeedResponse> {
     const res = await retryFetchParse<RawFeedServiceResponse>(
       this.url,
@@ -44,14 +44,14 @@ export class FeedClient implements IFeedClient {
     }
     return {
       data: res.data.map(({ post_id, metadata }) => {
-        const hasMetadata = !!(metadata || tyr_metadata);
+        const hasMetadata = !!(metadata || extraMetadata);
 
         return [
           post_id,
           (hasMetadata &&
             JSON.stringify({
               ...metadata,
-              mab: tyr_metadata,
+              mab: extraMetadata,
             })) ||
             null,
         ];

@@ -37,13 +37,13 @@ export class FeedGenerator {
   }
 
   async generate(ctx: Context, opts: DynamicConfig): Promise<FeedResponse> {
-    const { config, tyr_metadata } = await this.config.generate(ctx, opts);
+    const { config, extraMetadata } = await this.config.generate(ctx, opts);
     const userId = opts.user_id;
     return this.client.fetchFeed(
       ctx,
       this.feedId ?? userId,
       config,
-      tyr_metadata,
+      extraMetadata,
     );
   }
 }

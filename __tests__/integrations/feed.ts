@@ -407,7 +407,7 @@ describe('FeedLofnConfigGenerator', () => {
     });
     expect(actual).toMatchObject({
       config: mockedValue.config,
-      tyr_metadata: mockedValue.tyr_metadata,
+      extraMetadata: mockedValue.tyr_metadata,
     });
   });
 });
