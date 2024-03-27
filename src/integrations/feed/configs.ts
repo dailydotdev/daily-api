@@ -9,7 +9,7 @@ import { feedToFilters } from '../../common';
 import { ISnotraClient, UserState } from '../snotra';
 import { postTypes } from '../../entity';
 import { runInSpan } from '../../telemetry/opentelemetry';
-import { LofnClient } from '../lofn';
+import { ILofnClient } from '../lofn';
 import { Context } from '../../Context';
 
 type Options = {
@@ -127,14 +127,11 @@ type FeedLofnConfigGeneratorOptions = {
 } & Options;
 
 export class FeedLofnConfigGenerator implements FeedConfigGenerator {
-  private readonly baseConfig: BaseConfig;
-  private readonly lofnClient: LofnClient;
+  private readonly lofnClient: ILofnClient;
   private readonly opts: FeedLofnConfigGeneratorOptions;
-  private readonly feedPreferencesConfigGenerator: FeedPreferencesConfigGenerator;
 
-  constructor(baseConfig: BaseConfig, opts: FeedLofnConfigGeneratorOptions) {
-    this.baseConfig = baseConfig;
-    this.lofnClient = new LofnClient();
+  constructor(lofnClient: ILofnClient, opts: FeedLofnConfigGeneratorOptions) {
+    this.lofnClient = lofnClient;
     this.opts = opts;
   }
 
@@ -156,7 +153,7 @@ export class FeedLofnConfigGenerator implements FeedConfigGenerator {
 
       return {
         ...result,
-        tyr_metadata: lofnConfig.tyr_metadada,
+        tyr_metadata: lofnConfig.tyr_metadata,
       };
     });
   }

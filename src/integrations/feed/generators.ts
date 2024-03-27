@@ -16,6 +16,7 @@ import {
   SimpleFeedConfigGenerator,
 } from './configs';
 import { SnotraClient } from '../snotra';
+import { LofnClient } from '../lofn';
 
 /**
  * Utility class for easily generating feeds using provided config and client
@@ -49,6 +50,7 @@ export class FeedGenerator {
 
 export const snotraClient = new SnotraClient();
 export const feedClient = new FeedClient();
+export const lofnClient = new LofnClient();
 
 const opts = {
   includeBlockedTags: true,
@@ -62,8 +64,8 @@ const baseConfig: Partial<FeedConfig> = {
   source_types: ['machine', 'squad'],
 };
 
-export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
-  {
+export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
+  Object.freeze({
     '26': new FeedGenerator(
       feedClient,
       new FeedUserStateConfigGenerator(snotraClient, {
@@ -153,19 +155,15 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
         total_pages: 1,
       }),
     ),
-  },
-);
+  });
 
 export const versionToFeedGenerator = (version: number): FeedGenerator => {
   if (version >= 30) {
     return new FeedGenerator(
       feedClient,
-      new FeedLofnConfigGenerator(
-        {},
-        {
-          feed_version: version.toString() as FeedVersion,
-        },
-      ),
+      new FeedLofnConfigGenerator(lofnClient, {
+        feed_version: version.toString() as FeedVersion,
+      }),
     );
   }
 

@@ -34,7 +34,11 @@ import {
   SnotraClient,
   UserState,
 } from '../../src/integrations/snotra';
-import { FeedUserStateConfigGenerator } from '../../src/integrations/feed/configs';
+import {
+  FeedLofnConfigGenerator,
+  FeedUserStateConfigGenerator,
+} from '../../src/integrations/feed/configs';
+import { ILofnClient } from '../../src/integrations/lofn';
 
 let con: DataSource;
 let ctx: Context;
@@ -90,6 +94,26 @@ describe('FeedClient', () => {
     const feedClient = new FeedClient(url);
     const feed = await feedClient.fetchFeed(ctx, 'id', config);
     expect(feed).toEqual(feedResponse);
+  });
+
+  it('should merge tyr metadata with feed metadata', async () => {
+    nock(url)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .post('', config as any)
+      .reply(200, rawFeedResponse);
+
+    const feedClient = new FeedClient(url);
+    const feed = await feedClient.fetchFeed(ctx, 'id', config, { test: 'da' });
+    expect(feed).toEqual({
+      data: [
+        ['1', '{"p":"a","mab":{"test":"da"}}'],
+        ['2', '{"p":"b","mab":{"test":"da"}}'],
+        ['3', '{"p":"c","mab":{"test":"da"}}'],
+        ['4', '{"mab":{"test":"da"}}'],
+        ['5', '{"mab":{"test":"da"}}'],
+        ['6', '{"mab":{"test":"da"}}'],
+      ],
+    });
   });
 });
 
@@ -301,6 +325,89 @@ describe('FeedUserStateConfigGenerator', () => {
       user_id: '1',
       page_size: 2,
       offset: 3,
+    });
+  });
+});
+
+describe('FeedLofnConfigGenerator', () => {
+  beforeEach(async () => {
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, User, [usersFixture[0]]);
+    await con.getRepository(Feed).save({ id: '1', userId: 'u1' });
+    await con.getRepository(FeedTag).save([
+      { feedId: '1', tag: 'javascript' },
+      { feedId: '1', tag: 'golang' },
+      { feedId: '1', tag: 'python', blocked: true },
+      { feedId: '1', tag: 'java', blocked: true },
+    ]);
+    await con.getRepository(FeedSource).save([
+      { feedId: '1', sourceId: 'a' },
+      { feedId: '1', sourceId: 'b' },
+    ]);
+    await con.getRepository(SourceMember).save([
+      {
+        userId: '1',
+        sourceId: 'a',
+        role: SourceMemberRoles.Member,
+        referralToken: 'rt',
+      },
+      {
+        userId: '1',
+        sourceId: 'b',
+        role: SourceMemberRoles.Admin,
+        referralToken: 'rt2',
+      },
+    ]);
+    await con.getRepository(AdvancedSettings).save([
+      {
+        title: 'Videos',
+        group: 'content_types',
+        description: '',
+        defaultEnabledState: true,
+        options: { type: PostType.VideoYouTube },
+      },
+      {
+        title: 'Articles',
+        group: 'content_types',
+        description: '',
+        defaultEnabledState: true,
+        options: { type: PostType.Article },
+      },
+    ]);
+    await con.getRepository(FeedAdvancedSettings).save([
+      { feedId: '1', advancedSettingsId: 1, enabled: false },
+      { feedId: '1', advancedSettingsId: 2, enabled: true },
+    ]);
+  });
+
+  it('should generate config through lofn', async () => {
+    const mockClient = mock<ILofnClient>();
+    const mockedValue = {
+      user_id: '1',
+      config: {
+        page_size: 20,
+        total_pages: 10,
+        providers: {},
+      },
+      tyr_metadata: {
+        test: 'da',
+      },
+    };
+    mockClient.fetchConfig.mockResolvedValueOnce(mockedValue);
+    const generator: FeedConfigGenerator = new FeedLofnConfigGenerator(
+      mockClient,
+      {
+        feed_version: '30',
+      },
+    );
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 20,
+      offset: 3,
+    });
+    expect(actual).toMatchObject({
+      config: mockedValue.config,
+      tyr_metadata: mockedValue.tyr_metadata,
     });
   });
 });

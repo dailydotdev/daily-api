@@ -2,6 +2,7 @@ import { FeedResponse, IFeedClient } from './types';
 import { RequestInit } from 'node-fetch';
 import { fetchOptions as globalFetchOptions } from '../../http';
 import { retryFetchParse } from '../retry';
+import { TyrMetadata } from '../lofn';
 
 type RawFeedServiceResponse = {
   data: { post_id: string; metadata: Record<string, string> }[];
@@ -27,7 +28,7 @@ export class FeedClient implements IFeedClient {
     ctx,
     feedId,
     config,
-    tyr_metadata = undefined,
+    tyr_metadata: TyrMetadata = undefined,
   ): Promise<FeedResponse> {
     const res = await retryFetchParse<RawFeedServiceResponse>(
       this.url,

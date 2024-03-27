@@ -7,8 +7,9 @@ export type TyrMetadata = {
 };
 
 export type LofnFeedConfigResponse = {
+  user_id: string;
   config: FeedConfig;
-  tyr_metadada?: TyrMetadata;
+  tyr_metadata?: TyrMetadata;
 };
 
 export type LofnFeedConfigPayload = {

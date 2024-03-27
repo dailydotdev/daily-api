@@ -94,4 +94,5 @@ export type FeedVersion =
   | '29'
   | 'popular'
   | 'onboarding'
-  | 'post_similarity';
+  | 'post_similarity'
+  | '30';
