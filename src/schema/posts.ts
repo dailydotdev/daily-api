@@ -172,10 +172,11 @@ export const getPostNotification = async (
   con: DataSource,
   postId: string,
 ): Promise<GQLPostNotification> => {
-  const post = await con
-    .getRepository(Post)
-    .findOne({ where: { id: postId }, select: ['id', 'upvotes', 'comments'] });
-  if (!post) {
+  const post = await con.getRepository(Post).findOne({
+    where: { id: postId },
+    select: ['id', 'upvotes', 'comments', 'private'],
+  });
+  if (!post || post.private) {
     return null;
   }
   return { id: post.id, numUpvotes: post.upvotes, numComments: post.comments };
