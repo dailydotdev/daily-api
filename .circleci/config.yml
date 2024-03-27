@@ -34,6 +34,7 @@ jobs:
           - POSTGRES_DB: api_test
           - POSTGRES_PASSWORD: 12345
       - image: redis:6
+    parallelism: 4
     steps:
       - checkout
       - restore_cache:
@@ -60,7 +61,9 @@ jobs:
             echo Failed waiting for Redis && exit 1
       - run:
           name: Test
-          command: npm run test -- --ci --reporters=default --reporters=jest-junit
+          command: |
+            TEST=$(circleci tests glob "__tests__/**/*.ts" | circleci tests split --split-by=timings)
+            npm run test -- --ci $TEST --reporters=default --reporters=jest-junit
           environment:
             - NODE_OPTIONS: --max-old-space-size=4096
             - JEST_JUNIT_OUTPUT_DIR: ./test-results

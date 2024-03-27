@@ -10,6 +10,7 @@ export enum FeedConfigName {
   Vector = 'vector',
   Onboarding = 'onboarding',
   PersonaliseV27 = 'personalise_v27',
+  VectorV26 = 'vector_v26',
   VectorV27 = 'vector_v27',
   PostSimilarity = 'post_similarity',
 }
@@ -78,5 +79,9 @@ export interface IFeedClient {
 }
 
 export type FeedVersion =
-  // | '26'
-  '27' | '29' | 'popular' | 'onboarding' | 'post_similarity';
+  | '26'
+  | '27'
+  | '29'
+  | 'popular'
+  | 'onboarding'
+  | 'post_similarity';

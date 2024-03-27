@@ -1331,14 +1331,12 @@ describe('query comment', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should not return comment by id if user is not the author', async () => {
+  it('should return comment by id even if user is not the author', async () => {
     loggedUser = '2';
 
-    return testQueryErrorCode(
-      client,
-      { query: QUERY, variables: { id: 'c1' } },
-      'NOT_FOUND',
-    );
+    const comment = await client.query(QUERY, { variables: { id: 'c1' } });
+    expect(comment.errors).toBeFalsy();
+    expect(comment.data.comment.id).toEqual('c1');
   });
 
   it('should return error when not part of private squad', async () => {

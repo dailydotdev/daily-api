@@ -1,3 +1,4 @@
+import deepmerge from 'deepmerge';
 import { updateFlagsStatement, User } from '../common';
 import { UserPersonalizedDigest } from '../entity';
 import { features, getUserGrowthBookInstace } from '../growthbook';
@@ -23,10 +24,15 @@ const worker = workerToExperimentWorker({
       allocationClient,
     });
 
-    const sendType = growthbookClient.getFeatureValue(
-      features.personalizedDigestSendType.id,
-      features.personalizedDigestSendType.defaultValue,
-    ) as typeof features.personalizedDigestSendType.defaultValue;
+    const featureValue = growthbookClient.getFeatureValue(
+      features.dailyDigest.id,
+      features.dailyDigest.defaultValue,
+    ) as typeof features.dailyDigest.defaultValue;
+
+    const digestFeature = deepmerge(
+      features.dailyDigest.defaultValue,
+      featureValue,
+    );
 
     await con.getRepository(UserPersonalizedDigest).update(
       {
@@ -34,7 +40,7 @@ const worker = workerToExperimentWorker({
       },
       {
         flags: updateFlagsStatement<UserPersonalizedDigest>({
-          sendType,
+          sendType: digestFeature.newUserSendType,
         }),
       },
     );

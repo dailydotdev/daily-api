@@ -1,9 +1,18 @@
 import { getPersonalizedDigestEmailPayload, sendEmail } from '../common';
-import { User, UserPersonalizedDigest } from '../entity';
+import {
+  User,
+  UserPersonalizedDigest,
+  UserPersonalizedDigestSendType,
+} from '../entity';
 import { messageToJson, Worker, workerToExperimentWorker } from './worker';
 import { isSameDay } from 'date-fns';
 import { DataSource } from 'typeorm';
-import { features, getUserGrowthBookInstace } from '../growthbook';
+import {
+  Feature,
+  PersonalizedDigestFeatureConfig,
+  features,
+  getUserGrowthBookInstace,
+} from '../growthbook';
 
 import deepmerge from 'deepmerge';
 
@@ -13,6 +22,7 @@ interface Data {
   previousSendTimestamp: number;
   emailBatchId?: string;
   deduplicate?: boolean;
+  config?: PersonalizedDigestFeatureConfig;
 }
 
 type SetEmailSendDateProps = Pick<
@@ -43,6 +53,14 @@ const setEmailSendDate = async ({
   );
 };
 
+const sendTypeToFeatureMap: Record<
+  UserPersonalizedDigestSendType,
+  Feature<PersonalizedDigestFeatureConfig>
+> = {
+  [UserPersonalizedDigestSendType.weekly]: features.personalizedDigest,
+  [UserPersonalizedDigestSendType.workdays]: features.dailyDigest,
+};
+
 const worker: Worker = workerToExperimentWorker({
   subscription: 'api.personalized-digest-email',
   handler: async (message, con, logger, pubsub, allocationClient) => {
@@ -58,6 +76,7 @@ const worker: Worker = workerToExperimentWorker({
       previousSendTimestamp,
       emailBatchId,
       deduplicate = true,
+      config,
     } = data;
     const emailSendDate = new Date(emailSendTimestamp);
     const previousSendDate = new Date(previousSendTimestamp);
@@ -75,22 +94,28 @@ const worker: Worker = workerToExperimentWorker({
       return;
     }
 
-    const growthbookClient = getUserGrowthBookInstace(user.id, {
-      enableDevMode: process.env.NODE_ENV !== 'production',
-      subscribeToChanges: false,
-      allocationClient,
-    });
+    const featureInstance =
+      sendTypeToFeatureMap[personalizedDigest.flags.sendType] ||
+      features.personalizedDigest;
+    let featureValue: PersonalizedDigestFeatureConfig;
 
-    const featureValue = growthbookClient.getFeatureValue(
-      features.personalizedDigest.id,
-      features.personalizedDigest.defaultValue,
-    );
+    if (config) {
+      featureValue = config;
+    } else {
+      const growthbookClient = getUserGrowthBookInstace(user.id, {
+        enableDevMode: process.env.NODE_ENV !== 'production',
+        subscribeToChanges: false,
+        allocationClient,
+      });
+
+      featureValue = growthbookClient.getFeatureValue(
+        featureInstance.id,
+        featureInstance.defaultValue,
+      );
+    }
 
     // gb does not handle default values for nested objects
-    const digestFeature = deepmerge(
-      features.personalizedDigest.defaultValue,
-      featureValue,
-    );
+    const digestFeature = deepmerge(featureInstance.defaultValue, featureValue);
 
     const currentDate = new Date();
 
