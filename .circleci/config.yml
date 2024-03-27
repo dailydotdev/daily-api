@@ -62,8 +62,9 @@ jobs:
       - run:
           name: Test
           command: |
-            TEST=$(circleci tests glob "__tests__/**/*.ts" | circleci tests split --split-by=timings)
-            npm run test -- --ci $TEST --reporters=default --reporters=jest-junit
+            npm run pretest
+            TEST=$(./node_modules/.bin/jest --listTests)
+            echo $TEST | circleci tests run --command="xargs ./node_modules/.bin/jest --testEnvironment=node --ci --runInBand --reporters=default --reporters=jest-junit --" --split-by=timings
           environment:
             - NODE_OPTIONS: --max-old-space-size=4096
             - JEST_JUNIT_OUTPUT_DIR: ./test-results
