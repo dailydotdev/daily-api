@@ -27,7 +27,7 @@ export class FeedClient implements IFeedClient {
     ctx,
     feedId,
     config,
-    tyr_metadata = null,
+    tyr_metadata = undefined,
   ): Promise<FeedResponse> {
     const res = await retryFetchParse<RawFeedServiceResponse>(
       this.url,

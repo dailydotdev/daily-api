@@ -162,17 +162,21 @@ describe('FeedPreferencesConfigGenerator', () => {
       offset: 3,
     });
     expect(actual).toEqual({
-      allowed_tags: expect.arrayContaining(['javascript', 'golang']),
-      blocked_sources: expect.arrayContaining(['a', 'b']),
-      blocked_tags: expect.arrayContaining(['python', 'java']),
-      allowed_post_types: postTypes.filter((x) => x !== PostType.VideoYouTube),
-      feed_config_name: FeedConfigName.Personalise,
-      fresh_page_size: '1',
-      offset: 3,
-      page_size: 2,
-      squad_ids: expect.arrayContaining(['a', 'b']),
-      total_pages: 20,
-      user_id: '1',
+      config: {
+        allowed_tags: expect.arrayContaining(['javascript', 'golang']),
+        blocked_sources: expect.arrayContaining(['a', 'b']),
+        blocked_tags: expect.arrayContaining(['python', 'java']),
+        allowed_post_types: postTypes.filter(
+          (x) => x !== PostType.VideoYouTube,
+        ),
+        feed_config_name: FeedConfigName.Personalise,
+        fresh_page_size: '1',
+        offset: 3,
+        page_size: 2,
+        squad_ids: expect.arrayContaining(['a', 'b']),
+        total_pages: 20,
+        user_id: '1',
+      },
     });
   });
 
@@ -191,14 +195,16 @@ describe('FeedPreferencesConfigGenerator', () => {
       offset: 3,
     });
     expect(actual).toEqual({
-      blocked_sources: expect.arrayContaining(['a', 'b']),
-      blocked_tags: expect.arrayContaining(['python', 'java']),
-      feed_config_name: FeedConfigName.Personalise,
-      fresh_page_size: '1',
-      offset: 3,
-      page_size: 2,
-      total_pages: 20,
-      user_id: '1',
+      config: {
+        blocked_sources: expect.arrayContaining(['a', 'b']),
+        blocked_tags: expect.arrayContaining(['python', 'java']),
+        feed_config_name: FeedConfigName.Personalise,
+        fresh_page_size: '1',
+        offset: 3,
+        page_size: 2,
+        total_pages: 20,
+        user_id: '1',
+      },
     });
   });
 
@@ -213,12 +219,14 @@ describe('FeedPreferencesConfigGenerator', () => {
       offset: 3,
     });
     expect(actual).toEqual({
-      feed_config_name: FeedConfigName.Personalise,
-      fresh_page_size: '1',
-      offset: 3,
-      page_size: 2,
-      total_pages: 20,
-      user_id: '1',
+      config: {
+        feed_config_name: FeedConfigName.Personalise,
+        fresh_page_size: '1',
+        offset: 3,
+        page_size: 2,
+        total_pages: 20,
+        user_id: '1',
+      },
     });
   });
 });
@@ -247,8 +255,9 @@ describe('FeedUserStateConfigGenerator', () => {
       page_size: 2,
       offset: 3,
     });
-    expect(actual.user_id).toEqual('1');
-    expect(actual.feed_config_name).toEqual('vector');
+    expect(actual.config).toBeTruthy();
+    expect(actual.config.user_id).toEqual('1');
+    expect(actual.config.feed_config_name).toEqual('vector');
     expect(mockClient.fetchUserState).toBeCalledWith({
       user_id: '1',
       providers: { personalise: {} },
@@ -269,7 +278,7 @@ describe('FeedUserStateConfigGenerator', () => {
       page_size: 2,
       offset: 3,
     });
-    expect(actual.feed_config_name).toEqual('personalise');
+    expect(actual.config.feed_config_name).toEqual('personalise');
   });
 
   it('should send proper parameters to snotra', async () => {
