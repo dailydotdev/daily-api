@@ -87,7 +87,6 @@ interface ReportCommentArgs {
 
 export interface GQLUserComment {
   vote: UserVote;
-  votedAt: Date | null;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -228,11 +227,6 @@ export const typeDefs = /* GraphQL */ `
     The user's vote for the comment
     """
     vote: Int!
-
-    """
-    Time when vote for the comment was last updated
-    """
-    votedAt: DateTime
 
     user: User!
 

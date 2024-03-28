@@ -524,6 +524,14 @@ const obj = new GraphORM({
       },
     },
   },
+  UserComment: {
+    requiredColumns: ['votedAt'],
+    fields: {
+      flags: {
+        jsonType: true,
+      },
+    },
+  },
 });
 
 export default obj;
