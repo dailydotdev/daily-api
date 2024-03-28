@@ -127,15 +127,21 @@ type FeedLofnConfigGeneratorOptions = {
 } & Options;
 
 export class FeedLofnConfigGenerator implements FeedConfigGenerator {
+  private readonly baseConfig: BaseConfig;
   private readonly lofnClient: ILofnClient;
   private readonly opts: FeedLofnConfigGeneratorOptions;
   private readonly feedPreferencesConfigGenerator: FeedPreferencesConfigGenerator;
 
-  constructor(lofnClient: ILofnClient, opts: FeedLofnConfigGeneratorOptions) {
+  constructor(
+    baseConfig: BaseConfig,
+    lofnClient: ILofnClient,
+    opts: FeedLofnConfigGeneratorOptions,
+  ) {
+    this.baseConfig = baseConfig;
     this.lofnClient = lofnClient;
     this.opts = opts;
     this.feedPreferencesConfigGenerator = new FeedPreferencesConfigGenerator(
-      {},
+      this.baseConfig,
       opts,
     );
   }
@@ -154,24 +160,33 @@ export class FeedLofnConfigGenerator implements FeedConfigGenerator {
           this.feedPreferencesConfigGenerator.generate(ctx, opts),
         ]);
 
-        const config = getDefaultConfig(
-          {
-            ...preferencesConfig.config,
-            total_pages: lofnConfig.config.total_pages,
-          },
-          lofnConfig.config,
-        );
+        const config = {
+          ...lofnConfig.config,
+          ...preferencesConfig.config,
+        };
 
-        return {
+        const result = {
           config,
           extraMetadata: {
             mab: lofnConfig.tyr_metadata,
           },
         };
+
+        ctx.log.info(
+          {
+            config: result.config,
+            extraMetadata: result.extraMetadata,
+            feedVersion: this.opts.feed_version,
+            generator: 'FeedLofnConfigGenerator',
+          },
+          'Generated config result',
+        );
+
+        return result;
       } catch (error) {
         ctx.log.error('Failed to generate feed config', error, {
-          user_id_exists: !!opts.user_id,
-          feed_version: this.opts.feed_version,
+          userIdExists: !!opts.user_id,
+          feedVersion: this.opts.feed_version,
           generator: 'FeedLofnConfigGenerator',
         });
 

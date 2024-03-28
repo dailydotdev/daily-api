@@ -141,7 +141,8 @@ export const versionToFeedGenerator = (version: number): FeedGenerator => {
   if (version >= 30) {
     return new FeedGenerator(
       feedClient,
-      new FeedLofnConfigGenerator(lofnClient, {
+      new FeedLofnConfigGenerator({}, lofnClient, {
+        ...opts,
         feed_version: version.toString() as FeedVersion,
       }),
     );

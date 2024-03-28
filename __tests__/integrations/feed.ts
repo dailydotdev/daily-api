@@ -397,18 +397,42 @@ describe('FeedLofnConfigGenerator', () => {
     };
     mockClient.fetchConfig.mockResolvedValueOnce(mockedValue);
     const generator: FeedConfigGenerator = new FeedLofnConfigGenerator(
+      {
+        total_pages: 1,
+      },
       mockClient,
       {
+        includeBlockedTags: true,
+        includeAllowedTags: true,
+        includeBlockedSources: true,
+        includeSourceMemberships: true,
+        includePostTypes: true,
         feed_version: '30',
       },
     );
     const actual = await generator.generate(ctx, {
       user_id: '1',
-      page_size: 20,
+      page_size: 10,
       offset: 3,
     });
     expect(actual).toMatchObject({
-      config: mockedValue.config,
+      config: {
+        ...mockedValue.config,
+        total_pages: 1,
+        page_size: 10,
+        fresh_page_size: '4',
+        allowed_tags: ['javascript', 'golang'],
+        blocked_tags: ['python', 'java'],
+        blocked_sources: ['a', 'b'],
+        squad_ids: ['a', 'b'],
+        allowed_post_types: [
+          'article',
+          'share',
+          'freeform',
+          'welcome',
+          'collection',
+        ],
+      },
       extraMetadata: {
         mab: mockedValue.tyr_metadata,
       },
