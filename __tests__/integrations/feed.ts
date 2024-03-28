@@ -417,7 +417,7 @@ describe('FeedLofnConfigGenerator', () => {
     });
     expect(actual).toMatchObject({
       config: {
-        ...mockedValue.config,
+        user_id: '1',
         total_pages: 1,
         page_size: 10,
         fresh_page_size: '4',
@@ -432,6 +432,9 @@ describe('FeedLofnConfigGenerator', () => {
           'welcome',
           'collection',
         ],
+        config: {
+          providers: {},
+        },
       },
       extraMetadata: {
         mab: mockedValue.tyr_metadata,

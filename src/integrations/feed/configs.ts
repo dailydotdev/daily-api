@@ -160,8 +160,11 @@ export class FeedLofnConfigGenerator implements FeedConfigGenerator {
           this.feedPreferencesConfigGenerator.generate(ctx, opts),
         ]);
 
+        delete lofnConfig.config.page_size;
+        delete lofnConfig.config.total_pages;
+
         const config = {
-          ...lofnConfig.config,
+          config: lofnConfig.config,
           ...preferencesConfig.config,
         };
 

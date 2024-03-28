@@ -54,6 +54,9 @@ export type FeedConfig = {
   cursor?: string;
   post_id?: string;
   allowed_languages?: string[];
+  config?: {
+    [key: string]: unknown;
+  };
 };
 
 export type DynamicConfig = Omit<FeedConfig, 'total_pages'>;
