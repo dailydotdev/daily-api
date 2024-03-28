@@ -10,11 +10,13 @@ import {
 import { Context } from '../../Context';
 import { FeedClient } from './clients';
 import {
+  FeedLofnConfigGenerator,
   FeedPreferencesConfigGenerator,
   FeedUserStateConfigGenerator,
   SimpleFeedConfigGenerator,
 } from './configs';
 import { SnotraClient } from '../snotra';
+import { LofnClient } from '../lofn';
 
 /**
  * Utility class for easily generating feeds using provided config and client
@@ -35,14 +37,20 @@ export class FeedGenerator {
   }
 
   async generate(ctx: Context, opts: DynamicConfig): Promise<FeedResponse> {
-    const config = await this.config.generate(ctx, opts);
+    const { config, extraMetadata } = await this.config.generate(ctx, opts);
     const userId = opts.user_id;
-    return this.client.fetchFeed(ctx, this.feedId ?? userId, config);
+    return this.client.fetchFeed(
+      ctx,
+      this.feedId ?? userId,
+      config,
+      extraMetadata,
+    );
   }
 }
 
 export const snotraClient = new SnotraClient();
 export const feedClient = new FeedClient();
+export const lofnClient = new LofnClient();
 
 const opts = {
   includeBlockedTags: true,
@@ -57,8 +65,8 @@ export const baseFeedConfig: Partial<FeedConfig> = {
   allowed_languages: ['en'],
 };
 
-export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
-  {
+export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
+  Object.freeze({
     '26': new FeedGenerator(
       feedClient,
       new FeedUserStateConfigGenerator(snotraClient, {
@@ -127,9 +135,18 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
         total_pages: 1,
       }),
     ),
-  },
-);
+  });
 
 export const versionToFeedGenerator = (version: number): FeedGenerator => {
+  if (version >= 30) {
+    return new FeedGenerator(
+      feedClient,
+      new FeedLofnConfigGenerator({}, lofnClient, {
+        ...opts,
+        feed_version: version.toString() as FeedVersion,
+      }),
+    );
+  }
+
   return feedGenerators[version.toString()] ?? feedGenerators['29'];
 };

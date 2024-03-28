@@ -1,8 +1,16 @@
-import { DynamicConfig, FeedConfig, FeedConfigGenerator } from './types';
+import {
+  DynamicConfig,
+  FeedConfig,
+  FeedConfigGenerator,
+  FeedConfigGeneratorResult,
+  FeedVersion,
+} from './types';
 import { feedToFilters } from '../../common';
 import { ISnotraClient, UserState } from '../snotra';
 import { postTypes } from '../../entity';
 import { runInSpan } from '../../telemetry/opentelemetry';
+import { ILofnClient } from '../lofn';
+import { Context } from '../../Context';
 
 type Options = {
   includeAllowedTags?: boolean;
@@ -38,8 +46,10 @@ export class SimpleFeedConfigGenerator implements FeedConfigGenerator {
     this.baseConfig = baseConfig;
   }
 
-  async generate(ctx, opts): Promise<FeedConfig> {
-    return getDefaultConfig(this.baseConfig, opts);
+  async generate(ctx, opts): Promise<FeedConfigGeneratorResult> {
+    return {
+      config: getDefaultConfig(this.baseConfig, opts),
+    };
   }
 }
 
@@ -55,7 +65,7 @@ export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
     this.opts = opts;
   }
 
-  async generate(ctx, opts): Promise<FeedConfig> {
+  async generate(ctx, opts): Promise<FeedConfigGeneratorResult> {
     return runInSpan('FeedPreferencesConfigGenerator', async () => {
       const config = getDefaultConfig(this.baseConfig, opts);
       const userId = opts.user_id;
@@ -77,7 +87,7 @@ export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
           config.allowed_post_types || postTypes
         ).filter((x) => !filters.excludeTypes.includes(x));
       }
-      return config;
+      return { config };
     });
   }
 }
@@ -100,7 +110,7 @@ export class FeedUserStateConfigGenerator implements FeedConfigGenerator {
     this.personalizationThreshold = personalizationThreshold;
   }
 
-  async generate(ctx, opts): Promise<FeedConfig> {
+  async generate(ctx, opts): Promise<FeedConfigGeneratorResult> {
     return runInSpan('FeedUserStateConfigGenerator', async () => {
       const userState = await this.snotraClient.fetchUserState({
         user_id: opts.user_id,
@@ -108,6 +118,80 @@ export class FeedUserStateConfigGenerator implements FeedConfigGenerator {
         post_rank_count: this.personalizationThreshold,
       });
       return this.generators[userState.personalise.state].generate(ctx, opts);
+    });
+  }
+}
+
+type FeedLofnConfigGeneratorOptions = {
+  feed_version: FeedVersion;
+} & Options;
+
+export class FeedLofnConfigGenerator implements FeedConfigGenerator {
+  private readonly baseConfig: BaseConfig;
+  private readonly lofnClient: ILofnClient;
+  private readonly opts: FeedLofnConfigGeneratorOptions;
+  private readonly feedPreferencesConfigGenerator: FeedPreferencesConfigGenerator;
+
+  constructor(
+    baseConfig: BaseConfig,
+    lofnClient: ILofnClient,
+    opts: FeedLofnConfigGeneratorOptions,
+  ) {
+    this.baseConfig = baseConfig;
+    this.lofnClient = lofnClient;
+    this.opts = opts;
+    this.feedPreferencesConfigGenerator = new FeedPreferencesConfigGenerator(
+      this.baseConfig,
+      opts,
+    );
+  }
+
+  async generate(
+    ctx: Context,
+    opts: DynamicConfig,
+  ): Promise<FeedConfigGeneratorResult> {
+    return runInSpan('FeedLofnConfigGenerator', async () => {
+      try {
+        const [lofnConfig, preferencesConfig] = await Promise.all([
+          this.lofnClient.fetchConfig({
+            user_id: opts.user_id,
+            feed_version: this.opts.feed_version,
+          }),
+          this.feedPreferencesConfigGenerator.generate(ctx, opts),
+        ]);
+
+        const config = {
+          ...lofnConfig.config,
+          ...preferencesConfig.config,
+        };
+
+        const result = {
+          config,
+          extraMetadata: {
+            mab: lofnConfig.tyr_metadata,
+          },
+        };
+
+        ctx.log.info(
+          {
+            config: result.config,
+            extraMetadata: result.extraMetadata,
+            feedVersion: this.opts.feed_version,
+            generator: 'FeedLofnConfigGenerator',
+          },
+          'Generated config result',
+        );
+
+        return result;
+      } catch (error) {
+        ctx.log.error('Failed to generate feed config', error, {
+          userIdExists: !!opts.user_id,
+          feedVersion: this.opts.feed_version,
+          generator: 'FeedLofnConfigGenerator',
+        });
+
+        throw error;
+      }
     });
   }
 }

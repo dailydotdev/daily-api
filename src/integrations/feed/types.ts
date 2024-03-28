@@ -1,4 +1,5 @@
 import { Context } from '../../Context';
+import { GenericMetadata } from '../lofn';
 
 export type FeedResponse = {
   data: [postId: string, metadata: string | undefined][];
@@ -57,8 +58,16 @@ export type FeedConfig = {
 
 export type DynamicConfig = Omit<FeedConfig, 'total_pages'>;
 
+export type FeedConfigGeneratorResult = {
+  config: FeedConfig;
+  extraMetadata?: GenericMetadata;
+};
+
 export interface FeedConfigGenerator {
-  generate(ctx: Context, opts: DynamicConfig): Promise<FeedConfig>;
+  generate(
+    ctx: Context,
+    opts: DynamicConfig,
+  ): Promise<FeedConfigGeneratorResult>;
 }
 
 /**
@@ -75,6 +84,7 @@ export interface IFeedClient {
     ctx: Context,
     feedId: string,
     config: FeedConfig,
+    extraMetadata?: GenericMetadata,
   ): Promise<FeedResponse>;
 }
 
@@ -83,4 +93,5 @@ export type FeedVersion =
   | '29'
   | 'popular'
   | 'onboarding'
-  | 'post_similarity';
+  | 'post_similarity'
+  | '30';
