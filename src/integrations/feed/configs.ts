@@ -145,28 +145,38 @@ export class FeedLofnConfigGenerator implements FeedConfigGenerator {
     opts: DynamicConfig,
   ): Promise<FeedConfigGeneratorResult> {
     return runInSpan('FeedLofnConfigGenerator', async () => {
-      const [lofnConfig, preferencesConfig] = await Promise.all([
-        this.lofnClient.fetchConfig({
-          user_id: opts.user_id,
+      try {
+        const [lofnConfig, preferencesConfig] = await Promise.all([
+          this.lofnClient.fetchConfig({
+            user_id: opts.user_id,
+            feed_version: this.opts.feed_version,
+          }),
+          this.feedPreferencesConfigGenerator.generate(ctx, opts),
+        ]);
+
+        const config = getDefaultConfig(
+          {
+            ...preferencesConfig.config,
+            total_pages: lofnConfig.config.total_pages,
+          },
+          lofnConfig.config,
+        );
+
+        return {
+          config,
+          extraMetadata: {
+            mab: lofnConfig.tyr_metadata,
+          },
+        };
+      } catch (error) {
+        ctx.log.error('Failed to generate feed config', error, {
+          user_id_exists: !!opts.user_id,
           feed_version: this.opts.feed_version,
-        }),
-        this.feedPreferencesConfigGenerator.generate(ctx, opts),
-      ]);
+          generator: 'FeedLofnConfigGenerator',
+        });
 
-      const config = getDefaultConfig(
-        {
-          ...preferencesConfig.config,
-          total_pages: lofnConfig.config.total_pages,
-        },
-        lofnConfig.config,
-      );
-
-      return {
-        config,
-        extraMetadata: {
-          mab: lofnConfig.tyr_metadata,
-        },
-      };
+        throw error;
+      }
     });
   }
 }
