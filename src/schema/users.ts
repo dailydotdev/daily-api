@@ -45,6 +45,7 @@ import {
   UserVote,
   UserVoteEntity,
   votePost,
+  voteComment,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -1397,7 +1398,7 @@ export const resolvers: IResolvers<any, Context> = {
       return { _: null };
     },
     vote: async (
-      source,
+      _,
       {
         id,
         vote,
@@ -1408,6 +1409,8 @@ export const resolvers: IResolvers<any, Context> = {
       switch (entity) {
         case UserVoteEntity.Post:
           return votePost({ ctx, id, vote });
+        case UserVoteEntity.Comment:
+          return voteComment({ ctx, id, vote });
         default:
           throw new ValidationError('Unsupported vote entity');
       }

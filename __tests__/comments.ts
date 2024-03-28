@@ -33,7 +33,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { CommentReport } from '../src/entity/CommentReport';
 import { UserComment } from '../src/entity/user/UserComment';
-import { UserVote } from '../src/common';
+import { UserVote, UserVoteEntity } from '../src/common';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -1071,6 +1071,15 @@ describe('mutation upvoteComment', () => {
     expect(actual).toMatchSnapshot();
     const comment = await con.getRepository(Comment).findOneBy({ id: 'c1' });
     expect(comment.upvotes).toEqual(1);
+    const userComment = await con
+      .getRepository(UserComment)
+      .findOneBy({ commentId: 'c1', userId: '1' });
+    expect(userComment).toMatchObject({
+      commentId: 'c1',
+      userId: '1',
+      vote: UserVote.Up,
+      votedAt: expect.any(Date),
+    });
   });
 
   it('should ignore conflicts', async () => {
@@ -1109,13 +1118,27 @@ describe('mutation cancelCommentUpvote', () => {
   it('should cancel comment upvote', async () => {
     loggedUser = '1';
     const repo = con.getRepository(CommentUpvote);
+    await con.getRepository(UserComment).save({
+      commentId: 'c1',
+      userId: loggedUser,
+      vote: UserVote.Up,
+    });
     await repo.save({ commentId: 'c1', userId: loggedUser });
     const res = await client.mutate(MUTATION, { variables: { id: 'c1' } });
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(CommentUpvote).find();
     expect(actual).toEqual([]);
     const comment = await con.getRepository(Comment).findOneBy({ id: 'c1' });
-    expect(comment.upvotes).toEqual(-1);
+    expect(comment.upvotes).toEqual(0);
+    const userComment = await con
+      .getRepository(UserComment)
+      .findOneBy({ commentId: 'c1', userId: '1' });
+    expect(userComment).toMatchObject({
+      commentId: 'c1',
+      userId: '1',
+      vote: UserVote.None,
+      votedAt: expect.any(Date),
+    });
   });
 
   it('should ignore if no upvotes', async () => {
@@ -1429,5 +1452,468 @@ describe('userState field', () => {
         });
       }
     });
+  });
+});
+
+describe('mutation vote comment', () => {
+  const MUTATION = `
+    mutation Vote($id: ID!, $vote: Int!, $entity: UserVoteEntity!) {
+      vote(id: $id, vote: $vote, entity: $entity) {
+        _
+      }
+    }`;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: 'c1',
+          vote: UserVote.Up,
+          entity: UserVoteEntity.Comment,
+        },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw not found when cannot find comment', () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: 'invalid',
+          vote: UserVote.Up,
+          entity: UserVoteEntity.Comment,
+        },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should throw not found when cannot find user', () => {
+    loggedUser = '15';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: 'c1',
+          vote: UserVote.Up,
+          entity: UserVoteEntity.Comment,
+        },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should throw error when user cannot access the commented post', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: 'c1',
+          vote: UserVote.Up,
+          entity: UserVoteEntity.Comment,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw when invalid vote option', () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'c1', vote: 3, entity: UserVoteEntity.Comment },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should upvote', async () => {
+    loggedUser = '1';
+    await con.getRepository(Comment).save({
+      id: 'c1',
+      upvotes: 3,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: 'c1',
+        vote: UserVote.Up,
+        entity: UserVoteEntity.Comment,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const userComment = await con.getRepository(UserComment).findOneBy({
+      userId: loggedUser,
+      commentId: 'c1',
+    });
+    expect(userComment).toMatchObject({
+      userId: loggedUser,
+      commentId: 'c1',
+      vote: UserVote.Up,
+    });
+    const commment = await con.getRepository(Comment).findOneBy({ id: 'c1' });
+    expect(commment?.upvotes).toEqual(4);
+    const commentUpvote = await con.getRepository(CommentUpvote).findOneBy({
+      userId: loggedUser,
+      commentId: 'c1',
+    });
+    expect(commentUpvote).toMatchObject({
+      userId: loggedUser,
+      commentId: 'c1',
+    });
+  });
+
+  it('should downvote', async () => {
+    loggedUser = '1';
+    await con.getRepository(Comment).save({
+      id: 'c1',
+      downvotes: 3,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: 'c1',
+        vote: UserVote.Down,
+        entity: UserVoteEntity.Comment,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const userComment = await con.getRepository(UserComment).findOneBy({
+      commentId: 'c1',
+      userId: loggedUser,
+    });
+    expect(userComment).toMatchObject({
+      commentId: 'c1',
+      userId: loggedUser,
+      vote: UserVote.Down,
+    });
+    const post = await con.getRepository(Comment).findOneBy({ id: 'c1' });
+    expect(post?.downvotes).toEqual(4);
+    const commentUpvote = await con.getRepository(CommentUpvote).findOneBy({
+      userId: loggedUser,
+      commentId: 'c1',
+    });
+    expect(commentUpvote).toBeFalsy();
+  });
+
+  it('should cancel vote', async () => {
+    loggedUser = '1';
+    await con.getRepository(Comment).save({
+      id: 'c1',
+      upvotes: 3,
+    });
+    await con.getRepository(UserComment).save({
+      commentId: 'c1',
+      userId: loggedUser,
+      vote: UserVote.Up,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: 'c1',
+        vote: UserVote.None,
+        entity: UserVoteEntity.Comment,
+      },
+    });
+    const userComment = await con.getRepository(UserComment).findOneBy({
+      commentId: 'c1',
+      userId: loggedUser,
+    });
+    expect(res.errors).toBeFalsy();
+    expect(userComment).toMatchObject({
+      userId: loggedUser,
+      commentId: 'c1',
+      vote: UserVote.None,
+    });
+    const comment = await con.getRepository(Comment).findOneBy({ id: 'c1' });
+    expect(comment?.upvotes).toEqual(3);
+  });
+
+  it('should not set votedAt when vote is not set on insert', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserComment).save({
+      commentId: 'c1',
+      userId: loggedUser,
+      hidden: false,
+    });
+    const userCommentBefore = await con.getRepository(UserComment).findOneBy({
+      commentId: 'c1',
+      userId: loggedUser,
+    });
+    expect(userCommentBefore?.votedAt).toBeNull();
+  });
+
+  it('should set votedAt when user votes for the first time', async () => {
+    loggedUser = '1';
+    const userCommentBefore = await con.getRepository(UserComment).findOneBy({
+      commentId: 'c1',
+      userId: loggedUser,
+    });
+    expect(userCommentBefore).toBeNull();
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: 'c1',
+        vote: UserVote.Down,
+        entity: UserVoteEntity.Comment,
+      },
+    });
+    const userComment = await con.getRepository(UserComment).findOneBy({
+      commentId: 'c1',
+      userId: loggedUser,
+    });
+    expect(res.errors).toBeFalsy();
+    expect(userComment?.votedAt).not.toBeNull();
+  });
+
+  it('should update votedAt when vote value changes', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserComment).save({
+      commentId: 'c1',
+      userId: loggedUser,
+      vote: UserVote.Up,
+      hidden: false,
+    });
+    const userCommentBefore = await con.getRepository(UserComment).findOneBy({
+      commentId: 'c1',
+      userId: loggedUser,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: 'c1',
+        vote: UserVote.Down,
+        entity: UserVoteEntity.Comment,
+      },
+    });
+    const userComment = await con.getRepository(UserComment).findOneBy({
+      commentId: 'c1',
+      userId: loggedUser,
+    });
+    expect(res.errors).toBeFalsy();
+    expect(userCommentBefore?.votedAt?.toISOString()).not.toBe(
+      userComment?.votedAt?.toISOString(),
+    );
+  });
+
+  it('should not update votedAt when vote value stays the same', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserComment).save({
+      commentId: 'c1',
+      userId: loggedUser,
+      vote: UserVote.Up,
+      hidden: false,
+    });
+    const userCommentBefore = await con.getRepository(UserComment).findOneBy({
+      commentId: 'c1',
+      userId: loggedUser,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: 'c1',
+        vote: UserVote.Up,
+        entity: UserVoteEntity.Comment,
+      },
+    });
+    const userComment = await con.getRepository(UserComment).findOneBy({
+      commentId: 'c1',
+      userId: loggedUser,
+    });
+    expect(res.errors).toBeFalsy();
+    expect(userCommentBefore?.votedAt?.toISOString()).toBe(
+      userComment?.votedAt?.toISOString(),
+    );
+  });
+
+  it('should increment comment upvotes when user upvotes', async () => {
+    loggedUser = '1';
+    await con.getRepository(Comment).save({
+      id: 'c1',
+      upvotes: 3,
+    });
+    await con.getRepository(UserComment).save({
+      commentId: 'c1',
+      userId: loggedUser,
+      vote: UserVote.None,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: 'c1',
+        vote: UserVote.Up,
+        entity: UserVoteEntity.Comment,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const comment = await con.getRepository(Comment).findOneBy({ id: 'c1' });
+    expect(comment?.upvotes).toEqual(4);
+    expect(comment?.downvotes).toEqual(0);
+  });
+
+  it('should increment comment downvotes when user downvotes', async () => {
+    loggedUser = '1';
+    await con.getRepository(Comment).save({
+      id: 'c1',
+      downvotes: 3,
+    });
+    await con.getRepository(UserComment).save({
+      commentId: 'c1',
+      userId: loggedUser,
+      vote: UserVote.None,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: 'c1',
+        vote: UserVote.Down,
+        entity: UserVoteEntity.Comment,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const comment = await con.getRepository(Comment).findOneBy({ id: 'c1' });
+    expect(comment?.upvotes).toEqual(0);
+    expect(comment?.downvotes).toEqual(4);
+  });
+
+  it('should decrement comment upvotes when user cancels upvote', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserComment).save({
+      commentId: 'c1',
+      userId: loggedUser,
+      vote: UserVote.Up,
+    });
+    await con.getRepository(Comment).save({
+      id: 'c1',
+      upvotes: 3,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: 'c1',
+        vote: UserVote.None,
+        entity: UserVoteEntity.Comment,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const comment = await con.getRepository(Comment).findOneBy({ id: 'c1' });
+    expect(comment?.upvotes).toEqual(2);
+    expect(comment?.downvotes).toEqual(0);
+  });
+
+  it('should decrement comment downvotes when user cancels downvote', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserComment).save({
+      commentId: 'c1',
+      userId: loggedUser,
+      vote: UserVote.Down,
+    });
+    await con.getRepository(Comment).save({
+      id: 'c1',
+      downvotes: 3,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: 'c1',
+        vote: UserVote.None,
+        entity: UserVoteEntity.Comment,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const comment = await con.getRepository(Comment).findOneBy({ id: 'c1' });
+    expect(comment?.upvotes).toEqual(0);
+    expect(comment?.downvotes).toEqual(2);
+  });
+
+  it('should decrement comment upvotes and increment downvotes when user changes vote from up to down', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserComment).save({
+      commentId: 'c1',
+      userId: loggedUser,
+      vote: UserVote.Up,
+    });
+    await con.getRepository(Comment).save({
+      id: 'c1',
+      upvotes: 3,
+      downvotes: 2,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: 'c1',
+        vote: UserVote.Down,
+        entity: UserVoteEntity.Comment,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const comment = await con.getRepository(Comment).findOneBy({ id: 'c1' });
+    expect(comment?.upvotes).toEqual(2);
+    expect(comment?.downvotes).toEqual(3);
+  });
+
+  it('should increment comment upvotes and decrement downvotes when user changes vote from down to up', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserComment).save({
+      commentId: 'c1',
+      userId: loggedUser,
+      vote: UserVote.Down,
+    });
+    await con.getRepository(Comment).save({
+      id: 'c1',
+      upvotes: 2,
+      downvotes: 3,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: 'c1',
+        vote: UserVote.Up,
+        entity: UserVoteEntity.Comment,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const comment = await con.getRepository(Comment).findOneBy({ id: 'c1' });
+    expect(comment?.upvotes).toEqual(3);
+    expect(comment?.downvotes).toEqual(2);
+  });
+
+  it('should decrement comment upvotes when UserComment entity is removed', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserComment).save({
+      commentId: 'c1',
+      userId: loggedUser,
+      vote: UserVote.Up,
+    });
+    await con.getRepository(Comment).save({
+      id: 'c1',
+      upvotes: 3,
+    });
+    await con.getRepository(UserComment).delete({
+      commentId: 'c1',
+      userId: loggedUser,
+    });
+    const comment = await con.getRepository(Comment).findOneBy({ id: 'c1' });
+    expect(comment?.upvotes).toEqual(2);
+    expect(comment?.downvotes).toEqual(0);
+  });
+
+  it('should decrement comment downvotes when UserComment entity is removed', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserComment).save({
+      commentId: 'c1',
+      userId: loggedUser,
+      vote: UserVote.Down,
+    });
+    await con.getRepository(Comment).save({
+      id: 'c1',
+      downvotes: 3,
+    });
+    await con.getRepository(UserComment).delete({
+      commentId: 'c1',
+      userId: loggedUser,
+    });
+    const comment = await con.getRepository(Comment).findOneBy({ id: 'c1' });
+    expect(comment?.upvotes).toEqual(0);
+    expect(comment?.downvotes).toEqual(2);
   });
 });
