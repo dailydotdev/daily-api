@@ -250,6 +250,13 @@ export const getPersonalizedDigestEmailPayload = async ({
     },
     category: feature.meta.category,
     batchId: emailBatchId,
+    trackingSettings: {
+      ...baseNotificationEmailData.trackingSettings,
+      openTracking: {
+        ...baseNotificationEmailData.trackingSettings?.openTracking,
+        substitutionTag: '%dailydotdev-open-track%',
+      },
+    },
     ...variationProps,
   };
 
