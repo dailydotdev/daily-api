@@ -10,11 +10,13 @@ import {
 import { Context } from '../../Context';
 import { FeedClient } from './clients';
 import {
+  FeedLofnConfigGenerator,
   FeedPreferencesConfigGenerator,
   FeedUserStateConfigGenerator,
   SimpleFeedConfigGenerator,
 } from './configs';
 import { SnotraClient } from '../snotra';
+import { LofnClient } from '../lofn';
 
 /**
  * Utility class for easily generating feeds using provided config and client
@@ -35,14 +37,20 @@ export class FeedGenerator {
   }
 
   async generate(ctx: Context, opts: DynamicConfig): Promise<FeedResponse> {
-    const config = await this.config.generate(ctx, opts);
+    const { config, extraMetadata } = await this.config.generate(ctx, opts);
     const userId = opts.user_id;
-    return this.client.fetchFeed(ctx, this.feedId ?? userId, config);
+    return this.client.fetchFeed(
+      ctx,
+      this.feedId ?? userId,
+      config,
+      extraMetadata,
+    );
   }
 }
 
 export const snotraClient = new SnotraClient();
 export const feedClient = new FeedClient();
+export const lofnClient = new LofnClient();
 
 const opts = {
   includeBlockedTags: true,
@@ -52,44 +60,26 @@ const opts = {
   includePostTypes: true,
 };
 
-const baseConfig: Partial<FeedConfig> = {
+export const baseFeedConfig: Partial<FeedConfig> = {
   source_types: ['machine', 'squad'],
+  allowed_languages: ['en'],
 };
 
-export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
-  {
-    // '26': new FeedGenerator(
-    //   feedClient,
-    //   new FeedUserStateConfigGenerator(snotraClient, {
-    //     personalised: new FeedPreferencesConfigGenerator(
-    //       {
-    //         feed_config_name: FeedConfigName.VectorV26,
-    //         source_types: ['machine', 'squad'],
-    //       },
-    //       opts,
-    //     ),
-    //     non_personalised: new FeedPreferencesConfigGenerator(
-    //       {
-    //         feed_config_name: FeedConfigName.PersonaliseV27,
-    //         source_types: ['machine', 'squad'],
-    //       },
-    //       opts,
-    //     ),
-    //   }),
-    // ),
-    '27': new FeedGenerator(
+export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
+  Object.freeze({
+    '26': new FeedGenerator(
       feedClient,
       new FeedUserStateConfigGenerator(snotraClient, {
         personalised: new FeedPreferencesConfigGenerator(
           {
-            ...baseConfig,
-            feed_config_name: FeedConfigName.VectorV27,
+            ...baseFeedConfig,
+            feed_config_name: FeedConfigName.VectorV26,
           },
           opts,
         ),
         non_personalised: new FeedPreferencesConfigGenerator(
           {
-            ...baseConfig,
+            ...baseFeedConfig,
             feed_config_name: FeedConfigName.PersonaliseV27,
           },
           opts,
@@ -101,17 +91,15 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
       new FeedUserStateConfigGenerator(snotraClient, {
         personalised: new FeedPreferencesConfigGenerator(
           {
-            ...baseConfig,
+            ...baseFeedConfig,
             feed_config_name: FeedConfigName.VectorV27,
-            allowed_languages: ['en'],
           },
           opts,
         ),
         non_personalised: new FeedPreferencesConfigGenerator(
           {
-            ...baseConfig,
+            ...baseFeedConfig,
             feed_config_name: FeedConfigName.PersonaliseV27,
-            allowed_languages: ['en'],
           },
           opts,
         ),
@@ -147,9 +135,18 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
         total_pages: 1,
       }),
     ),
-  },
-);
+  });
 
 export const versionToFeedGenerator = (version: number): FeedGenerator => {
-  return feedGenerators[version.toString()] ?? feedGenerators['27'];
+  if (version >= 30) {
+    return new FeedGenerator(
+      feedClient,
+      new FeedLofnConfigGenerator({}, lofnClient, {
+        ...opts,
+        feed_version: version.toString() as FeedVersion,
+      }),
+    );
+  }
+
+  return feedGenerators[version.toString()] ?? feedGenerators['29'];
 };

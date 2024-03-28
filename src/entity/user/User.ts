@@ -383,7 +383,7 @@ export const validateUserUpdate = async (
     }
   }
 
-  if ((username && username !== user.username) || !user.username) {
+  if (('username' in data && username !== user.username) || !user.username) {
     data.username = await validateAndTransformHandle(
       username,
       'username',

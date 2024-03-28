@@ -162,6 +162,10 @@ export const tracer = (serviceName: string) => {
     fastify.addHook('onResponse', async (req, res) => {
       addApiSpanLabels(req.span, req, res);
 
+      if (req.routeOptions.url === '/graphql') {
+        return;
+      }
+
       requestCounter.add(1, {
         [TelemetrySemanticAttributes.HTTP_METHOD]: req.method,
         [TelemetrySemanticAttributes.HTTP_ROUTE]: req.routeOptions.url,

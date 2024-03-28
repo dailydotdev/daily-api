@@ -1,4 +1,5 @@
 import { Context } from '../../Context';
+import { GenericMetadata } from '../lofn';
 
 export type FeedResponse = {
   data: [postId: string, metadata: string | undefined][];
@@ -10,6 +11,7 @@ export enum FeedConfigName {
   Vector = 'vector',
   Onboarding = 'onboarding',
   PersonaliseV27 = 'personalise_v27',
+  VectorV26 = 'vector_v26',
   VectorV27 = 'vector_v27',
   PostSimilarity = 'post_similarity',
 }
@@ -52,12 +54,23 @@ export type FeedConfig = {
   cursor?: string;
   post_id?: string;
   allowed_languages?: string[];
+  config?: {
+    [key: string]: unknown;
+  };
 };
 
 export type DynamicConfig = Omit<FeedConfig, 'total_pages'>;
 
+export type FeedConfigGeneratorResult = {
+  config: FeedConfig;
+  extraMetadata?: GenericMetadata;
+};
+
 export interface FeedConfigGenerator {
-  generate(ctx: Context, opts: DynamicConfig): Promise<FeedConfig>;
+  generate(
+    ctx: Context,
+    opts: DynamicConfig,
+  ): Promise<FeedConfigGeneratorResult>;
 }
 
 /**
@@ -74,9 +87,14 @@ export interface IFeedClient {
     ctx: Context,
     feedId: string,
     config: FeedConfig,
+    extraMetadata?: GenericMetadata,
   ): Promise<FeedResponse>;
 }
 
 export type FeedVersion =
-  // | '26'
-  '27' | '29' | 'popular' | 'onboarding' | 'post_similarity';
+  | '26'
+  | '29'
+  | 'popular'
+  | 'onboarding'
+  | 'post_similarity'
+  | '30';

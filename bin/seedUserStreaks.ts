@@ -6,9 +6,11 @@ import createOrGetConnection from '../src/db';
 import { User, UserStreak, View } from '../src/entity';
 import { DataSource, DeepPartial, Equal, IsNull, MoreThan, Not } from 'typeorm';
 import { shouldResetStreak } from '../src/common';
+import { getRedisObject, setRedisObject } from '../src/redis';
 
 const QUEUE_CONCURRENCY = 1;
 const BATCH_SIZE = 1000;
+const LAST_SEED_KEY = 'lastUserStreakSeed';
 
 interface UserPointer {
   id?: string;
@@ -156,9 +158,12 @@ const computeReadingStreaksData = async (
     insertCount += ids.length;
   }, QUEUE_CONCURRENCY);
 
-  let nextUser = undefined;
+  const lastSeed = await getRedisObject(LAST_SEED_KEY);
+  let nextUser = lastSeed ? JSON.parse(lastSeed) : undefined;
+
   while (nextUser !== null) {
     nextUser = await addNextBatch(con, insertQueue, nextUser);
+    await setRedisObject(LAST_SEED_KEY, JSON.stringify(nextUser));
     console.log('userPointer', nextUser);
   }
 
