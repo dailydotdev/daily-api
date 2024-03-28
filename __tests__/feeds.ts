@@ -686,6 +686,7 @@ describe('query feed', () => {
         feed_config_name: 'vector_v27',
         user_id: '1',
         ...baseFeedConfig,
+        config: undefined,
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
