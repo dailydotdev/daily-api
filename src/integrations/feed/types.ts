@@ -90,7 +90,6 @@ export interface IFeedClient {
 
 export type FeedVersion =
   | '26'
-  | '27'
   | '29'
   | 'popular'
   | 'onboarding'

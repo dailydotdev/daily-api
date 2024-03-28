@@ -60,8 +60,9 @@ const opts = {
   includePostTypes: true,
 };
 
-const baseConfig: Partial<FeedConfig> = {
+export const baseFeedConfig: Partial<FeedConfig> = {
   source_types: ['machine', 'squad'],
+  allowed_languages: ['en'],
 };
 
 export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
@@ -71,33 +72,14 @@ export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
       new FeedUserStateConfigGenerator(snotraClient, {
         personalised: new FeedPreferencesConfigGenerator(
           {
-            ...baseConfig,
+            ...baseFeedConfig,
             feed_config_name: FeedConfigName.VectorV26,
           },
           opts,
         ),
         non_personalised: new FeedPreferencesConfigGenerator(
           {
-            ...baseConfig,
-            feed_config_name: FeedConfigName.PersonaliseV27,
-          },
-          opts,
-        ),
-      }),
-    ),
-    '27': new FeedGenerator(
-      feedClient,
-      new FeedUserStateConfigGenerator(snotraClient, {
-        personalised: new FeedPreferencesConfigGenerator(
-          {
-            ...baseConfig,
-            feed_config_name: FeedConfigName.VectorV27,
-          },
-          opts,
-        ),
-        non_personalised: new FeedPreferencesConfigGenerator(
-          {
-            ...baseConfig,
+            ...baseFeedConfig,
             feed_config_name: FeedConfigName.PersonaliseV27,
           },
           opts,
@@ -109,17 +91,15 @@ export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
       new FeedUserStateConfigGenerator(snotraClient, {
         personalised: new FeedPreferencesConfigGenerator(
           {
-            ...baseConfig,
+            ...baseFeedConfig,
             feed_config_name: FeedConfigName.VectorV27,
-            allowed_languages: ['en'],
           },
           opts,
         ),
         non_personalised: new FeedPreferencesConfigGenerator(
           {
-            ...baseConfig,
+            ...baseFeedConfig,
             feed_config_name: FeedConfigName.PersonaliseV27,
-            allowed_languages: ['en'],
           },
           opts,
         ),
@@ -167,5 +147,5 @@ export const versionToFeedGenerator = (version: number): FeedGenerator => {
     );
   }
 
-  return feedGenerators[version.toString()] ?? feedGenerators['27'];
+  return feedGenerators[version.toString()] ?? feedGenerators['29'];
 };
