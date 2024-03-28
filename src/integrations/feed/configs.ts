@@ -187,11 +187,15 @@ export class FeedLofnConfigGenerator implements FeedConfigGenerator {
 
         return result;
       } catch (error) {
-        ctx.log.error('Failed to generate feed config', error, {
-          userIdExists: !!opts.user_id,
-          feedVersion: this.opts.feed_version,
-          generator: 'FeedLofnConfigGenerator',
-        });
+        ctx.log.error(
+          {
+            err: error,
+            userIdExists: !!opts.user_id,
+            feedVersion: this.opts.feed_version,
+            generator: 'FeedLofnConfigGenerator',
+          },
+          'Failed to generate feed config',
+        );
 
         throw error;
       }
