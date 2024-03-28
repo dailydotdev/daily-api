@@ -129,10 +129,15 @@ type FeedLofnConfigGeneratorOptions = {
 export class FeedLofnConfigGenerator implements FeedConfigGenerator {
   private readonly lofnClient: ILofnClient;
   private readonly opts: FeedLofnConfigGeneratorOptions;
+  private readonly feedPreferencesConfigGenerator: FeedPreferencesConfigGenerator;
 
   constructor(lofnClient: ILofnClient, opts: FeedLofnConfigGeneratorOptions) {
     this.lofnClient = lofnClient;
     this.opts = opts;
+    this.feedPreferencesConfigGenerator = new FeedPreferencesConfigGenerator(
+      {},
+      opts,
+    );
   }
 
   async generate(
@@ -140,19 +145,24 @@ export class FeedLofnConfigGenerator implements FeedConfigGenerator {
     opts: DynamicConfig,
   ): Promise<FeedConfigGeneratorResult> {
     return runInSpan('FeedLofnConfigGenerator', async () => {
-      const lofnConfig = await this.lofnClient.fetchConfig({
-        user_id: opts.user_id,
-        feed_version: this.opts.feed_version,
-      });
+      const [lofnConfig, preferencesConfig] = await Promise.all([
+        this.lofnClient.fetchConfig({
+          user_id: opts.user_id,
+          feed_version: this.opts.feed_version,
+        }),
+        this.feedPreferencesConfigGenerator.generate(ctx, opts),
+      ]);
 
-      const feedPreferencesConfigGenerator = new FeedPreferencesConfigGenerator(
+      const config = getDefaultConfig(
+        {
+          ...preferencesConfig.config,
+          total_pages: lofnConfig.config.total_pages,
+        },
         lofnConfig.config,
-        this.opts,
       );
-      const result = await feedPreferencesConfigGenerator.generate(ctx, opts);
 
       return {
-        ...result,
+        config,
         extraMetadata: {
           mab: lofnConfig.tyr_metadata,
         },
