@@ -7,23 +7,20 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Post } from '../posts';
 import { User } from './User';
+import { Comment } from '../Comment';
 import { UserVote } from '../../common/vote';
 
-export type UserPostFlags = Partial<{
-  feedbackDismiss: boolean;
+export type UserCommentFlags = Partial<{
+  // flags
 }>;
 
-export type UserPostFlagsPublic = Pick<UserPostFlags, 'feedbackDismiss'>;
-
 @Entity()
-@Index(['postId', 'userId'], { unique: true })
+@Index(['commentId', 'userId'], { unique: true })
 @Index(['userId', 'vote', 'votedAt'])
-@Index('IDX_user_post_postid_userid_hidden', ['postId', 'userId', 'hidden'])
-export class UserPost {
+export class UserComment {
   @PrimaryColumn({ type: 'text' })
-  postId: string;
+  commentId: string;
 
   @PrimaryColumn({ type: 'text' })
   userId: string;
@@ -40,17 +37,14 @@ export class UserPost {
   @Column({ type: 'smallint', default: UserVote.None })
   vote: UserVote = UserVote.None;
 
-  @Column({ type: 'boolean', default: false })
-  hidden = false;
-
   @Column({ type: 'jsonb', default: {} })
-  flags: UserPostFlags = {};
+  flags: UserCommentFlags = {};
 
-  @ManyToOne(() => Post, {
+  @ManyToOne(() => Comment, {
     lazy: true,
     onDelete: 'CASCADE',
   })
-  post: Promise<Post>;
+  comment: Promise<Comment>;
 
   @ManyToOne(() => User, {
     lazy: true,

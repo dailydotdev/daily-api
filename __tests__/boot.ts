@@ -29,7 +29,6 @@ import {
   User,
   UserMarketingCta,
   UserNotification,
-  UserPostVote,
 } from '../src/entity';
 import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { notificationV2Fixture } from './fixture/notifications';
@@ -56,7 +55,7 @@ import { getEncryptedFeatures } from '../src/growthbook';
 import { base64 } from 'graphql-relay/utils/base64';
 import { cookies } from '../src/cookies';
 import { signJwt } from '../src/auth';
-import { submitArticleThreshold } from '../src/common';
+import { submitArticleThreshold, UserVote } from '../src/common';
 import { saveReturnAlerts } from '../src/schema/alerts';
 
 let app: FastifyInstance;
@@ -1013,7 +1012,7 @@ describe('companion boot', () => {
         upvoted: false,
         downvoted: false,
         userState: {
-          vote: UserPostVote.None,
+          vote: UserVote.None,
         },
       },
       user: {

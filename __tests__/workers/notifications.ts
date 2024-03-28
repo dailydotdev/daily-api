@@ -18,7 +18,6 @@ import {
   UserAction,
   UserActionType,
   UserPost,
-  UserPostVote,
 } from '../../src/entity';
 import { SourceMemberRoles } from '../../src/roles';
 import { DataSource } from 'typeorm';
@@ -39,7 +38,11 @@ import {
   NotificationPreferenceStatus,
   NotificationType,
 } from '../../src/notifications/common';
-import { createSquadWelcomePost, NotificationReason } from '../../src/common';
+import {
+  createSquadWelcomePost,
+  NotificationReason,
+  UserVote,
+} from '../../src/common';
 import { randomUUID } from 'crypto';
 
 let con: DataSource;
@@ -902,9 +905,9 @@ describe('article upvote milestone', () => {
       {
         userId: '2',
         postId: 'p1',
-        vote: UserPostVote.Up,
+        vote: UserVote.Up,
       },
-      { userId: '4', postId: 'p1', vote: UserPostVote.Up },
+      { userId: '4', postId: 'p1', vote: UserVote.Up },
     ]);
     await con
       .getRepository(Source)
@@ -938,9 +941,9 @@ describe('article upvote milestone', () => {
       {
         userId: '2',
         postId: 'p1',
-        vote: UserPostVote.Up,
+        vote: UserVote.Up,
       },
-      { userId: '4', postId: 'p1', vote: UserPostVote.Up },
+      { userId: '4', postId: 'p1', vote: UserVote.Up },
     ]);
     const actual = await invokeNotificationWorker(worker.default, {
       userId: '2',
