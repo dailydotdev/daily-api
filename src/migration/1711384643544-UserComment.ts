@@ -9,7 +9,7 @@ export class UserComment1711384643544 implements MigrationInterface {
         await queryRunner.query(`CREATE INDEX "IDX_d2ac5b050de3eea850124fa24c" ON "user_comment" ("userId", "vote", "votedAt")`);
         await queryRunner.query(`CREATE UNIQUE INDEX "IDX_9c7d2a40fc3deac4d66155997c" ON "user_comment" ("commentId", "userId")`);
         await queryRunner.query(`ALTER TABLE "user_comment" ADD CONSTRAINT "FK_b7d2dcc1d8826d4ef2fc5716bf4" FOREIGN KEY ("commentId") REFERENCES "comment"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "user_comment" ADD CONSTRAINT "FK_ebd475b57b16b0039934dc31a14" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "user_comment" ADD CONSTRAINT "FK_ebd475b57b16b0039934dc31a14" FOREIGN KEY ("userId") REFERENCES "public"."user"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
 
         await queryRunner.query(`
             CREATE OR REPLACE FUNCTION comment_voted_at_time()
