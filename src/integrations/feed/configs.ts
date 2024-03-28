@@ -153,7 +153,9 @@ export class FeedLofnConfigGenerator implements FeedConfigGenerator {
 
       return {
         ...result,
-        extraMetadata: lofnConfig.tyr_metadata,
+        extraMetadata: {
+          mab: lofnConfig.tyr_metadata,
+        },
       };
     });
   }

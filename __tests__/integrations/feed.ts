@@ -103,7 +103,9 @@ describe('FeedClient', () => {
       .reply(200, rawFeedResponse);
 
     const feedClient = new FeedClient(url);
-    const feed = await feedClient.fetchFeed(ctx, 'id', config, { test: 'da' });
+    const feed = await feedClient.fetchFeed(ctx, 'id', config, {
+      mab: { test: 'da' },
+    });
     expect(feed).toEqual({
       data: [
         ['1', '{"p":"a","mab":{"test":"da"}}'],
@@ -407,7 +409,9 @@ describe('FeedLofnConfigGenerator', () => {
     });
     expect(actual).toMatchObject({
       config: mockedValue.config,
-      extraMetadata: mockedValue.tyr_metadata,
+      extraMetadata: {
+        mab: mockedValue.tyr_metadata,
+      },
     });
   });
 });

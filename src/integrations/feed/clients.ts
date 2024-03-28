@@ -51,7 +51,7 @@ export class FeedClient implements IFeedClient {
           (hasMetadata &&
             JSON.stringify({
               ...metadata,
-              mab: extraMetadata,
+              ...extraMetadata,
             })) ||
             null,
         ];
