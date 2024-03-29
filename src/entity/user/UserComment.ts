@@ -9,7 +9,7 @@ import {
 } from 'typeorm';
 import { User } from './User';
 import { Comment } from '../Comment';
-import { UserVote } from '../../common/vote';
+import { UserVote } from '../../types';
 
 export type UserCommentFlags = Partial<{
   // flags
@@ -34,7 +34,7 @@ export class UserComment {
   @Column({ default: null, nullable: true })
   votedAt: Date;
 
-  @Column({ type: 'smallint', default: 0 })
+  @Column({ type: 'smallint', default: UserVote.None })
   vote: UserVote = 0;
 
   @Column({ type: 'jsonb', default: {} })

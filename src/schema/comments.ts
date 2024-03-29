@@ -5,7 +5,6 @@ import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import {
-  UserVote,
   getDiscussionLink,
   recommendUsersByQuery,
   recommendUsersToMention,
@@ -38,6 +37,7 @@ import { ensureSourcePermissions, SourcePermissions } from './sources';
 import { generateShortId } from '../ids';
 import { CommentReport } from '../entity/CommentReport';
 import { UserComment } from '../entity/user/UserComment';
+import { UserVote } from '../types';
 
 export interface GQLComment {
   id: string;

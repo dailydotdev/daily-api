@@ -9,7 +9,7 @@ import { NotificationWorker } from './worker';
 import { buildPostContext, uniquePostOwners, UPVOTE_MILESTONES } from './utils';
 import { In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
-import { UserVote } from '../../common';
+import { UserVote } from '../../types';
 
 interface Data {
   userId: string;

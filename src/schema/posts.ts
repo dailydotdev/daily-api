@@ -31,7 +31,6 @@ import {
   uploadPostFile,
   UploadPreset,
   validatePost,
-  UserVote,
   votePost,
 } from '../common';
 import {
@@ -84,6 +83,7 @@ import { insertOrIgnoreAction } from './actions';
 import { generateShortId, generateUUID } from '../ids';
 import { generateStorageKey, StorageTopic } from '../config';
 import { subDays } from 'date-fns';
+import { UserVote } from '../types';
 
 export interface GQLPost {
   id: string;

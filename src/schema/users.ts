@@ -42,8 +42,6 @@ import {
   GQLUserStreakTz,
   toGQLEnum,
   getUserPermalink,
-  UserVote,
-  UserVoteEntity,
   votePost,
   voteComment,
 } from '../common';
@@ -60,7 +58,7 @@ import { deleteUser } from '../directive/user';
 import { randomInt } from 'crypto';
 import { DataSource, In, IsNull } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
-import { DayOfWeek } from '../types';
+import { DayOfWeek, UserVote, UserVoteEntity } from '../types';
 import { getTimezoneOffset } from 'date-fns-tz';
 import { markdown } from '../common/markdown';
 import {

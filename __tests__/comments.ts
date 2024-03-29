@@ -33,7 +33,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { CommentReport } from '../src/entity/CommentReport';
 import { UserComment } from '../src/entity/user/UserComment';
-import { UserVote, UserVoteEntity } from '../src/common';
+import { UserVote, UserVoteEntity } from '../src/types';
 
 let con: DataSource;
 let state: GraphQLTestingState;

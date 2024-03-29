@@ -5,19 +5,9 @@ import { GQLEmptyResponse } from '../schema/common';
 import { ensureSourcePermissions } from '../schema/sources';
 import { Context } from '../Context';
 import { UserComment } from '../entity/user/UserComment';
+import { UserVote } from '../types';
 
-export enum UserVote {
-  Up = 1,
-  None = 0,
-  Down = -1,
-}
-
-export enum UserVoteEntity {
-  Comment = 'comment',
-  Post = 'post',
-}
-
-export type UserVoteProps = {
+type UserVoteProps = {
   ctx: Context;
   id: string;
   vote: UserVote;
