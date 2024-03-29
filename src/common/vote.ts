@@ -94,18 +94,23 @@ export const voteComment = async ({
   try {
     validateVoteType({ vote });
 
-    const comment = await ctx.con.getRepository(Comment).findOne({
-      where: {
-        id,
-      },
-      relations: ['post'],
-    });
-
-    if (!comment) {
-      throw new NotFoundError('Comment not found');
-    }
-
-    const post = await comment?.post;
+    const comment = await ctx.con
+      .getRepository<Pick<Comment, 'id' | 'post'>>(Comment)
+      .findOneOrFail({
+        select: {
+          id: true,
+          post: {
+            sourceId: true,
+          },
+        },
+        relations: {
+          post: true,
+        },
+        where: {
+          id,
+        },
+      });
+    const post: Pick<Post, 'sourceId'> = await comment?.post;
     await ensureSourcePermissions(ctx, post.sourceId);
 
     await ctx.con.transaction(async (entityManager) => {

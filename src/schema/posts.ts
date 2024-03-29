@@ -1751,6 +1751,7 @@ export const resolvers: IResolvers<any, Context> = {
       }
       return { _: true };
     },
+    // TODO AS-213 remove when no longer used on frontend
     votePost: async (
       source,
       { id, vote }: { id: string; vote: UserVote },

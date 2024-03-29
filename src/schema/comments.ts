@@ -942,6 +942,7 @@ export const resolvers: IResolvers<any, Context> = {
 
       return { _: true };
     },
+    // TODO AS-214 remove when frontend no longer uses and extension adoption
     upvoteComment: async (
       source,
       { id }: { id: string },
@@ -977,6 +978,7 @@ export const resolvers: IResolvers<any, Context> = {
       }
       return { _: true };
     },
+    // TODO AS-214 remove when frontend no longer uses and extension adoption
     cancelCommentUpvote: async (
       source,
       { id }: { id: string },
