@@ -5,6 +5,7 @@ import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import {
+  UserVote,
   getDiscussionLink,
   recommendUsersByQuery,
   recommendUsersToMention,
@@ -48,6 +49,7 @@ export interface GQLComment {
   children?: Connection<GQLComment>;
   post: GQLPost;
   numUpvotes: number;
+  userState?: GQLUserComment;
 }
 
 interface GQLMentionUserArgs {
@@ -81,6 +83,10 @@ interface ReportCommentArgs {
   commentId: string;
   note: string;
   reason: string;
+}
+
+export interface GQLUserComment {
+  vote: UserVote;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -144,6 +150,11 @@ export const typeDefs = /* GraphQL */ `
     Parent comment of this comment
     """
     parent: Comment
+
+    """
+    User state for the comment
+    """
+    userState: UserComment @auth
   }
 
   type CommentEdge {
@@ -209,6 +220,17 @@ export const typeDefs = /* GraphQL */ `
     Reason doesnt fit any specific category
     """
     OTHER
+  }
+
+  type UserComment {
+    """
+    The user's vote for the comment
+    """
+    vote: Int!
+
+    user: User!
+
+    comment: Comment!
   }
 
   extend type Query {
