@@ -19,6 +19,7 @@ import {
   AcquisitionChannel,
   UserMarketingCta,
   MarketingCta,
+  UserPersonalizedDigestType,
 } from '../entity';
 import {
   AuthenticationError,
@@ -428,6 +429,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   ${toGQLEnum(AcquisitionChannel, 'AcquisitionChannel')}
+  ${toGQLEnum(UserPersonalizedDigestType, 'DigestType')}
 
   extend type Query {
     """
@@ -552,7 +554,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get personalized digest settings
     """
-    personalizedDigest: PersonalizedDigest @auth
+    personalizedDigest(type: DigestType): PersonalizedDigest @auth
 
     """
     List of users that the logged in user has referred to the platform
@@ -592,12 +594,17 @@ export const typeDefs = /* GraphQL */ `
       Preferred timezone relevant to the hour and day.
       """
       timezone: String
+
+      """
+      Type of the digest (digest/reminder/etc)
+      """
+      type: DigestType
     ): PersonalizedDigest @auth
 
     """
     The mutation to unsubscribe from the personalized digest
     """
-    unsubscribePersonalizedDigest: EmptyResponse @auth
+    unsubscribePersonalizedDigest(type: DigestType): EmptyResponse @auth
     """
     The mutation to accept feature invites from another user
     """
@@ -1064,12 +1071,14 @@ export const resolvers: IResolvers<any, Context> = {
     },
     personalizedDigest: async (
       _,
-      args,
+      {
+        type = UserPersonalizedDigestType.digest,
+      }: { type?: UserPersonalizedDigestType },
       ctx: Context,
     ): Promise<GQLPersonalizedDigest> => {
       const personalizedDigest = await ctx
         .getRepository(UserPersonalizedDigest)
-        .findOneBy({ userId: ctx.userId });
+        .findOneBy({ userId: ctx.userId, type });
 
       if (!personalizedDigest) {
         throw new NotFoundError('Not subscribed to personalized digest');
@@ -1197,10 +1206,16 @@ export const resolvers: IResolvers<any, Context> = {
         hour?: number;
         day?: number;
         timezone?: string;
+        type?: UserPersonalizedDigestType;
       },
       ctx: Context,
     ): Promise<GQLPersonalizedDigest> => {
-      const { hour, day, timezone } = args;
+      const {
+        hour,
+        day,
+        timezone,
+        type = UserPersonalizedDigestType.digest,
+      } = args;
 
       if (!isNullOrUndefined(hour) && (hour < 0 || hour > 23)) {
         throw new ValidationError('Invalid hour');
@@ -1224,13 +1239,16 @@ export const resolvers: IResolvers<any, Context> = {
         preferredDay: day,
         preferredHour: hour,
         preferredTimezone: timezone,
+        type,
       });
 
       return personalizedDigest;
     },
     unsubscribePersonalizedDigest: async (
       _,
-      args,
+      {
+        type = UserPersonalizedDigestType.digest,
+      }: { type?: UserPersonalizedDigestType },
       ctx: Context,
     ): Promise<unknown> => {
       const repo = ctx.con.getRepository(UserPersonalizedDigest);
@@ -1238,6 +1256,7 @@ export const resolvers: IResolvers<any, Context> = {
       if (ctx.userId) {
         await repo.delete({
           userId: ctx.userId,
+          type,
         });
       }
 

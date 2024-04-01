@@ -7,6 +7,11 @@ export enum UserPersonalizedDigestSendType {
   workdays = 'workdays',
 }
 
+export enum UserPersonalizedDigestType {
+  digest = 'digest',
+  reading_reminder = 'reading_reminder',
+}
+
 export type UserPersonalizedDigestFlags = Partial<{
   sendType: UserPersonalizedDigestSendType;
 }>;
@@ -20,6 +25,9 @@ export type UserPersonalizedDigestFlagsPublic = Pick<
 export class UserPersonalizedDigest {
   @PrimaryColumn({ type: 'text' })
   userId: string;
+
+  @PrimaryColumn({ type: 'text', default: UserPersonalizedDigestType.digest })
+  type = UserPersonalizedDigestType.digest;
 
   @Column({ type: 'smallint', default: 9 })
   preferredHour: number;

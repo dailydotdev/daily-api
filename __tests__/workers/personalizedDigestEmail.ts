@@ -7,6 +7,7 @@ import {
   Source,
   User,
   UserPersonalizedDigest,
+  UserPersonalizedDigestType,
   UserStreak,
 } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
@@ -21,10 +22,16 @@ import nock from 'nock';
 import { subDays } from 'date-fns';
 import { ExperimentAllocationClient, features } from '../../src/growthbook';
 import { sendExperimentAllocationEvent } from '../../src/integrations/analytics';
+import { sendReadingReminderPush } from '../../src/onesignal';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
   sendEmail: jest.fn(),
+}));
+
+jest.mock('../../src/onesignal', () => ({
+  ...(jest.requireActual('../../src/onesignal') as Record<string, unknown>),
+  sendReadingReminderPush: jest.fn(),
 }));
 
 jest.mock('../../src/integrations/analytics', () => ({
@@ -177,6 +184,7 @@ describe('personalizedDigestEmail worker', () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
       preferredTimezone: 'America/Phoenix',
+      type: UserPersonalizedDigestType.digest,
     });
 
     const personalizedDigest = await con
@@ -224,6 +232,7 @@ describe('personalizedDigestEmail worker', () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
       preferredTimezone: 'Asia/Dhaka',
+      type: UserPersonalizedDigestType.digest,
     });
 
     const personalizedDigest = await con
@@ -333,6 +342,7 @@ describe('personalizedDigestEmail worker', () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
       lastSendDate: new Date(),
+      type: UserPersonalizedDigestType.digest,
     });
 
     await expectSuccessfulBackground(worker, {
@@ -354,6 +364,7 @@ describe('personalizedDigestEmail worker', () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
       lastSendDate: subDays(new Date(), 7),
+      type: UserPersonalizedDigestType.digest,
     });
 
     await expectSuccessfulBackground(worker, {
@@ -379,6 +390,7 @@ describe('personalizedDigestEmail worker', () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
       lastSendDate,
+      type: UserPersonalizedDigestType.digest,
     });
 
     await expect(() => {
@@ -410,6 +422,7 @@ describe('personalizedDigestEmail worker', () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
       lastSendDate: subDays(new Date(), 7),
+      type: UserPersonalizedDigestType.digest,
     });
 
     await expectSuccessfulBackground(worker, {
@@ -440,6 +453,7 @@ describe('personalizedDigestEmail worker', () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
       lastSendDate,
+      type: UserPersonalizedDigestType.digest,
     });
 
     await expectSuccessfulBackground(worker, {
@@ -464,6 +478,7 @@ describe('personalizedDigestEmail worker', () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
       lastSendDate,
+      type: UserPersonalizedDigestType.digest,
     });
 
     await expectSuccessfulBackground(worker, {
@@ -497,6 +512,7 @@ describe('personalizedDigestEmail worker', () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
       lastSendDate,
+      type: UserPersonalizedDigestType.digest,
     });
 
     nock.cleanAll();
@@ -626,5 +642,46 @@ describe('personalizedDigestEmail worker', () => {
       date_from: expect.any(String),
       date_to: expect.any(String),
     });
+  });
+
+  it('should support reading reminder', async () => {
+    await con.getRepository(UserPersonalizedDigest).update(
+      {
+        userId: '1',
+      },
+      { type: UserPersonalizedDigestType.reading_reminder },
+    );
+
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    expect(personalizedDigest).toBeTruthy();
+    expect(personalizedDigest!.lastSendDate).toBeNull();
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    const personalizedDigestAfterWorker = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    expect(sendReadingReminderPush).toHaveBeenCalledWith(
+      ['1'],
+      expect.any(Date),
+    );
+    const at = (sendReadingReminderPush as jest.Mock).mock.calls[0][1];
+    expect(at.getDay()).toBe(personalizedDigest!.preferredDay);
+    expect(at.getHours()).toBe(personalizedDigest!.preferredHour);
+    expect(at.getTimezoneOffset()).toBe(0);
+
+    expect(personalizedDigestAfterWorker!.lastSendDate).not.toBeNull();
   });
 });

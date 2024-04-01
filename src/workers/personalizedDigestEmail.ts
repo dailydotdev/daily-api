@@ -3,18 +3,22 @@ import {
   User,
   UserPersonalizedDigest,
   UserPersonalizedDigestSendType,
+  UserPersonalizedDigestType,
 } from '../entity';
 import { messageToJson, Worker, workerToExperimentWorker } from './worker';
 import { isSameDay } from 'date-fns';
 import { DataSource } from 'typeorm';
 import {
+  ExperimentAllocationClient,
   Feature,
-  PersonalizedDigestFeatureConfig,
   features,
   getUserGrowthBookInstace,
+  PersonalizedDigestFeatureConfig,
 } from '../growthbook';
 
 import deepmerge from 'deepmerge';
+import { FastifyBaseLogger } from 'fastify';
+import { sendReadingReminderPush } from '../onesignal';
 
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
@@ -46,6 +50,7 @@ const setEmailSendDate = async ({
   return con.getRepository(UserPersonalizedDigest).update(
     {
       userId: personalizedDigest.userId,
+      type: personalizedDigest.type,
     },
     {
       lastSendDate: date,
@@ -61,15 +66,61 @@ const sendTypeToFeatureMap: Record<
   [UserPersonalizedDigestSendType.workdays]: features.dailyDigest,
 };
 
-const worker: Worker = workerToExperimentWorker({
-  subscription: 'api.personalized-digest-email',
-  handler: async (message, con, logger, pubsub, allocationClient) => {
-    if (process.env.NODE_ENV === 'development') {
-      return;
-    }
+const dedupedSend = async (
+  send: () => Promise<unknown>,
+  { con, personalizedDigest, deduplicate, date }: SetEmailSendDateProps,
+): Promise<void> => {
+  const { lastSendDate = null } =
+    (await con.getRepository(UserPersonalizedDigest).findOne({
+      select: ['lastSendDate'],
+      where: {
+        userId: personalizedDigest.userId,
+        type: personalizedDigest.type,
+      },
+    })) || {};
 
-    const data = messageToJson<Data>(message);
+  if (deduplicate && lastSendDate && isSameDay(date, lastSendDate)) {
+    return;
+  }
 
+  await setEmailSendDate({
+    con,
+    personalizedDigest,
+    date,
+    deduplicate,
+  });
+
+  try {
+    await send();
+  } catch (error) {
+    // since email did not send we revert the lastSendDate
+    // so worker can do it again in retry
+    await setEmailSendDate({
+      con,
+      personalizedDigest,
+      date: lastSendDate,
+      deduplicate,
+    });
+
+    throw error;
+  }
+};
+
+const digestTypeToFunctionMap: Record<
+  UserPersonalizedDigestType,
+  (
+    data: Data,
+    con: DataSource,
+    logger: FastifyBaseLogger,
+    allocationClient: ExperimentAllocationClient,
+  ) => Promise<void>
+> = {
+  [UserPersonalizedDigestType.digest]: async (
+    data,
+    con,
+    logger,
+    allocationClient,
+  ) => {
     const {
       personalizedDigest,
       emailSendTimestamp,
@@ -135,39 +186,43 @@ const worker: Worker = workerToExperimentWorker({
       return;
     }
 
-    const { lastSendDate = null } =
-      (await con.getRepository(UserPersonalizedDigest).findOne({
-        select: ['lastSendDate'],
-        where: {
-          userId: personalizedDigest.userId,
-        },
-      })) || {};
-
-    if (deduplicate && lastSendDate && isSameDay(currentDate, lastSendDate)) {
-      return;
-    }
-
-    await setEmailSendDate({
+    await dedupedSend(() => sendEmail(emailPayload), {
       con,
       personalizedDigest,
       date: currentDate,
       deduplicate,
     });
-
-    try {
-      await sendEmail(emailPayload);
-    } catch (error) {
-      // since email did not send we revert the lastSendDate
-      // so worker can do it again in retry
-      await setEmailSendDate({
+  },
+  [UserPersonalizedDigestType.reading_reminder]: async (data, con) => {
+    const { personalizedDigest, emailSendTimestamp, deduplicate = true } = data;
+    const emailSendDate = new Date(emailSendTimestamp);
+    const currentDate = new Date();
+    await dedupedSend(
+      () => sendReadingReminderPush([personalizedDigest.userId], emailSendDate),
+      {
         con,
         personalizedDigest,
-        date: lastSendDate,
+        date: currentDate,
         deduplicate,
-      });
+      },
+    );
+  },
+};
 
-      throw error;
+const worker: Worker = workerToExperimentWorker({
+  subscription: 'api.personalized-digest-email',
+  handler: async (message, con, logger, pubsub, allocationClient) => {
+    if (process.env.NODE_ENV === 'development') {
+      return;
     }
+
+    const data = messageToJson<Data>(message);
+    await digestTypeToFunctionMap[data.personalizedDigest.type](
+      data,
+      con,
+      logger,
+      allocationClient,
+    );
   },
 });
 
