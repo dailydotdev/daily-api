@@ -175,7 +175,7 @@ export class FeedLofnConfigGenerator implements FeedConfigGenerator {
           },
         };
 
-        ctx.log.info(
+        ctx.log.debug(
           {
             config: result.config,
             extraMetadata: result.extraMetadata,
