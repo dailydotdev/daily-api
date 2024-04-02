@@ -35,7 +35,7 @@ export class UserComment {
   votedAt: Date;
 
   @Column({ type: 'smallint', default: UserVote.None })
-  vote: UserVote = 0;
+  vote: UserVote = UserVote.None;
 
   @Column({ type: 'jsonb', default: {} })
   flags: UserCommentFlags = {};
