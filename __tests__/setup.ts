@@ -1,7 +1,7 @@
 import * as matchers from 'jest-extended';
 import '../src/config';
 import createOrGetConnection from '../src/db';
-import { ioRedisPool, redisPubSub, singleRedisClient } from '../src/redis';
+import { DataSource } from 'typeorm';
 
 expect.extend(matchers);
 
@@ -11,7 +11,7 @@ jest.mock('../src/growthbook', () => ({
   getEncryptedFeatures: jest.fn(),
 }));
 
-let con;
+let con: DataSource;
 
 const cleanDatabase = async (): Promise<void> => {
   for (const entity of con.entityMetadatas) {
@@ -35,11 +35,3 @@ beforeAll(async () => {
 });
 
 beforeEach(cleanDatabase);
-
-afterAll(async () => {
-  await con.close();
-  singleRedisClient.disconnect();
-  redisPubSub.getPublisher().disconnect();
-  redisPubSub.getSubscriber().disconnect();
-  await ioRedisPool.end();
-});
