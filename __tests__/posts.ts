@@ -54,13 +54,13 @@ import {
   pickImageUrl,
   createSquadWelcomePost,
   updateFlagsStatement,
-  UserVote,
 } from '../src/common';
 import { randomUUID } from 'crypto';
 import nock from 'nock';
 import { deleteKeysByPattern, ioRedisPool, setRedisObject } from '../src/redis';
 import { checkHasMention, markdown } from '../src/common/markdown';
 import { generateStorageKey, StorageTopic } from '../src/config';
+import { UserVote } from '../src/types';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),

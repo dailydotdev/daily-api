@@ -1,9 +1,4 @@
-import {
-  createSquadWelcomePost,
-  feedToFilters,
-  Ranking,
-  UserVote,
-} from '../src/common';
+import { createSquadWelcomePost, feedToFilters, Ranking } from '../src/common';
 import {
   AdvancedSettings,
   ArticlePost,
@@ -58,6 +53,7 @@ import { randomUUID } from 'crypto';
 import { usersFixture } from './fixture/user';
 import { base64 } from 'graphql-relay/utils/base64';
 import { baseFeedConfig } from '../src/integrations/feed/generators';
+import { UserVote } from '../src/types';
 
 let app: FastifyInstance;
 let con: DataSource;

@@ -9,7 +9,7 @@ import {
 } from 'typeorm';
 import { Post } from '../posts';
 import { User } from './User';
-import { UserVote } from '../../common/vote';
+import { UserVote } from '../../types';
 
 export type UserPostFlags = Partial<{
   feedbackDismiss: boolean;
