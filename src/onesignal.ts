@@ -37,3 +37,25 @@ export async function sendPushNotification(
   }
   await client.createNotification(push);
 }
+
+export async function sendReadingReminderPush(
+  userIds: string[],
+  at: Date,
+): Promise<void> {
+  if (!appId || !apiKey) return;
+
+  const push = new OneSignal.Notification();
+  push.app_id = appId;
+  push.include_external_user_ids = userIds;
+  push.send_after = at.toISOString();
+  push.contents = { en: 'Build a habit and become more knowledgeable' };
+  push.headings = { en: "Hi, It's reading time" };
+  push.url = addNotificationUtm(
+    process.env.COMMENTS_PREFIX,
+    'push',
+    'reminder',
+  );
+  push.chrome_web_badge =
+    'https://daily-now-res.cloudinary.com/image/upload/v1672745846/public/dailydev.png';
+  await client.createNotification(push);
+}

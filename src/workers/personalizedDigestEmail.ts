@@ -1,20 +1,27 @@
-import { getPersonalizedDigestEmailPayload, sendEmail } from '../common';
+import {
+  dedupedSend,
+  getPersonalizedDigestEmailPayload,
+  sendEmail,
+} from '../common';
 import {
   User,
   UserPersonalizedDigest,
   UserPersonalizedDigestSendType,
+  UserPersonalizedDigestType,
 } from '../entity';
 import { messageToJson, Worker, workerToExperimentWorker } from './worker';
-import { isSameDay } from 'date-fns';
 import { DataSource } from 'typeorm';
 import {
+  ExperimentAllocationClient,
   Feature,
-  PersonalizedDigestFeatureConfig,
   features,
   getUserGrowthBookInstace,
+  PersonalizedDigestFeatureConfig,
 } from '../growthbook';
 
 import deepmerge from 'deepmerge';
+import { FastifyBaseLogger } from 'fastify';
+import { sendReadingReminderPush } from '../onesignal';
 
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
@@ -25,34 +32,6 @@ interface Data {
   config?: PersonalizedDigestFeatureConfig;
 }
 
-type SetEmailSendDateProps = Pick<
-  Data,
-  'personalizedDigest' | 'deduplicate'
-> & {
-  con: DataSource;
-  date: Date;
-};
-
-const setEmailSendDate = async ({
-  con,
-  personalizedDigest,
-  date,
-  deduplicate,
-}: SetEmailSendDateProps) => {
-  if (!deduplicate) {
-    return;
-  }
-
-  return con.getRepository(UserPersonalizedDigest).update(
-    {
-      userId: personalizedDigest.userId,
-    },
-    {
-      lastSendDate: date,
-    },
-  );
-};
-
 const sendTypeToFeatureMap: Record<
   UserPersonalizedDigestSendType,
   Feature<PersonalizedDigestFeatureConfig>
@@ -61,15 +40,21 @@ const sendTypeToFeatureMap: Record<
   [UserPersonalizedDigestSendType.workdays]: features.dailyDigest,
 };
 
-const worker: Worker = workerToExperimentWorker({
-  subscription: 'api.personalized-digest-email',
-  handler: async (message, con, logger, pubsub, allocationClient) => {
-    if (process.env.NODE_ENV === 'development') {
-      return;
-    }
-
-    const data = messageToJson<Data>(message);
-
+const digestTypeToFunctionMap: Record<
+  UserPersonalizedDigestType,
+  (
+    data: Data,
+    con: DataSource,
+    logger: FastifyBaseLogger,
+    allocationClient: ExperimentAllocationClient,
+  ) => Promise<void>
+> = {
+  [UserPersonalizedDigestType.Digest]: async (
+    data,
+    con,
+    logger,
+    allocationClient,
+  ) => {
     const {
       personalizedDigest,
       emailSendTimestamp,
@@ -135,39 +120,43 @@ const worker: Worker = workerToExperimentWorker({
       return;
     }
 
-    const { lastSendDate = null } =
-      (await con.getRepository(UserPersonalizedDigest).findOne({
-        select: ['lastSendDate'],
-        where: {
-          userId: personalizedDigest.userId,
-        },
-      })) || {};
-
-    if (deduplicate && lastSendDate && isSameDay(currentDate, lastSendDate)) {
-      return;
-    }
-
-    await setEmailSendDate({
+    await dedupedSend(() => sendEmail(emailPayload), {
       con,
       personalizedDigest,
       date: currentDate,
       deduplicate,
     });
-
-    try {
-      await sendEmail(emailPayload);
-    } catch (error) {
-      // since email did not send we revert the lastSendDate
-      // so worker can do it again in retry
-      await setEmailSendDate({
+  },
+  [UserPersonalizedDigestType.ReadingReminder]: async (data, con) => {
+    const { personalizedDigest, emailSendTimestamp, deduplicate = true } = data;
+    const emailSendDate = new Date(emailSendTimestamp);
+    const currentDate = new Date();
+    await dedupedSend(
+      () => sendReadingReminderPush([personalizedDigest.userId], emailSendDate),
+      {
         con,
         personalizedDigest,
-        date: lastSendDate,
+        date: currentDate,
         deduplicate,
-      });
+      },
+    );
+  },
+};
 
-      throw error;
+const worker: Worker = workerToExperimentWorker({
+  subscription: 'api.personalized-digest-email',
+  handler: async (message, con, logger, pubsub, allocationClient) => {
+    if (process.env.NODE_ENV === 'development') {
+      return;
     }
+
+    const data = messageToJson<Data>(message);
+    await digestTypeToFunctionMap[data.personalizedDigest.type](
+      data,
+      con,
+      logger,
+      allocationClient,
+    );
   },
 });
 

@@ -6,6 +6,7 @@ import {
   User,
   UserPersonalizedDigest,
   UserPersonalizedDigestSendType,
+  UserPersonalizedDigestType,
 } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
 import { DayOfWeek } from '../../src/types';
@@ -81,6 +82,7 @@ describe('userCreatedAddPersonalizedDigest worker', () => {
         preferredTimezone: 'Europe/Zagreb',
         preferredHour: 8,
         preferredDay: DayOfWeek.Wednesday,
+        type: UserPersonalizedDigestType.Digest,
       });
 
     expect(personalizedDigest.flags?.sendType).not.toBeDefined();

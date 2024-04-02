@@ -9,7 +9,7 @@ import {
 } from '../entity';
 import { DayOfWeek } from '../types';
 import { MailDataRequired } from '@sendgrid/mail';
-import { format, nextDay, previousDay } from 'date-fns';
+import { format, isSameDay, nextDay, previousDay } from 'date-fns';
 import { PersonalizedDigestFeatureConfig } from '../growthbook';
 import { feedToFilters, fixedIdsFeedBuilder } from './feedGenerator';
 import { FeedClient } from '../integrations/feed';
@@ -323,4 +323,72 @@ export const schedulePersonalizedDigestSubscriptions = async ({
     { digestCount, emailBatchId, sendType },
     'personalized digest sent',
   );
+};
+
+type SetEmailSendDateProps = {
+  personalizedDigest: UserPersonalizedDigest;
+  deduplicate: boolean;
+  con: DataSource;
+  date: Date;
+};
+
+const setEmailSendDate = async ({
+  con,
+  personalizedDigest,
+  date,
+  deduplicate,
+}: SetEmailSendDateProps) => {
+  if (!deduplicate) {
+    return;
+  }
+
+  return con.getRepository(UserPersonalizedDigest).update(
+    {
+      userId: personalizedDigest.userId,
+      type: personalizedDigest.type,
+    },
+    {
+      lastSendDate: date,
+    },
+  );
+};
+
+export const dedupedSend = async (
+  send: () => Promise<unknown>,
+  { con, personalizedDigest, deduplicate, date }: SetEmailSendDateProps,
+): Promise<void> => {
+  const { lastSendDate = null } =
+    (await con.getRepository(UserPersonalizedDigest).findOne({
+      select: ['lastSendDate'],
+      where: {
+        userId: personalizedDigest.userId,
+        type: personalizedDigest.type,
+      },
+    })) || {};
+
+  if (deduplicate && lastSendDate && isSameDay(date, lastSendDate)) {
+    return;
+  }
+
+  await setEmailSendDate({
+    con,
+    personalizedDigest,
+    date,
+    deduplicate,
+  });
+
+  try {
+    await send();
+  } catch (error) {
+    // since email did not send we revert the lastSendDate
+    // so worker can do it again in retry
+    await setEmailSendDate({
+      con,
+      personalizedDigest,
+      date: lastSendDate,
+      deduplicate,
+    });
+
+    throw error;
+  }
 };

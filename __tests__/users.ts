@@ -38,6 +38,8 @@ import {
   UserStreak,
   MarketingCta,
   UserMarketingCta,
+  UserPersonalizedDigestType,
+  UserPersonalizedDigestSendType,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { getTimezonedStartOfISOWeek } from '../src/common';
@@ -2242,8 +2244,8 @@ describe('query personalizedDigest', () => {
 });
 
 describe('mutation subscribePersonalizedDigest', () => {
-  const MUTATION = `mutation SubscribePersonalizedDigest($hour: Int, $day: Int, $timezone: String) {
-    subscribePersonalizedDigest(hour: $hour, day: $day, timezone: $timezone) {
+  const MUTATION = `mutation SubscribePersonalizedDigest($hour: Int, $day: Int, $timezone: String, $type: DigestType) {
+    subscribePersonalizedDigest(hour: $hour, day: $day, timezone: $timezone, type: $type) {
       preferredDay
       preferredHour
       preferredTimezone
@@ -2410,6 +2412,29 @@ describe('mutation subscribePersonalizedDigest', () => {
       preferredDay: DayOfWeek.Friday,
       preferredHour: 22,
       preferredTimezone: 'Europe/Athens',
+    });
+  });
+
+  it('should subscribe to reading reminder', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        type: UserPersonalizedDigestType.ReadingReminder,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.subscribePersonalizedDigest).toMatchObject({
+      preferredDay: DayOfWeek.Monday,
+      preferredHour: 9,
+      preferredTimezone: 'Etc/UTC',
+    });
+    const digest = await con.getRepository(UserPersonalizedDigest).findOneBy({
+      userId: loggedUser,
+      type: UserPersonalizedDigestType.ReadingReminder,
+    });
+    expect(digest.flags).toEqual({
+      sendType: UserPersonalizedDigestSendType.workdays,
     });
   });
 });

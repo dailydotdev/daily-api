@@ -17,7 +17,7 @@ import localAds from './localAds';
 import automations from './automations';
 import sitemaps from './sitemaps';
 import createOrGetConnection from '../db';
-import { UserPersonalizedDigest } from '../entity';
+import { UserPersonalizedDigest, UserPersonalizedDigestType } from '../entity';
 import { notifyGeneratePersonalizedDigest } from '../common';
 import { PersonalizedDigestFeatureConfig } from '../growthbook';
 
@@ -104,7 +104,7 @@ Disallow: /`);
         const con = await createOrGetConnection();
         const personalizedDigest = await con
           .getRepository(UserPersonalizedDigest)
-          .findOneBy({ userId });
+          .findOneBy({ userId, type: UserPersonalizedDigestType.Digest });
 
         if (!personalizedDigest) {
           return;
