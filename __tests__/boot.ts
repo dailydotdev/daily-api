@@ -55,8 +55,9 @@ import { getEncryptedFeatures } from '../src/growthbook';
 import { base64 } from 'graphql-relay/utils/base64';
 import { cookies } from '../src/cookies';
 import { signJwt } from '../src/auth';
-import { submitArticleThreshold, UserVote } from '../src/common';
+import { submitArticleThreshold } from '../src/common';
 import { saveReturnAlerts } from '../src/schema/alerts';
+import { UserVote } from '../src/types';
 
 let app: FastifyInstance;
 let con: DataSource;

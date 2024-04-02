@@ -31,7 +31,6 @@ import {
   Ranking,
   sourceFeedBuilder,
   tagFeedBuilder,
-  UserVote,
   whereKeyword,
 } from '../common';
 import { In, SelectQueryBuilder } from 'typeorm';
@@ -54,6 +53,7 @@ import {
 } from '../integrations/feed';
 import { AuthenticationError } from 'apollo-server-errors';
 import { opentelemetry } from '../telemetry/opentelemetry';
+import { UserVote } from '../types';
 
 interface GQLTagsCategory {
   id: string;

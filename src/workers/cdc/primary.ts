@@ -78,9 +78,8 @@ import {
   notifyReputationIncrease,
   notifyPostDownvoted,
   notifyPostDownvoteCanceled,
-  UserVote,
 } from '../../common';
-import { ChangeMessage } from '../../types';
+import { ChangeMessage, UserVote } from '../../types';
 import { DataSource } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import { PostReport, ContentImage } from '../../entity';
