@@ -658,6 +658,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
         post_image: post.image || pickImageUrl(post),
         post_title: truncatePostToTweet(post),
         source_name: source.name,
+        source_image: source.image,
       },
     };
   },
