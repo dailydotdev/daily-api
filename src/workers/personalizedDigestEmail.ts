@@ -1,4 +1,8 @@
-import { getPersonalizedDigestEmailPayload, sendEmail } from '../common';
+import {
+  dedupedSend,
+  getPersonalizedDigestEmailPayload,
+  sendEmail,
+} from '../common';
 import {
   User,
   UserPersonalizedDigest,
@@ -6,7 +10,6 @@ import {
   UserPersonalizedDigestType,
 } from '../entity';
 import { messageToJson, Worker, workerToExperimentWorker } from './worker';
-import { isSameDay } from 'date-fns';
 import { DataSource } from 'typeorm';
 import {
   ExperimentAllocationClient,
@@ -29,81 +32,12 @@ interface Data {
   config?: PersonalizedDigestFeatureConfig;
 }
 
-type SetEmailSendDateProps = Pick<
-  Data,
-  'personalizedDigest' | 'deduplicate'
-> & {
-  con: DataSource;
-  date: Date;
-};
-
-const setEmailSendDate = async ({
-  con,
-  personalizedDigest,
-  date,
-  deduplicate,
-}: SetEmailSendDateProps) => {
-  if (!deduplicate) {
-    return;
-  }
-
-  return con.getRepository(UserPersonalizedDigest).update(
-    {
-      userId: personalizedDigest.userId,
-      type: personalizedDigest.type,
-    },
-    {
-      lastSendDate: date,
-    },
-  );
-};
-
 const sendTypeToFeatureMap: Record<
   UserPersonalizedDigestSendType,
   Feature<PersonalizedDigestFeatureConfig>
 > = {
   [UserPersonalizedDigestSendType.weekly]: features.personalizedDigest,
   [UserPersonalizedDigestSendType.workdays]: features.dailyDigest,
-};
-
-const dedupedSend = async (
-  send: () => Promise<unknown>,
-  { con, personalizedDigest, deduplicate, date }: SetEmailSendDateProps,
-): Promise<void> => {
-  const { lastSendDate = null } =
-    (await con.getRepository(UserPersonalizedDigest).findOne({
-      select: ['lastSendDate'],
-      where: {
-        userId: personalizedDigest.userId,
-        type: personalizedDigest.type,
-      },
-    })) || {};
-
-  if (deduplicate && lastSendDate && isSameDay(date, lastSendDate)) {
-    return;
-  }
-
-  await setEmailSendDate({
-    con,
-    personalizedDigest,
-    date,
-    deduplicate,
-  });
-
-  try {
-    await send();
-  } catch (error) {
-    // since email did not send we revert the lastSendDate
-    // so worker can do it again in retry
-    await setEmailSendDate({
-      con,
-      personalizedDigest,
-      date: lastSendDate,
-      deduplicate,
-    });
-
-    throw error;
-  }
 };
 
 const digestTypeToFunctionMap: Record<
@@ -115,7 +49,7 @@ const digestTypeToFunctionMap: Record<
     allocationClient: ExperimentAllocationClient,
   ) => Promise<void>
 > = {
-  [UserPersonalizedDigestType.digest]: async (
+  [UserPersonalizedDigestType.Digest]: async (
     data,
     con,
     logger,
@@ -193,7 +127,7 @@ const digestTypeToFunctionMap: Record<
       deduplicate,
     });
   },
-  [UserPersonalizedDigestType.reading_reminder]: async (data, con) => {
+  [UserPersonalizedDigestType.ReadingReminder]: async (data, con) => {
     const { personalizedDigest, emailSendTimestamp, deduplicate = true } = data;
     const emailSendDate = new Date(emailSendTimestamp);
     const currentDate = new Date();

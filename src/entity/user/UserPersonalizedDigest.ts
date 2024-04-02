@@ -8,8 +8,8 @@ export enum UserPersonalizedDigestSendType {
 }
 
 export enum UserPersonalizedDigestType {
-  digest = 'digest',
-  reading_reminder = 'reading_reminder',
+  Digest = 'digest',
+  ReadingReminder = 'reading_reminder',
 }
 
 export type UserPersonalizedDigestFlags = Partial<{
@@ -26,8 +26,8 @@ export class UserPersonalizedDigest {
   @PrimaryColumn({ type: 'text' })
   userId: string;
 
-  @PrimaryColumn({ type: 'text', default: UserPersonalizedDigestType.digest })
-  type = UserPersonalizedDigestType.digest;
+  @PrimaryColumn({ type: 'text', default: UserPersonalizedDigestType.Digest })
+  type = UserPersonalizedDigestType.Digest;
 
   @Column({ type: 'smallint', default: 9 })
   preferredHour: number;

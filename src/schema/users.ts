@@ -20,6 +20,8 @@ import {
   UserMarketingCta,
   MarketingCta,
   UserPersonalizedDigestType,
+  UserPersonalizedDigestFlags,
+  UserPersonalizedDigestSendType,
 } from '../entity';
 import {
   AuthenticationError,
@@ -1097,7 +1099,7 @@ export const resolvers: IResolvers<any, Context> = {
     personalizedDigest: async (
       _,
       {
-        type = UserPersonalizedDigestType.digest,
+        type = UserPersonalizedDigestType.Digest,
       }: { type?: UserPersonalizedDigestType },
       ctx: Context,
     ): Promise<GQLPersonalizedDigest> => {
@@ -1239,7 +1241,7 @@ export const resolvers: IResolvers<any, Context> = {
         hour,
         day,
         timezone,
-        type = UserPersonalizedDigestType.digest,
+        type = UserPersonalizedDigestType.Digest,
       } = args;
 
       if (!isNullOrUndefined(hour) && (hour < 0 || hour > 23)) {
@@ -1259,12 +1261,18 @@ export const resolvers: IResolvers<any, Context> = {
 
       const repo = ctx.con.getRepository(UserPersonalizedDigest);
 
+      const flags: UserPersonalizedDigestFlags = {};
+      if (type === UserPersonalizedDigestType.ReadingReminder) {
+        flags.sendType = UserPersonalizedDigestSendType.workdays;
+      }
+
       const personalizedDigest = await repo.save({
         userId: ctx.userId,
         preferredDay: day,
         preferredHour: hour,
         preferredTimezone: timezone,
         type,
+        flags,
       });
 
       return personalizedDigest;
@@ -1272,7 +1280,7 @@ export const resolvers: IResolvers<any, Context> = {
     unsubscribePersonalizedDigest: async (
       _,
       {
-        type = UserPersonalizedDigestType.digest,
+        type = UserPersonalizedDigestType.Digest,
       }: { type?: UserPersonalizedDigestType },
       ctx: Context,
     ): Promise<unknown> => {

@@ -82,7 +82,7 @@ describe('userCreatedAddPersonalizedDigest worker', () => {
         preferredTimezone: 'Europe/Zagreb',
         preferredHour: 8,
         preferredDay: DayOfWeek.Wednesday,
-        type: UserPersonalizedDigestType.digest,
+        type: UserPersonalizedDigestType.Digest,
       });
 
     expect(personalizedDigest.flags?.sendType).not.toBeDefined();

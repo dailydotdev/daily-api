@@ -184,7 +184,7 @@ describe('personalizedDigestEmail worker', () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
       preferredTimezone: 'America/Phoenix',
-      type: UserPersonalizedDigestType.digest,
+      type: UserPersonalizedDigestType.Digest,
     });
 
     const personalizedDigest = await con
@@ -232,7 +232,7 @@ describe('personalizedDigestEmail worker', () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
       preferredTimezone: 'Asia/Dhaka',
-      type: UserPersonalizedDigestType.digest,
+      type: UserPersonalizedDigestType.Digest,
     });
 
     const personalizedDigest = await con
@@ -342,7 +342,7 @@ describe('personalizedDigestEmail worker', () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
       lastSendDate: new Date(),
-      type: UserPersonalizedDigestType.digest,
+      type: UserPersonalizedDigestType.Digest,
     });
 
     await expectSuccessfulBackground(worker, {
@@ -364,7 +364,7 @@ describe('personalizedDigestEmail worker', () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
       lastSendDate: subDays(new Date(), 7),
-      type: UserPersonalizedDigestType.digest,
+      type: UserPersonalizedDigestType.Digest,
     });
 
     await expectSuccessfulBackground(worker, {
@@ -390,7 +390,7 @@ describe('personalizedDigestEmail worker', () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
       lastSendDate,
-      type: UserPersonalizedDigestType.digest,
+      type: UserPersonalizedDigestType.Digest,
     });
 
     await expect(() => {
@@ -422,7 +422,7 @@ describe('personalizedDigestEmail worker', () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
       lastSendDate: subDays(new Date(), 7),
-      type: UserPersonalizedDigestType.digest,
+      type: UserPersonalizedDigestType.Digest,
     });
 
     await expectSuccessfulBackground(worker, {
@@ -453,7 +453,7 @@ describe('personalizedDigestEmail worker', () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
       lastSendDate,
-      type: UserPersonalizedDigestType.digest,
+      type: UserPersonalizedDigestType.Digest,
     });
 
     await expectSuccessfulBackground(worker, {
@@ -478,7 +478,7 @@ describe('personalizedDigestEmail worker', () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
       lastSendDate,
-      type: UserPersonalizedDigestType.digest,
+      type: UserPersonalizedDigestType.Digest,
     });
 
     await expectSuccessfulBackground(worker, {
@@ -512,7 +512,7 @@ describe('personalizedDigestEmail worker', () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
       lastSendDate,
-      type: UserPersonalizedDigestType.digest,
+      type: UserPersonalizedDigestType.Digest,
     });
 
     nock.cleanAll();
@@ -649,7 +649,7 @@ describe('personalizedDigestEmail worker', () => {
       {
         userId: '1',
       },
-      { type: UserPersonalizedDigestType.reading_reminder },
+      { type: UserPersonalizedDigestType.ReadingReminder },
     );
 
     const personalizedDigest = await con
