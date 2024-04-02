@@ -1,13 +1,10 @@
 import { AppDataSource } from './data-source';
-import { DataSource } from 'typeorm';
-
-let connection: DataSource;
 
 const createOrGetConnection = async () => {
-  if (!connection) {
-    connection = await AppDataSource.initialize();
+  if (!AppDataSource.isInitialized) {
+    await AppDataSource.initialize();
   }
-  return connection;
+  return AppDataSource;
 };
 
 export default createOrGetConnection;
