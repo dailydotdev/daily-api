@@ -407,6 +407,7 @@ export const typeDefs = /* GraphQL */ `
     preferredDay: Int!
     preferredHour: Int!
     preferredTimezone: String!
+    type: DigestType
   }
 
   type UserEdge {
