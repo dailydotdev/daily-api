@@ -43,6 +43,8 @@ import {
   GQLUserStreakTz,
   toGQLEnum,
   getUserPermalink,
+  votePost,
+  voteComment,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -57,7 +59,7 @@ import { deleteUser } from '../directive/user';
 import { randomInt } from 'crypto';
 import { DataSource, In, IsNull } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
-import { DayOfWeek } from '../types';
+import { DayOfWeek, UserVote, UserVoteEntity } from '../types';
 import { getTimezoneOffset } from 'date-fns-tz';
 import { markdown } from '../common/markdown';
 import {
@@ -431,6 +433,8 @@ export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(AcquisitionChannel, 'AcquisitionChannel')}
   ${toGQLEnum(UserPersonalizedDigestType, 'DigestType')}
 
+  ${toGQLEnum(UserVoteEntity, 'UserVoteEntity')}
+
   extend type Query {
     """
     Get user based on logged in session
@@ -654,6 +658,26 @@ export const typeDefs = /* GraphQL */ `
     Clears the user marketing CTA and marks it as read
     """
     clearUserMarketingCta(campaignId: String!): EmptyResponse @auth
+
+    """
+    Vote entity
+    """
+    vote(
+      """
+      Id of the entity
+      """
+      id: ID!
+
+      """
+      Entity to vote (post, comment..)
+      """
+      entity: UserVoteEntity!
+
+      """
+      Vote type
+      """
+      vote: Int!
+    ): EmptyResponse @auth
   }
 `;
 
@@ -1389,6 +1413,24 @@ export const resolvers: IResolvers<any, Context> = {
       }
 
       return { _: null };
+    },
+    vote: async (
+      _,
+      {
+        id,
+        vote,
+        entity,
+      }: { id: string; vote: UserVote; entity: UserVoteEntity },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      switch (entity) {
+        case UserVoteEntity.Post:
+          return votePost({ ctx, id, vote });
+        case UserVoteEntity.Comment:
+          return voteComment({ ctx, id, vote });
+        default:
+          throw new ValidationError('Unsupported vote entity');
+      }
     },
   }),
   User: {

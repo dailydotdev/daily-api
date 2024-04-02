@@ -78,3 +78,14 @@ export enum DayOfWeek {
   Friday = 5,
   Saturday = 6,
 }
+
+export enum UserVote {
+  Up = 1,
+  None = 0,
+  Down = -1,
+}
+
+export enum UserVoteEntity {
+  Comment = 'comment',
+  Post = 'post',
+}

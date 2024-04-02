@@ -54,7 +54,6 @@ import {
   notifyUserReadmeUpdated,
   triggerTypedEvent,
   notifyReputationIncrease,
-  UserVote,
 } from '../../../src/common';
 import worker from '../../../src/workers/cdc/primary';
 import {
@@ -86,7 +85,7 @@ import {
   UserStateKey,
   ContentImage,
 } from '../../../src/entity';
-import { ChangeObject } from '../../../src/types';
+import { ChangeObject, UserVote } from '../../../src/types';
 import { sourcesFixture } from '../../fixture/source';
 import { postsFixture } from '../../fixture/post';
 import { randomUUID } from 'crypto';

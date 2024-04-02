@@ -38,12 +38,9 @@ import {
   NotificationPreferenceStatus,
   NotificationType,
 } from '../../src/notifications/common';
-import {
-  createSquadWelcomePost,
-  NotificationReason,
-  UserVote,
-} from '../../src/common';
+import { createSquadWelcomePost, NotificationReason } from '../../src/common';
 import { randomUUID } from 'crypto';
+import { UserVote } from '../../src/types';
 
 let con: DataSource;
 

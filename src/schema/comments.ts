@@ -5,7 +5,6 @@ import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import {
-  UserVote,
   getDiscussionLink,
   recommendUsersByQuery,
   recommendUsersToMention,
@@ -37,6 +36,8 @@ import {
 import { ensureSourcePermissions, SourcePermissions } from './sources';
 import { generateShortId } from '../ids';
 import { CommentReport } from '../entity/CommentReport';
+import { UserComment } from '../entity/user/UserComment';
+import { UserVote } from '../types';
 
 export interface GQLComment {
   id: string;
@@ -941,6 +942,7 @@ export const resolvers: IResolvers<any, Context> = {
 
       return { _: true };
     },
+    // TODO AS-214 remove when frontend no longer uses and extension adoption
     upvoteComment: async (
       source,
       { id }: { id: string },
@@ -954,13 +956,15 @@ export const resolvers: IResolvers<any, Context> = {
         const post = await comment.post;
         await ensureSourcePermissions(ctx, post.sourceId);
         await ctx.con.transaction(async (entityManager) => {
+          await entityManager.getRepository(UserComment).save({
+            commentId: id,
+            userId: ctx.userId,
+            vote: UserVote.Up,
+          });
           await entityManager.getRepository(CommentUpvote).insert({
             commentId: id,
             userId: ctx.userId,
           });
-          await entityManager
-            .getRepository(Comment)
-            .increment({ id }, 'upvotes', 1);
         });
       } catch (err) {
         // Foreign key violation
@@ -974,6 +978,7 @@ export const resolvers: IResolvers<any, Context> = {
       }
       return { _: true };
     },
+    // TODO AS-214 remove when frontend no longer uses and extension adoption
     cancelCommentUpvote: async (
       source,
       { id }: { id: string },
@@ -986,14 +991,16 @@ export const resolvers: IResolvers<any, Context> = {
             commentId: id,
             userId: ctx.userId,
           });
+        await entityManager.getRepository(UserComment).save({
+          commentId: id,
+          userId: ctx.userId,
+          vote: UserVote.None,
+        });
         if (upvote) {
           await entityManager.getRepository(CommentUpvote).delete({
             commentId: id,
             userId: ctx.userId,
           });
-          await entityManager
-            .getRepository(Comment)
-            .decrement({ id }, 'upvotes', 1);
           return true;
         }
         return false;

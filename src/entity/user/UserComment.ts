@@ -9,7 +9,7 @@ import {
 } from 'typeorm';
 import { User } from './User';
 import { Comment } from '../Comment';
-import { UserVote } from '../../common/vote';
+import { UserVote } from '../../types';
 
 export type UserCommentFlags = Partial<{
   // flags
