@@ -95,7 +95,7 @@ export class User {
   @Column({ default: false })
   devcardEligible: boolean;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text', nullable: true, default: 'Etc/UTC' })
   timezone?: string;
 
   @Column({ type: 'boolean', default: false })
