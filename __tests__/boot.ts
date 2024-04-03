@@ -92,7 +92,7 @@ const LOGGED_IN_BODY = {
     providers: [null],
     roles: [],
     title: null,
-    timezone: DEFAULT_TIMEZONE
+    timezone: DEFAULT_TIMEZONE,
     reputation: 10,
     portfolio: null,
     notificationEmail: true,
