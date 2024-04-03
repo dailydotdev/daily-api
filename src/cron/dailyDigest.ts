@@ -22,7 +22,7 @@ const cron: Cron = {
       .createQueryBuilder()
       .select('upd.*, u.timezone')
       .from(UserPersonalizedDigest, 'upd')
-      .leftJoin(User, 'u', 'u.id = upd."userId"')
+      .innerJoin(User, 'u', 'u.id = upd."userId"')
       .where(
         `clamp_to_hours("preferredHour" - EXTRACT(HOUR FROM NOW() AT TIME ZONE COALESCE(NULLIF(u.timezone, ''), :defaultTimezone))) = :preferredHourOffset`,
         {
