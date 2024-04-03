@@ -66,7 +66,7 @@ describe('query whoami', () => {
     const { email, ...user } = usersFixture[0];
     expect(res.data.whoami).toEqual({
       ...user,
-      timezone: null,
+      timezone: 'Etc/UTC',
       createdAt: userCreatedDate,
     });
   });
@@ -85,7 +85,7 @@ describe('dedicated api routes', () => {
         company: null,
         portfolio: null,
         title: null,
-        timezone: null,
+        timezone: 'Etc/UTC',
         createdAt: userCreatedDate,
         reputation: 10,
         acceptedMarketing: false,
