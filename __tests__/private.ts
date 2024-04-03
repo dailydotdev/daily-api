@@ -455,7 +455,6 @@ describe('POST /p/newUser', () => {
         image: usersFixture[0].image,
         username: usersFixture[0].username,
         email: usersFixture[0].email,
-        timezone: 'Europe/London',
       })
       .expect(200);
 

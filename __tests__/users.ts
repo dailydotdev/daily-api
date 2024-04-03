@@ -2242,8 +2242,8 @@ describe('query personalizedDigest', () => {
 });
 
 describe('mutation subscribePersonalizedDigest', () => {
-  const MUTATION = `mutation SubscribePersonalizedDigest($hour: Int, $day: Int, $timezone: String, $type: DigestType) {
-    subscribePersonalizedDigest(hour: $hour, day: $day, timezone: $timezone, type: $type) {
+  const MUTATION = `mutation SubscribePersonalizedDigest($hour: Int, $day: Int, $type: DigestType) {
+    subscribePersonalizedDigest(hour: $hour, day: $day, type: $type) {
       preferredDay
       preferredHour
     }
@@ -2261,7 +2261,6 @@ describe('mutation subscribePersonalizedDigest', () => {
         variables: {
           day: DayOfWeek.Monday,
           hour: 9,
-          timezone: 'Etc/UTC',
         },
       },
       'UNAUTHENTICATED',
@@ -2278,7 +2277,6 @@ describe('mutation subscribePersonalizedDigest', () => {
         variables: {
           day: -1,
           hour: 9,
-          timezone: 'Etc/UTC',
         },
       },
       'GRAPHQL_VALIDATION_FAILED',
@@ -2295,7 +2293,6 @@ describe('mutation subscribePersonalizedDigest', () => {
         variables: {
           day: 7,
           hour: 9,
-          timezone: 'Etc/UTC',
         },
       },
       'GRAPHQL_VALIDATION_FAILED',
@@ -2312,7 +2309,6 @@ describe('mutation subscribePersonalizedDigest', () => {
         variables: {
           day: DayOfWeek.Monday,
           hour: -1,
-          timezone: 'Etc/UTC',
         },
       },
       'GRAPHQL_VALIDATION_FAILED',
@@ -2329,24 +2325,6 @@ describe('mutation subscribePersonalizedDigest', () => {
         variables: {
           day: DayOfWeek.Monday,
           hour: 24,
-          timezone: 'Etc/UTC',
-        },
-      },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should throw validation error if invalid timezone is provided', async () => {
-    loggedUser = '1';
-
-    await testQueryErrorCode(
-      client,
-      {
-        query: MUTATION,
-        variables: {
-          day: DayOfWeek.Monday,
-          hour: 9,
-          timezone: 'Space/Mars',
         },
       },
       'GRAPHQL_VALIDATION_FAILED',
@@ -2373,7 +2351,6 @@ describe('mutation subscribePersonalizedDigest', () => {
       variables: {
         day: DayOfWeek.Wednesday,
         hour: 17,
-        timezone: 'Europe/Zagreb',
       },
     });
     expect(res.errors).toBeFalsy();
@@ -2390,7 +2367,6 @@ describe('mutation subscribePersonalizedDigest', () => {
       variables: {
         day: DayOfWeek.Wednesday,
         hour: 17,
-        timezone: 'Europe/Zagreb',
       },
     });
     expect(res.errors).toBeFalsy();
@@ -2399,7 +2375,6 @@ describe('mutation subscribePersonalizedDigest', () => {
       variables: {
         day: DayOfWeek.Friday,
         hour: 22,
-        timezone: 'Europe/Athens',
       },
     });
     expect(resUpdate.errors).toBeFalsy();
