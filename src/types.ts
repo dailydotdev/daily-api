@@ -89,3 +89,5 @@ export enum UserVoteEntity {
   Comment = 'comment',
   Post = 'post',
 }
+
+export const DEFAULT_TIMEZONE = 'Etc/UTC';

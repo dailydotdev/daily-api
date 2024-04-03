@@ -57,7 +57,7 @@ import { cookies } from '../src/cookies';
 import { signJwt } from '../src/auth';
 import { submitArticleThreshold } from '../src/common';
 import { saveReturnAlerts } from '../src/schema/alerts';
-import { UserVote } from '../src/types';
+import { DEFAULT_TIMEZONE, UserVote } from '../src/types';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -92,7 +92,7 @@ const LOGGED_IN_BODY = {
     providers: [null],
     roles: [],
     title: null,
-    timezone: null,
+    timezone: DEFAULT_TIMEZONE,
     reputation: 10,
     portfolio: null,
     notificationEmail: true,
