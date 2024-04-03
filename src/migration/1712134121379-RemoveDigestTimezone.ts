@@ -4,7 +4,8 @@ export class RemoveDigestTimezone1712134121379 implements MigrationInterface {
     name = 'RemoveDigestTimezone1712134121379'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
-        queryRunner.query(`
+        await queryRunner.query(`ALTER TABLE "public"."user" ALTER COLUMN "timezone" SET DEFAULT 'Etc/UTC'`);
+        await queryRunner.query(`
             CREATE OR REPLACE FUNCTION user_personalized_digest_subscribe()
               RETURNS TRIGGER
               LANGUAGE PLPGSQL
@@ -21,7 +22,7 @@ export class RemoveDigestTimezone1712134121379 implements MigrationInterface {
 
     public async down(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`ALTER TABLE "user_personalized_digest" ADD "preferredTimezone" text NOT NULL DEFAULT 'Etc/UTC'`);
-        queryRunner.query(`
+        await queryRunner.query(`
             CREATE OR REPLACE FUNCTION user_personalized_digest_subscribe()
               RETURNS TRIGGER
               LANGUAGE PLPGSQL
@@ -33,6 +34,7 @@ export class RemoveDigestTimezone1712134121379 implements MigrationInterface {
             END;
             $$
         `)
+        await queryRunner.query(`ALTER TABLE "public"."user" ALTER COLUMN "timezone" DROP DEFAULT`);
     }
 
 }

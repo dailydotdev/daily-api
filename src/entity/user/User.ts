@@ -353,7 +353,7 @@ export const addNewUser = async (
       referralId: data.referralId,
       referralOrigin: data.referralOrigin,
       acceptedMarketing: data.acceptedMarketing,
-      timezone: data.timezone,
+      timezone: data.timezone || 'Etc/UTC',
       github: data.github,
       twitter: data.twitter,
     });
