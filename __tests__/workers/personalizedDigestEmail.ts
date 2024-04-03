@@ -23,6 +23,7 @@ import { subDays } from 'date-fns';
 import { ExperimentAllocationClient, features } from '../../src/growthbook';
 import { sendExperimentAllocationEvent } from '../../src/integrations/analytics';
 import { sendReadingReminderPush } from '../../src/onesignal';
+import { DEFAULT_TIMEZONE } from '../../src/types';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -119,7 +120,7 @@ beforeEach(async () => {
 const getDates = (
   personalizedDigest: UserPersonalizedDigest,
   timestamp: number,
-  timezone = 'Etc/UTC',
+  timezone = DEFAULT_TIMEZONE,
 ) => {
   return {
     emailSendTimestamp: getPersonalizedDigestSendDate({

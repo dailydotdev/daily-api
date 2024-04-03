@@ -11,6 +11,7 @@ import {
 } from '../entity';
 import { Cron } from './cron';
 import { isWeekend, addHours, startOfHour, subDays } from 'date-fns';
+import { DEFAULT_TIMEZONE } from '../types';
 
 const sendType = UserPersonalizedDigestSendType.workdays;
 
@@ -23,9 +24,10 @@ const cron: Cron = {
       .from(UserPersonalizedDigest, 'upd')
       .leftJoin(User, 'u', 'u.id = upd."userId"')
       .where(
-        `clamp_to_hours("preferredHour" - EXTRACT(HOUR FROM NOW() AT TIME ZONE COALESCE(NULLIF(u.timezone, ''), 'Etc/UTC'))) = :preferredHourOffset`,
+        `clamp_to_hours("preferredHour" - EXTRACT(HOUR FROM NOW() AT TIME ZONE COALESCE(NULLIF(u.timezone, ''), :defaultTimezone))) = :preferredHourOffset`,
         {
           preferredHourOffset: digestPreferredHourOffset,
+          defaultTimezone: DEFAULT_TIMEZONE,
         },
       )
       .andWhere(`flags->>'sendType' = :sendType`, {
@@ -42,7 +44,7 @@ const cron: Cron = {
         personalizedDigest: personalizedDigestWithTimezome,
         emailBatchId,
       }) => {
-        const { timezone = 'Etc/UTC', ...personalizedDigest } =
+        const { timezone = DEFAULT_TIMEZONE, ...personalizedDigest } =
           personalizedDigestWithTimezome as UserPersonalizedDigest &
             Pick<User, 'timezone'>;
         const emailSendTimestamp = addHours(

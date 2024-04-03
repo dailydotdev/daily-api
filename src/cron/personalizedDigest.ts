@@ -9,6 +9,7 @@ import {
   UserPersonalizedDigest,
   UserPersonalizedDigestSendType,
 } from '../entity';
+import { DEFAULT_TIMEZONE } from '../types';
 import { Cron } from './cron';
 import { Brackets } from 'typeorm';
 
@@ -45,7 +46,7 @@ const cron: Cron = {
         personalizedDigest: personalizedDigestWithTimezome,
         emailBatchId,
       }) => {
-        const { timezone = 'Etc/UTC', ...personalizedDigest } =
+        const { timezone = DEFAULT_TIMEZONE, ...personalizedDigest } =
           personalizedDigestWithTimezome as UserPersonalizedDigest &
             Pick<User, 'timezone'>;
         const emailSendTimestamp = getPersonalizedDigestSendDate({

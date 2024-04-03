@@ -12,6 +12,7 @@ import {
 import { userCreatedDate, usersFixture } from './fixture/user';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
+import { DEFAULT_TIMEZONE } from '../src/types';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -66,7 +67,7 @@ describe('query whoami', () => {
     const { email, ...user } = usersFixture[0];
     expect(res.data.whoami).toEqual({
       ...user,
-      timezone: 'Etc/UTC',
+      timezone: DEFAULT_TIMEZONE,
       createdAt: userCreatedDate,
     });
   });
@@ -85,7 +86,7 @@ describe('dedicated api routes', () => {
         company: null,
         portfolio: null,
         title: null,
-        timezone: 'Etc/UTC',
+        timezone: DEFAULT_TIMEZONE,
         createdAt: userCreatedDate,
         reputation: 10,
         acceptedMarketing: false,
