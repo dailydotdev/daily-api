@@ -10,11 +10,9 @@ import {
   UserPersonalizedDigestSendType,
 } from '../entity';
 import { Cron } from './cron';
-import { isWeekend } from 'date-fns';
+import { isWeekend, addHours, startOfHour, subDays } from 'date-fns';
 
 const sendType = UserPersonalizedDigestSendType.workdays;
-const oneHourMs = 60 * 60 * 1000;
-const oneDayMs = 24 * oneHourMs;
 
 const cron: Cron = {
   name: 'daily-digest',
@@ -34,7 +32,8 @@ const cron: Cron = {
         sendType,
       });
 
-    const timestamp = Date.now();
+    // Make sure digest is sent at the beginning of the hour
+    const timestamp = startOfHour(new Date());
 
     await schedulePersonalizedDigestSubscriptions({
       queryBuilder: personalizedDigestQuery,
@@ -46,9 +45,11 @@ const cron: Cron = {
         const { timezone = 'Etc/UTC', ...personalizedDigest } =
           personalizedDigestWithTimezome as UserPersonalizedDigest &
             Pick<User, 'timezone'>;
-        const hourOffsetMs = digestPreferredHourOffset * oneHourMs;
-        const emailSendTimestamp = timestamp + hourOffsetMs; // schedule send in X hours to match digest offset
-        const previousSendTimestamp = timestamp - oneDayMs;
+        const emailSendTimestamp = addHours(
+          timestamp,
+          digestPreferredHourOffset,
+        ).getTime(); // schedule send in X hours to match digest offset
+        const previousSendTimestamp = subDays(timestamp, 1).getTime();
 
         const sendDateInTimezone = utcToZonedTime(emailSendTimestamp, timezone);
 

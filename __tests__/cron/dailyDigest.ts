@@ -16,7 +16,7 @@ import {
 import { logger } from '../../src/logger';
 import { getTimezoneOffset } from 'date-fns-tz';
 import { crons } from '../../src/cron/index';
-import { setDay } from 'date-fns';
+import { setDay, startOfHour } from 'date-fns';
 
 let con: DataSource;
 
@@ -377,7 +377,7 @@ describe('dailyDigest cron', () => {
       })),
     );
 
-    const timestampBeforeCron = Date.now();
+    const timestampBeforeCron = startOfHour(new Date()).getTime();
 
     await expectSuccessfulCron(cron);
 
