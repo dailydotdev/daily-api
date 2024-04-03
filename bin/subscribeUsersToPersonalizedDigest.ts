@@ -35,8 +35,8 @@ import createOrGetConnection from '../src/db';
 
   await con.transaction(async (manager) => {
     await manager.query(`
-      INSERT INTO user_personalized_digest ("userId", "preferredTimezone", "preferredHour", "preferredDay")
-      SELECT id AS "userId", COALESCE(timezone, 'Etc/UTC') AS "preferredTimezone", 8 AS "preferredHour", 3 AS "preferredDay"
+      INSERT INTO user_personalized_digest ("userId", "preferredHour", "preferredDay")
+      SELECT id AS "userId", 8 AS "preferredHour", 3 AS "preferredDay"
       FROM public.user
       WHERE "infoConfirmed" IS TRUE
       AND "createdAt" > '${createdFromDate.toISOString()}' AND "createdAt" < '${createdToDate.toISOString()}'

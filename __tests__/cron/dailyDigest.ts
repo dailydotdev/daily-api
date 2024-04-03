@@ -270,10 +270,15 @@ describe('dailyDigest cron', () => {
         userId: item.id,
         preferredDay,
         preferredHour: fakePreferredHourTimezone,
-        preferredTimezone: 'America/Phoenix',
         flags: {
           sendType,
         },
+      })),
+    );
+    await con.getRepository(User).save(
+      usersToSchedule.map((item) => ({
+        id: item.id,
+        timezone: 'America/Phoenix',
       })),
     );
 
@@ -302,10 +307,15 @@ describe('dailyDigest cron', () => {
         userId: item.id,
         preferredDay,
         preferredHour: fakePreferredHourTimezone,
-        preferredTimezone: 'Asia/Tokyo',
         flags: {
           sendType,
         },
+      })),
+    );
+    await con.getRepository(User).save(
+      usersToSchedule.map((item) => ({
+        id: item.id,
+        timezone: 'Asia/Tokyo',
       })),
     );
 
@@ -329,10 +339,15 @@ describe('dailyDigest cron', () => {
         userId: item.id,
         preferredDay,
         preferredHour: fakePreferredHour,
-        preferredTimezone: 'America/New_York',
         flags: {
           sendType,
         },
+      })),
+    );
+    await con.getRepository(User).save(
+      usersToSchedule.map((item) => ({
+        id: item.id,
+        timezone: 'America/New_York',
       })),
     );
 

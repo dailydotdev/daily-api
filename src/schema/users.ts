@@ -164,7 +164,6 @@ export interface ReferralCampaign {
 export interface GQLPersonalizedDigest {
   preferredDay: DayOfWeek;
   preferredHour: number;
-  preferredTimezone: string;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -408,7 +407,6 @@ export const typeDefs = /* GraphQL */ `
   type PersonalizedDigest {
     preferredDay: Int!
     preferredHour: Int!
-    preferredTimezone: String!
     type: DigestType
   }
 
@@ -1270,7 +1268,6 @@ export const resolvers: IResolvers<any, Context> = {
         userId: ctx.userId,
         preferredDay: day,
         preferredHour: hour,
-        preferredTimezone: timezone,
         type,
         flags,
       });

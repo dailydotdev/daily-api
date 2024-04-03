@@ -2197,7 +2197,6 @@ describe('query personalizedDigest', () => {
       personalizedDigest {
         preferredDay
         preferredHour
-        preferredTimezone
       }
   }`;
 
@@ -2238,7 +2237,6 @@ describe('query personalizedDigest', () => {
     expect(res.data.personalizedDigest).toMatchObject({
       preferredDay: 1,
       preferredHour: 9,
-      preferredTimezone: 'Etc/UTC',
     });
   });
 });
@@ -2248,7 +2246,6 @@ describe('mutation subscribePersonalizedDigest', () => {
     subscribePersonalizedDigest(hour: $hour, day: $day, timezone: $timezone, type: $type) {
       preferredDay
       preferredHour
-      preferredTimezone
     }
   }`;
 
@@ -2366,7 +2363,6 @@ describe('mutation subscribePersonalizedDigest', () => {
     expect(res.data.subscribePersonalizedDigest).toMatchObject({
       preferredDay: DayOfWeek.Monday,
       preferredHour: 9,
-      preferredTimezone: 'Etc/UTC',
     });
   });
 
@@ -2384,7 +2380,6 @@ describe('mutation subscribePersonalizedDigest', () => {
     expect(res.data.subscribePersonalizedDigest).toMatchObject({
       preferredDay: DayOfWeek.Wednesday,
       preferredHour: 17,
-      preferredTimezone: 'Europe/Zagreb',
     });
   });
 
@@ -2411,7 +2406,6 @@ describe('mutation subscribePersonalizedDigest', () => {
     expect(resUpdate.data.subscribePersonalizedDigest).toMatchObject({
       preferredDay: DayOfWeek.Friday,
       preferredHour: 22,
-      preferredTimezone: 'Europe/Athens',
     });
   });
 
@@ -2427,7 +2421,6 @@ describe('mutation subscribePersonalizedDigest', () => {
     expect(res.data.subscribePersonalizedDigest).toMatchObject({
       preferredDay: DayOfWeek.Monday,
       preferredHour: 9,
-      preferredTimezone: 'Etc/UTC',
     });
     const digest = await con.getRepository(UserPersonalizedDigest).findOneBy({
       userId: loggedUser,

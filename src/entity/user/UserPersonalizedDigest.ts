@@ -36,9 +36,6 @@ export class UserPersonalizedDigest {
   @Column({ type: 'smallint', default: DayOfWeek.Monday })
   preferredDay = DayOfWeek.Monday;
 
-  @Column({ type: 'text', default: 'Etc/UTC' })
-  preferredTimezone: string;
-
   @Column({ default: 1, nullable: false })
   variation: number;
 
