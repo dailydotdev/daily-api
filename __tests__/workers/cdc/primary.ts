@@ -66,7 +66,6 @@ import {
   ArticlePost,
   Comment,
   CommentMention,
-  CommentUpvote,
   COMMUNITY_PICKS_SOURCE,
   Feature,
   FeatureType,
@@ -97,6 +96,7 @@ import { SourceMemberRoles } from '../../../src/roles';
 import { CommentReport } from '../../../src/entity/CommentReport';
 import { usersFixture } from '../../fixture/user';
 import { DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD } from '../../../src/workers/notifications/devCardUnlocked';
+import { UserComment } from '../../../src/entity/user/UserComment';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -387,11 +387,15 @@ describe('post upvote', () => {
 });
 
 describe('comment upvote', () => {
-  type ObjectType = CommentUpvote;
+  type ObjectType = UserComment;
   const base: ChangeObject<ObjectType> = {
     userId: '1',
     commentId: 'c1',
     createdAt: 0,
+    vote: UserVote.Up,
+    votedAt: 0,
+    updatedAt: 0,
+    flags: {},
   };
 
   it('should notify on new upvote', async () => {
@@ -402,7 +406,7 @@ describe('comment upvote', () => {
         after,
         before: null,
         op: 'c',
-        table: 'comment_upvote',
+        table: 'user_comment',
       }),
     );
     expect(notifyCommentUpvoted).toHaveBeenCalledTimes(1);
@@ -419,7 +423,7 @@ describe('comment upvote', () => {
         after: null,
         before: base,
         op: 'd',
-        table: 'comment_upvote',
+        table: 'user_comment',
       }),
     );
     expect(notifyCommentUpvoteCanceled).toHaveBeenCalledTimes(1);

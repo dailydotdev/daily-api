@@ -86,24 +86,6 @@ Object {
 }
 `;
 
-exports[`mutation upvoteComment should ignore conflicts 1`] = `
-Array [
-  CommentUpvote {
-    "commentId": "c1",
-    "userId": "1",
-  },
-]
-`;
-
-exports[`mutation upvoteComment should upvote comment 1`] = `
-Array [
-  CommentUpvote {
-    "commentId": "c1",
-    "userId": "1",
-  },
-]
-`;
-
 exports[`query commentPreview should only render markdown not HTML 1`] = `
 "<h1>Test &lt;button&gt;Test&lt;/button&gt;</h1>
 "
@@ -190,24 +172,24 @@ Object {
     "edges": Array [
       Object {
         "node": Object {
-          "createdAt": "2021-09-22T07:15:51.247Z",
           "user": Object {
             "bio": null,
             "image": "https://daily.dev/tsahi.jpg",
             "name": "Tsahi",
             "username": null,
           },
+          "votedAt": "2021-09-22T07:15:51.247Z",
         },
       },
       Object {
         "node": Object {
-          "createdAt": "2020-09-22T07:15:51.247Z",
           "user": Object {
             "bio": null,
             "image": "https://daily.dev/ido.jpg",
             "name": "Ido",
             "username": null,
           },
+          "votedAt": "2020-09-22T07:15:51.247Z",
         },
       },
     ],

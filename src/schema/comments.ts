@@ -11,7 +11,6 @@ import {
 } from '../common';
 import {
   Comment,
-  CommentUpvote,
   CommentMention,
   Post,
   Source,
@@ -75,11 +74,6 @@ interface GQLCommentCommentArgs {
   content: string;
 }
 
-export interface GQLCommentUpvote {
-  createdAt: Date;
-  comment: GQLComment;
-}
-
 interface ReportCommentArgs {
   commentId: string;
   note: string;
@@ -88,6 +82,7 @@ interface ReportCommentArgs {
 
 export interface GQLUserComment {
   vote: UserVote;
+  votedAt: Date | null;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -172,15 +167,8 @@ export const typeDefs = /* GraphQL */ `
     edges: [CommentEdge!]!
   }
 
-  type CommentUpvote {
-    createdAt: DateTime!
-
-    user: User!
-    comment: Comment!
-  }
-
   type CommentUpvoteEdge {
-    node: CommentUpvote!
+    node: UserComment!
 
     """
     Used in \`before\` and \`after\` args
@@ -228,6 +216,11 @@ export const typeDefs = /* GraphQL */ `
     The user's vote for the comment
     """
     vote: Int!
+
+    """
+    Time when vote for the comment was last updated
+    """
+    votedAt: DateTime
 
     user: User!
 
@@ -670,7 +663,7 @@ export const resolvers: IResolvers<any, Context> = {
       args: GQLCommentUpvoteArgs,
       ctx,
       info,
-    ): Promise<Connection<GQLCommentUpvote>> => {
+    ): Promise<Connection<GQLUserComment>> => {
       const comment = await ctx.con.getRepository(Comment).findOneOrFail({
         where: { id: args.id },
         relations: ['post'],
@@ -681,13 +674,16 @@ export const resolvers: IResolvers<any, Context> = {
         ctx,
         info,
         args,
-        { key: 'createdAt' },
+        { key: 'votedAt' },
         {
           queryBuilder: (builder) => {
-            builder.queryBuilder = builder.queryBuilder.andWhere(
-              `${builder.alias}.commentId = :commentId`,
-              { commentId: args.id },
-            );
+            builder.queryBuilder = builder.queryBuilder
+              .andWhere(`${builder.alias}.commentId = :commentId`, {
+                commentId: args.id,
+              })
+              .andWhere(`${builder.alias}.vote = :vote`, {
+                vote: UserVote.Up,
+              });
 
             return builder;
           },
@@ -961,10 +957,6 @@ export const resolvers: IResolvers<any, Context> = {
             userId: ctx.userId,
             vote: UserVote.Up,
           });
-          await entityManager.getRepository(CommentUpvote).insert({
-            commentId: id,
-            userId: ctx.userId,
-          });
         });
       } catch (err) {
         // Foreign key violation
@@ -985,24 +977,11 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (entityManager): Promise<boolean> => {
-        const upvote = await entityManager
-          .getRepository(CommentUpvote)
-          .findOneBy({
-            commentId: id,
-            userId: ctx.userId,
-          });
         await entityManager.getRepository(UserComment).save({
           commentId: id,
           userId: ctx.userId,
           vote: UserVote.None,
         });
-        if (upvote) {
-          await entityManager.getRepository(CommentUpvote).delete({
-            commentId: id,
-            userId: ctx.userId,
-          });
-          return true;
-        }
         return false;
       });
       return { _: true };
