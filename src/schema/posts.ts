@@ -1832,7 +1832,7 @@ export const resolvers: IResolvers<any, Context> = {
     ratio: (post: GQLPost): number =>
       post.image ? post.ratio : defaultImage.ratio,
     permalink: getPostPermalink,
-    commentsPermalink: (post: GQLPost): string => getDiscussionLink(post.id),
+    commentsPermalink: (post: GQLPost): string => getDiscussionLink(post.slug),
     feedMeta: (post: GQLPost): string => {
       if (post.feedMeta) {
         return Buffer.from(post.feedMeta).toString('base64');

@@ -21,8 +21,8 @@ const subtractDomain = (url: string): string => {
   return matches && matches[1];
 };
 
-export const getDiscussionLink = (postId: string, commentId = ''): string =>
-  `${process.env.COMMENTS_PREFIX}/posts/${postId}${
+export const getDiscussionLink = (postSlug: string, commentId = ''): string =>
+  `${process.env.COMMENTS_PREFIX}/posts/${postSlug}${
     commentId && `#c-${commentId}`
   }`;
 

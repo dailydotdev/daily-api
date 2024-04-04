@@ -97,6 +97,7 @@ const obj = new GraphORM({
       'scoutId',
       'private',
       'type',
+      'slug',
     ],
     fields: {
       tags: {
