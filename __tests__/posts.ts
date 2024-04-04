@@ -1172,6 +1172,7 @@ describe('mutation deletePost', () => {
     authorId = '2',
   ) => {
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { slug, ...rest } = post;
     await con.getRepository(SourceMember).save([
       {
