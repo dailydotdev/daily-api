@@ -395,7 +395,7 @@ describe('commentsPermalink field', () => {
   it('should return permalink of the post', async () => {
     const res = await client.query(QUERY);
     expect(res.data.post.commentsPermalink).toEqual(
-      'http://localhost:5002/posts/p1',
+      'http://localhost:5002/posts/p1-p1',
     );
   });
 });
@@ -1172,6 +1172,7 @@ describe('mutation deletePost', () => {
     authorId = '2',
   ) => {
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    const { slug, ...rest } = post;
     await con.getRepository(SourceMember).save([
       {
         userId: '1',
@@ -1188,7 +1189,7 @@ describe('mutation deletePost', () => {
       },
     ]);
     await con.getRepository(SharePost).save({
-      ...post,
+      ...rest,
       id,
       shortId: `short-${id}`,
       sharedPostId: 'p1',
