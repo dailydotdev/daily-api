@@ -27,7 +27,6 @@ import {
   FREEFORM_POST_MINIMUM_CONTENT_LENGTH,
   FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
   UserPost,
-  UserPostVote,
   PostRelation,
   PostRelationType,
   normalizeCollectionPostSources,
@@ -80,7 +79,7 @@ import {
   notifyPostDownvoted,
   notifyPostDownvoteCanceled,
 } from '../../common';
-import { ChangeMessage } from '../../types';
+import { ChangeMessage, UserVote } from '../../types';
 import { DataSource } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import { PostReport, ContentImage } from '../../entity';
@@ -162,7 +161,7 @@ const handlePostUpvoteChange = async (
       );
       break;
     case 'u': {
-      const isUpvoteCanceled = data.payload.after.vote === UserPostVote.None;
+      const isUpvoteCanceled = data.payload.after.vote === UserVote.None;
 
       if (isUpvoteCanceled) {
         await notifyPostUpvoteCanceled(
@@ -180,7 +179,7 @@ const handlePostUpvoteChange = async (
       break;
     }
     case 'd': {
-      const wasUpvoted = data.payload.before.vote === UserPostVote.Up;
+      const wasUpvoted = data.payload.before.vote === UserVote.Up;
 
       if (wasUpvoted) {
         await notifyPostUpvoteCanceled(
@@ -211,7 +210,7 @@ const handlePostDownvoteChange = async (
       );
       break;
     case 'u': {
-      const isDownvoteCanceled = data.payload.after.vote === UserPostVote.None;
+      const isDownvoteCanceled = data.payload.after.vote === UserVote.None;
 
       if (isDownvoteCanceled) {
         await notifyPostDownvoteCanceled(
@@ -229,7 +228,7 @@ const handlePostDownvoteChange = async (
       break;
     }
     case 'd': {
-      const wasUpvoted = data.payload.before.vote === UserPostVote.Up;
+      const wasUpvoted = data.payload.before.vote === UserVote.Up;
 
       if (wasUpvoted) {
         await notifyPostDownvoteCanceled(
@@ -252,11 +251,11 @@ const onPostVoteChange = async (
   data: ChangeMessage<UserPost>,
 ): Promise<void> => {
   const isUpvote =
-    data.payload.after?.vote === UserPostVote.Up ||
-    data.payload.before?.vote === UserPostVote.Up;
+    data.payload.after?.vote === UserVote.Up ||
+    data.payload.before?.vote === UserVote.Up;
   const isDownvote =
-    data.payload.after?.vote === UserPostVote.Down ||
-    data.payload.before?.vote === UserPostVote.Down;
+    data.payload.after?.vote === UserVote.Down ||
+    data.payload.before?.vote === UserVote.Down;
 
   if (isUpvote) {
     await handlePostUpvoteChange(con, logger, data);

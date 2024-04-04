@@ -7,6 +7,7 @@ Object {
   "contentHtml": "<p><a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\">@Solevilla</a></p>
 ",
   "createdAt": Any<Date>,
+  "downvotes": 0,
   "featured": false,
   "id": "cm",
   "lastUpdatedAt": null,
@@ -24,6 +25,7 @@ Object {
   "contentHtml": "<p><a href=\\"http://localhost:5002/sshanzel\\" data-mention-id=\\"7\\" data-mention-username=\\"sshanzel\\">@sshanzel</a></p>
 ",
   "createdAt": Any<Date>,
+  "downvotes": 0,
   "featured": false,
   "id": "cm",
   "lastUpdatedAt": null,

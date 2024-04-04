@@ -36,10 +36,14 @@ import {
   View,
   UserPersonalizedDigest,
   UserStreak,
+  MarketingCta,
+  UserMarketingCta,
+  UserPersonalizedDigestType,
+  UserPersonalizedDigestSendType,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { getTimezonedStartOfISOWeek } from '../src/common';
-import { DataSource, In } from 'typeorm';
+import { DataSource, In, IsNull } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import request from 'supertest';
 import { FastifyInstance } from 'fastify';
@@ -48,6 +52,8 @@ import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { DayOfWeek } from '../src/types';
 import { CampaignType, Invite } from '../src/entity/Invite';
 import { usersFixture } from './fixture/user';
+import { deleteRedisKey, getRedisObject } from '../src/redis';
+import { StorageKey, StorageTopic, generateStorageKey } from '../src/config';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -1717,6 +1723,16 @@ describe('mutation updateUserProfile', () => {
     );
   });
 
+  it('should not allow empty username', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { username: null } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
   it('should not allow duplicated username with different case', async () => {
     loggedUser = '1';
 
@@ -2181,7 +2197,6 @@ describe('query personalizedDigest', () => {
       personalizedDigest {
         preferredDay
         preferredHour
-        preferredTimezone
       }
   }`;
 
@@ -2222,17 +2237,15 @@ describe('query personalizedDigest', () => {
     expect(res.data.personalizedDigest).toMatchObject({
       preferredDay: 1,
       preferredHour: 9,
-      preferredTimezone: 'Etc/UTC',
     });
   });
 });
 
 describe('mutation subscribePersonalizedDigest', () => {
-  const MUTATION = `mutation SubscribePersonalizedDigest($hour: Int, $day: Int, $timezone: String) {
-    subscribePersonalizedDigest(hour: $hour, day: $day, timezone: $timezone) {
+  const MUTATION = `mutation SubscribePersonalizedDigest($hour: Int, $day: Int, $type: DigestType) {
+    subscribePersonalizedDigest(hour: $hour, day: $day, type: $type) {
       preferredDay
       preferredHour
-      preferredTimezone
     }
   }`;
 
@@ -2248,7 +2261,6 @@ describe('mutation subscribePersonalizedDigest', () => {
         variables: {
           day: DayOfWeek.Monday,
           hour: 9,
-          timezone: 'Etc/UTC',
         },
       },
       'UNAUTHENTICATED',
@@ -2265,7 +2277,6 @@ describe('mutation subscribePersonalizedDigest', () => {
         variables: {
           day: -1,
           hour: 9,
-          timezone: 'Etc/UTC',
         },
       },
       'GRAPHQL_VALIDATION_FAILED',
@@ -2282,7 +2293,6 @@ describe('mutation subscribePersonalizedDigest', () => {
         variables: {
           day: 7,
           hour: 9,
-          timezone: 'Etc/UTC',
         },
       },
       'GRAPHQL_VALIDATION_FAILED',
@@ -2299,7 +2309,6 @@ describe('mutation subscribePersonalizedDigest', () => {
         variables: {
           day: DayOfWeek.Monday,
           hour: -1,
-          timezone: 'Etc/UTC',
         },
       },
       'GRAPHQL_VALIDATION_FAILED',
@@ -2316,24 +2325,6 @@ describe('mutation subscribePersonalizedDigest', () => {
         variables: {
           day: DayOfWeek.Monday,
           hour: 24,
-          timezone: 'Etc/UTC',
-        },
-      },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should throw validation error if invalid timezone is provided', async () => {
-    loggedUser = '1';
-
-    await testQueryErrorCode(
-      client,
-      {
-        query: MUTATION,
-        variables: {
-          day: DayOfWeek.Monday,
-          hour: 9,
-          timezone: 'Space/Mars',
         },
       },
       'GRAPHQL_VALIDATION_FAILED',
@@ -2350,7 +2341,6 @@ describe('mutation subscribePersonalizedDigest', () => {
     expect(res.data.subscribePersonalizedDigest).toMatchObject({
       preferredDay: DayOfWeek.Monday,
       preferredHour: 9,
-      preferredTimezone: 'Etc/UTC',
     });
   });
 
@@ -2361,14 +2351,12 @@ describe('mutation subscribePersonalizedDigest', () => {
       variables: {
         day: DayOfWeek.Wednesday,
         hour: 17,
-        timezone: 'Europe/Zagreb',
       },
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.subscribePersonalizedDigest).toMatchObject({
       preferredDay: DayOfWeek.Wednesday,
       preferredHour: 17,
-      preferredTimezone: 'Europe/Zagreb',
     });
   });
 
@@ -2379,7 +2367,6 @@ describe('mutation subscribePersonalizedDigest', () => {
       variables: {
         day: DayOfWeek.Wednesday,
         hour: 17,
-        timezone: 'Europe/Zagreb',
       },
     });
     expect(res.errors).toBeFalsy();
@@ -2388,14 +2375,34 @@ describe('mutation subscribePersonalizedDigest', () => {
       variables: {
         day: DayOfWeek.Friday,
         hour: 22,
-        timezone: 'Europe/Athens',
       },
     });
     expect(resUpdate.errors).toBeFalsy();
     expect(resUpdate.data.subscribePersonalizedDigest).toMatchObject({
       preferredDay: DayOfWeek.Friday,
       preferredHour: 22,
-      preferredTimezone: 'Europe/Athens',
+    });
+  });
+
+  it('should subscribe to reading reminder', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        type: UserPersonalizedDigestType.ReadingReminder,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.subscribePersonalizedDigest).toMatchObject({
+      preferredDay: DayOfWeek.Monday,
+      preferredHour: 9,
+    });
+    const digest = await con.getRepository(UserPersonalizedDigest).findOneBy({
+      userId: loggedUser,
+      type: UserPersonalizedDigestType.ReadingReminder,
+    });
+    expect(digest.flags).toEqual({
+      sendType: UserPersonalizedDigestSendType.workdays,
     });
   });
 });
@@ -2735,5 +2742,196 @@ describe('addUserAcquisitionChannel mutation', () => {
       .getRepository(User)
       .findOneBy({ id: loggedUser });
     expect(updatedUser.acquisitionChannel).toEqual('friend');
+  });
+});
+
+describe('mutation clearUserMarketingCta', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation ClearUserMarketingCta($campaignId: String!) {
+      clearUserMarketingCta(campaignId: $campaignId) {
+        _
+      }
+    }
+  `;
+  const redisKey1 = generateStorageKey(
+    StorageTopic.Boot,
+    StorageKey.MarketingCta,
+    '1',
+  );
+  const redisKey2 = generateStorageKey(
+    StorageTopic.Boot,
+    StorageKey.MarketingCta,
+    '2',
+  );
+
+  beforeEach(async () => {
+    await con.getRepository(MarketingCta).save([
+      {
+        campaignId: 'worlds-best-campaign',
+        variant: 'card',
+        createdAt: new Date('2024-03-13 12:00:00'),
+        flags: {
+          title: 'Join the best community in the world',
+          description: 'Join the best community in the world',
+          ctaUrl: 'http://localhost:5002',
+          ctaText: 'Join now',
+        },
+      },
+      {
+        campaignId: 'worlds-second-best-campaign',
+        variant: 'card',
+        createdAt: new Date('2024-03-13 13:00:00'),
+        flags: {
+          title: 'Join the second best community in the world',
+          description: 'Join the second best community in the world',
+          ctaUrl: 'http://localhost:5002',
+          ctaText: 'Join now',
+        },
+      },
+    ]);
+
+    await con.getRepository(UserMarketingCta).save([
+      {
+        marketingCtaId: 'worlds-best-campaign',
+        userId: '1',
+        createdAt: new Date('2024-03-13 12:00:00'),
+      },
+      {
+        marketingCtaId: 'worlds-best-campaign',
+        userId: '2',
+        createdAt: new Date('2024-03-13 12:00:00'),
+      },
+    ]);
+
+    await deleteRedisKey(redisKey1);
+    await deleteRedisKey(redisKey2);
+  });
+
+  it('should not allow unauthenticated users', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { campaignId: 'worlds-best-campaign' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should mark the user marketing cta as read', async () => {
+    loggedUser = '1';
+
+    expect(
+      await con.getRepository(UserMarketingCta).findOneBy({
+        userId: '1',
+        marketingCtaId: 'worlds-best-campaign',
+        readAt: IsNull(),
+      }),
+    ).toBeTruthy();
+
+    await client.mutate(MUTATION, {
+      variables: { campaignId: 'worlds-best-campaign' },
+    });
+
+    expect(
+      await con.getRepository(UserMarketingCta).findOneBy({
+        userId: '1',
+        marketingCtaId: 'worlds-best-campaign',
+        readAt: IsNull(),
+      }),
+    ).toBeFalsy();
+
+    expect(await getRedisObject(redisKey1)).toEqual('SLEEPING');
+  });
+
+  it('should pre-load the next user marketing cta', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserMarketingCta).save([
+      {
+        marketingCtaId: 'worlds-second-best-campaign',
+        userId: '1',
+        createdAt: new Date('2024-03-13 13:00:00'),
+      },
+    ]);
+
+    await client.mutate(MUTATION, {
+      variables: { campaignId: 'worlds-best-campaign' },
+    });
+
+    expect(
+      JSON.parse((await getRedisObject(redisKey1)) as string),
+    ).toMatchObject({
+      campaignId: 'worlds-second-best-campaign',
+      variant: 'card',
+      createdAt: '2024-03-13T13:00:00.000Z',
+      flags: {
+        title: 'Join the second best community in the world',
+        description: 'Join the second best community in the world',
+        ctaUrl: 'http://localhost:5002',
+        ctaText: 'Join now',
+      },
+    });
+  });
+
+  it('should not write to redis if there is no current marketing cta', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(UserMarketingCta).update(
+      {
+        userId: '1',
+        marketingCtaId: 'worlds-best-campaign',
+        readAt: IsNull(),
+      },
+      { readAt: new Date() },
+    );
+
+    await client.mutate(MUTATION, {
+      variables: { campaignId: 'worlds-best-campaign' },
+    });
+
+    expect(JSON.parse((await getRedisObject(redisKey1)) as string)).toBeNull();
+  });
+
+  it('should not update other users marketing cta', async () => {
+    loggedUser = '1';
+
+    await client.mutate(MUTATION, {
+      variables: { campaignId: 'worlds-best-campaign' },
+    });
+
+    expect(
+      await con.getRepository(UserMarketingCta).findOneBy({
+        userId: '2',
+        marketingCtaId: 'worlds-best-campaign',
+        readAt: IsNull(),
+      }),
+    ).toBeTruthy();
+  });
+
+  it('should not update other marketing cta', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(UserMarketingCta).save([
+      {
+        marketingCtaId: 'worlds-second-best-campaign',
+        userId: '1',
+        createdAt: new Date('2024-03-13 13:00:00'),
+      },
+    ]);
+
+    await client.mutate(MUTATION, {
+      variables: { campaignId: 'worlds-best-campaign' },
+    });
+
+    expect(
+      await con.getRepository(UserMarketingCta).findOneBy({
+        userId: '1',
+        marketingCtaId: 'worlds-best-campaign',
+        readAt: IsNull(),
+      }),
+    ).toBeFalsy();
+    expect(
+      await con.getRepository(UserMarketingCta).findOneBy({
+        userId: '1',
+        marketingCtaId: 'worlds-second-best-campaign',
+        readAt: IsNull(),
+      }),
+    ).toBeTruthy();
   });
 });

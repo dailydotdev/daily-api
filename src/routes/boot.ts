@@ -4,12 +4,13 @@ import { DataSource, EntityManager } from 'typeorm';
 import { clearAuthentication, dispatchWhoami } from '../kratos';
 import { generateUUID } from '../ids';
 import { generateSessionId, setTrackingId } from '../tracking';
-import { GQLUser } from '../schema/users';
+import { GQLUser, getMarketingCta } from '../schema/users';
 import {
   Alerts,
   ALERTS_DEFAULT,
   Banner,
   Feature,
+  MarketingCta,
   Settings,
   SETTINGS_DEFAULT,
   SourceMember,
@@ -90,6 +91,7 @@ export type LoggedInBoot = BaseBoot & {
     canSubmitArticle: boolean;
   };
   accessToken: AccessToken;
+  marketingCta: MarketingCta | null;
 };
 
 type BootMiddleware = (
@@ -335,7 +337,7 @@ const loggedInBoot = async (
   middleware?: BootMiddleware,
 ): Promise<LoggedInBoot | AnonymousBoot> =>
   runInSpan('loggedInBoot', async () => {
-    const { userId } = req;
+    const { userId, log } = req;
     const [
       visit,
       user,
@@ -346,6 +348,7 @@ const loggedInBoot = async (
       squads,
       lastBanner,
       exp,
+      marketingCta,
       extra,
     ] = await Promise.all([
       visitSection(req, res),
@@ -357,6 +360,7 @@ const loggedInBoot = async (
       getSquads(con, userId),
       getAndUpdateLastBannerRedis(con),
       getExperimentation(userId, con),
+      getMarketingCta(con, log, userId),
       middleware ? middleware(con, req, res) : {},
     ]);
     if (!user) {
@@ -399,6 +403,7 @@ const loggedInBoot = async (
       squads,
       accessToken,
       exp,
+      marketingCta,
       ...extra,
     };
   });

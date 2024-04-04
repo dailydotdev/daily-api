@@ -12,6 +12,7 @@ const sendRedirectAnalytics = async (
   con: DataSource,
   req: FastifyRequest,
   res: FastifyReply,
+  page = '/get',
 ): Promise<void> => {
   try {
     const boot = await getBootData(con, req, res);
@@ -22,7 +23,7 @@ const sendRedirectAnalytics = async (
       {
         event_timestamp: now,
         event_name: 'page view',
-        event_page: '/get',
+        event_page: page,
         app_platform: 'redirector',
         query_params: queryStr.length > 2 ? queryStr : undefined,
         user_id: boot.user.id,
@@ -66,6 +67,28 @@ const redirectToStore =
     }
   };
 
+const redirectToMobile =
+  (con: DataSource) =>
+  async (req: FastifyRequest, res: FastifyReply): Promise<FastifyReply> => {
+    res.status(307);
+    if (req.isBot) {
+      return res.redirect('https://app.daily.dev');
+    }
+
+    const ua = uaParser(req.headers['user-agent']);
+    const os = ua.os.name.toLowerCase();
+    const url = new URL(req.raw.url, 'http://localhost');
+    await sendRedirectAnalytics(con, req, res, '/mobile');
+    if (os.includes('android')) {
+      url.searchParams.append('id', 'dev.daily');
+      return res.redirect(
+        `https://play.google.com/store/apps/details${url.search}`,
+      );
+    } else {
+      return res.redirect(`https://app.daily.dev${url.search}`);
+    }
+  };
+
 const redirectToProfileImage = async (
   con: DataSource,
   res: FastifyReply,
@@ -100,6 +123,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   );
   fastify.get('/download', redirectToStore(con));
   fastify.get('/get', redirectToStore(con));
+  fastify.get('/mobile', redirectToMobile(con));
   fastify.get<{ Params: { id: string } }>('/:id/profile-image', (req, res) =>
     redirectToProfileImage(con, res, req.params.id),
   );

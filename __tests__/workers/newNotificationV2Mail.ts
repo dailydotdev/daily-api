@@ -7,7 +7,9 @@ import {
   notificationsLink,
   sendEmail,
 } from '../../src/common';
-import worker from '../../src/workers/newNotificationV2Mail';
+import worker, {
+  notificationToTemplateId,
+} from '../../src/workers/newNotificationV2Mail';
 import {
   ArticlePost,
   CollectionPost,
@@ -1233,4 +1235,38 @@ it('should send email to multiple users', async () => {
     { to: 'tsahi@daily.dev', dynamicTemplateData: { first_name: 'Tsahi' } },
   ]);
   expect(args.templateId).toEqual('d-48de63612ff944cb8156fec17f47f066');
+});
+
+describe('source_post_added notification', () => {
+  it('should send email', async () => {
+    const post = await con.getRepository(ArticlePost).save(postsFixture[0]);
+    const ctx: NotificationPostContext & NotificationSourceContext = {
+      userIds: ['1'],
+      post,
+      source,
+    };
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.SourcePostAdded,
+      ctx,
+    );
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
+    expect(args.dynamicTemplateData).toEqual({
+      post_image: 'https://daily.dev/image.jpg',
+      post_link: `http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=${NotificationType.SourcePostAdded}`,
+      post_title: 'P1',
+      source_name: 'A',
+      source_image: 'http://image.com/a',
+    });
+    expect(args.templateId).toEqual(
+      notificationToTemplateId[NotificationType.SourcePostAdded],
+    );
+  });
 });

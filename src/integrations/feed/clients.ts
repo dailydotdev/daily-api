@@ -2,6 +2,7 @@ import { FeedResponse, IFeedClient } from './types';
 import { RequestInit } from 'node-fetch';
 import { fetchOptions as globalFetchOptions } from '../../http';
 import { retryFetchParse } from '../retry';
+import { GenericMetadata } from '../lofn';
 
 type RawFeedServiceResponse = {
   data: { post_id: string; metadata: Record<string, string> }[];
@@ -23,7 +24,12 @@ export class FeedClient implements IFeedClient {
     this.fetchOptions = fetchOptions;
   }
 
-  async fetchFeed(ctx, feedId, config): Promise<FeedResponse> {
+  async fetchFeed(
+    ctx,
+    feedId,
+    config,
+    extraMetadata: GenericMetadata = undefined,
+  ): Promise<FeedResponse> {
     const res = await retryFetchParse<RawFeedServiceResponse>(
       this.url,
       {
@@ -37,10 +43,19 @@ export class FeedClient implements IFeedClient {
       return { data: [] };
     }
     return {
-      data: res.data.map(({ post_id, metadata }) => [
-        post_id,
-        (metadata && JSON.stringify(metadata)) || null,
-      ]),
+      data: res.data.map(({ post_id, metadata }) => {
+        const hasMetadata = !!(metadata || extraMetadata);
+
+        return [
+          post_id,
+          (hasMetadata &&
+            JSON.stringify({
+              ...metadata,
+              ...extraMetadata,
+            })) ||
+            null,
+        ];
+      }),
       cursor: res.cursor,
     };
   }

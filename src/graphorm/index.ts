@@ -24,6 +24,7 @@ import { GQLBookmarkList } from '../schema/bookmarks';
 import { base64 } from '../common';
 import { GQLComment } from '../schema/comments';
 import { GQLUserPost } from '../schema/posts';
+import { UserComment } from '../entity/user/UserComment';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -383,6 +384,34 @@ const obj = new GraphORM({
             base64(`time:${new Date(node.createdAt).getTime()}`),
         },
       },
+      parent: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'parentId',
+        },
+      },
+      userState: {
+        relation: {
+          isMany: false,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder => {
+            return qb
+              .where(`${childAlias}."userId" = :userId`, { userId: ctx.userId })
+              .andWhere(`${childAlias}."commentId" = "${parentAlias}".id`);
+          },
+        },
+        transform: (value: GQLComment, ctx: Context) => {
+          if (!ctx.userId) {
+            return null;
+          }
+
+          if (!value) {
+            return ctx.con.getRepository(UserComment).create();
+          }
+
+          return value;
+        },
+      },
     },
   },
   FeedSettings: {
@@ -489,6 +518,14 @@ const obj = new GraphORM({
     requiredColumns: ['userId'],
   },
   Keyword: {
+    fields: {
+      flags: {
+        jsonType: true,
+      },
+    },
+  },
+  UserComment: {
+    requiredColumns: ['votedAt'],
     fields: {
       flags: {
         jsonType: true,

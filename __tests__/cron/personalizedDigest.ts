@@ -2,7 +2,11 @@ import cron from '../../src/cron/personalizedDigest';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
-import { User, UserPersonalizedDigest } from '../../src/entity';
+import {
+  User,
+  UserPersonalizedDigest,
+  UserPersonalizedDigestSendType,
+} from '../../src/entity';
 import { usersFixture } from '../fixture/user';
 import {
   createEmailBatchId,
@@ -16,10 +20,17 @@ beforeAll(async () => {
   con = await createOrGetConnection();
 });
 
-jest.mock('../../src/common', () => ({
-  ...(jest.requireActual('../../src/common') as Record<string, unknown>),
-  notifyGeneratePersonalizedDigest: jest.fn(),
+jest.mock('../../src/common/mailing', () => ({
+  ...(jest.requireActual('../../src/common/mailing') as Record<
+    string,
+    unknown
+  >),
   createEmailBatchId: jest.fn(),
+}));
+
+jest.mock('../../src/common/pubsub', () => ({
+  ...(jest.requireActual('../../src/common/pubsub') as Record<string, unknown>),
+  notifyGeneratePersonalizedDigest: jest.fn(),
 }));
 
 describe('personalizedDigest cron', () => {
@@ -129,6 +140,7 @@ describe('personalizedDigest cron', () => {
       {
         digestCount: usersToSchedule.length,
         emailBatchId: 'test-email-batch-id',
+        sendType: UserPersonalizedDigestSendType.weekly,
       },
       'personalized digest sent',
     );
@@ -149,7 +161,10 @@ describe('personalizedDigest cron', () => {
 
     expect(infoSpy).toHaveBeenCalledTimes(2);
     expect(infoSpy).toHaveBeenCalledWith(
-      { emailBatchId: 'test-email-batch-id' },
+      {
+        emailBatchId: 'test-email-batch-id',
+        sendType: UserPersonalizedDigestSendType.weekly,
+      },
       'starting personalized digest send',
     );
     expect(createEmailBatchId).toHaveBeenCalledTimes(1);
@@ -170,5 +185,55 @@ describe('personalizedDigest cron', () => {
     await expect(() => {
       return expectSuccessfulCron(cron);
     }).rejects.toEqual(new Error('failed to create email batch id'));
+  });
+
+  it('should not schedule generation for subscriptions with different sendType', async () => {
+    const usersToSchedule = usersFixture;
+
+    await con.getRepository(UserPersonalizedDigest).save(
+      usersToSchedule.map((item) => ({
+        userId: item.id,
+        preferredDay,
+        flags: {
+          sendType: UserPersonalizedDigestSendType.workdays,
+        },
+      })),
+    );
+
+    await expectSuccessfulCron(cron);
+
+    const personalizedDigestRowsForDay = await con
+      .getRepository(UserPersonalizedDigest)
+      .findBy({
+        preferredDay,
+      });
+
+    expect(personalizedDigestRowsForDay).toHaveLength(usersToSchedule.length);
+    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(0);
+  });
+
+  it('should schedule generation for subscriptions with weekly sendType', async () => {
+    const usersToSchedule = usersFixture;
+
+    await con.getRepository(UserPersonalizedDigest).save(
+      usersToSchedule.map((item) => ({
+        userId: item.id,
+        preferredDay,
+        flags: {
+          sendType: UserPersonalizedDigestSendType.weekly,
+        },
+      })),
+    );
+
+    await expectSuccessfulCron(cron);
+
+    const personalizedDigestRowsForDay = await con
+      .getRepository(UserPersonalizedDigest)
+      .findBy({
+        preferredDay,
+      });
+
+    expect(personalizedDigestRowsForDay).toHaveLength(usersToSchedule.length);
+    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(4);
   });
 });

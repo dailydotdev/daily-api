@@ -1,5 +1,6 @@
 import {
   DynamicConfig,
+  FeedConfig,
   FeedConfigGenerator,
   FeedConfigName,
   FeedResponse,
@@ -9,11 +10,13 @@ import {
 import { Context } from '../../Context';
 import { FeedClient } from './clients';
 import {
+  FeedLofnConfigGenerator,
   FeedPreferencesConfigGenerator,
   FeedUserStateConfigGenerator,
   SimpleFeedConfigGenerator,
 } from './configs';
 import { SnotraClient } from '../snotra';
+import { LofnClient } from '../lofn';
 
 /**
  * Utility class for easily generating feeds using provided config and client
@@ -34,14 +37,20 @@ export class FeedGenerator {
   }
 
   async generate(ctx: Context, opts: DynamicConfig): Promise<FeedResponse> {
-    const config = await this.config.generate(ctx, opts);
+    const { config, extraMetadata } = await this.config.generate(ctx, opts);
     const userId = opts.user_id;
-    return this.client.fetchFeed(ctx, this.feedId ?? userId, config);
+    return this.client.fetchFeed(
+      ctx,
+      this.feedId ?? userId,
+      config,
+      extraMetadata,
+    );
   }
 }
 
 export const snotraClient = new SnotraClient();
 export const feedClient = new FeedClient();
+export const lofnClient = new LofnClient();
 
 const opts = {
   includeBlockedTags: true,
@@ -51,98 +60,46 @@ const opts = {
   includePostTypes: true,
 };
 
-export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
-  {
-    '20': new FeedGenerator(
-      feedClient,
-      new FeedUserStateConfigGenerator(snotraClient, {
-        personalised: new FeedPreferencesConfigGenerator(
-          {
-            feed_config_name: FeedConfigName.VectorV20,
-            source_types: ['machine', 'squad'],
-          },
-          opts,
-        ),
-        non_personalised: new FeedPreferencesConfigGenerator(
-          {
-            feed_config_name: FeedConfigName.PersonaliseV20,
-            source_types: ['machine', 'squad'],
-          },
-          opts,
-        ),
-      }),
-    ),
-    '21': new FeedGenerator(
-      feedClient,
-      new FeedUserStateConfigGenerator(snotraClient, {
-        personalised: new FeedPreferencesConfigGenerator(
-          {
-            feed_config_name: FeedConfigName.VectorV21,
-            source_types: ['machine', 'squad'],
-          },
-          opts,
-        ),
-        non_personalised: new FeedPreferencesConfigGenerator(
-          {
-            feed_config_name: FeedConfigName.PersonaliseV20,
-            source_types: ['machine', 'squad'],
-          },
-          opts,
-        ),
-      }),
-    ),
-    '25': new FeedGenerator(
-      feedClient,
-      new FeedUserStateConfigGenerator(snotraClient, {
-        personalised: new FeedPreferencesConfigGenerator(
-          {
-            feed_config_name: FeedConfigName.VectorV25,
-            source_types: ['machine', 'squad'],
-          },
-          opts,
-        ),
-        non_personalised: new FeedPreferencesConfigGenerator(
-          {
-            feed_config_name: FeedConfigName.PersonaliseV25,
-            source_types: ['machine', 'squad'],
-          },
-          opts,
-        ),
-      }),
-    ),
+export const baseFeedConfig: Partial<FeedConfig> = {
+  source_types: ['machine', 'squad'],
+  allowed_languages: ['en'],
+};
+
+export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
+  Object.freeze({
     '26': new FeedGenerator(
       feedClient,
       new FeedUserStateConfigGenerator(snotraClient, {
         personalised: new FeedPreferencesConfigGenerator(
           {
+            ...baseFeedConfig,
             feed_config_name: FeedConfigName.VectorV26,
-            source_types: ['machine', 'squad'],
           },
           opts,
         ),
         non_personalised: new FeedPreferencesConfigGenerator(
           {
+            ...baseFeedConfig,
             feed_config_name: FeedConfigName.PersonaliseV27,
-            source_types: ['machine', 'squad'],
           },
           opts,
         ),
       }),
     ),
-    '27': new FeedGenerator(
+    '29': new FeedGenerator(
       feedClient,
       new FeedUserStateConfigGenerator(snotraClient, {
         personalised: new FeedPreferencesConfigGenerator(
           {
+            ...baseFeedConfig,
             feed_config_name: FeedConfigName.VectorV27,
-            source_types: ['machine', 'squad'],
           },
           opts,
         ),
         non_personalised: new FeedPreferencesConfigGenerator(
           {
+            ...baseFeedConfig,
             feed_config_name: FeedConfigName.PersonaliseV27,
-            source_types: ['machine', 'squad'],
           },
           opts,
         ),
@@ -178,9 +135,18 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
         total_pages: 1,
       }),
     ),
-  },
-);
+  });
 
 export const versionToFeedGenerator = (version: number): FeedGenerator => {
-  return feedGenerators[version.toString()] ?? feedGenerators['21'];
+  if (version >= 30) {
+    return new FeedGenerator(
+      feedClient,
+      new FeedLofnConfigGenerator(baseFeedConfig, lofnClient, {
+        ...opts,
+        feed_version: version.toString() as FeedVersion,
+      }),
+    );
+  }
+
+  return feedGenerators[version.toString()] ?? feedGenerators['29'];
 };

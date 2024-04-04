@@ -46,6 +46,9 @@ export const fetchUser = async (
   return user;
 };
 
+export const getUserPermalink = (user: Pick<User, 'id' | 'username'>): string =>
+  `${process.env.COMMENTS_PREFIX}/${user.username ?? user.id}`;
+
 export const getUserProfileUrl = (username: string): string =>
   `${process.env.COMMENTS_PREFIX}/${username}`;
 
@@ -413,3 +416,10 @@ export const checkAndClearUserStreak = async (
 
   return false;
 };
+
+export enum LogoutReason {
+  IncomleteOnboarding = 'incomplete onboarding',
+  ManualLogout = 'manual logout',
+  UserDeleted = 'user deleted',
+  KratosSessionAlreadyAvailable = 'kratos session already available',
+}

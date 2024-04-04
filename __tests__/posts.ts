@@ -31,7 +31,6 @@ import {
   WelcomePost,
   PostQuestion,
   UserPost,
-  UserPostVote,
   PostRelationType,
   PostRelation,
   YouTubePost,
@@ -61,6 +60,7 @@ import nock from 'nock';
 import { deleteKeysByPattern, ioRedisPool, setRedisObject } from '../src/redis';
 import { checkHasMention, markdown } from '../src/common/markdown';
 import { generateStorageKey, StorageTopic } from '../src/config';
+import { UserVote } from '../src/types';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -385,7 +385,7 @@ describe('upvoted field', () => {
       repo.create({
         postId: 'p1',
         userId: loggedUser,
-        vote: UserPostVote.Up,
+        vote: UserVote.Up,
       }),
     );
     const res = await client.query(QUERY);
@@ -904,24 +904,24 @@ describe('query postUpvotes', () => {
     await userPostRepo.save({
       userId: '1',
       postId: 'p1',
-      vote: UserPostVote.Up,
+      vote: UserVote.Up,
     });
     await userPostRepo.save({
       userId: '1',
       postId: 'p1',
       votedAt: createdAtOld,
-      vote: UserPostVote.Up,
+      vote: UserVote.Up,
     });
     await userPostRepo.save({
       userId: '2',
       postId: 'p1',
-      vote: UserPostVote.Up,
+      vote: UserVote.Up,
     });
     await userPostRepo.save({
       userId: '2',
       postId: 'p1',
       votedAt: createdAtNew,
-      vote: UserPostVote.Up,
+      vote: UserVote.Up,
     });
 
     const res = await client.query(QUERY, { variables: { id: 'p1' } });
@@ -3248,7 +3248,7 @@ describe('downvoted field', () => {
       repo.create({
         postId: 'p1',
         userId: loggedUser,
-        vote: UserPostVote.Down,
+        vote: UserVote.Down,
       }),
     );
     const res = await client.query(QUERY);
@@ -3366,13 +3366,13 @@ describe('userState field', () => {
     await con.getRepository(UserPost).save({
       postId: 'p1',
       userId: loggedUser,
-      vote: UserPostVote.Up,
+      vote: UserVote.Up,
       hidden: true,
       flags: { feedbackDismiss: false },
     });
     const res = await client.query(QUERY);
     expect(res.data.post.userState).toMatchObject({
-      vote: UserPostVote.Up,
+      vote: UserVote.Up,
       hidden: true,
       flags: { feedbackDismiss: false },
     });
@@ -3392,7 +3392,7 @@ describe('mutation votePost', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: 'p1', vote: UserPostVote.Up },
+        variables: { id: 'p1', vote: UserVote.Up },
       },
       'UNAUTHENTICATED',
     ));
@@ -3403,7 +3403,7 @@ describe('mutation votePost', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: 'invalid', vote: UserPostVote.Up },
+        variables: { id: 'invalid', vote: UserVote.Up },
       },
       'NOT_FOUND',
     );
@@ -3415,7 +3415,7 @@ describe('mutation votePost', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: 'p1', vote: UserPostVote.Up },
+        variables: { id: 'p1', vote: UserVote.Up },
       },
       'NOT_FOUND',
     );
@@ -3428,7 +3428,7 @@ describe('mutation votePost', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: 'p1', vote: UserPostVote.Up },
+        variables: { id: 'p1', vote: UserVote.Up },
       },
       'FORBIDDEN',
     );
@@ -3453,7 +3453,7 @@ describe('mutation votePost', () => {
       upvotes: 3,
     });
     const res = await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: UserPostVote.Up },
+      variables: { id: 'p1', vote: UserVote.Up },
     });
     expect(res.errors).toBeFalsy();
     const userPost = await con.getRepository(UserPost).findOneBy({
@@ -3463,7 +3463,7 @@ describe('mutation votePost', () => {
     expect(userPost).toMatchObject({
       userId: loggedUser,
       postId: 'p1',
-      vote: UserPostVote.Up,
+      vote: UserVote.Up,
       hidden: false,
     });
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
@@ -3477,7 +3477,7 @@ describe('mutation votePost', () => {
       downvotes: 3,
     });
     const res = await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: UserPostVote.Down },
+      variables: { id: 'p1', vote: UserVote.Down },
     });
     expect(res.errors).toBeFalsy();
     const userPost = await con.getRepository(UserPost).findOneBy({
@@ -3487,7 +3487,7 @@ describe('mutation votePost', () => {
     expect(userPost).toMatchObject({
       postId: 'p1',
       userId: loggedUser,
-      vote: UserPostVote.Down,
+      vote: UserVote.Down,
       hidden: true,
     });
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
@@ -3503,11 +3503,11 @@ describe('mutation votePost', () => {
     await con.getRepository(UserPost).save({
       postId: 'p1',
       userId: loggedUser,
-      vote: UserPostVote.Up,
+      vote: UserVote.Up,
       hidden: false,
     });
     const res = await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: UserPostVote.None },
+      variables: { id: 'p1', vote: UserVote.None },
     });
     const userPost = await con.getRepository(UserPost).findOneBy({
       postId: 'p1',
@@ -3517,7 +3517,7 @@ describe('mutation votePost', () => {
     expect(userPost).toMatchObject({
       userId: loggedUser,
       postId: 'p1',
-      vote: UserPostVote.None,
+      vote: UserVote.None,
       hidden: false,
     });
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
@@ -3546,7 +3546,7 @@ describe('mutation votePost', () => {
     });
     expect(userPostBefore).toBeNull();
     const res = await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: UserPostVote.Down },
+      variables: { id: 'p1', vote: UserVote.Down },
     });
     const userPost = await con.getRepository(UserPost).findOneBy({
       postId: 'p1',
@@ -3561,7 +3561,7 @@ describe('mutation votePost', () => {
     await con.getRepository(UserPost).save({
       postId: 'p1',
       userId: loggedUser,
-      vote: UserPostVote.Up,
+      vote: UserVote.Up,
       hidden: false,
     });
     const userPostBefore = await con.getRepository(UserPost).findOneBy({
@@ -3569,7 +3569,7 @@ describe('mutation votePost', () => {
       userId: loggedUser,
     });
     const res = await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: UserPostVote.Down },
+      variables: { id: 'p1', vote: UserVote.Down },
     });
     const userPost = await con.getRepository(UserPost).findOneBy({
       postId: 'p1',
@@ -3586,7 +3586,7 @@ describe('mutation votePost', () => {
     await con.getRepository(UserPost).save({
       postId: 'p1',
       userId: loggedUser,
-      vote: UserPostVote.Up,
+      vote: UserVote.Up,
       hidden: false,
     });
     const userPostBefore = await con.getRepository(UserPost).findOneBy({
@@ -3594,7 +3594,7 @@ describe('mutation votePost', () => {
       userId: loggedUser,
     });
     const res = await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: UserPostVote.Up },
+      variables: { id: 'p1', vote: UserVote.Up },
     });
     const userPost = await con.getRepository(UserPost).findOneBy({
       postId: 'p1',
@@ -3615,10 +3615,10 @@ describe('mutation votePost', () => {
     await con.getRepository(UserPost).save({
       postId: 'p1',
       userId: loggedUser,
-      vote: UserPostVote.None,
+      vote: UserVote.None,
     });
     const res = await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: UserPostVote.Up },
+      variables: { id: 'p1', vote: UserVote.Up },
     });
     expect(res.errors).toBeFalsy();
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
@@ -3635,10 +3635,10 @@ describe('mutation votePost', () => {
     await con.getRepository(UserPost).save({
       postId: 'p1',
       userId: loggedUser,
-      vote: UserPostVote.None,
+      vote: UserVote.None,
     });
     const res = await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: UserPostVote.Down },
+      variables: { id: 'p1', vote: UserVote.Down },
     });
     expect(res.errors).toBeFalsy();
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
@@ -3651,14 +3651,14 @@ describe('mutation votePost', () => {
     await con.getRepository(UserPost).save({
       postId: 'p1',
       userId: loggedUser,
-      vote: UserPostVote.Up,
+      vote: UserVote.Up,
     });
     await con.getRepository(Post).save({
       id: 'p1',
       upvotes: 3,
     });
     const res = await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: UserPostVote.None },
+      variables: { id: 'p1', vote: UserVote.None },
     });
     expect(res.errors).toBeFalsy();
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
@@ -3671,14 +3671,14 @@ describe('mutation votePost', () => {
     await con.getRepository(UserPost).save({
       postId: 'p1',
       userId: loggedUser,
-      vote: UserPostVote.Down,
+      vote: UserVote.Down,
     });
     await con.getRepository(Post).save({
       id: 'p1',
       downvotes: 3,
     });
     const res = await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: UserPostVote.None },
+      variables: { id: 'p1', vote: UserVote.None },
     });
     expect(res.errors).toBeFalsy();
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
@@ -3691,7 +3691,7 @@ describe('mutation votePost', () => {
     await con.getRepository(UserPost).save({
       postId: 'p1',
       userId: loggedUser,
-      vote: UserPostVote.Up,
+      vote: UserVote.Up,
     });
     await con.getRepository(Post).save({
       id: 'p1',
@@ -3699,7 +3699,7 @@ describe('mutation votePost', () => {
       downvotes: 2,
     });
     const res = await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: UserPostVote.Down },
+      variables: { id: 'p1', vote: UserVote.Down },
     });
     expect(res.errors).toBeFalsy();
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
@@ -3712,7 +3712,7 @@ describe('mutation votePost', () => {
     await con.getRepository(UserPost).save({
       postId: 'p1',
       userId: loggedUser,
-      vote: UserPostVote.Down,
+      vote: UserVote.Down,
     });
     await con.getRepository(Post).save({
       id: 'p1',
@@ -3720,7 +3720,7 @@ describe('mutation votePost', () => {
       downvotes: 3,
     });
     const res = await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: UserPostVote.Up },
+      variables: { id: 'p1', vote: UserVote.Up },
     });
     expect(res.errors).toBeFalsy();
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
@@ -3733,7 +3733,7 @@ describe('mutation votePost', () => {
     await con.getRepository(UserPost).save({
       postId: 'p1',
       userId: loggedUser,
-      vote: UserPostVote.Up,
+      vote: UserVote.Up,
     });
     await con.getRepository(Post).save({
       id: 'p1',
@@ -3753,7 +3753,7 @@ describe('mutation votePost', () => {
     await con.getRepository(UserPost).save({
       postId: 'p1',
       userId: loggedUser,
-      vote: UserPostVote.Down,
+      vote: UserVote.Down,
     });
     await con.getRepository(Post).save({
       id: 'p1',
@@ -3837,7 +3837,7 @@ describe('mutation dismissPostFeedback', () => {
     expect(userPost).toMatchObject({
       userId: loggedUser,
       postId: 'p1',
-      vote: UserPostVote.None,
+      vote: UserVote.None,
       flags: { feedbackDismiss: true },
     });
   });
@@ -3847,7 +3847,7 @@ describe('mutation dismissPostFeedback', () => {
     await con.getRepository(UserPost).save({
       userId: loggedUser,
       postId: 'p1',
-      vote: UserPostVote.Up,
+      vote: UserVote.Up,
       flags: { feedbackDismiss: false },
     });
     const res = await client.mutate(MUTATION, {
@@ -3861,7 +3861,7 @@ describe('mutation dismissPostFeedback', () => {
     expect(userPost).toMatchObject({
       userId: loggedUser,
       postId: 'p1',
-      vote: UserPostVote.Up,
+      vote: UserVote.Up,
       flags: { feedbackDismiss: true },
     });
   });

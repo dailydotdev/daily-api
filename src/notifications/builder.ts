@@ -14,8 +14,12 @@ import {
   Submission,
   User,
 } from '../entity';
-import { getDiscussionLink, getSourceLink, pickImageUrl } from '../common';
-import { getUserPermalink } from '../schema/users';
+import {
+  getDiscussionLink,
+  getSourceLink,
+  getUserPermalink,
+  pickImageUrl,
+} from '../common';
 import { markdownToTxt } from 'markdown-to-txt';
 import { NotificationBundleV2, Reference } from './types';
 import { NotificationIcon } from './icons';

@@ -32,3 +32,4 @@ export * from './notifications';
 export * from './Feature';
 export * from './Invite';
 export * from './ContentImage';
+export * from './MarketingCta';
