@@ -230,4 +230,7 @@ export class Post {
     lazy: true,
   })
   public relatedPosts: Promise<PostRelation[]>;
+
+  @Column({ type: 'text', nullable: false })
+  slug: string;
 }

@@ -129,6 +129,7 @@ export interface GQLPost {
   downvoted?: boolean;
   flags?: PostFlagsPublic;
   userState?: GQLUserPost;
+  slug?: string;
 }
 
 interface PinPostArgs {
@@ -505,6 +506,11 @@ export const typeDefs = /* GraphQL */ `
     Video ID for video post
     """
     videoId: String
+
+    """
+    Slug for the post
+    """
+    slug: String
   }
 
   type PostConnection {
@@ -1040,10 +1046,12 @@ const getPostById = async (
   id: string,
 ): Promise<GQLPost> => {
   const res = await graphorm.query<GQLPost>(ctx, info, (builder) => ({
-    queryBuilder: builder.queryBuilder.where(
-      `"${builder.alias}"."id" = :id AND "${builder.alias}"."deleted" = false`,
-      { id },
-    ),
+    queryBuilder: builder.queryBuilder
+      .where(
+        `"${builder.alias}"."id" = :id OR "${builder.alias}"."slug" = :id`,
+        { id },
+      )
+      .andWhere(`"${builder.alias}"."deleted" = false`),
     ...builder,
   }));
   if (res.length) {
@@ -1073,7 +1081,7 @@ export const resolvers: IResolvers<any, Context> = {
       const partialPost = await ctx.con.getRepository(Post).findOneOrFail({
         select: ['id', 'sourceId', 'private'],
         relations: ['source'],
-        where: { id },
+        where: [{ id }, { slug: id }],
       });
       const postSource = await partialPost.source;
 
@@ -1083,7 +1091,7 @@ export const resolvers: IResolvers<any, Context> = {
       ) {
         await ensureSourcePermissions(ctx, partialPost.sourceId);
       }
-      return getPostById(ctx, info, id);
+      return getPostById(ctx, info, partialPost.id);
     },
     postByUrl: async (
       source,
@@ -1207,7 +1215,7 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<ConnectionRelay<GQLPost>> => {
       const post = await ctx.con
         .getRepository(Post)
-        .findOneByOrFail({ id: args.id });
+        .findOneByOrFail([{ id: args.id }, { slug: args.id }]);
       await ensureSourcePermissions(ctx, post.sourceId);
 
       return queryPaginatedByDate(
