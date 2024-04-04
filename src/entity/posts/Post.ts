@@ -232,5 +232,6 @@ export class Post {
   public relatedPosts: Promise<PostRelation[]>;
 
   @Column({ type: 'text', nullable: false, unique: true })
+  @Index('IDX_post_slug', { unique: true })
   slug: string;
 }
