@@ -1382,7 +1382,7 @@ describe('comment upvote milestone', () => {
       .getRepository(Source)
       .update({ id: 'a' }, { type: SourceType.Squad });
     const repo = con.getRepository(SourceMember);
-    await con.getRepository(Comment).update({ id: 'c1' }, { upvotes: 5 });
+    await con.getRepository(Comment).update({ id: 'c1' }, { upvotes: 3 });
     await con.getRepository(UserComment).save([
       {
         userId: '1',
@@ -1410,7 +1410,7 @@ describe('comment upvote milestone', () => {
     const worker = await import(
       '../../src/workers/notifications/commentUpvoteMilestone'
     );
-    await con.getRepository(Comment).update({ id: 'c1' }, { upvotes: 5 });
+    await con.getRepository(Comment).update({ id: 'c1' }, { upvotes: 3 });
     await con.getRepository(UserComment).save([
       {
         userId: '1',
