@@ -126,7 +126,7 @@ const wsMemory = 2048;
 const wsLimits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = {
-  cpu: '500m',
+  cpu: '300m',
   memory: `${wsMemory}Mi`,
 };
 
