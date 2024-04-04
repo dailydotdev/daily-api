@@ -132,6 +132,46 @@ const saveSquadFixtures = async () => {
 
 afterAll(() => disposeGraphQLTesting(state));
 
+describe('slug field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      slug
+    }
+  }`;
+
+  it('should return the post slug', async () => {
+    const res = await client.query(QUERY);
+    expect(res.data.post.slug).toBe('p1-p1');
+  });
+
+  it('should return the post slug as id if title is empty', async () => {
+    const repo = con.getRepository(ArticlePost);
+    await repo.update({ id: 'p1' }, { title: '' });
+    const res = await client.query(QUERY);
+    expect(res.data.post.slug).toBe('p1');
+  });
+
+  it('should return the post slug cleaned if special characters are used', async () => {
+    const repo = con.getRepository(ArticlePost);
+    await repo.update(
+      { id: 'p1' },
+      { title: 'gemüse🦙✨杂货/薄荷نعناع!@#$%^&*()_+}{[],./;:""' },
+    );
+    const res = await client.query(QUERY);
+    expect(res.data.post.slug).toBe('gem-se--p1');
+  });
+
+  it('should return the post slug when searching for slug', async () => {
+    const SUB_QUERY = `{
+    post(id: "p1-p1") {
+      slug
+    }
+  }`;
+    const res = await client.query(SUB_QUERY);
+    expect(res.data.post.slug).toBe('p1-p1');
+  });
+});
+
 describe('image fields', () => {
   const QUERY = `{
     post(id: "image") {
