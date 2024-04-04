@@ -83,5 +83,7 @@ export async function sendReadingReminderPush(
   );
   push.chrome_web_badge =
     'https://daily-now-res.cloudinary.com/image/upload/v1672745846/public/dailydev.png';
+  push.chrome_web_icon =
+    'https://daily-now-res.cloudinary.com/image/upload/s--9vc188bS--/f_auto/v1712221649/1_smcxpz';
   await client.createNotification(push);
 }
