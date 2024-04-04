@@ -718,7 +718,7 @@ describe('query post', () => {
   it('should throw not found when cannot find post', () =>
     testQueryErrorCode(client, { query: QUERY('notfound') }, 'NOT_FOUND'));
 
-  it('should throw not found when post was soft deleted', async () => {
+  it('should throw not found when post was soft deleted #1', async () => {
     await saveFixtures(con, ArticlePost, [
       {
         id: 'pdeleted',
@@ -832,7 +832,7 @@ describe('query postByUrl', () => {
   it('should throw not found when cannot find post', () =>
     testQueryErrorCode(client, { query: QUERY('notfound') }, 'NOT_FOUND'));
 
-  it('should throw not found when post was soft deleted', async () => {
+  it('should throw not found when post was soft deleted #2', async () => {
     await saveFixtures(con, ArticlePost, [
       {
         id: 'pdeleted',

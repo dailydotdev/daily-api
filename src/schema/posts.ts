@@ -1046,12 +1046,10 @@ const getPostById = async (
   id: string,
 ): Promise<GQLPost> => {
   const res = await graphorm.query<GQLPost>(ctx, info, (builder) => ({
-    queryBuilder: builder.queryBuilder
-      .where(
-        `"${builder.alias}"."id" = :id OR "${builder.alias}"."slug" = :id`,
-        { id },
-      )
-      .andWhere(`"${builder.alias}"."deleted" = false`),
+    queryBuilder: builder.queryBuilder.where(
+      `"${builder.alias}"."id" = :id AND "${builder.alias}"."deleted" = false`,
+      { id },
+    ),
     ...builder,
   }));
   if (res.length) {

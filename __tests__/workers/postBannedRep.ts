@@ -62,8 +62,10 @@ it('should create a reputation event that increases reputation', async () => {
 
 const createSharedPost = async (id = 'sp1', args: Partial<Post> = {}) => {
   const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { slug, ...rest } = post;
   await con.getRepository(SharePost).save({
-    ...post,
+    ...rest,
     id,
     shortId: `short-${id}`,
     sharedPostId: 'p1',

@@ -120,8 +120,10 @@ const createDefaultQuestions = async (postId: string) => {
 
 const createSharedPost = async (id = 'sp1') => {
   const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { slug, ...rest } = post;
   await con.getRepository(SharePost).save({
-    ...post,
+    ...rest,
     id,
     shortId: `short-${id}`,
     sharedPostId: 'p1',
@@ -417,6 +419,7 @@ it('should save a new post with basic information', async () => {
     metadataChangedAt: expect.any(Date),
     score: expect.any(Number),
     id: expect.any(String),
+    slug: expect.any(String),
     shortId: expect.any(String),
     contentCuration: expect.any(Array),
     sourceId: 'a',

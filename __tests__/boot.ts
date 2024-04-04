@@ -963,7 +963,7 @@ describe('companion boot', () => {
   const POST_DATA = {
     author: null,
     bookmarked: null,
-    commentsPermalink: 'http://localhost:5002/posts/p1',
+    commentsPermalink: 'http://localhost:5002/posts/p1-p1',
     createdAt: expect.any(String),
     id: 'p1',
     image: 'https://daily.dev/image.jpg',
