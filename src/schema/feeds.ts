@@ -8,7 +8,6 @@ import {
   Post,
   Source,
   UserPost,
-  UserPostVote,
 } from '../entity';
 import { Category } from '../entity/Category';
 import { GraphQLResolveInfo } from 'graphql';
@@ -54,6 +53,7 @@ import {
 } from '../integrations/feed';
 import { AuthenticationError } from 'apollo-server-errors';
 import { opentelemetry } from '../telemetry/opentelemetry';
+import { UserVote } from '../types';
 
 interface GQLTagsCategory {
   id: string;
@@ -1106,7 +1106,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             UserPost,
             'up',
             `up."postId" = ${alias}.id AND up."userId" = :author AND vote = :vote`,
-            { author: userId, vote: UserPostVote.Up },
+            { author: userId, vote: UserVote.Up },
           ),
       upvotedPageGenerator,
       applyUpvotedPaging,

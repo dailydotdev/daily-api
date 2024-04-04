@@ -36,6 +36,10 @@ export class Comment {
   upvotes: number;
 
   @Column({ type: 'integer', default: 0 })
+  @Index('IDX_comment_downvotes')
+  downvotes: number;
+
+  @Column({ type: 'integer', default: 0 })
   comments: number;
 
   @Column({ default: false })

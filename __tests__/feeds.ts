@@ -20,7 +20,6 @@ import {
   SourceType,
   User,
   UserPost,
-  UserPostVote,
   View,
   WelcomePost,
   YouTubePost,
@@ -53,6 +52,8 @@ import createOrGetConnection from '../src/db';
 import { randomUUID } from 'crypto';
 import { usersFixture } from './fixture/user';
 import { base64 } from 'graphql-relay/utils/base64';
+import { baseFeedConfig } from '../src/integrations/feed/generators';
+import { UserVote } from '../src/types';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -682,9 +683,10 @@ describe('query feed', () => {
         page_size: 10,
         offset: 0,
         fresh_page_size: '4',
-        feed_config_name: 'vector_v21',
+        feed_config_name: 'vector_v27',
         user_id: '1',
-        source_types: ['machine', 'squad'],
+        ...baseFeedConfig,
+        config: undefined,
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
@@ -1935,25 +1937,25 @@ describe('query userUpvotedFeed', () => {
       {
         userId: '2',
         postId: 'p1',
-        vote: UserPostVote.Up,
+        vote: UserVote.Up,
         votedAt: new Date(2023, 13, 26),
       },
       {
         userId: '2',
         postId: 'p3',
-        vote: UserPostVote.Up,
+        vote: UserVote.Up,
         votedAt: new Date(2023, 13, 24),
       },
       {
         userId: '2',
         postId: 'p2',
-        vote: UserPostVote.Down,
+        vote: UserVote.Down,
         votedAt: new Date(2023, 13, 23),
       },
       {
         userId: '1',
         postId: 'p4',
-        vote: UserPostVote.Up,
+        vote: UserVote.Up,
         votedAt: new Date(2023, 13, 23),
       },
     ]);

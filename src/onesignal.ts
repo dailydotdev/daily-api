@@ -37,3 +37,51 @@ export async function sendPushNotification(
   }
   await client.createNotification(push);
 }
+
+const readingReminderHeadings = [
+  "It's this time of the day",
+  'Catch up on your feed',
+  'Sustain your learning streak',
+  "Don't let your feed feel lonely",
+  'Breaking: Your feed misses you',
+  'Your brain requested knowledge',
+  'You already know the drill',
+  "It's us again",
+];
+
+const readingReminderContents = [
+  "Let's find something interesting to read",
+  "Dive into today's top picks on your daily.dev feed",
+  'Your next favorite post is just a tap away',
+  "There's always something new to learn. Let's find it together",
+  "Feed your brain with today's latest tech buzzwords",
+  'Transform your break into a knowledge feast. Start reading',
+];
+
+export async function sendReadingReminderPush(
+  userIds: string[],
+  at: Date,
+): Promise<void> {
+  if (!appId || !apiKey) return;
+
+  const seed = Math.floor(new Date().getTime() / 1000);
+
+  const push = new OneSignal.Notification();
+  push.app_id = appId;
+  push.include_external_user_ids = userIds;
+  push.send_after = at.toISOString();
+  push.contents = {
+    en: readingReminderContents[seed % readingReminderContents.length],
+  };
+  push.headings = {
+    en: readingReminderHeadings[seed % readingReminderHeadings.length],
+  };
+  push.url = addNotificationUtm(
+    process.env.COMMENTS_PREFIX,
+    'push',
+    'reminder',
+  );
+  push.chrome_web_badge =
+    'https://daily-now-res.cloudinary.com/image/upload/v1672745846/public/dailydev.png';
+  await client.createNotification(push);
+}

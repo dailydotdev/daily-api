@@ -8,7 +8,6 @@ import {
   ReputationType,
   PostType,
   UserPost,
-  UserPostVote,
   CampaignCtaPlacement,
   CollectionPost,
   PostRelation,
@@ -86,7 +85,7 @@ import {
   UserStateKey,
   ContentImage,
 } from '../../../src/entity';
-import { ChangeObject } from '../../../src/types';
+import { ChangeObject, UserVote } from '../../../src/types';
 import { sourcesFixture } from '../../fixture/source';
 import { postsFixture } from '../../fixture/post';
 import { randomUUID } from 'crypto';
@@ -282,7 +281,7 @@ describe('post upvote', () => {
     userId: '1',
     postId: 'p1',
     votedAt: 0,
-    vote: UserPostVote.Up,
+    vote: UserVote.Up,
     hidden: false,
     updatedAt: 0,
     createdAt: 0,
@@ -332,7 +331,7 @@ describe('post upvote', () => {
         after: base,
         before: {
           ...base,
-          vote: UserPostVote.None,
+          vote: UserVote.None,
         },
         op: 'u',
         table: 'user_post',
@@ -352,7 +351,7 @@ describe('post upvote', () => {
       mockChangeMessage<ObjectType>({
         after: {
           ...base,
-          vote: UserPostVote.None,
+          vote: UserVote.None,
         },
         before: base,
         op: 'u',
@@ -372,11 +371,11 @@ describe('post upvote', () => {
       mockChangeMessage<ObjectType>({
         after: {
           ...base,
-          vote: UserPostVote.None,
+          vote: UserVote.None,
         },
         before: {
           ...base,
-          vote: UserPostVote.Down,
+          vote: UserVote.Down,
         },
         op: 'u',
         table: 'user_post',
@@ -441,6 +440,7 @@ describe('comment', () => {
     parentId: null,
     comments: 0,
     upvotes: 0,
+    downvotes: 0,
     featured: false,
     createdAt: 0,
     lastUpdatedAt: 0,

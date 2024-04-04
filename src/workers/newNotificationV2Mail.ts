@@ -43,7 +43,7 @@ interface Data {
   notification: ChangeObject<NotificationV2>;
 }
 
-const notificationToTemplateId: Record<NotificationType, string> = {
+export const notificationToTemplateId: Record<NotificationType, string> = {
   community_picks_failed: 'd-43cf7ff439ff4391839e946940499b30',
   community_picks_succeeded: 'd-ee7d7cfc461a43b4be776f70940fa867',
   community_picks_granted: 'd-6d17b936f1f245e486f1a85323240332',
@@ -71,7 +71,7 @@ const notificationToTemplateId: Record<NotificationType, string> = {
   squad_subscribe_to_notification: '',
   collection_updated: 'd-c051ffef97a148b6a6f14d5edb46b553',
   dev_card_unlocked: 'd-3d3402ec873640e788f549a0680c40bb',
-  source_post_added: '',
+  source_post_added: 'd-3d3613684ca44cd0bc37fff4d38a90f1',
 };
 
 type TemplateData = Record<string, string | number>;
@@ -638,8 +638,29 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       },
     };
   },
-  source_post_added: async () => {
-    return null;
+  source_post_added: async (con, users, notification) => {
+    const post = (await con.getRepository(Post).findOne({
+      where: {
+        id: notification.referenceId,
+      },
+      relations: {
+        source: true,
+      },
+    })) as ArticlePost;
+    const source = await post.source;
+
+    return {
+      static: {
+        post_link: addNotificationEmailUtm(
+          notification.targetUrl,
+          notification.type,
+        ),
+        post_image: post.image || pickImageUrl(post),
+        post_title: truncatePostToTweet(post),
+        source_name: source.name,
+        source_image: source.image,
+      },
+    };
   },
 };
 

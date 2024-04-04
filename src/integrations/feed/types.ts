@@ -1,4 +1,5 @@
 import { Context } from '../../Context';
+import { GenericMetadata } from '../lofn';
 
 export type FeedResponse = {
   data: [postId: string, metadata: string | undefined][];
@@ -9,12 +10,7 @@ export enum FeedConfigName {
   Personalise = 'personalise',
   Vector = 'vector',
   Onboarding = 'onboarding',
-  PersonaliseV20 = 'personalise_v20',
-  PersonaliseV25 = 'personalise_v25',
   PersonaliseV27 = 'personalise_v27',
-  VectorV20 = 'vector_v20',
-  VectorV21 = 'vector_v21',
-  VectorV25 = 'vector_v25',
   VectorV26 = 'vector_v26',
   VectorV27 = 'vector_v27',
   PostSimilarity = 'post_similarity',
@@ -57,12 +53,24 @@ export type FeedConfig = {
   source_types?: ('machine' | 'squad')[];
   cursor?: string;
   post_id?: string;
+  allowed_languages?: string[];
+  config?: {
+    [key: string]: unknown;
+  };
 };
 
 export type DynamicConfig = Omit<FeedConfig, 'total_pages'>;
 
+export type FeedConfigGeneratorResult = {
+  config: FeedConfig;
+  extraMetadata?: GenericMetadata;
+};
+
 export interface FeedConfigGenerator {
-  generate(ctx: Context, opts: DynamicConfig): Promise<FeedConfig>;
+  generate(
+    ctx: Context,
+    opts: DynamicConfig,
+  ): Promise<FeedConfigGeneratorResult>;
 }
 
 /**
@@ -79,15 +87,14 @@ export interface IFeedClient {
     ctx: Context,
     feedId: string,
     config: FeedConfig,
+    extraMetadata?: GenericMetadata,
   ): Promise<FeedResponse>;
 }
 
 export type FeedVersion =
-  | '20'
-  | '21'
-  | '25'
   | '26'
-  | '27'
+  | '29'
   | 'popular'
   | 'onboarding'
-  | 'post_similarity';
+  | 'post_similarity'
+  | '30';

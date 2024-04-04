@@ -1,12 +1,8 @@
-import fastq from 'fastq';
 import '../src/config';
 import createOrGetConnection from '../src/db';
 import { UserPersonalizedDigest } from '../src/entity';
 import {
-  ExperimentAllocationEvent,
-  sendExperimentAllocationEvent,
-} from '../src/integrations/analytics';
-import {
+  ExperimentAllocationClient,
   features,
   getUserGrowthBookInstace,
   loadFeatures,
@@ -56,25 +52,15 @@ import pino from 'pino';
   const allocationQueueConcurrency = +(
     process.env.ALLOCATION_QUEUE_CONCURRENCY || 1
   );
-  const allocationQueue = fastq.promise(
-    async (data: ExperimentAllocationEvent) => {
-      await sendExperimentAllocationEvent(data);
-    },
-    allocationQueueConcurrency,
-  );
+  const allocationClient = new ExperimentAllocationClient({
+    concurrency: allocationQueueConcurrency,
+  });
 
   personalizedDigestStream.on(
     'data',
     (personalizedDigest: UserPersonalizedDigest) => {
       const gbClient = getUserGrowthBookInstace(personalizedDigest.userId, {
-        trackingCallback: (experiment, result) => {
-          allocationQueue.push({
-            event_timestamp: new Date(personalizedDigest.lastSendDate),
-            user_id: personalizedDigest.userId,
-            experiment_id: experiment.key,
-            variation_id: result.variationId.toString(),
-          });
-        },
+        allocationClient,
       });
 
       gbClient.getFeatureValue(
@@ -92,7 +78,7 @@ import pino from 'pino';
     });
     personalizedDigestStream.on('end', resolve);
   });
-  await allocationQueue.drained();
+  await allocationClient.waitForSend();
 
   process.exit();
 })();

@@ -18,6 +18,7 @@ import {
   SourceMember,
   SourceType,
   User,
+  PostType,
 } from '../entity';
 import { NotFoundError, TypeOrmError } from '../errors';
 import { GQLEmptyResponse } from './common';
@@ -35,6 +36,8 @@ import {
 import { ensureSourcePermissions, SourcePermissions } from './sources';
 import { generateShortId } from '../ids';
 import { CommentReport } from '../entity/CommentReport';
+import { UserComment } from '../entity/user/UserComment';
+import { UserVote } from '../types';
 
 export interface GQLComment {
   id: string;
@@ -47,6 +50,7 @@ export interface GQLComment {
   children?: Connection<GQLComment>;
   post: GQLPost;
   numUpvotes: number;
+  userState?: GQLUserComment;
 }
 
 interface GQLMentionUserArgs {
@@ -80,6 +84,10 @@ interface ReportCommentArgs {
   commentId: string;
   note: string;
   reason: string;
+}
+
+export interface GQLUserComment {
+  vote: UserVote;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -138,6 +146,16 @@ export const typeDefs = /* GraphQL */ `
     Total number of upvotes
     """
     numUpvotes: Int!
+
+    """
+    Parent comment of this comment
+    """
+    parent: Comment
+
+    """
+    User state for the comment
+    """
+    userState: UserComment @auth
   }
 
   type CommentEdge {
@@ -205,7 +223,33 @@ export const typeDefs = /* GraphQL */ `
     OTHER
   }
 
+  type UserComment {
+    """
+    The user's vote for the comment
+    """
+    vote: Int!
+
+    user: User!
+
+    comment: Comment!
+  }
+
   extend type Query {
+    """
+    Get the comments feed
+    """
+    commentFeed(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): CommentConnection! @auth
+
     """
     Get the comments of a post
     """
@@ -535,6 +579,35 @@ export const reportCommentReasons = new Map([
 export const resolvers: IResolvers<any, Context> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Query: traceResolverObject<any, any>({
+    commentFeed: async (
+      _,
+      args: ConnectionArguments,
+      ctx,
+      info,
+    ): Promise<Connection<GQLComment>> => {
+      return queryPaginatedByDate(
+        ctx,
+        info,
+        args,
+        { key: 'createdAt' },
+        {
+          queryBuilder: (builder) => {
+            builder.queryBuilder = builder.queryBuilder
+              .innerJoin(Post, 'p', `"${builder.alias}"."postId" = p.id`)
+              .innerJoin(Source, 's', `"p"."sourceId" = s.id`)
+              .innerJoin(User, 'u', `"${builder.alias}"."userId" = u.id`)
+              .andWhere(`s.private = false`)
+              .andWhere('p.visible = true')
+              .andWhere('p.deleted = false')
+              .andWhere('p.type != :type', { type: PostType.Welcome })
+              .andWhere('u.reputation > 10');
+
+            return builder;
+          },
+          orderByKey: 'DESC',
+        },
+      );
+    },
     postComments: async (
       _,
       args: GQLPostCommentsArgs,
@@ -680,14 +753,14 @@ export const resolvers: IResolvers<any, Context> = {
         ctx,
         info,
         (builder) => ({
-          queryBuilder: builder.queryBuilder
-            .where(`"${builder.alias}"."id" = :id`, { id })
-            .andWhere(`"${builder.alias}"."userId" = :userId`, {
-              userId: ctx.userId,
-            }),
+          queryBuilder: builder.queryBuilder.where(
+            `"${builder.alias}"."id" = :id`,
+            { id },
+          ),
           ...builder,
         }),
       );
+
       const post = await ctx.con
         .getRepository(Post)
         .findOneByOrFail({ id: comment.postId });
@@ -869,6 +942,7 @@ export const resolvers: IResolvers<any, Context> = {
 
       return { _: true };
     },
+    // TODO AS-214 remove when frontend no longer uses and extension adoption
     upvoteComment: async (
       source,
       { id }: { id: string },
@@ -882,13 +956,15 @@ export const resolvers: IResolvers<any, Context> = {
         const post = await comment.post;
         await ensureSourcePermissions(ctx, post.sourceId);
         await ctx.con.transaction(async (entityManager) => {
+          await entityManager.getRepository(UserComment).save({
+            commentId: id,
+            userId: ctx.userId,
+            vote: UserVote.Up,
+          });
           await entityManager.getRepository(CommentUpvote).insert({
             commentId: id,
             userId: ctx.userId,
           });
-          await entityManager
-            .getRepository(Comment)
-            .increment({ id }, 'upvotes', 1);
         });
       } catch (err) {
         // Foreign key violation
@@ -902,6 +978,7 @@ export const resolvers: IResolvers<any, Context> = {
       }
       return { _: true };
     },
+    // TODO AS-214 remove when frontend no longer uses and extension adoption
     cancelCommentUpvote: async (
       source,
       { id }: { id: string },
@@ -914,14 +991,16 @@ export const resolvers: IResolvers<any, Context> = {
             commentId: id,
             userId: ctx.userId,
           });
+        await entityManager.getRepository(UserComment).save({
+          commentId: id,
+          userId: ctx.userId,
+          vote: UserVote.None,
+        });
         if (upvote) {
           await entityManager.getRepository(CommentUpvote).delete({
             commentId: id,
             userId: ctx.userId,
           });
-          await entityManager
-            .getRepository(Comment)
-            .decrement({ id }, 'upvotes', 1);
           return true;
         }
         return false;

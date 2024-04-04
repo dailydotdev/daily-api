@@ -4,20 +4,26 @@ import {
   Source,
   User,
   UserPersonalizedDigest,
+  UserPersonalizedDigestSendType,
   UserStreak,
 } from '../entity';
 import { DayOfWeek } from '../types';
 import { MailDataRequired } from '@sendgrid/mail';
-import { format, nextDay, previousDay } from 'date-fns';
-import { features } from '../growthbook';
+import { format, isSameDay, nextDay, previousDay } from 'date-fns';
+import { PersonalizedDigestFeatureConfig } from '../growthbook';
 import { feedToFilters, fixedIdsFeedBuilder } from './feedGenerator';
 import { FeedClient } from '../integrations/feed';
-import { addNotificationUtm, baseNotificationEmailData } from './mailing';
+import {
+  addNotificationUtm,
+  baseNotificationEmailData,
+  createEmailBatchId,
+} from './mailing';
 import { pickImageUrl } from './post';
 import { getDiscussionLink } from './links';
-import { DataSource } from 'typeorm';
+import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import { zonedTimeToUtc } from 'date-fns-tz';
+import fastq from 'fastq';
 
 type TemplatePostData = Pick<
   ArticlePost,
@@ -40,35 +46,33 @@ export const personalizedDigestDateFormat = 'yyyy-MM-dd HH:mm:ss';
 type EmailSendDateProps = {
   personalizedDigest: UserPersonalizedDigest;
   generationTimestamp: number;
+  timezone: string;
 };
 
 export const getPersonalizedDigestSendDate = ({
   personalizedDigest,
   generationTimestamp,
+  timezone,
 }: EmailSendDateProps): Date => {
   const nextPreferredDay = nextDay(
     new Date(generationTimestamp),
     personalizedDigest.preferredDay,
   );
   nextPreferredDay.setHours(personalizedDigest.preferredHour, 0, 0, 0);
-  return zonedTimeToUtc(nextPreferredDay, personalizedDigest.preferredTimezone);
+  return zonedTimeToUtc(nextPreferredDay, timezone);
 };
 
 export const getPersonalizedDigestPreviousSendDate = ({
   personalizedDigest,
   generationTimestamp,
+  timezone,
 }: EmailSendDateProps): Date => {
   const nextPreferredDay = previousDay(
     new Date(generationTimestamp),
     personalizedDigest.preferredDay,
   );
   nextPreferredDay.setHours(personalizedDigest.preferredHour, 0, 0, 0);
-  const sendDateInPreferredTimezone = zonedTimeToUtc(
-    nextPreferredDay,
-    personalizedDigest.preferredTimezone,
-  );
-
-  return sendDateInPreferredTimezone;
+  return zonedTimeToUtc(nextPreferredDay, timezone);
 };
 
 const getPostsTemplateData = ({
@@ -76,7 +80,7 @@ const getPostsTemplateData = ({
   feature,
 }: {
   posts: TemplatePostData[];
-  feature: typeof features.personalizedDigest.defaultValue;
+  feature: PersonalizedDigestFeatureConfig;
 }) => {
   return posts.map((post) => {
     return {
@@ -112,7 +116,7 @@ const getEmailVariation = async ({
   posts: TemplatePostData[];
   user: User;
   userStreak?: UserStreak;
-  feature: typeof features.personalizedDigest.defaultValue;
+  feature: PersonalizedDigestFeatureConfig;
   currentDate: Date;
 }): Promise<Partial<MailDataRequired>> => {
   const [dayName] = Object.entries(DayOfWeek).find(
@@ -173,7 +177,7 @@ export const getPersonalizedDigestEmailPayload = async ({
   emailSendDate: Date;
   currentDate: Date;
   previousSendDate: Date;
-  feature: typeof features.personalizedDigest.defaultValue;
+  feature: PersonalizedDigestFeatureConfig;
 }): Promise<MailDataRequired | undefined> => {
   const feedConfig = await feedToFilters(
     con,
@@ -248,4 +252,141 @@ export const getPersonalizedDigestEmailPayload = async ({
   };
 
   return emailPayload;
+};
+
+export const digestPreferredHourOffset = 4;
+
+export const schedulePersonalizedDigestSubscriptions = async ({
+  queryBuilder,
+  logger,
+  sendType,
+  handler,
+}: {
+  queryBuilder: SelectQueryBuilder<UserPersonalizedDigest>;
+  logger: FastifyBaseLogger;
+  sendType: UserPersonalizedDigestSendType;
+  handler: ({
+    personalizedDigest,
+    emailBatchId,
+  }: {
+    personalizedDigest: UserPersonalizedDigest;
+    emailBatchId: string;
+  }) => Promise<void>;
+}) => {
+  const emailBatchId = await createEmailBatchId();
+
+  if (!emailBatchId) {
+    throw new Error('failed to create email batch id');
+  }
+
+  logger.info({ emailBatchId, sendType }, 'starting personalized digest send');
+
+  let digestCount = 0;
+
+  const personalizedDigestStream = await queryBuilder.stream();
+  const notifyQueueConcurrency = +process.env.DIGEST_QUEUE_CONCURRENCY;
+  const notifyQueue = fastq.promise(
+    async ({
+      personalizedDigest,
+      emailBatchId,
+    }: Parameters<typeof handler>[0]) => {
+      await handler({ personalizedDigest, emailBatchId });
+
+      digestCount += 1;
+    },
+    notifyQueueConcurrency,
+  );
+
+  personalizedDigestStream.on(
+    'data',
+    (personalizedDigest: UserPersonalizedDigest) => {
+      notifyQueue.push({ personalizedDigest, emailBatchId });
+    },
+  );
+
+  await new Promise((resolve, reject) => {
+    personalizedDigestStream.on('error', (error) => {
+      logger.error(
+        { err: error, emailBatchId, sendType },
+        'streaming personalized digest subscriptions failed',
+      );
+
+      reject(error);
+    });
+    personalizedDigestStream.on('end', resolve);
+  });
+  await notifyQueue.drained();
+
+  logger.info(
+    { digestCount, emailBatchId, sendType },
+    'personalized digest sent',
+  );
+};
+
+type SetEmailSendDateProps = {
+  personalizedDigest: UserPersonalizedDigest;
+  deduplicate: boolean;
+  con: DataSource;
+  date: Date;
+};
+
+const setEmailSendDate = async ({
+  con,
+  personalizedDigest,
+  date,
+  deduplicate,
+}: SetEmailSendDateProps) => {
+  if (!deduplicate) {
+    return;
+  }
+
+  return con.getRepository(UserPersonalizedDigest).update(
+    {
+      userId: personalizedDigest.userId,
+      type: personalizedDigest.type,
+    },
+    {
+      lastSendDate: date,
+    },
+  );
+};
+
+export const dedupedSend = async (
+  send: () => Promise<unknown>,
+  { con, personalizedDigest, deduplicate, date }: SetEmailSendDateProps,
+): Promise<void> => {
+  const { lastSendDate = null } =
+    (await con.getRepository(UserPersonalizedDigest).findOne({
+      select: ['lastSendDate'],
+      where: {
+        userId: personalizedDigest.userId,
+        type: personalizedDigest.type,
+      },
+    })) || {};
+
+  if (deduplicate && lastSendDate && isSameDay(date, lastSendDate)) {
+    return;
+  }
+
+  await setEmailSendDate({
+    con,
+    personalizedDigest,
+    date,
+    deduplicate,
+  });
+
+  try {
+    await send();
+  } catch (error) {
+    // since email did not send we revert the lastSendDate
+    // so worker can do it again in retry
+    await setEmailSendDate({
+      con,
+      personalizedDigest,
+      date: lastSendDate,
+      deduplicate,
+    });
+
+    throw error;
+  }
 };

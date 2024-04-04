@@ -29,8 +29,16 @@ import {
 import { SourceMemberRoles } from '../../src/roles';
 import { sourcesFixture } from '../fixture/source';
 import { usersFixture } from '../fixture/user';
-import { ISnotraClient, UserState } from '../../src/integrations/snotra';
-import { FeedUserStateConfigGenerator } from '../../src/integrations/feed/configs';
+import {
+  ISnotraClient,
+  SnotraClient,
+  UserState,
+} from '../../src/integrations/snotra';
+import {
+  FeedLofnConfigGenerator,
+  FeedUserStateConfigGenerator,
+} from '../../src/integrations/feed/configs';
+import { ILofnClient } from '../../src/integrations/lofn';
 
 let con: DataSource;
 let ctx: Context;
@@ -86,6 +94,28 @@ describe('FeedClient', () => {
     const feedClient = new FeedClient(url);
     const feed = await feedClient.fetchFeed(ctx, 'id', config);
     expect(feed).toEqual(feedResponse);
+  });
+
+  it('should merge tyr metadata with feed metadata', async () => {
+    nock(url)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .post('', config as any)
+      .reply(200, rawFeedResponse);
+
+    const feedClient = new FeedClient(url);
+    const feed = await feedClient.fetchFeed(ctx, 'id', config, {
+      mab: { test: 'da' },
+    });
+    expect(feed).toEqual({
+      data: [
+        ['1', '{"p":"a","mab":{"test":"da"}}'],
+        ['2', '{"p":"b","mab":{"test":"da"}}'],
+        ['3', '{"p":"c","mab":{"test":"da"}}'],
+        ['4', '{"mab":{"test":"da"}}'],
+        ['5', '{"mab":{"test":"da"}}'],
+        ['6', '{"mab":{"test":"da"}}'],
+      ],
+    });
   });
 });
 
@@ -158,17 +188,21 @@ describe('FeedPreferencesConfigGenerator', () => {
       offset: 3,
     });
     expect(actual).toEqual({
-      allowed_tags: expect.arrayContaining(['javascript', 'golang']),
-      blocked_sources: expect.arrayContaining(['a', 'b']),
-      blocked_tags: expect.arrayContaining(['python', 'java']),
-      allowed_post_types: postTypes.filter((x) => x !== PostType.VideoYouTube),
-      feed_config_name: FeedConfigName.Personalise,
-      fresh_page_size: '1',
-      offset: 3,
-      page_size: 2,
-      squad_ids: expect.arrayContaining(['a', 'b']),
-      total_pages: 20,
-      user_id: '1',
+      config: {
+        allowed_tags: expect.arrayContaining(['javascript', 'golang']),
+        blocked_sources: expect.arrayContaining(['a', 'b']),
+        blocked_tags: expect.arrayContaining(['python', 'java']),
+        allowed_post_types: postTypes.filter(
+          (x) => x !== PostType.VideoYouTube,
+        ),
+        feed_config_name: FeedConfigName.Personalise,
+        fresh_page_size: '1',
+        offset: 3,
+        page_size: 2,
+        squad_ids: expect.arrayContaining(['a', 'b']),
+        total_pages: 20,
+        user_id: '1',
+      },
     });
   });
 
@@ -187,14 +221,16 @@ describe('FeedPreferencesConfigGenerator', () => {
       offset: 3,
     });
     expect(actual).toEqual({
-      blocked_sources: expect.arrayContaining(['a', 'b']),
-      blocked_tags: expect.arrayContaining(['python', 'java']),
-      feed_config_name: FeedConfigName.Personalise,
-      fresh_page_size: '1',
-      offset: 3,
-      page_size: 2,
-      total_pages: 20,
-      user_id: '1',
+      config: {
+        blocked_sources: expect.arrayContaining(['a', 'b']),
+        blocked_tags: expect.arrayContaining(['python', 'java']),
+        feed_config_name: FeedConfigName.Personalise,
+        fresh_page_size: '1',
+        offset: 3,
+        page_size: 2,
+        total_pages: 20,
+        user_id: '1',
+      },
     });
   });
 
@@ -209,12 +245,14 @@ describe('FeedPreferencesConfigGenerator', () => {
       offset: 3,
     });
     expect(actual).toEqual({
-      feed_config_name: FeedConfigName.Personalise,
-      fresh_page_size: '1',
-      offset: 3,
-      page_size: 2,
-      total_pages: 20,
-      user_id: '1',
+      config: {
+        feed_config_name: FeedConfigName.Personalise,
+        fresh_page_size: '1',
+        offset: 3,
+        page_size: 2,
+        total_pages: 20,
+        user_id: '1',
+      },
     });
   });
 });
@@ -243,8 +281,9 @@ describe('FeedUserStateConfigGenerator', () => {
       page_size: 2,
       offset: 3,
     });
-    expect(actual.user_id).toEqual('1');
-    expect(actual.feed_config_name).toEqual('vector');
+    expect(actual.config).toBeTruthy();
+    expect(actual.config.user_id).toEqual('1');
+    expect(actual.config.feed_config_name).toEqual('vector');
     expect(mockClient.fetchUserState).toBeCalledWith({
       user_id: '1',
       providers: { personalise: {} },
@@ -265,6 +304,141 @@ describe('FeedUserStateConfigGenerator', () => {
       page_size: 2,
       offset: 3,
     });
-    expect(actual.feed_config_name).toEqual('personalise');
+    expect(actual.config.feed_config_name).toEqual('personalise');
+  });
+
+  it('should send proper parameters to snotra', async () => {
+    const client = new SnotraClient();
+    nock('http://localhost:6001')
+      .post('/api/v1/user/profile', {
+        user_id: '1',
+        providers: {
+          personalise: {},
+        },
+        post_rank_count: 8,
+      })
+      .reply(200, { personalise: { state: 'personalised' } });
+    const generator: FeedConfigGenerator = new FeedUserStateConfigGenerator(
+      client,
+      generators,
+      8,
+    );
+    await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 2,
+      offset: 3,
+    });
+  });
+});
+
+describe('FeedLofnConfigGenerator', () => {
+  beforeEach(async () => {
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, User, [usersFixture[0]]);
+    await con.getRepository(Feed).save({ id: '1', userId: 'u1' });
+    await con.getRepository(FeedTag).save([
+      { feedId: '1', tag: 'javascript' },
+      { feedId: '1', tag: 'golang' },
+      { feedId: '1', tag: 'python', blocked: true },
+      { feedId: '1', tag: 'java', blocked: true },
+    ]);
+    await con.getRepository(FeedSource).save([
+      { feedId: '1', sourceId: 'a' },
+      { feedId: '1', sourceId: 'b' },
+    ]);
+    await con.getRepository(SourceMember).save([
+      {
+        userId: '1',
+        sourceId: 'a',
+        role: SourceMemberRoles.Member,
+        referralToken: 'rt',
+      },
+      {
+        userId: '1',
+        sourceId: 'b',
+        role: SourceMemberRoles.Admin,
+        referralToken: 'rt2',
+      },
+    ]);
+    await con.getRepository(AdvancedSettings).save([
+      {
+        title: 'Videos',
+        group: 'content_types',
+        description: '',
+        defaultEnabledState: true,
+        options: { type: PostType.VideoYouTube },
+      },
+      {
+        title: 'Articles',
+        group: 'content_types',
+        description: '',
+        defaultEnabledState: true,
+        options: { type: PostType.Article },
+      },
+    ]);
+    await con.getRepository(FeedAdvancedSettings).save([
+      { feedId: '1', advancedSettingsId: 1, enabled: false },
+      { feedId: '1', advancedSettingsId: 2, enabled: true },
+    ]);
+  });
+
+  it('should generate config through lofn', async () => {
+    const mockClient = mock<ILofnClient>();
+    const mockedValue = {
+      user_id: '1',
+      config: {
+        page_size: 20,
+        total_pages: 10,
+        providers: {},
+      },
+      tyr_metadata: {
+        test: 'da',
+      },
+    };
+    mockClient.fetchConfig.mockResolvedValueOnce(mockedValue);
+    const generator: FeedConfigGenerator = new FeedLofnConfigGenerator(
+      {
+        total_pages: 1,
+      },
+      mockClient,
+      {
+        includeBlockedTags: true,
+        includeAllowedTags: true,
+        includeBlockedSources: true,
+        includeSourceMemberships: true,
+        includePostTypes: true,
+        feed_version: '30',
+      },
+    );
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 10,
+      offset: 3,
+    });
+    expect(actual).toMatchObject({
+      config: {
+        user_id: '1',
+        total_pages: 1,
+        page_size: 10,
+        fresh_page_size: '4',
+        allowed_tags: ['javascript', 'golang'],
+        blocked_tags: ['python', 'java'],
+        blocked_sources: ['a', 'b'],
+        squad_ids: ['a', 'b'],
+        allowed_post_types: [
+          'article',
+          'share',
+          'freeform',
+          'welcome',
+          'collection',
+        ],
+        config: {
+          providers: {},
+        },
+      },
+      extraMetadata: {
+        mab: mockedValue.tyr_metadata,
+      },
+    });
   });
 });

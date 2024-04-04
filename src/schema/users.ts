@@ -17,6 +17,11 @@ import {
   UserPersonalizedDigest,
   getAuthorPostStats,
   AcquisitionChannel,
+  UserMarketingCta,
+  MarketingCta,
+  UserPersonalizedDigestType,
+  UserPersonalizedDigestFlags,
+  UserPersonalizedDigestSendType,
 } from '../entity';
 import {
   AuthenticationError,
@@ -39,6 +44,9 @@ import {
   checkAndClearUserStreak,
   GQLUserStreakTz,
   toGQLEnum,
+  getUserPermalink,
+  votePost,
+  voteComment,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -51,11 +59,19 @@ import {
 } from '../errors';
 import { deleteUser } from '../directive/user';
 import { randomInt } from 'crypto';
-import { In } from 'typeorm';
+import { DataSource, In, IsNull } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
-import { DayOfWeek } from '../types';
-import { getTimezoneOffset } from 'date-fns-tz';
+import { DayOfWeek, UserVote, UserVoteEntity } from '../types';
 import { markdown } from '../common/markdown';
+import {
+  ONE_WEEK_IN_SECONDS,
+  RedisMagicValues,
+  deleteRedisKey,
+  getRedisObject,
+  setRedisObjectWithExpiry,
+} from '../redis';
+import { StorageKey, StorageTopic, generateStorageKey } from '../config';
+import { FastifyBaseLogger } from 'fastify';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -147,7 +163,6 @@ export interface ReferralCampaign {
 export interface GQLPersonalizedDigest {
   preferredDay: DayOfWeek;
   preferredHour: number;
-  preferredTimezone: string;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -391,7 +406,7 @@ export const typeDefs = /* GraphQL */ `
   type PersonalizedDigest {
     preferredDay: Int!
     preferredHour: Int!
-    preferredTimezone: String!
+    type: DigestType
   }
 
   type UserEdge {
@@ -416,6 +431,9 @@ export const typeDefs = /* GraphQL */ `
   }
 
   ${toGQLEnum(AcquisitionChannel, 'AcquisitionChannel')}
+  ${toGQLEnum(UserPersonalizedDigestType, 'DigestType')}
+
+  ${toGQLEnum(UserVoteEntity, 'UserVoteEntity')}
 
   extend type Query {
     """
@@ -540,7 +558,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get personalized digest settings
     """
-    personalizedDigest: PersonalizedDigest @auth
+    personalizedDigest(type: DigestType): PersonalizedDigest @auth
 
     """
     List of users that the logged in user has referred to the platform
@@ -576,16 +594,17 @@ export const typeDefs = /* GraphQL */ `
       Preferred day of the week. Expected value is 0-6
       """
       day: Int
+
       """
-      Preferred timezone relevant to the hour and day.
+      Type of the digest (digest/reminder/etc)
       """
-      timezone: String
+      type: DigestType
     ): PersonalizedDigest @auth
 
     """
     The mutation to unsubscribe from the personalized digest
     """
-    unsubscribePersonalizedDigest: EmptyResponse @auth
+    unsubscribePersonalizedDigest(type: DigestType): EmptyResponse @auth
     """
     The mutation to accept feature invites from another user
     """
@@ -630,6 +649,31 @@ export const typeDefs = /* GraphQL */ `
     addUserAcquisitionChannel(
       acquisitionChannel: AcquisitionChannel!
     ): EmptyResponse @auth
+
+    """
+    Clears the user marketing CTA and marks it as read
+    """
+    clearUserMarketingCta(campaignId: String!): EmptyResponse @auth
+
+    """
+    Vote entity
+    """
+    vote(
+      """
+      Id of the entity
+      """
+      id: ID!
+
+      """
+      Entity to vote (post, comment..)
+      """
+      entity: UserVoteEntity!
+
+      """
+      Vote type
+      """
+      vote: Int!
+    ): EmptyResponse @auth
   }
 `;
 
@@ -643,10 +687,6 @@ const getCurrentUser = (
     }),
     ...builder,
   }));
-
-export const getUserPermalink = (
-  user: Pick<GQLUser, 'id' | 'username'>,
-): string => `${process.env.COMMENTS_PREFIX}/${user.username ?? user.id}`;
 
 interface ReadingHistyoryArgs {
   id: string;
@@ -703,6 +743,49 @@ const userTimezone = `at time zone COALESCE(timezone, 'utc')`;
 const timestampAtTimezone = `"timestamp"::timestamptz ${userTimezone}`;
 
 const MAX_README_LENGTH = 10_000;
+
+export const getMarketingCta = async (
+  con: DataSource,
+  log: FastifyBaseLogger,
+  userId: string,
+) => {
+  if (!userId) {
+    log.info('no userId provided when fetching marketing cta');
+    return null;
+  }
+
+  const redisKey = generateStorageKey(
+    StorageTopic.Boot,
+    StorageKey.MarketingCta,
+    userId,
+  );
+  const rawRedisValue = await getRedisObject(redisKey);
+
+  if (rawRedisValue === RedisMagicValues.SLEEPING) {
+    return null;
+  }
+
+  // If the vale in redis is `EMPTY`, we fallback to `null`
+  let marketingCta: MarketingCta | null = JSON.parse(rawRedisValue || null);
+
+  // If the key is not in redis, we need to fetch it from the database
+  if (!marketingCta) {
+    const userMarketingCta = await con.getRepository(UserMarketingCta).findOne({
+      where: { userId, readAt: IsNull() },
+      order: { createdAt: 'ASC' },
+      relations: ['marketingCta'],
+    });
+
+    marketingCta = userMarketingCta?.marketingCta || null;
+    const redisValue = userMarketingCta
+      ? JSON.stringify(marketingCta)
+      : RedisMagicValues.SLEEPING;
+
+    await setRedisObjectWithExpiry(redisKey, redisValue, ONE_WEEK_IN_SECONDS);
+  }
+
+  return marketingCta;
+};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
@@ -1008,12 +1091,14 @@ export const resolvers: IResolvers<any, Context> = {
     },
     personalizedDigest: async (
       _,
-      args,
+      {
+        type = UserPersonalizedDigestType.Digest,
+      }: { type?: UserPersonalizedDigestType },
       ctx: Context,
     ): Promise<GQLPersonalizedDigest> => {
       const personalizedDigest = await ctx
         .getRepository(UserPersonalizedDigest)
-        .findOneBy({ userId: ctx.userId });
+        .findOneBy({ userId: ctx.userId, type });
 
       if (!personalizedDigest) {
         throw new NotFoundError('Not subscribed to personalized digest');
@@ -1140,11 +1225,11 @@ export const resolvers: IResolvers<any, Context> = {
       args: {
         hour?: number;
         day?: number;
-        timezone?: string;
+        type?: UserPersonalizedDigestType;
       },
       ctx: Context,
     ): Promise<GQLPersonalizedDigest> => {
-      const { hour, day, timezone } = args;
+      const { hour, day, type = UserPersonalizedDigestType.Digest } = args;
 
       if (!isNullOrUndefined(hour) && (hour < 0 || hour > 23)) {
         throw new ValidationError('Invalid hour');
@@ -1154,27 +1239,28 @@ export const resolvers: IResolvers<any, Context> = {
         throw new ValidationError('Invalid day');
       }
 
-      if (
-        !isNullOrUndefined(timezone) &&
-        Number.isNaN(getTimezoneOffset(timezone))
-      ) {
-        throw new ValidationError('Invalid timezone');
-      }
-
       const repo = ctx.con.getRepository(UserPersonalizedDigest);
+
+      const flags: UserPersonalizedDigestFlags = {};
+      if (type === UserPersonalizedDigestType.ReadingReminder) {
+        flags.sendType = UserPersonalizedDigestSendType.workdays;
+      }
 
       const personalizedDigest = await repo.save({
         userId: ctx.userId,
         preferredDay: day,
         preferredHour: hour,
-        preferredTimezone: timezone,
+        type,
+        flags,
       });
 
       return personalizedDigest;
     },
     unsubscribePersonalizedDigest: async (
       _,
-      args,
+      {
+        type = UserPersonalizedDigestType.Digest,
+      }: { type?: UserPersonalizedDigestType },
       ctx: Context,
     ): Promise<unknown> => {
       const repo = ctx.con.getRepository(UserPersonalizedDigest);
@@ -1182,6 +1268,7 @@ export const resolvers: IResolvers<any, Context> = {
       if (ctx.userId) {
         await repo.delete({
           userId: ctx.userId,
+          type,
         });
       }
 
@@ -1287,6 +1374,51 @@ export const resolvers: IResolvers<any, Context> = {
         .update({ id: ctx.userId }, { acquisitionChannel });
 
       return { _: null };
+    },
+    clearUserMarketingCta: async (
+      _,
+      { campaignId }: { campaignId: string },
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      const updateResult = await ctx.con
+        .getRepository(UserMarketingCta)
+        .update(
+          { userId: ctx.userId, marketingCtaId: campaignId, readAt: IsNull() },
+          { readAt: new Date() },
+        );
+
+      if (updateResult.affected > 0) {
+        await deleteRedisKey(
+          generateStorageKey(
+            StorageTopic.Boot,
+            StorageKey.MarketingCta,
+            ctx.userId,
+          ),
+        );
+
+        // Preemptively fetch the next CTA and store it in Redis
+        await getMarketingCta(ctx.con, ctx.log, ctx.userId);
+      }
+
+      return { _: null };
+    },
+    vote: async (
+      _,
+      {
+        id,
+        vote,
+        entity,
+      }: { id: string; vote: UserVote; entity: UserVoteEntity },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      switch (entity) {
+        case UserVoteEntity.Post:
+          return votePost({ ctx, id, vote });
+        case UserVoteEntity.Comment:
+          return voteComment({ ctx, id, vote });
+        default:
+          throw new ValidationError('Unsupported vote entity');
+      }
     },
   }),
   User: {

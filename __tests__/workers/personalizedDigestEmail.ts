@@ -7,6 +7,7 @@ import {
   Source,
   User,
   UserPersonalizedDigest,
+  UserPersonalizedDigestType,
   UserStreak,
 } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
@@ -19,13 +20,19 @@ import {
 } from '../../src/common';
 import nock from 'nock';
 import { subDays } from 'date-fns';
-import { features } from '../../src/growthbook';
+import { ExperimentAllocationClient, features } from '../../src/growthbook';
 import { sendExperimentAllocationEvent } from '../../src/integrations/analytics';
+import { sendReadingReminderPush } from '../../src/onesignal';
+import { DEFAULT_TIMEZONE } from '../../src/types';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
   sendEmail: jest.fn(),
-  createEemailBatchId: jest.fn(),
+}));
+
+jest.mock('../../src/onesignal', () => ({
+  ...(jest.requireActual('../../src/onesignal') as Record<string, unknown>),
+  sendReadingReminderPush: jest.fn(),
 }));
 
 jest.mock('../../src/integrations/analytics', () => ({
@@ -38,19 +45,21 @@ jest.mock('../../src/integrations/analytics', () => ({
 
 jest.mock('../../src/growthbook', () => ({
   ...(jest.requireActual('../../src/growthbook') as Record<string, unknown>),
-  getUserGrowthBookInstace: (_userId: string, { trackingCallback }) => {
+  getUserGrowthBookInstace: (
+    _userId: string,
+    { allocationClient }: { allocationClient: ExperimentAllocationClient },
+  ) => {
     return {
       loadFeatures: jest.fn(),
       getFeatures: jest.fn(),
       getFeatureValue: (featureId: string) => {
-        if (typeof trackingCallback === 'function') {
-          trackingCallback(
-            { key: featureId },
-            {
-              featureId,
-              variationId: 0,
-            },
-          );
+        if (allocationClient) {
+          allocationClient.push({
+            event_timestamp: new Date(),
+            user_id: _userId,
+            experiment_id: featureId,
+            variation_id: '0',
+          });
         }
 
         return Object.values(features).find(
@@ -111,15 +120,18 @@ beforeEach(async () => {
 const getDates = (
   personalizedDigest: UserPersonalizedDigest,
   timestamp: number,
+  timezone = DEFAULT_TIMEZONE,
 ) => {
   return {
     emailSendTimestamp: getPersonalizedDigestSendDate({
       personalizedDigest,
       generationTimestamp: timestamp,
+      timezone,
     }).getTime(),
     previousSendTimestamp: getPersonalizedDigestPreviousSendDate({
       personalizedDigest,
       generationTimestamp: timestamp,
+      timezone,
     }).getTime(),
   };
 };
@@ -175,7 +187,11 @@ describe('personalizedDigestEmail worker', () => {
   it('should generate personalized digest for user in timezone ahead UTC', async () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
-      preferredTimezone: 'America/Phoenix',
+      type: UserPersonalizedDigestType.Digest,
+    });
+    await con.getRepository(User).save({
+      id: '1',
+      timezone: 'America/Phoenix',
     });
 
     const personalizedDigest = await con
@@ -188,7 +204,7 @@ describe('personalizedDigestEmail worker', () => {
 
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
-      ...getDates(personalizedDigest!, Date.now()),
+      ...getDates(personalizedDigest!, Date.now(), 'America/Phoenix'),
       emailBatchId: 'test-email-batch-id',
     });
 
@@ -222,7 +238,11 @@ describe('personalizedDigestEmail worker', () => {
   it('should generate personalized digest for user in timezone behind UTC', async () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
-      preferredTimezone: 'Asia/Dhaka',
+      type: UserPersonalizedDigestType.Digest,
+    });
+    await con.getRepository(User).save({
+      id: '1',
+      timezone: 'Asia/Dhaka',
     });
 
     const personalizedDigest = await con
@@ -235,7 +255,7 @@ describe('personalizedDigestEmail worker', () => {
 
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
-      ...getDates(personalizedDigest!, Date.now()),
+      ...getDates(personalizedDigest!, Date.now(), 'Asia/Dhaka'),
       emailBatchId: 'test-email-batch-id',
     });
 
@@ -332,6 +352,7 @@ describe('personalizedDigestEmail worker', () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
       lastSendDate: new Date(),
+      type: UserPersonalizedDigestType.Digest,
     });
 
     await expectSuccessfulBackground(worker, {
@@ -353,6 +374,7 @@ describe('personalizedDigestEmail worker', () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
       lastSendDate: subDays(new Date(), 7),
+      type: UserPersonalizedDigestType.Digest,
     });
 
     await expectSuccessfulBackground(worker, {
@@ -378,6 +400,7 @@ describe('personalizedDigestEmail worker', () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
       lastSendDate,
+      type: UserPersonalizedDigestType.Digest,
     });
 
     await expect(() => {
@@ -409,6 +432,7 @@ describe('personalizedDigestEmail worker', () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
       lastSendDate: subDays(new Date(), 7),
+      type: UserPersonalizedDigestType.Digest,
     });
 
     await expectSuccessfulBackground(worker, {
@@ -439,6 +463,7 @@ describe('personalizedDigestEmail worker', () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
       lastSendDate,
+      type: UserPersonalizedDigestType.Digest,
     });
 
     await expectSuccessfulBackground(worker, {
@@ -463,6 +488,7 @@ describe('personalizedDigestEmail worker', () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
       lastSendDate,
+      type: UserPersonalizedDigestType.Digest,
     });
 
     await expectSuccessfulBackground(worker, {
@@ -496,6 +522,7 @@ describe('personalizedDigestEmail worker', () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
       lastSendDate,
+      type: UserPersonalizedDigestType.Digest,
     });
 
     nock.cleanAll();
@@ -589,5 +616,82 @@ describe('personalizedDigestEmail worker', () => {
         date: expect.any(String),
       },
     });
+  });
+
+  it('should generate personalized digest for user with provided config', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    expect(personalizedDigest).toBeTruthy();
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+      config: {
+        templateId: 'd-testtemplateidfromconfig',
+        maxPosts: 3,
+        feedConfig: 'testfeedconfig',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const emailData = (sendEmail as jest.Mock).mock.calls[0][0];
+    expect(emailData).toMatchSnapshot({
+      sendAt: expect.any(Number),
+      dynamicTemplateData: {
+        date: expect.any(String),
+      },
+    });
+
+    expect(nockScope.isDone()).toBe(true);
+    expect(nockBody).toMatchSnapshot({
+      date_from: expect.any(String),
+      date_to: expect.any(String),
+    });
+  });
+
+  it('should support reading reminder', async () => {
+    await con.getRepository(UserPersonalizedDigest).update(
+      {
+        userId: '1',
+      },
+      { type: UserPersonalizedDigestType.ReadingReminder },
+    );
+
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    expect(personalizedDigest).toBeTruthy();
+    expect(personalizedDigest!.lastSendDate).toBeNull();
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    const personalizedDigestAfterWorker = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    expect(sendReadingReminderPush).toHaveBeenCalledWith(
+      ['1'],
+      expect.any(Date),
+    );
+    const at = (sendReadingReminderPush as jest.Mock).mock.calls[0][1];
+    expect(at.getDay()).toBe(personalizedDigest!.preferredDay);
+    expect(at.getHours()).toBe(personalizedDigest!.preferredHour);
+    expect(at.getTimezoneOffset()).toBe(0);
+
+    expect(personalizedDigestAfterWorker!.lastSendDate).not.toBeNull();
   });
 });
