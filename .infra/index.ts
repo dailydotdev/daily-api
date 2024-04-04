@@ -114,11 +114,11 @@ if (isPersonalizedDigestEnabled) {
   );
 }
 
-const memory = 640;
+const memory = 400;
 const limits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = {
-  cpu: '1',
+  cpu: '800m',
   memory: `${memory}Mi`,
 };
 
