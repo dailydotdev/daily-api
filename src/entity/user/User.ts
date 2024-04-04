@@ -412,6 +412,9 @@ export const validateUserUpdate = async (
 
 export enum AcquisitionChannel {
   friend = 'friend',
+  social_media = 'social_media',
+  blog = 'blog',
+  extension_store = 'extension_store',
   instagram_facebook = 'instagram_facebook',
   x = 'x',
   tiktok = 'tiktok',
