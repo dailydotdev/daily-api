@@ -231,6 +231,6 @@ export class Post {
   })
   public relatedPosts: Promise<PostRelation[]>;
 
-  @Column({ type: 'text', nullable: false })
+  @Column({ type: 'text', nullable: false, unique: true })
   slug: string;
 }
