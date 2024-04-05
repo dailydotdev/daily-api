@@ -114,11 +114,11 @@ if (isPersonalizedDigestEnabled) {
   );
 }
 
-const memory = 640;
+const memory = 400;
 const limits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = {
-  cpu: '1',
+  cpu: '800m',
   memory: `${memory}Mi`,
 };
 
@@ -126,13 +126,13 @@ const wsMemory = 2048;
 const wsLimits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = {
-  cpu: '500m',
+  cpu: '300m',
   memory: `${wsMemory}Mi`,
 };
 
 const bgLimits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
-}> = { cpu: '250m', memory: '256Mi' };
+}> = { cpu: '50m', memory: '150Mi' };
 
 const initialDelaySeconds = 20;
 const readinessProbe: k8s.types.input.core.v1.Probe = {
