@@ -37,6 +37,7 @@ Object {
   "shortId": Any<String>,
   "showOnFeed": true,
   "siteTwitter": null,
+  "slug": Any<String>,
   "sourceId": "a",
   "summary": null,
   "tagsStr": null,
