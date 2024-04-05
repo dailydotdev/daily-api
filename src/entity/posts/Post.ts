@@ -231,7 +231,13 @@ export class Post {
   })
   public relatedPosts: Promise<PostRelation[]>;
 
-  @Column({ type: 'text', nullable: false, unique: true })
+  @Column({
+    type: 'text',
+    nullable: false,
+    unique: true,
+    generatedType: 'STORED',
+    asExpression: `trim(BOTH '-' FROM regexp_replace(lower(trim(COALESCE(post.title,'')||'-'||post.id)), '[^a-z0-9-]+', '-', 'gi'))`,
+  })
   @Index('IDX_post_slug', { unique: true })
   slug: string;
 }
