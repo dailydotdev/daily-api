@@ -7,7 +7,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     const con = await createOrGetConnection();
     const query = con
       .createQueryBuilder()
-      .select(`concat('${process.env.COMMENTS_PREFIX}', '/posts/', id)`, 'url')
+      .select(
+        `concat('${process.env.COMMENTS_PREFIX}', '/posts/', slug)`,
+        'url',
+      )
       .from(Post, 'p')
       .where('type NOT IN (:...types)', { types: [PostType.Welcome] })
       .andWhere('NOT private')
