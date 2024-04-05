@@ -34,7 +34,6 @@ jobs:
           - POSTGRES_DB: api_test
           - POSTGRES_PASSWORD: 12345
       - image: redis:6
-    parallelism: 4
     steps:
       - checkout
       - restore_cache:
