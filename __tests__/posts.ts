@@ -161,6 +161,21 @@ describe('slug field', () => {
     expect(res.data.post.slug).toBe('gem-se--p1');
   });
 
+  it('should return the post slug truncated if title is too long', async () => {
+    const repo = con.getRepository(ArticlePost);
+    await repo.update(
+      { id: 'p1' },
+      {
+        title:
+          'Donec vulputate neque a est convallis, at interdum ligula fermentum. Pellentesque euismod semper urna, ac eleifend felis viverra nec. Phasellus sit am',
+      },
+    );
+    const res = await client.query(QUERY);
+    expect(res.data.post.slug).toBe(
+      'donec-vulputate-neque-a-est-convallis-at-interdum-ligula-fermentum-pellentesque-euismod-semper-urn-p1',
+    );
+  });
+
   it('should return the post slug when searching for slug', async () => {
     const SUB_QUERY = `{
     post(id: "p1-p1") {
