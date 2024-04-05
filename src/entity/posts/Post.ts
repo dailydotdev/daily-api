@@ -238,7 +238,7 @@ export class Post {
     nullable: false,
     unique: true,
     generatedType: 'STORED',
-    asExpression: `trim(BOTH '-' FROM regexp_replace(lower(trim(COALESCE(post.title,'')||'-'||post.id)), '[^a-z0-9-]+', '-', 'gi'))`,
+    asExpression: `trim(BOTH '-' FROM regexp_replace(lower(trim(COALESCE(LEFT(post.title,100),'')||'-'||post.id)), '[^a-z0-9-]+', '-', 'gi'))`,
   })
   @Index('IDX_post_slug', { unique: true })
   slug: string;
