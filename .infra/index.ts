@@ -114,7 +114,7 @@ if (isPersonalizedDigestEnabled) {
   );
 }
 
-const memory = 400;
+const memory = 640;
 const limits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = {
