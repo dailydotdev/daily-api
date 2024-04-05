@@ -233,6 +233,8 @@ export class Post {
 
   @Column({
     type: 'text',
+    update: false,
+    insert: false,
     nullable: false,
     unique: true,
     generatedType: 'STORED',

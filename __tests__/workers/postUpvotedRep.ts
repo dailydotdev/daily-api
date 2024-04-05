@@ -21,6 +21,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   jest.resetAllMocks();
   await saveFixtures(con, Source, sourcesFixture);
+  console.log(postsFixture[0]);
   await saveFixtures(con, ArticlePost, postsFixture);
   await con.getRepository(User).save([
     {
