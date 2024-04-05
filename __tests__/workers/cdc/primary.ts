@@ -391,10 +391,10 @@ describe('comment upvote', () => {
   const base: ChangeObject<ObjectType> = {
     userId: '1',
     commentId: 'c1',
-    createdAt: 0,
-    vote: UserVote.Up,
     votedAt: 0,
+    vote: UserVote.Up,
     updatedAt: 0,
+    createdAt: 0,
     flags: {},
   };
 
@@ -410,6 +410,7 @@ describe('comment upvote', () => {
       }),
     );
     expect(notifyCommentUpvoted).toHaveBeenCalledTimes(1);
+    expect(notifyCommentUpvoteCanceled).toHaveBeenCalledTimes(0);
     expect(jest.mocked(notifyCommentUpvoted).mock.calls[0].slice(1)).toEqual([
       'c1',
       '1',
@@ -426,10 +427,72 @@ describe('comment upvote', () => {
         table: 'user_comment',
       }),
     );
+    expect(notifyCommentUpvoted).toHaveBeenCalledTimes(0);
     expect(notifyCommentUpvoteCanceled).toHaveBeenCalledTimes(1);
     expect(
       jest.mocked(notifyCommentUpvoteCanceled).mock.calls[0].slice(1),
     ).toEqual(['c1', '1']);
+  });
+
+  it('should notify on upvote updated', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: {
+          ...base,
+          vote: UserVote.None,
+        },
+        op: 'u',
+        table: 'user_comment',
+      }),
+    );
+    expect(notifyCommentUpvoted).toHaveBeenCalledTimes(1);
+    expect(notifyCommentUpvoteCanceled).toHaveBeenCalledTimes(0);
+    expect(jest.mocked(notifyCommentUpvoted).mock.calls[0].slice(1)).toEqual([
+      'c1',
+      '1',
+    ]);
+  });
+
+  it('should notify on upvote canceled', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: {
+          ...base,
+          vote: UserVote.None,
+        },
+        before: base,
+        op: 'u',
+        table: 'user_comment',
+      }),
+    );
+    expect(notifyCommentUpvoted).toHaveBeenCalledTimes(0);
+    expect(notifyCommentUpvoteCanceled).toHaveBeenCalledTimes(1);
+    expect(
+      jest.mocked(notifyCommentUpvoteCanceled).mock.calls[0].slice(1),
+    ).toEqual(['c1', '1']);
+  });
+
+  it('should not notify if entity is not upvote', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: {
+          ...base,
+          vote: UserVote.None,
+        },
+        before: {
+          ...base,
+          vote: UserVote.Down,
+        },
+        op: 'u',
+        table: 'user_comment',
+      }),
+    );
+    expect(notifyCommentUpvoted).toHaveBeenCalledTimes(0);
+    expect(notifyCommentUpvoteCanceled).toHaveBeenCalledTimes(0);
   });
 });
 
