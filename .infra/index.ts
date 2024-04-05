@@ -132,7 +132,7 @@ const wsLimits: pulumi.Input<{
 
 const bgLimits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
-}> = { cpu: '50m', memory: '150Mi' };
+}> = { cpu: '50m', memory: '256Mi' };
 
 const initialDelaySeconds = 20;
 const readinessProbe: k8s.types.input.core.v1.Probe = {
