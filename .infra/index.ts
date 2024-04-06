@@ -299,7 +299,7 @@ if (isAdhocEnv) {
       maxReplicas: 2,
       limits: {
         memory: '256Mi',
-        cpu: '500m',
+        cpu: '25m',
       },
       readinessProbe,
       livenessProbe,
