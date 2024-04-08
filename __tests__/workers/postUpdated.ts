@@ -417,6 +417,7 @@ it('should save a new post with basic information', async () => {
     metadataChangedAt: expect.any(Date),
     score: expect.any(Number),
     id: expect.any(String),
+    slug: expect.any(String),
     shortId: expect.any(String),
     contentCuration: expect.any(Array),
     sourceId: 'a',
