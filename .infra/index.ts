@@ -114,7 +114,7 @@ if (isPersonalizedDigestEnabled) {
   );
 }
 
-const memory = 400;
+const memory = 640;
 const limits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = {
@@ -132,7 +132,7 @@ const wsLimits: pulumi.Input<{
 
 const bgLimits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
-}> = { cpu: '50m', memory: '150Mi' };
+}> = { cpu: '50m', memory: '256Mi' };
 
 const initialDelaySeconds = 20;
 const readinessProbe: k8s.types.input.core.v1.Probe = {
@@ -299,7 +299,7 @@ if (isAdhocEnv) {
       maxReplicas: 2,
       limits: {
         memory: '256Mi',
-        cpu: '500m',
+        cpu: '25m',
       },
       readinessProbe,
       livenessProbe,
