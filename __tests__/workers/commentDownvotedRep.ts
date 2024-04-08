@@ -1,4 +1,4 @@
-import { expectSuccessfulBackground, saveFixtures } from '../helpers';
+import { expectSuccessfulTypedBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/commentDownvotedRep';
 import {
   ArticlePost,
@@ -11,7 +11,7 @@ import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
-import { workers } from '../../src/workers';
+import { typedWorkers } from '../../src/workers';
 
 let con: DataSource;
 
@@ -51,7 +51,7 @@ describe('commentDownvotedRep worker', () => {
   });
 
   it('should be registered', () => {
-    const registeredWorker = workers.find(
+    const registeredWorker = typedWorkers.find(
       (item) => item.subscription === worker.subscription,
     );
 
@@ -59,7 +59,7 @@ describe('commentDownvotedRep worker', () => {
   });
 
   it('should create a reputation event that decreases reputation', async () => {
-    await expectSuccessfulBackground(worker, {
+    await expectSuccessfulTypedBackground(worker, {
       userId: '2',
       commentId: 'c1',
     });
@@ -71,7 +71,7 @@ describe('commentDownvotedRep worker', () => {
 
   it('should not create a reputation event when the downvoting user is ineligible', async () => {
     await con.getRepository(User).update({ id: '2' }, { reputation: 1 });
-    await expectSuccessfulBackground(worker, {
+    await expectSuccessfulTypedBackground(worker, {
       userId: '2',
       commentId: 'c1',
     });
@@ -80,7 +80,7 @@ describe('commentDownvotedRep worker', () => {
   });
 
   it('should not create a reputation event when the author is the downvote user', async () => {
-    await expectSuccessfulBackground(worker, {
+    await expectSuccessfulTypedBackground(worker, {
       userId: '1',
       commentId: 'c1',
     });

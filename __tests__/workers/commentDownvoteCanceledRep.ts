@@ -1,4 +1,4 @@
-import { expectSuccessfulBackground, saveFixtures } from '../helpers';
+import { expectSuccessfulTypedBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/commentDownvoteCanceledRep';
 import {
   ArticlePost,
@@ -13,7 +13,7 @@ import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
-import { workers } from '../../src/workers';
+import { typedWorkers } from '../../src/workers';
 
 let con: DataSource;
 
@@ -47,7 +47,7 @@ describe('commentUpvoteCanceledRep worker', () => {
   });
 
   it('should be registered', () => {
-    const registeredWorker = workers.find(
+    const registeredWorker = typedWorkers.find(
       (item) => item.subscription === worker.subscription,
     );
 
@@ -65,7 +65,7 @@ describe('commentUpvoteCanceledRep worker', () => {
         reason: ReputationReason.CommentDownvoted,
       }),
     );
-    await expectSuccessfulBackground(worker, {
+    await expectSuccessfulTypedBackground(worker, {
       userId: '2',
       commentId: 'c1',
     });
