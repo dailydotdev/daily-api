@@ -1087,7 +1087,25 @@ export const resolvers: IResolvers<any, Context> = {
         partialPost.private ||
         sourceTypesWithMembers.includes(postSource.type)
       ) {
-        await ensureSourcePermissions(ctx, partialPost.sourceId);
+        try {
+          await ensureSourcePermissions(ctx, partialPost.sourceId);
+        } catch (permissionError) {
+          if (permissionError instanceof ForbiddenError) {
+            const forbiddenError = permissionError as ForbiddenError;
+
+            const forbiddenErrorForPost = new ForbiddenError(
+              permissionError.message,
+              {
+                ...forbiddenError.extensions,
+                postId: partialPost.id,
+              },
+            );
+
+            throw forbiddenErrorForPost;
+          }
+
+          throw permissionError;
+        }
       }
       return getPostById(ctx, info, partialPost.id);
     },
