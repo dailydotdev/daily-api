@@ -392,6 +392,7 @@ const [apps] = deployApplicationSuite(
           args: ['dumb-init', 'node', 'bin/cli', 'cron', cron.name],
           schedule: cron.schedule,
           limits: cron.limits ?? bgLimits,
+          requests: cron.requests ?? bgRequests,
           activeDeadlineSeconds: 300,
         })),
     isAdhocEnv,
