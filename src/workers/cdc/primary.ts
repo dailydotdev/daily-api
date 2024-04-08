@@ -228,9 +228,9 @@ const handlePostDownvoteChange = async (
       break;
     }
     case 'd': {
-      const wasUpvoted = data.payload.before.vote === UserVote.Up;
+      const wasDownvoted = data.payload.before.vote === UserVote.Down;
 
-      if (wasUpvoted) {
+      if (wasDownvoted) {
         await notifyPostDownvoteCanceled(
           logger,
           data.payload.before.postId,

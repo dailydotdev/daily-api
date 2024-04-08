@@ -54,6 +54,8 @@ import {
   notifyUserReadmeUpdated,
   triggerTypedEvent,
   notifyReputationIncrease,
+  notifyPostDownvoted,
+  notifyPostDownvoteCanceled,
 } from '../../../src/common';
 import worker from '../../../src/workers/cdc/primary';
 import {
@@ -140,6 +142,8 @@ jest.mock('../../../src/common', () => ({
   notifyPostCollectionUpdated: jest.fn(),
   notifyUserReadmeUpdated: jest.fn(),
   notifyReputationIncrease: jest.fn(),
+  notifyPostDownvoted: jest.fn(),
+  notifyPostDownvoteCanceled: jest.fn(),
 }));
 
 let con: DataSource;
@@ -2032,5 +2036,116 @@ describe('post relation collection', () => {
 
     expect(collectionAfterWorker.collectionSources.length).toBe(2);
     expect(collectionAfterWorker.collectionSources).toMatchObject(['a', 'a']);
+  });
+});
+
+describe('post downvote', () => {
+  type ObjectType = UserPost;
+  const base: ChangeObject<ObjectType> = {
+    userId: '1',
+    postId: 'p1',
+    votedAt: 0,
+    vote: UserVote.Down,
+    hidden: false,
+    updatedAt: 0,
+    createdAt: 0,
+    flags: {},
+  };
+
+  it('should notify on new downvote', async () => {
+    const after: ChangeObject<ObjectType> = base;
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'user_post',
+      }),
+    );
+    expect(notifyPostDownvoted).toHaveBeenCalledTimes(1);
+    expect(notifyPostDownvoteCanceled).toHaveBeenCalledTimes(0);
+    expect(jest.mocked(notifyPostDownvoted).mock.calls[0].slice(1)).toEqual([
+      'p1',
+      '1',
+    ]);
+  });
+
+  it('should notify on downvote deleted', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: null,
+        before: base,
+        op: 'd',
+        table: 'user_post',
+      }),
+    );
+    expect(notifyPostDownvoted).toHaveBeenCalledTimes(0);
+    expect(notifyPostDownvoteCanceled).toHaveBeenCalledTimes(1);
+    expect(
+      jest.mocked(notifyPostDownvoteCanceled).mock.calls[0].slice(1),
+    ).toEqual(['p1', '1']);
+  });
+
+  it('should notify on downvote updated', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: {
+          ...base,
+          vote: UserVote.None,
+        },
+        op: 'u',
+        table: 'user_post',
+      }),
+    );
+    expect(notifyPostDownvoted).toHaveBeenCalledTimes(1);
+    expect(notifyPostDownvoteCanceled).toHaveBeenCalledTimes(0);
+    expect(jest.mocked(notifyPostDownvoted).mock.calls[0].slice(1)).toEqual([
+      'p1',
+      '1',
+    ]);
+  });
+
+  it('should notify on downvote canceled', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: {
+          ...base,
+          vote: UserVote.None,
+        },
+        before: base,
+        op: 'u',
+        table: 'user_post',
+      }),
+    );
+    expect(notifyPostDownvoted).toHaveBeenCalledTimes(0);
+    expect(notifyPostDownvoteCanceled).toHaveBeenCalledTimes(1);
+    expect(
+      jest.mocked(notifyPostDownvoteCanceled).mock.calls[0].slice(1),
+    ).toEqual(['p1', '1']);
+  });
+
+  it('should not notify if entity is not downvote', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: {
+          ...base,
+          vote: UserVote.None,
+        },
+        before: {
+          ...base,
+          vote: UserVote.Up,
+        },
+        op: 'u',
+        table: 'user_post',
+      }),
+    );
+    expect(notifyPostDownvoted).toHaveBeenCalledTimes(0);
+    expect(notifyPostDownvoteCanceled).toHaveBeenCalledTimes(0);
   });
 });
