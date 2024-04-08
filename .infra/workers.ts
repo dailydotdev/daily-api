@@ -253,6 +253,14 @@ export const workers: Worker[] = [
     topic: 'api.v1.user-created',
     subscription: 'api.user-created-personalized-digest-send-type',
   },
+  {
+    topic: 'api.v1.comment-downvoted',
+    subscription: 'api.comment-downvoted-rep',
+  },
+  {
+    topic: 'api.v1.comment-downvote-canceled',
+    subscription: 'api.comment-downvote-canceled-rep',
+  },
 ];
 
 export const personalizedDigestWorkers = [

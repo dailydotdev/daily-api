@@ -77,6 +77,8 @@ import {
   notifyReputationIncrease,
   notifyPostDownvoted,
   notifyPostDownvoteCanceled,
+  notifyCommentDownvoted,
+  notifyCommentDownvoteCanceled,
 } from '../../common';
 import { ChangeMessage, UserVote } from '../../types';
 import { DataSource } from 'typeorm';
@@ -317,6 +319,55 @@ const handleCommentUpvoteChange = async (
   }
 };
 
+const handleCommentDownvoteChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<UserComment>,
+): Promise<void> => {
+  switch (data.payload.op) {
+    case 'c':
+      await notifyCommentDownvoted(
+        logger,
+        data.payload.after.commentId,
+        data.payload.after.userId,
+      );
+      break;
+    case 'u': {
+      const isDownvoteCanceled = data.payload.after.vote === UserVote.None;
+
+      if (isDownvoteCanceled) {
+        await notifyCommentDownvoteCanceled(
+          logger,
+          data.payload.before.commentId,
+          data.payload.before.userId,
+        );
+      } else {
+        await notifyCommentDownvoted(
+          logger,
+          data.payload.after.commentId,
+          data.payload.after.userId,
+        );
+      }
+      break;
+    }
+    case 'd': {
+      const wasDownvoted = data.payload.before.vote === UserVote.Down;
+
+      if (wasDownvoted) {
+        await notifyCommentDownvoteCanceled(
+          logger,
+          data.payload.before.commentId,
+          data.payload.before.userId,
+        );
+      }
+
+      break;
+    }
+    default:
+      break;
+  }
+};
+
 const onCommentVoteChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -325,9 +376,16 @@ const onCommentVoteChange = async (
   const isUpvote =
     data.payload.after?.vote === UserVote.Up ||
     data.payload.before?.vote === UserVote.Up;
+  const isDownvote =
+    data.payload.after?.vote === UserVote.Down ||
+    data.payload.before?.vote === UserVote.Down;
 
   if (isUpvote) {
     await handleCommentUpvoteChange(con, logger, data);
+  }
+
+  if (isDownvote) {
+    await handleCommentDownvoteChange(con, logger, data);
   }
 };
 

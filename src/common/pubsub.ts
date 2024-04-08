@@ -85,6 +85,10 @@ const postCollectionUpdatedTopic = pubsub.topic(
 );
 const userReadmeUpdatedTopic = pubsub.topic('api.v1.user-readme-updated');
 const userReputatioUpdatedTopic = pubsub.topic('user-reputation-updated');
+const commentDownvotedTopic = pubsub.topic('api.v1.comment-downvoted');
+const commentDownvoteCanceledTopic = pubsub.topic(
+  'api.v1.comment-downvote-canceled',
+);
 
 export enum NotificationReason {
   New = 'new',
@@ -503,6 +507,26 @@ export const notifyReputationIncrease = async (
   publishEvent(log, userReputatioUpdatedTopic, {
     user,
     userAfter,
+  });
+
+export const notifyCommentDownvoted = async (
+  log: EventLogger,
+  commentId: string,
+  userId: string,
+): Promise<void> =>
+  publishEvent(log, commentDownvotedTopic, {
+    commentId,
+    userId,
+  });
+
+export const notifyCommentDownvoteCanceled = async (
+  log: EventLogger,
+  commentId: string,
+  userId: string,
+): Promise<void> =>
+  publishEvent(log, commentDownvoteCanceledTopic, {
+    commentId,
+    userId,
   });
 
 export const workerSubscribe = (
