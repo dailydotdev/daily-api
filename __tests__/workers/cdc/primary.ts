@@ -56,8 +56,6 @@ import {
   notifyReputationIncrease,
   notifyPostDownvoted,
   notifyPostDownvoteCanceled,
-  notifyCommentDownvoted,
-  notifyCommentDownvoteCanceled,
 } from '../../../src/common';
 import worker from '../../../src/workers/cdc/primary';
 import {
@@ -146,8 +144,6 @@ jest.mock('../../../src/common', () => ({
   notifyReputationIncrease: jest.fn(),
   notifyPostDownvoted: jest.fn(),
   notifyPostDownvoteCanceled: jest.fn(),
-  notifyCommentDownvoted: jest.fn(),
-  notifyCommentDownvoteCanceled: jest.fn(),
 }));
 
 let con: DataSource;
@@ -2244,11 +2240,13 @@ describe('comment downvote', () => {
         table: 'user_comment',
       }),
     );
-    expect(notifyCommentDownvoted).toHaveBeenCalledTimes(1);
-    expect(notifyCommentDownvoteCanceled).toHaveBeenCalledTimes(0);
-    expect(jest.mocked(notifyCommentDownvoted).mock.calls[0].slice(1)).toEqual([
-      'c1',
-      '1',
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.comment-downvoted',
+      {
+        commentId: 'c1',
+        userId: '1',
+      },
     ]);
   });
 
@@ -2262,11 +2260,11 @@ describe('comment downvote', () => {
         table: 'user_comment',
       }),
     );
-    expect(notifyCommentDownvoted).toHaveBeenCalledTimes(0);
-    expect(notifyCommentDownvoteCanceled).toHaveBeenCalledTimes(1);
-    expect(
-      jest.mocked(notifyCommentDownvoteCanceled).mock.calls[0].slice(1),
-    ).toEqual(['c1', '1']);
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.comment-downvote-canceled',
+      { commentId: 'c1', userId: '1' },
+    ]);
   });
 
   it('should notify on downvote updated', async () => {
@@ -2282,11 +2280,13 @@ describe('comment downvote', () => {
         table: 'user_comment',
       }),
     );
-    expect(notifyCommentDownvoted).toHaveBeenCalledTimes(1);
-    expect(notifyCommentDownvoteCanceled).toHaveBeenCalledTimes(0);
-    expect(jest.mocked(notifyCommentDownvoted).mock.calls[0].slice(1)).toEqual([
-      'c1',
-      '1',
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.comment-downvoted',
+      {
+        commentId: 'c1',
+        userId: '1',
+      },
     ]);
   });
 
@@ -2303,11 +2303,11 @@ describe('comment downvote', () => {
         table: 'user_comment',
       }),
     );
-    expect(notifyCommentDownvoted).toHaveBeenCalledTimes(0);
-    expect(notifyCommentDownvoteCanceled).toHaveBeenCalledTimes(1);
-    expect(
-      jest.mocked(notifyCommentDownvoteCanceled).mock.calls[0].slice(1),
-    ).toEqual(['c1', '1']);
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.comment-downvote-canceled',
+      { commentId: 'c1', userId: '1' },
+    ]);
   });
 
   it('should not notify if entity is not downvote', async () => {
@@ -2326,7 +2326,6 @@ describe('comment downvote', () => {
         table: 'user_comment',
       }),
     );
-    expect(notifyCommentDownvoted).toHaveBeenCalledTimes(0);
-    expect(notifyCommentDownvoteCanceled).toHaveBeenCalledTimes(0);
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
   });
 });

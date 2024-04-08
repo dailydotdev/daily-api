@@ -16,6 +16,14 @@ export type PubSubSchema = {
     postId: string;
     userId: string;
   };
+  'api.v1.comment-downvoted': {
+    commentId: string;
+    userId: string;
+  };
+  'api.v1.comment-downvote-canceled': {
+    commentId: string;
+    userId: string;
+  };
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(

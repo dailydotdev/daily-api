@@ -93,13 +93,13 @@ export const workers: Worker[] = [
   cdc,
   cdcNotifications,
   userCreatedPersonalizedDigestSendType,
-  commentDownvotedRep,
-  commentDownvoteCanceledRep,
   ...notificationWorkers,
 ];
 
 export const typedWorkers: BaseTypedWorker<unknown>[] = [
   sourceRequestApprovedRep,
+  commentDownvotedRep,
+  commentDownvoteCanceledRep,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

@@ -77,8 +77,6 @@ import {
   notifyReputationIncrease,
   notifyPostDownvoted,
   notifyPostDownvoteCanceled,
-  notifyCommentDownvoted,
-  notifyCommentDownvoteCanceled,
 } from '../../common';
 import { ChangeMessage, UserVote } from '../../types';
 import { DataSource } from 'typeorm';
@@ -326,27 +324,24 @@ const handleCommentDownvoteChange = async (
 ): Promise<void> => {
   switch (data.payload.op) {
     case 'c':
-      await notifyCommentDownvoted(
-        logger,
-        data.payload.after.commentId,
-        data.payload.after.userId,
-      );
+      await triggerTypedEvent(logger, 'api.v1.comment-downvoted', {
+        commentId: data.payload.after.commentId,
+        userId: data.payload.after.userId,
+      });
       break;
     case 'u': {
       const isDownvoteCanceled = data.payload.after.vote === UserVote.None;
 
       if (isDownvoteCanceled) {
-        await notifyCommentDownvoteCanceled(
-          logger,
-          data.payload.before.commentId,
-          data.payload.before.userId,
-        );
+        await triggerTypedEvent(logger, 'api.v1.comment-downvote-canceled', {
+          commentId: data.payload.before.commentId,
+          userId: data.payload.before.userId,
+        });
       } else {
-        await notifyCommentDownvoted(
-          logger,
-          data.payload.after.commentId,
-          data.payload.after.userId,
-        );
+        await triggerTypedEvent(logger, 'api.v1.comment-downvoted', {
+          commentId: data.payload.after.commentId,
+          userId: data.payload.after.userId,
+        });
       }
       break;
     }
@@ -354,11 +349,10 @@ const handleCommentDownvoteChange = async (
       const wasDownvoted = data.payload.before.vote === UserVote.Down;
 
       if (wasDownvoted) {
-        await notifyCommentDownvoteCanceled(
-          logger,
-          data.payload.before.commentId,
-          data.payload.before.userId,
-        );
+        await triggerTypedEvent(logger, 'api.v1.comment-downvote-canceled', {
+          commentId: data.payload.before.commentId,
+          userId: data.payload.before.userId,
+        });
       }
 
       break;
