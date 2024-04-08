@@ -14,7 +14,6 @@ import {
   Source,
   Comment,
   User,
-  CommentUpvote,
   ArticlePost,
   SourceMember,
   SourceType,
@@ -213,10 +212,10 @@ describe('query postComments', () => {
   }`;
 
   beforeEach(async () => {
-    await con.getRepository(CommentUpvote).save([
-      { commentId: 'c1', userId: '1' },
-      { commentId: 'c7', userId: '1' },
-      { commentId: 'c2', userId: '2' },
+    await con.getRepository(UserComment).save([
+      { commentId: 'c1', userId: '1', vote: UserVote.Up },
+      { commentId: 'c7', userId: '1', vote: UserVote.Up },
+      { commentId: 'c2', userId: '2', vote: UserVote.Up },
     ]);
   });
 
@@ -270,7 +269,7 @@ describe('query commentUpvotes', () => {
     commentUpvotes(id: $id) {
       edges {
         node {
-          createdAt
+          votedAt
           user {
             name
             username
@@ -297,18 +296,30 @@ describe('query commentUpvotes', () => {
   });
 
   it('should return users that upvoted the comment by id in descending order', async () => {
-    const commentUpvoteRepo = con.getRepository(CommentUpvote);
-    const createdAtOld = new Date('2020-09-22T07:15:51.247Z');
-    const createdAtNew = new Date('2021-09-22T07:15:51.247Z');
+    const commentUpvoteRepo = con.getRepository(UserComment);
+    const votedAtOld = new Date('2020-09-22T07:15:51.247Z');
+    const votedAtNew = new Date('2021-09-22T07:15:51.247Z');
     await commentUpvoteRepo.save({
       userId: '1',
       commentId: 'c1',
-      createdAt: createdAtOld,
+      vote: UserVote.Up,
+    });
+    await commentUpvoteRepo.save({
+      userId: '1',
+      commentId: 'c1',
+      votedAt: votedAtOld,
+      vote: UserVote.Up,
     });
     await commentUpvoteRepo.save({
       userId: '2',
       commentId: 'c1',
-      createdAt: createdAtNew,
+      vote: UserVote.Up,
+    });
+    await commentUpvoteRepo.save({
+      userId: '2',
+      commentId: 'c1',
+      votedAt: votedAtNew,
+      vote: UserVote.Up,
     });
 
     const res = await client.query(QUERY, { variables: { id: 'c1' } });
@@ -316,8 +327,8 @@ describe('query commentUpvotes', () => {
     const [secondUpvote, firstUpvote] = res.data.commentUpvotes.edges;
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
-    expect(new Date(secondUpvote.node.createdAt).getTime()).toBeGreaterThan(
-      new Date(firstUpvote.node.createdAt).getTime(),
+    expect(new Date(secondUpvote.node.votedAt).getTime()).toBeGreaterThan(
+      new Date(firstUpvote.node.votedAt).getTime(),
     );
   });
 });
@@ -1065,15 +1076,11 @@ describe('mutation upvoteComment', () => {
     loggedUser = '1';
     const res = await client.mutate(MUTATION, { variables: { id: 'c1' } });
     expect(res.errors).toBeFalsy();
-    const actual = await con
-      .getRepository(CommentUpvote)
-      .find({ select: ['commentId', 'userId'] });
-    expect(actual).toMatchSnapshot();
     const comment = await con.getRepository(Comment).findOneBy({ id: 'c1' });
-    expect(comment.upvotes).toEqual(1);
+    expect(comment!.upvotes).toEqual(1);
     const userComment = await con
       .getRepository(UserComment)
-      .findOneBy({ commentId: 'c1', userId: '1' });
+      .findOneBy({ commentId: 'c1', userId: '1', vote: UserVote.Up });
     expect(userComment).toMatchObject({
       commentId: 'c1',
       userId: '1',
@@ -1084,16 +1091,21 @@ describe('mutation upvoteComment', () => {
 
   it('should ignore conflicts', async () => {
     loggedUser = '1';
-    const repo = con.getRepository(CommentUpvote);
-    await repo.save({ commentId: 'c1', userId: loggedUser });
+    const repo = con.getRepository(UserComment);
+    await repo.save({ commentId: 'c1', userId: loggedUser, vote: UserVote.Up });
     const res = await client.mutate(MUTATION, { variables: { id: 'c1' } });
     expect(res.errors).toBeFalsy();
-    const actual = await repo.find({
-      select: ['commentId', 'userId'],
+    const userComment = await con
+      .getRepository(UserComment)
+      .findOneBy({ commentId: 'c1', userId: '1', vote: UserVote.Up });
+    expect(userComment).toMatchObject({
+      commentId: 'c1',
+      userId: '1',
+      vote: UserVote.Up,
+      votedAt: expect.any(Date),
     });
-    expect(actual).toMatchSnapshot();
     const comment = await con.getRepository(Comment).findOneBy({ id: 'c1' });
-    expect(comment.upvotes).toEqual(0);
+    expect(comment!.upvotes).toEqual(1);
   });
 });
 
@@ -1117,22 +1129,20 @@ describe('mutation cancelCommentUpvote', () => {
 
   it('should cancel comment upvote', async () => {
     loggedUser = '1';
-    const repo = con.getRepository(CommentUpvote);
+    const repo = con.getRepository(UserComment);
     await con.getRepository(UserComment).save({
       commentId: 'c1',
       userId: loggedUser,
       vote: UserVote.Up,
     });
-    await repo.save({ commentId: 'c1', userId: loggedUser });
+    await repo.save({ commentId: 'c1', userId: loggedUser, vote: UserVote.Up });
     const res = await client.mutate(MUTATION, { variables: { id: 'c1' } });
     expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(CommentUpvote).find();
-    expect(actual).toEqual([]);
     const comment = await con.getRepository(Comment).findOneBy({ id: 'c1' });
-    expect(comment.upvotes).toEqual(0);
+    expect(comment!.upvotes).toEqual(0);
     const userComment = await con
       .getRepository(UserComment)
-      .findOneBy({ commentId: 'c1', userId: '1' });
+      .findOneBy({ commentId: 'c1', userId: '1', vote: UserVote.None });
     expect(userComment).toMatchObject({
       commentId: 'c1',
       userId: '1',
@@ -1145,10 +1155,14 @@ describe('mutation cancelCommentUpvote', () => {
     loggedUser = '1';
     const res = await client.mutate(MUTATION, { variables: { id: 'c1' } });
     expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(CommentUpvote).find();
+    const actual = await con.getRepository(UserComment).find({
+      where: {
+        vote: UserVote.Up,
+      },
+    });
     expect(actual).toEqual([]);
     const comment = await con.getRepository(Comment).findOneBy({ id: 'c1' });
-    expect(comment.upvotes).toEqual(0);
+    expect(comment!.upvotes).toEqual(0);
   });
 });
 
@@ -1563,9 +1577,10 @@ describe('mutation vote comment', () => {
     });
     const commment = await con.getRepository(Comment).findOneBy({ id: 'c1' });
     expect(commment?.upvotes).toEqual(4);
-    const commentUpvote = await con.getRepository(CommentUpvote).findOneBy({
+    const commentUpvote = await con.getRepository(UserComment).findOneBy({
       userId: loggedUser,
       commentId: 'c1',
+      vote: UserVote.Up,
     });
     expect(commentUpvote).toMatchObject({
       userId: loggedUser,
@@ -1598,11 +1613,6 @@ describe('mutation vote comment', () => {
     });
     const post = await con.getRepository(Comment).findOneBy({ id: 'c1' });
     expect(post?.downvotes).toEqual(4);
-    const commentUpvote = await con.getRepository(CommentUpvote).findOneBy({
-      userId: loggedUser,
-      commentId: 'c1',
-    });
-    expect(commentUpvote).toBeFalsy();
   });
 
   it('should cancel vote', async () => {

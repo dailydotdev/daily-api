@@ -68,7 +68,6 @@ import {
   ArticlePost,
   Comment,
   CommentMention,
-  CommentUpvote,
   COMMUNITY_PICKS_SOURCE,
   Feature,
   FeatureType,
@@ -99,6 +98,7 @@ import { SourceMemberRoles } from '../../../src/roles';
 import { CommentReport } from '../../../src/entity/CommentReport';
 import { usersFixture } from '../../fixture/user';
 import { DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD } from '../../../src/workers/notifications/devCardUnlocked';
+import { UserComment } from '../../../src/entity/user/UserComment';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -391,11 +391,15 @@ describe('post upvote', () => {
 });
 
 describe('comment upvote', () => {
-  type ObjectType = CommentUpvote;
+  type ObjectType = UserComment;
   const base: ChangeObject<ObjectType> = {
     userId: '1',
     commentId: 'c1',
+    votedAt: 0,
+    vote: UserVote.Up,
+    updatedAt: 0,
     createdAt: 0,
+    flags: {},
   };
 
   it('should notify on new upvote', async () => {
@@ -406,10 +410,11 @@ describe('comment upvote', () => {
         after,
         before: null,
         op: 'c',
-        table: 'comment_upvote',
+        table: 'user_comment',
       }),
     );
     expect(notifyCommentUpvoted).toHaveBeenCalledTimes(1);
+    expect(notifyCommentUpvoteCanceled).toHaveBeenCalledTimes(0);
     expect(jest.mocked(notifyCommentUpvoted).mock.calls[0].slice(1)).toEqual([
       'c1',
       '1',
@@ -423,13 +428,75 @@ describe('comment upvote', () => {
         after: null,
         before: base,
         op: 'd',
-        table: 'comment_upvote',
+        table: 'user_comment',
       }),
     );
+    expect(notifyCommentUpvoted).toHaveBeenCalledTimes(0);
     expect(notifyCommentUpvoteCanceled).toHaveBeenCalledTimes(1);
     expect(
       jest.mocked(notifyCommentUpvoteCanceled).mock.calls[0].slice(1),
     ).toEqual(['c1', '1']);
+  });
+
+  it('should notify on upvote updated', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: {
+          ...base,
+          vote: UserVote.None,
+        },
+        op: 'u',
+        table: 'user_comment',
+      }),
+    );
+    expect(notifyCommentUpvoted).toHaveBeenCalledTimes(1);
+    expect(notifyCommentUpvoteCanceled).toHaveBeenCalledTimes(0);
+    expect(jest.mocked(notifyCommentUpvoted).mock.calls[0].slice(1)).toEqual([
+      'c1',
+      '1',
+    ]);
+  });
+
+  it('should notify on upvote canceled', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: {
+          ...base,
+          vote: UserVote.None,
+        },
+        before: base,
+        op: 'u',
+        table: 'user_comment',
+      }),
+    );
+    expect(notifyCommentUpvoted).toHaveBeenCalledTimes(0);
+    expect(notifyCommentUpvoteCanceled).toHaveBeenCalledTimes(1);
+    expect(
+      jest.mocked(notifyCommentUpvoteCanceled).mock.calls[0].slice(1),
+    ).toEqual(['c1', '1']);
+  });
+
+  it('should not notify if entity is not upvote', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: {
+          ...base,
+          vote: UserVote.None,
+        },
+        before: {
+          ...base,
+          vote: UserVote.Down,
+        },
+        op: 'u',
+        table: 'user_comment',
+      }),
+    );
+    expect(notifyCommentUpvoted).toHaveBeenCalledTimes(0);
+    expect(notifyCommentUpvoteCanceled).toHaveBeenCalledTimes(0);
   });
 });
 
