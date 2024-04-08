@@ -7,6 +7,7 @@ import {
   saveFixtures,
   testMutationError,
   testMutationErrorCode,
+  testQueryError,
   testQueryErrorCode,
 } from './helpers';
 import {
@@ -759,12 +760,16 @@ describe('query post', () => {
     loggedUser = '1';
     await con.getRepository(Source).update({ id: 'a' }, { private: true });
     await con.getRepository(Post).update({ id: 'p1' }, { private: true });
-    return testQueryErrorCode(
+    return testQueryError(
       client,
       {
         query: QUERY('p1'),
       },
-      'FORBIDDEN',
+      (errors) => {
+        expect(errors.length).toEqual(1);
+        expect(errors[0].extensions?.code).toEqual('FORBIDDEN');
+        expect(errors[0].extensions?.postId).toEqual('p1');
+      },
     );
   });
 
