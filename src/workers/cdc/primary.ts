@@ -317,6 +317,51 @@ const handleCommentUpvoteChange = async (
   }
 };
 
+const handleCommentDownvoteChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<UserComment>,
+): Promise<void> => {
+  switch (data.payload.op) {
+    case 'c':
+      await triggerTypedEvent(logger, 'api.v1.comment-downvoted', {
+        commentId: data.payload.after.commentId,
+        userId: data.payload.after.userId,
+      });
+      break;
+    case 'u': {
+      const isDownvoteCanceled = data.payload.after.vote === UserVote.None;
+
+      if (isDownvoteCanceled) {
+        await triggerTypedEvent(logger, 'api.v1.comment-downvote-canceled', {
+          commentId: data.payload.before.commentId,
+          userId: data.payload.before.userId,
+        });
+      } else {
+        await triggerTypedEvent(logger, 'api.v1.comment-downvoted', {
+          commentId: data.payload.after.commentId,
+          userId: data.payload.after.userId,
+        });
+      }
+      break;
+    }
+    case 'd': {
+      const wasDownvoted = data.payload.before.vote === UserVote.Down;
+
+      if (wasDownvoted) {
+        await triggerTypedEvent(logger, 'api.v1.comment-downvote-canceled', {
+          commentId: data.payload.before.commentId,
+          userId: data.payload.before.userId,
+        });
+      }
+
+      break;
+    }
+    default:
+      break;
+  }
+};
+
 const onCommentVoteChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -325,9 +370,16 @@ const onCommentVoteChange = async (
   const isUpvote =
     data.payload.after?.vote === UserVote.Up ||
     data.payload.before?.vote === UserVote.Up;
+  const isDownvote =
+    data.payload.after?.vote === UserVote.Down ||
+    data.payload.before?.vote === UserVote.Down;
 
   if (isUpvote) {
     await handleCommentUpvoteChange(con, logger, data);
+  }
+
+  if (isDownvote) {
+    await handleCommentDownvoteChange(con, logger, data);
   }
 };
 

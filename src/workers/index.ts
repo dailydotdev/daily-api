@@ -47,6 +47,8 @@ import userReadmeImages from './userReadmeImages';
 import postDownvotedRep from './postDownvotedRep';
 import postDownvoteCanceledRep from './postDownvoteCanceledRep';
 import userCreatedPersonalizedDigestSendType from './userCreatedPersonalizedDigestSendType';
+import commentDownvotedRep from './commentDownvotedRep';
+import commentDownvoteCanceledRep from './commentDownvoteCanceledRep';
 
 export { Worker } from './worker';
 
@@ -96,6 +98,8 @@ export const workers: Worker[] = [
 
 export const typedWorkers: BaseTypedWorker<unknown>[] = [
   sourceRequestApprovedRep,
+  commentDownvotedRep,
+  commentDownvoteCanceledRep,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

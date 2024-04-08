@@ -2216,3 +2216,116 @@ describe('post downvote', () => {
     expect(notifyPostDownvoteCanceled).toHaveBeenCalledTimes(0);
   });
 });
+
+describe('comment downvote', () => {
+  type ObjectType = UserComment;
+  const base: ChangeObject<ObjectType> = {
+    userId: '1',
+    commentId: 'c1',
+    votedAt: 0,
+    vote: UserVote.Down,
+    updatedAt: 0,
+    createdAt: 0,
+    flags: {},
+  };
+
+  it('should notify on new downvote', async () => {
+    const after: ChangeObject<ObjectType> = base;
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'user_comment',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.comment-downvoted',
+      {
+        commentId: 'c1',
+        userId: '1',
+      },
+    ]);
+  });
+
+  it('should notify on downvote deleted', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: null,
+        before: base,
+        op: 'd',
+        table: 'user_comment',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.comment-downvote-canceled',
+      { commentId: 'c1', userId: '1' },
+    ]);
+  });
+
+  it('should notify on downvote updated', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: {
+          ...base,
+          vote: UserVote.None,
+        },
+        op: 'u',
+        table: 'user_comment',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.comment-downvoted',
+      {
+        commentId: 'c1',
+        userId: '1',
+      },
+    ]);
+  });
+
+  it('should notify on downvote canceled', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: {
+          ...base,
+          vote: UserVote.None,
+        },
+        before: base,
+        op: 'u',
+        table: 'user_comment',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.comment-downvote-canceled',
+      { commentId: 'c1', userId: '1' },
+    ]);
+  });
+
+  it('should not notify if entity is not downvote', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: {
+          ...base,
+          vote: UserVote.None,
+        },
+        before: {
+          ...base,
+          vote: UserVote.Up,
+        },
+        op: 'u',
+        table: 'user_comment',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+});
