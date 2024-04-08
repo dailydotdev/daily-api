@@ -7,7 +7,6 @@ import {
 import { messageToJson, Worker } from '../worker';
 import {
   Comment,
-  CommentUpvote,
   COMMUNITY_PICKS_SOURCE,
   Feed,
   Post,
@@ -90,6 +89,7 @@ import { TypeOrmError } from '../../errors';
 import { CommentReport } from '../../entity/CommentReport';
 import { reportCommentReasons } from '../../schema/comments';
 import { getTableName, isChanged } from './common';
+import { UserComment } from '../../entity/user/UserComment';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -268,23 +268,118 @@ const onPostVoteChange = async (
   return;
 };
 
-const onCommentUpvoteChange = async (
+const handleCommentUpvoteChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
-  data: ChangeMessage<CommentUpvote>,
+  data: ChangeMessage<UserComment>,
 ): Promise<void> => {
-  if (data.payload.op === 'c') {
-    await notifyCommentUpvoted(
-      logger,
-      data.payload.after.commentId,
-      data.payload.after.userId,
-    );
-  } else if (data.payload.op === 'd') {
-    await notifyCommentUpvoteCanceled(
-      logger,
-      data.payload.before.commentId,
-      data.payload.before.userId,
-    );
+  switch (data.payload.op) {
+    case 'c':
+      await notifyCommentUpvoted(
+        logger,
+        data.payload.after.commentId,
+        data.payload.after.userId,
+      );
+      break;
+    case 'u': {
+      const isUpvoteCanceled = data.payload.after.vote === UserVote.None;
+
+      if (isUpvoteCanceled) {
+        await notifyCommentUpvoteCanceled(
+          logger,
+          data.payload.before.commentId,
+          data.payload.before.userId,
+        );
+      } else {
+        await notifyCommentUpvoted(
+          logger,
+          data.payload.after.commentId,
+          data.payload.after.userId,
+        );
+      }
+      break;
+    }
+    case 'd': {
+      const wasUpvoted = data.payload.before.vote === UserVote.Up;
+
+      if (wasUpvoted) {
+        await notifyCommentUpvoteCanceled(
+          logger,
+          data.payload.before.commentId,
+          data.payload.before.userId,
+        );
+      }
+
+      break;
+    }
+    default:
+      break;
+  }
+};
+
+const handleCommentDownvoteChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<UserComment>,
+): Promise<void> => {
+  switch (data.payload.op) {
+    case 'c':
+      await triggerTypedEvent(logger, 'api.v1.comment-downvoted', {
+        commentId: data.payload.after.commentId,
+        userId: data.payload.after.userId,
+      });
+      break;
+    case 'u': {
+      const isDownvoteCanceled = data.payload.after.vote === UserVote.None;
+
+      if (isDownvoteCanceled) {
+        await triggerTypedEvent(logger, 'api.v1.comment-downvote-canceled', {
+          commentId: data.payload.before.commentId,
+          userId: data.payload.before.userId,
+        });
+      } else {
+        await triggerTypedEvent(logger, 'api.v1.comment-downvoted', {
+          commentId: data.payload.after.commentId,
+          userId: data.payload.after.userId,
+        });
+      }
+      break;
+    }
+    case 'd': {
+      const wasDownvoted = data.payload.before.vote === UserVote.Down;
+
+      if (wasDownvoted) {
+        await triggerTypedEvent(logger, 'api.v1.comment-downvote-canceled', {
+          commentId: data.payload.before.commentId,
+          userId: data.payload.before.userId,
+        });
+      }
+
+      break;
+    }
+    default:
+      break;
+  }
+};
+
+const onCommentVoteChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<UserComment>,
+): Promise<void> => {
+  const isUpvote =
+    data.payload.after?.vote === UserVote.Up ||
+    data.payload.before?.vote === UserVote.Up;
+  const isDownvote =
+    data.payload.after?.vote === UserVote.Down ||
+    data.payload.before?.vote === UserVote.Down;
+
+  if (isUpvote) {
+    await handleCommentUpvoteChange(con, logger, data);
+  }
+
+  if (isDownvote) {
+    await handleCommentDownvoteChange(con, logger, data);
   }
 };
 
@@ -717,8 +812,8 @@ const worker: Worker = {
         case getTableName(con, UserPost):
           await onPostVoteChange(con, logger, data);
           break;
-        case getTableName(con, CommentUpvote):
-          await onCommentUpvoteChange(con, logger, data);
+        case getTableName(con, UserComment):
+          await onCommentVoteChange(con, logger, data);
           break;
         case getTableName(con, CommentMention):
           await onCommentMentionChange(con, logger, data);
