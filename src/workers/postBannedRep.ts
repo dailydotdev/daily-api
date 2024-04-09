@@ -16,7 +16,8 @@ const worker: Worker = {
   subscription: 'post-banned-rep',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
-    const { id, authorId, scoutId } = data.post;
+    const { id, authorId, scoutId, flags } = data.post;
+    const { deletedBy } = flags;
     try {
       await con.transaction(async (transaction) => {
         const reports = await transaction
@@ -38,7 +39,11 @@ const worker: Worker = {
           reason: ReputationReason.PostBanned,
         };
 
-        if (authorId) {
+        /**
+         * Ensure authors can remove their own post
+         * Ensure scouts can't add posts/remove them to decrease author reputation
+         */
+        if (authorId && authorId !== deletedBy && scoutId !== deletedBy) {
           const authorEvent = repo.create({
             ...ownerProps,
             grantToId: authorId,
@@ -46,7 +51,7 @@ const worker: Worker = {
           events.push(authorEvent);
         }
 
-        if (scoutId) {
+        if (scoutId && scoutId !== deletedBy) {
           const scoutEvent = repo.create({
             ...ownerProps,
             grantToId: scoutId,
