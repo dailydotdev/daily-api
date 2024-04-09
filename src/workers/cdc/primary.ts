@@ -186,19 +186,23 @@ const handleVoteUpdated = async <TVoteTopic extends keyof PubSubSchema>({
   const isVoteCanceled = vote !== voteBefore && voteBefore !== UserVote.None;
 
   if (isVoteCanceled) {
-    await triggerTypedEvent(
+    handleVoteDeleted({
       log,
-      voteBefore === UserVote.Up ? upvoteCanceledTopic : downvoteCanceledTopic,
+      upvoteCanceledTopic,
+      downvoteCanceledTopic,
       payloadBefore,
-    );
+      voteBefore,
+    });
   }
 
   if (vote !== UserVote.None) {
-    await triggerTypedEvent(
+    handleVoteCreated({
       log,
-      vote === UserVote.Up ? upvoteTopic : downvoteTopic,
+      upvoteTopic,
+      downvoteTopic,
       payload,
-    );
+      vote,
+    });
   }
 };
 
