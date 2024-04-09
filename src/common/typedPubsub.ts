@@ -16,6 +16,26 @@ export type PubSubSchema = {
     postId: string;
     userId: string;
   };
+  'post-upvote-canceled': {
+    postId: string;
+    userId: string;
+  };
+  'api.v1.post-downvoted': {
+    postId: string;
+    userId: string;
+  };
+  'api.v1.post-downvote-canceled': {
+    postId: string;
+    userId: string;
+  };
+  'comment-upvoted': {
+    commentId: string;
+    userId: string;
+  };
+  'comment-upvote-canceled': {
+    commentId: string;
+    userId: string;
+  };
   'api.v1.comment-downvoted': {
     commentId: string;
     userId: string;

@@ -3,19 +3,14 @@ import {
   ReputationReason,
   ReputationType,
 } from './../entity/ReputationEvent';
-import { messageToJson, Worker } from './worker';
+import { TypedWorker } from './worker';
 import { Post } from '../entity';
 import { In } from 'typeorm';
 
-interface Data {
-  userId: string;
-  postId: string;
-}
-
-const worker: Worker = {
+const worker: TypedWorker<'post-upvote-canceled'> = {
   subscription: 'post-upvote-canceled-rep',
   handler: async (message, con, logger): Promise<void> => {
-    const data: Data = messageToJson(message);
+    const { data } = message;
     try {
       const post = await con.getRepository(Post).findOneBy({ id: data.postId });
       if (!post?.authorId && !post?.scoutId) {

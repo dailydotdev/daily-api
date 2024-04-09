@@ -1,4 +1,4 @@
-import { messageToJson, Worker } from './worker';
+import { TypedWorker } from './worker';
 import {
   Comment,
   ReputationEvent,
@@ -6,15 +6,10 @@ import {
   ReputationType,
 } from '../entity';
 
-interface Data {
-  userId: string;
-  commentId: string;
-}
-
-const worker: Worker = {
+const worker: TypedWorker<'comment-upvote-canceled'> = {
   subscription: 'comment-upvote-canceled-rep',
   handler: async (message, con, logger): Promise<void> => {
-    const data: Data = messageToJson(message);
+    const { data } = message;
     const logDetails = { data, messageId: message.messageId };
 
     try {
