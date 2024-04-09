@@ -387,6 +387,19 @@ describe('post upvote', () => {
       { postId: 'p1', userId: '1' },
     ]);
   });
+
+  it('should not notify when vote stays the same', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: base,
+        op: 'u',
+        table: 'user_post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
 });
 
 describe('comment upvote', () => {
@@ -507,6 +520,19 @@ describe('comment upvote', () => {
       'comment-upvoted',
       { commentId: 'c1', userId: '1' },
     ]);
+  });
+
+  it('should not notify when vote stays the same', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: base,
+        op: 'u',
+        table: 'user_comment',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
   });
 });
 
@@ -2236,6 +2262,19 @@ describe('post downvote', () => {
       { postId: 'p1', userId: '1' },
     ]);
   });
+
+  it('should not notify when vote stays the same', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: base,
+        op: 'u',
+        table: 'user_post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
 });
 
 describe('comment downvote', () => {
@@ -2356,5 +2395,18 @@ describe('comment downvote', () => {
       'api.v1.comment-downvoted',
       { commentId: 'c1', userId: '1' },
     ]);
+  });
+
+  it('should not notify when vote stays the same', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: base,
+        op: 'u',
+        table: 'user_comment',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
   });
 });

@@ -183,10 +183,16 @@ const handleVoteUpdated = async <TVoteTopic extends keyof PubSubSchema>({
   payloadBefore: PubSubSchema[TVoteTopic];
   voteBefore: UserVote;
 }) => {
-  const isVoteCanceled = vote !== voteBefore && voteBefore !== UserVote.None;
+  const isVoteChanged = vote !== voteBefore;
+
+  if (!isVoteChanged) {
+    return;
+  }
+
+  const isVoteCanceled = voteBefore !== UserVote.None;
 
   if (isVoteCanceled) {
-    handleVoteDeleted({
+    await handleVoteDeleted({
       log,
       upvoteCanceledTopic,
       downvoteCanceledTopic,
@@ -196,7 +202,7 @@ const handleVoteUpdated = async <TVoteTopic extends keyof PubSubSchema>({
   }
 
   if (vote !== UserVote.None) {
-    handleVoteCreated({
+    await handleVoteCreated({
       log,
       upvoteTopic,
       downvoteTopic,
