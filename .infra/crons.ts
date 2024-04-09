@@ -2,9 +2,12 @@ interface Cron {
   name: string;
   schedule: string;
   limits?: {
-    cpu: string;
     memory: string;
   };
+  requests?: {
+    cpu: string;
+    memory: string;
+  }
 }
 
 export const crons: Cron[] = [
@@ -48,6 +51,9 @@ export const crons: Cron[] = [
     name: 'personalized-digest',
     schedule: '15 0 * * *',
     limits: {
+      memory: '1Gi',
+    },
+    requests: {
       cpu: '250m',
       memory: '1Gi',
     },
@@ -68,6 +74,9 @@ export const crons: Cron[] = [
     name: 'daily-digest',
     schedule: '7 * * * *',
     limits: {
+      memory: '1Gi',
+    },
+    requests: {
       cpu: '250m',
       memory: '1Gi',
     },

@@ -29,7 +29,6 @@ import {
   User,
   UserMarketingCta,
   UserNotification,
-  UserPostVote,
 } from '../src/entity';
 import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { notificationV2Fixture } from './fixture/notifications';
@@ -58,6 +57,7 @@ import { cookies } from '../src/cookies';
 import { signJwt } from '../src/auth';
 import { submitArticleThreshold } from '../src/common';
 import { saveReturnAlerts } from '../src/schema/alerts';
+import { DEFAULT_TIMEZONE, UserVote } from '../src/types';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -92,7 +92,7 @@ const LOGGED_IN_BODY = {
     providers: [null],
     roles: [],
     title: null,
-    timezone: null,
+    timezone: DEFAULT_TIMEZONE,
     reputation: 10,
     portfolio: null,
     notificationEmail: true,
@@ -963,7 +963,7 @@ describe('companion boot', () => {
   const POST_DATA = {
     author: null,
     bookmarked: null,
-    commentsPermalink: 'http://localhost:5002/posts/p1',
+    commentsPermalink: 'http://localhost:5002/posts/p1-p1',
     createdAt: expect.any(String),
     id: 'p1',
     image: 'https://daily.dev/image.jpg',
@@ -1013,7 +1013,7 @@ describe('companion boot', () => {
         upvoted: false,
         downvoted: false,
         userState: {
-          vote: UserPostVote.None,
+          vote: UserVote.None,
         },
       },
       user: {

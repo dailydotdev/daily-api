@@ -6,8 +6,8 @@ import {
   ReputationType,
 } from '../entity';
 
-const worker: TypedWorker<'comment-upvote-canceled'> = {
-  subscription: 'comment-upvote-canceled-rep',
+const worker: TypedWorker<'api.v1.comment-downvote-canceled'> = {
+  subscription: 'api.comment-downvote-canceled-rep',
   handler: async (message, con, logger): Promise<void> => {
     const { data } = message;
     const logDetails = { data, messageId: message.messageId };
@@ -32,7 +32,7 @@ const worker: TypedWorker<'comment-upvote-canceled'> = {
             grantToId: comment.userId,
             targetId: comment.id,
             targetType: ReputationType.Comment,
-            reason: ReputationReason.CommentUpvoted,
+            reason: ReputationReason.CommentDownvoted,
           })
           .execute();
         logger.info(
@@ -40,7 +40,7 @@ const worker: TypedWorker<'comment-upvote-canceled'> = {
             data,
             messageId: message.messageId,
           },
-          'decreased reputation due to upvote cancellation',
+          'increased reputation due to downvote cancellation',
         );
       }
     } catch (err) {
@@ -50,7 +50,7 @@ const worker: TypedWorker<'comment-upvote-canceled'> = {
           messageId: message.messageId,
           err,
         },
-        'failed to increase reputation due to upvote cancellation',
+        'failed to increase reputation due to downvote cancellation',
       );
     }
   },

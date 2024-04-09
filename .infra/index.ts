@@ -115,24 +115,27 @@ if (isPersonalizedDigestEnabled) {
 }
 
 const memory = 640;
-const limits: pulumi.Input<{
-  [key: string]: pulumi.Input<string>;
-}> = {
-  cpu: '1',
-  memory: `${memory}Mi`,
+const apiRequests: pulumi.Input<{cpu: string; memory: string}> = {
+  cpu: '800m',
+  memory: '400Mi',
+};
+const apiLimits: pulumi.Input<{memory: string}> = {
+  memory: `${memory}Mi`
 };
 
 const wsMemory = 2048;
 const wsLimits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = {
-  cpu: '500m',
+  cpu: '300m',
   memory: `${wsMemory}Mi`,
 };
 
-const bgLimits: pulumi.Input<{
-  [key: string]: pulumi.Input<string>;
-}> = { cpu: '250m', memory: '256Mi' };
+const bgLimits: pulumi.Input<{memory: string}> = { memory: '256Mi' };
+const bgRequests: pulumi.Input<{cpu: string; memory: string}> = {
+  cpu: '50m',
+  memory: '150Mi',
+};
 
 const initialDelaySeconds = 20;
 const readinessProbe: k8s.types.input.core.v1.Probe = {
@@ -188,7 +191,8 @@ if (isAdhocEnv) {
       ],
       minReplicas: 3,
       maxReplicas: 15,
-      limits,
+      limits: apiLimits,
+      requests: apiRequests,
       metric: { type: 'memory_cpu', cpu: 70 },
       ports: [
         { containerPort: 3000, name: 'http' },
@@ -211,6 +215,7 @@ if (isAdhocEnv) {
       minReplicas: 4,
       maxReplicas: 10,
       limits: bgLimits,
+      requests: bgRequests,
       metric: {
         type: 'pubsub',
         labels: { app: name },
@@ -232,6 +237,7 @@ if (isAdhocEnv) {
       minReplicas: 1,
       maxReplicas: 10,
       limits: bgLimits,
+      requests: bgRequests,
       metric: {
         type: 'pubsub',
         labels: { app: name, subapp: 'personalized-digest' },
@@ -252,7 +258,8 @@ if (isAdhocEnv) {
       env: [nodeOptions(memory), ...jwtEnv],
       minReplicas: 3,
       maxReplicas: 25,
-      limits,
+      limits: apiLimits,
+      requests: apiRequests,
       readinessProbe,
       livenessProbe,
       metric: { type: 'memory_cpu', cpu: 80 },
@@ -285,6 +292,7 @@ if (isAdhocEnv) {
       minReplicas: 3,
       maxReplicas: 10,
       limits: bgLimits,
+      requests: bgRequests,
       metric: {
         type: 'pubsub',
         labels: { app: name },
@@ -299,7 +307,7 @@ if (isAdhocEnv) {
       maxReplicas: 2,
       limits: {
         memory: '256Mi',
-        cpu: '500m',
+        cpu: '25m',
       },
       readinessProbe,
       livenessProbe,
@@ -318,6 +326,7 @@ if (isAdhocEnv) {
       minReplicas: 1,
       maxReplicas: 25,
       limits: bgLimits,
+      requests: bgRequests,
       metric: {
         type: 'pubsub',
         labels: { app: name, subapp: 'personalized-digest' },
@@ -383,6 +392,7 @@ const [apps] = deployApplicationSuite(
           args: ['dumb-init', 'node', 'bin/cli', 'cron', cron.name],
           schedule: cron.schedule,
           limits: cron.limits ?? bgLimits,
+          requests: cron.requests ?? bgRequests,
           activeDeadlineSeconds: 300,
         })),
     isAdhocEnv,

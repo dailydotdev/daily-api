@@ -5,9 +5,11 @@ import {
   schedulePersonalizedDigestSubscriptions,
 } from '../common';
 import {
+  User,
   UserPersonalizedDigest,
   UserPersonalizedDigestSendType,
 } from '../entity';
+import { DEFAULT_TIMEZONE } from '../types';
 import { Cron } from './cron';
 import { Brackets } from 'typeorm';
 
@@ -19,7 +21,9 @@ const cron: Cron = {
     const nextPreferredDay = (new Date().getDay() + 1) % 7;
     const personalizedDigestQuery = con
       .createQueryBuilder()
+      .select('upd.*, u.timezone')
       .from(UserPersonalizedDigest, 'upd')
+      .leftJoin(User, 'u', 'u.id = upd."userId"')
       .where('upd."preferredDay" = :nextPreferredDay', {
         nextPreferredDay,
       })
@@ -38,14 +42,22 @@ const cron: Cron = {
     await schedulePersonalizedDigestSubscriptions({
       queryBuilder: personalizedDigestQuery,
       logger,
-      handler: async ({ personalizedDigest, emailBatchId }) => {
+      handler: async ({
+        personalizedDigest: personalizedDigestWithTimezome,
+        emailBatchId,
+      }) => {
+        const { timezone = DEFAULT_TIMEZONE, ...personalizedDigest } =
+          personalizedDigestWithTimezome as UserPersonalizedDigest &
+            Pick<User, 'timezone'>;
         const emailSendTimestamp = getPersonalizedDigestSendDate({
           personalizedDigest,
           generationTimestamp: timestamp,
+          timezone: timezone,
         }).getTime();
         const previousSendTimestamp = getPersonalizedDigestPreviousSendDate({
           personalizedDigest,
           generationTimestamp: timestamp,
+          timezone: timezone,
         }).getTime();
 
         await notifyGeneratePersonalizedDigest({

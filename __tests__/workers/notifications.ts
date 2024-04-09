@@ -1,7 +1,6 @@
 import { invokeNotificationWorker } from '../helpers';
 import {
   Comment,
-  CommentUpvote,
   MachineSource,
   NotificationPreferenceComment,
   NotificationPreferencePost,
@@ -18,7 +17,6 @@ import {
   UserAction,
   UserActionType,
   UserPost,
-  UserPostVote,
 } from '../../src/entity';
 import { SourceMemberRoles } from '../../src/roles';
 import { DataSource } from 'typeorm';
@@ -41,6 +39,8 @@ import {
 } from '../../src/notifications/common';
 import { createSquadWelcomePost, NotificationReason } from '../../src/common';
 import { randomUUID } from 'crypto';
+import { UserVote } from '../../src/types';
+import { UserComment } from '../../src/entity/user/UserComment';
 
 let con: DataSource;
 
@@ -902,9 +902,9 @@ describe('article upvote milestone', () => {
       {
         userId: '2',
         postId: 'p1',
-        vote: UserPostVote.Up,
+        vote: UserVote.Up,
       },
-      { userId: '4', postId: 'p1', vote: UserPostVote.Up },
+      { userId: '4', postId: 'p1', vote: UserVote.Up },
     ]);
     await con
       .getRepository(Source)
@@ -938,9 +938,9 @@ describe('article upvote milestone', () => {
       {
         userId: '2',
         postId: 'p1',
-        vote: UserPostVote.Up,
+        vote: UserVote.Up,
       },
-      { userId: '4', postId: 'p1', vote: UserPostVote.Up },
+      { userId: '4', postId: 'p1', vote: UserVote.Up },
     ]);
     const actual = await invokeNotificationWorker(worker.default, {
       userId: '2',
@@ -1382,13 +1382,14 @@ describe('comment upvote milestone', () => {
       .getRepository(Source)
       .update({ id: 'a' }, { type: SourceType.Squad });
     const repo = con.getRepository(SourceMember);
-    await con.getRepository(Comment).update({ id: 'c1' }, { upvotes: 5 });
-    await con.getRepository(CommentUpvote).save([
+    await con.getRepository(Comment).update({ id: 'c1' }, { upvotes: 3 });
+    await con.getRepository(UserComment).save([
       {
         userId: '1',
         commentId: 'c1',
+        vote: UserVote.Up,
       },
-      { userId: '4', commentId: 'c1' },
+      { userId: '4', commentId: 'c1', vote: UserVote.Up },
     ]);
     const params = { userId: '1', sourceId: 'a' };
     await repo.update(params, { role: SourceMemberRoles.Blocked });
@@ -1409,13 +1410,14 @@ describe('comment upvote milestone', () => {
     const worker = await import(
       '../../src/workers/notifications/commentUpvoteMilestone'
     );
-    await con.getRepository(Comment).update({ id: 'c1' }, { upvotes: 5 });
-    await con.getRepository(CommentUpvote).save([
+    await con.getRepository(Comment).update({ id: 'c1' }, { upvotes: 3 });
+    await con.getRepository(UserComment).save([
       {
         userId: '1',
         commentId: 'c1',
+        vote: UserVote.Up,
       },
-      { userId: '4', commentId: 'c1' },
+      { userId: '4', commentId: 'c1', vote: UserVote.Up },
     ]);
     const actual = await invokeNotificationWorker(worker.default, {
       userId: '1',

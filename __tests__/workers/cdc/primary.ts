@@ -8,7 +8,6 @@ import {
   ReputationType,
   PostType,
   UserPost,
-  UserPostVote,
   CampaignCtaPlacement,
   CollectionPost,
   PostRelation,
@@ -18,8 +17,6 @@ import {
 } from '../../../src/entity';
 import {
   notifyCommentCommented,
-  notifyCommentUpvoteCanceled,
-  notifyCommentUpvoted,
   notifyFeatureAccess,
   notifyMemberJoinedSource,
   notifyNewPostMention,
@@ -28,8 +25,6 @@ import {
   notifyPostCommented,
   notifyPostReport,
   notifyCommentReport,
-  notifyPostUpvoteCanceled,
-  notifyPostUpvoted,
   notifySendAnalyticsReport,
   notifySettingsUpdated,
   notifySourceFeedAdded,
@@ -67,7 +62,6 @@ import {
   ArticlePost,
   Comment,
   CommentMention,
-  CommentUpvote,
   COMMUNITY_PICKS_SOURCE,
   Feature,
   FeatureType,
@@ -86,7 +80,7 @@ import {
   UserStateKey,
   ContentImage,
 } from '../../../src/entity';
-import { ChangeObject } from '../../../src/types';
+import { ChangeObject, UserVote } from '../../../src/types';
 import { sourcesFixture } from '../../fixture/source';
 import { postsFixture } from '../../fixture/post';
 import { randomUUID } from 'crypto';
@@ -98,14 +92,11 @@ import { SourceMemberRoles } from '../../../src/roles';
 import { CommentReport } from '../../../src/entity/CommentReport';
 import { usersFixture } from '../../fixture/user';
 import { DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD } from '../../../src/workers/notifications/devCardUnlocked';
+import { UserComment } from '../../../src/entity/user/UserComment';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
   triggerTypedEvent: jest.fn(),
-  notifyPostUpvoted: jest.fn(),
-  notifyPostUpvoteCanceled: jest.fn(),
-  notifyCommentUpvoteCanceled: jest.fn(),
-  notifyCommentUpvoted: jest.fn(),
   notifyCommentCommented: jest.fn(),
   notifyPostCommented: jest.fn(),
   notifyCommentEdited: jest.fn(),
@@ -282,7 +273,7 @@ describe('post upvote', () => {
     userId: '1',
     postId: 'p1',
     votedAt: 0,
-    vote: UserPostVote.Up,
+    vote: UserVote.Up,
     hidden: false,
     updatedAt: 0,
     createdAt: 0,
@@ -300,11 +291,13 @@ describe('post upvote', () => {
         table: 'user_post',
       }),
     );
-    expect(notifyPostUpvoted).toHaveBeenCalledTimes(1);
-    expect(notifyPostUpvoteCanceled).toHaveBeenCalledTimes(0);
-    expect(jest.mocked(notifyPostUpvoted).mock.calls[0].slice(1)).toEqual([
-      'p1',
-      '1',
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'post-upvoted',
+      {
+        postId: 'p1',
+        userId: '1',
+      },
     ]);
   });
 
@@ -318,11 +311,11 @@ describe('post upvote', () => {
         table: 'user_post',
       }),
     );
-    expect(notifyPostUpvoted).toHaveBeenCalledTimes(0);
-    expect(notifyPostUpvoteCanceled).toHaveBeenCalledTimes(1);
-    expect(
-      jest.mocked(notifyPostUpvoteCanceled).mock.calls[0].slice(1),
-    ).toEqual(['p1', '1']);
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'post-upvote-canceled',
+      { postId: 'p1', userId: '1' },
+    ]);
   });
 
   it('should notify on upvote updated', async () => {
@@ -332,17 +325,19 @@ describe('post upvote', () => {
         after: base,
         before: {
           ...base,
-          vote: UserPostVote.None,
+          vote: UserVote.None,
         },
         op: 'u',
         table: 'user_post',
       }),
     );
-    expect(notifyPostUpvoted).toHaveBeenCalledTimes(1);
-    expect(notifyPostUpvoteCanceled).toHaveBeenCalledTimes(0);
-    expect(jest.mocked(notifyPostUpvoted).mock.calls[0].slice(1)).toEqual([
-      'p1',
-      '1',
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'post-upvoted',
+      {
+        postId: 'p1',
+        userId: '1',
+      },
     ]);
   });
 
@@ -352,47 +347,71 @@ describe('post upvote', () => {
       mockChangeMessage<ObjectType>({
         after: {
           ...base,
-          vote: UserPostVote.None,
+          vote: UserVote.None,
         },
         before: base,
         op: 'u',
         table: 'user_post',
       }),
     );
-    expect(notifyPostUpvoted).toHaveBeenCalledTimes(0);
-    expect(notifyPostUpvoteCanceled).toHaveBeenCalledTimes(1);
-    expect(
-      jest.mocked(notifyPostUpvoteCanceled).mock.calls[0].slice(1),
-    ).toEqual(['p1', '1']);
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'post-upvote-canceled',
+      { postId: 'p1', userId: '1' },
+    ]);
   });
 
-  it('should not notify if entity is not upvote', async () => {
+  it('should notify on upvote from downvote', async () => {
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<ObjectType>({
         after: {
           ...base,
-          vote: UserPostVote.None,
+          vote: UserVote.Up,
         },
         before: {
           ...base,
-          vote: UserPostVote.Down,
+          vote: UserVote.Down,
         },
         op: 'u',
         table: 'user_post',
       }),
     );
-    expect(notifyPostUpvoted).toHaveBeenCalledTimes(0);
-    expect(notifyPostUpvoteCanceled).toHaveBeenCalledTimes(0);
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(2);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.post-downvote-canceled',
+      { postId: 'p1', userId: '1' },
+    ]);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[1].slice(1)).toEqual([
+      'post-upvoted',
+      { postId: 'p1', userId: '1' },
+    ]);
+  });
+
+  it('should not notify when vote stays the same', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: base,
+        op: 'u',
+        table: 'user_post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
   });
 });
 
 describe('comment upvote', () => {
-  type ObjectType = CommentUpvote;
+  type ObjectType = UserComment;
   const base: ChangeObject<ObjectType> = {
     userId: '1',
     commentId: 'c1',
+    votedAt: 0,
+    vote: UserVote.Up,
+    updatedAt: 0,
     createdAt: 0,
+    flags: {},
   };
 
   it('should notify on new upvote', async () => {
@@ -403,13 +422,16 @@ describe('comment upvote', () => {
         after,
         before: null,
         op: 'c',
-        table: 'comment_upvote',
+        table: 'user_comment',
       }),
     );
-    expect(notifyCommentUpvoted).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(notifyCommentUpvoted).mock.calls[0].slice(1)).toEqual([
-      'c1',
-      '1',
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'comment-upvoted',
+      {
+        commentId: 'c1',
+        userId: '1',
+      },
     ]);
   });
 
@@ -420,13 +442,97 @@ describe('comment upvote', () => {
         after: null,
         before: base,
         op: 'd',
-        table: 'comment_upvote',
+        table: 'user_comment',
       }),
     );
-    expect(notifyCommentUpvoteCanceled).toHaveBeenCalledTimes(1);
-    expect(
-      jest.mocked(notifyCommentUpvoteCanceled).mock.calls[0].slice(1),
-    ).toEqual(['c1', '1']);
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'comment-upvote-canceled',
+      { commentId: 'c1', userId: '1' },
+    ]);
+  });
+
+  it('should notify on upvote updated', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: {
+          ...base,
+          vote: UserVote.None,
+        },
+        op: 'u',
+        table: 'user_comment',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'comment-upvoted',
+      {
+        commentId: 'c1',
+        userId: '1',
+      },
+    ]);
+  });
+
+  it('should notify on upvote canceled', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: {
+          ...base,
+          vote: UserVote.None,
+        },
+        before: base,
+        op: 'u',
+        table: 'user_comment',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'comment-upvote-canceled',
+      { commentId: 'c1', userId: '1' },
+    ]);
+  });
+
+  it('should notify on upvote from downvote', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: {
+          ...base,
+          vote: UserVote.Up,
+        },
+        before: {
+          ...base,
+          vote: UserVote.Down,
+        },
+        op: 'u',
+        table: 'user_comment',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(2);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.comment-downvote-canceled',
+      { commentId: 'c1', userId: '1' },
+    ]);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[1].slice(1)).toEqual([
+      'comment-upvoted',
+      { commentId: 'c1', userId: '1' },
+    ]);
+  });
+
+  it('should not notify when vote stays the same', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: base,
+        op: 'u',
+        table: 'user_comment',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
   });
 });
 
@@ -441,6 +547,7 @@ describe('comment', () => {
     parentId: null,
     comments: 0,
     upvotes: 0,
+    downvotes: 0,
     featured: false,
     createdAt: 0,
     lastUpdatedAt: 0,
@@ -2032,5 +2139,274 @@ describe('post relation collection', () => {
 
     expect(collectionAfterWorker.collectionSources.length).toBe(2);
     expect(collectionAfterWorker.collectionSources).toMatchObject(['a', 'a']);
+  });
+});
+
+describe('post downvote', () => {
+  type ObjectType = UserPost;
+  const base: ChangeObject<ObjectType> = {
+    userId: '1',
+    postId: 'p1',
+    votedAt: 0,
+    vote: UserVote.Down,
+    hidden: false,
+    updatedAt: 0,
+    createdAt: 0,
+    flags: {},
+  };
+
+  it('should notify on new downvote', async () => {
+    const after: ChangeObject<ObjectType> = base;
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'user_post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.post-downvoted',
+      {
+        postId: 'p1',
+        userId: '1',
+      },
+    ]);
+  });
+
+  it('should notify on downvote deleted', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: null,
+        before: base,
+        op: 'd',
+        table: 'user_post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.post-downvote-canceled',
+      { postId: 'p1', userId: '1' },
+    ]);
+  });
+
+  it('should notify on downvote updated', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: {
+          ...base,
+          vote: UserVote.None,
+        },
+        op: 'u',
+        table: 'user_post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.post-downvoted',
+      {
+        postId: 'p1',
+        userId: '1',
+      },
+    ]);
+  });
+
+  it('should notify on downvote canceled', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: {
+          ...base,
+          vote: UserVote.None,
+        },
+        before: base,
+        op: 'u',
+        table: 'user_post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.post-downvote-canceled',
+      { postId: 'p1', userId: '1' },
+    ]);
+  });
+
+  it('should notify on downvote from upvote', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: {
+          ...base,
+          vote: UserVote.Down,
+        },
+        before: {
+          ...base,
+          vote: UserVote.Up,
+        },
+        op: 'u',
+        table: 'user_post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(2);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'post-upvote-canceled',
+      { postId: 'p1', userId: '1' },
+    ]);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[1].slice(1)).toEqual([
+      'api.v1.post-downvoted',
+      { postId: 'p1', userId: '1' },
+    ]);
+  });
+
+  it('should not notify when vote stays the same', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: base,
+        op: 'u',
+        table: 'user_post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+});
+
+describe('comment downvote', () => {
+  type ObjectType = UserComment;
+  const base: ChangeObject<ObjectType> = {
+    userId: '1',
+    commentId: 'c1',
+    votedAt: 0,
+    vote: UserVote.Down,
+    updatedAt: 0,
+    createdAt: 0,
+    flags: {},
+  };
+
+  it('should notify on new downvote', async () => {
+    const after: ChangeObject<ObjectType> = base;
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'user_comment',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.comment-downvoted',
+      {
+        commentId: 'c1',
+        userId: '1',
+      },
+    ]);
+  });
+
+  it('should notify on downvote deleted', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: null,
+        before: base,
+        op: 'd',
+        table: 'user_comment',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.comment-downvote-canceled',
+      { commentId: 'c1', userId: '1' },
+    ]);
+  });
+
+  it('should notify on downvote updated', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: {
+          ...base,
+          vote: UserVote.None,
+        },
+        op: 'u',
+        table: 'user_comment',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.comment-downvoted',
+      {
+        commentId: 'c1',
+        userId: '1',
+      },
+    ]);
+  });
+
+  it('should notify on downvote canceled', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: {
+          ...base,
+          vote: UserVote.None,
+        },
+        before: base,
+        op: 'u',
+        table: 'user_comment',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.comment-downvote-canceled',
+      { commentId: 'c1', userId: '1' },
+    ]);
+  });
+
+  it('should notify on downvote from upvote', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: {
+          ...base,
+          vote: UserVote.Down,
+        },
+        before: {
+          ...base,
+          vote: UserVote.Up,
+        },
+        op: 'u',
+        table: 'user_comment',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(2);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'comment-upvote-canceled',
+      { commentId: 'c1', userId: '1' },
+    ]);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[1].slice(1)).toEqual([
+      'api.v1.comment-downvoted',
+      { commentId: 'c1', userId: '1' },
+    ]);
+  });
+
+  it('should not notify when vote stays the same', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: base,
+        op: 'u',
+        table: 'user_comment',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
   });
 });

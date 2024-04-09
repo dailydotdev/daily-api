@@ -1263,6 +1263,7 @@ describe('source_post_added notification', () => {
       post_link: `http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=${NotificationType.SourcePostAdded}`,
       post_title: 'P1',
       source_name: 'A',
+      source_image: 'http://image.com/a',
     });
     expect(args.templateId).toEqual(
       notificationToTemplateId[NotificationType.SourcePostAdded],

@@ -6,6 +6,7 @@ import {
   User,
   UserPersonalizedDigest,
   UserPersonalizedDigestSendType,
+  UserPersonalizedDigestType,
 } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
 import { DayOfWeek } from '../../src/types';
@@ -78,10 +79,14 @@ describe('userCreatedAddPersonalizedDigest worker', () => {
       .getRepository(UserPersonalizedDigest)
       .save({
         userId: user!.id,
-        preferredTimezone: 'Europe/Zagreb',
         preferredHour: 8,
         preferredDay: DayOfWeek.Wednesday,
+        type: UserPersonalizedDigestType.Digest,
       });
+    await con.getRepository(User).save({
+      id: user!.id,
+      timezone: 'Europe/Zagreb',
+    });
 
     expect(personalizedDigest.flags?.sendType).not.toBeDefined();
 
@@ -101,7 +106,6 @@ describe('userCreatedAddPersonalizedDigest worker', () => {
     expect(personalizedDigestWithSendType).toMatchObject({
       preferredDay: DayOfWeek.Wednesday,
       preferredHour: 8,
-      preferredTimezone: 'Europe/Zagreb',
       flags: {
         sendType: UserPersonalizedDigestSendType.weekly,
       },

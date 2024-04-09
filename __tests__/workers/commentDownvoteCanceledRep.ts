@@ -1,5 +1,5 @@
 import { expectSuccessfulTypedBackground, saveFixtures } from '../helpers';
-import worker from '../../src/workers/commentUpvoteCanceledRep';
+import worker from '../../src/workers/commentDownvoteCanceledRep';
 import {
   ArticlePost,
   Comment,
@@ -62,7 +62,7 @@ describe('commentUpvoteCanceledRep worker', () => {
         grantToId: '1',
         targetId: 'c1',
         targetType: ReputationType.Comment,
-        reason: ReputationReason.CommentUpvoted,
+        reason: ReputationReason.CommentDownvoted,
       }),
     );
     await expectSuccessfulTypedBackground(worker, {
@@ -74,7 +74,7 @@ describe('commentUpvoteCanceledRep worker', () => {
       grantToId: '1',
       targetId: 'c1',
       targetType: ReputationType.Post,
-      reason: ReputationReason.PostUpvoted,
+      reason: ReputationReason.CommentDownvoted,
     });
     expect(deleted).toEqual(null);
   });

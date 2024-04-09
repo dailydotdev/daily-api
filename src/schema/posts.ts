@@ -31,6 +31,7 @@ import {
   uploadPostFile,
   UploadPreset,
   validatePost,
+  votePost,
 } from '../common';
 import {
   ArticlePost,
@@ -51,7 +52,6 @@ import {
   PostQuestion,
   UserPost,
   UserPostFlagsPublic,
-  UserPostVote,
   updateSharePost,
   View,
   User,
@@ -83,6 +83,7 @@ import { insertOrIgnoreAction } from './actions';
 import { generateShortId, generateUUID } from '../ids';
 import { generateStorageKey, StorageTopic } from '../config';
 import { subDays } from 'date-fns';
+import { UserVote } from '../types';
 
 export interface GQLPost {
   id: string;
@@ -128,6 +129,7 @@ export interface GQLPost {
   downvoted?: boolean;
   flags?: PostFlagsPublic;
   userState?: GQLUserPost;
+  slug?: string;
 }
 
 interface PinPostArgs {
@@ -153,7 +155,7 @@ export interface GQLPostUpvote {
 }
 
 export interface GQLUserPost {
-  vote: UserPostVote;
+  vote: UserVote;
   hidden: boolean;
   flags?: UserPostFlagsPublic;
   votedAt: Date | null;
@@ -504,6 +506,11 @@ export const typeDefs = /* GraphQL */ `
     Video ID for video post
     """
     videoId: String
+
+    """
+    Slug for the post
+    """
+    slug: String
   }
 
   type PostConnection {
@@ -1072,7 +1079,7 @@ export const resolvers: IResolvers<any, Context> = {
       const partialPost = await ctx.con.getRepository(Post).findOneOrFail({
         select: ['id', 'sourceId', 'private'],
         relations: ['source'],
-        where: { id },
+        where: [{ id }, { slug: id }],
       });
       const postSource = await partialPost.source;
 
@@ -1080,9 +1087,27 @@ export const resolvers: IResolvers<any, Context> = {
         partialPost.private ||
         sourceTypesWithMembers.includes(postSource.type)
       ) {
-        await ensureSourcePermissions(ctx, partialPost.sourceId);
+        try {
+          await ensureSourcePermissions(ctx, partialPost.sourceId);
+        } catch (permissionError) {
+          if (permissionError instanceof ForbiddenError) {
+            const forbiddenError = permissionError as ForbiddenError;
+
+            const forbiddenErrorForPost = new ForbiddenError(
+              permissionError.message,
+              {
+                ...forbiddenError.extensions,
+                postId: partialPost.id,
+              },
+            );
+
+            throw forbiddenErrorForPost;
+          }
+
+          throw permissionError;
+        }
       }
-      return getPostById(ctx, info, id);
+      return getPostById(ctx, info, partialPost.id);
     },
     postByUrl: async (
       source,
@@ -1206,7 +1231,7 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<ConnectionRelay<GQLPost>> => {
       const post = await ctx.con
         .getRepository(Post)
-        .findOneByOrFail({ id: args.id });
+        .findOneByOrFail([{ id: args.id }, { slug: args.id }]);
       await ensureSourcePermissions(ctx, post.sourceId);
 
       return queryPaginatedByDate(
@@ -1750,61 +1775,13 @@ export const resolvers: IResolvers<any, Context> = {
       }
       return { _: true };
     },
+    // TODO AS-213 remove when no longer used on frontend
     votePost: async (
       source,
-      { id, vote }: { id: string; vote: UserPostVote },
+      { id, vote }: { id: string; vote: UserVote },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
-      try {
-        if (!Object.values(UserPostVote).includes(vote)) {
-          throw new ValidationError('Unsupported vote type');
-        }
-
-        const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
-        await ensureSourcePermissions(ctx, post.sourceId);
-        const userPostRepo = ctx.con.getRepository(UserPost);
-
-        switch (vote) {
-          case UserPostVote.Up:
-            await userPostRepo.save({
-              postId: id,
-              userId: ctx.userId,
-              vote: UserPostVote.Up,
-              hidden: false,
-            });
-
-            break;
-          case UserPostVote.Down:
-            await userPostRepo.save({
-              postId: id,
-              userId: ctx.userId,
-              vote: UserPostVote.Down,
-              hidden: true,
-            });
-
-            break;
-          case UserPostVote.None:
-            await userPostRepo.save({
-              postId: id,
-              userId: ctx.userId,
-              vote: UserPostVote.None,
-              hidden: false,
-            });
-
-            break;
-          default:
-            throw new ValidationError('Unsupported vote type');
-        }
-      } catch (err) {
-        // Foreign key violation
-        if (err?.code === TypeOrmError.FOREIGN_KEY) {
-          throw new NotFoundError('Post or user not found');
-        }
-
-        throw err;
-      }
-
-      return { _: true };
+      return votePost({ ctx, id, vote });
     },
     dismissPostFeedback: async (
       source,
@@ -1871,7 +1848,7 @@ export const resolvers: IResolvers<any, Context> = {
     ratio: (post: GQLPost): number =>
       post.image ? post.ratio : defaultImage.ratio,
     permalink: getPostPermalink,
-    commentsPermalink: (post: GQLPost): string => getDiscussionLink(post.id),
+    commentsPermalink: (post: GQLPost): string => getDiscussionLink(post.slug),
     feedMeta: (post: GQLPost): string => {
       if (post.feedMeta) {
         return Buffer.from(post.feedMeta).toString('base64');

@@ -19,6 +19,9 @@ import {
   AcquisitionChannel,
   UserMarketingCta,
   MarketingCta,
+  UserPersonalizedDigestType,
+  UserPersonalizedDigestFlags,
+  UserPersonalizedDigestSendType,
 } from '../entity';
 import {
   AuthenticationError,
@@ -42,6 +45,8 @@ import {
   GQLUserStreakTz,
   toGQLEnum,
   getUserPermalink,
+  votePost,
+  voteComment,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -56,8 +61,7 @@ import { deleteUser } from '../directive/user';
 import { randomInt } from 'crypto';
 import { DataSource, In, IsNull } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
-import { DayOfWeek } from '../types';
-import { getTimezoneOffset } from 'date-fns-tz';
+import { DayOfWeek, UserVote, UserVoteEntity } from '../types';
 import { markdown } from '../common/markdown';
 import {
   ONE_WEEK_IN_SECONDS,
@@ -159,7 +163,6 @@ export interface ReferralCampaign {
 export interface GQLPersonalizedDigest {
   preferredDay: DayOfWeek;
   preferredHour: number;
-  preferredTimezone: string;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -403,7 +406,7 @@ export const typeDefs = /* GraphQL */ `
   type PersonalizedDigest {
     preferredDay: Int!
     preferredHour: Int!
-    preferredTimezone: String!
+    type: DigestType
   }
 
   type UserEdge {
@@ -428,6 +431,9 @@ export const typeDefs = /* GraphQL */ `
   }
 
   ${toGQLEnum(AcquisitionChannel, 'AcquisitionChannel')}
+  ${toGQLEnum(UserPersonalizedDigestType, 'DigestType')}
+
+  ${toGQLEnum(UserVoteEntity, 'UserVoteEntity')}
 
   extend type Query {
     """
@@ -552,7 +558,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get personalized digest settings
     """
-    personalizedDigest: PersonalizedDigest @auth
+    personalizedDigest(type: DigestType): PersonalizedDigest @auth
 
     """
     List of users that the logged in user has referred to the platform
@@ -588,16 +594,17 @@ export const typeDefs = /* GraphQL */ `
       Preferred day of the week. Expected value is 0-6
       """
       day: Int
+
       """
-      Preferred timezone relevant to the hour and day.
+      Type of the digest (digest/reminder/etc)
       """
-      timezone: String
+      type: DigestType
     ): PersonalizedDigest @auth
 
     """
     The mutation to unsubscribe from the personalized digest
     """
-    unsubscribePersonalizedDigest: EmptyResponse @auth
+    unsubscribePersonalizedDigest(type: DigestType): EmptyResponse @auth
     """
     The mutation to accept feature invites from another user
     """
@@ -647,6 +654,26 @@ export const typeDefs = /* GraphQL */ `
     Clears the user marketing CTA and marks it as read
     """
     clearUserMarketingCta(campaignId: String!): EmptyResponse @auth
+
+    """
+    Vote entity
+    """
+    vote(
+      """
+      Id of the entity
+      """
+      id: ID!
+
+      """
+      Entity to vote (post, comment..)
+      """
+      entity: UserVoteEntity!
+
+      """
+      Vote type
+      """
+      vote: Int!
+    ): EmptyResponse @auth
   }
 `;
 
@@ -1064,12 +1091,14 @@ export const resolvers: IResolvers<any, Context> = {
     },
     personalizedDigest: async (
       _,
-      args,
+      {
+        type = UserPersonalizedDigestType.Digest,
+      }: { type?: UserPersonalizedDigestType },
       ctx: Context,
     ): Promise<GQLPersonalizedDigest> => {
       const personalizedDigest = await ctx
         .getRepository(UserPersonalizedDigest)
-        .findOneBy({ userId: ctx.userId });
+        .findOneBy({ userId: ctx.userId, type });
 
       if (!personalizedDigest) {
         throw new NotFoundError('Not subscribed to personalized digest');
@@ -1196,11 +1225,11 @@ export const resolvers: IResolvers<any, Context> = {
       args: {
         hour?: number;
         day?: number;
-        timezone?: string;
+        type?: UserPersonalizedDigestType;
       },
       ctx: Context,
     ): Promise<GQLPersonalizedDigest> => {
-      const { hour, day, timezone } = args;
+      const { hour, day, type = UserPersonalizedDigestType.Digest } = args;
 
       if (!isNullOrUndefined(hour) && (hour < 0 || hour > 23)) {
         throw new ValidationError('Invalid hour');
@@ -1210,27 +1239,28 @@ export const resolvers: IResolvers<any, Context> = {
         throw new ValidationError('Invalid day');
       }
 
-      if (
-        !isNullOrUndefined(timezone) &&
-        Number.isNaN(getTimezoneOffset(timezone))
-      ) {
-        throw new ValidationError('Invalid timezone');
-      }
-
       const repo = ctx.con.getRepository(UserPersonalizedDigest);
+
+      const flags: UserPersonalizedDigestFlags = {};
+      if (type === UserPersonalizedDigestType.ReadingReminder) {
+        flags.sendType = UserPersonalizedDigestSendType.workdays;
+      }
 
       const personalizedDigest = await repo.save({
         userId: ctx.userId,
         preferredDay: day,
         preferredHour: hour,
-        preferredTimezone: timezone,
+        type,
+        flags,
       });
 
       return personalizedDigest;
     },
     unsubscribePersonalizedDigest: async (
       _,
-      args,
+      {
+        type = UserPersonalizedDigestType.Digest,
+      }: { type?: UserPersonalizedDigestType },
       ctx: Context,
     ): Promise<unknown> => {
       const repo = ctx.con.getRepository(UserPersonalizedDigest);
@@ -1238,6 +1268,7 @@ export const resolvers: IResolvers<any, Context> = {
       if (ctx.userId) {
         await repo.delete({
           userId: ctx.userId,
+          type,
         });
       }
 
@@ -1370,6 +1401,24 @@ export const resolvers: IResolvers<any, Context> = {
       }
 
       return { _: null };
+    },
+    vote: async (
+      _,
+      {
+        id,
+        vote,
+        entity,
+      }: { id: string; vote: UserVote; entity: UserVoteEntity },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      switch (entity) {
+        case UserVoteEntity.Post:
+          return votePost({ ctx, id, vote });
+        case UserVoteEntity.Comment:
+          return voteComment({ ctx, id, vote });
+        default:
+          throw new ValidationError('Unsupported vote entity');
+      }
     },
   }),
   User: {

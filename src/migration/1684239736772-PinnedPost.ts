@@ -1,5 +1,5 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
-import { PostType } from '../entity';
+import { PostType } from '../entity/posts/Post';
 
 export class PinnedPost1684239736772 implements MigrationInterface {
   name = 'PinnedPost1684239736772';
