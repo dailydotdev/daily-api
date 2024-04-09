@@ -1,4 +1,4 @@
-import { expectSuccessfulBackground, saveFixtures } from '../helpers';
+import { expectSuccessfulTypedBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/postDownvotedRep';
 import {
   ArticlePost,
@@ -11,7 +11,7 @@ import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
-import { workers } from '../../src/workers';
+import { typedWorkers } from '../../src/workers';
 
 let con: DataSource;
 
@@ -19,36 +19,36 @@ beforeAll(async () => {
   con = await createOrGetConnection();
 });
 
-beforeEach(async () => {
-  jest.resetAllMocks();
-  await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, ArticlePost, postsFixture);
-  await con.getRepository(User).save([
-    {
-      id: '1',
-      name: 'Ido',
-      image: 'https://daily.dev/ido.jpg',
-      reputation: 3,
-    },
-    {
-      id: '2',
-      name: 'Lee',
-      image: 'https://daily.dev/lee.jpg',
-      reputation: 251,
-    },
-    {
-      id: '3',
-      name: 'Chris',
-      image: 'https://daily.dev/chris.jpg',
-      reputation: 251,
-    },
-  ]);
-  await con.getRepository(Post).update('p1', { authorId: '1' });
-});
-
 describe('postDownvotedRep worker', () => {
+  beforeEach(async () => {
+    jest.resetAllMocks();
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, ArticlePost, postsFixture);
+    await con.getRepository(User).save([
+      {
+        id: '1',
+        name: 'Ido',
+        image: 'https://daily.dev/ido.jpg',
+        reputation: 3,
+      },
+      {
+        id: '2',
+        name: 'Lee',
+        image: 'https://daily.dev/lee.jpg',
+        reputation: 251,
+      },
+      {
+        id: '3',
+        name: 'Chris',
+        image: 'https://daily.dev/chris.jpg',
+        reputation: 251,
+      },
+    ]);
+    await con.getRepository(Post).update('p1', { authorId: '1' });
+  });
+
   it('should be registered', () => {
-    const registeredWorker = workers.find(
+    const registeredWorker = typedWorkers.find(
       (item) => item.subscription === worker.subscription,
     );
 
@@ -56,19 +56,19 @@ describe('postDownvotedRep worker', () => {
   });
 
   it('should create a reputation event that decreases reputation', async () => {
-    await expectSuccessfulBackground(worker, {
+    await expectSuccessfulTypedBackground(worker, {
       userId: '2',
       postId: 'p1',
     });
     const event = await con
       .getRepository(ReputationEvent)
       .findOne({ where: { targetId: 'p1', grantById: '2', grantToId: '1' } });
-    expect(event.amount).toEqual(-10);
+    expect(event!.amount).toEqual(-10);
   });
 
   it('should not create a reputation event when the upvoting user is ineligible', async () => {
     await con.getRepository(User).update({ id: '2' }, { reputation: 249 });
-    await expectSuccessfulBackground(worker, {
+    await expectSuccessfulTypedBackground(worker, {
       userId: '2',
       postId: 'p1',
     });
@@ -79,7 +79,7 @@ describe('postDownvotedRep worker', () => {
   });
 
   it('should not create a reputation event when the author is the downvoted user', async () => {
-    await expectSuccessfulBackground(worker, {
+    await expectSuccessfulTypedBackground(worker, {
       userId: '1',
       postId: 'p1',
     });
@@ -92,7 +92,7 @@ describe('postDownvotedRep worker', () => {
 
   it('should not create a reputation event for author when there is a scout set for the post', async () => {
     await con.getRepository(Post).update('p1', { scoutId: '2' });
-    await expectSuccessfulBackground(worker, {
+    await expectSuccessfulTypedBackground(worker, {
       userId: '3',
       postId: 'p1',
     });
