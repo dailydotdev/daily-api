@@ -371,6 +371,7 @@ const onCommentChange = async (
         data.payload.after.userId,
         data.payload.after.parentId,
         data.payload.after.id,
+        data.payload.after.contentHtml,
       );
     } else {
       await notifyPostCommented(
@@ -378,6 +379,7 @@ const onCommentChange = async (
         data.payload.after.postId,
         data.payload.after.userId,
         data.payload.after.id,
+        data.payload.after.contentHtml,
       );
     }
   } else if (data.payload.op === 'u') {
