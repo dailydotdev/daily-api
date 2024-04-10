@@ -10,9 +10,10 @@ export type KeywordStatus = 'pending' | 'allow' | 'deny' | 'synonym';
 
 export type KeywordFlags = Partial<{
   onboarding: boolean;
+  description: string;
 }>;
 
-export type KeywordFlagsPublic = never;
+export type KeywordFlagsPublic = Pick<KeywordFlags, 'description'>;
 
 @Entity()
 @Index('IDX_status_value', ['status', 'value'])
