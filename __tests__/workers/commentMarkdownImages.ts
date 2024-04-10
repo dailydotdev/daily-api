@@ -93,7 +93,8 @@ describe('worker commentCommentedWorker', () => {
     await expectSuccessfulBackground(commentCommentedWorker, {
       postId: comment.postId,
       userId: comment.userId,
-      commentId: comment.id,
+      parentCommentId: comment.parentId,
+      childCommentId: comment.id,
       contentHtml: html,
     });
     const actual = await con.getRepository(ContentImage).find({
