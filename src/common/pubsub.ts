@@ -125,11 +125,13 @@ export const notifyPostCommented = async (
   postId: string,
   userId: string,
   commentId: string,
+  contentHtml: string,
 ): Promise<void> =>
   publishEvent(log, postCommentedTopic, {
     postId,
     userId,
     commentId,
+    contentHtml,
   });
 
 export const notifyCommentCommented = async (
@@ -138,12 +140,14 @@ export const notifyCommentCommented = async (
   userId: string,
   parentCommentId: string,
   childCommentId: string,
+  contentHtml: string,
 ): Promise<void> =>
   publishEvent(log, commentCommentedTopic, {
     postId,
     userId,
     parentCommentId,
     childCommentId,
+    contentHtml,
   });
 
 export const notifyCommentFeatured = async (

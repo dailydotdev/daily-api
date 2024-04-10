@@ -569,6 +569,7 @@ describe('comment', () => {
       'p1',
       '1',
       'c1',
+      '<p>comment</p>',
     ]);
   });
 
@@ -592,6 +593,7 @@ describe('comment', () => {
       '1',
       'c2',
       'c1',
+      '<p>comment</p>',
     ]);
   });
 
