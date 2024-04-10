@@ -58,8 +58,6 @@ export const workers: Worker[] = [
   newView,
   updateMailingList,
   deleteUserFromMailingList,
-  commentUpvotedRep,
-  commentUpvoteCanceledRep,
   postCommentedWorker,
   commentCommentedWorker,
   commentEditedWorker,
@@ -67,10 +65,6 @@ export const workers: Worker[] = [
   postScoutMatchedSlack,
   commentCommentedSlackMessage,
   postCommentedSlackMessage,
-  postUpvotedRep,
-  postUpvoteCanceledRep,
-  postDownvotedRep,
-  postDownvoteCanceledRep,
   postCommentedRedis,
   postUpvotedRedis,
   postBannedRep,
@@ -100,6 +94,12 @@ export const typedWorkers: BaseTypedWorker<unknown>[] = [
   sourceRequestApprovedRep,
   commentDownvotedRep,
   commentDownvoteCanceledRep,
+  commentUpvotedRep,
+  commentUpvoteCanceledRep,
+  postUpvotedRep,
+  postUpvoteCanceledRep,
+  postDownvotedRep,
+  postDownvoteCanceledRep,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

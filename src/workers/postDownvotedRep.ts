@@ -6,17 +6,12 @@ import {
   Post,
   User,
 } from '../entity';
-import { messageToJson, Worker } from './worker';
+import { TypedWorker } from './worker';
 
-interface Data {
-  userId: string;
-  postId: string;
-}
-
-const worker: Worker = {
+const worker: TypedWorker<'api.v1.post-downvoted'> = {
   subscription: 'api.post-downvoted-rep',
   handler: async (message, con, logger): Promise<void> => {
-    const data: Data = messageToJson(message);
+    const { data } = message;
     const logDetails = { data, messageId: message.messageId };
     try {
       await con.transaction(async (transaction) => {
