@@ -39,6 +39,7 @@ export type PostFlags = Partial<{
   visible: boolean;
   showOnFeed: boolean;
   promoteToPublic: number;
+  deletedBy: string;
 }>;
 
 export type PostFlagsPublic = Pick<PostFlags, 'private' | 'promoteToPublic'>;

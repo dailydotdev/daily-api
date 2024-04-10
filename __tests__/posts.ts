@@ -1175,7 +1175,7 @@ describe('mutation deletePost', () => {
   it('should delete the post', async () => {
     loggedUser = '1';
     roles = [Roles.Moderator];
-    await verifyPostDeleted('p1');
+    await verifyPostDeleted('p1', loggedUser);
   });
 
   it('should do nothing if post is already deleted', async () => {
@@ -1277,14 +1277,16 @@ describe('mutation deletePost', () => {
     loggedUser = '2';
     const id = 'sp1';
     await createSharedPost(id);
-    await verifyPostDeleted(id);
+    await verifyPostDeleted(id, loggedUser);
   });
 
-  const verifyPostDeleted = async (id: string) => {
+  const verifyPostDeleted = async (id: string, user: string) => {
     const res = await client.mutate(MUTATION, { variables: { id } });
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(Post).findOneBy({ id });
     expect(actual.deleted).toBeTruthy();
+    expect(actual.flags.deleted).toBeTruthy();
+    expect(actual.flags.deletedBy).toBe(user);
   };
 
   it('should allow member to delete their own freeform post', async () => {
@@ -1294,7 +1296,7 @@ describe('mutation deletePost', () => {
     await con
       .getRepository(Post)
       .update({ id: post.id }, { type: PostType.Freeform });
-    await verifyPostDeleted(post.id);
+    await verifyPostDeleted(post.id, loggedUser);
   });
 
   it('should delete the welcome post by a moderator or an admin', async () => {
@@ -1307,7 +1309,7 @@ describe('mutation deletePost', () => {
     });
     const source = await con.getRepository(Source).findOneBy({ id: 'a' });
     const post = await createSquadWelcomePost(con, source, '2');
-    await verifyPostDeleted(post.id);
+    await verifyPostDeleted(post.id, loggedUser);
     await con
       .getRepository(SourceMember)
       .update(
@@ -1318,14 +1320,14 @@ describe('mutation deletePost', () => {
     await con
       .getRepository(Post)
       .update({ id: welcome.id }, { type: PostType.Freeform });
-    await verifyPostDeleted(welcome.id);
+    await verifyPostDeleted(welcome.id, loggedUser);
   });
 
   it('should delete the shared post from a member as a moderator', async () => {
     loggedUser = '2';
     const id = 'sp1';
     await createSharedPost(id, { role: SourceMemberRoles.Moderator }, '1');
-    await verifyPostDeleted(id);
+    await verifyPostDeleted(id, loggedUser);
   });
 
   it('should allow moderator deleting a post from other moderators', async () => {
@@ -1336,7 +1338,7 @@ describe('mutation deletePost', () => {
       .getRepository(SourceMember)
       .update({ userId: '1' }, { role: SourceMemberRoles.Moderator });
 
-    await verifyPostDeleted(id);
+    await verifyPostDeleted(id, loggedUser);
   });
 
   it('should allow moderator deleting a post from the admin', async () => {
@@ -1347,14 +1349,14 @@ describe('mutation deletePost', () => {
       .getRepository(SourceMember)
       .update({ userId: '1' }, { role: SourceMemberRoles.Moderator });
 
-    await verifyPostDeleted(id);
+    await verifyPostDeleted(id, loggedUser);
   });
 
   it('should delete the shared post as an admin of the squad', async () => {
     loggedUser = '2';
     const id = 'sp1';
     await createSharedPost(id, { role: SourceMemberRoles.Admin }, '1');
-    await verifyPostDeleted(id);
+    await verifyPostDeleted(id, loggedUser);
   });
 });
 

@@ -1367,7 +1367,10 @@ export const resolvers: IResolvers<any, Context> = {
           { id },
           {
             deleted: true,
-            flags: updateFlagsStatement<Post>({ deleted: true }),
+            flags: updateFlagsStatement<Post>({
+              deleted: true,
+              deletedBy: ctx.userId,
+            }),
           },
         );
         return { _: true };
@@ -1387,7 +1390,10 @@ export const resolvers: IResolvers<any, Context> = {
           { id },
           {
             deleted: true,
-            flags: updateFlagsStatement<Post>({ deleted: true }),
+            flags: updateFlagsStatement<Post>({
+              deleted: true,
+              deletedBy: ctx.userId,
+            }),
           },
         );
       });
