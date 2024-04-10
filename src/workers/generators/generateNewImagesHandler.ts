@@ -1,29 +1,15 @@
-import { ChangeObject } from '../../types';
 import {
   ContentImageUsedByType,
   updateUsedImagesInContent,
 } from '../../entity';
-import { messageToJson } from '../worker';
+import { DataSource } from 'typeorm';
 
-interface Content {
-  id: string;
-}
+export const generateNewImagesHandler = async (
+  data: { id: string; contentHtml: string },
+  type: ContentImageUsedByType,
+  con: DataSource,
+) => {
+  if (!data || !data?.id || !data?.contentHtml) return;
 
-interface Data<T extends Content> {
-  [key: string]: ChangeObject<T>;
-}
-
-export const generateNewImagesHandler =
-  <T extends Data<Content> = Data<Content>>(
-    key: keyof T,
-    type: ContentImageUsedByType,
-    contentKey: keyof Data<Content> = 'contentHtml',
-  ) =>
-  async (message, con): Promise<void> => {
-    const data: T = messageToJson(message);
-    const obj = data[key];
-
-    if (!obj || !obj?.id || !obj?.[contentKey]) return;
-
-    await updateUsedImagesInContent(con, type, obj.id, obj[contentKey]);
-  };
+  await updateUsedImagesInContent(con, type, data.id, data.contentHtml);
+};
