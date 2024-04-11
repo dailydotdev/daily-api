@@ -33,6 +33,7 @@ import { Keyword } from '../src/entity/Keyword';
     keywords.push({
       value: slug,
       flags: {
+        title,
         description,
       },
     });

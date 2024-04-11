@@ -36,6 +36,11 @@ interface GQLSynonymKeywordArgs {
 export const typeDefs = /* GraphQL */ `
   type KeywordFlagsPublic {
     """
+    Title of the keyword
+    """
+    title: String
+
+    """
     Description of the keyword
     """
     description: String

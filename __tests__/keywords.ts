@@ -363,6 +363,7 @@ describe('flags field', () => {
   const QUERY = `{
     keyword(value: "react") {
       flags {
+        title
         description
       }
     }
@@ -380,12 +381,16 @@ describe('flags field', () => {
     await con.getRepository(Keyword).update(
       { value: 'react' },
       {
-        flags: updateFlagsStatement({ description: 'React is a JS library' }),
+        flags: updateFlagsStatement({
+          title: 'React',
+          description: 'React is a JS library',
+        }),
       },
     );
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     expect(res.data.keyword.flags).toEqual({
+      title: 'React',
       description: 'React is a JS library',
     });
   });
@@ -393,6 +398,7 @@ describe('flags field', () => {
   it('should return null values for unset flags', async () => {
     const res = await client.query(QUERY);
     expect(res.data.keyword.flags).toEqual({
+      title: null,
       description: null,
     });
   });
