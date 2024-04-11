@@ -9,6 +9,7 @@ import {
 export type KeywordStatus = 'pending' | 'allow' | 'deny' | 'synonym';
 
 export type KeywordFlags = Partial<{
+  onboarding: boolean;
   title: string;
   description: string;
 }>;
