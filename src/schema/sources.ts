@@ -6,6 +6,8 @@ import { Context } from '../Context';
 import {
   createSharePost,
   generateMemberToken,
+  Post,
+  PostKeyword,
   Source,
   SourceFeed,
   SourceMember,
@@ -49,6 +51,7 @@ import {
 } from '../common/object';
 import { validateAndTransformHandle } from '../common/handles';
 import { QueryBuilder } from '../graphorm/graphorm';
+import type { GQLTagResults } from './tags';
 
 export interface GQLSource {
   id: string;
@@ -252,6 +255,13 @@ export const typeDefs = /* GraphQL */ `
     cursor: String!
   }
 
+  type TagResults {
+    """
+    Results
+    """
+    hits: [Tag]!
+  }
+
   extend type Query {
     """
     Get all available sources
@@ -352,6 +362,11 @@ export const typeDefs = /* GraphQL */ `
     Get source member by referral token
     """
     sourceMemberByToken(token: String!): SourceMember!
+
+    """
+    Get related tags for a source
+    """
+    relatedTags(sourceId: ID!): TagResults!
 
     """
     Check if source handle already exists
@@ -1120,6 +1135,28 @@ export const resolvers: IResolvers<any, Context> = {
         throw new EntityNotFoundError(SourceMember, 'not found');
       }
       return res[0];
+    },
+    relatedTags: async (_, { sourceId }, ctx): Promise<GQLTagResults> => {
+      const keywords = await ctx.con
+        .createQueryBuilder()
+        .from(Post, 'p')
+        .select('pk.keyword, count(pk.keyword) as count')
+        .innerJoin(
+          PostKeyword,
+          'pk',
+          'pk.postId = p.id and pk.status = :status',
+          { status: 'allow' },
+        )
+        .where({ sourceId })
+        .andWhere({ deleted: false })
+        .groupBy('pk.keyword')
+        .orderBy('count', 'DESC')
+        .limit(6)
+        .getRawMany();
+
+      return {
+        hits: keywords.map(({ keyword }) => ({ name: keyword })),
+      };
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
