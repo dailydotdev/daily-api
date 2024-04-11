@@ -1,7 +1,12 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { Context } from '../Context';
 import { traceResolvers } from './trace';
-import { Keyword, KeywordStatus, PostKeyword } from '../entity';
+import {
+  Keyword,
+  KeywordFlagsPublic,
+  KeywordStatus,
+  PostKeyword,
+} from '../entity';
 import graphorm from '../graphorm';
 import { parseResolveInfo, ResolveTree } from 'graphql-parse-resolve-info';
 import { GQLEmptyResponse } from './common';
@@ -11,6 +16,7 @@ interface GQLKeyword {
   value: string;
   status: KeywordStatus;
   occurrences: number;
+  flags?: KeywordFlagsPublic;
 }
 
 interface GQLKeywordSearchResults {
@@ -28,6 +34,18 @@ interface GQLSynonymKeywordArgs {
 }
 
 export const typeDefs = /* GraphQL */ `
+  type KeywordFlagsPublic {
+    """
+    Title of the keyword
+    """
+    title: String
+
+    """
+    Description of the keyword
+    """
+    description: String
+  }
+
   """
   Post keyword
   """
@@ -44,6 +62,10 @@ export const typeDefs = /* GraphQL */ `
     Number of posts containing this keyword
     """
     occurrences: Int!
+    """
+    The keyword's flags
+    """
+    flags: KeywordFlagsPublic
   }
 
   """
@@ -77,7 +99,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get a keyword
     """
-    keyword(value: String!): Keyword @auth(requires: [MODERATOR])
+    keyword(value: String!): Keyword
   }
 
   extend type Mutation {

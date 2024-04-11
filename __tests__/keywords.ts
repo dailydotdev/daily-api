@@ -16,6 +16,7 @@ import { sourcesFixture } from './fixture/source';
 import { postsFixture } from './fixture/post';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
+import { updateFlagsStatement } from '../src/common';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -145,12 +146,6 @@ describe('query keyword', () => {
       value, status, occurrences
     }
   }`;
-
-  it('should not authorize when not moderator', () =>
-    testModeratorQueryAuthorization({
-      query: QUERY,
-      variables: { value: 'nodejs' },
-    }));
 
   it('should return keyword', async () => {
     roles = [Roles.Moderator];
@@ -361,5 +356,57 @@ describe('mutation setKeywordAsSynonym', () => {
       },
     });
     expect(postKeywords).toMatchSnapshot();
+  });
+});
+
+describe('flags field', () => {
+  const QUERY = `{
+    keyword(value: "react") {
+      flags {
+        title
+        description
+      }
+    }
+  }`;
+
+  beforeEach(async () => {
+    await con.getRepository(Keyword).save([
+      { value: 'react', status: 'allow', occurrences: 200 },
+      { value: 'nodejs', status: 'allow', occurrences: 300 },
+      { value: 'go', status: 'allow', occurrences: 100 },
+    ]);
+  });
+
+  it('should return all the public flags for anonymous user', async () => {
+    await con.getRepository(Keyword).update(
+      { value: 'react' },
+      {
+        flags: updateFlagsStatement({
+          title: 'React',
+          description: 'React is a JS library',
+        }),
+      },
+    );
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.keyword.flags).toEqual({
+      title: 'React',
+      description: 'React is a JS library',
+    });
+  });
+
+  it('should return null values for unset flags', async () => {
+    const res = await client.query(QUERY);
+    expect(res.data.keyword.flags).toEqual({
+      title: null,
+      description: null,
+    });
+  });
+
+  it('should contain all default values in db query', async () => {
+    const keyword = await con
+      .getRepository(Keyword)
+      .findOneBy({ value: 'react' });
+    expect(keyword?.flags).toEqual({});
   });
 });
