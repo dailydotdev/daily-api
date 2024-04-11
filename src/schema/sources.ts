@@ -29,6 +29,7 @@ import {
   EntityManager,
   EntityNotFoundError,
   FindOptionsWhere,
+  MoreThan,
 } from 'typeorm';
 import { GQLUser } from './users';
 import { Connection } from 'graphql-relay/index';
@@ -52,6 +53,7 @@ import {
 import { validateAndTransformHandle } from '../common/handles';
 import { QueryBuilder } from '../graphorm/graphorm';
 import type { GQLTagResults } from './tags';
+import { subDays } from 'date-fns';
 
 export interface GQLSource {
   id: string;
@@ -1137,6 +1139,7 @@ export const resolvers: IResolvers<any, Context> = {
       return res[0];
     },
     relatedTags: async (_, { sourceId }, ctx): Promise<GQLTagResults> => {
+      const timeThreshold = subDays(new Date(), 90);
       const keywords = await ctx.con
         .createQueryBuilder()
         .from(Post, 'p')
@@ -1149,6 +1152,7 @@ export const resolvers: IResolvers<any, Context> = {
         )
         .where({ sourceId })
         .andWhere({ deleted: false })
+        .andWhere({ createdAt: MoreThan(timeThreshold) })
         .groupBy('pk.keyword')
         .orderBy('count', 'DESC')
         .limit(6)
