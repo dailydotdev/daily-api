@@ -7,7 +7,7 @@ interface Cron {
   requests?: {
     cpu: string;
     memory: string;
-  }
+  };
 }
 
 export const crons: Cron[] = [
@@ -67,6 +67,10 @@ export const crons: Cron[] = [
     schedule: '12 3 * * *',
   },
   {
+    name: 'update-source-tag-view',
+    schedule: '20 3 * * 0',
+  },
+  {
     name: 'update-tag-recommendations',
     schedule: '5 3 * * 0',
   },
@@ -80,5 +84,5 @@ export const crons: Cron[] = [
       cpu: '250m',
       memory: '1Gi',
     },
-  }
+  },
 ];
