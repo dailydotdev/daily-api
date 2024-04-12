@@ -74,6 +74,8 @@ export type PostFlagsPublic = Pick<PostFlags, 'private' | 'promoteToPublic'>;
   'deleted',
   'createdAt',
 ])
+@Index('IDX_post_sourceid_createdat', ['sourceId', 'createdAt'])
+@Index('IDX_post_sourceid_deleted', ['sourceId', 'deleted'])
 @TableInheritance({
   column: { type: 'varchar', name: 'type', default: PostType.Article },
 })
