@@ -12,6 +12,7 @@ import {
 import {
   NotificationPreferenceSource,
   Post,
+  PostKeyword,
   SharePost,
   Source,
   SourceFeed,
@@ -26,7 +27,7 @@ import { DataSource, In } from 'typeorm';
 import { randomUUID } from 'crypto';
 import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
-import { postsFixture } from './fixture/post';
+import { postKeywordsFixture, postsFixture } from './fixture/post';
 import { createSource, sourcesFixture } from './fixture/source';
 import { SourcePermissions } from '../src/schema/sources';
 import { SourcePermissionErrorKeys } from '../src/errors';
@@ -960,6 +961,44 @@ query SourceMemberByToken($token: String!) {
     expect(res.errors).toBeFalsy();
     expect(res.data.sourceMemberByToken.user.id).toEqual('1');
     expect(res.data.sourceMemberByToken.source.id).toEqual('a');
+  });
+});
+
+describe('query relatedTags', () => {
+  const QUERY = `
+query RelatedTags($sourceId: ID!) {
+  relatedTags(sourceId: $sourceId) {
+    hits {
+      name
+    }
+  }
+}`;
+
+  it('should return empty array if source not found', async () => {
+    const res = await client.query(QUERY, {
+      variables: { sourceId: 'notexist' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.relatedTags.hits).toEqual([]);
+  });
+
+  it('should return related tags for a source', async () => {
+    await con.getRepository(Post).save([postsFixture[0], postsFixture[4]]);
+    await con
+      .getRepository(PostKeyword)
+      .save([
+        postKeywordsFixture[0],
+        postKeywordsFixture[1],
+        postKeywordsFixture[5],
+        postKeywordsFixture[6],
+      ]);
+    await con.manager.query(`UPDATE post_keyword SET status = 'allow'`);
+    const res = await client.query(QUERY, { variables: { sourceId: 'a' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.relatedTags.hits).toEqual([
+      { name: 'javascript' },
+      { name: 'webdev' },
+    ]);
   });
 });
 
