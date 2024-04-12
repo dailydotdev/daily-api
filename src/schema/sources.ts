@@ -291,6 +291,26 @@ export const typeDefs = /* GraphQL */ `
     sourceByFeed(feed: String!): Source @auth
 
     """
+    Get top sources covering this tag
+    """
+    sourcesByTag(
+      """
+      Tag for which you want to find top sources
+      """
+      tag: String!
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): SourceConnection!
+
+    """
     Get source by ID
     """
     source(id: ID!): Source
@@ -882,6 +902,10 @@ interface SourcesArgs extends ConnectionArguments {
   filterOpenSquads?: boolean;
 }
 
+interface SourcesByTag extends ConnectionArguments {
+  tag: string;
+}
+
 const updateHideFeedPostsFlag = async (
   ctx: Context,
   sourceId: string,
@@ -975,6 +999,46 @@ export const resolvers: IResolvers<any, Context> = {
         (builder) => {
           builder.queryBuilder
             .andWhere(filter)
+            .limit(page.limit)
+            .offset(page.offset);
+          return builder;
+        },
+      );
+    },
+    sourcesByTag: async (
+      _,
+      args: SourcesByTag,
+      ctx,
+      info,
+    ): Promise<Connection<GQLSource>> => {
+      const filter: FindOptionsWhere<Source> = { active: true, private: false };
+
+      const page = sourcePageGenerator.connArgsToPage(args);
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) => sourcePageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => sourcePageGenerator.hasNextPage(page, nodeSize),
+        (node, index) =>
+          sourcePageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder
+            .addSelect('count(pk.keyword) AS pkCount')
+            .innerJoin(
+              Post,
+              'p',
+              `p.sourceId = "${builder.alias}".id AND p.createdAt > :time`,
+              { time: subDays(new Date(), 90) },
+            )
+            .innerJoin(
+              PostKeyword,
+              'pk',
+              'pk.postId = p.id AND pk.status = :status AND pk.keyword = :tag',
+              { status: 'allow', tag: args.tag },
+            )
+            .andWhere(filter)
+            .groupBy(`"${builder.alias}".id`)
+            .orderBy('pkCount', 'DESC')
             .limit(page.limit)
             .offset(page.offset);
           return builder;
