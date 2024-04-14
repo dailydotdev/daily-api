@@ -2,6 +2,7 @@ import * as matchers from 'jest-extended';
 import '../src/config';
 import createOrGetConnection from '../src/db';
 import { DataSource } from 'typeorm';
+import { ioRedisPool, redisPubSub, singleRedisClient } from '../src/redis';
 
 expect.extend(matchers);
 
@@ -31,7 +32,18 @@ const cleanDatabase = async (): Promise<void> => {
 };
 
 beforeAll(async () => {
+  console.log('beforeAll');
   con = await createOrGetConnection();
 });
 
 beforeEach(cleanDatabase);
+
+afterAll(async () => {
+  console.log('afterAll');
+  const con = await createOrGetConnection();
+  await con.destroy();
+  singleRedisClient.disconnect();
+  redisPubSub.getPublisher().disconnect();
+  redisPubSub.getSubscriber().disconnect();
+  await ioRedisPool.end();
+});
