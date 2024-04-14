@@ -2,7 +2,6 @@ import { getPermissionsForMember } from './../schema/sources';
 import { GraphORM, QueryBuilder } from './graphorm';
 import {
   Bookmark,
-  CommentUpvote,
   FeedSource,
   FeedTag,
   Post,
@@ -25,6 +24,7 @@ import { base64 } from '../common';
 import { GQLComment } from '../schema/comments';
 import { GQLUserPost } from '../schema/posts';
 import { UserComment } from '../entity/user/UserComment';
+import { UserVote } from '../types';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -72,9 +72,6 @@ const obj = new GraphORM({
       },
     },
   },
-  CommentUpvote: {
-    requiredColumns: ['createdAt'],
-  },
   UserStreak: {
     requiredColumns: ['lastViewAt'],
     fields: {
@@ -97,6 +94,7 @@ const obj = new GraphORM({
       'scoutId',
       'private',
       'type',
+      'slug',
     ],
     fields: {
       tags: {
@@ -358,9 +356,10 @@ const obj = new GraphORM({
         select: (ctx: Context, alias: string, qb: QueryBuilder): string => {
           const query = qb
             .select('1')
-            .from(CommentUpvote, 'cu')
+            .from(UserComment, 'cu')
             .where(`cu."userId" = :userId`, { userId: ctx.userId })
-            .andWhere(`cu."commentId" = ${alias}.id`);
+            .andWhere(`cu."commentId" = ${alias}.id`)
+            .andWhere(`cu."vote" = :vote`, { vote: UserVote.Up });
           return `EXISTS${query.getQuery()}`;
         },
         transform: nullIfNotLoggedIn,

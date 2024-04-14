@@ -23,6 +23,7 @@ import { subDays } from 'date-fns';
 import { ExperimentAllocationClient, features } from '../../src/growthbook';
 import { sendExperimentAllocationEvent } from '../../src/integrations/analytics';
 import { sendReadingReminderPush } from '../../src/onesignal';
+import { DEFAULT_TIMEZONE } from '../../src/types';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -119,15 +120,18 @@ beforeEach(async () => {
 const getDates = (
   personalizedDigest: UserPersonalizedDigest,
   timestamp: number,
+  timezone = DEFAULT_TIMEZONE,
 ) => {
   return {
     emailSendTimestamp: getPersonalizedDigestSendDate({
       personalizedDigest,
       generationTimestamp: timestamp,
+      timezone,
     }).getTime(),
     previousSendTimestamp: getPersonalizedDigestPreviousSendDate({
       personalizedDigest,
       generationTimestamp: timestamp,
+      timezone,
     }).getTime(),
   };
 };
@@ -183,8 +187,11 @@ describe('personalizedDigestEmail worker', () => {
   it('should generate personalized digest for user in timezone ahead UTC', async () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
-      preferredTimezone: 'America/Phoenix',
       type: UserPersonalizedDigestType.Digest,
+    });
+    await con.getRepository(User).save({
+      id: '1',
+      timezone: 'America/Phoenix',
     });
 
     const personalizedDigest = await con
@@ -197,7 +204,7 @@ describe('personalizedDigestEmail worker', () => {
 
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
-      ...getDates(personalizedDigest!, Date.now()),
+      ...getDates(personalizedDigest!, Date.now(), 'America/Phoenix'),
       emailBatchId: 'test-email-batch-id',
     });
 
@@ -231,8 +238,11 @@ describe('personalizedDigestEmail worker', () => {
   it('should generate personalized digest for user in timezone behind UTC', async () => {
     await con.getRepository(UserPersonalizedDigest).save({
       userId: '1',
-      preferredTimezone: 'Asia/Dhaka',
       type: UserPersonalizedDigestType.Digest,
+    });
+    await con.getRepository(User).save({
+      id: '1',
+      timezone: 'Asia/Dhaka',
     });
 
     const personalizedDigest = await con
@@ -245,7 +255,7 @@ describe('personalizedDigestEmail worker', () => {
 
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
-      ...getDates(personalizedDigest!, Date.now()),
+      ...getDates(personalizedDigest!, Date.now(), 'Asia/Dhaka'),
       emailBatchId: 'test-email-batch-id',
     });
 

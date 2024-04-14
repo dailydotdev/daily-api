@@ -46,35 +46,33 @@ export const personalizedDigestDateFormat = 'yyyy-MM-dd HH:mm:ss';
 type EmailSendDateProps = {
   personalizedDigest: UserPersonalizedDigest;
   generationTimestamp: number;
+  timezone: string;
 };
 
 export const getPersonalizedDigestSendDate = ({
   personalizedDigest,
   generationTimestamp,
+  timezone,
 }: EmailSendDateProps): Date => {
   const nextPreferredDay = nextDay(
     new Date(generationTimestamp),
     personalizedDigest.preferredDay,
   );
   nextPreferredDay.setHours(personalizedDigest.preferredHour, 0, 0, 0);
-  return zonedTimeToUtc(nextPreferredDay, personalizedDigest.preferredTimezone);
+  return zonedTimeToUtc(nextPreferredDay, timezone);
 };
 
 export const getPersonalizedDigestPreviousSendDate = ({
   personalizedDigest,
   generationTimestamp,
+  timezone,
 }: EmailSendDateProps): Date => {
   const nextPreferredDay = previousDay(
     new Date(generationTimestamp),
     personalizedDigest.preferredDay,
   );
   nextPreferredDay.setHours(personalizedDigest.preferredHour, 0, 0, 0);
-  const sendDateInPreferredTimezone = zonedTimeToUtc(
-    nextPreferredDay,
-    personalizedDigest.preferredTimezone,
-  );
-
-  return sendDateInPreferredTimezone;
+  return zonedTimeToUtc(nextPreferredDay, timezone);
 };
 
 const getPostsTemplateData = ({

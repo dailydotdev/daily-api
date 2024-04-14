@@ -6,6 +6,8 @@ import { Context } from '../Context';
 import {
   createSharePost,
   generateMemberToken,
+  Post,
+  PostKeyword,
   Source,
   SourceFeed,
   SourceMember,
@@ -27,6 +29,7 @@ import {
   EntityManager,
   EntityNotFoundError,
   FindOptionsWhere,
+  MoreThan,
 } from 'typeorm';
 import { GQLUser } from './users';
 import { Connection } from 'graphql-relay/index';
@@ -49,6 +52,8 @@ import {
 } from '../common/object';
 import { validateAndTransformHandle } from '../common/handles';
 import { QueryBuilder } from '../graphorm/graphorm';
+import type { GQLTagResults } from './tags';
+import { subDays } from 'date-fns';
 
 export interface GQLSource {
   id: string;
@@ -252,6 +257,13 @@ export const typeDefs = /* GraphQL */ `
     cursor: String!
   }
 
+  type TagResults {
+    """
+    Results
+    """
+    hits: [Tag]!
+  }
+
   extend type Query {
     """
     Get all available sources
@@ -277,6 +289,26 @@ export const typeDefs = /* GraphQL */ `
     Get the source that matches the feed
     """
     sourceByFeed(feed: String!): Source @auth
+
+    """
+    Get top sources covering this tag
+    """
+    sourcesByTag(
+      """
+      Tag for which you want to find top sources
+      """
+      tag: String!
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): SourceConnection!
 
     """
     Get source by ID
@@ -352,6 +384,11 @@ export const typeDefs = /* GraphQL */ `
     Get source member by referral token
     """
     sourceMemberByToken(token: String!): SourceMember!
+
+    """
+    Get related tags for a source
+    """
+    relatedTags(sourceId: ID!): TagResults!
 
     """
     Check if source handle already exists
@@ -865,6 +902,10 @@ interface SourcesArgs extends ConnectionArguments {
   filterOpenSquads?: boolean;
 }
 
+interface SourcesByTag extends ConnectionArguments {
+  tag: string;
+}
+
 const updateHideFeedPostsFlag = async (
   ctx: Context,
   sourceId: string,
@@ -958,6 +999,46 @@ export const resolvers: IResolvers<any, Context> = {
         (builder) => {
           builder.queryBuilder
             .andWhere(filter)
+            .limit(page.limit)
+            .offset(page.offset);
+          return builder;
+        },
+      );
+    },
+    sourcesByTag: async (
+      _,
+      args: SourcesByTag,
+      ctx,
+      info,
+    ): Promise<Connection<GQLSource>> => {
+      const filter: FindOptionsWhere<Source> = { active: true, private: false };
+
+      const page = sourcePageGenerator.connArgsToPage(args);
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) => sourcePageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => sourcePageGenerator.hasNextPage(page, nodeSize),
+        (node, index) =>
+          sourcePageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder
+            .addSelect('count(pk.keyword) AS pkCount')
+            .innerJoin(
+              Post,
+              'p',
+              `p.sourceId = "${builder.alias}".id AND p.createdAt > :time`,
+              { time: subDays(new Date(), 90) },
+            )
+            .innerJoin(
+              PostKeyword,
+              'pk',
+              'pk.postId = p.id AND pk.status = :status AND pk.keyword = :tag',
+              { status: 'allow', tag: args.tag },
+            )
+            .andWhere(filter)
+            .groupBy(`"${builder.alias}".id`)
+            .orderBy('pkCount', 'DESC')
             .limit(page.limit)
             .offset(page.offset);
           return builder;
@@ -1120,6 +1201,30 @@ export const resolvers: IResolvers<any, Context> = {
         throw new EntityNotFoundError(SourceMember, 'not found');
       }
       return res[0];
+    },
+    relatedTags: async (_, { sourceId }, ctx): Promise<GQLTagResults> => {
+      const timeThreshold = subDays(new Date(), 90);
+      const keywords = await ctx.con
+        .createQueryBuilder()
+        .from(Post, 'p')
+        .select('pk.keyword, count(pk.keyword) as count')
+        .innerJoin(
+          PostKeyword,
+          'pk',
+          'pk.postId = p.id and pk.status = :status',
+          { status: 'allow' },
+        )
+        .where({ sourceId })
+        .andWhere({ deleted: false })
+        .andWhere({ createdAt: MoreThan(timeThreshold) })
+        .groupBy('pk.keyword')
+        .orderBy('count', 'DESC')
+        .limit(6)
+        .getRawMany();
+
+      return {
+        hits: keywords.map(({ keyword }) => ({ name: keyword })),
+      };
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -1,13 +1,11 @@
 import { expectSuccessfulTypedBackground, saveFixtures } from '../helpers';
-import worker from '../../src/workers/commentUpvoteCanceledRep';
+import worker from '../../src/workers/commentDownvotedRep';
 import {
   ArticlePost,
   Comment,
   Source,
   User,
   ReputationEvent,
-  ReputationType,
-  ReputationReason,
 } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
@@ -21,7 +19,7 @@ beforeAll(async () => {
   con = await createOrGetConnection();
 });
 
-describe('commentUpvoteCanceledRep worker', () => {
+describe('commentDownvotedRep worker', () => {
   beforeEach(async () => {
     jest.resetAllMocks();
     await saveFixtures(con, Source, sourcesFixture);
@@ -31,7 +29,13 @@ describe('commentUpvoteCanceledRep worker', () => {
         id: '1',
         name: 'Ido',
         image: 'https://daily.dev/ido.jpg',
-        reputation: 250,
+        reputation: 53,
+      },
+      {
+        id: '2',
+        name: 'Lee',
+        image: 'https://daily.dev/lee.jpg',
+        reputation: 251,
       },
     ]);
     await con.getRepository(Comment).save([
@@ -54,28 +58,34 @@ describe('commentUpvoteCanceledRep worker', () => {
     expect(registeredWorker).toBeDefined();
   });
 
-  it('should delete the reputation event relevant to granting of reputation', async () => {
-    const repo = con.getRepository(ReputationEvent);
-    await repo.save(
-      repo.create({
-        grantById: '2',
-        grantToId: '1',
-        targetId: 'c1',
-        targetType: ReputationType.Comment,
-        reason: ReputationReason.CommentUpvoted,
-      }),
-    );
+  it('should create a reputation event that decreases reputation', async () => {
     await expectSuccessfulTypedBackground(worker, {
       userId: '2',
       commentId: 'c1',
     });
-    const deleted = await repo.findOneBy({
-      grantById: '2',
-      grantToId: '1',
-      targetId: 'c1',
-      targetType: ReputationType.Post,
-      reason: ReputationReason.PostUpvoted,
+    const event = await con
+      .getRepository(ReputationEvent)
+      .findOne({ where: { targetId: 'c1', grantById: '2', grantToId: '1' } });
+    expect(event!.amount).toEqual(-50);
+  });
+
+  it('should not create a reputation event when the downvoting user is ineligible', async () => {
+    await con.getRepository(User).update({ id: '2' }, { reputation: 1 });
+    await expectSuccessfulTypedBackground(worker, {
+      userId: '2',
+      commentId: 'c1',
     });
-    expect(deleted).toEqual(null);
+    const events = await con.getRepository(ReputationEvent).find();
+    expect(events.length).toEqual(0);
+  });
+
+  it('should not create a reputation event when the author is the downvote user', async () => {
+    await expectSuccessfulTypedBackground(worker, {
+      userId: '1',
+      commentId: 'c1',
+    });
+
+    const events = await con.getRepository(ReputationEvent).find();
+    expect(events.length).toEqual(0);
   });
 });

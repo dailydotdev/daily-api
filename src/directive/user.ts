@@ -6,7 +6,6 @@ import {
   Bookmark,
   BookmarkList,
   Comment,
-  CommentUpvote,
   DevCard,
   Feed,
   Post,
@@ -30,7 +29,6 @@ export const deleteUser = async (
       await entityManager.getRepository(Alerts).delete({ userId });
       await entityManager.getRepository(BookmarkList).delete({ userId });
       await entityManager.getRepository(Bookmark).delete({ userId });
-      await entityManager.getRepository(CommentUpvote).delete({ userId });
       await entityManager.getRepository(Comment).update(
         { userId },
         {

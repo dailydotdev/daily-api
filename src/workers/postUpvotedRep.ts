@@ -4,18 +4,13 @@ import {
   ReputationType,
   REPUTATION_THRESHOLD,
 } from './../entity/ReputationEvent';
-import { messageToJson, Worker } from './worker';
+import { TypedWorker } from './worker';
 import { Post, User } from '../entity';
 
-interface Data {
-  userId: string;
-  postId: string;
-}
-
-const worker: Worker = {
+const worker: TypedWorker<'post-upvoted'> = {
   subscription: 'post-upvoted-rep',
   handler: async (message, con, logger): Promise<void> => {
-    const data: Data = messageToJson(message);
+    const { data } = message;
     const logDetails = { data, messageId: message.messageId };
     try {
       await con.transaction(async (transaction) => {

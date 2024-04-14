@@ -53,11 +53,10 @@ describe('worker postCommentedWorker', () => {
   `;
     const html = markdown.render(content);
     await expectSuccessfulBackground(postCommentedWorker, {
-      comment: {
-        ...comment,
-        content,
-        contentHtml: html,
-      },
+      postId: comment.postId,
+      userId: comment.userId,
+      commentId: comment.id,
+      contentHtml: html,
     });
     const actual = await con.getRepository(ContentImage).find({
       where: { usedByType: Not(IsNull()) },
@@ -92,11 +91,11 @@ describe('worker commentCommentedWorker', () => {
   `;
     const html = markdown.render(content);
     await expectSuccessfulBackground(commentCommentedWorker, {
-      comment: {
-        ...comment,
-        content,
-        contentHtml: html,
-      },
+      postId: comment.postId,
+      userId: comment.userId,
+      parentCommentId: comment.parentId,
+      childCommentId: comment.id,
+      contentHtml: html,
     });
     const actual = await con.getRepository(ContentImage).find({
       where: { usedByType: Not(IsNull()) },

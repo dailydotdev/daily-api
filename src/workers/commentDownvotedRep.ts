@@ -7,8 +7,8 @@ import {
 import { TypedWorker } from './worker';
 import { Comment, User } from '../entity';
 
-const worker: TypedWorker<'comment-upvoted'> = {
-  subscription: 'comment-upvoted-rep',
+const worker: TypedWorker<'api.v1.comment-downvoted'> = {
+  subscription: 'api.comment-downvoted-rep',
   handler: async (message, con, logger): Promise<void> => {
     const { data } = message;
     const logDetails = { data, messageId: message.messageId };
@@ -40,7 +40,7 @@ const worker: TypedWorker<'comment-upvoted'> = {
           grantToId: comment.userId,
           targetId: comment.id,
           targetType: ReputationType.Comment,
-          reason: ReputationReason.CommentUpvoted,
+          reason: ReputationReason.CommentDownvoted,
         });
         await repo
           .createQueryBuilder()
@@ -48,12 +48,12 @@ const worker: TypedWorker<'comment-upvoted'> = {
           .values(event)
           .orIgnore()
           .execute();
-        logger.info(logDetails, 'increased reputation due to upvote');
+        logger.info(logDetails, 'decreased reputation due to downvote');
       });
     } catch (err) {
       logger.error(
         { ...logDetails, err },
-        'failed to increase reputation due to upvote',
+        'failed to decreased reputation due to downvote',
       );
     }
   },

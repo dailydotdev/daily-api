@@ -1,5 +1,5 @@
 import { messageToJson } from '../worker';
-import { Comment, CommentUpvote, SourceMember, SourceType } from '../../entity';
+import { Comment, SourceMember, SourceType } from '../../entity';
 import {
   NotificationCommentContext,
   NotificationUpvotersContext,
@@ -9,6 +9,8 @@ import { NotificationWorker } from './worker';
 import { buildPostContext, UPVOTE_MILESTONES } from './utils';
 import { Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
+import { UserComment } from '../../entity/user/UserComment';
+import { UserVote } from '../../types';
 
 interface Data {
   userId: string;
@@ -34,8 +36,8 @@ const worker: NotificationWorker = {
       return;
     }
     const { source } = postCtx;
-    const upvotes = await con.getRepository(CommentUpvote).find({
-      where: { commentId: comment.id },
+    const upvotes = await con.getRepository(UserComment).find({
+      where: { commentId: comment.id, vote: UserVote.Up },
       take: 5,
       order: { createdAt: 'desc' },
       relations: ['user'],

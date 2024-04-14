@@ -31,6 +31,7 @@ import {
 } from '../../common/object';
 import { generateTrackingId } from '../../ids';
 import { UserStreak } from './UserStreak';
+import { DEFAULT_TIMEZONE } from '../../types';
 
 @Entity()
 @Index('IDX_user_lowerusername_username', { synchronize: false })
@@ -95,7 +96,7 @@ export class User {
   @Column({ default: false })
   devcardEligible: boolean;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text', nullable: true, default: DEFAULT_TIMEZONE })
   timezone?: string;
 
   @Column({ type: 'boolean', default: false })
@@ -353,7 +354,7 @@ export const addNewUser = async (
       referralId: data.referralId,
       referralOrigin: data.referralOrigin,
       acceptedMarketing: data.acceptedMarketing,
-      timezone: data.timezone,
+      timezone: data.timezone || DEFAULT_TIMEZONE,
       github: data.github,
       twitter: data.twitter,
     });
@@ -412,9 +413,12 @@ export const validateUserUpdate = async (
 export enum AcquisitionChannel {
   friend = 'friend',
   social_media = 'social_media',
-  search_engine = 'search_engine',
   blog = 'blog',
   extension_store = 'extension_store',
+  instagram_facebook = 'instagram_facebook',
+  x = 'x',
+  tiktok = 'tiktok',
+  search_engine = 'search_engine',
   ad = 'ad',
   other = 'other',
 }

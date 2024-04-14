@@ -39,6 +39,7 @@ export type PostFlags = Partial<{
   visible: boolean;
   showOnFeed: boolean;
   promoteToPublic: number;
+  deletedBy: string;
 }>;
 
 export type PostFlagsPublic = Pick<PostFlags, 'private' | 'promoteToPublic'>;
@@ -73,6 +74,8 @@ export type PostFlagsPublic = Pick<PostFlags, 'private' | 'promoteToPublic'>;
   'deleted',
   'createdAt',
 ])
+@Index('IDX_post_sourceid_createdat', ['sourceId', 'createdAt'])
+@Index('IDX_post_sourceid_deleted', ['sourceId', 'deleted'])
 @TableInheritance({
   column: { type: 'varchar', name: 'type', default: PostType.Article },
 })
@@ -230,4 +233,16 @@ export class Post {
     lazy: true,
   })
   public relatedPosts: Promise<PostRelation[]>;
+
+  @Column({
+    type: 'text',
+    update: false,
+    insert: false,
+    nullable: false,
+    unique: true,
+    generatedType: 'STORED',
+    asExpression: `trim(BOTH '-' FROM regexp_replace(lower(trim(COALESCE(LEFT(post.title,100),'')||'-'||post.id)), '[^a-z0-9-]+', '-', 'gi'))`,
+  })
+  @Index('IDX_post_slug', { unique: true })
+  slug: string;
 }

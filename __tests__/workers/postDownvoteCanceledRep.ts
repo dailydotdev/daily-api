@@ -1,4 +1,4 @@
-import { expectSuccessfulBackground, saveFixtures } from '../helpers';
+import { expectSuccessfulTypedBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/postDownvoteCanceledRep';
 import {
   ArticlePost,
@@ -13,7 +13,7 @@ import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
-import { workers } from '../../src/workers';
+import { typedWorkers } from '../../src/workers';
 
 let con: DataSource;
 
@@ -35,9 +35,9 @@ beforeEach(async () => {
   ]);
   await con.getRepository(Post).update('p1', { authorId: '1' });
 });
-describe('postDownvotedCanceledRep worker', () => {
+describe('postDownvoteCanceledRep worker', () => {
   it('should be registered', () => {
-    const registeredWorker = workers.find(
+    const registeredWorker = typedWorkers.find(
       (item) => item.subscription === worker.subscription,
     );
 
@@ -54,7 +54,7 @@ describe('postDownvotedCanceledRep worker', () => {
         reason: ReputationReason.PostDownvoted,
       }),
     );
-    await expectSuccessfulBackground(worker, {
+    await expectSuccessfulTypedBackground(worker, {
       userId: '2',
       postId: 'p1',
     });
@@ -82,7 +82,7 @@ describe('postDownvotedCanceledRep worker', () => {
         reason: ReputationReason.PostDownvoted,
       }),
     ]);
-    await expectSuccessfulBackground(worker, {
+    await expectSuccessfulTypedBackground(worker, {
       userId: '2',
       postId: 'p1',
     });

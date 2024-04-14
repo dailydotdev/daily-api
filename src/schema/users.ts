@@ -62,7 +62,6 @@ import { randomInt } from 'crypto';
 import { DataSource, In, IsNull } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
 import { DayOfWeek, UserVote, UserVoteEntity } from '../types';
-import { getTimezoneOffset } from 'date-fns-tz';
 import { markdown } from '../common/markdown';
 import {
   ONE_WEEK_IN_SECONDS,
@@ -164,7 +163,6 @@ export interface ReferralCampaign {
 export interface GQLPersonalizedDigest {
   preferredDay: DayOfWeek;
   preferredHour: number;
-  preferredTimezone: string;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -408,7 +406,6 @@ export const typeDefs = /* GraphQL */ `
   type PersonalizedDigest {
     preferredDay: Int!
     preferredHour: Int!
-    preferredTimezone: String!
     type: DigestType
   }
 
@@ -597,10 +594,6 @@ export const typeDefs = /* GraphQL */ `
       Preferred day of the week. Expected value is 0-6
       """
       day: Int
-      """
-      Preferred timezone relevant to the hour and day.
-      """
-      timezone: String
 
       """
       Type of the digest (digest/reminder/etc)
@@ -1232,17 +1225,11 @@ export const resolvers: IResolvers<any, Context> = {
       args: {
         hour?: number;
         day?: number;
-        timezone?: string;
         type?: UserPersonalizedDigestType;
       },
       ctx: Context,
     ): Promise<GQLPersonalizedDigest> => {
-      const {
-        hour,
-        day,
-        timezone,
-        type = UserPersonalizedDigestType.Digest,
-      } = args;
+      const { hour, day, type = UserPersonalizedDigestType.Digest } = args;
 
       if (!isNullOrUndefined(hour) && (hour < 0 || hour > 23)) {
         throw new ValidationError('Invalid hour');
@@ -1250,13 +1237,6 @@ export const resolvers: IResolvers<any, Context> = {
 
       if (!isNullOrUndefined(hour) && (day < 0 || day > 6)) {
         throw new ValidationError('Invalid day');
-      }
-
-      if (
-        !isNullOrUndefined(timezone) &&
-        Number.isNaN(getTimezoneOffset(timezone))
-      ) {
-        throw new ValidationError('Invalid timezone');
       }
 
       const repo = ctx.con.getRepository(UserPersonalizedDigest);
@@ -1270,7 +1250,6 @@ export const resolvers: IResolvers<any, Context> = {
         userId: ctx.userId,
         preferredDay: day,
         preferredHour: hour,
-        preferredTimezone: timezone,
         type,
         flags,
       });

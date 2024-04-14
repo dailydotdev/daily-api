@@ -35,11 +35,6 @@ import pino from 'pino';
 import { PersonalizedDigestFeatureConfig } from '../growthbook';
 
 export const pubsub = new PubSub();
-const postUpvotedTopic = pubsub.topic('post-upvoted');
-const postUpvoteCanceledTopic = pubsub.topic('post-upvote-canceled');
-const postDownvotedTopic = pubsub.topic('api.v1.post-downvoted');
-const postDownvoteCanceledTopic = pubsub.topic('api.v1.post-downvote-canceled');
-const commentUpvotedTopic = pubsub.topic('comment-upvoted');
 const postCommentedTopic = pubsub.topic('post-commented');
 const commentCommentedTopic = pubsub.topic('comment-commented');
 const commentFeaturedTopic = pubsub.topic('comment-featured');
@@ -48,7 +43,6 @@ const userDeletedTopic = pubsub.topic('user-deleted');
 const userUpdatedTopic = pubsub.topic('user-updated');
 const usernameChangedTopic = pubsub.topic('username-changed');
 const settingsUpdatedTopic = pubsub.topic('settings-updated');
-const commentUpvoteCanceledTopic = pubsub.topic('comment-upvote-canceled');
 const sendAnalyticsReportTopic = pubsub.topic('send-analytics-report');
 const viewsTopic = pubsub.topic('views');
 const postBannedOrRemovedTopic = pubsub.topic('post-banned-or-removed');
@@ -126,66 +120,18 @@ export const publishEvent = async (
     },
   );
 
-export const notifyPostUpvoted = async (
-  log: EventLogger,
-  postId: string,
-  userId: string,
-): Promise<void> =>
-  publishEvent(log, postUpvotedTopic, {
-    postId,
-    userId,
-  });
-
-export const notifyPostUpvoteCanceled = async (
-  log: EventLogger,
-  postId: string,
-  userId: string,
-): Promise<void> =>
-  publishEvent(log, postUpvoteCanceledTopic, {
-    postId,
-    userId,
-  });
-
-export const notifyPostDownvoted = async (
-  log: EventLogger,
-  postId: string,
-  userId: string,
-): Promise<void> =>
-  publishEvent(log, postDownvotedTopic, {
-    postId,
-    userId,
-  });
-
-export const notifyPostDownvoteCanceled = async (
-  log: EventLogger,
-  postId: string,
-  userId: string,
-): Promise<void> =>
-  publishEvent(log, postDownvoteCanceledTopic, {
-    postId,
-    userId,
-  });
-
-export const notifyCommentUpvoted = async (
-  log: EventLogger,
-  commentId: string,
-  userId: string,
-): Promise<void> =>
-  publishEvent(log, commentUpvotedTopic, {
-    commentId,
-    userId,
-  });
-
 export const notifyPostCommented = async (
   log: EventLogger,
   postId: string,
   userId: string,
   commentId: string,
+  contentHtml: string,
 ): Promise<void> =>
   publishEvent(log, postCommentedTopic, {
     postId,
     userId,
     commentId,
+    contentHtml,
   });
 
 export const notifyCommentCommented = async (
@@ -194,12 +140,14 @@ export const notifyCommentCommented = async (
   userId: string,
   parentCommentId: string,
   childCommentId: string,
+  contentHtml: string,
 ): Promise<void> =>
   publishEvent(log, commentCommentedTopic, {
     postId,
     userId,
     parentCommentId,
     childCommentId,
+    contentHtml,
   });
 
 export const notifyCommentFeatured = async (
@@ -262,16 +210,6 @@ export const notifySourcePrivacyUpdated = (
   log: EventLogger,
   source: ChangeObject<Source>,
 ): Promise<void> => publishEvent(log, sourcePrivacyUpdatedTopic, { source });
-
-export const notifyCommentUpvoteCanceled = async (
-  log: EventLogger,
-  commentId: string,
-  userId: string,
-): Promise<void> =>
-  publishEvent(log, commentUpvoteCanceledTopic, {
-    commentId,
-    userId,
-  });
 
 export const notifySendAnalyticsReport = async (
   log: EventLogger,

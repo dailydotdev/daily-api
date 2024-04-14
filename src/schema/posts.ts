@@ -129,6 +129,7 @@ export interface GQLPost {
   downvoted?: boolean;
   flags?: PostFlagsPublic;
   userState?: GQLUserPost;
+  slug?: string;
 }
 
 interface PinPostArgs {
@@ -505,6 +506,11 @@ export const typeDefs = /* GraphQL */ `
     Video ID for video post
     """
     videoId: String
+
+    """
+    Slug for the post
+    """
+    slug: String
   }
 
   type PostConnection {
@@ -1073,7 +1079,7 @@ export const resolvers: IResolvers<any, Context> = {
       const partialPost = await ctx.con.getRepository(Post).findOneOrFail({
         select: ['id', 'sourceId', 'private'],
         relations: ['source'],
-        where: { id },
+        where: [{ id }, { slug: id }],
       });
       const postSource = await partialPost.source;
 
@@ -1081,9 +1087,27 @@ export const resolvers: IResolvers<any, Context> = {
         partialPost.private ||
         sourceTypesWithMembers.includes(postSource.type)
       ) {
-        await ensureSourcePermissions(ctx, partialPost.sourceId);
+        try {
+          await ensureSourcePermissions(ctx, partialPost.sourceId);
+        } catch (permissionError) {
+          if (permissionError instanceof ForbiddenError) {
+            const forbiddenError = permissionError as ForbiddenError;
+
+            const forbiddenErrorForPost = new ForbiddenError(
+              permissionError.message,
+              {
+                ...forbiddenError.extensions,
+                postId: partialPost.id,
+              },
+            );
+
+            throw forbiddenErrorForPost;
+          }
+
+          throw permissionError;
+        }
       }
-      return getPostById(ctx, info, id);
+      return getPostById(ctx, info, partialPost.id);
     },
     postByUrl: async (
       source,
@@ -1207,7 +1231,7 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<ConnectionRelay<GQLPost>> => {
       const post = await ctx.con
         .getRepository(Post)
-        .findOneByOrFail({ id: args.id });
+        .findOneByOrFail([{ id: args.id }, { slug: args.id }]);
       await ensureSourcePermissions(ctx, post.sourceId);
 
       return queryPaginatedByDate(
@@ -1343,7 +1367,10 @@ export const resolvers: IResolvers<any, Context> = {
           { id },
           {
             deleted: true,
-            flags: updateFlagsStatement<Post>({ deleted: true }),
+            flags: updateFlagsStatement<Post>({
+              deleted: true,
+              deletedBy: ctx.userId,
+            }),
           },
         );
         return { _: true };
@@ -1363,7 +1390,10 @@ export const resolvers: IResolvers<any, Context> = {
           { id },
           {
             deleted: true,
-            flags: updateFlagsStatement<Post>({ deleted: true }),
+            flags: updateFlagsStatement<Post>({
+              deleted: true,
+              deletedBy: ctx.userId,
+            }),
           },
         );
       });
@@ -1824,7 +1854,7 @@ export const resolvers: IResolvers<any, Context> = {
     ratio: (post: GQLPost): number =>
       post.image ? post.ratio : defaultImage.ratio,
     permalink: getPostPermalink,
-    commentsPermalink: (post: GQLPost): string => getDiscussionLink(post.id),
+    commentsPermalink: (post: GQLPost): string => getDiscussionLink(post.slug),
     feedMeta: (post: GQLPost): string => {
       if (post.feedMeta) {
         return Buffer.from(post.feedMeta).toString('base64');

@@ -1,6 +1,6 @@
 import { ValidationError } from 'apollo-server-errors';
 import { NotFoundError, TypeOrmError } from '../errors';
-import { Comment, CommentUpvote, Post, UserPost } from '../entity';
+import { Comment, Post, UserPost } from '../entity';
 import { GQLEmptyResponse } from '../schema/common';
 import { ensureSourcePermissions } from '../schema/sources';
 import { Context } from '../Context';
@@ -105,7 +105,6 @@ export const voteComment = async ({
 
     await ctx.con.transaction(async (entityManager) => {
       const userCommentRepo = entityManager.getRepository(UserComment);
-      const commentUpvoteRepo = entityManager.getRepository(CommentUpvote);
 
       switch (vote) {
         case UserVote.Up:
@@ -114,13 +113,6 @@ export const voteComment = async ({
             userId: ctx.userId,
             vote: UserVote.Up,
           });
-
-          // TODO AS-211 remove this when API reads votes from user_comment
-          await commentUpvoteRepo.save({
-            commentId: id,
-            userId: ctx.userId,
-          });
-          // TODO AS-211 remove this when API reads votes from user_comment
 
           break;
         case UserVote.Down:
@@ -137,13 +129,6 @@ export const voteComment = async ({
             userId: ctx.userId,
             vote: UserVote.None,
           });
-
-          // TODO AS-211 remove this when API reads votes from user_comment
-          commentUpvoteRepo.delete({
-            commentId: id,
-            userId: ctx.userId,
-          });
-          // TODO AS-211 remove this when API reads votes from user_comment
 
           break;
         default:

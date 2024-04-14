@@ -2197,7 +2197,6 @@ describe('query personalizedDigest', () => {
       personalizedDigest {
         preferredDay
         preferredHour
-        preferredTimezone
       }
   }`;
 
@@ -2238,17 +2237,15 @@ describe('query personalizedDigest', () => {
     expect(res.data.personalizedDigest).toMatchObject({
       preferredDay: 1,
       preferredHour: 9,
-      preferredTimezone: 'Etc/UTC',
     });
   });
 });
 
 describe('mutation subscribePersonalizedDigest', () => {
-  const MUTATION = `mutation SubscribePersonalizedDigest($hour: Int, $day: Int, $timezone: String, $type: DigestType) {
-    subscribePersonalizedDigest(hour: $hour, day: $day, timezone: $timezone, type: $type) {
+  const MUTATION = `mutation SubscribePersonalizedDigest($hour: Int, $day: Int, $type: DigestType) {
+    subscribePersonalizedDigest(hour: $hour, day: $day, type: $type) {
       preferredDay
       preferredHour
-      preferredTimezone
     }
   }`;
 
@@ -2264,7 +2261,6 @@ describe('mutation subscribePersonalizedDigest', () => {
         variables: {
           day: DayOfWeek.Monday,
           hour: 9,
-          timezone: 'Etc/UTC',
         },
       },
       'UNAUTHENTICATED',
@@ -2281,7 +2277,6 @@ describe('mutation subscribePersonalizedDigest', () => {
         variables: {
           day: -1,
           hour: 9,
-          timezone: 'Etc/UTC',
         },
       },
       'GRAPHQL_VALIDATION_FAILED',
@@ -2298,7 +2293,6 @@ describe('mutation subscribePersonalizedDigest', () => {
         variables: {
           day: 7,
           hour: 9,
-          timezone: 'Etc/UTC',
         },
       },
       'GRAPHQL_VALIDATION_FAILED',
@@ -2315,7 +2309,6 @@ describe('mutation subscribePersonalizedDigest', () => {
         variables: {
           day: DayOfWeek.Monday,
           hour: -1,
-          timezone: 'Etc/UTC',
         },
       },
       'GRAPHQL_VALIDATION_FAILED',
@@ -2332,24 +2325,6 @@ describe('mutation subscribePersonalizedDigest', () => {
         variables: {
           day: DayOfWeek.Monday,
           hour: 24,
-          timezone: 'Etc/UTC',
-        },
-      },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should throw validation error if invalid timezone is provided', async () => {
-    loggedUser = '1';
-
-    await testQueryErrorCode(
-      client,
-      {
-        query: MUTATION,
-        variables: {
-          day: DayOfWeek.Monday,
-          hour: 9,
-          timezone: 'Space/Mars',
         },
       },
       'GRAPHQL_VALIDATION_FAILED',
@@ -2366,7 +2341,6 @@ describe('mutation subscribePersonalizedDigest', () => {
     expect(res.data.subscribePersonalizedDigest).toMatchObject({
       preferredDay: DayOfWeek.Monday,
       preferredHour: 9,
-      preferredTimezone: 'Etc/UTC',
     });
   });
 
@@ -2377,14 +2351,12 @@ describe('mutation subscribePersonalizedDigest', () => {
       variables: {
         day: DayOfWeek.Wednesday,
         hour: 17,
-        timezone: 'Europe/Zagreb',
       },
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.subscribePersonalizedDigest).toMatchObject({
       preferredDay: DayOfWeek.Wednesday,
       preferredHour: 17,
-      preferredTimezone: 'Europe/Zagreb',
     });
   });
 
@@ -2395,7 +2367,6 @@ describe('mutation subscribePersonalizedDigest', () => {
       variables: {
         day: DayOfWeek.Wednesday,
         hour: 17,
-        timezone: 'Europe/Zagreb',
       },
     });
     expect(res.errors).toBeFalsy();
@@ -2404,14 +2375,12 @@ describe('mutation subscribePersonalizedDigest', () => {
       variables: {
         day: DayOfWeek.Friday,
         hour: 22,
-        timezone: 'Europe/Athens',
       },
     });
     expect(resUpdate.errors).toBeFalsy();
     expect(resUpdate.data.subscribePersonalizedDigest).toMatchObject({
       preferredDay: DayOfWeek.Friday,
       preferredHour: 22,
-      preferredTimezone: 'Europe/Athens',
     });
   });
 
@@ -2427,7 +2396,6 @@ describe('mutation subscribePersonalizedDigest', () => {
     expect(res.data.subscribePersonalizedDigest).toMatchObject({
       preferredDay: DayOfWeek.Monday,
       preferredHour: 9,
-      preferredTimezone: 'Etc/UTC',
     });
     const digest = await con.getRepository(UserPersonalizedDigest).findOneBy({
       userId: loggedUser,

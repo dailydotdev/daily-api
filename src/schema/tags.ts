@@ -16,7 +16,7 @@ interface GQLTagSearchResults {
   hits: GQLTag[];
 }
 
-type GQLTagResults = Pick<GQLTagSearchResults, 'hits'>;
+export type GQLTagResults = Pick<GQLTagSearchResults, 'hits'>;
 
 export const RECOMMENDED_TAGS_LIMIT = 5;
 
