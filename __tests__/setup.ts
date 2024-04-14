@@ -1,7 +1,6 @@
 import * as matchers from 'jest-extended';
 import '../src/config';
 import createOrGetConnection from '../src/db';
-import { ioRedisPool, redisPubSub, singleRedisClient } from '../src/redis';
 
 expect.extend(matchers);
 
@@ -11,9 +10,8 @@ jest.mock('../src/growthbook', () => ({
   getEncryptedFeatures: jest.fn(),
 }));
 
-let con;
-
 const cleanDatabase = async (): Promise<void> => {
+  const con = await createOrGetConnection();
   for (const entity of con.entityMetadatas) {
     const repository = con.getRepository(entity.name);
     if (repository.metadata.tableType === 'view') continue;
@@ -30,16 +28,4 @@ const cleanDatabase = async (): Promise<void> => {
   }
 };
 
-beforeAll(async () => {
-  con = await createOrGetConnection();
-});
-
 beforeEach(cleanDatabase);
-
-afterAll(async () => {
-  await con.close();
-  singleRedisClient.disconnect();
-  redisPubSub.getPublisher().disconnect();
-  redisPubSub.getSubscriber().disconnect();
-  await ioRedisPool.end();
-});
