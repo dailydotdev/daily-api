@@ -1098,18 +1098,20 @@ export const resolvers: IResolvers<any, Context> = {
         id: Not(In(excludedSources)),
       };
 
-      const subQuery = await ctx.con
-        .query(`with base as (SELECT * FROM source_tag_view), s as (
+      const subQuery = await ctx.con.query(
+        `with base as (SELECT * FROM source_tag_view), s as (
             SELECT *, row_number() over (partition by "sourceId" order by count desc) rn
             FROM base
         )
         SELECT s2."sourceId", s2."count"
         FROM s s1
         JOIN s s2 on s1.tag = s2.tag and s1."sourceId" != s2."sourceId"
-        WHERE s1."sourceId" = '${args.sourceId}' and s1.rn <= 10 and s2.rn <= 10
+        WHERE s1."sourceId" = $1 and s1.rn <= 10 and s2.rn <= 10
         GROUP BY 1, s2."count"
         ORDER BY s2."count" desc
-        LIMIT 6`);
+        LIMIT 6`,
+        [args?.sourceId],
+      );
 
       const page = sourcePageGenerator.connArgsToPage(args);
       return graphorm.queryPaginated(
