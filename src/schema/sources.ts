@@ -633,8 +633,6 @@ export enum SourcePermissions {
   Edit = 'edit',
 }
 
-const alwaysExcludeSources = ['unknown', 'community'];
-
 const memberPermissions = [
   SourcePermissions.View,
   SourcePermissions.Post,
@@ -1048,6 +1046,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<Connection<GQLSource>> => {
+      const alwaysExcludeSources = ['unknown', 'community'];
       const excludedSources = args?.excludeSources
         ? [...alwaysExcludeSources, ...args?.excludeSources]
         : alwaysExcludeSources;
@@ -1089,6 +1088,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<Connection<GQLSource>> => {
+      const alwaysExcludeSources = ['unknown', 'community'];
       const excludedSources = args?.excludeSources
         ? [...alwaysExcludeSources, ...args?.excludeSources]
         : alwaysExcludeSources;
@@ -1103,12 +1103,12 @@ export const resolvers: IResolvers<any, Context> = {
             SELECT *, row_number() over (partition by "sourceId" order by count desc) rn
             FROM base
         )
-        SELECT s2."sourceId"
+        SELECT s2."sourceId", s2."count"
         FROM s s1
         JOIN s s2 on s1.tag = s2.tag and s1."sourceId" != s2."sourceId"
         WHERE s1."sourceId" = '${args.sourceId}' and s1.rn <= 10 and s2.rn <= 10
-        GROUP BY 1
-        ORDER BY count(*) desc
+        GROUP BY 1, s2."count"
+        ORDER BY s2."count" desc
         LIMIT 6`);
 
       const page = sourcePageGenerator.connArgsToPage(args);
