@@ -34,6 +34,7 @@ import { SourcePermissionErrorKeys } from '../src/errors';
 import { updateFlagsStatement, WELCOME_POST_TITLE } from '../src/common';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { NotificationType } from '../src/notifications/common';
+import { SourceTagView } from '../src/entity/SourceTagView';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -964,6 +965,91 @@ query SourceMemberByToken($token: String!) {
   });
 });
 
+describe('query sourcesByTag', () => {
+  const QUERY = `
+query SourcesByTag($tag: String!, $first: Int, $excludedSources: [String]) {
+  sourcesByTag(tag: $tag, first: $first, excludeSources: $excludedSources) {
+    edges {
+      node {
+        name
+      }
+    }
+  }
+}`;
+
+  it('should return empty array if tag not found', async () => {
+    const res = await client.query(QUERY, {
+      variables: { tag: 'notexist' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.sourcesByTag.edges).toEqual([]);
+  });
+
+  it('should return sources for this tag', async () => {
+    await con.getRepository(Post).save([postsFixture[0], postsFixture[4]]);
+    await con
+      .getRepository(PostKeyword)
+      .save([
+        postKeywordsFixture[0],
+        postKeywordsFixture[1],
+        postKeywordsFixture[5],
+        postKeywordsFixture[6],
+      ]);
+    await con.manager.query(`UPDATE post_keyword SET status = 'allow'`);
+    const materializedViewName =
+      con.getRepository(SourceTagView).metadata.tableName;
+    await con.query(`REFRESH MATERIALIZED VIEW ${materializedViewName}`);
+    const res = await client.query(QUERY, {
+      variables: { tag: 'javascript' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.sourcesByTag.edges).toEqual([
+      { node: { name: 'A' } },
+      { node: { name: 'B' } },
+    ]);
+  });
+});
+
+describe('query similarSources', () => {
+  const QUERY = `
+query SimilarSources($sourceId: ID!) {
+  similarSources(sourceId: $sourceId) {
+    edges {
+      node {
+        name
+      }
+    }
+  }
+}`;
+
+  it('should return empty array if source not found', async () => {
+    const res = await client.query(QUERY, {
+      variables: { sourceId: 'notexist' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.similarSources.edges).toEqual([]);
+  });
+
+  it('should return similar sources for a source', async () => {
+    await con.getRepository(Post).save([postsFixture[0], postsFixture[4]]);
+    await con
+      .getRepository(PostKeyword)
+      .save([
+        postKeywordsFixture[0],
+        postKeywordsFixture[1],
+        postKeywordsFixture[5],
+        postKeywordsFixture[6],
+      ]);
+    await con.manager.query(`UPDATE post_keyword SET status = 'allow'`);
+    const materializedViewName =
+      con.getRepository(SourceTagView).metadata.tableName;
+    await con.query(`REFRESH MATERIALIZED VIEW ${materializedViewName}`);
+    const res = await client.query(QUERY, { variables: { sourceId: 'a' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.similarSources.edges).toEqual([{ node: { name: 'B' } }]);
+  });
+});
+
 describe('query relatedTags', () => {
   const QUERY = `
 query RelatedTags($sourceId: ID!) {
@@ -993,6 +1079,9 @@ query RelatedTags($sourceId: ID!) {
         postKeywordsFixture[6],
       ]);
     await con.manager.query(`UPDATE post_keyword SET status = 'allow'`);
+    const materializedViewName =
+      con.getRepository(SourceTagView).metadata.tableName;
+    await con.query(`REFRESH MATERIALIZED VIEW ${materializedViewName}`);
     const res = await client.query(QUERY, { variables: { sourceId: 'a' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.relatedTags.hits).toEqual([
