@@ -1,4 +1,4 @@
-import { DataSource, ViewColumn, ViewEntity } from 'typeorm';
+import { DataSource, Index, ViewColumn, ViewEntity } from 'typeorm';
 import { Post } from './posts';
 import { subDays } from 'date-fns';
 import { PostKeyword } from './PostKeyword';
@@ -23,14 +23,15 @@ import { Source } from './Source';
         { status: 'allow' },
       )
       .andWhere({ active: true, private: false })
-      .groupBy(`sourceId, tag`)
-      .orderBy('count', 'DESC'),
+      .groupBy(`sourceId, tag`),
 })
 export class SourceTagView {
   @ViewColumn()
+  @Index('IDX_sourceTag_sourceId')
   sourceId: string;
 
   @ViewColumn()
+  @Index('IDX_sourceTag_tag')
   tag: string;
 
   @ViewColumn()
