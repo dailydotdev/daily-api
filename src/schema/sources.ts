@@ -1300,7 +1300,7 @@ export const resolvers: IResolvers<any, Context> = {
         .getRawMany();
 
       return {
-        hits: keywords.map(({ keyword }) => ({ name: keyword })),
+        hits: keywords.map(({ tag }) => ({ name: tag })),
       };
     },
   }),
