@@ -1041,6 +1041,9 @@ query SimilarSources($sourceId: ID!) {
         postKeywordsFixture[6],
       ]);
     await con.manager.query(`UPDATE post_keyword SET status = 'allow'`);
+    const materializedViewName =
+      con.getRepository(SourceTagView).metadata.tableName;
+    await con.query(`REFRESH MATERIALIZED VIEW ${materializedViewName}`);
     const res = await client.query(QUERY, { variables: { sourceId: 'a' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.similarSources.edges).toEqual([{ node: { name: 'B' } }]);
