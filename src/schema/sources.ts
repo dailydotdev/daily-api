@@ -6,8 +6,6 @@ import { Context } from '../Context';
 import {
   createSharePost,
   generateMemberToken,
-  Post,
-  PostKeyword,
   Source,
   SourceFeed,
   SourceMember,
@@ -29,7 +27,8 @@ import {
   EntityManager,
   EntityNotFoundError,
   FindOptionsWhere,
-  MoreThan,
+  In,
+  Not,
 } from 'typeorm';
 import { GQLUser } from './users';
 import { Connection } from 'graphql-relay/index';
@@ -53,7 +52,7 @@ import {
 import { validateAndTransformHandle } from '../common/handles';
 import { QueryBuilder } from '../graphorm/graphorm';
 import type { GQLTagResults } from './tags';
-import { subDays } from 'date-fns';
+import { SourceTagView } from '../entity/SourceTagView';
 
 export interface GQLSource {
   id: string;
@@ -298,6 +297,36 @@ export const typeDefs = /* GraphQL */ `
       Tag for which you want to find top sources
       """
       tag: String!
+
+      """
+      Exclude these sources
+      """
+      excludeSources: [String]
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): SourceConnection!
+
+    """
+    Get sources similar to this source
+    """
+    similarSources(
+      """
+      Source to find similar sources for
+      """
+      sourceId: ID!
+
+      """
+      Exclude these sources
+      """
+      excludeSources: [String]
 
       """
       Paginate after opaque cursor
@@ -904,6 +933,12 @@ interface SourcesArgs extends ConnectionArguments {
 
 interface SourcesByTag extends ConnectionArguments {
   tag: string;
+  excludeSources?: string[];
+}
+
+interface SimilarSources extends ConnectionArguments {
+  sourceId: string;
+  excludeSources?: string[];
 }
 
 const updateHideFeedPostsFlag = async (
@@ -1011,7 +1046,15 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<Connection<GQLSource>> => {
-      const filter: FindOptionsWhere<Source> = { active: true, private: false };
+      const alwaysExcludeSources = ['unknown', 'community', 'collections'];
+      const excludedSources = args?.excludeSources
+        ? [...alwaysExcludeSources, ...args?.excludeSources]
+        : alwaysExcludeSources;
+      const filter: FindOptionsWhere<Source> = {
+        active: true,
+        private: false,
+        id: Not(In(excludedSources)),
+      };
 
       const page = sourcePageGenerator.connArgsToPage(args);
       return graphorm.queryPaginated(
@@ -1023,24 +1066,71 @@ export const resolvers: IResolvers<any, Context> = {
           sourcePageGenerator.nodeToCursor(page, args, node, index),
         (builder) => {
           builder.queryBuilder
-            .addSelect('count(pk.keyword) AS pkCount')
+            .addSelect('count')
             .innerJoin(
-              Post,
-              'p',
-              `p.sourceId = "${builder.alias}".id AND p.createdAt > :time`,
-              { time: subDays(new Date(), 90) },
-            )
-            .innerJoin(
-              PostKeyword,
-              'pk',
-              'pk.postId = p.id AND pk.status = :status AND pk.keyword = :tag',
-              { status: 'allow', tag: args.tag },
+              SourceTagView,
+              'stv',
+              `stv.tag = :tag AND stv.sourceId = "${builder.alias}".id`,
+              {
+                tag: args.tag,
+              },
             )
             .andWhere(filter)
-            .groupBy(`"${builder.alias}".id`)
-            .orderBy('pkCount', 'DESC')
-            .limit(page.limit)
-            .offset(page.offset);
+            .orderBy('count', 'DESC')
+            .limit(page.limit);
+          return builder;
+        },
+      );
+    },
+    similarSources: async (
+      _,
+      args: SimilarSources,
+      ctx,
+      info,
+    ): Promise<Connection<GQLSource>> => {
+      const alwaysExcludeSources = ['unknown', 'community', 'collections'];
+      const excludedSources = args?.excludeSources
+        ? [...alwaysExcludeSources, ...args?.excludeSources]
+        : alwaysExcludeSources;
+      const filter: FindOptionsWhere<Source> = {
+        active: true,
+        private: false,
+        id: Not(In(excludedSources)),
+      };
+
+      const subQuery = await ctx.con.query(
+        `with base as (SELECT * FROM source_tag_view), s as (
+            SELECT *, row_number() over (partition by "sourceId" order by count desc) rn
+            FROM base
+        )
+        SELECT s2."sourceId", s2."count"
+        FROM s s1
+        JOIN s s2 on s1.tag = s2.tag and s1."sourceId" != s2."sourceId"
+        WHERE s1."sourceId" = $1 and s1.rn <= 10 and s2.rn <= 10
+        GROUP BY 1, s2."count"
+        ORDER BY s2."count" desc
+        LIMIT 6`,
+        [args?.sourceId],
+      );
+
+      const page = sourcePageGenerator.connArgsToPage(args);
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) => sourcePageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => sourcePageGenerator.hasNextPage(page, nodeSize),
+        (node, index) =>
+          sourcePageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder
+            .andWhere('id IN (:...subQuery)', {
+              subQuery:
+                subQuery.length > 0
+                  ? subQuery.map((s) => s.sourceId)
+                  : ['NULL'],
+            })
+            .andWhere(filter)
+            .limit(page.limit);
           return builder;
         },
       );
@@ -1203,27 +1293,16 @@ export const resolvers: IResolvers<any, Context> = {
       return res[0];
     },
     relatedTags: async (_, { sourceId }, ctx): Promise<GQLTagResults> => {
-      const timeThreshold = subDays(new Date(), 90);
       const keywords = await ctx.con
         .createQueryBuilder()
-        .from(Post, 'p')
-        .select('pk.keyword, count(pk.keyword) as count')
-        .innerJoin(
-          PostKeyword,
-          'pk',
-          'pk.postId = p.id and pk.status = :status',
-          { status: 'allow' },
-        )
+        .from(SourceTagView, 'stv')
         .where({ sourceId })
-        .andWhere({ deleted: false })
-        .andWhere({ createdAt: MoreThan(timeThreshold) })
-        .groupBy('pk.keyword')
         .orderBy('count', 'DESC')
         .limit(6)
         .getRawMany();
 
       return {
-        hits: keywords.map(({ keyword }) => ({ name: keyword })),
+        hits: keywords.map(({ tag }) => ({ name: tag })),
       };
     },
   }),
