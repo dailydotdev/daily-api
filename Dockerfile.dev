@@ -1,4 +1,4 @@
-FROM node:18-alpine
+FROM node:20-alpine
 RUN apk add g++ make python3 dumb-init
 
 RUN mkdir -p /opt/app
