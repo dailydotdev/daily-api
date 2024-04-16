@@ -69,6 +69,10 @@ interface Data {
     video_id?: string;
     duration?: number;
   };
+  meta?: {
+    scraped_html?: string;
+    cleaned_trafilatura_xml?: string;
+  };
 }
 
 type HandleRejectionProps = {
@@ -323,6 +327,13 @@ const updatePost = async ({
     data.visibleAt = data.metadataChangedAt;
   }
 
+  if (
+    Object.keys(data.contentMeta).length === 0 &&
+    Object.keys(databasePost.contentMeta).length > 0
+  ) {
+    data.contentMeta = databasePost.contentMeta;
+  }
+
   if (content_type in allowedFieldsMapping) {
     const allowedFields = [
       'id',
@@ -508,6 +519,7 @@ const fixData = async ({
         : undefined,
       videoId: data?.extra?.video_id,
       language: data?.language,
+      contentMeta: data?.meta || {},
     },
   };
 };

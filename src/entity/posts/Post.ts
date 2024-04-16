@@ -245,4 +245,7 @@ export class Post {
   })
   @Index('IDX_post_slug', { unique: true })
   slug: string;
+
+  @Column({ type: 'jsonb', default: {} })
+  contentMeta: unknown;
 }
