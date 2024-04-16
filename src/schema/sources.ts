@@ -1046,7 +1046,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<Connection<GQLSource>> => {
-      const alwaysExcludeSources = ['unknown', 'community'];
+      const alwaysExcludeSources = ['unknown', 'community', 'collections'];
       const excludedSources = args?.excludeSources
         ? [...alwaysExcludeSources, ...args?.excludeSources]
         : alwaysExcludeSources;
@@ -1088,7 +1088,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<Connection<GQLSource>> => {
-      const alwaysExcludeSources = ['unknown', 'community'];
+      const alwaysExcludeSources = ['unknown', 'community', 'collections'];
       const excludedSources = args?.excludeSources
         ? [...alwaysExcludeSources, ...args?.excludeSources]
         : alwaysExcludeSources;
