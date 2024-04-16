@@ -188,19 +188,20 @@ export const getPersonalizedDigestEmailPayload = async ({
     process.env.PERSONALIZED_DIGEST_FEED,
   );
 
+  const feedConfigPayload = {
+    user_id: personalizedDigest.userId,
+    total_posts: feature.maxPosts,
+    date_from: format(previousSendDate, personalizedDigestDateFormat),
+    date_to: format(currentDate, personalizedDigestDateFormat),
+    allowed_tags: feedConfig.includeTags,
+    blocked_tags: feedConfig.blockedTags,
+    blocked_sources: feedConfig.excludeSources,
+    feed_config_name: feature.feedConfig,
+  };
   const feedResponse = await personalizedDigestFeedClient.fetchFeed(
     { log: logger },
     personalizedDigest.userId,
-    {
-      user_id: personalizedDigest.userId,
-      total_posts: feature.maxPosts,
-      date_from: format(previousSendDate, personalizedDigestDateFormat),
-      date_to: format(currentDate, personalizedDigestDateFormat),
-      allowed_tags: feedConfig.includeTags,
-      blocked_tags: feedConfig.blockedTags,
-      blocked_sources: feedConfig.excludeSources,
-      feed_config_name: feature.feedConfig,
-    },
+    feedConfigPayload,
   );
 
   const posts: TemplatePostData[] = await fixedIdsFeedBuilder(
@@ -228,6 +229,11 @@ export const getPersonalizedDigestEmailPayload = async ({
   ).execute();
 
   if (posts.length === 0) {
+    logger.warn(
+      { personalizedDigest, feedConfig: feedConfigPayload, emailBatchId },
+      'no posts found for personalized digest',
+    );
+
     return undefined;
   }
 
