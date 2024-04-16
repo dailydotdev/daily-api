@@ -420,6 +420,7 @@ it('should save a new post with basic information', async () => {
     slug: expect.any(String),
     shortId: expect.any(String),
     contentCuration: expect.any(Array),
+    contentMeta: expect.any(Object),
     sourceId: 'a',
     title: 'Title',
     showOnFeed: true,
@@ -710,6 +711,61 @@ describe('on post create', () => {
       expect(questions.length).toEqual(0);
     });
   });
+
+  it('should save content meta', async () => {
+    const uuid = randomUUID();
+    await createDefaultSubmission(uuid);
+
+    const postBefore = await con.getRepository(Post).findOneBy({
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
+    });
+    expect(postBefore).toBeNull();
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
+      title: 'Without questions',
+      url: `https://post.com/${uuid}`,
+      source_id: 'a',
+      submission_id: uuid,
+      meta: {
+        scraped_html: '<html>test</html>',
+        cleaned_trafilatura_xml: '<xml>test</xml>',
+      },
+    });
+
+    const post = await con.getRepository(Post).findOneBy({
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
+    });
+    expect(post).not.toBeNull();
+    expect(post?.contentMeta).toMatchObject({
+      scraped_html: '<html>test</html>',
+      cleaned_trafilatura_xml: '<xml>test</xml>',
+    });
+  });
+
+  it('should default to empty content meta', async () => {
+    const uuid = randomUUID();
+    await createDefaultSubmission(uuid);
+
+    const postBefore = await con.getRepository(Post).findOneBy({
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
+    });
+    expect(postBefore).toBeNull();
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
+      title: 'Without questions',
+      url: `https://post.com/${uuid}`,
+      source_id: 'a',
+      submission_id: uuid,
+    });
+
+    const post = await con.getRepository(Post).findOneBy({
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
+    });
+    expect(post).not.toBeNull();
+    expect(post?.contentMeta).toStrictEqual({});
+  });
 });
 
 describe('on post update', () => {
@@ -844,6 +900,69 @@ describe('on post update', () => {
       id: postId,
     });
     expect(updatedPost!.visible).toEqual(true);
+  });
+
+  it('should replace content meta', async () => {
+    const postId = 'p1';
+
+    const existingPost = await con.getRepository(ArticlePost).save({
+      id: postId,
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      contentMeta: {
+        scraped_html: '<html>test</html>',
+        cleaned_trafilatura_xml: '<xml>test</xml>',
+      },
+    });
+
+    expect(existingPost).not.toBeNull();
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      post_id: postId,
+      meta: {
+        scraped_html: '<html>test2</html>',
+        cleaned_trafilatura_xml: '<xml>test2</xml>',
+      },
+    });
+
+    const updatedPost = await con.getRepository(ArticlePost).findOneBy({
+      id: postId,
+    });
+
+    expect(existingPost).not.toBeNull();
+    expect(updatedPost?.contentMeta).toMatchObject({
+      scraped_html: '<html>test2</html>',
+      cleaned_trafilatura_xml: '<xml>test2</xml>',
+    });
+  });
+
+  it('should not update empty content meta when meta is empty', async () => {
+    const postId = 'p1';
+
+    const existingPost = await con.getRepository(ArticlePost).save({
+      id: postId,
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      contentMeta: {
+        scraped_html: '<html>test2</html>',
+        cleaned_trafilatura_xml: '<xml>test2</xml>',
+      },
+    });
+
+    expect(existingPost).not.toBeNull();
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      post_id: postId,
+    });
+
+    const updatedPost = await con.getRepository(ArticlePost).findOneBy({
+      id: postId,
+    });
+    expect(updatedPost).not.toBeNull();
+    expect(updatedPost?.contentMeta).toMatchObject({
+      scraped_html: '<html>test2</html>',
+      cleaned_trafilatura_xml: '<xml>test2</xml>',
+    });
   });
 });
 
