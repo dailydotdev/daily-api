@@ -240,7 +240,8 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
           .innerJoin(
             Source,
             'source',
-            'source.id = post.sourceId AND source.private = false',
+            'source.id = post.sourceId AND source.private = false AND id != :sourceId',
+            { sourceId: 'unknown' },
           )
           .where('post.id IN (:...ids)', { ids: hits.map((x) => x.post_id) });
         if (ctx.userId) {
