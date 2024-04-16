@@ -2,9 +2,9 @@ import { retryFetchParse } from './retry';
 import { fetchOptions } from '../http';
 import { Headers } from 'node-fetch';
 
-const meiliOrigin = process.env.MEILI_ORIGIN;
-const meiliToken = process.env.MEILI_TOKEN;
-const meiliIndex = process.env.MEILI_INDEX;
+export const meiliOrigin = process.env.MEILI_ORIGIN;
+export const meiliToken = process.env.MEILI_TOKEN;
+export const meiliIndex = process.env.MEILI_INDEX;
 
 type Meili = {
   post_id: string;

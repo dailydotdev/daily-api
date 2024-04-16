@@ -3,6 +3,7 @@ import {
   GraphQLTestingState,
   initializeGraphQLTesting,
   MockContext,
+  saveFixtures,
   testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
@@ -12,6 +13,10 @@ import nock from 'nock';
 import { GraphQLTestClient } from './helpers';
 import { magniOrigin, SearchResultFeedback } from '../src/integrations';
 import { feedFields } from './helpers';
+import { meiliIndex, meiliOrigin } from '../src/integrations/meilisearch';
+import { ArticlePost, Source } from '../src/entity';
+import { postsFixture } from './fixture/post';
+import { sourcesFixture } from './fixture/source';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -306,6 +311,41 @@ describe('query searchPostSuggestions', () => {
   it('should return search suggestions', async () => {
     const res = await client.query(QUERY('p1'));
     expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query searchPostSuggestions v2', () => {
+  const QUERY = (query: string): string => `{
+    searchPostSuggestions(query: "${query}", version: 2) {
+      query
+      hits {
+        title
+      }
+    }
+  }
+`;
+
+  const mockMeili = (params: string, res: string) => {
+    nock(meiliOrigin)
+      .get(`/indexes/${meiliIndex}/search?${params}`)
+      .matchHeader('Authorization', `Bearer ${process.env.MEILI_TOKEN}`)
+      .reply(204, res);
+  };
+
+  it('should return search suggestions', async () => {
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, ArticlePost, postsFixture);
+    mockMeili(
+      'q=p1&attributesToRetrieve=post_id,title',
+      JSON.stringify({ hits: [{ post_id: 'p1', title: 'P1' }] }),
+    );
+    const res = await client.query(QUERY('p1'));
+    expect(res.data).toEqual({
+      searchPostSuggestions: {
+        query: 'p1',
+        hits: [{ title: 'P1' }],
+      },
+    });
   });
 });
 
