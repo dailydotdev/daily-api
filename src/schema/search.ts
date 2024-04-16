@@ -22,6 +22,7 @@ import { ConnectionArguments } from 'graphql-relay/index';
 import { FeedArgs, feedResolver, fixedIdsFeedBuilder } from '../common';
 import { GQLPost } from './posts';
 import { searchMeili } from '../integrations/meilisearch';
+import { Post, Source, UserPost } from '../entity';
 
 type GQLSearchSession = Pick<SearchSession, 'id' | 'prompt' | 'createdAt'>;
 
@@ -231,12 +232,32 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
         const hits = await searchMeili(
           `q=${query}&attributesToRetrieve=post_id,title`,
         );
+
+        let newBuilder = ctx.con
+          .createQueryBuilder()
+          .select('post.id, post.title')
+          .from(Post, 'post')
+          .innerJoin(
+            Source,
+            'source',
+            'source.id = post.sourceId AND source.private = false',
+          )
+          .where('post.id IN (:...ids)', { ids: hits.map((x) => x.post_id) });
+        if (ctx.userId) {
+          newBuilder = newBuilder
+            .leftJoin(
+              UserPost,
+              'userpost',
+              `userpost."postId" = "post".id AND userpost."userId" = :userId AND userpost.hidden = TRUE`,
+              { userId: ctx.userId },
+            )
+            .andWhere('userpost."postId" IS NULL');
+        }
+        const cleanHits = await newBuilder.getRawMany();
+
         return {
           query,
-          hits: hits.map((x) => ({
-            id: x.post_id,
-            title: x.title,
-          })),
+          hits: cleanHits,
         };
       }
       const hits: GQLSearchPostSuggestion[] = await ctx.con.query(
