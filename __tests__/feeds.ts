@@ -667,26 +667,26 @@ describe('query feed', () => {
     expect(res.data).toMatchSnapshot();
   });
 
-  it('should return feed with vector config based on user state', async () => {
+  it('should return feed with proper config', async () => {
     loggedUser = '1';
-    nock('http://localhost:6001')
-      .post('/api/v1/user/profile', {
-        user_id: '1',
-        providers: {
-          personalise: {},
+    nock('http://localhost:6002')
+      .post('/config')
+      .reply(200, {
+        config: {
+          providers: {},
         },
-      })
-      .reply(200, { personalise: { state: 'personalised' } });
+      });
     nock('http://localhost:6000')
       .post('/feed.json', {
         total_pages: 1,
         page_size: 10,
         offset: 0,
         fresh_page_size: '4',
-        feed_config_name: 'vector_v27',
         user_id: '1',
         ...baseFeedConfig,
-        config: undefined,
+        config: {
+          providers: {},
+        },
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
@@ -700,14 +700,14 @@ describe('query feed', () => {
 
   it('should support feed service side caching', async () => {
     loggedUser = '1';
-    nock('http://localhost:6001')
-      .post('/api/v1/user/profile', {
+    nock('http://localhost:6002')
+      .post('/config')
+      .reply(200, {
         user_id: '1',
-        providers: {
-          personalise: {},
+        config: {
+          providers: {},
         },
-      })
-      .reply(200, { personalise: { state: 'personalised' } });
+      });
     nock('http://localhost:6000')
       .post('/feed.json', (body) => body.cursor === 'a')
       .reply(200, {
@@ -724,14 +724,14 @@ describe('query feed', () => {
 
   it('should provide feed service with supported types', async () => {
     loggedUser = '1';
-    nock('http://localhost:6001')
-      .post('/api/v1/user/profile', {
+    nock('http://localhost:6002')
+      .post('/config')
+      .reply(200, {
         user_id: '1',
-        providers: {
-          personalise: {},
+        config: {
+          providers: {},
         },
-      })
-      .reply(200, { personalise: { state: 'personalised' } });
+      });
     nock('http://localhost:6000')
       .post('/feed.json', (body) => {
         expect(body.allowed_post_types).toEqual(['article']);
@@ -754,14 +754,14 @@ describe('query feed', () => {
     await saveFixtures(con, FeedAdvancedSettings, [
       { feedId: '1', advancedSettingsId: 7, enabled: false },
     ]);
-    nock('http://localhost:6001')
-      .post('/api/v1/user/profile', {
+    nock('http://localhost:6002')
+      .post('/config')
+      .reply(200, {
         user_id: '1',
-        providers: {
-          personalise: {},
+        config: {
+          providers: {},
         },
-      })
-      .reply(200, { personalise: { state: 'personalised' } });
+      });
     nock('http://localhost:6000')
       .post('/feed.json', (body) => {
         expect(body.allowed_post_types).toEqual(['article', 'collections']);
