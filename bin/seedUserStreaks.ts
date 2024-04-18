@@ -68,8 +68,7 @@ const addNextBatch = async (
   };
 };
 
-interface ViewWithDateTz extends View {
-  date: Date;
+interface ViewWithMaxTs extends View {
   maxTimestamp: Date;
 }
 
@@ -77,16 +76,11 @@ const computeReadingStreaksData = async (
   con: DataSource,
   user: Partial<User>,
 ): Promise<DeepPartial<UserStreak>> => {
-  const timeZone = user.timezone ?? 'UTC';
-
-  const views: ViewWithDateTz[] = await con
+  const views: ViewWithMaxTs[] = await con
     .getRepository(View)
     .createQueryBuilder()
     .select('MAX(timestamp)', 'maxTimestamp')
-    .addSelect('DATE(timestamp::timestamptz AT TIME ZONE :timezone)', 'date')
     .where({ userId: user.id, timestamp: Not(IsNull()) })
-    .setParameter('timezone', timeZone)
-    .addGroupBy('"date"')
     .orderBy('"maxTimestamp"', 'ASC')
     .getRawMany();
 
@@ -101,11 +95,13 @@ const computeReadingStreaksData = async (
   }
 
   const data = views.reduce(
-    (acc: DeepPartial<UserStreak>, item: ViewWithDateTz, index: number) => {
+    (acc: DeepPartial<UserStreak>, item: ViewWithMaxTs, index: number) => {
       // prevent undefined results on first item
       const difference =
-        index === 0 ? 1 : differenceInDays(item.date, acc.lastViewAt as Date);
-      const day = item.date.getDay();
+        index === 0
+          ? 1
+          : differenceInDays(item.timestamp, acc.lastViewAt as Date);
+      const day = item.timestamp.getDay();
 
       // by default, increment streak
       let currentStreak = acc.currentStreak + 1;
@@ -120,7 +116,7 @@ const computeReadingStreaksData = async (
         currentStreak,
         totalStreak: acc.totalStreak + 1,
         maxStreak: Math.max(acc.maxStreak, currentStreak),
-        lastViewAt: item.date,
+        lastViewAt: item.timestamp,
       };
     },
     {
