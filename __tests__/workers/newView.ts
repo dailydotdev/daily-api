@@ -159,14 +159,24 @@ describe('reading streaks', () => {
   ) => {
     await prepareTest(currentDate, previousDate, previousStreak);
 
-    const streak = await con.getRepository(UserStreak).findOne({
-      where: {
-        userId: 'u1',
-        lastViewAt: new Date(currentDate),
-      },
+    const user = await con.getRepository(User).findOne({
+      where: { id: 'u1' },
+      relations: ['streak'],
     });
+
+    const streak = await user.streak;
+
+    const lastView = await con.getRepository(View).findOne({
+      where: { userId: 'u1' },
+      order: { timestamp: 'DESC' },
+    });
+
     for (const key in expectedStreak) {
-      expect(streak?.[key]).toEqual(expectedStreak[key]);
+      if (key === 'lastViewAt') {
+        expect(streak?.[key]).toEqual(lastView.timestamp);
+      } else {
+        expect(streak?.[key]).toEqual(expectedStreak[key]);
+      }
     }
   };
 
@@ -313,10 +323,12 @@ describe('reading streaks', () => {
   });
 
   it('should not increment a reading streak if lastViewAt is the same day', async () => {
-    await runTest('2024-01-26T19:17Z', '2024-01-26T17:23Z', defaultStreak, {
-      ...defaultStreak,
-      lastViewAt: new Date('2024-01-26T19:17Z'),
-    });
+    await runTest(
+      '2024-01-26T19:17Z',
+      '2024-01-26T17:23Z',
+      defaultStreak,
+      defaultStreak,
+    );
   });
 
   describe('showMilestone is set correctly', () => {
@@ -333,7 +345,6 @@ describe('reading streaks', () => {
           currentStreak: 6,
           totalStreak: 43,
           maxStreak: 6,
-          lastViewAt: new Date('2024-01-26T19:17Z'),
         },
       );
 
@@ -369,7 +380,6 @@ describe('reading streaks', () => {
           currentStreak: 6,
           totalStreak: 43,
           maxStreak: 10,
-          lastViewAt: new Date('2024-01-26T19:17Z'),
         },
       );
 
@@ -396,7 +406,6 @@ describe('reading streaks', () => {
           currentStreak: 6,
           totalStreak: 43,
           maxStreak: 10,
-          lastViewAt: new Date('2024-01-26T19:17Z'),
         },
       );
 
@@ -417,7 +426,6 @@ describe('reading streaks', () => {
         {
           ...defaultStreak,
           currentStreak: 5,
-          lastViewAt: new Date('2024-01-26T19:17Z'),
         },
       );
 
