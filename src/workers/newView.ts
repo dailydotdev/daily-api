@@ -6,7 +6,10 @@ import { isFibonacci } from '../common/fibonacci';
 
 const ONE_WEEK = 604800000;
 
-const addView = async (con: DataSource, entity: View): Promise<boolean> => {
+const addView = async (
+  con: DataSource,
+  entity: View,
+): Promise<{ view: View; isNewView: boolean }> => {
   const repo = con.getRepository(View);
   const existing = await repo.findOne({
     where: {
@@ -19,59 +22,23 @@ const addView = async (con: DataSource, entity: View): Promise<boolean> => {
     !existing ||
     entity.timestamp.getTime() - existing.timestamp.getTime() > ONE_WEEK
   ) {
-    await repo.save(entity);
-    return true;
+    const viewRecord = await repo.save(entity);
+    return { view: viewRecord, isNewView: true };
   }
-  return false;
+  return { view: existing, isNewView: false };
 };
-
-const DEFAULT_TIMEZONE = 'UTC'; // in case user doesn't have a timezone set
-const INC_STREAK_QUERY = `
-WITH u AS (
-  SELECT "id",
-      /* Increment the current streak if
-        a) lastViewAt is NULL - this is a new user, we should start a new streak
-        b) the currentStreak is 0 - we should start a new streak
-        c) we didn't do it today already
-      */
-      ("lastViewAt" is NULL OR
-       "currentStreak" = 0 OR
-       DATE("lastViewAt" AT TIME ZONE COALESCE("timezone", $3)) <> DATE($2 AT TIME ZONE COALESCE("timezone", $3))
-      ) AS shouldIncrementStreak
-  FROM public.user AS users
-  INNER JOIN user_streak ON user_streak."userId" = users.id
-  WHERE users.id = $1
-),
-updated AS (
-  UPDATE user_streak AS us SET
-    "lastViewAt" = $2,
-    "updatedAt" = now(),
-    "currentStreak" = CASE WHEN shouldIncrementStreak THEN us."currentStreak" + 1 ELSE us."currentStreak" END,
-    "totalStreak" = CASE WHEN shouldIncrementStreak THEN us."totalStreak" + 1 ELSE us."totalStreak" END,
-    "maxStreak" = CASE WHEN shouldIncrementStreak THEN GREATEST(us."maxStreak", us."currentStreak" + 1) ELSE us."maxStreak" END
-  FROM u
-  WHERE us."userId" = u.id
-  RETURNING us."userId", "currentStreak"
-)
-/* Return the updated streak data */
-SELECT updated."currentStreak", u.shouldIncrementStreak AS "didIncrementStreak"
-FROM updated
-JOIN u ON TRUE;
-`;
 
 const incrementReadingStreak = async (
   con: DataSource,
-  data: DeepPartial<View>,
+  latestView: View,
 ): Promise<boolean> => {
   const users = con.getRepository(User);
   const repo = con.getRepository(UserStreak);
-  const { userId, timestamp } = data;
+  const { userId, timestamp } = latestView;
 
   if (!userId) {
     return false;
   }
-
-  const viewTime = timestamp ? new Date(timestamp as string) : new Date();
 
   // TODO: This code is temporary here for now because we didn't run the migration yet,
   // so not every user is going to have a row in the user_streak table and we need to create it.
@@ -88,28 +55,39 @@ const incrementReadingStreak = async (
         currentStreak: 1,
         totalStreak: 1,
         maxStreak: 1,
-        lastViewAt: viewTime,
+        lastViewAt: timestamp,
       }),
     );
-  } else {
-    const results = await repo.query(INC_STREAK_QUERY, [
-      userId,
-      viewTime,
-      DEFAULT_TIMEZONE,
-    ]);
 
-    const { currentStreak, didIncrementStreak } = results?.[0] ?? {};
-
-    if (didIncrementStreak) {
-      // milestones are currently defined on fibonacci sequence
-      const showStreakMilestone = isFibonacci(currentStreak);
-      await con.getRepository(Alerts).save({
-        userId,
-        showStreakMilestone,
-      });
-    }
+    return true;
   }
-  return true;
+
+  if (
+    streak &&
+    (!streak.lastViewAt ||
+      streak.currentStreak === 0 ||
+      streak.lastViewAt.getDate() !== timestamp.getDate())
+  ) {
+    await repo.update(
+      { userId },
+      {
+        lastViewAt: timestamp,
+        currentStreak: streak.currentStreak + 1,
+        totalStreak: streak.totalStreak + 1,
+        maxStreak: Math.max(streak.maxStreak, streak.currentStreak + 1),
+      },
+    );
+
+    // milestones are currently defined on fibonacci sequence
+    const showStreakMilestone = isFibonacci(streak.currentStreak + 1);
+    await con.getRepository(Alerts).save({
+      userId,
+      showStreakMilestone,
+    });
+
+    return true;
+  }
+  return false;
 };
 
 const worker: Worker = {
@@ -117,8 +95,9 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: DeepPartial<View> = messageToJson(message);
     let didSave = false;
+    let latestView = null;
     try {
-      didSave = await addView(
+      const { isNewView, view } = await addView(
         con,
         con.getRepository(View).create({
           postId: data.postId,
@@ -127,6 +106,10 @@ const worker: Worker = {
           timestamp: data.timestamp && new Date(data.timestamp as string),
         }),
       );
+
+      didSave = isNewView;
+      latestView = view;
+
       if (!didSave) {
         logger.debug(
           {
@@ -159,13 +142,13 @@ const worker: Worker = {
       throw err;
     }
 
-    // no need to touch reading streaks if we didn't save a new view event or if we don't have a userId
-    if (!didSave || !data.userId) {
+    // no need to touch reading streaks if we didn't save a new view or if we don't have a userId
+    if (!didSave || !data.userId || !latestView) {
       return;
     }
 
     try {
-      const didUpdate = await incrementReadingStreak(con, data);
+      const didUpdate = await incrementReadingStreak(con, latestView);
 
       if (!didUpdate) {
         logger.warn(
