@@ -1099,16 +1099,16 @@ export const resolvers: IResolvers<any, Context> = {
       };
 
       const subQuery = await ctx.con.query(
-        `with base as (SELECT * FROM source_tag_view), s as (
+        `with s as (
             SELECT *, row_number() over (partition by "sourceId" order by count desc) rn
-            FROM base
+            FROM source_tag_view
         )
-        SELECT s2."sourceId", s2."count"
+        SELECT s2."sourceId"
         FROM s s1
         JOIN s s2 on s1.tag = s2.tag and s1."sourceId" != s2."sourceId"
         WHERE s1."sourceId" = $1 and s1.rn <= 10 and s2.rn <= 10
-        GROUP BY 1, s2."count"
-        ORDER BY s2."count" desc
+        GROUP BY 1
+        ORDER BY count(*) desc
         LIMIT 6`,
         [args?.sourceId],
       );

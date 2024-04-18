@@ -12,7 +12,6 @@ import { FeedClient } from './clients';
 import {
   FeedLofnConfigGenerator,
   FeedPreferencesConfigGenerator,
-  FeedUserStateConfigGenerator,
   SimpleFeedConfigGenerator,
 } from './configs';
 import { SnotraClient } from '../snotra';
@@ -67,44 +66,6 @@ export const baseFeedConfig: Partial<FeedConfig> = {
 
 export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
   Object.freeze({
-    '26': new FeedGenerator(
-      feedClient,
-      new FeedUserStateConfigGenerator(snotraClient, {
-        personalised: new FeedPreferencesConfigGenerator(
-          {
-            ...baseFeedConfig,
-            feed_config_name: FeedConfigName.VectorV26,
-          },
-          opts,
-        ),
-        non_personalised: new FeedPreferencesConfigGenerator(
-          {
-            ...baseFeedConfig,
-            feed_config_name: FeedConfigName.PersonaliseV27,
-          },
-          opts,
-        ),
-      }),
-    ),
-    '29': new FeedGenerator(
-      feedClient,
-      new FeedUserStateConfigGenerator(snotraClient, {
-        personalised: new FeedPreferencesConfigGenerator(
-          {
-            ...baseFeedConfig,
-            feed_config_name: FeedConfigName.VectorV27,
-          },
-          opts,
-        ),
-        non_personalised: new FeedPreferencesConfigGenerator(
-          {
-            ...baseFeedConfig,
-            feed_config_name: FeedConfigName.PersonaliseV27,
-          },
-          opts,
-        ),
-      }),
-    ),
     popular: new FeedGenerator(
       new FeedClient(process.env.POPULAR_FEED),
       new FeedPreferencesConfigGenerator(
@@ -138,15 +99,11 @@ export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
   });
 
 export const versionToFeedGenerator = (version: number): FeedGenerator => {
-  if (version >= 30) {
-    return new FeedGenerator(
-      feedClient,
-      new FeedLofnConfigGenerator(baseFeedConfig, lofnClient, {
-        ...opts,
-        feed_version: version.toString() as FeedVersion,
-      }),
-    );
-  }
-
-  return feedGenerators[version.toString()] ?? feedGenerators['29'];
+  return new FeedGenerator(
+    feedClient,
+    new FeedLofnConfigGenerator(baseFeedConfig, lofnClient, {
+      ...opts,
+      feed_version: version.toString() as FeedVersion,
+    }),
+  );
 };
