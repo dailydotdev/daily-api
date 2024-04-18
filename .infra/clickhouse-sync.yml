@@ -1,0 +1,121 @@
+#### Some of the properties are part of Debezium PostgreSQL Connector
+#### https://debezium.io/documentation/reference/stable/connectors/postgresql.html
+# name: Unique name for the connector. Attempting to register again with the same name will fail.
+name: "postgres-sync-clickhouse"
+
+# database.hostname: IP address or hostname of the PostgreSQL database server.
+database.hostname: "%hostname%"
+
+# database.port: Integer port number of the PostgreSQL database server listening for client connections.
+database.port: "5432"
+
+# database.user: Name of the PostgreSQL database user to be used when connecting to the database.
+database.user: "%database_user%"
+
+# database.password: Password of the PostgreSQL database user to be used when connecting to the database.
+database.password: "%database_pass%"
+
+# database.server.name: The name of the PostgreSQL database from which events are to be captured when not using snapshot mode.
+database.server.name: "%database_dbname%"
+
+# schema.include.list: An optional list of regular expressions that match schema names to be monitored;
+schema.include.list: "public"
+
+# plugin.name:  The name of the PostgreSQL logical decoding plug-in installed on the PostgreSQL server. Supported values are decoderbufs, and pgoutput.
+plugin.name: "pgoutput"
+
+# table.include.list: An optional list of regular expressions that match fully-qualified table identifiers for tables to be monitored;
+table.include.list: "public.post"
+
+# clickhouse.server.url: Specify only the hostname of the Clickhouse Server.
+clickhouse.server.url: "%clickhouse_host%"
+
+# clickhouse.server.user: Clickhouse Server User
+clickhouse.server.user: "%clickhouse_user%"
+
+# clickhouse.server.password: Clickhouse Server Password
+clickhouse.server.password: "%clickhouse_password%"
+
+# clickhouse.server.port: Clickhouse Server Port
+clickhouse.server.port: "%clickhouse_port%"
+
+# clickhouse.server.database: Clickhouse Server Database
+clickhouse.server.database: "%clickhouse_database%"
+
+# database.allowPublicKeyRetrieval: "true" https://rmoff.net/2019/10/23/debezium-mysql-v8-public-key-retrieval-is-not-allowed/
+database.allowPublicKeyRetrieval: "true"
+
+# snapshot.mode: Debezium can use different modes when it runs a snapshot. The snapshot mode is determined by the snapshot.mode configuration property.
+snapshot.mode: "initial"
+
+# offset.flush.interval.ms: The number of milliseconds to wait before flushing recent offsets to Kafka. This ensures that offsets are committed within the specified time interval.
+offset.flush.interval.ms: 5000
+
+# connector.class: The Java class for the connector. This must be set to io.debezium.connector.postgresql.PostgresConnector.
+connector.class: "io.debezium.connector.postgresql.PostgresConnector"
+
+# offset.storage: The Java class that implements the offset storage strategy. This must be set to io.debezium.storage.jdbc.offset.JdbcOffsetBackingStore.
+offset.storage: "io.debezium.storage.jdbc.offset.JdbcOffsetBackingStore"
+
+# offset.storage.jdbc.offset.table.name: The name of the database table where connector offsets are to be stored.
+offset.storage.jdbc.offset.table.name: "altinity_sink_connector.replica_source_info"
+
+# offset.storage.jdbc.url: The JDBC URL for the database where connector offsets are to be stored.
+offset.storage.jdbc.url: "jdbc:clickhouse://%clickhouse_host%:%clickhouse_port%/altinity_sink_connector"
+
+# offset.storage.jdbc.user: The name of the database user to be used when connecting to the database where connector offsets are to be stored.
+offset.storage.jdbc.user: "%clickhouse_user%"
+
+# offset.storage.jdbc.password: The password of the database user to be used when connecting to the database where connector offsets are to be stored.
+offset.storage.jdbc.password: "%clickhouse_password%"
+
+# offset.storage.jdbc.offset.table.ddl: The DDL statement used to create the database table where connector offsets are to be stored.
+offset.storage.jdbc.offset.table.ddl: "CREATE TABLE if not exists %s
+(
+    `id` String,
+    `offset_key` String,
+    `offset_val` String,
+    `record_insert_ts` DateTime,
+    `record_insert_seq` UInt64,
+    `_version` UInt64 MATERIALIZED toUnixTimestamp64Nano(now64(9))
+)
+ENGINE = ReplacingMergeTree(_version)
+ORDER BY id
+SETTINGS index_granularity = 8198"
+offset.storage.jdbc.offset.table.delete: "delete from %s where 1=1"
+schema.history.internal: "io.debezium.storage.jdbc.history.JdbcSchemaHistory"
+schema.history.internal.jdbc.url: "jdbc:clickhouse://%clickhouse_host%:%clickhouse_port%/altinity_sink_connector"
+schema.history.internal.jdbc.user: "%clickhouse_user%"
+schema.history.internal.jdbc.password: "%clickhouse_password%"
+schema.history.internal.jdbc.schema.history.table.ddl: "CREATE TABLE if not exists %s
+(`id` VARCHAR(36) NOT NULL, `history_data` VARCHAR(65000), `history_data_seq` INTEGER, `record_insert_ts` TIMESTAMP NOT NULL, `record_insert_seq` INTEGER NOT NULL) ENGINE=ReplacingMergeTree(record_insert_seq) order by id"
+
+# schema.history.internal.schema.history.table.name: The name of the database table where connector schema history is to be stored.
+schema.history.internal.jdbc.schema.history.table.name: "altinity_sink_connector.replicate_schema_history"
+
+# enable.snapshot.ddl: If set to true, the connector wil parse the DDL statements as part of initial load.
+enable.snapshot.ddl: "true"
+
+# auto.create.tables: If set to true, the connector will create the database tables for the destination tables if they do not already exist.
+auto.create.tables: "true"
+
+# database.dbname: The name of the PostgreSQL database from which events are to be captured when not using snapshot mode.
+database.dbname: "%database_dbname%"
+
+# clickhouse.datetime.timezone: This timezone will override the default timezone of ClickHouse server. Timezone columns will be set to this timezone.
+#clickhouse.datetime.timezone: "UTC"
+
+# skip_replica_start: If set to true, the connector will skip replication on startup. sink-connector-client start_replica will start replication.
+skip_replica_start: "false"
+
+# binary.handling.mode: The mode for handling binary values. Possible values are bytes, base64, and decode. The default is bytes.
+#binary.handling.mode: "base64"
+
+# ignore_delete: If set to true, the connector will ignore delete events. The default is false.
+#ignore_delete: "true"
+
+#disable.ddl: If set to true, the connector will ignore DDL events. The default is false.
+#disable.ddl: "false"
+
+#disable.drop.truncate: If set to true, the connector will ignore drop and truncate events. The default is false.
+#disable.drop.truncate: "false"

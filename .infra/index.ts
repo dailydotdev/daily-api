@@ -24,6 +24,7 @@ import {
   SqlDatabase,
   Stream,
 } from '@dailydotdev/pulumi-common';
+import {deployClickhouseSync} from "./ch_sync";
 
 const isAdhocEnv = detectIsAdhocEnv();
 const name = 'api';
@@ -520,5 +521,29 @@ if (vpcNativeProvider) {
       spec: subsIngressSpec,
     },
     { provider: vpcNativeProvider.provider },
+  );
+}
+
+if (!isAdhocEnv) {
+  deployClickhouseSync(
+    name,
+    namespace,
+    {
+      propsPath: './clickhouse-sync.yml',
+      propsVars: {
+        database_pass: config.require('debeziumDbPass'),
+        database_user: config.require('debeziumDbUser'),
+        database_dbname: name,
+        hostname: envVars.typeormHost as string,
+        clickhouse_host: config.require('clickhouse_host'),
+        clickhouse_user: config.require('clickhouse_user'),
+        clickhouse_password: config.require('clickhouse_password'),
+        clickhouse_port: config.require('clickhouse_port'),
+        clickhouse_database: config.require('clickhouse_database'),
+      },
+    },
+    {
+      provider: vpcNativeProvider?.provider,
+    }
   );
 }
