@@ -4,6 +4,7 @@ import {
   ReputationEvent,
   CommentMention,
   MarketingCta,
+  UserMarketingCta,
 } from '../../entity';
 import { messageToJson, Worker } from '../worker';
 import {
@@ -769,6 +770,23 @@ const onMarketingCtaChange = async (
   }
 };
 
+const onUserMarketingCtaChange = async (
+  data: ChangeMessage<UserMarketingCta>,
+) => {
+  // Only run on delete and if the user has read the Marketing CTA
+  if (data.payload.op !== 'd' || data.payload.before.readAt !== null) {
+    return;
+  }
+
+  deleteRedisKey(
+    generateStorageKey(
+      StorageTopic.Boot,
+      StorageKey.MarketingCta,
+      data.payload.before.userId,
+    ),
+  );
+};
+
 const worker: Worker = {
   subscription: 'api-cdc',
   maxMessages: parseInt(process.env.CDC_WORKER_MAX_MESSAGES) || null,
@@ -851,6 +869,9 @@ const worker: Worker = {
           break;
         case getTableName(con, MarketingCta):
           await onMarketingCtaChange(con, data);
+          break;
+        case getTableName(con, UserMarketingCta):
+          await onUserMarketingCtaChange(data);
           break;
       }
     } catch (err) {
