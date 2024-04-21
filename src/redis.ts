@@ -44,8 +44,8 @@ export function deleteKeysByPattern(pattern: string): Promise<void> {
   );
 }
 
-export const deleteRedisKey = (key: string): Promise<number> =>
-  ioRedisPool.execute((client) => client.unlink(key));
+export const deleteRedisKey = (...keys: string[]): Promise<number> =>
+  ioRedisPool.execute((client) => client.unlink(...keys));
 
 export const ONE_MINUTE_IN_SECONDS = 60;
 export const ONE_HOUR_IN_SECONDS = 60 * 60;
