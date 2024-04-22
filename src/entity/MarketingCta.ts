@@ -12,6 +12,12 @@ export type MarketingCtaFlags = {
   ctaText: string;
 };
 
+export enum MarketingCtaStatus {
+  Active = 'active',
+  Inactive = 'inactive',
+  Paused = 'paused',
+}
+
 @Entity()
 export class MarketingCta {
   @PrimaryColumn({ type: 'text' })
@@ -23,8 +29,8 @@ export class MarketingCta {
   @Column({ type: 'text' })
   variant: MarketingCtaVariant;
 
-  @Column({ type: 'boolean', default: false })
-  disabled: boolean;
+  @Column({ type: 'text', default: MarketingCtaStatus.Active })
+  status: MarketingCtaStatus;
 
   @Column({ type: 'jsonb', default: {} })
   flags: MarketingCtaFlags;

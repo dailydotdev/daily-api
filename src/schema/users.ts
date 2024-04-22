@@ -22,6 +22,7 @@ import {
   UserPersonalizedDigestType,
   UserPersonalizedDigestFlags,
   UserPersonalizedDigestSendType,
+  MarketingCtaStatus,
 } from '../entity';
 import {
   AuthenticationError,
@@ -775,7 +776,7 @@ export const getMarketingCta = async (
         userId,
         readAt: IsNull(),
         marketingCta: {
-          disabled: false,
+          status: MarketingCtaStatus.Active,
         },
       },
       order: { createdAt: 'ASC' },

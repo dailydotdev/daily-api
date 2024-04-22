@@ -17,6 +17,7 @@ import {
   FeatureType,
   MachineSource,
   MarketingCta,
+  MarketingCtaStatus,
   NotificationV2,
   Post,
   Settings,
@@ -538,14 +539,14 @@ describe('boot marketing cta', () => {
     );
   });
 
-  it('should not return marketing cta for user if campaign is disabled', async () => {
+  it('should not return marketing cta for user if campaign is not active', async () => {
     const userId = '1';
     mockLoggedIn(userId);
 
     await con.getRepository(MarketingCta).save({
       campaignId: 'worlds-best-campaign',
       variant: 'card',
-      disabled: true,
+      status: MarketingCtaStatus.Paused,
       createdAt: new Date('2024-03-13 12:00:00'),
       flags: {
         title: 'Join the best community in the world',
