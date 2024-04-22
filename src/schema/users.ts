@@ -22,6 +22,7 @@ import {
   UserPersonalizedDigestType,
   UserPersonalizedDigestFlags,
   UserPersonalizedDigestSendType,
+  MarketingCtaStatus,
 } from '../entity';
 import {
   AuthenticationError,
@@ -771,7 +772,13 @@ export const getMarketingCta = async (
   // If the key is not in redis, we need to fetch it from the database
   if (!marketingCta) {
     const userMarketingCta = await con.getRepository(UserMarketingCta).findOne({
-      where: { userId, readAt: IsNull() },
+      where: {
+        userId,
+        readAt: IsNull(),
+        marketingCta: {
+          status: MarketingCtaStatus.Active,
+        },
+      },
       order: { createdAt: 'ASC' },
       relations: ['marketingCta'],
     });
