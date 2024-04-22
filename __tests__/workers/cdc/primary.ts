@@ -97,7 +97,7 @@ import { usersFixture } from '../../fixture/user';
 import { DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD } from '../../../src/workers/notifications/devCardUnlocked';
 import { UserComment } from '../../../src/entity/user/UserComment';
 import {
-  deleteRedisKey,
+  getRedisKeysByPattern,
   getRedisObject,
   ioRedisPool,
   setRedisObject,
@@ -146,13 +146,6 @@ jest.mock('../../../src/common', () => ({
   notifyPostCollectionUpdated: jest.fn(),
   notifyUserReadmeUpdated: jest.fn(),
   notifyReputationIncrease: jest.fn(),
-}));
-
-jest.mock('../../../src/redis', () => ({
-  ...(jest.requireActual('../../../src/redis') as Record<string, unknown>),
-  deleteRedisKey: jest.fn(async (...keys) =>
-    ioRedisPool.execute((client) => client.unlink(...keys)),
-  ),
 }));
 
 let con: DataSource;
@@ -2509,7 +2502,11 @@ describe('marketing cta', () => {
         ),
       ).not.toBeNull();
 
-      expect(deleteRedisKey).toHaveBeenCalledTimes(0);
+      expect(
+        await getRedisKeysByPattern(
+          generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, '*'),
+        ),
+      ).toHaveLength(4);
     });
   });
 
@@ -2572,7 +2569,11 @@ describe('marketing cta', () => {
         ),
       ).toBeNull();
 
-      expect(deleteRedisKey).toHaveBeenCalledTimes(1);
+      expect(
+        await getRedisKeysByPattern(
+          generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, '*'),
+        ),
+      ).toHaveLength(1);
     });
   });
 
@@ -2608,7 +2609,11 @@ describe('marketing cta', () => {
         ),
       ).not.toBeNull();
 
-      expect(deleteRedisKey).toHaveBeenCalledTimes(0);
+      expect(
+        await getRedisKeysByPattern(
+          generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, '*'),
+        ),
+      ).toHaveLength(4);
     });
   });
 
@@ -2653,7 +2658,11 @@ describe('marketing cta', () => {
         ),
       ).toBeNull();
 
-      expect(deleteRedisKey).toHaveBeenCalledTimes(1);
+      expect(
+        await getRedisKeysByPattern(
+          generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, '*'),
+        ),
+      ).toHaveLength(3);
     });
 
     it('should not clear boot cache for the user when they are unassigned from the campaign if they have interacted with it', async () => {
@@ -2696,7 +2705,11 @@ describe('marketing cta', () => {
         ),
       ).not.toBeNull();
 
-      expect(deleteRedisKey).toHaveBeenCalledTimes(0);
+      expect(
+        await getRedisKeysByPattern(
+          generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, '*'),
+        ),
+      ).toHaveLength(4);
     });
   });
 });
