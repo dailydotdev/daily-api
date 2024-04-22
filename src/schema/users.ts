@@ -16,7 +16,6 @@ import {
   Invite,
   UserPersonalizedDigest,
   getAuthorPostStats,
-  AcquisitionChannel,
   UserMarketingCta,
   MarketingCta,
   UserPersonalizedDigestType,
@@ -431,7 +430,6 @@ export const typeDefs = /* GraphQL */ `
     lastViewAt: DateTime
   }
 
-  ${toGQLEnum(AcquisitionChannel, 'AcquisitionChannel')}
   ${toGQLEnum(UserPersonalizedDigestType, 'DigestType')}
 
   ${toGQLEnum(UserVoteEntity, 'UserVoteEntity')}
@@ -647,9 +645,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Stores user source tracking information
     """
-    addUserAcquisitionChannel(
-      acquisitionChannel: AcquisitionChannel!
-    ): EmptyResponse @auth
+    addUserAcquisitionChannel(acquisitionChannel: String!): EmptyResponse @auth
 
     """
     Clears the user marketing CTA and marks it as read
@@ -1373,7 +1369,7 @@ export const resolvers: IResolvers<any, Context> = {
     },
     addUserAcquisitionChannel: async (
       _,
-      { acquisitionChannel }: { acquisitionChannel: AcquisitionChannel },
+      { acquisitionChannel }: { acquisitionChannel: string },
       ctx,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con
