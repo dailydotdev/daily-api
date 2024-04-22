@@ -97,6 +97,7 @@ import { usersFixture } from '../../fixture/user';
 import { DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD } from '../../../src/workers/notifications/devCardUnlocked';
 import { UserComment } from '../../../src/entity/user/UserComment';
 import {
+  deleteRedisKey,
   getRedisObject,
   ioRedisPool,
   setRedisObject,
@@ -145,6 +146,13 @@ jest.mock('../../../src/common', () => ({
   notifyPostCollectionUpdated: jest.fn(),
   notifyUserReadmeUpdated: jest.fn(),
   notifyReputationIncrease: jest.fn(),
+}));
+
+jest.mock('../../../src/redis', () => ({
+  ...(jest.requireActual('../../../src/redis') as Record<string, unknown>),
+  deleteRedisKey: jest.fn((...keys) =>
+    ioRedisPool.execute((client) => client.unlink(...keys)),
+  ),
 }));
 
 let con: DataSource;
