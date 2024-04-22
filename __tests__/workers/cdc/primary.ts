@@ -2566,9 +2566,6 @@ describe('marketing cta', () => {
   });
 
   describe('on user unassign', () => {
-    // afterEach(async () => {
-    //   await ioRedisPool.execute((client) => client.flushall());
-    // });
     it('should clear boot cache for the user when they are unassigned from the campaign', async () => {
       expect(
         await getRedisObject(
