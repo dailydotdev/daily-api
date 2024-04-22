@@ -774,9 +774,8 @@ const onUserMarketingCtaChange = async (
   data: ChangeMessage<UserMarketingCta>,
 ) => {
   // Only run on delete and if the user has read the Marketing CTA
-  if (data.payload.op !== 'd' || data.payload.before.readAt !== null) {
-    return;
-  }
+  if (data.payload.op !== 'd') return;
+  if (data.payload.before.readAt !== null) return;
 
   await deleteRedisKey(
     generateStorageKey(
