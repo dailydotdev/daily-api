@@ -2478,6 +2478,41 @@ describe('marketing cta', () => {
     });
   });
 
+  describe('on create', () => {
+    it('should not clear any keys when a new marketing cta is created', async () => {
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after: base,
+          before: null,
+          op: 'c',
+          table: 'marketing_cta',
+        }),
+      );
+
+      expect(
+        await getRedisObject(
+          generateStorageKey(
+            StorageTopic.Boot,
+            StorageKey.MarketingCta,
+            usersFixture[0].id as string,
+          ),
+        ),
+      ).not.toBeNull();
+      expect(
+        await getRedisObject(
+          generateStorageKey(
+            StorageTopic.Boot,
+            StorageKey.MarketingCta,
+            usersFixture[1].id as string,
+          ),
+        ),
+      ).not.toBeNull();
+
+      expect(deleteRedisKey).toHaveBeenCalledTimes(0);
+    });
+  });
+
   describe('on update', () => {
     it('should clear boot cache for users assigned to the campaign and have not interacted with it', async () => {
       await con.getRepository(UserMarketingCta).update(
@@ -2536,6 +2571,8 @@ describe('marketing cta', () => {
           ),
         ),
       ).toBeNull();
+
+      expect(deleteRedisKey).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -2570,6 +2607,8 @@ describe('marketing cta', () => {
           ),
         ),
       ).not.toBeNull();
+
+      expect(deleteRedisKey).toHaveBeenCalledTimes(0);
     });
   });
 
@@ -2613,6 +2652,8 @@ describe('marketing cta', () => {
           ),
         ),
       ).toBeNull();
+
+      expect(deleteRedisKey).toHaveBeenCalledTimes(1);
     });
 
     it('should not clear boot cache for the user when they are unassigned from the campaign if they have interacted with it', async () => {
@@ -2654,6 +2695,8 @@ describe('marketing cta', () => {
           ),
         ),
       ).not.toBeNull();
+
+      expect(deleteRedisKey).toHaveBeenCalledTimes(0);
     });
   });
 });
