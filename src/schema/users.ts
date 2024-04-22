@@ -645,9 +645,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Stores user source tracking information
     """
-    addUserAcquisitionChannel(
-      acquisitionChannel: String! @length(max: 50)
-    ): EmptyResponse @auth
+    addUserAcquisitionChannel(acquisitionChannel: String!): EmptyResponse @auth
 
     """
     Clears the user marketing CTA and marks it as read
@@ -1374,6 +1372,13 @@ export const resolvers: IResolvers<any, Context> = {
       { acquisitionChannel }: { acquisitionChannel: string },
       ctx,
     ): Promise<GQLEmptyResponse> => {
+      const maxLength = 50;
+      if (acquisitionChannel?.length > maxLength) {
+        throw new ValidationError(
+          `Max Acquisition Channel length is ${maxLength}`,
+        );
+      }
+
       await ctx.con
         .getRepository(User)
         .update({ id: ctx.userId }, { acquisitionChannel });
