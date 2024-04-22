@@ -537,6 +537,49 @@ describe('boot marketing cta', () => {
       ),
     );
   });
+
+  it('should not return marketing cta for user if campaign is disabled', async () => {
+    const userId = '1';
+    mockLoggedIn(userId);
+
+    await con.getRepository(MarketingCta).save({
+      campaignId: 'worlds-best-campaign',
+      variant: 'card',
+      disabled: true,
+      createdAt: new Date('2024-03-13 12:00:00'),
+      flags: {
+        title: 'Join the best community in the world',
+        description: 'Join the best community in the world',
+        ctaUrl: 'http://localhost:5002',
+        ctaText: 'Join now',
+      },
+    });
+    await con.getRepository(UserMarketingCta).save({
+      marketingCtaId: 'worlds-best-campaign',
+      userId,
+      createdAt: new Date('2024-03-13 12:00:00'),
+    });
+
+    expect(
+      await getRedisObject(
+        generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, userId),
+      ),
+    ).toBeNull();
+
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+
+    expect(res.body.marketingCta).toBeNull();
+
+    expect(
+      await getRedisObject(
+        generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, userId),
+      ),
+    ).toEqual(RedisMagicValues.SLEEPING);
+  });
 });
 
 describe('boot alerts', () => {

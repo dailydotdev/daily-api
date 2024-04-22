@@ -23,6 +23,9 @@ export class MarketingCta {
   @Column({ type: 'text' })
   variant: MarketingCtaVariant;
 
+  @Column({ type: 'boolean', default: false })
+  disabled: boolean;
+
   @Column({ type: 'jsonb', default: {} })
   flags: MarketingCtaFlags;
 }
