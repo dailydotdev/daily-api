@@ -6,7 +6,6 @@ import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
 import { Context } from '../Context';
 import { GraphQLResolveInfo } from 'graphql';
-import { getTodayTz } from './date';
 
 export interface User {
   id: string;
@@ -33,6 +32,7 @@ export interface GQLUserStreak {
 export interface GQLUserStreakTz extends GQLUserStreak {
   timezone: string;
   lastViewAtTz: Date;
+  currentDateTz: Date;
 }
 
 export const fetchUser = async (
@@ -400,15 +400,14 @@ export const checkAndClearUserStreak = async (
   info: GraphQLResolveInfo,
   streak: GQLUserStreakTz,
 ): Promise<boolean> => {
-  const { lastViewAtTz: lastViewAt, timezone } = streak;
+  const { lastViewAtTz: lastViewAt, currentDateTz: currentDate } = streak;
 
   if (!lastViewAt) {
     return false;
   }
 
-  const today = getTodayTz(timezone);
-  const day = today.getDay();
-  const difference = differenceInDays(today, lastViewAt);
+  const day = currentDate.getDay();
+  const difference = differenceInDays(currentDate, lastViewAt);
 
   if (shouldResetStreak(day, difference)) {
     return clearUserStreak(ctx.con, ctx.userId);
