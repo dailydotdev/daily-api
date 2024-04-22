@@ -758,7 +758,7 @@ const onMarketingCtaChange = async (
   });
 
   if (users.length > 0) {
-    deleteRedisKey(
+    await deleteRedisKey(
       ...users.map((user) =>
         generateStorageKey(
           StorageTopic.Boot,
@@ -778,7 +778,7 @@ const onUserMarketingCtaChange = async (
     return;
   }
 
-  deleteRedisKey(
+  await deleteRedisKey(
     generateStorageKey(
       StorageTopic.Boot,
       StorageKey.MarketingCta,
