@@ -645,7 +645,9 @@ export const typeDefs = /* GraphQL */ `
     """
     Stores user source tracking information
     """
-    addUserAcquisitionChannel(acquisitionChannel: String!): EmptyResponse @auth
+    addUserAcquisitionChannel(
+      acquisitionChannel: String! @length(max: 50)
+    ): EmptyResponse @auth
 
     """
     Clears the user marketing CTA and marks it as read
