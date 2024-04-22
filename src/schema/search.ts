@@ -232,7 +232,10 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
         const hits = await searchMeili(
           `q=${query}&attributesToRetrieve=post_id,title`,
         );
-
+        // In case ids is empty make sure the query does not fail
+        const idsStr = hits.length
+          ? hits.map((id) => `'${id.post_id}'`).join(',')
+          : `'nosuchid'`;
         let newBuilder = ctx.con
           .createQueryBuilder()
           .select('post.id, post.title')
@@ -243,7 +246,8 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
             'source.id = post.sourceId AND source.private = false AND source.id != :sourceId',
             { sourceId: 'unknown' },
           )
-          .where('post.id IN (:...ids)', { ids: hits.map((x) => x.post_id) });
+          .where('post.id IN (:...ids)', { ids: hits.map((x) => x.post_id) })
+          .orderBy(`array_position(array[${idsStr}], post.id)`);
         if (ctx.userId) {
           newBuilder = newBuilder
             .leftJoin(

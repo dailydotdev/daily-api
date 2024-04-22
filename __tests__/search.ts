@@ -338,7 +338,12 @@ describe('query searchPostSuggestions v2', () => {
     await saveFixtures(con, ArticlePost, postsFixture);
     mockMeili(
       'q=p1&attributesToRetrieve=post_id,title',
-      JSON.stringify({ hits: [{ post_id: 'p1', title: 'P1' }] }),
+      JSON.stringify({
+        hits: [
+          { post_id: 'p2', title: 'P2' },
+          { post_id: 'p1', title: 'P1' },
+        ],
+      }),
     );
   });
 
@@ -347,7 +352,7 @@ describe('query searchPostSuggestions v2', () => {
     expect(res.data).toEqual({
       searchPostSuggestions: {
         query: 'p1',
-        hits: [{ title: 'P1' }],
+        hits: [{ title: 'P2' }, { title: 'P1' }],
       },
     });
   });
@@ -364,7 +369,7 @@ describe('query searchPostSuggestions v2', () => {
     expect(res.data).toEqual({
       searchPostSuggestions: {
         query: 'p1',
-        hits: [],
+        hits: [{ title: 'P2' }],
       },
     });
   });
@@ -375,7 +380,7 @@ describe('query searchPostSuggestions v2', () => {
     expect(res.data).toEqual({
       searchPostSuggestions: {
         query: 'p1',
-        hits: [],
+        hits: [{ title: 'P2' }],
       },
     });
   });
