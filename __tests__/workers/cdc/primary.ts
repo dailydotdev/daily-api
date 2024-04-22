@@ -150,7 +150,7 @@ jest.mock('../../../src/common', () => ({
 
 jest.mock('../../../src/redis', () => ({
   ...(jest.requireActual('../../../src/redis') as Record<string, unknown>),
-  deleteRedisKey: jest.fn((...keys) =>
+  deleteRedisKey: jest.fn(async (...keys) =>
     ioRedisPool.execute((client) => client.unlink(...keys)),
   ),
 }));
