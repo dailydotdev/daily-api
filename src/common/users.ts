@@ -408,7 +408,7 @@ export const checkAndClearUserStreak = async (
 
   const today = getTodayTz(timezone);
   const day = today.getDay();
-  const difference = differenceInDays(today, lastViewAt);
+  const difference = differenceInDays(today.setHours(0, 0, 0, 0), lastViewAt);
 
   if (shouldResetStreak(day, difference)) {
     return clearUserStreak(ctx.con, ctx.userId);
