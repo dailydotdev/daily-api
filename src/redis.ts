@@ -70,7 +70,5 @@ export const setRedisObjectWithExpiry = (
 export const getRedisObject = (key) =>
   ioRedisPool.execute((client) => client.get(key));
 
-export const getRedisKeysByPattern = (pattern: string) => {
-  console.log('getRedisKeysByPattern', pattern);
-  return ioRedisPool.execute((client) => client.keys(pattern));
-};
+export const getRedisKeysByPattern = (pattern: string) =>
+  ioRedisPool.execute((client) => client.keys(pattern));
