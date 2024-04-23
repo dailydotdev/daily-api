@@ -6,7 +6,7 @@ import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
 import { Context } from '../Context';
 import { GraphQLResolveInfo } from 'graphql';
-import { getTodayTz } from './date';
+import { utcToZonedTime } from 'date-fns-tz';
 
 export interface User {
   id: string;
@@ -406,9 +406,11 @@ export const checkAndClearUserStreak = async (
     return false;
   }
 
-  const today = getTodayTz(timezone);
+  const today = utcToZonedTime(new Date(), timezone);
+  today.setHours(0, 0, 0, 0);
+
   const day = today.getDay();
-  const difference = differenceInDays(today.setHours(0, 0, 0, 0), lastViewAt);
+  const difference = differenceInDays(today, lastViewAt);
 
   if (shouldResetStreak(day, difference)) {
     return clearUserStreak(ctx.con, ctx.userId);
