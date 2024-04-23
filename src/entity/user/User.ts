@@ -126,6 +126,9 @@ export class User {
   @Column({ type: 'text', nullable: true })
   acquisitionChannel: AcquisitionChannel;
 
+  @Column({ type: 'text', nullable: true })
+  experienceLevel: string | null;
+
   @ManyToOne(() => User, {
     lazy: true,
     onDelete: 'SET NULL',

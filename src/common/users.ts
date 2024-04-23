@@ -20,6 +20,7 @@ export interface User {
   username?: string;
   timezone?: string;
   acceptedMarketing?: boolean;
+  experienceLevel?: string;
 }
 
 export interface GQLUserStreak {
