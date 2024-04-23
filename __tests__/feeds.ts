@@ -1196,8 +1196,8 @@ describe('query authorFeed', () => {
 });
 
 describe('query mostUpvotedFeed', () => {
-  const QUERY = (period = 7, first = 10): string => `{
-    mostUpvotedFeed(first: ${first}, period: ${period}) {
+  const QUERY = (period = 7, first = 10, source = '', tag = ''): string => `{
+    mostUpvotedFeed(first: ${first}, period: ${period}, source: "${source}", tag: "${tag}") {
       ${feedFields()}
     }
   }`;
@@ -1266,11 +1266,39 @@ describe('query mostUpvotedFeed', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
+
+  it('should return posts from provided source', async () => {
+    const repo = con.getRepository(Post);
+    await repo.update({ id: 'p1' }, { upvotes: 20 });
+    await repo.update({ id: 'p3' }, { upvotes: 15 });
+    await repo.update({ id: 'p4' }, { upvotes: 30 });
+
+    const res = await client.query(QUERY(30, 10, 'a'));
+    expect(res.errors).toBeFalsy();
+    expect(res.data.mostUpvotedFeed.edges.length).toEqual(2);
+    res.data.mostUpvotedFeed.edges.forEach(({ node }) => {
+      expect(node.source.id).toEqual('a');
+    });
+  });
+
+  it('should return posts from provided tag', async () => {
+    const repo = con.getRepository(Post);
+    await repo.update({ id: 'p1' }, { upvotes: 20 });
+    await repo.update({ id: 'p3' }, { upvotes: 15 });
+    await repo.update({ id: 'p4' }, { upvotes: 30 });
+
+    const res = await client.query(QUERY(30, 10, '', 'javascript'));
+    expect(res.errors).toBeFalsy();
+    expect(res.data.mostUpvotedFeed.edges.length).toEqual(2);
+    res.data.mostUpvotedFeed.edges.forEach(({ node }) => {
+      expect(node.tags).toContain('javascript');
+    });
+  });
 });
 
 describe('query mostDiscussedFeed', () => {
-  const QUERY = (first = 10): string => `{
-    mostDiscussedFeed(first: ${first}) {
+  const QUERY = (first = 10, source = '', tag = ''): string => `{
+    mostDiscussedFeed(first: ${first}, source: "${source}", tag: "${tag}") {
       ${feedFields()}
     }
   }`;
@@ -1311,6 +1339,34 @@ describe('query mostDiscussedFeed', () => {
     const res = await client.query(QUERY(30));
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return posts from provided source', async () => {
+    const repo = con.getRepository(Post);
+    await repo.update({ id: 'p1' }, { comments: 6 });
+    await repo.update({ id: 'p3' }, { comments: 6 });
+    await repo.update({ id: 'p4' }, { comments: 6 });
+
+    const res = await client.query(QUERY(30, 'a'));
+    expect(res.errors).toBeFalsy();
+    expect(res.data.mostDiscussedFeed.edges.length).toEqual(2);
+    res.data.mostDiscussedFeed.edges.forEach(({ node }) => {
+      expect(node.source.id).toEqual('a');
+    });
+  });
+
+  it('should return posts from provided tag', async () => {
+    const repo = con.getRepository(Post);
+    await repo.update({ id: 'p1' }, { comments: 6 });
+    await repo.update({ id: 'p3' }, { comments: 6 });
+    await repo.update({ id: 'p4' }, { comments: 6 });
+
+    const res = await client.query(QUERY(30, '', 'javascript'));
+    expect(res.errors).toBeFalsy();
+    expect(res.data.mostDiscussedFeed.edges.length).toEqual(2);
+    res.data.mostDiscussedFeed.edges.forEach(({ node }) => {
+      expect(node.tags).toContain('javascript');
+    });
   });
 });
 

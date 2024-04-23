@@ -16,7 +16,6 @@ import {
   Invite,
   UserPersonalizedDigest,
   getAuthorPostStats,
-  AcquisitionChannel,
   UserMarketingCta,
   MarketingCta,
   UserPersonalizedDigestType,
@@ -441,7 +440,6 @@ export const typeDefs = /* GraphQL */ `
     lastViewAt: DateTime
   }
 
-  ${toGQLEnum(AcquisitionChannel, 'AcquisitionChannel')}
   ${toGQLEnum(UserPersonalizedDigestType, 'DigestType')}
 
   ${toGQLEnum(UserVoteEntity, 'UserVoteEntity')}
@@ -657,9 +655,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Stores user source tracking information
     """
-    addUserAcquisitionChannel(
-      acquisitionChannel: AcquisitionChannel!
-    ): EmptyResponse @auth
+    addUserAcquisitionChannel(acquisitionChannel: String!): EmptyResponse @auth
 
     """
     Clears the user marketing CTA and marks it as read
@@ -1383,9 +1379,16 @@ export const resolvers: IResolvers<any, Context> = {
     },
     addUserAcquisitionChannel: async (
       _,
-      { acquisitionChannel }: { acquisitionChannel: AcquisitionChannel },
+      { acquisitionChannel }: { acquisitionChannel: string },
       ctx,
     ): Promise<GQLEmptyResponse> => {
+      const maxLength = 50;
+      if (acquisitionChannel?.length > maxLength) {
+        throw new ValidationError(
+          `Max Acquisition Channel length is ${maxLength}`,
+        );
+      }
+
       await ctx.con
         .getRepository(User)
         .update({ id: ctx.userId }, { acquisitionChannel });

@@ -452,6 +452,16 @@ export const typeDefs = /* GraphQL */ `
       Array of supported post types
       """
       supportedTypes: [String!]
+
+      """
+      ID of the source you want to get most upvoted feed for
+      """
+      source: ID
+
+      """
+      Tag to filter by
+      """
+      tag: String
     ): PostConnection!
 
     """
@@ -472,6 +482,16 @@ export const typeDefs = /* GraphQL */ `
       Array of supported post types
       """
       supportedTypes: [String!]
+
+      """
+      ID of the source you want to get most upvoted feed for
+      """
+      source: ID
+
+      """
+      Tag to filter by
+      """
+      tag: String
     ): PostConnection!
 
     """
@@ -1119,18 +1139,35 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     mostUpvotedFeed: feedResolver(
       (
         ctx,
-        { period }: ConnectionArguments & { period?: number },
+        {
+          period,
+          source,
+          tag,
+        }: ConnectionArguments & {
+          period?: number;
+          source?: string;
+          tag?: string;
+        },
         builder,
         alias,
       ) => {
         const interval = [7, 30, 365].find((num) => num === period) ?? 7;
-        return builder
+        builder
           .andWhere(
             `${alias}."createdAt" > now() - interval '${interval} days'`,
           )
           .andWhere(`${alias}."upvotes" >= 10`)
           .orderBy(`${alias}."upvotes"`, 'DESC')
           .addOrderBy(`${alias}."createdAt"`, 'DESC');
+        if (tag) {
+          builder.andWhere((subBuilder) =>
+            whereKeyword(tag, subBuilder, alias),
+          );
+        }
+        if (source) {
+          builder.andWhere(`${alias}."sourceId" = :source`, { source });
+        }
+        return builder;
       },
       offsetPageGenerator(30, 50, 100),
       (ctx, args, { limit, offset }, builder) =>
@@ -1142,12 +1179,33 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       },
     ),
     mostDiscussedFeed: feedResolver(
-      (ctx, args, builder, alias) =>
+      (
+        ctx,
+        {
+          source,
+          tag,
+        }: ConnectionArguments & {
+          source?: string;
+          tag?: string;
+        },
+        builder,
+        alias,
+      ) => {
         builder
           .andWhere(`${alias}."createdAt" > now() - interval '30 days'`)
           .andWhere(`${alias}."comments" >= 1`)
           .orderBy(`${alias}."comments"`, 'DESC')
-          .addOrderBy(`${alias}."createdAt"`, 'DESC'),
+          .addOrderBy(`${alias}."createdAt"`, 'DESC');
+        if (tag) {
+          builder.andWhere((subBuilder) =>
+            whereKeyword(tag, subBuilder, alias),
+          );
+        }
+        if (source) {
+          builder.andWhere(`${alias}."sourceId" = :source`, { source });
+        }
+        return builder;
+      },
       offsetPageGenerator(30, 50, 100),
       (ctx, args, { limit, offset }, builder) =>
         builder.limit(limit).offset(offset),
