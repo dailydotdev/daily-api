@@ -2618,6 +2618,55 @@ describe('marketing cta', () => {
     });
   });
 
+  describe('on user assign', () => {
+    it('should clear boot cache for the user when they are assigned to the campaign', async () => {
+      expect(
+        await getRedisObject(
+          generateStorageKey(
+            StorageTopic.Boot,
+            StorageKey.MarketingCta,
+            usersFixture[0].id as string,
+          ),
+        ),
+      ).not.toBeNull();
+
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<UserMarketingCta>({
+          after: {
+            marketingCtaId: 'worlds-best-campaign',
+            marketingCta: {
+              ...base,
+              createdAt: new Date('2024-03-13 12:00:00'),
+            },
+            userId: usersFixture[0].id as string,
+            createdAt: 0,
+            readAt: null,
+          },
+          before: null,
+          op: 'c',
+          table: 'user_marketing_cta',
+        }),
+      );
+
+      expect(
+        await getRedisObject(
+          generateStorageKey(
+            StorageTopic.Boot,
+            StorageKey.MarketingCta,
+            usersFixture[0].id as string,
+          ),
+        ),
+      ).toBeNull();
+
+      expect(
+        await getRedisKeysByPattern(
+          generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, '*'),
+        ),
+      ).toHaveLength(3);
+    });
+  });
+
   describe('on user unassign', () => {
     it('should clear boot cache for the user when they are unassigned from the campaign', async () => {
       expect(

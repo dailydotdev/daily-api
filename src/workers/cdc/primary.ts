@@ -773,17 +773,25 @@ const onMarketingCtaChange = async (
 const onUserMarketingCtaChange = async (
   data: ChangeMessage<UserMarketingCta>,
 ) => {
-  // Only run on delete and if the user has read the Marketing CTA
-  if (data.payload.op !== 'd') return;
-  if (data.payload.before.readAt !== null) return;
+  if (data.payload.op === 'c') {
+    await deleteRedisKey(
+      generateStorageKey(
+        StorageTopic.Boot,
+        StorageKey.MarketingCta,
+        data.payload.after.userId,
+      ),
+    );
+  } else if (data.payload.op === 'd') {
+    if (data.payload.before.readAt !== null) return;
 
-  await deleteRedisKey(
-    generateStorageKey(
-      StorageTopic.Boot,
-      StorageKey.MarketingCta,
-      data.payload.before.userId,
-    ),
-  );
+    await deleteRedisKey(
+      generateStorageKey(
+        StorageTopic.Boot,
+        StorageKey.MarketingCta,
+        data.payload.before.userId,
+      ),
+    );
+  }
 };
 
 const worker: Worker = {
