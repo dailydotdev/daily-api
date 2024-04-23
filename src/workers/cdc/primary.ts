@@ -3,6 +3,8 @@ import {
   UserStateKey,
   ReputationEvent,
   CommentMention,
+  MarketingCta,
+  UserMarketingCta,
 } from '../../entity';
 import { messageToJson, Worker } from '../worker';
 import {
@@ -74,7 +76,7 @@ import {
   PubSubSchema,
 } from '../../common';
 import { ChangeMessage, UserVote } from '../../types';
-import { DataSource } from 'typeorm';
+import { DataSource, IsNull } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import { PostReport, ContentImage } from '../../entity';
 import { reportReasons } from '../../schema/posts';
@@ -85,6 +87,8 @@ import { CommentReport } from '../../entity/CommentReport';
 import { reportCommentReasons } from '../../schema/comments';
 import { getTableName, isChanged } from './common';
 import { UserComment } from '../../entity/user/UserComment';
+import { StorageKey, StorageTopic, generateStorageKey } from '../../config';
+import { deleteRedisKey } from '../../redis';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -740,6 +744,48 @@ const onPostRelationChange = async (
   }
 };
 
+const onMarketingCtaChange = async (
+  con: DataSource,
+  data: ChangeMessage<MarketingCta>,
+) => {
+  if (data.payload.op !== 'u') {
+    return;
+  }
+
+  const users = await con.getRepository(UserMarketingCta).findBy({
+    marketingCtaId: data.payload.after.campaignId,
+    readAt: IsNull(),
+  });
+
+  if (users.length > 0) {
+    await deleteRedisKey(
+      ...users.map((user) =>
+        generateStorageKey(
+          StorageTopic.Boot,
+          StorageKey.MarketingCta,
+          user.userId,
+        ),
+      ),
+    );
+  }
+};
+
+const onUserMarketingCtaChange = async (
+  data: ChangeMessage<UserMarketingCta>,
+) => {
+  // Only run on delete and if the user has read the Marketing CTA
+  if (data.payload.op !== 'd') return;
+  if (data.payload.before.readAt !== null) return;
+
+  await deleteRedisKey(
+    generateStorageKey(
+      StorageTopic.Boot,
+      StorageKey.MarketingCta,
+      data.payload.before.userId,
+    ),
+  );
+};
+
 const worker: Worker = {
   subscription: 'api-cdc',
   maxMessages: parseInt(process.env.CDC_WORKER_MAX_MESSAGES) || null,
@@ -819,6 +865,12 @@ const worker: Worker = {
           break;
         case getTableName(con, PostRelation):
           await onPostRelationChange(con, logger, data);
+          break;
+        case getTableName(con, MarketingCta):
+          await onMarketingCtaChange(con, data);
+          break;
+        case getTableName(con, UserMarketingCta):
+          await onUserMarketingCtaChange(data);
           break;
       }
     } catch (err) {

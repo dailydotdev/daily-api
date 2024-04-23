@@ -14,6 +14,9 @@ import {
   PostRelationType,
   FREEFORM_POST_MINIMUM_CONTENT_LENGTH,
   FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
+  MarketingCta,
+  MarketingCtaStatus,
+  UserMarketingCta,
 } from '../../../src/entity';
 import {
   notifyCommentCommented,
@@ -93,6 +96,17 @@ import { CommentReport } from '../../../src/entity/CommentReport';
 import { usersFixture } from '../../fixture/user';
 import { DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD } from '../../../src/workers/notifications/devCardUnlocked';
 import { UserComment } from '../../../src/entity/user/UserComment';
+import {
+  getRedisKeysByPattern,
+  getRedisObject,
+  ioRedisPool,
+  setRedisObject,
+} from '../../../src/redis';
+import {
+  StorageKey,
+  StorageTopic,
+  generateStorageKey,
+} from '../../../src/config';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -2410,5 +2424,292 @@ describe('comment downvote', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+});
+
+describe('marketing cta', () => {
+  type ObjectType = MarketingCta;
+  const base: ChangeObject<ObjectType> = {
+    campaignId: 'worlds-best-campaign',
+    variant: 'card',
+    status: MarketingCtaStatus.Active,
+    createdAt: 0,
+    flags: {
+      title: 'Join the best community in the world',
+      description: 'Join the best community in the world',
+      ctaUrl: 'http://localhost:5002',
+      ctaText: 'Join now',
+    },
+  };
+
+  beforeEach(async () => {
+    await ioRedisPool.execute((client) => client.flushall());
+    await saveFixtures(con, User, usersFixture);
+    await saveFixtures(con, MarketingCta, [
+      { ...base, createdAt: new Date('2024-03-13 12:00:00') },
+    ]);
+    await saveFixtures(
+      con,
+      UserMarketingCta,
+      usersFixture.map((user) => ({
+        marketingCtaId: 'worlds-best-campaign',
+        userId: user.id,
+        createdAt: new Date('2024-03-13 12:00:00'),
+      })),
+    );
+
+    usersFixture.forEach(async (user) => {
+      await setRedisObject(
+        generateStorageKey(
+          StorageTopic.Boot,
+          StorageKey.MarketingCta,
+          user.id as string,
+        ),
+        // Don't really care about the value in these tests
+        'not null',
+      );
+    });
+  });
+
+  describe('on create', () => {
+    it('should not clear any keys when a new marketing cta is created', async () => {
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after: base,
+          before: null,
+          op: 'c',
+          table: 'marketing_cta',
+        }),
+      );
+
+      expect(
+        await getRedisObject(
+          generateStorageKey(
+            StorageTopic.Boot,
+            StorageKey.MarketingCta,
+            usersFixture[0].id as string,
+          ),
+        ),
+      ).not.toBeNull();
+      expect(
+        await getRedisObject(
+          generateStorageKey(
+            StorageTopic.Boot,
+            StorageKey.MarketingCta,
+            usersFixture[1].id as string,
+          ),
+        ),
+      ).not.toBeNull();
+
+      expect(
+        await getRedisKeysByPattern(
+          generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, '*'),
+        ),
+      ).toHaveLength(4);
+    });
+  });
+
+  describe('on update', () => {
+    it('should clear boot cache for users assigned to the campaign and have not interacted with it', async () => {
+      await con.getRepository(UserMarketingCta).update(
+        {
+          userId: usersFixture[0].id,
+        },
+        {
+          readAt: new Date('2024-03-13 13:00:00'),
+        },
+      );
+
+      expect(
+        await getRedisObject(
+          generateStorageKey(
+            StorageTopic.Boot,
+            StorageKey.MarketingCta,
+            usersFixture[0].id as string,
+          ),
+        ),
+      ).not.toBeNull();
+      expect(
+        await getRedisObject(
+          generateStorageKey(
+            StorageTopic.Boot,
+            StorageKey.MarketingCta,
+            usersFixture[1].id as string,
+          ),
+        ),
+      ).not.toBeNull();
+
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after: base,
+          before: base,
+          op: 'u',
+          table: 'marketing_cta',
+        }),
+      );
+
+      expect(
+        await getRedisObject(
+          generateStorageKey(
+            StorageTopic.Boot,
+            StorageKey.MarketingCta,
+            usersFixture[0].id as string,
+          ),
+        ),
+      ).not.toBeNull();
+      expect(
+        await getRedisObject(
+          generateStorageKey(
+            StorageTopic.Boot,
+            StorageKey.MarketingCta,
+            usersFixture[1].id as string,
+          ),
+        ),
+      ).toBeNull();
+
+      expect(
+        await getRedisKeysByPattern(
+          generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, '*'),
+        ),
+      ).toHaveLength(1);
+    });
+  });
+
+  describe('on delete', () => {
+    // This is handled by the the UserMarketingCta deletion
+    it('should not clear boot cache for users assigned to the campaign', async () => {
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after: null,
+          before: base,
+          op: 'd',
+          table: 'marketing_cta',
+        }),
+      );
+
+      expect(
+        await getRedisObject(
+          generateStorageKey(
+            StorageTopic.Boot,
+            StorageKey.MarketingCta,
+            usersFixture[0].id as string,
+          ),
+        ),
+      ).not.toBeNull();
+      expect(
+        await getRedisObject(
+          generateStorageKey(
+            StorageTopic.Boot,
+            StorageKey.MarketingCta,
+            usersFixture[1].id as string,
+          ),
+        ),
+      ).not.toBeNull();
+
+      expect(
+        await getRedisKeysByPattern(
+          generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, '*'),
+        ),
+      ).toHaveLength(4);
+    });
+  });
+
+  describe('on user unassign', () => {
+    it('should clear boot cache for the user when they are unassigned from the campaign', async () => {
+      expect(
+        await getRedisObject(
+          generateStorageKey(
+            StorageTopic.Boot,
+            StorageKey.MarketingCta,
+            usersFixture[0].id as string,
+          ),
+        ),
+      ).not.toBeNull();
+
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<UserMarketingCta>({
+          after: null,
+          before: {
+            marketingCtaId: 'worlds-best-campaign',
+            marketingCta: {
+              ...base,
+              createdAt: new Date('2024-03-13 12:00:00'),
+            },
+            userId: usersFixture[0].id as string,
+            createdAt: 0,
+            readAt: null,
+          },
+          op: 'd',
+          table: 'user_marketing_cta',
+        }),
+      );
+
+      expect(
+        await getRedisObject(
+          generateStorageKey(
+            StorageTopic.Boot,
+            StorageKey.MarketingCta,
+            usersFixture[0].id as string,
+          ),
+        ),
+      ).toBeNull();
+
+      expect(
+        await getRedisKeysByPattern(
+          generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, '*'),
+        ),
+      ).toHaveLength(3);
+    });
+
+    it('should not clear boot cache for the user when they are unassigned from the campaign if they have interacted with it', async () => {
+      expect(
+        await getRedisObject(
+          generateStorageKey(
+            StorageTopic.Boot,
+            StorageKey.MarketingCta,
+            usersFixture[0].id as string,
+          ),
+        ),
+      ).not.toBeNull();
+
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<UserMarketingCta>({
+          after: null,
+          before: {
+            marketingCtaId: 'worlds-best-campaign',
+            marketingCta: {
+              ...base,
+              createdAt: new Date('2024-03-13 12:00:00'),
+            },
+            userId: usersFixture[0].id as string,
+            createdAt: 0,
+            readAt: 1,
+          },
+          op: 'd',
+          table: 'user_marketing_cta',
+        }),
+      );
+
+      expect(
+        await getRedisObject(
+          generateStorageKey(
+            StorageTopic.Boot,
+            StorageKey.MarketingCta,
+            usersFixture[0].id as string,
+          ),
+        ),
+      ).not.toBeNull();
+
+      expect(
+        await getRedisKeysByPattern(
+          generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, '*'),
+        ),
+      ).toHaveLength(4);
+    });
   });
 });

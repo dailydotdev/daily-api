@@ -124,7 +124,7 @@ export class User {
   readmeHtml?: string;
 
   @Column({ type: 'text', nullable: true })
-  acquisitionChannel: AcquisitionChannel;
+  acquisitionChannel: string;
 
   @ManyToOne(() => User, {
     lazy: true,
@@ -409,16 +409,3 @@ export const validateUserUpdate = async (
 
   return data;
 };
-
-export enum AcquisitionChannel {
-  friend = 'friend',
-  social_media = 'social_media',
-  blog = 'blog',
-  extension_store = 'extension_store',
-  instagram_facebook = 'instagram_facebook',
-  x = 'x',
-  tiktok = 'tiktok',
-  search_engine = 'search_engine',
-  ad = 'ad',
-  other = 'other',
-}
