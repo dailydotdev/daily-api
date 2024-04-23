@@ -326,6 +326,7 @@ const getUser = (con: DataSource, userId: string): Promise<User> =>
       'timezone',
       'createdAt',
       'cover',
+      'experienceLevel',
     ],
   });
 
