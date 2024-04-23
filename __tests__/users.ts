@@ -2707,7 +2707,7 @@ describe('user_create_alerts_trigger after insert trigger', () => {
 
 describe('addUserAcquisitionChannel mutation', () => {
   const MUTATION = `
-    mutation AddUserAcquisitionChannel($acquisitionChannel: AcquisitionChannel!) {
+    mutation AddUserAcquisitionChannel($acquisitionChannel: String!) {
       addUserAcquisitionChannel(acquisitionChannel: $acquisitionChannel) {
         _
       }
@@ -2721,14 +2721,7 @@ describe('addUserAcquisitionChannel mutation', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should throw an error when value is not found', () =>
-    testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { acquisitionChannel: 'random' } },
-      'UNEXPECTED',
-    ));
-
-  it('should not throw an error when value is found', async () => {
+  it('should not throw an error when user is authenticated', async () => {
     loggedUser = '1';
 
     const user = await con.getRepository(User).findOneBy({ id: loggedUser });
