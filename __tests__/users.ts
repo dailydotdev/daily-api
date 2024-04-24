@@ -1672,6 +1672,7 @@ describe('mutation updateUserProfile', () => {
         infoConfirmed
         notificationEmail
         timezone
+        experienceLevel
       }
     }
   `;
@@ -1844,6 +1845,24 @@ describe('mutation updateUserProfile', () => {
     expect(res.errors?.length).toBeFalsy();
     const updatedUser = await repo.findOneBy({ id: loggedUser });
     expect(updatedUser?.email).toEqual(email);
+  });
+
+  it('should update user profile and change experience level', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(User);
+    const user = await repo.findOneBy({ id: loggedUser });
+
+    const experienceLevel = 'foo';
+    expect(user?.experienceLevel).toBeNull();
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: { experienceLevel, username: 'uuu1', name: user.name },
+      },
+    });
+    expect(res.errors?.length).toBeFalsy();
+    const updatedUser = await repo.findOneBy({ id: loggedUser });
+    expect(updatedUser?.experienceLevel).toEqual(experienceLevel);
   });
 
   it('should update notification email preference', async () => {
