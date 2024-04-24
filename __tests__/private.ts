@@ -444,6 +444,28 @@ describe('POST /p/newUser', () => {
     expect(users[0].referralOrigin).toEqual('knightcampaign');
   });
 
+  it('should add a new user with experienceLevel', async () => {
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: usersFixture[0].username,
+        email: usersFixture[0].email,
+        experienceLevel: 'foo',
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
+
+    const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
+    expect(users[0].id).toEqual(usersFixture[0].id);
+    expect(users[0].experienceLevel).toEqual('foo');
+  });
+
   it('should subscribe to personalized digest', async () => {
     const { body } = await request(app.server)
       .post('/p/newUser')
