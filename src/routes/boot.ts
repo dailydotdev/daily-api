@@ -41,7 +41,7 @@ import { schema } from '../graphql';
 import { Context } from '../Context';
 import { SourceMemberRoles } from '../roles';
 import { getEncryptedFeatures } from '../growthbook';
-import { differenceInMinutes } from 'date-fns';
+import { differenceInMinutes, isSameDay } from 'date-fns';
 import { runInSpan } from '../telemetry/opentelemetry';
 import { getUnreadNotificationsCount } from '../notifications/common';
 
@@ -370,7 +370,6 @@ const loggedInBoot = async (
     const accessToken = refreshToken
       ? await setAuthCookie(req, res, userId, roles)
       : req.accessToken;
-
     return {
       user: {
         ...excludeProperties(user, [
@@ -394,6 +393,8 @@ const loggedInBoot = async (
         // read only, used in frontend to decide if banner should be fetched
         banner:
           lastBanner !== 'false' && alerts.lastBanner < new Date(lastBanner),
+        // read only, used in frontend to decide if boot popup should be shown
+        bootPopup: !isSameDay(alerts.lastBootPopup, new Date()),
       },
       settings: excludeProperties(settings, [
         'userId',
