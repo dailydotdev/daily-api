@@ -45,18 +45,7 @@ const worker: Worker = {
          * Ensure authors can remove their own post
          * Ensure scouts can't add posts/remove them to decrease author reputation
          */
-        console.log(
-          'authorId',
-          authorId,
-          'scoutId',
-          scoutId,
-          'deletedBy',
-          deletedBy,
-        );
-        if (
-          (authorId && authorId !== deletedBy) ||
-          (scoutId && scoutId !== deletedBy)
-        ) {
+        if (authorId && authorId !== deletedBy && scoutId !== deletedBy) {
           const authorEvent = repo.create({
             ...ownerProps,
             grantToId: authorId,
