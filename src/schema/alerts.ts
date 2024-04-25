@@ -69,6 +69,11 @@ export const typeDefs = /* GraphQL */ `
     Whether to show the reading streaks milestone banner
     """
     showStreakMilestone: Boolean!
+
+    """
+    Date of the last time user saw a boot popup
+    """
+    lastBootPopup: DateTime
   }
 
   input UpdateAlertsInput {
@@ -111,6 +116,11 @@ export const typeDefs = /* GraphQL */ `
     Whether to show the reading streaks milestone banner
     """
     showStreakMilestone: Boolean
+
+    """
+    Date of the last time user saw a boot popup
+    """
+    lastBootPopup: DateTime
   }
 
   extend type Mutation {
