@@ -17,7 +17,8 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     const { id, authorId, scoutId, flags } = data.post;
-    const parsedFlags = JSON.parse(flags as string);
+    const parsedFlags =
+      typeof flags === 'string' ? JSON.parse(flags as string) : flags;
     const { deletedBy } = parsedFlags;
 
     try {
