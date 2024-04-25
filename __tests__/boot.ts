@@ -104,6 +104,7 @@ const LOGGED_IN_BODY = {
     acceptedMarketing: false,
     company: null,
     cover: null,
+    experienceLevel: null,
   },
   marketingCta: null,
 };

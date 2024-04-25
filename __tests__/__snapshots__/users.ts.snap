@@ -42,6 +42,7 @@ exports[`mutation updateUserProfile should update user profile 1`] = `
 Object {
   "bio": null,
   "createdAt": Any<String>,
+  "experienceLevel": null,
   "github": null,
   "hashnode": null,
   "id": "1",

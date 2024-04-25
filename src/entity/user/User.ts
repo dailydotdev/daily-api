@@ -126,6 +126,9 @@ export class User {
   @Column({ type: 'text', nullable: true })
   acquisitionChannel: string;
 
+  @Column({ type: 'text', nullable: true })
+  experienceLevel: string | null;
+
   @ManyToOne(() => User, {
     lazy: true,
     onDelete: 'SET NULL',
@@ -170,6 +173,7 @@ export type AddUserData = Pick<
   | 'profileConfirmed'
   | 'acceptedMarketing'
   | 'timezone'
+  | 'experienceLevel'
 >;
 export type AddUserDataPost = { referral: string } & AddUserData;
 export type UpdateUserEmailData = Pick<User, 'id' | 'email'>;
@@ -357,6 +361,7 @@ export const addNewUser = async (
       timezone: data.timezone || DEFAULT_TIMEZONE,
       github: data.github,
       twitter: data.twitter,
+      experienceLevel: data.experienceLevel,
     });
   } catch (error) {
     if (error instanceof ValidationError) {
