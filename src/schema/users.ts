@@ -88,6 +88,7 @@ export interface GQLUpdateUserInput {
   acceptedMarketing?: boolean;
   notificationEmail?: boolean;
   infoConfirmed?: boolean;
+  experienceLevel?: string;
 }
 
 interface GQLUserParameters {
@@ -113,6 +114,7 @@ export interface GQLUser {
   cover?: string;
   readme?: string;
   readmeHtml?: string;
+  experienceLevel?: string;
 }
 
 export interface GQLView {
@@ -258,6 +260,10 @@ export const typeDefs = /* GraphQL */ `
     HTML rendered version of the user's readme
     """
     readmeHtml: String
+    """
+    Experience level of the user
+    """
+    experienceLevel: String
   }
 
   """
@@ -324,6 +330,10 @@ export const typeDefs = /* GraphQL */ `
     If the user's info is confirmed
     """
     infoConfirmed: Boolean
+    """
+    Experience level of the user
+    """
+    experienceLevel: String
   }
 
   type TagsReadingStatus {
