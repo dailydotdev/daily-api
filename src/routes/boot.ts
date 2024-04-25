@@ -369,12 +369,6 @@ const loggedInBoot = async (
     const accessToken = refreshToken
       ? await setAuthCookie(req, res, userId, roles)
       : req.accessToken;
-
-    console.log(
-      'day, ',
-      isSameDay(alerts.lastBootPopup, new Date()),
-      !isSameDay(alerts.lastBootPopup, new Date()),
-    );
     return {
       user: {
         ...excludeProperties(user, [

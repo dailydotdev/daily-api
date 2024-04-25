@@ -82,6 +82,10 @@ const BASE_BODY = {
 
 const LOGGED_IN_BODY = {
   ...BASE_BODY,
+  alerts: {
+    ...BASE_BODY.alerts,
+    bootPopup: true,
+  },
   accessToken: {
     expiresIn: expect.any(String),
     token: expect.any(String),
@@ -595,6 +599,7 @@ describe('boot alerts', () => {
     const alerts = new Object(saveReturnAlerts(data));
     alerts['changelog'] = false;
     alerts['banner'] = false;
+    alerts['bootPopup'] = true;
     delete alerts['userId'];
     const res = await request(app.server)
       .get(BASE_PATH)
@@ -622,6 +627,7 @@ describe('boot alerts', () => {
     alerts['lastChangelog'] = '2023-02-05T12:00:00.000Z';
     alerts['changelog'] = false;
     alerts['banner'] = true;
+    alerts['bootPopup'] = true;
     delete alerts['userId'];
     const res = await request(app.server)
       .get(BASE_PATH)
@@ -645,6 +651,7 @@ describe('boot alerts', () => {
     alerts['lastBanner'] = '2023-02-06T12:00:00.000Z';
     alerts['banner'] = false;
     alerts['changelog'] = false;
+    alerts['bootPopup'] = true;
     delete alerts['userId'];
     const res = await request(app.server)
       .get(BASE_PATH)
@@ -667,6 +674,7 @@ describe('boot alerts', () => {
     alerts['changelog'] = false;
     alerts['lastBanner'] = '2023-02-05T12:00:00.000Z';
     alerts['banner'] = false;
+    alerts['bootPopup'] = true;
     delete alerts['userId'];
     const res = await request(app.server)
       .get(BASE_PATH)
@@ -697,6 +705,7 @@ describe('boot alerts', () => {
     alerts['banner'] = true;
     alerts['changelog'] = false;
     alerts['lastChangelog'] = '2023-02-05T12:00:00.000Z';
+    alerts['bootPopup'] = true;
     delete alerts['userId'];
     const res = await request(app.server)
       .get(BASE_PATH)
@@ -723,6 +732,7 @@ describe('boot alerts', () => {
     const alerts = new Object(saveReturnAlerts(data));
     alerts['lastBanner'] = '2023-02-05T12:00:00.000Z';
     alerts['lastChangelog'] = '2023-02-05T12:00:00.000Z';
+    alerts['bootPopup'] = true;
     delete alerts['userId'];
     const res = await request(app.server)
       .get(BASE_PATH)
