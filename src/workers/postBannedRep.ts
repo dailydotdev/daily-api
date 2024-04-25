@@ -17,7 +17,10 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     const { id, authorId, scoutId, flags } = data.post;
-    const { deletedBy } = flags;
+    const parsedFlags =
+      typeof flags === 'string' ? JSON.parse(flags as string) : flags;
+    const { deletedBy } = parsedFlags;
+
     try {
       await con.transaction(async (transaction) => {
         const reports = await transaction
