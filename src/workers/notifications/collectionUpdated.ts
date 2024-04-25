@@ -41,7 +41,7 @@ export const collectionUpdated: NotificationWorker = {
       relationType: PostRelationType.Collection,
     })
       .select(
-        's.id as id, s."name" as name, s."image" as image, count(s."id") OVER() AS total',
+        's.id as id, s."name" as name, s."image" as image, count(s."id") OVER() AS total, s."handle" as handle',
       )
       .limit(3)
       .getRawMany<Source & { total: number }>();
