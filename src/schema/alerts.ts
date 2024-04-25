@@ -13,6 +13,7 @@ interface GQLAlerts {
 interface GQLUpdateAlertsInput extends Partial<GQLAlerts> {
   filter?: boolean;
   myFeed?: string;
+  lastBootPopup?: Date;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -133,6 +134,11 @@ export const typeDefs = /* GraphQL */ `
     Update the last referral reminder
     """
     updateLastReferralReminder: EmptyResponse! @auth
+
+    """
+    Update the boot popup
+    """
+    updateLastBootPopup: EmptyResponse! @auth
   }
 
   extend type Query {
@@ -219,6 +225,10 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         },
         { lastReferralReminder: new Date() },
       );
+      return { _: true };
+    },
+    updateLastBootPopup: async (_, __, ctx): Promise<GQLEmptyResponse> => {
+      await updateAlerts(ctx.con, ctx.userId, { lastBootPopup: new Date() });
       return { _: true };
     },
   },
