@@ -32,7 +32,7 @@ export const connectRpcPlugin = fp<
       },
       contextValues: (req) => {
         return createContextValues().set(baseRpcContext, {
-          service: req.service,
+          service: !!req.service,
         });
       },
     });
