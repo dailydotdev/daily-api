@@ -22,16 +22,6 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await saveFixtures(con, Source, sourcesFixture);
-
-  // baseRpcContext.defaultValue = {
-  //   service: true,
-  // };
-});
-
-afterEach(async () => {
-  // baseRpcContext.defaultValue = {
-  //   service: false,
-  // };
 });
 
 const mockTransport = createRouterTransport(privateRpc, {
