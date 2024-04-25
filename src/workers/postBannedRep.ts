@@ -17,7 +17,9 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     const { id, authorId, scoutId, flags } = data.post;
-    const { deletedBy } = flags;
+    const parsedFlags = JSON.parse(flags as string);
+    const { deletedBy } = parsedFlags;
+
     try {
       await con.transaction(async (transaction) => {
         const reports = await transaction
@@ -43,7 +45,18 @@ const worker: Worker = {
          * Ensure authors can remove their own post
          * Ensure scouts can't add posts/remove them to decrease author reputation
          */
-        if (authorId && authorId !== deletedBy && scoutId !== deletedBy) {
+        console.log(
+          'authorId',
+          authorId,
+          'scoutId',
+          scoutId,
+          'deletedBy',
+          deletedBy,
+        );
+        if (
+          (authorId && authorId !== deletedBy) ||
+          (scoutId && scoutId !== deletedBy)
+        ) {
           const authorEvent = repo.create({
             ...ownerProps,
             grantToId: authorId,
