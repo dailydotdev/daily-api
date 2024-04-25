@@ -256,6 +256,13 @@ describe('collectionUpdated worker', () => {
     avatars.forEach((item) => {
       expect(['a', 'b', 'c'].includes(item.referenceId));
       expect(item.targetUrl).toBeTruthy();
+      const source = sourcesFixture.find(
+        (source) => source.id === item.referenceId,
+      );
+      expect(source!.handle).toBeTruthy();
+      expect(item.targetUrl).toBe(
+        `http://localhost:5002/sources/${source!.handle}`,
+      );
     });
   });
 
