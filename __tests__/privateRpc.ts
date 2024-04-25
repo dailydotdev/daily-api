@@ -133,6 +133,11 @@ describe('PostService', () => {
       postId: expect.any(String),
       url: 'http://example.com/service/1',
     });
+    const post = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ id: result.postId });
+    expect(post).toBeTruthy();
+    expect(post!.url).toEqual('http://example.com/service/1');
   });
 
   it('should throw on invalid url', async () => {
@@ -145,5 +150,26 @@ describe('PostService', () => {
         defaultClientAuthOptions,
       ),
     ).rejects.toThrow(new ConnectError('invalid url', Code.InvalidArgument));
+  });
+
+  it('should save yggdrasilId', async () => {
+    const result = await mockClient.create(
+      {
+        url: 'http://example.com/service/1',
+        sourceId: 'a',
+        yggdrasilId: 'a7edf0c8-aec7-4586-b411-b1dd431ce8d6',
+      },
+      defaultClientAuthOptions,
+    );
+
+    expect(result).toEqual({
+      postId: expect.any(String),
+      url: 'http://example.com/service/1',
+    });
+    const post = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ id: result.postId });
+    expect(post).toBeTruthy();
+    expect(post!.yggdrasilId).toEqual('a7edf0c8-aec7-4586-b411-b1dd431ce8d6');
   });
 });
