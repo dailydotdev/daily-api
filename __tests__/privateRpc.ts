@@ -1,5 +1,5 @@
 import { saveFixtures } from './helpers';
-import { ArticlePost, Source } from '../src/entity';
+import { ArticlePost, Source, SourceType } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
@@ -21,7 +21,16 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  await saveFixtures(con, Source, sourcesFixture);
+  await saveFixtures(con, Source, [
+    ...sourcesFixture,
+    {
+      id: 'collections',
+      name: 'Collections',
+      image: 'http://image.com/collections',
+      handle: 'collections',
+      type: SourceType.Machine,
+    },
+  ]);
 });
 
 const mockTransport = createRouterTransport(privateRpc, {
@@ -212,5 +221,42 @@ describe('PostService', () => {
       postId,
       url: 'http://example.com/service/1',
     });
+  });
+
+  it('should require yggdrasilId for source collections', async () => {
+    await expect(
+      mockClient.create(
+        {
+          url: 'http://example.com/service/1',
+          sourceId: 'collections',
+        },
+        defaultClientAuthOptions,
+      ),
+    ).rejects.toThrow(
+      new ConnectError(
+        'yggdrasil id required for collections',
+        Code.InvalidArgument,
+      ),
+    );
+  });
+
+  it('should allow source collections without url', async () => {
+    const result = await mockClient.create(
+      {
+        sourceId: 'collections',
+        yggdrasilId: '95ba892c-d641-4b94-ba47-be03c4c6cc8b',
+      },
+      defaultClientAuthOptions,
+    );
+
+    expect(result).toEqual({
+      postId: expect.any(String),
+      url: '',
+    });
+    const post = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ id: result.postId });
+    expect(post).toBeTruthy();
+    expect(post!.yggdrasilId).toEqual('95ba892c-d641-4b94-ba47-be03c4c6cc8b');
   });
 });

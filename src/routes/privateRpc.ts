@@ -44,6 +44,23 @@ const getDuplicatePost = async ({
   }
 };
 
+const validateCreatePostRequest = (req: CreatePostRequest): never | void => {
+  if (req.sourceId === 'collections') {
+    if (!req.yggdrasilId) {
+      throw new ConnectError(
+        'yggdrasil id required for collections',
+        Code.InvalidArgument,
+      );
+    }
+
+    return;
+  }
+
+  if (!isValidHttpUrl(req.url)) {
+    throw new ConnectError('invalid url', Code.InvalidArgument);
+  }
+};
+
 export default function (router: ConnectRouter) {
   router.rpc(PostService, PostService.methods.create, async (req, context) => {
     if (!context.values.get(baseRpcContext).service) {
@@ -55,9 +72,7 @@ export default function (router: ConnectRouter) {
     try {
       req.url = standardizeURL(req.url);
 
-      if (!isValidHttpUrl(req.url)) {
-        throw new ConnectError('invalid url', Code.InvalidArgument);
-      }
+      validateCreatePostRequest(req);
 
       const postId = await generateShortId();
       const postEntity = con.getRepository(ArticlePost).create({
@@ -72,6 +87,8 @@ export default function (router: ConnectRouter) {
         url: req.url,
       };
     } catch (error) {
+      logger.error({ err: error }, 'error while creating post');
+
       if (error instanceof ConnectError) {
         throw error;
       }
@@ -87,9 +104,7 @@ export default function (router: ConnectRouter) {
         throw new ConnectError('source not found', Code.NotFound);
       }
 
-      logger.error({ err: error }, 'error while creating post');
-
-      throw new ConnectError('internal', Code.Internal);
+      throw new ConnectError(error.message, Code.Internal);
     }
   });
 }
