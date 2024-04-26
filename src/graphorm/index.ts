@@ -224,6 +224,9 @@ const obj = new GraphORM({
   Source: {
     requiredColumns: ['id', 'private', 'handle', 'type'],
     fields: {
+      flags: {
+        jsonType: true,
+      },
       public: {
         select: 'private',
         transform: (value: boolean): boolean => !value,

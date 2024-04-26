@@ -22,7 +22,7 @@ export enum SourceType {
   Squad = 'squad',
 }
 
-interface SourceFlagsPublic {
+export interface SourceFlagsPublic {
   featured: boolean;
   totalViews: number;
   totalPosts: number;

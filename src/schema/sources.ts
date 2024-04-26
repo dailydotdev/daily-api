@@ -8,6 +8,7 @@ import {
   generateMemberToken,
   Source,
   SourceFeed,
+  SourceFlagsPublic,
   SourceMember,
   SourceMemberFlagsPublic,
   SourceType,
@@ -45,6 +46,7 @@ import { GraphQLResolveInfo } from 'graphql';
 import { SourcePermissionErrorKeys, TypeOrmError } from '../errors';
 import {
   descriptionRegex,
+  isNullOrUndefined,
   nameRegex,
   validateRegex,
   ValidateRegex,
@@ -66,6 +68,7 @@ export interface GQLSource {
   currentMember?: GQLSourceMember;
   privilegedMembers?: GQLSourceMember[];
   referralUrl?: string;
+  flags?: SourceFlagsPublic;
 }
 
 export interface GQLSourceMember {
@@ -91,6 +94,16 @@ interface SourceMemberArgs extends ConnectionArguments {
 
 export const typeDefs = /* GraphQL */ `
   """
+  flags property of Source entity
+  """
+  type SourceFlagsPublic {
+    featured: Boolean
+    totalViews: Int
+    totalPosts: Int
+    totalUpvotes: Int
+  }
+
+  """
   Source to discover posts from (usually blogs)
   """
   type Source {
@@ -98,6 +111,16 @@ export const typeDefs = /* GraphQL */ `
     Short unique string to identify the source
     """
     id: ID!
+
+    """
+    Date of when the source was created
+    """
+    createdAt: DateTime
+
+    """
+    Some properties can be stored as an object, and the flag contains the source stats
+    """
+    flags: SourceFlagsPublic
 
     """
     Source type (machine/squad)
@@ -1622,5 +1645,11 @@ export const resolvers: IResolvers<any, Context> = {
 
       return referralUrl;
     },
+    flags: ({ flags }: GQLSource): SourceFlagsPublic => ({
+      totalPosts: flags?.totalPosts ?? 0,
+      totalViews: flags?.totalViews ?? 0,
+      totalUpvotes: flags?.totalUpvotes ?? 0,
+      featured: isNullOrUndefined(flags?.featured) ? false : flags.featured,
+    }),
   },
 };
