@@ -4,7 +4,7 @@ import { Headers } from 'node-fetch';
 import { FastifyBaseLogger } from 'fastify';
 import { retryFetchParse } from '../integrations/retry';
 
-const excludeFromStandardization = [
+export const excludeFromStandardization = [
   'youtube.com',
   'developer.apple.com',
   'news.ycombinator.com',
