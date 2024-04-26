@@ -37,6 +37,9 @@ export class Alerts {
   @Column({ type: 'timestamp without time zone', default: () => 'now()' })
   lastBanner: Date | null;
 
+  @Column({ type: 'timestamp without time zone', default: null })
+  lastBootPopup: Date | null;
+
   @Column({ type: 'bool', default: false })
   showStreakMilestone: boolean;
 
@@ -47,6 +50,8 @@ export class Alerts {
   changelog?: boolean;
 
   banner?: boolean;
+
+  bootPopup?: boolean;
 }
 
 export const ALERTS_DEFAULT: Omit<Alerts, 'userId' | 'flags'> = {
@@ -61,4 +66,6 @@ export const ALERTS_DEFAULT: Omit<Alerts, 'userId' | 'flags'> = {
   squadTour: true,
   showGenericReferral: false,
   showStreakMilestone: false,
+  lastBootPopup: null,
+  bootPopup: false,
 };

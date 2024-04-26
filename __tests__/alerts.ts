@@ -52,6 +52,7 @@ describe('query userAlerts', () => {
       squadTour
       showGenericReferral
       showStreakMilestone
+      lastBootPopup
     }
   }`;
 
@@ -59,6 +60,7 @@ describe('query userAlerts', () => {
     const res = await client.query(QUERY);
     res.data.userAlerts.changelog = false;
     res.data.userAlerts.banner = false;
+    res.data.userAlerts.bootPopup = false;
     expect(res.data.userAlerts).toEqual({
       ...ALERTS_DEFAULT,
       lastBanner: res.data.userAlerts.lastBanner,
