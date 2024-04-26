@@ -22,6 +22,19 @@ export enum SourceType {
   Squad = 'squad',
 }
 
+interface SourceFlags {
+  featured: boolean;
+  totalViews: number;
+  totalPosts: number;
+  totalUpvotes: number;
+}
+
+const defaultFlags: Omit<SourceFlags, 'featured'> = {
+  totalPosts: 0,
+  totalViews: 0,
+  totalUpvotes: 0,
+};
+
 export const UNKNOWN_SOURCE = 'unknown';
 
 @Entity()
@@ -90,6 +103,9 @@ export class Source {
   })
   @Index('IDX_source_handle', { unique: true })
   handle: string;
+
+  @Column({ type: 'jsonb', default: defaultFlags })
+  flags: SourceFlags;
 
   @OneToMany(() => SourceDisplay, (display) => display.source, { lazy: true })
   displays: Promise<SourceDisplay[]>;
