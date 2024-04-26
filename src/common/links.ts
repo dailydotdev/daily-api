@@ -12,7 +12,7 @@ const excludeFromStandardization = [
 ];
 
 const isExcluded = (url: string) =>
-  excludeFromStandardization.some((e) => url.includes(e));
+  excludeFromStandardization.some((e) => url?.includes(e));
 
 const subtractDomain = (url: string): string => {
   const matches = url.match(

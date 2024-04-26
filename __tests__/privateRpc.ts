@@ -86,7 +86,7 @@ describe('PostService', () => {
     expect(post).toBeTruthy();
   });
 
-  it('should return conflict when duplicate entry', async () => {
+  it('should return duplicate entry', async () => {
     const { postId } = await mockClient.create(
       {
         url: 'http://example.com/service/1',
@@ -97,15 +97,18 @@ describe('PostService', () => {
     const post = await con.getRepository(ArticlePost).findOneBy({ id: postId });
     expect(post).toBeTruthy();
 
-    await expect(
-      mockClient.create(
-        {
-          url: 'http://example.com/service/1',
-          sourceId: 'a',
-        },
-        defaultClientAuthOptions,
-      ),
-    ).rejects.toThrow(new ConnectError('conflict', Code.AlreadyExists));
+    const result = await mockClient.create(
+      {
+        url: 'http://example.com/service/1',
+        sourceId: 'a',
+      },
+      defaultClientAuthOptions,
+    );
+
+    expect(result).toEqual({
+      postId,
+      url: 'http://example.com/service/1',
+    });
   });
 
   it('should throw on invalid source', async () => {
@@ -152,6 +155,17 @@ describe('PostService', () => {
     ).rejects.toThrow(new ConnectError('invalid url', Code.InvalidArgument));
   });
 
+  it('should throw on missing url', async () => {
+    await expect(
+      mockClient.create(
+        {
+          sourceId: 'a',
+        },
+        defaultClientAuthOptions,
+      ),
+    ).rejects.toThrow(new ConnectError('invalid url', Code.InvalidArgument));
+  });
+
   it('should save yggdrasilId', async () => {
     const result = await mockClient.create(
       {
@@ -171,5 +185,32 @@ describe('PostService', () => {
       .findOneBy({ id: result.postId });
     expect(post).toBeTruthy();
     expect(post!.yggdrasilId).toEqual('a7edf0c8-aec7-4586-b411-b1dd431ce8d6');
+  });
+
+  it('should return duplicate entry per yggdrasilId', async () => {
+    const { postId } = await mockClient.create(
+      {
+        url: 'http://example.com/service/1',
+        sourceId: 'a',
+        yggdrasilId: '95ba892c-d641-4b94-ba47-be03c4c6cc8b',
+      },
+      defaultClientAuthOptions,
+    );
+    const post = await con.getRepository(ArticlePost).findOneBy({ id: postId });
+    expect(post).toBeTruthy();
+
+    const result = await mockClient.create(
+      {
+        url: 'http://example.com/service/123',
+        sourceId: 'a',
+        yggdrasilId: '95ba892c-d641-4b94-ba47-be03c4c6cc8b',
+      },
+      defaultClientAuthOptions,
+    );
+
+    expect(result).toEqual({
+      postId,
+      url: 'http://example.com/service/1',
+    });
   });
 });
