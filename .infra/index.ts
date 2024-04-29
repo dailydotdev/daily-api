@@ -532,7 +532,7 @@ if (!isAdhocEnv) {
       isAdhocEnv: isAdhocEnv,
       namespace: namespace,
       props: {
-        path: './config.yml',
+        path: './clickhouse-sync.yml',
         keys: {
           ...config.requireObject<{ keys: ClickHouseSyncConfig }>(
             'clickhouseSync',
