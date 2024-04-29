@@ -10,6 +10,8 @@ import {
   User,
   UserPost,
   UserNotification,
+  SourceFlagsPublic,
+  defaultPublicSourceFlags,
 } from '../entity';
 import {
   SourceMemberRoles,
@@ -224,6 +226,20 @@ const obj = new GraphORM({
   Source: {
     requiredColumns: ['id', 'private', 'handle', 'type'],
     fields: {
+      flags: {
+        jsonType: true,
+        transform: (value: SourceFlagsPublic): SourceFlagsPublic => {
+          const { totalPosts, totalViews, totalUpvotes, featured } =
+            defaultPublicSourceFlags;
+
+          return {
+            totalPosts: value?.totalPosts ?? totalPosts,
+            totalViews: value?.totalViews ?? totalViews,
+            totalUpvotes: value?.totalUpvotes ?? totalUpvotes,
+            featured: value?.featured ?? featured,
+          };
+        },
+      },
       public: {
         select: 'private',
         transform: (value: boolean): boolean => !value,
