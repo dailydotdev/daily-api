@@ -784,7 +784,7 @@ describe('on post create', () => {
       source_id: 'a',
       submission_id: uuid,
       content_quality: {
-        is_ai_probability: 50,
+        is_ai_probability: 0.52,
       },
     });
 
@@ -793,7 +793,7 @@ describe('on post create', () => {
     });
     expect(post).not.toBeNull();
     expect(post?.contentQuality).toMatchObject({
-      is_ai_probability: 50,
+      is_ai_probability: 0.52,
     });
   });
 
@@ -1026,7 +1026,7 @@ describe('on post update', () => {
       id: postId,
       yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
       contentQuality: {
-        is_ai_probability: 50,
+        is_ai_probability: 0.52,
       },
     });
 
@@ -1036,7 +1036,7 @@ describe('on post update', () => {
       id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
       post_id: postId,
       content_quality: {
-        is_ai_probability: 70,
+        is_ai_probability: 0.72,
       },
     });
 
@@ -1046,7 +1046,7 @@ describe('on post update', () => {
 
     expect(existingPost).not.toBeNull();
     expect(updatedPost?.contentQuality).toMatchObject({
-      is_ai_probability: 70,
+      is_ai_probability: 0.72,
     });
   });
 
@@ -1057,7 +1057,7 @@ describe('on post update', () => {
       id: postId,
       yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
       contentQuality: {
-        is_ai_probability: 50,
+        is_ai_probability: 0.52,
       },
     });
 
@@ -1073,7 +1073,7 @@ describe('on post update', () => {
     });
     expect(updatedPost).not.toBeNull();
     expect(updatedPost?.contentQuality).toMatchObject({
-      is_ai_probability: 50,
+      is_ai_probability: 0.52,
     });
   });
 });
