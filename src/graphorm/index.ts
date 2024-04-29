@@ -27,7 +27,6 @@ import { GQLComment } from '../schema/comments';
 import { GQLUserPost } from '../schema/posts';
 import { UserComment } from '../entity/user/UserComment';
 import { UserVote } from '../types';
-import { setDefaultsIfNull } from '../common/object';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -229,8 +228,17 @@ const obj = new GraphORM({
     fields: {
       flags: {
         jsonType: true,
-        transform: (value: SourceFlagsPublic) =>
-          setDefaultsIfNull(value, defaultPublicSourceFlags),
+        transform: (value: SourceFlagsPublic): SourceFlagsPublic => {
+          const { totalPosts, totalViews, totalUpvotes, featured } =
+            defaultPublicSourceFlags;
+
+          return {
+            totalPosts: value?.totalPosts ?? totalPosts,
+            totalViews: value?.totalViews ?? totalViews,
+            totalUpvotes: value?.totalUpvotes ?? totalUpvotes,
+            featured: value?.featured ?? featured,
+          };
+        },
       },
       public: {
         select: 'private',
