@@ -14,7 +14,7 @@ describe('setDefaultsIfNull function', () => {
     expect(result).toEqual(defaultPublicSourceFlags);
   });
 
-  it('should set the value if property is null or undefined', () => {
+  it('should set the default value if property is null or undefined', () => {
     const result = setDefaultsIfNull(
       { ...defaultPublicSourceFlags, totalPosts: null },
       defaultPublicSourceFlags,
