@@ -27,10 +27,8 @@ export const getTimezonedEndOfISOWeek = ({
   return zonedTimeToUtc(endOfISOWeek(date), timezone);
 };
 
-export const updateFlagsStatement = <
-  Entity extends { flags: Record<string, unknown> },
->(
-  update: Entity['flags'],
+export const updateFlagsStatement = <Entity extends { flags: object }>(
+  update: Partial<Entity['flags']>,
 ): (() => string) => {
   return () => `flags || '${JSON.stringify(update)}'`;
 };

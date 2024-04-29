@@ -29,6 +29,13 @@ export interface SourceFlagsPublic {
   totalUpvotes: number;
 }
 
+export const defaultPublicSourceFlags: SourceFlagsPublic = {
+  featured: false,
+  totalViews: 0,
+  totalPosts: 0,
+  totalUpvotes: 0,
+};
+
 export const UNKNOWN_SOURCE = 'unknown';
 
 @Entity()

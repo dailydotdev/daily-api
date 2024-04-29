@@ -10,6 +10,7 @@ import {
   testQueryErrorCode,
 } from './helpers';
 import {
+  defaultPublicSourceFlags,
   NotificationPreferenceSource,
   Post,
   PostKeyword,
@@ -2830,5 +2831,42 @@ describe('SourceMember flags field', () => {
       hideFeedPosts: null,
       collapsePinnedPosts: null,
     });
+  });
+});
+
+describe('Source flags field', () => {
+  const QUERY = `{
+    source(id: "a") {
+      flags {
+        featured
+        totalViews
+        totalPosts
+        totalUpvotes
+      }
+    }
+  }`;
+
+  it('should return all the public flags for source', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update(
+      { id: 'a' },
+      {
+        flags: updateFlagsStatement<Source>({
+          featured: true,
+        }),
+      },
+    );
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.flags).toEqual({
+      ...defaultPublicSourceFlags,
+      featured: true,
+    });
+  });
+
+  it('should return default values for unset flags', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY);
+    expect(res.data.source.flags).toEqual(defaultPublicSourceFlags);
   });
 });

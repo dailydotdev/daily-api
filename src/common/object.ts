@@ -40,3 +40,25 @@ export const nameRegex = new RegExp(/^(.){1,60}$/);
 export const socialHandleRegex = new RegExp(/^@?([\w-]){1,39}$/i);
 export const handleRegex = new RegExp(/^@?[a-z0-9](\w){2,38}$/i);
 export const descriptionRegex = new RegExp(/^[\S\s]{1,250}$/);
+
+export const setDefaultsIfNull = <T extends object>(obj: T, defaults: T): T => {
+  if (isNullOrUndefined(obj)) {
+    return defaults;
+  }
+
+  if (isNullOrUndefined(defaults)) {
+    return obj;
+  }
+
+  return Object.keys(obj).reduce((result, key) => {
+    const value = obj[key];
+
+    if (isNullOrUndefined(value)) {
+      return result;
+    }
+
+    result[key] = value;
+
+    return result;
+  }, defaults);
+};

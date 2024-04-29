@@ -46,7 +46,6 @@ import { GraphQLResolveInfo } from 'graphql';
 import { SourcePermissionErrorKeys, TypeOrmError } from '../errors';
 import {
   descriptionRegex,
-  isNullOrUndefined,
   nameRegex,
   validateRegex,
   ValidateRegex,
@@ -1645,11 +1644,5 @@ export const resolvers: IResolvers<any, Context> = {
 
       return referralUrl;
     },
-    flags: ({ flags }: GQLSource): SourceFlagsPublic => ({
-      totalPosts: flags?.totalPosts ?? 0,
-      totalViews: flags?.totalViews ?? 0,
-      totalUpvotes: flags?.totalUpvotes ?? 0,
-      featured: isNullOrUndefined(flags?.featured) ? false : flags.featured,
-    }),
   },
 };
