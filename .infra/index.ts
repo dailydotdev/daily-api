@@ -551,8 +551,8 @@ if (!isAdhocEnv) {
         },
       },
       image: {
-        repository: 'altinity/clickhouse-sink-connector',
-        tag: '2.0.2-lt',
+        repository: 'gcr.io/daily-ops/clickhouse-sink-docker',
+        tag: 'a537f27b79150cd8380b35e36be1300945de219d',
       },
       resources: {
         // TODO: adjust resources based on the actual usage
