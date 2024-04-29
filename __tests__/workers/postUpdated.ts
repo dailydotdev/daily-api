@@ -425,6 +425,7 @@ it('should save a new post with basic information', async () => {
     title: 'Title',
     showOnFeed: true,
     language: 'en',
+    contentQuality: expect.any(Object),
   });
 });
 
@@ -766,6 +767,59 @@ describe('on post create', () => {
     expect(post).not.toBeNull();
     expect(post?.contentMeta).toStrictEqual({});
   });
+
+  it('should save content quality', async () => {
+    const uuid = randomUUID();
+    await createDefaultSubmission(uuid);
+
+    const postBefore = await con.getRepository(Post).findOneBy({
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
+    });
+    expect(postBefore).toBeNull();
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
+      title: 'Without questions',
+      url: `https://post.com/${uuid}`,
+      source_id: 'a',
+      submission_id: uuid,
+      content_quality: {
+        is_ai_probability: 50,
+      },
+    });
+
+    const post = await con.getRepository(Post).findOneBy({
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
+    });
+    expect(post).not.toBeNull();
+    expect(post?.contentQuality).toMatchObject({
+      is_ai_probability: 50,
+    });
+  });
+
+  it('should default to empty content quality', async () => {
+    const uuid = randomUUID();
+    await createDefaultSubmission(uuid);
+
+    const postBefore = await con.getRepository(Post).findOneBy({
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
+    });
+    expect(postBefore).toBeNull();
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
+      title: 'Without questions',
+      url: `https://post.com/${uuid}`,
+      source_id: 'a',
+      submission_id: uuid,
+    });
+
+    const post = await con.getRepository(Post).findOneBy({
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
+    });
+    expect(post).not.toBeNull();
+    expect(post?.contentQuality).toStrictEqual({});
+  });
 });
 
 describe('on post update', () => {
@@ -962,6 +1016,64 @@ describe('on post update', () => {
     expect(updatedPost?.contentMeta).toMatchObject({
       scraped_html: '<html>test2</html>',
       cleaned_trafilatura_xml: '<xml>test2</xml>',
+    });
+  });
+
+  it('should replace content quality', async () => {
+    const postId = 'p1';
+
+    const existingPost = await con.getRepository(ArticlePost).save({
+      id: postId,
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      contentQuality: {
+        is_ai_probability: 50,
+      },
+    });
+
+    expect(existingPost).not.toBeNull();
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      post_id: postId,
+      content_quality: {
+        is_ai_probability: 70,
+      },
+    });
+
+    const updatedPost = await con.getRepository(ArticlePost).findOneBy({
+      id: postId,
+    });
+
+    expect(existingPost).not.toBeNull();
+    expect(updatedPost?.contentQuality).toMatchObject({
+      is_ai_probability: 70,
+    });
+  });
+
+  it('should not update empty content quality when field is empty', async () => {
+    const postId = 'p1';
+
+    const existingPost = await con.getRepository(ArticlePost).save({
+      id: postId,
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      contentQuality: {
+        is_ai_probability: 50,
+      },
+    });
+
+    expect(existingPost).not.toBeNull();
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      post_id: postId,
+    });
+
+    const updatedPost = await con.getRepository(ArticlePost).findOneBy({
+      id: postId,
+    });
+    expect(updatedPost).not.toBeNull();
+    expect(updatedPost?.contentQuality).toMatchObject({
+      is_ai_probability: 50,
     });
   });
 });
