@@ -23,8 +23,9 @@ import {
   detectIsAdhocEnv,
   SqlDatabase,
   Stream,
+  ClickHouseSync,
+  ClickHouseSyncConfig,
 } from '@dailydotdev/pulumi-common';
-import {deployClickhouseSync} from "./ch_sync";
 
 const isAdhocEnv = detectIsAdhocEnv();
 const name = 'api';
@@ -525,25 +526,46 @@ if (vpcNativeProvider) {
 }
 
 if (!isAdhocEnv) {
-  deployClickhouseSync(
-    name,
-    namespace,
+  new ClickHouseSync(
+    'clickhouse-sync',
     {
-      propsPath: './clickhouse-sync.yml',
-      propsVars: {
-        database_pass: config.require('debeziumDbPass'),
-        database_user: config.require('debeziumDbUser'),
-        database_dbname: name,
-        hostname: envVars.typeormHost as string,
-        clickhouse_host: config.require('clickhouse_host'),
-        clickhouse_user: config.require('clickhouse_user'),
-        clickhouse_password: config.require('clickhouse_password'),
-        clickhouse_port: config.require('clickhouse_port'),
-        clickhouse_database: config.require('clickhouse_database'),
+      isAdhocEnv: isAdhocEnv,
+      namespace: namespace,
+      props: {
+        path: './config.yml',
+        keys: {
+          ...config.requireObject<{ keys: ClickHouseSyncConfig }>(
+            'clickhouseSync',
+          ).keys,
+          'database.hostname': envVars.typeormHost as string,
+          'database.port': '5432',
+          'database.password': config.require('debeziumDbPass'),
+          'database.user': config.require('debeziumDbUser'),
+          'database.server.name': name,
+          'database.dbname': name,
+        },
+        vars: {
+          ...config.requireObject<{ vars: Record<string, string> }>(
+            'clickhouseSync',
+          ).vars,
+        },
+      },
+      image: {
+        repository: 'altinity/clickhouse-sink-connector',
+        tag: '2.0.2-lt',
+      },
+      resources: {
+        // TODO: adjust resources based on the actual usage
+        requests: {
+          cpu: '500m',
+          memory: '1024Mi',
+        },
+        limits: {
+          // 1.5GiB
+          memory: '1536Mi',
+        },
       },
     },
-    {
-      provider: vpcNativeProvider?.provider,
-    }
+    { provider: vpcNativeProvider?.provider },
   );
 }

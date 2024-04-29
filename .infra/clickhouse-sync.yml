@@ -70,25 +70,35 @@ offset.storage.jdbc.user: "%clickhouse_user%"
 offset.storage.jdbc.password: "%clickhouse_password%"
 
 # offset.storage.jdbc.offset.table.ddl: The DDL statement used to create the database table where connector offsets are to be stored.
-offset.storage.jdbc.offset.table.ddl: "CREATE TABLE if not exists %s
-(
-    `id` String,
-    `offset_key` String,
-    `offset_val` String,
-    `record_insert_ts` DateTime,
-    `record_insert_seq` UInt64,
-    `_version` UInt64 MATERIALIZED toUnixTimestamp64Nano(now64(9))
-)
-ENGINE = ReplacingMergeTree(_version)
-ORDER BY id
-SETTINGS index_granularity = 8198"
+offset.storage.jdbc.offset.table.ddl: |
+  CREATE TABLE if not exists %s
+  (
+      `id` String,
+      `offset_key` String,
+      `offset_val` String,
+      `record_insert_ts` DateTime,
+      `record_insert_seq` UInt64,
+      `_version` UInt64 MATERIALIZED toUnixTimestamp64Nano(now64(9))
+  )
+  ENGINE = ReplacingMergeTree(_version)
+  ORDER BY id
+  SETTINGS index_granularity = 8198
 offset.storage.jdbc.offset.table.delete: "delete from %s where 1=1"
 schema.history.internal: "io.debezium.storage.jdbc.history.JdbcSchemaHistory"
 schema.history.internal.jdbc.url: "jdbc:clickhouse://%clickhouse_host%:%clickhouse_port%/altinity_sink_connector"
 schema.history.internal.jdbc.user: "%clickhouse_user%"
 schema.history.internal.jdbc.password: "%clickhouse_password%"
-schema.history.internal.jdbc.schema.history.table.ddl: "CREATE TABLE if not exists %s
-(`id` VARCHAR(36) NOT NULL, `history_data` VARCHAR(65000), `history_data_seq` INTEGER, `record_insert_ts` TIMESTAMP NOT NULL, `record_insert_seq` INTEGER NOT NULL) ENGINE=ReplacingMergeTree(record_insert_seq) order by id"
+schema.history.internal.jdbc.schema.history.table.ddl: |
+  CREATE TABLE if not exists %s
+  (
+    `id` VARCHAR(36) NOT NULL,
+    `history_data` VARCHAR(65000),
+    `history_data_seq` INTEGER,
+    `record_insert_ts` TIMESTAMP NOT NULL,
+    `record_insert_seq` INTEGER NOT NULL
+  )
+  ENGINE = ReplacingMergeTree(record_insert_seq)
+  order by id
 
 # schema.history.internal.schema.history.table.name: The name of the database table where connector schema history is to be stored.
 schema.history.internal.jdbc.schema.history.table.name: "altinity_sink_connector.replicate_schema_history"
