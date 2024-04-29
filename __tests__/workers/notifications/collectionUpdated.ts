@@ -77,7 +77,7 @@ beforeEach(async () => {
       visible: true,
       createdAt: new Date('01-05-2020 12:00:00'),
       origin: PostOrigin.Crawler,
-      yggdrasilId: '5a829977-189a-4ac9-85cc-9e822cc7c737',
+      yggdrasilId: '0920dcaa-60f1-4136-b10e-14804e3dfffd',
     },
     {
       id: 'cp4',
@@ -89,7 +89,7 @@ beforeEach(async () => {
       visible: true,
       createdAt: new Date('01-05-2020 12:00:00'),
       origin: PostOrigin.Crawler,
-      yggdrasilId: '5a829977-189a-4ac9-85cc-9e822cc7c737',
+      yggdrasilId: '25918bbc-e883-4d5a-bf98-c55272b8543c',
     },
     {
       id: 'cp5',
@@ -114,7 +114,7 @@ beforeEach(async () => {
       sourceId: 'a',
       visible: true,
       createdAt: new Date('01-05-2020 12:00:00'),
-      yggdrasilId: '7ec0bccb-e41f-4c77-a3b4-fe19d20b3874',
+      yggdrasilId: '01893589-6627-46cc-a752-4941da92006f',
     },
     {
       id: 'c2',
@@ -125,7 +125,7 @@ beforeEach(async () => {
       sourceId: 'a',
       visible: true,
       createdAt: new Date('01-05-2020 12:00:00'),
-      yggdrasilId: '7ec0bccb-e41f-4c77-a3b4-fe19d20b3874',
+      yggdrasilId: 'c2c88c38-16da-4046-b150-7d518ab341dc',
     },
   ]);
   await saveFixtures(con, PostRelation, [

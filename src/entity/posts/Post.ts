@@ -226,7 +226,9 @@ export class Post {
   flags: PostFlags;
 
   @Column({ type: 'uuid', nullable: true })
-  @Index('IDX_yggdrasil_id')
+  @Index('IDX_yggdrasil_id', {
+    unique: true,
+  })
   yggdrasilId: string;
 
   @OneToMany(() => PostRelation, (postRelation) => postRelation.post, {
