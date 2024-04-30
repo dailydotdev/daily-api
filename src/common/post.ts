@@ -3,7 +3,6 @@ import {
   Comment,
   ExternalLinkPreview,
   FreeformPost,
-  Post,
   PostOrigin,
   savePost,
   SquadSource,
