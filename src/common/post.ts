@@ -5,6 +5,7 @@ import {
   FreeformPost,
   Post,
   PostOrigin,
+  savePost,
   SquadSource,
   User,
   WelcomePost,
@@ -126,33 +127,37 @@ export const createSquadWelcomePost = async (
   args: Partial<FreeformPost> = {},
 ) => {
   const content = getWelcomeContent(source);
-  const repo = con.getRepository(WelcomePost);
   const id = await generateShortId();
 
-  return repo.save({
-    ...args,
-    id,
-    shortId: id,
-    title: WELCOME_POST_TITLE,
-    sourceId: source.id,
-    authorId: adminId,
-    content,
-    contentHtml: markdown.render(content),
-    image: defaultImage.welcomePost,
-    banned: true,
-    flags: {
+  return savePost({
+    con,
+    type: WelcomePost,
+    shouldUpdateFlags: true,
+    post: {
+      ...args,
+      id,
+      shortId: id,
+      title: WELCOME_POST_TITLE,
+      sourceId: source.id,
+      authorId: adminId,
+      content,
+      contentHtml: markdown.render(content),
+      image: defaultImage.welcomePost,
       banned: true,
-      private: true,
+      flags: {
+        banned: true,
+        private: true,
+        visible: true,
+        showOnFeed: false,
+      },
       visible: true,
+      private: true,
+      pinnedAt: new Date(),
+      visibleAt: new Date(),
+      origin: PostOrigin.UserGenerated,
       showOnFeed: false,
     },
-    visible: true,
-    private: true,
-    pinnedAt: new Date(),
-    visibleAt: new Date(),
-    origin: PostOrigin.UserGenerated,
-    showOnFeed: false,
-  } as Partial<Post>);
+  });
 };
 
 export type EditablePost = Pick<
@@ -173,16 +178,21 @@ export const createFreeformPost = async (
     .getRepository(SquadSource)
     .findOneBy({ id: args.sourceId });
 
-  return con.getRepository(FreeformPost).save({
-    ...args,
-    shortId: args.id,
-    visible: true,
-    private: privacy,
-    visibleAt: new Date(),
-    origin: PostOrigin.UserGenerated,
-    flags: {
+  return savePost({
+    con,
+    type: FreeformPost,
+    shouldUpdateFlags: true,
+    post: {
+      ...args,
+      shortId: args.id,
       visible: true,
       private: privacy,
+      visibleAt: new Date(),
+      origin: PostOrigin.UserGenerated,
+      flags: {
+        visible: true,
+        private: privacy,
+      },
     },
   });
 };

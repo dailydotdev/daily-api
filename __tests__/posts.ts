@@ -712,6 +712,17 @@ describe('welcomePost type', () => {
     expect(post.showOnFeed).toEqual(false);
     expect(post.flags.showOnFeed).toEqual(false);
   });
+
+  it('should add welcome post and increment squad total posts', async () => {
+    const repo = con.getRepository(Source);
+    const source = await repo.findOneBy({ id: 'a' });
+    const post = await createSquadWelcomePost(con, source, '1');
+    expect(post.showOnFeed).toEqual(false);
+    expect(post.flags.showOnFeed).toEqual(false);
+
+    const updatedSource = await repo.findOneBy({ id: 'a' });
+    expect(updatedSource.flags.totalPosts).toEqual(1);
+  });
 });
 
 describe('query post', () => {
@@ -1656,6 +1667,16 @@ describe('mutation sharePost', () => {
     expect(post.title).toEqual('My comment');
   });
 
+  it('should share to squad and increment squad flags total posts', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, { variables });
+    expect(res.errors).toBeFalsy();
+    const newId = res.data.sharePost.id;
+    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    const source = await post.source;
+    expect(source.flags.totalPosts).toEqual(1);
+  });
+
   it('should share to squad and trim the commentary', async () => {
     loggedUser = '1';
     const res = await client.mutate(MUTATION, {
@@ -2474,6 +2495,9 @@ describe('mutation createFreeformPost', () => {
         }
         source {
           id
+          flags {
+            totalPosts
+          }
         }
         title
         content
@@ -2574,6 +2598,41 @@ describe('mutation createFreeformPost', () => {
     expect(res.data.createFreeformPost.title).toEqual(params.title);
     expect(res.data.createFreeformPost.content).toEqual(content);
     expect(res.data.createFreeformPost.contentHtml).toMatchSnapshot();
+  });
+
+  it('should increment source total posts', async () => {
+    loggedUser = '1';
+    const sourceId = 'a';
+    const repo = con.getRepository(Source);
+    const current = 2;
+    await repo.update({ id: sourceId }, { flags: { totalPosts: current } });
+    const source = await repo.findOneByOrFail({ id: sourceId });
+    expect(source.flags.totalPosts).toEqual(current);
+    const content = '# Updated content';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, content },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createFreeformPost.source.id).toEqual('a');
+    expect(res.data.createFreeformPost.source.flags.totalPosts).toEqual(
+      current + 1,
+    );
+  });
+
+  it('should increment source total posts even if undefined', async () => {
+    loggedUser = '1';
+    const sourceId = 'a';
+    const source = await con
+      .getRepository(Source)
+      .findOneByOrFail({ id: sourceId });
+    expect(source.flags.totalPosts).toEqual(undefined);
+    const content = '# Updated content';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, content },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createFreeformPost.source.id).toEqual('a');
+    expect(res.data.createFreeformPost.source.flags.totalPosts).toEqual(1);
   });
 
   it('should set the post to be private if source is private', async () => {
@@ -2680,6 +2739,9 @@ describe('mutation editPost', () => {
         content
         contentHtml
         type
+        source {
+          id
+        }
       }
     }
   `;
@@ -2800,6 +2862,36 @@ describe('mutation editPost', () => {
     });
     expect(res2.errors).toBeFalsy();
     expect(res2.data.editPost.title).toEqual(title);
+  });
+
+  it('should update title of the post but keep the same squad flags total posts count', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { flags: { totalPosts: 1 } });
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { type: PostType.Freeform });
+    const title = 'Updated title';
+    const res1 = await client.mutate(MUTATION, {
+      variables: { id: 'p1', title },
+    });
+    expect(res1.errors).toBeFalsy();
+    expect(res1.data.editPost.title).toEqual(title);
+
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { type: PostType.Welcome, title: 'Test' });
+
+    const res2 = await client.mutate(MUTATION, {
+      variables: { id: 'p1', title },
+    });
+    expect(res2.errors).toBeFalsy();
+    expect(res2.data.editPost.title).toEqual(title);
+    const source = await con
+      .getRepository(Source)
+      .findOneByOrFail({ id: res2.data.editPost.source.id });
+    expect(source.flags.totalPosts).toEqual(1);
   });
 
   it('should not allow moderator or admin to do update posts of other people', async () => {

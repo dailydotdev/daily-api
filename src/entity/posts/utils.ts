@@ -7,6 +7,7 @@ import {
   removeEmptyValues,
   removeSpecialCharacters,
   uniqueifyArray,
+  updateFlagsStatement,
 } from '../../common';
 import { User } from '../user';
 import { PostKeyword } from '../PostKeyword';
@@ -24,6 +25,8 @@ import { PostMention } from './PostMention';
 import { PostQuestion } from './PostQuestion';
 import { PostRelation, PostRelationType } from './PostRelation';
 import { CollectionPost } from './CollectionPost';
+import { EntityTarget } from 'typeorm/common/EntityTarget';
+import { DeepPartial } from 'typeorm/common/DeepPartial';
 
 export type PostStats = {
   numPosts: number;
@@ -34,6 +37,37 @@ export type PostStats = {
 
 type StringPostStats = {
   [Property in keyof PostStats]: string;
+};
+
+interface SavePostProps<T extends Post> {
+  con: DataSource | EntityManager;
+  type: EntityTarget<T>;
+  post: DeepPartial<T>;
+  shouldUpdateFlags?: boolean;
+}
+
+export const savePost = async <T extends Post>({
+  con,
+  type,
+  post,
+  shouldUpdateFlags,
+}: SavePostProps<T>) => {
+  const res = await con.getRepository(type).save(post);
+
+  if (shouldUpdateFlags) {
+    const source = await con
+      .getRepository(Source)
+      .findOneBy({ id: res.sourceId });
+
+    const currentTotalPosts = source.flags?.totalPosts || 0;
+    const flags = updateFlagsStatement({
+      totalPosts: currentTotalPosts + 1,
+    });
+
+    await con.getRepository(Source).update({ id: source.id }, { flags });
+  }
+
+  return res;
 };
 
 export const getAuthorPostStats = async (
@@ -300,24 +334,29 @@ export const createSharePost = async (
 
     const id = await generateShortId();
 
-    const post = await con.getRepository(SharePost).save({
-      id,
-      shortId: id,
-      createdAt: new Date(),
-      sourceId,
-      authorId: userId,
-      sharedPostId: postId,
-      title: strippedCommentary,
-      titleHtml,
-      sentAnalyticsReport: true,
-      private: privacy,
-      origin: PostOrigin.UserGenerated,
-      visible,
-      visibleAt: visible ? new Date() : null,
-      flags: {
+    const post = await savePost<SharePost>({
+      con,
+      type: SharePost,
+      shouldUpdateFlags: true,
+      post: {
+        id,
+        shortId: id,
+        createdAt: new Date(),
+        sourceId,
+        authorId: userId,
+        sharedPostId: postId,
+        title: strippedCommentary,
+        titleHtml,
         sentAnalyticsReport: true,
         private: privacy,
+        origin: PostOrigin.UserGenerated,
         visible,
+        visibleAt: visible ? new Date() : null,
+        flags: {
+          sentAnalyticsReport: true,
+          private: privacy,
+          visible,
+        },
       },
     });
 
