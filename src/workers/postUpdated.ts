@@ -13,6 +13,7 @@ import {
   mergeKeywords,
   parseReadTime,
   Post,
+  PostContentQuality,
   PostOrigin,
   PostRelationType,
   PostType,
@@ -73,6 +74,7 @@ interface Data {
     scraped_html?: string;
     cleaned_trafilatura_xml?: string;
   };
+  content_quality?: PostContentQuality;
 }
 
 type HandleRejectionProps = {
@@ -327,12 +329,17 @@ const updatePost = async ({
     data.visibleAt = data.metadataChangedAt;
   }
 
-  if (
-    Object.keys(data.contentMeta).length === 0 &&
-    Object.keys(databasePost.contentMeta).length > 0
-  ) {
-    data.contentMeta = databasePost.contentMeta;
-  }
+  const jsonMetaFields: (keyof Pick<Post, 'contentMeta' | 'contentQuality'>)[] =
+    ['contentMeta', 'contentQuality'];
+
+  jsonMetaFields.forEach((metaField) => {
+    if (
+      Object.keys(data[metaField]).length === 0 &&
+      Object.keys(databasePost[metaField]).length > 0
+    ) {
+      data[metaField] = databasePost[metaField];
+    }
+  });
 
   if (content_type in allowedFieldsMapping) {
     const allowedFields = [
@@ -520,6 +527,7 @@ const fixData = async ({
       videoId: data?.extra?.video_id,
       language: data?.language,
       contentMeta: data?.meta || {},
+      contentQuality: data?.content_quality || {},
     },
   };
 };
