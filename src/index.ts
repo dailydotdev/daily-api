@@ -246,9 +246,6 @@ export default async function app(
           randomTrendingPosts: {
             extendKey: userExtendKey,
           },
-          randomSimilarPosts: {
-            extendKey: userExtendKey,
-          },
           randomSimilarPostsByTags: {
             extendKey: userExtendKey,
           },
