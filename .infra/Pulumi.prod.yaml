@@ -6,19 +6,19 @@ config:
       secure: AAABAGND38ZY4hSe1YR2RTh/JyY3g3pBsK8Ovm4FCs6Et4ihLMPkAvZUKDy+T6N1Wg1OEmO3q9JMeB3dNGZ3ptLDTEDZ8bpAh7FBBMuZGxeC81i1XwzCNAMPzKwm2m3ZJkSSWRdxkEp8m+0qfpiPCscYGpeKCmRJUZqDHuMUl1S+kMAK4CQn+xdCtDLhI+9EqujfNyyGXaPzw1UkEMAF7RZs5GSWvoTOWIwN5N4TC7Uwi3dZq2COQcGJ2RdjCFDtbq3uDoq7kLsgQsCxG02hJnjzxlbRzpm+CVq6Alkj1v0FgpzY7kdX2xpBnjNz9Rd7ILOYni6PMcvF+uM1FJRnUxcZMExM8sS7Lm14CPdi/IjTRXvu7ie+FNmRbotEypb2fBLHLxrcrn4EtB/6ihTFfg2mCOMY3I74laKihU3hjpUR3YpVS3Eio+cEYB5SBdxIexA2Ff7TIyJe6dY3VwoeB9Ln3VqU4KtWEvOIKArZK+lR4GL1qmlEFshB8OvjHoLBnBWoMKXSXkyO9kTaQUEPRjyrxKgLLkRVHsp04aTW95VZQRkykUvzGGAFkUwiTKeC4/SPPkOpbl41dHfQL2lWGvMlfuwoi0lDwM1vbM/XEmASjVghvReZYE9/qnY09VnI1E8=
   api:clickhouseSync:
     keys:
-      table.include.list: "public.post"
       slot.name: "clickhouse_sync"
+      table.include.list: "public.post"
     vars:
+      clickhouse_database:
+        secure: AAABAFXhGil+ZGIYbGEIU71Q2eQslzMjGAkeeW0LumXI3GA=
       clickhouse_host:
         secure: AAABAEq3bPQWCbrIMyHxQg03NQoNg4epS95eUXmu7azdAx+3nj2mkzjmI0nV40Z/vuJngmTBmrmSxqMdn6Zt4mTWzj7YZX+oU62n
-      clickhouse_user:
-        secure: AAABAL01EIY49IEwW6Vb7L8TygUN/3ReEexe0+Khb1Yuyqg=
       clickhouse_password:
         secure: AAABAFKxj2OdbZCyvfalxBK9l69IvwB1g/hCek3wf5ZePS3cOgAkvTlFtxsdiDv2Xe9VXQE8
       clickhouse_port:
-        secure: AAABAJCCo2nISMVtol8H3zDPOy7HhlSHAoWuQrCqG/FBjzwd
-      clickhouse_database:
-        secure: AAABAFXhGil+ZGIYbGEIU71Q2eQslzMjGAkeeW0LumXI3GA=
+        secure: AAABAFI+z3cUcd3jB9DISQ9kJOSG7Fw8YEHBE+GTeSrjHafu
+      clickhouse_user:
+        secure: AAABAL01EIY49IEwW6Vb7L8TygUN/3ReEexe0+Khb1Yuyqg=
   api:debeziumDbPass:
     secure: AAABAHdC/62trKcIoEduX+v3nBKj/KJ1XDNPRwwEwqcq33TLhqLrVq9oJfFsq/aX
   api:debeziumDbUser:
