@@ -510,21 +510,6 @@ export const typeDefs = /* GraphQL */ `
     ): [Post]!
 
     """
-    Get random similar posts to a given post
-    """
-    randomSimilarPosts(
-      """
-      Post ID
-      """
-      post: ID!
-
-      """
-      Paginate first
-      """
-      first: Int
-    ): [Post]!
-
-    """
     Get random similar posts by tags
     """
     randomSimilarPostsByTags(
@@ -1229,38 +1214,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           });
         }
         return newBuilder;
-      },
-      3,
-    ),
-    randomSimilarPosts: randomPostsResolver(
-      (
-        ctx,
-        { post }: { post: string; first: number | null },
-        builder,
-        alias,
-      ) => {
-        const similarPostsQuery = `select post.id
-                                   from post
-                                          inner join (select count(*)           as similar,
-                                                             min(k.occurrences) as occurrences,
-                                                             pk."postId"
-                                                      from post_keyword pk
-                                                             inner join post_keyword pk2 on pk.keyword = pk2.keyword
-                                                             inner join keyword k on pk.keyword = k.value
-                                                      where pk2."postId" = :postId
-                                                        and k.status = 'allow'
-                                                      group by pk."postId") k
-                                                     on k."postId" = post.id
-                                   where post.id != :postId
-                                     and post."createdAt" >= now() - interval '6 month'
-                                     and post."upvotes" > 0
-                                     and post.visible = true and post.deleted = false
-                                   order by (pow(post.upvotes, k.similar) *
-                                     1000 / k.occurrences) desc
-                                     limit 25`;
-        return builder.andWhere(`${alias}."id" in (${similarPostsQuery})`, {
-          postId: post,
-        });
       },
       3,
     ),
