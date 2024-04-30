@@ -908,9 +908,57 @@ Object {
 }
 `;
 
-exports[`query anonymousFeed should return anonymous feed v2 and include blocked filters 1`] = `null`;
-
-exports[`query anonymousFeed should return anonymous feed v2 and include blocked filters 2`] = `null`;
+exports[`query anonymousFeed should return anonymous feed v2 and include blocked filters 1`] = `
+Object {
+  "anonymousFeed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p1",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "P1",
+          "type": "article",
+          "url": "http://p1.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p4",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "backend",
+            "data",
+            "javascript",
+          ],
+          "title": "P4",
+          "type": "article",
+          "url": "http://p4.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "b",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
 
 exports[`query anonymousFeed should return anonymous feed while excluding sources 1`] = `
 Object {

@@ -418,7 +418,7 @@ describe('query anonymousFeed', () => {
         fresh_page_size: '4',
         offset: 0,
         blocked_tags: ['python', 'java'],
-        blocked_sources: ['a', 'b'],
+        blocked_sources: ['a', 'b', WATERCOOLER_ID],
         user_id: '1',
       })
       .reply(200, {
