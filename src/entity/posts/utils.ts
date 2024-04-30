@@ -89,6 +89,10 @@ export const deletePost = async ({ con, id, userId }: DeletePostProps) => {
     },
   );
 
+  if (res.affected === 0) {
+    return res;
+  }
+
   const post = await postRepo.findOneBy({ id });
   const source = await post.source;
 
