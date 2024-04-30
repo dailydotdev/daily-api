@@ -155,19 +155,16 @@ export const feedToFilters = async (
 
   // Split memberships by hide flag
   const membershipsByHide = memberships.reduce(
-    (
-      acc: { true: string[]; false: string[] },
-      value: { sourceId: SourceMember['sourceId']; hide: boolean },
-    ) => {
-      acc[value.hide ? 'true' : 'false'].push(value.sourceId);
+    (acc, value: { sourceId: SourceMember['sourceId']; hide: boolean }) => {
+      acc[value.hide ? 'hide' : 'show'].push(value.sourceId);
       return acc;
     },
-    { true: [], false: [] },
+    { hide: [], show: [] },
   );
 
   // If the user is not a member of the watercooler, hide it
-  if (!membershipsByHide.false.includes(WATERCOOLER_ID)) {
-    membershipsByHide.true.push(WATERCOOLER_ID);
+  if (!membershipsByHide.show.includes(WATERCOOLER_ID)) {
+    membershipsByHide.hide.push(WATERCOOLER_ID);
   }
 
   return {
@@ -175,8 +172,8 @@ export const feedToFilters = async (
     excludeTypes,
     excludeSources: excludeSources
       .map((sources: Source) => sources.id)
-      .concat(membershipsByHide.true),
-    sourceIds: membershipsByHide.false,
+      .concat(membershipsByHide.hide),
+    sourceIds: membershipsByHide.show,
   };
 };
 
