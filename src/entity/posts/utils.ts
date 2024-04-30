@@ -70,6 +70,40 @@ export const savePost = async <T extends Post>({
   return res;
 };
 
+interface DeletePostProps {
+  con: DataSource | EntityManager;
+  id: string;
+  userId?: string;
+}
+
+export const deletePost = async ({ con, id, userId }: DeletePostProps) => {
+  const postRepo = con.getRepository(Post);
+  const res = await postRepo.update(
+    { id },
+    {
+      deleted: true,
+      flags: updateFlagsStatement<Post>({
+        deleted: true,
+        deletedBy: userId,
+      }),
+    },
+  );
+
+  const post = await postRepo.findOneBy({ id });
+  const source = await post.source;
+
+  await con.getRepository(Source).update(
+    { id: source.id },
+    {
+      flags: updateFlagsStatement({
+        totalPosts: source.flags.totalPosts - 1,
+      }),
+    },
+  );
+
+  return res;
+};
+
 export const getAuthorPostStats = async (
   con: DataSource,
   authorId: string,

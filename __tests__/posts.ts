@@ -1225,6 +1225,9 @@ describe('mutation deletePost', () => {
       sharedPostId: 'p1',
       authorId,
     });
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { flags: { totalPosts: 1 } });
   };
 
   it('should not authorize when not logged in', () =>
@@ -1289,6 +1292,19 @@ describe('mutation deletePost', () => {
     const id = 'sp1';
     await createSharedPost(id);
     await verifyPostDeleted(id, loggedUser);
+  });
+
+  it('should allow member to delete their own shared post and reduce squads flags total posts', async () => {
+    loggedUser = '2';
+    const id = 'sp1';
+    await createSharedPost(id);
+    const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+    expect(source.flags.totalPosts).toEqual(1);
+    await verifyPostDeleted(id, loggedUser);
+    const updatedSource = await con
+      .getRepository(Source)
+      .findOneBy({ id: 'a' });
+    expect(updatedSource.flags.totalPosts).toEqual(0);
   });
 
   const verifyPostDeleted = async (id: string, user: string) => {
