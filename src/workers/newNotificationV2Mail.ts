@@ -70,7 +70,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   promoted_to_moderator: 'd-b1dbd1e86ee14bf094f7616f7469fee8',
   squad_subscribe_to_notification: '',
   collection_updated: 'd-c051ffef97a148b6a6f14d5edb46b553',
-  dev_card_unlocked: 'd-3d3402ec873640e788f549a0680c40bb',
+  dev_card_unlocked: 'd-6a6e3e807f7d419eb29933fbb025ca5a',
   source_post_added: 'd-3d3613684ca44cd0bc37fff4d38a90f1',
 };
 
