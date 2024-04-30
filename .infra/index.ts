@@ -63,7 +63,7 @@ if (isAdhocEnv) {
 const redis = new Redis(`${name}-redis`, {
   isAdhocEnv,
   name: `${name}-redis`,
-  tier: 'STANDARD_HA',
+  tier: 'BASIC',
   memorySizeGb: 2,
   region: location,
   authEnabled: true,
