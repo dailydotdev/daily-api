@@ -8,6 +8,7 @@ Object {
   "comments": 0,
   "contentCuration": Any<Array>,
   "contentMeta": Any<Object>,
+  "contentQuality": Any<Object>,
   "createdAt": Any<Date>,
   "creatorTwitter": null,
   "deleted": false,

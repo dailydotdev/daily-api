@@ -136,7 +136,7 @@ export const tracer = (serviceName: string) => {
     logRecordProcessor: new logs.SimpleLogRecordProcessor(
       new logs.ConsoleLogRecordExporter(),
     ),
-    spanProcessor,
+    spanProcessors: [spanProcessor],
     instrumentations,
     resourceDetectors,
     // textMapPropagator: new CloudPropagator(),

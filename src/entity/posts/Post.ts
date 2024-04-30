@@ -44,6 +44,10 @@ export type PostFlags = Partial<{
 
 export type PostFlagsPublic = Pick<PostFlags, 'private' | 'promoteToPublic'>;
 
+export type PostContentQuality = Partial<{
+  is_ai_probability: number;
+}>;
+
 @Entity()
 @Index('IDX_post_id_sourceid', ['id', 'sourceId'])
 @Index('IDX_post_deleted_visible_type_views', [
@@ -250,4 +254,7 @@ export class Post {
 
   @Column({ type: 'jsonb', default: {} })
   contentMeta: unknown;
+
+  @Column({ type: 'jsonb', default: {} })
+  contentQuality: PostContentQuality;
 }
