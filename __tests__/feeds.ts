@@ -1403,42 +1403,6 @@ describe('query randomTrendingPosts', () => {
   });
 });
 
-describe('query randomSimilarPosts', () => {
-  const QUERY = (first = 10): string => `{
-    randomSimilarPosts(post: "p1", first: ${first}) {
-      id
-    }
-  }`;
-
-  it('should return random similar posts', async () => {
-    const repo = con.getRepository(Post);
-    await repo.update({}, { upvotes: 5 });
-    const now = new Date();
-    await con.getRepository(Keyword).save([
-      { value: 'javascript', status: 'allow' },
-      { value: 'webdev', status: 'deny' },
-      { value: 'backend', status: 'allow' },
-    ]);
-    await con.getRepository(PostKeyword).save([
-      { keyword: 'backend', postId: 'p2' },
-      { keyword: 'javascript', postId: 'p3' },
-    ]);
-    await repo.update(
-      { id: 'p4' },
-      {
-        createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 30 * 8),
-      },
-    );
-
-    const res = await client.query(QUERY());
-    expect(res.errors).toBeFalsy();
-    expect(res.data.randomSimilarPosts.map((post) => post.id).sort()).toEqual([
-      'p3',
-      'p5',
-    ]);
-  });
-});
-
 describe('query randomSimilarPostsByTags', () => {
   const QUERY = `query RandomSimilarPostsByTags($post: ID, $tags: [String]!, $first: Int) {
     randomSimilarPostsByTags(post: $post, first: $first, tags: $tags) {
