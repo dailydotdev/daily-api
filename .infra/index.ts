@@ -376,6 +376,11 @@ const [apps] = deployApplicationSuite(
           value: 'true',
         },
       ],
+      // TODO: split limit and request
+      limits: {
+        cpu: '100m',
+        memory: '800Mi',
+      }
     },
     additionalSecrets: [
       {
