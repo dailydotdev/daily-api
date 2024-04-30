@@ -64,7 +64,7 @@ const redis = new Redis(`${name}-redis`, {
   isAdhocEnv,
   name: `${name}-redis`,
   tier: 'STANDARD_HA',
-  memorySizeGb: 10,
+  memorySizeGb: 2,
   region: location,
   authEnabled: true,
   redisVersion: 'REDIS_6_X',
