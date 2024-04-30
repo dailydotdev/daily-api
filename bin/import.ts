@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import createOrGetConnection from '../src/db';
 import { DataSource } from 'typeorm';
+import { SourceTagView } from '../src/entity/SourceTagView';
 import { TagRecommendation } from '../src/entity/TagRecommendation';
 
 const importEntity = async (
@@ -43,6 +44,11 @@ const start = async (): Promise<void> => {
   await con.query(
     `REFRESH MATERIALIZED VIEW ${
       con.getRepository(TagRecommendation).metadata.tableName
+    }`,
+  );
+  await con.query(
+    `REFRESH MATERIALIZED VIEW ${
+      con.getRepository(SourceTagView).metadata.tableName
     }`,
   );
 };
