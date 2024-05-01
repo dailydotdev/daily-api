@@ -71,6 +71,7 @@
     "apollo-server-types": "^3.8.0",
     "cloudinary": "^1.41.3",
     "csv-parse": "^5.5.5",
+    "customerio-node": "^4.1.1",
     "dataloader": "^2.2.2",
     "date-fns": "^2.30.0",
     "date-fns-tz": "^2.0.0",

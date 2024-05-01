@@ -48,8 +48,6 @@ import {
   notifySubmissionRejected,
   notifySubmissionGrantedAccess,
   NotificationReason,
-  notifyUserDeleted,
-  notifyUserUpdated,
   notifyUsernameChanged,
   notifyNewCommentMention,
   notifyMemberJoinedSource,
@@ -403,7 +401,10 @@ const onUserChange = async (
   if (data.payload.op === 'c') {
     await notifyUserCreated(logger, data.payload.after);
   } else if (data.payload.op === 'u') {
-    await notifyUserUpdated(logger, data.payload.before, data.payload.after);
+    await triggerTypedEvent(logger, 'user-updated', {
+      user: data.payload.before,
+      newProfile: data.payload.after,
+    });
     if (
       data.payload.after.reputation >= submissionAccessThreshold &&
       data.payload.before.reputation < submissionAccessThreshold
@@ -443,12 +444,11 @@ const onUserChange = async (
     }
   }
   if (data.payload.op === 'd') {
-    await notifyUserDeleted(
-      logger,
-      data.payload.before.id,
-      true,
-      data.payload.before.email,
-    );
+    await triggerTypedEvent(logger, 'user-deleted', {
+      id: data.payload.before.id,
+      kratosUser: true,
+      email: data.payload.before.email,
+    });
   }
 };
 const onSettingsChange = async (

@@ -49,6 +49,8 @@ import postDownvoteCanceledRep from './postDownvoteCanceledRep';
 import userCreatedPersonalizedDigestSendType from './userCreatedPersonalizedDigestSendType';
 import commentDownvotedRep from './commentDownvotedRep';
 import commentDownvoteCanceledRep from './commentDownvoteCanceledRep';
+import userUpdatedCio from './userUpdatedCio';
+import userDeletedCio from './userDeletedCio';
 
 export { Worker } from './worker';
 
@@ -56,8 +58,6 @@ export const workers: Worker[] = [
   bannerAdded,
   bannerDeleted,
   newView,
-  updateMailingList,
-  deleteUserFromMailingList,
   postCommentedWorker,
   commentCommentedWorker,
   commentEditedWorker,
@@ -100,6 +100,10 @@ export const typedWorkers: BaseTypedWorker<unknown>[] = [
   postUpvoteCanceledRep,
   postDownvotedRep,
   postDownvoteCanceledRep,
+  updateMailingList,
+  userUpdatedCio,
+  deleteUserFromMailingList,
+  userDeletedCio,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

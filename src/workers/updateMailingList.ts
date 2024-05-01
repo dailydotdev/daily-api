@@ -1,18 +1,13 @@
-import { ghostUser, updateUserContactLists, User } from '../common';
-import { messageToJson, Worker } from './worker';
+import { ghostUser, updateUserContactLists } from '../common';
+import { TypedWorker } from './worker';
 
-interface Data {
-  newProfile: User;
-  user: User;
-}
-
-const worker: Worker = {
+const worker: TypedWorker<'user-updated'> = {
   subscription: 'user-updated-api-mailing',
   handler: async (message, con, log) => {
     if (!process.env.SENDGRID_API_KEY) {
       return;
     }
-    const data = messageToJson<Data>(message);
+    const { data } = message;
     const { user: oldProfile, newProfile } = data;
 
     if (oldProfile.id === ghostUser.id) {

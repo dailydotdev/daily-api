@@ -39,8 +39,6 @@ const postCommentedTopic = pubsub.topic('post-commented');
 const commentCommentedTopic = pubsub.topic('comment-commented');
 const commentFeaturedTopic = pubsub.topic('comment-featured');
 const commentsUpdateTopic = pubsub.topic('update-comments');
-const userDeletedTopic = pubsub.topic('user-deleted');
-const userUpdatedTopic = pubsub.topic('user-updated');
 const usernameChangedTopic = pubsub.topic('username-changed');
 const settingsUpdatedTopic = pubsub.topic('settings-updated');
 const sendAnalyticsReportTopic = pubsub.topic('send-analytics-report');
@@ -169,24 +167,6 @@ export const notifyCommentsUpdate = async (
     newUsername,
     commentIds,
   });
-
-export const notifyUserDeleted = async (
-  log: EventLogger,
-  userId: string,
-  kratosUser = false,
-  email: string,
-): Promise<void> =>
-  publishEvent(log, userDeletedTopic, {
-    id: userId,
-    kratosUser,
-    email,
-  });
-
-export const notifyUserUpdated = (
-  log: EventLogger,
-  user: ChangeObject<User>,
-  newProfile: ChangeObject<User>,
-): Promise<void> => publishEvent(log, userUpdatedTopic, { user, newProfile });
 
 export const notifyUserReadmeUpdated = (
   log: EventLogger,
