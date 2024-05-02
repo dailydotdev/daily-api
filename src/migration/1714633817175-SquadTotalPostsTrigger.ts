@@ -10,15 +10,11 @@ export class SquadTotalPostsTrigger1714633817175 implements MigrationInterface {
           LANGUAGE PLPGSQL
           AS
         $$
-        DECLARE
-          s public.source;
         BEGIN
-          SELECT * INTO s FROM public.source WHERE id = NEW."sourceId";
-          IF s.type = 'squad' THEN
-            UPDATE source
-            SET flags = jsonb_set(flags, array['totalPosts'], to_jsonb(COALESCE(CAST(flags->>'totalPosts' AS INTEGER), 0) + 1))
-            WHERE id = s.id;
-          END IF;
+          UPDATE  source
+          SET     flags = jsonb_set(flags, '{totalPosts}', to_jsonb(COALESCE(CAST(flags->>'totalPosts' AS INTEGER), 0) + 1))
+          WHERE   id = NEW."sourceId"
+          AND     type = 'squad';
           RETURN NEW;
         END;
         $$
@@ -33,18 +29,14 @@ export class SquadTotalPostsTrigger1714633817175 implements MigrationInterface {
           LANGUAGE PLPGSQL
           AS
         $$
-        DECLARE
-          s public.source;
         BEGIN
           IF OLD.deleted = false AND NEW.deleted = true THEN
-            SELECT * INTO s FROM public.source WHERE id = OLD."sourceId";
-            IF s.type = 'squad' THEN
-              UPDATE source
-              SET flags = jsonb_set(flags, array['totalPosts'], to_jsonb(CAST(flags->>'totalPosts' AS INTEGER) - 1))
-              WHERE id = s.id;
-            END IF;
+            UPDATE  source
+            SET     flags = jsonb_set(flags, '{totalPosts}', to_jsonb(CAST(flags->>'totalPosts' AS INTEGER) - 1))
+            WHERE   id = NEW."sourceId"
+            AND     type = 'squad';
           END IF;
-          RETURN OLD;
+          RETURN NEW;
         END;
         $$
       `);
