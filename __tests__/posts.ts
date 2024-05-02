@@ -724,6 +724,17 @@ describe('welcomePost type', () => {
     const updatedSource = await repo.findOneBy({ id: 'a' });
     expect(updatedSource.flags.totalPosts).toEqual(1);
   });
+
+  it('should add a post and NOT increment source total posts', async () => {
+    const repo = con.getRepository(Source);
+    const source = await repo.findOneBy({ id: 'a' });
+    const post = await createSquadWelcomePost(con, source, '1');
+    expect(post.showOnFeed).toEqual(false);
+    expect(post.flags.showOnFeed).toEqual(false);
+
+    const updatedSource = await repo.findOneBy({ id: 'a' });
+    expect(updatedSource.flags.totalPosts).toEqual(undefined);
+  });
 });
 
 describe('query post', () => {
