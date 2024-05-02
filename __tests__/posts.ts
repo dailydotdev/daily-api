@@ -715,6 +715,7 @@ describe('welcomePost type', () => {
 
   it('should add welcome post and increment squad total posts', async () => {
     const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, { type: SourceType.Squad });
     const source = await repo.findOneBy({ id: 'a' });
     const post = await createSquadWelcomePost(con, source, '1');
     expect(post.showOnFeed).toEqual(false);
@@ -1297,8 +1298,10 @@ describe('mutation deletePost', () => {
   it('should allow member to delete their own shared post and reduce squads flags total posts', async () => {
     loggedUser = '2';
     const id = 'sp1';
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, { type: SourceType.Squad });
     await createSharedPost(id);
-    const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+    const source = await repo.findOneBy({ id: 'a' });
     expect(source.flags.totalPosts).toEqual(1);
     await verifyPostDeleted(id, loggedUser);
     const updatedSource = await con
