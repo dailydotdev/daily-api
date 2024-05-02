@@ -66,11 +66,13 @@ const onLimit: RateLimitOnLimit<Context> = (resource) => {
   throw new RateLimitError(resource.msBeforeNext);
 };
 
+export const rateLimitDirectiveName = 'rateLimit';
+
 const { rateLimitDirectiveTransformer, rateLimitDirectiveTypeDefs } =
   rateLimitDirective<Context, IRateLimiterRedisOptions>({
     keyGenerator,
     onLimit,
-    name: 'rateLimit',
+    name: rateLimitDirectiveName,
     limiterOptions: {
       storeClient: singleRedisClient,
     },
