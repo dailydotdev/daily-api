@@ -1,5 +1,6 @@
 import { startOfISOWeek, endOfISOWeek } from 'date-fns';
 import { zonedTimeToUtc } from 'date-fns-tz';
+import { snakeCase } from 'lodash';
 
 const REMOVE_SPECIAL_CHARACTERS_REGEX = /[^a-zA-Z0-9-_#.]/g;
 
@@ -87,3 +88,13 @@ export const parseDate = (date: string | Date): Date | undefined => {
 export const toGQLEnum = (value: Record<string, string>, name: string) => {
   return `enum ${name} { ${Object.values(value).join(' ')} }`;
 };
+
+export function camelCaseToSnakeCase(
+  obj: Record<string, unknown>,
+): Record<string, unknown> {
+  const snakeObj: Record<string, unknown> = {};
+  for (const key in obj) {
+    snakeObj[snakeCase(key)] = obj[key];
+  }
+  return snakeObj;
+}

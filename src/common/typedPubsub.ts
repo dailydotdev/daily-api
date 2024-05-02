@@ -1,5 +1,5 @@
 import { ChangeObject } from '../types';
-import { SourceRequest } from '../entity';
+import { SourceRequest, User } from '../entity';
 import {
   EventLogger,
   NotificationReason,
@@ -43,6 +43,18 @@ export type PubSubSchema = {
   'api.v1.comment-downvote-canceled': {
     commentId: string;
     userId: string;
+  };
+  'user-updated': {
+    user: ChangeObject<User>;
+    newProfile: ChangeObject<User>;
+  };
+  'user-deleted': {
+    id: string;
+    kratosUser: boolean;
+    email: string;
+  };
+  'api.v1.user-created': {
+    user: ChangeObject<User>;
   };
 };
 
