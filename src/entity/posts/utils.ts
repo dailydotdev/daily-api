@@ -43,9 +43,8 @@ interface DeletePostProps {
   userId?: string;
 }
 
-export const deletePost = async ({ con, id, userId }: DeletePostProps) => {
-  const postRepo = con.getRepository(Post);
-  const res = await postRepo.update(
+export const deletePost = async ({ con, id, userId }: DeletePostProps) =>
+  con.getRepository(Post).update(
     { id },
     {
       deleted: true,
@@ -55,25 +54,6 @@ export const deletePost = async ({ con, id, userId }: DeletePostProps) => {
       }),
     },
   );
-
-  if (res.affected === 0) {
-    return res;
-  }
-
-  const post = await postRepo.findOneBy({ id });
-  const source = await post.source;
-
-  await con.getRepository(Source).update(
-    { id: source.id },
-    {
-      flags: updateFlagsStatement({
-        totalPosts: source.flags.totalPosts - 1,
-      }),
-    },
-  );
-
-  return res;
-};
 
 export const getAuthorPostStats = async (
   con: DataSource,
