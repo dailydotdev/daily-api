@@ -10,13 +10,5 @@ export const maxSearchLimit = 100;
 export const getSearchLimit = ({
   limit,
 }: Pick<SearchSuggestionArgs, 'limit'>) => {
-  if (limit > maxSearchLimit) {
-    return maxSearchLimit;
-  }
-
-  if (limit < 1) {
-    return 1;
-  }
-
-  return limit ?? defaultSearchLimit;
+  return Math.max(Math.min(limit ?? defaultSearchLimit, maxSearchLimit), 1);
 };

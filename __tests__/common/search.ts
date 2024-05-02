@@ -1,4 +1,8 @@
-import { defaultSearchLimit, getSearchLimit } from '../../src/common/search';
+import {
+  defaultSearchLimit,
+  getSearchLimit,
+  maxSearchLimit,
+} from '../../src/common/search';
 
 describe('getSearchLimit', () => {
   it('should return default limit', () => {
@@ -10,10 +14,11 @@ describe('getSearchLimit', () => {
   });
 
   it('should return max search limit', () => {
-    expect(getSearchLimit({ limit: 200 })).toBe(100);
+    expect(getSearchLimit({ limit: 200 })).toBe(maxSearchLimit);
   });
 
   it('should return min search limit', () => {
     expect(getSearchLimit({ limit: 0 })).toBe(1);
+    expect(getSearchLimit({ limit: -5 })).toBe(1);
   });
 });
