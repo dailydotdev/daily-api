@@ -14,7 +14,7 @@ import { GraphQLTestClient } from './helpers';
 import { magniOrigin, SearchResultFeedback } from '../src/integrations';
 import { feedFields } from './helpers';
 import { meiliIndex, meiliOrigin } from '../src/integrations/meilisearch';
-import { ArticlePost, Source, User, UserPost } from '../src/entity';
+import { ArticlePost, Keyword, Source, User, UserPost } from '../src/entity';
 import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
 import { usersFixture } from './fixture/user';
@@ -403,5 +403,75 @@ describe('query searchPosts', () => {
   it('should return search empty feed', async () => {
     const res = await client.query(QUERY('not found'));
     expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query searchTagSuggestions', () => {
+  const QUERY = (query: string): string => `{
+    searchTagSuggestions(query: "${query}") {
+      query
+      hits {
+        id
+        title
+      }
+    }
+  }
+`;
+
+  beforeEach(async () => {
+    await con.getRepository(Keyword).save([
+      {
+        value: 'javascript',
+        status: 'allow',
+        flags: { title: 'JavaScript' },
+        occurrences: 20,
+      },
+      {
+        value: 'java',
+        status: 'allow',
+        flags: { title: 'Java', occurrences: 50 },
+      },
+      { value: 'javafilms', status: 'deny', occurrences: 0 },
+      { value: 'php', status: 'allow', occurrences: 5 },
+      { value: 'go', status: 'allow', occurrences: 10 },
+    ]);
+  });
+
+  it('should return search suggestions', async () => {
+    const res = await client.query(QUERY('java'));
+    expect(res.errors).toBeFalsy();
+    expect(res.data.searchTagSuggestions).toBeTruthy();
+
+    const result = res.data.searchTagSuggestions;
+
+    expect(result.query).toBe('java');
+    expect(result.hits).toHaveLength(2);
+    expect(result.hits).toMatchObject([
+      { id: 'javascript', title: 'JavaScript' },
+      { id: 'java', title: 'Java' },
+    ]);
+  });
+
+  it('should return keyword value as title if no title', async () => {
+    const res = await client.query(QUERY('php'));
+    expect(res.errors).toBeFalsy();
+    expect(res.data.searchTagSuggestions).toBeTruthy();
+
+    const result = res.data.searchTagSuggestions;
+
+    expect(result.query).toBe('php');
+    expect(result.hits).toHaveLength(1);
+    expect(result.hits).toMatchObject([{ id: 'php', title: 'php' }]);
+  });
+
+  it('should only return allowed keywords', async () => {
+    const res = await client.query(QUERY('javafilms'));
+    expect(res.errors).toBeFalsy();
+    expect(res.data.searchTagSuggestions).toBeTruthy();
+
+    const result = res.data.searchTagSuggestions;
+
+    expect(result.query).toBe('javafilms');
+    expect(result.hits).toHaveLength(0);
   });
 });
