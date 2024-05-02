@@ -2036,6 +2036,7 @@ describe('mutation viewPost', () => {
   });
 
   it('should submit view event', async () => {
+    loggedUser = '1';
     await con
       .getRepository(Post)
       .update({ id: 'p1' }, { type: PostType.Share });
