@@ -3,9 +3,15 @@ import worker from '../../src/workers/userCreatedCio';
 import { ChangeObject } from '../../src/types';
 import { expectSuccessfulTypedBackground } from '../helpers';
 import { User } from '../../src/entity';
-import { PubSubSchema } from '../../src/common';
+import { getShortGenericInviteLink, PubSubSchema } from '../../src/common';
 import { cio } from '../../src/cio';
 import { typedWorkers } from '../../src/workers';
+import mocked = jest.mocked;
+
+jest.mock('../../src/common', () => ({
+  ...jest.requireActual('../../src/common'),
+  getShortGenericInviteLink: jest.fn(),
+}));
 
 jest.mock('../../src/cio', () => ({
   ...(jest.requireActual('../../src/cio') as Record<string, unknown>),
@@ -40,6 +46,8 @@ describe('userCreatedCio', () => {
   });
 
   it('should update customer.io', async () => {
+    const referral = 'https://dly.dev/12345678';
+    mocked(getShortGenericInviteLink).mockImplementation(async () => referral);
     await expectSuccessfulTypedBackground(worker, {
       user: base,
     } as unknown as PubSubSchema['api.v1.user-created']);
@@ -49,6 +57,7 @@ describe('userCreatedCio', () => {
       name: 'Customer IO',
       updated_at: 1714577744,
       username: 'cio',
+      referral_link: referral,
     });
   });
 

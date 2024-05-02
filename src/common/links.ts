@@ -106,3 +106,15 @@ export const getShortUrl = async (
     return url;
   }
 };
+
+export const getShortGenericInviteLink = async (
+  log: FastifyBaseLogger,
+  userId: string,
+): Promise<string> => {
+  const rawInviteURL = getInviteLink({
+    referralOrigin: 'generic',
+    userId,
+  });
+  const genericInviteURL = await getShortUrl(rawInviteURL.toString(), log);
+  return genericInviteURL.toString();
+};

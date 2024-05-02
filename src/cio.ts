@@ -5,7 +5,9 @@ import {
   camelCaseToSnakeCase,
   debeziumTimeToDate,
   getFirstName,
+  getShortGenericInviteLink,
 } from './common';
+import { FastifyBaseLogger } from 'fastify';
 
 export const cio = new TrackClient(
   process.env.CIO_SITE_ID,
@@ -28,6 +30,7 @@ const OMIT_FIELDS: (keyof User)[] = [
 ];
 
 export async function identifyUser(
+  log: FastifyBaseLogger,
   cio: TrackClient,
   user: ChangeObject<User>,
 ): Promise<void> {
@@ -37,10 +40,12 @@ export async function identifyUser(
     delete dup[field];
   }
 
+  const genericInviteURL = await getShortGenericInviteLink(log, id);
   await cio.identify(id, {
     ...camelCaseToSnakeCase(dup),
     first_name: getFirstName(dup.name),
     created_at: dateToCioTimestamp(debeziumTimeToDate(dup.createdAt)),
     updated_at: dateToCioTimestamp(debeziumTimeToDate(dup.updatedAt)),
+    referral_link: genericInviteURL,
   });
 }

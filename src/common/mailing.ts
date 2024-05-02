@@ -4,7 +4,7 @@ import { MailDataRequired } from '@sendgrid/helpers/classes/mail';
 import { User } from './users';
 import { ChangeObject } from '../types';
 import { FastifyBaseLogger } from 'fastify';
-import { getInviteLink, getShortUrl } from './links';
+import { getShortGenericInviteLink } from './links';
 
 if (process.env.SENDGRID_API_KEY) {
   client.setApiKey(process.env.SENDGRID_API_KEY);
@@ -102,17 +102,13 @@ const profileToContact = async (
   contactId: string,
   log: FastifyBaseLogger,
 ) => {
-  const rawInviteURL = getInviteLink({
-    referralOrigin: 'generic',
-    userId: profile.id,
-  });
-  const genericInviteURL = await getShortUrl(rawInviteURL.toString(), log);
+  const genericInviteURL = await getShortGenericInviteLink(log, profile.id);
   const contact: EmailContact = {
     id: contactId,
     email: profile.email,
     custom_fields: {
       e1_T: profile.id,
-      e2_T: genericInviteURL.toString(),
+      e2_T: genericInviteURL,
     },
   };
 
