@@ -11,6 +11,7 @@ import {
 import { GraphQLError } from 'graphql';
 import { singleRedisClient } from '../redis';
 import { Context } from '../Context';
+import { logger } from '../logger';
 
 export class CustomRateLimiterRedis extends RateLimiterRedis {
   constructor(props: IRateLimiterRedisOptions) {
@@ -25,7 +26,7 @@ export class CustomRateLimiterRedis extends RateLimiterRedis {
     options?: { [key: string]: unknown },
   ) {
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[CONSUME] ${key} for ${pointsToConsume}`);
+      logger.info(`[CONSUME] ${key} for ${pointsToConsume}`);
     }
 
     return super.consume(key, pointsToConsume, options);
