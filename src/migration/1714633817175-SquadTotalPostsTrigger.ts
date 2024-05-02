@@ -32,7 +32,7 @@ export class SquadTotalPostsTrigger1714633817175 implements MigrationInterface {
         BEGIN
           IF OLD.deleted = false AND NEW.deleted = true THEN
             UPDATE  source
-            SET     flags = jsonb_set(flags, '{totalPosts}', to_jsonb(CAST(flags->>'totalPosts' AS INTEGER) - 1))
+            SET     flags = jsonb_set(flags, '{totalPosts}', to_jsonb(GREATEST(0, COALESCE(CAST(flags->>'totalPosts' AS INTEGER), 0) - 1)))
             WHERE   id = NEW."sourceId"
             AND     type = 'squad';
           END IF;
