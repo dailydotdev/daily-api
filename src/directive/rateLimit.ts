@@ -1,4 +1,6 @@
 import {
+  RateLimitKeyGenerator,
+  RateLimitOnLimit,
   defaultKeyGenerator,
   rateLimitDirective,
 } from 'graphql-rate-limit-directive';
@@ -11,13 +13,17 @@ import { singleRedisClient } from '../redis';
 import { Context } from '../Context';
 
 export class CustomRateLimiterRedis extends RateLimiterRedis {
-  constructor(props) {
+  constructor(props: IRateLimiterRedisOptions) {
     super(props);
   }
 
   // Currently not doing any special actions/overrides
   // This was primarily introduced to make debugging easier by logging the details of rate limited queries/mutations after receiving a request
-  consume(key, pointsToConsume, options) {
+  consume(
+    key: string | number,
+    pointsToConsume?: number,
+    options?: { [key: string]: unknown },
+  ) {
     if (process.env.NODE_ENV === 'development') {
       console.log(`[CONSUME] ${key} for ${pointsToConsume}`);
     }
@@ -26,7 +32,13 @@ export class CustomRateLimiterRedis extends RateLimiterRedis {
   }
 }
 
-const keyGenerator = (directiveArgs, source, args, context, info) =>
+const keyGenerator: RateLimitKeyGenerator<Context> = (
+  directiveArgs,
+  source,
+  args,
+  context,
+  info,
+) =>
   `${context.userId ?? context.trackingId}:${defaultKeyGenerator(
     directiveArgs,
     source,
@@ -38,7 +50,8 @@ const keyGenerator = (directiveArgs, source, args, context, info) =>
 class RateLimitError extends GraphQLError {
   extensions = {};
   message = '';
-  constructor(msBeforeNextReset) {
+
+  constructor(msBeforeNextReset: number) {
     const seconds = (msBeforeNextReset / 1000).toFixed(0);
     const message = `Too many requests, please try again in ${seconds} seconds.`;
     super(message);
@@ -48,7 +61,7 @@ class RateLimitError extends GraphQLError {
   }
 }
 
-const onLimit = (resource) => {
+const onLimit: RateLimitOnLimit<Context> = (resource) => {
   throw new RateLimitError(resource.msBeforeNext);
 };
 
