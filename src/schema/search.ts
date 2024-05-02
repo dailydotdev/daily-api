@@ -22,18 +22,23 @@ import { ConnectionArguments } from 'graphql-relay/index';
 import { FeedArgs, feedResolver, fixedIdsFeedBuilder } from '../common';
 import { GQLPost } from './posts';
 import { searchMeili } from '../integrations/meilisearch';
-import { Post, Source, UserPost } from '../entity';
+import { Keyword, Post, Source, UserPost } from '../entity';
+import {
+  SearchSuggestionArgs,
+  defaultSearchLimit,
+  getSearchLimit,
+} from '../common/search';
 
 type GQLSearchSession = Pick<SearchSession, 'id' | 'prompt' | 'createdAt'>;
 
-interface GQLSearchPostSuggestion {
+interface GQLSearchSuggestion {
   id: string;
   title: string;
 }
 
-export interface GQLSearchPostSuggestionsResults {
+export interface GQLSearchSuggestionsResults {
   query: string;
-  hits: GQLSearchPostSuggestion[];
+  hits: GQLSearchSuggestion[];
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -86,14 +91,14 @@ export const typeDefs = /* GraphQL */ `
     chunks: [SearchChunk]
   }
 
-  type SearchPostSuggestion {
+  type SearchSuggestion {
     id: String!
     title: String!
   }
 
-  type SearchPostSuggestionsResults {
+  type SearchSuggestionsResults {
     query: String!
-    hits: [SearchPostSuggestion!]!
+    hits: [SearchSuggestion!]!
   }
 
   extend type Query {
@@ -130,7 +135,7 @@ export const typeDefs = /* GraphQL */ `
       Version of the search algorithm
       """
       version: Int = 1
-    ): SearchPostSuggestionsResults!
+    ): SearchSuggestionsResults!
 
     """
     Get a posts feed of a search query
@@ -166,6 +171,26 @@ export const typeDefs = /* GraphQL */ `
       """
       version: Int = 1
     ): PostConnection!
+
+    """
+    Get tags for search tags query
+    """
+    searchTagSuggestions(
+      """
+      The query to search for
+      """
+      query: String!
+
+      """
+      Version of the search algorithm
+      """
+      version: Int = 1
+
+      """
+      Maximum number of tags to return
+      """
+      limit: Int = ${defaultSearchLimit}
+    ): SearchSuggestionsResults!
   }
 
   extend type Mutation {
@@ -227,7 +252,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       source,
       { query, version }: { query: string; version: number },
       ctx,
-    ): Promise<GQLSearchPostSuggestionsResults> => {
+    ): Promise<GQLSearchSuggestionsResults> => {
       if (version === 2) {
         const hits = await searchMeili(
           `q=${query}&attributesToRetrieve=post_id,title`,
@@ -265,7 +290,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
           hits: cleanHits,
         };
       }
-      const hits: GQLSearchPostSuggestion[] = await ctx.con.query(
+      const hits: GQLSearchSuggestion[] = await ctx.con.query(
         `
             WITH search AS (${getSearchQuery('$1')})
             select post.id, ts_headline(title, search.query,
@@ -310,6 +335,28 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       return {
         ...res,
         query: args.query,
+      };
+    },
+    searchTagSuggestions: async (
+      source,
+      { query, limit }: SearchSuggestionArgs,
+      ctx,
+    ): Promise<GQLSearchSuggestionsResults> => {
+      const searchQuery = ctx.con
+        .getRepository(Keyword)
+        .createQueryBuilder()
+        .select(`value as id, COALESCE(flags->>'title', value) as title`)
+        .where(`status = 'allow'`)
+        .andWhere(`value ILIKE :query`, {
+          query: `%${query}%`,
+        })
+        .orderBy(`occurrences`, 'DESC')
+        .limit(getSearchLimit({ limit }));
+      const hits = await searchQuery.getRawMany();
+
+      return {
+        query,
+        hits,
       };
     },
   },
