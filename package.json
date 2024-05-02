@@ -49,7 +49,7 @@
     "@grpc/grpc-js": "^1.10.6",
     "@mando75/typeorm-graphql-loader": "^0.3.0",
     "@onesignal/node-onesignal": "^1.0.0-beta9",
-    "@opentelemetry/api": "^1.7.0",
+    "@opentelemetry/api": "^1.8.0",
     "@opentelemetry/exporter-prometheus": "^0.50.0",
     "@opentelemetry/exporter-trace-otlp-grpc": "^0.50.0",
     "@opentelemetry/instrumentation-fastify": "^0.35.0",
