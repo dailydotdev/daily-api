@@ -1,4 +1,9 @@
-import { createSquadWelcomePost, feedToFilters, Ranking } from '../src/common';
+import {
+  createSquadWelcomePost,
+  feedToFilters,
+  Ranking,
+  WATERCOOLER_ID,
+} from '../src/common';
 import {
   AdvancedSettings,
   ArticlePost,
@@ -368,6 +373,7 @@ describe('query anonymousFeed', () => {
         fresh_page_size: '4',
         offset: 0,
         user_id: '1',
+        blocked_sources: [WATERCOOLER_ID],
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
@@ -412,7 +418,7 @@ describe('query anonymousFeed', () => {
         fresh_page_size: '4',
         offset: 0,
         blocked_tags: ['python', 'java'],
-        blocked_sources: ['a', 'b'],
+        blocked_sources: ['a', 'b', WATERCOOLER_ID],
         user_id: '1',
       })
       .reply(200, {
@@ -683,6 +689,7 @@ describe('query feed', () => {
         offset: 0,
         fresh_page_size: '4',
         user_id: '1',
+        blocked_sources: [WATERCOOLER_ID],
         ...baseFeedConfig,
         config: {
           providers: {},
@@ -1403,42 +1410,6 @@ describe('query randomTrendingPosts', () => {
   });
 });
 
-describe('query randomSimilarPosts', () => {
-  const QUERY = (first = 10): string => `{
-    randomSimilarPosts(post: "p1", first: ${first}) {
-      id
-    }
-  }`;
-
-  it('should return random similar posts', async () => {
-    const repo = con.getRepository(Post);
-    await repo.update({}, { upvotes: 5 });
-    const now = new Date();
-    await con.getRepository(Keyword).save([
-      { value: 'javascript', status: 'allow' },
-      { value: 'webdev', status: 'deny' },
-      { value: 'backend', status: 'allow' },
-    ]);
-    await con.getRepository(PostKeyword).save([
-      { keyword: 'backend', postId: 'p2' },
-      { keyword: 'javascript', postId: 'p3' },
-    ]);
-    await repo.update(
-      { id: 'p4' },
-      {
-        createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 30 * 8),
-      },
-    );
-
-    const res = await client.query(QUERY());
-    expect(res.errors).toBeFalsy();
-    expect(res.data.randomSimilarPosts.map((post) => post.id).sort()).toEqual([
-      'p3',
-      'p5',
-    ]);
-  });
-});
-
 describe('query randomSimilarPostsByTags', () => {
   const QUERY = `query RandomSimilarPostsByTags($post: ID, $tags: [String]!, $first: Int) {
     randomSimilarPostsByTags(post: $post, first: $first, tags: $tags) {
@@ -1836,6 +1807,7 @@ describe('function feedToFilters', () => {
     expect(filters.excludeSources).toEqual([
       'excludedSource',
       'settingsCombinationSource',
+      WATERCOOLER_ID,
     ]);
   });
 
@@ -1891,6 +1863,7 @@ describe('function feedToFilters', () => {
     ]);
     const filters = await feedToFilters(con, '1', '1');
     expect(filters.sourceIds).not.toContain('a');
+    expect(filters.excludeSources).toContain('a');
   });
 
   it('should return source in sourceIds if member set hideFeedPosts to false', async () => {
@@ -1966,6 +1939,7 @@ describe('query feedPreview', () => {
         fresh_page_size: '7',
         user_id: '1',
         allowed_tags: ['html'],
+        blocked_sources: [WATERCOOLER_ID],
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],

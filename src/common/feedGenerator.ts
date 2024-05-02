@@ -28,6 +28,8 @@ import graphorm from '../graphorm';
 import { mapArrayToOjbect } from './object';
 import { runInSpan } from '../telemetry/opentelemetry';
 
+export const WATERCOOLER_ID = 'fd062672-63b7-4a10-87bd-96dcd10e9613';
+
 export const whereTags = (
   tags: string[],
   builder: SelectQueryBuilder<Post>,
@@ -100,7 +102,7 @@ export const feedToFilters = async (
   userId: string,
 ): Promise<AnonymousFeedFilters> => {
   const settings = await getExcludedAdvancedSettings(con, feedId);
-  const [tags, excludeSources, sourceIds] = await Promise.all([
+  const [tags, excludeSources, memberships] = await Promise.all([
     con.getRepository(FeedTag).find({ where: { feedId: feedId ?? '' } }),
     con
       .getRepository(Source)
@@ -125,10 +127,11 @@ export const feedToFilters = async (
           .getRepository(SourceMember)
           .createQueryBuilder('sm')
           .select('sm."sourceId"')
-          .where('sm."userId" = :userId', { userId })
-          .andWhere(
-            `COALESCE((flags->'hideFeedPosts')::boolean, FALSE) = FALSE`,
+          .addSelect(
+            "COALESCE((flags->'hideFeedPosts')::boolean, FALSE)",
+            'hide',
           )
+          .where('sm."userId" = :userId', { userId })
           .execute()
       : [],
   ]);
@@ -150,13 +153,27 @@ export const feedToFilters = async (
     )
     .map((setting) => setting.options.type);
 
+  // Split memberships by hide flag
+  const membershipsByHide = memberships.reduce(
+    (acc, value: { sourceId: SourceMember['sourceId']; hide: boolean }) => {
+      acc[value.hide ? 'hide' : 'show'].push(value.sourceId);
+      return acc;
+    },
+    { hide: [], show: [] },
+  );
+
+  // If the user is not a member of the watercooler, hide it
+  if (!membershipsByHide.show.includes(WATERCOOLER_ID)) {
+    membershipsByHide.hide.push(WATERCOOLER_ID);
+  }
+
   return {
     ...tagFilters,
     excludeTypes,
-    excludeSources: excludeSources.map((sources: Source) => sources.id),
-    sourceIds: sourceIds.map(
-      (member: Pick<SourceMember, 'sourceId'>) => member.sourceId,
-    ),
+    excludeSources: excludeSources
+      .map((sources: Source) => sources.id)
+      .concat(membershipsByHide.hide),
+    sourceIds: membershipsByHide.show,
   };
 };
 
