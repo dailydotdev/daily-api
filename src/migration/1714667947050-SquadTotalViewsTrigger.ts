@@ -16,7 +16,7 @@ export class SquadTotalViewsTrigger1714667947050 implements MigrationInterface {
             SET     flags = jsonb_set(
                               flags,
                               '{totalViews}',
-                              to_jsonb(COALESCE(flags->>'totalViews'::int, 0) + 1)
+                              to_jsonb(COALESCE(CAST(flags->>'totalViews' AS INTEGER), 0) + 1)
                             )
             WHERE   id = NEW."sourceId"
             AND     type = 'squad';

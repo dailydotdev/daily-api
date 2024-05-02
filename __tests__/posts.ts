@@ -2078,6 +2078,52 @@ describe('trigger increment_squad_views_count', () => {
   });
 });
 
+describe('trigger deduct_squad_stats', () => {
+  beforeEach(async () => {
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, { type: SourceType.Squad });
+    const source = await repo.findOneByOrFail({ id: 'a' });
+    await createSquadWelcomePost(con, source, '1');
+  });
+
+  it('should decrement total posts', async () => {
+    const repo = con.getRepository(Source);
+    const source1 = await repo.findOneByOrFail({ id: 'a' });
+    expect(source1.flags.totalPosts).toEqual(1);
+    await con.getRepository(Post).update({ id: 'p1' }, { deleted: true });
+    const source2 = await repo.findOneByOrFail({ id: 'a' });
+    expect(source2.flags.totalPosts).toEqual(0);
+  });
+
+  it('should deduce deleted posts views to squads total views', async () => {
+    const repo = con.getRepository(Source);
+    const source1 = await repo.findOneByOrFail({ id: 'a' });
+    expect(source1.flags.totalViews).toEqual(undefined);
+    await con.getRepository(Post).update({ id: 'p1' }, { views: 1 });
+    await con.getRepository(Post).update({ id: 'p1' }, { views: 2 });
+    await con.getRepository(Post).update({ id: 'p4' }, { views: 1 });
+    const source2 = await repo.findOneByOrFail({ id: 'a' });
+    expect(source2.flags.totalViews).toEqual(3);
+
+    await con.getRepository(Post).update({ id: 'p1' }, { deleted: true });
+
+    const source3 = await repo.findOneByOrFail({ id: 'a' });
+    expect(source3.flags.totalViews).toEqual(1);
+  });
+
+  it('should update squad total views', async () => {
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, { type: SourceType.Squad });
+    const source = await repo.findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalViews).toEqual(undefined);
+
+    await con.getRepository(Post).update({ id: 'p1' }, { views: 1 });
+
+    const updatedSource = await repo.findOneByOrFail({ id: 'a' });
+    expect(updatedSource.flags.totalViews).toEqual(1);
+  });
+});
+
 describe('mutation submitExternalLink', () => {
   const MUTATION = `
   mutation SubmitExternalLink($sourceId: ID!, $url: String!, $commentary: String, $title: String, $image: String) {
