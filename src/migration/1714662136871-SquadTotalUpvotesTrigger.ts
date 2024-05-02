@@ -21,7 +21,7 @@ export class SquadTotalUpvotesTrigger1714662136871
                               to_jsonb(
                                 GREATEST(
                                   0,
-                                  COALESCE(CAST(flags->>'totalUpvotes' AS INTEGER), 0) +
+                                  COALESCE(flags->>'totalUpvotes'::int, 0) +
                                   (CASE WHEN NEW.upvotes > OLD.upvotes THEN 1 ELSE -1 END)
                                 )
                               )

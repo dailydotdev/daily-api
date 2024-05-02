@@ -12,7 +12,7 @@ export class SquadTotalPostsTrigger1714633817175 implements MigrationInterface {
         $$
         BEGIN
           UPDATE  source
-          SET     flags = jsonb_set(flags, '{totalPosts}', to_jsonb(COALESCE(CAST(flags->>'totalPosts' AS INTEGER), 0) + 1))
+          SET     flags = jsonb_set(flags, '{totalPosts}', to_jsonb(COALESCE(flags->>'totalPosts'::int , 0) + 1))
           WHERE   id = NEW."sourceId"
           AND     type = 'squad';
           RETURN NEW;
@@ -24,7 +24,7 @@ export class SquadTotalPostsTrigger1714633817175 implements MigrationInterface {
     );
 
     queryRunner.query(`
-        CREATE OR REPLACE FUNCTION decrement_squad_posts_count()
+        CREATE OR REPLACE FUNCTION decrement_squad_stats()
           RETURNS TRIGGER
           LANGUAGE PLPGSQL
           AS
@@ -32,7 +32,7 @@ export class SquadTotalPostsTrigger1714633817175 implements MigrationInterface {
         BEGIN
           IF OLD.deleted = false AND NEW.deleted = true THEN
             UPDATE  source
-            SET     flags = jsonb_set(flags, '{totalPosts}', to_jsonb(GREATEST(0, COALESCE(CAST(flags->>'totalPosts' AS INTEGER), 0) - 1)))
+            SET     flags = jsonb_set(flags, '{totalPosts}', to_jsonb(GREATEST(0, flags->>'totalPosts'::int - 1))),
             WHERE   id = NEW."sourceId"
             AND     type = 'squad';
           END IF;
@@ -41,15 +41,13 @@ export class SquadTotalPostsTrigger1714633817175 implements MigrationInterface {
         $$
       `);
     queryRunner.query(
-      `CREATE TRIGGER decrement_squad_posts_count AFTER UPDATE ON "post" FOR EACH ROW EXECUTE PROCEDURE decrement_squad_posts_count()`,
+      `CREATE TRIGGER decrement_squad_stats AFTER UPDATE ON "post" FOR EACH ROW EXECUTE PROCEDURE decrement_squad_stats()`,
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    queryRunner.query(
-      'DROP TRIGGER IF EXISTS decrement_squad_posts_count ON post',
-    );
-    queryRunner.query('DROP FUNCTION IF EXISTS decrement_squad_posts_count');
+    queryRunner.query('DROP TRIGGER IF EXISTS decrement_squad_stats ON post');
+    queryRunner.query('DROP FUNCTION IF EXISTS decrement_squad_stats');
 
     queryRunner.query(
       'DROP TRIGGER IF EXISTS increment_squad_posts_count ON post',
