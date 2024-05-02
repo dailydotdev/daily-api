@@ -3630,8 +3630,7 @@ describe('mutation votePost', () => {
     );
   });
 
-  it('should upvote', async () => {
-    loggedUser = '1';
+  const testUpvote = async () => {
     await con.getRepository(Post).save({
       id: 'p1',
       upvotes: 3,
@@ -3652,6 +3651,32 @@ describe('mutation votePost', () => {
     });
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.upvotes).toEqual(4);
+  };
+
+  it('should upvote', async () => {
+    loggedUser = '1';
+    const source = await con.getRepository(Source).findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalUpvotes).toEqual(undefined);
+
+    await testUpvote();
+
+    const updatedSource = await con
+      .getRepository(Source)
+      .findOneByOrFail({ id: 'a' });
+    expect(updatedSource.flags.totalUpvotes).toEqual(undefined);
+  });
+
+  it('should upvote and increment squad total upvotes', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, { type: SourceType.Squad });
+    const source = await repo.findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalUpvotes).toEqual(undefined);
+
+    await testUpvote();
+
+    const updatedSource = await repo.findOneByOrFail({ id: 'a' });
+    expect(updatedSource.flags.totalUpvotes).toEqual(1);
   });
 
   it('should downvote', async () => {
