@@ -5,6 +5,10 @@ import { cio, identifyUser } from '../cio';
 const worker: TypedWorker<'api.v1.user-created'> = {
   subscription: 'api.user-created-cio',
   handler: async (message, con, log) => {
+    if (!process.env.CIO_SITE_ID) {
+      return;
+    }
+
     const {
       data: { user },
     } = message;

@@ -1,7 +1,11 @@
 import { TrackClient } from 'customerio-node';
 import { ChangeObject } from './types';
 import { User } from './entity';
-import { camelCaseToSnakeCase, getFirstName } from './common';
+import {
+  camelCaseToSnakeCase,
+  debeziumTimeToDate,
+  getFirstName,
+} from './common';
 
 export const cio = new TrackClient(
   process.env.CIO_SITE_ID,
@@ -36,7 +40,7 @@ export async function identifyUser(
   await cio.identify(id, {
     ...camelCaseToSnakeCase(dup),
     first_name: getFirstName(dup.name),
-    created_at: dateToCioTimestamp(new Date(dup.createdAt)),
-    updated_at: dateToCioTimestamp(new Date(dup.updatedAt)),
+    created_at: dateToCioTimestamp(debeziumTimeToDate(dup.createdAt)),
+    updated_at: dateToCioTimestamp(debeziumTimeToDate(dup.updatedAt)),
   });
 }

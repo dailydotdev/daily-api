@@ -5,6 +5,7 @@ import { expectSuccessfulTypedBackground } from '../helpers';
 import { User } from '../../src/entity';
 import { PubSubSchema } from '../../src/common';
 import { cio } from '../../src/cio';
+import { typedWorkers } from '../../src/workers';
 
 jest.mock('../../src/cio', () => ({
   ...(jest.requireActual('../../src/cio') as Record<string, unknown>),
@@ -14,6 +15,7 @@ jest.mock('../../src/cio', () => ({
 beforeEach(async () => {
   jest.clearAllMocks();
   nock.cleanAll();
+  process.env.CIO_SITE_ID = 'wolololo';
 });
 
 describe('userCreatedCio', () => {
@@ -23,11 +25,19 @@ describe('userCreatedCio', () => {
     username: 'cio',
     name: 'Customer IO',
     infoConfirmed: true,
-    createdAt: 1714577744717,
-    updatedAt: 1714577744717,
+    createdAt: 1714577744717000,
+    updatedAt: 1714577744717000,
     bio: 'bio',
     readme: 'readme',
   };
+
+  it('should be registered', () => {
+    const registeredWorker = typedWorkers.find(
+      (item) => item.subscription === worker.subscription,
+    );
+
+    expect(registeredWorker).toBeDefined();
+  });
 
   it('should update customer.io', async () => {
     await expectSuccessfulTypedBackground(worker, {

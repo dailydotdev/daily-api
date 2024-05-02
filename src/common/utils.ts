@@ -98,3 +98,7 @@ export function camelCaseToSnakeCase(
   }
   return snakeObj;
 }
+
+export function debeziumTimeToDate(time: number): Date {
+  return new Date(Math.floor(time / 1000));
+}
