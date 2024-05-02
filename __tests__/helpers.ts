@@ -9,7 +9,7 @@ import request from 'supertest';
 import { GraphQLFormattedError } from 'graphql';
 import { Context } from '../src/Context';
 import { Message, TypedWorker, Worker } from '../src/workers/worker';
-import { base64, PubSubSchema } from '../src/common';
+import { base64, PubSubSchema, triggerTypedEvent } from '../src/common';
 import { Roles } from '../src/roles';
 import { Cron } from '../src/cron/cron';
 import { ChangeMessage, ChangeObject } from '../src/types';
@@ -329,3 +329,15 @@ edges {
     }
   }
 }`;
+
+export function expectTypedEvent<T extends keyof PubSubSchema>(
+  topic: T,
+  data: PubSubSchema[T],
+): void {
+  expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+  expect(triggerTypedEvent).toHaveBeenCalledWith(
+    expect.anything(),
+    topic,
+    data,
+  );
+}

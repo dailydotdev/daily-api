@@ -35,9 +35,7 @@ import {
   notifySourcePrivacyUpdated,
   notifySubmissionGrantedAccess,
   notifySubmissionRejected,
-  notifyUserCreated,
   notifyUsernameChanged,
-  notifyUserUpdated,
   notifyPostVisible,
   notifySourceMemberRoleChanged,
   notifyContentRequested,
@@ -53,10 +51,12 @@ import {
   notifyUserReadmeUpdated,
   triggerTypedEvent,
   notifyReputationIncrease,
+  PubSubSchema,
 } from '../../../src/common';
 import worker from '../../../src/workers/cdc/primary';
 import {
   expectSuccessfulBackground,
+  expectTypedEvent,
   mockChangeMessage,
   saveFixtures,
 } from '../../helpers';
@@ -129,8 +129,6 @@ jest.mock('../../../src/common', () => ({
   notifyNewPostMention: jest.fn(),
   notifyNewCommentMention: jest.fn(),
   notifyNewNotification: jest.fn(),
-  notifyUserCreated: jest.fn(),
-  notifyUserUpdated: jest.fn(),
   notifyFeatureAccess: jest.fn(),
   sendEmail: jest.fn(),
   notifySourcePrivacyUpdated: jest.fn(),
@@ -662,10 +660,9 @@ describe('user', () => {
         op: 'c',
       }),
     );
-    expect(notifyUserCreated).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(notifyUserCreated).mock.calls[0].slice(1)).toEqual([
-      base,
-    ]);
+    expectTypedEvent('api.v1.user-created', {
+      user: base,
+    } as unknown as PubSubSchema['api.v1.user-created']);
   });
 
   it('should notify on user updated', async () => {
@@ -682,11 +679,10 @@ describe('user', () => {
         op: 'u',
       }),
     );
-    expect(notifyUserUpdated).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(notifyUserUpdated).mock.calls[0].slice(1)).toEqual([
-      base,
-      after,
-    ]);
+    expectTypedEvent('user-updated', {
+      user: base,
+      newProfile: after,
+    } as unknown as PubSubSchema['user-updated']);
   });
 
   it('should notify on username change', async () => {

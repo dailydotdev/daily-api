@@ -1,4 +1,4 @@
-import { expectSuccessfulBackground } from '../helpers';
+import { expectSuccessfulTypedBackground } from '../helpers';
 import { removeUserContact, getContactIdByEmail } from '../../src/common';
 import worker from '../../src/workers/deleteUserFromMailingList';
 
@@ -21,9 +21,10 @@ describe('remove user from mailing list worker', () => {
 
   it('should remove from mailing list', async () => {
     process.env.SENDGRID_API_KEY = 'key';
-    await expectSuccessfulBackground(worker, {
+    await expectSuccessfulTypedBackground(worker, {
       id: '1',
       email: 'lee@daily.dev',
+      kratosUser: true,
     });
     expect(getContactIdByEmail).toBeCalledTimes(1);
     expect(removeUserContact).toBeCalledTimes(1);
