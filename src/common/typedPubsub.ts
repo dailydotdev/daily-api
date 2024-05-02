@@ -53,6 +53,9 @@ export type PubSubSchema = {
     kratosUser: boolean;
     email: string;
   };
+  'api.v1.user-created': {
+    user: ChangeObject<User>;
+  };
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(

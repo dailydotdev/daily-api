@@ -51,7 +51,6 @@ import {
   notifyUsernameChanged,
   notifyNewCommentMention,
   notifyMemberJoinedSource,
-  notifyUserCreated,
   notifyFeatureAccess,
   notifySourcePrivacyUpdated,
   notifyPostVisible,
@@ -399,7 +398,9 @@ const onUserChange = async (
   data: ChangeMessage<User>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
-    await notifyUserCreated(logger, data.payload.after);
+    await triggerTypedEvent(logger, 'api.v1.user-created', {
+      user: data.payload.after,
+    });
   } else if (data.payload.op === 'u') {
     await triggerTypedEvent(logger, 'user-updated', {
       user: data.payload.before,

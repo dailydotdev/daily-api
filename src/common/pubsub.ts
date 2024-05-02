@@ -53,7 +53,6 @@ const newPostMentionTopic = pubsub.topic('api.v1.new-post-mention');
 const newCommentMentionTopic = pubsub.topic('api.v1.new-comment-mention');
 const memberJoinedSourceTopic = pubsub.topic('api.v1.member-joined-source');
 const featureAccess = pubsub.topic('api.v1.feature-granted');
-const userCreatedTopic = pubsub.topic('api.v1.user-created');
 const sourcePrivacyUpdatedTopic = pubsub.topic('api.v1.source-privacy-updated');
 const featuresResetTopic = pubsub.topic('features-reset');
 const contentRequestedTopic = pubsub.topic('api.v1.content-requested');
@@ -304,14 +303,6 @@ export const notifyBannerRemoved = async (
   log: EventLogger,
   banner: ChangeObject<Banner>,
 ): Promise<void> => publishEvent(log, bannerRemovedTopic, { banner });
-
-export const notifyUserCreated = async (
-  log: EventLogger,
-  user: ChangeObject<User>,
-): Promise<void> =>
-  publishEvent(log, userCreatedTopic, {
-    user,
-  });
 
 export const notifyFeaturesReset = async (log: EventLogger): Promise<void> =>
   publishEvent(log, featuresResetTopic, {});

@@ -35,7 +35,6 @@ import {
   notifySourcePrivacyUpdated,
   notifySubmissionGrantedAccess,
   notifySubmissionRejected,
-  notifyUserCreated,
   notifyUsernameChanged,
   notifyPostVisible,
   notifySourceMemberRoleChanged,
@@ -130,7 +129,6 @@ jest.mock('../../../src/common', () => ({
   notifyNewPostMention: jest.fn(),
   notifyNewCommentMention: jest.fn(),
   notifyNewNotification: jest.fn(),
-  notifyUserCreated: jest.fn(),
   notifyFeatureAccess: jest.fn(),
   sendEmail: jest.fn(),
   notifySourcePrivacyUpdated: jest.fn(),
@@ -662,10 +660,9 @@ describe('user', () => {
         op: 'c',
       }),
     );
-    expect(notifyUserCreated).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(notifyUserCreated).mock.calls[0].slice(1)).toEqual([
-      base,
-    ]);
+    expectTypedEvent('api.v1.user-created', {
+      user: base,
+    } as unknown as PubSubSchema['api.v1.user-created']);
   });
 
   it('should notify on user updated', async () => {
