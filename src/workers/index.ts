@@ -49,6 +49,9 @@ import postDownvoteCanceledRep from './postDownvoteCanceledRep';
 import userCreatedPersonalizedDigestSendType from './userCreatedPersonalizedDigestSendType';
 import commentDownvotedRep from './commentDownvotedRep';
 import commentDownvoteCanceledRep from './commentDownvoteCanceledRep';
+import userUpdatedCio from './userUpdatedCio';
+import userDeletedCio from './userDeletedCio';
+import userCreatedCio from './userCreatedCio';
 
 export { Worker } from './worker';
 
@@ -56,8 +59,6 @@ export const workers: Worker[] = [
   bannerAdded,
   bannerDeleted,
   newView,
-  updateMailingList,
-  deleteUserFromMailingList,
   postCommentedWorker,
   commentCommentedWorker,
   commentEditedWorker,
@@ -74,7 +75,6 @@ export const workers: Worker[] = [
   newNotificationRealTime,
   newNotificationMail,
   newNotificationPush,
-  addToMailingList,
   sourcePrivacyUpdated,
   postUpdated,
   postFreeformImages,
@@ -100,6 +100,12 @@ export const typedWorkers: BaseTypedWorker<unknown>[] = [
   postUpvoteCanceledRep,
   postDownvotedRep,
   postDownvoteCanceledRep,
+  updateMailingList,
+  userUpdatedCio,
+  deleteUserFromMailingList,
+  userDeletedCio,
+  addToMailingList,
+  userCreatedCio,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
