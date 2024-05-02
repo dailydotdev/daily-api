@@ -3797,7 +3797,7 @@ describe('mutation votePost', () => {
 
     await testDownvote();
 
-    // should not be affected since this is not a squad
+    // should not be affected since the existing vote was a downvote
     const updatedSource = await con
       .getRepository(Source)
       .findOneByOrFail({ id: 'a' });
