@@ -18,6 +18,9 @@ import {
   FreeformPost,
   Post,
   PostMention,
+  PostQuestion,
+  PostRelation,
+  PostRelationType,
   PostReport,
   PostTag,
   PostType,
@@ -28,15 +31,12 @@ import {
   SquadSource,
   UNKNOWN_SOURCE,
   User,
+  UserPost,
   View,
   WelcomePost,
-  PostQuestion,
-  UserPost,
-  PostRelationType,
-  PostRelation,
   YouTubePost,
 } from '../src/entity';
-import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
+import { Roles, SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
 import {
   postsFixture,
@@ -44,16 +44,15 @@ import {
   relatedPostsFixture,
   videoPostsFixture,
 } from './fixture/post';
-import { Roles } from '../src/roles';
 import { DataSource, DeepPartial, IsNull, Not } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import {
-  postScraperOrigin,
+  createSquadWelcomePost,
+  DEFAULT_POST_TITLE,
   notifyContentRequested,
   notifyView,
-  DEFAULT_POST_TITLE,
   pickImageUrl,
-  createSquadWelcomePost,
+  postScraperOrigin,
   updateFlagsStatement,
 } from '../src/common';
 import { randomUUID } from 'crypto';
@@ -3653,7 +3652,7 @@ describe('mutation votePost', () => {
     expect(post?.upvotes).toEqual(4);
   };
 
-  it('should upvote', async () => {
+  it('should upvote and NOT update source flags upvotes count', async () => {
     loggedUser = '1';
     const source = await con.getRepository(Source).findOneByOrFail({ id: 'a' });
     expect(source.flags.totalUpvotes).toEqual(undefined);
@@ -3681,8 +3680,7 @@ describe('mutation votePost', () => {
     expect(updatedSource.flags.totalUpvotes).toEqual(2);
   });
 
-  it('should downvote', async () => {
-    loggedUser = '1';
+  const testDownvote = async () => {
     await con.getRepository(Post).save({
       id: 'p1',
       downvotes: 3,
@@ -3703,20 +3701,44 @@ describe('mutation votePost', () => {
     });
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.downvotes).toEqual(4);
+  };
+
+  it('should downvote and NOT update source flags upvotes count', async () => {
+    loggedUser = '1';
+    const source = await con.getRepository(Source).findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalUpvotes).toEqual(undefined);
+
+    await testDownvote();
+
+    // should not be affected since this is not a squad
+    const updatedSource = await con
+      .getRepository(Source)
+      .findOneByOrFail({ id: 'a' });
+    expect(updatedSource.flags.totalUpvotes).toEqual(undefined);
   });
 
-  it('should cancel vote', async () => {
+  it('should downvote and NOT update squads flags upvotes count', async () => {
     loggedUser = '1';
-    await con.getRepository(Post).save({
-      id: 'p1',
-      upvotes: 3,
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, { type: SourceType.Squad });
+    const source = await repo.findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalUpvotes).toEqual(undefined);
+
+    await testDownvote();
+
+    // should not be affected since this is not a squad
+    const updatedSource = await con
+      .getRepository(Source)
+      .findOneByOrFail({ id: 'a' });
+    expect(updatedSource.flags.totalUpvotes).toEqual(undefined);
+  });
+
+  const testCancelVote = async (initialVote = UserVote.Up) => {
+    await client.mutate(MUTATION, {
+      variables: { id: 'p1', vote: initialVote },
     });
-    await con.getRepository(UserPost).save({
-      postId: 'p1',
-      userId: loggedUser,
-      vote: UserVote.Up,
-      hidden: false,
-    });
+    const oldPost = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(oldPost?.upvotes).toEqual(1);
     const res = await client.mutate(MUTATION, {
       variables: { id: 'p1', vote: UserVote.None },
     });
@@ -3731,8 +3753,64 @@ describe('mutation votePost', () => {
       vote: UserVote.None,
       hidden: false,
     });
+  };
+
+  it('should cancel vote and NOT update source flags upvotes count', async () => {
+    loggedUser = '1';
+    const source = await con.getRepository(Source).findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalUpvotes).toEqual(undefined);
+
+    await testCancelVote();
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.upvotes).toEqual(3);
+    expect(post?.upvotes).toEqual(0);
+
+    // should not be affected since this is not a squad
+    const updatedSource = await con
+      .getRepository(Source)
+      .findOneByOrFail({ id: 'a' });
+    expect(updatedSource.flags.totalUpvotes).toEqual(undefined);
+  });
+
+  it('should cancel vote and decrement squads flags upvotes count if previous vote was upvote', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, { type: SourceType.Squad });
+    const source = await repo.findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalUpvotes).toEqual(undefined);
+
+    await testCancelVote();
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.upvotes).toEqual(0);
+
+    const updatedSource = await con
+      .getRepository(Source)
+      .findOneByOrFail({ id: 'a' });
+    expect(updatedSource.flags.totalUpvotes).toEqual(0);
+  });
+
+  it('should cancel vote and NOT update squads flags upvotes count if previous state was downvote', async () => {
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, { type: SourceType.Squad });
+    const source = await repo.findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalUpvotes).toEqual(undefined);
+
+    loggedUser = '2';
+
+    await client.mutate(MUTATION, {
+      variables: { id: 'p1', vote: UserVote.Up },
+    });
+
+    loggedUser = '1';
+
+    await testCancelVote(UserVote.Down);
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    // expected is 1 since originally we upvoted with a different user
+    expect(post?.upvotes).toEqual(1);
+
+    const updatedSource = await con
+      .getRepository(Source)
+      .findOneByOrFail({ id: 'a' });
+    expect(updatedSource.flags.totalUpvotes).toEqual(1);
   });
 
   it('should not set votedAt when vote is not set on insert', async () => {
