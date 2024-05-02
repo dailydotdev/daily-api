@@ -68,7 +68,7 @@ const onLimit: RateLimitOnLimit<Context> = (resource) => {
 
 export const rateLimitDirectiveName = 'rateLimit';
 
-const { rateLimitDirectiveTransformer, rateLimitDirectiveTypeDefs } =
+export const { rateLimitDirectiveTransformer, rateLimitDirectiveTypeDefs } =
   rateLimitDirective<Context, IRateLimiterRedisOptions>({
     keyGenerator,
     onLimit,
@@ -78,5 +78,3 @@ const { rateLimitDirectiveTransformer, rateLimitDirectiveTypeDefs } =
     },
     limiterClass: CustomRateLimiterRedis,
   });
-
-export { rateLimitDirectiveTypeDefs, rateLimitDirectiveTransformer };
