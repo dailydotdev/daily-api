@@ -46,6 +46,7 @@ import { ConnectionArguments } from 'graphql-relay';
 import graphorm from '../graphorm';
 import {
   feedClient,
+  FeedConfigName,
   FeedGenerator,
   feedGenerators,
   SimpleFeedConfigGenerator,
@@ -508,6 +509,31 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): [Post]!
+
+    """
+    Get similar posts to provided post feed
+    """
+    similarPostsFeed(
+      """
+      Post to search by
+      """
+      post_id: ID!
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
+    ): PostConnection!
 
     """
     Get random similar posts by tags
@@ -1217,6 +1243,32 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       },
       3,
     ),
+    similarPostsFeed: async (
+      source,
+      args: ConnectionArguments & {
+        post_id: string;
+      },
+      ctx,
+      info,
+    ) => {
+      const { post_id, ...restArgs } = args;
+      const generator = new FeedGenerator(
+        feedClient,
+        new SimpleFeedConfigGenerator({
+          feed_config_name: FeedConfigName.PostSimilarity,
+          post_id,
+        }),
+      );
+      return feedResolverCursor(
+        source,
+        {
+          ...(restArgs as FeedArgs),
+          generator,
+        },
+        ctx,
+        info,
+      );
+    },
     randomSimilarPostsByTags: async (
       source,
       args: { tags: string[]; post: string | null; first: number | null },
