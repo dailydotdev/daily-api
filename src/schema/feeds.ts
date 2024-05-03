@@ -46,6 +46,7 @@ import { ConnectionArguments } from 'graphql-relay';
 import graphorm from '../graphorm';
 import {
   feedClient,
+  FeedConfigName,
   FeedGenerator,
   feedGenerators,
   SimpleFeedConfigGenerator,
@@ -1250,11 +1251,18 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       ctx,
       info,
     ) => {
+      const generator = new FeedGenerator(
+        feedClient,
+        new SimpleFeedConfigGenerator({
+          feed_config_name: FeedConfigName.PostSimilarity,
+          ...args,
+        }),
+      );
       return feedResolverCursor(
         source,
         {
           ...(args as FeedArgs & { post_id: string }),
-          generator: feedGenerators['post_similarity'],
+          generator,
         },
         ctx,
         info,
