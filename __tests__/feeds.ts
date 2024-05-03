@@ -1410,6 +1410,40 @@ describe('query randomTrendingPosts', () => {
   });
 });
 
+describe('query similarPostsFeed', () => {
+  const QUERY = `query SimilarPostsFeed($postId: ID!, $first: Int) {
+    similarPostsFeed(post_id: $postId, first: $first) {
+      ${feedFields()}
+    }
+  }`;
+
+  it('should return posts from feed service', async () => {
+    nock('http://localhost:6000')
+      .post('/feed.json', {
+        feed_config_name: 'post_similarity',
+        total_pages: 1,
+        page_size: 30,
+        post_id: 'p1',
+        offset: 0,
+        fresh_page_size: '10',
+      })
+      .reply(200, {
+        data: [{ post_id: 'p3' }, { post_id: 'p5' }],
+      });
+
+    const res = await client.query(QUERY, {
+      variables: { postId: 'p1' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.similarPostsFeed.edges.length).toEqual(2);
+    expect(
+      res.data.similarPostsFeed.edges.forEach(({ node }) =>
+        expect(['p3', 'p5']).toContain(node.id),
+      ),
+    );
+  });
+});
+
 describe('query randomSimilarPostsByTags', () => {
   const QUERY = `query RandomSimilarPostsByTags($post: ID, $tags: [String]!, $first: Int) {
     randomSimilarPostsByTags(post: $post, first: $first, tags: $tags) {

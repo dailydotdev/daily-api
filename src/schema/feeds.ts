@@ -1251,17 +1251,18 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       ctx,
       info,
     ) => {
+      const { post_id, ...restArgs } = args;
       const generator = new FeedGenerator(
         feedClient,
         new SimpleFeedConfigGenerator({
           feed_config_name: FeedConfigName.PostSimilarity,
-          ...args,
+          post_id,
         }),
       );
       return feedResolverCursor(
         source,
         {
-          ...(args as FeedArgs & { post_id: string }),
+          ...(restArgs as FeedArgs),
           generator,
         },
         ctx,
