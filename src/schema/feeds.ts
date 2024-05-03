@@ -510,6 +510,31 @@ export const typeDefs = /* GraphQL */ `
     ): [Post]!
 
     """
+    Get similar posts to provided post feed
+    """
+    similarPostsFeed(
+      """
+      Post to search by
+      """
+      post_id: ID!
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
+    ): PostConnection!
+
+    """
     Get random similar posts by tags
     """
     randomSimilarPostsByTags(
@@ -1217,6 +1242,24 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       },
       3,
     ),
+    similarPostsFeed: async (
+      source,
+      args: ConnectionArguments & {
+        post_id: string;
+      },
+      ctx,
+      info,
+    ) => {
+      return feedResolverCursor(
+        source,
+        {
+          ...(args as FeedArgs & { post_id: string }),
+          generator: feedGenerators['post_similarity'],
+        },
+        ctx,
+        info,
+      );
+    },
     randomSimilarPostsByTags: async (
       source,
       args: { tags: string[]; post: string | null; first: number | null },
