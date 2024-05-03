@@ -1,6 +1,5 @@
 import {
   RateLimitKeyGenerator,
-  RateLimitOnLimit,
   defaultKeyGenerator,
   rateLimitDirective,
 } from 'graphql-rate-limit-directive';
@@ -62,19 +61,22 @@ class RateLimitError extends GraphQLError {
   }
 }
 
-const onLimit: RateLimitOnLimit<Context> = (resource) => {
-  throw new RateLimitError(resource.msBeforeNext);
-};
-
 export const rateLimitDirectiveName = 'rateLimit';
 
-export const { rateLimitDirectiveTransformer, rateLimitDirectiveTypeDefs } =
+const { rateLimitDirectiveTransformer, rateLimitDirectiveTypeDefs } =
   rateLimitDirective<Context, IRateLimiterRedisOptions>({
     keyGenerator,
-    onLimit,
+    onLimit: (resource) => {
+      throw new RateLimitError(resource.msBeforeNext);
+    },
     name: rateLimitDirectiveName,
     limiterOptions: {
       storeClient: singleRedisClient,
     },
     limiterClass: CustomRateLimiterRedis,
   });
+
+export const rateLimiterTransformers = (schema) =>
+  rateLimitDirectiveTransformer(schema);
+
+export const rateLimitTypeDefs = [rateLimitDirectiveTypeDefs];
