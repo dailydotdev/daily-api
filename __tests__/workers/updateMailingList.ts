@@ -1,9 +1,9 @@
 import nock from 'nock';
 import worker from '../../src/workers/updateMailingList';
 import { ChangeObject } from '../../src/types';
-import { expectSuccessfulBackground } from '../helpers';
+import { expectSuccessfulTypedBackground } from '../helpers';
 import { User } from '../../src/entity';
-import { updateUserContactLists } from '../../src/common';
+import { PubSubSchema, updateUserContactLists } from '../../src/common';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -28,20 +28,20 @@ describe('updateMailingList', () => {
   it('should update user contact list if user is regular user', async () => {
     const before: ChangeObject<ObjectType> = { ...base, id: '1' };
     const after: ChangeObject<ObjectType> = { ...before, infoConfirmed: true };
-    await expectSuccessfulBackground(worker, {
+    await expectSuccessfulTypedBackground(worker, {
       newProfile: after,
       user: before,
-    });
+    } as unknown as PubSubSchema['user-updated']);
     expect(updateUserContactLists).toHaveBeenCalledTimes(1);
   });
 
   it('should not update user contact list if user is ghost user', async () => {
     const before: ChangeObject<ObjectType> = base;
     const after: ChangeObject<ObjectType> = { ...before, infoConfirmed: true };
-    await expectSuccessfulBackground(worker, {
+    await expectSuccessfulTypedBackground(worker, {
       newProfile: after,
       user: before,
-    });
+    } as unknown as PubSubSchema['user-updated']);
     expect(updateUserContactLists).toHaveBeenCalledTimes(0);
   });
 });

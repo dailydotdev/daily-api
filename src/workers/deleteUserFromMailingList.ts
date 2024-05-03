@@ -1,19 +1,14 @@
 import { getContactIdByEmail, removeUserContact } from '../common';
-import { messageToJson, Worker } from './worker';
+import { TypedWorker } from './worker';
 
-interface Data {
-  id: string;
-  email: string;
-}
-
-const worker: Worker = {
+const worker: TypedWorker<'user-deleted'> = {
   subscription: 'user-deleted-api-mailing',
   handler: async (message, _, log) => {
     if (!process.env.SENDGRID_API_KEY) {
       return;
     }
 
-    const data = messageToJson<Data>(message);
+    const { data } = message;
     if (!data.email || !data.email.trim()) {
       log.warn(
         { messageId: message.messageId, userId: data.id },

@@ -39,8 +39,6 @@ const postCommentedTopic = pubsub.topic('post-commented');
 const commentCommentedTopic = pubsub.topic('comment-commented');
 const commentFeaturedTopic = pubsub.topic('comment-featured');
 const commentsUpdateTopic = pubsub.topic('update-comments');
-const userDeletedTopic = pubsub.topic('user-deleted');
-const userUpdatedTopic = pubsub.topic('user-updated');
 const usernameChangedTopic = pubsub.topic('username-changed');
 const settingsUpdatedTopic = pubsub.topic('settings-updated');
 const sendAnalyticsReportTopic = pubsub.topic('send-analytics-report');
@@ -55,7 +53,6 @@ const newPostMentionTopic = pubsub.topic('api.v1.new-post-mention');
 const newCommentMentionTopic = pubsub.topic('api.v1.new-comment-mention');
 const memberJoinedSourceTopic = pubsub.topic('api.v1.member-joined-source');
 const featureAccess = pubsub.topic('api.v1.feature-granted');
-const userCreatedTopic = pubsub.topic('api.v1.user-created');
 const sourcePrivacyUpdatedTopic = pubsub.topic('api.v1.source-privacy-updated');
 const featuresResetTopic = pubsub.topic('features-reset');
 const contentRequestedTopic = pubsub.topic('api.v1.content-requested');
@@ -169,24 +166,6 @@ export const notifyCommentsUpdate = async (
     newUsername,
     commentIds,
   });
-
-export const notifyUserDeleted = async (
-  log: EventLogger,
-  userId: string,
-  kratosUser = false,
-  email: string,
-): Promise<void> =>
-  publishEvent(log, userDeletedTopic, {
-    id: userId,
-    kratosUser,
-    email,
-  });
-
-export const notifyUserUpdated = (
-  log: EventLogger,
-  user: ChangeObject<User>,
-  newProfile: ChangeObject<User>,
-): Promise<void> => publishEvent(log, userUpdatedTopic, { user, newProfile });
 
 export const notifyUserReadmeUpdated = (
   log: EventLogger,
@@ -324,14 +303,6 @@ export const notifyBannerRemoved = async (
   log: EventLogger,
   banner: ChangeObject<Banner>,
 ): Promise<void> => publishEvent(log, bannerRemovedTopic, { banner });
-
-export const notifyUserCreated = async (
-  log: EventLogger,
-  user: ChangeObject<User>,
-): Promise<void> =>
-  publishEvent(log, userCreatedTopic, {
-    user,
-  });
 
 export const notifyFeaturesReset = async (log: EventLogger): Promise<void> =>
   publishEvent(log, featuresResetTopic, {});
