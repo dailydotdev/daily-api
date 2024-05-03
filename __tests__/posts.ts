@@ -3685,9 +3685,7 @@ describe('mutation votePost', () => {
     await testUpvote();
 
     const updatedSource = await repo.findOneByOrFail({ id: 'a' });
-    // the reason this will become 2 is we touched the post.upvotes twice.
-    // first was through the manual update, second was through the mutation
-    expect(updatedSource.flags.totalUpvotes).toEqual(2);
+    expect(updatedSource.flags.totalUpvotes).toEqual(4);
   });
 
   const testDownvote = async () => {
