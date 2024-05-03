@@ -11,22 +11,26 @@ export class SquadTotalViewsTrigger1714667947050 implements MigrationInterface {
           AS
         $$
         BEGIN
-          IF NEW.views > OLD.views THEN
-            UPDATE  source
-            SET     flags = jsonb_set(
-                              flags,
-                              '{totalViews}',
-                              to_jsonb(COALESCE(CAST(flags->>'totalViews' AS INTEGER), 0) + 1)
-                            )
-            WHERE   id = NEW."sourceId"
-            AND     type = 'squad';
-          END IF;
+          UPDATE  source
+          SET     flags = jsonb_set(
+                            flags,
+                            '{totalViews}',
+                            to_jsonb(COALESCE(CAST(flags->>'totalViews' AS INTEGER), 0) + 1)
+                          )
+          WHERE   id = NEW."sourceId"
+          AND     type = 'squad';
           RETURN NEW;
         END;
         $$
       `);
     queryRunner.query(
-      `CREATE TRIGGER increment_squad_views_count AFTER UPDATE ON "post" FOR EACH ROW EXECUTE PROCEDURE increment_squad_views_count()`,
+      `
+        CREATE TRIGGER increment_squad_views_count
+        AFTER UPDATE ON "post"
+        FOR EACH ROW
+        WHEN (NEW.views > OLD.views)
+        EXECUTE PROCEDURE increment_squad_views_count()
+      `,
     );
   }
 

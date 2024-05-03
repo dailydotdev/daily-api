@@ -13,28 +13,31 @@ export class SquadTotalUpvotesTrigger1714662136871
           AS
         $$
         BEGIN
-          IF NEW.upvotes <> OLD.upvotes THEN
-            UPDATE  source
-            SET     flags = jsonb_set(
-                              flags,
-                              '{totalUpvotes}',
-                              to_jsonb(
-                                GREATEST(
-                                  0,
-                                  COALESCE(CAST(flags->>'totalUpvotes' AS INTEGER), 0) +
-                                  (CASE WHEN NEW.upvotes > OLD.upvotes THEN 1 ELSE -1 END)
-                                )
+          UPDATE  source
+          SET     flags = jsonb_set(
+                            flags,
+                            '{totalUpvotes}',
+                            to_jsonb(
+                              GREATEST(
+                                0,
+                                COALESCE(CAST(flags->>'totalUpvotes' AS INTEGER), 0) + (NEW.upvotes - OLD.upvotes)
                               )
                             )
-            WHERE   id = NEW."sourceId"
-            AND     type = 'squad';
-          END IF;
+                          )
+          WHERE   id = NEW."sourceId"
+          AND     type = 'squad';
           RETURN NEW;
         END;
         $$
       `);
     queryRunner.query(
-      `CREATE TRIGGER update_squad_upvotes_count AFTER UPDATE ON "post" FOR EACH ROW EXECUTE PROCEDURE update_squad_upvotes_count()`,
+      `
+        CREATE TRIGGER update_squad_upvotes_count
+        AFTER UPDATE ON "post"
+        FOR EACH ROW
+        WHEN (NEW.upvotes <> OLD.upvotes)
+        EXECUTE PROCEDURE update_squad_upvotes_count()
+      `,
     );
   }
 
