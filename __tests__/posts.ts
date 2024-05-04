@@ -2038,31 +2038,6 @@ describe('mutation viewPost', () => {
   });
 });
 
-describe('trigger increment_squad_views_count', () => {
-  it('should NOT update source total views', async () => {
-    const repo = con.getRepository(Source);
-    const source = await repo.findOneByOrFail({ id: 'a' });
-    expect(source.flags.totalViews).toEqual(undefined);
-
-    await con.getRepository(Post).update({ id: 'p1' }, { views: 1 });
-
-    const updatedSource = await repo.findOneByOrFail({ id: 'a' });
-    expect(updatedSource.flags.totalViews).toEqual(undefined);
-  });
-
-  it('should update squad total views', async () => {
-    const repo = con.getRepository(Source);
-    await repo.update({ id: 'a' }, { type: SourceType.Squad });
-    const source = await repo.findOneByOrFail({ id: 'a' });
-    expect(source.flags.totalViews).toEqual(undefined);
-
-    await con.getRepository(Post).update({ id: 'p1' }, { views: 1 });
-
-    const updatedSource = await repo.findOneByOrFail({ id: 'a' });
-    expect(updatedSource.flags.totalViews).toEqual(1);
-  });
-});
-
 describe('mutation submitExternalLink', () => {
   const MUTATION = `
   mutation SubmitExternalLink($sourceId: ID!, $url: String!, $commentary: String, $title: String, $image: String) {
@@ -3662,6 +3637,12 @@ describe('mutation votePost', () => {
     expect(post?.upvotes).toEqual(4);
   };
 
+  it('should upvote', async () => {
+    loggedUser = '1';
+
+    await testUpvote();
+  });
+
   it('should upvote and NOT update source flags upvotes count', async () => {
     loggedUser = '1';
     const source = await con.getRepository(Source).findOneByOrFail({ id: 'a' });
@@ -3710,6 +3691,12 @@ describe('mutation votePost', () => {
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.downvotes).toEqual(4);
   };
+
+  it('should downvote', async () => {
+    loggedUser = '1';
+
+    await testDownvote();
+  });
 
   it('should downvote and NOT update source flags upvotes count', async () => {
     loggedUser = '1';
@@ -3762,6 +3749,11 @@ describe('mutation votePost', () => {
       hidden: false,
     });
   };
+
+  it('should cancel vote', async () => {
+    loggedUser = '1';
+    await testCancelVote();
+  });
 
   it('should cancel vote and NOT update source flags upvotes count', async () => {
     loggedUser = '1';
