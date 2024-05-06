@@ -186,7 +186,7 @@ describe('PostsRepository', () => {
       flags_json_str:
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
       language: 'en',
-      is_ai_probability: 0,
+      is_ai_probability: null,
     });
   });
 });
