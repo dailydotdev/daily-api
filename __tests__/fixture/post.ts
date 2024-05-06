@@ -154,6 +154,10 @@ export const tinybirdPostsFixture: DeepPartial<ArticlePost | SharePost>[] = [
     contentCuration: ['c1', 'c2'],
     authorId: 'author1',
     scoutId: 'scout1',
+    language: 'en',
+    contentQuality: {
+      is_ai_probability: 0,
+    },
   },
   {
     id: 'p2',
@@ -168,6 +172,10 @@ export const tinybirdPostsFixture: DeepPartial<ArticlePost | SharePost>[] = [
     contentCuration: ['c1', 'c2'],
     authorId: 'author2',
     scoutId: null,
+    language: 'en',
+    contentQuality: {
+      is_ai_probability: 0.5,
+    },
   },
   {
     id: 'p3',
@@ -182,6 +190,10 @@ export const tinybirdPostsFixture: DeepPartial<ArticlePost | SharePost>[] = [
     contentCuration: ['c1', 'c2'],
     authorId: null,
     scoutId: 'scout3',
+    language: 'en',
+    contentQuality: {
+      is_ai_probability: 1,
+    },
   },
   {
     id: 'p4',
@@ -197,6 +209,10 @@ export const tinybirdPostsFixture: DeepPartial<ArticlePost | SharePost>[] = [
     contentCuration: ['c1', 'c2'],
     authorId: 'author4',
     scoutId: 'scout4',
+    language: 'en',
+    contentQuality: {
+      is_ai_probability: 0,
+    },
   },
   {
     id: 'p5',
@@ -212,6 +228,10 @@ export const tinybirdPostsFixture: DeepPartial<ArticlePost | SharePost>[] = [
     contentCuration: ['c1', 'c2'],
     authorId: 'author5',
     scoutId: null,
+    language: 'en',
+    contentQuality: {
+      is_ai_probability: 0,
+    },
   },
   {
     id: 'p6',
@@ -227,6 +247,10 @@ export const tinybirdPostsFixture: DeepPartial<ArticlePost | SharePost>[] = [
     contentCuration: ['c1', 'c2'],
     authorId: null,
     scoutId: 'scout6',
+    language: 'en',
+    contentQuality: {
+      is_ai_probability: 0,
+    },
   },
   {
     id: 'p7',
