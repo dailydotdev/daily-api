@@ -266,6 +266,10 @@ export const tinybirdPostsFixture: DeepPartial<ArticlePost | SharePost>[] = [
     contentCuration: ['c1', 'c2'],
     authorId: null,
     scoutId: null,
+    language: 'en',
+    contentQuality: {
+      is_ai_probability: 0,
+    },
   },
 ];
 
