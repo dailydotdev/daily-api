@@ -1,7 +1,13 @@
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { saveFixtures } from '../helpers';
-import { ArticlePost, Source, SharePost, Post } from '../../src/entity';
+import {
+  ArticlePost,
+  Source,
+  SharePost,
+  Post,
+  SourceType,
+} from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 
@@ -55,4 +61,29 @@ it('should set tags str of shared post on update when original post had no tags'
     .getRepository(Post)
     .find({ where: { tagsStr: 'a,b' }, order: { id: 'ASC' }, select: ['id'] });
   expect(obj2.map((x) => x.id)).toEqual(['p2', 'sp']);
+});
+
+describe('trigger increment_squad_views_count', () => {
+  it('should NOT update source total views', async () => {
+    const repo = con.getRepository(Source);
+    const source = await repo.findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalViews).toEqual(undefined);
+
+    await con.getRepository(Post).update({ id: 'p1' }, { views: 1 });
+
+    const updatedSource = await repo.findOneByOrFail({ id: 'a' });
+    expect(updatedSource.flags.totalViews).toEqual(undefined);
+  });
+
+  it('should update squad total views', async () => {
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, { type: SourceType.Squad });
+    const source = await repo.findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalViews).toEqual(undefined);
+
+    await con.getRepository(Post).update({ id: 'p1' }, { views: 1 });
+
+    const updatedSource = await repo.findOneByOrFail({ id: 'a' });
+    expect(updatedSource.flags.totalViews).toEqual(1);
+  });
 });

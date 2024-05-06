@@ -7,6 +7,7 @@ import {
   removeEmptyValues,
   removeSpecialCharacters,
   uniqueifyArray,
+  updateFlagsStatement,
 } from '../../common';
 import { User } from '../user';
 import { PostKeyword } from '../PostKeyword';
@@ -35,6 +36,24 @@ export type PostStats = {
 type StringPostStats = {
   [Property in keyof PostStats]: string;
 };
+
+interface DeletePostProps {
+  con: DataSource | EntityManager;
+  id: string;
+  userId?: string;
+}
+
+export const deletePost = async ({ con, id, userId }: DeletePostProps) =>
+  con.getRepository(Post).update(
+    { id },
+    {
+      deleted: true,
+      flags: updateFlagsStatement<Post>({
+        deleted: true,
+        deletedBy: userId,
+      }),
+    },
+  );
 
 export const getAuthorPostStats = async (
   con: DataSource,

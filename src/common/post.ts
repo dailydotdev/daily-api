@@ -126,10 +126,9 @@ export const createSquadWelcomePost = async (
   args: Partial<FreeformPost> = {},
 ) => {
   const content = getWelcomeContent(source);
-  const repo = con.getRepository(WelcomePost);
   const id = await generateShortId();
 
-  return repo.save({
+  return con.getRepository(WelcomePost).save({
     ...args,
     id,
     shortId: id,
