@@ -1,5 +1,7 @@
 import {
   RateLimitKeyGenerator,
+  RateLimitOnLimit,
+  RateLimitOptions,
   defaultKeyGenerator,
   rateLimitDirective,
 } from 'graphql-rate-limit-directive';
@@ -11,6 +13,7 @@ import { GraphQLError } from 'graphql';
 import { singleRedisClient } from '../redis';
 import { Context } from '../Context';
 import { logger } from '../logger';
+import { WATERCOOLER_ID } from '../common';
 
 export class CustomRateLimiterRedis extends RateLimiterRedis {
   constructor(props: IRateLimiterRedisOptions) {
@@ -38,22 +41,41 @@ const keyGenerator: RateLimitKeyGenerator<Context> = (
   args,
   context,
   info,
-) =>
-  `${context.userId ?? context.trackingId}:${defaultKeyGenerator(
-    directiveArgs,
-    source,
-    args,
-    context,
-    info,
-  )}`;
+) => {
+  {
+    switch (info.fieldName) {
+      case 'createFreeformPost':
+      case 'submitExternalLink':
+      case 'sharePost':
+        return `${context.userId ?? context.trackingId}:createPost`;
+      case 'commentOnPost':
+      case 'commentOnComment':
+        `${context.userId ?? context.trackingId}:createComment`;
+      default:
+        return `${context.userId ?? context.trackingId}:${defaultKeyGenerator(
+          directiveArgs,
+          source,
+          args,
+          context,
+          info,
+        )}`;
+    }
+  }
+};
 
 class RateLimitError extends GraphQLError {
   extensions = {};
   message = '';
 
-  constructor(msBeforeNextReset: number) {
+  constructor({
+    msBeforeNextReset,
+    message,
+  }: {
+    msBeforeNextReset?: number;
+    message?: string;
+  }) {
     const seconds = (msBeforeNextReset / 1000).toFixed(0);
-    const message = `Too many requests, please try again in ${seconds} seconds.`;
+    message = message ?? `Too many requests, please try again in ${seconds}s`;
     super(message);
 
     this.message = message;
@@ -61,22 +83,58 @@ class RateLimitError extends GraphQLError {
   }
 }
 
-export const rateLimitDirectiveName = 'rateLimit';
+export const onLimit: RateLimitOnLimit<Context> = (
+  resource,
+  _,
+  __,
+  ___,
+  ____,
+  info,
+) => {
+  switch (info.fieldName) {
+    case 'createFreeformPost':
+    case 'submitExternalLink':
+    case 'sharePost':
+      throw new RateLimitError({
+        message: 'Take a break. You already posted enough in the last hour',
+      });
+    case 'commentOnPost':
+    case 'commentOnComment':
+      throw new RateLimitError({
+        message: 'Take a break. You already commented enough in the last hour',
+      });
+    default:
+      throw new RateLimitError({ msBeforeNextReset: resource.msBeforeNext });
+  }
+};
+
+const rateLimiterConfig: RateLimitOptions<Context, IRateLimiterRedisOptions> = {
+  keyGenerator,
+  onLimit,
+  name: 'rateLimit',
+  limiterOptions: {
+    storeClient: singleRedisClient,
+  },
+  limiterClass: CustomRateLimiterRedis,
+};
 
 const { rateLimitDirectiveTransformer, rateLimitDirectiveTypeDefs } =
-  rateLimitDirective<Context, IRateLimiterRedisOptions>({
-    keyGenerator,
-    onLimit: (resource) => {
-      throw new RateLimitError(resource.msBeforeNext);
-    },
-    name: rateLimitDirectiveName,
-    limiterOptions: {
-      storeClient: singleRedisClient,
-    },
-    limiterClass: CustomRateLimiterRedis,
-  });
+  rateLimitDirective(rateLimiterConfig);
+
+const {
+  rateLimitDirectiveTransformer: highRateLimitTransformer,
+  rateLimitDirectiveTypeDefs: highRateLimitTypeDefs,
+} = rateLimitDirective({
+  ...rateLimiterConfig,
+  name: 'watercoolerRateLimit',
+  pointsCalculator: (_, __, args) =>
+    (args.sourceId as string) === WATERCOOLER_ID ? 1 : 0,
+});
 
 export const rateLimiterTransformers = (schema) =>
-  rateLimitDirectiveTransformer(schema);
+  highRateLimitTransformer(rateLimitDirectiveTransformer(schema));
 
-export const rateLimitTypeDefs = [rateLimitDirectiveTypeDefs];
+export const rateLimitTypeDefs = [
+  rateLimitDirectiveTypeDefs,
+  highRateLimitTypeDefs,
+];

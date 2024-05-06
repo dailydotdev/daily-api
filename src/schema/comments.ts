@@ -336,7 +336,7 @@ export const typeDefs = /* GraphQL */ `
       Content of the comment
       """
       content: String!
-    ): Comment @auth
+    ): Comment @auth @rateLimit(limit: 20, duration: 3600)
 
     """
     Comment on a comment
@@ -350,7 +350,7 @@ export const typeDefs = /* GraphQL */ `
       Content of the comment
       """
       content: String!
-    ): Comment @auth
+    ): Comment @auth @rateLimit(limit: 20, duration: 3600)
 
     """
     Edit comment
