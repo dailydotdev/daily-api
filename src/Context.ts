@@ -11,6 +11,7 @@ export class Context {
   loader: GraphQLDatabaseLoader;
   dataLoader: DataLoaderService;
   metricGraphqlCounter: opentelemetry.Counter;
+  rateLimitCouner: opentelemetry.Counter;
 
   constructor(req: FastifyRequest, con) {
     this.req = req;
@@ -22,6 +23,11 @@ export class Context {
       .createCounter('graphql_operations', {
         description:
           'How many graphql operations have been performed, their operation type and name',
+      });
+    this.rateLimitCouner = opentelemetry.metrics
+      .getMeter('graphql')
+      .createCounter('rate_limit', {
+        description: 'How many times a rate limit has been hit',
       });
   }
 

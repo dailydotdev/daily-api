@@ -88,22 +88,25 @@ export const onLimit: RateLimitOnLimit<Context> = (
   _,
   __,
   ___,
-  ____,
+  context,
   info,
 ) => {
   switch (info.fieldName) {
     case 'createFreeformPost':
     case 'submitExternalLink':
     case 'sharePost':
+      context.rateLimitCouner.add(1, { type: 'createPost' });
       throw new RateLimitError({
         message: 'Take a break. You already posted enough in the last hour',
       });
     case 'commentOnPost':
     case 'commentOnComment':
+      context.rateLimitCouner.add(1, { type: 'createComment' });
       throw new RateLimitError({
         message: 'Take a break. You already commented enough in the last hour',
       });
     default:
+      context.rateLimitCouner.add(1, { type: 'default' });
       throw new RateLimitError({ msBeforeNextReset: resource.msBeforeNext });
   }
 };
