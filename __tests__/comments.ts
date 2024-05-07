@@ -33,6 +33,12 @@ import createOrGetConnection from '../src/db';
 import { CommentReport } from '../src/entity/CommentReport';
 import { UserComment } from '../src/entity/user/UserComment';
 import { UserVote, UserVoteEntity } from '../src/types';
+import { rateLimiterName } from '../src/directive/rateLimit';
+import {
+  deleteKeysByPattern,
+  getRedisObject,
+  getRedisObjectExpiry,
+} from '../src/redis';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -135,6 +141,8 @@ beforeEach(async () => {
       createdAt: new Date(2020, 1, 10, 0, 0),
     },
   ]);
+
+  await deleteKeysByPattern(`${rateLimiterName}:*`);
 });
 
 afterAll(() => disposeGraphQLTesting(state));
@@ -769,6 +777,44 @@ describe('mutation commentOnPost', () => {
       },
       'FORBIDDEN',
     );
+  });
+
+  describe('rate limiting', () => {
+    const redisKey = `${rateLimiterName}:1:createComment`;
+    const variables = { postId: 'p1', content: 'comment' };
+    it('store rate limiting state in redis', async () => {
+      loggedUser = '1';
+
+      const res = await client.mutate(MUTATION, {
+        variables,
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(await getRedisObject(redisKey)).toEqual('1');
+    });
+
+    it('should rate limit creating posts to 10 per hour', async () => {
+      loggedUser = '1';
+
+      for (let i = 0; i < 20; i++) {
+        const res = await client.mutate(MUTATION, {
+          variables,
+        });
+
+        expect(res.errors).toBeFalsy();
+      }
+      expect(await getRedisObject(redisKey)).toEqual('20');
+
+      await testMutationErrorCode(
+        client,
+        { mutation: MUTATION, variables },
+        'RATE_LIMITED',
+      );
+
+      // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
+      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(3600);
+      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(3590);
+    });
   });
 });
 
