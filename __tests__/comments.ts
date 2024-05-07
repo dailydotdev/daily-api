@@ -959,6 +959,47 @@ describe('mutation commentOnComment', () => {
       'FORBIDDEN',
     );
   });
+
+  describe('rate limiting', () => {
+    const redisKey = `${rateLimiterName}:1:createComment`;
+    const variables = {
+      commentId: 'c1',
+      content: '# my comment http://daily.dev',
+    };
+    it('store rate limiting state in redis', async () => {
+      loggedUser = '1';
+
+      const res = await client.mutate(MUTATION, {
+        variables,
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(await getRedisObject(redisKey)).toEqual('1');
+    });
+
+    it('should rate limit creating posts to 10 per hour', async () => {
+      loggedUser = '1';
+
+      for (let i = 0; i < 20; i++) {
+        const res = await client.mutate(MUTATION, {
+          variables,
+        });
+
+        expect(res.errors).toBeFalsy();
+      }
+      expect(await getRedisObject(redisKey)).toEqual('20');
+
+      await testMutationErrorCode(
+        client,
+        { mutation: MUTATION, variables },
+        'RATE_LIMITED',
+      );
+
+      // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
+      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(3600);
+      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(3590);
+    });
+  });
 });
 
 describe('mutation deleteComment', () => {
