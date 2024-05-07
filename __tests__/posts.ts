@@ -1853,6 +1853,82 @@ describe('mutation sharePost', () => {
     expect(post.sharedPostId).toEqual('p1');
     expect(post.title).toEqual('My comment');
   });
+
+  describe('rate limiting', () => {
+    const redisKey = `${rateLimiterName}:1:createPost`;
+    it('store rate limiting state in redis', async () => {
+      loggedUser = '1';
+
+      const res = await client.mutate(MUTATION, {
+        variables: variables,
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(await getRedisObject(redisKey)).toEqual('1');
+    });
+
+    it('should rate limit creating posts to 10 per hour', async () => {
+      loggedUser = '1';
+
+      for (let i = 0; i < 10; i++) {
+        const res = await client.mutate(MUTATION, {
+          variables: variables,
+        });
+
+        expect(res.errors).toBeFalsy();
+      }
+      expect(await getRedisObject(redisKey)).toEqual('10');
+
+      await testMutationErrorCode(
+        client,
+        { mutation: MUTATION, variables: variables },
+        'RATE_LIMITED',
+      );
+
+      // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
+      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(3600);
+      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(3590);
+    });
+
+    describe('high rate squads', () => {
+      const highRateRedisKey = `${highRateLimiterName}:1:createPost`;
+      beforeEach(async () => {
+        await con.getRepository(SquadSource).save({
+          id: WATERCOOLER_ID,
+          handle: 'watercooler',
+          name: 'Watercooler',
+          private: false,
+        });
+        await con.getRepository(SourceMember).save({
+          sourceId: WATERCOOLER_ID,
+          userId: '1',
+          referralToken: 'watercoolerRt',
+          role: SourceMemberRoles.Member,
+        });
+      });
+
+      it('should rate limit creating posts in Watercooler squad to 1 per 10 minutes', async () => {
+        loggedUser = '1';
+
+        const res = await client.mutate(MUTATION, {
+          variables: { ...variables, sourceId: WATERCOOLER_ID },
+        });
+
+        expect(res.errors).toBeFalsy();
+        expect(await getRedisObject(redisKey)).toEqual('1');
+        expect(await getRedisObject(highRateRedisKey)).toEqual('1');
+
+        await testMutationErrorCode(
+          client,
+          {
+            mutation: MUTATION,
+            variables: { ...variables, sourceId: WATERCOOLER_ID },
+          },
+          'RATE_LIMITED',
+        );
+      });
+    });
+  });
 });
 
 describe('mutation editSharePost', () => {
