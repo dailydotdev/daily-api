@@ -123,7 +123,7 @@ describe('query sources', () => {
 }`;
 
   it('should return only public sources', async () => {
-    const res = await client.query(QUERY());
+    const res = await client.query(QUERY(10, true));
     const isPublic = res.data.sources.edges.every(({ node }) => !!node.public);
     expect(isPublic).toBeTruthy();
   });
@@ -1141,8 +1141,8 @@ describe('mutation createSquad', () => {
 }`;
 
   const variables = {
-    name: 'Squad',
-    handle: 'squad',
+    name: 'Squad Create Test',
+    handle: 'squadcreatetest',
     postId: 'p1',
     commentary: 'My comment',
   };
@@ -1166,8 +1166,8 @@ describe('mutation createSquad', () => {
     const newSource = await con
       .getRepository(SquadSource)
       .findOneBy({ id: newId });
-    expect(newSource.name).toEqual('Squad');
-    expect(newSource.handle).toEqual('squad');
+    expect(newSource.name).toEqual(variables.name);
+    expect(newSource.handle).toEqual(variables.handle);
     expect(newSource.active).toEqual(true);
     expect(newSource.private).toEqual(true);
     expect(newSource?.memberPostingRank).toEqual(
@@ -1323,8 +1323,8 @@ describe('mutation createSquad', () => {
     const newSource = await con
       .getRepository(SquadSource)
       .findOneBy({ id: newId });
-    expect(newSource.name).toEqual('Squad');
-    expect(newSource.handle).toEqual('squad');
+    expect(newSource.name).toEqual(variables.name);
+    expect(newSource.handle).toEqual(variables.handle);
     expect(newSource.active).toEqual(true);
     expect(newSource.private).toEqual(true);
     expect(newSource?.memberPostingRank).toEqual(
@@ -1386,8 +1386,8 @@ describe('mutation createSquad', () => {
     const newSource = await con
       .getRepository(SquadSource)
       .findOneBy({ id: newId });
-    expect(newSource.name).toEqual('Squad');
-    expect(newSource.handle).toEqual('squad');
+    expect(newSource.name).toEqual(variables.name);
+    expect(newSource.handle).toEqual(variables.handle);
     expect(newSource.active).toEqual(true);
     expect(newSource.private).toEqual(true);
     expect(newSource?.memberInviteRank).toEqual(
