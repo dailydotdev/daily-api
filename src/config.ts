@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import { WATERCOOLER_ID } from './common';
 
 const env = process.env.NODE_ENV || 'development';
 
@@ -26,3 +27,5 @@ export const generateStorageKey = (
   key: string,
   identifier: string, // mostly used for user id - "global" for global keys
 ): string => `${topic}:${key}:${identifier}`;
+
+export const highRateLimitedSquads = [WATERCOOLER_ID];

@@ -13,7 +13,7 @@ import { GraphQLError } from 'graphql';
 import { singleRedisClient } from '../redis';
 import { Context } from '../Context';
 import { logger } from '../logger';
-import { WATERCOOLER_ID } from '../common';
+import { highRateLimitedSquads } from '../config';
 
 export class CustomRateLimiterRedis extends RateLimiterRedis {
   constructor(props: IRateLimiterRedisOptions) {
@@ -126,7 +126,6 @@ const { rateLimitDirectiveTransformer, rateLimitDirectiveTypeDefs } =
   rateLimitDirective(rateLimiterConfig);
 
 export const highRateLimiterName = 'highRateLimit';
-export const highRateLimitedSquads = [WATERCOOLER_ID];
 const {
   rateLimitDirectiveTransformer: highRateLimitTransformer,
   rateLimitDirectiveTypeDefs: highRateLimitTypeDefs,
