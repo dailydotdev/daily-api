@@ -11,10 +11,10 @@ import {
   SourceFlagsPublic,
   SourceMember,
   SourceMemberFlagsPublic,
-  SourceType,
   SquadSource,
   User,
 } from '../entity';
+import { SourceType } from '../entity/Source';
 import {
   SourceMemberRoles,
   sourceRoleRank,
@@ -39,10 +39,10 @@ import { randomUUID } from 'crypto';
 import {
   createSquadWelcomePost,
   getSourceLink,
-  toGQLEnum,
   updateFlagsStatement,
   uploadSquadImage,
 } from '../common';
+import { toGQLEnum } from '../common/utils';
 import { GraphQLResolveInfo } from 'graphql';
 import { SourcePermissionErrorKeys, TypeOrmError } from '../errors';
 import {
