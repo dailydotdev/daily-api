@@ -78,6 +78,7 @@ describe('PostsRepository', () => {
       flags_json_str:
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
       language: 'en',
+      is_ai_probability: 0,
     });
     expect(posts).toContainEqual<TinybirdPost>({
       author_id: 'author2',
@@ -95,6 +96,7 @@ describe('PostsRepository', () => {
       flags_json_str:
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
       language: 'en',
+      is_ai_probability: 0.5,
     });
     expect(posts).toContainEqual<TinybirdPost>({
       author_id: 'scout3',
@@ -112,6 +114,7 @@ describe('PostsRepository', () => {
       flags_json_str:
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
       language: 'en',
+      is_ai_probability: 1,
     });
     expect(posts).toContainEqual<TinybirdPost>({
       author_id: 'scout4',
@@ -129,6 +132,7 @@ describe('PostsRepository', () => {
       flags_json_str:
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
       language: 'en',
+      is_ai_probability: 0,
     });
     expect(posts).toContainEqual<TinybirdPost>({
       author_id: 'author5',
@@ -146,6 +150,7 @@ describe('PostsRepository', () => {
       flags_json_str:
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
       language: 'en',
+      is_ai_probability: 0,
     });
     expect(posts).toContainEqual<TinybirdPost>({
       author_id: 'scout6',
@@ -163,6 +168,7 @@ describe('PostsRepository', () => {
       flags_json_str:
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
       language: 'en',
+      is_ai_probability: 0,
     });
     expect(posts).toContainEqual<TinybirdPost>({
       author_id: null,
@@ -180,6 +186,7 @@ describe('PostsRepository', () => {
       flags_json_str:
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
       language: 'en',
+      is_ai_probability: null,
     });
   });
 });
@@ -224,6 +231,7 @@ describe('PostsMetadataRepository', () => {
         flags_json_str:
           '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
         language: 'en',
+        is_ai_probability: 0,
       },
       {
         id: 'id2',
@@ -241,6 +249,7 @@ describe('PostsMetadataRepository', () => {
         flags_json_str:
           '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
         language: 'en',
+        is_ai_probability: 0.5,
       },
     ];
 
