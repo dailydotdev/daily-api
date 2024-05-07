@@ -125,7 +125,8 @@ const rateLimiterConfig: RateLimitOptions<Context, IRateLimiterRedisOptions> = {
 const { rateLimitDirectiveTransformer, rateLimitDirectiveTypeDefs } =
   rateLimitDirective(rateLimiterConfig);
 
-export const highRateLimiterName = 'watercoolerRateLimit';
+export const highRateLimiterName = 'highRateLimit';
+export const highRateLimitedSquads = [WATERCOOLER_ID];
 const {
   rateLimitDirectiveTransformer: highRateLimitTransformer,
   rateLimitDirectiveTypeDefs: highRateLimitTypeDefs,
@@ -133,7 +134,7 @@ const {
   ...rateLimiterConfig,
   name: highRateLimiterName,
   pointsCalculator: (_, __, args) =>
-    (args.sourceId as string) === WATERCOOLER_ID ? 1 : 0,
+    highRateLimitedSquads.includes(args.sourceId as string) ? 1 : 0,
 });
 
 export const rateLimiterTransformers = (schema) =>

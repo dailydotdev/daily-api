@@ -734,7 +734,7 @@ export const typeDefs = /* GraphQL */ `
     ): Post!
       @auth
       @rateLimit(limit: 10, duration: 3600)
-      @watercoolerRateLimit(limit: 1, duration: 600)
+      @highRateLimit(limit: 1, duration: 600)
 
     """
     To allow user to edit posts
@@ -875,7 +875,7 @@ export const typeDefs = /* GraphQL */ `
     ): EmptyResponse
       @auth
       @rateLimit(limit: 10, duration: 3600)
-      @watercoolerRateLimit(limit: 1, duration: 600)
+      @highRateLimit(limit: 1, duration: 600)
 
     """
     Share post to source
@@ -896,7 +896,7 @@ export const typeDefs = /* GraphQL */ `
     ): Post
       @auth
       @rateLimit(limit: 10, duration: 3600)
-      @watercoolerRateLimit(limit: 1, duration: 600)
+      @highRateLimit(limit: 1, duration: 600)
 
     """
     Update share type post
