@@ -54,13 +54,24 @@ import {
   pickImageUrl,
   postScraperOrigin,
   updateFlagsStatement,
+  WATERCOOLER_ID,
 } from '../src/common';
 import { randomUUID } from 'crypto';
 import nock from 'nock';
-import { deleteKeysByPattern, ioRedisPool, setRedisObject } from '../src/redis';
+import {
+  deleteKeysByPattern,
+  getRedisObject,
+  getRedisObjectExpiry,
+  ioRedisPool,
+  setRedisObject,
+} from '../src/redis';
 import { checkHasMention, markdown } from '../src/common/markdown';
 import { generateStorageKey, StorageTopic } from '../src/config';
 import { UserVote } from '../src/types';
+import {
+  highRateLimiterName,
+  rateLimiterName,
+} from '../src/directive/rateLimit';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -102,6 +113,8 @@ beforeEach(async () => {
     name: 'Lee',
     image: 'https://daily.dev/lee.jpg',
   });
+  await deleteKeysByPattern(`${rateLimiterName}:*`);
+  await deleteKeysByPattern(`${highRateLimiterName}:*`);
 });
 
 const saveSquadFixtures = async () => {
@@ -2357,7 +2370,7 @@ describe('mutation checkLinkPreview', () => {
   `;
 
   beforeEach(async () => {
-    await deleteKeysByPattern('rateLimit:*');
+    await deleteKeysByPattern(`${rateLimiterName}:*`);
   });
 
   const variables: Record<string, string> = { url: 'https://daily.dev' };
@@ -2742,6 +2755,82 @@ describe('mutation createFreeformPost', () => {
   //   expect(mention).toBeFalsy();
   //   expect(post.titleHtml).toMatchSnapshot();
   // });
+
+  describe('rate limiting', () => {
+    const redisKey = `${rateLimiterName}:1:createPost`;
+    it('store rate limiting state in redis', async () => {
+      loggedUser = '1';
+
+      const res = await client.mutate(MUTATION, {
+        variables: params,
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(await getRedisObject(redisKey)).toEqual('1');
+    });
+
+    it('should rate limit creating posts to 10 per hour', async () => {
+      loggedUser = '1';
+
+      for (let i = 0; i < 10; i++) {
+        const res = await client.mutate(MUTATION, {
+          variables: params,
+        });
+
+        expect(res.errors).toBeFalsy();
+      }
+      expect(await getRedisObject(redisKey)).toEqual('10');
+
+      await testMutationErrorCode(
+        client,
+        { mutation: MUTATION, variables: params },
+        'RATE_LIMITED',
+      );
+
+      // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
+      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(3600);
+      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(3590);
+    });
+
+    describe('high rate squads', () => {
+      const highRateRedisKey = `${highRateLimiterName}:1:createPost`;
+      beforeEach(async () => {
+        await con.getRepository(SquadSource).save({
+          id: WATERCOOLER_ID,
+          handle: 'watercooler',
+          name: 'Watercooler',
+          private: false,
+        });
+        await con.getRepository(SourceMember).save({
+          sourceId: WATERCOOLER_ID,
+          userId: '1',
+          referralToken: 'rt',
+          role: SourceMemberRoles.Member,
+        });
+      });
+
+      it('should rate limit creating posts in Watercooler squad to 1 per 10 minutes', async () => {
+        loggedUser = '1';
+
+        const res = await client.mutate(MUTATION, {
+          variables: { ...params, sourceId: WATERCOOLER_ID },
+        });
+
+        expect(res.errors).toBeFalsy();
+        expect(await getRedisObject(redisKey)).toEqual('1');
+        expect(await getRedisObject(highRateRedisKey)).toEqual('1');
+
+        await testMutationErrorCode(
+          client,
+          {
+            mutation: MUTATION,
+            variables: { ...params, sourceId: WATERCOOLER_ID },
+          },
+          'RATE_LIMITED',
+        );
+      });
+    });
+  });
 });
 
 describe('mutation editPost', () => {

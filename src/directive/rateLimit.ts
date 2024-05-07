@@ -111,10 +111,11 @@ export const onLimit: RateLimitOnLimit<Context> = (
   }
 };
 
+export const rateLimiterName = 'rateLimit';
 const rateLimiterConfig: RateLimitOptions<Context, IRateLimiterRedisOptions> = {
   keyGenerator,
   onLimit,
-  name: 'rateLimit',
+  name: rateLimiterName,
   limiterOptions: {
     storeClient: singleRedisClient,
   },
@@ -124,12 +125,13 @@ const rateLimiterConfig: RateLimitOptions<Context, IRateLimiterRedisOptions> = {
 const { rateLimitDirectiveTransformer, rateLimitDirectiveTypeDefs } =
   rateLimitDirective(rateLimiterConfig);
 
+export const highRateLimiterName = 'watercoolerRateLimit';
 const {
   rateLimitDirectiveTransformer: highRateLimitTransformer,
   rateLimitDirectiveTypeDefs: highRateLimitTypeDefs,
 } = rateLimitDirective({
   ...rateLimiterConfig,
-  name: 'watercoolerRateLimit',
+  name: highRateLimiterName,
   pointsCalculator: (_, __, args) =>
     (args.sourceId as string) === WATERCOOLER_ID ? 1 : 0,
 });
