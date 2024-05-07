@@ -875,9 +875,9 @@ describe('query mySourceMemberships', () => {
       );
   });
 
-  const createQuery = (type?: string) => `
+  const createQuery = (type?: SourceType) => `
     query SourceMemberships {
-      mySourceMemberships${type ? `(type: "${type}")` : ''} {
+      mySourceMemberships${type ? `(type: ${type})` : ''} {
         pageInfo {
           endCursor
           hasNextPage
@@ -928,7 +928,7 @@ describe('query mySourceMemberships', () => {
 
   it('should only return squad type memberships if specified', async () => {
     loggedUser = '1';
-    const res = await client.query(createQuery('squad'));
+    const res = await client.query(createQuery(SourceType.Squad));
     expect(res.errors).toBeFalsy();
     expect(res.data.mySourceMemberships).toBeDefined();
     expect(res.data.mySourceMemberships.edges).toHaveLength(1);

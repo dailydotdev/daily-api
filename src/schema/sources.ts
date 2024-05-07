@@ -39,6 +39,7 @@ import { randomUUID } from 'crypto';
 import {
   createSquadWelcomePost,
   getSourceLink,
+  toGQLEnum,
   updateFlagsStatement,
   uploadSquadImage,
 } from '../common';
@@ -285,6 +286,8 @@ export const typeDefs = /* GraphQL */ `
     hits: [Tag]!
   }
 
+  ${toGQLEnum(SourceType, 'SourceType')}
+
   extend type Query {
     """
     Get all available sources
@@ -413,7 +416,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Source type (machine/squad)
       """
-      type: String
+      type: SourceType
     ): SourceMemberConnection! @auth
 
     """
@@ -1272,7 +1275,7 @@ export const resolvers: IResolvers<any, Context> = {
             .addOrderBy(`${alias}."createdAt"`, 'DESC');
 
           if (type) {
-            queryBuilder = queryBuilder
+            queryBuilder
               .innerJoin(Source, 's', `${alias}."sourceId" = s.id`)
               .andWhere(`s."type" = :type`, {
                 type,
