@@ -409,6 +409,11 @@ export const typeDefs = /* GraphQL */ `
       Paginate first
       """
       first: Int
+
+      """
+      Source type (machine/squad)
+      """
+      type: String
     ): SourceMemberConnection! @auth
 
     """
@@ -953,6 +958,10 @@ interface SourcesArgs extends ConnectionArguments {
   filterOpenSquads?: boolean;
 }
 
+interface SourcesByType extends ConnectionArguments {
+  type?: SourceType;
+}
+
 interface SourcesByTag extends ConnectionArguments {
   tag: string;
   excludeSources?: string[];
@@ -1245,13 +1254,15 @@ export const resolvers: IResolvers<any, Context> = {
     },
     mySourceMemberships: async (
       _,
-      args: ConnectionArguments,
+      args: SourcesByType,
       ctx,
       info,
     ): Promise<Connection<GQLSourceMember>> => {
+      const { type, ...connectionArgs } = args;
+
       return paginateSourceMembers(
         (queryBuilder, alias) => {
-          return queryBuilder
+          queryBuilder
             .andWhere(`${alias}."userId" = :user`, { user: ctx.userId })
             .andWhere(
               `${
@@ -1259,8 +1270,17 @@ export const resolvers: IResolvers<any, Context> = {
               } >= 0`,
             )
             .addOrderBy(`${alias}."createdAt"`, 'DESC');
+
+          if (type) {
+            queryBuilder = queryBuilder
+              .innerJoin(Source, 's', `${alias}."sourceId" = s.id`)
+              .andWhere(`s."type" = :type`, {
+                type,
+              });
+          }
+          return queryBuilder;
         },
-        args,
+        connectionArgs,
         ctx,
         info,
       );
