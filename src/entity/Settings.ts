@@ -2,9 +2,11 @@ import {
   Column,
   Entity,
   Index,
+  ManyToOne,
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { User } from './user';
 
 export enum CampaignCtaPlacement {
   Header = 'header',
@@ -64,6 +66,12 @@ export class Settings {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @ManyToOne(() => User, {
+    lazy: true,
+    onDelete: 'CASCADE',
+  })
+  user: Promise<User>;
 }
 
 export const SETTINGS_DEFAULT = {
