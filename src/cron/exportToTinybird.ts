@@ -56,7 +56,7 @@ export class PostsRepository implements PostsRepositoryDependency {
               (SELECT "s"."type" FROM "source" AS "s" WHERE "s"."id" = "sourceId") AS "source_type",
               flags::varchar      AS flags_json_str,
               "language"          AS "language",
-              ("contentQuality"->'is_ai_probability')::float AS "is_ai_probability"
+              COALESCE(("contentQuality"->'is_ai_probability')::float, 0) AS "is_ai_probability"
        FROM "post"
        WHERE "metadataChangedAt" > $1
          and "sourceId" != '${UNKNOWN_SOURCE}'
