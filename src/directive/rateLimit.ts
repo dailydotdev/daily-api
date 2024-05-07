@@ -50,7 +50,7 @@ const keyGenerator: RateLimitKeyGenerator<Context> = (
         return `${context.userId ?? context.trackingId}:createPost`;
       case 'commentOnPost':
       case 'commentOnComment':
-        `${context.userId ?? context.trackingId}:createComment`;
+        return `${context.userId ?? context.trackingId}:createComment`;
       default:
         return `${context.userId ?? context.trackingId}:${defaultKeyGenerator(
           directiveArgs,
