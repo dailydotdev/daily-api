@@ -25,7 +25,6 @@ export interface TinybirdPost {
   banned: number;
   flags_json_str: string;
   language: string;
-  is_ai_probability: number;
 }
 
 export interface PostsRepositoryDependency {
@@ -55,8 +54,7 @@ export class PostsRepository implements PostsRepositoryDependency {
               "contentCuration"   AS "content_curation",
               (SELECT "s"."type" FROM "source" AS "s" WHERE "s"."id" = "sourceId") AS "source_type",
               flags::varchar      AS flags_json_str,
-              "language"          AS "language",
-              ("contentQuality"->'is_ai_probability')::float AS "is_ai_probability"
+              "language"          AS "language"
        FROM "post"
        WHERE "metadataChangedAt" > $1
          and "sourceId" != '${UNKNOWN_SOURCE}'
@@ -126,7 +124,6 @@ export class PostsMetadataRepository
     'source_type',
     'flags_json_str',
     'language',
-    'is_ai_probability',
   ];
 
   public async append(posts: TinybirdPost[]): Promise<PostDatasourceResult> {
