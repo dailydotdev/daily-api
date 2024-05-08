@@ -15,6 +15,8 @@ import { Context } from '../Context';
 import { logger } from '../logger';
 import { WATERCOOLER_ID } from '../common';
 
+export const highRateLimitedSquads = [WATERCOOLER_ID];
+
 export class CustomRateLimiterRedis extends RateLimiterRedis {
   constructor(props: IRateLimiterRedisOptions) {
     super(props);
@@ -85,7 +87,7 @@ export const onLimit: RateLimitOnLimit<Context> = (
   resource,
   _,
   __,
-  ___,
+  args,
   context,
   info,
 ) => {
@@ -94,8 +96,11 @@ export const onLimit: RateLimitOnLimit<Context> = (
     case 'submitExternalLink':
     case 'sharePost':
       context.rateLimitCouner.add(1, { type: 'createPost' });
+      const period = highRateLimitedSquads.includes(args.sourceId as string)
+        ? 'ten minutes'
+        : 'hour';
       throw new RateLimitError({
-        message: 'Take a break. You already posted enough in the last hour',
+        message: `Take a break. You already posted enough in the last ${period}`,
       });
     case 'commentOnPost':
     case 'commentOnComment':
@@ -124,7 +129,6 @@ const { rateLimitDirectiveTransformer, rateLimitDirectiveTypeDefs } =
   rateLimitDirective(rateLimiterConfig);
 
 export const highRateLimiterName = 'highRateLimit';
-export const highRateLimitedSquads = [WATERCOOLER_ID];
 const {
   rateLimitDirectiveTransformer: highRateLimitTransformer,
   rateLimitDirectiveTypeDefs: highRateLimitTypeDefs,
