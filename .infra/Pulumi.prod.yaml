@@ -12,7 +12,7 @@ config:
       clickhouse_database:
         secure: AAABAFXhGil+ZGIYbGEIU71Q2eQslzMjGAkeeW0LumXI3GA=
       clickhouse_host:
-        secure: AAABALHVcbAoNaAUNDlNGhq6p/i3ZIbmTisYJdNuF7Itv9uerhYXsX8cF099G7o7Uhhh2d/cGQmCwieJgHRQ6vi0pJYWVujVGUI1+kv7YGXBFg==
+        secure: AAABAIQxPrmdgAYpubbAEoNO2ur12DmMMFt41HBHf14nmFE4Ga8cdO1lF3o6aoVEBTYswLoHbYbuueWHbakEEtBdNCkcqFipsMhDfSqWIS2m8Dk=
       clickhouse_password:
         secure: AAABAFKxj2OdbZCyvfalxBK9l69IvwB1g/hCek3wf5ZePS3cOgAkvTlFtxsdiDv2Xe9VXQE8
       clickhouse_port:
