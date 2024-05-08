@@ -27,9 +27,7 @@ export class CustomRateLimiterRedis extends RateLimiterRedis {
     pointsToConsume?: number,
     options?: { [key: string]: unknown },
   ) {
-    if (process.env.NODE_ENV === 'development') {
-      logger.info(`[CONSUME] ${key} for ${pointsToConsume}`);
-    }
+    logger.debug(`[CONSUME] ${key} for ${pointsToConsume}`);
 
     return super.consume(key, pointsToConsume, options);
   }
