@@ -16,11 +16,13 @@ import {
   View,
   BookmarkList,
   ArticlePost,
+  User,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
+import { usersFixture } from './fixture/user';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -62,6 +64,7 @@ beforeEach(async () => {
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
+  await saveFixtures(con, User, usersFixture);
 });
 
 afterAll(() => disposeGraphQLTesting(state));

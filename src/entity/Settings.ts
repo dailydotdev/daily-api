@@ -2,7 +2,7 @@ import {
   Column,
   Entity,
   Index,
-  ManyToOne,
+  OneToOne,
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -67,7 +67,7 @@ export class Settings {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToOne(() => User, {
+  @OneToOne(() => User, {
     lazy: true,
     onDelete: 'CASCADE',
   })

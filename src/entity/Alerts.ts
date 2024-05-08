@@ -1,4 +1,4 @@
-import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
+import { Column, Entity, Index, OneToOne, PrimaryColumn } from 'typeorm';
 import { User } from './user';
 
 export type AlertsFlags = Partial<{
@@ -54,7 +54,7 @@ export class Alerts {
 
   bootPopup?: boolean;
 
-  @ManyToOne(() => User, {
+  @OneToOne(() => User, {
     lazy: true,
     onDelete: 'CASCADE',
   })
