@@ -1883,6 +1883,7 @@ describe('mutation sharePost', () => {
         client,
         { mutation: MUTATION, variables: variables },
         'RATE_LIMITED',
+        'Take a break. You already posted enough in the last hour',
       );
 
       // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
@@ -1925,6 +1926,7 @@ describe('mutation sharePost', () => {
             variables: { ...variables, sourceId: WATERCOOLER_ID },
           },
           'RATE_LIMITED',
+          'Take a break. You already posted enough in the last ten minutes',
         );
       });
     });
@@ -2462,6 +2464,7 @@ describe('mutation submitExternalLink', () => {
         client,
         { mutation: MUTATION, variables: variables },
         'RATE_LIMITED',
+        'Take a break. You already posted enough in the last hour',
       );
 
       // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
@@ -2512,6 +2515,7 @@ describe('mutation submitExternalLink', () => {
             },
           },
           'RATE_LIMITED',
+          'Take a break. You already posted enough in the last ten minutes',
         );
       });
     });
@@ -2587,10 +2591,11 @@ describe('mutation checkLinkPreview', () => {
       expect(res.errors).toBeFalsy();
     }
 
-    return testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       { mutation: MUTATION, variables },
       'RATE_LIMITED',
+      'Too many requests, please try again in 60s',
     );
   });
 
@@ -2945,6 +2950,7 @@ describe('mutation createFreeformPost', () => {
         client,
         { mutation: MUTATION, variables: params },
         'RATE_LIMITED',
+        'Take a break. You already posted enough in the last hour',
       );
 
       // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
@@ -2987,6 +2993,7 @@ describe('mutation createFreeformPost', () => {
             variables: { ...params, sourceId: WATERCOOLER_ID },
           },
           'RATE_LIMITED',
+          'Take a break. You already posted enough in the last ten minutes',
         );
       });
     });

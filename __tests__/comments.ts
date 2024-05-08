@@ -809,6 +809,7 @@ describe('mutation commentOnPost', () => {
         client,
         { mutation: MUTATION, variables },
         'RATE_LIMITED',
+        'Take a break. You already commented enough in the last hour',
       );
 
       // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
@@ -993,6 +994,7 @@ describe('mutation commentOnComment', () => {
         client,
         { mutation: MUTATION, variables },
         'RATE_LIMITED',
+        'Take a break. You already commented enough in the last hour',
       );
 
       // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
