@@ -2591,11 +2591,11 @@ describe('mutation checkLinkPreview', () => {
       expect(res.errors).toBeFalsy();
     }
 
-    return testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       { mutation: MUTATION, variables },
       'RATE_LIMITED',
-      'Take a break. You already posted enough in the last ten minutes',
+      'Too many requests, please try again in 60s',
     );
   });
 
