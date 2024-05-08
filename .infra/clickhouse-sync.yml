@@ -58,10 +58,10 @@ connector.class: "io.debezium.connector.postgresql.PostgresConnector"
 offset.storage: "io.debezium.storage.jdbc.offset.JdbcOffsetBackingStore"
 
 # offset.storage.jdbc.offset.table.name: The name of the database table where connector offsets are to be stored.
-offset.storage.jdbc.offset.table.name: "altinity_sink_connector.replica_source_info"
+offset.storage.jdbc.offset.table.name: "api.replica_source_info"
 
 # offset.storage.jdbc.url: The JDBC URL for the database where connector offsets are to be stored.
-offset.storage.jdbc.url: "jdbc:clickhouse://%clickhouse_host%:%clickhouse_port%/altinity_sink_connector"
+offset.storage.jdbc.url: "jdbc:clickhouse:%clickhouse_host%:%clickhouse_port%/api"
 
 # offset.storage.jdbc.user: The name of the database user to be used when connecting to the database where connector offsets are to be stored.
 offset.storage.jdbc.user: "%clickhouse_user%"
@@ -85,7 +85,7 @@ offset.storage.jdbc.offset.table.ddl: |
   SETTINGS index_granularity = 8198
 offset.storage.jdbc.offset.table.delete: "delete from %s where 1=1"
 schema.history.internal: "io.debezium.storage.jdbc.history.JdbcSchemaHistory"
-schema.history.internal.jdbc.url: "jdbc:clickhouse://%clickhouse_host%:%clickhouse_port%/altinity_sink_connector"
+schema.history.internal.jdbc.url: "jdbc:clickhouse:%clickhouse_host%:%clickhouse_port%/api"
 schema.history.internal.jdbc.user: "%clickhouse_user%"
 schema.history.internal.jdbc.password: "%clickhouse_password%"
 schema.history.internal.jdbc.schema.history.table.ddl: |
@@ -101,13 +101,14 @@ schema.history.internal.jdbc.schema.history.table.ddl: |
   order by id
 
 # schema.history.internal.schema.history.table.name: The name of the database table where connector schema history is to be stored.
-schema.history.internal.jdbc.schema.history.table.name: "altinity_sink_connector.replicate_schema_history"
+schema.history.internal.jdbc.schema.history.table.name: "api.replicate_schema_history"
 
 # enable.snapshot.ddl: If set to true, the connector wil parse the DDL statements as part of initial load.
 enable.snapshot.ddl: "true"
 
 # auto.create.tables: If set to true, the connector will create the database tables for the destination tables if they do not already exist.
 auto.create.tables: "true"
+auto.create.tables.replicated: "true"
 
 # database.dbname: The name of the PostgreSQL database from which events are to be captured when not using snapshot mode.
 database.dbname: "%database_dbname%"
