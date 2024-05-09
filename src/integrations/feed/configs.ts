@@ -165,6 +165,7 @@ export class FeedLofnConfigGenerator implements FeedConfigGenerator {
 
         const config = {
           config: lofnConfig.config,
+          ...lofnConfig.extra,
           ...preferencesConfig.config,
         };
 

@@ -442,4 +442,52 @@ describe('FeedLofnConfigGenerator', () => {
       },
     });
   });
+
+  it('should generate config through lofn and include extra in the request', async () => {
+    const mockClient = mock<ILofnClient>();
+    const mockedValue = {
+      user_id: '1',
+      config: {
+        page_size: 20,
+        total_pages: 10,
+        providers: {},
+      },
+      tyr_metadata: {
+        test: 'da',
+      },
+      extra: {
+        aigc_threshold: 'none',
+      },
+    };
+    mockClient.fetchConfig.mockResolvedValueOnce(mockedValue);
+    const generator: FeedConfigGenerator = new FeedLofnConfigGenerator(
+      {
+        total_pages: 1,
+      },
+      mockClient,
+      {
+        feed_version: '30',
+      },
+    );
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 10,
+      offset: 3,
+    });
+    expect(actual).toMatchObject({
+      config: {
+        user_id: '1',
+        total_pages: 1,
+        page_size: 10,
+        fresh_page_size: '4',
+        aigc_threshold: 'none',
+        config: {
+          providers: {},
+        },
+      },
+      extraMetadata: {
+        mab: mockedValue.tyr_metadata,
+      },
+    });
+  });
 });

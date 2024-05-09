@@ -10,6 +10,7 @@ export type LofnFeedConfigResponse = {
   user_id: string;
   config: FeedConfig;
   tyr_metadata?: GenericMetadata;
+  extra?: GenericMetadata;
 };
 
 export type LofnFeedConfigPayload = {
