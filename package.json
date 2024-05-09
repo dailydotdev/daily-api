@@ -106,7 +106,7 @@
     "node-fetch": "^2.7.0",
     "node-html-parser": "^6.1.13",
     "opentelemetry-instrumentation-typeorm": "^0.40.0",
-    "p-timeout": "4.1.0",
+    "p-timeout": "6.1.2",
     "pg": "^8.11.5",
     "pg-query-stream": "^4.5.5",
     "pino": "^9.0.0",
