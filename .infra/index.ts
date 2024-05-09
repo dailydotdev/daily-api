@@ -22,7 +22,9 @@ import {
   Redis,
   detectIsAdhocEnv,
   SqlDatabase,
-  Stream
+  Stream,
+  ClickHouseSync,
+  ClickHouseSyncConfig,
 } from '@dailydotdev/pulumi-common';
 
 const isAdhocEnv = detectIsAdhocEnv();
@@ -525,5 +527,50 @@ if (vpcNativeProvider) {
       spec: subsIngressSpec,
     },
     { provider: vpcNativeProvider.provider },
+  );
+}
+
+if (!isAdhocEnv) {
+  new ClickHouseSync(
+    'clickhouse-sync',
+    {
+      isAdhocEnv: isAdhocEnv,
+      namespace: namespace,
+      props: {
+        path: './clickhouse-sync.yml',
+        keys: {
+          ...config.requireObject<{ keys: ClickHouseSyncConfig }>(
+            'clickhouseSync',
+          ).keys,
+          'database.hostname': envVars.typeormHost as string,
+          'database.port': '5432',
+          'database.password': config.require('debeziumDbPass'),
+          'database.user': config.require('debeziumDbUser'),
+          'database.server.name': name,
+          'database.dbname': name,
+        },
+        vars: {
+          ...config.requireObject<{ vars: Record<string, string> }>(
+            'clickhouseSync',
+          ).vars,
+        },
+      },
+      image: {
+        repository: 'gcr.io/daily-ops/clickhouse-sink-docker',
+        tag: '10b6c52efb85ba194b2b851f3781f0d847b7e6fd',
+      },
+      resources: {
+        // TODO: adjust resources based on the actual usage
+        requests: {
+          cpu: '500m',
+          memory: '1024Mi',
+        },
+        limits: {
+          // 1.5GiB
+          memory: '1536Mi',
+        },
+      },
+    },
+    { provider: vpcNativeProvider?.provider },
   );
 }
