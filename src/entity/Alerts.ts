@@ -1,4 +1,5 @@
-import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
+import { Column, Entity, Index, OneToOne, PrimaryColumn } from 'typeorm';
+import { User } from './user';
 
 export type AlertsFlags = Partial<{
   lastReferralReminder: Date | null;
@@ -52,9 +53,15 @@ export class Alerts {
   banner?: boolean;
 
   bootPopup?: boolean;
+
+  @OneToOne(() => User, {
+    lazy: true,
+    onDelete: 'CASCADE',
+  })
+  user: Promise<User>;
 }
 
-export const ALERTS_DEFAULT: Omit<Alerts, 'userId' | 'flags'> = {
+export const ALERTS_DEFAULT: Omit<Alerts, 'userId' | 'flags' | 'user'> = {
   filter: true,
   rankLastSeen: null,
   myFeed: null,
