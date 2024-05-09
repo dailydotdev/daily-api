@@ -24,16 +24,16 @@ import * as authDirective from './directive/auth';
 import * as urlDirective from './directive/url';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import {
-  rateLimitDirectiveTransformer,
-  rateLimitDirectiveTypeDefs,
+  rateLimitTypeDefs,
+  rateLimiterTransformers,
 } from './directive/rateLimit';
 
 export const schema = urlDirective.transformer(
   authDirective.transformer(
-    rateLimitDirectiveTransformer(
+    rateLimiterTransformers(
       makeExecutableSchema({
         typeDefs: [
-          rateLimitDirectiveTypeDefs,
+          ...rateLimitTypeDefs,
           common.typeDefs,
           urlDirective.typeDefs,
           authDirective.typeDefs,

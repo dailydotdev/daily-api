@@ -134,10 +134,14 @@ export const testMutationErrorCode = async (
   client: GraphQLTestClient,
   mutation: Mutation,
   code: string,
+  message?: string,
 ): Promise<void> =>
   testMutationError(client, mutation, (errors) => {
     expect(errors.length).toEqual(1);
     expect(errors[0].extensions?.code).toEqual(code);
+    if (message) {
+      expect(errors[0].message).toEqual(message);
+    }
   });
 
 export type Query = {

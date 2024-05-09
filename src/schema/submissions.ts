@@ -94,7 +94,7 @@ const getSubmissionsToday = (con: DataSource, user: User) => {
     .createQueryBuilder()
     .select('*')
     .where(
-      `date_trunc('day', "createdAt")::timestamptz ${atTimezone} = date_trunc('day', now())::timestamptz ${atTimezone}`,
+      `date_trunc('day', timezone('UTC', "createdAt") ${atTimezone})::timestamptz = date_trunc('day', now() ${atTimezone})::timestamptz`,
     )
     .andWhere('"userId" = :id', { id: user.id })
     .execute();
