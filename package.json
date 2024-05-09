@@ -146,7 +146,7 @@
     "jest-extended": "^4.0.2",
     "jest-junit": "^16.0.0",
     "jest-mock-extended": "^3.0.7",
-    "mercurius-integration-testing": "^6.0.1",
+    "mercurius-integration-testing": "^8.2.0",
     "nock": "^13.5.4",
     "nodemon": "^3.1.0",
     "pino-pretty": "^11.0.0",
