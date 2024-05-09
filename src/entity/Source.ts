@@ -119,6 +119,9 @@ export class Source {
 
   @OneToMany(() => SourceMember, (sm) => sm.source, { lazy: true })
   members: Promise<SourceMember[]>;
+
+  @Column({ type: 'text', nullable: true })
+  description?: string;
 }
 
 @ChildEntity(SourceType.Machine)
@@ -138,9 +141,6 @@ export class MachineSource extends Source {
 
 @ChildEntity(SourceType.Squad)
 export class SquadSource extends Source {
-  @Column({ type: 'text', nullable: true })
-  description?: string;
-
   @Column({ default: 0 })
   memberPostingRank?: number;
 

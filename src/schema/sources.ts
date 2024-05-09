@@ -69,6 +69,7 @@ export interface GQLSource {
   privilegedMembers?: GQLSourceMember[];
   referralUrl?: string;
   flags?: SourceFlagsPublic;
+  description?: string;
 }
 
 export interface GQLSourceMember {
