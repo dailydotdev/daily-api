@@ -97,6 +97,7 @@ MachineSource {
   "active": true,
   "advancedSettings": Array [],
   "color": null,
+  "description": null,
   "flags": Object {},
   "handle": "a",
   "headerImage": null,
