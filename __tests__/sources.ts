@@ -54,7 +54,11 @@ beforeAll(async () => {
 beforeEach(async () => {
   loggedUser = null;
   premiumUser = false;
-  await saveFixtures(con, Source, [sourcesFixture[0], sourcesFixture[1]]);
+  await saveFixtures(con, Source, [
+    sourcesFixture[0],
+    sourcesFixture[1],
+    sourcesFixture[5],
+  ]);
   await saveFixtures(con, User, usersFixture);
   await con.getRepository(SourceMember).save([
     {
@@ -85,6 +89,13 @@ beforeEach(async () => {
       referralToken: randomUUID(),
       createdAt: new Date(2022, 11, 20),
     },
+    {
+      userId: '1',
+      sourceId: 'squad',
+      role: SourceMemberRoles.Admin,
+      referralToken: randomUUID(),
+      createdAt: new Date(2022, 11, 19),
+    },
   ]);
 });
 
@@ -112,7 +123,7 @@ describe('query sources', () => {
 }`;
 
   it('should return only public sources', async () => {
-    const res = await client.query(QUERY());
+    const res = await client.query(QUERY(10, true));
     const isPublic = res.data.sources.edges.every(({ node }) => !!node.public);
     expect(isPublic).toBeTruthy();
   });
@@ -855,9 +866,18 @@ describe('query sourceMembers', () => {
 });
 
 describe('query mySourceMemberships', () => {
-  const QUERY = `
+  afterEach(async () => {
+    await con
+      .getRepository(SourceMember)
+      .update(
+        { userId: '2', sourceId: 'a' },
+        { role: SourceMemberRoles.Member },
+      );
+  });
+
+  const createQuery = (type?: SourceType) => `
     query SourceMemberships {
-      mySourceMemberships {
+      mySourceMemberships${type ? `(type: ${type})` : ''} {
         pageInfo {
           endCursor
           hasNextPage
@@ -873,18 +893,23 @@ describe('query mySourceMemberships', () => {
       }
     }
   `;
+  const QUERY = createQuery();
 
   it('should not authorize when user is not logged in', () =>
     testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
 
   it('should return source memberships', async () => {
-    loggedUser = '2';
+    loggedUser = '1';
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
-    expect(res.data).toMatchSnapshot();
+    expect(res.data.mySourceMemberships).toBeDefined();
+    expect(res.data.mySourceMemberships.edges).toHaveLength(2);
+    expect(
+      res.data.mySourceMemberships.edges.map(({ node }) => node.source.id),
+    ).toEqual(['a', 'squad']);
   });
 
-  it('should not return source memberships in user is blocked', async () => {
+  it('should not return source memberships if user is blocked', async () => {
     await con
       .getRepository(SourceMember)
       .update(
@@ -894,7 +919,22 @@ describe('query mySourceMemberships', () => {
     loggedUser = '2';
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
-    expect(res.data).toMatchSnapshot();
+    expect(res.data.mySourceMemberships).toBeDefined();
+    expect(res.data.mySourceMemberships.edges).toHaveLength(1);
+    expect(
+      res.data.mySourceMemberships.edges.map(({ node }) => node.source.id),
+    ).toEqual(['b']);
+  });
+
+  it('should only return squad type memberships if specified', async () => {
+    loggedUser = '1';
+    const res = await client.query(createQuery(SourceType.Squad));
+    expect(res.errors).toBeFalsy();
+    expect(res.data.mySourceMemberships).toBeDefined();
+    expect(res.data.mySourceMemberships.edges).toHaveLength(1);
+    expect(
+      res.data.mySourceMemberships.edges.map(({ node }) => node.source.id),
+    ).toEqual(['squad']);
   });
 });
 
@@ -1101,8 +1141,8 @@ describe('mutation createSquad', () => {
 }`;
 
   const variables = {
-    name: 'Squad',
-    handle: 'squad',
+    name: 'Squad Create Test',
+    handle: 'squadcreatetest',
     postId: 'p1',
     commentary: 'My comment',
   };
@@ -1126,8 +1166,8 @@ describe('mutation createSquad', () => {
     const newSource = await con
       .getRepository(SquadSource)
       .findOneBy({ id: newId });
-    expect(newSource.name).toEqual('Squad');
-    expect(newSource.handle).toEqual('squad');
+    expect(newSource.name).toEqual(variables.name);
+    expect(newSource.handle).toEqual(variables.handle);
     expect(newSource.active).toEqual(true);
     expect(newSource.private).toEqual(true);
     expect(newSource?.memberPostingRank).toEqual(
@@ -1283,8 +1323,8 @@ describe('mutation createSquad', () => {
     const newSource = await con
       .getRepository(SquadSource)
       .findOneBy({ id: newId });
-    expect(newSource.name).toEqual('Squad');
-    expect(newSource.handle).toEqual('squad');
+    expect(newSource.name).toEqual(variables.name);
+    expect(newSource.handle).toEqual(variables.handle);
     expect(newSource.active).toEqual(true);
     expect(newSource.private).toEqual(true);
     expect(newSource?.memberPostingRank).toEqual(
@@ -1346,8 +1386,8 @@ describe('mutation createSquad', () => {
     const newSource = await con
       .getRepository(SquadSource)
       .findOneBy({ id: newId });
-    expect(newSource.name).toEqual('Squad');
-    expect(newSource.handle).toEqual('squad');
+    expect(newSource.name).toEqual(variables.name);
+    expect(newSource.handle).toEqual(variables.handle);
     expect(newSource.active).toEqual(true);
     expect(newSource.private).toEqual(true);
     expect(newSource?.memberInviteRank).toEqual(

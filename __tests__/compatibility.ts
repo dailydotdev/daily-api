@@ -12,11 +12,13 @@ import {
   Post,
   PostKeyword,
   Source,
+  User,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postKeywordsFixture, postsFixture } from './fixture/post';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
+import { usersFixture } from './fixture/user';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -123,6 +125,10 @@ describe('query bookmarks', () => {
       ${feedFields}
     }
   }`;
+
+  beforeEach(async () => {
+    await saveFixtures(con, User, usersFixture);
+  });
 
   it('should return bookmarks ordered by time', async () => {
     const latest = new Date().toISOString();

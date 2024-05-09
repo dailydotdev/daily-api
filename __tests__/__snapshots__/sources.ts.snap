@@ -98,68 +98,6 @@ Object {
 }
 `;
 
-exports[`query mySourceMemberships should not return source memberships in user is blocked 1`] = `
-Object {
-  "mySourceMemberships": Object {
-    "edges": Array [
-      Object {
-        "node": Object {
-          "role": "admin",
-          "roleRank": 10,
-          "source": Object {
-            "id": "b",
-          },
-          "user": Object {
-            "id": "2",
-          },
-        },
-      },
-    ],
-    "pageInfo": Object {
-      "endCursor": "dGltZToxNjcxNDA4MDAwMDAw",
-      "hasNextPage": false,
-    },
-  },
-}
-`;
-
-exports[`query mySourceMemberships should return source memberships 1`] = `
-Object {
-  "mySourceMemberships": Object {
-    "edges": Array [
-      Object {
-        "node": Object {
-          "role": "member",
-          "roleRank": 0,
-          "source": Object {
-            "id": "a",
-          },
-          "user": Object {
-            "id": "2",
-          },
-        },
-      },
-      Object {
-        "node": Object {
-          "role": "admin",
-          "roleRank": 10,
-          "source": Object {
-            "id": "b",
-          },
-          "user": Object {
-            "id": "2",
-          },
-        },
-      },
-    ],
-    "pageInfo": Object {
-      "endCursor": "dGltZToxNjcxNDA4MDAwMDAw",
-      "hasNextPage": false,
-    },
-  },
-}
-`;
-
 exports[`query source current member should return current member as admin 1`] = `
 Object {
   "source": Object {
