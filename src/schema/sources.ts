@@ -11,10 +11,10 @@ import {
   SourceFlagsPublic,
   SourceMember,
   SourceMemberFlagsPublic,
-  SourceType,
   SquadSource,
   User,
 } from '../entity';
+import { SourceType } from '../entity/Source';
 import {
   SourceMemberRoles,
   sourceRoleRank,
@@ -42,6 +42,7 @@ import {
   updateFlagsStatement,
   uploadSquadImage,
 } from '../common';
+import { toGQLEnum } from '../common/utils';
 import { GraphQLResolveInfo } from 'graphql';
 import { SourcePermissionErrorKeys, TypeOrmError } from '../errors';
 import {
@@ -285,6 +286,8 @@ export const typeDefs = /* GraphQL */ `
     hits: [Tag]!
   }
 
+  ${toGQLEnum(SourceType, 'SourceType')}
+
   extend type Query {
     """
     Get all available sources
@@ -409,6 +412,11 @@ export const typeDefs = /* GraphQL */ `
       Paginate first
       """
       first: Int
+
+      """
+      Source type (machine/squad)
+      """
+      type: SourceType
     ): SourceMemberConnection! @auth
 
     """
@@ -953,6 +961,10 @@ interface SourcesArgs extends ConnectionArguments {
   filterOpenSquads?: boolean;
 }
 
+interface SourcesByType extends ConnectionArguments {
+  type?: SourceType;
+}
+
 interface SourcesByTag extends ConnectionArguments {
   tag: string;
   excludeSources?: string[];
@@ -1245,13 +1257,15 @@ export const resolvers: IResolvers<any, Context> = {
     },
     mySourceMemberships: async (
       _,
-      args: ConnectionArguments,
+      args: SourcesByType,
       ctx,
       info,
     ): Promise<Connection<GQLSourceMember>> => {
+      const { type, ...connectionArgs } = args;
+
       return paginateSourceMembers(
         (queryBuilder, alias) => {
-          return queryBuilder
+          queryBuilder
             .andWhere(`${alias}."userId" = :user`, { user: ctx.userId })
             .andWhere(
               `${
@@ -1259,8 +1273,17 @@ export const resolvers: IResolvers<any, Context> = {
               } >= 0`,
             )
             .addOrderBy(`${alias}."createdAt"`, 'DESC');
+
+          if (type) {
+            queryBuilder
+              .innerJoin(Source, 's', `${alias}."sourceId" = s.id`)
+              .andWhere(`s."type" = :type`, {
+                type,
+              });
+          }
+          return queryBuilder;
         },
-        args,
+        connectionArgs,
         ctx,
         info,
       );
