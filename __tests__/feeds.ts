@@ -78,6 +78,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   loggedUser = null;
 
+  await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, AdvancedSettings, advancedSettings);
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
@@ -1996,7 +1997,6 @@ describe('query userUpvotedFeed', () => {
 `;
 
   beforeEach(async () => {
-    await saveFixtures(con, User, usersFixture);
     await con.getRepository(UserPost).insert([
       {
         userId: '2',
@@ -2037,6 +2037,214 @@ describe('query userUpvotedFeed', () => {
     const res = await client.query(QUERY, { variables: { userId: '2' } });
     res.data.userUpvotedFeed.edges.forEach(({ node }) =>
       expect(['p1', 'p3']).toContain(node.id),
+    );
+  });
+});
+
+describe('flags field', () => {
+  const QUERY = `{
+    feedList {
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+      edges {
+        node {
+          flags {
+            name
+          }
+        }
+      }
+    }
+  }`;
+
+  beforeEach(async () => {
+    loggedUser = '1';
+    await con.getRepository(Feed).save([
+      {
+        id: 'cf1',
+        userId: '1',
+        flags: {},
+      },
+    ]);
+  });
+
+  it('should return all the public flags', async () => {
+    await con.getRepository(Feed).save([
+      {
+        id: 'cf1',
+        flags: {
+          name: 'Cool feed',
+        },
+      },
+    ]);
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedList.edges.length).toEqual(1);
+    expect(res.data.feedList.edges[0].node.flags).toEqual({
+      name: 'Cool feed',
+    });
+  });
+
+  it('should return null values for unset flags', async () => {
+    const res = await client.query(QUERY);
+    expect(res.data.feedList.edges[0].node.flags).toEqual({
+      name: null,
+    });
+  });
+
+  it('should contain all default values in db query', async () => {
+    const feed = await con.getRepository(Feed).findOneBy({ id: 'cf1' });
+    expect(feed?.flags).toEqual({});
+  });
+});
+
+describe('slug filed', () => {
+  const QUERY = `{
+    feedList {
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+      edges {
+        node {
+          slug
+        }
+      }
+    }
+  }`;
+
+  beforeEach(async () => {
+    loggedUser = '1';
+    await con.getRepository(Feed).save([
+      {
+        id: 'cf1',
+        userId: '1',
+        flags: {
+          name: 'Cool feed',
+        },
+      },
+    ]);
+  });
+
+  it('should return the slug', async () => {
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedList.edges[0].node.slug).toEqual('cool-feed-cf1');
+  });
+
+  it('should return slug when name is unset', async () => {
+    await con.getRepository(Feed).save([
+      {
+        id: 'cf1',
+        flags: {},
+      },
+    ]);
+
+    const res = await client.query(QUERY);
+    expect(res.data.feedList.edges[0].node.slug).toEqual('cf1');
+  });
+});
+
+describe('query feedList', () => {
+  const QUERY = `{
+    feedList {
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+      edges {
+        node {
+          id
+          userId
+          flags {
+            name
+          }
+          slug
+        }
+      }
+    }
+  }`;
+
+  beforeEach(async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await con.getRepository(Feed).save([
+      {
+        id: 'cf1',
+        userId: '1',
+        flags: {
+          name: 'Cool feed',
+        },
+      },
+      {
+        id: 'cf2',
+        userId: '1',
+        flags: {
+          name: 'PHP feed',
+        },
+      },
+      {
+        id: 'cf3',
+        userId: '1',
+        flags: {
+          name: 'Awful feed',
+        },
+      },
+    ]);
+  });
+
+  it('should return the feed list', async () => {
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchObject({
+      feedList: {
+        pageInfo: {
+          endCursor: expect.any(String),
+          hasNextPage: false,
+        },
+        edges: [
+          {
+            node: {
+              id: 'cf1',
+              userId: '1',
+              flags: {
+                name: 'Cool feed',
+              },
+              slug: 'cool-feed-cf1',
+            },
+          },
+          {
+            node: {
+              id: 'cf2',
+              userId: '1',
+              flags: {
+                name: 'PHP feed',
+              },
+              slug: 'php-feed-cf2',
+            },
+          },
+          {
+            node: {
+              id: 'cf3',
+              userId: '1',
+              flags: {
+                name: 'Awful feed',
+              },
+              slug: 'awful-feed-cf3',
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  it('should not return the user default feed', async () => {
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedList.edges.map((edge) => edge.node.id)).not.toContain(
+      '1',
     );
   });
 });

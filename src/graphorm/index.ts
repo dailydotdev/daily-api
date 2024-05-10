@@ -547,6 +547,14 @@ const obj = new GraphORM({
       },
     },
   },
+  Feed: {
+    requiredColumns: ['id', 'createdAt', 'userId'],
+    fields: {
+      flags: {
+        jsonType: true,
+      },
+    },
+  },
 });
 
 export default obj;

@@ -3,6 +3,7 @@ import {
   BookmarkList,
   Feed,
   FeedAdvancedSettings,
+  FeedFlagsPublic,
   FeedSource,
   FeedTag,
   Post,
@@ -42,7 +43,7 @@ import {
   feedCursorPageGenerator,
 } from './common';
 import { GQLPost } from './posts';
-import { ConnectionArguments } from 'graphql-relay';
+import { Connection, ConnectionArguments } from 'graphql-relay';
 import graphorm from '../graphorm';
 import {
   feedClient,
@@ -55,6 +56,7 @@ import {
 import { AuthenticationError } from 'apollo-server-errors';
 import { opentelemetry } from '../telemetry/opentelemetry';
 import { UserVote } from '../types';
+import { createDatePageGenerator } from '../common/datePageGenerator';
 
 interface GQLTagsCategory {
   id: string;
@@ -62,6 +64,15 @@ interface GQLTagsCategory {
   title: string;
   tags: string[];
 }
+
+type GQLFeed = {
+  id: string;
+  userId: string;
+  createdAt: Date;
+  authorId?: string;
+  flags?: FeedFlagsPublic;
+  slug: string;
+};
 
 export const typeDefs = /* GraphQL */ `
   type AdvancedSettings {
@@ -142,6 +153,59 @@ export const typeDefs = /* GraphQL */ `
     Posts must not include even one tag from this list
     """
     blockedTags: [String!]
+  }
+
+  type FeedFlagsPublic {
+    """
+    Name of the feed
+    """
+    name: String
+  }
+
+  type Feed {
+    """
+    Unique identifier for the feed
+    """
+    id: ID!
+
+    """
+    User ID
+    """
+    userId: ID!
+
+    """
+    Feed creation date
+    """
+    createdAt: DateTime!
+
+    """
+    Author ID
+    """
+    authorId: ID
+
+    """
+    Feed flags
+    """
+    flags: FeedFlagsPublic!
+
+    """
+    Feed slug
+    """
+    slug: String!
+  }
+
+  type FeedConnection {
+    pageInfo: PageInfo!
+    edges: [FeedEdge!]!
+  }
+
+  type FeedEdge {
+    node: Feed!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
   }
 
   extend type Query {
@@ -579,6 +643,28 @@ export const typeDefs = /* GraphQL */ `
     Get the list of advanced settings
     """
     advancedSettings: [AdvancedSettings]!
+
+    """
+    List feeds
+    """
+    feedList(
+      """
+      Paginate before opaque cursor
+      """
+      before: String
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+      """
+      Paginate last
+      """
+      last: Int
+    ): FeedConnection! @auth
   }
 
   extend type Mutation {
@@ -1328,6 +1414,44 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       return ctx
         .getRepository(AdvancedSettings)
         .find({ order: { title: 'ASC' } });
+    },
+    feedList: async (
+      source,
+      args: ConnectionArguments,
+      ctx,
+      info,
+    ): Promise<Connection<GQLFeed>> => {
+      const pageGenerator = createDatePageGenerator<GQLFeed, 'createdAt'>({
+        key: 'createdAt',
+      });
+      const page = pageGenerator.connArgsToPage(args);
+
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => pageGenerator.hasNextPage(page, nodeSize),
+        (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder.andWhere(`${builder.alias}."userId" = :userId`, {
+            userId: ctx.userId,
+          });
+          builder.queryBuilder.andWhere(`${builder.alias}."id" != :userId`, {
+            userId: ctx.userId,
+          });
+
+          builder.queryBuilder.limit(page.limit);
+
+          if (page.timestamp) {
+            builder.queryBuilder.andWhere(
+              `${builder.alias}."createdAt" < :timestamp`,
+              { timestamp: page.timestamp },
+            );
+          }
+
+          return builder;
+        },
+      );
     },
   },
   Mutation: {
