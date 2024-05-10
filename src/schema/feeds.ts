@@ -171,12 +171,12 @@ export const typeDefs = /* GraphQL */ `
     """
     User ID
     """
-    userId: ID!
+    userId: ID
 
     """
     Feed creation date
     """
-    createdAt: DateTime!
+    createdAt: DateTime
 
     """
     Author ID
@@ -186,12 +186,12 @@ export const typeDefs = /* GraphQL */ `
     """
     Feed flags
     """
-    flags: FeedFlagsPublic!
+    flags: FeedFlagsPublic
 
     """
     Feed slug
     """
-    slug: String!
+    slug: String
   }
 
   type FeedConnection {
