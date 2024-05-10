@@ -2281,3 +2281,273 @@ describe('query feedList', () => {
     );
   });
 });
+
+describe('mutation createFeed', () => {
+  const MUTATION = `
+  mutation CreateFeed($name: String!) {
+    createFeed(name: $name) {
+      id
+      userId
+      flags {
+        name
+      }
+    }
+  }
+`;
+
+  it('should not authorize when not logged-in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          name: 'Cool feed',
+        },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should create a new feed', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        name: 'Cool feed',
+      },
+    });
+
+    expect(res.data).toMatchObject({
+      createFeed: {
+        id: expect.any(String),
+        userId: '1',
+        flags: {
+          name: 'Cool feed',
+        },
+      },
+    });
+    expect(
+      await con.getRepository(Feed).findOneBy({ id: res.data.createFeed.id }),
+    ).toMatchObject({
+      id: expect.any(String),
+      userId: '1',
+      flags: { name: 'Cool feed' },
+    });
+  });
+
+  it('should not create a new feed when name is missing', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {},
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not create a new feed when name is empty', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          name: '',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+});
+
+describe('mutation updateFeed', () => {
+  const MUTATION = `
+  mutation UpdateFeed($feedId: ID!, $name: String!) {
+    updateFeed(feedId: $feedId, name: $name) {
+      id
+      userId
+      flags {
+        name
+      }
+    }
+  }
+`;
+
+  beforeEach(async () => {
+    await saveFixtures(con, Feed, [
+      { id: 'cf1', userId: '1', flags: { name: 'Cool feed' } },
+    ]);
+  });
+
+  it('should not authorize when not logged-in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: 'cf1',
+          name: 'Cool feed',
+        },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should not update when different user owns the feed', () => {
+    loggedUser = '2';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: 'cf1',
+          name: 'Cool feed',
+        },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should update the feed', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        feedId: 'cf1',
+        name: 'PHP feed',
+      },
+    });
+
+    expect(res.data).toMatchObject({
+      updateFeed: {
+        id: 'cf1',
+        userId: '1',
+        flags: {
+          name: 'PHP feed',
+        },
+      },
+    });
+    expect(
+      await con.getRepository(Feed).findOneBy({ id: 'cf1' }),
+    ).toMatchObject({
+      id: 'cf1',
+      userId: '1',
+      flags: { name: 'PHP feed' },
+    });
+  });
+
+  it('should not update the feed when feedId is missing', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          name: 'Cool feed',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not update the feed when name is missing', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: '1',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not update the feed when name is empty', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '1',
+          name: '',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+});
+
+describe('mutation deleteFeed', () => {
+  const MUTATION = `
+  mutation DeleteFeed($feedId: ID!) {
+    deleteFeed(feedId: $feedId) {
+      _
+    }
+  }
+`;
+
+  beforeEach(async () => {
+    await saveFixtures(con, Feed, [
+      { id: 'cf1', userId: '1', flags: { name: 'Cool feed' } },
+    ]);
+  });
+
+  it('should not authorize when not logged-in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: 'cf1',
+        },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should delete the feed', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        feedId: 'cf1',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(await con.getRepository(Feed).count()).toBe(0);
+  });
+
+  it('should not delete the feed when feedId is missing', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {},
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not delete the feed when feedId is empty', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        feedId: '',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(await con.getRepository(Feed).count()).toBe(1);
+  });
+});
