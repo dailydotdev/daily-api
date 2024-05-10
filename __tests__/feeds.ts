@@ -2195,6 +2195,12 @@ describe('query feedList', () => {
     ]);
   });
 
+  it('should not authorize when not logged-in', () => {
+    loggedUser = '';
+
+    return testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED');
+  });
+
   it('should return the feed list', async () => {
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
