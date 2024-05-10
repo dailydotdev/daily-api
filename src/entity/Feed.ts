@@ -8,6 +8,7 @@ export type FeedFlags = Partial<{
 export type FeedFlagsPublic = Pick<FeedFlags, 'name'>;
 
 @Entity()
+@Index('IDX_feed_id_user_id', ['id', 'userId'], { unique: true })
 export class Feed {
   @PrimaryColumn({ type: 'text' })
   id: string;

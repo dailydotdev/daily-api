@@ -548,7 +548,7 @@ const obj = new GraphORM({
     },
   },
   Feed: {
-    requiredColumns: ['id', 'createdAt', 'userId'],
+    requiredColumns: ['createdAt'],
     fields: {
       flags: {
         jsonType: true,
