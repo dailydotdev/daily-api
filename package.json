@@ -41,7 +41,7 @@
     "@google-cloud/opentelemetry-cloud-monitoring-exporter": "^0.17.0",
     "@google-cloud/opentelemetry-cloud-trace-exporter": "^2.1.0",
     "@google-cloud/opentelemetry-cloud-trace-propagator": "^0.17.0",
-    "@google-cloud/opentelemetry-resource-util": "^2.1.0",
+    "@google-cloud/opentelemetry-resource-util": "^2.2.0",
     "@google-cloud/pubsub": "^4.4.0",
     "@graphql-tools/schema": "^10.0.3",
     "@graphql-tools/utils": "^10.2.0",
