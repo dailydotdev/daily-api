@@ -1067,7 +1067,7 @@ export const resolvers: IResolvers<any, Context> = {
       }
 
       if (!isNullOrUndefined(args.featured)) {
-        filter.flags = { featured: true };
+        filter.flags = { featured: args.featured };
       }
 
       const page = sourcePageGenerator.connArgsToPage(args);

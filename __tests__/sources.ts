@@ -148,7 +148,7 @@ describe('query sources', () => {
     );
     await repo.update(
       { id: 'b' },
-      { flags: updateFlagsStatement({ featured: true }) },
+      { flags: updateFlagsStatement({ featured: false }) },
     );
   };
 
@@ -164,10 +164,10 @@ describe('query sources', () => {
   it('should return only not featured sources', async () => {
     await prepareFeaturedTests();
     const res = await client.query(QUERY(10, false, false));
-    const isFeatured = res.data.sources.edges.every(
+    const isNotFeatured = res.data.sources.edges.every(
       ({ node }) => !node.flags.featured,
     );
-    expect(isFeatured).toBeFalsy();
+    expect(isNotFeatured).toBeTruthy();
   });
 
   it('should flag that more pages available', async () => {
