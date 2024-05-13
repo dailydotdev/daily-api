@@ -50,6 +50,8 @@ snapshot.mode: "initial"
 
 slot.name: "clickhouse_sync"
 
+slot.name: "clickhouse_sync"
+
 # offset.flush.interval.ms: The number of milliseconds to wait before flushing recent offsets to Kafka. This ensures that offsets are committed within the specified time interval.
 offset.flush.interval.ms: 5000
 buffer.flush.time.ms: 30000
