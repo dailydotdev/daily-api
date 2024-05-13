@@ -39,6 +39,7 @@ import {
   initializeGraphQLTesting,
   MockContext,
   saveFixtures,
+  testMutationError,
   testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
@@ -58,7 +59,8 @@ import { randomUUID } from 'crypto';
 import { usersFixture } from './fixture/user';
 import { base64 } from 'graphql-relay/utils/base64';
 import { baseFeedConfig } from '../src/integrations/feed/generators';
-import { UserVote } from '../src/types';
+import { maxFeedsPerUser, UserVote } from '../src/types';
+import { SubmissionFailErrorMessage } from '../src/errors';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -2358,6 +2360,39 @@ describe('mutation createFeed', () => {
         },
       },
       'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not create a new feed if the user has reached the limit', async () => {
+    loggedUser = '1';
+
+    await saveFixtures(
+      con,
+      Feed,
+      new Array(maxFeedsPerUser + 1).fill(null).map((item, index) => {
+        return {
+          id: `cf${index}`,
+          userId: '1',
+          flags: { name: `Cool feed ${index}` },
+        };
+      }),
+    );
+
+    await testMutationError(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          name: 'Cool feed',
+        },
+      },
+      (errors) => {
+        expect(errors.length).toEqual(1);
+        expect(errors[0].extensions?.code).toEqual('GRAPHQL_VALIDATION_FAILED');
+        expect(errors[0]?.message).toEqual(
+          SubmissionFailErrorMessage.FEED_COUNT_LIMIT_REACHED,
+        );
+      },
     );
   });
 });

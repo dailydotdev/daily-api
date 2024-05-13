@@ -56,9 +56,10 @@ import {
 } from '../integrations/feed';
 import { AuthenticationError, ValidationError } from 'apollo-server-errors';
 import { opentelemetry } from '../telemetry/opentelemetry';
-import { UserVote } from '../types';
+import { UserVote, maxFeedsPerUser } from '../types';
 import { createDatePageGenerator } from '../common/datePageGenerator';
 import { generateShortId } from '../ids';
+import { SubmissionFailErrorMessage } from '../errors';
 
 interface GQLTagsCategory {
   id: string;
@@ -1654,6 +1655,16 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       validateFeedPayload({ name });
 
       const feedRepo = ctx.con.getRepository(Feed);
+
+      const feedsCount = await feedRepo.countBy({
+        userId: ctx.userId,
+      });
+
+      if (feedsCount >= maxFeedsPerUser) {
+        throw new ValidationError(
+          SubmissionFailErrorMessage.FEED_COUNT_LIMIT_REACHED,
+        );
+      }
 
       const feed = await feedRepo.save({
         id: await generateShortId(),
