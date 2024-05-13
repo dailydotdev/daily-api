@@ -36,6 +36,7 @@ import { updateFlagsStatement, WELCOME_POST_TITLE } from '../src/common';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { NotificationType } from '../src/notifications/common';
 import { SourceTagView } from '../src/entity/SourceTagView';
+import { isNullOrUndefined } from '../src/common/object';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -102,30 +103,71 @@ beforeEach(async () => {
 afterAll(() => disposeGraphQLTesting(state));
 
 describe('query sources', () => {
-  const QUERY = (first = 10, filterOpenSquads = false): string => `{
-  sources(first: ${first}, filterOpenSquads: ${filterOpenSquads}) {
-    pageInfo {
-      endCursor
-      hasNextPage
-    }
-    edges {
-      node {
-        id
-        name
-        image
-        headerImage
-        public
-        type
-        color
+  const QUERY = (
+    first = 10,
+    filterOpenSquads = false,
+    featured?: boolean,
+  ): string => `{
+    sources(
+      first: ${first},
+      filterOpenSquads: ${filterOpenSquads}
+      ${isNullOrUndefined(featured) ? '' : `, featured: ${featured}`}
+    ) {
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+      edges {
+        node {
+          id
+          name
+          image
+          headerImage
+          public
+          type
+          color
+          flags {
+            featured
+          }
+        }
       }
     }
-  }
-}`;
+  }`;
 
   it('should return only public sources', async () => {
     const res = await client.query(QUERY(10, true));
     const isPublic = res.data.sources.edges.every(({ node }) => !!node.public);
     expect(isPublic).toBeTruthy();
+  });
+
+  const prepareFeaturedTests = async () => {
+    const repo = con.getRepository(Source);
+    await repo.update(
+      { id: 'a' },
+      { flags: updateFlagsStatement({ featured: true }) },
+    );
+    await repo.update(
+      { id: 'b' },
+      { flags: updateFlagsStatement({ featured: true }) },
+    );
+  };
+
+  it('should return only featured sources', async () => {
+    await prepareFeaturedTests();
+    const res = await client.query(QUERY(10, false, true));
+    const isFeatured = res.data.sources.edges.every(
+      ({ node }) => !!node.flags.featured,
+    );
+    expect(isFeatured).toBeTruthy();
+  });
+
+  it('should return only not featured sources', async () => {
+    await prepareFeaturedTests();
+    const res = await client.query(QUERY(10, false, false));
+    const isFeatured = res.data.sources.edges.every(
+      ({ node }) => !node.flags.featured,
+    );
+    expect(isFeatured).toBeFalsy();
   });
 
   it('should flag that more pages available', async () => {
