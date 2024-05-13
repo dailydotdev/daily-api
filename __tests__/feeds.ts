@@ -2100,7 +2100,7 @@ describe('flags field', () => {
   });
 });
 
-describe('slug filed', () => {
+describe('slug field', () => {
   const QUERY = `{
     feedList {
       pageInfo {
