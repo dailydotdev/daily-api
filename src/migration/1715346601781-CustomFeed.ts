@@ -4,6 +4,15 @@ export class CustomFeed1715346601781 implements MigrationInterface {
     name = 'CustomFeed1715346601781'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
+        // - Feed
+        await queryRunner.query(`
+            DELETE FROM feed WHERE "userId" IN (
+                SELECT DISTINCT rt."userId" FROM feed rt
+                LEFT JOIN public.user u ON rt."userId" = u.id
+                WHERE u.id IS NULL
+            )
+        `);
+
         await queryRunner.query(`ALTER TABLE "feed" ADD "createdAt" TIMESTAMP NOT NULL DEFAULT now()`);
         await queryRunner.query(`ALTER TABLE "feed" ADD "flags" jsonb NOT NULL DEFAULT '{}'`);
         await queryRunner.query(`ALTER TABLE "feed" ADD "slug" text GENERATED ALWAYS AS (trim(BOTH '-' FROM regexp_replace(lower(trim(COALESCE(LEFT(feed.flags->>'name',100),'')||'-'||feed.id)), '[^a-z0-9-]+', '-', 'gi'))) STORED NOT NULL`);
