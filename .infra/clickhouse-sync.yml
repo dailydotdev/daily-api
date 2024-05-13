@@ -48,6 +48,8 @@ database.allowPublicKeyRetrieval: "true"
 # snapshot.mode: Debezium can use different modes when it runs a snapshot. The snapshot mode is determined by the snapshot.mode configuration property.
 snapshot.mode: "never"
 
+slot.name: "clickhouse_sync"
+
 # offset.flush.interval.ms: The number of milliseconds to wait before flushing recent offsets to Kafka. This ensures that offsets are committed within the specified time interval.
 offset.flush.interval.ms: 5000
 buffer.flush.time.ms: 30000
