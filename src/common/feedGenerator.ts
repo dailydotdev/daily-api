@@ -167,6 +167,13 @@ export const feedToFilters = async (
     membershipsByHide.hide.push(WATERCOOLER_ID);
   }
 
+  console.log(settings);
+  const blockedContentCuration = settings
+    .filter(
+      (setting) => setting.group === 'content_curation' && setting.options.type,
+    )
+    .map((setting) => setting.options.type);
+
   return {
     ...tagFilters,
     excludeTypes,
@@ -174,6 +181,7 @@ export const feedToFilters = async (
       .map((sources: Source) => sources.id)
       .concat(membershipsByHide.hide),
     sourceIds: membershipsByHide.show,
+    blockedContentCuration,
   };
 };
 
@@ -421,6 +429,7 @@ export interface AnonymousFeedFilters {
   includeTags?: string[];
   blockedTags?: string[];
   sourceIds?: string[];
+  blockedContentCuration?: string[];
 }
 
 export const anonymousFeedBuilder = (

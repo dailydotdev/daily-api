@@ -57,6 +57,7 @@ const opts = {
   includeBlockedSources: true,
   includeSourceMemberships: true,
   includePostTypes: true,
+  includeBlockedContentCuration: true,
 };
 
 export const baseFeedConfig: Partial<FeedConfig> = {
@@ -74,6 +75,7 @@ export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
           includePostTypes: true,
           includeBlockedSources: true,
           includeBlockedTags: true,
+          includeBlockedContentCuration: true,
         },
       ),
       'popular',
