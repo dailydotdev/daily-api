@@ -18,6 +18,7 @@ type Options = {
   includeBlockedSources?: boolean;
   includeSourceMemberships?: boolean;
   includePostTypes?: boolean;
+  includeBlockedContentCuration?: boolean;
 };
 
 type BaseConfig = Partial<Omit<FeedConfig, 'user_id' | 'page_size' | 'offset'>>;
@@ -86,6 +87,12 @@ export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
         config.allowed_post_types = (
           config.allowed_post_types || postTypes
         ).filter((x) => !filters.excludeTypes.includes(x));
+      }
+      if (
+        filters.blockedContentCuration?.length &&
+        this.opts.includeBlockedContentCuration
+      ) {
+        config.blocked_content_curations = filters.blockedContentCuration;
       }
       return { config };
     });

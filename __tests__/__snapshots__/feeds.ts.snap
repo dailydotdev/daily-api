@@ -2,6 +2,7 @@
 
 exports[`function feedToFilters should return filters for tags/sources based on the values from our data 1`] = `
 Object {
+  "blockedContentCuration": Array [],
   "blockedTags": Array [
     "golang",
   ],
@@ -19,8 +20,24 @@ Object {
 }
 `;
 
+exports[`function feedToFilters should return filters with blocked content types 1`] = `
+Object {
+  "blockedContentCuration": Array [
+    "listicle",
+  ],
+  "blockedTags": Array [],
+  "excludeSources": Array [
+    "fd062672-63b7-4a10-87bd-96dcd10e9613",
+  ],
+  "excludeTypes": Array [],
+  "includeTags": Array [],
+  "sourceIds": Array [],
+}
+`;
+
 exports[`function feedToFilters should return filters with source memberships 1`] = `
 Object {
+  "blockedContentCuration": Array [],
   "blockedTags": Array [],
   "excludeSources": Array [
     "fd062672-63b7-4a10-87bd-96dcd10e9613",

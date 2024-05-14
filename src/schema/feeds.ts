@@ -159,6 +159,11 @@ export const typeDefs = /* GraphQL */ `
     Posts must not include even one tag from this list
     """
     blockedTags: [String!]
+
+    """
+    Posts must comply with the advanced settings from this list
+    """
+    blockedContentCuration: [String!]
   }
 
   type FeedFlagsPublic {

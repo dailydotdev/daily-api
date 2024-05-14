@@ -144,11 +144,20 @@ export const feedToFilters = async (
     { includeTags: [], blockedTags: [] },
   );
 
-  const excludeTypes = settings
-    .filter(
-      (setting) => setting.group === 'content_types' && setting.options.type,
-    )
-    .map((setting) => setting.options.type);
+  const { excludeTypes, blockedContentCuration } = settings.reduce(
+    (acc, curr) => {
+      if (curr.options.type) {
+        if (curr.group === 'content_types') {
+          acc.excludeTypes.push(curr.options.type);
+        }
+        if (curr.group === 'content_curation') {
+          acc.blockedContentCuration.push(curr.options.type);
+        }
+      }
+      return acc;
+    },
+    { excludeTypes: [], blockedContentCuration: [] },
+  );
 
   // Split memberships by hide flag
   const membershipsByHide = memberships.reduce(
@@ -171,6 +180,7 @@ export const feedToFilters = async (
       .map((sources: Source) => sources.id)
       .concat(membershipsByHide.hide),
     sourceIds: membershipsByHide.show,
+    blockedContentCuration,
   };
 };
 
@@ -418,6 +428,7 @@ export interface AnonymousFeedFilters {
   includeTags?: string[];
   blockedTags?: string[];
   sourceIds?: string[];
+  blockedContentCuration?: string[];
 }
 
 export const anonymousFeedBuilder = (
