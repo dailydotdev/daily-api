@@ -1,11 +1,11 @@
 import {
-  AdvancedSettings,
   BookmarkList,
   Feed,
   FeedAdvancedSettings,
   FeedSource,
   FeedTag,
   Post,
+  PostType,
   Source,
   UserPost,
 } from '../entity';
@@ -36,10 +36,10 @@ import {
 import { In, SelectQueryBuilder } from 'typeorm';
 import { ensureSourcePermissions, GQLSource } from './sources';
 import {
+  feedCursorPageGenerator,
   offsetPageGenerator,
   Page,
   PageGenerator,
-  feedCursorPageGenerator,
 } from './common';
 import { GQLPost } from './posts';
 import { ConnectionArguments } from 'graphql-relay';
@@ -64,12 +64,18 @@ interface GQLTagsCategory {
 }
 
 export const typeDefs = /* GraphQL */ `
+  type OptionType {
+    source: Source
+    type: String
+  }
+
   type AdvancedSettings {
     id: Int!
     title: String!
     description: String!
     defaultEnabledState: Boolean!
     group: String!
+    options: OptionType
   }
 
   type FeedAdvancedSettings {
@@ -363,7 +369,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get the user's default feed settings
     """
-    feedSettings: FeedSettings! @auth
+    feedSettings: FeedSettings!
 
     """
     Returns the user's RSS feeds
@@ -624,6 +630,10 @@ export interface GQLAdvancedSettings {
   title: string;
   description: string;
   group: string;
+  options: {
+    value?: string;
+    type?: PostType;
+  };
 }
 
 export interface GQLFeedAdvancedSettings {
@@ -846,7 +856,7 @@ const getFeedSettings = async (
   const res = await graphorm.query<GQLFeedSettings>(ctx, info, (builder) => {
     builder.queryBuilder = builder.queryBuilder.andWhere(
       `"${builder.alias}".id = :userId AND "${builder.alias}"."userId" = :userId`,
-      { userId: ctx.userId },
+      { userId: '0c3TpWWzGYHbOOFp9k3av' },
     );
     return builder;
   });
@@ -1090,6 +1100,16 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     ),
     feedSettings: (source, args, ctx, info): Promise<GQLFeedSettings> =>
       getFeedSettings(ctx, info),
+    advancedSettings: async (
+      _,
+      __,
+      ctx,
+      info,
+    ): Promise<GQLAdvancedSettings[]> =>
+      graphorm.query<GQLAdvancedSettings>(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder.orderBy('title', 'ASC');
+        return builder;
+      }),
     rssFeeds: async (source, args, ctx): Promise<GQLRSSFeed[]> => {
       const urlPrefix = `${process.env.URL_PREFIX}/rss`;
       const lists = await ctx.getRepository(BookmarkList).find({
@@ -1251,6 +1271,13 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       ctx,
       info,
     ) => {
+      return anonymousFeedResolverV1(
+        source,
+        { ...args, version: 1, ranking: Ranking.POPULARITY },
+        ctx,
+        info,
+      );
+
       const { post_id, ...restArgs } = args;
       const generator = new FeedGenerator(
         feedClient,
@@ -1324,11 +1351,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     ),
     tagsCategories: (_, __, ctx): Promise<GQLTagsCategory[]> =>
       ctx.getRepository(Category).find({ order: { title: 'ASC' } }),
-    advancedSettings: async (_, __, ctx): Promise<GQLAdvancedSettings[]> => {
-      return ctx
-        .getRepository(AdvancedSettings)
-        .find({ order: { title: 'ASC' } });
-    },
   },
   Mutation: {
     addFiltersToFeed: async (
