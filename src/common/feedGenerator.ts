@@ -167,7 +167,6 @@ export const feedToFilters = async (
     membershipsByHide.hide.push(WATERCOOLER_ID);
   }
 
-  console.log(settings);
   const blockedContentCuration = settings
     .filter(
       (setting) => setting.group === 'content_curation' && setting.options.type,
