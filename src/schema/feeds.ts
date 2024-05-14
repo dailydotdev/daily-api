@@ -1,5 +1,4 @@
 import {
-  AdvancedSettings,
   BookmarkList,
   Feed,
   FeedAdvancedSettings,
@@ -7,6 +6,7 @@ import {
   FeedSource,
   FeedTag,
   Post,
+  PostType,
   Source,
   UserPost,
 } from '../entity';
@@ -37,10 +37,10 @@ import {
 import { In, SelectQueryBuilder } from 'typeorm';
 import { ensureSourcePermissions, GQLSource } from './sources';
 import {
+  feedCursorPageGenerator,
   offsetPageGenerator,
   Page,
   PageGenerator,
-  feedCursorPageGenerator,
 } from './common';
 import { GQLPost } from './posts';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -75,12 +75,18 @@ type GQLFeed = {
 };
 
 export const typeDefs = /* GraphQL */ `
+  type OptionType {
+    source: Source
+    type: String
+  }
+
   type AdvancedSettings {
     id: Int!
     title: String!
     description: String!
     defaultEnabledState: Boolean!
     group: String!
+    options: OptionType
   }
 
   type FeedAdvancedSettings {
@@ -710,6 +716,10 @@ export interface GQLAdvancedSettings {
   title: string;
   description: string;
   group: string;
+  options: {
+    source?: Source;
+    type?: PostType;
+  };
 }
 
 export interface GQLFeedAdvancedSettings {
@@ -1176,6 +1186,16 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     ),
     feedSettings: (source, args, ctx, info): Promise<GQLFeedSettings> =>
       getFeedSettings(ctx, info),
+    advancedSettings: async (
+      _,
+      __,
+      ctx,
+      info,
+    ): Promise<GQLAdvancedSettings[]> =>
+      graphorm.query<GQLAdvancedSettings>(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder.orderBy('title', 'ASC');
+        return builder;
+      }),
     rssFeeds: async (source, args, ctx): Promise<GQLRSSFeed[]> => {
       const urlPrefix = `${process.env.URL_PREFIX}/rss`;
       const lists = await ctx.getRepository(BookmarkList).find({
@@ -1410,11 +1430,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     ),
     tagsCategories: (_, __, ctx): Promise<GQLTagsCategory[]> =>
       ctx.getRepository(Category).find({ order: { title: 'ASC' } }),
-    advancedSettings: async (_, __, ctx): Promise<GQLAdvancedSettings[]> => {
-      return ctx
-        .getRepository(AdvancedSettings)
-        .find({ order: { title: 'ASC' } });
-    },
     feedList: async (
       source,
       args: ConnectionArguments,

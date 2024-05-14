@@ -475,6 +475,21 @@ const obj = new GraphORM({
     from: 'ActiveView',
     metadataFrom: 'View',
   },
+  AdvancedSettings: {
+    fields: {
+      options: {
+        jsonType: true,
+        transform: async ({ source, ...rest }, ctx) => {
+          return {
+            ...(source && {
+              source: await ctx.getRepository(Source).findOneBy({ id: source }),
+            }),
+            ...rest,
+          };
+        },
+      },
+    },
+  },
   Notification: {
     from: 'NotificationV2',
     additionalQuery: (ctx, alias, qb) =>
