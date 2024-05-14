@@ -1066,10 +1066,6 @@ export const resolvers: IResolvers<any, Context> = {
         filter.private = false;
       }
 
-      if (!isNullOrUndefined(args.featured)) {
-        filter.flags = { featured: args.featured };
-      }
-
       const page = sourcePageGenerator.connArgsToPage(args);
       return graphorm.queryPaginated(
         ctx,
@@ -1083,6 +1079,18 @@ export const resolvers: IResolvers<any, Context> = {
             .andWhere(filter)
             .limit(page.limit)
             .offset(page.offset);
+
+          if (!isNullOrUndefined(args.featured)) {
+            builder.queryBuilder.andWhere(
+              `(${builder.alias}.flags->'featured')::boolean = :featured`,
+              {
+                featured: args.featured,
+              },
+            );
+          }
+
+          // builder.queryBuilder.limit(page.limit).offset(page.offset);
+
           return builder;
         },
       );
