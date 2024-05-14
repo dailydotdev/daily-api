@@ -631,7 +631,7 @@ export interface GQLAdvancedSettings {
   description: string;
   group: string;
   options: {
-    value?: string;
+    source?: Source;
     type?: PostType;
   };
 }
