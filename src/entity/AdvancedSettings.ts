@@ -22,6 +22,6 @@ export class AdvancedSettings {
   @Column({ type: 'jsonb', default: {} })
   options: {
     source?: Pick<Source, 'id'>;
-    type?: PostType;
+    type?: PostType | string;
   };
 }
