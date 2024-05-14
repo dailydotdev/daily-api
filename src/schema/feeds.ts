@@ -369,7 +369,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get the user's default feed settings
     """
-    feedSettings: FeedSettings!
+    feedSettings: FeedSettings! @auth
 
     """
     Returns the user's RSS feeds
