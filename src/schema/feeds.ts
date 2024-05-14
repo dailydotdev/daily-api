@@ -856,7 +856,7 @@ const getFeedSettings = async (
   const res = await graphorm.query<GQLFeedSettings>(ctx, info, (builder) => {
     builder.queryBuilder = builder.queryBuilder.andWhere(
       `"${builder.alias}".id = :userId AND "${builder.alias}"."userId" = :userId`,
-      { userId: '0c3TpWWzGYHbOOFp9k3av' },
+      { userId: ctx.userId },
     );
     return builder;
   });
@@ -1271,13 +1271,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       ctx,
       info,
     ) => {
-      return anonymousFeedResolverV1(
-        source,
-        { ...args, version: 1, ranking: Ranking.POPULARITY },
-        ctx,
-        info,
-      );
-
       const { post_id, ...restArgs } = args;
       const generator = new FeedGenerator(
         feedClient,
