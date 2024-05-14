@@ -1089,8 +1089,6 @@ export const resolvers: IResolvers<any, Context> = {
             );
           }
 
-          // builder.queryBuilder.limit(page.limit).offset(page.offset);
-
           return builder;
         },
       );
