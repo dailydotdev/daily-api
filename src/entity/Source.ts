@@ -135,9 +135,6 @@ export class MachineSource extends Source {
 
   @Column({ default: 0 })
   rankBoost: number;
-
-  @Column({ type: 'int', array: true, default: [] })
-  advancedSettings: number[];
 }
 
 @ChildEntity(SourceType.Squad)

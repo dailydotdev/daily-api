@@ -95,7 +95,6 @@ Object {
 exports[`mutation publishSourceRequest should publish a source request 2`] = `
 MachineSource {
   "active": true,
-  "advancedSettings": Array [],
   "color": null,
   "description": null,
   "flags": Object {},
