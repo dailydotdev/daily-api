@@ -108,10 +108,7 @@ export const feedToFilters = async (
       .getRepository(Source)
       .createQueryBuilder('s')
       .select('s.id AS "id"')
-      .where(`s.advancedSettings && ARRAY[:...settings]::integer[]`, {
-        settings: settings.map((setting) => setting.id),
-      })
-      .orWhere((qb) => {
+      .where((qb) => {
         const subQuery = qb
           .subQuery()
           .select('fs."sourceId"')
