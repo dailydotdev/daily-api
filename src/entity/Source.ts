@@ -106,6 +106,7 @@ export class Source {
   handle: string;
 
   @Column({ type: 'jsonb', default: {} })
+  @Index('IDX_source_flags_featured', { synchronize: false })
   flags: SourceFlagsPublic;
 
   @OneToMany(() => SourceDisplay, (display) => display.source, { lazy: true })
