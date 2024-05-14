@@ -182,35 +182,30 @@ const saveAdvancedSettingsFiltersFixtures = async (): Promise<void> => {
       id: 'includedSource',
       name: 'IS',
       image: 'http://image.com/c',
-      advancedSettings: [2],
       handle: 'includedSource',
     },
     {
       id: 'excludedSource',
       name: 'ES',
       image: 'http://image.com/c',
-      advancedSettings: [1],
       handle: 'excludedSource',
     },
     {
       id: 'settingsCombinationSource',
       name: 'SCS',
       image: 'http://image.com/c',
-      advancedSettings: [1, 2],
       handle: 'settingsCombinationSource',
     },
     {
       id: 'experimentExcludedSource',
       name: 'ExES',
       image: 'http://image.com/c',
-      advancedSettings: [5],
       handle: 'experimentExcludedSource',
     },
     {
       id: 'experimentIncludedSource',
       name: 'ExIS',
       image: 'http://image.com/c',
-      advancedSettings: [6],
       handle: 'experimentIncludedSource',
     },
   ]);
@@ -315,6 +310,10 @@ describe('query anonymousFeed', () => {
   it('should return feed while excluding sources based on advanced settings', async () => {
     await con.getRepository(Post).delete({ id: 'p6' });
     await saveAdvancedSettingsFiltersFixtures();
+    await con.getRepository(FeedSource).save([
+      { feedId: '1', sourceId: 'excludedSource' },
+      { feedId: '1', sourceId: 'settingsCombinationSource' },
+    ]);
 
     const filters = await feedToFilters(con, '1', '1');
     delete filters.sourceIds;
@@ -628,6 +627,10 @@ describe('query feed', () => {
     const repo = con.getRepository(Post);
     await repo.delete({ id: 'p6' });
     await saveAdvancedSettingsFiltersFixtures();
+    await con.getRepository(FeedSource).save([
+      { feedId: '1', sourceId: 'excludedSource' },
+      { feedId: '1', sourceId: 'settingsCombinationSource' },
+    ]);
     await repo.update({ id: 'p1' }, { score: 2 });
     await repo.update({ id: 'includedPost' }, { score: 1 });
 
@@ -1838,6 +1841,10 @@ describe('function feedToFilters', () => {
   it('should return filters having excluded sources based on advanced settings', async () => {
     loggedUser = '1';
     await saveAdvancedSettingsFiltersFixtures();
+    await con.getRepository(FeedSource).save([
+      { feedId: '1', sourceId: 'excludedSource' },
+      { feedId: '1', sourceId: 'settingsCombinationSource' },
+    ]);
     const filters = await feedToFilters(con, '1', '1');
     expect(filters.excludeSources).toEqual([
       'excludedSource',
