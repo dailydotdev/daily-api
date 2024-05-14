@@ -8,13 +8,15 @@ import {
   GraphQLTestingState,
   initializeGraphQLTesting,
   MockContext,
+  saveFixtures,
   testMutationErrorCode,
   testQueryError,
   testQueryErrorCode,
 } from './helpers';
-import { CampaignCtaPlacement, Settings } from '../src/entity';
+import { CampaignCtaPlacement, Settings, User } from '../src/entity';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
+import { usersFixture } from './fixture/user';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -33,6 +35,8 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   loggedUser = null;
+
+  await saveFixtures(con, User, usersFixture);
 });
 
 afterAll(() => disposeGraphQLTesting(state));

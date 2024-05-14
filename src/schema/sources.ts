@@ -11,10 +11,10 @@ import {
   SourceFlagsPublic,
   SourceMember,
   SourceMemberFlagsPublic,
-  SourceType,
   SquadSource,
   User,
 } from '../entity';
+import { SourceType } from '../entity/Source';
 import {
   SourceMemberRoles,
   sourceRoleRank,
@@ -42,10 +42,12 @@ import {
   updateFlagsStatement,
   uploadSquadImage,
 } from '../common';
+import { toGQLEnum } from '../common/utils';
 import { GraphQLResolveInfo } from 'graphql';
 import { SourcePermissionErrorKeys, TypeOrmError } from '../errors';
 import {
   descriptionRegex,
+  isNullOrUndefined,
   nameRegex,
   validateRegex,
   ValidateRegex,
@@ -68,6 +70,7 @@ export interface GQLSource {
   privilegedMembers?: GQLSourceMember[];
   referralUrl?: string;
   flags?: SourceFlagsPublic;
+  description?: string;
 }
 
 export interface GQLSourceMember {
@@ -285,6 +288,8 @@ export const typeDefs = /* GraphQL */ `
     hits: [Tag]!
   }
 
+  ${toGQLEnum(SourceType, 'SourceType')}
+
   extend type Query {
     """
     Get all available sources
@@ -304,6 +309,11 @@ export const typeDefs = /* GraphQL */ `
       Fetch public Squads
       """
       filterOpenSquads: Boolean
+
+      """
+      Add filter for featured sources
+      """
+      featured: Boolean
     ): SourceConnection!
 
     """
@@ -409,6 +419,11 @@ export const typeDefs = /* GraphQL */ `
       Paginate first
       """
       first: Int
+
+      """
+      Source type (machine/squad)
+      """
+      type: SourceType
     ): SourceMemberConnection! @auth
 
     """
@@ -951,6 +966,11 @@ export const getPermissionsForMember = (
 
 interface SourcesArgs extends ConnectionArguments {
   filterOpenSquads?: boolean;
+  featured?: boolean;
+}
+
+interface SourcesByType extends ConnectionArguments {
+  type?: SourceType;
 }
 
 interface SourcesByTag extends ConnectionArguments {
@@ -1045,6 +1065,7 @@ export const resolvers: IResolvers<any, Context> = {
         filter.type = SourceType.Squad;
         filter.private = false;
       }
+
       const page = sourcePageGenerator.connArgsToPage(args);
       return graphorm.queryPaginated(
         ctx,
@@ -1058,6 +1079,16 @@ export const resolvers: IResolvers<any, Context> = {
             .andWhere(filter)
             .limit(page.limit)
             .offset(page.offset);
+
+          if (!isNullOrUndefined(args.featured)) {
+            builder.queryBuilder.andWhere(
+              `(${builder.alias}.flags->'featured')::boolean = :featured`,
+              {
+                featured: args.featured,
+              },
+            );
+          }
+
           return builder;
         },
       );
@@ -1245,13 +1276,15 @@ export const resolvers: IResolvers<any, Context> = {
     },
     mySourceMemberships: async (
       _,
-      args: ConnectionArguments,
+      args: SourcesByType,
       ctx,
       info,
     ): Promise<Connection<GQLSourceMember>> => {
+      const { type, ...connectionArgs } = args;
+
       return paginateSourceMembers(
         (queryBuilder, alias) => {
-          return queryBuilder
+          queryBuilder
             .andWhere(`${alias}."userId" = :user`, { user: ctx.userId })
             .andWhere(
               `${
@@ -1259,8 +1292,17 @@ export const resolvers: IResolvers<any, Context> = {
               } >= 0`,
             )
             .addOrderBy(`${alias}."createdAt"`, 'DESC');
+
+          if (type) {
+            queryBuilder
+              .innerJoin(Source, 's', `${alias}."sourceId" = s.id`)
+              .andWhere(`s."type" = :type`, {
+                type,
+              });
+          }
+          return queryBuilder;
         },
-        args,
+        connectionArgs,
         ctx,
         info,
       );

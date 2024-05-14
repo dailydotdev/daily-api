@@ -254,7 +254,7 @@ type PartialBookmarkSharing = Pick<GQLBookmarksSharing, 'slug'>;
 export const getSettings = async (
   con: DataSource,
   userId: string,
-): Promise<Settings> => {
+): Promise<Omit<Settings, 'user'>> => {
   try {
     const repo = con.getRepository(Settings);
     const settings = await repo.findOneBy({ userId });

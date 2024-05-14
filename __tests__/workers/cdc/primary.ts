@@ -651,6 +651,10 @@ describe('user', () => {
   type ObjectType = Omit<User, 'createdAt'>;
   const base: ChangeObject<ObjectType> = { ...defaultUser };
 
+  beforeEach(async () => {
+    await saveFixtures(con, User, usersFixture);
+  });
+
   it('should notify on user created', async () => {
     await expectSuccessfulBackground(
       worker,
@@ -1574,7 +1578,15 @@ describe('feed', () => {
   const base: ChangeObject<ObjectType> = {
     userId: '1',
     id: '1',
+    slug: '1',
+    flags: {},
+    createdAt: Date.now(),
   };
+
+  beforeEach(async () => {
+    await saveFixtures(con, User, usersFixture);
+  });
+
   it('should update alerts when feed is created', async () => {
     const repo = con.getRepository(Alerts);
     await repo.save({ userId: base.userId, myFeed: null });
@@ -2615,6 +2627,10 @@ describe('marketing cta', () => {
   });
 
   describe('on user assign', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, User, usersFixture);
+    });
+
     it('should clear boot cache for the user when they are assigned to the campaign', async () => {
       expect(
         await getRedisObject(

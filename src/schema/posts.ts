@@ -57,6 +57,7 @@ import {
   User,
   PostRelationType,
   PostRelation,
+  deletePost,
 } from '../entity';
 import { GQLEmptyResponse } from './common';
 import {
@@ -730,7 +731,10 @@ export const typeDefs = /* GraphQL */ `
       Content of the post (max 4000 chars)
       """
       content: String
-    ): Post! @auth
+    ): Post!
+      @auth
+      @rateLimit(limit: 10, duration: 3600)
+      @highRateLimit(limit: 1, duration: 600)
 
     """
     To allow user to edit posts
@@ -868,7 +872,10 @@ export const typeDefs = /* GraphQL */ `
       Commentary for the share
       """
       commentary: String
-    ): EmptyResponse @auth
+    ): EmptyResponse
+      @auth
+      @rateLimit(limit: 10, duration: 3600)
+      @highRateLimit(limit: 1, duration: 600)
 
     """
     Share post to source
@@ -886,7 +893,10 @@ export const typeDefs = /* GraphQL */ `
       Source to share the post to
       """
       sourceId: ID!
-    ): Post @auth
+    ): Post
+      @auth
+      @rateLimit(limit: 10, duration: 3600)
+      @highRateLimit(limit: 1, duration: 600)
 
     """
     Update share type post
@@ -1363,16 +1373,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       if (ctx.roles.includes(Roles.Moderator)) {
-        await ctx.getRepository(Post).update(
-          { id },
-          {
-            deleted: true,
-            flags: updateFlagsStatement<Post>({
-              deleted: true,
-              deletedBy: ctx.userId,
-            }),
-          },
-        );
+        await deletePost({ con: ctx.con, id, userId: ctx.userId });
         return { _: true };
       }
 
@@ -1386,16 +1387,7 @@ export const resolvers: IResolvers<any, Context> = {
             SourcePermissions.PostDelete,
           );
         }
-        await repo.update(
-          { id },
-          {
-            deleted: true,
-            flags: updateFlagsStatement<Post>({
-              deleted: true,
-              deletedBy: ctx.userId,
-            }),
-          },
-        );
+        await deletePost({ con: manager, id, userId: ctx.userId });
       });
 
       return { _: true };

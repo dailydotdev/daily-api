@@ -108,6 +108,7 @@ beforeAll(async () => {
 afterAll(() => app.close());
 
 beforeEach(async () => {
+  await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
   await saveFixtures(con, PostKeyword, postKeywordsFixture);
@@ -120,6 +121,7 @@ describe('GET /rss/b/:slug', () => {
 
   it('should fail when user does not exist', async () => {
     await con.getRepository(Settings).save({ userId: '1', bookmarkSlug: slug });
+    await con.getRepository(User).delete({});
     return request(app.server).get(path).expect(404);
   });
 

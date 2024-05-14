@@ -60,8 +60,8 @@ export type Experimentation = {
 
 export type BaseBoot = {
   visit: { visitId: string; sessionId: string };
-  alerts: Omit<Alerts, 'userId' | 'flags'>;
-  settings: Omit<Settings, 'userId' | 'updatedAt'>;
+  alerts: Omit<Alerts, 'userId' | 'flags' | 'user'>;
+  settings: Omit<Settings, 'userId' | 'updatedAt' | 'user'>;
   notifications: { unreadNotificationsCount: number };
   squads: BootSquadSource[];
   exp?: Experimentation;

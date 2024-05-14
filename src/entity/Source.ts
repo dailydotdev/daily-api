@@ -106,6 +106,7 @@ export class Source {
   handle: string;
 
   @Column({ type: 'jsonb', default: {} })
+  @Index('IDX_source_flags_featured', { synchronize: false })
   flags: SourceFlagsPublic;
 
   @OneToMany(() => SourceDisplay, (display) => display.source, { lazy: true })
@@ -119,6 +120,9 @@ export class Source {
 
   @OneToMany(() => SourceMember, (sm) => sm.source, { lazy: true })
   members: Promise<SourceMember[]>;
+
+  @Column({ type: 'text', nullable: true })
+  description?: string;
 }
 
 @ChildEntity(SourceType.Machine)
@@ -138,9 +142,6 @@ export class MachineSource extends Source {
 
 @ChildEntity(SourceType.Squad)
 export class SquadSource extends Source {
-  @Column({ type: 'text', nullable: true })
-  description?: string;
-
   @Column({ default: 0 })
   memberPostingRank?: number;
 

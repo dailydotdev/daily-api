@@ -34,7 +34,7 @@ export function notificationWorkerToWorker(worker: NotificationWorker): Worker {
         });
       } catch (err) {
         if (err?.code === TypeOrmError.NULL_VIOLATION) {
-          logger.warn(
+          logger.error(
             { data: messageToJson(message) },
             'null violation when creating a notification',
           );
@@ -44,7 +44,7 @@ export function notificationWorkerToWorker(worker: NotificationWorker): Worker {
           err?.code === TypeOrmError.FOREIGN_KEY &&
           err?.constraint === TypeOrmError.USER_CONSTRAINT
         ) {
-          logger.warn(
+          logger.error(
             { data: messageToJson(message) },
             'user constraint failed when creating a notification',
           );

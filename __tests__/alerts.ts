@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import {
   Alerts,
   ALERTS_DEFAULT,
+  User,
   UserAction,
   UserActionType,
 } from '../src/entity';
@@ -13,11 +14,13 @@ import {
   GraphQLTestingState,
   initializeGraphQLTesting,
   MockContext,
+  saveFixtures,
   testMutationErrorCode,
 } from './helpers';
 import createOrGetConnection from '../src/db';
 import { DataSource } from 'typeorm';
 import { saveReturnAlerts } from '../src/schema/alerts';
+import { usersFixture } from './fixture/user';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -38,6 +41,7 @@ afterAll(() => disposeGraphQLTesting(state));
 
 beforeEach(async () => {
   loggedUser = null;
+  await saveFixtures(con, User, usersFixture);
 });
 
 describe('query userAlerts', () => {
@@ -77,7 +81,10 @@ describe('query userAlerts', () => {
       filter: true,
       flags: { lastReferralReminder: new Date('2023-02-05 12:00:00') },
     });
-    const expected = saveReturnAlerts(await repo.save(alerts));
+    await repo.save(alerts);
+    const expected = saveReturnAlerts(
+      await repo.findOneByOrFail({ userId: '1' })!,
+    );
     const res = await client.query(QUERY);
 
     delete expected.userId;
@@ -188,7 +195,10 @@ describe('dedicated api routes', () => {
         userId: '1',
         myFeed: 'created',
       });
-      const expected = saveReturnAlerts(await repo.save(alerts));
+      await repo.save(alerts);
+      const expected = saveReturnAlerts(
+        await repo.findOneByOrFail({ userId: '1' })!,
+      );
       delete expected['userId'];
 
       loggedUser = '1';

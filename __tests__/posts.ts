@@ -18,6 +18,9 @@ import {
   FreeformPost,
   Post,
   PostMention,
+  PostQuestion,
+  PostRelation,
+  PostRelationType,
   PostReport,
   PostTag,
   PostType,
@@ -28,15 +31,12 @@ import {
   SquadSource,
   UNKNOWN_SOURCE,
   User,
+  UserPost,
   View,
   WelcomePost,
-  PostQuestion,
-  UserPost,
-  PostRelationType,
-  PostRelation,
   YouTubePost,
 } from '../src/entity';
-import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
+import { Roles, SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
 import {
   postsFixture,
@@ -44,24 +44,34 @@ import {
   relatedPostsFixture,
   videoPostsFixture,
 } from './fixture/post';
-import { Roles } from '../src/roles';
 import { DataSource, DeepPartial, IsNull, Not } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import {
-  postScraperOrigin,
+  createSquadWelcomePost,
+  DEFAULT_POST_TITLE,
   notifyContentRequested,
   notifyView,
-  DEFAULT_POST_TITLE,
   pickImageUrl,
-  createSquadWelcomePost,
+  postScraperOrigin,
   updateFlagsStatement,
+  WATERCOOLER_ID,
 } from '../src/common';
 import { randomUUID } from 'crypto';
 import nock from 'nock';
-import { deleteKeysByPattern, ioRedisPool, setRedisObject } from '../src/redis';
+import {
+  deleteKeysByPattern,
+  getRedisObject,
+  getRedisObjectExpiry,
+  ioRedisPool,
+  setRedisObject,
+} from '../src/redis';
 import { checkHasMention, markdown } from '../src/common/markdown';
 import { generateStorageKey, StorageTopic } from '../src/config';
 import { UserVote } from '../src/types';
+import {
+  highRateLimiterName,
+  rateLimiterName,
+} from '../src/directive/rateLimit';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -103,6 +113,8 @@ beforeEach(async () => {
     name: 'Lee',
     image: 'https://daily.dev/lee.jpg',
   });
+  await deleteKeysByPattern(`${rateLimiterName}:*`);
+  await deleteKeysByPattern(`${highRateLimiterName}:*`);
 });
 
 const saveSquadFixtures = async () => {
@@ -712,6 +724,29 @@ describe('welcomePost type', () => {
     expect(post.showOnFeed).toEqual(false);
     expect(post.flags.showOnFeed).toEqual(false);
   });
+
+  it('should add welcome post and increment squad total posts', async () => {
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, { type: SourceType.Squad });
+    const source = await repo.findOneBy({ id: 'a' });
+    const post = await createSquadWelcomePost(con, source, '1');
+    expect(post.showOnFeed).toEqual(false);
+    expect(post.flags.showOnFeed).toEqual(false);
+
+    const updatedSource = await repo.findOneBy({ id: 'a' });
+    expect(updatedSource.flags.totalPosts).toEqual(1);
+  });
+
+  it('should add a post and NOT increment source total posts', async () => {
+    const repo = con.getRepository(Source);
+    const source = await repo.findOneBy({ id: 'a' });
+    const post = await createSquadWelcomePost(con, source, '1');
+    expect(post.showOnFeed).toEqual(false);
+    expect(post.flags.showOnFeed).toEqual(false);
+
+    const updatedSource = await repo.findOneBy({ id: 'a' });
+    expect(updatedSource.flags.totalPosts).toEqual(undefined);
+  });
 });
 
 describe('query post', () => {
@@ -1214,6 +1249,9 @@ describe('mutation deletePost', () => {
       sharedPostId: 'p1',
       authorId,
     });
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { flags: { totalPosts: 1 } });
   };
 
   it('should not authorize when not logged in', () =>
@@ -1656,6 +1694,16 @@ describe('mutation sharePost', () => {
     expect(post.title).toEqual('My comment');
   });
 
+  it('should share to squad and increment squad flags total posts', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, { variables });
+    expect(res.errors).toBeFalsy();
+    const newId = res.data.sharePost.id;
+    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    const source = await post.source;
+    expect(source.flags.totalPosts).toEqual(1);
+  });
+
   it('should share to squad and trim the commentary', async () => {
     loggedUser = '1';
     const res = await client.mutate(MUTATION, {
@@ -1804,6 +1852,84 @@ describe('mutation sharePost', () => {
     expect(post.authorId).toEqual('1');
     expect(post.sharedPostId).toEqual('p1');
     expect(post.title).toEqual('My comment');
+  });
+
+  describe('rate limiting', () => {
+    const redisKey = `${rateLimiterName}:1:createPost`;
+    it('store rate limiting state in redis', async () => {
+      loggedUser = '1';
+
+      const res = await client.mutate(MUTATION, {
+        variables: variables,
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(await getRedisObject(redisKey)).toEqual('1');
+    });
+
+    it('should rate limit creating posts to 10 per hour', async () => {
+      loggedUser = '1';
+
+      for (let i = 0; i < 10; i++) {
+        const res = await client.mutate(MUTATION, {
+          variables: variables,
+        });
+
+        expect(res.errors).toBeFalsy();
+      }
+      expect(await getRedisObject(redisKey)).toEqual('10');
+
+      await testMutationErrorCode(
+        client,
+        { mutation: MUTATION, variables: variables },
+        'RATE_LIMITED',
+        'Take a break. You already posted enough in the last hour',
+      );
+
+      // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
+      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(3600);
+      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(3590);
+    });
+
+    describe('high rate squads', () => {
+      const highRateRedisKey = `${highRateLimiterName}:1:createPost`;
+      beforeEach(async () => {
+        await con.getRepository(SquadSource).save({
+          id: WATERCOOLER_ID,
+          handle: 'watercooler',
+          name: 'Watercooler',
+          private: false,
+        });
+        await con.getRepository(SourceMember).save({
+          sourceId: WATERCOOLER_ID,
+          userId: '1',
+          referralToken: 'watercoolerRt',
+          role: SourceMemberRoles.Member,
+        });
+      });
+
+      it('should rate limit creating posts in Watercooler squad to 1 per 10 minutes', async () => {
+        loggedUser = '1';
+
+        const res = await client.mutate(MUTATION, {
+          variables: { ...variables, sourceId: WATERCOOLER_ID },
+        });
+
+        expect(res.errors).toBeFalsy();
+        expect(await getRedisObject(redisKey)).toEqual('1');
+        expect(await getRedisObject(highRateRedisKey)).toEqual('1');
+
+        await testMutationErrorCode(
+          client,
+          {
+            mutation: MUTATION,
+            variables: { ...variables, sourceId: WATERCOOLER_ID },
+          },
+          'RATE_LIMITED',
+          'Take a break. You already posted enough in the last ten minutes',
+        );
+      });
+    });
   });
 });
 
@@ -2308,6 +2434,92 @@ describe('mutation submitExternalLink', () => {
       .findOneBy({ sharedPostId: articlePost?.id, title: 'Share 2' });
     expect(sharedPost2?.visible).toEqual(false);
   });
+
+  describe('rate limiting', () => {
+    const redisKey = `${rateLimiterName}:1:createPost`;
+    it('store rate limiting state in redis', async () => {
+      loggedUser = '1';
+
+      const res = await client.mutate(MUTATION, {
+        variables: { ...variables, url: 'http://p6.com' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(await getRedisObject(redisKey)).toEqual('1');
+    });
+
+    it('should rate limit creating posts to 10 per hour', async () => {
+      loggedUser = '1';
+
+      for (let i = 0; i < 10; i++) {
+        const res = await client.mutate(MUTATION, {
+          variables: { ...variables, url: 'http://p6.com' },
+        });
+
+        expect(res.errors).toBeFalsy();
+      }
+      expect(await getRedisObject(redisKey)).toEqual('10');
+
+      await testMutationErrorCode(
+        client,
+        { mutation: MUTATION, variables: variables },
+        'RATE_LIMITED',
+        'Take a break. You already posted enough in the last hour',
+      );
+
+      // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
+      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(3600);
+      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(3590);
+    });
+
+    describe('high rate squads', () => {
+      const highRateRedisKey = `${highRateLimiterName}:1:createPost`;
+      beforeEach(async () => {
+        await con.getRepository(SquadSource).save({
+          id: WATERCOOLER_ID,
+          handle: 'watercooler',
+          name: 'Watercooler',
+          private: false,
+        });
+        await con.getRepository(SourceMember).save({
+          sourceId: WATERCOOLER_ID,
+          userId: '1',
+          referralToken: 'watercoolerRt',
+          role: SourceMemberRoles.Member,
+        });
+      });
+
+      it('should rate limit creating posts in Watercooler squad to 1 per 10 minutes', async () => {
+        loggedUser = '1';
+
+        const res = await client.mutate(MUTATION, {
+          variables: {
+            ...variables,
+            url: 'http://p6.com',
+            sourceId: WATERCOOLER_ID,
+          },
+        });
+
+        expect(res.errors).toBeFalsy();
+        expect(await getRedisObject(redisKey)).toEqual('1');
+        expect(await getRedisObject(highRateRedisKey)).toEqual('1');
+
+        await testMutationErrorCode(
+          client,
+          {
+            mutation: MUTATION,
+            variables: {
+              ...variables,
+              url: 'http://p6.com',
+              sourceId: WATERCOOLER_ID,
+            },
+          },
+          'RATE_LIMITED',
+          'Take a break. You already posted enough in the last ten minutes',
+        );
+      });
+    });
+  });
 });
 
 describe('mutation checkLinkPreview', () => {
@@ -2322,7 +2534,7 @@ describe('mutation checkLinkPreview', () => {
   `;
 
   beforeEach(async () => {
-    await deleteKeysByPattern('rateLimit:*');
+    await deleteKeysByPattern(`${rateLimiterName}:*`);
   });
 
   const variables: Record<string, string> = { url: 'https://daily.dev' };
@@ -2379,10 +2591,11 @@ describe('mutation checkLinkPreview', () => {
       expect(res.errors).toBeFalsy();
     }
 
-    return testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       { mutation: MUTATION, variables },
       'RATE_LIMITED',
+      'Too many requests, please try again in 60s',
     );
   });
 
@@ -2474,6 +2687,9 @@ describe('mutation createFreeformPost', () => {
         }
         source {
           id
+          flags {
+            totalPosts
+          }
         }
         title
         content
@@ -2576,6 +2792,41 @@ describe('mutation createFreeformPost', () => {
     expect(res.data.createFreeformPost.contentHtml).toMatchSnapshot();
   });
 
+  it('should increment source total posts', async () => {
+    loggedUser = '1';
+    const sourceId = 'a';
+    const repo = con.getRepository(Source);
+    const current = 2;
+    await repo.update({ id: sourceId }, { flags: { totalPosts: current } });
+    const source = await repo.findOneByOrFail({ id: sourceId });
+    expect(source.flags.totalPosts).toEqual(current);
+    const content = '# Updated content';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, content },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createFreeformPost.source.id).toEqual('a');
+    expect(res.data.createFreeformPost.source.flags.totalPosts).toEqual(
+      current + 1,
+    );
+  });
+
+  it('should increment source total posts even if undefined', async () => {
+    loggedUser = '1';
+    const sourceId = 'a';
+    const source = await con
+      .getRepository(Source)
+      .findOneByOrFail({ id: sourceId });
+    expect(source.flags.totalPosts).toEqual(undefined);
+    const content = '# Updated content';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, content },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createFreeformPost.source.id).toEqual('a');
+    expect(res.data.createFreeformPost.source.flags.totalPosts).toEqual(1);
+  });
+
   it('should set the post to be private if source is private', async () => {
     await con.getRepository(Source).update({ id: 'a' }, { private: true });
     loggedUser = '1';
@@ -2669,6 +2920,84 @@ describe('mutation createFreeformPost', () => {
   //   expect(mention).toBeFalsy();
   //   expect(post.titleHtml).toMatchSnapshot();
   // });
+
+  describe('rate limiting', () => {
+    const redisKey = `${rateLimiterName}:1:createPost`;
+    it('store rate limiting state in redis', async () => {
+      loggedUser = '1';
+
+      const res = await client.mutate(MUTATION, {
+        variables: params,
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(await getRedisObject(redisKey)).toEqual('1');
+    });
+
+    it('should rate limit creating posts to 10 per hour', async () => {
+      loggedUser = '1';
+
+      for (let i = 0; i < 10; i++) {
+        const res = await client.mutate(MUTATION, {
+          variables: params,
+        });
+
+        expect(res.errors).toBeFalsy();
+      }
+      expect(await getRedisObject(redisKey)).toEqual('10');
+
+      await testMutationErrorCode(
+        client,
+        { mutation: MUTATION, variables: params },
+        'RATE_LIMITED',
+        'Take a break. You already posted enough in the last hour',
+      );
+
+      // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
+      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(3600);
+      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(3590);
+    });
+
+    describe('high rate squads', () => {
+      const highRateRedisKey = `${highRateLimiterName}:1:createPost`;
+      beforeEach(async () => {
+        await con.getRepository(SquadSource).save({
+          id: WATERCOOLER_ID,
+          handle: 'watercooler',
+          name: 'Watercooler',
+          private: false,
+        });
+        await con.getRepository(SourceMember).save({
+          sourceId: WATERCOOLER_ID,
+          userId: '1',
+          referralToken: 'watercoolerRt',
+          role: SourceMemberRoles.Member,
+        });
+      });
+
+      it('should rate limit creating posts in Watercooler squad to 1 per 10 minutes', async () => {
+        loggedUser = '1';
+
+        const res = await client.mutate(MUTATION, {
+          variables: { ...params, sourceId: WATERCOOLER_ID },
+        });
+
+        expect(res.errors).toBeFalsy();
+        expect(await getRedisObject(redisKey)).toEqual('1');
+        expect(await getRedisObject(highRateRedisKey)).toEqual('1');
+
+        await testMutationErrorCode(
+          client,
+          {
+            mutation: MUTATION,
+            variables: { ...params, sourceId: WATERCOOLER_ID },
+          },
+          'RATE_LIMITED',
+          'Take a break. You already posted enough in the last ten minutes',
+        );
+      });
+    });
+  });
 });
 
 describe('mutation editPost', () => {
@@ -2680,6 +3009,9 @@ describe('mutation editPost', () => {
         content
         contentHtml
         type
+        source {
+          id
+        }
       }
     }
   `;
@@ -2800,6 +3132,36 @@ describe('mutation editPost', () => {
     });
     expect(res2.errors).toBeFalsy();
     expect(res2.data.editPost.title).toEqual(title);
+  });
+
+  it('should update title of the post but keep the same squad flags total posts count', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { flags: { totalPosts: 1 } });
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { type: PostType.Freeform });
+    const title = 'Updated title';
+    const res1 = await client.mutate(MUTATION, {
+      variables: { id: 'p1', title },
+    });
+    expect(res1.errors).toBeFalsy();
+    expect(res1.data.editPost.title).toEqual(title);
+
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { type: PostType.Welcome, title: 'Test' });
+
+    const res2 = await client.mutate(MUTATION, {
+      variables: { id: 'p1', title },
+    });
+    expect(res2.errors).toBeFalsy();
+    expect(res2.data.editPost.title).toEqual(title);
+    const source = await con
+      .getRepository(Source)
+      .findOneByOrFail({ id: res2.data.editPost.source.id });
+    expect(source.flags.totalPosts).toEqual(1);
   });
 
   it('should not allow moderator or admin to do update posts of other people', async () => {
@@ -3508,8 +3870,7 @@ describe('mutation votePost', () => {
     );
   });
 
-  it('should upvote', async () => {
-    loggedUser = '1';
+  const testUpvote = async () => {
     await con.getRepository(Post).save({
       id: 'p1',
       upvotes: 3,
@@ -3530,10 +3891,41 @@ describe('mutation votePost', () => {
     });
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.upvotes).toEqual(4);
+  };
+
+  it('should upvote', async () => {
+    loggedUser = '1';
+
+    await testUpvote();
   });
 
-  it('should downvote', async () => {
+  it('should upvote and NOT update source flags upvotes count', async () => {
     loggedUser = '1';
+    const source = await con.getRepository(Source).findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalUpvotes).toEqual(undefined);
+
+    await testUpvote();
+
+    const updatedSource = await con
+      .getRepository(Source)
+      .findOneByOrFail({ id: 'a' });
+    expect(updatedSource.flags.totalUpvotes).toEqual(undefined);
+  });
+
+  it('should upvote and increment squad total upvotes', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, { type: SourceType.Squad });
+    const source = await repo.findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalUpvotes).toEqual(undefined);
+
+    await testUpvote();
+
+    const updatedSource = await repo.findOneByOrFail({ id: 'a' });
+    expect(updatedSource.flags.totalUpvotes).toEqual(4);
+  });
+
+  const testDownvote = async () => {
     await con.getRepository(Post).save({
       id: 'p1',
       downvotes: 3,
@@ -3554,20 +3946,50 @@ describe('mutation votePost', () => {
     });
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.downvotes).toEqual(4);
+  };
+
+  it('should downvote', async () => {
+    loggedUser = '1';
+
+    await testDownvote();
   });
 
-  it('should cancel vote', async () => {
+  it('should downvote and NOT update source flags upvotes count', async () => {
     loggedUser = '1';
-    await con.getRepository(Post).save({
-      id: 'p1',
-      upvotes: 3,
+    const source = await con.getRepository(Source).findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalUpvotes).toEqual(undefined);
+
+    await testDownvote();
+
+    // should not be affected since this is not a squad
+    const updatedSource = await con
+      .getRepository(Source)
+      .findOneByOrFail({ id: 'a' });
+    expect(updatedSource.flags.totalUpvotes).toEqual(undefined);
+  });
+
+  it('should downvote and NOT update squads flags upvotes count', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, { type: SourceType.Squad });
+    const source = await repo.findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalUpvotes).toEqual(undefined);
+
+    await testDownvote();
+
+    // should not be affected since the existing vote was a downvote
+    const updatedSource = await con
+      .getRepository(Source)
+      .findOneByOrFail({ id: 'a' });
+    expect(updatedSource.flags.totalUpvotes).toEqual(undefined);
+  });
+
+  const testCancelVote = async (initialVote = UserVote.Up) => {
+    await client.mutate(MUTATION, {
+      variables: { id: 'p1', vote: initialVote },
     });
-    await con.getRepository(UserPost).save({
-      postId: 'p1',
-      userId: loggedUser,
-      vote: UserVote.Up,
-      hidden: false,
-    });
+    const oldPost = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(oldPost?.upvotes).toEqual(1);
     const res = await client.mutate(MUTATION, {
       variables: { id: 'p1', vote: UserVote.None },
     });
@@ -3582,8 +4004,69 @@ describe('mutation votePost', () => {
       vote: UserVote.None,
       hidden: false,
     });
+  };
+
+  it('should cancel vote', async () => {
+    loggedUser = '1';
+    await testCancelVote();
+  });
+
+  it('should cancel vote and NOT update source flags upvotes count', async () => {
+    loggedUser = '1';
+    const source = await con.getRepository(Source).findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalUpvotes).toEqual(undefined);
+
+    await testCancelVote();
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.upvotes).toEqual(3);
+    expect(post?.upvotes).toEqual(0);
+
+    // should not be affected since this is not a squad
+    const updatedSource = await con
+      .getRepository(Source)
+      .findOneByOrFail({ id: 'a' });
+    expect(updatedSource.flags.totalUpvotes).toEqual(undefined);
+  });
+
+  it('should cancel vote and decrement squads flags upvotes count if previous vote was upvote', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, { type: SourceType.Squad });
+    const source = await repo.findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalUpvotes).toEqual(undefined);
+
+    await testCancelVote();
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.upvotes).toEqual(0);
+
+    const updatedSource = await con
+      .getRepository(Source)
+      .findOneByOrFail({ id: 'a' });
+    expect(updatedSource.flags.totalUpvotes).toEqual(0);
+  });
+
+  it('should cancel vote and NOT update squads flags upvotes count if previous state was downvote', async () => {
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, { type: SourceType.Squad });
+    const source = await repo.findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalUpvotes).toEqual(undefined);
+
+    loggedUser = '2';
+
+    await client.mutate(MUTATION, {
+      variables: { id: 'p1', vote: UserVote.Up },
+    });
+
+    loggedUser = '1';
+
+    await testCancelVote(UserVote.Down);
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    // expected is 1 since originally we upvoted with a different user
+    expect(post?.upvotes).toEqual(1);
+
+    const updatedSource = await con
+      .getRepository(Source)
+      .findOneByOrFail({ id: 'a' });
+    expect(updatedSource.flags.totalUpvotes).toEqual(1);
   });
 
   it('should not set votedAt when vote is not set on insert', async () => {

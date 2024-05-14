@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { UserAction, UserActionType } from '../src/entity';
+import { User, UserAction, UserActionType } from '../src/entity';
 import createOrGetConnection from '../src/db';
 import {
   disposeGraphQLTesting,
@@ -7,9 +7,11 @@ import {
   GraphQLTestingState,
   initializeGraphQLTesting,
   MockContext,
+  saveFixtures,
   testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
+import { usersFixture } from './fixture/user';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -28,6 +30,8 @@ afterAll(() => disposeGraphQLTesting(state));
 
 beforeEach(async () => {
   loggedUser = null;
+
+  await saveFixtures(con, User, usersFixture);
 });
 
 describe('query actions', () => {

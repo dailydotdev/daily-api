@@ -105,17 +105,33 @@ describe('query submissionAvailability', () => {
       image: 'https://daily.dev/solevilla.jpg',
       reputation: 250,
     });
-    await con.getRepository(User).update({ id: '1' }, { timezone: 'BST' });
+    await con
+      .getRepository(User)
+      .update({ id: '1' }, { timezone: 'Europe/Oslo' });
     const repo = con.getRepository(Submission);
     await repo.save([
-      { url: 'http://abc.com/1', userId: '1' },
+      { url: 'http://abc.com/1', userId: '2' },
+      { url: 'http://abc.com/2', userId: '3' },
+
+      // 20:00 at UTC is 21:00 at Europe/Oslo (22:00 during summer)
+      // So the submission should be counted as yesterday
       {
-        url: 'http://abc.com/2',
+        url: 'http://abc.com/3',
         userId: '1',
-        createdAt: subDays(new Date(), 1),
+        createdAt: subDays(new Date().setHours(20), 1),
       },
-      { url: 'http://abc.com/3', userId: '2' },
-      { url: 'http://abc.com/4', userId: '3' },
+
+      // 23:00 at UTC is 01:00 at Europe/Oslo (02:00 during summer)
+      // So the submission should be counted as the next day
+      {
+        url: 'http://abc.com/4',
+        userId: '1',
+        createdAt: subDays(new Date().setHours(23), 1),
+      },
+      {
+        url: 'http://abc.com/5',
+        userId: '1',
+      },
     ]);
     const res = await client.query(QUERY);
     const limit = parseInt(
@@ -124,7 +140,7 @@ describe('query submissionAvailability', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.submissionAvailability.limit).toEqual(limit);
     expect(res.data.submissionAvailability.hasAccess).toEqual(true);
-    expect(res.data.submissionAvailability.todaySubmissionsCount).toEqual(1);
+    expect(res.data.submissionAvailability.todaySubmissionsCount).toEqual(2);
   });
 });
 
