@@ -1,5 +1,4 @@
 import {
-  AdvancedSettings,
   BookmarkList,
   Feed,
   FeedAdvancedSettings,
