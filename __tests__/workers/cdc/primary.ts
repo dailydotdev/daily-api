@@ -1578,6 +1578,9 @@ describe('feed', () => {
   const base: ChangeObject<ObjectType> = {
     userId: '1',
     id: '1',
+    slug: '1',
+    flags: {},
+    createdAt: Date.now(),
   };
 
   beforeEach(async () => {

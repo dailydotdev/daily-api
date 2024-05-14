@@ -28,7 +28,7 @@ import {
 } from '../../src/entity';
 import { SourceMemberRoles } from '../../src/roles';
 import { sourcesFixture } from '../fixture/source';
-import { usersFixture } from '../fixture/user';
+import { userCreatedDate, usersFixture } from '../fixture/user';
 import {
   ISnotraClient,
   SnotraClient,
@@ -83,6 +83,22 @@ beforeEach(async () => {
   jest.clearAllMocks();
   nock.cleanAll();
   await deleteKeysByPattern('feeds:*');
+  await saveFixtures(con, User, [
+    usersFixture[0],
+    {
+      id: 'u1',
+      bio: null,
+      github: 'user1',
+      hashnode: null,
+      name: 'User 1',
+      image: 'https://daily.dev/user1.jpg',
+      email: 'user1@daily.dev',
+      createdAt: new Date(userCreatedDate),
+      twitter: null,
+      username: 'user1',
+      infoConfirmed: true,
+    },
+  ]);
 });
 
 describe('FeedClient', () => {
@@ -123,7 +139,6 @@ describe('FeedClient', () => {
 describe('FeedPreferencesConfigGenerator', () => {
   beforeEach(async () => {
     await saveFixtures(con, Source, sourcesFixture);
-    await saveFixtures(con, User, [usersFixture[0]]);
     await con.getRepository(Feed).save({ id: '1', userId: 'u1' });
     await con.getRepository(FeedTag).save([
       { feedId: '1', tag: 'javascript' },
@@ -335,7 +350,6 @@ describe('FeedUserStateConfigGenerator', () => {
 describe('FeedLofnConfigGenerator', () => {
   beforeEach(async () => {
     await saveFixtures(con, Source, sourcesFixture);
-    await saveFixtures(con, User, [usersFixture[0]]);
     await con.getRepository(Feed).save({ id: '1', userId: 'u1' });
     await con.getRepository(FeedTag).save([
       { feedId: '1', tag: 'javascript' },

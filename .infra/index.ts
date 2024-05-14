@@ -559,7 +559,7 @@ if (!isAdhocEnv) {
       },
       image: {
         repository: 'gcr.io/daily-ops/clickhouse-sink-docker',
-        tag: '10b6c52efb85ba194b2b851f3781f0d847b7e6fd',
+        tag: '09c6bb2d1fc05b426f8202419effa84e472b7f01',
       },
       resources: {
         // TODO: adjust resources based on the actual usage
