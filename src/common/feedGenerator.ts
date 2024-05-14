@@ -108,10 +108,7 @@ export const feedToFilters = async (
       .getRepository(Source)
       .createQueryBuilder('s')
       .select('s.id AS "id"')
-      .where(`s.advancedSettings && ARRAY[:...settings]::integer[]`, {
-        settings: settings.map((setting) => setting.id),
-      })
-      .orWhere((qb) => {
+      .where((qb) => {
         const subQuery = qb
           .subQuery()
           .select('fs."sourceId"')
@@ -147,11 +144,20 @@ export const feedToFilters = async (
     { includeTags: [], blockedTags: [] },
   );
 
-  const excludeTypes = settings
-    .filter(
-      (setting) => setting.group === 'content_types' && setting.options.type,
-    )
-    .map((setting) => setting.options.type);
+  const { excludeTypes, blockedContentCuration } = settings.reduce(
+    (acc, curr) => {
+      if (curr.options.type) {
+        if (curr.group === 'content_types') {
+          acc.excludeTypes.push(curr.options.type);
+        }
+        if (curr.group === 'content_curation') {
+          acc.blockedContentCuration.push(curr.options.type);
+        }
+      }
+      return acc;
+    },
+    { excludeTypes: [], blockedContentCuration: [] },
+  );
 
   // Split memberships by hide flag
   const membershipsByHide = memberships.reduce(
@@ -166,12 +172,6 @@ export const feedToFilters = async (
   if (!membershipsByHide.show.includes(WATERCOOLER_ID)) {
     membershipsByHide.hide.push(WATERCOOLER_ID);
   }
-
-  const blockedContentCuration = settings
-    .filter(
-      (setting) => setting.group === 'content_curation' && setting.options.type,
-    )
-    .map((setting) => setting.options.type);
 
   return {
     ...tagFilters,
