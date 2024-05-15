@@ -11,7 +11,6 @@ import mercurius, { MercuriusError } from 'mercurius';
 import MercuriusGQLUpload from 'mercurius-upload';
 import MercuriusCache from 'mercurius-cache';
 import { NoSchemaIntrospectionCustomRule } from 'graphql';
-// import fastifyWebsocket from '@fastify/websocket';
 
 import './config';
 
@@ -65,7 +64,9 @@ export default async function app(
     logger: loggerConfig,
     disableRequestLogging: true,
     trustProxy: true,
-    ...(process.env.ENABLE_PRIVATE_ROUTES === 'true' && { http2: true }),
+    ...(process.env.ENABLE_PRIVATE_ROUTES === 'true' && {
+      http2: true,
+    }),
   });
 
   app.log.info('loading features');
@@ -276,5 +277,8 @@ export default async function app(
   app.register(compatibility, { prefix: '/v1' });
   app.register(routes, { prefix: '/' });
 
+  // Since we register both http and http2 server the types can't match: https://github.com/fastify/fastify-static/issues/114
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-expect-error
   return app;
 }
