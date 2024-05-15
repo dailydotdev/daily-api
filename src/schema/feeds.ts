@@ -448,7 +448,12 @@ export const typeDefs = /* GraphQL */ `
     """
     Get the user's default feed settings
     """
-    feedSettings: FeedSettings! @auth
+    feedSettings(
+      """
+      Feed id
+      """
+      feedId: ID
+    ): FeedSettings! @auth
 
     """
     Returns the user's RSS feeds
@@ -1362,8 +1367,16 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       applyFeedPaging,
       { allowPrivateSources: false },
     ),
-    feedSettings: (source, args, ctx, info): Promise<GQLFeedSettings> =>
-      getFeedSettings({ ctx, info, feedId: ctx.userId }),
+    feedSettings: (
+      source,
+      args: { feedId: string },
+      ctx,
+      info,
+    ): Promise<GQLFeedSettings> => {
+      const feedId = args.feedId || ctx.userId;
+
+      return getFeedSettings({ ctx, info, feedId });
+    },
     advancedSettings: async (
       _,
       __,

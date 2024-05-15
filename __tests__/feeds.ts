@@ -1113,8 +1113,8 @@ describe('query keywordFeed', () => {
 });
 
 describe('query feedSettings', () => {
-  const QUERY = `{
-    feedSettings {
+  const QUERY = `query FeedSettings($feedId: ID) {
+    feedSettings(feedId: $feedId) {
       id
       userId
       includeTags
@@ -1137,6 +1137,25 @@ describe('query feedSettings', () => {
       }
     }
   }`;
+  const ADD_FILTERS_MUTATION = `
+  mutation AddFiltersToFeed($feedId: ID, $filters: FiltersInput!) {
+    addFiltersToFeed(feedId: $feedId, filters: $filters) {
+      id
+      userId
+      includeTags
+      blockedTags
+      excludeSources {
+        id
+        name
+        image
+        public
+      }
+      advancedSettings {
+        id
+        enabled
+      }
+    }
+  }`;
 
   it('should not authorize when not logged-in', () =>
     testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
@@ -1146,6 +1165,36 @@ describe('query feedSettings', () => {
     await saveFeedFixtures();
     const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return the feed settings for custom feed when feedId is provided', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await saveFixtures(con, Feed, [{ id: 'cf2', userId: '1' }]);
+    await client.mutate(ADD_FILTERS_MUTATION, {
+      variables: {
+        feedId: 'cf2',
+        filters: {
+          includeTags: ['javascript'],
+          excludeSources: ['b'],
+          blockedTags: ['golang'],
+        },
+      },
+    });
+
+    const res = await client.query(QUERY, { variables: { feedId: 'cf2' } });
+    expect(res.data.feedSettings).toMatchObject({
+      includeTags: ['javascript'],
+      excludeSources: [
+        {
+          id: 'b',
+          image: 'http://image.com/b',
+          name: 'B',
+          public: true,
+        },
+      ],
+      blockedTags: ['golang'],
+    });
   });
 });
 
