@@ -1056,33 +1056,30 @@ const anonymousFeedResolverV1: IFieldResolver<
   applyFeedPaging,
 );
 
-const feedResolverV1: IFieldResolver<
-  unknown,
-  Context,
-  ConfiguredFeedArgs & { feedId?: string }
-> = feedResolver(
-  (
-    ctx,
-    { unreadOnly, feedId }: ConfiguredFeedArgs & { feedId?: string },
-    builder,
-    alias,
-    queryParams,
-  ) =>
-    configuredFeedBuilder(
+const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
+  feedResolver(
+    (
       ctx,
-      feedId || ctx.userId,
-      unreadOnly,
+      { unreadOnly, feedId }: ConfiguredFeedArgs,
       builder,
       alias,
       queryParams,
-    ),
-  feedPageGenerator,
-  applyFeedPaging,
-  {
-    fetchQueryParams: async (ctx, args) =>
-      feedToFilters(ctx.con, args.feedId || ctx.userId, ctx.userId),
-  },
-);
+    ) =>
+      configuredFeedBuilder(
+        ctx,
+        feedId || ctx.userId,
+        unreadOnly,
+        builder,
+        alias,
+        queryParams,
+      ),
+    feedPageGenerator,
+    applyFeedPaging,
+    {
+      fetchQueryParams: async (ctx, args) =>
+        feedToFilters(ctx.con, args.feedId || ctx.userId, ctx.userId),
+    },
+  );
 
 const feedResolverCursor: IFieldResolver<
   unknown,

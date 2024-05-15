@@ -213,9 +213,10 @@ export interface FeedOptions {
   ranking: Ranking;
   supportedTypes?: string[];
   refresh?: boolean;
+  feedId?: string;
 }
 
-export type FeedArgs = ConnectionArguments & FeedOptions & { feedId?: string };
+export type FeedArgs = ConnectionArguments & FeedOptions;
 
 export const applyFeedWhere = (
   ctx: Context,
