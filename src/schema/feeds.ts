@@ -60,6 +60,7 @@ import { UserVote, maxFeedsPerUser } from '../types';
 import { createDatePageGenerator } from '../common/datePageGenerator';
 import { generateShortId } from '../ids';
 import { SubmissionFailErrorMessage } from '../errors';
+import { getFeedByIdentifiers } from '../common/feed';
 
 interface GQLTagsCategory {
   id: string;
@@ -1536,17 +1537,10 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { feedIdOrSlug }: { feedIdOrSlug: string },
       ctx,
     ): Promise<GQLFeed> => {
-      const feed = await ctx.getRepository(Feed).findOneOrFail({
-        where: [
-          {
-            id: feedIdOrSlug,
-            userId: ctx.userId,
-          },
-          {
-            slug: feedIdOrSlug,
-            userId: ctx.userId,
-          },
-        ],
+      const feed = await getFeedByIdentifiers({
+        con: ctx.con,
+        feedIdOrSlug,
+        userId: ctx.userId,
       });
 
       return feed;
