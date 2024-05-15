@@ -6,8 +6,7 @@ import { User, UserMarketingCta } from '../entity';
 import { In } from 'typeorm';
 import { sendAnalyticsEvent } from '../integrations/analytics';
 import { logger } from '../logger';
-import { cachePrefillMarketingCta } from '../schema/users';
-import { StorageKey, StorageTopic, generateStorageKey } from '../config';
+import { getMarketingCta } from '../schema/users';
 
 type SendgridEvent = {
   email: string;
@@ -169,13 +168,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         ['userId', 'marketingCtaId'],
       );
 
-      const redisKey = generateStorageKey(
-        StorageTopic.Boot,
-        StorageKey.MarketingCta,
-        userId,
-      );
-
-      await cachePrefillMarketingCta(con, userId, redisKey);
+      await getMarketingCta(con, logger, userId);
 
       return res.send({ success: true });
     },
