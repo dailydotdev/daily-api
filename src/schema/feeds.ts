@@ -47,14 +47,20 @@ import { GQLPost } from './posts';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import graphorm from '../graphorm';
 import {
+  FeedClient,
   feedClient,
   FeedConfigName,
   FeedGenerator,
   feedGenerators,
+  FeedPreferencesConfigGenerator,
   SimpleFeedConfigGenerator,
   versionToFeedGenerator,
 } from '../integrations/feed';
-import { AuthenticationError, ValidationError } from 'apollo-server-errors';
+import {
+  AuthenticationError,
+  ForbiddenError,
+  ValidationError,
+} from 'apollo-server-errors';
 import { opentelemetry } from '../telemetry/opentelemetry';
 import { UserVote, maxFeedsPerUser } from '../types';
 import { createDatePageGenerator } from '../common/datePageGenerator';
@@ -688,8 +694,34 @@ export const typeDefs = /* GraphQL */ `
       """
       Feed id
       """
-      feedIdOrSlug: ID!
+      feedId: ID!
     ): Feed @auth
+
+    """
+    Get custom feed
+    """
+    customFeed(
+      """
+      Feed id
+      """
+      feedId: ID!
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+      """
+      Ranking criteria for the feed
+      """
+      ranking: Ranking = POPULARITY
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
+    ): PostConnection! @auth
   }
 
   extend type Mutation {
@@ -1026,20 +1058,26 @@ const anonymousFeedResolverV1: IFieldResolver<
 
 const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
   feedResolver(
-    (ctx, { unreadOnly }: ConfiguredFeedArgs, builder, alias, queryParams) =>
-      configuredFeedBuilder(
+    (ctx, args: ConfiguredFeedArgs, builder, alias, queryParams) => {
+      const feedId = args.feedId || ctx.userId;
+
+      return configuredFeedBuilder(
         ctx,
-        ctx.userId,
-        unreadOnly,
+        feedId,
+        args.unreadOnly,
         builder,
         alias,
         queryParams,
-      ),
+      );
+    },
     feedPageGenerator,
     applyFeedPaging,
     {
-      fetchQueryParams: async (ctx) =>
-        feedToFilters(ctx.con, ctx.userId, ctx.userId),
+      fetchQueryParams: async (ctx, args) => {
+        const feedId = args.feedId || ctx.userId;
+
+        return feedToFilters(ctx.con, feedId, ctx.userId);
+      },
     },
   );
 
@@ -1170,6 +1208,62 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         );
       }
       return feedResolverV1(source, args, ctx, info);
+    },
+    customFeed: async (
+      source,
+      args: ConfiguredFeedArgs,
+      ctx: Context,
+      info,
+    ) => {
+      const feedIdOrSlug = args.feedId;
+
+      const feed = await getFeedByIdentifiers({
+        con: ctx.con,
+        feedIdOrSlug,
+        userId: ctx.userId,
+      });
+      const feedId = feed.id;
+
+      if (
+        args.version >= 2 &&
+        args.ranking === Ranking.POPULARITY &&
+        ctx.userId
+      ) {
+        const feedGenerator = new FeedGenerator(
+          new FeedClient(process.env.POPULAR_FEED),
+          new FeedPreferencesConfigGenerator(
+            {},
+            {
+              includePostTypes: true,
+              includeBlockedSources: true,
+              includeBlockedTags: true,
+              includeBlockedContentCuration: true,
+              feedId: feedId,
+            },
+          ),
+          'popular',
+        );
+
+        return feedResolverCursor(
+          source,
+          {
+            ...(args as FeedArgs),
+            generator: feedGenerator,
+          },
+          ctx,
+          info,
+        );
+      }
+
+      return feedResolverV1(
+        source,
+        {
+          ...args,
+          feedId,
+        },
+        ctx,
+        info,
+      );
     },
     feedPreview: (
       source,
@@ -1534,12 +1628,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
     getFeed: async (
       _,
-      { feedIdOrSlug }: { feedIdOrSlug: string },
+      { feedId }: { feedId: string },
       ctx,
     ): Promise<GQLFeed> => {
       const feed = await getFeedByIdentifiers({
         con: ctx.con,
-        feedIdOrSlug,
+        feedIdOrSlug: feedId,
         userId: ctx.userId,
       });
 
@@ -1708,8 +1802,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       validateFeedPayload({ name });
 
       const feedRepo = ctx.con.getRepository(Feed);
-      const feed = await feedRepo.findOneByOrFail({
-        id: feedId,
+      const feed = await getFeedByIdentifiers({
+        con: ctx.con,
+        feedIdOrSlug: feedId,
         userId: ctx.userId,
       });
 
@@ -1729,9 +1824,18 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       ctx,
     ): Promise<GQLEmptyResponse> => {
       const feedRepo = ctx.con.getRepository(Feed);
+      const feed = await getFeedByIdentifiers({
+        con: ctx.con,
+        feedIdOrSlug: feedId,
+        userId: ctx.userId,
+      });
+
+      if (feed.id === ctx.userId) {
+        throw new ForbiddenError('Forbidden');
+      }
 
       await feedRepo.delete({
-        id: feedId,
+        id: feed.id,
         userId: ctx.userId,
       });
 
