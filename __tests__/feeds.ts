@@ -2689,6 +2689,24 @@ describe('mutation deleteFeed', () => {
 
     expect(await con.getRepository(Feed).count()).toBe(1);
   });
+
+  it('should not delete my feed', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: '1',
+        },
+      },
+      'FORBIDDEN',
+    );
+
+    expect(await con.getRepository(Feed).count()).toBe(2);
+  });
 });
 
 describe('query customFeed', () => {

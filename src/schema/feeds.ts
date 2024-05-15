@@ -56,7 +56,11 @@ import {
   SimpleFeedConfigGenerator,
   versionToFeedGenerator,
 } from '../integrations/feed';
-import { AuthenticationError, ValidationError } from 'apollo-server-errors';
+import {
+  AuthenticationError,
+  ForbiddenError,
+  ValidationError,
+} from 'apollo-server-errors';
 import { opentelemetry } from '../telemetry/opentelemetry';
 import { UserVote, maxFeedsPerUser } from '../types';
 import { createDatePageGenerator } from '../common/datePageGenerator';
@@ -1827,6 +1831,10 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         feedIdOrSlug: feedId,
         userId: ctx.userId,
       });
+
+      if (feed.id === ctx.userId) {
+        throw new ForbiddenError('Forbidden');
+      }
 
       await feedRepo.delete({
         id: feed.id,
