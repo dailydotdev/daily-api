@@ -26,7 +26,10 @@ type SendgridEvent = {
   sg_template_id?: string;
 } & Record<string, unknown>;
 
-const verifyRequest = (publicKey: string, req: FastifyRequest): boolean => {
+const verifySendgridRequest = (
+  publicKey: string,
+  req: FastifyRequest,
+): boolean => {
   const eventWebhook = new EventWebhook();
   const ecPublicKey = eventWebhook.convertPublicKeyToECDSA(publicKey);
 
@@ -54,7 +57,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       const body = req.body as SendgridEvent[];
 
       // Verify the signature provided by SendGrid: https://www.twilio.com/docs/serverless/functions-assets/quickstart/validate-webhook-requests-from-sendgrid
-      const valid = verifyRequest(
+      const valid = verifySendgridRequest(
         process.env.SENDGRID_WEBHOOK_ANALYTICS_KEY,
         req,
       );
