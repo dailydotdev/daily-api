@@ -1058,26 +1058,26 @@ const anonymousFeedResolverV1: IFieldResolver<
 
 const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
   feedResolver(
-    (
-      ctx,
-      { unreadOnly, feedId }: ConfiguredFeedArgs,
-      builder,
-      alias,
-      queryParams,
-    ) =>
-      configuredFeedBuilder(
+    (ctx, args: ConfiguredFeedArgs, builder, alias, queryParams) => {
+      const feedId = args.feedId || ctx.userId;
+
+      return configuredFeedBuilder(
         ctx,
-        feedId || ctx.userId,
-        unreadOnly,
+        feedId,
+        args.unreadOnly,
         builder,
         alias,
         queryParams,
-      ),
+      );
+    },
     feedPageGenerator,
     applyFeedPaging,
     {
-      fetchQueryParams: async (ctx, args) =>
-        feedToFilters(ctx.con, args.feedId || ctx.userId, ctx.userId),
+      fetchQueryParams: async (ctx, args) => {
+        const feedId = args.feedId || ctx.userId;
+
+        return feedToFilters(ctx.con, feedId, ctx.userId);
+      },
     },
   );
 
