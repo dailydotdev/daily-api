@@ -2286,8 +2286,8 @@ describe('query feedList', () => {
 
 describe('query getFeed', () => {
   const QUERY = `
-  query GetFeed($feedIdOrSlug: ID!) {
-    getFeed(feedIdOrSlug: $feedIdOrSlug) {
+  query GetFeed($feedId: ID!) {
+    getFeed(feedId: $feedId) {
       id
       userId
       flags {
@@ -2316,7 +2316,7 @@ describe('query getFeed', () => {
 
     return testQueryErrorCode(
       client,
-      { query: QUERY, variables: { feedIdOrSlug: 'cf1' } },
+      { query: QUERY, variables: { feedId: 'cf1' } },
       'UNAUTHENTICATED',
     );
   });
@@ -2324,7 +2324,7 @@ describe('query getFeed', () => {
   it('should return the feed', async () => {
     loggedUser = '1';
     const res = await client.query(QUERY, {
-      variables: { feedIdOrSlug: 'cf1' },
+      variables: { feedId: 'cf1' },
     });
 
     expect(res.errors).toBeFalsy();
@@ -2342,7 +2342,7 @@ describe('query getFeed', () => {
   it('should return the feed by slug', async () => {
     loggedUser = '1';
     const res = await client.query(QUERY, {
-      variables: { feedIdOrSlug: 'cool-feed-cf1' },
+      variables: { feedId: 'cool-feed-cf1' },
     });
 
     expect(res.errors).toBeFalsy();
@@ -2364,7 +2364,7 @@ describe('query getFeed', () => {
       client,
       {
         query: QUERY,
-        variables: { feedIdOrSlug: 'cf1' },
+        variables: { feedId: 'cf1' },
       },
       'NOT_FOUND',
     );
@@ -2377,7 +2377,7 @@ describe('query getFeed', () => {
       client,
       {
         query: QUERY,
-        variables: { feedIdOrSlug: 'cf256' },
+        variables: { feedId: 'cf256' },
       },
       'NOT_FOUND',
     );
@@ -2676,6 +2676,20 @@ describe('mutation deleteFeed', () => {
   it('should not delete the feed when feedId is empty', async () => {
     loggedUser = '1';
 
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: '',
+        },
+      },
+      'NOT_FOUND',
+    );
+
+    expect(await con.getRepository(Feed).count()).toBe(1);
+  });
+});
 
 describe('query customFeed', () => {
   const QUERY = `

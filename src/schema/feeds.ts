@@ -690,7 +690,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Feed id
       """
-      feedIdOrSlug: ID!
+      feedId: ID!
     ): Feed @auth
 
     """
@@ -1626,12 +1626,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
     getFeed: async (
       _,
-      { feedIdOrSlug }: { feedIdOrSlug: string },
+      { feedId }: { feedId: string },
       ctx,
     ): Promise<GQLFeed> => {
       const feed = await getFeedByIdentifiers({
         con: ctx.con,
-        feedIdOrSlug,
+        feedIdOrSlug: feedId,
         userId: ctx.userId,
       });
 
@@ -1800,8 +1800,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       validateFeedPayload({ name });
 
       const feedRepo = ctx.con.getRepository(Feed);
-      const feed = await feedRepo.findOneByOrFail({
-        id: feedId,
+      const feed = await getFeedByIdentifiers({
+        con: ctx.con,
+        feedIdOrSlug: feedId,
         userId: ctx.userId,
       });
 
@@ -1821,9 +1822,14 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       ctx,
     ): Promise<GQLEmptyResponse> => {
       const feedRepo = ctx.con.getRepository(Feed);
+      const feed = await getFeedByIdentifiers({
+        con: ctx.con,
+        feedIdOrSlug: feedId,
+        userId: ctx.userId,
+      });
 
       await feedRepo.delete({
-        id: feedId,
+        id: feed.id,
         userId: ctx.userId,
       });
 
