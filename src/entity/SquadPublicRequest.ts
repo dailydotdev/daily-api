@@ -4,7 +4,6 @@ import {
   Index,
   ManyToOne,
   PrimaryGeneratedColumn,
-  Unique,
 } from 'typeorm';
 import { Source } from './Source';
 import { User } from './user';
@@ -16,8 +15,6 @@ enum SquadPublicRequestStatus {
 }
 
 @Entity()
-@Index('IDX_squad_public_request_sourceId', ['sourceId'])
-@Unique('source_id_status_unique_constraint', ['sourceId', 'status'])
 export class SquadPublicRequest {
   @PrimaryGeneratedColumn('uuid')
   id: string;
