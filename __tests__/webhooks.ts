@@ -24,12 +24,6 @@ beforeAll(async () => {
   return app.ready();
 });
 
-// const createDefaultUser = async () => {
-//   await con
-//     .getRepository(User)
-//     .save({ ...usersFixture[0], twitter: 'leeTwitter' });
-// };
-
 afterAll(() => app.close());
 
 beforeEach(async () => {
