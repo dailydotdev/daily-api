@@ -57,10 +57,11 @@ const verifyCIOSignature = (
   req: FastifyRequest,
 ): boolean => {
   const timestamp = req.headers['x-cio-timestamp'] as string;
-  const signature = Buffer.from(
-    req.headers['x-cio-signature'] as string,
-    'hex',
-  );
+  const signature = req.headers['x-cio-signature'] as string;
+
+  if (!timestamp || !signature) {
+    return false;
+  }
 
   const hmac = createHmac('sha256', webhookSigningSecret);
   hmac.update(`v0:${timestamp}:`);
@@ -68,7 +69,7 @@ const verifyCIOSignature = (
 
   const hash = hmac.digest();
 
-  if (!timingSafeEqual(hash, signature)) {
+  if (!timingSafeEqual(hash, Buffer.from(signature, 'hex'))) {
     logger.debug("Signature didn't match");
     return false;
   }
@@ -154,7 +155,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     handler: async (req, res) => {
       const valid = verifyCIOSignature(process.env.CIO_WEBHOOK_SECRET, req);
       if (!valid) {
-        return res.status(403).send();
+        return res.status(403).send({ error: 'Invalid signature' });
       }
 
       const { userId, marketingCtaId } = req.body;
