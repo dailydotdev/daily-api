@@ -65,6 +65,7 @@ export default async function app(
     logger: loggerConfig,
     disableRequestLogging: true,
     trustProxy: true,
+    ...(process.env.ENABLE_PRIVATE_ROUTES === 'true' && { http2: true }),
   });
 
   app.log.info('loading features');
