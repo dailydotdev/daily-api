@@ -1237,6 +1237,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
               includePostTypes: true,
               includeBlockedSources: true,
               includeBlockedTags: true,
+              includeBlockedContentCuration: true,
               feedId: feedId,
             },
           ),
