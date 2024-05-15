@@ -773,7 +773,7 @@ export const cachePrefillMarketingCta = async (
     ? JSON.stringify(marketingCta)
     : RedisMagicValues.SLEEPING;
 
-  await setRedisObjectWithExpiry(redisKey, redisValue, ONE_WEEK_IN_SECONDS);
+  setRedisObjectWithExpiry(redisKey, redisValue, ONE_WEEK_IN_SECONDS);
 
   return marketingCta;
 };
