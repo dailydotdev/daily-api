@@ -11,6 +11,7 @@ import mercurius, { MercuriusError } from 'mercurius';
 import MercuriusGQLUpload from 'mercurius-upload';
 import MercuriusCache from 'mercurius-cache';
 import { NoSchemaIntrospectionCustomRule } from 'graphql';
+// import fastifyWebsocket from '@fastify/websocket';
 
 import './config';
 
@@ -66,6 +67,9 @@ export default async function app(
     trustProxy: true,
     ...(process.env.ENABLE_PRIVATE_ROUTES === 'true' && {
       http2: true,
+      https: {
+        allowHTTP1: true,
+      },
     }),
   });
 
