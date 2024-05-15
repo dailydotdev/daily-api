@@ -2,10 +2,12 @@ import { FastifyInstance, FastifyRequest } from 'fastify';
 import { EventWebhook, EventWebhookHeader } from '@sendgrid/eventwebhook';
 import { createHmac, timingSafeEqual } from 'crypto';
 import createOrGetConnection from '../db';
-import { User } from '../entity';
+import { User, UserMarketingCta } from '../entity';
 import { In } from 'typeorm';
 import { sendAnalyticsEvent } from '../integrations/analytics';
 import { logger } from '../logger';
+import { cachePrefillMarketingCta } from '../schema/users';
+import { StorageKey, StorageTopic, generateStorageKey } from '../config';
 
 type SendgridEvent = {
   email: string;
@@ -137,6 +139,44 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           .add(events.length);
       }
       return res.status(204).send();
+    },
+  });
+
+  fastify.post<{
+    Body: {
+      userId: string;
+      marketingCtaId: string;
+    };
+  }>('/customerio/marketing_cta', {
+    config: {
+      rawBody: true,
+    },
+    handler: async (req, res) => {
+      const valid = verifyCIOSignature(process.env.CIO_WEBHOOK_SECRET, req);
+      if (!valid) {
+        return res.status(403).send();
+      }
+
+      const { userId, marketingCtaId } = req.body;
+
+      const con = await createOrGetConnection();
+      await con.getRepository(UserMarketingCta).upsert(
+        {
+          userId: userId,
+          marketingCtaId: marketingCtaId,
+        },
+        ['userId', 'marketingCtaId'],
+      );
+
+      const redisKey = generateStorageKey(
+        StorageTopic.Boot,
+        StorageKey.MarketingCta,
+        userId,
+      );
+
+      await cachePrefillMarketingCta(con, userId, redisKey);
+
+      return res.send({ success: true });
     },
   });
 }
