@@ -53,18 +53,6 @@ beforeEach(async () => {
       createdAt: new Date('2024-03-13 12:00:00'),
     })),
   );
-
-  // usersFixture.forEach(async (user) => {
-  //   await setRedisObject(
-  //     generateStorageKey(
-  //       StorageTopic.Boot,
-  //       StorageKey.MarketingCta,
-  //       user.id as string,
-  //     ),
-  //     // Don't really care about the value in these tests
-  //     'not null',
-  //   );
-  // });
 });
 
 describe('POST /webhooks/customerio/marketing_cta', () => {
