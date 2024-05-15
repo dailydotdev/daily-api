@@ -44,6 +44,7 @@ config:
   api:env:
     accessSecret: topsecret
     analyticsUrl: http://localhost:3000
+    cioWebhookSecret: topsecret
     commentsPrefix: http://webapp.local.com:5002
     cookiesKey: topsecret
     defaultImageRatio: 1

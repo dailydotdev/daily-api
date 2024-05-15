@@ -1,9 +1,11 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import { EventWebhook, EventWebhookHeader } from '@sendgrid/eventwebhook';
+import { createHmac, timingSafeEqual } from 'crypto';
 import createOrGetConnection from '../db';
 import { User } from '../entity';
 import { In } from 'typeorm';
 import { sendAnalyticsEvent } from '../integrations/analytics';
+import { logger } from '../logger';
 
 type SendgridEvent = {
   email: string;
@@ -46,6 +48,31 @@ const verifySendgridRequest = (
     signature,
     timestamp,
   );
+};
+
+const verifyCIOSignature = (
+  webhookSigningSecret: string,
+  req: FastifyRequest,
+): boolean => {
+  const timestamp = req.headers['x-cio-timestamp'] as string;
+  const signature = Buffer.from(
+    req.headers['x-cio-signature'] as string,
+    'hex',
+  );
+
+  const hmac = createHmac('sha256', webhookSigningSecret);
+  hmac.update(`v0:${timestamp}:`);
+  hmac.update(req.rawBody);
+
+  const hash = hmac.digest();
+
+  if (!timingSafeEqual(hash, signature)) {
+    logger.debug("Signature didn't match");
+    return false;
+  }
+
+  logger.debug('Signature matched!');
+  return true;
 };
 
 export default async function (fastify: FastifyInstance): Promise<void> {
