@@ -1,5 +1,6 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 import { PostType } from './posts';
+import { Source } from './Source';
 
 @Entity()
 export class AdvancedSettings {
@@ -20,6 +21,7 @@ export class AdvancedSettings {
 
   @Column({ type: 'jsonb', default: {} })
   options: {
-    type?: PostType;
+    source?: Pick<Source, 'id'>;
+    type?: PostType | string;
   };
 }

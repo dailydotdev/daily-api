@@ -39,6 +39,7 @@ import {
   initializeGraphQLTesting,
   MockContext,
   saveFixtures,
+  testMutationError,
   testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
@@ -58,7 +59,8 @@ import { randomUUID } from 'crypto';
 import { usersFixture } from './fixture/user';
 import { base64 } from 'graphql-relay/utils/base64';
 import { baseFeedConfig } from '../src/integrations/feed/generators';
-import { UserVote } from '../src/types';
+import { maxFeedsPerUser, UserVote } from '../src/types';
+import { SubmissionFailErrorMessage } from '../src/errors';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -78,6 +80,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   loggedUser = null;
 
+  await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, AdvancedSettings, advancedSettings);
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
@@ -181,35 +184,30 @@ const saveAdvancedSettingsFiltersFixtures = async (): Promise<void> => {
       id: 'includedSource',
       name: 'IS',
       image: 'http://image.com/c',
-      advancedSettings: [2],
       handle: 'includedSource',
     },
     {
       id: 'excludedSource',
       name: 'ES',
       image: 'http://image.com/c',
-      advancedSettings: [1],
       handle: 'excludedSource',
     },
     {
       id: 'settingsCombinationSource',
       name: 'SCS',
       image: 'http://image.com/c',
-      advancedSettings: [1, 2],
       handle: 'settingsCombinationSource',
     },
     {
       id: 'experimentExcludedSource',
       name: 'ExES',
       image: 'http://image.com/c',
-      advancedSettings: [5],
       handle: 'experimentExcludedSource',
     },
     {
       id: 'experimentIncludedSource',
       name: 'ExIS',
       image: 'http://image.com/c',
-      advancedSettings: [6],
       handle: 'experimentIncludedSource',
     },
   ]);
@@ -314,6 +312,10 @@ describe('query anonymousFeed', () => {
   it('should return feed while excluding sources based on advanced settings', async () => {
     await con.getRepository(Post).delete({ id: 'p6' });
     await saveAdvancedSettingsFiltersFixtures();
+    await con.getRepository(FeedSource).save([
+      { feedId: '1', sourceId: 'excludedSource' },
+      { feedId: '1', sourceId: 'settingsCombinationSource' },
+    ]);
 
     const filters = await feedToFilters(con, '1', '1');
     delete filters.sourceIds;
@@ -627,6 +629,10 @@ describe('query feed', () => {
     const repo = con.getRepository(Post);
     await repo.delete({ id: 'p6' });
     await saveAdvancedSettingsFiltersFixtures();
+    await con.getRepository(FeedSource).save([
+      { feedId: '1', sourceId: 'excludedSource' },
+      { feedId: '1', sourceId: 'settingsCombinationSource' },
+    ]);
     await repo.update({ id: 'p1' }, { score: 2 });
     await repo.update({ id: 'includedPost' }, { score: 1 });
 
@@ -1837,6 +1843,10 @@ describe('function feedToFilters', () => {
   it('should return filters having excluded sources based on advanced settings', async () => {
     loggedUser = '1';
     await saveAdvancedSettingsFiltersFixtures();
+    await con.getRepository(FeedSource).save([
+      { feedId: '1', sourceId: 'excludedSource' },
+      { feedId: '1', sourceId: 'settingsCombinationSource' },
+    ]);
     const filters = await feedToFilters(con, '1', '1');
     expect(filters.excludeSources).toEqual([
       'excludedSource',
@@ -1875,6 +1885,26 @@ describe('function feedToFilters', () => {
         referralToken: 'rt2',
       },
     ]);
+    expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
+  });
+
+  it('should return filters with blocked content types', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, User, [usersFixture[0]]);
+    await con.getRepository(AdvancedSettings).save({
+      id: 1,
+      title: 'test',
+      group: 'content_curation',
+      options: { type: 'listicle' },
+      description: '',
+      defaultEnabledState: true,
+    });
+    await con.getRepository(Feed).save({ id: '1', userId: '1' });
+    await con.getRepository(FeedAdvancedSettings).save({
+      feedId: '1',
+      advancedSettingsId: 1,
+      enabled: false,
+    });
     expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
   });
 
@@ -1996,7 +2026,6 @@ describe('query userUpvotedFeed', () => {
 `;
 
   beforeEach(async () => {
-    await saveFixtures(con, User, usersFixture);
     await con.getRepository(UserPost).insert([
       {
         userId: '2',
@@ -2037,6 +2066,769 @@ describe('query userUpvotedFeed', () => {
     const res = await client.query(QUERY, { variables: { userId: '2' } });
     res.data.userUpvotedFeed.edges.forEach(({ node }) =>
       expect(['p1', 'p3']).toContain(node.id),
+    );
+  });
+});
+
+describe('flags field', () => {
+  const QUERY = `{
+    feedList {
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+      edges {
+        node {
+          flags {
+            name
+          }
+        }
+      }
+    }
+  }`;
+
+  beforeEach(async () => {
+    loggedUser = '1';
+    await con.getRepository(Feed).save([
+      {
+        id: 'cf1',
+        userId: '1',
+        flags: {},
+      },
+    ]);
+  });
+
+  it('should return all the public flags', async () => {
+    await con.getRepository(Feed).save([
+      {
+        id: 'cf1',
+        flags: {
+          name: 'Cool feed',
+        },
+      },
+    ]);
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedList.edges.length).toEqual(1);
+    expect(res.data.feedList.edges[0].node.flags).toEqual({
+      name: 'Cool feed',
+    });
+  });
+
+  it('should return null values for unset flags', async () => {
+    const res = await client.query(QUERY);
+    expect(res.data.feedList.edges[0].node.flags).toEqual({
+      name: null,
+    });
+  });
+
+  it('should contain all default values in db query', async () => {
+    const feed = await con.getRepository(Feed).findOneBy({ id: 'cf1' });
+    expect(feed?.flags).toEqual({});
+  });
+});
+
+describe('slug field', () => {
+  const QUERY = `{
+    feedList {
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+      edges {
+        node {
+          slug
+        }
+      }
+    }
+  }`;
+
+  beforeEach(async () => {
+    loggedUser = '1';
+    await con.getRepository(Feed).save([
+      {
+        id: 'cf1',
+        userId: '1',
+        flags: {
+          name: 'Cool feed',
+        },
+      },
+    ]);
+  });
+
+  it('should return the slug', async () => {
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedList.edges[0].node.slug).toEqual('cool-feed-cf1');
+  });
+
+  it('should return slug when name is unset', async () => {
+    await con.getRepository(Feed).save([
+      {
+        id: 'cf1',
+        flags: {},
+      },
+    ]);
+
+    const res = await client.query(QUERY);
+    expect(res.data.feedList.edges[0].node.slug).toEqual('cf1');
+  });
+});
+
+describe('query feedList', () => {
+  const QUERY = `{
+    feedList {
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+      edges {
+        node {
+          id
+          userId
+          flags {
+            name
+          }
+          slug
+        }
+      }
+    }
+  }`;
+
+  beforeEach(async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await con.getRepository(Feed).save([
+      {
+        id: 'cf1',
+        userId: '1',
+        flags: {
+          name: 'Cool feed',
+        },
+      },
+      {
+        id: 'cf2',
+        userId: '1',
+        flags: {
+          name: 'PHP feed',
+        },
+      },
+      {
+        id: 'cf3',
+        userId: '1',
+        flags: {
+          name: 'Awful feed',
+        },
+      },
+    ]);
+  });
+
+  it('should not authorize when not logged-in', () => {
+    loggedUser = '';
+
+    return testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED');
+  });
+
+  it('should return the feed list', async () => {
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchObject({
+      feedList: {
+        pageInfo: {
+          endCursor: expect.any(String),
+          hasNextPage: false,
+        },
+        edges: [
+          {
+            node: {
+              id: 'cf1',
+              userId: '1',
+              flags: {
+                name: 'Cool feed',
+              },
+              slug: 'cool-feed-cf1',
+            },
+          },
+          {
+            node: {
+              id: 'cf2',
+              userId: '1',
+              flags: {
+                name: 'PHP feed',
+              },
+              slug: 'php-feed-cf2',
+            },
+          },
+          {
+            node: {
+              id: 'cf3',
+              userId: '1',
+              flags: {
+                name: 'Awful feed',
+              },
+              slug: 'awful-feed-cf3',
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  it('should not return the user default feed', async () => {
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedList.edges.map((edge) => edge.node.id)).not.toContain(
+      '1',
+    );
+  });
+});
+
+describe('query getFeed', () => {
+  const QUERY = `
+  query GetFeed($feedId: ID!) {
+    getFeed(feedId: $feedId) {
+      id
+      userId
+      flags {
+        name
+      }
+    }
+  }
+`;
+
+  beforeEach(async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await con.getRepository(Feed).save([
+      {
+        id: 'cf1',
+        userId: '1',
+        flags: {
+          name: 'Cool feed',
+        },
+      },
+    ]);
+  });
+
+  it('should not authorize when not logged-in', () => {
+    loggedUser = '';
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { feedId: 'cf1' } },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should return the feed', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: { feedId: 'cf1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchObject({
+      getFeed: {
+        id: 'cf1',
+        userId: '1',
+        flags: {
+          name: 'Cool feed',
+        },
+      },
+    });
+  });
+
+  it('should return the feed by slug', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: { feedId: 'cool-feed-cf1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchObject({
+      getFeed: {
+        id: 'cf1',
+        userId: '1',
+        flags: {
+          name: 'Cool feed',
+        },
+      },
+    });
+  });
+
+  it('should not return the feed when the user does not own it', () => {
+    loggedUser = '2';
+
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { feedId: 'cf1' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should throw not found when feed does not exist', () => {
+    loggedUser = '2';
+
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { feedId: 'cf256' },
+      },
+      'NOT_FOUND',
+    );
+  });
+});
+
+describe('mutation createFeed', () => {
+  const MUTATION = `
+  mutation CreateFeed($name: String!) {
+    createFeed(name: $name) {
+      id
+      userId
+      flags {
+        name
+      }
+    }
+  }
+`;
+
+  it('should not authorize when not logged-in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          name: 'Cool feed',
+        },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should create a new feed', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        name: 'Cool feed',
+      },
+    });
+
+    expect(res.data).toMatchObject({
+      createFeed: {
+        id: expect.any(String),
+        userId: '1',
+        flags: {
+          name: 'Cool feed',
+        },
+      },
+    });
+    expect(
+      await con.getRepository(Feed).findOneBy({ id: res.data.createFeed.id }),
+    ).toMatchObject({
+      id: expect.any(String),
+      userId: '1',
+      flags: { name: 'Cool feed' },
+    });
+  });
+
+  it('should not create a new feed when name is missing', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {},
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not create a new feed when name is empty', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          name: '',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not create a new feed if the user has reached the limit', async () => {
+    loggedUser = '1';
+
+    await saveFixtures(
+      con,
+      Feed,
+      new Array(maxFeedsPerUser + 1).fill(null).map((item, index) => {
+        return {
+          id: `cf${index}`,
+          userId: '1',
+          flags: { name: `Cool feed ${index}` },
+        };
+      }),
+    );
+
+    await testMutationError(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          name: 'Cool feed',
+        },
+      },
+      (errors) => {
+        expect(errors.length).toEqual(1);
+        expect(errors[0].extensions?.code).toEqual('GRAPHQL_VALIDATION_FAILED');
+        expect(errors[0]?.message).toEqual(
+          SubmissionFailErrorMessage.FEED_COUNT_LIMIT_REACHED,
+        );
+      },
+    );
+  });
+});
+
+describe('mutation updateFeed', () => {
+  const MUTATION = `
+  mutation UpdateFeed($feedId: ID!, $name: String!) {
+    updateFeed(feedId: $feedId, name: $name) {
+      id
+      userId
+      flags {
+        name
+      }
+    }
+  }
+`;
+
+  beforeEach(async () => {
+    await saveFixtures(con, Feed, [
+      { id: 'cf1', userId: '1', flags: { name: 'Cool feed' } },
+    ]);
+  });
+
+  it('should not authorize when not logged-in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: 'cf1',
+          name: 'Cool feed',
+        },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should not update when different user owns the feed', () => {
+    loggedUser = '2';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: 'cf1',
+          name: 'Cool feed',
+        },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should update the feed', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        feedId: 'cf1',
+        name: 'PHP feed',
+      },
+    });
+
+    expect(res.data).toMatchObject({
+      updateFeed: {
+        id: 'cf1',
+        userId: '1',
+        flags: {
+          name: 'PHP feed',
+        },
+      },
+    });
+    expect(
+      await con.getRepository(Feed).findOneBy({ id: 'cf1' }),
+    ).toMatchObject({
+      id: 'cf1',
+      userId: '1',
+      flags: { name: 'PHP feed' },
+    });
+  });
+
+  it('should not update the feed when feedId is missing', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          name: 'Cool feed',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not update the feed when name is missing', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: '1',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not update the feed when name is empty', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '1',
+          name: '',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+});
+
+describe('mutation deleteFeed', () => {
+  const MUTATION = `
+  mutation DeleteFeed($feedId: ID!) {
+    deleteFeed(feedId: $feedId) {
+      _
+    }
+  }
+`;
+
+  beforeEach(async () => {
+    await saveFixtures(con, Feed, [
+      { id: 'cf1', userId: '1', flags: { name: 'Cool feed' } },
+    ]);
+  });
+
+  it('should not authorize when not logged-in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: 'cf1',
+        },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should delete the feed', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        feedId: 'cf1',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(await con.getRepository(Feed).count()).toBe(0);
+  });
+
+  it('should not delete the feed when feedId is missing', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {},
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not delete the feed when feedId is empty', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: '',
+        },
+      },
+      'NOT_FOUND',
+    );
+
+    expect(await con.getRepository(Feed).count()).toBe(1);
+  });
+
+  it('should not delete my feed', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: '1',
+        },
+      },
+      'FORBIDDEN',
+    );
+
+    expect(await con.getRepository(Feed).count()).toBe(2);
+  });
+});
+
+describe('query customFeed', () => {
+  const QUERY = `
+  query CustomFeed($feedId: ID!, $ranking: Ranking, $first: Int, $after: String, $supportedTypes: [String!]) {
+    customFeed(feedId: $feedId, ranking: $ranking, first: $first, after: $after, supportedTypes: $supportedTypes) {
+      ${feedFields()}
+    }
+  }
+`;
+
+  beforeEach(async () => {
+    loggedUser = '1';
+
+    await saveFeedFixtures();
+    await con.getRepository(Feed).save([
+      {
+        id: 'cf1',
+        userId: '1',
+        flags: {
+          name: 'Cool feed',
+        },
+      },
+    ]);
+    await con.getRepository(FeedTag).save([
+      { feedId: 'cf1', tag: 'webdev' },
+      { feedId: 'cf1', tag: 'html' },
+      { feedId: 'cf1', tag: 'data' },
+    ]);
+  });
+
+  it('should not authorize feed when not logged-in', () => {
+    loggedUser = '';
+
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: {
+          ranking: Ranking.POPULARITY,
+          first: 10,
+          feedId: 'cf1',
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should return the feed by slug', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: {
+        ranking: Ranking.POPULARITY,
+        first: 10,
+        feedId: 'cool-feed-cf1',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.customFeed).toBeTruthy();
+  });
+
+  it('should not return the feed when the user does not own it', () => {
+    loggedUser = '2';
+
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { ranking: Ranking.POPULARITY, first: 10, feedId: 'cf1' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should throw not found when feed does not exist', () => {
+    loggedUser = '2';
+
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { ranking: Ranking.POPULARITY, first: 10, feedId: 'cf1' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return feed with preconfigured filters', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: {
+        ranking: Ranking.POPULARITY,
+        first: 10,
+        feedId: 'cf1',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.customFeed.edges.map((item) => item.node.id)).toMatchObject(
+      ['p5', 'p4', 'p1'],
+    );
+  });
+
+  it('should not return posts with blocked tags', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(FeedTag)
+      .save([{ feedId: 'cf1', tag: 'webdev', blocked: true }]);
+
+    const res = await client.query(QUERY, {
+      variables: {
+        ranking: Ranking.POPULARITY,
+        first: 10,
+        feedId: 'cf1',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.customFeed.edges.map((item) => item.node.id)).toMatchObject(
+      ['p5', 'p4'],
     );
   });
 });

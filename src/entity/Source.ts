@@ -106,6 +106,7 @@ export class Source {
   handle: string;
 
   @Column({ type: 'jsonb', default: {} })
+  @Index('IDX_source_flags_featured', { synchronize: false })
   flags: SourceFlagsPublic;
 
   @OneToMany(() => SourceDisplay, (display) => display.source, { lazy: true })
@@ -134,9 +135,6 @@ export class MachineSource extends Source {
 
   @Column({ default: 0 })
   rankBoost: number;
-
-  @Column({ type: 'int', array: true, default: [] })
-  advancedSettings: number[];
 }
 
 @ChildEntity(SourceType.Squad)

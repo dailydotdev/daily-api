@@ -63,8 +63,8 @@ if (isAdhocEnv) {
 const redis = new Redis(`${name}-redis`, {
   isAdhocEnv,
   name: `${name}-redis`,
-  tier: 'STANDARD_HA',
-  memorySizeGb: 10,
+  tier: 'BASIC',
+  memorySizeGb: 3,
   region: location,
   authEnabled: true,
   redisVersion: 'REDIS_6_X',
@@ -91,6 +91,8 @@ const { namespace, host: subsHost } = config.requireObject<{
 const envVars: Record<string, Input<string>> = {
   ...config.requireObject<Record<string, string>>('env'),
   redisHost,
+  redisPass: redis.authString,
+  redisPort: redis.port.apply((port) => port.toString()),
 };
 
 createSubscriptionsFromWorkers(
@@ -117,12 +119,12 @@ if (isPersonalizedDigestEnabled) {
 }
 
 const memory = 640;
-const apiRequests: pulumi.Input<{cpu: string; memory: string}> = {
+const apiRequests: pulumi.Input<{ cpu: string; memory: string }> = {
   cpu: '800m',
   memory: '400Mi',
 };
-const apiLimits: pulumi.Input<{memory: string}> = {
-  memory: `${memory}Mi`
+const apiLimits: pulumi.Input<{ memory: string }> = {
+  memory: `${memory}Mi`,
 };
 
 const wsMemory = 2048;
@@ -133,8 +135,8 @@ const wsLimits: pulumi.Input<{
   memory: `${wsMemory}Mi`,
 };
 
-const bgLimits: pulumi.Input<{memory: string}> = { memory: '256Mi' };
-const bgRequests: pulumi.Input<{cpu: string; memory: string}> = {
+const bgLimits: pulumi.Input<{ memory: string }> = { memory: '256Mi' };
+const bgRequests: pulumi.Input<{ cpu: string; memory: string }> = {
   cpu: '50m',
   memory: '150Mi',
 };
@@ -364,7 +366,7 @@ const [apps] = deployApplicationSuite(
       topicName: debeziumTopicName,
       propsPath: './application.properties',
       propsVars: {
-        slot_name: isAdhocEnv ? "debezium_api" : "debezium",
+        slot_name: isAdhocEnv ? 'debezium_api' : 'debezium',
         database_pass: config.require('debeziumDbPass'),
         database_user: config.require('debeziumDbUser'),
         database_dbname: name,
@@ -380,7 +382,7 @@ const [apps] = deployApplicationSuite(
       limits: {
         cpu: '100m',
         memory: '800Mi',
-      }
+      },
     },
     additionalSecrets: [
       {
@@ -557,7 +559,7 @@ if (!isAdhocEnv) {
       },
       image: {
         repository: 'gcr.io/daily-ops/clickhouse-sink-docker',
-        tag: '10b6c52efb85ba194b2b851f3781f0d847b7e6fd',
+        tag: '09c6bb2d1fc05b426f8202419effa84e472b7f01',
       },
       resources: {
         // TODO: adjust resources based on the actual usage

@@ -91,3 +91,5 @@ export enum UserVoteEntity {
 }
 
 export const DEFAULT_TIMEZONE = 'Etc/UTC';
+
+export const maxFeedsPerUser = 10;

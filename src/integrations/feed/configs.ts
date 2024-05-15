@@ -18,6 +18,8 @@ type Options = {
   includeBlockedSources?: boolean;
   includeSourceMemberships?: boolean;
   includePostTypes?: boolean;
+  includeBlockedContentCuration?: boolean;
+  feedId?: string;
 };
 
 type BaseConfig = Partial<Omit<FeedConfig, 'user_id' | 'page_size' | 'offset'>>;
@@ -69,7 +71,8 @@ export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
     return runInSpan('FeedPreferencesConfigGenerator', async () => {
       const config = getDefaultConfig(this.baseConfig, opts);
       const userId = opts.user_id;
-      const filters = await feedToFilters(ctx.con, userId, userId);
+      const feedId = opts.feedId || userId;
+      const filters = await feedToFilters(ctx.con, feedId, userId);
       if (filters.includeTags?.length && this.opts.includeAllowedTags) {
         config.allowed_tags = filters.includeTags;
       }
@@ -86,6 +89,12 @@ export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
         config.allowed_post_types = (
           config.allowed_post_types || postTypes
         ).filter((x) => !filters.excludeTypes.includes(x));
+      }
+      if (
+        filters.blockedContentCuration?.length &&
+        this.opts.includeBlockedContentCuration
+      ) {
+        config.blocked_content_curations = filters.blockedContentCuration;
       }
       return { config };
     });

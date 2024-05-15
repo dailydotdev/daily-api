@@ -1,11 +1,12 @@
 import {
-  AdvancedSettings,
   BookmarkList,
   Feed,
   FeedAdvancedSettings,
+  FeedFlagsPublic,
   FeedSource,
   FeedTag,
   Post,
+  PostType,
   Source,
   UserPost,
 } from '../entity';
@@ -36,25 +37,36 @@ import {
 import { In, SelectQueryBuilder } from 'typeorm';
 import { ensureSourcePermissions, GQLSource } from './sources';
 import {
+  feedCursorPageGenerator,
   offsetPageGenerator,
   Page,
   PageGenerator,
-  feedCursorPageGenerator,
+  GQLEmptyResponse,
 } from './common';
 import { GQLPost } from './posts';
-import { ConnectionArguments } from 'graphql-relay';
+import { Connection, ConnectionArguments } from 'graphql-relay';
 import graphorm from '../graphorm';
 import {
+  FeedClient,
   feedClient,
   FeedConfigName,
   FeedGenerator,
   feedGenerators,
+  FeedPreferencesConfigGenerator,
   SimpleFeedConfigGenerator,
   versionToFeedGenerator,
 } from '../integrations/feed';
-import { AuthenticationError } from 'apollo-server-errors';
+import {
+  AuthenticationError,
+  ForbiddenError,
+  ValidationError,
+} from 'apollo-server-errors';
 import { opentelemetry } from '../telemetry/opentelemetry';
-import { UserVote } from '../types';
+import { UserVote, maxFeedsPerUser } from '../types';
+import { createDatePageGenerator } from '../common/datePageGenerator';
+import { generateShortId } from '../ids';
+import { SubmissionFailErrorMessage } from '../errors';
+import { getFeedByIdentifiers } from '../common/feed';
 
 interface GQLTagsCategory {
   id: string;
@@ -63,13 +75,28 @@ interface GQLTagsCategory {
   tags: string[];
 }
 
+type GQLFeed = {
+  id: string;
+  userId: string;
+  createdAt: Date;
+  authorId?: string;
+  flags?: FeedFlagsPublic;
+  slug: string;
+};
+
 export const typeDefs = /* GraphQL */ `
+  type OptionType {
+    source: Source
+    type: String
+  }
+
   type AdvancedSettings {
     id: Int!
     title: String!
     description: String!
     defaultEnabledState: Boolean!
     group: String!
+    options: OptionType
   }
 
   type FeedAdvancedSettings {
@@ -142,6 +169,64 @@ export const typeDefs = /* GraphQL */ `
     Posts must not include even one tag from this list
     """
     blockedTags: [String!]
+
+    """
+    Posts must comply with the advanced settings from this list
+    """
+    blockedContentCuration: [String!]
+  }
+
+  type FeedFlagsPublic {
+    """
+    Name of the feed
+    """
+    name: String
+  }
+
+  type Feed {
+    """
+    Unique identifier for the feed
+    """
+    id: ID!
+
+    """
+    User ID
+    """
+    userId: ID
+
+    """
+    Feed creation date
+    """
+    createdAt: DateTime
+
+    """
+    Author ID
+    """
+    authorId: ID
+
+    """
+    Feed flags
+    """
+    flags: FeedFlagsPublic
+
+    """
+    Feed slug
+    """
+    slug: String
+  }
+
+  type FeedConnection {
+    pageInfo: PageInfo!
+    edges: [FeedEdge!]!
+  }
+
+  type FeedEdge {
+    node: Feed!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
   }
 
   extend type Query {
@@ -579,6 +664,64 @@ export const typeDefs = /* GraphQL */ `
     Get the list of advanced settings
     """
     advancedSettings: [AdvancedSettings]!
+
+    """
+    List feeds
+    """
+    feedList(
+      """
+      Paginate before opaque cursor
+      """
+      before: String
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+      """
+      Paginate last
+      """
+      last: Int
+    ): FeedConnection! @auth
+
+    """
+    Get feed meta
+    """
+    getFeed(
+      """
+      Feed id
+      """
+      feedId: ID!
+    ): Feed @auth
+
+    """
+    Get custom feed
+    """
+    customFeed(
+      """
+      Feed id
+      """
+      feedId: ID!
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+      """
+      Ranking criteria for the feed
+      """
+      ranking: Ranking = POPULARITY
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
+    ): PostConnection! @auth
   }
 
   extend type Mutation {
@@ -611,6 +754,41 @@ export const typeDefs = /* GraphQL */ `
       """
       settings: [FeedAdvancedSettingsInput]!
     ): [FeedAdvancedSettings]! @auth
+
+    """
+    Create feed
+    """
+    createFeed(
+      """
+      Feed name
+      """
+      name: String!
+    ): Feed @auth
+
+    """
+    Update feed meta
+    """
+    updateFeed(
+      """
+      Feed id
+      """
+      feedId: ID!
+
+      """
+      Feed name
+      """
+      name: String!
+    ): Feed @auth
+
+    """
+    Delete feed
+    """
+    deleteFeed(
+      """
+      Feed id
+      """
+      feedId: ID!
+    ): EmptyResponse @auth
   }
 `;
 
@@ -624,6 +802,10 @@ export interface GQLAdvancedSettings {
   title: string;
   description: string;
   group: string;
+  options: {
+    source?: Source;
+    type?: PostType;
+  };
 }
 
 export interface GQLFeedAdvancedSettings {
@@ -876,20 +1058,26 @@ const anonymousFeedResolverV1: IFieldResolver<
 
 const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
   feedResolver(
-    (ctx, { unreadOnly }: ConfiguredFeedArgs, builder, alias, queryParams) =>
-      configuredFeedBuilder(
+    (ctx, args: ConfiguredFeedArgs, builder, alias, queryParams) => {
+      const feedId = args.feedId || ctx.userId;
+
+      return configuredFeedBuilder(
         ctx,
-        ctx.userId,
-        unreadOnly,
+        feedId,
+        args.unreadOnly,
         builder,
         alias,
         queryParams,
-      ),
+      );
+    },
     feedPageGenerator,
     applyFeedPaging,
     {
-      fetchQueryParams: async (ctx) =>
-        feedToFilters(ctx.con, ctx.userId, ctx.userId),
+      fetchQueryParams: async (ctx, args) => {
+        const feedId = args.feedId || ctx.userId;
+
+        return feedToFilters(ctx.con, feedId, ctx.userId);
+      },
     },
   );
 
@@ -970,6 +1158,16 @@ const legacySimilarPostsResolver = randomPostsResolver(
   3,
 );
 
+const validateFeedPayload = ({
+  name,
+}: {
+  name: Feed['flags']['name'];
+}): never | undefined => {
+  if (!name) {
+    throw new ValidationError('Feed name is required');
+  }
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
@@ -1010,6 +1208,62 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         );
       }
       return feedResolverV1(source, args, ctx, info);
+    },
+    customFeed: async (
+      source,
+      args: ConfiguredFeedArgs,
+      ctx: Context,
+      info,
+    ) => {
+      const feedIdOrSlug = args.feedId;
+
+      const feed = await getFeedByIdentifiers({
+        con: ctx.con,
+        feedIdOrSlug,
+        userId: ctx.userId,
+      });
+      const feedId = feed.id;
+
+      if (
+        args.version >= 2 &&
+        args.ranking === Ranking.POPULARITY &&
+        ctx.userId
+      ) {
+        const feedGenerator = new FeedGenerator(
+          new FeedClient(process.env.POPULAR_FEED),
+          new FeedPreferencesConfigGenerator(
+            {},
+            {
+              includePostTypes: true,
+              includeBlockedSources: true,
+              includeBlockedTags: true,
+              includeBlockedContentCuration: true,
+              feedId: feedId,
+            },
+          ),
+          'popular',
+        );
+
+        return feedResolverCursor(
+          source,
+          {
+            ...(args as FeedArgs),
+            generator: feedGenerator,
+          },
+          ctx,
+          info,
+        );
+      }
+
+      return feedResolverV1(
+        source,
+        {
+          ...args,
+          feedId,
+        },
+        ctx,
+        info,
+      );
     },
     feedPreview: (
       source,
@@ -1090,6 +1344,16 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     ),
     feedSettings: (source, args, ctx, info): Promise<GQLFeedSettings> =>
       getFeedSettings(ctx, info),
+    advancedSettings: async (
+      _,
+      __,
+      ctx,
+      info,
+    ): Promise<GQLAdvancedSettings[]> =>
+      graphorm.query<GQLAdvancedSettings>(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder.orderBy('title', 'ASC');
+        return builder;
+      }),
     rssFeeds: async (source, args, ctx): Promise<GQLRSSFeed[]> => {
       const urlPrefix = `${process.env.URL_PREFIX}/rss`;
       const lists = await ctx.getRepository(BookmarkList).find({
@@ -1324,10 +1588,56 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     ),
     tagsCategories: (_, __, ctx): Promise<GQLTagsCategory[]> =>
       ctx.getRepository(Category).find({ order: { title: 'ASC' } }),
-    advancedSettings: async (_, __, ctx): Promise<GQLAdvancedSettings[]> => {
-      return ctx
-        .getRepository(AdvancedSettings)
-        .find({ order: { title: 'ASC' } });
+    feedList: async (
+      source,
+      args: ConnectionArguments,
+      ctx,
+      info,
+    ): Promise<Connection<GQLFeed>> => {
+      const pageGenerator = createDatePageGenerator<GQLFeed, 'createdAt'>({
+        key: 'createdAt',
+      });
+      const page = pageGenerator.connArgsToPage(args);
+
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => pageGenerator.hasNextPage(page, nodeSize),
+        (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder.andWhere(`${builder.alias}."userId" = :userId`, {
+            userId: ctx.userId,
+          });
+          builder.queryBuilder.andWhere(`${builder.alias}."id" != :userId`, {
+            userId: ctx.userId,
+          });
+
+          builder.queryBuilder.limit(page.limit);
+
+          if (page.timestamp) {
+            builder.queryBuilder.andWhere(
+              `${builder.alias}."createdAt" < :timestamp`,
+              { timestamp: page.timestamp },
+            );
+          }
+
+          return builder;
+        },
+      );
+    },
+    getFeed: async (
+      _,
+      { feedId }: { feedId: string },
+      ctx,
+    ): Promise<GQLFeed> => {
+      const feed = await getFeedByIdentifiers({
+        con: ctx.con,
+        feedIdOrSlug: feedId,
+        userId: ctx.userId,
+      });
+
+      return feed;
     },
   },
   Mutation: {
@@ -1454,6 +1764,82 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         .select('"advancedSettingsId" AS id, enabled')
         .where({ feedId })
         .execute();
+    },
+    createFeed: async (
+      _,
+      { name }: { name: string },
+      ctx,
+    ): Promise<GQLFeed> => {
+      validateFeedPayload({ name });
+
+      const feedRepo = ctx.con.getRepository(Feed);
+
+      const feedsCount = await feedRepo.countBy({
+        userId: ctx.userId,
+      });
+
+      if (feedsCount >= maxFeedsPerUser) {
+        throw new ValidationError(
+          SubmissionFailErrorMessage.FEED_COUNT_LIMIT_REACHED,
+        );
+      }
+
+      const feed = await feedRepo.save({
+        id: await generateShortId(),
+        userId: ctx.userId,
+        flags: {
+          name,
+        },
+      });
+
+      return feed;
+    },
+    updateFeed: async (
+      _,
+      { feedId, name }: { feedId: string; name: string },
+      ctx,
+    ): Promise<GQLFeed> => {
+      validateFeedPayload({ name });
+
+      const feedRepo = ctx.con.getRepository(Feed);
+      const feed = await getFeedByIdentifiers({
+        con: ctx.con,
+        feedIdOrSlug: feedId,
+        userId: ctx.userId,
+      });
+
+      const updateFeed = await feedRepo.save({
+        id: feed.id,
+        userId: feed.userId,
+        flags: {
+          name,
+        },
+      });
+
+      return updateFeed;
+    },
+    deleteFeed: async (
+      _,
+      { feedId }: { feedId: string; name: string },
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      const feedRepo = ctx.con.getRepository(Feed);
+      const feed = await getFeedByIdentifiers({
+        con: ctx.con,
+        feedIdOrSlug: feedId,
+        userId: ctx.userId,
+      });
+
+      if (feed.id === ctx.userId) {
+        throw new ForbiddenError('Forbidden');
+      }
+
+      await feedRepo.delete({
+        id: feed.id,
+        userId: ctx.userId,
+      });
+
+      return { _: true };
     },
   },
 });

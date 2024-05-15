@@ -47,6 +47,7 @@ import { GraphQLResolveInfo } from 'graphql';
 import { SourcePermissionErrorKeys, TypeOrmError } from '../errors';
 import {
   descriptionRegex,
+  isNullOrUndefined,
   nameRegex,
   validateRegex,
   ValidateRegex,
@@ -308,6 +309,11 @@ export const typeDefs = /* GraphQL */ `
       Fetch public Squads
       """
       filterOpenSquads: Boolean
+
+      """
+      Add filter for featured sources
+      """
+      featured: Boolean
     ): SourceConnection!
 
     """
@@ -960,6 +966,7 @@ export const getPermissionsForMember = (
 
 interface SourcesArgs extends ConnectionArguments {
   filterOpenSquads?: boolean;
+  featured?: boolean;
 }
 
 interface SourcesByType extends ConnectionArguments {
@@ -1058,6 +1065,7 @@ export const resolvers: IResolvers<any, Context> = {
         filter.type = SourceType.Squad;
         filter.private = false;
       }
+
       const page = sourcePageGenerator.connArgsToPage(args);
       return graphorm.queryPaginated(
         ctx,
@@ -1071,6 +1079,16 @@ export const resolvers: IResolvers<any, Context> = {
             .andWhere(filter)
             .limit(page.limit)
             .offset(page.offset);
+
+          if (!isNullOrUndefined(args.featured)) {
+            builder.queryBuilder.andWhere(
+              `(${builder.alias}.flags->'featured')::boolean = :featured`,
+              {
+                featured: args.featured,
+              },
+            );
+          }
+
           return builder;
         },
       );
