@@ -215,7 +215,7 @@ export interface FeedOptions {
   refresh?: boolean;
 }
 
-export type FeedArgs = ConnectionArguments & FeedOptions;
+export type FeedArgs = ConnectionArguments & FeedOptions & { feedId?: string };
 
 export const applyFeedWhere = (
   ctx: Context,

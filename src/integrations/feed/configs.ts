@@ -19,6 +19,7 @@ type Options = {
   includeSourceMemberships?: boolean;
   includePostTypes?: boolean;
   includeBlockedContentCuration?: boolean;
+  feedId?: string;
 };
 
 type BaseConfig = Partial<Omit<FeedConfig, 'user_id' | 'page_size' | 'offset'>>;
@@ -70,7 +71,8 @@ export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
     return runInSpan('FeedPreferencesConfigGenerator', async () => {
       const config = getDefaultConfig(this.baseConfig, opts);
       const userId = opts.user_id;
-      const filters = await feedToFilters(ctx.con, userId, userId);
+      const feedId = opts.feedId || userId;
+      const filters = await feedToFilters(ctx.con, feedId, userId);
       if (filters.includeTags?.length && this.opts.includeAllowedTags) {
         config.allowed_tags = filters.includeTags;
       }

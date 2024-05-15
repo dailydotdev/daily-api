@@ -47,10 +47,12 @@ import { GQLPost } from './posts';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import graphorm from '../graphorm';
 import {
+  FeedClient,
   feedClient,
   FeedConfigName,
   FeedGenerator,
   feedGenerators,
+  FeedPreferencesConfigGenerator,
   SimpleFeedConfigGenerator,
   versionToFeedGenerator,
 } from '../integrations/feed';
@@ -690,6 +692,32 @@ export const typeDefs = /* GraphQL */ `
       """
       feedIdOrSlug: ID!
     ): Feed @auth
+
+    """
+    Get custom feed
+    """
+    customFeed(
+      """
+      Feed id
+      """
+      feedId: ID!
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+      """
+      Ranking criteria for the feed
+      """
+      ranking: Ranking = POPULARITY
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
+    ): PostConnection! @auth
   }
 
   extend type Mutation {
@@ -1024,24 +1052,33 @@ const anonymousFeedResolverV1: IFieldResolver<
   applyFeedPaging,
 );
 
-const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
-  feedResolver(
-    (ctx, { unreadOnly }: ConfiguredFeedArgs, builder, alias, queryParams) =>
-      configuredFeedBuilder(
-        ctx,
-        ctx.userId,
-        unreadOnly,
-        builder,
-        alias,
-        queryParams,
-      ),
-    feedPageGenerator,
-    applyFeedPaging,
-    {
-      fetchQueryParams: async (ctx) =>
-        feedToFilters(ctx.con, ctx.userId, ctx.userId),
-    },
-  );
+const feedResolverV1: IFieldResolver<
+  unknown,
+  Context,
+  ConfiguredFeedArgs & { feedId?: string }
+> = feedResolver(
+  (
+    ctx,
+    { unreadOnly, feedId }: ConfiguredFeedArgs & { feedId?: string },
+    builder,
+    alias,
+    queryParams,
+  ) =>
+    configuredFeedBuilder(
+      ctx,
+      feedId || ctx.userId,
+      unreadOnly,
+      builder,
+      alias,
+      queryParams,
+    ),
+  feedPageGenerator,
+  applyFeedPaging,
+  {
+    fetchQueryParams: async (ctx, args) =>
+      feedToFilters(ctx.con, args.feedId || ctx.userId, ctx.userId),
+  },
+);
 
 const feedResolverCursor: IFieldResolver<
   unknown,
@@ -1170,6 +1207,61 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         );
       }
       return feedResolverV1(source, args, ctx, info);
+    },
+    customFeed: async (
+      source,
+      args: ConfiguredFeedArgs,
+      ctx: Context,
+      info,
+    ) => {
+      const feedIdOrSlug = args.feedId;
+
+      const feed = await getFeedByIdentifiers({
+        con: ctx.con,
+        feedIdOrSlug,
+        userId: ctx.userId,
+      });
+      const feedId = feed.id;
+
+      if (
+        args.version >= 2 &&
+        args.ranking === Ranking.POPULARITY &&
+        ctx.userId
+      ) {
+        const feedGenerator = new FeedGenerator(
+          new FeedClient(process.env.POPULAR_FEED),
+          new FeedPreferencesConfigGenerator(
+            {},
+            {
+              includePostTypes: true,
+              includeBlockedSources: true,
+              includeBlockedTags: true,
+              feedId: feedId,
+            },
+          ),
+          'popular',
+        );
+
+        return feedResolverCursor(
+          source,
+          {
+            ...(args as FeedArgs),
+            generator: feedGenerator,
+          },
+          ctx,
+          info,
+        );
+      }
+
+      return feedResolverV1(
+        source,
+        {
+          ...args,
+          feedId,
+        },
+        ctx,
+        info,
+      );
     },
     feedPreview: (
       source,
