@@ -41,6 +41,7 @@ import {
   offsetPageGenerator,
   Page,
   PageGenerator,
+  GQLEmptyResponse,
 } from './common';
 import { GQLPost } from './posts';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -53,10 +54,13 @@ import {
   SimpleFeedConfigGenerator,
   versionToFeedGenerator,
 } from '../integrations/feed';
-import { AuthenticationError } from 'apollo-server-errors';
+import { AuthenticationError, ValidationError } from 'apollo-server-errors';
 import { opentelemetry } from '../telemetry/opentelemetry';
-import { UserVote } from '../types';
+import { UserVote, maxFeedsPerUser } from '../types';
 import { createDatePageGenerator } from '../common/datePageGenerator';
+import { generateShortId } from '../ids';
+import { SubmissionFailErrorMessage } from '../errors';
+import { getFeedByIdentifiers } from '../common/feed';
 
 interface GQLTagsCategory {
   id: string;
@@ -676,6 +680,16 @@ export const typeDefs = /* GraphQL */ `
       """
       last: Int
     ): FeedConnection! @auth
+
+    """
+    Get feed meta
+    """
+    getFeed(
+      """
+      Feed id
+      """
+      feedIdOrSlug: ID!
+    ): Feed @auth
   }
 
   extend type Mutation {
@@ -708,6 +722,41 @@ export const typeDefs = /* GraphQL */ `
       """
       settings: [FeedAdvancedSettingsInput]!
     ): [FeedAdvancedSettings]! @auth
+
+    """
+    Create feed
+    """
+    createFeed(
+      """
+      Feed name
+      """
+      name: String!
+    ): Feed @auth
+
+    """
+    Update feed meta
+    """
+    updateFeed(
+      """
+      Feed id
+      """
+      feedId: ID!
+
+      """
+      Feed name
+      """
+      name: String!
+    ): Feed @auth
+
+    """
+    Delete feed
+    """
+    deleteFeed(
+      """
+      Feed id
+      """
+      feedId: ID!
+    ): EmptyResponse @auth
   }
 `;
 
@@ -1070,6 +1119,16 @@ const legacySimilarPostsResolver = randomPostsResolver(
   },
   3,
 );
+
+const validateFeedPayload = ({
+  name,
+}: {
+  name: Feed['flags']['name'];
+}): never | undefined => {
+  if (!name) {
+    throw new ValidationError('Feed name is required');
+  }
+};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
@@ -1473,6 +1532,19 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         },
       );
     },
+    getFeed: async (
+      _,
+      { feedIdOrSlug }: { feedIdOrSlug: string },
+      ctx,
+    ): Promise<GQLFeed> => {
+      const feed = await getFeedByIdentifiers({
+        con: ctx.con,
+        feedIdOrSlug,
+        userId: ctx.userId,
+      });
+
+      return feed;
+    },
   },
   Mutation: {
     addFiltersToFeed: async (
@@ -1598,6 +1670,72 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         .select('"advancedSettingsId" AS id, enabled')
         .where({ feedId })
         .execute();
+    },
+    createFeed: async (
+      _,
+      { name }: { name: string },
+      ctx,
+    ): Promise<GQLFeed> => {
+      validateFeedPayload({ name });
+
+      const feedRepo = ctx.con.getRepository(Feed);
+
+      const feedsCount = await feedRepo.countBy({
+        userId: ctx.userId,
+      });
+
+      if (feedsCount >= maxFeedsPerUser) {
+        throw new ValidationError(
+          SubmissionFailErrorMessage.FEED_COUNT_LIMIT_REACHED,
+        );
+      }
+
+      const feed = await feedRepo.save({
+        id: await generateShortId(),
+        userId: ctx.userId,
+        flags: {
+          name,
+        },
+      });
+
+      return feed;
+    },
+    updateFeed: async (
+      _,
+      { feedId, name }: { feedId: string; name: string },
+      ctx,
+    ): Promise<GQLFeed> => {
+      validateFeedPayload({ name });
+
+      const feedRepo = ctx.con.getRepository(Feed);
+      const feed = await feedRepo.findOneByOrFail({
+        id: feedId,
+        userId: ctx.userId,
+      });
+
+      const updateFeed = await feedRepo.save({
+        id: feed.id,
+        userId: feed.userId,
+        flags: {
+          name,
+        },
+      });
+
+      return updateFeed;
+    },
+    deleteFeed: async (
+      _,
+      { feedId }: { feedId: string; name: string },
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      const feedRepo = ctx.con.getRepository(Feed);
+
+      await feedRepo.delete({
+        id: feedId,
+        userId: ctx.userId,
+      });
+
+      return { _: true };
     },
   },
 });

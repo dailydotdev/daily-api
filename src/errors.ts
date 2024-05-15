@@ -28,6 +28,7 @@ export enum SubmissionFailErrorKeys {
   ExistsRejected = 'EXISTS_REJECTED',
   InviteLimitReached = 'INVITE_LIMIT_REACHED',
   OnboardingTagLimitReached = 'ONBOARDING_TAG_LIMIT_REACHED',
+  FeedCountLimitReached = 'FEED_COUNT_LIMIT_REACHED',
 }
 
 export const SubmissionFailErrorMessage: Record<
@@ -61,6 +62,8 @@ export const SubmissionFailErrorMessage: Record<
   EXISTS_REJECTED:
     'This article has already been submitted but did not meet our technical requirements, it cannot be submitted again',
   ONBOARDING_TAG_LIMIT_REACHED: 'Tag limit reached',
+  FEED_COUNT_LIMIT_REACHED:
+    'You have reached maximum number of feeds for your user',
 };
 
 export enum SourceRequestErrorKeys {
