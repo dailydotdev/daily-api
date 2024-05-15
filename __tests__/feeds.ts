@@ -2284,6 +2284,106 @@ describe('query feedList', () => {
   });
 });
 
+describe('query getFeed', () => {
+  const QUERY = `
+  query GetFeed($feedIdOrSlug: ID!) {
+    getFeed(feedIdOrSlug: $feedIdOrSlug) {
+      id
+      userId
+      flags {
+        name
+      }
+    }
+  }
+`;
+
+  beforeEach(async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await con.getRepository(Feed).save([
+      {
+        id: 'cf1',
+        userId: '1',
+        flags: {
+          name: 'Cool feed',
+        },
+      },
+    ]);
+  });
+
+  it('should not authorize when not logged-in', () => {
+    loggedUser = '';
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { feedIdOrSlug: 'cf1' } },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should return the feed', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: { feedIdOrSlug: 'cf1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchObject({
+      getFeed: {
+        id: 'cf1',
+        userId: '1',
+        flags: {
+          name: 'Cool feed',
+        },
+      },
+    });
+  });
+
+  it('should return the feed by slug', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: { feedIdOrSlug: 'cool-feed-cf1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchObject({
+      getFeed: {
+        id: 'cf1',
+        userId: '1',
+        flags: {
+          name: 'Cool feed',
+        },
+      },
+    });
+  });
+
+  it('should not return the feed when the user does not own it', () => {
+    loggedUser = '2';
+
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { feedIdOrSlug: 'cf1' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should throw not found when feed does not exist', () => {
+    loggedUser = '2';
+
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { feedIdOrSlug: 'cf256' },
+      },
+      'NOT_FOUND',
+    );
+  });
+});
+
 describe('mutation createFeed', () => {
   const MUTATION = `
   mutation CreateFeed($name: String!) {

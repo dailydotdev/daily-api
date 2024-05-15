@@ -679,6 +679,16 @@ export const typeDefs = /* GraphQL */ `
       """
       last: Int
     ): FeedConnection! @auth
+
+    """
+    Get feed meta
+    """
+    getFeed(
+      """
+      Feed id
+      """
+      feedIdOrSlug: ID!
+    ): Feed @auth
   }
 
   extend type Mutation {
@@ -1520,6 +1530,26 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           return builder;
         },
       );
+    },
+    getFeed: async (
+      _,
+      { feedIdOrSlug }: { feedIdOrSlug: string },
+      ctx,
+    ): Promise<GQLFeed> => {
+      const feed = await ctx.getRepository(Feed).findOneOrFail({
+        where: [
+          {
+            id: feedIdOrSlug,
+            userId: ctx.userId,
+          },
+          {
+            slug: feedIdOrSlug,
+            userId: ctx.userId,
+          },
+        ],
+      });
+
+      return feed;
     },
   },
   Mutation: {
