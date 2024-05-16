@@ -69,11 +69,11 @@ const verifyCIOSignature = (
   const hash = hmac.digest();
 
   if (!timingSafeEqual(hash, Buffer.from(signature, 'hex'))) {
-    logger.debug("Signature didn't match");
+    logger.debug("CIO Signature didn't match");
     return false;
   }
 
-  logger.debug('Signature matched!');
+  logger.debug('CIO Signature matched!');
   return true;
 };
 
