@@ -771,30 +771,6 @@ const onMarketingCtaChange = async (
   }
 };
 
-const onUserMarketingCtaChange = async (
-  data: ChangeMessage<UserMarketingCta>,
-) => {
-  if (data.payload.op === 'c') {
-    await deleteRedisKey(
-      generateStorageKey(
-        StorageTopic.Boot,
-        StorageKey.MarketingCta,
-        data.payload.after.userId,
-      ),
-    );
-  } else if (data.payload.op === 'd') {
-    if (data.payload.before.readAt !== null) return;
-
-    await deleteRedisKey(
-      generateStorageKey(
-        StorageTopic.Boot,
-        StorageKey.MarketingCta,
-        data.payload.before.userId,
-      ),
-    );
-  }
-};
-
 const worker: Worker = {
   subscription: 'api-cdc',
   maxMessages: parseInt(process.env.CDC_WORKER_MAX_MESSAGES) || null,
@@ -877,9 +853,6 @@ const worker: Worker = {
           break;
         case getTableName(con, MarketingCta):
           await onMarketingCtaChange(con, data);
-          break;
-        case getTableName(con, UserMarketingCta):
-          await onUserMarketingCtaChange(data);
           break;
       }
     } catch (err) {
