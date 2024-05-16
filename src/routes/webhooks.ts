@@ -157,20 +157,25 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         return res.status(403).send({ error: 'Invalid signature' });
       }
 
-      const { userId, marketingCtaId } = req.body;
+      try {
+        const { userId, marketingCtaId } = req.body;
 
-      const con = await createOrGetConnection();
-      await con.getRepository(UserMarketingCta).upsert(
-        {
-          userId: userId,
-          marketingCtaId: marketingCtaId,
-        },
-        ['userId', 'marketingCtaId'],
-      );
+        const con = await createOrGetConnection();
+        await con.getRepository(UserMarketingCta).upsert(
+          {
+            userId: userId,
+            marketingCtaId: marketingCtaId,
+          },
+          ['userId', 'marketingCtaId'],
+        );
 
-      await getMarketingCta(con, logger, userId);
+        await getMarketingCta(con, logger, userId);
 
-      return res.send({ success: true });
+        return res.send({ success: true });
+      } catch (error) {
+        logger.error(error, 'Error processing CIO webhook');
+        return res.status(400).send({ success: false });
+      }
     },
   });
 }
