@@ -102,68 +102,90 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
     });
   });
 
-  it('should return 200 and insert user marketing cta', async () => {
-    const { body } = await request(app.server)
-      .post('/webhooks/customerio/marketing_cta')
-      .set('x-cio-timestamp', timestamp.toString())
-      .set('x-cio-signature', hash)
-      .send(payload)
-      .expect(200);
+  describe('assign user to marketing cta', () => {
+    it('should return 200 and insert user marketing cta', async () => {
+      const { body } = await request(app.server)
+        .post('/webhooks/customerio/marketing_cta')
+        .set('x-cio-timestamp', timestamp.toString())
+        .set('x-cio-signature', hash)
+        .send(payload)
+        .expect(200);
 
-    expect(body.success).toEqual(true);
+      expect(body.success).toEqual(true);
 
-    const userMarketingCta = await con
-      .getRepository(UserMarketingCta)
-      .findOneBy({ userId: '1', marketingCtaId: 'worlds-best-campaign' });
+      const userMarketingCta = await con
+        .getRepository(UserMarketingCta)
+        .findOneBy({ userId: '1', marketingCtaId: 'worlds-best-campaign' });
 
-    expect(userMarketingCta).toMatchObject({
-      userId: '1',
-      marketingCtaId: 'worlds-best-campaign',
+      expect(userMarketingCta).toMatchObject({
+        userId: '1',
+        marketingCtaId: 'worlds-best-campaign',
+      });
+
+      expect(
+        JSON.parse(
+          (await getRedisObject(
+            generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, '1'),
+          )) as string,
+        ),
+      ).toMatchObject({
+        campaignId: 'worlds-best-campaign',
+        createdAt: '2024-05-13T12:00:00.000Z',
+        variant: 'card',
+        status: 'active',
+        flags: {
+          title: 'Join the best community in the world',
+          ctaUrl: 'http://localhost:5002',
+          ctaText: 'Join now',
+          description: 'Join the best community in the world',
+        },
+      });
     });
 
-    expect(
-      JSON.parse(
-        (await getRedisObject(
-          generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, '1'),
-        )) as string,
-      ),
-    ).toMatchObject({
-      campaignId: 'worlds-best-campaign',
-      createdAt: '2024-05-13T12:00:00.000Z',
-      variant: 'card',
-      status: 'active',
-      flags: {
-        title: 'Join the best community in the world',
-        ctaUrl: 'http://localhost:5002',
-        ctaText: 'Join now',
-        description: 'Join the best community in the world',
-      },
+    it('should not change redis cache if existing cache exists', async () => {
+      const redisKey = generateStorageKey(
+        StorageTopic.Boot,
+        StorageKey.MarketingCta,
+        '1',
+      );
+      const { body } = await request(app.server)
+        .post('/webhooks/customerio/marketing_cta')
+        .set('x-cio-timestamp', timestamp.toString())
+        .set('x-cio-signature', hash)
+        .send(payload)
+        .expect(200);
+
+      await setRedisObject(redisKey, 'some value');
+      const userMarketingCta = await con
+        .getRepository(UserMarketingCta)
+        .findOneBy({ userId: '1', marketingCtaId: 'worlds-best-campaign' });
+
+      expect(userMarketingCta).toMatchObject({
+        userId: '1',
+        marketingCtaId: 'worlds-best-campaign',
+      });
+      expect(body.success).toEqual(true);
+      expect(await getRedisObject(redisKey)).toEqual('some value');
     });
-  });
 
-  it('should not change redis cache if existing cache exists', async () => {
-    const redisKey = generateStorageKey(
-      StorageTopic.Boot,
-      StorageKey.MarketingCta,
-      '1',
-    );
-    const { body } = await request(app.server)
-      .post('/webhooks/customerio/marketing_cta')
-      .set('x-cio-timestamp', timestamp.toString())
-      .set('x-cio-signature', hash)
-      .send(payload)
-      .expect(200);
+    it('should return 400 when error processing webhook', async () => {
+      await con.getRepository(MarketingCta).delete({
+        campaignId: 'worlds-best-campaign',
+      });
 
-    await setRedisObject(redisKey, 'some value');
-    const userMarketingCta = await con
-      .getRepository(UserMarketingCta)
-      .findOneBy({ userId: '1', marketingCtaId: 'worlds-best-campaign' });
+      const { body } = await request(app.server)
+        .post('/webhooks/customerio/marketing_cta')
+        .set('x-cio-timestamp', timestamp.toString())
+        .set('x-cio-signature', hash)
+        .send({ userId: '1', marketingCtaId: 'worlds-best-campaign' })
+        .expect(400);
 
-    expect(userMarketingCta).toMatchObject({
-      userId: '1',
-      marketingCtaId: 'worlds-best-campaign',
+      const userMarketingCta = await con
+        .getRepository(UserMarketingCta)
+        .findOneBy({ userId: '1', marketingCtaId: 'worlds-best-campaign' });
+
+      expect(userMarketingCta).toBeNull();
+      expect(body.success).toEqual(false);
     });
-    expect(body.success).toEqual(true);
-    expect(await getRedisObject(redisKey)).toEqual('some value');
   });
 });
