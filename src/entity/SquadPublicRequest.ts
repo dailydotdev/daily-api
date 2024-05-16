@@ -15,6 +15,9 @@ export enum SquadPublicRequestStatus {
 }
 
 @Entity()
+@Index('IDX_squad_public_request_sourceId_status_pending', {
+  synchronize: false,
+})
 export class SquadPublicRequest {
   @PrimaryGeneratedColumn('uuid')
   id: string;
