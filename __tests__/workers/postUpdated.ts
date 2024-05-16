@@ -6,6 +6,8 @@ import {
   CollectionPost,
   FreeformPost,
   Keyword,
+  NotificationAttachmentType,
+  NotificationAttachmentV2,
   Post,
   PostKeyword,
   PostOrigin,
@@ -1311,6 +1313,46 @@ describe('on youtube post', () => {
       yggdrasilId: 'd1053f05-4d41-4fc7-885c-c0f7c841a7b6',
       url: 'https://youtu.be/Oso6dYXw5lc',
       videoId: 'Oso6dYXw5lc',
+    });
+  });
+
+  it('should update the post type when the post already has notification attachment', async () => {
+    await con.getRepository(NotificationAttachmentV2).save({
+      type: NotificationAttachmentType.Post,
+      image: 'http://image.com/placeholder.jpg',
+      referenceId: 'yt2',
+      title: 'some title',
+    });
+    const beforePost = await con.getRepository(ArticlePost).findOneBy({
+      yggdrasilId: 'd1053f05-4d41-4fc7-885c-c0f7c841a7b6',
+    });
+    expect(beforePost?.type).toBe(PostType.Article);
+
+    await expectSuccessfulBackground(worker, {
+      id: 'd1053f05-4d41-4fc7-885c-c0f7c841a7b6',
+      post_id: 'yt2',
+      updated_at: new Date('01-05-2023 12:00:00'),
+      source_id: 'squad',
+      content_type: PostType.VideoYouTube,
+      extra: {
+        video_id: 'Oso6dYXw5lc',
+      },
+      image: 'http://image.com',
+    });
+
+    const post = await con.getRepository(YouTubePost).findOneBy({
+      yggdrasilId: 'd1053f05-4d41-4fc7-885c-c0f7c841a7b6',
+    });
+
+    expect(post?.type).toBe(PostType.VideoYouTube);
+    expect(post).toMatchObject({
+      type: 'video:youtube',
+      title: 'youtube post',
+      sourceId: 'squad',
+      yggdrasilId: 'd1053f05-4d41-4fc7-885c-c0f7c841a7b6',
+      url: 'https://youtu.be/Oso6dYXw5lc',
+      videoId: 'Oso6dYXw5lc',
+      image: 'http://image.com',
     });
   });
 
