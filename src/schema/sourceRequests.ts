@@ -465,8 +465,8 @@ const ensureNotRejected = async (
   sourceId: string,
   lastDays = REJECTED_DAYS_LIMIT,
 ): Promise<void> => {
-  const daysAgo = new Date();
-  daysAgo.setDate(daysAgo.getDate() - lastDays);
+  const lastDaysMilis = 1000 * 60 * 60 * 24 * lastDays;
+  const daysAgo = new Date(Date.now() - lastDaysMilis);
   const repo = ctx.getRepository(SquadPublicRequest);
   const lastRejected = await repo.findOne({
     where: {
