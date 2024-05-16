@@ -97,7 +97,6 @@ describe('PostService', () => {
       id: expect.any(String),
       sourceId: 'a',
       visible: false,
-      sentAnalyticsReport: false,
       showOnFeed: false,
     });
   });

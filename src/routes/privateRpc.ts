@@ -80,7 +80,6 @@ export default function (router: ConnectRouter) {
         id: postId,
         shortId: postId,
         visible: false,
-        sentAnalyticsReport: false,
         showOnFeed: false,
       });
       const newPost = await con.getRepository(ArticlePost).insert(postEntity);
