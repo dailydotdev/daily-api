@@ -93,6 +93,13 @@ describe('PostService', () => {
       .getRepository(ArticlePost)
       .findOneBy({ id: result.postId });
     expect(post).toBeTruthy();
+    expect(post).toMatchObject({
+      id: expect.any(String),
+      sourceId: 'a',
+      visible: false,
+      sentAnalyticsReport: false,
+      showOnFeed: false,
+    });
   });
 
   it('should return duplicate entry', async () => {
