@@ -173,7 +173,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
         return res.send({ success: true });
       } catch (err) {
-        logger.error(err, 'Error processing CIO webhook');
+        logger.error({ err }, 'Error processing CIO webhook');
         return res.status(400).send({ success: false });
       }
     },
