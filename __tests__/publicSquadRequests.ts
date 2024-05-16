@@ -101,18 +101,16 @@ describe('mutation submitSquadForReview', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should not authorize when user is not MODERATOR of the squad', () => {
+  it('should not authorize when user is normal member', () => {
     loggedUser = '3';
-    roles = [];
     return testModeratorAuthorization({
       mutation: MUTATION,
       variables: { sourceId },
     });
   });
 
-  it('should not authorize when user is not ADMIN of the squad', () => {
+  it('should not authorize when user is not admin of the squad', () => {
     loggedUser = '2';
-    roles = [Roles.Moderator];
     return testMutationErrorCode(
       client,
       {
@@ -125,7 +123,6 @@ describe('mutation submitSquadForReview', () => {
 
   it('should return bad request when squadID is not valid', async () => {
     loggedUser = '1';
-    roles = [Roles.Moderator];
     return testMutationErrorCode(
       client,
       {
@@ -138,7 +135,6 @@ describe('mutation submitSquadForReview', () => {
 
   it('should fail if squadID does not match a squad', async () => {
     loggedUser = '1';
-    roles = [Roles.Moderator];
     return testMutationErrorCode(
       client,
       {
@@ -151,7 +147,6 @@ describe('mutation submitSquadForReview', () => {
 
   it('should add new source request', async () => {
     loggedUser = '1';
-    roles = [Roles.Moderator];
     const res = await client.mutate(MUTATION, {
       variables: { sourceId },
     });
@@ -171,7 +166,6 @@ describe('mutation submitSquadForReview', () => {
     });
 
     loggedUser = '1';
-    roles = [Roles.Moderator];
     return testMutationErrorCode(
       client,
       {
@@ -191,7 +185,6 @@ describe('mutation submitSquadForReview', () => {
     });
 
     loggedUser = '1';
-    roles = [Roles.Moderator];
     return testMutationErrorCode(
       client,
       {
@@ -216,7 +209,6 @@ describe('mutation submitSquadForReview', () => {
     });
 
     loggedUser = '1';
-    roles = [Roles.Moderator];
     const res = await client.mutate(MUTATION, {
       variables: { sourceId },
     });
@@ -244,9 +236,8 @@ describe('query pendingSourceRequests', () => {
     }
   }`;
 
-  it('should not authorize when not moderator', async () => {
-    roles = [];
-    loggedUser = '1';
+  it('should not authorize when normal member', async () => {
+    loggedUser = '3';
     return testQueryErrorCode(
       client,
       { query, variables: { first: 10, sourceId } },
@@ -255,7 +246,6 @@ describe('query pendingSourceRequests', () => {
   });
 
   it('should not authorize when not admin', async () => {
-    roles = [Roles.Moderator];
     loggedUser = '2';
     return testQueryErrorCode(
       client,
@@ -265,8 +255,7 @@ describe('query pendingSourceRequests', () => {
   });
 
   it('should not return anything for non-matching squadId', async () => {
-    roles = [Roles.Moderator];
-    loggedUser = '2';
+    loggedUser = '1';
     return testQueryErrorCode(
       client,
       { query, variables: { first: 10, sourceId: 'invalid' } },
@@ -275,7 +264,6 @@ describe('query pendingSourceRequests', () => {
   });
 
   it('should return pending source requests', async () => {
-    roles = [Roles.Moderator];
     loggedUser = '1';
 
     await con.getRepository(SquadPublicRequest).save({

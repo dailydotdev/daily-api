@@ -327,8 +327,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Submit a new request to make squad public
     """
-    submitSquadForReview(sourceId: ID!): PublicSquadRequest!
-      @auth(requires: [MODERATOR])
+    submitSquadForReview(sourceId: ID!): PublicSquadRequest! @auth
   }
 
   extend type Query {
@@ -390,7 +389,7 @@ export const typeDefs = /* GraphQL */ `
       Squad ID
       """
       sourceId: String!
-    ): PublicSquadRequestConnection! @auth(requires: [MODERATOR])
+    ): PublicSquadRequestConnection! @auth
   }
 `;
 
