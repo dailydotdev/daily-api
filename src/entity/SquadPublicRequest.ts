@@ -8,7 +8,7 @@ import {
 import { Source } from './Source';
 import { User } from './user';
 
-enum SquadPublicRequestStatus {
+export enum SquadPublicRequestStatus {
   Pending = 'pending',
   Approved = 'approved',
   Rejected = 'rejected',
