@@ -22,6 +22,7 @@ import { GraphQLResolveInfo } from 'graphql';
 import { SourceMemberRoles } from '../roles';
 import { ConnectionArguments } from 'graphql-relay';
 import { MoreThan } from 'typeorm';
+import { ConflictError } from '../errors';
 
 const REJECTED_DAYS_LIMIT = 14;
 
@@ -35,7 +36,7 @@ export interface GQLPublicSquadRequest {
 }
 
 export interface GQLPublicSquadRequestInput {
-  squadId: string;
+  sourceId: string;
 }
 
 interface SquadRequestsArgs
@@ -96,7 +97,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Request a new source
     """
-    submitSquadForReview(squadId: ID!): PublicSquadRequest!
+    submitSquadForReview(sourceId: ID!): PublicSquadRequest!
       @auth(requires: [MODERATOR])
   }
 
@@ -128,7 +129,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Squad ID
       """
-      squadId: String!
+      sourceId: String!
     ): PublicSquadRequestConnection! @auth(requires: [MODERATOR])
   }
 `;
@@ -156,15 +157,6 @@ export const ensureSourceRole = async (
   }
   throw new UserInputError('squad ID is required!');
 };
-
-// Return 409 HTTP status code
-class ConflictError extends ApolloError {
-  constructor(message) {
-    super(message, 'CONFLICT');
-
-    Object.defineProperty(this, 'name', { value: 'ConflictError' });
-  }
-}
 
 const ensureNotRejected = async (
   ctx: Context,
@@ -194,13 +186,13 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
   Mutation: {
     submitSquadForReview: async (
       _,
-      { squadId }: GQLPublicSquadRequestInput,
+      { sourceId }: GQLPublicSquadRequestInput,
       ctx,
     ): Promise<GQLPublicSquadRequest> => {
       // we need to check that the user is squad admin, moderator is not enough
       const squad = await ensureSourceRole(
         ctx,
-        squadId,
+        sourceId,
         SourceMemberRoles.Admin,
       );
 
@@ -210,12 +202,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       }
 
       // make sure there is no rejected request within the last 14 days
-      await ensureNotRejected(ctx, squadId);
+      await ensureNotRejected(ctx, sourceId);
 
       const repo = ctx.getRepository(SquadPublicRequest);
       const publicReq = repo.create({
         requestorId: ctx.userId,
-        sourceId: squadId,
+        sourceId,
         status: SquadPublicRequestStatus.Pending,
       });
 
@@ -240,12 +232,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         info: GraphQLResolveInfo,
       ): Promise<PaginationResponse<GQLPublicSquadRequest>> => {
         // we need to check that the user is squad admin, moderator is not enough
-        await ensureSourceRole(ctx, args.squadId, SourceMemberRoles.Admin);
+        await ensureSourceRole(ctx, args.sourceId, SourceMemberRoles.Admin);
 
         const [rows, total] =
           await ctx.loader.loadManyPaginated<SquadPublicRequest>(
             SquadPublicRequest,
-            { sourceId: args.squadId },
+            { sourceId: args.sourceId },
             getRelayNodeInfo(info),
             {
               limit,
