@@ -1196,6 +1196,31 @@ describe('query feedSettings', () => {
       blockedTags: ['golang'],
     });
   });
+
+  it('should return empty settings when feed not found for user', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await saveFixtures(con, Feed, [{ id: 'cf2', userId: '1' }]);
+    await client.mutate(ADD_FILTERS_MUTATION, {
+      variables: {
+        feedId: 'cf2',
+        filters: {
+          includeTags: ['javascript'],
+          excludeSources: ['b'],
+          blockedTags: ['golang'],
+        },
+      },
+    });
+
+    loggedUser = '2';
+
+    const res = await client.query(QUERY, { variables: { feedId: 'cf2' } });
+    expect(res.data.feedSettings).toMatchObject({
+      includeTags: [],
+      excludeSources: [],
+      blockedTags: [],
+    });
+  });
 });
 
 describe('query rssFeeds', () => {

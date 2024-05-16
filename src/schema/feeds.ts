@@ -66,7 +66,7 @@ import { UserVote, maxFeedsPerUser } from '../types';
 import { createDatePageGenerator } from '../common/datePageGenerator';
 import { generateShortId } from '../ids';
 import { SubmissionFailErrorMessage } from '../errors';
-import { getFeedByIdentifiers } from '../common/feed';
+import { getFeedByIdentifiersOrFail } from '../common/feed';
 
 interface GQLTagsCategory {
   id: string;
@@ -1041,6 +1041,21 @@ const applyFeedPagingWithPin = (
   return newBuilder;
 };
 
+const getDefaultFeedSettings = async ({
+  ctx,
+}: {
+  ctx: Context;
+}): Promise<GQLFeedSettings> => {
+  return {
+    id: ctx.userId,
+    userId: ctx.userId,
+    excludeSources: [],
+    includeTags: [],
+    blockedTags: [],
+    advancedSettings: [],
+  };
+};
+
 const getFeedSettings = async ({
   ctx,
   info,
@@ -1060,14 +1075,7 @@ const getFeedSettings = async ({
   if (res.length) {
     return res[0];
   }
-  return {
-    id: ctx.userId,
-    userId: ctx.userId,
-    excludeSources: [],
-    includeTags: [],
-    blockedTags: [],
-    advancedSettings: [],
-  };
+  return getDefaultFeedSettings({ ctx });
 };
 
 const anonymousFeedResolverV1: IFieldResolver<
@@ -1242,7 +1250,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     ) => {
       const feedIdOrSlug = args.feedId;
 
-      const feed = await getFeedByIdentifiers({
+      const feed = await getFeedByIdentifiersOrFail({
         con: ctx.con,
         feedIdOrSlug,
         userId: ctx.userId,
@@ -1664,7 +1672,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { feedId }: { feedId: string },
       ctx,
     ): Promise<GQLFeed> => {
-      const feed = await getFeedByIdentifiers({
+      const feed = await getFeedByIdentifiersOrFail({
         con: ctx.con,
         feedIdOrSlug: feedId,
         userId: ctx.userId,
@@ -1681,7 +1689,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       info,
     ): Promise<GQLFeedSettings> => {
       if (feedIdArg) {
-        await getFeedByIdentifiers({
+        await getFeedByIdentifiersOrFail({
           con: ctx.con,
           feedIdOrSlug: feedIdArg,
           userId: ctx.userId,
@@ -1845,7 +1853,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       validateFeedPayload({ name });
 
       const feedRepo = ctx.con.getRepository(Feed);
-      const feed = await getFeedByIdentifiers({
+      const feed = await getFeedByIdentifiersOrFail({
         con: ctx.con,
         feedIdOrSlug: feedId,
         userId: ctx.userId,
@@ -1867,7 +1875,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       ctx,
     ): Promise<GQLEmptyResponse> => {
       const feedRepo = ctx.con.getRepository(Feed);
-      const feed = await getFeedByIdentifiers({
+      const feed = await getFeedByIdentifiersOrFail({
         con: ctx.con,
         feedIdOrSlug: feedId,
         userId: ctx.userId,
