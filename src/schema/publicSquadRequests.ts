@@ -1,8 +1,4 @@
-import {
-  ApolloError,
-  ForbiddenError,
-  UserInputError,
-} from 'apollo-server-errors';
+import { ForbiddenError, UserInputError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
 import {
   forwardPagination,
