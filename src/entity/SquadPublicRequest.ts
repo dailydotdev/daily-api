@@ -38,10 +38,10 @@ export class SquadPublicRequest {
   })
   requestor: Promise<User>;
 
-  @Column({ default: () => 'now()', type: 'timestamptz' })
+  @Column({ default: () => 'now()' })
   createdAt: Date;
 
-  @Column({ default: () => 'now()', type: 'timestamptz' })
+  @Column({ default: () => 'now()' })
   updatedAt: Date;
 
   @Column({ type: 'text' })
