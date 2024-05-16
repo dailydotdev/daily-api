@@ -172,8 +172,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         await getMarketingCta(con, logger, userId);
 
         return res.send({ success: true });
-      } catch (error) {
-        logger.error(error, 'Error processing CIO webhook');
+      } catch (err) {
+        logger.error(err, 'Error processing CIO webhook');
         return res.status(400).send({ success: false });
       }
     },
