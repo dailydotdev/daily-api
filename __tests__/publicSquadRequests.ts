@@ -27,7 +27,7 @@ let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string | null = null;
 let roles: Roles[] = [];
-const squadId = 'squad';
+const sourceId = 'squad';
 
 jest.mock('../src/common', () => ({
   ...(jest.requireActual('../src/common') as Record<string, unknown>),
@@ -55,21 +55,21 @@ beforeEach(async () => {
   await con.getRepository(SourceMember).save([
     {
       userId: '1',
-      sourceId: squadId,
+      sourceId,
       role: SourceMemberRoles.Admin,
       referralToken: 'rt1',
       createdAt: new Date(2022, 11, 19),
     },
     {
       userId: '2',
-      sourceId: squadId,
+      sourceId,
       role: SourceMemberRoles.Moderator,
       referralToken: 'rt2',
       createdAt: new Date(2022, 11, 20),
     },
     {
       userId: '3',
-      sourceId: squadId,
+      sourceId,
       role: SourceMemberRoles.Member,
       referralToken: 'rt3',
       createdAt: new Date(2022, 11, 19),
@@ -83,8 +83,8 @@ afterAll(() => disposeGraphQLTesting(state));
 
 describe('mutation submitSquadForReview', () => {
   const MUTATION = `
-  mutation SubmitSquadForReview($squadId: ID!) {
-    submitSquadForReview(squadId: $squadId) {
+  mutation SubmitSquadForReview($sourceId: ID!) {
+    submitSquadForReview(sourceId: $sourceId) {
       sourceId
       requestorId
       status
@@ -96,7 +96,7 @@ describe('mutation submitSquadForReview', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { squadId },
+        variables: { sourceId },
       },
       'UNAUTHENTICATED',
     ));
@@ -106,7 +106,7 @@ describe('mutation submitSquadForReview', () => {
     roles = [];
     return testModeratorAuthorization({
       mutation: MUTATION,
-      variables: { squadId },
+      variables: { sourceId },
     });
   });
 
@@ -117,7 +117,7 @@ describe('mutation submitSquadForReview', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { squadId },
+        variables: { sourceId },
       },
       'FORBIDDEN',
     );
@@ -130,7 +130,7 @@ describe('mutation submitSquadForReview', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { squadId: null },
+        variables: { sourceId: null },
       },
       'GRAPHQL_VALIDATION_FAILED',
     );
@@ -143,7 +143,7 @@ describe('mutation submitSquadForReview', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { squadId: 'invalid' },
+        variables: { sourceId: 'invalid' },
       },
       'NOT_FOUND',
     );
@@ -153,10 +153,10 @@ describe('mutation submitSquadForReview', () => {
     loggedUser = '1';
     roles = [Roles.Moderator];
     const res = await client.mutate(MUTATION, {
-      variables: { squadId },
+      variables: { sourceId },
     });
     expect(res.data.submitSquadForReview).toMatchObject({
-      sourceId: squadId,
+      sourceId: sourceId,
       requestorId: loggedUser,
       status: SquadPublicRequestStatus.Pending,
     });
@@ -165,7 +165,7 @@ describe('mutation submitSquadForReview', () => {
   it('should fail if there already is a pending request', async () => {
     const repo = con.getRepository(SquadPublicRequest);
     await repo.save({
-      sourceId: squadId,
+      sourceId: sourceId,
       requestorId: '1',
       status: SquadPublicRequestStatus.Pending,
     });
@@ -176,7 +176,7 @@ describe('mutation submitSquadForReview', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { squadId },
+        variables: { sourceId },
       },
       'CONFLICT',
     );
@@ -185,7 +185,7 @@ describe('mutation submitSquadForReview', () => {
   it('should fail if there already is a rejected request within last 14 days', async () => {
     const repo = con.getRepository(SquadPublicRequest);
     await repo.save({
-      sourceId: squadId,
+      sourceId: sourceId,
       requestorId: '1',
       status: SquadPublicRequestStatus.Rejected,
     });
@@ -196,7 +196,7 @@ describe('mutation submitSquadForReview', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { squadId },
+        variables: { sourceId },
       },
       'CONFLICT',
     );
@@ -208,7 +208,7 @@ describe('mutation submitSquadForReview', () => {
 
     const repo = con.getRepository(SquadPublicRequest);
     await repo.save({
-      sourceId: squadId,
+      sourceId: sourceId,
       requestorId: '1',
       status: SquadPublicRequestStatus.Rejected,
       updatedAt: olderDate,
@@ -218,10 +218,10 @@ describe('mutation submitSquadForReview', () => {
     loggedUser = '1';
     roles = [Roles.Moderator];
     const res = await client.mutate(MUTATION, {
-      variables: { squadId },
+      variables: { sourceId },
     });
     expect(res.data.submitSquadForReview).toMatchObject({
-      sourceId: squadId,
+      sourceId: sourceId,
       requestorId: loggedUser,
       status: SquadPublicRequestStatus.Pending,
     });
@@ -229,8 +229,8 @@ describe('mutation submitSquadForReview', () => {
 });
 
 describe('query pendingSourceRequests', () => {
-  const query = `query PublicSquadRequests($squadId: String!, $first: Int) {
-    publicSquadRequests(squadId: $squadId, first: $first) {
+  const query = `query PublicSquadRequests($sourceId: String!, $first: Int) {
+    publicSquadRequests(sourceId: $sourceId, first: $first) {
       pageInfo {
         endCursor
         hasNextPage
@@ -249,7 +249,7 @@ describe('query pendingSourceRequests', () => {
     loggedUser = '1';
     return testQueryErrorCode(
       client,
-      { query, variables: { first: 10, squadId } },
+      { query, variables: { first: 10, sourceId } },
       'FORBIDDEN',
     );
   });
@@ -259,7 +259,7 @@ describe('query pendingSourceRequests', () => {
     loggedUser = '2';
     return testQueryErrorCode(
       client,
-      { query, variables: { first: 10, squadId } },
+      { query, variables: { first: 10, sourceId } },
       'FORBIDDEN',
     );
   });
@@ -269,7 +269,7 @@ describe('query pendingSourceRequests', () => {
     loggedUser = '2';
     return testQueryErrorCode(
       client,
-      { query, variables: { first: 10, squadId: 'invalid' } },
+      { query, variables: { first: 10, sourceId: 'invalid' } },
       'NOT_FOUND',
     );
   });
@@ -279,18 +279,18 @@ describe('query pendingSourceRequests', () => {
     loggedUser = '1';
 
     await con.getRepository(SquadPublicRequest).save({
-      sourceId: squadId,
+      sourceId: sourceId,
       requestorId: '2',
       status: SquadPublicRequestStatus.Rejected,
     });
     await con.getRepository(SquadPublicRequest).save({
-      sourceId: squadId,
+      sourceId: sourceId,
       requestorId: '1',
       status: SquadPublicRequestStatus.Pending,
     });
 
     const res = await client.query(query, {
-      variables: { first: 10, squadId },
+      variables: { first: 10, sourceId },
     });
     expect(res.data).toMatchObject({
       publicSquadRequests: {

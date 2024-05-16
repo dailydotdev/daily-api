@@ -136,26 +136,23 @@ export const typeDefs = /* GraphQL */ `
 
 export const ensureSourceRole = async (
   ctx: Context,
-  sourceId: string | undefined,
+  sourceId: string,
   role: SourceMemberRoles = SourceMemberRoles.Admin,
 ): Promise<Source> => {
-  if (sourceId) {
-    const source = await ctx.con
-      .getRepository(Source)
-      .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
-    const sourceMember = ctx.userId
-      ? await ctx.con
-          .getRepository(SourceMember)
-          .findOneBy({ sourceId: source.id, userId: ctx.userId })
-      : null;
+  const source = await ctx.con
+    .getRepository(Source)
+    .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
+  const sourceMember = ctx.userId
+    ? await ctx.con
+        .getRepository(SourceMember)
+        .findOneBy({ sourceId: source.id, userId: ctx.userId })
+    : null;
 
-    if (!sourceMember || sourceMember.role !== role) {
-      throw new ForbiddenError('Access denied!');
-    }
-
-    return source;
+  if (!sourceMember || sourceMember.role !== role) {
+    throw new ForbiddenError('Access denied!');
   }
-  throw new UserInputError('squad ID is required!');
+
+  return source;
 };
 
 const ensureNotRejected = async (
