@@ -31,7 +31,6 @@ import {
   uploadPostFile,
   UploadPreset,
   validatePost,
-  votePost,
 } from '../common';
 import {
   ArticlePost,
@@ -923,21 +922,6 @@ export const typeDefs = /* GraphQL */ `
     ): EmptyResponse @auth
 
     """
-    Vote post
-    """
-    votePost(
-      """
-      Id of the post
-      """
-      id: ID!
-
-      """
-      Vote type
-      """
-      vote: Int!
-    ): EmptyResponse @auth
-
-    """
     Dismiss user post feedback
     """
     dismissPostFeedback(
@@ -1772,14 +1756,6 @@ export const resolvers: IResolvers<any, Context> = {
         );
       }
       return { _: true };
-    },
-    // TODO AS-213 remove when no longer used on frontend
-    votePost: async (
-      source,
-      { id, vote }: { id: string; vote: UserVote },
-      ctx: Context,
-    ): Promise<GQLEmptyResponse> => {
-      return votePost({ ctx, id, vote });
     },
     dismissPostFeedback: async (
       source,
