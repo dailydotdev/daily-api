@@ -67,7 +67,7 @@ import {
 } from '../src/redis';
 import { checkHasMention, markdown } from '../src/common/markdown';
 import { generateStorageKey, StorageTopic } from '../src/config';
-import { UserVote } from '../src/types';
+import { UserVote, UserVoteEntity } from '../src/types';
 import {
   highRateLimiterName,
   rateLimiterName,
@@ -3803,10 +3803,10 @@ describe('userState field', () => {
   });
 });
 
-describe('mutation votePost', () => {
+describe('mutation vote post', () => {
   const MUTATION = `
-    mutation VotePost($id: ID!, $vote: Int!) {
-      votePost(id: $id, vote: $vote) {
+    mutation Vote($id: ID!, $vote: Int!, $entity: UserVoteEntity!) {
+      vote(id: $id, vote: $vote, entity: $entity) {
         _
       }
     }`;
@@ -3816,7 +3816,11 @@ describe('mutation votePost', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: 'p1', vote: UserVote.Up },
+        variables: {
+          id: 'p1',
+          vote: UserVote.Up,
+          entity: UserVoteEntity.Post,
+        },
       },
       'UNAUTHENTICATED',
     ));
@@ -3827,7 +3831,11 @@ describe('mutation votePost', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: 'invalid', vote: UserVote.Up },
+        variables: {
+          id: 'invalid',
+          vote: UserVote.Up,
+          entity: UserVoteEntity.Post,
+        },
       },
       'NOT_FOUND',
     );
@@ -3839,7 +3847,7 @@ describe('mutation votePost', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: 'p1', vote: UserVote.Up },
+        variables: { id: 'p1', vote: UserVote.Up, entity: UserVoteEntity.Post },
       },
       'NOT_FOUND',
     );
@@ -3852,7 +3860,7 @@ describe('mutation votePost', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: 'p1', vote: UserVote.Up },
+        variables: { id: 'p1', vote: UserVote.Up, entity: UserVoteEntity.Post },
       },
       'FORBIDDEN',
     );
@@ -3864,7 +3872,7 @@ describe('mutation votePost', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: 'p1', vote: 3 },
+        variables: { id: 'p1', vote: 3, entity: UserVoteEntity.Post },
       },
       'GRAPHQL_VALIDATION_FAILED',
     );
@@ -3876,7 +3884,7 @@ describe('mutation votePost', () => {
       upvotes: 3,
     });
     const res = await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: UserVote.Up },
+      variables: { id: 'p1', vote: UserVote.Up, entity: UserVoteEntity.Post },
     });
     expect(res.errors).toBeFalsy();
     const userPost = await con.getRepository(UserPost).findOneBy({
@@ -3931,7 +3939,7 @@ describe('mutation votePost', () => {
       downvotes: 3,
     });
     const res = await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: UserVote.Down },
+      variables: { id: 'p1', vote: UserVote.Down, entity: UserVoteEntity.Post },
     });
     expect(res.errors).toBeFalsy();
     const userPost = await con.getRepository(UserPost).findOneBy({
@@ -3986,12 +3994,12 @@ describe('mutation votePost', () => {
 
   const testCancelVote = async (initialVote = UserVote.Up) => {
     await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: initialVote },
+      variables: { id: 'p1', vote: initialVote, entity: UserVoteEntity.Post },
     });
     const oldPost = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(oldPost?.upvotes).toEqual(1);
     const res = await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: UserVote.None },
+      variables: { id: 'p1', vote: UserVote.None, entity: UserVoteEntity.Post },
     });
     const userPost = await con.getRepository(UserPost).findOneBy({
       postId: 'p1',
@@ -4053,7 +4061,7 @@ describe('mutation votePost', () => {
     loggedUser = '2';
 
     await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: UserVote.Up },
+      variables: { id: 'p1', vote: UserVote.Up, entity: UserVoteEntity.Post },
     });
 
     loggedUser = '1';
@@ -4091,7 +4099,7 @@ describe('mutation votePost', () => {
     });
     expect(userPostBefore).toBeNull();
     const res = await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: UserVote.Down },
+      variables: { id: 'p1', vote: UserVote.Down, entity: UserVoteEntity.Post },
     });
     const userPost = await con.getRepository(UserPost).findOneBy({
       postId: 'p1',
@@ -4114,7 +4122,7 @@ describe('mutation votePost', () => {
       userId: loggedUser,
     });
     const res = await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: UserVote.Down },
+      variables: { id: 'p1', vote: UserVote.Down, entity: UserVoteEntity.Post },
     });
     const userPost = await con.getRepository(UserPost).findOneBy({
       postId: 'p1',
@@ -4139,7 +4147,7 @@ describe('mutation votePost', () => {
       userId: loggedUser,
     });
     const res = await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: UserVote.Up },
+      variables: { id: 'p1', vote: UserVote.Up, entity: UserVoteEntity.Post },
     });
     const userPost = await con.getRepository(UserPost).findOneBy({
       postId: 'p1',
@@ -4163,7 +4171,7 @@ describe('mutation votePost', () => {
       vote: UserVote.None,
     });
     const res = await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: UserVote.Up },
+      variables: { id: 'p1', vote: UserVote.Up, entity: UserVoteEntity.Post },
     });
     expect(res.errors).toBeFalsy();
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
@@ -4183,7 +4191,7 @@ describe('mutation votePost', () => {
       vote: UserVote.None,
     });
     const res = await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: UserVote.Down },
+      variables: { id: 'p1', vote: UserVote.Down, entity: UserVoteEntity.Post },
     });
     expect(res.errors).toBeFalsy();
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
@@ -4203,7 +4211,7 @@ describe('mutation votePost', () => {
       upvotes: 3,
     });
     const res = await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: UserVote.None },
+      variables: { id: 'p1', vote: UserVote.None, entity: UserVoteEntity.Post },
     });
     expect(res.errors).toBeFalsy();
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
@@ -4223,7 +4231,7 @@ describe('mutation votePost', () => {
       downvotes: 3,
     });
     const res = await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: UserVote.None },
+      variables: { id: 'p1', vote: UserVote.None, entity: UserVoteEntity.Post },
     });
     expect(res.errors).toBeFalsy();
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
@@ -4244,7 +4252,7 @@ describe('mutation votePost', () => {
       downvotes: 2,
     });
     const res = await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: UserVote.Down },
+      variables: { id: 'p1', vote: UserVote.Down, entity: UserVoteEntity.Post },
     });
     expect(res.errors).toBeFalsy();
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
@@ -4265,7 +4273,7 @@ describe('mutation votePost', () => {
       downvotes: 3,
     });
     const res = await client.mutate(MUTATION, {
-      variables: { id: 'p1', vote: UserVote.Up },
+      variables: { id: 'p1', vote: UserVote.Up, entity: UserVoteEntity.Post },
     });
     expect(res.errors).toBeFalsy();
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });

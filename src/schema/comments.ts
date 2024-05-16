@@ -35,7 +35,6 @@ import {
 import { ensureSourcePermissions, SourcePermissions } from './sources';
 import { generateShortId } from '../ids';
 import { CommentReport } from '../entity/CommentReport';
-import { UserComment } from '../entity/user/UserComment';
 import { UserVote } from '../types';
 
 export interface GQLComment {
@@ -392,26 +391,6 @@ export const typeDefs = /* GraphQL */ `
       Additional comment about report reason
       """
       note: String
-    ): EmptyResponse @auth
-
-    """
-    Upvote to a comment
-    """
-    upvoteComment(
-      """
-      Id of the comment to upvote
-      """
-      id: ID!
-    ): EmptyResponse @auth
-
-    """
-    Cancel an upvote of a comment
-    """
-    cancelCommentUpvote(
-      """
-      Id of the comment
-      """
-      id: ID!
     ): EmptyResponse @auth
   }
 `;
@@ -936,54 +915,6 @@ export const resolvers: IResolvers<any, Context> = {
         }
       }
 
-      return { _: true };
-    },
-    // TODO AS-214 remove when frontend no longer uses and extension adoption
-    upvoteComment: async (
-      source,
-      { id }: { id: string },
-      ctx: Context,
-    ): Promise<GQLEmptyResponse> => {
-      try {
-        const comment = await ctx.con.getRepository(Comment).findOneOrFail({
-          where: { id },
-          relations: ['post'],
-        });
-        const post = await comment.post;
-        await ensureSourcePermissions(ctx, post.sourceId);
-        await ctx.con.transaction(async (entityManager) => {
-          await entityManager.getRepository(UserComment).save({
-            commentId: id,
-            userId: ctx.userId,
-            vote: UserVote.Up,
-          });
-        });
-      } catch (err) {
-        // Foreign key violation
-        if (err?.code === TypeOrmError.FOREIGN_KEY) {
-          throw new NotFoundError('Comment or user not found');
-        }
-        // Unique violation
-        if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
-          throw err;
-        }
-      }
-      return { _: true };
-    },
-    // TODO AS-214 remove when frontend no longer uses and extension adoption
-    cancelCommentUpvote: async (
-      source,
-      { id }: { id: string },
-      ctx: Context,
-    ): Promise<GQLEmptyResponse> => {
-      await ctx.con.transaction(async (entityManager): Promise<boolean> => {
-        await entityManager.getRepository(UserComment).save({
-          commentId: id,
-          userId: ctx.userId,
-          vote: UserVote.None,
-        });
-        return false;
-      });
       return { _: true };
     },
   }),
