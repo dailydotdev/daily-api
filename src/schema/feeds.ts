@@ -326,7 +326,7 @@ export const typeDefs = /* GraphQL */ `
       supportedTypes: [String!]
 
       """
-      The filters to add to the feed
+      The filters to use for preview
       """
       filters: FiltersInput
     ): PostConnection! @auth
