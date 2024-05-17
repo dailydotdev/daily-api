@@ -5,7 +5,7 @@ import {
   FeedConfigGeneratorResult,
   FeedVersion,
 } from './types';
-import { feedToFilters } from '../../common';
+import { AnonymousFeedFilters, feedToFilters } from '../../common';
 import { ISnotraClient, UserState } from '../snotra';
 import { postTypes } from '../../entity';
 import { runInSpan } from '../../telemetry/opentelemetry';
@@ -55,6 +55,44 @@ export class SimpleFeedConfigGenerator implements FeedConfigGenerator {
   }
 }
 
+const addFiltersToConfig = ({
+  config,
+  filters,
+  opts,
+}: {
+  config: FeedConfig;
+  filters: AnonymousFeedFilters;
+  opts: Options;
+}): FeedConfigGeneratorResult['config'] => {
+  const baseConfig = { ...config };
+
+  if (filters.includeTags?.length && opts.includeAllowedTags) {
+    baseConfig.allowed_tags = filters.includeTags;
+  }
+  if (filters.blockedTags?.length && opts.includeBlockedTags) {
+    baseConfig.blocked_tags = filters.blockedTags;
+  }
+  if (filters.excludeSources?.length && opts.includeBlockedSources) {
+    baseConfig.blocked_sources = filters.excludeSources;
+  }
+  if (filters.sourceIds?.length && opts.includeSourceMemberships) {
+    baseConfig.squad_ids = filters.sourceIds;
+  }
+  if (filters.excludeTypes?.length && opts.includePostTypes) {
+    baseConfig.allowed_post_types = (
+      baseConfig.allowed_post_types || postTypes
+    ).filter((x) => !filters.excludeTypes.includes(x));
+  }
+  if (
+    filters.blockedContentCuration?.length &&
+    opts.includeBlockedContentCuration
+  ) {
+    baseConfig.blocked_content_curations = filters.blockedContentCuration;
+  }
+
+  return baseConfig;
+};
+
 /**
  * Generates config based on the feed preferences (allow/block tags/sources)
  */
@@ -69,33 +107,16 @@ export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
 
   async generate(ctx, opts): Promise<FeedConfigGeneratorResult> {
     return runInSpan('FeedPreferencesConfigGenerator', async () => {
-      const config = getDefaultConfig(this.baseConfig, opts);
+      const defaultConfig = getDefaultConfig(this.baseConfig, opts);
       const userId = opts.user_id;
       const feedId = opts.feedId || userId;
       const filters = await feedToFilters(ctx.con, feedId, userId);
-      if (filters.includeTags?.length && this.opts.includeAllowedTags) {
-        config.allowed_tags = filters.includeTags;
-      }
-      if (filters.blockedTags?.length && this.opts.includeBlockedTags) {
-        config.blocked_tags = filters.blockedTags;
-      }
-      if (filters.excludeSources?.length && this.opts.includeBlockedSources) {
-        config.blocked_sources = filters.excludeSources;
-      }
-      if (filters.sourceIds?.length && this.opts.includeSourceMemberships) {
-        config.squad_ids = filters.sourceIds;
-      }
-      if (filters.excludeTypes?.length && this.opts.includePostTypes) {
-        config.allowed_post_types = (
-          config.allowed_post_types || postTypes
-        ).filter((x) => !filters.excludeTypes.includes(x));
-      }
-      if (
-        filters.blockedContentCuration?.length &&
-        this.opts.includeBlockedContentCuration
-      ) {
-        config.blocked_content_curations = filters.blockedContentCuration;
-      }
+      const config = addFiltersToConfig({
+        config: defaultConfig,
+        filters,
+        opts: this.opts,
+      });
+
       return { config };
     });
   }
@@ -209,6 +230,32 @@ export class FeedLofnConfigGenerator implements FeedConfigGenerator {
 
         throw error;
       }
+    });
+  }
+}
+
+export class FeedLocalConfigGenerator implements FeedConfigGenerator {
+  private readonly baseConfig: BaseConfig;
+  private readonly opts: Omit<Options, 'feedId'> & {
+    feedFilters?: AnonymousFeedFilters;
+  };
+
+  constructor(baseConfig: BaseConfig, opts = {}) {
+    this.baseConfig = baseConfig;
+    this.opts = opts;
+  }
+
+  async generate(ctx, opts): Promise<FeedConfigGeneratorResult> {
+    return runInSpan('FeedLocalConfigGenerator', async () => {
+      const defaultConfig = getDefaultConfig(this.baseConfig, opts);
+      const filters = this.opts.feedFilters || {};
+      const config = addFiltersToConfig({
+        config: defaultConfig,
+        filters,
+        opts: this.opts,
+      });
+
+      return { config };
     });
   }
 }
