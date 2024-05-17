@@ -1896,7 +1896,10 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         },
       });
 
-      return updateFeed;
+      return {
+        ...feed,
+        ...updateFeed,
+      };
     },
     deleteFeed: async (
       _,
