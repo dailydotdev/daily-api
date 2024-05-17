@@ -67,6 +67,7 @@ import { createDatePageGenerator } from '../common/datePageGenerator';
 import { generateShortId } from '../ids';
 import { SubmissionFailErrorMessage } from '../errors';
 import { getFeedByIdentifiersOrFail } from '../common/feed';
+import { FeedLocalConfigGenerator } from '../integrations/feed/configs';
 
 interface GQLTagsCategory {
   id: string;
@@ -323,6 +324,11 @@ export const typeDefs = /* GraphQL */ `
       Array of supported post types
       """
       supportedTypes: [String!]
+
+      """
+      The filters to use for preview
+      """
+      filters: FiltersInput
     ): PostConnection! @auth
 
     """
@@ -1267,6 +1273,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           new FeedPreferencesConfigGenerator(
             {},
             {
+              includeAllowedTags: true,
               includePostTypes: true,
               includeBlockedSources: true,
               includeBlockedTags: true,
@@ -1300,17 +1307,39 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
     feedPreview: (
       source,
-      args: Pick<ConfiguredFeedArgs, 'supportedTypes'>,
+      args: Pick<ConfiguredFeedArgs, 'supportedTypes'> & {
+        filters: GQLFiltersInput;
+      },
       ctx: Context,
       info,
     ) => {
+      const { filters, ...feedArgs } = args;
+
+      const feedGenerator = filters
+        ? new FeedGenerator(
+            new FeedClient(process.env.POPULAR_FEED),
+            new FeedLocalConfigGenerator(
+              {},
+              {
+                includeAllowedTags: true,
+                includePostTypes: true,
+                includeBlockedSources: true,
+                includeBlockedTags: true,
+                includeBlockedContentCuration: true,
+                feedFilters: filters,
+              },
+            ),
+            'popular',
+          )
+        : feedGenerators.onboarding;
+
       return feedResolverCursor(
         source,
         {
-          ...(args as FeedArgs),
+          ...(feedArgs as FeedArgs),
           first: 20,
           ranking: Ranking.POPULARITY,
-          generator: feedGenerators.onboarding,
+          generator: feedGenerator,
         },
         ctx,
         info,

@@ -79,6 +79,8 @@ export default function (router: ConnectRouter) {
         ...req,
         id: postId,
         shortId: postId,
+        visible: false,
+        showOnFeed: false,
       });
       const newPost = await con.getRepository(ArticlePost).insert(postEntity);
 

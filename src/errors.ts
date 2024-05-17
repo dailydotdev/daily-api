@@ -94,3 +94,12 @@ export enum TypeOrmError {
 export enum SourcePermissionErrorKeys {
   InviteInvalid = 'SOURCE_PERMISSION_INVITE_INVALID',
 }
+
+// Return 409 HTTP status code
+export class ConflictError extends ApolloError {
+  constructor(message) {
+    super(message, 'CONFLICT');
+
+    Object.defineProperty(this, 'name', { value: 'ConflictError' });
+  }
+}

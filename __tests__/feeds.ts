@@ -2224,8 +2224,8 @@ describe('function feedToFilters', () => {
 
 describe('query feedPreview', () => {
   const QUERY = `
-  query FeedPreview($supportedTypes: [String!]) {
-    feedPreview(supportedTypes: $supportedTypes) {
+  query FeedPreview($supportedTypes: [String!], $filters: FiltersInput) {
+    feedPreview(supportedTypes: $supportedTypes, filters: $filters) {
       ${feedFields()}
     }
   }
@@ -2259,6 +2259,34 @@ describe('query feedPreview', () => {
       });
 
     const res = await client.query(QUERY, { variables: {} });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedPreview.edges.length).toEqual(2);
+  });
+
+  it('should return feed with filters', async () => {
+    loggedUser = '1';
+
+    nock('http://localhost:6000')
+      .post('/popular', {
+        user_id: '1',
+        page_size: 20,
+        offset: 0,
+        total_pages: 1,
+        fresh_page_size: '7',
+        allowed_tags: ['javascript', 'webdev'],
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+      });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        filters: {
+          includeTags: ['javascript', 'webdev'],
+        },
+      },
+    });
 
     expect(res.errors).toBeFalsy();
     expect(res.data.feedPreview.edges.length).toEqual(2);

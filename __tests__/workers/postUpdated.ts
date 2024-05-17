@@ -6,6 +6,8 @@ import {
   CollectionPost,
   FreeformPost,
   Keyword,
+  NotificationAttachmentType,
+  NotificationAttachmentV2,
   Post,
   PostKeyword,
   PostOrigin,
@@ -1076,6 +1078,107 @@ describe('on post update', () => {
       is_ai_probability: 0.52,
     });
   });
+
+  it('should update post with the relevant scout id and update submission', async () => {
+    const uuid = randomUUID();
+    await saveFixtures(con, Source, [
+      {
+        id: COMMUNITY_PICKS_SOURCE,
+        name: 'Community recommendations',
+        image: 'sample.image.com',
+      },
+    ]);
+    await createDefaultUser();
+    await createDefaultSubmission(uuid);
+    await con.getRepository(ArticlePost).save({
+      id: 'scp1',
+      shortId: 'scp1',
+      url: 'https://post.com/scp1',
+      title: 'Scouted title',
+      visible: false,
+      yggdrasilId: 'e0ea497b-fd69-4e55-b4e9-2df9ec42b91c',
+      sourceId: COMMUNITY_PICKS_SOURCE,
+    });
+
+    await expectSuccessfulBackground(worker, {
+      id: 'e0ea497b-fd69-4e55-b4e9-2df9ec42b91c',
+      title: 'Title',
+      url: 'https://post.com/scp1',
+      source_id: COMMUNITY_PICKS_SOURCE,
+      submission_id: uuid,
+    });
+
+    const post = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ url: 'https://post.com/scp1' });
+    expect(post).toBeTruthy();
+    expect(post!.scoutId).toEqual('1');
+    const submissions = await con.getRepository(Submission).find();
+    const [submission] = submissions;
+    expect(submissions.length).toEqual(1);
+    expect(submission.id).toEqual(uuid);
+    expect(submission.status).toEqual(SubmissionStatus.Accepted);
+  });
+
+  it('should not set scout id when post is already scouted', async () => {
+    const uuid = randomUUID();
+    await saveFixtures(con, Source, [
+      {
+        id: COMMUNITY_PICKS_SOURCE,
+        name: 'Community recommendations',
+        image: 'sample.image.com',
+      },
+    ]);
+    await createDefaultUser();
+    await createDefaultSubmission(uuid);
+    await con.getRepository(ArticlePost).save({
+      id: 'scp1',
+      shortId: 'scp1',
+      url: 'https://post.com/scp1',
+      title: 'Scouted title',
+      visible: false,
+      yggdrasilId: 'e0ea497b-fd69-4e55-b4e9-2df9ec42b91c',
+      sourceId: COMMUNITY_PICKS_SOURCE,
+    });
+
+    await expectSuccessfulBackground(worker, {
+      id: 'e0ea497b-fd69-4e55-b4e9-2df9ec42b91c',
+      title: 'Title',
+      url: 'https://post.com/scp1',
+      source_id: COMMUNITY_PICKS_SOURCE,
+      submission_id: uuid,
+    });
+
+    const post = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ url: 'https://post.com/scp1' });
+    expect(post).toBeTruthy();
+    expect(post!.scoutId).toEqual('1');
+
+    await con.getRepository(User).save({ ...usersFixture[1] });
+    const uuid2 = randomUUID();
+    await con.getRepository(Submission).save(
+      con.getRepository(Submission).create({
+        id: uuid2,
+        url: 'http://sample.article/test',
+        userId: '2',
+      }),
+    );
+
+    await expectSuccessfulBackground(worker, {
+      id: 'e0ea497b-fd69-4e55-b4e9-2df9ec42b91c',
+      title: 'Title',
+      url: 'https://post.com/scp1',
+      source_id: COMMUNITY_PICKS_SOURCE,
+      submission_id: uuid2,
+    });
+
+    const post2 = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ url: 'https://post.com/scp1' });
+    expect(post2).toBeTruthy();
+    expect(post2!.scoutId).toEqual('1');
+  });
 });
 
 describe('on youtube post', () => {
@@ -1311,6 +1414,46 @@ describe('on youtube post', () => {
       yggdrasilId: 'd1053f05-4d41-4fc7-885c-c0f7c841a7b6',
       url: 'https://youtu.be/Oso6dYXw5lc',
       videoId: 'Oso6dYXw5lc',
+    });
+  });
+
+  it('should update the post type when the post already has notification attachment', async () => {
+    await con.getRepository(NotificationAttachmentV2).save({
+      type: NotificationAttachmentType.Post,
+      image: 'http://image.com/placeholder.jpg',
+      referenceId: 'yt2',
+      title: 'some title',
+    });
+    const beforePost = await con.getRepository(ArticlePost).findOneBy({
+      yggdrasilId: 'd1053f05-4d41-4fc7-885c-c0f7c841a7b6',
+    });
+    expect(beforePost?.type).toBe(PostType.Article);
+
+    await expectSuccessfulBackground(worker, {
+      id: 'd1053f05-4d41-4fc7-885c-c0f7c841a7b6',
+      post_id: 'yt2',
+      updated_at: new Date('01-05-2023 12:00:00'),
+      source_id: 'squad',
+      content_type: PostType.VideoYouTube,
+      extra: {
+        video_id: 'Oso6dYXw5lc',
+      },
+      image: 'http://image.com',
+    });
+
+    const post = await con.getRepository(YouTubePost).findOneBy({
+      yggdrasilId: 'd1053f05-4d41-4fc7-885c-c0f7c841a7b6',
+    });
+
+    expect(post?.type).toBe(PostType.VideoYouTube);
+    expect(post).toMatchObject({
+      type: 'video:youtube',
+      title: 'youtube post',
+      sourceId: 'squad',
+      yggdrasilId: 'd1053f05-4d41-4fc7-885c-c0f7c841a7b6',
+      url: 'https://youtu.be/Oso6dYXw5lc',
+      videoId: 'Oso6dYXw5lc',
+      image: 'http://image.com',
     });
   });
 

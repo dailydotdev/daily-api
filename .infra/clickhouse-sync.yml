@@ -25,7 +25,7 @@ schema.include.list: "public"
 plugin.name: "pgoutput"
 
 # table.include.list: An optional list of regular expressions that match fully-qualified table identifiers for tables to be monitored;
-table.include.list: "public.post,public.source"
+table.include.list: "public.post,public.source,public.keyword,public.feed_tag,public.post_tag,public.feed_source"
 
 # clickhouse.server.url: Specify only the hostname of the Clickhouse Server.
 clickhouse.server.url: "%clickhouse_host%"
