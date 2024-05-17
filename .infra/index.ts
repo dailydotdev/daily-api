@@ -550,6 +550,7 @@ if (!isAdhocEnv) {
           'database.user': config.require('debeziumDbUser'),
           'database.server.name': name,
           'database.dbname': name,
+          'table.include.list': 'public.post,public.source,public.keyword,public.feed_tag,public.post_tag,public.feed_source',
         },
         vars: {
           ...config.requireObject<{ vars: Record<string, string> }>(
