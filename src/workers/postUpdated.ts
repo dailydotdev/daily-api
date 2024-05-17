@@ -279,7 +279,7 @@ const updatePost = async ({
     await entityManager
       .createQueryBuilder()
       .update(Post)
-      .set({ type: content_type })
+      .set({ type: content_type, image: data.image })
       .where('id = :id', { id })
       .execute();
 
