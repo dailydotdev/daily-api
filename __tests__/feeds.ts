@@ -1113,8 +1113,8 @@ describe('query keywordFeed', () => {
 });
 
 describe('query feedSettings', () => {
-  const QUERY = `{
-    feedSettings {
+  const QUERY = `query FeedSettings($feedId: ID) {
+    feedSettings(feedId: $feedId) {
       id
       userId
       includeTags
@@ -1137,6 +1137,25 @@ describe('query feedSettings', () => {
       }
     }
   }`;
+  const ADD_FILTERS_MUTATION = `
+  mutation AddFiltersToFeed($feedId: ID, $filters: FiltersInput!) {
+    addFiltersToFeed(feedId: $feedId, filters: $filters) {
+      id
+      userId
+      includeTags
+      blockedTags
+      excludeSources {
+        id
+        name
+        image
+        public
+      }
+      advancedSettings {
+        id
+        enabled
+      }
+    }
+  }`;
 
   it('should not authorize when not logged-in', () =>
     testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
@@ -1146,6 +1165,61 @@ describe('query feedSettings', () => {
     await saveFeedFixtures();
     const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return the feed settings for custom feed when feedId is provided', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await saveFixtures(con, Feed, [{ id: 'cf2', userId: '1' }]);
+    await client.mutate(ADD_FILTERS_MUTATION, {
+      variables: {
+        feedId: 'cf2',
+        filters: {
+          includeTags: ['javascript'],
+          excludeSources: ['b'],
+          blockedTags: ['golang'],
+        },
+      },
+    });
+
+    const res = await client.query(QUERY, { variables: { feedId: 'cf2' } });
+    expect(res.data.feedSettings).toMatchObject({
+      includeTags: ['javascript'],
+      excludeSources: [
+        {
+          id: 'b',
+          image: 'http://image.com/b',
+          name: 'B',
+          public: true,
+        },
+      ],
+      blockedTags: ['golang'],
+    });
+  });
+
+  it('should return empty settings when feed not found for user', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await saveFixtures(con, Feed, [{ id: 'cf2', userId: '1' }]);
+    await client.mutate(ADD_FILTERS_MUTATION, {
+      variables: {
+        feedId: 'cf2',
+        filters: {
+          includeTags: ['javascript'],
+          excludeSources: ['b'],
+          blockedTags: ['golang'],
+        },
+      },
+    });
+
+    loggedUser = '2';
+
+    const res = await client.query(QUERY, { variables: { feedId: 'cf2' } });
+    expect(res.data.feedSettings).toMatchObject({
+      includeTags: [],
+      excludeSources: [],
+      blockedTags: [],
+    });
   });
 });
 
@@ -1718,8 +1792,8 @@ describe('mutation updateFeedAdvancedSettings', () => {
 
 describe('mutation addFiltersToFeed', () => {
   const MUTATION = `
-  mutation AddFiltersToFeed($filters: FiltersInput!) {
-    addFiltersToFeed(filters: $filters) {
+  mutation AddFiltersToFeed($feedId: ID, $filters: FiltersInput!) {
+    addFiltersToFeed(feedId: $feedId, filters: $filters) {
       id
       userId
       includeTags
@@ -1733,6 +1807,30 @@ describe('mutation addFiltersToFeed', () => {
       advancedSettings {
         id
         enabled
+      }
+    }
+  }`;
+  const MY_FEED_SETTINGS_QUERY = `{
+    feedSettings {
+      id
+      userId
+      includeTags
+      blockedTags
+      excludeSources {
+        id
+        name
+        image
+        public
+      }
+      advancedSettings {
+        id
+        enabled
+        advancedSettings {
+          id
+          title
+          description
+          group
+        }
       }
     }
   }`;
@@ -1790,12 +1888,104 @@ describe('mutation addFiltersToFeed', () => {
     });
     expect(res.data).toMatchSnapshot();
   });
+
+  it('should save filters to custom feed when feedId is provided', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, Feed, [{ id: 'cf2', userId: '1' }]);
+    await saveFixtures(con, AdvancedSettings, advancedSettings);
+    // my feed filters
+    await client.mutate(MUTATION, {
+      variables: {
+        filters: {
+          includeTags: ['webdev', 'javascript'],
+          excludeSources: ['a'],
+          blockedTags: [],
+        },
+      },
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        feedId: 'cf2',
+        filters: {
+          includeTags: ['webdev'],
+          excludeSources: ['b'],
+          blockedTags: ['golang'],
+        },
+      },
+    });
+    expect(res.data.addFiltersToFeed).toMatchObject({
+      includeTags: ['webdev'],
+      excludeSources: [
+        {
+          id: 'b',
+          image: 'http://image.com/b',
+          name: 'B',
+          public: true,
+        },
+      ],
+      blockedTags: ['golang'],
+    });
+
+    const myFeedSettings = await client.query(MY_FEED_SETTINGS_QUERY);
+    expect(myFeedSettings.data.feedSettings).toMatchObject({
+      includeTags: ['javascript', 'webdev'],
+      excludeSources: [
+        {
+          id: 'a',
+          image: 'http://image.com/a',
+          name: 'A',
+          public: true,
+        },
+      ],
+      blockedTags: [],
+    });
+  });
+
+  it('should throw not found error when feedId is not found', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: 'cf256',
+          filters: {
+            includeTags: ['webdev'],
+            excludeSources: ['b'],
+            blockedTags: ['golang'],
+          },
+        },
+      },
+      'NOT_FOUND',
+    );
+  });
 });
 
 describe('mutation removeFiltersFromFeed', () => {
   const MUTATION = `
-  mutation RemoveFiltersFromFeed($filters: FiltersInput!) {
-    removeFiltersFromFeed(filters: $filters) {
+  mutation RemoveFiltersFromFeed($feedId: ID, $filters: FiltersInput!) {
+    removeFiltersFromFeed(feedId: $feedId, filters: $filters) {
+      id
+      userId
+      includeTags
+      blockedTags
+      excludeSources {
+        id
+        name
+        image
+        public
+      }
+      advancedSettings {
+        id
+        enabled
+      }
+    }
+  }`;
+  const ADD_FILTERS_MUTATION = `
+  mutation AddFiltersToFeed($feedId: ID, $filters: FiltersInput!) {
+    addFiltersToFeed(feedId: $feedId, filters: $filters) {
       id
       userId
       includeTags
@@ -1836,6 +2026,65 @@ describe('mutation removeFiltersFromFeed', () => {
       },
     });
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should remove existing filters for custom feed when feedId is provided', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await saveFixtures(con, Feed, [{ id: 'cf2', userId: '1' }]);
+    await client.mutate(ADD_FILTERS_MUTATION, {
+      variables: {
+        feedId: 'cf2',
+        filters: {
+          includeTags: ['webdev', 'javascript'],
+          excludeSources: ['a', 'b'],
+          blockedTags: ['golang'],
+        },
+      },
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        feedId: 'cf2',
+        filters: {
+          includeTags: ['webdev'],
+          excludeSources: ['a'],
+          blockedTags: ['golang'],
+        },
+      },
+    });
+    expect(res.data.removeFiltersFromFeed).toMatchObject({
+      includeTags: ['javascript'],
+      excludeSources: [
+        {
+          id: 'b',
+          image: 'http://image.com/b',
+          name: 'B',
+          public: true,
+        },
+      ],
+      blockedTags: [],
+    });
+  });
+
+  it('should throw not found error when feedId is not found', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: 'cf256',
+          filters: {
+            includeTags: ['webdev'],
+            excludeSources: ['b'],
+            blockedTags: ['golang'],
+          },
+        },
+      },
+      'NOT_FOUND',
+    );
   });
 });
 
