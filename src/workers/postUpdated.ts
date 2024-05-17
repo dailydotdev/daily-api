@@ -149,6 +149,49 @@ const handleCollectionRelations = async ({
   }
 };
 
+const assignScoutToPost = async ({
+  entityManager,
+  submissionId,
+  data,
+}: Pick<CreatePostProps, 'entityManager' | 'submissionId' | 'data'>): Promise<
+  Partial<Pick<Post, 'scoutId'>>
+> => {
+  const submission = await entityManager
+    .getRepository(Submission)
+    .findOneBy({ id: submissionId });
+
+  if (!submission) {
+    return {
+      scoutId: undefined,
+    };
+  }
+
+  if (data.authorId === submission.userId) {
+    await entityManager.getRepository(Submission).update(
+      { id: submissionId },
+      {
+        status: SubmissionStatus.Rejected,
+        reason: SubmissionFailErrorKeys.ScoutIsAuthor,
+      },
+    );
+
+    return {
+      scoutId: undefined,
+    };
+  }
+
+  await entityManager.getRepository(Submission).update(
+    { id: submissionId },
+    {
+      status: SubmissionStatus.Accepted,
+    },
+  );
+
+  return {
+    scoutId: submission.userId,
+  };
+};
+
 const createPost = async ({
   counter,
   logger,
@@ -176,30 +219,13 @@ const createPost = async ({
   }
 
   if (submissionId) {
-    const submission = await entityManager
-      .getRepository(Submission)
-      .findOneBy({ id: submissionId });
+    const { scoutId } = await assignScoutToPost({
+      entityManager,
+      submissionId,
+      data,
+    });
 
-    if (submission) {
-      if (data.authorId === submission.userId) {
-        await entityManager.getRepository(Submission).update(
-          { id: submissionId },
-          {
-            status: SubmissionStatus.Rejected,
-            reason: SubmissionFailErrorKeys.ScoutIsAuthor,
-          },
-        );
-        return null;
-      }
-
-      await entityManager.getRepository(Submission).update(
-        { id: submissionId },
-        {
-          status: SubmissionStatus.Accepted,
-        },
-      );
-      data.scoutId = submission.userId;
-    }
+    data.scoutId = scoutId;
   }
 
   const postId = await generateShortId();
@@ -258,6 +284,7 @@ type UpdatePostProps = {
   mergedKeywords: string[];
   questions: string[];
   content_type: PostType;
+  submissionId?: string;
 };
 const updatePost = async ({
   counter,
@@ -268,6 +295,7 @@ const updatePost = async ({
   mergedKeywords,
   questions,
   content_type = PostType.Article,
+  submissionId,
 }: UpdatePostProps) => {
   const postType = contentTypeFromPostType[content_type];
   let databasePost = await entityManager
@@ -305,6 +333,16 @@ const updatePost = async ({
       'post not updated: database entry is newer than received update',
     );
     return null;
+  }
+
+  if (submissionId && !databasePost.scoutId) {
+    const { scoutId } = await assignScoutToPost({
+      entityManager,
+      submissionId,
+      data,
+    });
+
+    data.scoutId = scoutId;
   }
 
   const title = data?.title || databasePost.title;
@@ -602,6 +640,7 @@ const worker: Worker = {
             mergedKeywords,
             questions,
             content_type,
+            submissionId: data?.submission_id,
           });
         }
 
