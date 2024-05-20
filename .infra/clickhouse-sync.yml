@@ -56,6 +56,8 @@ buffer.flush.time.ms: 30000
 buffer.max.records: 5000
 buffer.flush.timeout.ms: 120000
 
+snapshot.fetch.size: 1024
+
 # connector.class: The Java class for the connector. This must be set to io.debezium.connector.postgresql.PostgresConnector.
 connector.class: "io.debezium.connector.postgresql.PostgresConnector"
 
