@@ -25,7 +25,7 @@ schema.include.list: "public"
 plugin.name: "pgoutput"
 
 # table.include.list: An optional list of regular expressions that match fully-qualified table identifiers for tables to be monitored;
-table.include.list: "public.post,public.source,public.keyword,public.feed_tag,public.post_tag,public.feed_source"
+table.include.list: "public.post,public.source,public.keyword,public.feed_tag,public.post_keyword,public.feed_source"
 
 # clickhouse.server.url: Specify only the hostname of the Clickhouse Server.
 clickhouse.server.url: "%clickhouse_host%"
@@ -57,6 +57,9 @@ buffer.max.records: 5000
 buffer.flush.timeout.ms: 120000
 
 snapshot.fetch.size: 1024
+metrics.enable: "false"
+cli.port: 7052
+thread.pool.size: 10
 
 # connector.class: The Java class for the connector. This must be set to io.debezium.connector.postgresql.PostgresConnector.
 connector.class: "io.debezium.connector.postgresql.PostgresConnector"
