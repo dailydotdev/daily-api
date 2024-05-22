@@ -25,7 +25,7 @@ schema.include.list: "public"
 plugin.name: "pgoutput"
 
 # table.include.list: An optional list of regular expressions that match fully-qualified table identifiers for tables to be monitored;
-table.include.list: "public.post,public.source,public.keyword,public.feed_tag"
+table.include.list: "public.post,public.source,public.keyword,public.feed_tag,public.bots"
 
 # clickhouse.server.url: Specify only the hostname of the Clickhouse Server.
 clickhouse.server.url: "%clickhouse_host%"
@@ -131,8 +131,6 @@ skip_replica_start: "false"
 
 # binary.handling.mode: The mode for handling binary values. Possible values are bytes, base64, and decode. The default is bytes.
 #binary.handling.mode: "base64"
-
-bla.bla.wololo: "wololo"
 
 # ignore_delete: If set to true, the connector will ignore delete events. The default is false.
 #ignore_delete: "true"
