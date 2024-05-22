@@ -66,7 +66,8 @@ import { UserVote, maxFeedsPerUser } from '../types';
 import { createDatePageGenerator } from '../common/datePageGenerator';
 import { generateShortId } from '../ids';
 import { SubmissionFailErrorMessage } from '../errors';
-import { getFeedByIdentifiers } from '../common/feed';
+import { getFeedByIdentifiersOrFail } from '../common/feed';
+import { FeedLocalConfigGenerator } from '../integrations/feed/configs';
 
 interface GQLTagsCategory {
   id: string;
@@ -323,6 +324,11 @@ export const typeDefs = /* GraphQL */ `
       Array of supported post types
       """
       supportedTypes: [String!]
+
+      """
+      The filters to use for preview
+      """
+      filters: FiltersInput
     ): PostConnection! @auth
 
     """
@@ -448,7 +454,12 @@ export const typeDefs = /* GraphQL */ `
     """
     Get the user's default feed settings
     """
-    feedSettings: FeedSettings! @auth
+    feedSettings(
+      """
+      Feed id
+      """
+      feedId: ID
+    ): FeedSettings! @auth
 
     """
     Returns the user's RSS feeds
@@ -730,6 +741,11 @@ export const typeDefs = /* GraphQL */ `
     """
     addFiltersToFeed(
       """
+      Feed id
+      """
+      feedId: ID
+
+      """
       The filters to add to the feed
       """
       filters: FiltersInput!
@@ -739,6 +755,11 @@ export const typeDefs = /* GraphQL */ `
     Remove filters from the user's feed
     """
     removeFiltersFromFeed(
+      """
+      Feed id
+      """
+      feedId: ID
+
       """
       The filters to remove from the feed
       """
@@ -829,6 +850,11 @@ export interface GQLFeedSettings {
 }
 
 export type GQLFiltersInput = AnonymousFeedFilters;
+
+export type GQLFeedFiltersInput = {
+  feedId?: string;
+  filters: GQLFiltersInput;
+};
 
 interface AnonymousFeedArgs extends FeedArgs {
   filters?: GQLFiltersInput;
@@ -1021,20 +1047,11 @@ const applyFeedPagingWithPin = (
   return newBuilder;
 };
 
-const getFeedSettings = async (
-  ctx: Context,
-  info: GraphQLResolveInfo,
-): Promise<GQLFeedSettings> => {
-  const res = await graphorm.query<GQLFeedSettings>(ctx, info, (builder) => {
-    builder.queryBuilder = builder.queryBuilder.andWhere(
-      `"${builder.alias}".id = :userId AND "${builder.alias}"."userId" = :userId`,
-      { userId: ctx.userId },
-    );
-    return builder;
-  });
-  if (res.length) {
-    return res[0];
-  }
+const getDefaultFeedSettings = async ({
+  ctx,
+}: {
+  ctx: Context;
+}): Promise<GQLFeedSettings> => {
   return {
     id: ctx.userId,
     userId: ctx.userId,
@@ -1043,6 +1060,28 @@ const getFeedSettings = async (
     blockedTags: [],
     advancedSettings: [],
   };
+};
+
+const getFeedSettings = async ({
+  ctx,
+  info,
+  feedId,
+}: {
+  ctx: Context;
+  info: GraphQLResolveInfo;
+  feedId: string;
+}): Promise<GQLFeedSettings> => {
+  const res = await graphorm.query<GQLFeedSettings>(ctx, info, (builder) => {
+    builder.queryBuilder = builder.queryBuilder.andWhere(
+      `"${builder.alias}".id = :feedId AND "${builder.alias}"."userId" = :userId`,
+      { userId: ctx.userId, feedId },
+    );
+    return builder;
+  });
+  if (res.length) {
+    return res[0];
+  }
+  return getDefaultFeedSettings({ ctx });
 };
 
 const anonymousFeedResolverV1: IFieldResolver<
@@ -1217,7 +1256,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     ) => {
       const feedIdOrSlug = args.feedId;
 
-      const feed = await getFeedByIdentifiers({
+      const feed = await getFeedByIdentifiersOrFail({
         con: ctx.con,
         feedIdOrSlug,
         userId: ctx.userId,
@@ -1234,6 +1273,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           new FeedPreferencesConfigGenerator(
             {},
             {
+              includeAllowedTags: true,
               includePostTypes: true,
               includeBlockedSources: true,
               includeBlockedTags: true,
@@ -1267,17 +1307,39 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
     feedPreview: (
       source,
-      args: Pick<ConfiguredFeedArgs, 'supportedTypes'>,
+      args: Pick<ConfiguredFeedArgs, 'supportedTypes'> & {
+        filters: GQLFiltersInput;
+      },
       ctx: Context,
       info,
     ) => {
+      const { filters, ...feedArgs } = args;
+
+      const feedGenerator = filters
+        ? new FeedGenerator(
+            new FeedClient(process.env.POPULAR_FEED),
+            new FeedLocalConfigGenerator(
+              {},
+              {
+                includeAllowedTags: true,
+                includePostTypes: true,
+                includeBlockedSources: true,
+                includeBlockedTags: true,
+                includeBlockedContentCuration: true,
+                feedFilters: filters,
+              },
+            ),
+            'popular',
+          )
+        : feedGenerators.onboarding;
+
       return feedResolverCursor(
         source,
         {
-          ...(args as FeedArgs),
+          ...(feedArgs as FeedArgs),
           first: 20,
           ranking: Ranking.POPULARITY,
-          generator: feedGenerators.onboarding,
+          generator: feedGenerator,
         },
         ctx,
         info,
@@ -1342,8 +1404,16 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       applyFeedPaging,
       { allowPrivateSources: false },
     ),
-    feedSettings: (source, args, ctx, info): Promise<GQLFeedSettings> =>
-      getFeedSettings(ctx, info),
+    feedSettings: (
+      source,
+      args: { feedId: string },
+      ctx,
+      info,
+    ): Promise<GQLFeedSettings> => {
+      const feedId = args.feedId || ctx.userId;
+
+      return getFeedSettings({ ctx, info, feedId });
+    },
     advancedSettings: async (
       _,
       __,
@@ -1631,7 +1701,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { feedId }: { feedId: string },
       ctx,
     ): Promise<GQLFeed> => {
-      const feed = await getFeedByIdentifiers({
+      const feed = await getFeedByIdentifiersOrFail({
         con: ctx.con,
         feedIdOrSlug: feedId,
         userId: ctx.userId,
@@ -1643,11 +1713,19 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
   Mutation: {
     addFiltersToFeed: async (
       _,
-      { filters }: { filters: GQLFiltersInput },
+      { feedId: feedIdArg, filters }: GQLFeedFiltersInput,
       ctx,
       info,
     ): Promise<GQLFeedSettings> => {
-      const feedId = ctx.userId;
+      if (feedIdArg) {
+        await getFeedByIdentifiersOrFail({
+          con: ctx.con,
+          feedIdOrSlug: feedIdArg,
+          userId: ctx.userId,
+        });
+      }
+
+      const feedId = feedIdArg || ctx.userId;
       await ctx.con.transaction(async (manager): Promise<void> => {
         await manager.getRepository(Feed).save({
           userId: ctx.userId,
@@ -1697,17 +1775,19 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             .execute();
         }
       });
-      return getFeedSettings(ctx, info);
+      return getFeedSettings({ ctx, info, feedId });
     },
     removeFiltersFromFeed: async (
       source,
-      { filters }: { filters: GQLFiltersInput },
+      { feedId: feedIdArg, filters }: GQLFeedFiltersInput,
       ctx,
       info,
     ): Promise<GQLFeedSettings> => {
-      const feedId = ctx.userId;
+      const feedId = feedIdArg || ctx.userId;
       await ctx.con.transaction(async (manager): Promise<void> => {
-        await ctx.getRepository(Feed).findOneByOrFail({ id: feedId });
+        await ctx
+          .getRepository(Feed)
+          .findOneByOrFail({ id: feedId, userId: ctx.userId });
         if (filters?.excludeSources?.length) {
           await manager.getRepository(FeedSource).delete({
             feedId,
@@ -1727,7 +1807,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           });
         }
       });
-      return getFeedSettings(ctx, info);
+      return getFeedSettings({ ctx, info, feedId });
     },
     updateFeedAdvancedSettings: async (
       _,
@@ -1802,7 +1882,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       validateFeedPayload({ name });
 
       const feedRepo = ctx.con.getRepository(Feed);
-      const feed = await getFeedByIdentifiers({
+      const feed = await getFeedByIdentifiersOrFail({
         con: ctx.con,
         feedIdOrSlug: feedId,
         userId: ctx.userId,
@@ -1816,7 +1896,10 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         },
       });
 
-      return updateFeed;
+      return {
+        ...feed,
+        ...updateFeed,
+      };
     },
     deleteFeed: async (
       _,
@@ -1824,7 +1907,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       ctx,
     ): Promise<GQLEmptyResponse> => {
       const feedRepo = ctx.con.getRepository(Feed);
-      const feed = await getFeedByIdentifiers({
+      const feed = await getFeedByIdentifiersOrFail({
         con: ctx.con,
         feedIdOrSlug: feedId,
         userId: ctx.userId,

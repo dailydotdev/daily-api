@@ -538,6 +538,7 @@ if (!isAdhocEnv) {
     {
       isAdhocEnv: isAdhocEnv,
       namespace: namespace,
+      env: [{name: "JAVA_OPTS", value: "-Xmx1g -Xms512m"}],
       props: {
         path: './clickhouse-sync.yml',
         keys: {
@@ -559,7 +560,7 @@ if (!isAdhocEnv) {
       },
       image: {
         repository: 'gcr.io/daily-ops/clickhouse-sink-docker',
-        tag: '09c6bb2d1fc05b426f8202419effa84e472b7f01',
+        tag: '46ee0a5b89506449be786cd416efb464f9f0390c',
       },
       resources: {
         // TODO: adjust resources based on the actual usage

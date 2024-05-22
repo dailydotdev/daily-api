@@ -1,7 +1,7 @@
 import { DataSource } from 'typeorm';
 import { Feed } from '../entity/Feed';
 
-export const getFeedByIdentifiers = async ({
+export const getFeedByIdentifiersOrFail = async ({
   con,
   feedIdOrSlug,
   userId,
@@ -9,7 +9,7 @@ export const getFeedByIdentifiers = async ({
   con: DataSource;
   feedIdOrSlug: string;
   userId: string;
-}): Promise<Feed> => {
+}): Promise<Feed | never> => {
   const feed = await con.getRepository(Feed).findOneOrFail({
     where: [
       {
