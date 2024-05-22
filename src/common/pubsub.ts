@@ -18,6 +18,7 @@ import {
   CollectionPost,
   NotificationV2,
   UserPersonalizedDigest,
+  SquadPublicRequest,
 } from '../entity';
 import { ChangeMessage, ChangeObject } from '../types';
 import { SourceMemberRoles } from '../roles';
@@ -76,6 +77,7 @@ const postCollectionUpdatedTopic = pubsub.topic(
 );
 const userReadmeUpdatedTopic = pubsub.topic('api.v1.user-readme-updated');
 const userReputationUpdatedTopic = pubsub.topic('user-reputation-updated');
+const squadPublicRequestTopic = pubsub.topic('squad-pub-request');
 
 export enum NotificationReason {
   New = 'new',
@@ -403,6 +405,11 @@ export const notifyPostCollectionUpdated = async (
   log: EventLogger,
   post: ChangeObject<CollectionPost>,
 ): Promise<void> => publishEvent(log, postCollectionUpdatedTopic, { post });
+
+export const notifySquadPublicRequest = async (
+  log: EventLogger,
+  request: ChangeObject<SquadPublicRequest>,
+): Promise<void> => publishEvent(log, squadPublicRequestTopic, { request });
 
 export const notifyReputationIncrease = async (
   log: EventLogger,

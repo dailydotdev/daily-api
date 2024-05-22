@@ -5,6 +5,7 @@ import {
   CommentMention,
   MarketingCta,
   UserMarketingCta,
+  SquadPublicRequest,
 } from '../../entity';
 import { messageToJson, Worker } from '../worker';
 import {
@@ -71,6 +72,7 @@ import {
   triggerTypedEvent,
   notifyReputationIncrease,
   PubSubSchema,
+  notifySquadPublicRequest,
 } from '../../common';
 import { ChangeMessage, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
@@ -771,6 +773,18 @@ const onMarketingCtaChange = async (
   }
 };
 
+const onSquadPublicRequestChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<SquadPublicRequest>,
+) => {
+  if (data.payload.op === 'd') {
+    return;
+  }
+
+  await notifySquadPublicRequest(logger, data.payload.after);
+};
+
 const worker: Worker = {
   subscription: 'api-cdc',
   maxMessages: parseInt(process.env.CDC_WORKER_MAX_MESSAGES) || null,
@@ -850,6 +864,9 @@ const worker: Worker = {
           break;
         case getTableName(con, PostRelation):
           await onPostRelationChange(con, logger, data);
+          break;
+        case getTableName(con, SquadPublicRequest):
+          await onSquadPublicRequestChange(con, logger, data);
           break;
         case getTableName(con, MarketingCta):
           await onMarketingCtaChange(con, data);
