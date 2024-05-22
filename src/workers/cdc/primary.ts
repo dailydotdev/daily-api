@@ -72,7 +72,6 @@ import {
   triggerTypedEvent,
   notifyReputationIncrease,
   PubSubSchema,
-  notifySquadPublicRequest,
 } from '../../common';
 import { ChangeMessage, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
@@ -781,8 +780,9 @@ const onSquadPublicRequestChange = async (
   if (data.payload.op === 'd') {
     return;
   }
-
-  await notifySquadPublicRequest(logger, data.payload.after);
+  await triggerTypedEvent(logger, 'api.v1.squad-pub-request', {
+    request: data.payload.after,
+  });
 };
 
 const worker: Worker = {
