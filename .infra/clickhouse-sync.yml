@@ -132,6 +132,8 @@ skip_replica_start: "false"
 # binary.handling.mode: The mode for handling binary values. Possible values are bytes, base64, and decode. The default is bytes.
 #binary.handling.mode: "base64"
 
+bla.bla.wololo: "wololo"
+
 # ignore_delete: If set to true, the connector will ignore delete events. The default is false.
 #ignore_delete: "true"
 
