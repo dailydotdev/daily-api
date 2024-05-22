@@ -538,6 +538,7 @@ if (!isAdhocEnv) {
     {
       isAdhocEnv: isAdhocEnv,
       namespace: namespace,
+      env: [{name: "JAVA_OPTS", value: "-Xmx1g -Xms512m"}],
       props: {
         path: './clickhouse-sync.yml',
         keys: {
