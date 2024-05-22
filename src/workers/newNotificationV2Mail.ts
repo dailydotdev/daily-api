@@ -72,6 +72,9 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   collection_updated: 'd-c051ffef97a148b6a6f14d5edb46b553',
   dev_card_unlocked: 'd-6a6e3e807f7d419eb29933fbb025ca5a',
   source_post_added: 'd-3d3613684ca44cd0bc37fff4d38a90f1',
+  squad_public_submitted: '',
+  squad_public_rejected: '',
+  squad_public_approved: '',
 };
 
 type TemplateData = Record<string, string | number>;
@@ -663,6 +666,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       },
     };
   },
+  squad_public_submitted: null,
+  squad_public_rejected: null,
+  squad_public_approved: null,
 };
 
 const formatTemplateDate = <T extends TemplateData>(data: T): T => {

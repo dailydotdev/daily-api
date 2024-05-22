@@ -97,6 +97,12 @@ export const notificationTitleMap: Record<
   source_post_added: (
     ctx: NotificationPostContext & NotificationDoneByContext,
   ) => `New post from <b>${ctx.source.name}</b>, check it out now!`,
+  squad_public_approved: (
+    ctx: NotificationPostContext & NotificationDoneByContext,
+  ) =>
+    `<b>Congratulations! ${ctx.source.name} has successfully passed the review process and is now officially public!</b>`,
+  squad_public_rejected: () => null,
+  squad_public_submitted: () => null,
 };
 
 export const generateNotificationMap: Record<
@@ -318,4 +324,11 @@ export const generateNotificationMap: Record<
       .icon(NotificationIcon.Bell)
       .avatarSource(ctx.source)
       .objectPost(ctx.post, ctx.source, ctx.sharedPost),
+  squad_public_approved: (builder, ctx: NotificationSourceContext) =>
+    builder
+      .icon(NotificationIcon.DailyDev)
+      .targetSource(ctx.source)
+      .avatarSource(ctx.source),
+  squad_public_rejected: null,
+  squad_public_submitted: null,
 };
