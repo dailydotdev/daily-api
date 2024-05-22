@@ -17,6 +17,8 @@ import {
   MarketingCta,
   MarketingCtaStatus,
   UserMarketingCta,
+  SquadPublicRequest,
+  SquadPublicRequestStatus,
 } from '../../../src/entity';
 import {
   notifyCommentCommented,
@@ -107,6 +109,7 @@ import {
   StorageTopic,
   generateStorageKey,
 } from '../../../src/config';
+import { generateUUID } from '../../../src/ids';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -2624,5 +2627,92 @@ describe('marketing cta', () => {
         ),
       ).toHaveLength(4);
     });
+  });
+});
+
+describe('squad public request', () => {
+  type ObjectType = SquadPublicRequest;
+  const base: ChangeObject<ObjectType> = {
+    requestorId: '1',
+    sourceId: 'a',
+    status: SquadPublicRequestStatus.Pending,
+    id: generateUUID(),
+    createdAt: new Date().getTime(),
+    updatedAt: null,
+  };
+
+  it('should notify on new request', async () => {
+    const after: ChangeObject<ObjectType> = base;
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'squad_public_request',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.squad-pub-request',
+      { request: base },
+    ]);
+  });
+
+  it('should notify on approved request', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      updatedAt: new Date().getTime(),
+      status: SquadPublicRequestStatus.Approved,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'squad_public_request',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.squad-pub-request',
+      { request: after },
+    ]);
+  });
+
+  it('should notify on rejected request', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      updatedAt: new Date().getTime(),
+      status: SquadPublicRequestStatus.Rejected,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'squad_public_request',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.squad-pub-request',
+      { request: after },
+    ]);
+  });
+
+  it('should not notify on delete request', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: null,
+        before: base,
+        op: 'd',
+        table: 'squad_public_request',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
   });
 });
