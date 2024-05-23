@@ -1250,10 +1250,16 @@ export const resolvers: IResolvers<any, Context> = {
         hour?: number;
         day?: number;
         type?: UserPersonalizedDigestType;
+        sendType?: UserPersonalizedDigestSendType;
       },
       ctx: Context,
     ): Promise<GQLPersonalizedDigest> => {
-      const { hour, day, type = UserPersonalizedDigestType.Digest } = args;
+      const {
+        hour,
+        day,
+        type = UserPersonalizedDigestType.Digest,
+        sendType = UserPersonalizedDigestSendType.workdays,
+      } = args;
 
       if (!isNullOrUndefined(hour) && (hour < 0 || hour > 23)) {
         throw new ValidationError('Invalid hour');
@@ -1267,7 +1273,7 @@ export const resolvers: IResolvers<any, Context> = {
 
       const flags: UserPersonalizedDigestFlags = {};
       if (type === UserPersonalizedDigestType.ReadingReminder) {
-        flags.sendType = UserPersonalizedDigestSendType.workdays;
+        flags.sendType = sendType;
       }
 
       const personalizedDigest = await repo.save({
