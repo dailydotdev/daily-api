@@ -1124,7 +1124,7 @@ export const resolvers: IResolvers<any, Context> = {
         .getRepository(UserPersonalizedDigest)
         .findBy({ userId: ctx.userId });
 
-      if (!personalizedDigest) {
+      if (!personalizedDigest || personalizedDigest.length === 0) {
         throw new NotFoundError('Not subscribed to personalized digest');
       }
 

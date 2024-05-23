@@ -2253,10 +2253,12 @@ describe('query personalizedDigest', () => {
 
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
-    expect(res.data.personalizedDigest).toMatchObject({
-      preferredDay: 1,
-      preferredHour: 9,
-    });
+    expect(res.data.personalizedDigest).toMatchObject([
+      {
+        preferredDay: 1,
+        preferredHour: 9,
+      },
+    ]);
   });
 });
 
