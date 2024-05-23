@@ -7,7 +7,6 @@ config:
   api:clickhouseSync:
     keys:
       slot.name: "clickhouse_sync"
-      table.include.list: "public.post"
     vars:
       clickhouse_database:
         secure: AAABAFXhGil+ZGIYbGEIU71Q2eQslzMjGAkeeW0LumXI3GA=
