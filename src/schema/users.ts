@@ -621,6 +621,11 @@ export const typeDefs = /* GraphQL */ `
       Type of the digest (digest/reminder/etc)
       """
       type: DigestType
+
+      """
+      Send type of the digest
+      """
+      sendType: UserPersonalizedDigestSendType
     ): PersonalizedDigest @auth
 
     """
@@ -1272,7 +1277,7 @@ export const resolvers: IResolvers<any, Context> = {
       const repo = ctx.con.getRepository(UserPersonalizedDigest);
 
       const flags: UserPersonalizedDigestFlags = {};
-      if (type === UserPersonalizedDigestType.ReadingReminder) {
+      if (sendType) {
         flags.sendType = sendType;
       }
 
