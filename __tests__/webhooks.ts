@@ -129,11 +129,7 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
       });
 
       expect(
-        JSON.parse(
-          (await getRedisObject(
-            generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, '1'),
-          )) as string,
-        ),
+        JSON.parse((await getRedisObject(redisKey)) as string),
       ).toMatchObject({
         campaignId: 'worlds-best-campaign',
         createdAt: '2024-05-13T12:00:00.000Z',
