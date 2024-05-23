@@ -8,6 +8,7 @@ import createOrGetConnection from '../src/db';
 import request from 'supertest';
 import { createHmac } from 'crypto';
 import {
+  RedisMagicValues,
   deleteKeysByPattern,
   getRedisObject,
   setRedisObject,
@@ -121,7 +122,7 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
 
       const userMarketingCta = await con
         .getRepository(UserMarketingCta)
-        .findOneBy({ userId: '1', marketingCtaId: 'worlds-best-campaign' });
+        .findOneBy(payload);
 
       expect(userMarketingCta).toMatchObject({
         userId: '1',
@@ -145,7 +146,7 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
     });
 
     it('should change redis cache if sleeping', async () => {
-      await setRedisObject(redisKey, 'SLEEPING');
+      await setRedisObject(redisKey, RedisMagicValues.SLEEPING);
 
       const { body } = await request(app.server)
         .post('/webhooks/customerio/marketing_cta')
@@ -156,7 +157,7 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
 
       const userMarketingCta = await con
         .getRepository(UserMarketingCta)
-        .findOneBy({ userId: '1', marketingCtaId: 'worlds-best-campaign' });
+        .findOneBy(payload);
 
       expect(userMarketingCta).toMatchObject({
         userId: '1',
@@ -233,12 +234,12 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
         .post('/webhooks/customerio/marketing_cta')
         .set('x-cio-timestamp', timestamp.toString())
         .set('x-cio-signature', hash)
-        .send({ userId: '1', marketingCtaId: 'worlds-best-campaign' })
+        .send(payload)
         .expect(400);
 
       const userMarketingCta = await con
         .getRepository(UserMarketingCta)
-        .findOneBy({ userId: '1', marketingCtaId: 'worlds-best-campaign' });
+        .findOneBy(payload);
 
       expect(userMarketingCta).toBeNull();
       expect(body.success).toEqual(false);
