@@ -245,4 +245,77 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
       expect(body.success).toEqual(false);
     });
   });
+
+  describe('unassign user from marketing cta', () => {
+    beforeEach(async () => {
+      await con.getRepository(UserMarketingCta).insert({
+        userId: '1',
+        marketingCtaId: 'worlds-best-campaign',
+      });
+    });
+
+    it('should return 200 and delete user marketing cta', async () => {
+      expect(
+        await con.getRepository(UserMarketingCta).findOneBy(payload),
+      ).toMatchObject({
+        userId: '1',
+        marketingCtaId: 'worlds-best-campaign',
+      });
+
+      const { body } = await request(app.server)
+        .delete('/webhooks/customerio/marketing_cta')
+        .set('x-cio-timestamp', timestamp.toString())
+        .set('x-cio-signature', hash)
+        .send(payload)
+        .expect(200);
+
+      expect(body.success).toEqual(true);
+      expect(
+        await con.getRepository(UserMarketingCta).findOneBy(payload),
+      ).toBeNull();
+      expect(await getRedisObject(redisKey)).toEqual(RedisMagicValues.SLEEPING);
+    });
+
+    it('should preload the next available', async () => {
+      await con.getRepository(UserMarketingCta).insert({
+        userId: '1',
+        marketingCtaId: 'worlds-second-best-campaign',
+        createdAt: new Date('2024-05-13T12:00:00.000Z'),
+      });
+
+      expect(
+        await con.getRepository(UserMarketingCta).findBy({ userId: '1' }),
+      ).toHaveLength(2);
+
+      const { body } = await request(app.server)
+        .delete('/webhooks/customerio/marketing_cta')
+        .set('x-cio-timestamp', timestamp.toString())
+        .set('x-cio-signature', hash)
+        .send(payload)
+        .expect(200);
+
+      expect(body.success).toEqual(true);
+
+      expect(
+        await con.getRepository(UserMarketingCta).findBy({ userId: '1' }),
+      ).toHaveLength(1);
+      expect(
+        await con.getRepository(UserMarketingCta).findOneBy(payload),
+      ).toBeNull();
+      expect(
+        JSON.parse((await getRedisObject(redisKey)) as string),
+      ).toMatchObject({
+        campaignId: 'worlds-second-best-campaign',
+        createdAt: '2024-05-14T12:00:00.000Z',
+        variant: 'card',
+        status: 'active',
+        flags: {
+          title: 'Join the second best community in the world',
+          ctaUrl: 'http://localhost:5002',
+          ctaText: 'Join now',
+          description: 'Join the second best community in the world',
+        },
+      });
+    });
+  });
 });
