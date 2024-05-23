@@ -538,7 +538,7 @@ if (!isAdhocEnv) {
     {
       isAdhocEnv: isAdhocEnv,
       namespace: namespace,
-      env: [{name: "JAVA_OPTS", value: "-Xmx1g -Xms512m"}],
+      env: [{name: "JAVA_OPTS", value: "-Xmx3840m -Xms1024m"}],
       props: {
         path: './clickhouse-sync.yml',
         keys: {
@@ -565,12 +565,12 @@ if (!isAdhocEnv) {
       resources: {
         // TODO: adjust resources based on the actual usage
         requests: {
-          cpu: '500m',
-          memory: '1024Mi',
+          cpu: '1',
+          memory: '4096Mi',
         },
         limits: {
-          // 1.5GiB
-          memory: '1536Mi',
+          // 4GiB
+          memory: '4096Mi',
         },
       },
     },
