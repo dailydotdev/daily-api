@@ -71,4 +71,28 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
       }
     },
   });
+
+  /**
+   * DELETE /marketing_cta
+   *
+   * This route is used to unassaign a user from a marketing CTA.
+   */
+  fastify.delete<MarketingCtaPayload>('/marketing_cta', {
+    config: {
+      rawBody: true,
+    },
+    handler: async (req, res) => {
+      const { userId, marketingCtaId } = req.body;
+
+      const con = await createOrGetConnection();
+      await con.getRepository(UserMarketingCta).delete({
+        userId: userId,
+        marketingCtaId: marketingCtaId,
+      });
+
+      await cachePrefillMarketingCta(con, userId);
+
+      return res.send({ success: true });
+    },
+  });
 };
