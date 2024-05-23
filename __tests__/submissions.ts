@@ -127,6 +127,11 @@ describe('query submissionAvailability', () => {
       {
         url: 'http://abc.com/4',
         userId: '1',
+        createdAt: subDays(new Date().setHours(23), 1),
+      },
+      {
+        url: 'http://abc.com/4.midnight',
+        userId: '1',
         createdAt: zonedTimeToUtc(
           utcToZonedTime(new Date().setHours(23), 'Europe/Oslo'),
           'Europe/Oslo',
