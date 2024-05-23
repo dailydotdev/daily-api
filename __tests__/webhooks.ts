@@ -45,6 +45,12 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
   hmac.update(`v0:${timestamp}:${JSON.stringify(payload)}`);
   const hash = hmac.digest().toString('hex');
 
+  const redisKey = generateStorageKey(
+    StorageTopic.Boot,
+    StorageKey.MarketingCta,
+    '1',
+  );
+
   describe('webhook signature verification', () => {
     it('should return 403 when no x-cio-timestamp header', async () => {
       const { body } = await request(app.server)
@@ -143,11 +149,6 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
     });
 
     it('should change redis cache if sleeping', async () => {
-      const redisKey = generateStorageKey(
-        StorageTopic.Boot,
-        StorageKey.MarketingCta,
-        '1',
-      );
       await setRedisObject(redisKey, 'SLEEPING');
 
       const { body } = await request(app.server)
@@ -178,6 +179,51 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
           ctaUrl: 'http://localhost:5002',
           ctaText: 'Join now',
           description: 'Join the best community in the world',
+        },
+      });
+    });
+
+    it('should set the redis cache to the first in the queue', async () => {
+      await con.getRepository(UserMarketingCta).insert({
+        userId: '1',
+        marketingCtaId: 'worlds-second-best-campaign',
+        createdAt: new Date('2024-05-13T12:00:00.000Z'),
+      });
+
+      const { body } = await request(app.server)
+        .post('/webhooks/customerio/marketing_cta')
+        .set('x-cio-timestamp', timestamp.toString())
+        .set('x-cio-signature', hash)
+        .send(payload)
+        .expect(200);
+
+      const userMarketingCta = await con
+        .getRepository(UserMarketingCta)
+        .findBy({
+          userId: '1',
+          marketingCtaId: 'worlds-best-campaign',
+        });
+
+      userMarketingCta.forEach((umc) => {
+        expect([
+          'worlds-best-campaign',
+          'worlds-second-best-campaign',
+        ]).toContain(umc.marketingCtaId);
+      });
+
+      expect(body.success).toEqual(true);
+      expect(
+        JSON.parse((await getRedisObject(redisKey)) as string),
+      ).toMatchObject({
+        campaignId: 'worlds-second-best-campaign',
+        createdAt: '2024-05-14T12:00:00.000Z',
+        variant: 'card',
+        status: 'active',
+        flags: {
+          title: 'Join the second best community in the world',
+          ctaUrl: 'http://localhost:5002',
+          ctaText: 'Join now',
+          description: 'Join the second best community in the world',
         },
       });
     });
