@@ -69,6 +69,21 @@ describe('userUpdatedCio', () => {
     });
   });
 
+  it('should support accepted marketing false', async () => {
+    mocked(getShortGenericInviteLink).mockImplementation(async () => '');
+    await expectSuccessfulTypedBackground(worker, {
+      newProfile: { ...base, acceptedMarketing: false },
+      user: base,
+    } as unknown as PubSubSchema['user-updated']);
+    expect(
+      mocked(cio.identify).mock.calls[0][1].cio_subscription_preferences,
+    ).toEqual({
+      topics: {
+        topic_4: false,
+      },
+    });
+  });
+
   it('should not update customer.io if user is ghost user', async () => {
     const before: ChangeObject<ObjectType> = { ...base, id: '404' };
     await expectSuccessfulTypedBackground(worker, {
