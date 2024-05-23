@@ -11,6 +11,8 @@ import {
   SourceFlagsPublic,
   SourceMember,
   SourceMemberFlagsPublic,
+  SquadPublicRequest,
+  SquadPublicRequestStatus,
   SquadSource,
   User,
 } from '../entity';
@@ -533,6 +535,10 @@ export const typeDefs = /* GraphQL */ `
       Role required for members to invite
       """
       memberInviteRole: String
+      """
+      Whether the Squad should change its privacy
+      """
+      isPrivate: Boolean
     ): Source! @auth
 
     """
@@ -910,6 +916,7 @@ type EditSquadArgs = {
   image?: FileUpload;
   memberPostingRole?: SourceMemberRoles;
   memberInviteRole?: SourceMemberRoles;
+  isPrivate?: boolean;
 };
 
 const getSourceById = async (
@@ -1462,6 +1469,7 @@ export const resolvers: IResolvers<any, Context> = {
         description,
         memberPostingRole,
         memberInviteRole,
+        isPrivate,
       }: EditSquadArgs,
       ctx,
       info,
@@ -1483,6 +1491,20 @@ export const resolvers: IResolvers<any, Context> = {
         inputHandle !== current.handle,
       );
 
+      if (!isNullOrUndefined(isPrivate) && current.private !== isPrivate) {
+        const approved = await ctx.con
+          .getRepository(SquadPublicRequest)
+          .findOne({
+            where: { sourceId, status: SquadPublicRequestStatus.Approved },
+          });
+
+        if (!approved) {
+          throw new ValidationError(
+            'Squad has not been approved yet of becoming public',
+          );
+        }
+      }
+
       try {
         const editedSourceId = await ctx.con.transaction(
           async (entityManager) => {
@@ -1496,6 +1518,7 @@ export const resolvers: IResolvers<any, Context> = {
                 description,
                 memberPostingRank: sourceRoleRank[memberPostingRole],
                 memberInviteRank: sourceRoleRank[memberInviteRole],
+                private: isPrivate,
               },
             );
             // Upload the image (if provided)
