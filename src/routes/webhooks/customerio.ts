@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import createOrGetConnection from '../../db';
 import { UserMarketingCta } from '../../entity';
-import { getMarketingCta } from '../../schema/users';
+import { cachePrefillMarketingCta } from '../../schema/users';
 import { logger } from '../../logger';
 
 const verifyCIOSignature = (
@@ -62,7 +62,7 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
           ['userId', 'marketingCtaId'],
         );
 
-        await getMarketingCta(con, logger, userId);
+        await cachePrefillMarketingCta(con, userId);
 
         return res.send({ success: true });
       } catch (err) {
