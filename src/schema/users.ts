@@ -22,6 +22,7 @@ import {
   UserPersonalizedDigestFlags,
   UserPersonalizedDigestSendType,
   MarketingCtaStatus,
+  UserPersonalizedDigestFlagsPublic,
 } from '../entity';
 import {
   AuthenticationError,
@@ -165,6 +166,8 @@ export interface ReferralCampaign {
 export interface GQLPersonalizedDigest {
   preferredDay: DayOfWeek;
   preferredHour: number;
+  type: UserPersonalizedDigestType;
+  flags: UserPersonalizedDigestFlagsPublic;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -413,11 +416,21 @@ export const typeDefs = /* GraphQL */ `
     url: String!
   }
 
+  """
+  flags property of PersonalizedDigest entity
+  """
+  type PersonalizedDigestFlagsPublic {
+    sendType: UserPersonalizedDigestSendType
+  }
+
   type PersonalizedDigest {
     preferredDay: Int!
     preferredHour: Int!
+    flags: PersonalizedDigestFlagsPublic
     type: DigestType
   }
+
+  ${toGQLEnum(UserPersonalizedDigestSendType, 'UserPersonalizedDigestSendType')}
 
   type UserEdge {
     node: User!
@@ -565,9 +578,9 @@ export const typeDefs = /* GraphQL */ `
     ): ReferralCampaign! @auth
 
     """
-    Get personalized digest settings
+    Get personalized digest settings for user
     """
-    personalizedDigest(type: DigestType): PersonalizedDigest @auth
+    personalizedDigest: [PersonalizedDigest] @auth
 
     """
     List of users that the logged in user has referred to the platform
@@ -1104,14 +1117,12 @@ export const resolvers: IResolvers<any, Context> = {
     },
     personalizedDigest: async (
       _,
-      {
-        type = UserPersonalizedDigestType.Digest,
-      }: { type?: UserPersonalizedDigestType },
+      __,
       ctx: Context,
-    ): Promise<GQLPersonalizedDigest> => {
+    ): Promise<GQLPersonalizedDigest[]> => {
       const personalizedDigest = await ctx
         .getRepository(UserPersonalizedDigest)
-        .findOneBy({ userId: ctx.userId, type });
+        .findBy({ userId: ctx.userId });
 
       if (!personalizedDigest) {
         throw new NotFoundError('Not subscribed to personalized digest');
