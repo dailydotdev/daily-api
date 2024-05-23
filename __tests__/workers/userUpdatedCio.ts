@@ -35,6 +35,7 @@ describe('userUpdatedCio', () => {
     updatedAt: 1714577744717000,
     bio: 'bio',
     readme: 'readme',
+    acceptedMarketing: true,
   };
 
   it('should be registered', () => {
@@ -59,6 +60,12 @@ describe('userUpdatedCio', () => {
       updated_at: 1714577744,
       username: 'cio',
       referral_link: referral,
+      accepted_marketing: true,
+      cio_subscription_preferences: {
+        topics: {
+          topic_4: true,
+        },
+      },
     });
   });
 
