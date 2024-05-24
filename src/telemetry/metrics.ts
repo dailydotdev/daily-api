@@ -10,25 +10,30 @@ import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
 import { isProd } from '../common';
 
 export const startMetrics = (serviceName: string): void => {
-  const metricReader = isProd
-    ? new metrics.PeriodicExportingMetricReader({
+  const readers: metrics.MetricReader[] = [
+    new PrometheusExporter({}, () => {
+      const { endpoint, port } = PrometheusExporter.DEFAULT_OPTIONS;
+      console.log(`metrics endpoint: http://localhost:${port}${endpoint}`);
+    }),
+  ];
+
+  if (isProd) {
+    readers.push(
+      new metrics.PeriodicExportingMetricReader({
         exportIntervalMillis: 10_000,
         exporter: new MetricExporter(),
-      })
-    : new PrometheusExporter({}, () => {
-        const { endpoint, port } = PrometheusExporter.DEFAULT_OPTIONS;
-        console.log(`metrics endpoint: http://localhost:${port}${endpoint}`);
-      });
-
-  const meterProvider = new metrics.MeterProvider({
-    resource: new resources.Resource({
-      [SemanticResourceAttributes.SERVICE_NAME]: serviceName,
-    }).merge(
-      resources.detectResourcesSync({
-        detectors: [containerDetector, gcpDetector, new GcpDetectorSync()],
       }),
-    ),
-    readers: [metricReader],
-  });
+    );
+  }
+
+  const resource = new resources.Resource({
+    [SemanticResourceAttributes.SERVICE_NAME]: serviceName,
+  }).merge(
+    resources.detectResourcesSync({
+      detectors: [containerDetector, gcpDetector, new GcpDetectorSync()],
+    }),
+  );
+
+  const meterProvider = new metrics.MeterProvider({ resource, readers });
   api.metrics.setGlobalMeterProvider(meterProvider);
 };
