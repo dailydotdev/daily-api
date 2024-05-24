@@ -4,6 +4,7 @@ import {
   ArticlePost,
   CollectionPost,
   Comment,
+  getAuthorPostStats,
   NotificationAttachmentV2,
   NotificationAvatarV2,
   NotificationV2,
@@ -13,10 +14,11 @@ import {
   SharePost,
   Source,
   SourceRequest,
+  SquadPublicRequest,
+  SquadPublicRequestStatus,
   Submission,
   User,
   WelcomePost,
-  getAuthorPostStats,
 } from '../entity';
 import {
   addNotificationEmailUtm,
@@ -72,9 +74,9 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   collection_updated: 'd-c051ffef97a148b6a6f14d5edb46b553',
   dev_card_unlocked: 'd-6a6e3e807f7d419eb29933fbb025ca5a',
   source_post_added: 'd-3d3613684ca44cd0bc37fff4d38a90f1',
-  squad_public_submitted: '',
-  squad_public_rejected: '',
-  squad_public_approved: '',
+  squad_public_submitted: 'd-8edfa432086649a08eb57d353e4cee94',
+  squad_public_rejected: 'd-990613fa2d83435abdd5675bc1c33f95',
+  squad_public_approved: 'd-899ec61a04124e3bae7bd543c2e304bb',
 };
 
 type TemplateData = Record<string, string | number>;
@@ -666,9 +668,67 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       },
     };
   },
-  squad_public_submitted: null,
-  squad_public_rejected: null,
-  squad_public_approved: null,
+  squad_public_submitted: async (con, users, notification) => {
+    const request = await con.getRepository(SquadPublicRequest).findOne({
+      where: {
+        sourceId: notification.referenceId,
+        status: SquadPublicRequestStatus.Pending,
+      },
+    });
+
+    const squad = await request.source;
+
+    return {
+      static: {
+        squad_name: squad.name,
+        squad_handle: squad.handle,
+        squad_image: squad.image,
+        timestamp: formatMailDate(request.createdAt),
+      },
+    };
+  },
+  squad_public_rejected: async (con, users, notification) => {
+    const request = await con.getRepository(SquadPublicRequest).findOneOrFail({
+      where: {
+        sourceId: notification.referenceId,
+        status: SquadPublicRequestStatus.Rejected,
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    const squad = await request.source;
+    const requestor = await request.requestor;
+
+    return {
+      static: {
+        squad_name: squad.name,
+        squad_handle: squad.handle,
+        squad_image: squad.image,
+        first_name: getFirstName(requestor.name),
+      },
+    };
+  },
+  squad_public_approved: async (con, users, notification) => {
+    const request = await con.getRepository(SquadPublicRequest).findOneOrFail({
+      where: {
+        sourceId: notification.referenceId,
+        status: SquadPublicRequestStatus.Approved,
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    const squad = await request.source;
+    const requestor = await request.requestor;
+
+    return {
+      static: {
+        squad_name: squad.name,
+        squad_handle: squad.handle,
+        squad_image: squad.image,
+        first_name: getFirstName(requestor.name),
+      },
+    };
+  },
 };
 
 const formatTemplateDate = <T extends TemplateData>(data: T): T => {
@@ -709,9 +769,15 @@ const worker: Worker = {
           if (!users.length) {
             return;
           }
-          const templateData = await notificationToTemplateData[
-            notification.type
-          ](con, users, notification, attachments, avatars);
+          const templateDataFunc =
+            notificationToTemplateData[notification.type];
+          const templateData = await templateDataFunc(
+            con,
+            users,
+            notification,
+            attachments,
+            avatars,
+          );
           if (!templateData) {
             return;
           }
