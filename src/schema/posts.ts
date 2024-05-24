@@ -31,6 +31,7 @@ import {
   uploadPostFile,
   UploadPreset,
   validatePost,
+  ONE_MINUTE_IN_SECONDS,
 } from '../common';
 import {
   ArticlePost,
@@ -70,7 +71,6 @@ import graphorm from '../graphorm';
 import { GQLUser } from './users';
 import {
   getRedisObject,
-  ONE_MINUTE_IN_SECONDS,
   redisPubSub,
   setRedisObjectWithExpiry,
 } from '../redis';

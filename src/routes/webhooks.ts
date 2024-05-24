@@ -1,12 +1,10 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import { EventWebhook, EventWebhookHeader } from '@sendgrid/eventwebhook';
-import { createHmac, timingSafeEqual } from 'crypto';
 import createOrGetConnection from '../db';
-import { User, UserMarketingCta } from '../entity';
+import { User } from '../entity';
 import { In } from 'typeorm';
 import { sendAnalyticsEvent } from '../integrations/analytics';
-import { logger } from '../logger';
-import { getMarketingCta } from '../schema/users';
+import { customerio } from './webhooks/customerio';
 
 type SendgridEvent = {
   email: string;
@@ -49,32 +47,6 @@ const verifySendgridRequest = (
     signature,
     timestamp,
   );
-};
-
-const verifyCIOSignature = (
-  webhookSigningSecret: string,
-  req: FastifyRequest,
-): boolean => {
-  const timestamp = req.headers['x-cio-timestamp'] as string;
-  const signature = req.headers['x-cio-signature'] as string;
-
-  if (!timestamp || !signature) {
-    return false;
-  }
-
-  const hmac = createHmac('sha256', webhookSigningSecret);
-  hmac.update(`v0:${timestamp}:`);
-  hmac.update(req.rawBody);
-
-  const hash = hmac.digest();
-
-  if (!timingSafeEqual(hash, Buffer.from(signature, 'hex'))) {
-    logger.debug("CIO Signature didn't match");
-    return false;
-  }
-
-  logger.debug('CIO Signature matched!');
-  return true;
 };
 
 export default async function (fastify: FastifyInstance): Promise<void> {
@@ -142,40 +114,5 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     },
   });
 
-  fastify.post<{
-    Body: {
-      userId: string;
-      marketingCtaId: string;
-    };
-  }>('/customerio/marketing_cta', {
-    config: {
-      rawBody: true,
-    },
-    handler: async (req, res) => {
-      const valid = verifyCIOSignature(process.env.CIO_WEBHOOK_SECRET, req);
-      if (!valid) {
-        return res.status(403).send({ error: 'Invalid signature' });
-      }
-
-      try {
-        const { userId, marketingCtaId } = req.body;
-
-        const con = await createOrGetConnection();
-        await con.getRepository(UserMarketingCta).upsert(
-          {
-            userId: userId,
-            marketingCtaId: marketingCtaId,
-          },
-          ['userId', 'marketingCtaId'],
-        );
-
-        await getMarketingCta(con, logger, userId);
-
-        return res.send({ success: true });
-      } catch (err) {
-        logger.error({ err }, 'Error processing CIO webhook');
-        return res.status(400).send({ success: false });
-      }
-    },
-  });
+  fastify.register(customerio, { prefix: '/customerio' });
 }
