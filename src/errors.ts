@@ -68,12 +68,15 @@ export const SubmissionFailErrorMessage: Record<
 
 export enum SourceRequestErrorKeys {
   AccessDenied = 'ACCESS_DENIED',
+  SquadIneligible = 'SQUAD_INELIGIBLE',
 }
 
 export const SourceRequestErrorMessage: Record<SourceRequestErrorKeys, string> =
   {
     [SourceRequestErrorKeys.AccessDenied]:
       'You do not have sufficient permissions and or reputation to submit a source request yet.',
+    [SourceRequestErrorKeys.SquadIneligible]:
+      'Squad has not been approved yet of becoming public',
   };
 
 export class NotFoundError extends ApolloError {

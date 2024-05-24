@@ -35,6 +35,7 @@ describe('userCreatedCio', () => {
     updatedAt: 1714577744717000,
     bio: 'bio',
     readme: 'readme',
+    acceptedMarketing: true,
   };
 
   it('should be registered', () => {
@@ -58,6 +59,26 @@ describe('userCreatedCio', () => {
       updated_at: 1714577744,
       username: 'cio',
       referral_link: referral,
+      accepted_marketing: true,
+      cio_subscription_preferences: {
+        topics: {
+          topic_4: true,
+        },
+      },
+    });
+  });
+
+  it('should support accepted marketing false', async () => {
+    mocked(getShortGenericInviteLink).mockImplementation(async () => '');
+    await expectSuccessfulTypedBackground(worker, {
+      user: { ...base, acceptedMarketing: false },
+    } as unknown as PubSubSchema['api.v1.user-created']);
+    expect(
+      mocked(cio.identify).mock.calls[0][1].cio_subscription_preferences,
+    ).toEqual({
+      topics: {
+        topic_4: false,
+      },
     });
   });
 
