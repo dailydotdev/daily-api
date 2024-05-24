@@ -8,12 +8,14 @@ import { gcpDetector } from '@opentelemetry/resource-detector-gcp';
 import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
 
 import { isProd } from '../common';
+import { logger } from '../logger';
 
 export const startMetrics = (serviceName: string): void => {
   const readers: metrics.MetricReader[] = [
-    new PrometheusExporter({}, () => {
-      const { endpoint, port } = PrometheusExporter.DEFAULT_OPTIONS;
-      console.log(`metrics endpoint: http://localhost:${port}${endpoint}`);
+    new PrometheusExporter({}, (err) => {
+      if (err) {
+        logger.error({ err }, `Failed to start metrics server`);
+      }
     }),
   ];
 
