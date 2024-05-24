@@ -28,12 +28,16 @@ import { getSettings } from '../schema/settings';
 import {
   getRedisObject,
   ioRedisPool,
-  ONE_DAY_IN_SECONDS,
   setRedisObject,
   setRedisObjectWithExpiry,
 } from '../redis';
 import { generateStorageKey, REDIS_BANNER_KEY, StorageTopic } from '../config';
-import { base64, getSourceLink, submitArticleThreshold } from '../common';
+import {
+  ONE_DAY_IN_SECONDS,
+  base64,
+  getSourceLink,
+  submitArticleThreshold,
+} from '../common';
 import { AccessToken, signJwt } from '../auth';
 import { cookies, setCookie, setRawCookie } from '../cookies';
 import { parse } from 'graphql/language/parser';
