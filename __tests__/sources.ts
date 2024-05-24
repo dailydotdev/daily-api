@@ -19,6 +19,8 @@ import {
   SourceFeed,
   SourceMember,
   SourceType,
+  SquadPublicRequest,
+  SquadPublicRequestStatus,
   SquadSource,
   User,
   WelcomePost,
@@ -1451,8 +1453,8 @@ describe('mutation createSquad', () => {
 
 describe('mutation editSquad', () => {
   const MUTATION = `
-  mutation EditSquad($sourceId: ID!, $name: String!, $handle: String!, $description: String, $memberPostingRole: String, $memberInviteRole: String) {
-  editSquad(sourceId: $sourceId, name: $name, handle: $handle, description: $description, memberPostingRole: $memberPostingRole, memberInviteRole: $memberInviteRole) {
+  mutation EditSquad($sourceId: ID!, $name: String!, $handle: String!, $description: String, $memberPostingRole: String, $memberInviteRole: String, $isPrivate: Boolean) {
+  editSquad(sourceId: $sourceId, name: $name, handle: $handle, description: $description, memberPostingRole: $memberPostingRole, memberInviteRole: $memberInviteRole, isPrivate: $isPrivate) {
     id
   }
 }`;
@@ -1499,6 +1501,67 @@ describe('mutation editSquad', () => {
       .getRepository(SquadSource)
       .findOneBy({ id: variables.sourceId });
     expect(editSource.name).toEqual('test');
+  });
+
+  it('should not edit squad to public if no request was approved', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, isPrivate: false } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should ignore null private value and edit squad', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, name: 'test', isPrivate: null },
+    });
+
+    expect(res.errors).toBeFalsy();
+    const editSource = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: variables.sourceId });
+    expect(editSource.name).toEqual('test');
+    expect(editSource.private).toBeTruthy();
+  });
+
+  it("should not change squad's private status if variable is not found", async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, { variables });
+
+    expect(res.errors).toBeFalsy();
+    const editSource = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: variables.sourceId });
+    expect(editSource.private).toBeTruthy();
+  });
+
+  it('should edit squad privacy status if the user has been approved before', async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(SquadSource)
+      .update({ id: variables.sourceId }, { private: true });
+    await con.getRepository(SquadPublicRequest).save({
+      sourceId: variables.sourceId,
+      requestorId: '1',
+      status: SquadPublicRequestStatus.Approved,
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, isPrivate: false },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const editSource = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: variables.sourceId });
+    expect(editSource.private).toBeFalsy();
   });
 
   it('should edit squad description with new lines', async () => {

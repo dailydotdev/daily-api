@@ -11,6 +11,8 @@ import {
   SourceFlagsPublic,
   SourceMember,
   SourceMemberFlagsPublic,
+  SquadPublicRequest,
+  SquadPublicRequestStatus,
   SquadSource,
   User,
 } from '../entity';
@@ -44,7 +46,11 @@ import {
 } from '../common';
 import { toGQLEnum } from '../common/utils';
 import { GraphQLResolveInfo } from 'graphql';
-import { SourcePermissionErrorKeys, TypeOrmError } from '../errors';
+import {
+  SourcePermissionErrorKeys,
+  SourceRequestErrorMessage,
+  TypeOrmError,
+} from '../errors';
 import {
   descriptionRegex,
   isNullOrUndefined,
@@ -533,6 +539,10 @@ export const typeDefs = /* GraphQL */ `
       Role required for members to invite
       """
       memberInviteRole: String
+      """
+      Whether the Squad should change its privacy
+      """
+      isPrivate: Boolean
     ): Source! @auth
 
     """
@@ -910,6 +920,7 @@ type EditSquadArgs = {
   image?: FileUpload;
   memberPostingRole?: SourceMemberRoles;
   memberInviteRole?: SourceMemberRoles;
+  isPrivate?: boolean;
 };
 
 const getSourceById = async (
@@ -1462,6 +1473,7 @@ export const resolvers: IResolvers<any, Context> = {
         description,
         memberPostingRole,
         memberInviteRole,
+        isPrivate,
       }: EditSquadArgs,
       ctx,
       info,
@@ -1483,21 +1495,35 @@ export const resolvers: IResolvers<any, Context> = {
         inputHandle !== current.handle,
       );
 
+      const updates: Partial<SquadSource> = {
+        name,
+        handle,
+        description,
+        memberPostingRank: sourceRoleRank[memberPostingRole],
+        memberInviteRank: sourceRoleRank[memberInviteRole],
+      };
+
+      if (!isNullOrUndefined(isPrivate) && current.private !== isPrivate) {
+        const approved = await ctx.con
+          .getRepository(SquadPublicRequest)
+          .findOne({
+            where: { sourceId, status: SquadPublicRequestStatus.Approved },
+          });
+
+        if (!approved) {
+          throw new ValidationError(SourceRequestErrorMessage.SQUAD_INELIGIBLE);
+        }
+
+        updates.private = isPrivate;
+      }
+
       try {
         const editedSourceId = await ctx.con.transaction(
           async (entityManager) => {
             const repo = entityManager.getRepository(SquadSource);
+
             // Update existing squad
-            await repo.update(
-              { id: sourceId },
-              {
-                name,
-                handle,
-                description,
-                memberPostingRank: sourceRoleRank[memberPostingRole],
-                memberInviteRank: sourceRoleRank[memberInviteRole],
-              },
-            );
+            await repo.update({ id: sourceId }, updates);
             // Upload the image (if provided)
             if (image) {
               const { createReadStream } = await image;
