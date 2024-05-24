@@ -31,6 +31,7 @@ export enum SubmissionFailErrorKeys {
   FeedCountLimitReached = 'FEED_COUNT_LIMIT_REACHED',
   FeedNameRequired = 'FEED_NAME_REQUIRED',
   FeedNameInvalid = 'FEED_NAME_INVALID',
+  FeedNameLength = 'FEED_NAME_LENGTH',
 }
 
 export const SubmissionFailErrorMessage: Record<
@@ -68,6 +69,7 @@ export const SubmissionFailErrorMessage: Record<
     'You have reached maximum number of feeds for your user',
   FEED_NAME_REQUIRED: 'Feed name is required',
   FEED_NAME_INVALID: 'Feed name should not contain special characters',
+  FEED_NAME_LENGTH: 'Feed name is too long',
 };
 
 export enum SourceRequestErrorKeys {

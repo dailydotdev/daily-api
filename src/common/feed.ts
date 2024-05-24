@@ -28,6 +28,8 @@ export const getFeedByIdentifiersOrFail = async ({
   return feed;
 };
 
+export const maxFeedNameLength = 50;
+
 export const validateFeedPayload = ({
   name,
 }: {
@@ -35,6 +37,10 @@ export const validateFeedPayload = ({
 }): never | undefined => {
   if (!name) {
     throw new ValidationError(SubmissionFailErrorMessage.FEED_NAME_REQUIRED);
+  }
+
+  if (name.length > maxFeedNameLength) {
+    throw new ValidationError(SubmissionFailErrorMessage.FEED_NAME_LENGTH);
   }
 
   if (!feedNameMatcher.test(name)) {

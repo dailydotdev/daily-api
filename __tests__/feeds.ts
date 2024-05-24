@@ -1,6 +1,7 @@
 import {
   createSquadWelcomePost,
   feedToFilters,
+  maxFeedNameLength,
   Ranking,
   WATERCOOLER_ID,
 } from '../src/common';
@@ -2787,6 +2788,22 @@ describe('mutation createFeed', () => {
       'GRAPHQL_VALIDATION_FAILED',
     );
   });
+
+  it('should not create a new feed when name is too long', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: 'cf1',
+          name: new Array(maxFeedNameLength + 1).fill('a').join(''),
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
 });
 
 describe('mutation updateFeed', () => {
@@ -2921,6 +2938,22 @@ describe('mutation updateFeed', () => {
         variables: {
           feedId: 'cf1',
           name: 'Cool feed <div>aaa</div>',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not update the feed when name is too long', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: 'cf1',
+          name: new Array(maxFeedNameLength + 1).fill('a').join(''),
         },
       },
       'GRAPHQL_VALIDATION_FAILED',
