@@ -41,6 +41,7 @@ import {
   NotificationSourceContext,
   NotificationSourceMemberRoleContext,
   NotificationSourceRequestContext,
+  NotificationSquadRequestContext,
   NotificationSubmissionContext,
   NotificationUpvotersContext,
 } from '../../src/notifications';
@@ -1279,12 +1280,13 @@ describe('squad public request notifications', () => {
   });
 
   it('should send an email to the requestor when submitted', async () => {
-    await con.getRepository(SquadPublicRequest).save({
+    const request = await con.getRepository(SquadPublicRequest).save({
       requestorId: '1',
       sourceId: 'a',
       status: SquadPublicRequestStatus.Pending,
     });
-    const ctx: NotificationBaseContext & NotificationSourceContext = {
+    const ctx: NotificationSquadRequestContext & NotificationSourceContext = {
+      squadRequest: request,
       userIds: ['1'],
       source,
     };
@@ -1311,12 +1313,13 @@ describe('squad public request notifications', () => {
   });
 
   it('should send an email to the requestor when rejected', async () => {
-    await con.getRepository(SquadPublicRequest).save({
+    const request = await con.getRepository(SquadPublicRequest).save({
       requestorId: '1',
       sourceId: 'a',
       status: SquadPublicRequestStatus.Rejected,
     });
-    const ctx: NotificationBaseContext & NotificationSourceContext = {
+    const ctx: NotificationSquadRequestContext & NotificationSourceContext = {
+      squadRequest: request,
       userIds: ['1'],
       source,
     };
@@ -1343,12 +1346,13 @@ describe('squad public request notifications', () => {
   });
 
   it('should send an email to the requestor when approved', async () => {
-    await con.getRepository(SquadPublicRequest).save({
+    const request = await con.getRepository(SquadPublicRequest).save({
       requestorId: '1',
       sourceId: 'a',
       status: SquadPublicRequestStatus.Approved,
     });
-    const ctx: NotificationBaseContext & NotificationSourceContext = {
+    const ctx: NotificationSquadRequestContext & NotificationSourceContext = {
+      squadRequest: request,
       userIds: ['1'],
       source,
     };

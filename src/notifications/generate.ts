@@ -336,10 +336,10 @@ export const generateNotificationMap: Record<
       .avatarSource(ctx.source),
   squad_public_rejected: (
     builder: NotificationBuilder,
-    ctx: NotificationSourceContext,
-  ) => builder.systemNotification().referenceSource(ctx.source),
+    ctx: NotificationSquadRequestContext & NotificationSourceContext,
+  ) => builder.systemNotification().referenceSquadRequest(ctx.squadRequest),
   squad_public_submitted: (
     builder: NotificationBuilder,
-    ctx: NotificationSourceContext,
-  ) => builder.systemNotification().referenceSource(ctx.source),
+    ctx: NotificationSquadRequestContext & NotificationSourceContext,
+  ) => builder.systemNotification().referenceSquadRequest(ctx.squadRequest),
 };

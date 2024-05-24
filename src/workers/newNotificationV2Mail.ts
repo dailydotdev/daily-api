@@ -670,10 +670,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   },
   squad_public_submitted: async (con, users, notification) => {
     const request = await con.getRepository(SquadPublicRequest).findOne({
-      where: {
-        sourceId: notification.referenceId,
-        status: SquadPublicRequestStatus.Pending,
-      },
+      where: { id: notification.referenceId },
     });
 
     const squad = await request.source;
@@ -689,10 +686,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   },
   squad_public_rejected: async (con, users, notification) => {
     const request = await con.getRepository(SquadPublicRequest).findOneOrFail({
-      where: {
-        sourceId: notification.referenceId,
-        status: SquadPublicRequestStatus.Rejected,
-      },
+      where: { id: notification.referenceId },
       order: { createdAt: 'DESC' },
     });
 
@@ -710,10 +704,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   },
   squad_public_approved: async (con, users, notification) => {
     const request = await con.getRepository(SquadPublicRequest).findOneOrFail({
-      where: {
-        sourceId: notification.referenceId,
-        status: SquadPublicRequestStatus.Approved,
-      },
+      where: { id: notification.referenceId },
       order: { createdAt: 'DESC' },
     });
 
