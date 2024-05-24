@@ -28,8 +28,7 @@ export const startMetrics = (serviceName: string): void => {
         detectors: [containerDetector, gcpDetector, new GcpDetectorSync()],
       }),
     ),
+    readers: [metricReader],
   });
-
-  meterProvider.addMetricReader(metricReader);
   api.metrics.setGlobalMeterProvider(meterProvider);
 };
