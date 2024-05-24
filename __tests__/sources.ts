@@ -1513,6 +1513,21 @@ describe('mutation editSquad', () => {
     );
   });
 
+  it('should ignore null private value and edit squad', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, name: 'test', isPrivate: null },
+    });
+
+    expect(res.errors).toBeFalsy();
+    const editSource = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: variables.sourceId });
+    expect(editSource.name).toEqual('test');
+    expect(editSource.private).toBeTruthy();
+  });
+
   it("should not change squad's private status if variable is not found", async () => {
     loggedUser = '1';
 

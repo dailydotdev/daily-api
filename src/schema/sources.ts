@@ -46,7 +46,11 @@ import {
 } from '../common';
 import { toGQLEnum } from '../common/utils';
 import { GraphQLResolveInfo } from 'graphql';
-import { SourcePermissionErrorKeys, TypeOrmError } from '../errors';
+import {
+  SourcePermissionErrorKeys,
+  SourceRequestErrorMessage,
+  TypeOrmError,
+} from '../errors';
 import {
   descriptionRegex,
   isNullOrUndefined,
@@ -1499,9 +1503,7 @@ export const resolvers: IResolvers<any, Context> = {
           });
 
         if (!approved) {
-          throw new ValidationError(
-            'Squad has not been approved yet of becoming public',
-          );
+          throw new ValidationError(SourceRequestErrorMessage.SQUAD_INELIGIBLE);
         }
       }
 
@@ -1509,18 +1511,20 @@ export const resolvers: IResolvers<any, Context> = {
         const editedSourceId = await ctx.con.transaction(
           async (entityManager) => {
             const repo = entityManager.getRepository(SquadSource);
+            const updates: Partial<SquadSource> = {
+              name,
+              handle,
+              description,
+              memberPostingRank: sourceRoleRank[memberPostingRole],
+              memberInviteRank: sourceRoleRank[memberInviteRole],
+            };
+
+            if (!isNullOrUndefined(isPrivate)) {
+              updates.private = isPrivate;
+            }
+
             // Update existing squad
-            await repo.update(
-              { id: sourceId },
-              {
-                name,
-                handle,
-                description,
-                memberPostingRank: sourceRoleRank[memberPostingRole],
-                memberInviteRank: sourceRoleRank[memberInviteRole],
-                private: isPrivate,
-              },
-            );
+            await repo.update({ id: sourceId }, updates);
             // Upload the image (if provided)
             if (image) {
               const { createReadStream } = await image;
