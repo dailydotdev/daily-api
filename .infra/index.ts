@@ -538,6 +538,7 @@ if (!isAdhocEnv) {
     {
       isAdhocEnv: isAdhocEnv,
       namespace: namespace,
+      env: [{name: "JAVA_OPTS", value: "-Xmx3840m -Xms1024m"}],
       props: {
         path: './clickhouse-sync.yml',
         keys: {
@@ -550,7 +551,6 @@ if (!isAdhocEnv) {
           'database.user': config.require('debeziumDbUser'),
           'database.server.name': name,
           'database.dbname': name,
-          'table.include.list': 'public.post,public.source,public.keyword,public.feed_tag,public.post_tag,public.feed_source',
         },
         vars: {
           ...config.requireObject<{ vars: Record<string, string> }>(
@@ -560,17 +560,17 @@ if (!isAdhocEnv) {
       },
       image: {
         repository: 'gcr.io/daily-ops/clickhouse-sink-docker',
-        tag: '09c6bb2d1fc05b426f8202419effa84e472b7f01',
+        tag: '46ee0a5b89506449be786cd416efb464f9f0390c',
       },
       resources: {
         // TODO: adjust resources based on the actual usage
         requests: {
-          cpu: '500m',
-          memory: '1024Mi',
+          cpu: '1',
+          memory: '4096Mi',
         },
         limits: {
-          // 1.5GiB
-          memory: '1536Mi',
+          // 4GiB
+          memory: '4096Mi',
         },
       },
     },

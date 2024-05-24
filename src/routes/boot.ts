@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import createOrGetConnection from '../db';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, Not } from 'typeorm';
 import { clearAuthentication, dispatchWhoami } from '../kratos';
 import { generateUUID } from '../ids';
 import { generateSessionId, setTrackingId } from '../tracking';
@@ -10,6 +10,7 @@ import {
   ALERTS_DEFAULT,
   Banner,
   Feature,
+  Feed,
   MarketingCta,
   Settings,
   SETTINGS_DEFAULT,
@@ -44,6 +45,7 @@ import { getEncryptedFeatures } from '../growthbook';
 import { differenceInMinutes, isSameDay } from 'date-fns';
 import { runInSpan } from '../telemetry/opentelemetry';
 import { getUnreadNotificationsCount } from '../notifications/common';
+import { maxFeedsPerUser } from '../types';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -176,6 +178,24 @@ const getSquads = async (
       };
     });
   });
+
+const getFeeds = async ({
+  con,
+  userId,
+}: {
+  con: DataSource;
+  userId: string;
+}): Promise<Feed[]> => {
+  const feeds = con.getRepository(Feed).find({
+    where: {
+      id: Not(userId),
+      userId,
+    },
+    take: maxFeedsPerUser,
+  });
+
+  return feeds;
+};
 
 const moderators = [
   '1d339aa5b85c4e0ba85fdedb523c48d4',
@@ -351,6 +371,7 @@ const loggedInBoot = async (
       exp,
       marketingCta,
       extra,
+      feeds,
     ] = await Promise.all([
       visitSection(req, res),
       getUser(con, userId),
@@ -363,6 +384,7 @@ const loggedInBoot = async (
       getExperimentation(userId, con),
       getMarketingCta(con, log, userId),
       middleware ? middleware(con, req, res) : {},
+      getFeeds({ con, userId }),
     ]);
     if (!user) {
       return handleNonExistentUser(con, req, res, middleware);
@@ -406,6 +428,7 @@ const loggedInBoot = async (
       accessToken,
       exp,
       marketingCta,
+      feeds,
       ...extra,
     };
   });

@@ -47,5 +47,10 @@ export async function identifyUser(
     created_at: dateToCioTimestamp(debeziumTimeToDate(dup.createdAt)),
     updated_at: dateToCioTimestamp(debeziumTimeToDate(dup.updatedAt)),
     referral_link: genericInviteURL,
+    cio_subscription_preferences: {
+      topics: {
+        topic_4: user.acceptedMarketing,
+      },
+    },
   });
 }
