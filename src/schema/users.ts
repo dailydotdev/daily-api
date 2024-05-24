@@ -21,7 +21,6 @@ import {
   UserPersonalizedDigestType,
   UserPersonalizedDigestFlags,
   UserPersonalizedDigestSendType,
-  MarketingCtaStatus,
 } from '../entity';
 import {
   AuthenticationError,
@@ -63,15 +62,10 @@ import { DataSource, In, IsNull } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
 import { DayOfWeek, UserVote, UserVoteEntity } from '../types';
 import { markdown } from '../common/markdown';
-import {
-  ONE_WEEK_IN_SECONDS,
-  RedisMagicValues,
-  deleteRedisKey,
-  getRedisObject,
-  setRedisObjectWithExpiry,
-} from '../redis';
+import { RedisMagicValues, deleteRedisKey, getRedisObject } from '../redis';
 import { StorageKey, StorageTopic, generateStorageKey } from '../config';
 import { FastifyBaseLogger } from 'fastify';
+import { cachePrefillMarketingCta } from '../common/redisCache';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -750,38 +744,6 @@ const userTimezone = `at time zone COALESCE(timezone, 'utc')`;
 const timestampAtTimezone = `"timestamp"::timestamptz ${userTimezone}`;
 
 const MAX_README_LENGTH = 10_000;
-
-export const cachePrefillMarketingCta = async (
-  con: DataSource,
-  userId: string,
-) => {
-  const redisKey = generateStorageKey(
-    StorageTopic.Boot,
-    StorageKey.MarketingCta,
-    userId,
-  );
-
-  const userMarketingCta = await con.getRepository(UserMarketingCta).findOne({
-    where: {
-      userId,
-      readAt: IsNull(),
-      marketingCta: {
-        status: MarketingCtaStatus.Active,
-      },
-    },
-    order: { createdAt: 'ASC' },
-    relations: ['marketingCta'],
-  });
-
-  const marketingCta = userMarketingCta?.marketingCta || null;
-  const redisValue = userMarketingCta
-    ? JSON.stringify(marketingCta)
-    : RedisMagicValues.SLEEPING;
-
-  setRedisObjectWithExpiry(redisKey, redisValue, ONE_WEEK_IN_SECONDS);
-
-  return marketingCta;
-};
 
 export const getMarketingCta = async (
   con: DataSource,

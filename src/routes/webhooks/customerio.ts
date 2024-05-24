@@ -2,8 +2,8 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import createOrGetConnection from '../../db';
 import { UserMarketingCta } from '../../entity';
-import { cachePrefillMarketingCta } from '../../schema/users';
 import { logger } from '../../logger';
+import { cachePrefillMarketingCta } from '../../common/redisCache';
 
 const verifyCIOSignature = (
   webhookSigningSecret: string,
