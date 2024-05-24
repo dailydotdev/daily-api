@@ -1495,6 +1495,14 @@ export const resolvers: IResolvers<any, Context> = {
         inputHandle !== current.handle,
       );
 
+      const updates: Partial<SquadSource> = {
+        name,
+        handle,
+        description,
+        memberPostingRank: sourceRoleRank[memberPostingRole],
+        memberInviteRank: sourceRoleRank[memberInviteRole],
+      };
+
       if (!isNullOrUndefined(isPrivate) && current.private !== isPrivate) {
         const approved = await ctx.con
           .getRepository(SquadPublicRequest)
@@ -1505,23 +1513,14 @@ export const resolvers: IResolvers<any, Context> = {
         if (!approved) {
           throw new ValidationError(SourceRequestErrorMessage.SQUAD_INELIGIBLE);
         }
+
+        updates.private = isPrivate;
       }
 
       try {
         const editedSourceId = await ctx.con.transaction(
           async (entityManager) => {
             const repo = entityManager.getRepository(SquadSource);
-            const updates: Partial<SquadSource> = {
-              name,
-              handle,
-              description,
-              memberPostingRank: sourceRoleRank[memberPostingRole],
-              memberInviteRank: sourceRoleRank[memberInviteRole],
-            };
-
-            if (!isNullOrUndefined(isPrivate)) {
-              updates.private = isPrivate;
-            }
 
             // Update existing squad
             await repo.update({ id: sourceId }, updates);
