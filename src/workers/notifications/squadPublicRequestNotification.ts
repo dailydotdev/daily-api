@@ -1,5 +1,8 @@
 import { messageToJson } from '../worker';
-import { NotificationSourceContext } from '../../notifications';
+import {
+  NotificationSourceContext,
+  NotificationSquadRequestContext,
+} from '../../notifications';
 import { NotificationType } from '../../notifications/common';
 import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
@@ -25,7 +28,11 @@ const worker: NotificationWorker = {
     const data: Data = messageToJson(message);
     const { requestorId, status, sourceId } = data.request;
     const source = await con.getRepository(Source).findOneBy({ id: sourceId });
-    const ctx: NotificationSourceContext = { userIds: [requestorId], source };
+    const ctx: NotificationSquadRequestContext & NotificationSourceContext = {
+      squadRequest: data.request,
+      userIds: [requestorId],
+      source,
+    };
     const type = statusToTypeMap[status];
 
     if (!type) {

@@ -18,6 +18,7 @@ import {
   NotificationSourceContext,
   NotificationSourceMemberRoleContext,
   NotificationSourceRequestContext,
+  NotificationSquadRequestContext,
   NotificationSubmissionContext,
   NotificationUpvotersContext,
 } from './types';
@@ -326,11 +327,11 @@ export const generateNotificationMap: Record<
       .objectPost(ctx.post, ctx.source, ctx.sharedPost),
   squad_public_approved: (
     builder: NotificationBuilder,
-    ctx: NotificationSourceContext,
+    ctx: NotificationSquadRequestContext & NotificationSourceContext,
   ) =>
     builder
       .icon(NotificationIcon.DailyDev)
-      .referenceSource(ctx.source)
+      .referenceSquadRequest(ctx.squadRequest)
       .targetSource(ctx.source)
       .avatarSource(ctx.source),
   squad_public_rejected: (

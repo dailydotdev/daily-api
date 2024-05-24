@@ -33,6 +33,7 @@ import {
   NotificationPostContext,
   NotificationSourceContext,
   NotificationSourceRequestContext,
+  NotificationSquadRequestContext,
   NotificationUpvotersContext,
 } from '../../src/notifications';
 import {
@@ -1674,6 +1675,9 @@ describe('squad public request', () => {
     const bundle = actual[0];
     expect(bundle.type).toEqual('squad_public_approved');
     expect((bundle.ctx as NotificationPostContext).source.id).toEqual('a');
+    expect(
+      (bundle.ctx as NotificationSquadRequestContext).squadRequest.id,
+    ).toEqual(request.id);
     expect(bundle.ctx.userIds).toIncludeSameMembers(['1']);
   });
 
@@ -1691,6 +1695,9 @@ describe('squad public request', () => {
     const bundle = actual[0];
     expect(bundle.type).toEqual('squad_public_rejected');
     expect((bundle.ctx as NotificationPostContext).source.id).toEqual('a');
+    expect(
+      (bundle.ctx as NotificationSquadRequestContext).squadRequest.id,
+    ).toEqual(request.id);
     expect(bundle.ctx.userIds).toIncludeSameMembers(['1']);
   });
 });
