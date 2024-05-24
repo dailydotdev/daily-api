@@ -15,7 +15,6 @@ import {
   Source,
   SourceRequest,
   SquadPublicRequest,
-  SquadPublicRequestStatus,
   Submission,
   User,
   WelcomePost,
