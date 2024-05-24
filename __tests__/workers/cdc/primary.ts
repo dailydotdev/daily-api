@@ -2654,7 +2654,7 @@ describe('squad public request', () => {
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
     expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
-      'api.v1.squad-pub-request',
+      'api.v1.squad-public-request',
       { request: base },
     ]);
   });
@@ -2676,7 +2676,7 @@ describe('squad public request', () => {
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
     expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
-      'api.v1.squad-pub-request',
+      'api.v1.squad-public-request',
       { request: after },
     ]);
   });
@@ -2698,7 +2698,7 @@ describe('squad public request', () => {
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
     expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
-      'api.v1.squad-pub-request',
+      'api.v1.squad-public-request',
       { request: after },
     ]);
   });

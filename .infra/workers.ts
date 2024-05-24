@@ -274,7 +274,7 @@ export const workers: Worker[] = [
     subscription: 'api.comment-downvote-canceled-rep',
   },
   {
-    topic: 'api.v1.squad-pub-request',
+    topic: 'api.v1.squad-public-request',
     subscription: 'api.v1.squad-public-request-notification',
   },
 ];

@@ -56,7 +56,7 @@ export type PubSubSchema = {
   'api.v1.user-created': {
     user: ChangeObject<User>;
   };
-  'api.v1.squad-pub-request': {
+  'api.v1.squad-public-request': {
     request: ChangeObject<SquadPublicRequest>;
   };
 };

@@ -780,7 +780,7 @@ const onSquadPublicRequestChange = async (
   if (data.payload.op === 'd') {
     return;
   }
-  await triggerTypedEvent(logger, 'api.v1.squad-pub-request', {
+  await triggerTypedEvent(logger, 'api.v1.squad-public-request', {
     request: data.payload.after,
   });
 };
