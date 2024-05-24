@@ -4,6 +4,7 @@ import {
   GraphQLTestingState,
   initializeGraphQLTesting,
   MockContext,
+  saveFixtures,
   TEST_UA,
 } from './helpers';
 import createOrGetConnection from '../src/db';
@@ -15,6 +16,7 @@ import {
   Banner,
   Feature,
   FeatureType,
+  Feed,
   MachineSource,
   MarketingCta,
   MarketingCtaStatus,
@@ -107,6 +109,7 @@ const LOGGED_IN_BODY = {
     experienceLevel: null,
   },
   marketingCta: null,
+  feeds: [],
 };
 
 const ANONYMOUS_BODY = {
@@ -971,6 +974,66 @@ describe('boot misc', () => {
         currentMember: {
           permissions: [SourcePermissions.Post],
         },
+      },
+    ]);
+  });
+
+  it('should return the user feeds', async () => {
+    mockLoggedIn();
+    const feeds = [
+      {
+        id: '1',
+        userId: '1',
+
+        slug: '1',
+      },
+      {
+        id: 'cf1',
+        userId: '1',
+        flags: {
+          name: 'Cool feed',
+        },
+        slug: 'cool-feed-cf1',
+      },
+      {
+        id: 'cf2',
+        userId: '1',
+        flags: {
+          name: 'PHP feed',
+        },
+        slug: 'php-feed-cf2',
+      },
+      {
+        id: 'cf3',
+        userId: '2',
+        flags: {
+          name: 'Awful feed',
+        },
+        slug: 'awful-feed-cf3',
+      },
+    ];
+    await saveFixtures(con, User, usersFixture);
+    await con.getRepository(Feed).save(feeds);
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+    expect(res.body.feeds).toMatchObject([
+      {
+        id: 'cf1',
+        userId: '1',
+        flags: {
+          name: 'Cool feed',
+        },
+        slug: 'cool-feed-cf1',
+      },
+      {
+        id: 'cf2',
+        userId: '1',
+        flags: {
+          name: 'PHP feed',
+        },
+        slug: 'php-feed-cf2',
       },
     ]);
   });
