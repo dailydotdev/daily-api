@@ -30,6 +30,8 @@ export const getFeedByIdentifiersOrFail = async ({
 
 export const maxFeedNameLength = 50;
 
+export const feedNameMatcher = /^[a-z0-9 ]+$/i;
+
 export const validateFeedPayload = ({
   name,
 }: {
@@ -47,5 +49,3 @@ export const validateFeedPayload = ({
     throw new ValidationError(SubmissionFailErrorMessage.FEED_NAME_INVALID);
   }
 };
-
-export const feedNameMatcher = /^[a-z0-9 ]+$/i;
