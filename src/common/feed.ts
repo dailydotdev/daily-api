@@ -48,4 +48,4 @@ export const validateFeedPayload = ({
   }
 };
 
-export const feedNameMatcher = /^[A-z0-9 ]+$/;
+export const feedNameMatcher = /^[a-z0-9 ]+$/i;
