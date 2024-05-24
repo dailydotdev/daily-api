@@ -1,5 +1,7 @@
 import { DataSource } from 'typeorm';
 import { Feed } from '../entity/Feed';
+import { ValidationError } from 'apollo-server-errors';
+import { SubmissionFailErrorMessage } from '../errors';
 
 export const getFeedByIdentifiersOrFail = async ({
   con,
@@ -25,3 +27,19 @@ export const getFeedByIdentifiersOrFail = async ({
 
   return feed;
 };
+
+export const validateFeedPayload = ({
+  name,
+}: {
+  name: Feed['flags']['name'];
+}): never | undefined => {
+  if (!name) {
+    throw new ValidationError(SubmissionFailErrorMessage.FEED_NAME_REQUIRED);
+  }
+
+  if (!feedNameMatcher.test(name)) {
+    throw new ValidationError(SubmissionFailErrorMessage.FEED_NAME_INVALID);
+  }
+};
+
+export const feedNameMatcher = /^[A-z0-9 ]+$/;

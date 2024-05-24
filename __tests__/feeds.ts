@@ -2772,6 +2772,21 @@ describe('mutation createFeed', () => {
       },
     );
   });
+
+  it('should not create a new feed when name contains special characters', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          name: 'Cool feed <div>aaa</div>',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
 });
 
 describe('mutation updateFeed', () => {
@@ -2873,7 +2888,7 @@ describe('mutation updateFeed', () => {
       {
         mutation: MUTATION,
         variables: {
-          feedId: '1',
+          feedId: 'cf1',
         },
       },
       'GRAPHQL_VALIDATION_FAILED',
@@ -2888,8 +2903,24 @@ describe('mutation updateFeed', () => {
       {
         mutation: MUTATION,
         variables: {
-          id: '1',
+          feedId: 'cf1',
           name: '',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not update the feed when name contains special characters', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: 'cf1',
+          name: 'Cool feed <div>aaa</div>',
         },
       },
       'GRAPHQL_VALIDATION_FAILED',

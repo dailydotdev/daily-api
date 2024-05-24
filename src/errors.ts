@@ -29,6 +29,8 @@ export enum SubmissionFailErrorKeys {
   InviteLimitReached = 'INVITE_LIMIT_REACHED',
   OnboardingTagLimitReached = 'ONBOARDING_TAG_LIMIT_REACHED',
   FeedCountLimitReached = 'FEED_COUNT_LIMIT_REACHED',
+  FeedNameRequired = 'FEED_NAME_REQUIRED',
+  FeedNameInvalid = 'FEED_NAME_INVALID',
 }
 
 export const SubmissionFailErrorMessage: Record<
@@ -64,6 +66,8 @@ export const SubmissionFailErrorMessage: Record<
   ONBOARDING_TAG_LIMIT_REACHED: 'Tag limit reached',
   FEED_COUNT_LIMIT_REACHED:
     'You have reached maximum number of feeds for your user',
+  FEED_NAME_REQUIRED: 'Feed name is required',
+  FEED_NAME_INVALID: 'Feed name should not contain special characters',
 };
 
 export enum SourceRequestErrorKeys {
