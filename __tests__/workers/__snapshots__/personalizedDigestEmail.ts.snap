@@ -2,12 +2,10 @@
 
 exports[`personalizedDigestEmail worker properly set showStreak to false if there is no user streak record 1`] = `
 Object {
-  "asm": Object {
-    "groupId": 23809,
+  "identifiers": Object {
+    "id": "1",
   },
-  "batchId": "test-email-batch-id",
-  "category": "Digests",
-  "dynamicTemplateData": Object {
+  "message_data": Object {
     "date": Any<String>,
     "day_name": "Monday",
     "first_name": "Ido",
@@ -84,41 +82,21 @@ Object {
       "username": "idoshamun",
     },
   },
-  "from": Object {
-    "email": "informer@daily.dev",
-    "name": "daily.dev",
-  },
-  "hideWarnings": false,
-  "ipPoolName": "Transactional",
-  "replyTo": Object {
-    "email": "hi@daily.dev",
-    "name": "daily.dev",
-  },
-  "sendAt": Any<Number>,
-  "templateId": "d-328d1104d2e04fa1ab91e410e02751cb",
-  "to": Object {
-    "email": "ido@daily.dev",
-    "name": "Ido",
-  },
-  "trackingSettings": Object {
-    "clickTracking": Object {
-      "enable": true,
-    },
-    "openTracking": Object {
-      "enable": true,
-    },
-  },
+  "reply_to": "noreply@daily.dev",
+  "send_at": Any<Number>,
+  "send_to_unsubscribed": false,
+  "to": "ido@daily.dev",
+  "tracked": true,
+  "transactional_message_id": "d-328d1104d2e04fa1ab91e410e02751cb",
 }
 `;
 
 exports[`personalizedDigestEmail worker should generate personalized digest for user in timezone ahead UTC 1`] = `
 Object {
-  "asm": Object {
-    "groupId": 23809,
+  "identifiers": Object {
+    "id": "1",
   },
-  "batchId": "test-email-batch-id",
-  "category": "Digests",
-  "dynamicTemplateData": Object {
+  "message_data": Object {
     "date": Any<String>,
     "day_name": "Monday",
     "first_name": "Ido",
@@ -195,30 +173,12 @@ Object {
       "username": "idoshamun",
     },
   },
-  "from": Object {
-    "email": "informer@daily.dev",
-    "name": "daily.dev",
-  },
-  "hideWarnings": false,
-  "ipPoolName": "Transactional",
-  "replyTo": Object {
-    "email": "hi@daily.dev",
-    "name": "daily.dev",
-  },
-  "sendAt": Any<Number>,
-  "templateId": "d-328d1104d2e04fa1ab91e410e02751cb",
-  "to": Object {
-    "email": "ido@daily.dev",
-    "name": "Ido",
-  },
-  "trackingSettings": Object {
-    "clickTracking": Object {
-      "enable": true,
-    },
-    "openTracking": Object {
-      "enable": true,
-    },
-  },
+  "reply_to": "noreply@daily.dev",
+  "send_at": Any<Number>,
+  "send_to_unsubscribed": false,
+  "to": "ido@daily.dev",
+  "tracked": true,
+  "transactional_message_id": "d-328d1104d2e04fa1ab91e410e02751cb",
 }
 `;
 
@@ -239,12 +199,10 @@ Object {
 
 exports[`personalizedDigestEmail worker should generate personalized digest for user in timezone behind UTC 1`] = `
 Object {
-  "asm": Object {
-    "groupId": 23809,
+  "identifiers": Object {
+    "id": "1",
   },
-  "batchId": "test-email-batch-id",
-  "category": "Digests",
-  "dynamicTemplateData": Object {
+  "message_data": Object {
     "date": Any<String>,
     "day_name": "Monday",
     "first_name": "Ido",
@@ -321,30 +279,12 @@ Object {
       "username": "idoshamun",
     },
   },
-  "from": Object {
-    "email": "informer@daily.dev",
-    "name": "daily.dev",
-  },
-  "hideWarnings": false,
-  "ipPoolName": "Transactional",
-  "replyTo": Object {
-    "email": "hi@daily.dev",
-    "name": "daily.dev",
-  },
-  "sendAt": Any<Number>,
-  "templateId": "d-328d1104d2e04fa1ab91e410e02751cb",
-  "to": Object {
-    "email": "ido@daily.dev",
-    "name": "Ido",
-  },
-  "trackingSettings": Object {
-    "clickTracking": Object {
-      "enable": true,
-    },
-    "openTracking": Object {
-      "enable": true,
-    },
-  },
+  "reply_to": "noreply@daily.dev",
+  "send_at": Any<Number>,
+  "send_to_unsubscribed": false,
+  "to": "ido@daily.dev",
+  "tracked": true,
+  "transactional_message_id": "d-328d1104d2e04fa1ab91e410e02751cb",
 }
 `;
 
@@ -365,12 +305,10 @@ Object {
 
 exports[`personalizedDigestEmail worker should generate personalized digest for user with provided config 1`] = `
 Object {
-  "asm": Object {
-    "groupId": 23809,
+  "identifiers": Object {
+    "id": "1",
   },
-  "batchId": "test-email-batch-id",
-  "category": "Digests",
-  "dynamicTemplateData": Object {
+  "message_data": Object {
     "date": Any<String>,
     "day_name": "Monday",
     "first_name": "Ido",
@@ -447,30 +385,12 @@ Object {
       "username": "idoshamun",
     },
   },
-  "from": Object {
-    "email": "informer@daily.dev",
-    "name": "daily.dev",
-  },
-  "hideWarnings": false,
-  "ipPoolName": "Transactional",
-  "replyTo": Object {
-    "email": "hi@daily.dev",
-    "name": "daily.dev",
-  },
-  "sendAt": Any<Number>,
-  "templateId": "d-testtemplateidfromconfig",
-  "to": Object {
-    "email": "ido@daily.dev",
-    "name": "Ido",
-  },
-  "trackingSettings": Object {
-    "clickTracking": Object {
-      "enable": true,
-    },
-    "openTracking": Object {
-      "enable": true,
-    },
-  },
+  "reply_to": "noreply@daily.dev",
+  "send_at": Any<Number>,
+  "send_to_unsubscribed": false,
+  "to": "ido@daily.dev",
+  "tracked": true,
+  "transactional_message_id": "d-testtemplateidfromconfig",
 }
 `;
 
@@ -491,12 +411,10 @@ Object {
 
 exports[`personalizedDigestEmail worker should generate personalized digest for user with subscription 1`] = `
 Object {
-  "asm": Object {
-    "groupId": 23809,
+  "identifiers": Object {
+    "id": "1",
   },
-  "batchId": "test-email-batch-id",
-  "category": "Digests",
-  "dynamicTemplateData": Object {
+  "message_data": Object {
     "date": Any<String>,
     "day_name": "Monday",
     "first_name": "Ido",
@@ -573,30 +491,12 @@ Object {
       "username": "idoshamun",
     },
   },
-  "from": Object {
-    "email": "informer@daily.dev",
-    "name": "daily.dev",
-  },
-  "hideWarnings": false,
-  "ipPoolName": "Transactional",
-  "replyTo": Object {
-    "email": "hi@daily.dev",
-    "name": "daily.dev",
-  },
-  "sendAt": Any<Number>,
-  "templateId": "d-328d1104d2e04fa1ab91e410e02751cb",
-  "to": Object {
-    "email": "ido@daily.dev",
-    "name": "Ido",
-  },
-  "trackingSettings": Object {
-    "clickTracking": Object {
-      "enable": true,
-    },
-    "openTracking": Object {
-      "enable": true,
-    },
-  },
+  "reply_to": "noreply@daily.dev",
+  "send_at": Any<Number>,
+  "send_to_unsubscribed": false,
+  "to": "ido@daily.dev",
+  "tracked": true,
+  "transactional_message_id": "d-328d1104d2e04fa1ab91e410e02751cb",
 }
 `;
 
@@ -617,12 +517,10 @@ Object {
 
 exports[`personalizedDigestEmail worker should truncate long posts summary 1`] = `
 Object {
-  "asm": Object {
-    "groupId": 23809,
+  "identifiers": Object {
+    "id": "1",
   },
-  "batchId": "test-email-batch-id",
-  "category": "Digests",
-  "dynamicTemplateData": Object {
+  "message_data": Object {
     "date": Any<String>,
     "day_name": "Monday",
     "first_name": "Ido",
@@ -699,29 +597,11 @@ Object {
       "username": "idoshamun",
     },
   },
-  "from": Object {
-    "email": "informer@daily.dev",
-    "name": "daily.dev",
-  },
-  "hideWarnings": false,
-  "ipPoolName": "Transactional",
-  "replyTo": Object {
-    "email": "hi@daily.dev",
-    "name": "daily.dev",
-  },
-  "sendAt": Any<Number>,
-  "templateId": "d-328d1104d2e04fa1ab91e410e02751cb",
-  "to": Object {
-    "email": "ido@daily.dev",
-    "name": "Ido",
-  },
-  "trackingSettings": Object {
-    "clickTracking": Object {
-      "enable": true,
-    },
-    "openTracking": Object {
-      "enable": true,
-    },
-  },
+  "reply_to": "noreply@daily.dev",
+  "send_at": Any<Number>,
+  "send_to_unsubscribed": false,
+  "to": "ido@daily.dev",
+  "tracked": true,
+  "transactional_message_id": "d-328d1104d2e04fa1ab91e410e02751cb",
 }
 `;

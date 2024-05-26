@@ -8,7 +8,6 @@ import {
   UserStreak,
 } from '../entity';
 import { DayOfWeek } from '../types';
-import { MailDataRequired } from '@sendgrid/mail';
 import { format, isSameDay, nextDay, previousDay } from 'date-fns';
 import { PersonalizedDigestFeatureConfig } from '../growthbook';
 import { feedToFilters, fixedIdsFeedBuilder } from './feedGenerator';
@@ -24,6 +23,7 @@ import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import { zonedTimeToUtc } from 'date-fns-tz';
 import fastq from 'fastq';
+import { SendEmailRequestWithTemplate } from 'customerio-node/dist/lib/api/requests';
 
 type TemplatePostData = Pick<
   ArticlePost,
@@ -118,7 +118,9 @@ const getEmailVariation = async ({
   userStreak?: UserStreak;
   feature: PersonalizedDigestFeatureConfig;
   currentDate: Date;
-}): Promise<Partial<MailDataRequired>> => {
+}): Promise<
+  Pick<SendEmailRequestWithTemplate, 'to' | 'message_data' | 'identifiers'>
+> => {
   const [dayName] = Object.entries(DayOfWeek).find(
     ([, value]) => value === personalizedDigest.preferredDay,
   );
@@ -139,23 +141,17 @@ const getEmailVariation = async ({
     },
   };
 
-  const mailData = {
-    from: {
-      email: feature.meta.from.email,
-      name: feature.meta.from.name,
+  return {
+    to: user.email,
+    identifiers: {
+      id: user.id,
     },
-    to: {
-      email: user.email,
-      name: userName,
-    },
-    dynamicTemplateData: {
+    message_data: {
       ...data,
       title: `${userName}, your personal weekly update from daily.dev is ready`,
       preview: `Every ${dayName}, we'll send you five posts you haven't read. Each post was carefully picked based on topics you love reading about. Let's get to it!`,
     },
   };
-
-  return mailData;
 };
 
 export const getPersonalizedDigestEmailPayload = async ({
@@ -178,7 +174,7 @@ export const getPersonalizedDigestEmailPayload = async ({
   currentDate: Date;
   previousSendDate: Date;
   feature: PersonalizedDigestFeatureConfig;
-}): Promise<MailDataRequired | undefined> => {
+}): Promise<SendEmailRequestWithTemplate | undefined> => {
   const feedConfig = await feedToFilters(
     con,
     personalizedDigest.userId,
@@ -245,19 +241,12 @@ export const getPersonalizedDigestEmailPayload = async ({
     currentDate,
   });
 
-  const emailPayload: MailDataRequired = {
+  return {
     ...baseNotificationEmailData,
-    sendAt: Math.floor(emailSendDate.getTime() / 1000),
-    templateId: feature.templateId,
-    asm: {
-      groupId: feature.meta.asmGroupId,
-    },
-    category: feature.meta.category,
-    batchId: emailBatchId,
+    send_at: Math.floor(emailSendDate.getTime() / 1000),
+    transactional_message_id: feature.templateId,
     ...variationProps,
   };
-
-  return emailPayload;
 };
 
 export const digestPreferredHourOffset = 4;
@@ -279,6 +268,7 @@ export const schedulePersonalizedDigestSubscriptions = async ({
     emailBatchId: string;
   }) => Promise<void>;
 }) => {
+  // TODO: check if there's an alternative in CIO
   const emailBatchId = await createEmailBatchId();
 
   if (!emailBatchId) {

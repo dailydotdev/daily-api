@@ -1,15 +1,19 @@
 import sgMail from '@sendgrid/mail';
 import client from '@sendgrid/client';
-import { MailDataRequired } from '@sendgrid/helpers/classes/mail';
 import { User } from './users';
 import { ChangeObject } from '../types';
 import { FastifyBaseLogger } from 'fastify';
 import { getShortGenericInviteLink } from './links';
+import { APIClient, SendEmailRequest } from 'customerio-node';
+import { SendEmailRequestOptionalOptions } from 'customerio-node/lib/api/requests';
+import { SendEmailRequestWithTemplate } from 'customerio-node/dist/lib/api/requests';
 
 if (process.env.SENDGRID_API_KEY) {
   client.setApiKey(process.env.SENDGRID_API_KEY);
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 }
+
+const cioApi = new APIClient(process.env.CIO_APP_KEY);
 
 export const addNotificationUtm = (
   url: string,
@@ -40,39 +44,18 @@ export const formatMailDate = (date: Date): string =>
     year: 'numeric',
   });
 
-export const baseNotificationEmailData: Pick<
-  MailDataRequired,
-  | 'from'
-  | 'replyTo'
-  | 'trackingSettings'
-  | 'asm'
-  | 'category'
-  | 'hideWarnings'
-  | 'ipPoolName'
-> = {
-  from: {
-    email: 'informer@daily.dev',
-    name: 'daily.dev',
-  },
-  replyTo: {
-    email: 'hi@daily.dev',
-    name: 'daily.dev',
-  },
-  trackingSettings: {
-    openTracking: { enable: true },
-    clickTracking: { enable: true },
-  },
-  asm: {
-    groupId: 12850,
-  },
-  category: 'Notification',
-  hideWarnings: process.env.NODE_ENV === 'production',
-  ipPoolName: 'Transactional',
+export const baseNotificationEmailData: SendEmailRequestOptionalOptions = {
+  reply_to: 'noreply@daily.dev',
+  tracked: true,
+  send_to_unsubscribed: false,
 };
 
-export const sendEmail: typeof sgMail.send = (data) => {
-  if (process.env.SENDGRID_API_KEY) {
-    return sgMail.send(data);
+export const sendEmail = async (
+  data: SendEmailRequestWithTemplate,
+): Promise<void> => {
+  if (process.env.CIO_APP_KEY) {
+    const req = new SendEmailRequest({ ...baseNotificationEmailData, ...data });
+    await cioApi.sendEmail(req);
   }
 };
 

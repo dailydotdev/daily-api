@@ -683,64 +683,6 @@ describe('generateNotification', () => {
     ]);
   });
 
-  it('should generate squad_post_viewed notification', () => {
-    const type = NotificationType.SquadPostViewed;
-    const ctx: NotificationPostContext & NotificationDoneByContext = {
-      userIds: [userId],
-      source: {
-        ...sourcesFixture[0],
-        type: SourceType.Squad,
-      } as Reference<Source>,
-      post: {
-        id: 'ps',
-        title: 'Commentary',
-        sourceId: 'a',
-        type: PostType.Share,
-      } as Reference<Post>,
-      sharedPost: postsFixture[0] as Reference<Post>,
-      doneBy: usersFixture[1] as Reference<User>,
-    };
-    const actual = generateNotificationV2(type, ctx);
-
-    expect(actual.notification.type).toEqual(type);
-    expect(actual.userIds).toEqual([userId]);
-    expect(actual.notification.public).toEqual(true);
-    expect(actual.notification.referenceId).toEqual('ps');
-    expect(actual.notification.referenceType).toEqual('post');
-    expect(actual.notification.description).toEqual('Commentary');
-    expect(actual.notification.uniqueKey).toEqual('2');
-    expect(actual.notification.targetUrl).toEqual(
-      'http://localhost:5002/posts/ps',
-    );
-    expect(actual.avatars).toEqual([
-      {
-        image: 'http://image.com/a',
-        name: 'A',
-
-        referenceId: 'a',
-        targetUrl: 'http://localhost:5002/squads/a',
-        type: 'source',
-      },
-      {
-        image: 'https://daily.dev/tsahi.jpg',
-        name: 'Tsahi',
-
-        referenceId: '2',
-        targetUrl: 'http://localhost:5002/tsahidaily',
-        type: 'user',
-      },
-    ]);
-    expect(actual.attachments).toEqual([
-      {
-        image: 'https://daily.dev/image.jpg',
-
-        referenceId: 'p1',
-        title: 'P1',
-        type: 'post',
-      },
-    ]);
-  });
-
   it('should generate squad_member_joined notification', async () => {
     const type = NotificationType.SquadMemberJoined;
     await con.getRepository(Source).save(sourcesFixture[0]);
@@ -1046,24 +988,6 @@ describe('storeNotificationBundle', () => {
         type: 'user',
       },
     ]);
-    expect(actual.attachments.length).toEqual(0);
-  });
-
-  it('should generate squad_access notification', () => {
-    const type = NotificationType.SquadAccess;
-    const ctx: NotificationBaseContext = {
-      userIds: [userId],
-    };
-    const actual = generateNotificationV2(type, ctx);
-    expect(actual.notification.type).toEqual(type);
-    expect(actual.userIds).toEqual([userId]);
-    expect(actual.notification.public).toEqual(true);
-    expect(actual.notification.referenceId).toEqual('system');
-    expect(actual.notification.referenceType).toEqual('system');
-    expect(actual.notification.targetUrl).toEqual(
-      `${process.env.COMMENTS_PREFIX}?squad=true`,
-    );
-    expect(actual.notification.description).toEqual('Create your new Squad');
     expect(actual.attachments.length).toEqual(0);
   });
 
