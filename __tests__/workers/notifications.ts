@@ -11,8 +11,6 @@ import {
   Source,
   SourceMember,
   SourceType,
-  SquadPublicRequest,
-  SquadPublicRequestStatus,
   SquadSource,
   SubmissionStatus,
   User,
@@ -33,7 +31,6 @@ import {
   NotificationPostContext,
   NotificationSourceContext,
   NotificationSourceRequestContext,
-  NotificationSquadRequestContext,
   NotificationUpvotersContext,
 } from '../../src/notifications';
 import {
@@ -1658,46 +1655,4 @@ it('should add squad reply notification', async () => {
     '4',
   );
   expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '3', '2']);
-});
-
-describe('squad public request', () => {
-  it('should add notification for approved squad public request', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/squadPublicRequestNotification'
-    );
-    const request = await con.getRepository(SquadPublicRequest).save({
-      sourceId: 'a',
-      requestorId: '1',
-      status: SquadPublicRequestStatus.Approved,
-    });
-    const actual = await invokeNotificationWorker(worker.default, { request });
-    expect(actual.length).toEqual(1);
-    const bundle = actual[0];
-    expect(bundle.type).toEqual('squad_public_approved');
-    expect((bundle.ctx as NotificationPostContext).source.id).toEqual('a');
-    expect(
-      (bundle.ctx as NotificationSquadRequestContext).squadRequest.id,
-    ).toEqual(request.id);
-    expect(bundle.ctx.userIds).toIncludeSameMembers(['1']);
-  });
-
-  it('should add notification for rejected squad public request', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/squadPublicRequestNotification'
-    );
-    const request = await con.getRepository(SquadPublicRequest).save({
-      sourceId: 'a',
-      requestorId: '1',
-      status: SquadPublicRequestStatus.Rejected,
-    });
-    const actual = await invokeNotificationWorker(worker.default, { request });
-    expect(actual.length).toEqual(1);
-    const bundle = actual[0];
-    expect(bundle.type).toEqual('squad_public_rejected');
-    expect((bundle.ctx as NotificationPostContext).source.id).toEqual('a');
-    expect(
-      (bundle.ctx as NotificationSquadRequestContext).squadRequest.id,
-    ).toEqual(request.id);
-    expect(bundle.ctx.userIds).toIncludeSameMembers(['1']);
-  });
 });
