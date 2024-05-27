@@ -75,7 +75,7 @@ const postCollectionUpdatedTopic = pubsub.topic(
   'api.v1.post-collection-updated',
 );
 const userReadmeUpdatedTopic = pubsub.topic('api.v1.user-readme-updated');
-const userReputatioUpdatedTopic = pubsub.topic('user-reputation-updated');
+const userReputationUpdatedTopic = pubsub.topic('user-reputation-updated');
 
 export enum NotificationReason {
   New = 'new',
@@ -409,7 +409,7 @@ export const notifyReputationIncrease = async (
   user: ChangeObject<User>,
   userAfter: ChangeObject<User>,
 ): Promise<void> =>
-  publishEvent(log, userReputatioUpdatedTopic, {
+  publishEvent(log, userReputationUpdatedTopic, {
     user,
     userAfter,
   });

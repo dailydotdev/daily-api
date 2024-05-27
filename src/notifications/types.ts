@@ -6,6 +6,7 @@ import {
   Post,
   Source,
   SourceRequest,
+  SquadPublicRequest,
   Submission,
   User,
 } from '../entity';
@@ -53,6 +54,10 @@ export type NotificationUpvotersContext = NotificationBaseContext & {
 
 export type NotificationSourceRequestContext = NotificationBaseContext & {
   sourceRequest: Reference<SourceRequest>;
+};
+
+export type NotificationSquadRequestContext = NotificationBaseContext & {
+  squadRequest: Reference<SquadPublicRequest>;
 };
 
 export type NotificationDoneByContext = NotificationBaseContext & {
