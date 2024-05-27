@@ -21,7 +21,6 @@ import {
   UserPersonalizedDigestType,
   UserPersonalizedDigestFlags,
   UserPersonalizedDigestSendType,
-  MarketingCtaStatus,
   UserPersonalizedDigestFlagsPublic,
 } from '../entity';
 import {
