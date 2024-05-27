@@ -17,11 +17,16 @@ import localAds from './localAds';
 import automations from './automations';
 import sitemaps from './sitemaps';
 import createOrGetConnection from '../db';
-import { UserPersonalizedDigest, UserPersonalizedDigestType } from '../entity';
-import { notifyGeneratePersonalizedDigest } from '../common';
+import {
+  User,
+  UserPersonalizedDigest,
+  UserPersonalizedDigestType,
+} from '../entity';
+import { notifyGeneratePersonalizedDigest, UnsubscribeGroup } from '../common';
 import { PersonalizedDigestFeatureConfig } from '../growthbook';
 import privateRpc from './privateRpc';
 import { connectRpcPlugin } from '../common/connectRpc';
+import { verifyJwt } from '../auth';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(rss, { prefix: '/rss' });
@@ -131,4 +136,32 @@ Disallow: /`);
       message: 'ok',
     });
   });
+
+  // https://customer.io/docs/journeys/custom-unsubscribe-links/#step-1-configure-your-system-to-receive-the-post-when-recipients-click-unsubscribe
+  fastify.post<{ Querystring: { token: string } }>(
+    '/unsubscribe',
+    async (req, res) => {
+      const payload = await verifyJwt<{
+        userId: string;
+        group: UnsubscribeGroup;
+      }>(req.query.token);
+      if (payload) {
+        const con = await createOrGetConnection();
+        switch (payload.group) {
+          case UnsubscribeGroup.Notifications:
+            await con
+              .getRepository(User)
+              .update({ id: payload.userId }, { notificationEmail: false });
+            break;
+          case UnsubscribeGroup.Digest:
+            await con.getRepository(UserPersonalizedDigest).delete({
+              userId: payload.userId,
+              type: UserPersonalizedDigestType.Digest,
+            });
+            break;
+        }
+      }
+      return res.status(204).send();
+    },
+  );
 }

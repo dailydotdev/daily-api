@@ -148,8 +148,8 @@ const getEmailVariation = async ({
     },
     message_data: {
       ...data,
-      title: `${userName}, your personal weekly update from daily.dev is ready`,
-      preview: `Every ${dayName}, we'll send you five posts you haven't read. Each post was carefully picked based on topics you love reading about. Let's get to it!`,
+      title: `${userName}, your personal update from daily.dev is ready`,
+      preview: `Here are several posts you might like. Each post was carefully selected based on topics you love reading about. Let's get to it!`,
     },
   };
 };

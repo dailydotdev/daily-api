@@ -21,7 +21,7 @@ interface AuthPayload {
   exp: number;
 }
 
-export const verifyJwt = (token: string): Promise<AuthPayload | null> =>
+export const verifyJwt = <T = AuthPayload>(token: string): Promise<T | null> =>
   new Promise((resolve, reject) => {
     jwt.verify(
       token,
@@ -34,7 +34,7 @@ export const verifyJwt = (token: string): Promise<AuthPayload | null> =>
         if (err) {
           return reject(err);
         }
-        return resolve(payload as AuthPayload | null);
+        return resolve(payload as T | null);
       },
     );
   });

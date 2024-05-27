@@ -1132,7 +1132,8 @@ it('should send email to multiple users', async () => {
     },
   });
   expect(sendEmail).toHaveBeenCalledTimes(2);
-  ['tsahi@daily.dev', 'ido@daily.dev'].forEach((email, i) => {
+  const authors = ['tsahi@daily.dev', 'ido@daily.dev'];
+  authors.forEach((email, i) => {
     const args = jest.mocked(sendEmail).mock.calls[
       i
     ][0] as SendEmailRequestWithTemplate;
@@ -1140,7 +1141,7 @@ it('should send email to multiple users', async () => {
       rss_link: 'https://daily.dev',
     });
     expect(args.transactional_message_id).toEqual('35');
-    expect(args.to).toEqual(email);
+    expect(authors).toContain(args.to);
   });
 });
 

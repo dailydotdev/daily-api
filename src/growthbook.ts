@@ -104,8 +104,7 @@ export class Feature<T extends JSONValue> {
 }
 
 const digestFeatureBaseConfig = {
-  // TODO: update the template id
-  templateId: 'd-328d1104d2e04fa1ab91e410e02751cb',
+  templateId: '46',
   feedConfig: 'digest',
   maxPosts: 5,
   longTextLimit: 150,
@@ -120,8 +119,6 @@ export const features = {
   }),
   dailyDigest: new Feature('daily_personalized_digest', {
     ...digestFeatureBaseConfig,
-    // TODO: update the template id
-    templateId: 'd-925d2759ddd641f99220b3c7c6836458',
   }),
 };
 
