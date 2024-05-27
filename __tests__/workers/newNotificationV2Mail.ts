@@ -4,6 +4,7 @@ import {
 } from '../helpers';
 import {
   createSquadWelcomePost,
+  formatMailDate,
   notificationsLink,
   sendEmail,
 } from '../../src/common';
@@ -1307,7 +1308,7 @@ describe('squad public request notifications', () => {
       squad_handle: 'a',
       squad_image: 'http://image.com/a',
       squad_name: 'A',
-      timestamp: 'May 24, 2024',
+      timestamp: formatMailDate(new Date()),
     });
     expect(args.templateId).toEqual('d-8edfa432086649a08eb57d353e4cee94');
   });
