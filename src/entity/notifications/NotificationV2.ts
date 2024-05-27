@@ -3,6 +3,7 @@ import { NotificationType } from '../../notifications/common';
 
 export type NotificationReferenceType =
   | 'source_request'
+  | 'squad_request'
   | 'post'
   | 'submission'
   | 'comment'
