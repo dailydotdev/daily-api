@@ -8,6 +8,7 @@ import createOrGetConnection from '../src/db';
 import request from 'supertest';
 import { createHmac } from 'crypto';
 import {
+  RedisMagicValues,
   deleteKeysByPattern,
   getRedisObject,
   setRedisObject,
@@ -44,6 +45,12 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
   const hmac = createHmac('sha256', process.env.CIO_WEBHOOK_SECRET as string);
   hmac.update(`v0:${timestamp}:${JSON.stringify(payload)}`);
   const hash = hmac.digest().toString('hex');
+
+  const redisKey = generateStorageKey(
+    StorageTopic.Boot,
+    StorageKey.MarketingCta,
+    '1',
+  );
 
   describe('webhook signature verification', () => {
     it('should return 403 when no x-cio-timestamp header', async () => {
@@ -115,7 +122,7 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
 
       const userMarketingCta = await con
         .getRepository(UserMarketingCta)
-        .findOneBy({ userId: '1', marketingCtaId: 'worlds-best-campaign' });
+        .findOneBy(payload);
 
       expect(userMarketingCta).toMatchObject({
         userId: '1',
@@ -123,11 +130,7 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
       });
 
       expect(
-        JSON.parse(
-          (await getRedisObject(
-            generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, '1'),
-          )) as string,
-        ),
+        JSON.parse((await getRedisObject(redisKey)) as string),
       ).toMatchObject({
         campaignId: 'worlds-best-campaign',
         createdAt: '2024-05-13T12:00:00.000Z',
@@ -142,12 +145,9 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
       });
     });
 
-    it('should not change redis cache if existing cache exists', async () => {
-      const redisKey = generateStorageKey(
-        StorageTopic.Boot,
-        StorageKey.MarketingCta,
-        '1',
-      );
+    it('should change redis cache if sleeping', async () => {
+      await setRedisObject(redisKey, RedisMagicValues.SLEEPING);
+
       const { body } = await request(app.server)
         .post('/webhooks/customerio/marketing_cta')
         .set('x-cio-timestamp', timestamp.toString())
@@ -155,17 +155,74 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
         .send(payload)
         .expect(200);
 
-      await setRedisObject(redisKey, 'some value');
       const userMarketingCta = await con
         .getRepository(UserMarketingCta)
-        .findOneBy({ userId: '1', marketingCtaId: 'worlds-best-campaign' });
+        .findOneBy(payload);
 
       expect(userMarketingCta).toMatchObject({
         userId: '1',
         marketingCtaId: 'worlds-best-campaign',
       });
       expect(body.success).toEqual(true);
-      expect(await getRedisObject(redisKey)).toEqual('some value');
+      expect(
+        JSON.parse((await getRedisObject(redisKey)) as string),
+      ).toMatchObject({
+        campaignId: 'worlds-best-campaign',
+        createdAt: '2024-05-13T12:00:00.000Z',
+        variant: 'card',
+        status: 'active',
+        flags: {
+          title: 'Join the best community in the world',
+          ctaUrl: 'http://localhost:5002',
+          ctaText: 'Join now',
+          description: 'Join the best community in the world',
+        },
+      });
+    });
+
+    it('should set the redis cache to the first in the queue', async () => {
+      await con.getRepository(UserMarketingCta).insert({
+        userId: '1',
+        marketingCtaId: 'worlds-second-best-campaign',
+        createdAt: new Date('2024-05-13T12:00:00.000Z'),
+      });
+
+      const { body } = await request(app.server)
+        .post('/webhooks/customerio/marketing_cta')
+        .set('x-cio-timestamp', timestamp.toString())
+        .set('x-cio-signature', hash)
+        .send(payload)
+        .expect(200);
+
+      const userMarketingCta = await con
+        .getRepository(UserMarketingCta)
+        .findBy({
+          userId: '1',
+          marketingCtaId: 'worlds-best-campaign',
+        });
+
+      userMarketingCta.forEach((umc) => {
+        expect([
+          'worlds-best-campaign',
+          'worlds-second-best-campaign',
+        ]).toContain(umc.marketingCtaId);
+      });
+
+      expect(body.success).toEqual(true);
+      expect(
+        JSON.parse((await getRedisObject(redisKey)) as string),
+      ).toMatchObject({
+        campaignId: 'worlds-second-best-campaign',
+        createdAt: '2024-05-14T12:00:00.000Z',
+        variant: 'card',
+        status: 'active',
+        flags: {
+          title: 'Join the second best community in the world',
+          ctaUrl: 'http://localhost:5002',
+          ctaText: 'Join now',
+          description: 'Join the second best community in the world',
+        },
+      });
     });
 
     it('should return 400 when error processing webhook', async () => {
@@ -177,15 +234,88 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
         .post('/webhooks/customerio/marketing_cta')
         .set('x-cio-timestamp', timestamp.toString())
         .set('x-cio-signature', hash)
-        .send({ userId: '1', marketingCtaId: 'worlds-best-campaign' })
+        .send(payload)
         .expect(400);
 
       const userMarketingCta = await con
         .getRepository(UserMarketingCta)
-        .findOneBy({ userId: '1', marketingCtaId: 'worlds-best-campaign' });
+        .findOneBy(payload);
 
       expect(userMarketingCta).toBeNull();
       expect(body.success).toEqual(false);
+    });
+  });
+
+  describe('unassign user from marketing cta', () => {
+    beforeEach(async () => {
+      await con.getRepository(UserMarketingCta).insert({
+        userId: '1',
+        marketingCtaId: 'worlds-best-campaign',
+      });
+    });
+
+    it('should return 200 and delete user marketing cta', async () => {
+      expect(
+        await con.getRepository(UserMarketingCta).findOneBy(payload),
+      ).toMatchObject({
+        userId: '1',
+        marketingCtaId: 'worlds-best-campaign',
+      });
+
+      const { body } = await request(app.server)
+        .delete('/webhooks/customerio/marketing_cta')
+        .set('x-cio-timestamp', timestamp.toString())
+        .set('x-cio-signature', hash)
+        .send(payload)
+        .expect(200);
+
+      expect(body.success).toEqual(true);
+      expect(
+        await con.getRepository(UserMarketingCta).findOneBy(payload),
+      ).toBeNull();
+      expect(await getRedisObject(redisKey)).toEqual(RedisMagicValues.SLEEPING);
+    });
+
+    it('should preload the next available', async () => {
+      await con.getRepository(UserMarketingCta).insert({
+        userId: '1',
+        marketingCtaId: 'worlds-second-best-campaign',
+        createdAt: new Date('2024-05-13T12:00:00.000Z'),
+      });
+
+      expect(
+        await con.getRepository(UserMarketingCta).findBy({ userId: '1' }),
+      ).toHaveLength(2);
+
+      const { body } = await request(app.server)
+        .delete('/webhooks/customerio/marketing_cta')
+        .set('x-cio-timestamp', timestamp.toString())
+        .set('x-cio-signature', hash)
+        .send(payload)
+        .expect(200);
+
+      expect(body.success).toEqual(true);
+
+      expect(
+        await con.getRepository(UserMarketingCta).findBy({ userId: '1' }),
+      ).toHaveLength(1);
+      expect(
+        await con.getRepository(UserMarketingCta).findOneBy(payload),
+      ).toBeNull();
+      expect(
+        JSON.parse((await getRedisObject(redisKey)) as string),
+      ).toMatchObject({
+        campaignId: 'worlds-second-best-campaign',
+        createdAt: '2024-05-14T12:00:00.000Z',
+        variant: 'card',
+        status: 'active',
+        flags: {
+          title: 'Join the second best community in the world',
+          ctaUrl: 'http://localhost:5002',
+          ctaText: 'Join now',
+          description: 'Join the second best community in the world',
+        },
+      });
     });
   });
 });
