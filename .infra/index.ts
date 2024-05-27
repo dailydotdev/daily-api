@@ -294,8 +294,8 @@ if (isAdhocEnv) {
       livenessProbe,
       metric: { type: 'memory_cpu', cpu: 85 },
       disableLifecycle: true,
-      ports: [{ containerPort: 9464, name: 'metrics' }],
-      servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
+      // ports: [{ containerPort: 9464, name: 'metrics' }],
+      // servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
       ...jwtVols,
     },
     {
@@ -315,6 +315,7 @@ if (isAdhocEnv) {
     },
     {
       nameSuffix: 'private',
+      port: 3000,
       env: [{ name: 'ENABLE_PRIVATE_ROUTES', value: 'true' }, ...jwtEnv],
       minReplicas: 2,
       maxReplicas: 2,
@@ -328,14 +329,14 @@ if (isAdhocEnv) {
       createService: true,
       serviceType: 'ClusterIP',
       disableLifecycle: true,
-      ports: [
-        { containerPort: 3000, name: 'http' },
-        { containerPort: 9464, name: 'metrics' },
-      ],
-      servicePorts: [
-        { targetPort: 3000, port: 80, name: 'http' },
-        { targetPort: 9464, port: 9464, name: 'metrics' },
-      ],
+      // ports: [
+      //   { containerPort: 3000, name: 'http' },
+      //   { containerPort: 9464, name: 'metrics' },
+      // ],
+      // servicePorts: [
+      //   { targetPort: 3000, port: 80, name: 'http' },
+      //   { targetPort: 9464, port: 9464, name: 'metrics' },
+      // ],
       ...jwtVols,
     },
   ];
@@ -353,8 +354,8 @@ if (isAdhocEnv) {
         labels: { app: name, subapp: 'personalized-digest' },
         targetAverageValue: 100,
       },
-      ports: [{ containerPort: 9464, name: 'metrics' }],
-      servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
+      // ports: [{ containerPort: 9464, name: 'metrics' }],
+      // servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
     });
   }
 }
