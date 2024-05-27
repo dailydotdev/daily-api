@@ -20,6 +20,7 @@ import { sourcesFixture } from './fixture/source';
 import { SubmissionFailErrorMessage } from '../src/errors';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
+import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -127,6 +128,14 @@ describe('query submissionAvailability', () => {
         url: 'http://abc.com/4',
         userId: '1',
         createdAt: subDays(new Date().setHours(23), 1),
+      },
+      {
+        url: 'http://abc.com/4.midnight',
+        userId: '1',
+        createdAt: zonedTimeToUtc(
+          utcToZonedTime(new Date().setHours(23), 'Europe/Oslo'),
+          'Europe/Oslo',
+        ),
       },
       {
         url: 'http://abc.com/5',
