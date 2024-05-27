@@ -29,6 +29,9 @@ export enum SubmissionFailErrorKeys {
   InviteLimitReached = 'INVITE_LIMIT_REACHED',
   OnboardingTagLimitReached = 'ONBOARDING_TAG_LIMIT_REACHED',
   FeedCountLimitReached = 'FEED_COUNT_LIMIT_REACHED',
+  FeedNameRequired = 'FEED_NAME_REQUIRED',
+  FeedNameInvalid = 'FEED_NAME_INVALID',
+  FeedNameLength = 'FEED_NAME_LENGTH',
 }
 
 export const SubmissionFailErrorMessage: Record<
@@ -64,16 +67,22 @@ export const SubmissionFailErrorMessage: Record<
   ONBOARDING_TAG_LIMIT_REACHED: 'Tag limit reached',
   FEED_COUNT_LIMIT_REACHED:
     'You have reached maximum number of feeds for your user',
+  FEED_NAME_REQUIRED: 'Feed name is required',
+  FEED_NAME_INVALID: 'Feed name should not contain special characters',
+  FEED_NAME_LENGTH: 'Feed name is too long',
 };
 
 export enum SourceRequestErrorKeys {
   AccessDenied = 'ACCESS_DENIED',
+  SquadIneligible = 'SQUAD_INELIGIBLE',
 }
 
 export const SourceRequestErrorMessage: Record<SourceRequestErrorKeys, string> =
   {
     [SourceRequestErrorKeys.AccessDenied]:
       'You do not have sufficient permissions and or reputation to submit a source request yet.',
+    [SourceRequestErrorKeys.SquadIneligible]:
+      'Squad has not been approved yet of becoming public',
   };
 
 export class NotFoundError extends ApolloError {

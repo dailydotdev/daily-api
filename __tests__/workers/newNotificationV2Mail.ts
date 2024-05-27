@@ -4,6 +4,7 @@ import {
 } from '../helpers';
 import {
   createSquadWelcomePost,
+  formatMailDate,
   notificationsLink,
   sendEmail,
 } from '../../src/common';
@@ -21,6 +22,8 @@ import {
   Source,
   SourceRequest,
   SourceType,
+  SquadPublicRequest,
+  SquadPublicRequestStatus,
   Submission,
   SubmissionStatus,
   User,
@@ -39,6 +42,7 @@ import {
   NotificationSourceContext,
   NotificationSourceMemberRoleContext,
   NotificationSourceRequestContext,
+  NotificationSquadRequestContext,
   NotificationSubmissionContext,
   NotificationUpvotersContext,
 } from '../../src/notifications';
@@ -1268,5 +1272,110 @@ describe('source_post_added notification', () => {
     expect(args.templateId).toEqual(
       notificationToTemplateId[NotificationType.SourcePostAdded],
     );
+  });
+});
+
+describe('squad public request notifications', () => {
+  beforeEach(async () => {
+    source = await con.getRepository(Source).findOneBy({ id: 'a' });
+  });
+
+  it('should send an email to the requestor when submitted', async () => {
+    const request = await con.getRepository(SquadPublicRequest).save({
+      requestorId: '1',
+      sourceId: 'a',
+      status: SquadPublicRequestStatus.Pending,
+    });
+    const ctx: NotificationSquadRequestContext & NotificationSourceContext = {
+      squadRequest: request,
+      userIds: ['1'],
+      source,
+    };
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.SquadPublicSubmitted,
+      ctx,
+    );
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
+    expect(args.dynamicTemplateData).toEqual({
+      squad_handle: 'a',
+      squad_image: 'http://image.com/a',
+      squad_name: 'A',
+      timestamp: formatMailDate(new Date()),
+    });
+    expect(args.templateId).toEqual('d-8edfa432086649a08eb57d353e4cee94');
+  });
+
+  it('should send an email to the requestor when rejected', async () => {
+    const request = await con.getRepository(SquadPublicRequest).save({
+      requestorId: '1',
+      sourceId: 'a',
+      status: SquadPublicRequestStatus.Rejected,
+    });
+    const ctx: NotificationSquadRequestContext & NotificationSourceContext = {
+      squadRequest: request,
+      userIds: ['1'],
+      source,
+    };
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.SquadPublicRejected,
+      ctx,
+    );
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
+    expect(args.dynamicTemplateData).toEqual({
+      squad_handle: 'a',
+      squad_image: 'http://image.com/a',
+      squad_name: 'A',
+      first_name: 'Ido',
+    });
+    expect(args.templateId).toEqual('d-990613fa2d83435abdd5675bc1c33f95');
+  });
+
+  it('should send an email to the requestor when approved', async () => {
+    const request = await con.getRepository(SquadPublicRequest).save({
+      requestorId: '1',
+      sourceId: 'a',
+      status: SquadPublicRequestStatus.Approved,
+    });
+    const ctx: NotificationSquadRequestContext & NotificationSourceContext = {
+      squadRequest: request,
+      userIds: ['1'],
+      source,
+    };
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.SquadPublicApproved,
+      ctx,
+    );
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
+    expect(args.dynamicTemplateData).toEqual({
+      squad_handle: 'a',
+      squad_image: 'http://image.com/a',
+      squad_name: 'A',
+      first_name: 'Ido',
+    });
+    expect(args.templateId).toEqual('d-899ec61a04124e3bae7bd543c2e304bb');
   });
 });

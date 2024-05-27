@@ -66,7 +66,10 @@ import { UserVote, maxFeedsPerUser } from '../types';
 import { createDatePageGenerator } from '../common/datePageGenerator';
 import { generateShortId } from '../ids';
 import { SubmissionFailErrorMessage } from '../errors';
-import { getFeedByIdentifiersOrFail } from '../common/feed';
+import {
+  getFeedByIdentifiersOrFail,
+  validateFeedPayload,
+} from '../common/feed';
 import { FeedLocalConfigGenerator } from '../integrations/feed/configs';
 
 interface GQLTagsCategory {
@@ -1196,16 +1199,6 @@ const legacySimilarPostsResolver = randomPostsResolver(
   },
   3,
 );
-
-const validateFeedPayload = ({
-  name,
-}: {
-  name: Feed['flags']['name'];
-}): never | undefined => {
-  if (!name) {
-    throw new ValidationError('Feed name is required');
-  }
-};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
