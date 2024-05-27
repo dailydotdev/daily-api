@@ -282,6 +282,7 @@ if (isAdhocEnv) {
     },
     {
       nameSuffix: 'ws',
+      port: 3000,
       env: [
         nodeOptions(wsMemory),
         { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
