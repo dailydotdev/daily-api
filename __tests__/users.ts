@@ -2260,6 +2260,55 @@ describe('query personalizedDigest', () => {
       },
     ]);
   });
+
+  describe('flags field', () => {
+    const FLAGS_QUERY = `
+    query PersonalizedDigest {
+      personalizedDigest {
+        type
+        flags {
+          sendType
+        }
+      }
+  }`;
+
+    beforeEach(async () => {
+      loggedUser = '1';
+
+      await con.getRepository(UserPersonalizedDigest).save({
+        userId: loggedUser,
+        type: UserPersonalizedDigestType.Digest,
+      });
+    });
+
+    it('should return all the public flags', async () => {
+      await con.getRepository(UserPersonalizedDigest).save({
+        userId: loggedUser,
+        type: UserPersonalizedDigestType.Digest,
+        flags: {
+          sendType: UserPersonalizedDigestSendType.workdays,
+        },
+      });
+
+      const res = await client.query(FLAGS_QUERY);
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.personalizedDigest.length).toEqual(1);
+      expect(res.data.personalizedDigest[0].flags).toEqual({
+        sendType: UserPersonalizedDigestSendType.workdays,
+      });
+    });
+
+    it('should contain all default values in db query', async () => {
+      const res = await client.query(FLAGS_QUERY);
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.personalizedDigest.length).toEqual(1);
+      expect(res.data.personalizedDigest[0].flags).toEqual({
+        sendType: UserPersonalizedDigestSendType.weekly,
+      });
+    });
+  });
 });
 
 describe('mutation subscribePersonalizedDigest', () => {

@@ -12,6 +12,8 @@ import {
   UserNotification,
   SourceFlagsPublic,
   defaultPublicSourceFlags,
+  UserPersonalizedDigestFlagsPublic,
+  UserPersonalizedDigestSendType,
 } from '../entity';
 import {
   SourceMemberRoles,
@@ -546,6 +548,18 @@ const obj = new GraphORM({
   },
   UserPersonalizedDigest: {
     requiredColumns: ['userId'],
+    fields: {
+      flags: {
+        jsonType: true,
+        transform: (
+          value: UserPersonalizedDigestFlagsPublic,
+        ): UserPersonalizedDigestFlagsPublic => {
+          return {
+            sendType: value?.sendType ?? UserPersonalizedDigestSendType.weekly,
+          };
+        },
+      },
+    },
   },
   Keyword: {
     fields: {
