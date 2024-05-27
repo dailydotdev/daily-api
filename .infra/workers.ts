@@ -273,6 +273,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.comment-downvote-canceled',
     subscription: 'api.comment-downvote-canceled-rep',
   },
+  {
+    topic: 'api.v1.squad-public-request',
+    subscription: 'api.v1.squad-public-request-notification',
+  },
 ];
 
 export const personalizedDigestWorkers = [

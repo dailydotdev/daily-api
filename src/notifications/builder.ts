@@ -11,6 +11,7 @@ import {
   Source,
   SourceRequest,
   SourceType,
+  SquadPublicRequest,
   Submission,
   User,
 } from '../entity';
@@ -124,6 +125,15 @@ export class NotificationBuilder {
     return this.enrichNotification({
       referenceId: sourceRequest.id,
       referenceType: 'source_request',
+    });
+  }
+
+  referenceSquadRequest(
+    squadRequest: Reference<SquadPublicRequest>,
+  ): NotificationBuilder {
+    return this.enrichNotification({
+      referenceId: squadRequest.id,
+      referenceType: 'squad_request',
     });
   }
 

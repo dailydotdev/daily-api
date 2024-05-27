@@ -42,6 +42,9 @@ export enum NotificationType {
   CollectionUpdated = 'collection_updated',
   DevCardUnlocked = 'dev_card_unlocked',
   SourcePostAdded = 'source_post_added',
+  SquadPublicApproved = 'squad_public_approved',
+  SquadPublicRejected = 'squad_public_rejected',
+  SquadPublicSubmitted = 'squad_public_submitted',
 }
 
 export enum NotificationPreferenceType {

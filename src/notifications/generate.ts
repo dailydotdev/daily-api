@@ -18,6 +18,7 @@ import {
   NotificationSourceContext,
   NotificationSourceMemberRoleContext,
   NotificationSourceRequestContext,
+  NotificationSquadRequestContext,
   NotificationSubmissionContext,
   NotificationUpvotersContext,
 } from './types';
@@ -97,6 +98,12 @@ export const notificationTitleMap: Record<
   source_post_added: (
     ctx: NotificationPostContext & NotificationDoneByContext,
   ) => `New post from <b>${ctx.source.name}</b>, check it out now!`,
+  squad_public_approved: (
+    ctx: NotificationPostContext & NotificationDoneByContext,
+  ) =>
+    `<b>Congratulations! ${ctx.source.name} has successfully passed the review process and is now officially public!</b>`,
+  squad_public_rejected: systemTitle,
+  squad_public_submitted: systemTitle,
 };
 
 export const generateNotificationMap: Record<
@@ -318,4 +325,21 @@ export const generateNotificationMap: Record<
       .icon(NotificationIcon.Bell)
       .avatarSource(ctx.source)
       .objectPost(ctx.post, ctx.source, ctx.sharedPost),
+  squad_public_approved: (
+    builder: NotificationBuilder,
+    ctx: NotificationSquadRequestContext & NotificationSourceContext,
+  ) =>
+    builder
+      .icon(NotificationIcon.DailyDev)
+      .referenceSquadRequest(ctx.squadRequest)
+      .targetSource(ctx.source)
+      .avatarSource(ctx.source),
+  squad_public_rejected: (
+    builder: NotificationBuilder,
+    ctx: NotificationSquadRequestContext & NotificationSourceContext,
+  ) => builder.systemNotification().referenceSquadRequest(ctx.squadRequest),
+  squad_public_submitted: (
+    builder: NotificationBuilder,
+    ctx: NotificationSquadRequestContext & NotificationSourceContext,
+  ) => builder.systemNotification().referenceSquadRequest(ctx.squadRequest),
 };

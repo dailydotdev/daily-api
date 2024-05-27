@@ -15,6 +15,7 @@ import commentUpvoteMilestone from './commentUpvoteMilestone';
 import postAdded from './postAdded';
 import memberJoinedSource from './squadMemberJoined';
 import sourceMemberRoleChanged from './sourceMemberRoleChanged';
+import squadPublicRequestNotification from './squadPublicRequestNotification';
 import { TypeOrmError } from '../../errors';
 import postMention from './postMention';
 import { collectionUpdated } from './collectionUpdated';
@@ -72,6 +73,7 @@ const notificationWorkers: NotificationWorker[] = [
   postAdded,
   memberJoinedSource,
   sourceMemberRoleChanged,
+  squadPublicRequestNotification,
   collectionUpdated,
   devCardUnlocked,
 ];
