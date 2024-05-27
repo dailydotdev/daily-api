@@ -70,9 +70,9 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   collection_updated: '11',
   dev_card_unlocked: '9',
   source_post_added: '8',
-  squad_public_submitted: 'd-8edfa432086649a08eb57d353e4cee94',
-  squad_public_rejected: 'd-990613fa2d83435abdd5675bc1c33f95',
-  squad_public_approved: 'd-899ec61a04124e3bae7bd543c2e304bb',
+  squad_public_submitted: '42',
+  squad_public_rejected: '43',
+  squad_public_approved: '41',
 };
 
 type TemplateData = Record<string, string | number>;
@@ -538,7 +538,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       source_image: source.image,
     };
   },
-  squad_public_submitted: async (con, users, notification) => {
+  squad_public_submitted: async (con, user, notification) => {
     const request = await con.getRepository(SquadPublicRequest).findOne({
       where: { id: notification.referenceId },
     });
@@ -546,48 +546,38 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     const squad = await request.source;
 
     return {
-      static: {
-        squad_name: squad.name,
-        squad_handle: squad.handle,
-        squad_image: squad.image,
-        timestamp: formatMailDate(request.createdAt),
-      },
+      squad_name: squad.name,
+      squad_handle: squad.handle,
+      squad_image: squad.image,
+      timestamp: formatMailDate(request.createdAt),
     };
   },
-  squad_public_rejected: async (con, users, notification) => {
+  squad_public_rejected: async (con, user, notification) => {
     const request = await con.getRepository(SquadPublicRequest).findOneOrFail({
       where: { id: notification.referenceId },
       order: { createdAt: 'DESC' },
     });
 
     const squad = await request.source;
-    const requestor = await request.requestor;
 
     return {
-      static: {
-        squad_name: squad.name,
-        squad_handle: squad.handle,
-        squad_image: squad.image,
-        first_name: getFirstName(requestor.name),
-      },
+      squad_name: squad.name,
+      squad_handle: squad.handle,
+      squad_image: squad.image,
     };
   },
-  squad_public_approved: async (con, users, notification) => {
+  squad_public_approved: async (con, user, notification) => {
     const request = await con.getRepository(SquadPublicRequest).findOneOrFail({
       where: { id: notification.referenceId },
       order: { createdAt: 'DESC' },
     });
 
     const squad = await request.source;
-    const requestor = await request.requestor;
 
     return {
-      static: {
-        squad_name: squad.name,
-        squad_handle: squad.handle,
-        squad_image: squad.image,
-        first_name: getFirstName(requestor.name),
-      },
+      squad_name: squad.name,
+      squad_handle: squad.handle,
+      squad_image: squad.image,
     };
   },
 };
@@ -635,12 +625,13 @@ const worker: Worker = {
             users.map(async (user) => {
               const templateDataFunc =
                 notificationToTemplateData[notification.type];
-          const templateData = await templateDataFunc(
-              con,
-            user,
-            notification,
-            attachments,
-            avatars,);
+              const templateData = await templateDataFunc(
+                con,
+                user,
+                notification,
+                attachments,
+                avatars,
+              );
               if (!templateData) {
                 return;
               }

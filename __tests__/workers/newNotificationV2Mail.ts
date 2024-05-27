@@ -1208,14 +1208,15 @@ describe('squad public request notifications', () => {
       },
     });
     expect(sendEmail).toHaveBeenCalledTimes(1);
-    const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-    expect(args.dynamicTemplateData).toEqual({
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data).toEqual({
       squad_handle: 'a',
       squad_image: 'http://image.com/a',
       squad_name: 'A',
       timestamp: formatMailDate(new Date()),
     });
-    expect(args.templateId).toEqual('d-8edfa432086649a08eb57d353e4cee94');
+    expect(args.transactional_message_id).toEqual('42');
   });
 
   it('should send an email to the requestor when rejected', async () => {
@@ -1241,14 +1242,14 @@ describe('squad public request notifications', () => {
       },
     });
     expect(sendEmail).toHaveBeenCalledTimes(1);
-    const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-    expect(args.dynamicTemplateData).toEqual({
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data).toEqual({
       squad_handle: 'a',
       squad_image: 'http://image.com/a',
       squad_name: 'A',
-      first_name: 'Ido',
     });
-    expect(args.templateId).toEqual('d-990613fa2d83435abdd5675bc1c33f95');
+    expect(args.transactional_message_id).toEqual('43');
   });
 
   it('should send an email to the requestor when approved', async () => {
@@ -1274,13 +1275,13 @@ describe('squad public request notifications', () => {
       },
     });
     expect(sendEmail).toHaveBeenCalledTimes(1);
-    const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-    expect(args.dynamicTemplateData).toEqual({
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data).toEqual({
       squad_handle: 'a',
       squad_image: 'http://image.com/a',
       squad_name: 'A',
-      first_name: 'Ido',
     });
-    expect(args.templateId).toEqual('d-899ec61a04124e3bae7bd543c2e304bb');
+    expect(args.transactional_message_id).toEqual('41');
   });
 });
