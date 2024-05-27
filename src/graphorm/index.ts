@@ -12,8 +12,8 @@ import {
   UserNotification,
   SourceFlagsPublic,
   defaultPublicSourceFlags,
-  UserPersonalizedDigestSendType,
   UserPersonalizedDigestFlagsPublic,
+  UserPersonalizedDigestSendType,
 } from '../entity';
 import {
   SourceMemberRoles,
@@ -555,8 +555,7 @@ const obj = new GraphORM({
           value: UserPersonalizedDigestFlagsPublic,
         ): UserPersonalizedDigestFlagsPublic => {
           return {
-            sendType:
-              value?.sendType ?? UserPersonalizedDigestSendType.workdays,
+            sendType: value?.sendType ?? UserPersonalizedDigestSendType.weekly,
           };
         },
       },

@@ -157,7 +157,7 @@ export interface ReferralCampaign {
   url: string;
 }
 
-export interface GQLPersonalizedDigest {
+export interface GQLUserPersonalizedDigest {
   preferredDay: DayOfWeek;
   preferredHour: number;
   type: UserPersonalizedDigestType;
@@ -411,13 +411,13 @@ export const typeDefs = /* GraphQL */ `
   }
 
   """
-  flags property of PersonalizedDigest entity
+  flags property of UserPersonalizedDigest entity
   """
   type PersonalizedDigestFlagsPublic {
     sendType: UserPersonalizedDigestSendType
   }
 
-  type PersonalizedDigest {
+  type UserPersonalizedDigest {
     preferredDay: Int!
     preferredHour: Int!
     flags: PersonalizedDigestFlagsPublic
@@ -574,7 +574,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get personalized digest settings for user
     """
-    personalizedDigest: [PersonalizedDigest] @auth
+    personalizedDigest: [UserPersonalizedDigest] @auth
 
     """
     List of users that the logged in user has referred to the platform
@@ -620,7 +620,7 @@ export const typeDefs = /* GraphQL */ `
       Send type of the digest
       """
       sendType: UserPersonalizedDigestSendType
-    ): PersonalizedDigest @auth
+    ): UserPersonalizedDigest @auth
 
     """
     The mutation to unsubscribe from the personalized digest
@@ -1095,10 +1095,21 @@ export const resolvers: IResolvers<any, Context> = {
       _,
       __,
       ctx: Context,
-    ): Promise<GQLPersonalizedDigest[]> => {
-      const personalizedDigest = await ctx
-        .getRepository(UserPersonalizedDigest)
-        .findBy({ userId: ctx.userId });
+      info,
+    ): Promise<GQLUserPersonalizedDigest[]> => {
+      const personalizedDigest =
+        await graphorm.query<GQLUserPersonalizedDigest>(
+          ctx,
+          info,
+          (builder) => {
+            builder.queryBuilder = builder.queryBuilder.andWhere(
+              '"userId" = :userId',
+              { userId: ctx.userId },
+            );
+
+            return builder;
+          },
+        );
 
       if (personalizedDigest.length === 0) {
         throw new NotFoundError('Not subscribed to personalized digest');
@@ -1229,7 +1240,7 @@ export const resolvers: IResolvers<any, Context> = {
         sendType?: UserPersonalizedDigestSendType;
       },
       ctx: Context,
-    ): Promise<GQLPersonalizedDigest> => {
+    ): Promise<GQLUserPersonalizedDigest> => {
       const {
         hour,
         day,
