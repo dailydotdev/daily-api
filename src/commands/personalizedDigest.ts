@@ -9,6 +9,7 @@ import { workerSubscribe } from '../common';
 import { personalizedDigestWorkers as workers } from '../workers';
 import { loadFeatures } from '../growthbook';
 import { logger } from '../logger';
+import { loadAuthKeys } from '../auth';
 
 export default async function app(): Promise<void> {
   const connection = await runInRootSpan(
@@ -18,6 +19,7 @@ export default async function app(): Promise<void> {
   const pubsub = new PubSub();
   const meter = opentelemetry.metrics.getMeter('api-personalized-digest');
 
+  loadAuthKeys();
   await loadFeatures(logger);
 
   logger.info('personalized-digest processing in on');

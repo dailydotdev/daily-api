@@ -301,6 +301,7 @@ if (isAdhocEnv) {
     },
     {
       nameSuffix: 'bg',
+      env: [...jwtEnv],
       args: ['dumb-init', 'node', 'bin/cli', 'background'],
       minReplicas: 3,
       maxReplicas: 10,
@@ -313,6 +314,7 @@ if (isAdhocEnv) {
       },
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
+      ...jwtVols,
     },
     {
       nameSuffix: 'private',
@@ -345,6 +347,7 @@ if (isAdhocEnv) {
   if (isPersonalizedDigestEnabled) {
     appsArgs.push({
       nameSuffix: 'personalized-digest',
+      env: [...jwtEnv],
       args: ['dumb-init', 'node', 'bin/cli', 'personalized-digest'],
       minReplicas: 1,
       maxReplicas: 25,
@@ -355,6 +358,7 @@ if (isAdhocEnv) {
         labels: { app: name, subapp: 'personalized-digest' },
         targetAverageValue: 100,
       },
+      ...jwtVols,
       // ports: [{ containerPort: 9464, name: 'metrics' }],
       // servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
     });
@@ -559,7 +563,7 @@ if (!isAdhocEnv) {
     {
       isAdhocEnv: isAdhocEnv,
       namespace: namespace,
-      env: [{name: "JAVA_OPTS", value: "-Xmx3840m -Xms1024m"}],
+      env: [{ name: 'JAVA_OPTS', value: '-Xmx3840m -Xms1024m' }],
       props: {
         path: './clickhouse-sync.yml',
         keys: {
