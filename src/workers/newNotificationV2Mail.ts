@@ -357,9 +357,8 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     if (!post || !post?.sharedPostId || !post?.authorId) {
       return;
     }
-    const [sharedPost, author, source] = await Promise.all([
+    const [sharedPost, source] = await Promise.all([
       con.getRepository(Post).findOneBy({ id: post.sharedPostId }),
-      post.author,
       post.source,
     ]);
     return {
@@ -368,16 +367,12 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       squad_name: source.name,
       squad_image: source.image,
       post_title: truncatePostToTweet(sharedPost),
-      post_image: (sharedPost as ArticlePost).image || pickImageUrl(post),
       new_comment: notification.description,
       post_link: addNotificationEmailUtm(
         notification.targetUrl,
         notification.type,
       ),
       commenter_reputation: commenter.reputation,
-      user_name: author.name,
-      user_reputation: author.reputation,
-      user_image: author.image,
       commentary: truncatePostToTweet(post),
     };
   },
