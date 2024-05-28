@@ -91,7 +91,7 @@ export type EventLogger = Omit<FastifyBaseLogger, 'fatal'>;
 export const publishEvent = async (
   log: EventLogger,
   topic: Topic,
-  payload: Record<string, unknown>,
+  payload: unknown,
 ): Promise<void> =>
   runInSpan(
     `publishEvent ${topic.name}`,
