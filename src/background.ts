@@ -10,6 +10,7 @@ import { workerSubscribe } from './common';
 import { messageToJson } from './workers/worker';
 import { loadFeatures } from './growthbook';
 import { logger } from './logger';
+import { loadAuthKeys } from './auth';
 
 export default async function app(): Promise<void> {
   const connection = await runInRootSpan(
@@ -19,6 +20,7 @@ export default async function app(): Promise<void> {
   const pubsub = new PubSub();
   const meter = opentelemetry.metrics.getMeter('api-bg');
 
+  loadAuthKeys();
   await loadFeatures(logger);
 
   logger.info('background processing in on');
