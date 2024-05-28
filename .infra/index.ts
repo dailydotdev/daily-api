@@ -231,6 +231,8 @@ if (isAdhocEnv) {
         'prometheus.io/scrape': 'true',
         'prometheus.io/port': '9464',
       },
+      env: [...jwtEnv],
+      ...jwtVols,
     },
   ];
 
@@ -253,6 +255,8 @@ if (isAdhocEnv) {
         'prometheus.io/scrape': 'true',
         'prometheus.io/port': '9464',
       },
+      env: [...jwtEnv],
+      ...jwtVols,
     });
   }
 } else {
