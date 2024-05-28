@@ -162,8 +162,8 @@ describe('personalizedDigestEmail worker', () => {
     expect(sendEmail).toHaveBeenCalledTimes(1);
     const emailData = (sendEmail as jest.Mock).mock.calls[0][0];
     expect(emailData).toMatchSnapshot({
-      sendAt: expect.any(Number),
-      dynamicTemplateData: {
+      send_at: expect.any(Number),
+      message_data: {
         date: expect.any(String),
       },
     });
@@ -211,12 +211,12 @@ describe('personalizedDigestEmail worker', () => {
     expect(sendEmail).toHaveBeenCalledTimes(1);
     const emailData = (sendEmail as jest.Mock).mock.calls[0][0];
     expect(emailData).toMatchSnapshot({
-      sendAt: expect.any(Number),
-      dynamicTemplateData: {
+      send_at: expect.any(Number),
+      message_data: {
         date: expect.any(String),
       },
     });
-    const sentAtDate = new Date(emailData.sendAt * 1000);
+    const sentAtDate = new Date(emailData.send_at * 1000);
     expect(sentAtDate.getDay()).toBe(personalizedDigest!.preferredDay);
     expect(sentAtDate.getHours()).toBe(personalizedDigest!.preferredHour + 7);
     expect(sentAtDate.getTimezoneOffset()).toBe(0);
@@ -262,12 +262,12 @@ describe('personalizedDigestEmail worker', () => {
     expect(sendEmail).toHaveBeenCalledTimes(1);
     const emailData = (sendEmail as jest.Mock).mock.calls[0][0];
     expect(emailData).toMatchSnapshot({
-      sendAt: expect.any(Number),
-      dynamicTemplateData: {
+      send_at: expect.any(Number),
+      message_data: {
         date: expect.any(String),
       },
     });
-    const sentAtDate = new Date(emailData.sendAt * 1000);
+    const sentAtDate = new Date(emailData.send_at * 1000);
     expect(sentAtDate.getDay()).toBe(personalizedDigest!.preferredDay);
     expect(sentAtDate.getHours()).toBe(personalizedDigest!.preferredHour - 6);
     expect(sentAtDate.getTimezoneOffset()).toBe(0);
@@ -312,7 +312,7 @@ describe('personalizedDigestEmail worker', () => {
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
     const emailData = (sendEmail as jest.Mock).mock.calls[0][0];
-    expect(emailData.to.name).toEqual('idoshamun');
+    expect(emailData.to).toEqual('ido@daily.dev');
   });
 
   it('should not generate personalized digest for user that did not confirm their info', async () => {
@@ -575,8 +575,8 @@ describe('personalizedDigestEmail worker', () => {
     expect(sendEmail).toHaveBeenCalledTimes(1);
     const emailData = (sendEmail as jest.Mock).mock.calls[0][0];
     expect(emailData).toMatchSnapshot({
-      sendAt: expect.any(Number),
-      dynamicTemplateData: {
+      send_at: expect.any(Number),
+      message_data: {
         date: expect.any(String),
       },
     });
@@ -611,8 +611,8 @@ describe('personalizedDigestEmail worker', () => {
     expect(sendEmail).toHaveBeenCalledTimes(1);
     const emailData = (sendEmail as jest.Mock).mock.calls[0][0];
     expect(emailData).toMatchSnapshot({
-      sendAt: expect.any(Number),
-      dynamicTemplateData: {
+      send_at: expect.any(Number),
+      message_data: {
         date: expect.any(String),
       },
     });
@@ -641,8 +641,8 @@ describe('personalizedDigestEmail worker', () => {
     expect(sendEmail).toHaveBeenCalledTimes(1);
     const emailData = (sendEmail as jest.Mock).mock.calls[0][0];
     expect(emailData).toMatchSnapshot({
-      sendAt: expect.any(Number),
-      dynamicTemplateData: {
+      send_at: expect.any(Number),
+      message_data: {
         date: expect.any(String),
       },
     });

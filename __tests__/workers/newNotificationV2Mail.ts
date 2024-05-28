@@ -46,12 +46,12 @@ import {
   NotificationSubmissionContext,
   NotificationUpvotersContext,
 } from '../../src/notifications';
-import { MailDataRequired } from '@sendgrid/helpers/classes/mail';
 import { postsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture/source';
 import { SourceMemberRoles } from '../../src/roles';
 import { NotificationType } from '../../src/notifications/common';
 import { buildPostContext } from '../../src/workers/notifications/utils';
+import { SendEmailRequestWithTemplate } from 'customerio-node/dist/lib/api/requests';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -99,16 +99,14 @@ it('should set parameters for community_picks_failed email', async () => {
     },
   });
   expect(sendEmail).toHaveBeenCalledTimes(1);
-  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-  expect(args.dynamicTemplateData).toEqual({
+  const args = jest.mocked(sendEmail).mock
+    .calls[0][0] as SendEmailRequestWithTemplate;
+  expect(args.message_data).toEqual({
     article_link: 'http://sample.abc.com',
     reason: expect.any(String),
     submitted_at: 'Dec 12, 2022',
   });
-  expect(args.personalizations).toEqual([
-    { to: 'ido@daily.dev', dynamicTemplateData: { first_name: 'Ido' } },
-  ]);
-  expect(args.templateId).toEqual('d-43cf7ff439ff4391839e946940499b30');
+  expect(args.transactional_message_id).toEqual('28');
 });
 
 it('should set parameters for community_picks_succeeded email', async () => {
@@ -140,8 +138,9 @@ it('should set parameters for community_picks_succeeded email', async () => {
     },
   });
   expect(sendEmail).toHaveBeenCalledTimes(1);
-  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-  expect(args.dynamicTemplateData).toEqual({
+  const args = jest.mocked(sendEmail).mock
+    .calls[0][0] as SendEmailRequestWithTemplate;
+  expect(args.message_data).toEqual({
     article_link: 'http://sample.abc.com',
     discussion_link:
       'http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=community_picks_succeeded',
@@ -149,10 +148,7 @@ it('should set parameters for community_picks_succeeded email', async () => {
     post_title: 'P1',
     submitted_at: 'Dec 12, 2022',
   });
-  expect(args.personalizations).toEqual([
-    { to: 'ido@daily.dev', dynamicTemplateData: { first_name: 'Ido' } },
-  ]);
-  expect(args.templateId).toEqual('d-ee7d7cfc461a43b4be776f70940fa867');
+  expect(args.transactional_message_id).toEqual('27');
 });
 
 it('should set parameters for community_picks_granted email', async () => {
@@ -172,12 +168,10 @@ it('should set parameters for community_picks_granted email', async () => {
     },
   });
   expect(sendEmail).toHaveBeenCalledTimes(1);
-  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-  expect(args.dynamicTemplateData).toEqual({});
-  expect(args.personalizations).toEqual([
-    { to: 'ido@daily.dev', dynamicTemplateData: { first_name: 'Ido' } },
-  ]);
-  expect(args.templateId).toEqual('d-6d17b936f1f245e486f1a85323240332');
+  const args = jest.mocked(sendEmail).mock
+    .calls[0][0] as SendEmailRequestWithTemplate;
+  expect(args.message_data).toEqual({});
+  expect(args.transactional_message_id).toEqual('26');
 });
 
 it('should set parameters for article_picked email', async () => {
@@ -200,14 +194,15 @@ it('should set parameters for article_picked email', async () => {
     },
   });
   expect(sendEmail).toHaveBeenCalledTimes(1);
-  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-  expect(args.dynamicTemplateData).toEqual({
+  const args = jest.mocked(sendEmail).mock
+    .calls[0][0] as SendEmailRequestWithTemplate;
+  expect(args.message_data).toEqual({
     discussion_link:
       'http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=article_picked',
     post_image: 'https://daily.dev/image.jpg',
     post_title: 'P1',
   });
-  expect(args.templateId).toEqual('d-3d3402ec873640e788f549a0680c40bb');
+  expect(args.transactional_message_id).toEqual('32');
 });
 
 it('should set parameters for article_new_comment email', async () => {
@@ -242,8 +237,9 @@ it('should set parameters for article_new_comment email', async () => {
     },
   });
   expect(sendEmail).toHaveBeenCalledTimes(1);
-  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-  expect(args.dynamicTemplateData).toEqual({
+  const args = jest.mocked(sendEmail).mock
+    .calls[0][0] as SendEmailRequestWithTemplate;
+  expect(args.message_data).toEqual({
     discussion_link:
       'http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=article_new_comment#c-c1',
     full_name: 'Tsahi',
@@ -253,7 +249,7 @@ it('should set parameters for article_new_comment email', async () => {
     profile_image: 'https://daily.dev/tsahi.jpg',
     user_reputation: '2,500',
   });
-  expect(args.templateId).toEqual('d-aba78d1947b14307892713ad6c2cafc5');
+  expect(args.transactional_message_id).toEqual('33');
 });
 
 it('should set parameters for article_upvote_milestone email', async () => {
@@ -278,8 +274,9 @@ it('should set parameters for article_upvote_milestone email', async () => {
     },
   });
   expect(sendEmail).toHaveBeenCalledTimes(1);
-  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-  expect(args.dynamicTemplateData).toEqual({
+  const args = jest.mocked(sendEmail).mock
+    .calls[0][0] as SendEmailRequestWithTemplate;
+  expect(args.message_data).toEqual({
     discussion_link:
       'http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=article_upvote_milestone',
     post_image: 'https://daily.dev/image.jpg',
@@ -287,7 +284,7 @@ it('should set parameters for article_upvote_milestone email', async () => {
     upvotes: '50',
     upvote_title: 'Good job! You earned 50 upvotes 🚴‍♀️',
   });
-  expect(args.templateId).toEqual('d-f9bff38d48dd4492b6db3dde0eebabd6');
+  expect(args.transactional_message_id).toEqual('22');
 });
 
 it('should set parameters for article_report_approved email', async () => {
@@ -310,12 +307,13 @@ it('should set parameters for article_report_approved email', async () => {
     },
   });
   expect(sendEmail).toHaveBeenCalledTimes(1);
-  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-  expect(args.dynamicTemplateData).toEqual({
+  const args = jest.mocked(sendEmail).mock
+    .calls[0][0] as SendEmailRequestWithTemplate;
+  expect(args.message_data).toEqual({
     post_image: 'https://daily.dev/image.jpg',
     post_title: 'P1',
   });
-  expect(args.templateId).toEqual('d-dc6edf61c52442689e8870a434d8811d');
+  expect(args.transactional_message_id).toEqual('30');
 });
 
 it('should set parameters for article_analytics email', async () => {
@@ -351,27 +349,21 @@ it('should set parameters for article_analytics email', async () => {
     },
   });
   expect(sendEmail).toHaveBeenCalledTimes(1);
-  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-  expect(args.dynamicTemplateData).toEqual({
+  const args = jest.mocked(sendEmail).mock
+    .calls[0][0] as SendEmailRequestWithTemplate;
+  expect(args.message_data).toEqual({
     post_comments: '2',
     post_image: 'https://daily.dev/image.jpg',
     post_title: 'P1',
     post_upvotes: '6',
     post_views: '11',
+    post_comments_total: '3',
+    post_upvotes_total: '11',
+    post_views_total: '21',
+    profile_link:
+      'http://localhost:5002/idoshamun?utm_source=notification&utm_medium=email&utm_campaign=article_analytics',
   });
-  expect(args.personalizations).toEqual([
-    {
-      to: 'ido@daily.dev',
-      dynamicTemplateData: {
-        profile_link:
-          'http://localhost:5002/idoshamun?utm_source=notification&utm_medium=email&utm_campaign=article_analytics',
-        post_comments_total: '3',
-        post_upvotes_total: '11',
-        post_views_total: '21',
-      },
-    },
-  ]);
-  expect(args.templateId).toEqual('d-97c75b0e2cf847399d20233455736ba0');
+  expect(args.transactional_message_id).toEqual('31');
 });
 
 it('should set parameters for source_approved email', async () => {
@@ -402,15 +394,16 @@ it('should set parameters for source_approved email', async () => {
     },
   });
   expect(sendEmail).toHaveBeenCalledTimes(1);
-  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-  expect(args.dynamicTemplateData).toEqual({
+  const args = jest.mocked(sendEmail).mock
+    .calls[0][0] as SendEmailRequestWithTemplate;
+  expect(args.message_data).toEqual({
     rss_link: 'https://rss.com',
     source_image: 'http://image.com/a',
     source_link:
       'http://localhost:5002/sources/a?utm_source=notification&utm_medium=email&utm_campaign=source_approved',
     source_name: 'A',
   });
-  expect(args.templateId).toEqual('d-d79367f86f1e4ca5afdf4c1d39ff7214');
+  expect(args.transactional_message_id).toEqual('34');
 });
 
 it('should set parameters for source_rejected email', async () => {
@@ -437,14 +430,12 @@ it('should set parameters for source_rejected email', async () => {
     },
   });
   expect(sendEmail).toHaveBeenCalledTimes(1);
-  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-  expect(args.dynamicTemplateData).toEqual({
+  const args = jest.mocked(sendEmail).mock
+    .calls[0][0] as SendEmailRequestWithTemplate;
+  expect(args.message_data).toEqual({
     rss_link: 'https://daily.dev',
   });
-  expect(args.personalizations).toEqual([
-    { to: 'ido@daily.dev', dynamicTemplateData: { first_name: 'Ido' } },
-  ]);
-  expect(args.templateId).toEqual('d-48de63612ff944cb8156fec17f47f066');
+  expect(args.transactional_message_id).toEqual('35');
 });
 
 it('should set parameters for comment_mention email', async () => {
@@ -478,8 +469,9 @@ it('should set parameters for comment_mention email', async () => {
     },
   });
   expect(sendEmail).toHaveBeenCalledTimes(1);
-  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-  expect(args.dynamicTemplateData).toEqual({
+  const args = jest.mocked(sendEmail).mock
+    .calls[0][0] as SendEmailRequestWithTemplate;
+  expect(args.message_data).toEqual({
     post_link:
       'http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=comment_mention#c-c1',
     full_name: 'Tsahi',
@@ -489,7 +481,7 @@ it('should set parameters for comment_mention email', async () => {
     commenter_profile_image: 'https://daily.dev/tsahi.jpg',
     user_reputation: '10',
   });
-  expect(args.templateId).toEqual('d-6949e2e50def4c6698900032973d469b');
+  expect(args.transactional_message_id).toEqual('29');
 });
 
 it('should set parameters for comment_reply email', async () => {
@@ -530,8 +522,9 @@ it('should set parameters for comment_reply email', async () => {
     },
   });
   expect(sendEmail).toHaveBeenCalledTimes(1);
-  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-  expect(args.dynamicTemplateData).toEqual({
+  const args = jest.mocked(sendEmail).mock
+    .calls[0][0] as SendEmailRequestWithTemplate;
+  expect(args.message_data).toEqual({
     commenter_profile_image: 'https://daily.dev/tsahi.jpg',
     commenter_reputation: '10',
     discussion_link:
@@ -544,7 +537,7 @@ it('should set parameters for comment_reply email', async () => {
     user_profile_image: 'https://daily.dev/ido.jpg',
     user_reputation: '10',
   });
-  expect(args.templateId).toEqual('d-90c229bde4af427c8708a7615bfd85b4');
+  expect(args.transactional_message_id).toEqual('37');
 });
 
 it('should set parameters for squad_reply email', async () => {
@@ -598,8 +591,9 @@ it('should set parameters for squad_reply email', async () => {
     },
   });
   expect(sendEmail).toHaveBeenCalledTimes(1);
-  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-  expect(args.dynamicTemplateData).toEqual({
+  const args = jest.mocked(sendEmail).mock
+    .calls[0][0] as SendEmailRequestWithTemplate;
+  expect(args.message_data).toEqual({
     full_name: 'Tsahi',
     profile_image: 'https://daily.dev/tsahi.jpg',
     squad_name: 'A',
@@ -613,7 +607,7 @@ it('should set parameters for squad_reply email', async () => {
     user_image: 'https://daily.dev/ido.jpg',
     main_comment: 'parent comment',
   });
-  expect(args.templateId).toEqual('d-cbb2de40b61840c38d3aa21028af0c68');
+  expect(args.transactional_message_id).toEqual('20');
 });
 
 it('should set parameters for comment_upvote_milestone email', async () => {
@@ -646,24 +640,15 @@ it('should set parameters for comment_upvote_milestone email', async () => {
     },
   });
   expect(sendEmail).toHaveBeenCalledTimes(1);
-  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-  expect(args.dynamicTemplateData).toEqual({
+  const args = jest.mocked(sendEmail).mock
+    .calls[0][0] as SendEmailRequestWithTemplate;
+  expect(args.message_data).toEqual({
     discussion_link:
       'http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=comment_upvote_milestone#c-c1',
     main_comment: 'parent comment',
     upvote_title: 'Good job! You earned 50 upvotes 🚴‍♀️',
   });
-  expect(args.personalizations).toEqual([
-    {
-      to: 'ido@daily.dev',
-      dynamicTemplateData: {
-        profile_image: 'https://daily.dev/ido.jpg',
-        user_name: 'Ido',
-        user_reputation: '10',
-      },
-    },
-  ]);
-  expect(args.templateId).toEqual('d-92bca6102e3a4b41b6fc3f532f050429');
+  expect(args.transactional_message_id).toEqual('44');
 });
 
 it('should not send email notification if the user prefers not to receive them', async () => {
@@ -737,8 +722,9 @@ it('should set parameters for squad_post_added email', async () => {
     },
   });
   expect(sendEmail).toHaveBeenCalledTimes(1);
-  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-  expect(args.dynamicTemplateData).toEqual({
+  const args = jest.mocked(sendEmail).mock
+    .calls[0][0] as SendEmailRequestWithTemplate;
+  expect(args.message_data).toEqual({
     commentary: 'Shared post',
     full_name: 'Tsahi',
     post_image: 'https://daily.dev/image.jpg',
@@ -750,7 +736,7 @@ it('should set parameters for squad_post_added email', async () => {
     squad_name: 'A',
     user_reputation: '10',
   });
-  expect(args.templateId).toEqual('d-e09e5eaa30174b678ba2adfd8d311fdb');
+  expect(args.transactional_message_id).toEqual('17');
 });
 
 it('should set parameters for squad_member_joined email', async () => {
@@ -783,8 +769,9 @@ it('should set parameters for squad_member_joined email', async () => {
     },
   });
   expect(sendEmail).toHaveBeenCalledTimes(1);
-  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-  expect(args.dynamicTemplateData).toEqual({
+  const args = jest.mocked(sendEmail).mock
+    .calls[0][0] as SendEmailRequestWithTemplate;
+  expect(args.message_data).toEqual({
     full_name: 'Tsahi',
     new_member_handle: 'tsahidaily',
     post_link:
@@ -794,7 +781,7 @@ it('should set parameters for squad_member_joined email', async () => {
     squad_name: 'A',
     user_reputation: '10',
   });
-  expect(args.templateId).toEqual('d-2cfa3006175940c18cf4dcc2c09e1076');
+  expect(args.transactional_message_id).toEqual('18');
 });
 
 it('should set parameters for squad_new_comment email', async () => {
@@ -842,8 +829,9 @@ it('should set parameters for squad_new_comment email', async () => {
     },
   });
   expect(sendEmail).toHaveBeenCalledTimes(1);
-  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-  expect(args.dynamicTemplateData).toEqual({
+  const args = jest.mocked(sendEmail).mock
+    .calls[0][0] as SendEmailRequestWithTemplate;
+  expect(args.message_data).toEqual({
     commentary: 'Shared post',
     commenter_reputation: '2,500',
     full_name: 'Tsahi',
@@ -859,90 +847,7 @@ it('should set parameters for squad_new_comment email', async () => {
     user_name: 'Ido',
     user_reputation: '10',
   });
-  expect(args.templateId).toEqual('d-587c6c6fd1554fdf98e79b435b082f9e');
-});
-
-it('should set parameters for squad_post_viewed email', async () => {
-  const sharedPost = await con.getRepository(ArticlePost).save(postsFixture[0]);
-  await con
-    .getRepository(Source)
-    .update({ id: 'a' }, { type: SourceType.Squad });
-  const source = await con.getRepository(Source).findOneBy({ id: 'a' });
-  const post = await con.getRepository(SharePost).save({
-    id: 'ps',
-    shortId: 'ps',
-    sourceId: 'a',
-    title: 'Shared post',
-    sharedPostId: 'p1',
-    authorId: '2',
-  });
-  const doneBy = await con.getRepository(User).findOneBy({ id: '1' });
-  const ctx: NotificationPostContext & NotificationDoneByContext = {
-    userIds: ['2'],
-    post,
-    sharedPost,
-    source,
-    doneBy,
-  };
-
-  const notificationId = await saveNotificationV2Fixture(
-    con,
-    NotificationType.SquadPostViewed,
-    ctx,
-  );
-  await expectSuccessfulBackground(worker, {
-    notification: {
-      id: notificationId,
-      userId: '1',
-    },
-  });
-  expect(sendEmail).toHaveBeenCalledTimes(1);
-  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-  expect(args.dynamicTemplateData).toEqual({
-    commentary: 'Shared post',
-    full_name: 'Ido',
-    post_image: 'https://daily.dev/image.jpg',
-    post_link:
-      'http://localhost:5002/posts/ps?utm_source=notification&utm_medium=email&utm_campaign=squad_post_viewed',
-    post_title: 'P1',
-    profile_image: 'https://daily.dev/ido.jpg',
-    squad_image: 'http://image.com/a',
-    squad_name: 'A',
-    user_image: 'https://daily.dev/tsahi.jpg',
-    user_name: 'Tsahi',
-    user_reputation: '10',
-  });
-  expect(args.templateId).toEqual('d-dc0eb578886c4f84a7dcc25515c7b6a4');
-});
-
-it('should set parameters for squad_access email', async () => {
-  const ctx: NotificationBaseContext = {
-    userIds: ['1'],
-  };
-
-  const notificationId = await saveNotificationV2Fixture(
-    con,
-    NotificationType.SquadAccess,
-    ctx,
-  );
-  await expectSuccessfulBackground(worker, {
-    notification: {
-      id: notificationId,
-      userId: '1',
-    },
-  });
-  expect(sendEmail).toHaveBeenCalledTimes(1);
-  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-  expect(args.dynamicTemplateData).toEqual({});
-  expect(args.personalizations).toEqual([
-    {
-      to: 'ido@daily.dev',
-      dynamicTemplateData: {
-        full_name: 'Ido',
-      },
-    },
-  ]);
-  expect(args.templateId).toEqual('d-6b3de457947b415d93d0029361edaf1d');
+  expect(args.transactional_message_id).toEqual('19');
 });
 
 it('should set parameters for promoted_to_admin email', async () => {
@@ -978,15 +883,13 @@ it('should set parameters for promoted_to_admin email', async () => {
     url.searchParams.set(key, value);
   });
   expect(sendEmail).toHaveBeenCalledTimes(1);
-  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-  expect(args.dynamicTemplateData).toEqual({
+  const args = jest.mocked(sendEmail).mock
+    .calls[0][0] as SendEmailRequestWithTemplate;
+  expect(args.message_data).toEqual({
     squad_link: url.toString(),
     squad_name: 'A',
   });
-  expect(args.personalizations).toEqual([
-    { to: 'ido@daily.dev', dynamicTemplateData: { first_name: 'Ido' } },
-  ]);
-  expect(args.templateId).toEqual('d-397a5e4a394a4b7f91ea33c29efb8d01');
+  expect(args.transactional_message_id).toEqual('12');
 });
 
 it('should set parameters for promoted_to_moderator email', async () => {
@@ -1011,7 +914,8 @@ it('should set parameters for promoted_to_moderator email', async () => {
     },
   });
   expect(sendEmail).toHaveBeenCalledTimes(1);
-  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
+  const args = jest.mocked(sendEmail).mock
+    .calls[0][0] as SendEmailRequestWithTemplate;
   const url = new URL(notificationsLink);
   url.searchParams.set('promoted', 'true');
   url.searchParams.set('sid', sourcesFixture[0].handle);
@@ -1023,14 +927,11 @@ it('should set parameters for promoted_to_moderator email', async () => {
     const [key, value] = param.split('=');
     url.searchParams.set(key, value);
   });
-  expect(args.dynamicTemplateData).toEqual({
+  expect(args.message_data).toEqual({
     squad_link: url.toString(),
     squad_name: 'A',
   });
-  expect(args.personalizations).toEqual([
-    { to: 'ido@daily.dev', dynamicTemplateData: { first_name: 'Ido' } },
-  ]);
-  expect(args.templateId).toEqual('d-b1dbd1e86ee14bf094f7616f7469fee8');
+  expect(args.transactional_message_id).toEqual('13');
 });
 
 it('should not invoke demoted_to_member email', async () => {
@@ -1145,8 +1046,9 @@ describe('collection_post notification', () => {
       },
     });
     expect(sendEmail).toHaveBeenCalledTimes(1);
-    const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-    expect(args.dynamicTemplateData).toMatchObject({
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data).toMatchObject({
       post_comments: '0',
       post_image:
         'https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1',
@@ -1161,7 +1063,7 @@ describe('collection_post notification', () => {
       source_timestamp: 'Jan 07, 2020',
       source_title: 'Related post title',
     });
-    expect(args.templateId).toEqual('d-c051ffef97a148b6a6f14d5edb46b553');
+    expect(args.transactional_message_id).toEqual('11');
   });
 
   it('should not send if post does not have related posts', async () => {
@@ -1229,16 +1131,18 @@ it('should send email to multiple users', async () => {
       userId: '1',
     },
   });
-  expect(sendEmail).toHaveBeenCalledTimes(1);
-  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-  expect(args.dynamicTemplateData).toEqual({
-    rss_link: 'https://daily.dev',
+  expect(sendEmail).toHaveBeenCalledTimes(2);
+  const authors = ['tsahi@daily.dev', 'ido@daily.dev'];
+  authors.forEach((email, i) => {
+    const args = jest.mocked(sendEmail).mock.calls[
+      i
+    ][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data).toEqual({
+      rss_link: 'https://daily.dev',
+    });
+    expect(args.transactional_message_id).toEqual('35');
+    expect(authors).toContain(args.to);
   });
-  expect(args.personalizations).toEqual([
-    { to: 'ido@daily.dev', dynamicTemplateData: { first_name: 'Ido' } },
-    { to: 'tsahi@daily.dev', dynamicTemplateData: { first_name: 'Tsahi' } },
-  ]);
-  expect(args.templateId).toEqual('d-48de63612ff944cb8156fec17f47f066');
 });
 
 describe('source_post_added notification', () => {
@@ -1261,15 +1165,16 @@ describe('source_post_added notification', () => {
       },
     });
     expect(sendEmail).toHaveBeenCalledTimes(1);
-    const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-    expect(args.dynamicTemplateData).toEqual({
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data).toEqual({
       post_image: 'https://daily.dev/image.jpg',
       post_link: `http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=${NotificationType.SourcePostAdded}`,
       post_title: 'P1',
       source_name: 'A',
       source_image: 'http://image.com/a',
     });
-    expect(args.templateId).toEqual(
+    expect(args.transactional_message_id).toEqual(
       notificationToTemplateId[NotificationType.SourcePostAdded],
     );
   });
@@ -1303,14 +1208,15 @@ describe('squad public request notifications', () => {
       },
     });
     expect(sendEmail).toHaveBeenCalledTimes(1);
-    const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-    expect(args.dynamicTemplateData).toEqual({
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data).toEqual({
       squad_handle: 'a',
       squad_image: 'http://image.com/a',
       squad_name: 'A',
       timestamp: formatMailDate(new Date()),
     });
-    expect(args.templateId).toEqual('d-8edfa432086649a08eb57d353e4cee94');
+    expect(args.transactional_message_id).toEqual('42');
   });
 
   it('should send an email to the requestor when rejected', async () => {
@@ -1336,14 +1242,14 @@ describe('squad public request notifications', () => {
       },
     });
     expect(sendEmail).toHaveBeenCalledTimes(1);
-    const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-    expect(args.dynamicTemplateData).toEqual({
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data).toEqual({
       squad_handle: 'a',
       squad_image: 'http://image.com/a',
       squad_name: 'A',
-      first_name: 'Ido',
     });
-    expect(args.templateId).toEqual('d-990613fa2d83435abdd5675bc1c33f95');
+    expect(args.transactional_message_id).toEqual('43');
   });
 
   it('should send an email to the requestor when approved', async () => {
@@ -1369,13 +1275,13 @@ describe('squad public request notifications', () => {
       },
     });
     expect(sendEmail).toHaveBeenCalledTimes(1);
-    const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
-    expect(args.dynamicTemplateData).toEqual({
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data).toEqual({
       squad_handle: 'a',
       squad_image: 'http://image.com/a',
       squad_name: 'A',
-      first_name: 'Ido',
     });
-    expect(args.templateId).toEqual('d-899ec61a04124e3bae7bd543c2e304bb');
+    expect(args.transactional_message_id).toEqual('41');
   });
 });

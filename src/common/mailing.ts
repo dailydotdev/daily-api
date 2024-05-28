@@ -1,15 +1,25 @@
 import sgMail from '@sendgrid/mail';
 import client from '@sendgrid/client';
-import { MailDataRequired } from '@sendgrid/helpers/classes/mail';
 import { User } from './users';
 import { ChangeObject } from '../types';
 import { FastifyBaseLogger } from 'fastify';
 import { getShortGenericInviteLink } from './links';
+import { APIClient, SendEmailRequest } from 'customerio-node';
+import { SendEmailRequestOptionalOptions } from 'customerio-node/lib/api/requests';
+import { SendEmailRequestWithTemplate } from 'customerio-node/dist/lib/api/requests';
+import { signJwt } from '../auth';
 
 if (process.env.SENDGRID_API_KEY) {
   client.setApiKey(process.env.SENDGRID_API_KEY);
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 }
+
+export enum UnsubscribeGroup {
+  Notifications = 'notifications',
+  Digest = 'digest',
+}
+
+export const cioApi = new APIClient(process.env.CIO_APP_KEY);
 
 export const addNotificationUtm = (
   url: string,
@@ -40,39 +50,34 @@ export const formatMailDate = (date: Date): string =>
     year: 'numeric',
   });
 
-export const baseNotificationEmailData: Pick<
-  MailDataRequired,
-  | 'from'
-  | 'replyTo'
-  | 'trackingSettings'
-  | 'asm'
-  | 'category'
-  | 'hideWarnings'
-  | 'ipPoolName'
-> = {
-  from: {
-    email: 'informer@daily.dev',
-    name: 'daily.dev',
-  },
-  replyTo: {
-    email: 'hi@daily.dev',
-    name: 'daily.dev',
-  },
-  trackingSettings: {
-    openTracking: { enable: true },
-    clickTracking: { enable: true },
-  },
-  asm: {
-    groupId: 12850,
-  },
-  category: 'Notification',
-  hideWarnings: process.env.NODE_ENV === 'production',
-  ipPoolName: 'Transactional',
+export const baseNotificationEmailData: SendEmailRequestOptionalOptions = {
+  reply_to: 'noreply@daily.dev',
+  tracked: true,
+  send_to_unsubscribed: false,
+  queue_draft: false,
 };
 
-export const sendEmail: typeof sgMail.send = (data) => {
-  if (process.env.SENDGRID_API_KEY) {
-    return sgMail.send(data);
+export const sendEmail = async (
+  data: SendEmailRequestWithTemplate,
+  unsubscribeGroup = UnsubscribeGroup.Notifications,
+): Promise<void> => {
+  if (process.env.CIO_APP_KEY) {
+    if (!('id' in data.identifiers)) {
+      throw new Error('identifiers.id is required');
+    }
+    const token = await signJwt({
+      userId: data.identifiers.id,
+      group: unsubscribeGroup,
+    });
+    const req = new SendEmailRequest({
+      ...baseNotificationEmailData,
+      ...data,
+      headers: {
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+        'List-Unsubscribe': `<https://api.daily.dev/unsubscribe?token=${token.token}>`,
+      },
+    });
+    await cioApi.sendEmail(req);
   }
 };
 
