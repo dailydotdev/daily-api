@@ -18,7 +18,7 @@ const worker: TypedWorker<'user-updated'> = {
     }
 
     await identifyUser(log, cio, user);
-    log.info({ userId: user.id }, 'updated user profile in customerio');
+    log.debug({ userId: user.id }, 'updated user profile in customerio');
   },
 };
 

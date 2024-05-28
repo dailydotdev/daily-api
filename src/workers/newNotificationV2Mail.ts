@@ -594,6 +594,8 @@ const formatTemplateDate = <T extends TemplateData>(data: T): T => {
 const BATCH_SIZE = 1;
 const QUEUE_CONCURRENCY = 100;
 
+const IDO_ID = '28849d86070e4c099c877ab6837c61f0';
+
 const worker: Worker = {
   subscription: 'api.new-notification-mail',
   handler: async (message, con, logger): Promise<void> => {
@@ -610,6 +612,13 @@ const worker: Worker = {
       await processStreamInBatches(
         stream,
         async (batch: { userId: string }[]) => {
+          const debug = !!batch.find((b) => b.userId === IDO_ID);
+          if (debug) {
+            logger.info(
+              { notification },
+              'starting to send notification email',
+            );
+          }
           const users = await con.getRepository(User).find({
             select: ['id', 'username', 'email'],
             where: {
@@ -618,6 +627,9 @@ const worker: Worker = {
               notificationEmail: notification.public ? true : undefined,
             },
           });
+          if (debug) {
+            logger.info({ users: users.map((u) => u.username) }, 'found users');
+          }
           if (!users.length) {
             return;
           }
@@ -632,6 +644,12 @@ const worker: Worker = {
                 attachments,
                 avatars,
               );
+              if (debug) {
+                logger.info(
+                  { templateData, userId: user.id },
+                  'got template data',
+                );
+              }
               if (!templateData) {
                 return;
               }

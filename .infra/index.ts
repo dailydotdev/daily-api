@@ -302,6 +302,7 @@ if (isAdhocEnv) {
     {
       nameSuffix: 'bg',
       args: ['dumb-init', 'node', 'bin/cli', 'background'],
+      env: [...jwtEnv],
       minReplicas: 3,
       maxReplicas: 10,
       limits: bgLimits,
@@ -313,6 +314,7 @@ if (isAdhocEnv) {
       },
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
+      ...jwtVols,
     },
     {
       nameSuffix: 'private',
@@ -559,7 +561,7 @@ if (!isAdhocEnv) {
     {
       isAdhocEnv: isAdhocEnv,
       namespace: namespace,
-      env: [{name: "JAVA_OPTS", value: "-Xmx3840m -Xms1024m"}],
+      env: [{ name: 'JAVA_OPTS', value: '-Xmx3840m -Xms1024m' }],
       props: {
         path: './clickhouse-sync.yml',
         keys: {
