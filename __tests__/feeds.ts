@@ -3052,8 +3052,8 @@ describe('mutation deleteFeed', () => {
 
 describe('query customFeed', () => {
   const QUERY = `
-  query CustomFeed($feedId: ID!, $ranking: Ranking, $first: Int, $after: String, $supportedTypes: [String!]) {
-    customFeed(feedId: $feedId, ranking: $ranking, first: $first, after: $after, supportedTypes: $supportedTypes) {
+  query CustomFeed($feedId: ID!, $ranking: Ranking, $first: Int, $after: String, $supportedTypes: [String!], $version: Int) {
+    customFeed(feedId: $feedId, ranking: $ranking, first: $first, after: $after, supportedTypes: $supportedTypes, version: $version) {
       ${feedFields()}
     }
   }
@@ -3170,6 +3170,37 @@ describe('query customFeed', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.customFeed.edges.map((item) => item.node.id)).toMatchObject(
       ['p5', 'p4'],
+    );
+  });
+
+  it('should return v2 feed', async () => {
+    loggedUser = '1';
+
+    nock('http://localhost:6000')
+      .post('/popular', {
+        user_id: '1',
+        page_size: 10,
+        offset: 0,
+        total_pages: 1,
+        fresh_page_size: '4',
+        allowed_tags: ['webdev', 'html', 'data'],
+        blocked_sources: [WATERCOOLER_ID],
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'b',
+      });
+    const res = await client.query(QUERY, {
+      variables: {
+        ranking: Ranking.POPULARITY,
+        first: 10,
+        feedId: 'cf1',
+        version: 2,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.customFeed.edges.map((item) => item.node.id)).toMatchObject(
+      ['p1', 'p4'],
     );
   });
 });

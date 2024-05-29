@@ -5,7 +5,6 @@ import {
   generateDevCard,
   notificationsLink,
   scoutArticleLink,
-  squadCreateLink,
   subscribeNotificationsLink,
 } from '../common';
 import {
@@ -62,8 +61,6 @@ export const notificationTitleMap: Record<
   ) =>
     UPVOTE_TITLES[ctx.upvotes] ??
     `<b>You rock!</b> Your comment <span class="text-theme-color-avocado">earned ${ctx.upvotes} upvotes!</span>`,
-  squad_access: () =>
-    `Congratulations! You got access to <span class="text-theme-color-cabbage">Squad beta.</span>`,
   squad_post_added: (
     ctx: NotificationPostContext & NotificationDoneByContext,
   ) =>
@@ -76,10 +73,6 @@ export const notificationTitleMap: Record<
     `<b>${ctx.commenter.name}</b> <span class="text-theme-color-blueCheese">commented</span> on your post on <b>${ctx.source.name}</b>.`,
   squad_reply: (ctx: NotificationCommenterContext) =>
     `<b>${ctx.commenter.name}</b> <span class="text-theme-color-blueCheese">replied</span> to your comment on <b>${ctx.source.name}</b>.`,
-  squad_post_viewed: (
-    ctx: NotificationPostContext & NotificationDoneByContext,
-  ) =>
-    `<b>${ctx.doneBy.name}</b> <span class="text-theme-color-cabbage">viewed</span> your post on <b>${ctx.source.name}</b>.`,
   squad_blocked: (ctx: NotificationSourceContext) =>
     `You are no longer part of <b>${ctx.source.name}</b>`,
   squad_subscribe_to_notification: (ctx: NotificationSourceContext) =>
@@ -196,13 +189,6 @@ export const generateNotificationMap: Record<
       .upvotes(ctx.upvotes, ctx.upvoters)
       .descriptionComment(ctx.comment)
       .targetPost(ctx.post, ctx.comment),
-  squad_access: (builder, ctx) =>
-    builder
-      .referenceSystem()
-      .icon(NotificationIcon.DailyDev)
-      .description(`Create your new Squad`)
-      .targetUrl(squadCreateLink)
-      .uniqueKey(ctx.userIds[0]),
   squad_post_added: (
     builder,
     ctx: NotificationPostContext & NotificationDoneByContext,
@@ -248,15 +234,6 @@ export const generateNotificationMap: Record<
       .targetPost(ctx.post, ctx.comment)
       .avatarSource(ctx.source)
       .avatarManyUsers([ctx.commenter]),
-  squad_post_viewed: (
-    builder,
-    ctx: NotificationPostContext & NotificationDoneByContext,
-  ) =>
-    builder
-      .icon(NotificationIcon.View)
-      .objectPost(ctx.post, ctx.source, ctx.sharedPost)
-      .avatarManyUsers([ctx.doneBy])
-      .uniqueKey(ctx.doneBy.id),
   squad_blocked: (builder, ctx: NotificationSourceContext) =>
     builder
       .targetUrl(process.env.COMMENTS_PREFIX)

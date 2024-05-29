@@ -2,12 +2,10 @@
 
 exports[`personalizedDigestEmail worker properly set showStreak to false if there is no user streak record 1`] = `
 Object {
-  "asm": Object {
-    "groupId": 23809,
+  "identifiers": Object {
+    "id": "1",
   },
-  "batchId": "test-email-batch-id",
-  "category": "Digests",
-  "dynamicTemplateData": Object {
+  "message_data": Object {
     "date": Any<String>,
     "day_name": "Monday",
     "first_name": "Ido",
@@ -73,8 +71,8 @@ Object {
         "source_name": "B",
       },
     ],
-    "preview": "Every Monday, we'll send you five posts you haven't read. Each post was carefully picked based on topics you love reading about. Let's get to it!",
-    "title": "Ido, your personal weekly update from daily.dev is ready",
+    "preview": "Here are several posts you might like. Each post was carefully selected based on topics you love reading about. Let's get to it!",
+    "title": "Ido, your personal update from daily.dev is ready",
     "user": Object {
       "currentStreak": 0,
       "image": "https://daily.dev/ido.jpg",
@@ -84,41 +82,22 @@ Object {
       "username": "idoshamun",
     },
   },
-  "from": Object {
-    "email": "informer@daily.dev",
-    "name": "daily.dev",
-  },
-  "hideWarnings": false,
-  "ipPoolName": "Transactional",
-  "replyTo": Object {
-    "email": "hi@daily.dev",
-    "name": "daily.dev",
-  },
-  "sendAt": Any<Number>,
-  "templateId": "d-328d1104d2e04fa1ab91e410e02751cb",
-  "to": Object {
-    "email": "ido@daily.dev",
-    "name": "Ido",
-  },
-  "trackingSettings": Object {
-    "clickTracking": Object {
-      "enable": true,
-    },
-    "openTracking": Object {
-      "enable": true,
-    },
-  },
+  "queue_draft": false,
+  "reply_to": "noreply@daily.dev",
+  "send_at": Any<Number>,
+  "send_to_unsubscribed": false,
+  "to": "ido@daily.dev",
+  "tracked": true,
+  "transactional_message_id": "46",
 }
 `;
 
 exports[`personalizedDigestEmail worker should generate personalized digest for user in timezone ahead UTC 1`] = `
 Object {
-  "asm": Object {
-    "groupId": 23809,
+  "identifiers": Object {
+    "id": "1",
   },
-  "batchId": "test-email-batch-id",
-  "category": "Digests",
-  "dynamicTemplateData": Object {
+  "message_data": Object {
     "date": Any<String>,
     "day_name": "Monday",
     "first_name": "Ido",
@@ -184,8 +163,8 @@ Object {
         "source_name": "B",
       },
     ],
-    "preview": "Every Monday, we'll send you five posts you haven't read. Each post was carefully picked based on topics you love reading about. Let's get to it!",
-    "title": "Ido, your personal weekly update from daily.dev is ready",
+    "preview": "Here are several posts you might like. Each post was carefully selected based on topics you love reading about. Let's get to it!",
+    "title": "Ido, your personal update from daily.dev is ready",
     "user": Object {
       "currentStreak": 0,
       "image": "https://daily.dev/ido.jpg",
@@ -195,30 +174,13 @@ Object {
       "username": "idoshamun",
     },
   },
-  "from": Object {
-    "email": "informer@daily.dev",
-    "name": "daily.dev",
-  },
-  "hideWarnings": false,
-  "ipPoolName": "Transactional",
-  "replyTo": Object {
-    "email": "hi@daily.dev",
-    "name": "daily.dev",
-  },
-  "sendAt": Any<Number>,
-  "templateId": "d-328d1104d2e04fa1ab91e410e02751cb",
-  "to": Object {
-    "email": "ido@daily.dev",
-    "name": "Ido",
-  },
-  "trackingSettings": Object {
-    "clickTracking": Object {
-      "enable": true,
-    },
-    "openTracking": Object {
-      "enable": true,
-    },
-  },
+  "queue_draft": false,
+  "reply_to": "noreply@daily.dev",
+  "send_at": Any<Number>,
+  "send_to_unsubscribed": false,
+  "to": "ido@daily.dev",
+  "tracked": true,
+  "transactional_message_id": "46",
 }
 `;
 
@@ -239,12 +201,10 @@ Object {
 
 exports[`personalizedDigestEmail worker should generate personalized digest for user in timezone behind UTC 1`] = `
 Object {
-  "asm": Object {
-    "groupId": 23809,
+  "identifiers": Object {
+    "id": "1",
   },
-  "batchId": "test-email-batch-id",
-  "category": "Digests",
-  "dynamicTemplateData": Object {
+  "message_data": Object {
     "date": Any<String>,
     "day_name": "Monday",
     "first_name": "Ido",
@@ -310,8 +270,8 @@ Object {
         "source_name": "B",
       },
     ],
-    "preview": "Every Monday, we'll send you five posts you haven't read. Each post was carefully picked based on topics you love reading about. Let's get to it!",
-    "title": "Ido, your personal weekly update from daily.dev is ready",
+    "preview": "Here are several posts you might like. Each post was carefully selected based on topics you love reading about. Let's get to it!",
+    "title": "Ido, your personal update from daily.dev is ready",
     "user": Object {
       "currentStreak": 0,
       "image": "https://daily.dev/ido.jpg",
@@ -321,30 +281,13 @@ Object {
       "username": "idoshamun",
     },
   },
-  "from": Object {
-    "email": "informer@daily.dev",
-    "name": "daily.dev",
-  },
-  "hideWarnings": false,
-  "ipPoolName": "Transactional",
-  "replyTo": Object {
-    "email": "hi@daily.dev",
-    "name": "daily.dev",
-  },
-  "sendAt": Any<Number>,
-  "templateId": "d-328d1104d2e04fa1ab91e410e02751cb",
-  "to": Object {
-    "email": "ido@daily.dev",
-    "name": "Ido",
-  },
-  "trackingSettings": Object {
-    "clickTracking": Object {
-      "enable": true,
-    },
-    "openTracking": Object {
-      "enable": true,
-    },
-  },
+  "queue_draft": false,
+  "reply_to": "noreply@daily.dev",
+  "send_at": Any<Number>,
+  "send_to_unsubscribed": false,
+  "to": "ido@daily.dev",
+  "tracked": true,
+  "transactional_message_id": "46",
 }
 `;
 
@@ -365,12 +308,10 @@ Object {
 
 exports[`personalizedDigestEmail worker should generate personalized digest for user with provided config 1`] = `
 Object {
-  "asm": Object {
-    "groupId": 23809,
+  "identifiers": Object {
+    "id": "1",
   },
-  "batchId": "test-email-batch-id",
-  "category": "Digests",
-  "dynamicTemplateData": Object {
+  "message_data": Object {
     "date": Any<String>,
     "day_name": "Monday",
     "first_name": "Ido",
@@ -436,8 +377,8 @@ Object {
         "source_name": "B",
       },
     ],
-    "preview": "Every Monday, we'll send you five posts you haven't read. Each post was carefully picked based on topics you love reading about. Let's get to it!",
-    "title": "Ido, your personal weekly update from daily.dev is ready",
+    "preview": "Here are several posts you might like. Each post was carefully selected based on topics you love reading about. Let's get to it!",
+    "title": "Ido, your personal update from daily.dev is ready",
     "user": Object {
       "currentStreak": 0,
       "image": "https://daily.dev/ido.jpg",
@@ -447,30 +388,13 @@ Object {
       "username": "idoshamun",
     },
   },
-  "from": Object {
-    "email": "informer@daily.dev",
-    "name": "daily.dev",
-  },
-  "hideWarnings": false,
-  "ipPoolName": "Transactional",
-  "replyTo": Object {
-    "email": "hi@daily.dev",
-    "name": "daily.dev",
-  },
-  "sendAt": Any<Number>,
-  "templateId": "d-testtemplateidfromconfig",
-  "to": Object {
-    "email": "ido@daily.dev",
-    "name": "Ido",
-  },
-  "trackingSettings": Object {
-    "clickTracking": Object {
-      "enable": true,
-    },
-    "openTracking": Object {
-      "enable": true,
-    },
-  },
+  "queue_draft": false,
+  "reply_to": "noreply@daily.dev",
+  "send_at": Any<Number>,
+  "send_to_unsubscribed": false,
+  "to": "ido@daily.dev",
+  "tracked": true,
+  "transactional_message_id": "d-testtemplateidfromconfig",
 }
 `;
 
@@ -491,12 +415,10 @@ Object {
 
 exports[`personalizedDigestEmail worker should generate personalized digest for user with subscription 1`] = `
 Object {
-  "asm": Object {
-    "groupId": 23809,
+  "identifiers": Object {
+    "id": "1",
   },
-  "batchId": "test-email-batch-id",
-  "category": "Digests",
-  "dynamicTemplateData": Object {
+  "message_data": Object {
     "date": Any<String>,
     "day_name": "Monday",
     "first_name": "Ido",
@@ -562,8 +484,8 @@ Object {
         "source_name": "B",
       },
     ],
-    "preview": "Every Monday, we'll send you five posts you haven't read. Each post was carefully picked based on topics you love reading about. Let's get to it!",
-    "title": "Ido, your personal weekly update from daily.dev is ready",
+    "preview": "Here are several posts you might like. Each post was carefully selected based on topics you love reading about. Let's get to it!",
+    "title": "Ido, your personal update from daily.dev is ready",
     "user": Object {
       "currentStreak": 0,
       "image": "https://daily.dev/ido.jpg",
@@ -573,30 +495,13 @@ Object {
       "username": "idoshamun",
     },
   },
-  "from": Object {
-    "email": "informer@daily.dev",
-    "name": "daily.dev",
-  },
-  "hideWarnings": false,
-  "ipPoolName": "Transactional",
-  "replyTo": Object {
-    "email": "hi@daily.dev",
-    "name": "daily.dev",
-  },
-  "sendAt": Any<Number>,
-  "templateId": "d-328d1104d2e04fa1ab91e410e02751cb",
-  "to": Object {
-    "email": "ido@daily.dev",
-    "name": "Ido",
-  },
-  "trackingSettings": Object {
-    "clickTracking": Object {
-      "enable": true,
-    },
-    "openTracking": Object {
-      "enable": true,
-    },
-  },
+  "queue_draft": false,
+  "reply_to": "noreply@daily.dev",
+  "send_at": Any<Number>,
+  "send_to_unsubscribed": false,
+  "to": "ido@daily.dev",
+  "tracked": true,
+  "transactional_message_id": "46",
 }
 `;
 
@@ -617,12 +522,10 @@ Object {
 
 exports[`personalizedDigestEmail worker should truncate long posts summary 1`] = `
 Object {
-  "asm": Object {
-    "groupId": 23809,
+  "identifiers": Object {
+    "id": "1",
   },
-  "batchId": "test-email-batch-id",
-  "category": "Digests",
-  "dynamicTemplateData": Object {
+  "message_data": Object {
     "date": Any<String>,
     "day_name": "Monday",
     "first_name": "Ido",
@@ -688,8 +591,8 @@ Object {
         "source_name": "B",
       },
     ],
-    "preview": "Every Monday, we'll send you five posts you haven't read. Each post was carefully picked based on topics you love reading about. Let's get to it!",
-    "title": "Ido, your personal weekly update from daily.dev is ready",
+    "preview": "Here are several posts you might like. Each post was carefully selected based on topics you love reading about. Let's get to it!",
+    "title": "Ido, your personal update from daily.dev is ready",
     "user": Object {
       "currentStreak": 0,
       "image": "https://daily.dev/ido.jpg",
@@ -699,29 +602,12 @@ Object {
       "username": "idoshamun",
     },
   },
-  "from": Object {
-    "email": "informer@daily.dev",
-    "name": "daily.dev",
-  },
-  "hideWarnings": false,
-  "ipPoolName": "Transactional",
-  "replyTo": Object {
-    "email": "hi@daily.dev",
-    "name": "daily.dev",
-  },
-  "sendAt": Any<Number>,
-  "templateId": "d-328d1104d2e04fa1ab91e410e02751cb",
-  "to": Object {
-    "email": "ido@daily.dev",
-    "name": "Ido",
-  },
-  "trackingSettings": Object {
-    "clickTracking": Object {
-      "enable": true,
-    },
-    "openTracking": Object {
-      "enable": true,
-    },
-  },
+  "queue_draft": false,
+  "reply_to": "noreply@daily.dev",
+  "send_at": Any<Number>,
+  "send_to_unsubscribed": false,
+  "to": "ido@daily.dev",
+  "tracked": true,
+  "transactional_message_id": "46",
 }
 `;

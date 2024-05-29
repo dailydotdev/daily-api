@@ -19,6 +19,7 @@ import {
   NotificationPreferenceSource,
   NotificationPreference,
   NotificationAttachmentType,
+  UserPersonalizedDigest,
 } from '../src/entity';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
@@ -42,6 +43,8 @@ import {
   NotificationAttachmentV2,
   NotificationAvatarV2,
 } from '../src/entity';
+import { signJwt } from '../src/auth';
+import { UnsubscribeGroup } from '../src/common';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -1225,5 +1228,42 @@ describe('mutation subscribeNotificationPreference', () => {
     expect(notificationPreference!.status).toEqual(
       NotificationPreferenceStatus.Muted,
     );
+  });
+});
+
+describe('POST /notifications/unsubscribe', () => {
+  it('should unsubscribe from notifications', async () => {
+    await con
+      .getRepository(User)
+      .update({ id: '1' }, { notificationEmail: true });
+    const token = await signJwt({
+      userId: '1',
+      group: UnsubscribeGroup.Notifications,
+    });
+    await request(app.server)
+      .post('/notifications/unsubscribe')
+      .query({ token: token.token })
+      .expect(204);
+    const user = await con.getRepository(User).findOneBy({ id: '1' });
+    expect(user.notificationEmail).toBe(false);
+  });
+
+  it('should unsubscribe from digest', async () => {
+    const upd1 = await con
+      .getRepository(UserPersonalizedDigest)
+      .findBy({ userId: '1' });
+    expect(upd1.length).toBe(1);
+    const token = await signJwt({
+      userId: '1',
+      group: UnsubscribeGroup.Digest,
+    });
+    await request(app.server)
+      .post('/notifications/unsubscribe')
+      .query({ token: token.token })
+      .expect(204);
+    const upd2 = await con
+      .getRepository(UserPersonalizedDigest)
+      .findBy({ userId: '1' });
+    expect(upd2.length).toBe(0);
   });
 });

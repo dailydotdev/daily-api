@@ -43,6 +43,8 @@ config:
     cdcWorkerMaxMessages: 1
     cioApiKey:
       secure: AAABAKsjQ79BKL/Msk8ERCFq7TeKGQ6NnzRcQrOoUzQ7hFEDNdq4uxOcG3w5M5aODolHDw==
+    cioAppKey:
+      secure: AAABAERrQhgnve0YtkklanvzuI5Eg9AFdaRjHbW+FRGHL48CqI3tw57Vu6n+oD9vcD9ZlSyYKm8oN60zWbiJIw==
     cioSiteId:
       secure: AAABAACN2IeoykRGHprr1nYvk1snUvT733+1dp8QI7+WchlaErfJJ3X6LLPYe8BthHnpqw==
     cioWebhookSecret:
