@@ -75,6 +75,11 @@ export const typeDefs = /* GraphQL */ `
     Date of the last time user saw a boot popup
     """
     lastBootPopup: DateTime
+
+    """
+    Date of the last time user dismissed or answered the feed survey
+    """
+    lastFeedSettingsFeedback: DateTime
   }
 
   input UpdateAlertsInput {

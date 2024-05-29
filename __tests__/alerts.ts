@@ -210,6 +210,8 @@ describe('dedicated api routes', () => {
         ...expected,
         lastBanner: expected['lastBanner'].toISOString(),
         lastChangelog: expected['lastChangelog'].toISOString(),
+        lastFeedSettingsFeedback:
+          expected['lastFeedSettingsFeedback'].toISOString(),
       });
     });
   });
