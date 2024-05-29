@@ -12,11 +12,12 @@ import { parseResolveInfo, ResolveTree } from 'graphql-parse-resolve-info';
 import { GQLEmptyResponse } from './common';
 import { MoreThanOrEqual } from 'typeorm';
 
-interface GQLKeyword {
+export interface GQLKeyword {
   value: string;
   status: KeywordStatus;
   occurrences: number;
   flags?: KeywordFlagsPublic;
+  createdAt?: Date;
 }
 
 interface GQLKeywordSearchResults {
@@ -66,6 +67,10 @@ export const typeDefs = /* GraphQL */ `
     The keyword's flags
     """
     flags: KeywordFlagsPublic
+    """
+    Date when the keyword was created
+    """
+    createdAt: DateTime
   }
 
   """
