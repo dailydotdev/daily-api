@@ -98,9 +98,11 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
     tags: (_, __, ctx, info): Promise<GQLKeyword[]> =>
       graphorm.query<GQLKeyword>(ctx, info, (builder) => {
-        builder.queryBuilder = builder.queryBuilder.where({
-          status: 'allow',
-        });
+        builder.queryBuilder = builder.queryBuilder
+          .where({
+            status: 'allow',
+          })
+          .limit(1000);
 
         return builder;
       }),
