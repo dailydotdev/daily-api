@@ -78,9 +78,11 @@ type PublicAlerts = Omit<
   'userId' | 'flags' | 'user' | 'lastFeedSettingsFeedback'
 >;
 
+export type BootAlerts = PublicAlerts & ComputedAlerts;
+
 export type BaseBoot = {
   visit: { visitId: string; sessionId: string };
-  alerts: PublicAlerts & ComputedAlerts;
+  alerts: BootAlerts;
   settings: Omit<Settings, 'userId' | 'updatedAt' | 'user'>;
   notifications: { unreadNotificationsCount: number };
   squads: BootSquadSource[];

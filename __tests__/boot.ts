@@ -43,6 +43,7 @@ import {
   setRedisObject,
 } from '../src/redis';
 import {
+  FEED_SURVEY_INTERVAL,
   generateStorageKey,
   REDIS_BANNER_KEY,
   StorageKey,
@@ -61,7 +62,7 @@ import { signJwt } from '../src/auth';
 import { submitArticleThreshold } from '../src/common';
 import { saveReturnAlerts } from '../src/schema/alerts';
 import { DEFAULT_TIMEZONE, UserVote } from '../src/types';
-import { excludeProperties } from '../src/routes/boot';
+import { BootAlerts, excludeProperties } from '../src/routes/boot';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -72,6 +73,7 @@ const BASE_BODY = {
     ...excludeProperties(ALERTS_DEFAULT, ['lastFeedSettingsFeedback']),
     lastChangelog: expect.any(String),
     lastBanner: expect.any(String),
+    shouldShowFeedFeedback: false,
   },
   settings: { ...SETTINGS_DEFAULT },
   notifications: { unreadNotificationsCount: 0 },
@@ -122,6 +124,16 @@ const ANONYMOUS_BODY = {
     shouldVerify: false,
   },
 };
+
+const getBootAlert = (data: Alerts): BootAlerts =>
+  new Object({
+    ...excludeProperties(saveReturnAlerts(data), [
+      'userId',
+      'lastFeedSettingsFeedback',
+    ]),
+    shouldShowFeedFeedback:
+      subDays(new Date(), FEED_SURVEY_INTERVAL) > data.lastFeedSettingsFeedback,
+  }) as BootAlerts;
 
 beforeAll(async () => {
   con = await createOrGetConnection();
@@ -601,7 +613,7 @@ describe('boot alerts', () => {
       myFeed: 'created',
     });
 
-    const alerts = new Object(saveReturnAlerts(data));
+    const alerts = getBootAlert(data);
     alerts['changelog'] = false;
     alerts['banner'] = false;
     alerts['bootPopup'] = true;
@@ -627,9 +639,8 @@ describe('boot alerts', () => {
       lastBanner: new Date('2023-02-05 12:00:00'),
       lastChangelog: new Date('2023-02-05 12:00:00'),
     });
-    const alerts = new Object(saveReturnAlerts(data));
-    alerts['lastBanner'] = '2023-02-05T12:00:00.000Z';
-    alerts['lastChangelog'] = '2023-02-05T12:00:00.000Z';
+    const alerts = getBootAlert(data);
+    alerts['shouldShowFeedFeedback'] = false;
     alerts['changelog'] = false;
     alerts['banner'] = true;
     alerts['bootPopup'] = true;
@@ -651,9 +662,7 @@ describe('boot alerts', () => {
       lastBanner: new Date('2023-02-06 12:00:00'),
       lastChangelog: new Date('2023-02-06 12:00:00'),
     });
-    const alerts = new Object(saveReturnAlerts(data));
-    alerts['lastChangelog'] = '2023-02-06T12:00:00.000Z';
-    alerts['lastBanner'] = '2023-02-06T12:00:00.000Z';
+    const alerts = getBootAlert(data);
     alerts['banner'] = false;
     alerts['changelog'] = false;
     alerts['bootPopup'] = true;
@@ -674,10 +683,9 @@ describe('boot alerts', () => {
       lastChangelog: new Date('2023-02-05 12:00:00'),
       lastBanner: new Date('2023-02-05 12:00:00'),
     });
-    const alerts = new Object(saveReturnAlerts(data));
-    alerts['lastChangelog'] = '2023-02-05T12:00:00.000Z';
+    const alerts = getBootAlert(data);
+    alerts['shouldShowFeedFeedback'] = false;
     alerts['changelog'] = false;
-    alerts['lastBanner'] = '2023-02-05T12:00:00.000Z';
     alerts['banner'] = false;
     alerts['bootPopup'] = true;
     delete alerts['userId'];
@@ -705,11 +713,10 @@ describe('boot alerts', () => {
       url: 'test',
       theme: 'cabbage',
     });
-    const alerts = new Object(saveReturnAlerts(data));
-    alerts['lastBanner'] = '2023-02-06T12:00:00.000Z';
+    const alerts = getBootAlert(data);
     alerts['banner'] = true;
     alerts['changelog'] = false;
-    alerts['lastChangelog'] = '2023-02-05T12:00:00.000Z';
+    alerts['shouldShowFeedFeedback'] = false;
     alerts['bootPopup'] = true;
     delete alerts['userId'];
     const res = await request(app.server)
@@ -734,9 +741,8 @@ describe('boot alerts', () => {
       changelog: false,
       showGenericReferral: true,
     });
-    const alerts = new Object(saveReturnAlerts(data));
-    alerts['lastBanner'] = '2023-02-05T12:00:00.000Z';
-    alerts['lastChangelog'] = '2023-02-05T12:00:00.000Z';
+    const alerts = getBootAlert(data);
+    alerts['shouldShowFeedFeedback'] = false;
     alerts['bootPopup'] = true;
     delete alerts['userId'];
     const res = await request(app.server)
