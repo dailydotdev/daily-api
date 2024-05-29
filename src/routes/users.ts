@@ -3,6 +3,7 @@ import { logout } from '../kratos';
 import { deleteUser } from '../directive/user';
 import createOrGetConnection from '../db';
 import { getBootData, LoggedInBoot } from './boot';
+import { getShortGenericInviteLink } from '../common';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   const con = await createOrGetConnection();
@@ -13,6 +14,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     return res.send({
       ...boot.user,
       ...boot.visit,
+      referralLink: await getShortGenericInviteLink(req.log, req.userId),
       accessToken: (boot as LoggedInBoot).accessToken,
     });
   });
