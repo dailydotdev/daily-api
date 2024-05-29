@@ -69,12 +69,18 @@ export type Experimentation = {
   a: Record<string, unknown>;
 };
 
+interface ComputedAlerts {
+  shouldShowFeedFeedback: boolean;
+}
+
+type PublicAlerts = Omit<
+  Alerts,
+  'userId' | 'flags' | 'user' | 'lastFeedSettingsFeedback'
+>;
+
 export type BaseBoot = {
   visit: { visitId: string; sessionId: string };
-  alerts: Omit<
-    Alerts,
-    'userId' | 'flags' | 'user' | 'lastFeedSettingsFeedback'
-  >;
+  alerts: PublicAlerts & ComputedAlerts;
   settings: Omit<Settings, 'userId' | 'updatedAt' | 'user'>;
   notifications: { unreadNotificationsCount: number };
   squads: BootSquadSource[];
@@ -496,6 +502,7 @@ const anonymousBoot = async (
     alerts: {
       ...excludeProperties(ALERTS_DEFAULT, ['lastFeedSettingsFeedback']),
       changelog: false,
+      shouldShowFeedFeedback: false,
     },
     settings: SETTINGS_DEFAULT,
     notifications: { unreadNotificationsCount: 0 },
