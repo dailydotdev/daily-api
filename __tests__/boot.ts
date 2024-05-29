@@ -49,7 +49,7 @@ import {
   StorageTopic,
 } from '../src/config';
 import nock from 'nock';
-import { addDays, setMilliseconds } from 'date-fns';
+import { addDays, setMilliseconds, subDays } from 'date-fns';
 import setCookieParser from 'set-cookie-parser';
 import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
@@ -1149,5 +1149,54 @@ describe('companion boot', () => {
       .set('User-Agent', TEST_UA)
       .expect(200);
     expect(res.body).toEqual(ANONYMOUS_BODY);
+  });
+
+  it('should handle url not found', async () => {
+    const res = await request(app.server)
+      .get(`${BASE_PATH}/companion`)
+      .query({ url: 'notfound' })
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+    expect(res.body).toEqual(ANONYMOUS_BODY);
+  });
+});
+
+describe('boot alerts shouldShowFeedFeedback property', () => {
+  it('should be false when the user has no alerts', async () => {
+    const res = await request(app.server)
+      .get(`${BASE_PATH}/companion`)
+      .query({ url: (postsFixture[0] as ArticlePost).url })
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+    expect(res.body.alerts.shouldShowFeedFeedback).toBeFalsy();
+  });
+
+  it('should be false when the user has seen the survey few days ago', async () => {
+    mockLoggedIn();
+    const res = await request(app.server)
+      .get(`${BASE_PATH}/companion`)
+      .query({ url: (postsFixture[0] as ArticlePost).url })
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+    expect(res.body.alerts.shouldShowFeedFeedback).toBeFalsy();
+  });
+
+  it('should be true when the user has has seen the survey more than 30 days ago', async () => {
+    await con
+      .getRepository(Alerts)
+      .update(
+        { userId: '1' },
+        { lastFeedSettingsFeedback: subDays(new Date(), 30) },
+      );
+    mockLoggedIn();
+    const res = await request(app.server)
+      .get(`${BASE_PATH}/companion`)
+      .query({ url: (postsFixture[0] as ArticlePost).url })
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+    expect(res.body.alerts.shouldShowFeedFeedback).toBeTruthy();
   });
 });

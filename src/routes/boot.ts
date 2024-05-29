@@ -31,7 +31,12 @@ import {
   setRedisObject,
   setRedisObjectWithExpiry,
 } from '../redis';
-import { generateStorageKey, REDIS_BANNER_KEY, StorageTopic } from '../config';
+import {
+  FEED_SURVEY_INTERVAL,
+  generateStorageKey,
+  REDIS_BANNER_KEY,
+  StorageTopic,
+} from '../config';
 import {
   ONE_DAY_IN_SECONDS,
   base64,
@@ -46,7 +51,7 @@ import { schema } from '../graphql';
 import { Context } from '../Context';
 import { SourceMemberRoles } from '../roles';
 import { getEncryptedFeatures } from '../growthbook';
-import { differenceInMinutes, isSameDay } from 'date-fns';
+import { differenceInMinutes, isSameDay, subDays } from 'date-fns';
 import { runInSpan } from '../telemetry/opentelemetry';
 import { getUnreadNotificationsCount } from '../notifications/common';
 import { maxFeedsPerUser } from '../types';
@@ -66,7 +71,10 @@ export type Experimentation = {
 
 export type BaseBoot = {
   visit: { visitId: string; sessionId: string };
-  alerts: Omit<Alerts, 'userId' | 'flags' | 'user'>;
+  alerts: Omit<
+    Alerts,
+    'userId' | 'flags' | 'user' | 'lastFeedSettingsFeedback'
+  >;
   settings: Omit<Settings, 'userId' | 'updatedAt' | 'user'>;
   notifications: { unreadNotificationsCount: number };
   squads: BootSquadSource[];
@@ -124,12 +132,17 @@ const excludeProperties = <T, K extends keyof T>(
   obj: T,
   properties: K[],
 ): Pick<T, Exclude<keyof T, K>> => {
-  if (obj) {
-    properties.forEach((prop) => {
-      delete obj[prop];
-    });
+  if (!obj) {
+    return obj;
   }
-  return obj;
+
+  const clone = structuredClone(obj);
+
+  properties.forEach((prop) => {
+    delete clone[prop];
+  });
+
+  return clone;
 };
 
 const getSquads = async (
@@ -412,7 +425,7 @@ const loggedInBoot = async (
       },
       visit,
       alerts: {
-        ...excludeProperties(alerts, ['userId']),
+        ...excludeProperties(alerts, ['userId', 'lastFeedSettingsFeedback']),
         // We decided to try and turn off the changelog for now in favor of squad promotion
         // PR: https://github.com/dailydotdev/daily-api/pull/1633
         changelog: false,
@@ -421,6 +434,9 @@ const loggedInBoot = async (
           lastBanner !== 'false' && alerts.lastBanner < new Date(lastBanner),
         // read only, used in frontend to decide if boot popup should be shown
         bootPopup: !isSameDay(alerts.lastBootPopup, new Date()),
+        shouldShowFeedFeedback:
+          subDays(new Date(), FEED_SURVEY_INTERVAL) >
+          alerts.lastFeedSettingsFeedback,
       },
       settings: excludeProperties(settings, [
         'userId',
@@ -477,7 +493,10 @@ const anonymousBoot = async (
       shouldVerify,
     },
     visit,
-    alerts: { ...ALERTS_DEFAULT, changelog: false },
+    alerts: {
+      ...excludeProperties(ALERTS_DEFAULT, ['lastFeedSettingsFeedback']),
+      changelog: false,
+    },
     settings: SETTINGS_DEFAULT,
     notifications: { unreadNotificationsCount: 0 },
     squads: [],
