@@ -40,6 +40,27 @@ beforeEach(async () => {
 
 afterAll(() => disposeGraphQLTesting(state));
 
+describe('query tags', () => {
+  const QUERY = `{
+    tags {
+      value
+    }
+  }`;
+
+  it('should return all tags', async () => {
+    const res = await client.query(QUERY);
+    expect(res.data).toMatchObject({
+      tags: [
+        { value: 'webdev' },
+        { value: 'development' },
+        { value: 'fullstack' },
+        { value: 'rust' },
+        { value: 'golang' },
+      ],
+    });
+  });
+});
+
 describe('query popularTags', () => {
   const QUERY = `{
     popularTags {

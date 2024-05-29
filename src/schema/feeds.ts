@@ -735,6 +735,11 @@ export const typeDefs = /* GraphQL */ `
       Array of supported post types
       """
       supportedTypes: [String!]
+
+      """
+      Version of the feed algorithm
+      """
+      version: Int = 1
     ): PostConnection! @auth
   }
 
