@@ -6,6 +6,8 @@ import { TagRecommendation } from '../entity/TagRecommendation';
 import { In, Not } from 'typeorm';
 import { ValidationError } from 'apollo-server-errors';
 import { SubmissionFailErrorMessage } from '../errors';
+import graphorm from '../graphorm';
+import { GQLKeyword } from './keywords';
 
 interface GQLTag {
   name: string;
@@ -58,6 +60,11 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Query {
     """
+    Get all tags
+    """
+    tags: [Keyword]
+
+    """
     Get the most popular tags
     """
     popularTags: [Tag] @cacheControl(maxAge: 600)
@@ -89,6 +96,14 @@ export const typeDefs = /* GraphQL */ `
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
+    tags: (_, __, ctx, info): Promise<GQLKeyword[]> =>
+      graphorm.query<GQLKeyword>(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder.where({
+          status: 'allow',
+        });
+
+        return builder;
+      }),
     popularTags: async (source, args, ctx): Promise<GQLTag[]> => {
       const hits = await ctx.getRepository(Keyword).find({
         select: ['value'],
