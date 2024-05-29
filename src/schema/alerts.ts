@@ -139,6 +139,10 @@ export const typeDefs = /* GraphQL */ `
     Update the boot popup
     """
     updateLastBootPopup: EmptyResponse! @auth
+    """
+    Reset feed settings feedback (survey) reminder
+    """
+    updateFeedFeedbackReminder: EmptyResponse @auth
   }
 
   extend type Query {
@@ -159,10 +163,15 @@ export const saveReturnAlerts = (alerts: Alerts) => {
   return data;
 };
 
+interface GQLAlertInputInternalInput {
+  showGenericReferral?: boolean;
+  lastFeedSettingsFeedback?: Date;
+}
+
 export const updateAlerts = async (
   con: DataSource,
   userId: string,
-  data: GQLUpdateAlertsInput & { showGenericReferral?: boolean },
+  data: GQLUpdateAlertsInput & GQLAlertInputInternalInput,
   flags?: Alerts['flags'],
 ): Promise<GQLAlerts> => {
   const repo = con.getRepository(Alerts);
@@ -230,6 +239,16 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     updateLastBootPopup: async (_, __, ctx): Promise<GQLEmptyResponse> => {
       await updateAlerts(ctx.con, ctx.userId, { lastBootPopup: new Date() });
       return { _: true };
+    },
+    updateFeedFeedbackReminder: async (
+      _,
+      __,
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      await updateAlerts(ctx.con, ctx.userId, {
+        lastFeedSettingsFeedback: new Date(),
+      });
+      return { _: null };
     },
   },
   Query: {
