@@ -58,6 +58,7 @@ describe('query userAlerts', () => {
       showGenericReferral
       showStreakMilestone
       lastBootPopup
+      lastFeedSettingsFeedback
     }
   }`;
 
@@ -70,6 +71,7 @@ describe('query userAlerts', () => {
       ...ALERTS_DEFAULT,
       lastBanner: res.data.userAlerts.lastBanner,
       lastChangelog: res.data.userAlerts.lastChangelog,
+      lastFeedSettingsFeedback: res.data.userAlerts.lastFeedSettingsFeedback,
     });
   });
 
@@ -94,6 +96,7 @@ describe('query userAlerts', () => {
       ...expected,
       lastBanner: expected.lastBanner.toISOString(),
       lastChangelog: expected.lastChangelog.toISOString(),
+      lastFeedSettingsFeedback: expected.lastFeedSettingsFeedback.toISOString(),
     });
   });
 });
