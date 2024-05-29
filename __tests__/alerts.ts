@@ -281,7 +281,8 @@ describe('updateFeedFeedbackReminder', () => {
     }
   `;
 
-  testMutationErrorCode(client, { mutation: MUTATION }, 'UNAUTHENTICATED');
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(client, { mutation: MUTATION }, 'UNAUTHENTICATED'));
 
   it('should reset the feed settings feedback reminder', async () => {
     loggedUser = '1';
