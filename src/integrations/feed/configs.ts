@@ -117,18 +117,6 @@ export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
         opts: this.opts,
       });
 
-      if (this.opts.feedId) {
-        ctx.log.info(
-          {
-            config,
-            opts,
-            thisOpts: this.opts,
-            generator: 'FeedPreferencesConfigGenerator',
-          },
-          'Generated config result',
-        );
-      }
-
       return { config };
     });
   }
@@ -266,16 +254,6 @@ export class FeedLocalConfigGenerator implements FeedConfigGenerator {
         filters,
         opts: this.opts,
       });
-
-      ctx.log.info(
-        {
-          config,
-          opts,
-          thisOpts: this.opts,
-          generator: 'FeedLocalConfigGenerator',
-        },
-        'Generated config result',
-      );
 
       return { config };
     });
