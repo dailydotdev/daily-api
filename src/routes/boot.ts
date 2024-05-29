@@ -128,7 +128,7 @@ const visitSection = async (
   };
 };
 
-const excludeProperties = <T, K extends keyof T>(
+export const excludeProperties = <T, K extends keyof T>(
   obj: T,
   properties: K[],
 ): Pick<T, Exclude<keyof T, K>> => {

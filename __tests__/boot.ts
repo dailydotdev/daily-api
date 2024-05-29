@@ -61,6 +61,7 @@ import { signJwt } from '../src/auth';
 import { submitArticleThreshold } from '../src/common';
 import { saveReturnAlerts } from '../src/schema/alerts';
 import { DEFAULT_TIMEZONE, UserVote } from '../src/types';
+import { excludeProperties } from '../src/routes/boot';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -68,7 +69,7 @@ let state: GraphQLTestingState;
 
 const BASE_BODY = {
   alerts: {
-    ...ALERTS_DEFAULT,
+    ...excludeProperties(ALERTS_DEFAULT, ['lastFeedSettingsFeedback']),
     lastChangelog: expect.any(String),
     lastBanner: expect.any(String),
   },
