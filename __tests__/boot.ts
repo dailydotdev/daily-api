@@ -1165,10 +1165,8 @@ describe('companion boot', () => {
 describe('boot alerts shouldShowFeedFeedback property', () => {
   it('should be false when the user has no alerts', async () => {
     const res = await request(app.server)
-      .get(`${BASE_PATH}/companion`)
-      .query({ url: (postsFixture[0] as ArticlePost).url })
+      .get(BASE_PATH)
       .set('User-Agent', TEST_UA)
-      .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
     expect(res.body.alerts.shouldShowFeedFeedback).toBeFalsy();
   });
@@ -1176,8 +1174,7 @@ describe('boot alerts shouldShowFeedFeedback property', () => {
   it('should be false when the user has seen the survey few days ago', async () => {
     mockLoggedIn();
     const res = await request(app.server)
-      .get(`${BASE_PATH}/companion`)
-      .query({ url: (postsFixture[0] as ArticlePost).url })
+      .get(BASE_PATH)
       .set('User-Agent', TEST_UA)
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
@@ -1193,8 +1190,7 @@ describe('boot alerts shouldShowFeedFeedback property', () => {
       );
     mockLoggedIn();
     const res = await request(app.server)
-      .get(`${BASE_PATH}/companion`)
-      .query({ url: (postsFixture[0] as ArticlePost).url })
+      .get(BASE_PATH)
       .set('User-Agent', TEST_UA)
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
