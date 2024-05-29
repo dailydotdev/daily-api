@@ -21,6 +21,7 @@ import createOrGetConnection from '../src/db';
 import { DataSource } from 'typeorm';
 import { saveReturnAlerts } from '../src/schema/alerts';
 import { usersFixture } from './fixture/user';
+import { isSameDay, subDays } from 'date-fns';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -57,6 +58,7 @@ describe('query userAlerts', () => {
       showGenericReferral
       showStreakMilestone
       lastBootPopup
+      lastFeedSettingsFeedback
     }
   }`;
 
@@ -69,6 +71,7 @@ describe('query userAlerts', () => {
       ...ALERTS_DEFAULT,
       lastBanner: res.data.userAlerts.lastBanner,
       lastChangelog: res.data.userAlerts.lastChangelog,
+      lastFeedSettingsFeedback: res.data.userAlerts.lastFeedSettingsFeedback,
     });
   });
 
@@ -93,6 +96,7 @@ describe('query userAlerts', () => {
       ...expected,
       lastBanner: expected.lastBanner.toISOString(),
       lastChangelog: expected.lastChangelog.toISOString(),
+      lastFeedSettingsFeedback: expected.lastFeedSettingsFeedback.toISOString(),
     });
   });
 });
@@ -209,6 +213,8 @@ describe('dedicated api routes', () => {
         ...expected,
         lastBanner: expected['lastBanner'].toISOString(),
         lastChangelog: expected['lastChangelog'].toISOString(),
+        lastFeedSettingsFeedback:
+          expected['lastFeedSettingsFeedback'].toISOString(),
       });
     });
   });
@@ -263,5 +269,35 @@ describe('mutation updateLastReferralReminder', () => {
       existingFlag: 'value1',
       lastReferralReminder: alerts.flags.lastReferralReminder,
     });
+  });
+});
+
+describe('updateFeedFeedbackReminder', () => {
+  const MUTATION = `
+    mutation UpdateFeedFeedbackReminder {
+      updateFeedFeedbackReminder {
+        _
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(client, { mutation: MUTATION }, 'UNAUTHENTICATED'));
+
+  it('should reset the feed settings feedback reminder', async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(Alerts)
+      .update(
+        { userId: '1' },
+        { lastFeedSettingsFeedback: subDays(new Date(), 1) },
+      );
+
+    const res = await client.mutate(MUTATION);
+    expect(res.errors).toBeFalsy();
+    const alerts = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+    expect(alerts.lastFeedSettingsFeedback).toBeTruthy();
+    expect(isSameDay(alerts.lastFeedSettingsFeedback, new Date())).toBeTruthy();
   });
 });
