@@ -109,13 +109,25 @@ export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
     return runInSpan('FeedPreferencesConfigGenerator', async () => {
       const defaultConfig = getDefaultConfig(this.baseConfig, opts);
       const userId = opts.user_id;
-      const feedId = opts.feedId || userId;
+      const feedId = this.opts.feedId || userId;
       const filters = await feedToFilters(ctx.con, feedId, userId);
       const config = addFiltersToConfig({
         config: defaultConfig,
         filters,
         opts: this.opts,
       });
+
+      if (this.opts.feedId) {
+        ctx.log.info(
+          {
+            config,
+            opts,
+            thisOpts: this.opts,
+            generator: 'FeedPreferencesConfigGenerator',
+          },
+          'Generated config result',
+        );
+      }
 
       return { config };
     });
@@ -254,6 +266,16 @@ export class FeedLocalConfigGenerator implements FeedConfigGenerator {
         filters,
         opts: this.opts,
       });
+
+      ctx.log.info(
+        {
+          config,
+          opts,
+          thisOpts: this.opts,
+          generator: 'FeedLocalConfigGenerator',
+        },
+        'Generated config result',
+      );
 
       return { config };
     });
