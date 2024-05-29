@@ -1,21 +1,21 @@
 import { DataSource, ViewColumn, ViewEntity } from 'typeorm';
-import { TrendingPost } from './TrendingPost';
+import { PopularPost } from './PopularPost';
 
 @ViewEntity({
   materialized: true,
   expression: (dataSource: DataSource) =>
     dataSource
       .createQueryBuilder()
-      .select('unnest(string_to_array("tagsStr", \',\')) tag')
+      .select('"sourceId"')
       .addSelect('avg(r) r')
-      .from(TrendingPost, 'base')
-      .groupBy('tag')
-      .having('count(*) > 1')
+      .from(PopularPost, 'base')
+      .groupBy('"sourceId"')
+      .having('count(*) > 5')
       .orderBy('r', 'DESC'),
 })
-export class TrendingTag {
+export class PopularSource {
   @ViewColumn()
-  tag: string;
+  sourceId: string;
 
   @ViewColumn()
   r: number;

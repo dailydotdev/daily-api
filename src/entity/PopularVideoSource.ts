@@ -1,5 +1,5 @@
 import { DataSource, ViewColumn, ViewEntity } from 'typeorm';
-import { TrendingPost } from './TrendingPost';
+import { PopularVideoPost } from './PopularVideoPost';
 
 @ViewEntity({
   materialized: true,
@@ -8,15 +8,19 @@ import { TrendingPost } from './TrendingPost';
       .createQueryBuilder()
       .select('"sourceId"')
       .addSelect('avg(r) r')
-      .from(TrendingPost, 'base')
+      .addSelect('count(*) posts')
+      .from(PopularVideoPost, 'base')
       .groupBy('"sourceId"')
-      .having('count(*) > 1')
+      .having('count(*) > 5')
       .orderBy('r', 'DESC'),
 })
-export class TrendingSource {
+export class PopularVideoSource {
   @ViewColumn()
   sourceId: string;
 
   @ViewColumn()
   r: number;
+
+  @ViewColumn()
+  posts: number;
 }

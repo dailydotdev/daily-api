@@ -1,5 +1,5 @@
 import { DataSource, ViewColumn, ViewEntity } from 'typeorm';
-import { TrendingPost } from './TrendingPost';
+import { PopularPost } from './PopularPost';
 
 @ViewEntity({
   materialized: true,
@@ -8,12 +8,12 @@ import { TrendingPost } from './TrendingPost';
       .createQueryBuilder()
       .select('unnest(string_to_array("tagsStr", \',\')) tag')
       .addSelect('avg(r) r')
-      .from(TrendingPost, 'base')
+      .from(PopularPost, 'base')
       .groupBy('tag')
-      .having('count(*) > 1')
+      .having('count(*) > 10')
       .orderBy('r', 'DESC'),
 })
-export class TrendingTag {
+export class PopularTag {
   @ViewColumn()
   tag: string;
 

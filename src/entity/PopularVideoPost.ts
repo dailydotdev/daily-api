@@ -8,23 +8,25 @@ import { Post } from './posts';
       .createQueryBuilder()
       .select('"sourceId"')
       .addSelect('"tagsStr"')
+      .addSelect('"contentCuration"')
       .addSelect('"createdAt"')
-      .addSelect(
-        `log(10, upvotes - downvotes) + extract(epoch from ("createdAt" - now() + interval '7 days')) / 200000 r`,
-      )
+      .addSelect('upvotes - downvotes r')
       .from(Post, 'p')
       .where(
-        `not p.private and p."createdAt" > now() - interval '7 day' and upvotes > downvotes`,
+        'not p.private and p."createdAt" > now() - interval \'60 day\' and upvotes > downvotes and "type" = \'video:youtube\'',
       )
       .orderBy('r', 'DESC')
-      .limit(100),
+      .limit(1000),
 })
-export class TrendingPost {
+export class PopularVideoPost {
   @ViewColumn()
   sourceId: string;
 
   @ViewColumn()
   tagsStr: string;
+
+  @ViewColumn()
+  contentCuration: string;
 
   @ViewColumn()
   createdAt: Date;

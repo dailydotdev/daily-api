@@ -6,10 +6,10 @@ import { Post } from './posts';
   expression: (dataSource: DataSource) =>
     dataSource
       .createQueryBuilder()
-      .select('sourceId')
-      .addSelect('tagsStr')
-      .addSelect('contentCuration')
-      .addSelect('createdAt')
+      .select('"sourceId"')
+      .addSelect('"tagsStr"')
+      .addSelect('"contentCuration"')
+      .addSelect('"createdAt"')
       .addSelect('upvotes - downvotes r')
       .from(Post, 'p')
       .where(
