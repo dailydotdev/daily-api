@@ -3199,7 +3199,6 @@ describe('query customFeed', () => {
       },
     });
     expect(res.errors).toBeFalsy();
-    console.log(res.data);
     expect(res.data.customFeed.edges.map((item) => item.node.id)).toMatchObject(
       ['p1', 'p4'],
     );
