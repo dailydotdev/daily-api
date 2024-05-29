@@ -10,7 +10,7 @@ import {
 import { ChangeObject } from '../../types';
 import { MachineSource, PostKeyword, Source } from '../../entity';
 import { triggerTypedEvent } from '../../common';
-import { FastifyBaseLogger } from 'fastify';
+import { logger } from '../../logger';
 
 export const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
   before[property] != after[property];
@@ -22,11 +22,9 @@ export const getTableName = <Entity>(
 
 export const notifyPostContentUpdated = async ({
   con,
-  logger,
   post,
 }: {
   con: DataSource;
-  logger: FastifyBaseLogger;
   post: ChangeObject<Post>;
 }): Promise<void> => {
   const [source, keywords, relatedPosts] = await Promise.all([

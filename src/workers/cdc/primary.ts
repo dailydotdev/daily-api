@@ -484,7 +484,7 @@ const onPostChange = async (
       }
     }
   } else if (data.payload.op === 'u') {
-    await notifyPostContentUpdated({ con, logger, post: data.payload.after });
+    await notifyPostContentUpdated({ con, post: data.payload.after });
 
     if (data.payload.after.visible) {
       if (!data.payload.before.visible) {
