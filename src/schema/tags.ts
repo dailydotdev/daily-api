@@ -65,9 +65,24 @@ export const typeDefs = /* GraphQL */ `
     tags: [Keyword]
 
     """
+    Get the most trending tags
+    """
+    trendingTags(
+      """
+      Limit the number of tags returned
+      """
+      limit: Int
+    ): [Tag] @cacheControl(maxAge: 600)
+
+    """
     Get the most popular tags
     """
-    popularTags: [Tag] @cacheControl(maxAge: 600)
+    popularTags(
+      """
+      Limit the number of tags returned
+      """
+      limit: Int
+    ): [Tag] @cacheControl(maxAge: 600)
 
     searchTags(query: String!): TagSearchResults @cacheControl(maxAge: 600)
 
@@ -106,11 +121,25 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
 
         return builder;
       }),
-    popularTags: async (source, args, ctx): Promise<GQLTag[]> => {
+    trendingTags: async (source, args, ctx): Promise<GQLTag[]> => {
+      // TODO: Implement query based on new MV
+      const { limit = 10 } = args;
       const hits = await ctx.getRepository(Keyword).find({
         select: ['value'],
         order: { value: 'ASC' },
         where: { status: 'allow' },
+        take: limit,
+      });
+      return hits.map((x) => ({ name: x.value }));
+    },
+    popularTags: async (source, args, ctx): Promise<GQLTag[]> => {
+      // TODO: Implement query based on new MV
+      const { limit = 10 } = args;
+      const hits = await ctx.getRepository(Keyword).find({
+        select: ['value'],
+        order: { value: 'ASC' },
+        where: { status: 'allow' },
+        take: limit,
       });
       return hits.map((x) => ({ name: x.value }));
     },
