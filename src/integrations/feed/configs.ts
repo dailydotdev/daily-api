@@ -109,7 +109,7 @@ export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
     return runInSpan('FeedPreferencesConfigGenerator', async () => {
       const defaultConfig = getDefaultConfig(this.baseConfig, opts);
       const userId = opts.user_id;
-      const feedId = opts.feedId || userId;
+      const feedId = this.opts.feedId || userId;
       const filters = await feedToFilters(ctx.con, feedId, userId);
       const config = addFiltersToConfig({
         config: defaultConfig,
