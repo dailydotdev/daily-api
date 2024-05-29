@@ -44,6 +44,9 @@ export class Alerts {
   @Column({ type: 'bool', default: false })
   showStreakMilestone: boolean;
 
+  @Column({ type: 'timestamptz', default: () => 'now()' })
+  lastFeedSettingsFeedback: Date;
+
   // Should not be exposed to the client
   @Column({ type: 'jsonb', default: {} })
   flags: AlertsFlags = {};
@@ -71,6 +74,7 @@ export const ALERTS_DEFAULT: Omit<Alerts, 'userId' | 'flags' | 'user'> = {
   changelog: false,
   banner: false,
   squadTour: true,
+  lastFeedSettingsFeedback: new Date(),
   showGenericReferral: false,
   showStreakMilestone: false,
   lastBootPopup: null,

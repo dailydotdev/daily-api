@@ -43,13 +43,14 @@ import {
   setRedisObject,
 } from '../src/redis';
 import {
+  FEED_SURVEY_INTERVAL,
   generateStorageKey,
   REDIS_BANNER_KEY,
   StorageKey,
   StorageTopic,
 } from '../src/config';
 import nock from 'nock';
-import { addDays, setMilliseconds } from 'date-fns';
+import { addDays, setMilliseconds, subDays } from 'date-fns';
 import setCookieParser from 'set-cookie-parser';
 import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
@@ -61,6 +62,7 @@ import { signJwt } from '../src/auth';
 import { submitArticleThreshold } from '../src/common';
 import { saveReturnAlerts } from '../src/schema/alerts';
 import { DEFAULT_TIMEZONE, UserVote } from '../src/types';
+import { BootAlerts, excludeProperties } from '../src/routes/boot';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -68,9 +70,10 @@ let state: GraphQLTestingState;
 
 const BASE_BODY = {
   alerts: {
-    ...ALERTS_DEFAULT,
+    ...excludeProperties(ALERTS_DEFAULT, ['lastFeedSettingsFeedback']),
     lastChangelog: expect.any(String),
     lastBanner: expect.any(String),
+    shouldShowFeedFeedback: false,
   },
   settings: { ...SETTINGS_DEFAULT },
   notifications: { unreadNotificationsCount: 0 },
@@ -121,6 +124,16 @@ const ANONYMOUS_BODY = {
     shouldVerify: false,
   },
 };
+
+const getBootAlert = (data: Alerts): BootAlerts =>
+  new Object({
+    ...excludeProperties(saveReturnAlerts(data), [
+      'userId',
+      'lastFeedSettingsFeedback',
+    ]),
+    shouldShowFeedFeedback:
+      subDays(new Date(), FEED_SURVEY_INTERVAL) > data.lastFeedSettingsFeedback,
+  }) as BootAlerts;
 
 beforeAll(async () => {
   con = await createOrGetConnection();
@@ -600,7 +613,7 @@ describe('boot alerts', () => {
       myFeed: 'created',
     });
 
-    const alerts = new Object(saveReturnAlerts(data));
+    const alerts = getBootAlert(data);
     alerts['changelog'] = false;
     alerts['banner'] = false;
     alerts['bootPopup'] = true;
@@ -626,9 +639,8 @@ describe('boot alerts', () => {
       lastBanner: new Date('2023-02-05 12:00:00'),
       lastChangelog: new Date('2023-02-05 12:00:00'),
     });
-    const alerts = new Object(saveReturnAlerts(data));
-    alerts['lastBanner'] = '2023-02-05T12:00:00.000Z';
-    alerts['lastChangelog'] = '2023-02-05T12:00:00.000Z';
+    const alerts = getBootAlert(data);
+    alerts['shouldShowFeedFeedback'] = false;
     alerts['changelog'] = false;
     alerts['banner'] = true;
     alerts['bootPopup'] = true;
@@ -650,9 +662,7 @@ describe('boot alerts', () => {
       lastBanner: new Date('2023-02-06 12:00:00'),
       lastChangelog: new Date('2023-02-06 12:00:00'),
     });
-    const alerts = new Object(saveReturnAlerts(data));
-    alerts['lastChangelog'] = '2023-02-06T12:00:00.000Z';
-    alerts['lastBanner'] = '2023-02-06T12:00:00.000Z';
+    const alerts = getBootAlert(data);
     alerts['banner'] = false;
     alerts['changelog'] = false;
     alerts['bootPopup'] = true;
@@ -673,10 +683,9 @@ describe('boot alerts', () => {
       lastChangelog: new Date('2023-02-05 12:00:00'),
       lastBanner: new Date('2023-02-05 12:00:00'),
     });
-    const alerts = new Object(saveReturnAlerts(data));
-    alerts['lastChangelog'] = '2023-02-05T12:00:00.000Z';
+    const alerts = getBootAlert(data);
+    alerts['shouldShowFeedFeedback'] = false;
     alerts['changelog'] = false;
-    alerts['lastBanner'] = '2023-02-05T12:00:00.000Z';
     alerts['banner'] = false;
     alerts['bootPopup'] = true;
     delete alerts['userId'];
@@ -704,11 +713,10 @@ describe('boot alerts', () => {
       url: 'test',
       theme: 'cabbage',
     });
-    const alerts = new Object(saveReturnAlerts(data));
-    alerts['lastBanner'] = '2023-02-06T12:00:00.000Z';
+    const alerts = getBootAlert(data);
     alerts['banner'] = true;
     alerts['changelog'] = false;
-    alerts['lastChangelog'] = '2023-02-05T12:00:00.000Z';
+    alerts['shouldShowFeedFeedback'] = false;
     alerts['bootPopup'] = true;
     delete alerts['userId'];
     const res = await request(app.server)
@@ -733,9 +741,8 @@ describe('boot alerts', () => {
       changelog: false,
       showGenericReferral: true,
     });
-    const alerts = new Object(saveReturnAlerts(data));
-    alerts['lastBanner'] = '2023-02-05T12:00:00.000Z';
-    alerts['lastChangelog'] = '2023-02-05T12:00:00.000Z';
+    const alerts = getBootAlert(data);
+    alerts['shouldShowFeedFeedback'] = false;
     alerts['bootPopup'] = true;
     delete alerts['userId'];
     const res = await request(app.server)
@@ -1149,5 +1156,50 @@ describe('companion boot', () => {
       .set('User-Agent', TEST_UA)
       .expect(200);
     expect(res.body).toEqual(ANONYMOUS_BODY);
+  });
+
+  it('should handle url not found', async () => {
+    const res = await request(app.server)
+      .get(`${BASE_PATH}/companion`)
+      .query({ url: 'notfound' })
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+    expect(res.body).toEqual(ANONYMOUS_BODY);
+  });
+});
+
+describe('boot alerts shouldShowFeedFeedback property', () => {
+  it('should be false when the user has no alerts', async () => {
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+    expect(res.body.alerts.shouldShowFeedFeedback).toBeFalsy();
+  });
+
+  it('should be false when the user has seen the survey few days ago', async () => {
+    mockLoggedIn();
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+    expect(res.body.alerts.shouldShowFeedFeedback).toBeFalsy();
+  });
+
+  it('should be true when the user has has seen the survey more than 30 days ago', async () => {
+    await con
+      .getRepository(Alerts)
+      .update(
+        { userId: '1' },
+        { lastFeedSettingsFeedback: subDays(new Date(), 30) },
+      );
+    mockLoggedIn();
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+    expect(res.body.alerts.shouldShowFeedFeedback).toBeTruthy();
   });
 });

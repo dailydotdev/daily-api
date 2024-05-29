@@ -26,3 +26,5 @@ export const generateStorageKey = (
   key: string,
   identifier: string, // mostly used for user id - "global" for global keys
 ): string => `${topic}:${key}:${identifier}`;
+
+export const FEED_SURVEY_INTERVAL = 30;
