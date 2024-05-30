@@ -4,6 +4,8 @@ import createOrGetConnection from '../src/db';
 
 expect.extend(matchers);
 
+global.structuredClone = (v) => JSON.parse(JSON.stringify(v));
+
 jest.mock('../src/growthbook', () => ({
   ...(jest.requireActual('../src/growthbook') as Record<string, unknown>),
   loadFeatures: jest.fn(),

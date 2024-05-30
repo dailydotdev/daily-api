@@ -271,6 +271,40 @@ describe('FeedPreferencesConfigGenerator', () => {
       },
     });
   });
+
+  it('should generate feed config with feedId passed to opts', async () => {
+    const generator: FeedConfigGenerator = new FeedPreferencesConfigGenerator(
+      config,
+      {
+        feedId: 'cf1',
+        includeAllowedTags: true,
+      },
+    );
+    await con.getRepository(Feed).save({ id: 'cf1', userId: 'u1' });
+    await con.getRepository(FeedTag).save([
+      { feedId: 'cf1', tag: 'javascript' },
+      { feedId: 'cf1', tag: 'golang' },
+      { feedId: 'cf1', tag: 'python' },
+      { feedId: 'cf1', tag: 'java' },
+    ]);
+
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 2,
+      offset: 3,
+    });
+    expect(actual).toEqual({
+      config: {
+        feed_config_name: FeedConfigName.Personalise,
+        fresh_page_size: '1',
+        offset: 3,
+        page_size: 2,
+        total_pages: 20,
+        user_id: '1',
+        allowed_tags: expect.arrayContaining(['python', 'java']),
+      },
+    });
+  });
 });
 
 describe('FeedUserStateConfigGenerator', () => {
