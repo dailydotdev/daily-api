@@ -135,7 +135,7 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
         req,
       );
       if (!valid) {
-        req.log.warn('invalid signature');
+        req.log.warn('cio reporting webhook invalid signature');
         return res.status(403).send({ error: 'Invalid signature' });
       }
 
