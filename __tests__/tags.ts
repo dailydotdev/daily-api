@@ -93,15 +93,15 @@ describe('query trendingTags', () => {
     const res = await client.query(QUERY);
     expect(res.data).toMatchObject({
       trendingTags: [
-        { name: 'tag1' },
-        { name: 'tag2' },
-        { name: 'tag3' },
-        { name: 'tag4' },
-        { name: 'tag5' },
-        { name: 'tag6' },
-        { name: 'tag7' },
-        { name: 'tag8' },
-        { name: 'tag9' },
+        { name: 'tag19' },
+        { name: 'tag18' },
+        { name: 'tag17' },
+        { name: 'tag16' },
+        { name: 'tag15' },
+        { name: 'tag14' },
+        { name: 'tag13' },
+        { name: 'tag12' },
+        { name: 'tag11' },
         { name: 'tag10' },
       ],
     });
@@ -145,16 +145,16 @@ describe('query popularTags', () => {
     const res = await client.query(QUERY);
     expect(res.data).toMatchObject({
       popularTags: [
-        { name: 'tag1' },
-        { name: 'tag2' },
-        { name: 'tag3' },
-        { name: 'tag4' },
-        { name: 'tag5' },
-        { name: 'tag6' },
-        { name: 'tag7' },
-        { name: 'tag8' },
-        { name: 'tag9' },
         { name: 'tag10' },
+        { name: 'tag9' },
+        { name: 'tag8' },
+        { name: 'tag7' },
+        { name: 'tag6' },
+        { name: 'tag5' },
+        { name: 'tag4' },
+        { name: 'tag3' },
+        { name: 'tag2' },
+        { name: 'tag1' },
       ],
     });
   });
