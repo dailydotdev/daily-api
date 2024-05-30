@@ -14,6 +14,7 @@ import {
   setRedisObject,
 } from '../src/redis';
 import { StorageKey, StorageTopic, generateStorageKey } from '../src/config';
+import nock from 'nock';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -317,5 +318,76 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
         },
       });
     });
+  });
+});
+
+describe('POST /webhooks/customerio/reporting', () => {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const payload = {
+    event_id: 'e1',
+    timestamp,
+    object_type: 'email',
+    metric: 'sent',
+    data: {
+      identifiers: {
+        id: 'u1',
+      },
+      recipient: 'email@domain.com',
+      transactional_message_id: '9',
+    },
+  };
+  const hmac = createHmac(
+    'sha256',
+    process.env.CIO_REPORTING_WEBHOOK_SECRET as string,
+  );
+  hmac.update(`v0:${timestamp}:${JSON.stringify(payload)}`);
+  const hash = hmac.digest().toString('hex');
+
+  it('should return 403 when no x-cio-timestamp header', async () => {
+    const { body } = await request(app.server)
+      .post('/webhooks/customerio/reporting')
+      .set('x-cio-signature', '123')
+      .send(payload)
+      .expect(403);
+
+    expect(body.error).toEqual('Invalid signature');
+  });
+
+  it('should return 403 when no x-cio-signature header', async () => {
+    const { body } = await request(app.server)
+      .post('/webhooks/customerio/reporting')
+      .set('x-cio-timestamp', '123')
+      .send(payload)
+      .expect(403);
+
+    expect(body.error).toEqual('Invalid signature');
+  });
+
+  it('should return 200 when signature is valid', async () => {
+    nock('http://localhost:5000')
+      .post('/e', {
+        events: [
+          {
+            event_id: 'e1',
+            session_id: 'e1',
+            visit_id: 'e1',
+            event_timestamp: new Date(timestamp * 1000).toISOString(),
+            user_id: 'u1',
+            event_name: 'email sent',
+            app_platform: 'customerio',
+            extra: JSON.stringify({ transactional_message_id: '9' }),
+          },
+        ],
+      })
+      .reply(204);
+
+    const { body } = await request(app.server)
+      .post('/webhooks/customerio/reporting')
+      .set('x-cio-timestamp', timestamp.toString())
+      .set('x-cio-signature', hash)
+      .send(payload)
+      .expect(200);
+
+    expect(body.success).toEqual(true);
   });
 });
