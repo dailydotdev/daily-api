@@ -61,6 +61,39 @@ describe('query tags', () => {
   });
 });
 
+describe('query trendingTags', () => {
+  const QUERY = `{
+    trendingTags {
+      name
+    }
+  }`;
+
+  it('should return most trending tags ordered by value', async () => {
+    const res = await client.query(QUERY);
+    expect(res.data).toMatchObject({
+      trendingTags: [
+        { name: 'development' },
+        { name: 'fullstack' },
+        { name: 'golang' },
+        { name: 'rust' },
+        { name: 'webdev' },
+      ],
+    });
+  });
+
+  it('should return limit of 10 by default', async () => {
+    await con.getRepository(Keyword).save(
+      new Array(20).fill('tag').map((item, index) => ({
+        value: item + index,
+        occurances: 0,
+        status: 'allow',
+      })),
+    );
+    const res = await client.query(QUERY);
+    expect(res.data.trendingTags.length).toBe(10);
+  });
+});
+
 describe('query popularTags', () => {
   const QUERY = `{
     popularTags {
@@ -71,6 +104,18 @@ describe('query popularTags', () => {
   it('should return most popular tags ordered by value', async () => {
     const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return limit of 10 by default', async () => {
+    await con.getRepository(Keyword).save(
+      new Array(20).fill('tag').map((item, index) => ({
+        value: item + index,
+        occurances: 0,
+        status: 'allow',
+      })),
+    );
+    const res = await client.query(QUERY);
+    expect(res.data.popularTags.length).toBe(10);
   });
 });
 
