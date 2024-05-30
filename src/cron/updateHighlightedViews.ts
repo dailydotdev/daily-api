@@ -31,7 +31,7 @@ const cron: Cron = {
         }
       });
 
-      logger.info({}, 'highlighted views updated');
+      logger.info('highlighted views updated');
     } catch (err) {
       logger.error({ err }, 'failed to update highlighted views');
     }
