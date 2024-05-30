@@ -167,9 +167,7 @@ export const tracer = (serviceName: string) => {
       }
 
       requestCounter.add(1, {
-        [TelemetrySemanticAttributes.HTTP_METHOD]: req.method,
         [TelemetrySemanticAttributes.HTTP_ROUTE]: req.routeOptions.url,
-        [TelemetrySemanticAttributes.HTTP_STATUS_CODE]: res.statusCode,
         [TelemetrySemanticAttributes.DAILY_APPS_VERSION]: getAppVersion(req),
       });
     });
