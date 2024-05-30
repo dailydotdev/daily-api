@@ -14,6 +14,7 @@ import {
   NotificationPreferenceSource,
   Post,
   PostKeyword,
+  PostType,
   SharePost,
   Source,
   SourceFeed,
@@ -229,6 +230,183 @@ describe('query sources', () => {
     expect(res.data.sources.edges[0].node.headerImage).toEqual(
       'http://image.com/header',
     );
+  });
+});
+
+describe('query mostRecentSources', () => {
+  const QUERY = `
+    query MostRecentSources {
+      mostRecentSources {
+        id
+        name
+        image
+        public
+      }
+    }
+  `;
+
+  it('should return most recent sources', async () => {
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchObject({
+      mostRecentSources: [
+        { id: 'a', name: 'A', image: 'http://image.com/a', public: true },
+        { id: 'b', name: 'B', image: 'http://image.com/b', public: true },
+      ],
+    });
+  });
+});
+
+describe('query trendingSources', () => {
+  const QUERY = `
+    query TrendingSources {
+      trendingSources {
+        id
+        name
+        image
+        public
+      }
+    }
+  `;
+
+  it('should return most trending sources', async () => {
+    await con.getRepository(Post).save(
+      new Array(5).fill('a').map((item, index) => {
+        return {
+          id: `post_${index}`,
+          shortId: `post_${index}`,
+          title: `Post ${index}`,
+          tagsStr: 'tag1',
+          upvotes: 10 + index,
+          createdAt: new Date(),
+          sourceId: 'a',
+        };
+      }),
+    );
+    await con.getRepository(Post).save({
+      id: `post_6`,
+      shortId: `post_6`,
+      title: `Post 6`,
+      tagsStr: 'tag1',
+      upvotes: 10,
+      createdAt: new Date(),
+      sourceId: 'b',
+    });
+    await con.query(`REFRESH MATERIALIZED VIEW trending_post`);
+    await con.query(`REFRESH MATERIALIZED VIEW trending_source`);
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchObject({
+      trendingSources: [
+        { id: 'a', name: 'A', image: 'http://image.com/a', public: null },
+      ],
+    });
+  });
+});
+
+describe('query popularSources', () => {
+  const QUERY = `
+    query PopularSources {
+      popularSources {
+        id
+        name
+        image
+        public
+      }
+    }
+  `;
+
+  it('should return most popular sources', async () => {
+    await con.getRepository(Post).save(
+      new Array(6).fill('a').map((item, index) => {
+        return {
+          id: `post_${index}`,
+          shortId: `post_${index}`,
+          title: `Post ${index}`,
+          tagsStr: 'tag1',
+          upvotes: 10 + index,
+          createdAt: new Date(),
+          sourceId: 'a',
+        };
+      }),
+    );
+    await con.getRepository(Post).save(
+      new Array(5).fill('b').map((item, index) => {
+        return {
+          id: `post_${index}`,
+          shortId: `post_${index}`,
+          title: `Post ${index}`,
+          tagsStr: 'tag1',
+          upvotes: 10 + index,
+          createdAt: new Date(),
+          sourceId: 'a',
+        };
+      }),
+    );
+    await con.query(`REFRESH MATERIALIZED VIEW popular_post`);
+    await con.query(`REFRESH MATERIALIZED VIEW popular_source`);
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchObject({
+      popularSources: [
+        { id: 'a', name: 'A', image: 'http://image.com/a', public: null },
+      ],
+    });
+  });
+});
+
+describe('query topVideoSources', () => {
+  const QUERY = `
+    query TopVideoSources {
+      topVideoSources {
+        id
+        name
+        image
+        public
+      }
+    }
+  `;
+
+  it('should return top video sources', async () => {
+    await con.getRepository(Post).save(
+      new Array(6).fill('a').map((item, index) => {
+        return {
+          id: `post_a_${index}`,
+          shortId: `post_a_${index}`,
+          title: `Post ${index}`,
+          tagsStr: 'tag1',
+          upvotes: 10 + index,
+          createdAt: new Date(),
+          sourceId: 'a',
+          type: PostType.VideoYouTube,
+        };
+      }),
+    );
+    await con.getRepository(Post).save(
+      new Array(6).fill('b').map((item, index) => {
+        return {
+          id: `post_b_${index}`,
+          shortId: `post_b_${index}`,
+          title: `Post ${index}`,
+          tagsStr: 'tag1',
+          upvotes: 10 + index,
+          createdAt: new Date(),
+          sourceId: 'b',
+        };
+      }),
+    );
+    await con.query(`REFRESH MATERIALIZED VIEW popular_video_post`);
+    await con.query(`REFRESH MATERIALIZED VIEW popular_video_source`);
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchObject({
+      topVideoSources: [
+        { id: 'a', name: 'A', image: 'http://image.com/a', public: null },
+      ],
+    });
   });
 });
 
