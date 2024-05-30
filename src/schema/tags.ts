@@ -114,7 +114,7 @@ const getFormattedTags = async (entity, args, ctx): Promise<GQLTag[]> => {
   const { limit = 10 } = args;
   const tags = await ctx.getRepository(entity).find({
     select: ['tag'],
-    order: { r: 'ASC' },
+    order: { r: 'DESC' },
     take: limit,
   });
   return tags.map(({ tag }) => ({ name: tag }));

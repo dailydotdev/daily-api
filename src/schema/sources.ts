@@ -1086,7 +1086,7 @@ const getFormattedSources = async (entity, args, ctx): Promise<GQLSource[]> => {
     .select('s.*')
     .from(entity, 'ts')
     .innerJoin(Source, 's', 'ts."sourceId" = s.id')
-    .orderBy('r', 'ASC')
+    .orderBy('r', 'DESC')
     .limit(limit)
     .getRawMany();
 };
