@@ -1,27 +1,5 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`query popularTags should return most popular tags ordered by value 1`] = `
-Object {
-  "popularTags": Array [
-    Object {
-      "name": "development",
-    },
-    Object {
-      "name": "fullstack",
-    },
-    Object {
-      "name": "golang",
-    },
-    Object {
-      "name": "rust",
-    },
-    Object {
-      "name": "webdev",
-    },
-  ],
-}
-`;
-
 exports[`query searchTags should search for tags and order by value 1`] = `
 Object {
   "searchTags": Object {

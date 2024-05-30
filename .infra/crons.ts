@@ -85,4 +85,8 @@ export const crons: Cron[] = [
       memory: '1Gi',
     },
   },
+  {
+    name: 'update-highlighted-views',
+    schedule: '15 4 * * 0',
+  },
 ];
