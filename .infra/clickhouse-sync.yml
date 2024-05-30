@@ -51,18 +51,19 @@ snapshot.mode: "never"
 slot.name: "clickhouse_sync"
 
 # offset.flush.interval.ms: The number of milliseconds to wait before flushing recent offsets to Kafka. This ensures that offsets are committed within the specified time interval.
-offset.flush.interval.ms: 60000
 offset.flush.timeout.ms: 120000
+offset.flush.interval.ms: 10000
 
-#buffer.flush.time.ms: 30000
-#buffer.max.records: 5000
-#buffer.flush.timeout.ms: 120000
-buffer.max.records: "1000000"
+# Maximum size of buffer before its flushed.
+buffer.max.records: 10000
 
-# Maximum number of threads in the thread pool for processing CDC records.
-thread.pool.size: 10
-max.batch.size: 20000
-max.queue.size: 100000
+# Flush timeout(in milliseconds) if max records is not reached.
+buffer.flush.time.ms: 30000
+
+thread.pool.size: 5
+
+max.queue.size: 128000
+max.batch.size: 32000
 
 #snapshot.fetch.size: 1024
 metrics.enable: "false"
