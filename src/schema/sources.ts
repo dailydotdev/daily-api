@@ -1075,6 +1075,22 @@ const togglePinnedPosts = async (
   return { _: true };
 };
 
+const getFormattedSources = async (entity, args, ctx): Promise<GQLSource[]> => {
+  const { limit = 10 } = args;
+  /*
+   * This is not best practice, but due to missing join/basetable support for graphORM we decided to leave it like this to ship faster
+   * If you ever need child entities/graphORM magic this needs to change
+   */
+  return await ctx.con
+    .createQueryBuilder()
+    .select('s.*')
+    .from(entity, 'ts')
+    .innerJoin(Source, 's', 'ts."sourceId" = s.id')
+    .orderBy('r', 'ASC')
+    .limit(limit)
+    .getRawMany();
+};
+
 const paginateSourceMembers = (
   query: (builder: QueryBuilder, alias: string) => QueryBuilder,
   args: ConnectionArguments,
@@ -1252,51 +1268,12 @@ export const resolvers: IResolvers<any, Context> = {
         return builder;
       });
     },
-    trendingSources: async (_, args, ctx): Promise<GQLSource[]> => {
-      const { limit = 10 } = args;
-      /*
-       * This is not best practice, but due to missing join/basetable support for graphORM we decided to leave it like this to ship faster
-       * If you ever need child entities/graphORM magic this needs to change
-       */
-      return await ctx.con
-        .createQueryBuilder()
-        .select('s.*')
-        .from(TrendingSource, 'ts')
-        .innerJoin(Source, 's', 'ts."sourceId" = s.id')
-        .orderBy('r', 'ASC')
-        .limit(limit)
-        .getRawMany();
-    },
-    popularSources: async (_, args, ctx): Promise<GQLSource[]> => {
-      const { limit = 10 } = args;
-      /*
-       * This is not best practice, but due to missing join/basetable support for graphORM we decided to leave it like this to ship faster
-       * If you ever need child entities/graphORM magic this needs to change
-       */
-      return await ctx.con
-        .createQueryBuilder()
-        .select('s.*')
-        .from(PopularSource, 'ts')
-        .innerJoin(Source, 's', 'ts."sourceId" = s.id')
-        .orderBy('r', 'ASC')
-        .limit(limit)
-        .getRawMany();
-    },
-    topVideoSources: async (_, args, ctx): Promise<GQLSource[]> => {
-      const { limit = 10 } = args;
-      /*
-       * This is not best practice, but due to missing join/basetable support for graphORM we decided to leave it like this to ship faster
-       * If you ever need child entities/graphORM magic this needs to change
-       */
-      return await ctx.con
-        .createQueryBuilder()
-        .select('s.*')
-        .from(PopularVideoSource, 'ts')
-        .innerJoin(Source, 's', 'ts."sourceId" = s.id')
-        .orderBy('r', 'ASC')
-        .limit(limit)
-        .getRawMany();
-    },
+    trendingSources: async (_, args, ctx): Promise<GQLSource[]> =>
+      getFormattedSources(TrendingSource, args, ctx),
+    popularSources: async (_, args, ctx): Promise<GQLSource[]> =>
+      getFormattedSources(PopularSource, args, ctx),
+    topVideoSources: async (_, args, ctx): Promise<GQLSource[]> =>
+      getFormattedSources(PopularVideoSource, args, ctx),
     sourceByFeed: async (
       _,
       { feed }: { feed: string },
