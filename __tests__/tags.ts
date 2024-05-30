@@ -7,7 +7,7 @@ import {
   saveFixtures,
   testQueryError,
 } from './helpers';
-import { ArticlePost, Keyword, PostKeyword, Source } from '../src/entity';
+import { ArticlePost, Keyword, Post, PostKeyword, Source } from '../src/entity';
 import {
   keywordsFixture,
   postRecommendedKeywordsFixture,
@@ -68,27 +68,46 @@ describe('query trendingTags', () => {
     }
   }`;
 
+  beforeEach(async () => {
+    await saveFixtures(con, Source, sourcesFixture);
+    let tags = 'tag1';
+    await con.getRepository(Post).save(
+      new Array(20).fill('tag').map((item, index) => {
+        tags += `,tag${index + 1}`;
+        return {
+          id: `post_${index}`,
+          shortId: `post_${index}`,
+          title: `Post ${index}`,
+          tagsStr: tags,
+          upvotes: 10 + index,
+          createdAt: new Date(),
+          sourceId: 'a',
+        };
+      }),
+    );
+    await con.query(`REFRESH MATERIALIZED VIEW trending_post`);
+    await con.query(`REFRESH MATERIALIZED VIEW trending_tag`);
+  });
+
   it('should return most trending tags ordered by value', async () => {
     const res = await client.query(QUERY);
     expect(res.data).toMatchObject({
       trendingTags: [
-        { name: 'development' },
-        { name: 'fullstack' },
-        { name: 'golang' },
-        { name: 'rust' },
-        { name: 'webdev' },
+        { name: 'tag1' },
+        { name: 'tag2' },
+        { name: 'tag3' },
+        { name: 'tag4' },
+        { name: 'tag5' },
+        { name: 'tag6' },
+        { name: 'tag7' },
+        { name: 'tag8' },
+        { name: 'tag9' },
+        { name: 'tag10' },
       ],
     });
   });
 
   it('should return limit of 10 by default', async () => {
-    await con.getRepository(Keyword).save(
-      new Array(20).fill('tag').map((item, index) => ({
-        value: item + index,
-        occurances: 0,
-        status: 'allow',
-      })),
-    );
     const res = await client.query(QUERY);
     expect(res.data.trendingTags.length).toBe(10);
   });
@@ -101,19 +120,46 @@ describe('query popularTags', () => {
     }
   }`;
 
+  beforeEach(async () => {
+    await saveFixtures(con, Source, sourcesFixture);
+    let tags = 'tag1';
+    await con.getRepository(Post).save(
+      new Array(20).fill('tag').map((item, index) => {
+        tags += `,tag${index + 1}`;
+        return {
+          id: `post_${index}`,
+          shortId: `post_${index}`,
+          title: `Post ${index}`,
+          tagsStr: tags,
+          upvotes: 10 + index,
+          createdAt: new Date(),
+          sourceId: 'a',
+        };
+      }),
+    );
+    await con.query(`REFRESH MATERIALIZED VIEW popular_post`);
+    await con.query(`REFRESH MATERIALIZED VIEW popular_tag`);
+  });
+
   it('should return most popular tags ordered by value', async () => {
     const res = await client.query(QUERY);
-    expect(res.data).toMatchSnapshot();
+    expect(res.data).toMatchObject({
+      popularTags: [
+        { name: 'tag1' },
+        { name: 'tag2' },
+        { name: 'tag3' },
+        { name: 'tag4' },
+        { name: 'tag5' },
+        { name: 'tag6' },
+        { name: 'tag7' },
+        { name: 'tag8' },
+        { name: 'tag9' },
+        { name: 'tag10' },
+      ],
+    });
   });
 
   it('should return limit of 10 by default', async () => {
-    await con.getRepository(Keyword).save(
-      new Array(20).fill('tag').map((item, index) => ({
-        value: item + index,
-        occurances: 0,
-        status: 'allow',
-      })),
-    );
     const res = await client.query(QUERY);
     expect(res.data.popularTags.length).toBe(10);
   });

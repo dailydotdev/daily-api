@@ -8,7 +8,6 @@ import { Post } from './posts';
       .createQueryBuilder()
       .select('"sourceId"')
       .addSelect('"tagsStr"')
-      .addSelect('"contentCuration"')
       .addSelect('"createdAt"')
       .addSelect('upvotes - downvotes r')
       .from(Post, 'p')
@@ -24,9 +23,6 @@ export class PopularVideoPost {
 
   @ViewColumn()
   tagsStr: string;
-
-  @ViewColumn()
-  contentCuration: string;
 
   @ViewColumn()
   createdAt: Date;
