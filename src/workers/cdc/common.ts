@@ -48,10 +48,12 @@ export const notifyPostContentUpdated = async ({
     title: post.title,
     createdAt: post.createdAt,
     updatedAt: post.metadataChangedAt,
-    source: {
-      ...source,
-      createdAt: +source.createdAt,
-    },
+    source: source
+      ? {
+          ...source,
+          createdAt: +source.createdAt,
+        }
+      : undefined,
     tags: post.tagsStr.split(','),
     keywords: keywords.map((item) => item.keyword),
     banned: post.banned,
@@ -73,7 +75,7 @@ export const notifyPostContentUpdated = async ({
     })),
     contentCuration: post.contentCuration,
     contentQuality: {
-      isAiProbability: post.contentQuality.is_ai_probability,
+      isAiProbability: post.contentQuality?.is_ai_probability,
     },
   });
 
