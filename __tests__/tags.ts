@@ -51,11 +51,11 @@ describe('query tags', () => {
     const res = await client.query(QUERY);
     expect(res.data).toMatchObject({
       tags: [
-        { value: 'webdev' },
         { value: 'development' },
         { value: 'fullstack' },
-        { value: 'rust' },
         { value: 'golang' },
+        { value: 'rust' },
+        { value: 'webdev' },
       ],
     });
   });
