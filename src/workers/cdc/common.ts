@@ -69,7 +69,7 @@ export const notifyPostContentUpdated = async ({
           createdAt: +source.createdAt,
         }
       : undefined,
-    tags: post.tagsStr.split(','),
+    tags: post.tagsStr?.split(',') || [],
     keywords: keywords.map((item) => item.keyword),
     banned: post.banned,
     private: post.private,
