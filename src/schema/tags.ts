@@ -129,6 +129,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           .where({
             status: 'allow',
           })
+          .orderBy('value', 'ASC')
           .limit(1000);
 
         return builder;
