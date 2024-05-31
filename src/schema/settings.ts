@@ -119,6 +119,11 @@ export const typeDefs = /* GraphQL */ `
     optOutWeeklyGoal: Boolean!
 
     """
+    Whether the user opted out from reading streak
+    """
+    optOutReadingStreak: Boolean!
+
+    """
     Whether the user opted out from the companion app
     """
     optOutCompanion: Boolean!
@@ -210,6 +215,11 @@ export const typeDefs = /* GraphQL */ `
     Whether the user opted out from the weekly goal
     """
     optOutWeeklyGoal: Boolean
+
+    """
+    Whether the user opted out from reading streak
+    """
+    optOutReadingStreak: Boolean
 
     """
     Whether the user opted out from the companion app

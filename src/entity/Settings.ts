@@ -53,6 +53,9 @@ export class Settings {
   optOutWeeklyGoal: boolean;
 
   @Column({ default: false })
+  optOutReadingStreak: boolean;
+
+  @Column({ default: false })
   optOutCompanion: boolean;
 
   @Column({ type: 'text', array: true, default: null })
@@ -87,6 +90,7 @@ export const SETTINGS_DEFAULT = {
   customLinks: null,
   optOutCompanion: false,
   optOutWeeklyGoal: false,
+  optOutReadingStreak: false,
   sortingEnabled: false,
   campaignCtaPlacement: CampaignCtaPlacement.Header,
 };
