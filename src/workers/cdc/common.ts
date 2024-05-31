@@ -8,7 +8,7 @@ import {
   PostRelation,
 } from '../../entity/posts';
 import { ChangeObject } from '../../types';
-import { MachineSource, PostKeyword, Source } from '../../entity';
+import { PostKeyword, Source } from '../../entity';
 import { triggerTypedEvent } from '../../common';
 import { logger } from '../../logger';
 
@@ -40,7 +40,6 @@ export const notifyPostContentUpdated = async ({
   ]);
   const articlePost = post as ChangeObject<ArticlePost>;
   const freeformPost = post as ChangeObject<FreeformPost>;
-  const machineSource = source as MachineSource;
 
   const contentUpdatedMessage = new ContentUpdatedMessage({
     yggdrasilId: post.yggdrasilId,
@@ -52,12 +51,6 @@ export const notifyPostContentUpdated = async ({
     source: {
       ...source,
       createdAt: +source.createdAt,
-      // TODO issue with null can't be parsed as JSON
-      headerImage: source.headerImage || undefined,
-      color: source.color || undefined,
-      twitter: machineSource.twitter || undefined,
-      website: machineSource.website || undefined,
-      description: source.description || undefined,
     },
     tags: post.tagsStr.split(','),
     keywords: keywords.map((item) => item.keyword),
