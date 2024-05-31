@@ -1,4 +1,8 @@
-import { ContentUpdatedMessage } from '@dailydotdev/schema';
+import {
+  ContentMeta,
+  ContentQuality,
+  ContentUpdatedMessage,
+} from '@dailydotdev/schema';
 import { DataSource } from 'typeorm';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 import {
@@ -11,6 +15,7 @@ import { ChangeObject } from '../../types';
 import { PostKeyword, Source } from '../../entity';
 import { triggerTypedEvent } from '../../common';
 import { logger } from '../../logger';
+import { JsonValue } from '@bufbuild/protobuf';
 
 export const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
   before[property] != after[property];
@@ -83,15 +88,21 @@ export const notifyPostContentUpdated = async ({
     summary: articlePost.summary,
     content: freeformPost.content,
     language: post.language,
-    contentMeta: post.contentMeta,
+    contentMeta: post.contentMeta
+      ? ContentMeta.fromJson(post.contentMeta as JsonValue, {
+          ignoreUnknownFields: true,
+        })
+      : undefined,
     relatedPosts: relatedPosts.map((item) => ({
       ...item,
       createdAt: +item.createdAt,
     })),
     contentCuration: post.contentCuration,
-    contentQuality: {
-      isAiProbability: post.contentQuality?.is_ai_probability,
-    },
+    contentQuality: post.contentQuality
+      ? ContentQuality.fromJson(post.contentQuality, {
+          ignoreUnknownFields: true,
+        })
+      : undefined,
   });
 
   await triggerTypedEvent(
