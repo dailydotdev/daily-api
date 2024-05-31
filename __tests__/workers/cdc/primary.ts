@@ -2917,4 +2917,36 @@ describe('post content updated', () => {
       },
     ]);
   });
+
+  it('should not notify on post created', async () => {
+    const after: ChangeObject<ArticlePost> = {
+      ...contentUpdatedPost,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ArticlePost>({
+        after,
+        before: undefined,
+        op: 'c',
+        table: 'post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should not notify on post deleted', async () => {
+    const before: ChangeObject<ArticlePost> = {
+      ...contentUpdatedPost,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ArticlePost>({
+        after: undefined,
+        before,
+        op: 'd',
+        table: 'post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
 });
