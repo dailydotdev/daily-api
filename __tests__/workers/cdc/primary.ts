@@ -2753,6 +2753,8 @@ describe('post content updated', () => {
   it('should notify on post updated', async () => {
     const after: ChangeObject<ArticlePost> = {
       ...contentUpdatedPost,
+      url: 'http://p4.com',
+      canonicalUrl: 'http://p4c.com',
     };
     await expectSuccessfulBackground(
       worker,
@@ -2768,8 +2770,7 @@ describe('post content updated', () => {
       'api.v1.content-updated',
       {
         banned: false,
-        canonicalUrl: 'http://p1c.com',
-        content: '',
+        canonicalUrl: 'http://p4c.com',
         contentCuration: ['c1', 'c2'],
         contentMeta: {
           cleaned: [],
@@ -2780,28 +2781,28 @@ describe('post content updated', () => {
         createdAt: expect.any(Number),
         description: 'Post for testing',
         image: 'https://daily.dev/image.jpg',
-        keywords: ['webdev', 'javascript'],
+        keywords: ['backend', 'data', 'javascript'],
         language: 'en',
         origin: 'crawler',
-        postId: 'p1',
+        postId: 'p4',
         private: false,
         readTime: 5,
         relatedPosts: [
           {
             createdAt: expect.any(Number),
             postId: 'p1',
-            relatedPostId: 'p2',
+            relatedPostId: 'p4',
             type: 'COLLECTION',
           },
           {
             createdAt: expect.any(Number),
-            postId: 'p1',
-            relatedPostId: 'p3',
+            postId: 'p2',
+            relatedPostId: 'p4',
             type: 'COLLECTION',
           },
           {
             createdAt: expect.any(Number),
-            postId: 'p1',
+            postId: 'p3',
             relatedPostId: 'p4',
             type: 'COLLECTION',
           },
@@ -2826,7 +2827,7 @@ describe('post content updated', () => {
         title: 'Post for testing',
         type: 'article',
         updatedAt: expect.any(Number),
-        url: 'http://p1.com',
+        url: 'http://p4.com',
         visible: true,
         yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
       },
@@ -2853,7 +2854,6 @@ describe('post content updated', () => {
       'api.v1.content-updated',
       {
         banned: false,
-        canonicalUrl: 'http://p1c.com',
         content: 'Freeform content',
         contentCuration: ['c1', 'c2'],
         contentMeta: {
@@ -2865,7 +2865,138 @@ describe('post content updated', () => {
         createdAt: expect.any(Number),
         description: 'Post for testing',
         image: 'https://daily.dev/image.jpg',
-        keywords: ['webdev', 'javascript'],
+        keywords: ['backend', 'data', 'javascript'],
+        language: 'en',
+        origin: 'crawler',
+        postId: 'p4',
+        private: false,
+        readTime: 5,
+        relatedPosts: [
+          {
+            createdAt: expect.any(Number),
+            postId: 'p1',
+            relatedPostId: 'p4',
+            type: 'COLLECTION',
+          },
+          {
+            createdAt: expect.any(Number),
+            postId: 'p2',
+            relatedPostId: 'p4',
+            type: 'COLLECTION',
+          },
+          {
+            createdAt: expect.any(Number),
+            postId: 'p3',
+            relatedPostId: 'p4',
+            type: 'COLLECTION',
+          },
+        ],
+        source: {
+          active: true,
+          color: 'avocado',
+          createdAt: expect.any(Number),
+          description: 'A description',
+          handle: 'a',
+          headerImage: 'http://image.com/header',
+          id: 'a',
+          image: 'http://image.com/a',
+          name: 'A',
+          private: false,
+          twitter: '@a',
+          type: 'machine',
+          website: 'http://a.com',
+        },
+        summary: 'Post for testing',
+        tags: ['javascript', 'webdev', 'react'],
+        title: 'Post for testing',
+        type: 'article',
+        updatedAt: expect.any(Number),
+        url: '',
+        visible: true,
+        yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
+      },
+    ]);
+  });
+
+  it('should not notify on post created', async () => {
+    const after: ChangeObject<Post> = {
+      ...contentUpdatedPost,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<Post>({
+        after,
+        before: undefined,
+        op: 'c',
+        table: 'post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should not notify on post deleted', async () => {
+    const before: ChangeObject<Post> = {
+      ...contentUpdatedPost,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<Post>({
+        after: undefined,
+        before,
+        op: 'd',
+        table: 'post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should notify on collection post updated', async () => {
+    await saveFixtures(con, Source, [
+      {
+        id: 'collections',
+        name: 'Collections',
+        image: 'http://image.com/collections',
+        handle: 'collections',
+        type: SourceType.Machine,
+      },
+    ]);
+
+    const after: ChangeObject<CollectionPost> = {
+      ...contentUpdatedPost,
+      id: 'p1',
+      slug: 'post-for-testing-p1',
+      shortId: 'sp1',
+      sourceId: 'collections',
+      content: 'Collection content',
+      contentHtml: '<p>Collection content</p>',
+      collectionSources: ['a', 'b'],
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<FreeformPost>({
+        after,
+        before: after,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.content-updated',
+      {
+        banned: false,
+        content: 'Collection content',
+        contentCuration: ['c1', 'c2'],
+        contentMeta: {
+          cleaned: [],
+        },
+        contentQuality: {
+          isAiProbability: 0.9,
+        },
+        createdAt: expect.any(Number),
+        description: 'Post for testing',
+        image: 'https://daily.dev/image.jpg',
+        keywords: ['javascript', 'webdev'],
         language: 'en',
         origin: 'crawler',
         postId: 'p1',
@@ -2893,60 +3024,23 @@ describe('post content updated', () => {
         ],
         source: {
           active: true,
-          color: 'avocado',
           createdAt: expect.any(Number),
-          description: 'A description',
-          handle: 'a',
-          headerImage: 'http://image.com/header',
-          id: 'a',
-          image: 'http://image.com/a',
-          name: 'A',
+          handle: 'collections',
+          id: 'collections',
+          image: 'http://image.com/collections',
+          name: 'Collections',
           private: false,
-          twitter: '@a',
           type: 'machine',
-          website: 'http://a.com',
         },
         summary: 'Post for testing',
         tags: ['javascript', 'webdev', 'react'],
         title: 'Post for testing',
         type: 'article',
         updatedAt: expect.any(Number),
-        url: 'http://p1.com',
+        url: '',
         visible: true,
         yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
       },
     ]);
-  });
-
-  it('should not notify on post created', async () => {
-    const after: ChangeObject<ArticlePost> = {
-      ...contentUpdatedPost,
-    };
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ArticlePost>({
-        after,
-        before: undefined,
-        op: 'c',
-        table: 'post',
-      }),
-    );
-    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
-  });
-
-  it('should not notify on post deleted', async () => {
-    const before: ChangeObject<ArticlePost> = {
-      ...contentUpdatedPost,
-    };
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ArticlePost>({
-        after: undefined,
-        before,
-        op: 'd',
-        table: 'post',
-      }),
-    );
-    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
   });
 });

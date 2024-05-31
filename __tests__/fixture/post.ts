@@ -460,9 +460,9 @@ export const postAuthorsFixture = [
 
 export const contentUpdatedPost = {
   yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
-  id: 'p1',
-  slug: 'post-for-testing-p1',
-  shortId: 'sp1',
+  id: 'p4',
+  slug: 'post-for-testing-p4',
+  shortId: 'sp4',
   type: PostType.Article,
   title: 'Post for testing',
   createdAt: Date.now() - 1000,
@@ -476,8 +476,6 @@ export const contentUpdatedPost = {
   showOnFeed: true,
   visibleAt: Date.now(),
   origin: PostOrigin.Crawler,
-  url: 'http://p1.com',
-  canonicalUrl: 'http://p1c.com',
   image: 'https://daily.dev/image.jpg',
   description: 'Post for testing',
   readTime: 5,

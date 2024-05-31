@@ -31,11 +31,26 @@ export const notifyPostContentUpdated = async ({
     con.getRepository(Source).findOneBy({
       id: post.sourceId,
     }),
-    con.getRepository(PostKeyword).findBy({
-      postId: post.id,
+    con.getRepository(PostKeyword).find({
+      where: {
+        postId: post.id,
+      },
+      order: {
+        keyword: 'ASC',
+      },
     }),
-    con.getRepository(PostRelation).findBy({
-      postId: post.id,
+    con.getRepository(PostRelation).find({
+      where: [
+        {
+          postId: post.id,
+        },
+        {
+          relatedPostId: post.id,
+        },
+      ],
+      order: {
+        createdAt: 'ASC',
+      },
     }),
   ]);
   const articlePost = post as ChangeObject<ArticlePost>;
