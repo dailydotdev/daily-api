@@ -62,6 +62,9 @@ import { validateAndTransformHandle } from '../common/handles';
 import { QueryBuilder } from '../graphorm/graphorm';
 import type { GQLTagResults } from './tags';
 import { SourceTagView } from '../entity/SourceTagView';
+import { TrendingSource } from '../entity/TrendingSource';
+import { PopularSource } from '../entity/PopularSource';
+import { PopularVideoSource } from '../entity/PopularVideoSource';
 
 export interface GQLSource {
   id: string;
@@ -321,6 +324,46 @@ export const typeDefs = /* GraphQL */ `
       """
       featured: Boolean
     ): SourceConnection!
+
+    """
+    Get the most recent sources
+    """
+    mostRecentSources(
+      """
+      Limit the number of sources returned
+      """
+      limit: Int
+    ): [Source] @cacheControl(maxAge: 600)
+
+    """
+    Get the most trending sources
+    """
+    trendingSources(
+      """
+      Limit the number of sources returned
+      """
+      limit: Int
+    ): [Source] @cacheControl(maxAge: 600)
+
+    """
+    Get the most popular sources
+    """
+    popularSources(
+      """
+      Limit the number of sources returned
+      """
+      limit: Int
+    ): [Source] @cacheControl(maxAge: 600)
+
+    """
+    Get top video sources
+    """
+    topVideoSources(
+      """
+      Limit the number of sources returned
+      """
+      limit: Int
+    ): [Source] @cacheControl(maxAge: 600)
 
     """
     Get the source that matches the feed
@@ -1032,6 +1075,22 @@ const togglePinnedPosts = async (
   return { _: true };
 };
 
+const getFormattedSources = async (entity, args, ctx): Promise<GQLSource[]> => {
+  const { limit = 10 } = args;
+  /*
+   * This is not best practice, but due to missing join/basetable support for graphORM we decided to leave it like this to ship faster
+   * If you ever need child entities/graphORM magic this needs to change
+   */
+  return await ctx.con
+    .createQueryBuilder()
+    .select('s.*')
+    .from(entity, 'ts')
+    .innerJoin(Source, 's', 'ts."sourceId" = s.id')
+    .orderBy('r', 'DESC')
+    .limit(limit)
+    .getRawMany();
+};
+
 const paginateSourceMembers = (
   query: (builder: QueryBuilder, alias: string) => QueryBuilder,
   args: ConnectionArguments,
@@ -1199,6 +1258,22 @@ export const resolvers: IResolvers<any, Context> = {
         },
       );
     },
+    mostRecentSources: async (_, args, ctx, info): Promise<GQLSource[]> => {
+      const { limit = 10 } = args;
+      return await graphorm.query(ctx, info, (builder) => {
+        builder.queryBuilder
+          .where({ active: true, type: SourceType.Machine })
+          .orderBy('"createdAt"', 'DESC')
+          .limit(limit);
+        return builder;
+      });
+    },
+    trendingSources: async (_, args, ctx): Promise<GQLSource[]> =>
+      getFormattedSources(TrendingSource, args, ctx),
+    popularSources: async (_, args, ctx): Promise<GQLSource[]> =>
+      getFormattedSources(PopularSource, args, ctx),
+    topVideoSources: async (_, args, ctx): Promise<GQLSource[]> =>
+      getFormattedSources(PopularVideoSource, args, ctx),
     sourceByFeed: async (
       _,
       { feed }: { feed: string },

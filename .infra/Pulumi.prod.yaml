@@ -45,10 +45,12 @@ config:
       secure: AAABAKsjQ79BKL/Msk8ERCFq7TeKGQ6NnzRcQrOoUzQ7hFEDNdq4uxOcG3w5M5aODolHDw==
     cioAppKey:
       secure: AAABAERrQhgnve0YtkklanvzuI5Eg9AFdaRjHbW+FRGHL48CqI3tw57Vu6n+oD9vcD9ZlSyYKm8oN60zWbiJIw==
+    cioReportingWebhookSecret:
+      secure: AAABAKZvBtsE/fIr1Ld414GCnF3y8qPBeIgzwxELX/rwQMxqIgEjX40LbvJM4ofYXTuwTCdXVrjn4rz4/B0fvrORkUIMVRrlX5tyzybTL6a9SMdKV0FKq1em7EuR4lsm
     cioSiteId:
       secure: AAABAACN2IeoykRGHprr1nYvk1snUvT733+1dp8QI7+WchlaErfJJ3X6LLPYe8BthHnpqw==
     cioWebhookSecret:
-      secure: AAABAHkXsqVvvtA1VZ3lLrNQoV0Kh3FM31l7QxQVVwQvR4CHbLyqbtg2N+MJ5URkaRwYsMMPv+8RNnRcCiC/v33GjNBc4e57x5MpVpQC2VPUyjMornJI53n7rmeQBtsQ
+      secure: AAABAGChdDxbV+V6t2pQOYBecCRy36qLbPoyD2Ee3ssIIArwBkjx2NmMPK9SnjLWV5pqg7YWV8EkcB3ldysVDzrTTslLimQH5VtgQ1Fe32uqWUUUrZUJmZlDv9+xgYeo
     cloudinaryUrl:
       secure: AAABANjdKplLPf64fvQRXN0mUtB6I7yh0lG44SsBC6BcKsH3MulzTCJ8adEN4BQYlytY0otXJOJL+fqNjzgYG+WIXO2GPecSvPeFem5ZyFVrbfxX42wyb2iwVHDyegOb5cY=
     commentsPrefix:

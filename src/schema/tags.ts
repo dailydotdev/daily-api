@@ -8,6 +8,8 @@ import { ValidationError } from 'apollo-server-errors';
 import { SubmissionFailErrorMessage } from '../errors';
 import graphorm from '../graphorm';
 import { GQLKeyword } from './keywords';
+import { TrendingTag } from '../entity/TrendingTag';
+import { PopularTag } from '../entity/PopularTag';
 
 interface GQLTag {
   name: string;
@@ -65,9 +67,24 @@ export const typeDefs = /* GraphQL */ `
     tags: [Keyword]
 
     """
+    Get the most trending tags
+    """
+    trendingTags(
+      """
+      Limit the number of tags returned
+      """
+      limit: Int
+    ): [Tag] @cacheControl(maxAge: 600)
+
+    """
     Get the most popular tags
     """
-    popularTags: [Tag] @cacheControl(maxAge: 600)
+    popularTags(
+      """
+      Limit the number of tags returned
+      """
+      limit: Int
+    ): [Tag] @cacheControl(maxAge: 600)
 
     searchTags(query: String!): TagSearchResults @cacheControl(maxAge: 600)
 
@@ -93,6 +110,16 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
+const getFormattedTags = async (entity, args, ctx): Promise<GQLTag[]> => {
+  const { limit = 10 } = args;
+  const tags = await ctx.getRepository(entity).find({
+    select: ['tag'],
+    order: { r: 'DESC' },
+    take: limit,
+  });
+  return tags.map(({ tag }) => ({ name: tag }));
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
@@ -106,14 +133,10 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
 
         return builder;
       }),
-    popularTags: async (source, args, ctx): Promise<GQLTag[]> => {
-      const hits = await ctx.getRepository(Keyword).find({
-        select: ['value'],
-        order: { value: 'ASC' },
-        where: { status: 'allow' },
-      });
-      return hits.map((x) => ({ name: x.value }));
-    },
+    trendingTags: async (_, args, ctx): Promise<GQLTag[]> =>
+      await getFormattedTags(TrendingTag, args, ctx),
+    popularTags: async (_, args, ctx): Promise<GQLTag[]> =>
+      await getFormattedTags(PopularTag, args, ctx),
     searchTags: async (
       source,
       { query }: { query: string },
