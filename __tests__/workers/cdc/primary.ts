@@ -1623,6 +1623,7 @@ describe('settings', () => {
     sortingEnabled: false,
     customLinks: null,
     optOutWeeklyGoal: false,
+    optOutReadingStreak: false,
     optOutCompanion: false,
     autoDismissNotifications: true,
     campaignCtaPlacement: CampaignCtaPlacement.Header,

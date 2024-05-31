@@ -20,6 +20,7 @@ interface GQLSettings {
   sortingEnabled: boolean;
   autoDismissNotifications: boolean;
   updatedAt: Date;
+  optOutReadingStreak: boolean;
 }
 
 interface GQLBookmarksSharing {
@@ -41,6 +42,7 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
   autoDismissNotifications?: boolean;
   campaignCtaPlacement?: CampaignCtaPlacement;
   customLinks?: string[];
+  optOutReadingStreak?: boolean;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -117,6 +119,11 @@ export const typeDefs = /* GraphQL */ `
     Whether the user opted out from the weekly goal
     """
     optOutWeeklyGoal: Boolean!
+
+    """
+    Whether the user opted out from reading streak
+    """
+    optOutReadingStreak: Boolean!
 
     """
     Whether the user opted out from the companion app
@@ -210,6 +217,11 @@ export const typeDefs = /* GraphQL */ `
     Whether the user opted out from the weekly goal
     """
     optOutWeeklyGoal: Boolean
+
+    """
+    Whether the user opted out from reading streak
+    """
+    optOutReadingStreak: Boolean
 
     """
     Whether the user opted out from the companion app
