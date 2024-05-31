@@ -21,6 +21,7 @@ import {
   SquadPublicRequestStatus,
   PostKeyword,
   SourceType,
+  YouTubePost,
 } from '../../../src/entity';
 import {
   notifyCommentCommented,
@@ -2753,6 +2754,7 @@ describe('post content updated', () => {
   it('should notify on post updated', async () => {
     const after: ChangeObject<ArticlePost> = {
       ...contentUpdatedPost,
+      type: PostType.Article,
       url: 'http://p4.com',
       canonicalUrl: 'http://p4c.com',
     };
@@ -2825,7 +2827,7 @@ describe('post content updated', () => {
         summary: 'Post for testing',
         tags: ['javascript', 'webdev', 'react'],
         title: 'Post for testing',
-        type: 'article',
+        type: PostType.Article,
         updatedAt: expect.any(Number),
         url: 'http://p4.com',
         visible: true,
@@ -2837,6 +2839,7 @@ describe('post content updated', () => {
   it('should notify on freeform post updated', async () => {
     const after: ChangeObject<FreeformPost> = {
       ...contentUpdatedPost,
+      type: PostType.Freeform,
       content: 'Freeform content',
       contentHtml: '<p>Freeform content</p>',
     };
@@ -2909,7 +2912,7 @@ describe('post content updated', () => {
         summary: 'Post for testing',
         tags: ['javascript', 'webdev', 'react'],
         title: 'Post for testing',
-        type: 'article',
+        type: PostType.Freeform,
         updatedAt: expect.any(Number),
         url: '',
         visible: true,
@@ -2963,6 +2966,7 @@ describe('post content updated', () => {
 
     const after: ChangeObject<CollectionPost> = {
       ...contentUpdatedPost,
+      type: PostType.Collection,
       id: 'p1',
       slug: 'post-for-testing-p1',
       shortId: 'sp1',
@@ -3035,9 +3039,93 @@ describe('post content updated', () => {
         summary: 'Post for testing',
         tags: ['javascript', 'webdev', 'react'],
         title: 'Post for testing',
-        type: 'article',
+        type: PostType.Collection,
         updatedAt: expect.any(Number),
         url: '',
+        visible: true,
+        yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
+      },
+    ]);
+  });
+
+  it('should notify on youtube post updated', async () => {
+    const after: ChangeObject<YouTubePost> = {
+      ...contentUpdatedPost,
+      type: PostType.VideoYouTube,
+      url: 'http://youtube.com/watch?v=123',
+      videoId: '123',
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<YouTubePost>({
+        after,
+        before: after,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.content-updated',
+      {
+        banned: false,
+        contentCuration: ['c1', 'c2'],
+        contentMeta: {
+          cleaned: [],
+        },
+        contentQuality: {
+          isAiProbability: 0.9,
+        },
+        createdAt: expect.any(Number),
+        description: 'Post for testing',
+        image: 'https://daily.dev/image.jpg',
+        keywords: ['backend', 'data', 'javascript'],
+        language: 'en',
+        origin: 'crawler',
+        postId: 'p4',
+        private: false,
+        readTime: 5,
+        relatedPosts: [
+          {
+            createdAt: expect.any(Number),
+            postId: 'p1',
+            relatedPostId: 'p4',
+            type: 'COLLECTION',
+          },
+          {
+            createdAt: expect.any(Number),
+            postId: 'p2',
+            relatedPostId: 'p4',
+            type: 'COLLECTION',
+          },
+          {
+            createdAt: expect.any(Number),
+            postId: 'p3',
+            relatedPostId: 'p4',
+            type: 'COLLECTION',
+          },
+        ],
+        source: {
+          active: true,
+          color: 'avocado',
+          createdAt: expect.any(Number),
+          description: 'A description',
+          handle: 'a',
+          headerImage: 'http://image.com/header',
+          id: 'a',
+          image: 'http://image.com/a',
+          name: 'A',
+          private: false,
+          twitter: '@a',
+          type: 'machine',
+          website: 'http://a.com',
+        },
+        summary: 'Post for testing',
+        tags: ['javascript', 'webdev', 'react'],
+        title: 'Post for testing',
+        type: PostType.VideoYouTube,
+        updatedAt: expect.any(Number),
+        url: 'http://youtube.com/watch?v=123',
         visible: true,
         yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
       },
