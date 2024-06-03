@@ -20,6 +20,7 @@ import { FastifyBaseLogger } from 'fastify';
 import { zonedTimeToUtc } from 'date-fns-tz';
 import fastq from 'fastq';
 import { SendEmailRequestWithTemplate } from 'customerio-node/dist/lib/api/requests';
+import { v4 as uuidv4 } from 'uuid';
 
 type TemplatePostData = Pick<
   ArticlePost,
@@ -265,7 +266,7 @@ export const schedulePersonalizedDigestSubscriptions = async ({
   }) => Promise<void>;
 }) => {
   // Keep email batch id around just in case
-  const emailBatchId = null;
+  const emailBatchId = uuidv4();
   logger.info({ emailBatchId, sendType }, 'starting personalized digest send');
 
   let digestCount = 0;

@@ -59,7 +59,7 @@ describe('personalizedDigest cron', () => {
         personalizedDigest,
         emailSendTimestamp: expect.any(Number),
         previousSendTimestamp: expect.any(Number),
-        emailBatchId: 'test-email-batch-id',
+        emailBatchId: expect.any(String),
       });
     });
     (notifyGeneratePersonalizedDigest as jest.Mock).mock.calls.forEach(
@@ -98,7 +98,7 @@ describe('personalizedDigest cron', () => {
         personalizedDigest,
         emailSendTimestamp: expect.any(Number),
         previousSendTimestamp: expect.any(Number),
-        emailBatchId: 'test-email-batch-id',
+        emailBatchId: expect.any(String),
       });
     });
     (notifyGeneratePersonalizedDigest as jest.Mock).mock.calls.forEach(
@@ -126,7 +126,7 @@ describe('personalizedDigest cron', () => {
     expect(infoSpy).toHaveBeenCalledWith(
       {
         digestCount: usersToSchedule.length,
-        emailBatchId: 'test-email-batch-id',
+        emailBatchId: expect.any(String),
         sendType: UserPersonalizedDigestSendType.weekly,
       },
       'personalized digest sent',
