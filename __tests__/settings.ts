@@ -60,6 +60,7 @@ describe('query userSettings', () => {
     sortingEnabled
     customLinks
     optOutWeeklyGoal
+    optOutReadingStreak
     optOutCompanion
     autoDismissNotifications
     campaignCtaPlacement
@@ -158,6 +159,7 @@ describe('mutation updateUserSettings', () => {
     sortingEnabled
     customLinks
     optOutWeeklyGoal
+    optOutReadingStreak
     optOutCompanion
     campaignCtaPlacement
   }
