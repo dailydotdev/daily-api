@@ -481,10 +481,7 @@ export const contentUpdatedPost = {
   readTime: 5,
   summary: 'Post for testing',
   language: 'en',
-  contentMeta: {
-    scraped_html: '<html>test</html>',
-    cleaned_trafilatura_xml: '<xml>test</xml>',
-  },
+  contentMeta: {},
   contentCuration: ['c1', 'c2'],
   contentQuality: {
     is_ai_probability: 0.9,

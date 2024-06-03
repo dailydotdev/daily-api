@@ -88,21 +88,17 @@ export const notifyPostContentUpdated = async ({
     summary: articlePost.summary,
     content: freeformPost.content,
     language: post.language,
-    contentMeta: post.contentMeta
-      ? ContentMeta.fromJson(post.contentMeta as JsonValue, {
-          ignoreUnknownFields: true,
-        })
-      : undefined,
+    contentMeta: ContentMeta.fromJson((post.contentMeta || {}) as JsonValue, {
+      ignoreUnknownFields: true,
+    }),
     relatedPosts: relatedPosts.map((item) => ({
       ...item,
       createdAt: +item.createdAt,
     })),
-    contentCuration: post.contentCuration,
-    contentQuality: post.contentQuality
-      ? ContentQuality.fromJson(post.contentQuality, {
-          ignoreUnknownFields: true,
-        })
-      : undefined,
+    contentCuration: post.contentCuration || [],
+    contentQuality: ContentQuality.fromJson(post.contentQuality || {}, {
+      ignoreUnknownFields: true,
+    }),
   });
 
   await triggerTypedEvent(

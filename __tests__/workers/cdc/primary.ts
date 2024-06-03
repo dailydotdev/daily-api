@@ -2758,6 +2758,27 @@ describe('post content updated', () => {
       type: PostType.Article,
       url: 'http://p4.com',
       canonicalUrl: 'http://p4c.com',
+      contentMeta: {
+        cleaned: [
+          {
+            provider: 'test',
+            resource_location: 'gs://path.xml',
+          },
+        ],
+        scraped: {
+          resource_location: 'gs://path.html',
+        },
+        enriched: { provider: 'test' },
+        language: { provider: 'translate' },
+        embedding: {
+          size: 999,
+          model: 'test',
+          provider: 'test',
+          content_type: 'title_summary',
+          resource_location: 'yggdrasil',
+        },
+        aigc_detect: { provider: 'test' },
+      },
     };
     await expectSuccessfulBackground(
       worker,
@@ -2776,7 +2797,25 @@ describe('post content updated', () => {
         canonicalUrl: 'http://p4c.com',
         contentCuration: ['c1', 'c2'],
         contentMeta: {
-          cleaned: [],
+          cleaned: [
+            {
+              provider: 'test',
+              resourceLocation: 'gs://path.xml',
+            },
+          ],
+          scraped: {
+            resourceLocation: 'gs://path.html',
+          },
+          enriched: { provider: 'test' },
+          language: { provider: 'translate' },
+          embedding: {
+            size: 999,
+            model: 'test',
+            provider: 'test',
+            contentType: 'title_summary',
+            resourceLocation: 'yggdrasil',
+          },
+          aigcDetect: { provider: 'test' },
         },
         contentQuality: {
           isAiProbability: 0.9,
