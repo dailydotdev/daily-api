@@ -25,15 +25,7 @@ export const workers: Worker[] = [
   },
   {
     topic: 'user-updated',
-    subscription: 'user-updated-api-mailing',
-  },
-  {
-    topic: 'user-updated',
     subscription: 'api.user-updated-cio',
-  },
-  {
-    topic: 'user-deleted',
-    subscription: 'user-deleted-api-mailing',
   },
   {
     topic: 'user-deleted',
@@ -219,10 +211,6 @@ export const workers: Worker[] = [
   },
   {
     topic: 'api.v1.user-created',
-    subscription: 'api.add-to-mailing-list',
-  },
-  {
-    topic: 'api.v1.user-created',
     subscription: 'api.user-created-cio',
   },
   {
@@ -248,10 +236,6 @@ export const workers: Worker[] = [
   {
     topic: 'api.v1.source-created',
     subscription: 'api.source-created-squad-user-action',
-  },
-  {
-    topic: 'api.v1.source-created',
-    subscription: 'api.source-created-squad-owner-mailing',
   },
   {
     topic: 'api.v1.post-collection-updated',

@@ -12,11 +12,7 @@ import { format, isSameDay, nextDay, previousDay } from 'date-fns';
 import { PersonalizedDigestFeatureConfig } from '../growthbook';
 import { feedToFilters, fixedIdsFeedBuilder } from './feedGenerator';
 import { FeedClient } from '../integrations/feed';
-import {
-  addNotificationUtm,
-  baseNotificationEmailData,
-  createEmailBatchId,
-} from './mailing';
+import { addNotificationUtm, baseNotificationEmailData } from './mailing';
 import { pickImageUrl } from './post';
 import { getDiscussionLink } from './links';
 import { DataSource, SelectQueryBuilder } from 'typeorm';
@@ -268,13 +264,8 @@ export const schedulePersonalizedDigestSubscriptions = async ({
     emailBatchId: string;
   }) => Promise<void>;
 }) => {
-  // TODO: check if there's an alternative in CIO
-  const emailBatchId = await createEmailBatchId();
-
-  if (!emailBatchId) {
-    throw new Error('failed to create email batch id');
-  }
-
+  // Keep email batch id around just in case
+  const emailBatchId = null;
   logger.info({ emailBatchId, sendType }, 'starting personalized digest send');
 
   let digestCount = 0;

@@ -116,8 +116,6 @@ config:
       secure: AAABAG345FgrKQUdnHkiyTstCqLN33wENnz6dIoBkxqaUAbJPS2h+kPwSH/W0i8+TWHmE4npH37runeN8qm/fyoZxz425ATWQsyrTVJU4KMAApeHwGUI4pgtAvDB11x96eWDX5SBLW2t4UemyaHXw1kYagdwWkd9LP4e3j8E7oKXJE7YwHRaIT4LI09JoTQWTuMLwYfZY1vWzAy5BOHqouf1v1+hGWWSF+NTdFHHkw==
     scraperUrl:
       secure: AAABALFXdGGbuGr3p/bpvpYyWy/vnsRVXk/ndp7Vv4BY0tWPZG1uz3E3uhfkvA==
-    sendgridApiKey:
-      secure: AAABANVhXyHAWBYvw2hOFkRdQaqiW2hBtoAc/iqxhUpi/dTEZFjrg1neXRyrs+fNnE5RYeDKy3vyjzDWAPe6ZWtamz46cTyBkcDpFIoqsrGn5CvltYd6O/CautVQQ2+oqUVECQA=
     sendgridWebhookAnalyticsKey:
       secure: AAABAN93rTdOaHRB0LdcCsxtW0iEDhqNeUQaldjnx44gUVu2xjn0lR9bW1MgPZ8v6KBfAG8k8Uf2tqg2zWKiP9Dk1eDH7TR5v2XmKnvnP/rzCwhz0eZ0Yd3qoSJ8NUBhxcB/somueTshRZI2xfjtQf2aKyZ9KKIoPPs1U8D1fiyQPeQm2e7in0CouLbEGkS/FUpyHVLS6l2mUlq4
     slackWebhook:
