@@ -31,7 +31,7 @@
     "@connectrpc/connect-fastify": "^1.4.0",
     "@connectrpc/connect-node": "^1.4.0",
     "@dailydotdev/graphql-redis-subscriptions": "^2.4.3",
-    "@dailydotdev/schema": "^0.2.3",
+    "@dailydotdev/schema": "^0.2.4",
     "@dailydotdev/ts-ioredis-pool": "^1.0.2",
     "@fastify/cookie": "^9.3.1",
     "@fastify/cors": "^9.0.1",
