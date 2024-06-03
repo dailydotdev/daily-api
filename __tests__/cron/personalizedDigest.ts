@@ -8,10 +8,7 @@ import {
   UserPersonalizedDigestSendType,
 } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
-import {
-  createEmailBatchId,
-  notifyGeneratePersonalizedDigest,
-} from '../../src/common';
+import { notifyGeneratePersonalizedDigest } from '../../src/common';
 import { logger } from '../../src/logger';
 
 let con: DataSource;
@@ -19,14 +16,6 @@ let con: DataSource;
 beforeAll(async () => {
   con = await createOrGetConnection();
 });
-
-jest.mock('../../src/common/mailing', () => ({
-  ...(jest.requireActual('../../src/common/mailing') as Record<
-    string,
-    unknown
-  >),
-  createEmailBatchId: jest.fn(),
-}));
 
 jest.mock('../../src/common/pubsub', () => ({
   ...(jest.requireActual('../../src/common/pubsub') as Record<string, unknown>),
@@ -41,8 +30,6 @@ describe('personalizedDigest cron', () => {
 
     await saveFixtures(con, User, usersFixture);
     await con.getRepository(UserPersonalizedDigest).clear();
-
-    (createEmailBatchId as jest.Mock).mockResolvedValue('test-email-batch-id');
   });
 
   it('should schedule generation', async () => {
@@ -144,47 +131,6 @@ describe('personalizedDigest cron', () => {
       },
       'personalized digest sent',
     );
-  });
-
-  it('should log email batch id', async () => {
-    const usersToSchedule = usersFixture;
-
-    await con.getRepository(UserPersonalizedDigest).save(
-      usersToSchedule.map((item) => ({
-        userId: item.id,
-        preferredDay,
-      })),
-    );
-    const infoSpy = jest.spyOn(logger, 'info');
-
-    await expectSuccessfulCron(cron);
-
-    expect(infoSpy).toHaveBeenCalledTimes(2);
-    expect(infoSpy).toHaveBeenCalledWith(
-      {
-        emailBatchId: 'test-email-batch-id',
-        sendType: UserPersonalizedDigestSendType.weekly,
-      },
-      'starting personalized digest send',
-    );
-    expect(createEmailBatchId).toHaveBeenCalledTimes(1);
-  });
-
-  it('should throw when email batch id is not created', async () => {
-    const usersToSchedule = usersFixture;
-
-    await con.getRepository(UserPersonalizedDigest).save(
-      usersToSchedule.map((item) => ({
-        userId: item.id,
-        preferredDay,
-      })),
-    );
-
-    (createEmailBatchId as jest.Mock).mockResolvedValueOnce(undefined);
-
-    await expect(() => {
-      return expectSuccessfulCron(cron);
-    }).rejects.toEqual(new Error('failed to create email batch id'));
   });
 
   it('should not schedule generation for subscriptions with different sendType', async () => {
