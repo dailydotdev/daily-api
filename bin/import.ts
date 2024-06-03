@@ -3,6 +3,14 @@ import createOrGetConnection from '../src/db';
 import { DataSource } from 'typeorm';
 import { SourceTagView } from '../src/entity/SourceTagView';
 import { TagRecommendation } from '../src/entity/TagRecommendation';
+import { PopularPost } from '../src/entity/PopularPost';
+import { PopularSource } from '../src/entity/PopularSource';
+import { PopularTag } from '../src/entity/PopularTag';
+import { PopularVideoPost } from '../src/entity/PopularVideoPost';
+import { PopularVideoSource } from '../src/entity/PopularVideoSource';
+import { TrendingPost } from '../src/entity/TrendingPost';
+import { TrendingSource } from '../src/entity/TrendingSource';
+import { TrendingTag } from '../src/entity/TrendingTag';
 
 const importEntity = async (
   con: DataSource,
@@ -27,6 +35,19 @@ const importEntity = async (
   }
 };
 
+const viewsToRefresh = [
+  TagRecommendation,
+  SourceTagView,
+  TrendingPost,
+  TrendingSource,
+  TrendingTag,
+  PopularPost,
+  PopularSource,
+  PopularTag,
+  PopularVideoPost,
+  PopularVideoSource,
+];
+
 const start = async (): Promise<void> => {
   const con = await createOrGetConnection();
   await importEntity(con, 'AdvancedSettings');
@@ -41,16 +62,13 @@ const start = async (): Promise<void> => {
   // Manually have to reset these as insert has a issue with `type` columns
   await con.query(`update post set type = 'article' where type = 'Post'`);
   await con.query(`update source set type = 'machine' where type = 'Source'`);
-  await con.query(
-    `REFRESH MATERIALIZED VIEW ${
-      con.getRepository(TagRecommendation).metadata.tableName
-    }`,
-  );
-  await con.query(
-    `REFRESH MATERIALIZED VIEW ${
-      con.getRepository(SourceTagView).metadata.tableName
-    }`,
-  );
+  await con.transaction(async (manager) => {
+    for (const viewToRefresh of viewsToRefresh) {
+      await manager.query(
+        `REFRESH MATERIALIZED VIEW ${con.getRepository(viewToRefresh).metadata.tableName}`,
+      );
+    }
+  });
 };
 
 start()
