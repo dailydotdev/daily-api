@@ -21,7 +21,10 @@ import {
 
 import deepmerge from 'deepmerge';
 import { FastifyBaseLogger } from 'fastify';
-import { sendReadingReminderPush } from '../onesignal';
+import {
+  sendReadingReminderPush,
+  sendReadingStreakReminderPush,
+} from '../onesignal';
 
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
@@ -133,6 +136,24 @@ const digestTypeToFunctionMap: Record<
     const currentDate = new Date();
     await dedupedSend(
       () => sendReadingReminderPush([personalizedDigest.userId], emailSendDate),
+      {
+        con,
+        personalizedDigest,
+        date: currentDate,
+        deduplicate,
+      },
+    );
+  },
+  [UserPersonalizedDigestType.ReadingStreakReminder]: async (data, con) => {
+    const { personalizedDigest, emailSendTimestamp, deduplicate = true } = data;
+    const emailSendDate = new Date(emailSendTimestamp);
+    const currentDate = new Date();
+    await dedupedSend(
+      () =>
+        sendReadingStreakReminderPush(
+          [personalizedDigest.userId],
+          emailSendDate,
+        ),
       {
         con,
         personalizedDigest,

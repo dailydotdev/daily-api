@@ -58,6 +58,10 @@ const readingReminderContents = [
   'Transform your break into a knowledge feast. Start reading',
 ];
 
+const readingStreakReminderHeading = '⚡ Streak Saver Alert!';
+const readingStreakReminderContent =
+  'Read a post today and protect your streak. Keep it going strong! 💪';
+
 export async function sendReadingReminderPush(
   userIds: string[],
   at: Date,
@@ -86,4 +90,36 @@ export async function sendReadingReminderPush(
   push.chrome_web_icon =
     'https://daily-now-res.cloudinary.com/image/upload/s--9vc188bS--/f_auto/v1712221649/1_smcxpz';
   await client.createNotification(push);
+}
+
+export async function sendReadingStreakReminderPush(
+  userIds: string[],
+  at: Date,
+): Promise<null | OneSignal.CreateNotificationSuccessResponse> {
+  if (!appId || !apiKey) return null;
+  const push = new OneSignal.Notification();
+  push.app_id = appId;
+  push.include_external_user_ids = userIds;
+  push.send_after = at.toISOString();
+  push.contents = {
+    en: readingStreakReminderContent,
+  };
+  push.headings = {
+    en: readingStreakReminderHeading,
+  };
+  push.url = addNotificationUtm(
+    process.env.COMMENTS_PREFIX,
+    'push',
+    // @TODO: check what this should be
+    'streak_reminder',
+  );
+
+  // @TODO: check what these should be
+  push.chrome_web_badge =
+    'https://daily-now-res.cloudinary.com/image/upload/v1672745846/public/dailydev.png';
+  // @TODO: check what these should be
+  push.chrome_web_icon =
+    'https://daily-now-res.cloudinary.com/image/upload/s--9vc188bS--/f_auto/v1712221649/1_smcxpz';
+
+  return client.createNotification(push);
 }
