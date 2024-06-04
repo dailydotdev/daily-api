@@ -10,6 +10,7 @@ export enum UserPersonalizedDigestSendType {
 export enum UserPersonalizedDigestType {
   Digest = 'digest',
   ReadingReminder = 'reading_reminder',
+  ReadingStreakReminder = 'reading_streak_reminder',
 }
 
 export type UserPersonalizedDigestFlags = Partial<{
