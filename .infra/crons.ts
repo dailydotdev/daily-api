@@ -87,6 +87,6 @@ export const crons: Cron[] = [
   },
   {
     name: 'update-highlighted-views',
-    schedule: '15 4 * * 0',
+    schedule: '15 4 * * *',
   },
 ];

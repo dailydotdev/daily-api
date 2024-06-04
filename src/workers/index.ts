@@ -16,12 +16,9 @@ import sourceRequestApprovedRep from './sourceRequestApprovedRep';
 import updateComments from './updateComments';
 import cdc from './cdc/primary';
 import cdcNotifications from './cdc/notifications';
-import updateMailingList from './updateMailingList';
-import deleteUserFromMailingList from './deleteUserFromMailingList';
 import newNotificationRealTime from './newNotificationV2RealTime';
 import newNotificationMail from './newNotificationV2Mail';
 import newNotificationPush from './newNotificationV2Push';
-import addToMailingList from './addToMailingList';
 import { workers as notificationWorkers } from './notifications';
 import sourcePrivacyUpdated from './sourcePrivacyUpdated';
 import postUpdated from './postUpdated';
@@ -40,7 +37,6 @@ import {
 } from './commentEditedImages';
 import experimentAllocated from './experimentAllocated';
 import sourceSquadCreatedUserAction from './sourceSquadCreatedUserAction';
-import sourceSquadCreatedOwnerMailing from './sourceSquadCreatedOwnerMailing';
 import personalizedDigestEmailWorker from '../workers/personalizedDigestEmail';
 import deadLetterLog from './digestDeadLetterLog';
 import userReadmeImages from './userReadmeImages';
@@ -82,7 +78,6 @@ export const workers: Worker[] = [
   deleteCloudinaryImage,
   experimentAllocated,
   sourceSquadCreatedUserAction,
-  sourceSquadCreatedOwnerMailing,
   userReadmeImages,
   cdc,
   cdcNotifications,
@@ -100,11 +95,8 @@ export const typedWorkers: BaseTypedWorker<unknown>[] = [
   postUpvoteCanceledRep,
   postDownvotedRep,
   postDownvoteCanceledRep,
-  updateMailingList,
   userUpdatedCio,
-  deleteUserFromMailingList,
   userDeletedCio,
-  addToMailingList,
   userCreatedCio,
 ];
 
