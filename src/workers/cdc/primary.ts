@@ -83,7 +83,7 @@ import { submissionAccessThreshold } from '../../schema/submissions';
 import { TypeOrmError } from '../../errors';
 import { CommentReport } from '../../entity/CommentReport';
 import { reportCommentReasons } from '../../schema/comments';
-import { getTableName, isChanged } from './common';
+import { getTableName, isChanged, notifyPostContentUpdated } from './common';
 import { UserComment } from '../../entity/user/UserComment';
 import { StorageKey, StorageTopic, generateStorageKey } from '../../config';
 import { deleteRedisKey } from '../../redis';
@@ -484,6 +484,8 @@ const onPostChange = async (
       }
     }
   } else if (data.payload.op === 'u') {
+    await notifyPostContentUpdated({ con, post: data.payload.after });
+
     if (data.payload.after.visible) {
       if (!data.payload.before.visible) {
         await notifyPostVisible(logger, data.payload.after);

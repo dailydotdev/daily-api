@@ -19,6 +19,9 @@ import {
   UserMarketingCta,
   SquadPublicRequest,
   SquadPublicRequestStatus,
+  PostKeyword,
+  SourceType,
+  YouTubePost,
 } from '../../../src/entity';
 import {
   notifyCommentCommented,
@@ -87,7 +90,12 @@ import {
 } from '../../../src/entity';
 import { ChangeObject, UserVote } from '../../../src/types';
 import { sourcesFixture } from '../../fixture/source';
-import { postsFixture } from '../../fixture/post';
+import {
+  contentUpdatedPost,
+  postKeywordsFixture,
+  postsFixture,
+  relatedPostsFixture,
+} from '../../fixture/post';
 import { randomUUID } from 'crypto';
 import { submissionAccessThreshold } from '../../../src/schema/submissions';
 import { DataSource } from 'typeorm';
@@ -2715,5 +2723,452 @@ describe('squad public request', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+});
+
+describe('post content updated', () => {
+  beforeEach(async () => {
+    jest.resetAllMocks();
+
+    await saveFixtures(con, User, usersFixture);
+    await saveFixtures(con, Source, [
+      {
+        ...sourcesFixture[0],
+        id: 'a',
+        name: 'A',
+        image: 'http://image.com/a',
+        handle: 'a',
+        type: SourceType.Machine,
+        headerImage: 'http://image.com/header',
+        color: 'avocado',
+        twitter: '@a',
+        website: 'http://a.com',
+        description: 'A description',
+      },
+      ...sourcesFixture.slice(1),
+    ]);
+    await saveFixtures(con, ArticlePost, postsFixture);
+    await saveFixtures(con, PostRelation, relatedPostsFixture);
+    await saveFixtures(con, PostKeyword, postKeywordsFixture);
+  });
+
+  it('should notify on post updated', async () => {
+    const after: ChangeObject<ArticlePost> = {
+      ...contentUpdatedPost,
+      type: PostType.Article,
+      url: 'http://p4.com',
+      canonicalUrl: 'http://p4c.com',
+      contentMeta: {
+        cleaned: [
+          {
+            provider: 'test',
+            resource_location: 'gs://path.xml',
+          },
+        ],
+        scraped: {
+          resource_location: 'gs://path.html',
+        },
+        enriched: { provider: 'test' },
+        language: { provider: 'translate' },
+        embedding: {
+          size: 999,
+          model: 'test',
+          provider: 'test',
+          content_type: 'title_summary',
+          resource_location: 'yggdrasil',
+        },
+        aigc_detect: { provider: 'test' },
+      },
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ArticlePost>({
+        after,
+        before: after,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.content-updated',
+      {
+        banned: false,
+        canonicalUrl: 'http://p4c.com',
+        contentCuration: ['c1', 'c2'],
+        contentMeta: {
+          cleaned: [
+            {
+              provider: 'test',
+              resourceLocation: 'gs://path.xml',
+            },
+          ],
+          scraped: {
+            resourceLocation: 'gs://path.html',
+          },
+          enriched: { provider: 'test' },
+          language: { provider: 'translate' },
+          embedding: {
+            size: 999,
+            model: 'test',
+            provider: 'test',
+            contentType: 'title_summary',
+            resourceLocation: 'yggdrasil',
+          },
+          aigcDetect: { provider: 'test' },
+        },
+        contentQuality: {
+          isAiProbability: 0.9,
+        },
+        createdAt: expect.any(Number),
+        description: 'Post for testing',
+        image: 'https://daily.dev/image.jpg',
+        keywords: ['backend', 'data', 'javascript'],
+        language: 'en',
+        origin: 'crawler',
+        postId: 'p4',
+        private: false,
+        readTime: 5,
+        relatedPosts: [
+          {
+            createdAt: expect.any(Number),
+            postId: 'p1',
+            relatedPostId: 'p4',
+            type: 'COLLECTION',
+          },
+          {
+            createdAt: expect.any(Number),
+            postId: 'p2',
+            relatedPostId: 'p4',
+            type: 'COLLECTION',
+          },
+          {
+            createdAt: expect.any(Number),
+            postId: 'p3',
+            relatedPostId: 'p4',
+            type: 'COLLECTION',
+          },
+        ],
+        source: {
+          active: true,
+          color: 'avocado',
+          createdAt: expect.any(Number),
+          description: 'A description',
+          handle: 'a',
+          headerImage: 'http://image.com/header',
+          id: 'a',
+          image: 'http://image.com/a',
+          name: 'A',
+          private: false,
+          twitter: '@a',
+          type: 'machine',
+          website: 'http://a.com',
+        },
+        summary: 'Post for testing',
+        tags: ['javascript', 'webdev', 'react'],
+        title: 'Post for testing',
+        type: PostType.Article,
+        updatedAt: expect.any(Number),
+        url: 'http://p4.com',
+        visible: true,
+        yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
+      },
+    ]);
+  });
+
+  it('should notify on freeform post updated', async () => {
+    const after: ChangeObject<FreeformPost> = {
+      ...contentUpdatedPost,
+      type: PostType.Freeform,
+      content: 'Freeform content',
+      contentHtml: '<p>Freeform content</p>',
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<FreeformPost>({
+        after,
+        before: after,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.content-updated',
+      {
+        banned: false,
+        content: 'Freeform content',
+        contentCuration: ['c1', 'c2'],
+        contentMeta: {
+          cleaned: [],
+        },
+        contentQuality: {
+          isAiProbability: 0.9,
+        },
+        createdAt: expect.any(Number),
+        description: 'Post for testing',
+        image: 'https://daily.dev/image.jpg',
+        keywords: ['backend', 'data', 'javascript'],
+        language: 'en',
+        origin: 'crawler',
+        postId: 'p4',
+        private: false,
+        readTime: 5,
+        relatedPosts: [
+          {
+            createdAt: expect.any(Number),
+            postId: 'p1',
+            relatedPostId: 'p4',
+            type: 'COLLECTION',
+          },
+          {
+            createdAt: expect.any(Number),
+            postId: 'p2',
+            relatedPostId: 'p4',
+            type: 'COLLECTION',
+          },
+          {
+            createdAt: expect.any(Number),
+            postId: 'p3',
+            relatedPostId: 'p4',
+            type: 'COLLECTION',
+          },
+        ],
+        source: {
+          active: true,
+          color: 'avocado',
+          createdAt: expect.any(Number),
+          description: 'A description',
+          handle: 'a',
+          headerImage: 'http://image.com/header',
+          id: 'a',
+          image: 'http://image.com/a',
+          name: 'A',
+          private: false,
+          twitter: '@a',
+          type: 'machine',
+          website: 'http://a.com',
+        },
+        summary: 'Post for testing',
+        tags: ['javascript', 'webdev', 'react'],
+        title: 'Post for testing',
+        type: PostType.Freeform,
+        updatedAt: expect.any(Number),
+        url: '',
+        visible: true,
+        yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
+      },
+    ]);
+  });
+
+  it('should not notify on post created', async () => {
+    const after: ChangeObject<Post> = {
+      ...contentUpdatedPost,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<Post>({
+        after,
+        before: undefined,
+        op: 'c',
+        table: 'post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should not notify on post deleted', async () => {
+    const before: ChangeObject<Post> = {
+      ...contentUpdatedPost,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<Post>({
+        after: undefined,
+        before,
+        op: 'd',
+        table: 'post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should notify on collection post updated', async () => {
+    await saveFixtures(con, Source, [
+      {
+        id: 'collections',
+        name: 'Collections',
+        image: 'http://image.com/collections',
+        handle: 'collections',
+        type: SourceType.Machine,
+      },
+    ]);
+
+    const after: ChangeObject<CollectionPost> = {
+      ...contentUpdatedPost,
+      type: PostType.Collection,
+      id: 'p1',
+      slug: 'post-for-testing-p1',
+      shortId: 'sp1',
+      sourceId: 'collections',
+      content: 'Collection content',
+      contentHtml: '<p>Collection content</p>',
+      collectionSources: ['a', 'b'],
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<FreeformPost>({
+        after,
+        before: after,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.content-updated',
+      {
+        banned: false,
+        content: 'Collection content',
+        contentCuration: ['c1', 'c2'],
+        contentMeta: {
+          cleaned: [],
+        },
+        contentQuality: {
+          isAiProbability: 0.9,
+        },
+        createdAt: expect.any(Number),
+        description: 'Post for testing',
+        image: 'https://daily.dev/image.jpg',
+        keywords: ['javascript', 'webdev'],
+        language: 'en',
+        origin: 'crawler',
+        postId: 'p1',
+        private: false,
+        readTime: 5,
+        relatedPosts: [
+          {
+            createdAt: expect.any(Number),
+            postId: 'p1',
+            relatedPostId: 'p2',
+            type: 'COLLECTION',
+          },
+          {
+            createdAt: expect.any(Number),
+            postId: 'p1',
+            relatedPostId: 'p3',
+            type: 'COLLECTION',
+          },
+          {
+            createdAt: expect.any(Number),
+            postId: 'p1',
+            relatedPostId: 'p4',
+            type: 'COLLECTION',
+          },
+        ],
+        source: {
+          active: true,
+          createdAt: expect.any(Number),
+          handle: 'collections',
+          id: 'collections',
+          image: 'http://image.com/collections',
+          name: 'Collections',
+          private: false,
+          type: 'machine',
+        },
+        summary: 'Post for testing',
+        tags: ['javascript', 'webdev', 'react'],
+        title: 'Post for testing',
+        type: PostType.Collection,
+        updatedAt: expect.any(Number),
+        url: '',
+        visible: true,
+        yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
+      },
+    ]);
+  });
+
+  it('should notify on youtube post updated', async () => {
+    const after: ChangeObject<YouTubePost> = {
+      ...contentUpdatedPost,
+      type: PostType.VideoYouTube,
+      url: 'http://youtube.com/watch?v=123',
+      videoId: '123',
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<YouTubePost>({
+        after,
+        before: after,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.content-updated',
+      {
+        banned: false,
+        contentCuration: ['c1', 'c2'],
+        contentMeta: {
+          cleaned: [],
+        },
+        contentQuality: {
+          isAiProbability: 0.9,
+        },
+        createdAt: expect.any(Number),
+        description: 'Post for testing',
+        image: 'https://daily.dev/image.jpg',
+        keywords: ['backend', 'data', 'javascript'],
+        language: 'en',
+        origin: 'crawler',
+        postId: 'p4',
+        private: false,
+        readTime: 5,
+        relatedPosts: [
+          {
+            createdAt: expect.any(Number),
+            postId: 'p1',
+            relatedPostId: 'p4',
+            type: 'COLLECTION',
+          },
+          {
+            createdAt: expect.any(Number),
+            postId: 'p2',
+            relatedPostId: 'p4',
+            type: 'COLLECTION',
+          },
+          {
+            createdAt: expect.any(Number),
+            postId: 'p3',
+            relatedPostId: 'p4',
+            type: 'COLLECTION',
+          },
+        ],
+        source: {
+          active: true,
+          color: 'avocado',
+          createdAt: expect.any(Number),
+          description: 'A description',
+          handle: 'a',
+          headerImage: 'http://image.com/header',
+          id: 'a',
+          image: 'http://image.com/a',
+          name: 'A',
+          private: false,
+          twitter: '@a',
+          type: 'machine',
+          website: 'http://a.com',
+        },
+        summary: 'Post for testing',
+        tags: ['javascript', 'webdev', 'react'],
+        title: 'Post for testing',
+        type: PostType.VideoYouTube,
+        updatedAt: expect.any(Number),
+        url: 'http://youtube.com/watch?v=123',
+        visible: true,
+        yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
+      },
+    ]);
   });
 });
