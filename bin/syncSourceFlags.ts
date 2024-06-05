@@ -25,7 +25,7 @@ const QUEUE_CONCURRENCY = 1;
       .addSelect('SUM(p.upvotes)', 'upvotes')
       .addSelect('s.id', 'sourceId')
       .innerJoin(SquadSource, 's', 's.id = p."sourceId"')
-      .where(`s.type = 'squad'`)
+      .where(`s.type = 'machine'`)
       .groupBy('s.id')
       .stream();
 
