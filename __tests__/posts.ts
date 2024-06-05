@@ -2826,7 +2826,6 @@ describe('mutation createFreeformPost', () => {
     expect(source.flags.totalPosts).toEqual(3);
     const posts = await con.getRepository(Post).countBy({ sourceId: 'a' });
     expect(posts).toEqual(3);
-    expect(source.flags.totalPosts).toEqual(undefined);
     const content = '# Updated content';
     const res = await client.mutate(MUTATION, {
       variables: { ...params, content },
@@ -3918,7 +3917,7 @@ describe('mutation vote post', () => {
     await testUpvote();
   });
 
-  it('should upvote and NOT update source flags upvotes count', async () => {
+  it('should upvote and update source flags upvotes count', async () => {
     loggedUser = '1';
     const source = await con.getRepository(Source).findOneByOrFail({ id: 'a' });
     expect(source.flags.totalUpvotes).toEqual(undefined);
@@ -3928,7 +3927,7 @@ describe('mutation vote post', () => {
     const updatedSource = await con
       .getRepository(Source)
       .findOneByOrFail({ id: 'a' });
-    expect(updatedSource.flags.totalUpvotes).toEqual(undefined);
+    expect(updatedSource.flags.totalUpvotes).toEqual(4);
   });
 
   it('should upvote and increment squad total upvotes', async () => {
@@ -4030,7 +4029,7 @@ describe('mutation vote post', () => {
     await testCancelVote();
   });
 
-  it('should cancel vote and NOT update source flags upvotes count', async () => {
+  it('should cancel vote and update source flags upvotes count', async () => {
     loggedUser = '1';
     const source = await con.getRepository(Source).findOneByOrFail({ id: 'a' });
     expect(source.flags.totalUpvotes).toEqual(undefined);
