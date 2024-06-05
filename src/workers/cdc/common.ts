@@ -15,7 +15,7 @@ import { ChangeObject } from '../../types';
 import { PostKeyword, Source } from '../../entity';
 import { triggerTypedEvent } from '../../common';
 import { logger } from '../../logger';
-import { JsonValue } from '@bufbuild/protobuf';
+import { JsonValue, Message } from '@bufbuild/protobuf';
 
 export const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
   before[property] != after[property];
@@ -24,6 +24,28 @@ export const getTableName = <Entity>(
   con: DataSource,
   target: EntityTarget<Entity>,
 ): string => con.getRepository(target).metadata.tableName;
+
+const decodeJsonField = <TDecoder extends Message>({
+  value,
+  decoder,
+}: {
+  value: JsonValue;
+  decoder: TDecoder;
+}): TDecoder => {
+  const decoderOptions = {
+    ignoreUnknownFields: true,
+  };
+
+  if (!value) {
+    return decoder.fromJson({}, decoderOptions);
+  }
+
+  if (typeof value === 'string') {
+    return decoder.fromJsonString(value, decoderOptions);
+  }
+
+  return decoder.fromJson(value, decoderOptions);
+};
 
 export const notifyPostContentUpdated = async ({
   con,
@@ -88,16 +110,18 @@ export const notifyPostContentUpdated = async ({
     summary: articlePost.summary,
     content: freeformPost.content,
     language: post.language,
-    contentMeta: ContentMeta.fromJson((post.contentMeta || {}) as JsonValue, {
-      ignoreUnknownFields: true,
+    contentMeta: decodeJsonField({
+      value: post.contentMeta as JsonValue,
+      decoder: new ContentMeta(),
     }),
     relatedPosts: relatedPosts.map((item) => ({
       ...item,
       createdAt: +item.createdAt,
     })),
     contentCuration: post.contentCuration || [],
-    contentQuality: ContentQuality.fromJson(post.contentQuality || {}, {
-      ignoreUnknownFields: true,
+    contentQuality: decodeJsonField({
+      value: post.contentQuality,
+      decoder: new ContentQuality(),
     }),
   });
 
