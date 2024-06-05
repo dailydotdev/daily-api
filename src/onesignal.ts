@@ -10,6 +10,8 @@ const configuration = OneSignal.createConfiguration({
 });
 
 const client = new OneSignal.DefaultApi(configuration);
+const chromeWebBadge =
+  'https://daily-now-res.cloudinary.com/image/upload/v1672745846/public/dailydev.png';
 
 export async function sendPushNotification(
   userIds: string[],
@@ -30,8 +32,7 @@ export async function sendPushNotification(
   push.headings = { en: 'New update' };
   push.url = addNotificationUtm(targetUrl, 'push', type);
   push.data = { notificationId: id };
-  push.chrome_web_badge =
-    'https://daily-now-res.cloudinary.com/image/upload/v1672745846/public/dailydev.png';
+  push.chrome_web_badge = chromeWebBadge;
   if (avatar) {
     push.chrome_web_icon = avatar.image;
   }
@@ -85,8 +86,7 @@ export async function sendReadingReminderPush(
     'push',
     'reminder',
   );
-  push.chrome_web_badge =
-    'https://daily-now-res.cloudinary.com/image/upload/v1672745846/public/dailydev.png';
+  push.chrome_web_badge = chromeWebBadge;
   push.chrome_web_icon =
     'https://daily-now-res.cloudinary.com/image/upload/s--9vc188bS--/f_auto/v1712221649/1_smcxpz';
   await client.createNotification(push);
@@ -114,9 +114,7 @@ export async function sendReadingStreakReminderPush(
     'streak_reminder',
   );
 
-  // @TODO: check what these should be
-  push.chrome_web_badge =
-    'https://daily-now-res.cloudinary.com/image/upload/v1672745846/public/dailydev.png';
+  push.chrome_web_badge = chromeWebBadge;
   // @TODO: check what these should be
   push.chrome_web_icon =
     'https://daily-now-res.cloudinary.com/image/upload/s--9vc188bS--/f_auto/v1712221649/1_smcxpz';
