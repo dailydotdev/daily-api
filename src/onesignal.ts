@@ -59,8 +59,8 @@ const readingReminderContents = [
   'Transform your break into a knowledge feast. Start reading',
 ];
 
-const readingStreakReminderHeading = '⚡ Streak Saver Alert!';
-const readingStreakReminderContent =
+const streakReminderHeading = '⚡ Streak Saver Alert!';
+const streakReminderContent =
   'Read a post today and protect your streak. Keep it going strong! 💪';
 
 export async function sendReadingReminderPush(
@@ -92,7 +92,7 @@ export async function sendReadingReminderPush(
   await client.createNotification(push);
 }
 
-export async function sendReadingStreakReminderPush(
+export async function sendStreakReminderPush(
   userIds: string[],
   at: Date,
 ): Promise<null | OneSignal.CreateNotificationSuccessResponse> {
@@ -102,10 +102,10 @@ export async function sendReadingStreakReminderPush(
   push.include_external_user_ids = userIds;
   push.send_after = at.toISOString();
   push.contents = {
-    en: readingStreakReminderContent,
+    en: streakReminderContent,
   };
   push.headings = {
-    en: readingStreakReminderHeading,
+    en: streakReminderHeading,
   };
   push.url = addNotificationUtm(
     process.env.COMMENTS_PREFIX,
