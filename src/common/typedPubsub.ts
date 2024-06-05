@@ -6,6 +6,7 @@ import {
   publishEvent,
   pubsub,
 } from './pubsub';
+import { ContentUpdatedMessage } from '@dailydotdev/schema';
 
 export type PubSubSchema = {
   'pub-request': {
@@ -59,6 +60,7 @@ export type PubSubSchema = {
   'api.v1.squad-public-request': {
     request: ChangeObject<SquadPublicRequest>;
   };
+  'api.v1.content-updated': ContentUpdatedMessage;
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(
