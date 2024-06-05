@@ -3171,4 +3171,40 @@ describe('post content updated', () => {
       },
     ]);
   });
+
+  it('should handle JSON string from jsonb fields', async () => {
+    const after: ChangeObject<ArticlePost> = {
+      ...contentUpdatedPost,
+      type: PostType.Article,
+      url: 'http://p4.com',
+      canonicalUrl: 'http://p4c.com',
+      contentMeta:
+        '{"cleaned":[{"provider":"test","resource_location":"gs://path.xml"}]}',
+      contentQuality:
+        '{"is_ai_probability":0.9}' as ArticlePost['contentQuality'],
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ArticlePost>({
+        after,
+        before: after,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toMatchObject(
+      [
+        'api.v1.content-updated',
+        {
+          contentMeta: {
+            cleaned: [{ provider: 'test', resourceLocation: 'gs://path.xml' }],
+          },
+          contentQuality: {
+            isAiProbability: 0.9,
+          },
+        },
+      ],
+    );
+  });
 });
