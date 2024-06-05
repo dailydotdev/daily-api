@@ -727,6 +727,10 @@ describe('welcomePost type', () => {
 
   it('should add welcome post and increment squad total posts', async () => {
     const repo = con.getRepository(Source);
+    const sourceToCount = await repo.findOneBy({ id: 'a' });
+    expect(sourceToCount.flags.totalPosts).toEqual(3);
+    const posts = await con.getRepository(Post).countBy({ sourceId: 'a' });
+    expect(posts).toEqual(3);
     await repo.update({ id: 'a' }, { type: SourceType.Squad });
     const source = await repo.findOneBy({ id: 'a' });
     const post = await createSquadWelcomePost(con, source, '1');
@@ -734,18 +738,20 @@ describe('welcomePost type', () => {
     expect(post.flags.showOnFeed).toEqual(false);
 
     const updatedSource = await repo.findOneBy({ id: 'a' });
-    expect(updatedSource.flags.totalPosts).toEqual(1);
+    expect(updatedSource.flags.totalPosts).toEqual(posts + 1);
   });
 
-  it('should add a post and NOT increment source total posts', async () => {
+  it('should add a post and increment source total posts', async () => {
     const repo = con.getRepository(Source);
+    const posts = await con.getRepository(Post).countBy({ sourceId: 'a' });
+    expect(posts).toEqual(3);
     const source = await repo.findOneBy({ id: 'a' });
     const post = await createSquadWelcomePost(con, source, '1');
     expect(post.showOnFeed).toEqual(false);
     expect(post.flags.showOnFeed).toEqual(false);
 
     const updatedSource = await repo.findOneBy({ id: 'a' });
-    expect(updatedSource.flags.totalPosts).toEqual(undefined);
+    expect(updatedSource.flags.totalPosts).toEqual(posts + 1);
   });
 });
 
@@ -2817,6 +2823,9 @@ describe('mutation createFreeformPost', () => {
     const source = await con
       .getRepository(Source)
       .findOneByOrFail({ id: sourceId });
+    expect(source.flags.totalPosts).toEqual(3);
+    const posts = await con.getRepository(Post).countBy({ sourceId: 'a' });
+    expect(posts).toEqual(3);
     expect(source.flags.totalPosts).toEqual(undefined);
     const content = '# Updated content';
     const res = await client.mutate(MUTATION, {
@@ -2824,7 +2833,9 @@ describe('mutation createFreeformPost', () => {
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.createFreeformPost.source.id).toEqual('a');
-    expect(res.data.createFreeformPost.source.flags.totalPosts).toEqual(1);
+    expect(res.data.createFreeformPost.source.flags.totalPosts).toEqual(
+      posts + 1,
+    );
   });
 
   it('should set the post to be private if source is private', async () => {
@@ -4032,7 +4043,7 @@ describe('mutation vote post', () => {
     const updatedSource = await con
       .getRepository(Source)
       .findOneByOrFail({ id: 'a' });
-    expect(updatedSource.flags.totalUpvotes).toEqual(undefined);
+    expect(updatedSource.flags.totalUpvotes).toEqual(0);
   });
 
   it('should cancel vote and decrement squads flags upvotes count if previous vote was upvote', async () => {
