@@ -4,6 +4,7 @@ import {
   sendEmail,
 } from '../common';
 import {
+  Settings,
   User,
   UserPersonalizedDigest,
   UserPersonalizedDigestSendType,
@@ -149,11 +150,24 @@ const digestTypeToFunctionMap: Record<
   },
   [UserPersonalizedDigestType.StreakReminder]: async (data, con, logger) => {
     const { personalizedDigest, emailSendTimestamp, deduplicate = true } = data;
+    const { userId } = personalizedDigest;
+
     const notificationSendTimestamp = new Date(emailSendTimestamp);
     const currentDate = new Date();
-    const userStreak = await con.getRepository(UserStreak).findOneBy({
-      userId: personalizedDigest.userId,
-    });
+    const userSettings = await con
+      .getRepository(Settings)
+      .findOneBy({ userId });
+
+    // Safety measure to prevent sending streak reminders to users who have opted out
+    // but for some reason still have a streak reminder scheduled
+    if (userSettings?.optOutReadingStreak) {
+      return;
+    }
+
+    const userStreak = await con
+      .getRepository(UserStreak)
+      .findOneBy({ userId });
+
     if (!userStreak) {
       logger.error(
         `User streak not found for user ${personalizedDigest.userId} when sending streak reminder.`,

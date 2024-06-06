@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import {
   Post,
+  Settings,
   Source,
   User,
   UserPersonalizedDigest,
@@ -740,6 +741,48 @@ describe('personalizedDigestEmail worker', () => {
         },
         { type: UserPersonalizedDigestType.StreakReminder },
       );
+
+      await con
+        .getRepository(UserStreak)
+        .update({ userId: '1' }, { lastViewAt: new Date() });
+
+      const personalizedDigest = await con
+        .getRepository(UserPersonalizedDigest)
+        .findOneBy({
+          userId: '1',
+        });
+
+      expect(personalizedDigest).toBeTruthy();
+      expect(personalizedDigest!.lastSendDate).toBeNull();
+
+      await expectSuccessfulBackground(worker, {
+        personalizedDigest,
+        ...getDates(personalizedDigest!, Date.now()),
+        emailBatchId: 'test-email-batch-id',
+      });
+
+      expect(sendStreakReminderPush).toHaveBeenCalledTimes(0);
+      expect(
+        (
+          await con.getRepository(UserPersonalizedDigest).findOneBy({
+            userId: '1',
+          })
+        )?.lastSendDate,
+      ).toBeNull();
+    });
+
+    it('should not send a streak reminder if user has opted out of reading streaks', async () => {
+      await con.getRepository(UserPersonalizedDigest).update(
+        {
+          userId: '1',
+        },
+        { type: UserPersonalizedDigestType.StreakReminder },
+      );
+
+      await con.getRepository(Settings).insert({
+        userId: '1',
+        optOutReadingStreak: true,
+      });
 
       await con
         .getRepository(UserStreak)
