@@ -10,7 +10,7 @@ import {
   UserPersonalizedDigestType,
 } from '../entity';
 import { Cron } from './cron';
-import { isWeekend, addHours, startOfHour, subDays } from 'date-fns';
+import { isWeekend, subDays } from 'date-fns';
 import { DEFAULT_TIMEZONE } from '../types';
 
 const sendType = UserPersonalizedDigestSendType.workdays;
@@ -37,7 +37,7 @@ const cron: Cron = {
       .andWhere(`upd.type in (:...digestTypes)`, { digestTypes });
 
     // Make sure digest is sent at the beginning of the hour
-    const timestamp = startOfHour(new Date());
+    const timestamp = new Date().getTime();
 
     await schedulePersonalizedDigestSubscriptions({
       queryBuilder: personalizedDigestQuery,
@@ -50,15 +50,8 @@ const cron: Cron = {
           personalizedDigestWithTimezome as UserPersonalizedDigest &
             Pick<User, 'timezone'>;
 
-        // We run the script just before the hour,so we add 1 hour to the
-        // timestamp to send the reminder at the beginning of the hour
-        const notificationSendTimestamp = addHours(timestamp, 1).getTime();
-        const sendDateInTimezone = utcToZonedTime(
-          notificationSendTimestamp,
-          timezone,
-        );
         const previousSendTimestamp = subDays(timestamp, 1).getTime();
-
+        const sendDateInTimezone = utcToZonedTime(timestamp, timezone);
         if (isWeekend(sendDateInTimezone)) {
           return;
         }
@@ -66,7 +59,7 @@ const cron: Cron = {
         await notifyGeneratePersonalizedDigest({
           log: logger,
           personalizedDigest,
-          emailSendTimestamp: notificationSendTimestamp,
+          emailSendTimestamp: timestamp,
           previousSendTimestamp,
           emailBatchId,
         });
