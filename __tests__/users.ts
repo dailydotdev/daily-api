@@ -338,7 +338,6 @@ describe('query userStreaks', () => {
       client,
       { query: QUERY },
       'GRAPHQL_VALIDATION_FAILED',
-      'User is missing!',
     );
   });
 
@@ -346,13 +345,29 @@ describe('query userStreaks', () => {
     loggedUser = '1';
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      userStreak: {
+        max: 0,
+        total: 0,
+        current: 0,
+        lastViewAt: null,
+      },
+    });
   });
 
   it('should return the user streaks based on user id', async () => {
-    const resById = await client.query(QUERY_BY_USER_ID, {
+    const res = await client.query(QUERY_BY_USER_ID, {
       variables: { id: '2' },
     });
-    expect(resById.errors).toBeFalsy();
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      userStreak: {
+        max: 0,
+        total: 0,
+        current: 0,
+        lastViewAt: null,
+      },
+    });
   });
 
   it('should return empty streak when the user has no streak yet', async () => {
