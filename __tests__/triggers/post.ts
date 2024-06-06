@@ -64,7 +64,7 @@ it('should set tags str of shared post on update when original post had no tags'
 });
 
 describe('trigger increment_squad_views_count', () => {
-  it('should NOT update source total views', async () => {
+  it('should update source total views', async () => {
     const repo = con.getRepository(Source);
     const source = await repo.findOneByOrFail({ id: 'a' });
     expect(source.flags.totalViews).toEqual(undefined);
@@ -72,7 +72,7 @@ describe('trigger increment_squad_views_count', () => {
     await con.getRepository(Post).update({ id: 'p1' }, { views: 1 });
 
     const updatedSource = await repo.findOneByOrFail({ id: 'a' });
-    expect(updatedSource.flags.totalViews).toEqual(undefined);
+    expect(updatedSource.flags.totalViews).toEqual(1);
   });
 
   it('should update squad total views', async () => {
