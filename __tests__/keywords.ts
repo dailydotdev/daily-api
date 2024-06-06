@@ -143,7 +143,7 @@ describe('query keyword', () => {
   const QUERY = `
   query Keyword($value: String!) {
     keyword(value: $value) {
-      value, status, occurrences
+      value, status, occurrences, synonym
     }
   }`;
 
@@ -167,6 +167,24 @@ describe('query keyword', () => {
       { value: 'react', occurrences: 300 },
     ]);
     const res = await client.query(QUERY, { variables: { value: 'go' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return synonym', async () => {
+    roles = [Roles.Moderator];
+    loggedUser = '1';
+    await con.getRepository(Keyword).save([
+      { value: 'nodejs', status: 'allow', occurrences: 200 },
+      { value: 'react', occurrences: 300 },
+      {
+        value: 'js',
+        occurrences: 20,
+        status: 'synonym',
+        synonym: 'javascript',
+      },
+    ]);
+    const res = await client.query(QUERY, { variables: { value: 'js' } });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });

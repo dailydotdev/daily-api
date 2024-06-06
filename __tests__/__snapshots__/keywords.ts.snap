@@ -173,6 +173,7 @@ Object {
   "keyword": Object {
     "occurrences": 200,
     "status": "allow",
+    "synonym": null,
     "value": "nodejs",
   },
 }
@@ -181,6 +182,17 @@ Object {
 exports[`query keyword should return null when keyword does not exist 1`] = `
 Object {
   "keyword": null,
+}
+`;
+
+exports[`query keyword should return synonym 1`] = `
+Object {
+  "keyword": Object {
+    "occurrences": 20,
+    "status": "synonym",
+    "synonym": "javascript",
+    "value": "js",
+  },
 }
 `;
 
