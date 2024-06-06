@@ -95,13 +95,11 @@ export async function sendReadingReminderPush(
 
 export async function sendStreakReminderPush(
   userIds: string[],
-  at: Date,
 ): Promise<null | OneSignal.CreateNotificationSuccessResponse> {
   if (!appId || !apiKey) return null;
   const push = new OneSignal.Notification();
   push.app_id = appId;
   push.include_external_user_ids = userIds;
-  push.send_after = at.toISOString();
   push.contents = {
     en: streakReminderContent,
   };

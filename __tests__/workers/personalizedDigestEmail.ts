@@ -727,14 +727,8 @@ describe('personalizedDigestEmail worker', () => {
         emailBatchId: 'test-email-batch-id',
       });
 
-      expect(sendStreakReminderPush).toHaveBeenCalledWith(
-        ['1'],
-        expect.any(Date),
-      );
-      const at = (sendStreakReminderPush as jest.Mock).mock.calls[0][1];
-      expect(at.getDay()).toBe(new Date().getDay());
-      expect(at.getHours()).toBe(new Date().getHours());
-      expect(at.getTimezoneOffset()).toBe(0);
+      expect(sendStreakReminderPush).toHaveBeenCalledWith(['1']);
+      expect(sendStreakReminderPush).toHaveBeenCalledTimes(1);
     });
 
     it('should not send a streak reminder if user has streak of 0', async () => {

@@ -182,7 +182,7 @@ const digestTypeToFunctionMap: Record<
     }
 
     await dedupedSend(
-      () => sendStreakReminderPush([personalizedDigest.userId], currentDate),
+      () => sendStreakReminderPush([personalizedDigest.userId]),
       {
         con,
         personalizedDigest,
