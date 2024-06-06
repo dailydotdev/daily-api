@@ -724,7 +724,6 @@ describe('personalizedDigestEmail worker', () => {
 
       await expectSuccessfulBackground(worker, {
         personalizedDigest,
-        ...getDates(personalizedDigest!, Date.now()),
         emailBatchId: 'test-email-batch-id',
       });
 
@@ -733,8 +732,8 @@ describe('personalizedDigestEmail worker', () => {
         expect.any(Date),
       );
       const at = (sendStreakReminderPush as jest.Mock).mock.calls[0][1];
-      expect(at.getDay()).toBe(personalizedDigest!.preferredDay);
-      expect(at.getHours()).toBe(personalizedDigest!.preferredHour);
+      expect(at.getDay()).toBe(new Date().getDay());
+      expect(at.getHours()).toBe(new Date().getHours());
       expect(at.getTimezoneOffset()).toBe(0);
     });
 
