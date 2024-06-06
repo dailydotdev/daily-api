@@ -465,6 +465,10 @@ export const typeDefs = /* GraphQL */ `
     """
     userStreak: UserStreak @auth
     """
+    Get User Streak Profile
+    """
+    userStreakProfile(id: ID!): UserStreak
+    """
     Get the reading rank of the user
     """
     userReadingRank(id: ID!, version: Int, limit: Int): ReadingRank
@@ -714,6 +718,10 @@ interface ReadingHistyoryArgs {
   limit?: number;
 }
 
+interface userStreakProfileArgs {
+  id: string;
+}
+
 const readHistoryResolver = async (
   args: ConnectionArguments & { query?: string; isPublic?: boolean },
   ctx: Context,
@@ -787,6 +795,21 @@ export const getMarketingCta = async (
   // If the vale in redis is `EMPTY`, we fallback to `null`
   const marketingCta: MarketingCta | null = JSON.parse(rawRedisValue || null);
   return marketingCta || cachePrefillMarketingCta(con, userId);
+};
+
+const getUserStreakQuery = async (id, ctx, info) => {
+  return await graphorm.queryOne<GQLUserStreakTz>(ctx, info, (builder) => ({
+    queryBuilder: builder.queryBuilder
+      .addSelect(
+        `(date_trunc('day', "${builder.alias}"."lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date) AS "lastViewAtTz"`,
+      )
+      .addSelect('u.timezone', 'timezone')
+      .innerJoin(User, 'u', `"${builder.alias}"."userId" = u.id`)
+      .where(`"${builder.alias}"."userId" = :id`, {
+        id: id,
+      }),
+    ...builder,
+  }));
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -931,20 +954,7 @@ export const resolvers: IResolvers<any, Context> = {
         .getRawMany();
     },
     userStreak: async (_, __, ctx: Context, info): Promise<GQLUserStreak> => {
-      const streak = await graphorm.queryOne<GQLUserStreakTz>(
-        ctx,
-        info,
-        (builder) => ({
-          queryBuilder: builder.queryBuilder
-            .addSelect(
-              `(date_trunc('day', "${builder.alias}"."lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date) AS "lastViewAtTz"`,
-            )
-            .addSelect('u.timezone', 'timezone')
-            .innerJoin(User, 'u', `"${builder.alias}"."userId" = u.id`)
-            .where(`"${builder.alias}"."userId" = :id`, { id: ctx.userId }),
-          ...builder,
-        }),
-      );
+      const streak = await getUserStreakQuery(ctx.userId, ctx, info);
 
       if (!streak) {
         return {
@@ -959,6 +969,24 @@ export const resolvers: IResolvers<any, Context> = {
       const hasClearedStreak = await checkAndClearUserStreak(ctx, info, streak);
       if (hasClearedStreak) {
         return { ...streak, current: 0 };
+      }
+
+      return streak;
+    },
+    userStreakProfile: async (
+      _,
+      { id }: userStreakProfileArgs,
+      ctx: Context,
+      info,
+    ): Promise<GQLUserStreak> => {
+      const streak = await getUserStreakQuery(id, ctx, info);
+
+      if (!streak) {
+        return {
+          max: 0,
+          total: 0,
+          userId: id,
+        };
       }
 
       return streak;
