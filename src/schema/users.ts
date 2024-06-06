@@ -985,7 +985,7 @@ export const resolvers: IResolvers<any, Context> = {
         return {
           max: 0,
           total: 0,
-          userId: ctx.userId,
+          userId: id,
         };
       }
 
