@@ -51,7 +51,7 @@ const cron: Cron = {
             Pick<User, 'timezone'>;
 
         // We run the script just before the hour,so we add 1 hour to the
-        // timestamp to send the email at the beginning of the hour
+        // timestamp to send the reminder at the beginning of the hour
         const notificationSendTimestamp = addHours(timestamp, 1).getTime();
         const sendDateInTimezone = utcToZonedTime(
           notificationSendTimestamp,
