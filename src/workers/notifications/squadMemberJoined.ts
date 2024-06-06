@@ -34,6 +34,14 @@ const worker: NotificationWorker = {
       },
     );
 
+    const doneBy = await con
+      .getRepository(User)
+      .findOneBy({ id: member.userId });
+
+    if (!doneBy) {
+      return;
+    }
+
     if (member.role !== SourceMemberRoles.Admin) {
       await insertOrIgnoreAction(con, member.userId, UserActionType.JoinSquad);
     }
@@ -41,12 +49,11 @@ const worker: NotificationWorker = {
     if (!admins?.length) {
       return;
     }
-    const [doneBy, source, post] = await Promise.all([
-      con.getRepository(User).findOneBy({ id: member.userId }),
+    const [source, post] = await Promise.all([
       con.getRepository(Source).findOneBy({ id: member.sourceId }),
       con.getRepository(WelcomePost).findOneBy({ sourceId: member.sourceId }),
     ]);
-    if (!doneBy || !post || source.type !== SourceType.Squad) {
+    if (!post || source.type !== SourceType.Squad) {
       return;
     }
 
