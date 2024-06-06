@@ -8,6 +8,7 @@ import {
   UserPersonalizedDigest,
   UserPersonalizedDigestSendType,
   UserPersonalizedDigestType,
+  UserStreak,
 } from '../entity';
 import { messageToJson, Worker, workerToExperimentWorker } from './worker';
 import { DataSource } from 'typeorm';
@@ -22,6 +23,7 @@ import {
 import deepmerge from 'deepmerge';
 import { FastifyBaseLogger } from 'fastify';
 import { sendReadingReminderPush, sendStreakReminderPush } from '../onesignal';
+import { isSameDay } from 'date-fns';
 
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
@@ -141,10 +143,24 @@ const digestTypeToFunctionMap: Record<
       },
     );
   },
-  [UserPersonalizedDigestType.StreakReminder]: async (data, con) => {
+  [UserPersonalizedDigestType.StreakReminder]: async (data, con, logger) => {
     const { personalizedDigest, emailSendTimestamp, deduplicate = true } = data;
     const emailSendDate = new Date(emailSendTimestamp);
     const currentDate = new Date();
+    const userStreak = await con.getRepository(UserStreak).findOneBy({
+      userId: personalizedDigest.userId,
+    });
+    if (!userStreak) {
+      logger.error(
+        `User streak not found for user ${personalizedDigest.userId} when sending streak reminder.`,
+      );
+      return;
+    }
+
+    if (isSameDay(currentDate, userStreak.lastViewAt)) {
+      return;
+    }
+
     await dedupedSend(
       () => sendStreakReminderPush([personalizedDigest.userId], emailSendDate),
       {
