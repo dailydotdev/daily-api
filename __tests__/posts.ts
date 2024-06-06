@@ -727,6 +727,10 @@ describe('welcomePost type', () => {
 
   it('should add welcome post and increment squad total posts', async () => {
     const repo = con.getRepository(Source);
+    const sourceToCount = await repo.findOneBy({ id: 'a' });
+    expect(sourceToCount.flags.totalPosts).toEqual(3);
+    const posts = await con.getRepository(Post).countBy({ sourceId: 'a' });
+    expect(posts).toEqual(3);
     await repo.update({ id: 'a' }, { type: SourceType.Squad });
     const source = await repo.findOneBy({ id: 'a' });
     const post = await createSquadWelcomePost(con, source, '1');
@@ -734,18 +738,20 @@ describe('welcomePost type', () => {
     expect(post.flags.showOnFeed).toEqual(false);
 
     const updatedSource = await repo.findOneBy({ id: 'a' });
-    expect(updatedSource.flags.totalPosts).toEqual(1);
+    expect(updatedSource.flags.totalPosts).toEqual(posts + 1);
   });
 
-  it('should add a post and NOT increment source total posts', async () => {
+  it('should add a post and increment source total posts', async () => {
     const repo = con.getRepository(Source);
+    const posts = await con.getRepository(Post).countBy({ sourceId: 'a' });
+    expect(posts).toEqual(3);
     const source = await repo.findOneBy({ id: 'a' });
     const post = await createSquadWelcomePost(con, source, '1');
     expect(post.showOnFeed).toEqual(false);
     expect(post.flags.showOnFeed).toEqual(false);
 
     const updatedSource = await repo.findOneBy({ id: 'a' });
-    expect(updatedSource.flags.totalPosts).toEqual(undefined);
+    expect(updatedSource.flags.totalPosts).toEqual(posts + 1);
   });
 });
 
@@ -2817,14 +2823,18 @@ describe('mutation createFreeformPost', () => {
     const source = await con
       .getRepository(Source)
       .findOneByOrFail({ id: sourceId });
-    expect(source.flags.totalPosts).toEqual(undefined);
+    expect(source.flags.totalPosts).toEqual(3);
+    const posts = await con.getRepository(Post).countBy({ sourceId: 'a' });
+    expect(posts).toEqual(3);
     const content = '# Updated content';
     const res = await client.mutate(MUTATION, {
       variables: { ...params, content },
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.createFreeformPost.source.id).toEqual('a');
-    expect(res.data.createFreeformPost.source.flags.totalPosts).toEqual(1);
+    expect(res.data.createFreeformPost.source.flags.totalPosts).toEqual(
+      posts + 1,
+    );
   });
 
   it('should set the post to be private if source is private', async () => {
@@ -3907,7 +3917,7 @@ describe('mutation vote post', () => {
     await testUpvote();
   });
 
-  it('should upvote and NOT update source flags upvotes count', async () => {
+  it('should upvote and update source flags upvotes count', async () => {
     loggedUser = '1';
     const source = await con.getRepository(Source).findOneByOrFail({ id: 'a' });
     expect(source.flags.totalUpvotes).toEqual(undefined);
@@ -3917,7 +3927,7 @@ describe('mutation vote post', () => {
     const updatedSource = await con
       .getRepository(Source)
       .findOneByOrFail({ id: 'a' });
-    expect(updatedSource.flags.totalUpvotes).toEqual(undefined);
+    expect(updatedSource.flags.totalUpvotes).toEqual(4);
   });
 
   it('should upvote and increment squad total upvotes', async () => {
@@ -4019,7 +4029,7 @@ describe('mutation vote post', () => {
     await testCancelVote();
   });
 
-  it('should cancel vote and NOT update source flags upvotes count', async () => {
+  it('should cancel vote and update source flags upvotes count', async () => {
     loggedUser = '1';
     const source = await con.getRepository(Source).findOneByOrFail({ id: 'a' });
     expect(source.flags.totalUpvotes).toEqual(undefined);
@@ -4032,7 +4042,7 @@ describe('mutation vote post', () => {
     const updatedSource = await con
       .getRepository(Source)
       .findOneByOrFail({ id: 'a' });
-    expect(updatedSource.flags.totalUpvotes).toEqual(undefined);
+    expect(updatedSource.flags.totalUpvotes).toEqual(0);
   });
 
   it('should cancel vote and decrement squads flags upvotes count if previous vote was upvote', async () => {

@@ -17,7 +17,7 @@ const QUEUE_CONCURRENCY = 1;
   const con = await createOrGetConnection();
   await con.transaction(async (manager) => {
     console.log('initializing stream');
-    const stream = await manager
+    const builder = manager
       .getRepository(Post)
       .createQueryBuilder('p')
       .select('COUNT(p.*)', 'count')
@@ -25,9 +25,14 @@ const QUEUE_CONCURRENCY = 1;
       .addSelect('SUM(p.upvotes)', 'upvotes')
       .addSelect('s.id', 'sourceId')
       .innerJoin(SquadSource, 's', 's.id = p."sourceId"')
-      .where(`s.type = 'squad'`)
-      .groupBy('s.id')
-      .stream();
+      .groupBy('s.id');
+
+    if (process.argv[2]) {
+      console.log('adding a parameter of type: ', process.argv[2]);
+      builder.where('s.type = :type', { type: process.argv[2] });
+    }
+
+    const stream = await builder.stream();
 
     let insertCount = 0;
     const insertQueue = fastq.promise(
