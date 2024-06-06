@@ -20,7 +20,7 @@ const atTimeZone =
   "AT TIME ZONE COALESCE(NULLIF(u.timezone, ''), :defaultTimezone)";
 
 const cron: Cron = {
-  name: 'daily-digest',
+  name: 'hourly-notification',
   handler: async (con, logger) => {
     const personalizedDigestQuery = con
       .createQueryBuilder()
