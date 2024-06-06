@@ -333,6 +333,15 @@ describe('query userStreaks', () => {
     jest.useRealTimers();
   });
 
+  it('should throw error when no user id provided and no user is authenticated', async () => {
+    await testQueryErrorCode(
+      client,
+      { query: QUERY },
+      'GRAPHQL_VALIDATION_FAILED',
+      'User is missing!',
+    );
+  });
+
   it('should return the user streaks', async () => {
     loggedUser = '1';
     const res = await client.query(QUERY);
@@ -383,7 +392,34 @@ describe('query userStreaks', () => {
     expect(streak.currentStreak).toEqual(expectedCurrentStreak);
   };
 
-  it('should reset streak on Saturday when last read is Thursday', async () => {
+  const expectStreakByUserId = async (
+    currentStreak: number,
+    expectedCurrentStreak: number,
+    lastViewAt: Date,
+    userId: string,
+  ) => {
+    const repo = con.getRepository(UserStreak);
+    await repo.update({ userId }, { currentStreak, lastViewAt });
+
+    const res = await client.query(QUERY_BY_USER_ID, {
+      variables: { id: userId },
+    });
+    expect(res.errors).toBeFalsy();
+
+    const streak = await repo.findOneBy({ userId });
+    expect(streak.currentStreak).toEqual(expectedCurrentStreak);
+  };
+
+  it('should not reset streak in any day for different user profile', async () => {
+    loggedUser = '1';
+    const fakeToday = new Date(2024, 0, 6); // Saturday
+    const lastViewAt = subDays(fakeToday, 2); // Thursday
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+    await expectStreakByUserId(5, 5, lastViewAt, '2');
+  });
+
+  it('should reset streak on Saturday when last read is Thursday for logged in user', async () => {
     loggedUser = '1';
     const fakeToday = new Date(2024, 0, 6); // Saturday
     const lastViewAt = subDays(fakeToday, 2); // Thursday

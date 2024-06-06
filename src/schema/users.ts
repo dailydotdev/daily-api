@@ -940,6 +940,10 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
       info,
     ): Promise<GQLUserStreak> => {
+      if (!id && !ctx.userId) {
+        throw new ValidationError('User is missing!');
+      }
+
       const streak = await graphorm.queryOne<GQLUserStreakTz>(
         ctx,
         info,
@@ -967,9 +971,15 @@ export const resolvers: IResolvers<any, Context> = {
         };
       }
 
-      const hasClearedStreak = await checkAndClearUserStreak(ctx, info, streak);
-      if (hasClearedStreak) {
-        return { ...streak, current: 0 };
+      if (!id) {
+        const hasClearedStreak = await checkAndClearUserStreak(
+          ctx,
+          info,
+          streak,
+        );
+        if (hasClearedStreak) {
+          return { ...streak, current: 0 };
+        }
       }
 
       return streak;
