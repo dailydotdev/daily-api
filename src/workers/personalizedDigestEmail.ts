@@ -169,7 +169,7 @@ const digestTypeToFunctionMap: Record<
       .findOneBy({ userId });
 
     if (!userStreak) {
-      logger.error(
+      logger.debug(
         `User streak not found for user ${personalizedDigest.userId} when sending streak reminder.`,
       );
       return;
