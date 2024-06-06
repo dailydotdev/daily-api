@@ -463,7 +463,11 @@ export const typeDefs = /* GraphQL */ `
     """
     Get User Streak
     """
-    userStreak(id: ID): UserStreak
+    userStreak: UserStreak @auth
+    """
+    Get User Streak Profile
+    """
+    userStreakProfile(id: ID!): UserStreak
     """
     Get the reading rank of the user
     """
@@ -714,7 +718,7 @@ interface ReadingHistyoryArgs {
   limit?: number;
 }
 
-interface userStreakArgs {
+interface userStreakProfileArgs {
   id: string;
 }
 
@@ -791,6 +795,21 @@ export const getMarketingCta = async (
   // If the vale in redis is `EMPTY`, we fallback to `null`
   const marketingCta: MarketingCta | null = JSON.parse(rawRedisValue || null);
   return marketingCta || cachePrefillMarketingCta(con, userId);
+};
+
+const getUserStreakQuery = async (id, ctx, info) => {
+  return await graphorm.queryOne<GQLUserStreakTz>(ctx, info, (builder) => ({
+    queryBuilder: builder.queryBuilder
+      .addSelect(
+        `(date_trunc('day', "${builder.alias}"."lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date) AS "lastViewAtTz"`,
+      )
+      .addSelect('u.timezone', 'timezone')
+      .innerJoin(User, 'u', `"${builder.alias}"."userId" = u.id`)
+      .where(`"${builder.alias}"."userId" = :id`, {
+        id: id,
+      }),
+    ...builder,
+  }));
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -934,32 +953,8 @@ export const resolvers: IResolvers<any, Context> = {
         .orderBy('date')
         .getRawMany();
     },
-    userStreak: async (
-      _,
-      { id }: userStreakArgs,
-      ctx: Context,
-      info,
-    ): Promise<GQLUserStreak> => {
-      if (!id && !ctx.userId) {
-        throw new ValidationError('User is missing!');
-      }
-
-      const streak = await graphorm.queryOne<GQLUserStreakTz>(
-        ctx,
-        info,
-        (builder) => ({
-          queryBuilder: builder.queryBuilder
-            .addSelect(
-              `(date_trunc('day', "${builder.alias}"."lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date) AS "lastViewAtTz"`,
-            )
-            .addSelect('u.timezone', 'timezone')
-            .innerJoin(User, 'u', `"${builder.alias}"."userId" = u.id`)
-            .where(`"${builder.alias}"."userId" = :id`, {
-              id: id ?? ctx.userId,
-            }),
-          ...builder,
-        }),
-      );
+    userStreak: async (_, __, ctx: Context, info): Promise<GQLUserStreak> => {
+      const streak = await getUserStreakQuery(ctx.userId, ctx, info);
 
       if (!streak) {
         return {
@@ -971,15 +966,27 @@ export const resolvers: IResolvers<any, Context> = {
         };
       }
 
-      if (!id) {
-        const hasClearedStreak = await checkAndClearUserStreak(
-          ctx,
-          info,
-          streak,
-        );
-        if (hasClearedStreak) {
-          return { ...streak, current: 0 };
-        }
+      const hasClearedStreak = await checkAndClearUserStreak(ctx, info, streak);
+      if (hasClearedStreak) {
+        return { ...streak, current: 0 };
+      }
+
+      return streak;
+    },
+    userStreakProfile: async (
+      _,
+      { id }: userStreakProfileArgs,
+      ctx: Context,
+      info,
+    ): Promise<GQLUserStreak> => {
+      const streak = await getUserStreakQuery(id, ctx, info);
+
+      if (!streak) {
+        return {
+          max: 0,
+          total: 0,
+          userId: ctx.userId,
+        };
       }
 
       return streak;
