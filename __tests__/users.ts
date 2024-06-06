@@ -497,6 +497,10 @@ describe('query userStreaksProfile', () => {
     }
   }`;
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('should not allow to query without user id', () =>
     testQueryErrorCode(
       client,
