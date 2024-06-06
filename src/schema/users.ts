@@ -463,7 +463,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get User Streak
     """
-    userStreak: UserStreak @auth
+    userStreak(id: ID): UserStreak
     """
     Get the reading rank of the user
     """
@@ -714,6 +714,10 @@ interface ReadingHistyoryArgs {
   limit?: number;
 }
 
+interface userStreakArgs {
+  id: string;
+}
+
 const readHistoryResolver = async (
   args: ConnectionArguments & { query?: string; isPublic?: boolean },
   ctx: Context,
@@ -930,7 +934,12 @@ export const resolvers: IResolvers<any, Context> = {
         .orderBy('date')
         .getRawMany();
     },
-    userStreak: async (_, __, ctx: Context, info): Promise<GQLUserStreak> => {
+    userStreak: async (
+      _,
+      { id }: userStreakArgs,
+      ctx: Context,
+      info,
+    ): Promise<GQLUserStreak> => {
       const streak = await graphorm.queryOne<GQLUserStreakTz>(
         ctx,
         info,
@@ -941,7 +950,9 @@ export const resolvers: IResolvers<any, Context> = {
             )
             .addSelect('u.timezone', 'timezone')
             .innerJoin(User, 'u', `"${builder.alias}"."userId" = u.id`)
-            .where(`"${builder.alias}"."userId" = :id`, { id: ctx.userId }),
+            .where(`"${builder.alias}"."userId" = :id`, {
+              id: id ?? ctx.userId,
+            }),
           ...builder,
         }),
       );

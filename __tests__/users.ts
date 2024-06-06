@@ -320,17 +320,30 @@ describe('query userStreaks', () => {
     }
   }`;
 
+  const QUERY_BY_USER_ID = `query UserStreak($id: ID) {
+    userStreak(id: $id) {
+      max
+      total
+      current
+      lastViewAt
+    }
+  }`;
+
   afterEach(() => {
     jest.useRealTimers();
   });
-
-  it('should not allow unauthenticated users', () =>
-    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
 
   it('should return the user streaks', async () => {
     loggedUser = '1';
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
+  });
+
+  it('should return the user streaks based on user id', async () => {
+    const resById = await client.query(QUERY_BY_USER_ID, {
+      variables: { id: '2' },
+    });
+    expect(resById.errors).toBeFalsy();
   });
 
   it('should return empty streak when the user has no streak yet', async () => {
