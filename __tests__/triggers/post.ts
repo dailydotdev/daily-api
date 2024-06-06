@@ -63,7 +63,7 @@ it('should set tags str of shared post on update when original post had no tags'
   expect(obj2.map((x) => x.id)).toEqual(['p2', 'sp']);
 });
 
-describe('trigger increment_squad_views_count', () => {
+describe('trigger increment_source_views_count', () => {
   it('should update source total views', async () => {
     const repo = con.getRepository(Source);
     const source = await repo.findOneByOrFail({ id: 'a' });
