@@ -86,6 +86,17 @@ export const crons: Cron[] = [
     },
   },
   {
+    name: 'hourly-notification',
+    schedule: '58 * * * *',
+    limits: {
+      memory: '1Gi',
+    },
+    requests: {
+      cpu: '250m',
+      memory: '1Gi',
+    },
+  },
+  {
     name: 'update-highlighted-views',
     schedule: '15 4 * * *',
   },

@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import {
   Post,
+  Settings,
   Source,
   User,
   UserPersonalizedDigest,
@@ -22,7 +23,10 @@ import nock from 'nock';
 import { subDays } from 'date-fns';
 import { ExperimentAllocationClient, features } from '../../src/growthbook';
 import { sendExperimentAllocationEvent } from '../../src/integrations/analytics';
-import { sendReadingReminderPush } from '../../src/onesignal';
+import {
+  sendReadingReminderPush,
+  sendStreakReminderPush,
+} from '../../src/onesignal';
 import { DEFAULT_TIMEZONE } from '../../src/types';
 
 jest.mock('../../src/common', () => ({
@@ -33,6 +37,7 @@ jest.mock('../../src/common', () => ({
 jest.mock('../../src/onesignal', () => ({
   ...(jest.requireActual('../../src/onesignal') as Record<string, unknown>),
   sendReadingReminderPush: jest.fn(),
+  sendStreakReminderPush: jest.fn(),
 }));
 
 jest.mock('../../src/integrations/analytics', () => ({
@@ -693,5 +698,142 @@ describe('personalizedDigestEmail worker', () => {
     expect(at.getTimezoneOffset()).toBe(0);
 
     expect(personalizedDigestAfterWorker!.lastSendDate).not.toBeNull();
+  });
+
+  describe('streak reminder', () => {
+    it('should send a streak reminder if user has not viewed a post today', async () => {
+      await con.getRepository(UserPersonalizedDigest).update(
+        {
+          userId: '1',
+        },
+        { type: UserPersonalizedDigestType.StreakReminder },
+      );
+
+      await con
+        .getRepository(UserStreak)
+        .update({ userId: '1' }, { currentStreak: 1 });
+
+      const personalizedDigest = await con
+        .getRepository(UserPersonalizedDigest)
+        .findOneBy({
+          userId: '1',
+        });
+
+      expect(personalizedDigest).toBeTruthy();
+      expect(personalizedDigest!.lastSendDate).toBeNull();
+
+      await expectSuccessfulBackground(worker, {
+        personalizedDigest,
+        emailBatchId: 'test-email-batch-id',
+      });
+
+      expect(sendStreakReminderPush).toHaveBeenCalledWith(['1']);
+      expect(sendStreakReminderPush).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not send a streak reminder if user has streak of 0', async () => {
+      await con.getRepository(UserPersonalizedDigest).update(
+        {
+          userId: '1',
+        },
+        { type: UserPersonalizedDigestType.StreakReminder },
+      );
+
+      const personalizedDigest = await con
+        .getRepository(UserPersonalizedDigest)
+        .findOneBy({
+          userId: '1',
+        });
+
+      expect(personalizedDigest).toBeTruthy();
+      expect(personalizedDigest!.lastSendDate).toBeNull();
+
+      await expectSuccessfulBackground(worker, {
+        personalizedDigest,
+        ...getDates(personalizedDigest!, Date.now()),
+        emailBatchId: 'test-email-batch-id',
+      });
+
+      expect(sendStreakReminderPush).toHaveBeenCalledTimes(0);
+    });
+
+    it('should not send a streak reminder if user has viewed a post today', async () => {
+      await con.getRepository(UserPersonalizedDigest).update(
+        {
+          userId: '1',
+        },
+        { type: UserPersonalizedDigestType.StreakReminder },
+      );
+
+      await con
+        .getRepository(UserStreak)
+        .update({ userId: '1' }, { lastViewAt: new Date() });
+
+      const personalizedDigest = await con
+        .getRepository(UserPersonalizedDigest)
+        .findOneBy({
+          userId: '1',
+        });
+
+      expect(personalizedDigest).toBeTruthy();
+      expect(personalizedDigest!.lastSendDate).toBeNull();
+
+      await expectSuccessfulBackground(worker, {
+        personalizedDigest,
+        ...getDates(personalizedDigest!, Date.now()),
+        emailBatchId: 'test-email-batch-id',
+      });
+
+      expect(sendStreakReminderPush).toHaveBeenCalledTimes(0);
+      expect(
+        (
+          await con.getRepository(UserPersonalizedDigest).findOneBy({
+            userId: '1',
+          })
+        )?.lastSendDate,
+      ).toBeNull();
+    });
+
+    it('should not send a streak reminder if user has opted out of reading streaks', async () => {
+      await con.getRepository(UserPersonalizedDigest).update(
+        {
+          userId: '1',
+        },
+        { type: UserPersonalizedDigestType.StreakReminder },
+      );
+
+      await con.getRepository(Settings).insert({
+        userId: '1',
+        optOutReadingStreak: true,
+      });
+
+      await con
+        .getRepository(UserStreak)
+        .update({ userId: '1' }, { lastViewAt: new Date() });
+
+      const personalizedDigest = await con
+        .getRepository(UserPersonalizedDigest)
+        .findOneBy({
+          userId: '1',
+        });
+
+      expect(personalizedDigest).toBeTruthy();
+      expect(personalizedDigest!.lastSendDate).toBeNull();
+
+      await expectSuccessfulBackground(worker, {
+        personalizedDigest,
+        ...getDates(personalizedDigest!, Date.now()),
+        emailBatchId: 'test-email-batch-id',
+      });
+
+      expect(sendStreakReminderPush).toHaveBeenCalledTimes(0);
+      expect(
+        (
+          await con.getRepository(UserPersonalizedDigest).findOneBy({
+            userId: '1',
+          })
+        )?.lastSendDate,
+      ).toBeNull();
+    });
   });
 });

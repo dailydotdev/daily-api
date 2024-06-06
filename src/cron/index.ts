@@ -12,6 +12,7 @@ import generateSearchInvites from './generateSearchInvites';
 import checkReferralReminder from './checkReferralReminder';
 import dailyDigest from './dailyDigest';
 import updateHighlightedViews from './updateHighlightedViews';
+import hourlyNotifications from './hourlyNotifications';
 
 export const crons: Cron[] = [
   updateViews,
@@ -27,4 +28,5 @@ export const crons: Cron[] = [
   checkReferralReminder,
   dailyDigest,
   updateHighlightedViews,
+  hourlyNotifications,
 ];

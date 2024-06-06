@@ -1,7 +1,6 @@
 import { utcToZonedTime } from 'date-fns-tz';
 import {
   schedulePersonalizedDigestSubscriptions,
-  digestPreferredHourOffset,
   notifyGeneratePersonalizedDigest,
 } from '../common';
 import {
@@ -11,17 +10,17 @@ import {
   UserPersonalizedDigestType,
 } from '../entity';
 import { Cron } from './cron';
-import { isWeekend, addHours, startOfHour, subDays } from 'date-fns';
+import { isWeekend, subDays } from 'date-fns';
 import { DEFAULT_TIMEZONE } from '../types';
 
 const sendType = UserPersonalizedDigestSendType.workdays;
-const digestTypes = [
-  UserPersonalizedDigestType.Digest,
-  UserPersonalizedDigestType.ReadingReminder,
-];
+const digestTypes = [UserPersonalizedDigestType.StreakReminder];
+
+const atTimeZone =
+  "AT TIME ZONE COALESCE(NULLIF(u.timezone, ''), :defaultTimezone)";
 
 const cron: Cron = {
-  name: 'daily-digest',
+  name: 'hourly-notification',
   handler: async (con, logger) => {
     const personalizedDigestQuery = con
       .createQueryBuilder()
@@ -29,19 +28,13 @@ const cron: Cron = {
       .from(UserPersonalizedDigest, 'upd')
       .innerJoin(User, 'u', 'u.id = upd."userId"')
       .where(
-        `clamp_to_hours("preferredHour" - EXTRACT(HOUR FROM NOW() AT TIME ZONE COALESCE(NULLIF(u.timezone, ''), :defaultTimezone))) = :preferredHourOffset`,
+        `clamp_to_hours(upd."preferredHour" - EXTRACT(HOUR FROM NOW() ${atTimeZone})) = 1`,
         {
-          preferredHourOffset: digestPreferredHourOffset,
           defaultTimezone: DEFAULT_TIMEZONE,
         },
       )
-      .andWhere(`flags->>'sendType' = :sendType`, {
-        sendType,
-      })
+      .andWhere(`flags->>'sendType' = :sendType`, { sendType })
       .andWhere(`upd.type in (:...digestTypes)`, { digestTypes });
-
-    // Make sure digest is sent at the beginning of the hour
-    const timestamp = startOfHour(new Date());
 
     await schedulePersonalizedDigestSubscriptions({
       queryBuilder: personalizedDigestQuery,
@@ -53,14 +46,10 @@ const cron: Cron = {
         const { timezone = DEFAULT_TIMEZONE, ...personalizedDigest } =
           personalizedDigestWithTimezome as UserPersonalizedDigest &
             Pick<User, 'timezone'>;
-        const emailSendTimestamp = addHours(
-          timestamp,
-          digestPreferredHourOffset,
-        ).getTime(); // schedule send in X hours to match digest offset
+
+        const timestamp = new Date().getTime();
         const previousSendTimestamp = subDays(timestamp, 1).getTime();
-
-        const sendDateInTimezone = utcToZonedTime(emailSendTimestamp, timezone);
-
+        const sendDateInTimezone = utcToZonedTime(timestamp, timezone);
         if (isWeekend(sendDateInTimezone)) {
           return;
         }
@@ -68,7 +57,7 @@ const cron: Cron = {
         await notifyGeneratePersonalizedDigest({
           log: logger,
           personalizedDigest,
-          emailSendTimestamp,
+          emailSendTimestamp: timestamp,
           previousSendTimestamp,
           emailBatchId,
         });

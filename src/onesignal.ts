@@ -10,6 +10,10 @@ const configuration = OneSignal.createConfiguration({
 });
 
 const client = new OneSignal.DefaultApi(configuration);
+const chromeWebBadge =
+  'https://daily-now-res.cloudinary.com/image/upload/v1672745846/public/dailydev.png';
+const chromeWebIcon =
+  'https://daily-now-res.cloudinary.com/image/upload/s--9vc188bS--/f_auto/v1712221649/1_smcxpz';
 
 export async function sendPushNotification(
   userIds: string[],
@@ -30,8 +34,7 @@ export async function sendPushNotification(
   push.headings = { en: 'New update' };
   push.url = addNotificationUtm(targetUrl, 'push', type);
   push.data = { notificationId: id };
-  push.chrome_web_badge =
-    'https://daily-now-res.cloudinary.com/image/upload/v1672745846/public/dailydev.png';
+  push.chrome_web_badge = chromeWebBadge;
   if (avatar) {
     push.chrome_web_icon = avatar.image;
   }
@@ -58,6 +61,10 @@ const readingReminderContents = [
   'Transform your break into a knowledge feast. Start reading',
 ];
 
+const streakReminderHeading = '⚡ Streak Saver Alert!';
+const streakReminderContent =
+  'Read a post today and protect your streak. Keep it going strong! 💪';
+
 export async function sendReadingReminderPush(
   userIds: string[],
   at: Date,
@@ -81,9 +88,33 @@ export async function sendReadingReminderPush(
     'push',
     'reminder',
   );
-  push.chrome_web_badge =
-    'https://daily-now-res.cloudinary.com/image/upload/v1672745846/public/dailydev.png';
-  push.chrome_web_icon =
-    'https://daily-now-res.cloudinary.com/image/upload/s--9vc188bS--/f_auto/v1712221649/1_smcxpz';
+  push.chrome_web_badge = chromeWebBadge;
+  push.chrome_web_icon = chromeWebIcon;
+  await client.createNotification(push);
+}
+
+export async function sendStreakReminderPush(
+  userIds: string[],
+): Promise<null | OneSignal.CreateNotificationSuccessResponse> {
+  if (!appId || !apiKey) return null;
+  const push = new OneSignal.Notification();
+  push.app_id = appId;
+  push.include_external_user_ids = userIds;
+  push.contents = {
+    en: streakReminderContent,
+  };
+  push.headings = {
+    en: streakReminderHeading,
+  };
+  push.url = addNotificationUtm(
+    process.env.COMMENTS_PREFIX,
+    'push',
+    // @TODO: check what this should be
+    'streak_reminder',
+  );
+
+  push.chrome_web_badge = chromeWebBadge;
+  push.chrome_web_icon = chromeWebIcon;
+
   await client.createNotification(push);
 }

@@ -4,10 +4,12 @@ import {
   sendEmail,
 } from '../common';
 import {
+  Settings,
   User,
   UserPersonalizedDigest,
   UserPersonalizedDigestSendType,
   UserPersonalizedDigestType,
+  UserStreak,
 } from '../entity';
 import { messageToJson, Worker, workerToExperimentWorker } from './worker';
 import { DataSource } from 'typeorm';
@@ -21,7 +23,8 @@ import {
 
 import deepmerge from 'deepmerge';
 import { FastifyBaseLogger } from 'fastify';
-import { sendReadingReminderPush } from '../onesignal';
+import { sendReadingReminderPush, sendStreakReminderPush } from '../onesignal';
+import { isSameDay } from 'date-fns';
 
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
@@ -129,10 +132,57 @@ const digestTypeToFunctionMap: Record<
   },
   [UserPersonalizedDigestType.ReadingReminder]: async (data, con) => {
     const { personalizedDigest, emailSendTimestamp, deduplicate = true } = data;
-    const emailSendDate = new Date(emailSendTimestamp);
+    const notificationSendTimestamp = new Date(emailSendTimestamp);
     const currentDate = new Date();
     await dedupedSend(
-      () => sendReadingReminderPush([personalizedDigest.userId], emailSendDate),
+      () =>
+        sendReadingReminderPush(
+          [personalizedDigest.userId],
+          notificationSendTimestamp,
+        ),
+      {
+        con,
+        personalizedDigest,
+        date: currentDate,
+        deduplicate,
+      },
+    );
+  },
+  [UserPersonalizedDigestType.StreakReminder]: async (data, con, logger) => {
+    const { personalizedDigest, deduplicate = true } = data;
+    const { userId } = personalizedDigest;
+
+    const currentDate = new Date();
+    const userSettings = await con
+      .getRepository(Settings)
+      .findOneBy({ userId });
+
+    // Safety measure to prevent sending streak reminders to users who have opted out
+    // but for some reason still have a streak reminder scheduled
+    if (userSettings?.optOutReadingStreak) {
+      return;
+    }
+
+    const userStreak = await con
+      .getRepository(UserStreak)
+      .findOneBy({ userId });
+
+    if (!userStreak) {
+      logger.debug(
+        `User streak not found for user ${personalizedDigest.userId} when sending streak reminder.`,
+      );
+      return;
+    }
+
+    if (
+      isSameDay(currentDate, userStreak.lastViewAt) ||
+      userStreak.currentStreak === 0
+    ) {
+      return;
+    }
+
+    await dedupedSend(
+      () => sendStreakReminderPush([personalizedDigest.userId]),
       {
         con,
         personalizedDigest,
