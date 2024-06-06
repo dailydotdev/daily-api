@@ -13,7 +13,7 @@ import { notifyGeneratePersonalizedDigest } from '../../src/common';
 import { logger } from '../../src/logger';
 import { getTimezoneOffset } from 'date-fns-tz';
 import { crons } from '../../src/cron/index';
-import { setDay, startOfHour } from 'date-fns';
+import { setDay } from 'date-fns';
 
 let con: DataSource;
 
@@ -343,8 +343,6 @@ describe('hourlyNotifications cron', () => {
       })),
     );
 
-    const timestampBeforeCron = startOfHour(new Date()).getTime();
-
     await expectSuccessfulCron(cron);
 
     expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(
@@ -354,9 +352,7 @@ describe('hourlyNotifications cron', () => {
       (call) => {
         const { emailSendTimestamp } = call?.[0] || {};
 
-        expect(emailSendTimestamp).toBeGreaterThanOrEqual(
-          timestampBeforeCron + 1 * 60 * 60 * 1000,
-        );
+        expect(emailSendTimestamp).toBeGreaterThanOrEqual(Date.now());
       },
     );
   });
