@@ -378,7 +378,7 @@ describe('query userStreaks', () => {
     expect(streak.currentStreak).toEqual(expectedCurrentStreak);
   };
 
-  it('should reset streak on Saturday when last read is Thursday for logged in user', async () => {
+  it('should reset streak on Saturday when last read is Thursday', async () => {
     loggedUser = '1';
     const fakeToday = new Date(2024, 0, 6); // Saturday
     const lastViewAt = subDays(fakeToday, 2); // Thursday
