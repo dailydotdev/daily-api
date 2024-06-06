@@ -8,12 +8,17 @@ import {
   User,
   UserPersonalizedDigest,
   UserPersonalizedDigestSendType,
+  UserPersonalizedDigestType,
 } from '../entity';
 import { Cron } from './cron';
 import { isWeekend, addHours, startOfHour, subDays } from 'date-fns';
 import { DEFAULT_TIMEZONE } from '../types';
 
 const sendType = UserPersonalizedDigestSendType.workdays;
+const digestTypes = [
+  UserPersonalizedDigestType.Digest,
+  UserPersonalizedDigestType.ReadingReminder,
+];
 
 const cron: Cron = {
   name: 'daily-digest',
@@ -32,7 +37,8 @@ const cron: Cron = {
       )
       .andWhere(`flags->>'sendType' = :sendType`, {
         sendType,
-      });
+      })
+      .andWhere(`upd.type in (:...digestTypes)`, { digestTypes });
 
     // Make sure digest is sent at the beginning of the hour
     const timestamp = startOfHour(new Date());
