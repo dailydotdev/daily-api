@@ -175,7 +175,10 @@ const digestTypeToFunctionMap: Record<
       return;
     }
 
-    if (isSameDay(currentDate, userStreak.lastViewAt)) {
+    if (
+      isSameDay(currentDate, userStreak.lastViewAt) ||
+      userStreak.currentStreak === 0
+    ) {
       return;
     }
 

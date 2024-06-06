@@ -709,6 +709,10 @@ describe('personalizedDigestEmail worker', () => {
         { type: UserPersonalizedDigestType.StreakReminder },
       );
 
+      await con
+        .getRepository(UserStreak)
+        .update({ userId: '1' }, { currentStreak: 1 });
+
       const personalizedDigest = await con
         .getRepository(UserPersonalizedDigest)
         .findOneBy({
@@ -732,6 +736,32 @@ describe('personalizedDigestEmail worker', () => {
       expect(at.getDay()).toBe(personalizedDigest!.preferredDay);
       expect(at.getHours()).toBe(personalizedDigest!.preferredHour);
       expect(at.getTimezoneOffset()).toBe(0);
+    });
+
+    it('should not send a streak reminder if user has streak of 0', async () => {
+      await con.getRepository(UserPersonalizedDigest).update(
+        {
+          userId: '1',
+        },
+        { type: UserPersonalizedDigestType.StreakReminder },
+      );
+
+      const personalizedDigest = await con
+        .getRepository(UserPersonalizedDigest)
+        .findOneBy({
+          userId: '1',
+        });
+
+      expect(personalizedDigest).toBeTruthy();
+      expect(personalizedDigest!.lastSendDate).toBeNull();
+
+      await expectSuccessfulBackground(worker, {
+        personalizedDigest,
+        ...getDates(personalizedDigest!, Date.now()),
+        emailBatchId: 'test-email-batch-id',
+      });
+
+      expect(sendStreakReminderPush).toHaveBeenCalledTimes(0);
     });
 
     it('should not send a streak reminder if user has viewed a post today', async () => {
