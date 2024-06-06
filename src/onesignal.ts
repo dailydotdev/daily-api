@@ -118,5 +118,5 @@ export async function sendStreakReminderPush(
   push.chrome_web_badge = chromeWebBadge;
   push.chrome_web_icon = chromeWebIcon;
 
-  return client.createNotification(push);
+  await client.createNotification(push);
 }
