@@ -331,6 +331,14 @@ describe('query userStreaks', () => {
     loggedUser = '1';
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      userStreak: {
+        max: 0,
+        total: 0,
+        current: 0,
+        lastViewAt: null,
+      },
+    });
   });
 
   it('should return empty streak when the user has no streak yet', async () => {
@@ -478,6 +486,57 @@ describe('query userStreaks', () => {
 
     jest.useFakeTimers({ advanceTimers: true, now: fakeTodayTz });
     await expectStreak(5, 5, lastViewAtTz);
+  });
+});
+
+describe('query userStreaksProfile', () => {
+  const QUERY_BY_USER_ID = `query UserStreakProfile($id: ID!) {
+    userStreakProfile(id: $id) {
+      max
+      total
+    }
+  }`;
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('should not allow to query without user id', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY_BY_USER_ID },
+      'GRAPHQL_VALIDATION_FAILED',
+    ));
+
+  it('should return default user streaks based on user id when no streak is found', async () => {
+    const res = await client.query(QUERY_BY_USER_ID, {
+      variables: { id: '2' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      userStreakProfile: {
+        max: 0,
+        total: 0,
+      },
+    });
+  });
+
+  it('should return updated user streak for user id when streak is found', async () => {
+    const userId = '2';
+    const fakeToday = new Date(2024, 0, 6); // Saturday
+    const lastViewAt = subDays(fakeToday, 2); // Thursday
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+    const repo = con.getRepository(UserStreak);
+    await repo.update({ userId }, { currentStreak: 5, lastViewAt });
+
+    const res = await client.query(QUERY_BY_USER_ID, {
+      variables: { id: userId },
+    });
+    expect(res.errors).toBeFalsy();
+
+    const streak = await repo.findOneBy({ userId });
+    expect(streak.currentStreak).toEqual(5);
   });
 });
 
