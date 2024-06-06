@@ -1599,6 +1599,21 @@ describe('squad member joined', () => {
 
   it('should insert or ignore record for action type join_squad when user is a moderator', async () =>
     testJoinSquadAction(UserActionType.JoinSquad, SourceMemberRoles.Moderator));
+
+  it('should not add notification if member does not exist', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/squadMemberJoined'
+    );
+    await prepareSquad();
+    await con.getRepository(User).delete({ id: '1' });
+    const actual = await invokeNotificationWorker(worker.default, {
+      sourceMember: {
+        sourceId: 'a',
+        userId: '1',
+      },
+    });
+    expect(actual).toBeUndefined();
+  });
 });
 
 it('should add squad reply notification', async () => {
