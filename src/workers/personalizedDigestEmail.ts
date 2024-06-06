@@ -131,10 +131,14 @@ const digestTypeToFunctionMap: Record<
   },
   [UserPersonalizedDigestType.ReadingReminder]: async (data, con) => {
     const { personalizedDigest, emailSendTimestamp, deduplicate = true } = data;
-    const emailSendDate = new Date(emailSendTimestamp);
+    const notificationSendTimestamp = new Date(emailSendTimestamp);
     const currentDate = new Date();
     await dedupedSend(
-      () => sendReadingReminderPush([personalizedDigest.userId], emailSendDate),
+      () =>
+        sendReadingReminderPush(
+          [personalizedDigest.userId],
+          notificationSendTimestamp,
+        ),
       {
         con,
         personalizedDigest,
@@ -145,7 +149,7 @@ const digestTypeToFunctionMap: Record<
   },
   [UserPersonalizedDigestType.StreakReminder]: async (data, con, logger) => {
     const { personalizedDigest, emailSendTimestamp, deduplicate = true } = data;
-    const emailSendDate = new Date(emailSendTimestamp);
+    const notificationSendTimestamp = new Date(emailSendTimestamp);
     const currentDate = new Date();
     const userStreak = await con.getRepository(UserStreak).findOneBy({
       userId: personalizedDigest.userId,
@@ -162,7 +166,11 @@ const digestTypeToFunctionMap: Record<
     }
 
     await dedupedSend(
-      () => sendStreakReminderPush([personalizedDigest.userId], emailSendDate),
+      () =>
+        sendStreakReminderPush(
+          [personalizedDigest.userId],
+          notificationSendTimestamp,
+        ),
       {
         con,
         personalizedDigest,
