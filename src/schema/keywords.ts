@@ -18,6 +18,7 @@ export interface GQLKeyword {
   occurrences: number;
   flags?: KeywordFlagsPublic;
   createdAt?: Date;
+  synonym?: string;
 }
 
 interface GQLKeywordSearchResults {
@@ -71,6 +72,10 @@ export const typeDefs = /* GraphQL */ `
     Date when the keyword was created
     """
     createdAt: DateTime
+    """
+    Keyword synonym
+    """
+    synonym: String
   }
 
   """
