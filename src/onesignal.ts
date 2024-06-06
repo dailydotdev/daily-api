@@ -109,7 +109,6 @@ export async function sendStreakReminderPush(
   push.url = addNotificationUtm(
     process.env.COMMENTS_PREFIX,
     'push',
-    // @TODO: check what this should be
     'streak_reminder',
   );
 
