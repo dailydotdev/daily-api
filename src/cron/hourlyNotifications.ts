@@ -36,9 +36,6 @@ const cron: Cron = {
       .andWhere(`flags->>'sendType' = :sendType`, { sendType })
       .andWhere(`upd.type in (:...digestTypes)`, { digestTypes });
 
-    // Make sure digest is sent at the beginning of the hour
-    const timestamp = new Date().getTime();
-
     await schedulePersonalizedDigestSubscriptions({
       queryBuilder: personalizedDigestQuery,
       logger,
@@ -50,6 +47,7 @@ const cron: Cron = {
           personalizedDigestWithTimezome as UserPersonalizedDigest &
             Pick<User, 'timezone'>;
 
+        const timestamp = new Date().getTime();
         const previousSendTimestamp = subDays(timestamp, 1).getTime();
         const sendDateInTimezone = utcToZonedTime(timestamp, timezone);
         if (isWeekend(sendDateInTimezone)) {
