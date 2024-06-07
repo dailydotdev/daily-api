@@ -57,7 +57,7 @@ Disallow: /`);
     return res.type('text/plain').send(
       `Firefox has recently changed their approval process and in their wisdom have set us back to a 2022 version of the daily.dev extension.
 You can follow the discussion here.
-https://x.com/dailydotdev
+https://x.com/dailydotdev/status/1798960336667893866
 
 In the interim we suggest using the web version.
 https://app.daily.dev`,
