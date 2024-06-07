@@ -568,7 +568,7 @@ const obj = new GraphORM({
         transform: async ({ roadmap, ...rest }) => {
           return {
             ...(roadmap && {
-              roadmap: `https://roadmap.com/${roadmap}?ref=dailydev`,
+              roadmap: `https://roadmap.sh/${roadmap}?ref=dailydev`,
             }),
             ...rest,
           };

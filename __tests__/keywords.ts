@@ -421,6 +421,7 @@ describe('flags field', () => {
     expect(res.data.keyword.flags).toEqual({
       title: null,
       description: null,
+      roadmap: null,
     });
   });
 
