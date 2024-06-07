@@ -46,6 +46,11 @@ export const typeDefs = /* GraphQL */ `
     Description of the keyword
     """
     description: String
+
+    """
+    Roadmap.sh link for the keyword
+    """
+    roadmap: String
   }
 
   """
@@ -201,6 +206,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           .limit(1);
         return builder;
       });
+      console.log('quiery hit');
       return res?.[0] ?? null;
     },
   },
