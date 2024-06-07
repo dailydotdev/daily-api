@@ -53,6 +53,14 @@ Allow: /devcards/
 Disallow: /`);
   });
 
+  fastify.get('/v1/auth/authorize', async (req, res) => {
+    return res
+      .type('text/plain')
+      .send(
+        `Sorry, this endpoint is no longer valid, please keep an eye out on our Twitter/X for updates on this matter as it's only related to the Firefox extension.\n https://x.com/dailydotdev`,
+      );
+  });
+
   if (process.env.NODE_ENV === 'development') {
     fastify.register(localAds);
   }
