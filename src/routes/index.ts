@@ -53,6 +53,17 @@ Allow: /devcards/
 Disallow: /`);
   });
 
+  fastify.get('/v1/auth/authorize', async (req, res) => {
+    return res.type('text/plain').send(
+      `Firefox has recently changed their approval process and in their wisdom have set us back to a 2022 version of the daily.dev extension.
+You can follow the discussion here.
+https://x.com/dailydotdev
+
+In the interim we suggest using the web version.
+https://app.daily.dev`,
+    );
+  });
+
   if (process.env.NODE_ENV === 'development') {
     fastify.register(localAds);
   }
