@@ -206,9 +206,11 @@ describe('collectionUpdated worker', () => {
     expect(ctx.total).toEqual('4');
     expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '2', '3']);
 
-    expect(
-      (actual[0].ctx as NotificationCollectionContext).sources[0].name,
-    ).toEqual('A');
+    expect(ctx.sources.map((item) => item.name)).toIncludeSameMembers([
+      'A',
+      'B',
+      'C',
+    ]);
   });
 
   it('should generate valid notification', async () => {
