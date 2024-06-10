@@ -24,8 +24,8 @@ import { validateAndTransformHandle } from '../../common/handles';
 import { ValidationError } from 'apollo-server-errors';
 import { GQLUpdateUserInput } from '../../schema/users';
 import {
-  socialHandleRegex,
   nameRegex,
+  socialHandleRegex,
   validateRegex,
   ValidateRegex,
 } from '../../common/object';
@@ -194,7 +194,7 @@ const checkEmail = async (
     .getRepository(User)
     .createQueryBuilder()
     .select('id')
-    .where({ email: email.toLowerCase() });
+    .where('lower(email) = :email', { email: email.toLowerCase() });
   if (id) {
     query = query.andWhere('id != :id', { id });
   }
@@ -214,36 +214,37 @@ export const updateUserEmail = async (
     return { status: 'failed', reason: UpdateUserFailErrorKeys.MissingFields };
   }
 
-  return con.transaction(async (entityManager) => {
-    try {
-      const res = await entityManager
-        .getRepository(User)
-        .update({ id: data.id }, { email: data.email });
-      if (res.affected === 0) {
-        logger.info(
-          `Failed to update email user not found with ID: ${data.id}`,
-        );
-        return {
-          status: 'failed',
-          reason: UpdateUserFailErrorKeys.UserDoesntExist,
-        };
-      }
+  const isEmailAvailable = await checkEmail(con, data.email, data.id);
+  if (!isEmailAvailable) {
+    return { status: 'failed', reason: UpdateUserFailErrorKeys.EmailExists };
+  }
 
-      logger.info(`Updated email for user with ID: ${data.id}`);
-      return { status: 'ok', userId: data.id };
-    } catch (error) {
-      logger.error(
-        {
-          data,
-          userId: data.id,
-          error,
-        },
-        'failed to update user email',
-      );
-
-      throw error;
+  try {
+    const res = await con
+      .getRepository(User)
+      .update({ id: data.id }, { email: data.email.toLowerCase() });
+    if (res.affected === 0) {
+      logger.info(`Failed to update email user not found with ID: ${data.id}`);
+      return {
+        status: 'failed',
+        reason: UpdateUserFailErrorKeys.UserDoesntExist,
+      };
     }
-  });
+
+    logger.info(`Updated email for user with ID: ${data.id}`);
+    return { status: 'ok', userId: data.id };
+  } catch (error) {
+    logger.error(
+      {
+        data,
+        userId: data.id,
+        error,
+      },
+      'failed to update user email',
+    );
+
+    throw error;
+  }
 };
 
 const isInfoConfirmed = (user: AddUserData) =>
@@ -351,7 +352,7 @@ export const addNewUser = async (
       username: data.username
         ? await validateAndTransformHandle(data.username, 'username', con)
         : undefined,
-      email: data.email,
+      email: data.email.toLowerCase(),
       profileConfirmed: data.profileConfirmed,
       infoConfirmed: isInfoConfirmed(data),
       createdAt: data.createdAt,

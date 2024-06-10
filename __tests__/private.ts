@@ -190,6 +190,9 @@ describe('POST /p/newUser', () => {
 
   it('should handle existing email with different case', async () => {
     await createDefaultUser();
+    await con
+      .getRepository(User)
+      .update({ email: usersFixture[0].email }, { email: 'Ido@daily.dev' });
     const { body } = await request(app.server)
       .post('/p/newUser')
       .set('Content-type', 'application/json')
@@ -199,7 +202,7 @@ describe('POST /p/newUser', () => {
         name: usersFixture[0].name,
         image: usersFixture[0].image,
         username: 'randomName',
-        email: usersFixture[0].email.toUpperCase(),
+        email: 'iDO@daily.dev',
       })
       .expect(200);
 
@@ -216,7 +219,7 @@ describe('POST /p/newUser', () => {
         name: usersFixture[0].name,
         image: usersFixture[0].image,
         username: usersFixture[0].username,
-        email: usersFixture[0].email,
+        email: usersFixture[0].email.toUpperCase(),
       })
       .expect(200);
 
@@ -225,6 +228,7 @@ describe('POST /p/newUser', () => {
     const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
     expect(users.length).toEqual(2);
     expect(users[0].id).toEqual(usersFixture[0].id);
+    expect(users[0].email).toEqual(usersFixture[0].email);
     expect(users[0].infoConfirmed).toBeTruthy();
     expect(users[0].createdAt).not.toBeNull();
   });
@@ -578,6 +582,17 @@ describe('POST /p/updateUserEmail', () => {
     expect(body).toEqual({ status: 'failed', reason: 'MISSING_FIELDS' });
   });
 
+  it('should handle when email exists', async () => {
+    await saveFixtures(con, User, usersFixture);
+    const { body } = await request(app.server)
+      .post('/p/updateUserEmail')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({ id: '1', email: usersFixture[1].email.toUpperCase() })
+      .expect(200);
+    expect(body).toEqual({ status: 'failed', reason: 'EMAIL_EXISTS' });
+  });
+
   it("should return correct response if user doesn't exist", async () => {
     const newEmail = 'somenewemail@gmail.com';
     const { body } = await request(app.server)
@@ -596,14 +611,13 @@ describe('POST /p/updateUserEmail', () => {
   });
 
   it('should return correct response if exists', async () => {
-    const newEmail = 'somenewemail@gmail.com';
     await createDefaultUser();
     const { body } = await request(app.server)
       .post('/p/updateUserEmail')
       .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
       .send({
         id: usersFixture[0].id,
-        email: newEmail,
+        email: 'SomeNeweMail@gmail.com',
       })
       .expect(200);
 
@@ -612,6 +626,6 @@ describe('POST /p/updateUserEmail', () => {
     const user = await con
       .getRepository(User)
       .findOneBy({ id: usersFixture[0].id });
-    expect(user.email).toBe(newEmail);
+    expect(user.email).toBe('somenewemail@gmail.com');
   });
 });
