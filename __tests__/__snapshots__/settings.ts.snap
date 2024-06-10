@@ -115,7 +115,7 @@ Object {
   "optOutWeeklyGoal": false,
   "showOnlyUnreadPosts": false,
   "showTopSites": true,
-  "sidebarExpanded": true,
+  "sidebarExpanded": false,
   "sortingEnabled": false,
   "spaciness": "eco",
   "theme": "darcula",
