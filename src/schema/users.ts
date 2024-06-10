@@ -1199,6 +1199,7 @@ export const resolvers: IResolvers<any, Context> = {
 
       try {
         const updatedUser = { ...user, ...data, image: avatar };
+        updatedUser.email = updatedUser.email?.toLowerCase();
         if (
           !user.infoConfirmed &&
           updatedUser.email &&
