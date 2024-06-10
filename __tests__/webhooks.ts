@@ -264,7 +264,7 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
       });
 
       const { body } = await request(app.server)
-        .delete('/webhooks/customerio/marketing_cta')
+        .post('/webhooks/customerio/marketing_cta/delete')
         .set('x-cio-timestamp', timestamp.toString())
         .set('x-cio-signature', hash)
         .send(payload)
@@ -289,7 +289,7 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
       ).toHaveLength(2);
 
       const { body } = await request(app.server)
-        .delete('/webhooks/customerio/marketing_cta')
+        .post('/webhooks/customerio/marketing_cta/delete')
         .set('x-cio-timestamp', timestamp.toString())
         .set('x-cio-signature', hash)
         .send(payload)
