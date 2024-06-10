@@ -36,7 +36,7 @@ export class Settings {
   @Column({ default: true })
   openNewTab: boolean;
 
-  @Column({ default: true })
+  @Column({ default: false })
   sidebarExpanded: boolean;
 
   @Column({ default: null })
@@ -84,7 +84,7 @@ export const SETTINGS_DEFAULT = {
   spaciness: 'eco',
   showOnlyUnreadPosts: false,
   openNewTab: true,
-  sidebarExpanded: true,
+  sidebarExpanded: false,
   companionExpanded: false,
   autoDismissNotifications: true,
   customLinks: null,
