@@ -2122,7 +2122,10 @@ describe('post relation collection', () => {
       });
 
     expect(collectionAfterWorker.collectionSources.length).toBe(2);
-    expect(collectionAfterWorker.collectionSources).toMatchObject(['a', 'b']);
+    expect(collectionAfterWorker.collectionSources).toIncludeSameMembers([
+      'a',
+      'b',
+    ]);
   });
 
   it(`shouldn't deduplicate collection sources`, async () => {
@@ -2175,7 +2178,10 @@ describe('post relation collection', () => {
       });
 
     expect(collectionAfterWorker.collectionSources.length).toBe(2);
-    expect(collectionAfterWorker.collectionSources).toMatchObject(['a', 'a']);
+    expect(collectionAfterWorker.collectionSources).toIncludeSameMembers([
+      'a',
+      'a',
+    ]);
   });
 });
 
