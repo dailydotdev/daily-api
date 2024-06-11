@@ -67,6 +67,7 @@ export default function (router: ConnectRouter) {
       throw new ConnectError('unauthenticated', Code.Unauthenticated);
     }
 
+    const originalReq = req.clone();
     const con = await createOrGetConnection();
 
     try {
@@ -77,6 +78,7 @@ export default function (router: ConnectRouter) {
       const postId = await generateShortId();
       const postEntity = con.getRepository(ArticlePost).create({
         ...req,
+        url: req.url || null,
         id: postId,
         shortId: postId,
         visible: false,
@@ -89,7 +91,10 @@ export default function (router: ConnectRouter) {
         url: req.url,
       };
     } catch (error) {
-      logger.error({ err: error }, 'error while creating post');
+      logger.error(
+        { err: error, data: originalReq.toJson() },
+        'error while creating post',
+      );
 
       if (error instanceof ConnectError) {
         throw error;
