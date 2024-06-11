@@ -13,7 +13,12 @@ import {
   testQueryError,
   testQueryErrorCode,
 } from './helpers';
-import { CampaignCtaPlacement, Settings, User } from '../src/entity';
+import {
+  CampaignCtaPlacement,
+  ChecklistViewState,
+  Settings,
+  User,
+} from '../src/entity';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
@@ -64,6 +69,7 @@ describe('query userSettings', () => {
     optOutCompanion
     autoDismissNotifications
     campaignCtaPlacement
+    onboardingChecklistView
   }
 }`;
 
@@ -162,6 +168,7 @@ describe('mutation updateUserSettings', () => {
     optOutReadingStreak
     optOutCompanion
     campaignCtaPlacement
+    onboardingChecklistView
   }
 }`;
 
@@ -308,6 +315,26 @@ describe('mutation updateUserSettings', () => {
           `Invalid value for 'campaignCtaPlacement'`,
         );
       },
+    );
+  });
+
+  it('should update onboardingChecklistView', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(Settings);
+    await repo.insert({
+      userId: '1',
+      onboardingChecklistView: ChecklistViewState.Closed,
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: { onboardingChecklistView: ChecklistViewState.Open },
+      },
+    });
+
+    expect(res.data.updateUserSettings.onboardingChecklistView).toBe(
+      ChecklistViewState.Open,
     );
   });
 });

@@ -22,6 +22,7 @@ import {
   PostKeyword,
   SourceType,
   YouTubePost,
+  ChecklistViewState,
 } from '../../../src/entity';
 import {
   notifyCommentCommented,
@@ -1636,6 +1637,7 @@ describe('settings', () => {
     autoDismissNotifications: true,
     campaignCtaPlacement: CampaignCtaPlacement.Header,
     updatedAt: date.getTime(),
+    onboardingChecklistView: ChecklistViewState.Hidden,
   };
 
   it('should notify on any of settings has changed', async () => {

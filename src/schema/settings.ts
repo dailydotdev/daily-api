@@ -1,8 +1,13 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
-import { CampaignCtaPlacement, Settings, SETTINGS_DEFAULT } from '../entity';
-import { isValidHttpUrl } from '../common';
+import {
+  CampaignCtaPlacement,
+  ChecklistViewState,
+  Settings,
+  SETTINGS_DEFAULT,
+} from '../entity';
+import { isValidHttpUrl, toGQLEnum } from '../common';
 import { ValidationError } from 'apollo-server-errors';
 import { v4 as uuidv4 } from 'uuid';
 import { DataSource } from 'typeorm';
@@ -46,6 +51,8 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
 }
 
 export const typeDefs = /* GraphQL */ `
+  ${toGQLEnum(ChecklistViewState, 'ChecklistViewState')}
+
   """
   User personal preferences
   """
@@ -139,6 +146,11 @@ export const typeDefs = /* GraphQL */ `
     Which campaign to use for as the main CTA
     """
     campaignCtaPlacement: String
+
+    """
+    State of the onboarding checklist
+    """
+    onboardingChecklistView: ChecklistViewState
 
     """
     Time of last update
@@ -237,6 +249,11 @@ export const typeDefs = /* GraphQL */ `
     Which campaign to use for as the main CTA
     """
     campaignCtaPlacement: String
+
+    """
+    State of the onboarding checklist
+    """
+    onboardingChecklistView: ChecklistViewState
   }
 
   extend type Mutation {
