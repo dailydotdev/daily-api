@@ -67,6 +67,7 @@ export default function (router: ConnectRouter) {
       throw new ConnectError('unauthenticated', Code.Unauthenticated);
     }
 
+    const originalReq = req.clone();
     const con = await createOrGetConnection();
 
     try {
@@ -91,7 +92,7 @@ export default function (router: ConnectRouter) {
       };
     } catch (error) {
       logger.error(
-        { err: error, data: req.toJson() },
+        { err: error, data: originalReq.toJson() },
         'error while creating post',
       );
 
