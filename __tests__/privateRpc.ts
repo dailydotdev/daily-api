@@ -264,5 +264,6 @@ describe('PostService', () => {
       .findOneBy({ id: result.postId });
     expect(post).toBeTruthy();
     expect(post!.yggdrasilId).toEqual('95ba892c-d641-4b94-ba47-be03c4c6cc8b');
+    expect(post!.url).toBeNull();
   });
 });
