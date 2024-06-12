@@ -20,6 +20,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         optOutCompanion
         autoDismissNotifications
         campaignCtaPlacement
+        onboardingChecklistView
       }
     }`;
 
