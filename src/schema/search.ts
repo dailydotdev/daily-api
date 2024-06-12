@@ -197,7 +197,7 @@ export const typeDefs = /* GraphQL */ `
     ): SearchSuggestionsResults!
 
     """
-    Get tags for search tags query
+    Get sources for search sources query
     """
     searchSourceSuggestions(
       """
