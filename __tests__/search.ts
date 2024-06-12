@@ -475,3 +475,76 @@ describe('query searchTagSuggestions', () => {
     expect(result.hits).toHaveLength(0);
   });
 });
+
+describe('query searchSourceSuggestions', () => {
+  const QUERY = (query: string): string => `{
+    searchSourceSuggestions(query: "${query}") {
+      query
+      hits {
+        id
+        title
+        subtitle
+        image
+      }
+    }
+  }
+`;
+
+  beforeEach(async () => {
+    await saveFixtures(con, Source, sourcesFixture);
+  });
+
+  it('should return search suggestions', async () => {
+    await con.getRepository(Source).update({ id: 'a' }, { name: 'Java news' });
+    await con
+      .getRepository(Source)
+      .update({ id: 'b' }, { name: 'JavaScript news' });
+    const res = await client.query(QUERY('java'));
+    expect(res.errors).toBeFalsy();
+    expect(res.data.searchSourceSuggestions).toBeTruthy();
+
+    const result = res.data.searchSourceSuggestions;
+
+    expect(result.query).toBe('java');
+    expect(result.hits).toHaveLength(2);
+    expect(result.hits).toMatchObject([
+      {
+        id: 'a',
+        title: 'Java news',
+        subtitle: 'a',
+        image: 'http://image.com/a',
+      },
+      {
+        id: 'b',
+        title: 'JavaScript news',
+        subtitle: 'b',
+        image: 'http://image.com/b',
+      },
+    ]);
+  });
+
+  it('should only return non private sources', async () => {
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { name: 'Java news', private: true });
+    await con
+      .getRepository(Source)
+      .update({ id: 'b' }, { name: 'JavaScript news' });
+    const res = await client.query(QUERY('java'));
+    expect(res.errors).toBeFalsy();
+    expect(res.data.searchSourceSuggestions).toBeTruthy();
+
+    const result = res.data.searchSourceSuggestions;
+
+    expect(result.query).toBe('java');
+    expect(result.hits).toHaveLength(1);
+    expect(result.hits).toMatchObject([
+      {
+        id: 'b',
+        title: 'JavaScript news',
+        subtitle: 'b',
+        image: 'http://image.com/b',
+      },
+    ]);
+  });
+});
