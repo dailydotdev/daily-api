@@ -13,5 +13,7 @@ RUN npm i
 
 COPY . .
 
+ENV PATH /opt/app/node_modules/.bin:$PATH
+
 CMD ["npm", "run", "dev"]
 
