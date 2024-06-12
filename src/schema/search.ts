@@ -211,7 +211,7 @@ export const typeDefs = /* GraphQL */ `
       version: Int = 1
 
       """
-      Maximum number of tags to return
+      Maximum number of sources to return
       """
       limit: Int = ${defaultSearchLimit}
     ): SearchSuggestionsResults!
