@@ -3,7 +3,7 @@ import { DataSource } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 
 import createOrGetConnection from '../src/db';
-import { DevCard, DevCardTheme, User, UserStreak } from "../src/entity";
+import { DevCard, DevCardTheme, User, UserStreak } from '../src/entity';
 import {
   GraphQLTestClient,
   GraphQLTestingState,

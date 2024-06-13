@@ -77,5 +77,6 @@ config:
     typeormUser: postgres
     tz: UTC
     urlPrefix: http://api.local.com
+  api:image: api-image:tilt-a2c6000c7779c331
   api:k8s:
     namespace: local
