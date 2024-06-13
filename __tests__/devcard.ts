@@ -3,7 +3,7 @@ import { DataSource } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 
 import createOrGetConnection from '../src/db';
-import { DevCard, DevCardTheme, User } from '../src/entity';
+import { DevCard, DevCardTheme, User, UserStreak } from "../src/entity";
 import {
   GraphQLTestClient,
   GraphQLTestingState,
@@ -250,7 +250,7 @@ describe('query devCard(id)', () => {
       showBorder
       articlesRead
       tags
-      longestStreak
+      maxStreak
     }
   }
 
@@ -309,12 +309,15 @@ describe('query devCard(id)', () => {
       isProfileCover: false,
       showBorder: true,
       articlesRead: 0,
-      longestStreak: 0,
+      maxStreak: 0,
       tags: [],
     });
   });
 
   it('should return stored devcard', async () => {
+    const repo = con.getRepository(UserStreak);
+    await repo.update({ userId: userId }, { maxStreak: 30 });
+
     const res = await client.query(QUERY, { variables: { id: userId } });
     expect(res.errors).toBeFalsy();
     expect(res.data.devCard).toEqual({
@@ -333,7 +336,7 @@ describe('query devCard(id)', () => {
       isProfileCover: true,
       showBorder: false,
       articlesRead: 0,
-      longestStreak: 0,
+      maxStreak: 30,
       tags: [],
     });
   });

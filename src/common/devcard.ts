@@ -64,7 +64,7 @@ export interface DevCardData {
   articlesRead: number;
   tags: string[];
   sources: DevCardSource[];
-  longestStreak: number;
+  maxStreak: number;
 }
 
 export interface DevCardDataV1 {
@@ -73,7 +73,7 @@ export interface DevCardDataV1 {
   tags: { value: string; count: number }[];
   sourcesLogos: string[];
   rank: ReadingRank;
-  longestStreak: number;
+  maxStreak: number;
 }
 
 export async function getDevCardDataV1(
@@ -89,7 +89,7 @@ export async function getDevCardDataV1(
     getMostReadTags(con, { userId, limit: 4, dateRange: { start, end } }),
     getFavoriteSources(con, userId),
     getUserReadingRank(con, userId, user?.timezone, 2),
-    await con.getRepository(UserStreak).findOneOrFail({
+    con.getRepository(UserStreak).findOneOrFail({
       where: { userId },
       select: ['maxStreak'],
     }),
@@ -100,7 +100,7 @@ export async function getDevCardDataV1(
     tags,
     sourcesLogos: sources.map((source) => source.image),
     rank,
-    longestStreak: streak?.maxStreak ?? 0,
+    maxStreak: streak?.maxStreak ?? 0,
   };
 }
 
@@ -136,7 +136,7 @@ export async function getDevCardData(
       })
     ).map(({ value }) => value),
     getFavoriteSources(con, userId),
-    await con.getRepository(UserStreak).findOneOrFail({
+    con.getRepository(UserStreak).findOneOrFail({
       where: { userId },
       select: ['maxStreak'],
     }),
@@ -147,7 +147,7 @@ export async function getDevCardData(
     articlesRead,
     tags,
     sources,
-    longestStreak: streak?.maxStreak ?? 0,
+    maxStreak: streak?.maxStreak ?? 0,
   };
 }
 

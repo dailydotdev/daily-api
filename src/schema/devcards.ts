@@ -89,7 +89,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Number of longest streak
     """
-    longestStreak: Int!
+    maxStreak: Int!
 
     """
     Tags
