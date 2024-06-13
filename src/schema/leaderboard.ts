@@ -111,8 +111,33 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       return;
     },
     mostReferrals: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
-      // TODO: Implement this
-      return;
+      const subQuery = ctx.con
+        .createQueryBuilder()
+        .select('u.referralId', 'referralId')
+        .addSelect('COUNT(u.referralId)', 'refferalCount')
+        .from(User, 'u')
+        .where('u.referralId IS NOT NULL')
+        .groupBy('u.referralId')
+        .orderBy('"refferalCount"', 'DESC')
+        .limit(args.limit);
+
+      const users = await ctx.con
+        .createQueryBuilder()
+        .select('u.*', 'user')
+        .addSelect('referrals."refferalCount"', 'refferalCount')
+        .from(User, 'u')
+        .innerJoin(
+          `(${subQuery.getQuery()})`,
+          'referrals',
+          'u.id = referrals."referralId"',
+        )
+        .setParameters(subQuery.getParameters())
+        .getRawMany();
+
+      return users.map((user) => ({
+        score: user.refferalCount,
+        user,
+      }));
     },
     mostReadingDays: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
       const users = await ctx.con.getRepository(UserStreak).find({
