@@ -6,10 +6,14 @@ import { User, UserStreak } from '../entity';
 
 // TODO: Rename this file
 
+export type GQLUserLeaderboard = {
+  score: number;
+  user: GQLUser;
+};
+
 export const typeDefs = /* GraphQL */ `
-  type HighestUserStreak {
-    currentStreak: Int
-    totalStreak: Int
+  type Leaderboard {
+    score: Int
     user: User
   }
 
@@ -22,7 +26,7 @@ export const typeDefs = /* GraphQL */ `
       Limit the number of users returned
       """
       limit: Int
-    ): [User] @cacheControl(maxAge: 600)
+    ): [Leaderboard] @cacheControl(maxAge: 600)
 
     """
     Get the users with the longest streak
@@ -32,7 +36,7 @@ export const typeDefs = /* GraphQL */ `
       Limit the number of users returned
       """
       limit: Int
-    ): [HighestUserStreak] @cacheControl(maxAge: 600)
+    ): [Leaderboard] @cacheControl(maxAge: 600)
 
     """
     Get the users with the most reading days
@@ -42,31 +46,43 @@ export const typeDefs = /* GraphQL */ `
       Limit the number of users returned
       """
       limit: Int
-    ): [HighestUserStreak] @cacheControl(maxAge: 600)
+    ): [Leaderboard] @cacheControl(maxAge: 600)
   }
 `;
 
 export const resolvers: IResolvers<unknown, Context> = traceResolvers({
   Query: {
-    highestReputation: async (_, args, ctx): Promise<GQLUser[]> => {
-      return ctx.con.getRepository(User).find({
+    highestReputation: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
+      const users = await ctx.con.getRepository(User).find({
         order: { reputation: 'DESC' },
         take: args.limit,
       });
+
+      return users.map((user) => ({ score: user.reputation, user }));
     },
     longestStreak: async (_, args, ctx) => {
-      return await ctx.con.getRepository(UserStreak).find({
+      const users = await ctx.con.getRepository(UserStreak).find({
         order: { currentStreak: 'DESC' },
         take: args.limit,
         relations: ['user'],
       });
+
+      return users.map((user) => ({
+        score: user.currentStreak,
+        user: user.user,
+      }));
     },
     mostReadingDays: async (_, args, ctx) => {
-      return await ctx.con.getRepository(UserStreak).find({
+      const users = await ctx.con.getRepository(UserStreak).find({
         order: { totalStreak: 'DESC' },
         take: args.limit,
         relations: ['user'],
       });
+
+      return users.map((user) => ({
+        score: user.totalStreak,
+        user: user.user,
+      }));
     },
   },
 });
