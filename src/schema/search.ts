@@ -34,6 +34,8 @@ type GQLSearchSession = Pick<SearchSession, 'id' | 'prompt' | 'createdAt'>;
 interface GQLSearchSuggestion {
   id: string;
   title: string;
+  subtitle?: string;
+  image?: string;
 }
 
 export interface GQLSearchSuggestionsResults {
@@ -94,6 +96,8 @@ export const typeDefs = /* GraphQL */ `
   type SearchSuggestion {
     id: String!
     title: String!
+    subtitle: String
+    image: String
   }
 
   type SearchSuggestionsResults {
@@ -188,6 +192,26 @@ export const typeDefs = /* GraphQL */ `
 
       """
       Maximum number of tags to return
+      """
+      limit: Int = ${defaultSearchLimit}
+    ): SearchSuggestionsResults!
+
+    """
+    Get sources for search sources query
+    """
+    searchSourceSuggestions(
+      """
+      The query to search for
+      """
+      query: String!
+
+      """
+      Version of the search algorithm
+      """
+      version: Int = 1
+
+      """
+      Maximum number of sources to return
       """
       limit: Int = ${defaultSearchLimit}
     ): SearchSuggestionsResults!
@@ -351,6 +375,27 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
           query: `%${query}%`,
         })
         .orderBy(`occurrences`, 'DESC')
+        .limit(getSearchLimit({ limit }));
+      const hits = await searchQuery.getRawMany();
+
+      return {
+        query,
+        hits,
+      };
+    },
+    searchSourceSuggestions: async (
+      source,
+      { query, limit }: SearchSuggestionArgs,
+      ctx,
+    ): Promise<GQLSearchSuggestionsResults> => {
+      const searchQuery = ctx.con
+        .getRepository(Source)
+        .createQueryBuilder()
+        .select(`id, name as title, handle as subtitle, image`)
+        .where(`private = false`)
+        .andWhere(`name ILIKE :query`, {
+          query: `%${query}%`,
+        })
         .limit(getSearchLimit({ limit }));
       const hits = await searchQuery.getRawMany();
 
