@@ -250,6 +250,7 @@ describe('query devCard(id)', () => {
       showBorder
       articlesRead
       tags
+      longestStreak
     }
   }
 
@@ -308,6 +309,7 @@ describe('query devCard(id)', () => {
       isProfileCover: false,
       showBorder: true,
       articlesRead: 0,
+      longestStreak: 0,
       tags: [],
     });
   });
@@ -331,6 +333,7 @@ describe('query devCard(id)', () => {
       isProfileCover: true,
       showBorder: false,
       articlesRead: 0,
+      longestStreak: 0,
       tags: [],
     });
   });
