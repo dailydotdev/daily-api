@@ -49,13 +49,10 @@ export const typeDefs = /* GraphQL */ `
 export const resolvers: IResolvers<unknown, Context> = traceResolvers({
   Query: {
     highestReputation: async (_, args, ctx): Promise<GQLUser[]> => {
-      return ctx.con
-        .createQueryBuilder()
-        .select('u')
-        .from(User, 'u')
-        .orderBy('u.reputation', 'DESC')
-        .limit(args.limit)
-        .getMany();
+      return ctx.con.getRepository(User).find({
+        order: { reputation: 'DESC' },
+        take: args.limit,
+      });
     },
     longestStreak: async (_, args, ctx) => {
       return await ctx.con.getRepository(UserStreak).find({
