@@ -8,7 +8,7 @@ import { User, UserStreak } from '../entity';
 
 export type GQLUserLeaderboard = {
   score: number;
-  user: GQLUser;
+  user: GQLUser | Promise<GQLUser>;
 };
 
 export const typeDefs = /* GraphQL */ `
@@ -60,7 +60,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
 
       return users.map((user) => ({ score: user.reputation, user }));
     },
-    longestStreak: async (_, args, ctx) => {
+    longestStreak: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
       const users = await ctx.con.getRepository(UserStreak).find({
         order: { currentStreak: 'DESC' },
         take: args.limit,
@@ -72,7 +72,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
         user: user.user,
       }));
     },
-    mostReadingDays: async (_, args, ctx) => {
+    mostReadingDays: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
       const users = await ctx.con.getRepository(UserStreak).find({
         order: { totalStreak: 'DESC' },
         take: args.limit,
