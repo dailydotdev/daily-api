@@ -63,7 +63,7 @@ export const sendEmail = async (
       ...data,
       headers: {
         'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-        'List-Unsubscribe': `<https://api.daily.dev/unsubscribe?token=${token.token}>`,
+        'List-Unsubscribe': `<https://api.daily.dev/notifications/unsubscribe?token=${token.token}>`,
       },
     });
     await cioApi.sendEmail(req);
