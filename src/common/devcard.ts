@@ -1,6 +1,6 @@
 import { subYears } from 'date-fns';
 import { ReadingRank, getUserReadingRank, getUserReadingTags } from './users';
-import { Post, Source, View } from '../entity';
+import { Post, Source, UserStreak, View } from '../entity';
 import { User } from '../entity';
 import { ReadingDaysArgs } from './users';
 import { ActiveView } from '../entity/ActiveView';
@@ -64,6 +64,7 @@ export interface DevCardData {
   articlesRead: number;
   tags: string[];
   sources: DevCardSource[];
+  longestStreak: number;
 }
 
 export interface DevCardDataV1 {
@@ -72,6 +73,7 @@ export interface DevCardDataV1 {
   tags: { value: string; count: number }[];
   sourcesLogos: string[];
   rank: ReadingRank;
+  longestStreak: number;
 }
 
 export async function getDevCardDataV1(
@@ -82,11 +84,15 @@ export async function getDevCardDataV1(
   const start = subYears(now, 1).toISOString();
   const end = now.toISOString();
   const user = await con.getRepository(User).findOneByOrFail({ id: userId });
-  const [articlesRead, tags, sources, rank] = await Promise.all([
+  const [articlesRead, tags, sources, rank, streak] = await Promise.all([
     con.getRepository(ActiveView).countBy({ userId }),
     getMostReadTags(con, { userId, limit: 4, dateRange: { start, end } }),
     getFavoriteSources(con, userId),
     getUserReadingRank(con, userId, user?.timezone, 2),
+    await con.getRepository(UserStreak).findOneOrFail({
+      where: { userId },
+      select: ['maxStreak'],
+    }),
   ]);
   return {
     user,
@@ -94,6 +100,7 @@ export async function getDevCardDataV1(
     tags,
     sourcesLogos: sources.map((source) => source.image),
     rank,
+    longestStreak: streak?.maxStreak ?? 0,
   };
 }
 
@@ -118,7 +125,8 @@ export async function getDevCardData(
       'cover',
     ],
   });
-  const [articlesRead, tags, sources] = await Promise.all([
+
+  const [articlesRead, tags, sources, streak] = await Promise.all([
     con.getRepository(ActiveView).countBy({ userId }),
     (
       await getMostReadTags(con, {
@@ -128,6 +136,10 @@ export async function getDevCardData(
       })
     ).map(({ value }) => value),
     getFavoriteSources(con, userId),
+    await con.getRepository(UserStreak).findOneOrFail({
+      where: { userId },
+      select: ['maxStreak'],
+    }),
   ]);
 
   return {
@@ -135,6 +147,7 @@ export async function getDevCardData(
     articlesRead,
     tags,
     sources,
+    longestStreak: streak?.maxStreak ?? 0,
   };
 }
 

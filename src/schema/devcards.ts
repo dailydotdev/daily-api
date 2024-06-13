@@ -87,6 +87,11 @@ export const typeDefs = /* GraphQL */ `
     articlesRead: Int!
 
     """
+    Number of longest streak
+    """
+    longestStreak: Int!
+
+    """
     Tags
     """
     tags: [String!]!
