@@ -12,9 +12,13 @@ export type KeywordFlags = Partial<{
   onboarding: boolean;
   title: string;
   description: string;
+  roadmap: string;
 }>;
 
-export type KeywordFlagsPublic = Pick<KeywordFlags, 'title' | 'description'>;
+export type KeywordFlagsPublic = Pick<
+  KeywordFlags,
+  'title' | 'description' | 'roadmap'
+>;
 
 @Entity()
 @Index('IDX_status_value', ['status', 'value'])

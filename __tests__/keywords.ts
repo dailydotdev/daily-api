@@ -383,6 +383,7 @@ describe('flags field', () => {
       flags {
         title
         description
+        roadmap
       }
     }
   }`;
@@ -402,6 +403,7 @@ describe('flags field', () => {
         flags: updateFlagsStatement({
           title: 'React',
           description: 'React is a JS library',
+          roadmap: 'frontend',
         }),
       },
     );
@@ -410,6 +412,7 @@ describe('flags field', () => {
     expect(res.data.keyword.flags).toEqual({
       title: 'React',
       description: 'React is a JS library',
+      roadmap: 'https://roadmap.sh/frontend?ref=dailydev',
     });
   });
 
@@ -418,6 +421,7 @@ describe('flags field', () => {
     expect(res.data.keyword.flags).toEqual({
       title: null,
       description: null,
+      roadmap: null,
     });
   });
 

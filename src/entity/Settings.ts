@@ -13,6 +13,12 @@ export enum CampaignCtaPlacement {
   ProfileMenu = 'profileMenu',
 }
 
+export enum ChecklistViewState {
+  Open = 'open',
+  Closed = 'closed',
+  Hidden = 'hidden',
+}
+
 @Entity()
 export class Settings {
   @PrimaryColumn({ type: 'text' })
@@ -36,7 +42,7 @@ export class Settings {
   @Column({ default: true })
   openNewTab: boolean;
 
-  @Column({ default: true })
+  @Column({ default: false })
   sidebarExpanded: boolean;
 
   @Column({ default: null })
@@ -67,6 +73,9 @@ export class Settings {
   @Column({ type: 'text', default: CampaignCtaPlacement.Header })
   campaignCtaPlacement: CampaignCtaPlacement | null;
 
+  @Column({ type: 'text', default: ChecklistViewState.Hidden })
+  onboardingChecklistView: ChecklistViewState;
+
   @UpdateDateColumn()
   updatedAt: Date;
 
@@ -84,7 +93,7 @@ export const SETTINGS_DEFAULT = {
   spaciness: 'eco',
   showOnlyUnreadPosts: false,
   openNewTab: true,
-  sidebarExpanded: true,
+  sidebarExpanded: false,
   companionExpanded: false,
   autoDismissNotifications: true,
   customLinks: null,
@@ -93,4 +102,5 @@ export const SETTINGS_DEFAULT = {
   optOutReadingStreak: false,
   sortingEnabled: false,
   campaignCtaPlacement: CampaignCtaPlacement.Header,
+  onboardingChecklistView: ChecklistViewState.Hidden,
 };

@@ -565,6 +565,14 @@ const obj = new GraphORM({
     fields: {
       flags: {
         jsonType: true,
+        transform: async ({ roadmap, ...rest }) => {
+          return {
+            ...(roadmap && {
+              roadmap: `https://roadmap.sh/${roadmap}?ref=dailydev`,
+            }),
+            ...rest,
+          };
+        },
       },
     },
   },

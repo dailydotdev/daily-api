@@ -46,6 +46,11 @@ export const typeDefs = /* GraphQL */ `
     Description of the keyword
     """
     description: String
+
+    """
+    Roadmap.sh link for the keyword
+    """
+    roadmap: String
   }
 
   """

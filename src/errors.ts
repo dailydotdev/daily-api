@@ -10,6 +10,7 @@ export enum UserFailErrorKeys {
 export enum UpdateUserFailErrorKeys {
   MissingFields = 'MISSING_FIELDS',
   UserDoesntExist = 'USER_DOESNT_EXIST',
+  EmailExists = 'EMAIL_EXISTS',
 }
 
 export enum SubmissionFailErrorKeys {

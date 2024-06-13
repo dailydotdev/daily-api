@@ -98,7 +98,7 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
         },
       });
 
-      fastify.delete<MarketingCtaPayload>('/', {
+      fastify.post<MarketingCtaPayload>('/delete', {
         config: {
           rawBody: true,
         },

@@ -1896,14 +1896,14 @@ describe('mutation updateUserProfile', () => {
     const repo = con.getRepository(User);
     const user = await repo.findOneBy({ id: loggedUser });
 
-    const email = 'sample@daily.dev';
+    const email = 'SamPle@daily.dev';
     expect(user?.infoConfirmed).toBeFalsy();
     const res = await client.mutate(MUTATION, {
       variables: { data: { email, username: 'uuu1', name: user.name } },
     });
     expect(res.errors?.length).toBeFalsy();
     const updatedUser = await repo.findOneBy({ id: loggedUser });
-    expect(updatedUser?.email).toEqual(email);
+    expect(updatedUser?.email).toEqual(email.toLowerCase());
   });
 
   it('should update user profile and change experience level', async () => {
@@ -1975,16 +1975,18 @@ describe('mutation updateUserProfile', () => {
     expect(res.errors).toBeFalsy();
   });
 
-  it('should not update user profile if email exists', async () => {
+  it('should not update user profile if email exists (case insensitive)', async () => {
     loggedUser = '1';
 
     const repo = con.getRepository(User);
-    const email = 'sample@daily.dev';
-    await repo.update({ id: '2' }, { email });
+    await repo.update({ id: '2' }, { email: 'SamPlE@daily.dev' });
 
     await testMutationErrorCode(
       client,
-      { mutation: MUTATION, variables: { data: { email } } },
+      {
+        mutation: MUTATION,
+        variables: { data: { email: 'sAMple@daily.dev' } },
+      },
       'GRAPHQL_VALIDATION_FAILED',
     );
   });
