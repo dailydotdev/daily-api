@@ -86,9 +86,13 @@ export const syncSubscription = async function (
   const subs = JSON.parse(
     atts?.customer?.attributes?.cio_subscription_preferences || '{}',
   );
-  const marketing = isSubscribed(subs, CioUnsubscribeTopic.Marketing);
-  const notifications = isSubscribed(subs, CioUnsubscribeTopic.Notifications);
-  const digest = isSubscribed(subs, CioUnsubscribeTopic.Digest);
+  const unsubscribed = atts?.customer?.unsubscribed;
+  const marketing =
+    isSubscribed(subs, CioUnsubscribeTopic.Marketing) && !unsubscribed;
+  const notifications =
+    isSubscribed(subs, CioUnsubscribeTopic.Notifications) && !unsubscribed;
+  const digest =
+    isSubscribed(subs, CioUnsubscribeTopic.Digest) && !unsubscribed;
   await con.transaction(async (manager) => {
     await manager
       .getRepository(User)
