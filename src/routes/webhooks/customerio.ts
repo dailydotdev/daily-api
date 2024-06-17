@@ -179,13 +179,12 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
         req,
       );
       if (!valid) {
-        req.log.warn('cio reporting webhook invalid signature');
+        req.log.warn('cio subscription sync webhook invalid signature');
         return res.status(403).send({ error: 'Invalid signature' });
       }
 
       const payload = req.body;
-      if (payload.data.identifiers.id === '28849d86070e4c099c877ab6837c61f0')
-        req.log.info(payload, 'data received');
+      req.log.info(payload, 'subscription sync data received');
 
       return res.send({ success: true });
     },
