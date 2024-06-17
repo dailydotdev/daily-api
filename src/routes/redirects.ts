@@ -53,11 +53,9 @@ const redirectToStore =
     const url = new URL(req.raw.url, 'http://localhost');
     await sendRedirectAnalytics(con, req, res);
     if (browser.includes('firefox') || browser.includes('mozilla')) {
-      // Temporary redirect to webapp as firefox is set back 2 years
-      return res.redirect('https://app.daily.dev');
-      // return res.redirect(
-      //   `https://addons.mozilla.org/en-US/firefox/addon/daily/${url.search}`,
-      // );
+      return res.redirect(
+        `https://addons.mozilla.org/en-US/firefox/addon/daily/${url.search}`,
+      );
     } else if (browser.includes('edge')) {
       return res.redirect(
         `https://microsoftedge.microsoft.com/addons/detail/daily-20-source-for-bu/cbdhgldgiancdheindpekpcbkccpjaeb${url.search}`,
