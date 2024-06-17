@@ -65,7 +65,7 @@ export const resubscribeUser = async (
     return;
   }
 
-  await cio.identify(userId, { unsubscribed: true });
+  await cio.identify(userId, { unsubscribed: false });
 };
 
 export const syncSubscription = async function (
