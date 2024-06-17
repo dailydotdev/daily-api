@@ -1,18 +1,12 @@
 import { APIClient, SendEmailRequest, TrackClient } from 'customerio-node';
 import { SendEmailRequestOptionalOptions } from 'customerio-node/lib/api/requests';
 import { SendEmailRequestWithTemplate } from 'customerio-node/dist/lib/api/requests';
-import { signJwt } from '../auth';
 import { DataSource } from 'typeorm';
 import {
   User,
   UserPersonalizedDigest,
   UserPersonalizedDigestType,
 } from '../entity';
-
-export enum UnsubscribeGroup {
-  Notifications = 'notifications',
-  Digest = 'digest',
-}
 
 export enum CioUnsubscribeTopic {
   Marketing = '4',
@@ -110,23 +104,14 @@ export const syncSubscription = async function (
 
 export const sendEmail = async (
   data: SendEmailRequestWithTemplate,
-  unsubscribeGroup = UnsubscribeGroup.Notifications,
 ): Promise<void> => {
   if (process.env.CIO_APP_KEY) {
     if (!('id' in data.identifiers)) {
       throw new Error('identifiers.id is required');
     }
-    const token = await signJwt({
-      userId: data.identifiers.id,
-      group: unsubscribeGroup,
-    });
     const req = new SendEmailRequest({
       ...baseNotificationEmailData,
       ...data,
-      headers: {
-        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-        'List-Unsubscribe': `<https://api.daily.dev/notifications/unsubscribe?token=${token.token}>`,
-      },
     });
     await cioApi.sendEmail(req);
   }
