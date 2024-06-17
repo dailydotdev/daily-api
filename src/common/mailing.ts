@@ -1,11 +1,23 @@
-import { APIClient, SendEmailRequest } from 'customerio-node';
+import { APIClient, SendEmailRequest, TrackClient } from 'customerio-node';
 import { SendEmailRequestOptionalOptions } from 'customerio-node/lib/api/requests';
 import { SendEmailRequestWithTemplate } from 'customerio-node/dist/lib/api/requests';
 import { signJwt } from '../auth';
+import { DataSource } from 'typeorm';
+import {
+  User,
+  UserPersonalizedDigest,
+  UserPersonalizedDigestType,
+} from '../entity';
 
 export enum UnsubscribeGroup {
   Notifications = 'notifications',
   Digest = 'digest',
+}
+
+export enum CioUnsubscribeTopic {
+  Marketing = '4',
+  Notifications = '7',
+  Digest = '8',
 }
 
 export const cioApi = new APIClient(process.env.CIO_APP_KEY);
@@ -44,6 +56,52 @@ export const baseNotificationEmailData: SendEmailRequestOptionalOptions = {
   tracked: true,
   send_to_unsubscribed: false,
   queue_draft: false,
+};
+
+const isSubscribed = (
+  subs: { topics?: Record<string, boolean> },
+  topic: CioUnsubscribeTopic,
+): boolean => !(subs?.topics?.[`topic_${topic}`] === false);
+
+export const resubscribeUser = async (
+  cio: TrackClient,
+  userId: string,
+): Promise<void> => {
+  if (!process.env.CIO_APP_KEY) {
+    return;
+  }
+
+  await cio.identify(userId, { unsubscribed: false });
+};
+
+export const syncSubscription = async function (
+  userId: string,
+  con: DataSource,
+): Promise<void> {
+  if (!process.env.CIO_APP_KEY) {
+    return;
+  }
+
+  const atts = await cioApi.getAttributes(userId);
+  const subs = JSON.parse(
+    atts?.customer?.attributes?.cio_subscription_preferences || '{}',
+  );
+  const marketing = isSubscribed(subs, CioUnsubscribeTopic.Marketing);
+  const notifications = isSubscribed(subs, CioUnsubscribeTopic.Notifications);
+  const digest = isSubscribed(subs, CioUnsubscribeTopic.Digest);
+  await con.transaction(async (manager) => {
+    await manager
+      .getRepository(User)
+      .update(
+        { id: userId },
+        { notificationEmail: notifications, acceptedMarketing: marketing },
+      );
+    if (!digest) {
+      await manager
+        .getRepository(UserPersonalizedDigest)
+        .delete({ userId, type: UserPersonalizedDigestType.Digest });
+    }
+  });
 };
 
 export const sendEmail = async (
