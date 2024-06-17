@@ -1,4 +1,4 @@
-import { ghostUser } from '../common';
+import { ghostUser, resubscribeUser } from '../common';
 import { TypedWorker } from './worker';
 import { cio, identifyUser } from '../cio';
 
@@ -10,11 +10,18 @@ const worker: TypedWorker<'user-updated'> = {
     }
 
     const {
-      data: { newProfile: user },
+      data: { newProfile: user, user: oldUser },
     } = message;
 
     if (user.id === ghostUser.id || !user.infoConfirmed) {
       return;
+    }
+
+    if (
+      (user.notificationEmail && !oldUser.notificationEmail) ||
+      (user.acceptedMarketing && !oldUser.acceptedMarketing)
+    ) {
+      await resubscribeUser(cio, user.id);
     }
 
     await identifyUser(log, cio, user);

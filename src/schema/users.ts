@@ -47,6 +47,7 @@ import {
   getUserPermalink,
   votePost,
   voteComment,
+  resubscribeUser,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -67,6 +68,7 @@ import { RedisMagicValues, deleteRedisKey, getRedisObject } from '../redis';
 import { StorageKey, StorageTopic, generateStorageKey } from '../config';
 import { FastifyBaseLogger } from 'fastify';
 import { cachePrefillMarketingCta } from '../common/redisCache';
+import { cio } from '../cio';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -1299,6 +1301,8 @@ export const resolvers: IResolvers<any, Context> = {
         type,
         flags,
       });
+
+      await resubscribeUser(cio, ctx.userId);
 
       return personalizedDigest;
     },
