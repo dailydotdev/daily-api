@@ -60,6 +60,12 @@ type ReportingEvent = {
   };
 };
 
+const subscriptionMetrics = [
+  'cio_subscription_preferences_changed',
+  'subscribed',
+  'unsubscribed',
+];
+
 async function trackCioEvent(payload: ReportingEvent['Body']): Promise<void> {
   const dupPayload = { ...payload, data: { ...payload.data } };
   const userId = dupPayload.data.identifiers.id;
@@ -163,8 +169,7 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
 
       const payload = req.body;
 
-      // There are multiple events that should trigger the subscription sync
-      if (payload.metric.includes('subscri')) {
+      if (subscriptionMetrics.includes(payload.metric)) {
         const con = await createOrGetConnection();
         await syncSubscription(payload.data.identifiers.id, con);
       }

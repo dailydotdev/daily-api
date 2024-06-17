@@ -14,6 +14,12 @@ export enum UnsubscribeGroup {
   Digest = 'digest',
 }
 
+export enum CioUnsubscribeTopic {
+  Marketing = '4',
+  Notifications = '7',
+  Digest = '8',
+}
+
 export const cioApi = new APIClient(process.env.CIO_APP_KEY);
 
 export const addNotificationUtm = (
@@ -54,7 +60,7 @@ export const baseNotificationEmailData: SendEmailRequestOptionalOptions = {
 
 const isSubscribed = (
   subs: { topics?: Record<string, boolean> },
-  topic: string,
+  topic: CioUnsubscribeTopic,
 ): boolean => !(subs?.topics?.[`topic_${topic}`] === false);
 
 export const resubscribeUser = async (
@@ -80,9 +86,9 @@ export const syncSubscription = async function (
   const subs = JSON.parse(
     atts?.customer?.attributes?.cio_subscription_preferences || '{}',
   );
-  const marketing = isSubscribed(subs, '4');
-  const notifications = isSubscribed(subs, '7');
-  const digest = isSubscribed(subs, '8');
+  const marketing = isSubscribed(subs, CioUnsubscribeTopic.Marketing);
+  const notifications = isSubscribed(subs, CioUnsubscribeTopic.Notifications);
+  const digest = isSubscribed(subs, CioUnsubscribeTopic.Digest);
   await con.transaction(async (manager) => {
     await manager
       .getRepository(User)
