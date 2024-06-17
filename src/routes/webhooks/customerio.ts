@@ -49,6 +49,7 @@ type ReportingEvent = {
       };
       delivery_id: string;
       recipient?: string;
+      email_address?: string;
     };
     event_id: string;
     trigger_event_id?: string;
@@ -163,6 +164,27 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
           })
           .add(1);
       }
+
+      return res.send({ success: true });
+    },
+  });
+
+  fastify.post<ReportingEvent>('/subscription', {
+    config: {
+      rawBody: true,
+    },
+    handler: async (req, res) => {
+      const valid = verifyCIOSignature(
+        process.env.CIO_SUBSCRIPTION_WEBHOOK_SECRET,
+        req,
+      );
+      if (!valid) {
+        req.log.warn('cio subscription sync webhook invalid signature');
+        return res.status(403).send({ error: 'Invalid signature' });
+      }
+
+      const payload = req.body;
+      req.log.info(payload, 'subscription sync data received');
 
       return res.send({ success: true });
     },
