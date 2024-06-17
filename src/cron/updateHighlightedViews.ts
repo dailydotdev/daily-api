@@ -7,6 +7,7 @@ import { TrendingPost } from '../entity/TrendingPost';
 import { TrendingSource } from '../entity/TrendingSource';
 import { TrendingTag } from '../entity/TrendingTag';
 import { PopularVideoPost } from '../entity/PopularVideoPost';
+import { UserStats } from '../entity';
 
 const cron: Cron = {
   name: 'update-highlighted-views',
@@ -20,6 +21,7 @@ const cron: Cron = {
       PopularTag,
       PopularVideoPost,
       PopularVideoSource,
+      UserStats,
     ];
 
     try {

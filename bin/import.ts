@@ -11,6 +11,7 @@ import { PopularVideoSource } from '../src/entity/PopularVideoSource';
 import { TrendingPost } from '../src/entity/TrendingPost';
 import { TrendingSource } from '../src/entity/TrendingSource';
 import { TrendingTag } from '../src/entity/TrendingTag';
+import { UserStats } from '../src/entity';
 
 const importEntity = async (
   con: DataSource,
@@ -46,6 +47,7 @@ const viewsToRefresh = [
   PopularTag,
   PopularVideoPost,
   PopularVideoSource,
+  UserStats,
 ];
 
 const start = async (): Promise<void> => {

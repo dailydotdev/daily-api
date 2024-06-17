@@ -2,7 +2,8 @@ import { IResolvers } from '@graphql-tools/utils';
 import { Context } from '../Context';
 import { traceResolvers } from './trace';
 import { GQLUser } from './users';
-import { User, UserStreak } from '../entity';
+import { User, UserStats, UserStreak } from '../entity';
+import { DataSource } from 'typeorm';
 
 // TODO: Rename this file
 
@@ -80,6 +81,39 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
+const getUserLeaderboardForStat = async ({
+  con,
+  stat,
+  limit,
+}: {
+  con: DataSource;
+  stat: keyof Omit<UserStats, 'id'> | ((alias: string) => string);
+  limit: number;
+}): Promise<GQLUserLeaderboard[]> => {
+  const statSelect = typeof stat === 'function' ? stat('us') : `us.${stat}`;
+
+  const users = await con
+    .createQueryBuilder()
+    .from(UserStats, 'us')
+    .select('u.*')
+    .addSelect(statSelect, 'score')
+    .leftJoin(User, 'u', 'u.id = us.id')
+    .orderBy('score', 'DESC')
+    .limit(limit)
+    .getRawMany<
+      User & {
+        score: number;
+      }
+    >();
+
+  return users.map(({ score, ...user }) => {
+    return {
+      score,
+      user: user,
+    };
+  });
+};
+
 export const resolvers: IResolvers<unknown, Context> = traceResolvers({
   Query: {
     highestReputation: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
@@ -103,41 +137,25 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       }));
     },
     highestPostViews: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
-      // TODO: Implement this
-      return;
+      return getUserLeaderboardForStat({
+        con: ctx.con,
+        stat: 'views',
+        limit: args.limit,
+      });
     },
     mostUpvoted: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
-      // TODO: Implement this
-      return;
+      return getUserLeaderboardForStat({
+        con: ctx.con,
+        stat: (alias) => `${alias}."postUpvotes" + ${alias}."commentUpvotes"`,
+        limit: args.limit,
+      });
     },
     mostReferrals: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
-      const subQuery = ctx.con
-        .createQueryBuilder()
-        .select('u.referralId', 'referralId')
-        .addSelect('COUNT(u.referralId)', 'refferalCount')
-        .from(User, 'u')
-        .where('u.referralId IS NOT NULL')
-        .groupBy('u.referralId')
-        .orderBy('"refferalCount"', 'DESC')
-        .limit(args.limit);
-
-      const users = await ctx.con
-        .createQueryBuilder()
-        .select('u.*', 'user')
-        .addSelect('referrals."refferalCount"', 'refferalCount')
-        .from(User, 'u')
-        .innerJoin(
-          `(${subQuery.getQuery()})`,
-          'referrals',
-          'u.id = referrals."referralId"',
-        )
-        .setParameters(subQuery.getParameters())
-        .getRawMany();
-
-      return users.map((user) => ({
-        score: user.refferalCount,
-        user,
-      }));
+      return getUserLeaderboardForStat({
+        con: ctx.con,
+        stat: 'referrals',
+        limit: args.limit,
+      });
     },
     mostReadingDays: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
       const users = await ctx.con.getRepository(UserStreak).find({
