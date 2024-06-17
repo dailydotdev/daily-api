@@ -50,6 +50,7 @@ export async function identifyUser(
     cio_subscription_preferences: {
       topics: {
         topic_4: user.acceptedMarketing,
+        topic_7: user.notificationEmail,
       },
     },
   });

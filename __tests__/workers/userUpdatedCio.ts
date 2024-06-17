@@ -11,6 +11,7 @@ import mocked = jest.mocked;
 jest.mock('../../src/common', () => ({
   ...jest.requireActual('../../src/common'),
   getShortGenericInviteLink: jest.fn(),
+  resubscribeUser: jest.fn(),
 }));
 
 jest.mock('../../src/cio', () => ({

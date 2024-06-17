@@ -5,6 +5,7 @@ import { UserMarketingCta } from '../../entity';
 import { logger } from '../../logger';
 import { cachePrefillMarketingCta } from '../../common/redisCache';
 import { sendAnalyticsEvent } from '../../integrations/analytics';
+import { syncSubscription } from '../../common';
 
 const verifyCIOSignature = (
   webhookSigningSecret: string,
@@ -58,6 +59,26 @@ type ReportingEvent = {
     timestamp: number;
   };
 };
+
+async function trackCioEvent(payload: ReportingEvent['Body']): Promise<void> {
+  const dupPayload = { ...payload, data: { ...payload.data } };
+  const userId = dupPayload.data.identifiers.id;
+  // Delete personal data
+  delete dupPayload.data.identifiers;
+  delete dupPayload.data.recipient;
+
+  const event = {
+    event_timestamp: new Date(dupPayload.timestamp * 1000),
+    event_id: dupPayload.event_id,
+    session_id: dupPayload.event_id,
+    visit_id: dupPayload.event_id,
+    user_id: userId,
+    event_name: `${dupPayload.object_type} ${dupPayload.metric}`,
+    app_platform: 'customerio',
+    extra: JSON.stringify(dupPayload.data),
+  };
+  await sendAnalyticsEvent([event]);
+}
 
 export const customerio = async (fastify: FastifyInstance): Promise<void> => {
   fastify.register(
@@ -141,22 +162,14 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
       }
 
       const payload = req.body;
-      const userId = payload.data.identifiers.id;
-      // Delete personal data
-      delete payload.data.identifiers;
-      delete payload.data.recipient;
 
-      const event = {
-        event_timestamp: new Date(payload.timestamp * 1000),
-        event_id: payload.event_id,
-        session_id: payload.event_id,
-        visit_id: payload.event_id,
-        user_id: userId,
-        event_name: `${payload.object_type} ${payload.metric}`,
-        app_platform: 'customerio',
-        extra: JSON.stringify(payload.data),
-      };
-      await sendAnalyticsEvent([event]);
+      // There are multiple events that should trigger the subscription sync
+      if (payload.metric.includes('subscri')) {
+        const con = await createOrGetConnection();
+        await syncSubscription(payload.data.identifiers.id, con);
+      }
+
+      await trackCioEvent(payload);
       if (req.meter) {
         req.meter
           .createCounter('cio_events', {
@@ -164,27 +177,6 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
           })
           .add(1);
       }
-
-      return res.send({ success: true });
-    },
-  });
-
-  fastify.post<ReportingEvent>('/subscription', {
-    config: {
-      rawBody: true,
-    },
-    handler: async (req, res) => {
-      const valid = verifyCIOSignature(
-        process.env.CIO_SUBSCRIPTION_WEBHOOK_SECRET,
-        req,
-      );
-      if (!valid) {
-        req.log.warn('cio subscription sync webhook invalid signature');
-        return res.status(403).send({ error: 'Invalid signature' });
-      }
-
-      const payload = req.body;
-      req.log.info(payload, 'subscription sync data received');
 
       return res.send({ success: true });
     },
