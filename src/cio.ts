@@ -3,6 +3,7 @@ import { ChangeObject } from './types';
 import { User } from './entity';
 import {
   camelCaseToSnakeCase,
+  CioUnsubscribeTopic,
   debeziumTimeToDate,
   getFirstName,
   getShortGenericInviteLink,
@@ -49,7 +50,8 @@ export async function identifyUser(
     referral_link: genericInviteURL,
     cio_subscription_preferences: {
       topics: {
-        topic_4: user.acceptedMarketing,
+        [`topic_${CioUnsubscribeTopic.Marketing}`]: user.acceptedMarketing,
+        [`topic_${CioUnsubscribeTopic.Notifications}`]: user.notificationEmail,
       },
     },
   });

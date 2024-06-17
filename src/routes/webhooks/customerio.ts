@@ -5,6 +5,7 @@ import { UserMarketingCta } from '../../entity';
 import { logger } from '../../logger';
 import { cachePrefillMarketingCta } from '../../common/redisCache';
 import { sendAnalyticsEvent } from '../../integrations/analytics';
+import { syncSubscription } from '../../common';
 
 const verifyCIOSignature = (
   webhookSigningSecret: string,
@@ -49,6 +50,7 @@ type ReportingEvent = {
       };
       delivery_id: string;
       recipient?: string;
+      email_address?: string;
     };
     event_id: string;
     trigger_event_id?: string;
@@ -57,6 +59,32 @@ type ReportingEvent = {
     timestamp: number;
   };
 };
+
+const subscriptionMetrics = [
+  'cio_subscription_preferences_changed',
+  'subscribed',
+  'unsubscribed',
+];
+
+async function trackCioEvent(payload: ReportingEvent['Body']): Promise<void> {
+  const dupPayload = { ...payload, data: { ...payload.data } };
+  const userId = dupPayload.data.identifiers.id;
+  // Delete personal data
+  delete dupPayload.data.identifiers;
+  delete dupPayload.data.recipient;
+
+  const event = {
+    event_timestamp: new Date(dupPayload.timestamp * 1000),
+    event_id: dupPayload.event_id,
+    session_id: dupPayload.event_id,
+    visit_id: dupPayload.event_id,
+    user_id: userId,
+    event_name: `${dupPayload.object_type} ${dupPayload.metric}`,
+    app_platform: 'customerio',
+    extra: JSON.stringify(dupPayload.data),
+  };
+  await sendAnalyticsEvent([event]);
+}
 
 export const customerio = async (fastify: FastifyInstance): Promise<void> => {
   fastify.register(
@@ -140,22 +168,13 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
       }
 
       const payload = req.body;
-      const userId = payload.data.identifiers.id;
-      // Delete personal data
-      delete payload.data.identifiers;
-      delete payload.data.recipient;
 
-      const event = {
-        event_timestamp: new Date(payload.timestamp * 1000),
-        event_id: payload.event_id,
-        session_id: payload.event_id,
-        visit_id: payload.event_id,
-        user_id: userId,
-        event_name: `${payload.object_type} ${payload.metric}`,
-        app_platform: 'customerio',
-        extra: JSON.stringify(payload.data),
-      };
-      await sendAnalyticsEvent([event]);
+      if (subscriptionMetrics.includes(payload.metric)) {
+        const con = await createOrGetConnection();
+        await syncSubscription(payload.data.identifiers.id, con);
+      }
+
+      await trackCioEvent(payload);
       if (req.meter) {
         req.meter
           .createCounter('cio_events', {
