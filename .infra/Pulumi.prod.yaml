@@ -49,6 +49,8 @@ config:
       secure: AAABAKZvBtsE/fIr1Ld414GCnF3y8qPBeIgzwxELX/rwQMxqIgEjX40LbvJM4ofYXTuwTCdXVrjn4rz4/B0fvrORkUIMVRrlX5tyzybTL6a9SMdKV0FKq1em7EuR4lsm
     cioSiteId:
       secure: AAABAACN2IeoykRGHprr1nYvk1snUvT733+1dp8QI7+WchlaErfJJ3X6LLPYe8BthHnpqw==
+    cioSubscriptionWebhookSecret:
+      secure: AAABAOIwF+iLdvBsiwCJM1folNDIvN1SRRZXgvb05CICYVnJ0XgK9PxEMGevld2HkNXM/OLLDA0fLzMgyfzCS3gHBRF8dcScU1Lm6sdF3gBBVEP2QPvFyyeCC/kNx+39
     cioWebhookSecret:
       secure: AAABAGChdDxbV+V6t2pQOYBecCRy36qLbPoyD2Ee3ssIIArwBkjx2NmMPK9SnjLWV5pqg7YWV8EkcB3ldysVDzrTTslLimQH5VtgQ1Fe32uqWUUUrZUJmZlDv9+xgYeo
     cloudinaryUrl:
