@@ -146,7 +146,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
     mostUpvoted: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
       return getUserLeaderboardForStat({
         con: ctx.con,
-        stat: (alias) => `${alias}."postUpvotes" + ${alias}."commentUpvotes"`,
+        stat: 'postUpvotes',
         limit: args.limit,
       });
     },
