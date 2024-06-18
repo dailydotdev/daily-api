@@ -6,8 +6,6 @@ import { User, UserStats, UserStreak } from '../entity';
 import { DataSource, In, Not } from 'typeorm';
 import { getLimit } from '../common';
 
-// TODO: Rename this file
-
 export type GQLUserLeaderboard = {
   score: number;
   user: GQLUser | Promise<GQLUser>;
