@@ -3,7 +3,7 @@ import { Context } from '../Context';
 import { traceResolvers } from './trace';
 import { GQLUser } from './users';
 import { User, UserStats, UserStreak } from '../entity';
-import { DataSource } from 'typeorm';
+import { DataSource, In, Not } from 'typeorm';
 import { getLimit } from '../common';
 
 // TODO: Rename this file
@@ -119,6 +119,9 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
   Query: {
     highestReputation: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
       const users = await ctx.con.getRepository(User).find({
+        where: {
+          id: Not(In(['404'])),
+        },
         order: { reputation: 'DESC' },
         take: getLimit(args),
       });
@@ -127,6 +130,11 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
     },
     longestStreak: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
       const users = await ctx.con.getRepository(UserStreak).find({
+        where: {
+          user: {
+            id: Not(In(['404'])),
+          },
+        },
         order: { currentStreak: 'DESC' },
         take: getLimit(args),
         relations: ['user'],
@@ -160,6 +168,11 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
     },
     mostReadingDays: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
       const users = await ctx.con.getRepository(UserStreak).find({
+        where: {
+          user: {
+            id: Not(In(['404'])),
+          },
+        },
         order: { totalStreak: 'DESC' },
         take: getLimit(args),
         relations: ['user'],
