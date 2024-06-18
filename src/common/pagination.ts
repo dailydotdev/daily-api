@@ -55,3 +55,15 @@ export const getArgsFromAfter = <
     return { ...result, [key]: value };
   }, {});
 };
+
+export const getLimit = ({
+  limit,
+  defaultLimit = 10,
+  max = 100,
+}: {
+  limit: number;
+  defaultLimit?: number;
+  max?: number;
+}) => {
+  return Math.max(Math.min(limit ?? defaultLimit, max), 1);
+};

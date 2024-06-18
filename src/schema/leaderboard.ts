@@ -4,6 +4,7 @@ import { traceResolvers } from './trace';
 import { GQLUser } from './users';
 import { User, UserStats, UserStreak } from '../entity';
 import { DataSource } from 'typeorm';
+import { getLimit } from '../common';
 
 // TODO: Rename this file
 
@@ -119,7 +120,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
     highestReputation: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
       const users = await ctx.con.getRepository(User).find({
         order: { reputation: 'DESC' },
-        take: args.limit,
+        take: getLimit(args),
       });
 
       return users.map((user) => ({ score: user.reputation, user }));
@@ -127,7 +128,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
     longestStreak: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
       const users = await ctx.con.getRepository(UserStreak).find({
         order: { currentStreak: 'DESC' },
-        take: args.limit,
+        take: getLimit(args),
         relations: ['user'],
       });
 
@@ -140,27 +141,27 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       return getUserLeaderboardForStat({
         con: ctx.con,
         stat: 'views',
-        limit: args.limit,
+        limit: getLimit(args),
       });
     },
     mostUpvoted: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
       return getUserLeaderboardForStat({
         con: ctx.con,
         stat: 'postUpvotes',
-        limit: args.limit,
+        limit: getLimit(args),
       });
     },
     mostReferrals: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
       return getUserLeaderboardForStat({
         con: ctx.con,
         stat: 'referrals',
-        limit: args.limit,
+        limit: getLimit(args),
       });
     },
     mostReadingDays: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
       const users = await ctx.con.getRepository(UserStreak).find({
         order: { totalStreak: 'DESC' },
-        take: args.limit,
+        take: getLimit(args),
         relations: ['user'],
       });
 
