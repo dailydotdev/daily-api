@@ -1,3 +1,5 @@
+import { getLimit } from './pagination';
+
 export type SearchSuggestionArgs = {
   query: string;
   version: number;
@@ -10,5 +12,9 @@ export const maxSearchLimit = 100;
 export const getSearchLimit = ({
   limit,
 }: Pick<SearchSuggestionArgs, 'limit'>) => {
-  return Math.max(Math.min(limit ?? defaultSearchLimit, maxSearchLimit), 1);
+  return getLimit({
+    limit,
+    defaultLimit: defaultSearchLimit,
+    max: maxSearchLimit,
+  });
 };

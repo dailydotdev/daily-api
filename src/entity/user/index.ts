@@ -5,3 +5,4 @@ export * from './UserAction';
 export * from './UserStreak';
 export * from './UserPersonalizedDigest';
 export * from './UserMarketingCta';
+export * from './UserStats';

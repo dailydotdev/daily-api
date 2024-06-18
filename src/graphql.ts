@@ -22,6 +22,7 @@ import * as devcards from './schema/devcards';
 import * as urlShortener from './schema/urlShortener';
 import * as authDirective from './directive/auth';
 import * as urlDirective from './directive/url';
+import * as leaderboard from './schema/leaderboard';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import {
   rateLimitTypeDefs,
@@ -56,6 +57,7 @@ export const schema = urlDirective.transformer(
           search.typeDefs,
           devcards.typeDefs,
           urlShortener.typeDefs,
+          leaderboard.typeDefs,
         ],
         resolvers: merge(
           common.resolvers,
@@ -78,6 +80,7 @@ export const schema = urlDirective.transformer(
           search.resolvers,
           devcards.resolvers,
           urlShortener.resolvers,
+          leaderboard.resolvers,
         ),
       }),
     ),
