@@ -40,6 +40,22 @@ const sendRedirectAnalytics = async (
   }
 };
 
+const isAndroid = ({ req }: { req: FastifyRequest }): boolean => {
+  const ua = uaParser(req.headers['user-agent']);
+  const os = ua.os.name.toLowerCase();
+
+  return os.includes('android');
+};
+
+export const redirectToAndroid = ({ req, res }): FastifyReply => {
+  const url = new URL(req.raw.url, 'http://localhost');
+  url.searchParams.append('id', 'dev.daily');
+
+  return res.redirect(
+    `https://play.google.com/store/apps/details${url.search}`,
+  );
+};
+
 const redirectToStore =
   (con: DataSource) =>
   async (req: FastifyRequest, res: FastifyReply): Promise<FastifyReply> => {
@@ -52,19 +68,26 @@ const redirectToStore =
     const browser = ua.browser.name.toLowerCase();
     const url = new URL(req.raw.url, 'http://localhost');
     await sendRedirectAnalytics(con, req, res);
+
+    if (isAndroid({ req })) {
+      return redirectToAndroid({ req, res });
+    }
+
     if (browser.includes('firefox') || browser.includes('mozilla')) {
       return res.redirect(
         `https://addons.mozilla.org/en-US/firefox/addon/daily/${url.search}`,
       );
-    } else if (browser.includes('edge')) {
+    }
+
+    if (browser.includes('edge')) {
       return res.redirect(
         `https://microsoftedge.microsoft.com/addons/detail/daily-20-source-for-bu/cbdhgldgiancdheindpekpcbkccpjaeb${url.search}`,
       );
-    } else {
-      return res.redirect(
-        `https://chrome.google.com/webstore/detail/daily-discover-web-techno/jlmpjdjjbgclbocgajdjefcidcncaied${url.search}`,
-      );
     }
+
+    return res.redirect(
+      `https://chrome.google.com/webstore/detail/daily-discover-web-techno/jlmpjdjjbgclbocgajdjefcidcncaied${url.search}`,
+    );
   };
 
 const redirectToMobile =
@@ -75,18 +98,13 @@ const redirectToMobile =
       return res.redirect('https://app.daily.dev');
     }
 
-    const ua = uaParser(req.headers['user-agent']);
-    const os = ua.os.name.toLowerCase();
     const url = new URL(req.raw.url, 'http://localhost');
     await sendRedirectAnalytics(con, req, res, '/mobile');
-    if (os.includes('android')) {
-      url.searchParams.append('id', 'dev.daily');
-      return res.redirect(
-        `https://play.google.com/store/apps/details${url.search}`,
-      );
-    } else {
-      return res.redirect(`https://app.daily.dev${url.search}`);
+    if (isAndroid({ req })) {
+      return redirectToAndroid({ req, res });
     }
+
+    return res.redirect(`https://app.daily.dev${url.search}`);
   };
 
 const redirectToProfileImage = async (
