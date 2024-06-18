@@ -1,4 +1,4 @@
-import { TrackClient } from 'customerio-node';
+import { CustomerIORequestError, TrackClient } from 'customerio-node';
 import { ChangeObject } from './types';
 import { User } from './entity';
 import {
@@ -42,17 +42,26 @@ export async function identifyUser(
   }
 
   const genericInviteURL = await getShortGenericInviteLink(log, id);
-  await cio.identify(id, {
-    ...camelCaseToSnakeCase(dup),
-    first_name: getFirstName(dup.name),
-    created_at: dateToCioTimestamp(debeziumTimeToDate(dup.createdAt)),
-    updated_at: dateToCioTimestamp(debeziumTimeToDate(dup.updatedAt)),
-    referral_link: genericInviteURL,
-    cio_subscription_preferences: {
-      topics: {
-        [`topic_${CioUnsubscribeTopic.Marketing}`]: user.acceptedMarketing,
-        [`topic_${CioUnsubscribeTopic.Notifications}`]: user.notificationEmail,
+  try {
+    await cio.identify(id, {
+      ...camelCaseToSnakeCase(dup),
+      first_name: getFirstName(dup.name),
+      created_at: dateToCioTimestamp(debeziumTimeToDate(dup.createdAt)),
+      updated_at: dateToCioTimestamp(debeziumTimeToDate(dup.updatedAt)),
+      referral_link: genericInviteURL,
+      cio_subscription_preferences: {
+        topics: {
+          [`topic_${CioUnsubscribeTopic.Marketing}`]: user.acceptedMarketing,
+          [`topic_${CioUnsubscribeTopic.Notifications}`]:
+            user.notificationEmail,
+        },
       },
-    },
-  });
+    });
+  } catch (err) {
+    if (err instanceof CustomerIORequestError && err.statusCode === 400) {
+      log.warn({ err, user }, 'failed to update user in cio');
+      return;
+    }
+    throw err;
+  }
 }
