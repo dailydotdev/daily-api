@@ -279,7 +279,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
     ): Promise<GQLSearchSuggestionsResults> => {
       if (version === 2) {
         const hits = await searchMeili(
-          `q=${query}&attributesToRetrieve=post_id,title`,
+          `q=${query}&attributesToRetrieve=post_id,title&attributesToSearchOn=title`,
         );
         // In case ids is empty make sure the query does not fail
         const idsStr = hits.length
@@ -340,7 +340,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
     ): Promise<ConnectionRelay<GQLPost> & { query: string }> => {
       if (args.version === 2) {
         const meilieSearchRes = await searchMeili(
-          `q=${args.query}&attributesToRetrieve=post_id`,
+          `q=${args.query}&attributesToRetrieve=post_id&attributesToSearchOn=title`,
         );
 
         const meilieArgs: FeedArgs & { ids: string[] } = {
