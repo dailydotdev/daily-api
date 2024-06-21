@@ -1855,6 +1855,19 @@ describe('mutation updateUserProfile', () => {
     );
   });
 
+  it('should not allow invalid timezone', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { data: { timezone: 'Europe/Trondheim' } },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
   it('should update user profile', async () => {
     loggedUser = '1';
 
