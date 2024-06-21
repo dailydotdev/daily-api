@@ -377,7 +377,7 @@ describe('mutation setKeywordAsSynonym', () => {
   });
 });
 
-describe('flags field', () => {
+describe('keywords flags field', () => {
   const QUERY = `{
     keyword(value: "react") {
       flags {

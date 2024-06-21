@@ -150,7 +150,6 @@ beforeEach(async () => {
       type: PostRelationType.Collection,
     },
   ]);
-
   await saveFixtures(con, NotificationPreferencePost, [
     {
       userId: '1',
@@ -188,7 +187,7 @@ describe('collectionUpdated worker', () => {
     expect(registeredWorker).toBeDefined();
   });
 
-  it('should notifiy when a collection is updated', async () => {
+  it('should notify when a collection is updated', async () => {
     const actual = await invokeNotificationWorker(worker, {
       post: {
         id: 'c1',
