@@ -51,7 +51,7 @@ Object {
   "name": "Ido",
   "notificationEmail": true,
   "permalink": "http://localhost:5002/aaa1",
-  "timezone": "Asia/Manila",
+  "timezone": "Europe/London",
   "twitter": null,
   "username": "aaa1",
 }

@@ -84,6 +84,7 @@ export interface GQLUpdateUserInput {
   portfolio?: string;
   acceptedMarketing?: boolean;
   notificationEmail?: boolean;
+  timezone?: string;
   infoConfirmed?: boolean;
   experienceLevel?: string;
 }

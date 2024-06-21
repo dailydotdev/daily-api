@@ -1855,12 +1855,25 @@ describe('mutation updateUserProfile', () => {
     );
   });
 
+  it('should not allow invalid timezone', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { data: { timezone: 'Europe/Trondheim' } },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
   it('should update user profile', async () => {
     loggedUser = '1';
 
     const repo = con.getRepository(User);
     const user = await repo.findOneBy({ id: loggedUser });
-    const timezone = 'Asia/Manila';
+    const timezone = 'Europe/London';
     const res = await client.mutate(MUTATION, {
       variables: { data: { timezone, username: 'aaa1', name: 'Ido' } },
     });
