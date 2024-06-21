@@ -1,11 +1,15 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import createOrGetConnection from '../../db';
-import { UserMarketingCta } from '../../entity';
+import { PostOrigin, UserMarketingCta } from '../../entity';
 import { logger } from '../../logger';
 import { cachePrefillMarketingCta } from '../../common/redisCache';
 import { sendAnalyticsEvent } from '../../integrations/analytics';
-import { syncSubscription } from '../../common';
+import {
+  notifyContentRequested,
+  notifyUserPostPromoted, ONE_WEEK_IN_SECONDS,
+  syncSubscription,
+} from '../../common';
 
 const verifyCIOSignature = (
   webhookSigningSecret: string,
@@ -36,6 +40,13 @@ type MarketingCtaPayload = {
   Body: {
     userId: string;
     marketingCtaId: string;
+  };
+};
+
+type PromotedPostPayload = {
+  Body: {
+    userId: string;
+    postId: string;
   };
 };
 
@@ -152,6 +163,28 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
     },
     { prefix: '/marketing_cta' },
   );
+
+  fastify.post<PromotedPostPayload>('/promote', {
+    config: {
+      rawBody: true,
+    },
+    handler: async (req, res) => {
+      try {
+        const { userId, postId } = req.body;
+
+        const expirationPeriod = ONE_WEEK_IN_SECONDS * 1000 // maybe need to make it configurable
+        const currentDate = new Date();
+        const validUntil = new Date(currentDate.getTime() + expirationPeriod);
+
+        await notifyUserPostPromoted(logger, userId, postId, validUntil.toISOString());
+
+        return res.send({ success: true });
+      } catch (err) {
+        logger.error({ err }, 'Error processing CIO webhook');
+        return res.status(400).send({ success: false });
+      }
+    },
+  });
 
   fastify.post<ReportingEvent>('/reporting', {
     config: {
