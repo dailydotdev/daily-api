@@ -1860,7 +1860,7 @@ describe('mutation updateUserProfile', () => {
 
     const repo = con.getRepository(User);
     const user = await repo.findOneBy({ id: loggedUser });
-    const timezone = 'Asia/Manila';
+    const timezone = 'Europe/London';
     const res = await client.mutate(MUTATION, {
       variables: { data: { timezone, username: 'aaa1', name: 'Ido' } },
     });
