@@ -1,1 +1,42 @@
-[{"campaignId":"card-a1b1","createdAt":"2024-03-21T11:40:09.970Z","variant":"card","flags":{"image":"https://res.cloudinary.com/daily-now/image/upload/s--P4t4XyoV--/f_auto/v1710058033/public/Placeholder%2001","title":"Introducing the Daily.dev browser extension","ctaUrl":"https://daily.dev/","ctaText":"Install now","tagText":"New release","tagColor":"avocado","description":"Get the latest dev news and articles right in your browser."}},{"campaignId":"popover-448b","createdAt":"2024-03-21T11:40:09.970Z","variant":"popover","flags":{"image":"https://res.cloudinary.com/daily-now/image/upload/s--qPvKM23u--/f_auto/v1710743237/public/Placeholder%2009","title":"Introducing the Daily.dev browser extension","ctaUrl":"https://daily.dev/","ctaText":"Install now","tagText":"New release","tagColor":"avocado","description":"Get the latest dev news and articles right in your browser."}}]
+[
+  {
+    "campaignId": "card-a1b1",
+    "createdAt": "2024-03-21T11:40:09.970Z",
+    "variant": "card",
+    "flags": {
+      "image": "https://res.cloudinary.com/daily-now/image/upload/s--P4t4XyoV--/f_auto/v1710058033/public/Placeholder%2001",
+      "title": "Introducing the Daily.dev browser extension",
+      "ctaUrl": "https://daily.dev/",
+      "ctaText": "Install now",
+      "tagText": "New release",
+      "tagColor": "avocado",
+      "description": "Get the latest dev news and articles right in your browser."
+    }
+  },
+  {
+    "campaignId": "popover-448b",
+    "createdAt": "2024-03-21T11:40:09.970Z",
+    "variant": "popover",
+    "flags": {
+      "image": "https://res.cloudinary.com/daily-now/image/upload/s--qPvKM23u--/f_auto/v1710743237/public/Placeholder%2009",
+      "title": "Introducing the Daily.dev browser extension",
+      "ctaUrl": "https://daily.dev/",
+      "ctaText": "Install now",
+      "tagText": "New release",
+      "tagColor": "avocado",
+      "description": "Get the latest dev news and articles right in your browser."
+    }
+  },
+  {
+    "campaignId": "popover-small-448b",
+    "createdAt": "2024-03-21T11:40:09.970Z",
+    "variant": "popover_small",
+    "flags": {
+      "image": "https://res.cloudinary.com/daily-now/image/upload/s--qPvKM23u--/f_auto/v1710743237/public/Placeholder%2002",
+      "title": "Read on the go, with our mobile app!",
+      "ctaUrl": "https://daily.dev/",
+      "ctaText": "Download app",
+      "description": "Scan to get our mobile app, and make reading a habit!"
+    }
+  }
+]

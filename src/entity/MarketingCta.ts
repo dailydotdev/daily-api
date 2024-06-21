@@ -1,6 +1,6 @@
 import { Column, Entity, PrimaryColumn } from 'typeorm';
 
-export type MarketingCtaVariant = 'card' | 'popover';
+export type MarketingCtaVariant = 'card' | 'popover' | 'popover_small';
 
 export type MarketingCtaFlags = {
   title: string;
