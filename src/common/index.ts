@@ -18,4 +18,3 @@ export * from './personalizedDigest';
 export * from './vote';
 export * from './feed';
 export * from './constants';
-export * from './timezone';

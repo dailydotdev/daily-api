@@ -32,7 +32,7 @@ import {
 import { generateTrackingId } from '../../ids';
 import { UserStreak } from './UserStreak';
 import { DEFAULT_TIMEZONE } from '../../types';
-import { validateValidTimeZone } from '../../common';
+import { validateValidTimeZone } from '../../common/timezone';
 
 @Entity()
 @Index('IDX_user_lowerusername_username', { synchronize: false })

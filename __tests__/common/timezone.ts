@@ -1,4 +1,4 @@
-import { validateValidTimeZone } from '../../src/common';
+import { validateValidTimeZone } from '../../src/common/timezone';
 
 describe('validateValidTimeZone tests', () => {
   it('should return true for valid time zones', () => {
