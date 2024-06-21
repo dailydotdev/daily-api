@@ -32,6 +32,7 @@ import {
 import { generateTrackingId } from '../../ids';
 import { UserStreak } from './UserStreak';
 import { DEFAULT_TIMEZONE } from '../../types';
+import { validateValidTimeZone } from '../../common';
 
 @Entity()
 @Index('IDX_user_lowerusername_username', { synchronize: false })
@@ -396,6 +397,15 @@ export const validateUserUpdate = async (
       'username',
       entityManager,
     );
+  }
+
+  if ('timezone' in data) {
+    const isValidTimeZone = validateValidTimeZone(data.timezone);
+    if (!isValidTimeZone) {
+      throw new ValidationError(
+        JSON.stringify({ timezone: 'invalid timezone' }),
+      );
+    }
   }
 
   ['name', 'twitter', 'github', 'hashnode'].forEach((key) => {
