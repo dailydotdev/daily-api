@@ -28,7 +28,7 @@ const verifyCIOSignature = (
 
   const hash = hmac.digest();
   if (!timingSafeEqual(hash, Buffer.from(signature, 'hex'))) {
-    logger.debug('CIO Signature didn\'t match');
+    logger.debug("CIO Signature didn't match");
     return false;
   }
 
@@ -180,7 +180,7 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
           logger,
           userId,
           postId,
-          validUntil.toISOString()
+          validUntil.toISOString(),
         );
 
         return res.send({ success: true });
