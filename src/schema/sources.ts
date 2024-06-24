@@ -1091,7 +1091,6 @@ const getFormattedSources = async <Entity>(
         'ts',
         `ts."sourceId" = ${builder.alias}.id`,
       )
-      .where({ active: true, type: SourceType.Machine })
       .orderBy('r', 'DESC')
       .limit(limit);
     return builder;
