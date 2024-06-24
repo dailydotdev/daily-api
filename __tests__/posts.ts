@@ -3690,7 +3690,7 @@ describe('downvoted field', () => {
   });
 });
 
-describe('flags field', () => {
+describe('posts flags field', () => {
   const QUERY = `{
     post(id: "p1") {
       flags {

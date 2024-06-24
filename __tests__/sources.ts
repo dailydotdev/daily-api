@@ -299,7 +299,7 @@ describe('query trendingSources', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchObject({
       trendingSources: [
-        { id: 'a', name: 'A', image: 'http://image.com/a', public: null },
+        { id: 'a', name: 'A', image: 'http://image.com/a', public: true },
       ],
     });
   });
@@ -351,7 +351,7 @@ describe('query popularSources', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchObject({
       popularSources: [
-        { id: 'a', name: 'A', image: 'http://image.com/a', public: null },
+        { id: 'a', name: 'A', image: 'http://image.com/a', public: true },
       ],
     });
   });
@@ -404,7 +404,7 @@ describe('query topVideoSources', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchObject({
       topVideoSources: [
-        { id: 'a', name: 'A', image: 'http://image.com/a', public: null },
+        { id: 'a', name: 'A', image: 'http://image.com/a', public: true },
       ],
     });
   });

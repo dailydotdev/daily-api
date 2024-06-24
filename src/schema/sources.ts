@@ -65,6 +65,7 @@ import { SourceTagView } from '../entity/SourceTagView';
 import { TrendingSource } from '../entity/TrendingSource';
 import { PopularSource } from '../entity/PopularSource';
 import { PopularVideoSource } from '../entity/PopularVideoSource';
+import { EntityTarget } from 'typeorm/common/EntityTarget';
 
 export interface GQLSource {
   id: string;
@@ -1075,20 +1076,25 @@ const togglePinnedPosts = async (
   return { _: true };
 };
 
-const getFormattedSources = async (entity, args, ctx): Promise<GQLSource[]> => {
+const getFormattedSources = async <Entity>(
+  entity: EntityTarget<Entity>,
+  args: { limit?: number },
+  ctx: Context,
+  info: GraphQLResolveInfo,
+): Promise<GQLSource[]> => {
   const { limit = 10 } = args;
-  /*
-   * This is not best practice, but due to missing join/basetable support for graphORM we decided to leave it like this to ship faster
-   * If you ever need child entities/graphORM magic this needs to change
-   */
-  return await ctx.con
-    .createQueryBuilder()
-    .select('s.*')
-    .from(entity, 'ts')
-    .innerJoin(Source, 's', 'ts."sourceId" = s.id')
-    .orderBy('r', 'DESC')
-    .limit(limit)
-    .getRawMany();
+
+  return await graphorm.query(ctx, info, (builder) => {
+    builder.queryBuilder
+      .innerJoin(
+        ctx.con.getMetadata(entity).tableName,
+        'ts',
+        `ts."sourceId" = ${builder.alias}.id`,
+      )
+      .orderBy('r', 'DESC')
+      .limit(limit);
+    return builder;
+  });
 };
 
 const paginateSourceMembers = (
@@ -1268,12 +1274,12 @@ export const resolvers: IResolvers<any, Context> = {
         return builder;
       });
     },
-    trendingSources: async (_, args, ctx): Promise<GQLSource[]> =>
-      getFormattedSources(TrendingSource, args, ctx),
-    popularSources: async (_, args, ctx): Promise<GQLSource[]> =>
-      getFormattedSources(PopularSource, args, ctx),
-    topVideoSources: async (_, args, ctx): Promise<GQLSource[]> =>
-      getFormattedSources(PopularVideoSource, args, ctx),
+    trendingSources: async (_, args, ctx, info): Promise<GQLSource[]> =>
+      getFormattedSources(TrendingSource, args, ctx, info),
+    popularSources: async (_, args, ctx, info): Promise<GQLSource[]> =>
+      getFormattedSources(PopularSource, args, ctx, info),
+    topVideoSources: async (_, args, ctx, info): Promise<GQLSource[]> =>
+      getFormattedSources(PopularVideoSource, args, ctx, info),
     sourceByFeed: async (
       _,
       { feed }: { feed: string },
