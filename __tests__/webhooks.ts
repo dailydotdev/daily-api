@@ -443,7 +443,9 @@ describe('POST /webhooks/customerio/promote_post', () => {
     expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)[0]).toEqual(
       'api.v1.user-post-promoted',
     );
-    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(2)[0]).toMatchObject({
+    expect(
+      jest.mocked(triggerTypedEvent).mock.calls[0].slice(2)[0],
+    ).toMatchObject({
       userId: 'abc',
       postId: 'def',
     });
