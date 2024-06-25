@@ -38,8 +38,8 @@ beforeEach(async () => {
   await saveFixtures(con, MarketingCta, marketingCtaFixture);
 });
 
-jest.mock('../../src/common', () => ({
-  ...(jest.requireActual('../../src/common') as Record<string, unknown>),
+jest.mock('../src/common', () => ({
+  ...(jest.requireActual('../src/common') as Record<string, unknown>),
   triggerTypedEvent: jest.fn(),
 }));
 
