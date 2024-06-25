@@ -1642,8 +1642,8 @@ describe('query randomDiscussedPosts', () => {
 
   beforeEach(async () => {
     const repo = con.getRepository(Post);
-    await repo.update({ id: 'p1' }, { discussionScore: 20, comments: 10 });
-    await repo.update({ id: 'p3' }, { discussionScore: 50, comments: 15 });
+    await repo.update({ id: 'p1' }, { createdAt: new Date(), comments: 10 });
+    await repo.update({ id: 'p3' }, { createdAt: new Date(), comments: 15 });
   });
 
   it('should return random discussed posts', async () => {

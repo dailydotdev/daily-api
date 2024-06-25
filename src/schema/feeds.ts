@@ -1643,8 +1643,8 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         alias,
       ) => {
         let newBuilder = builder
-          .andWhere(`${alias}."discussionScore" > 0`)
-          .andWhere(`${alias}."comments" >= 4`);
+          .andWhere(`${alias}."createdAt" > now() - interval '3 month'`)
+          .andWhere(`${alias}."comments" >= 10`);
         if (post) {
           newBuilder = newBuilder.andWhere(`${alias}."id" != :postId`, {
             postId: post,

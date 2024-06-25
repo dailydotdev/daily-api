@@ -32,10 +32,6 @@ export const crons: Cron[] = [
     schedule: '12 2 * * *',
   },
   {
-    name: 'update-discussion-score',
-    schedule: '23 */1 * * *',
-  },
-  {
     name: 'export-to-tinybird',
     schedule: '* * * * *',
   },
