@@ -5,7 +5,7 @@ import { UserMarketingCta } from '../../entity';
 import { logger } from '../../logger';
 import { cachePrefillMarketingCta } from '../../common/redisCache';
 import { sendAnalyticsEvent } from '../../integrations/analytics';
-import { notifyUserPostPromoted, syncSubscription } from '../../common';
+import { syncSubscription, triggerTypedEvent } from '../../common';
 import { addDays } from 'date-fns';
 
 const verifyCIOSignature = (
@@ -177,12 +177,11 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
 
         const validUntil = addDays(new Date(), 7);
 
-        await notifyUserPostPromoted(
-          logger,
-          userId,
-          postId,
-          validUntil.toISOString(),
-        );
+        await triggerTypedEvent(logger, 'api.v1.user-post-promoted', {
+          userId: userId,
+          postId: postId,
+          validUntil: validUntil.toISOString(),
+        });
 
         return res.send({ success: true });
       } catch (err) {

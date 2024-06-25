@@ -76,7 +76,6 @@ const postCollectionUpdatedTopic = pubsub.topic(
 );
 const userReadmeUpdatedTopic = pubsub.topic('api.v1.user-readme-updated');
 const userReputationUpdatedTopic = pubsub.topic('user-reputation-updated');
-const userPostPromotedTopic = pubsub.topic('api.v1.user-post-promoted');
 
 export enum NotificationReason {
   New = 'new',
@@ -476,15 +475,3 @@ export const workerSubscribe = (
     ),
   );
 };
-
-export const notifyUserPostPromoted = async (
-  log: EventLogger,
-  userId: string,
-  postId: string,
-  validUntil: string, // ISO 8601 str
-): Promise<void> =>
-  publishEvent(log, userPostPromotedTopic, {
-    userId,
-    postId,
-    validUntil,
-  });
