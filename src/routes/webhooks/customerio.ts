@@ -5,11 +5,8 @@ import { UserMarketingCta } from '../../entity';
 import { logger } from '../../logger';
 import { cachePrefillMarketingCta } from '../../common/redisCache';
 import { sendAnalyticsEvent } from '../../integrations/analytics';
-import {
-  notifyUserPostPromoted,
-  ONE_WEEK_IN_SECONDS,
-  syncSubscription,
-} from '../../common';
+import { notifyUserPostPromoted, syncSubscription } from '../../common';
+import { addDays } from 'date-fns';
 
 const verifyCIOSignature = (
   webhookSigningSecret: string,
@@ -164,26 +161,21 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
     { prefix: '/marketing_cta' },
   );
 
-  fastify.post<PromotedPostPayload>('/promote', {
+  fastify.post<PromotedPostPayload>('/promote_post', {
     config: {
       rawBody: true,
     },
     handler: async (req, res) => {
-      const valid = verifyCIOSignature(
-        process.env.CIO_REPORTING_WEBHOOK_SECRET,
-        req,
-      );
+      const valid = verifyCIOSignature(process.env.CIO_WEBHOOK_SECRET, req);
       if (!valid) {
-        req.log.warn('cio reporting webhook invalid signature');
+        req.log.warn('cio promote post webhook invalid signature');
         return res.status(403).send({ error: 'Invalid signature' });
       }
 
       try {
         const { userId, postId } = req.body;
 
-        const expirationPeriod = ONE_WEEK_IN_SECONDS * 1000; // maybe need to make it configurable
-        const currentDate = new Date();
-        const validUntil = new Date(currentDate.getTime() + expirationPeriod);
+        const validUntil = addDays(new Date(), 7);
 
         await notifyUserPostPromoted(
           logger,

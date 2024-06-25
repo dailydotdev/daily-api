@@ -392,23 +392,20 @@ describe('POST /webhooks/customerio/reporting', () => {
   });
 });
 
-describe('POST /webhooks/customerio/promote', () => {
+describe('POST /webhooks/customerio/promote_post', () => {
   const timestamp = Math.floor(Date.now() / 1000);
   const payload = {
     userId: 'abc',
     postId: 'def',
   };
 
-  const hmac = createHmac(
-    'sha256',
-    process.env.CIO_REPORTING_WEBHOOK_SECRET as string,
-  );
+  const hmac = createHmac('sha256', process.env.CIO_WEBHOOK_SECRET as string);
   hmac.update(`v0:${timestamp}:${JSON.stringify(payload)}`);
   const hash = hmac.digest().toString('hex');
 
   it('should return 403 when no x-cio-timestamp header', async () => {
     const { body } = await request(app.server)
-      .post('/webhooks/customerio/promote')
+      .post('/webhooks/customerio/promote_post')
       .set('x-cio-signature', '123')
       .send(payload)
       .expect(403);
@@ -418,7 +415,7 @@ describe('POST /webhooks/customerio/promote', () => {
 
   it('should return 403 when no x-cio-signature header', async () => {
     const { body } = await request(app.server)
-      .post('/webhooks/customerio/promote')
+      .post('/webhooks/customerio/promote_post')
       .set('x-cio-timestamp', '123')
       .send(payload)
       .expect(403);
@@ -428,7 +425,7 @@ describe('POST /webhooks/customerio/promote', () => {
 
   it('should return 200 when signature is valid', async () => {
     const { body } = await request(app.server)
-      .post('/webhooks/customerio/promote')
+      .post('/webhooks/customerio/promote_post')
       .set('x-cio-timestamp', timestamp.toString())
       .set('x-cio-signature', hash)
       .send(payload)
