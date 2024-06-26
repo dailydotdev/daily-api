@@ -261,6 +261,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.squad-public-request',
     subscription: 'api.v1.squad-public-request-notification',
   },
+  {
+    topic: 'api.v1.user-streak-updated',
+    subscription: 'api.user-streak-updated-cio',
+  },
 ];
 
 export const personalizedDigestWorkers = [
