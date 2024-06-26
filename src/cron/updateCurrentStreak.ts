@@ -1,11 +1,17 @@
 import { Cron } from './cron';
 import { User, UserStreak } from '../entity';
-import { checkAndClearUserStreak } from '../common';
+import { checkUserStreak } from '../common';
+import { opentelemetry } from '../telemetry/opentelemetry';
 
 const cron: Cron = {
   name: 'update-current-streak',
   handler: async (con, logger) => {
     try {
+      const streakCounter = opentelemetry.metrics
+        .getMeter('api-bg')
+        .createCounter('streak_update', {
+          description: 'How many streaks get updated',
+        });
       await con.transaction(async (entityManager): Promise<void> => {
         const usersPastStreakTime = await entityManager
           .createQueryBuilder()
@@ -20,15 +26,28 @@ const cron: Cron = {
           )
           .getRawMany();
 
-        await Promise.all(
-          usersPastStreakTime.map(async (userStreak) => {
-            return await checkAndClearUserStreak(
-              entityManager,
-              null,
-              userStreak,
-            );
-          }),
-        );
+        const userIdsToReset = [];
+        usersPastStreakTime.map(async (userStreak) => {
+          if (checkUserStreak(userStreak)) {
+            userIdsToReset.push(userStreak.userId);
+          }
+        });
+
+        if (!userIdsToReset.length) {
+          logger.info('no user streaks to reset');
+          return;
+        }
+
+        const updateResult = await con
+          .createQueryBuilder()
+          .update(UserStreak)
+          .set({ currentStreak: 0 })
+          .where('userId IN (:...userIds)', { userIds: userIdsToReset })
+          .execute();
+        streakCounter.add(usersPastStreakTime.length, {
+          type: 'users_in_cron',
+        });
+        streakCounter.add(updateResult.affected, { type: 'users_updated' });
       });
       logger.info('updated current streak cron');
     } catch (err) {

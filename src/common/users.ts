@@ -395,12 +395,8 @@ export const shouldResetStreak = (day: number, difference: number) => {
   );
 };
 
-export const checkAndClearUserStreak = async (
-  con: DataSource | EntityManager,
-  info: GraphQLResolveInfo,
-  streak: GQLUserStreakTz,
-): Promise<boolean> => {
-  const { lastViewAtTz: lastViewAt, timezone, userId } = streak;
+export const checkUserStreak = (streak: GQLUserStreakTz): boolean => {
+  const { lastViewAtTz: lastViewAt, timezone } = streak;
 
   if (!lastViewAt) {
     return false;
@@ -412,8 +408,16 @@ export const checkAndClearUserStreak = async (
   const day = today.getDay();
   const difference = differenceInDays(today, lastViewAt);
 
-  if (shouldResetStreak(day, difference)) {
-    return clearUserStreak(con, userId);
+  return shouldResetStreak(day, difference);
+};
+
+export const checkAndClearUserStreak = async (
+  con: DataSource | EntityManager,
+  info: GraphQLResolveInfo,
+  streak: GQLUserStreakTz,
+): Promise<boolean> => {
+  if (checkUserStreak(streak)) {
+    return clearUserStreak(con, streak.userId);
   }
 
   return false;

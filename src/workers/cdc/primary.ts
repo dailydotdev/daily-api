@@ -795,7 +795,7 @@ const onUserStreakChange = async (
 ) => {
   if (data.payload.op === 'u') {
     await triggerTypedEvent(logger, 'api.v1.user-streak-updated', {
-      request: data.payload.after,
+      streak: data.payload.after,
     });
   }
 };
