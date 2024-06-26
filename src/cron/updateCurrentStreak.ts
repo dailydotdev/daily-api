@@ -1,6 +1,6 @@
 import { Cron } from './cron';
 import { User, UserStreak } from '../entity';
-import { checkUserStreak } from '../common';
+import { checkUserStreak, clearUserStreak } from '../common';
 import { opentelemetry } from '../telemetry/opentelemetry';
 
 const cron: Cron = {
@@ -27,7 +27,7 @@ const cron: Cron = {
           .getRawMany();
 
         const userIdsToReset = [];
-        usersPastStreakTime.map(async (userStreak) => {
+        usersPastStreakTime.forEach((userStreak) => {
           if (checkUserStreak(userStreak)) {
             userIdsToReset.push(userStreak.userId);
           }
@@ -38,16 +38,14 @@ const cron: Cron = {
           return;
         }
 
-        const updateResult = await con
-          .createQueryBuilder()
-          .update(UserStreak)
-          .set({ currentStreak: 0 })
-          .where('userId IN (:...userIds)', { userIds: userIdsToReset })
-          .execute();
+        const clearedStreaks = await clearUserStreak(
+          entityManager,
+          userIdsToReset,
+        );
         streakCounter.add(usersPastStreakTime.length, {
           type: 'users_in_cron',
         });
-        streakCounter.add(updateResult.affected, { type: 'users_updated' });
+        streakCounter.add(clearedStreaks, { type: 'users_updated' });
       });
       logger.info('updated current streak cron');
     } catch (err) {

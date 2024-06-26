@@ -375,13 +375,16 @@ export const MISSED_LIMIT = 1;
 
 export const clearUserStreak = async (
   con: DataSource | EntityManager,
-  userId,
-): Promise<boolean> => {
+  userIds: string[],
+): Promise<number> => {
   const result = await con
-    .getRepository(UserStreak)
-    .update({ userId }, { currentStreak: 0, updatedAt: new Date() });
+    .createQueryBuilder()
+    .update(UserStreak)
+    .set({ currentStreak: 0, updatedAt: new Date() })
+    .where('userId IN (:...userIds)', { userIds })
+    .execute();
 
-  return result.affected > 0;
+  return result.affected;
 };
 
 // Computes whether we should reset user streak
@@ -417,7 +420,8 @@ export const checkAndClearUserStreak = async (
   streak: GQLUserStreakTz,
 ): Promise<boolean> => {
   if (checkUserStreak(streak)) {
-    return clearUserStreak(con, streak.userId);
+    const result = await clearUserStreak(con, [streak.userId]);
+    return result > 0;
   }
 
   return false;
