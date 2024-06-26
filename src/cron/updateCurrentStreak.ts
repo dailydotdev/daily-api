@@ -5,7 +5,6 @@ import { checkAndClearUserStreak } from '../common';
 const cron: Cron = {
   name: 'update-current-streak',
   handler: async (con, logger) => {
-    console.log('opened cron');
     try {
       await con.transaction(async (entityManager): Promise<void> => {
         const usersPastStreakTime = await entityManager
