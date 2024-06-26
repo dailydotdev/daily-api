@@ -7,7 +7,7 @@ export const webhooks = Object.freeze({
   content: process.env.SLACK_WEBHOOK
     ? new IncomingWebhook(process.env.SLACK_WEBHOOK)
     : nullWebhook,
-  comments: process.env.SLACK_WEBHOOK
+  comments: process.env.SLACK_COMMENTS_WEBHOOK
     ? new IncomingWebhook(process.env.SLACK_COMMENTS_WEBHOOK)
     : nullWebhook,
 });
