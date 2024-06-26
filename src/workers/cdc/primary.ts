@@ -793,6 +793,8 @@ const onUserStreakChange = async (
   logger: FastifyBaseLogger,
   data: ChangeMessage<UserStreak>,
 ) => {
+  return;
+  // Temporary turned off to prevent load
   if (data.payload.op === 'u') {
     await triggerTypedEvent(logger, 'api.v1.user-streak-updated', {
       streak: data.payload.after,
