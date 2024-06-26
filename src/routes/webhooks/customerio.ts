@@ -5,7 +5,8 @@ import { UserMarketingCta } from '../../entity';
 import { logger } from '../../logger';
 import { cachePrefillMarketingCta } from '../../common/redisCache';
 import { sendAnalyticsEvent } from '../../integrations/analytics';
-import { syncSubscription } from '../../common';
+import { syncSubscription, triggerTypedEvent } from '../../common';
+import { addDays } from 'date-fns';
 
 const verifyCIOSignature = (
   webhookSigningSecret: string,
@@ -36,6 +37,13 @@ type MarketingCtaPayload = {
   Body: {
     userId: string;
     marketingCtaId: string;
+  };
+};
+
+type PromotedPostPayload = {
+  Body: {
+    userId: string;
+    postId: string;
   };
 };
 
@@ -152,6 +160,36 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
     },
     { prefix: '/marketing_cta' },
   );
+
+  fastify.post<PromotedPostPayload>('/promote_post', {
+    config: {
+      rawBody: true,
+    },
+    handler: async (req, res) => {
+      const valid = verifyCIOSignature(process.env.CIO_WEBHOOK_SECRET, req);
+      if (!valid) {
+        req.log.warn('cio promote post webhook invalid signature');
+        return res.status(403).send({ error: 'Invalid signature' });
+      }
+
+      try {
+        const { userId, postId } = req.body;
+
+        const validUntil = addDays(new Date(), 7);
+
+        await triggerTypedEvent(logger, 'api.v1.user-post-promoted', {
+          userId: userId,
+          postId: postId,
+          validUntil: validUntil.toISOString(),
+        });
+
+        return res.send({ success: true });
+      } catch (err) {
+        logger.error({ err }, 'Error processing CIO webhook');
+        return res.status(400).send({ success: false });
+      }
+    },
+  });
 
   fastify.post<ReportingEvent>('/reporting', {
     config: {

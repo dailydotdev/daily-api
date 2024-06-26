@@ -61,6 +61,11 @@ export type PubSubSchema = {
     request: ChangeObject<SquadPublicRequest>;
   };
   'api.v1.content-updated': ContentUpdatedMessage;
+  'api.v1.user-post-promoted': {
+    postId: string;
+    userId: string;
+    validUntil: string; // ISO 8601 str
+  };
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(

@@ -15,6 +15,7 @@ import {
 } from '../src/redis';
 import { StorageKey, StorageTopic, generateStorageKey } from '../src/config';
 import nock from 'nock';
+import { triggerTypedEvent } from '../src/common';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -36,6 +37,11 @@ beforeEach(async () => {
   await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, MarketingCta, marketingCtaFixture);
 });
+
+jest.mock('../src/common', () => ({
+  ...(jest.requireActual('../src/common') as Record<string, unknown>),
+  triggerTypedEvent: jest.fn(),
+}));
 
 describe('POST /webhooks/customerio/marketing_cta', () => {
   const timestamp = Math.floor(Date.now() / 1000);
@@ -389,5 +395,59 @@ describe('POST /webhooks/customerio/reporting', () => {
       .expect(200);
 
     expect(body.success).toEqual(true);
+  });
+});
+
+describe('POST /webhooks/customerio/promote_post', () => {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const payload = {
+    userId: 'abc',
+    postId: 'def',
+  };
+
+  const hmac = createHmac('sha256', process.env.CIO_WEBHOOK_SECRET as string);
+  hmac.update(`v0:${timestamp}:${JSON.stringify(payload)}`);
+  const hash = hmac.digest().toString('hex');
+
+  it('should return 403 when no x-cio-timestamp header', async () => {
+    const { body } = await request(app.server)
+      .post('/webhooks/customerio/promote_post')
+      .set('x-cio-signature', '123')
+      .send(payload)
+      .expect(403);
+
+    expect(body.error).toEqual('Invalid signature');
+  });
+
+  it('should return 403 when no x-cio-signature header', async () => {
+    const { body } = await request(app.server)
+      .post('/webhooks/customerio/promote_post')
+      .set('x-cio-timestamp', '123')
+      .send(payload)
+      .expect(403);
+
+    expect(body.error).toEqual('Invalid signature');
+  });
+
+  it('should return 200 when signature is valid', async () => {
+    const { body } = await request(app.server)
+      .post('/webhooks/customerio/promote_post')
+      .set('x-cio-timestamp', timestamp.toString())
+      .set('x-cio-signature', hash)
+      .send(payload)
+      .expect(200);
+
+    expect(body.success).toEqual(true);
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)[0]).toEqual(
+      'api.v1.user-post-promoted',
+    );
+    expect(
+      jest.mocked(triggerTypedEvent).mock.calls[0].slice(2)[0],
+    ).toMatchObject({
+      userId: 'abc',
+      postId: 'def',
+    });
   });
 });
