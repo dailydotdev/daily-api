@@ -1,6 +1,6 @@
 import { messageToJson, Worker } from './worker';
 import { Post } from '../entity';
-import { getDiscussionLink, webhook } from '../common';
+import { getDiscussionLink, webhooks } from '../common';
 import { ChangeObject } from '../types';
 
 interface Data {
@@ -16,7 +16,7 @@ const worker: Worker = {
       return;
     }
     try {
-      await webhook.send({
+      await webhooks.content.send({
         text: 'New community link!',
         attachments: [
           {
