@@ -1,5 +1,5 @@
 import { ChangeObject } from '../types';
-import { SourceRequest, SquadPublicRequest, User } from '../entity';
+import { SourceRequest, SquadPublicRequest, User, UserStreak } from '../entity';
 import {
   EventLogger,
   NotificationReason,
@@ -65,6 +65,9 @@ export type PubSubSchema = {
     postId: string;
     userId: string;
     validUntil: string; // ISO 8601 str
+  };
+  'api.v1.user-streak-updated': {
+    request: ChangeObject<UserStreak>;
   };
 };
 

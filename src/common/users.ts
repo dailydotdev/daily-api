@@ -4,7 +4,6 @@ import { differenceInDays, isSameDay } from 'date-fns';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
-import { Context } from '../Context';
 import { GraphQLResolveInfo } from 'graphql';
 import { utcToZonedTime } from 'date-fns-tz';
 
@@ -397,11 +396,11 @@ export const shouldResetStreak = (day: number, difference: number) => {
 };
 
 export const checkAndClearUserStreak = async (
-  ctx: Context,
+  con: DataSource | EntityManager,
   info: GraphQLResolveInfo,
   streak: GQLUserStreakTz,
 ): Promise<boolean> => {
-  const { lastViewAtTz: lastViewAt, timezone } = streak;
+  const { lastViewAtTz: lastViewAt, timezone, userId } = streak;
 
   if (!lastViewAt) {
     return false;
@@ -414,7 +413,7 @@ export const checkAndClearUserStreak = async (
   const difference = differenceInDays(today, lastViewAt);
 
   if (shouldResetStreak(day, difference)) {
-    return clearUserStreak(ctx.con, ctx.userId);
+    return clearUserStreak(con, userId);
   }
 
   return false;

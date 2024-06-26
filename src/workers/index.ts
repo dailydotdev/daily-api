@@ -48,6 +48,7 @@ import commentDownvoteCanceledRep from './commentDownvoteCanceledRep';
 import userUpdatedCio from './userUpdatedCio';
 import userDeletedCio from './userDeletedCio';
 import userCreatedCio from './userCreatedCio';
+import userStreakUpdatedCio from './userStreakUpdatedCio';
 
 export { Worker } from './worker';
 
@@ -98,6 +99,7 @@ export const typedWorkers: BaseTypedWorker<unknown>[] = [
   userUpdatedCio,
   userDeletedCio,
   userCreatedCio,
+  userStreakUpdatedCio,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

@@ -6,6 +6,7 @@ import {
   MarketingCta,
   UserMarketingCta,
   SquadPublicRequest,
+  UserStreak,
 } from '../../entity';
 import { messageToJson, Worker } from '../worker';
 import {
@@ -787,6 +788,18 @@ const onSquadPublicRequestChange = async (
   });
 };
 
+const onUserStreakChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<UserStreak>,
+) => {
+  if (data.payload.op === 'u') {
+    await triggerTypedEvent(logger, 'api.v1.user-streak-updated', {
+      request: data.payload.after,
+    });
+  }
+};
+
 const worker: Worker = {
   subscription: 'api-cdc',
   maxMessages: parseInt(process.env.CDC_WORKER_MAX_MESSAGES) || null,
@@ -872,6 +885,9 @@ const worker: Worker = {
           break;
         case getTableName(con, MarketingCta):
           await onMarketingCtaChange(con, data);
+          break;
+        case getTableName(con, UserStreak):
+          await onUserStreakChange(con, logger, data);
           break;
       }
     } catch (err) {

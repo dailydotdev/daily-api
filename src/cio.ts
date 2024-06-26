@@ -1,6 +1,6 @@
 import { CustomerIORequestError, TrackClient } from 'customerio-node';
 import { ChangeObject } from './types';
-import { User } from './entity';
+import { User, UserStreak } from './entity';
 import {
   camelCaseToSnakeCase,
   CioUnsubscribeTopic,
@@ -29,6 +29,31 @@ const OMIT_FIELDS: (keyof User)[] = [
   'profileConfirmed',
   'notificationEmail',
 ];
+
+export async function identifyUserStreak(
+  log: FastifyBaseLogger,
+  cio: TrackClient,
+  data: ChangeObject<UserStreak> & {
+    lastSevenDays: { [key: string]: boolean };
+  },
+): Promise<void> {
+  const { userId, currentStreak, totalStreak, maxStreak, lastSevenDays } = data;
+
+  try {
+    await cio.identify(userId, {
+      current_streak: currentStreak,
+      total_streak: totalStreak,
+      max_streak: maxStreak,
+      last_seven_days_streak: lastSevenDays,
+    });
+  } catch (err) {
+    if (err instanceof CustomerIORequestError && err.statusCode === 400) {
+      log.warn({ err }, 'failed to update user streak in cio');
+      return;
+    }
+    throw err;
+  }
+}
 
 export async function identifyUser(
   log: FastifyBaseLogger,
