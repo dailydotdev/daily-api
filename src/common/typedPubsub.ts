@@ -67,7 +67,7 @@ export type PubSubSchema = {
     validUntil: string; // ISO 8601 str
   };
   'api.v1.user-streak-updated': {
-    request: ChangeObject<UserStreak>;
+    streak: ChangeObject<UserStreak>;
   };
 };
 

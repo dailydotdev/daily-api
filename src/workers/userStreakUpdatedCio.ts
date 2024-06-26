@@ -14,16 +14,16 @@ const worker: TypedWorker<'api.v1.user-streak-updated'> = {
     }
 
     const {
-      data: { request },
+      data: { streak },
     } = message;
 
-    if (!request.userId || request.userId === ghostUser.id) {
+    if (!streak.userId || streak.userId === ghostUser.id) {
       return;
     }
 
     const readHistory = await getUserReadHistory({
       con,
-      userId: request.userId,
+      userId: streak.userId,
       before: new Date(),
       after: subDays(new Date(), 7),
     });
@@ -40,12 +40,12 @@ const worker: TypedWorker<'api.v1.user-streak-updated'> = {
     }, []);
 
     const userStreakData = {
-      ...request,
+      ...streak,
       lastSevenDays,
     };
 
     await identifyUserStreak(log, cio, userStreakData);
-    log.info({ userId: request.userId }, 'updated user streak in customerio');
+    log.info({ userId: streak.userId }, 'updated user streak in customerio');
   },
 };
 

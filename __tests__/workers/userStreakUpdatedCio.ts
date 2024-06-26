@@ -78,7 +78,7 @@ describe('userStreakUpdatedCio worker', () => {
 
   it('should update customer.io', async () => {
     await expectSuccessfulTypedBackground(worker, {
-      request: base,
+      streak: base,
     } as unknown as PubSubSchema['api.v1.user-streak-updated']);
     expect(cio.identify).toHaveBeenCalledWith('1', {
       current_streak: 2,
@@ -118,7 +118,7 @@ describe('userStreakUpdatedCio worker', () => {
     ]);
 
     await expectSuccessfulTypedBackground(worker, {
-      request: base,
+      streak: base,
     } as unknown as PubSubSchema['api.v1.user-streak-updated']);
     expect(cio.identify).toHaveBeenCalledWith('1', {
       current_streak: 2,

@@ -3257,7 +3257,7 @@ describe('user streak change', () => {
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
     expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
       'api.v1.user-streak-updated',
-      { request: base },
+      { streak: base },
     ]);
   });
 });
