@@ -2,9 +2,15 @@ import { IncomingWebhook } from '@slack/webhook';
 import { Post, Comment } from '../entity';
 import { getDiscussionLink } from './links';
 
-export const webhook = process.env.SLACK_WEBHOOK
-  ? new IncomingWebhook(process.env.SLACK_WEBHOOK)
-  : { send: (): Promise<void> => Promise.resolve() };
+const nullWebhook = { send: (): Promise<void> => Promise.resolve() };
+export const webhooks = Object.freeze({
+  content: process.env.SLACK_WEBHOOK
+    ? new IncomingWebhook(process.env.SLACK_WEBHOOK)
+    : nullWebhook,
+  comments: process.env.SLACK_WEBHOOK
+    ? new IncomingWebhook(process.env.SLACK_COMMENTS_WEBHOOK)
+    : nullWebhook,
+});
 
 export const notifyNewComment = async (
   post: Post,
@@ -12,7 +18,7 @@ export const notifyNewComment = async (
   comment: string,
   commentId: string,
 ): Promise<void> => {
-  await webhook.send({
+  await webhooks.comments.send({
     text: 'New comment',
     attachments: [
       {
@@ -41,7 +47,7 @@ export const notifyPostReport = async (
   comment?: string,
   tags?: string[],
 ): Promise<void> => {
-  await webhook.send({
+  await webhooks.content.send({
     text: 'Post was just reported!',
     attachments: [
       {
@@ -77,7 +83,7 @@ export const notifyCommentReport = async (
   reason: string,
   note?: string,
 ): Promise<void> => {
-  await webhook.send({
+  await webhooks.content.send({
     text: 'Comment was just reported!',
     attachments: [
       {
