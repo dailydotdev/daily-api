@@ -45,7 +45,6 @@ const worker: TypedWorker<'api.v1.user-streak-updated'> = {
     };
 
     await identifyUserStreak(log, cio, userStreakData);
-    log.info({ userId: streak.userId }, 'updated user streak in customerio');
   },
 };
 
