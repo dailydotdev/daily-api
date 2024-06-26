@@ -714,6 +714,21 @@ const getCurrentUser = (
     ...builder,
   }));
 
+export const getUserReadHistory = async ({ con, userId, after, before }) => {
+  return con
+    .getRepository(ActiveView)
+    .createQueryBuilder('view')
+    .select(`date_trunc('day', ${timestampAtTimezone})::date::text`, 'date')
+    .addSelect(`count(*) AS "reads"`)
+    .innerJoin(User, 'user', 'user.id = view.userId')
+    .where('view.userId = :userId', { userId })
+    .andWhere('view.timestamp >= :after', { after })
+    .andWhere('view.timestamp < :before', { before })
+    .groupBy('date')
+    .orderBy('date')
+    .getRawMany();
+};
+
 interface ReadingHistyoryArgs {
   id: string;
   after: string;
@@ -806,6 +821,7 @@ const getUserStreakQuery = async (id, ctx, info) => {
       .addSelect(
         `(date_trunc('day', "${builder.alias}"."lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date) AS "lastViewAtTz"`,
       )
+      .addSelect('u.id', 'userId')
       .addSelect('u.timezone', 'timezone')
       .innerJoin(User, 'u', `"${builder.alias}"."userId" = u.id`)
       .where(`"${builder.alias}"."userId" = :id`, {
@@ -942,20 +958,8 @@ export const resolvers: IResolvers<any, Context> = {
       source,
       { id, after, before }: ReadingHistyoryArgs,
       ctx: Context,
-    ): Promise<GQLReadingRankHistory[]> => {
-      return ctx.con
-        .getRepository(ActiveView)
-        .createQueryBuilder('view')
-        .select(`date_trunc('day', ${timestampAtTimezone})::date::text`, 'date')
-        .addSelect(`count(*) AS "reads"`)
-        .innerJoin(User, 'user', 'user.id = view.userId')
-        .where('view.userId = :id', { id })
-        .andWhere('view.timestamp >= :after', { after })
-        .andWhere('view.timestamp < :before', { before })
-        .groupBy('date')
-        .orderBy('date')
-        .getRawMany();
-    },
+    ): Promise<GQLReadingRankHistory[]> =>
+      getUserReadHistory({ con: ctx.con, userId: id, after, before }),
     userStreak: async (_, __, ctx: Context, info): Promise<GQLUserStreak> => {
       const streak = await getUserStreakQuery(ctx.userId, ctx, info);
 
@@ -969,7 +973,11 @@ export const resolvers: IResolvers<any, Context> = {
         };
       }
 
-      const hasClearedStreak = await checkAndClearUserStreak(ctx, info, streak);
+      const hasClearedStreak = await checkAndClearUserStreak(
+        ctx.con,
+        info,
+        streak,
+      );
       if (hasClearedStreak) {
         return { ...streak, current: 0 };
       }

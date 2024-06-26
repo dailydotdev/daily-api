@@ -4,7 +4,6 @@ import { differenceInDays, isSameDay } from 'date-fns';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
-import { Context } from '../Context';
 import { GraphQLResolveInfo } from 'graphql';
 import { utcToZonedTime } from 'date-fns-tz';
 
@@ -376,13 +375,16 @@ export const MISSED_LIMIT = 1;
 
 export const clearUserStreak = async (
   con: DataSource | EntityManager,
-  userId,
-): Promise<boolean> => {
+  userIds: string[],
+): Promise<number> => {
   const result = await con
-    .getRepository(UserStreak)
-    .update({ userId }, { currentStreak: 0, updatedAt: new Date() });
+    .createQueryBuilder()
+    .update(UserStreak)
+    .set({ currentStreak: 0, updatedAt: new Date() })
+    .where('userId IN (:...userIds)', { userIds })
+    .execute();
 
-  return result.affected > 0;
+  return result.affected;
 };
 
 // Computes whether we should reset user streak
@@ -396,11 +398,7 @@ export const shouldResetStreak = (day: number, difference: number) => {
   );
 };
 
-export const checkAndClearUserStreak = async (
-  ctx: Context,
-  info: GraphQLResolveInfo,
-  streak: GQLUserStreakTz,
-): Promise<boolean> => {
+export const checkUserStreak = (streak: GQLUserStreakTz): boolean => {
   const { lastViewAtTz: lastViewAt, timezone } = streak;
 
   if (!lastViewAt) {
@@ -413,8 +411,17 @@ export const checkAndClearUserStreak = async (
   const day = today.getDay();
   const difference = differenceInDays(today, lastViewAt);
 
-  if (shouldResetStreak(day, difference)) {
-    return clearUserStreak(ctx.con, ctx.userId);
+  return shouldResetStreak(day, difference);
+};
+
+export const checkAndClearUserStreak = async (
+  con: DataSource | EntityManager,
+  info: GraphQLResolveInfo,
+  streak: GQLUserStreakTz,
+): Promise<boolean> => {
+  if (checkUserStreak(streak)) {
+    const result = await clearUserStreak(con, [streak.userId]);
+    return result > 0;
   }
 
   return false;

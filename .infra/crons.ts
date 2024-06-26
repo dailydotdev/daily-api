@@ -96,4 +96,8 @@ export const crons: Cron[] = [
     name: 'update-highlighted-views',
     schedule: '15 4 * * *',
   },
+  {
+    name: 'update-current-streak',
+    schedule: '30 * * * *',
+  },
 ];
