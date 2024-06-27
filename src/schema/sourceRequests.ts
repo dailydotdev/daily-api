@@ -71,7 +71,7 @@ export type GQLSourceRequestAvailability = Pick<
   'hasAccess'
 >;
 
-const REJECTED_DAYS_LIMIT = 14;
+const REJECTED_DAYS_LIMIT = 30;
 
 export interface GQLPublicSquadRequest {
   id: string;
@@ -600,7 +600,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         throw new UserInputError('Squad is already public!');
       }
 
-      // make sure there is no rejected request within the last 14 days
+      // make sure there is no rejected request within the last 30 days
       await ensureNotRejected(ctx, sourceId);
 
       const repo = ctx.getRepository(SquadPublicRequest);
