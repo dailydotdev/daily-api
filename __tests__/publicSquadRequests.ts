@@ -176,7 +176,7 @@ describe('mutation submitSquadForReview', () => {
     );
   });
 
-  it('should fail if there already is a rejected request within last 14 days', async () => {
+  it('should fail if there already is a rejected request within last 30 days', async () => {
     const repo = con.getRepository(SquadPublicRequest);
     await repo.save({
       sourceId: sourceId,
@@ -195,9 +195,9 @@ describe('mutation submitSquadForReview', () => {
     );
   });
 
-  it('should succeed if the rejected request is older than 14 days', async () => {
+  it('should succeed if the rejected request is older than 30 days', async () => {
     const olderDate = new Date();
-    olderDate.setDate(olderDate.getDate() - 15);
+    olderDate.setDate(olderDate.getDate() - 31);
 
     const repo = con.getRepository(SquadPublicRequest);
     await repo.save({
