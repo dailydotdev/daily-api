@@ -407,9 +407,9 @@ export const shouldResetStreak = (day: number, difference: number) => {
 };
 
 export const checkUserStreak = (streak: GQLUserStreakTz): boolean => {
-  const { lastViewAtTz: lastViewAt, timezone } = streak;
+  const { lastViewAtTz: lastViewAt, timezone, current } = streak;
 
-  if (!lastViewAt) {
+  if (!lastViewAt || current === 0) {
     return false;
   }
 
