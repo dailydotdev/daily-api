@@ -813,7 +813,6 @@ const worker: Worker = {
       ) {
         return;
       }
-      logger.info({ table: data.payload.source.table }, 'handling cdc message');
       switch (data.payload.source.table) {
         case getTableName(con, Banner):
           await onBannerChange(con, logger, data);
