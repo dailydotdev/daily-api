@@ -23,6 +23,7 @@ import {
   SourceType,
   YouTubePost,
   ChecklistViewState,
+  UserStreak,
 } from '../../../src/entity';
 import {
   notifyCommentCommented,
