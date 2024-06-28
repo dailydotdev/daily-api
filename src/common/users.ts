@@ -399,9 +399,9 @@ export const shouldResetStreak = (day: number, difference: number) => {
 };
 
 export const checkUserStreak = (streak: GQLUserStreakTz): boolean => {
-  const { lastViewAtTz: lastViewAt, timezone } = streak;
+  const { lastViewAtTz: lastViewAt, timezone, current } = streak;
 
-  if (!lastViewAt) {
+  if (!lastViewAt || current === 0) {
     return false;
   }
 
@@ -419,7 +419,7 @@ export const checkAndClearUserStreak = async (
   info: GraphQLResolveInfo,
   streak: GQLUserStreakTz,
 ): Promise<boolean> => {
-  if (checkUserStreak(streak)) {
+  if (strak.checkUserStreak(streak)) {
     const result = await clearUserStreak(con, [streak.userId]);
     return result > 0;
   }
