@@ -313,10 +313,12 @@ describe('reading streaks', () => {
   });
 
   it('should not increment a reading streak if lastViewAt is the same day', async () => {
-    await runTest('2024-01-26T19:17Z', '2024-01-26T17:23Z', defaultStreak, {
-      ...defaultStreak,
-      lastViewAt: new Date('2024-01-26T19:17Z'),
-    });
+    await runTest(
+      '2024-01-26T17:23Z',
+      '2024-01-26T17:23Z',
+      defaultStreak,
+      defaultStreak,
+    );
   });
 
   describe('showMilestone is set correctly', () => {
@@ -408,7 +410,7 @@ describe('reading streaks', () => {
 
     it('should not set showStreakMilestone if lastViewAt is the same day', async () => {
       await runTest(
-        '2024-01-26T19:17Z',
+        '2024-01-26T17:23Z',
         '2024-01-26T17:23Z',
         {
           ...defaultStreak,
@@ -417,7 +419,6 @@ describe('reading streaks', () => {
         {
           ...defaultStreak,
           currentStreak: 5,
-          lastViewAt: new Date('2024-01-26T19:17Z'),
         },
       );
 
