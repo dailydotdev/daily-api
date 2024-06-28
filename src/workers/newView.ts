@@ -1,12 +1,20 @@
-import { DataSource, DeepPartial } from 'typeorm';
+import { DeepPartial, EntityManager } from 'typeorm';
 import { Alerts, User, UserStreak, View } from '../entity';
 import { messageToJson, Worker } from './worker';
 import { TypeOrmError } from '../errors';
 import { isFibonacci } from '../common/fibonacci';
 
-const ONE_WEEK = 604800000;
+interface ShouldIncrement {
+  currentStreak: number;
+  totalStreak: number;
+  maxStreak: number;
+  shouldIncrement: boolean;
+}
 
-const addView = async (con: DataSource, entity: View): Promise<boolean> => {
+const ONE_WEEK = 604800000;
+const DEFAULT_TIMEZONE = 'UTC'; // in case user doesn't have a timezone set
+
+const addView = async (con: EntityManager, entity: View): Promise<boolean> => {
   const repo = con.getRepository(View);
   const existing = await repo.findOne({
     where: {
@@ -25,46 +33,35 @@ const addView = async (con: DataSource, entity: View): Promise<boolean> => {
   return false;
 };
 
-const DEFAULT_TIMEZONE = 'UTC'; // in case user doesn't have a timezone set
-const INC_STREAK_QUERY = `
-WITH u AS (
-  SELECT "id",
-      /* Increment the current streak if
-        a) lastViewAt is NULL - this is a new user, we should start a new streak
-        b) the currentStreak is 0 - we should start a new streak
-        c) we didn't do it today already
-      */
-      ("lastViewAt" is NULL OR
+const shouldIncrementStreak = async (
+  con: EntityManager,
+  userId: string,
+  viewTime: Date,
+): Promise<ShouldIncrement> => {
+  return await con
+    .createQueryBuilder()
+    .select(
+      `("lastViewAt" is NULL OR
        "currentStreak" = 0 OR
-       DATE("lastViewAt" AT TIME ZONE COALESCE("timezone", $3)) <> DATE($2 AT TIME ZONE COALESCE("timezone", $3))
-      ) AS shouldIncrementStreak
-  FROM public.user AS users
-  INNER JOIN user_streak ON user_streak."userId" = users.id
-  WHERE users.id = $1
-),
-updated AS (
-  UPDATE user_streak AS us SET
-    "lastViewAt" = $2,
-    "updatedAt" = now(),
-    "currentStreak" = CASE WHEN shouldIncrementStreak THEN us."currentStreak" + 1 ELSE us."currentStreak" END,
-    "totalStreak" = CASE WHEN shouldIncrementStreak THEN us."totalStreak" + 1 ELSE us."totalStreak" END,
-    "maxStreak" = CASE WHEN shouldIncrementStreak THEN GREATEST(us."maxStreak", us."currentStreak" + 1) ELSE us."maxStreak" END
-  FROM u
-  WHERE us."userId" = u.id
-  RETURNING us."userId", "currentStreak"
-)
-/* Return the updated streak data */
-SELECT updated."currentStreak", u.shouldIncrementStreak AS "didIncrementStreak"
-FROM updated
-JOIN u ON TRUE;
-`;
+       DATE("lastViewAt" AT TIME ZONE COALESCE("timezone", :timezone)) <> DATE(:viewTime AT TIME ZONE COALESCE("timezone", :timezone))
+      )`,
+      'shouldIncrement',
+    )
+    .addSelect('us."currentStreak"', 'currentStreak')
+    .addSelect('us."totalStreak"', 'totalStreak')
+    .addSelect('us."maxStreak"', 'maxStreak')
+    .from(UserStreak, 'us')
+    .leftJoin(User, 'u', 'u.id = us."userId"')
+    .where('us.userId = :userId', { userId })
+    .setParameter('timezone', DEFAULT_TIMEZONE)
+    .setParameter('viewTime', viewTime)
+    .getRawOne<ShouldIncrement>();
+};
 
 const incrementReadingStreak = async (
-  con: DataSource,
+  manager: EntityManager,
   data: DeepPartial<View>,
 ): Promise<boolean> => {
-  const users = con.getRepository(User);
-  const repo = con.getRepository(UserStreak);
   const { userId, timestamp } = data;
 
   if (!userId) {
@@ -73,42 +70,34 @@ const incrementReadingStreak = async (
 
   const viewTime = timestamp ? new Date(timestamp as string) : new Date();
 
-  // TODO: This code is temporary here for now because we didn't run the migration yet,
-  // so not every user is going to have a row in the user_streak table and we need to create it.
-  // We can get rid of it once/if we implement the migration in https://dailydotdev.atlassian.net/browse/MI-70
-  const user = await users.findOne({
-    where: { id: userId },
-    relations: ['streak'],
-  });
-  const streak = await user?.streak;
-  if (user && !streak) {
-    await repo.save(
-      repo.create({
-        userId,
-        currentStreak: 1,
-        totalStreak: 1,
-        maxStreak: 1,
+  const shouldIncrementResult = await shouldIncrementStreak(
+    manager,
+    userId,
+    viewTime,
+  );
+  const { currentStreak, totalStreak, maxStreak, shouldIncrement } =
+    shouldIncrementResult ?? {};
+  if (shouldIncrement) {
+    const newCurrentStreak = currentStreak + 1;
+    await manager.getRepository(UserStreak).update(
+      { userId },
+      {
         lastViewAt: viewTime,
-      }),
+        updatedAt: new Date(),
+        currentStreak: newCurrentStreak,
+        totalStreak: totalStreak + 1,
+        maxStreak: Math.max(newCurrentStreak, maxStreak),
+      },
     );
-  } else {
-    const results = await repo.query(INC_STREAK_QUERY, [
+
+    // milestones are currently defined on fibonacci sequence
+    const showStreakMilestone = isFibonacci(newCurrentStreak);
+    await manager.getRepository(Alerts).save({
       userId,
-      viewTime,
-      DEFAULT_TIMEZONE,
-    ]);
-
-    const { currentStreak, didIncrementStreak } = results?.[0] ?? {};
-
-    if (didIncrementStreak) {
-      // milestones are currently defined on fibonacci sequence
-      const showStreakMilestone = isFibonacci(currentStreak);
-      await con.getRepository(Alerts).save({
-        userId,
-        showStreakMilestone,
-      });
-    }
+      showStreakMilestone,
+    });
   }
+
   return true;
 };
 
@@ -117,76 +106,78 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: DeepPartial<View> = messageToJson(message);
     let didSave = false;
-    try {
-      didSave = await addView(
-        con,
-        con.getRepository(View).create({
-          postId: data.postId,
-          userId: data.userId,
-          referer: data.referer,
-          timestamp: data.timestamp && new Date(data.timestamp as string),
-        }),
-      );
-      if (!didSave) {
-        logger.debug(
+    await con.transaction(async (manager: EntityManager) => {
+      try {
+        didSave = await addView(
+          manager,
+          manager.getRepository(View).create({
+            postId: data.postId,
+            userId: data.userId,
+            referer: data.referer,
+            timestamp: data.timestamp && new Date(data.timestamp as string),
+          }),
+        );
+        if (!didSave) {
+          logger.debug(
+            {
+              view: data,
+              messageId: message.messageId,
+            },
+            'ignored view event',
+          );
+        }
+      } catch (err) {
+        // Foreign / unique
+        if (
+          err?.code === TypeOrmError.NULL_VIOLATION ||
+          err?.code === TypeOrmError.FOREIGN_KEY
+        ) {
+          return;
+        }
+
+        logger.error(
           {
             view: data,
             messageId: message.messageId,
+            err,
           },
-          'ignored view event',
+          'failed to add view event to db',
         );
+        if (err.name === 'QueryFailedError') {
+          return;
+        }
+        throw err;
       }
-    } catch (err) {
-      // Foreign / unique
-      if (
-        err?.code === TypeOrmError.NULL_VIOLATION ||
-        err?.code === TypeOrmError.FOREIGN_KEY
-      ) {
+
+      // no need to touch reading streaks if we didn't save a new view event or if we don't have a userId
+      if (!didSave || !data.userId) {
         return;
       }
 
-      logger.error(
-        {
-          view: data,
-          messageId: message.messageId,
-          err,
-        },
-        'failed to add view event to db',
-      );
-      if (err.name === 'QueryFailedError') {
-        return;
-      }
-      throw err;
-    }
+      try {
+        const didUpdate = await incrementReadingStreak(manager, data);
 
-    // no need to touch reading streaks if we didn't save a new view event or if we don't have a userId
-    if (!didSave || !data.userId) {
-      return;
-    }
-
-    try {
-      const didUpdate = await incrementReadingStreak(con, data);
-
-      if (!didUpdate) {
-        logger.warn(
+        if (!didUpdate) {
+          logger.warn(
+            {
+              view: data,
+              messageId: message.messageId,
+            },
+            'missing userId in view event, cannot update reading streak',
+          );
+        }
+      } catch (err) {
+        logger.error(
           {
             view: data,
             messageId: message.messageId,
+            err,
           },
-          'missing userId in view event, cannot update reading streak',
+          'failed to increment reading streak data',
         );
+        throw err;
       }
-    } catch (err) {
-      logger.error(
-        {
-          view: data,
-          messageId: message.messageId,
-          err,
-        },
-        'failed to increment reading streak data',
-      );
-      throw err;
-    }
+    });
   },
 };
 
