@@ -419,7 +419,7 @@ export const checkAndClearUserStreak = async (
   info: GraphQLResolveInfo,
   streak: GQLUserStreakTz,
 ): Promise<boolean> => {
-  if (strak.checkUserStreak(streak)) {
+  if (checkUserStreak(streak)) {
     const result = await clearUserStreak(con, [streak.userId]);
     return result > 0;
   }
