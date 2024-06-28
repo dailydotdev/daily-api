@@ -23,6 +23,7 @@ import {
   SourceType,
   YouTubePost,
   ChecklistViewState,
+  UserStreak,
 } from '../../../src/entity';
 import {
   notifyCommentCommented,
@@ -3217,46 +3218,46 @@ describe('post content updated', () => {
   });
 });
 
-// describe('user streak change', () => {
-//   type ObjectType = UserStreak;
-//   const base: ChangeObject<ObjectType> = {
-//     userId: '1',
-//     currentStreak: 2,
-//     totalStreak: 3,
-//     maxStreak: 4,
-//     lastViewAt: new Date().getTime(),
-//     updatedAt: new Date().getTime(),
-//   };
-//
-//   it('should not notify on creation', async () => {
-//     const after: ChangeObject<ObjectType> = base;
-//     await expectSuccessfulBackground(
-//       worker,
-//       mockChangeMessage<ObjectType>({
-//         after,
-//         before: null,
-//         op: 'c',
-//         table: 'user_streak',
-//       }),
-//     );
-//     expect(triggerTypedEvent).not.toHaveBeenCalled();
-//   });
-//
-//   it('should notify on update', async () => {
-//     const after: ChangeObject<ObjectType> = base;
-//     await expectSuccessfulBackground(
-//       worker,
-//       mockChangeMessage<ObjectType>({
-//         after,
-//         before: { ...after },
-//         op: 'u',
-//         table: 'user_streak',
-//       }),
-//     );
-//     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-//     expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
-//       'api.v1.user-streak-updated',
-//       { streak: base },
-//     ]);
-//   });
-// });
+describe('user streak change', () => {
+  type ObjectType = UserStreak;
+  const base: ChangeObject<ObjectType> = {
+    userId: '1',
+    currentStreak: 2,
+    totalStreak: 3,
+    maxStreak: 4,
+    lastViewAt: new Date().getTime(),
+    updatedAt: new Date().getTime(),
+  };
+
+  it('should not notify on creation', async () => {
+    const after: ChangeObject<ObjectType> = base;
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'user_streak',
+      }),
+    );
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
+  });
+
+  it('should notify on update', async () => {
+    const after: ChangeObject<ObjectType> = base;
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: { ...after },
+        op: 'u',
+        table: 'user_streak',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.user-streak-updated',
+      { streak: base },
+    ]);
+  });
+});
