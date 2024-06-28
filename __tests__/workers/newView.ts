@@ -162,8 +162,8 @@ describe('reading streaks', () => {
     const streak = await con.getRepository(UserStreak).findOne({
       where: {
         userId: 'u1',
-        lastViewAt: new Date(currentDate),
       },
+      order: { lastViewAt: 'DESC' },
     });
     for (const key in expectedStreak) {
       expect(streak?.[key]).toEqual(expectedStreak[key]);
@@ -315,7 +315,7 @@ describe('reading streaks', () => {
   it('should not increment a reading streak if lastViewAt is the same day', async () => {
     await runTest(
       '2024-01-26T17:23Z',
-      '2024-01-26T17:23Z',
+      '2024-01-26T15:23Z',
       defaultStreak,
       defaultStreak,
     );
