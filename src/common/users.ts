@@ -6,6 +6,7 @@ import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
 import { GraphQLResolveInfo } from 'graphql';
 import { utcToZonedTime } from 'date-fns-tz';
+import { sendAnalyticsEvent } from '../integrations/analytics';
 
 export interface User {
   id: string;
@@ -377,6 +378,13 @@ export const clearUserStreak = async (
   con: DataSource | EntityManager,
   userIds: string[],
 ): Promise<number> => {
+  const events = userIds.map((userId) => ({
+    event_timestamp: new Date(),
+    event_name: 'streak reset',
+    app_platform: 'api',
+    user_id: userId,
+  }));
+  await sendAnalyticsEvent(events);
   const result = await con
     .createQueryBuilder()
     .update(UserStreak)
