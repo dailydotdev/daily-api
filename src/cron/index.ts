@@ -13,6 +13,7 @@ import dailyDigest from './dailyDigest';
 import updateHighlightedViews from './updateHighlightedViews';
 import hourlyNotifications from './hourlyNotifications';
 import updateCurrentStreak from './updateCurrentStreak';
+import syncSubscription from './syncSubscription';
 
 export const crons: Cron[] = [
   updateViews,
@@ -29,4 +30,5 @@ export const crons: Cron[] = [
   updateHighlightedViews,
   hourlyNotifications,
   updateCurrentStreak,
+  syncSubscription,
 ];

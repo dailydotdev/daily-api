@@ -100,4 +100,8 @@ export const crons: Cron[] = [
     name: 'update-current-streak',
     schedule: '30 * * * *',
   },
+  {
+    name: 'sync-subscription',
+    schedule: '*/5 * * * *',
+  }
 ];
