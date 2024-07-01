@@ -5,8 +5,10 @@ import { UserMarketingCta } from '../../entity';
 import { logger } from '../../logger';
 import { cachePrefillMarketingCta } from '../../common/redisCache';
 import { sendAnalyticsEvent } from '../../integrations/analytics';
-import { syncSubscription, triggerTypedEvent } from '../../common';
+import { triggerTypedEvent } from '../../common';
 import { addDays } from 'date-fns';
+import { pushToRedisList } from '../../redis';
+import { StorageTopic, generateStorageKey } from '../../config';
 
 const verifyCIOSignature = (
   webhookSigningSecret: string,
@@ -208,8 +210,12 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
       const payload = req.body;
 
       if (subscriptionMetrics.includes(payload.metric)) {
-        const con = await createOrGetConnection();
-        await syncSubscription(payload.data.identifiers.id, con);
+        // const con = await createOrGetConnection();
+        // await syncSubscription(payload.data.identifiers.id, con);
+        pushToRedisList(
+          generateStorageKey(StorageTopic.CIO, 'reporting', 'global'),
+          payload.data.identifiers.id,
+        );
       }
 
       await trackCioEvent(payload);
