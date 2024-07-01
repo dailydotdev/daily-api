@@ -8,7 +8,7 @@ import { sendAnalyticsEvent } from '../../integrations/analytics';
 import { triggerTypedEvent } from '../../common';
 import { addDays } from 'date-fns';
 import { pushToRedisList } from '../../redis';
-import { StorageTopic, generateStorageKey } from '../../config';
+import { StorageKey, StorageTopic, generateStorageKey } from '../../config';
 
 const verifyCIOSignature = (
   webhookSigningSecret: string,
@@ -213,7 +213,7 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
         // const con = await createOrGetConnection();
         // await syncSubscription(payload.data.identifiers.id, con);
         pushToRedisList(
-          generateStorageKey(StorageTopic.CIO, 'reporting', 'global'),
+          generateStorageKey(StorageTopic.CIO, StorageKey.Reporting, 'global'),
           payload.data.identifiers.id,
         );
       }
