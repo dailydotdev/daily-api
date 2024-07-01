@@ -210,8 +210,6 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
       const payload = req.body;
 
       if (subscriptionMetrics.includes(payload.metric)) {
-        // const con = await createOrGetConnection();
-        // await syncSubscription(payload.data.identifiers.id, con);
         pushToRedisList(
           generateStorageKey(StorageTopic.CIO, StorageKey.Reporting, 'global'),
           payload.data.identifiers.id,
