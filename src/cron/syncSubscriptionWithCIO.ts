@@ -15,6 +15,8 @@ const cron: Cron = {
   handler: async (con) => {
     logger.info('syncing subscriptions with customer.io');
 
+    let iterations = 0;
+
     while ((await getRedisListLength(redisKey)) > 0) {
       try {
         const userIdsRaw = await popFromRedisList(redisKey, 100);
@@ -29,6 +31,12 @@ const cron: Cron = {
         logger.info(`synced subscriptions for ${userIds.size} users`);
       } catch (err) {
         logger.error({ err }, 'error syncing subscriptions');
+        break;
+      }
+
+      iterations += 1;
+      if (iterations > 100) {
+        logger.error('Too many iterations');
         break;
       }
     }
