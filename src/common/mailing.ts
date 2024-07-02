@@ -85,6 +85,9 @@ export const syncSubscription = async function (
   // This is fetched from APIClient source code
   // TODO: Remove this once APIClient supports fetching attributes in bulk
   const request = new CIORequest(process.env.CIO_APP_KEY, {});
+
+  // Return attributes and devices for up to 100 customers by ID. If an ID in the request does not exist, the response omits it.
+  // https://customer.io/docs/api/app/#operation/getPeopleById
   const userAttributes = await request.post(
     `${RegionUS.apiUrl}/customers/attributes`,
     { ids: userIds },
