@@ -14,6 +14,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   nock.cleanAll();
+  process.env.CIO_APP_KEY = 'test';
   await saveFixtures(con, User, usersFixture);
 });
 
