@@ -114,7 +114,7 @@ export const syncSubscription = async function (
         );
       if (!digest) {
         await manager.getRepository(UserPersonalizedDigest).delete({
-          id: customer.id,
+          userId: customer.id,
           type: UserPersonalizedDigestType.Digest,
         });
       }
