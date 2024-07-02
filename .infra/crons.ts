@@ -1,6 +1,7 @@
 interface Cron {
   name: string;
   schedule: string;
+  activeDeadlineSeconds?: number
   limits?: {
     memory: string;
   };
@@ -103,5 +104,6 @@ export const crons: Cron[] = [
   {
     name: 'sync-subscription-with-cio',
     schedule: '*/5 * * * *',
+    activeDeadlineSeconds: 4*60
   }
 ];
