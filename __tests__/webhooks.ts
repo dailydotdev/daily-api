@@ -10,6 +10,7 @@ import { createHmac } from 'crypto';
 import {
   RedisMagicValues,
   deleteKeysByPattern,
+  getRedisListLength,
   getRedisObject,
   setRedisObject,
 } from '../src/redis';
@@ -32,6 +33,9 @@ beforeEach(async () => {
   jest.resetAllMocks();
   await deleteKeysByPattern(
     generateStorageKey(StorageTopic.Boot, StorageKey.MarketingCta, '*'),
+  );
+  await deleteKeysByPattern(
+    generateStorageKey(StorageTopic.CIO, StorageKey.Reporting, 'global'),
   );
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, User, usersFixture);
@@ -333,7 +337,7 @@ describe('POST /webhooks/customerio/reporting', () => {
     event_id: 'e1',
     timestamp,
     object_type: 'email',
-    metric: 'sent',
+    metric: 'subscribed',
     data: {
       identifiers: {
         id: 'u1',
@@ -370,6 +374,11 @@ describe('POST /webhooks/customerio/reporting', () => {
   });
 
   it('should return 200 when signature is valid', async () => {
+    const key = generateStorageKey(
+      StorageTopic.CIO,
+      StorageKey.Reporting,
+      'global',
+    );
     nock('http://localhost:5000')
       .post('/e', {
         events: [
@@ -379,7 +388,7 @@ describe('POST /webhooks/customerio/reporting', () => {
             visit_id: 'e1',
             event_timestamp: new Date(timestamp * 1000).toISOString(),
             user_id: 'u1',
-            event_name: 'email sent',
+            event_name: 'email subscribed',
             app_platform: 'customerio',
             extra: JSON.stringify({ transactional_message_id: '9' }),
           },
@@ -387,12 +396,16 @@ describe('POST /webhooks/customerio/reporting', () => {
       })
       .reply(204);
 
+    expect(await getRedisListLength(key)).toEqual(0);
+
     const { body } = await request(app.server)
       .post('/webhooks/customerio/reporting')
       .set('x-cio-timestamp', timestamp.toString())
       .set('x-cio-signature', hash)
       .send(payload)
       .expect(200);
+
+    expect(await getRedisListLength(key)).toEqual(1);
 
     expect(body.success).toEqual(true);
   });
