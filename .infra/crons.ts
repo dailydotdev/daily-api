@@ -101,7 +101,7 @@ export const crons: Cron[] = [
     schedule: '30 * * * *',
   },
   {
-    name: 'sync-subscription',
+    name: 'sync-subscription-with-cio',
     schedule: '*/5 * * * *',
   }
 ];
