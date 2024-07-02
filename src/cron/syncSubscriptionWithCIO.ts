@@ -28,6 +28,9 @@ const cron: Cron = {
 
         await syncSubscription([...userIds], con);
 
+        // Wait for a bit to avoid rate limiting
+        await new Promise((resolve) => setTimeout(resolve, 200));
+
         logger.info(`synced subscriptions for ${userIds.size} users`);
       } catch (err) {
         logger.error({ err }, 'error syncing subscriptions');
