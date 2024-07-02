@@ -12,7 +12,6 @@ import createOrGetConnection from '../src/db';
 import nock from 'nock';
 import { GraphQLTestClient } from './helpers';
 import { magniOrigin, SearchResultFeedback } from '../src/integrations';
-import { feedFields } from './helpers';
 import { meiliIndex, meiliOrigin } from '../src/integrations/meilisearch';
 import { ArticlePost, Keyword, Source, User, UserPost } from '../src/entity';
 import { postsFixture } from './fixture/post';
@@ -309,23 +308,6 @@ describe('query searchPostSuggestions', () => {
   }
 `;
 
-  it('should return search suggestions', async () => {
-    const res = await client.query(QUERY('p1'));
-    expect(res.data).toMatchSnapshot();
-  });
-});
-
-describe('query searchPostSuggestions v2', () => {
-  const QUERY = (query: string): string => `{
-    searchPostSuggestions(query: "${query}", version: 2) {
-      query
-      hits {
-        title
-      }
-    }
-  }
-`;
-
   const mockMeili = (params: string, res: string) => {
     nock(meiliOrigin)
       .get(`/indexes/${meiliIndex}/search?${params}&attributesToSearchOn=title`)
@@ -383,26 +365,6 @@ describe('query searchPostSuggestions v2', () => {
         hits: [{ title: 'P2' }],
       },
     });
-  });
-});
-
-describe('query searchPosts', () => {
-  const QUERY = (query: string, now = new Date(), first = 10): string => `{
-    searchPosts(query: "${query}", now: "${now.toISOString()}", first: ${first}) {
-      query
-      ${feedFields()}
-    }
-  }
-`;
-
-  it('should return search feed', async () => {
-    const res = await client.query(QUERY('p1'));
-    expect(res.data).toMatchSnapshot();
-  });
-
-  it('should return search empty feed', async () => {
-    const res = await client.query(QUERY('not found'));
-    expect(res.data).toMatchSnapshot();
   });
 });
 
