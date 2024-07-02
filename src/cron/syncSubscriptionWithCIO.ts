@@ -1,3 +1,4 @@
+import { setTimeout } from 'node:timers/promises';
 import { syncSubscription } from '../common';
 import { StorageKey, StorageTopic, generateStorageKey } from '../config';
 import { logger } from '../logger';
@@ -29,7 +30,7 @@ const cron: Cron = {
         await syncSubscription([...userIds], con);
 
         // Wait for a bit to avoid rate limiting
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        await setTimeout(200);
 
         logger.info(`synced subscriptions for ${userIds.size} users`);
       } catch (err) {
