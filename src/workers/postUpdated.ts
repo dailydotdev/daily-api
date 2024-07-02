@@ -213,7 +213,7 @@ const checkExistingPost = async ({
     .createQueryBuilder()
     .select('id')
     .where(
-      'url = :url or url = :canonicalUrl or "canonicalUrl" = :url or "canonicalUrl" = :canonicalUrl',
+      '(url = :url or url = :canonicalUrl or "canonicalUrl" = :url or "canonicalUrl" = :canonicalUrl)',
       { url: data.url, canonicalUrl: data.canonicalUrl },
     );
   if (id) {
@@ -376,7 +376,7 @@ const updatePost = async ({
       counter,
       logger,
       errorMsg: 'failed updating post because URL/canonical exists already',
-      id: databasePost.id,
+      id: databasePost?.id,
     })
   ) {
     return null;
