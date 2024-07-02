@@ -129,6 +129,11 @@ export const typeDefs = /* GraphQL */ `
       The query to search for
       """
       query: String!
+
+      """
+      Version of the search algorithm
+      """
+      version: Int = 2
     ): SearchSuggestionsResults!
 
     """
@@ -159,6 +164,11 @@ export const typeDefs = /* GraphQL */ `
       Array of supported post types
       """
       supportedTypes: [String!]
+
+      """
+      Version of the search algorithm
+      """
+      version: Int = 2
     ): PostConnection!
 
     """
@@ -174,6 +184,11 @@ export const typeDefs = /* GraphQL */ `
       Maximum number of tags to return
       """
       limit: Int = ${defaultSearchLimit}
+
+      """
+      Version of the search algorithm
+      """
+      version: Int = 2
     ): SearchSuggestionsResults!
 
     """
@@ -189,6 +204,11 @@ export const typeDefs = /* GraphQL */ `
       Maximum number of sources to return
       """
       limit: Int = ${defaultSearchLimit}
+
+      """
+      Version of the search algorithm
+      """
+      version: Int = 2
     ): SearchSuggestionsResults!
   }
 
@@ -232,7 +252,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       getSession(ctx.userId, id),
     searchPostSuggestions: async (
       source,
-      { query }: { query: string },
+      { query }: { query: string; version: number },
       ctx,
     ): Promise<GQLSearchSuggestionsResults> => {
       const hits = await searchMeili(
@@ -273,7 +293,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
     },
     searchPosts: async (
       source,
-      args: FeedArgs & { query: string },
+      args: FeedArgs & { query: string; version: number },
       ctx,
       info,
     ): Promise<ConnectionRelay<GQLPost> & { query: string }> => {
