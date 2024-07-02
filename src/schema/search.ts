@@ -10,12 +10,7 @@ import {
   SearchSession,
 } from '../integrations';
 import { ValidationError } from 'apollo-server-errors';
-import {
-  GQLEmptyResponse,
-  getSearchQuery,
-  offsetPageGenerator,
-  processSearchQuery,
-} from './common';
+import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import { Connection as ConnectionRelay } from 'graphql-relay/connection/connection';
 import graphorm from '../graphorm';
 import { ConnectionArguments } from 'graphql-relay/index';
@@ -134,11 +129,6 @@ export const typeDefs = /* GraphQL */ `
       The query to search for
       """
       query: String!
-
-      """
-      Version of the search algorithm
-      """
-      version: Int = 1
     ): SearchSuggestionsResults!
 
     """
@@ -169,11 +159,6 @@ export const typeDefs = /* GraphQL */ `
       Array of supported post types
       """
       supportedTypes: [String!]
-
-      """
-      Version of the search algorithm
-      """
-      version: Int = 1
     ): PostConnection!
 
     """
@@ -184,11 +169,6 @@ export const typeDefs = /* GraphQL */ `
       The query to search for
       """
       query: String!
-
-      """
-      Version of the search algorithm
-      """
-      version: Int = 1
 
       """
       Maximum number of tags to return
@@ -206,11 +186,6 @@ export const typeDefs = /* GraphQL */ `
       query: String!
 
       """
-      Version of the search algorithm
-      """
-      version: Int = 1
-
-      """
       Maximum number of sources to return
       """
       limit: Int = ${defaultSearchLimit}
@@ -224,23 +199,6 @@ export const typeDefs = /* GraphQL */ `
     searchResultFeedback(chunkId: String!, value: Int!): EmptyResponse! @auth
   }
 `;
-
-const searchResolver = feedResolver(
-  (ctx, { query }: FeedArgs & { query: string }, builder, alias) =>
-    builder
-      .andWhere(`${alias}.tsv @@ (${getSearchQuery(':query')})`, {
-        query: processSearchQuery(query),
-      })
-      .orderBy('ts_rank(tsv, search.query)', 'DESC')
-      .orderBy('"createdAt"', 'DESC'),
-  offsetPageGenerator(30, 50),
-  (ctx, args, page, builder) => builder.limit(page.limit).offset(page.offset),
-  {
-    removeHiddenPosts: true,
-    removeBannedPosts: false,
-    allowPrivateSources: false,
-  },
-);
 
 const meiliSearchResolver = feedResolver(
   (ctx, { ids }: FeedArgs & { ids: string[] }, builder, alias) =>
@@ -274,88 +232,61 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       getSession(ctx.userId, id),
     searchPostSuggestions: async (
       source,
-      { query, version }: { query: string; version: number },
+      { query }: { query: string },
       ctx,
     ): Promise<GQLSearchSuggestionsResults> => {
-      if (version === 2) {
-        const hits = await searchMeili(
-          `q=${query}&attributesToRetrieve=post_id,title&attributesToSearchOn=title`,
-        );
-        // In case ids is empty make sure the query does not fail
-        const idsStr = hits.length
-          ? hits.map((id) => `'${id.post_id}'`).join(',')
-          : `'nosuchid'`;
-        let newBuilder = ctx.con
-          .createQueryBuilder()
-          .select('post.id, post.title')
-          .from(Post, 'post')
-          .innerJoin(
-            Source,
-            'source',
-            'source.id = post.sourceId AND source.private = false AND source.id != :sourceId',
-            { sourceId: 'unknown' },
-          )
-          .where('post.id IN (:...ids)', { ids: hits.map((x) => x.post_id) })
-          .orderBy(`array_position(array[${idsStr}], post.id)`);
-        if (ctx.userId) {
-          newBuilder = newBuilder
-            .leftJoin(
-              UserPost,
-              'userpost',
-              `userpost."postId" = "post".id AND userpost."userId" = :userId AND userpost.hidden = TRUE`,
-              { userId: ctx.userId },
-            )
-            .andWhere('userpost."postId" IS NULL');
-        }
-        const cleanHits = await newBuilder.getRawMany();
-
-        return {
-          query,
-          hits: cleanHits,
-        };
-      }
-      const hits: GQLSearchSuggestion[] = await ctx.con.query(
-        `
-            WITH search AS (${getSearchQuery('$1')})
-            select post.id, ts_headline(title, search.query,
-                               'StartSel = <strong>, StopSel = </strong>') as title
-            from post
-            inner join search on true
-            where tsv @@ search.query and not private
-            order by ts_rank(tsv, search.query) desc, "createdAt" desc
-              limit 5;
-          `,
-        [processSearchQuery(query)],
+      const hits = await searchMeili(
+        `q=${query}&attributesToRetrieve=post_id,title&attributesToSearchOn=title`,
       );
+      // In case ids is empty make sure the query does not fail
+      const idsStr = hits.length
+        ? hits.map((id) => `'${id.post_id}'`).join(',')
+        : `'nosuchid'`;
+      let newBuilder = ctx.con
+        .createQueryBuilder()
+        .select('post.id, post.title')
+        .from(Post, 'post')
+        .innerJoin(
+          Source,
+          'source',
+          'source.id = post.sourceId AND source.private = false AND source.id != :sourceId',
+          { sourceId: 'unknown' },
+        )
+        .where('post.id IN (:...ids)', { ids: hits.map((x) => x.post_id) })
+        .orderBy(`array_position(array[${idsStr}], post.id)`);
+      if (ctx.userId) {
+        newBuilder = newBuilder
+          .leftJoin(
+            UserPost,
+            'userpost',
+            `userpost."postId" = "post".id AND userpost."userId" = :userId AND userpost.hidden = TRUE`,
+            { userId: ctx.userId },
+          )
+          .andWhere('userpost."postId" IS NULL');
+      }
+      const cleanHits = await newBuilder.getRawMany();
+
       return {
         query,
-        hits,
+        hits: cleanHits,
       };
     },
     searchPosts: async (
       source,
-      args: FeedArgs & { query: string; version: number },
+      args: FeedArgs & { query: string },
       ctx,
       info,
     ): Promise<ConnectionRelay<GQLPost> & { query: string }> => {
-      if (args.version === 2) {
-        const meilieSearchRes = await searchMeili(
-          `q=${args.query}&attributesToRetrieve=post_id&attributesToSearchOn=title`,
-        );
+      const meilieSearchRes = await searchMeili(
+        `q=${args.query}&attributesToRetrieve=post_id&attributesToSearchOn=title`,
+      );
 
-        const meilieArgs: FeedArgs & { ids: string[] } = {
-          ...args,
-          ids: meilieSearchRes.map((x) => x.post_id),
-        };
+      const meilieArgs: FeedArgs & { ids: string[] } = {
+        ...args,
+        ids: meilieSearchRes.map((x) => x.post_id),
+      };
 
-        const res = await meiliSearchResolver(source, meilieArgs, ctx, info);
-        return {
-          ...res,
-          query: args.query,
-        };
-      }
-
-      const res = await searchResolver(source, args, ctx, info);
+      const res = await meiliSearchResolver(source, meilieArgs, ctx, info);
       return {
         ...res,
         query: args.query,
