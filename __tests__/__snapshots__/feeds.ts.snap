@@ -7,8 +7,8 @@ Object {
     "golang",
   ],
   "excludeSources": Array [
-    "c",
     "b",
+    "c",
     "fd062672-63b7-4a10-87bd-96dcd10e9613",
   ],
   "excludeTypes": Array [],
