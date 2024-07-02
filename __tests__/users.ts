@@ -640,6 +640,46 @@ describe('query user', () => {
   });
 });
 
+describe('query team members', () => {
+  const QUERY = `query User($id: ID!) {
+    user(id: $id) {
+      name
+      username
+      image
+      isTeamMember
+    }
+  }`;
+
+  it('should return team member as false', async () => {
+    const requestUserId = '1';
+    const res = await client.query(QUERY, { variables: { id: requestUserId } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.user).toMatchObject({
+      name: 'Ido',
+      username: null,
+      image: 'https://daily.dev/ido.jpg',
+      isTeamMember: false,
+    });
+  });
+
+  it('should return team member as true', async () => {
+    await con.getRepository(Feature).insert({
+      feature: FeatureType.Team,
+      userId: '1',
+      value: 1,
+    });
+    const requestUserId = '1';
+    const res = await client.query(QUERY, { variables: { id: requestUserId } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.user).toMatchObject({
+      name: 'Ido',
+      username: null,
+      image: 'https://daily.dev/ido.jpg',
+      isTeamMember: true,
+    });
+  });
+});
+
 describe('query userReadingRank', () => {
   const QUERY = `query UserReadingRank($id: ID!, $version: Int, $limit: Int){
     userReadingRank(id: $id, version: $version, limit: $limit) {
