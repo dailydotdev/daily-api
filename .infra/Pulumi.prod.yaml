@@ -95,7 +95,7 @@ config:
     meiliOrigin:
       secure: AAABAEueTZvzwG4iG4mZtiCnTO/NJafye14NBJQUaOWcRSs5+kymF+LMYk/Muqragwku/+7ZMuohDZ2lFQZD4sES6HiNVfBVTIkqjFh53lk=
     meiliToken:
-      secure: AAABAIb8OOQKe7BopTHOYpKey+GCet0D+d0PKoTQBLZv6w1f6C0CjSL8SReV3toI1PVkMc9K65/WscTCZKJPO4PAIjKSrx5G
+      secure: AAABAA5moyIhk49RkORvdmc8prpYiM6iccCm0Ec5yNOv6XqMquFgn29PbCcLJruCv6SelTadC0Yifgt7ibOzWsrSrxbv8uYNIjw+hQib/rIH7GhxEL/kF1eMhL5z51jJ
     nodeEnv: production
     ogUrl:
       secure: AAABAALHhEXgjaHbmM/389iGJ+mAweDwlWup8z1We+zmalk8DXIGAg+jjEC/58kl5VeBJw==
