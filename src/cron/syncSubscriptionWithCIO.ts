@@ -16,12 +16,21 @@ const cron: Cron = {
     logger.info('syncing subscriptions with customer.io');
 
     while ((await getRedisListLength(redisKey)) > 0) {
-      // Store it in a set to remove duplicates
-      const userIds = new Set(await popFromRedisList(redisKey, 100));
+      try {
+        const userIdsRaw = await popFromRedisList(redisKey, 100);
+        if (!userIdsRaw) {
+          break;
+        }
+        // Store it in a set to remove duplicates
+        const userIds = new Set(userIdsRaw);
 
-      await syncSubscription([...userIds], con);
+        await syncSubscription([...userIds], con);
 
-      logger.info(`synced subscriptions for ${userIds.size} users`);
+        logger.info(`synced subscriptions for ${userIds.size} users`);
+      } catch (err) {
+        logger.error({ err }, 'error syncing subscriptions');
+        break;
+      }
     }
   },
 };
