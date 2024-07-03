@@ -264,6 +264,10 @@ export const typeDefs = /* GraphQL */ `
     Experience level of the user
     """
     experienceLevel: String
+    """
+    Whether the user is a team member
+    """
+    isTeamMember: Boolean
   }
 
   """
