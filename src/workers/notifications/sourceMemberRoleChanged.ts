@@ -42,6 +42,11 @@ const worker: NotificationWorker = {
     const source = await con
       .getRepository(Source)
       .findOneBy({ id: member.sourceId });
+
+    if (!source) {
+      return;
+    }
+
     const baseCtx: NotificationSourceContext = {
       userIds: [member.userId],
       source,

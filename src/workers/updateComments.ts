@@ -1,3 +1,4 @@
+import { TypeORMQueryFailedError } from '../errors';
 import { updateMentions } from '../schema/comments';
 import { messageToJson, Worker } from './worker';
 
@@ -23,7 +24,9 @@ const worker: Worker = {
         },
         'updated username',
       );
-    } catch (err) {
+    } catch (originalError) {
+      const err = originalError as TypeORMQueryFailedError;
+
       logger.error(
         {
           data,

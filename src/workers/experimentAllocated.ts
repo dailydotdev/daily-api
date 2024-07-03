@@ -11,14 +11,17 @@ interface Data {
 const parseHash = (
   hash: Record<string, string>,
 ): Record<string, { variation: string; timestamp: Date }> => {
-  return Object.keys(hash).reduce((acc, key) => {
-    const [variation, timestamp] = hash[key].split(':');
-    acc[key] = {
-      variation,
-      timestamp: new Date(parseInt(timestamp)),
-    };
-    return acc;
-  }, {});
+  return Object.keys(hash).reduce(
+    (acc, key) => {
+      const [variation, timestamp] = hash[key].split(':');
+      acc[key] = {
+        variation,
+        timestamp: new Date(parseInt(timestamp)),
+      };
+      return acc;
+    },
+    {} as Record<string, { variation: string; timestamp: Date }>,
+  );
 };
 
 const keysToDrop = (

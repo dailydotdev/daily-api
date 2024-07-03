@@ -16,7 +16,7 @@ import postAdded from './postAdded';
 import memberJoinedSource from './squadMemberJoined';
 import sourceMemberRoleChanged from './sourceMemberRoleChanged';
 import squadPublicRequestNotification from './squadPublicRequestNotification';
-import { TypeOrmError } from '../../errors';
+import { TypeOrmError, TypeORMQueryFailedError } from '../../errors';
 import postMention from './postMention';
 import { collectionUpdated } from './collectionUpdated';
 import devCardUnlocked from './devCardUnlocked';
@@ -33,7 +33,9 @@ export function notificationWorkerToWorker(worker: NotificationWorker): Worker {
         await con.transaction(async (entityManager) => {
           await generateAndStoreNotificationsV2(entityManager, args);
         });
-      } catch (err) {
+      } catch (originalError) {
+        const err = originalError as TypeORMQueryFailedError;
+
         if (err?.code === TypeOrmError.NULL_VIOLATION) {
           logger.error(
             { data: messageToJson(message) },

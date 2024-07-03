@@ -53,6 +53,11 @@ const worker: NotificationWorker = {
       con.getRepository(Source).findOneBy({ id: member.sourceId }),
       con.getRepository(WelcomePost).findOneBy({ sourceId: member.sourceId }),
     ]);
+
+    if (!source) {
+      return;
+    }
+
     if (!post || source.type !== SourceType.Squad) {
       return;
     }

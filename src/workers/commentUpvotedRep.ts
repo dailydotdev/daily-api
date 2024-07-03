@@ -27,6 +27,10 @@ const worker: TypedWorker<'comment-upvoted'> = {
           .getRepository(User)
           .findOneBy({ id: data.userId });
 
+        if (!grantBy) {
+          return;
+        }
+
         if (
           comment.userId === grantBy.id ||
           grantBy.reputation < REPUTATION_THRESHOLD

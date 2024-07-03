@@ -86,7 +86,8 @@ export const workers: Worker[] = [
   ...notificationWorkers,
 ];
 
-export const typedWorkers: BaseTypedWorker<unknown>[] = [
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const typedWorkers: BaseTypedWorker<any>[] = [
   sourceRequestApprovedRep,
   commentDownvotedRep,
   commentDownvoteCanceledRep,

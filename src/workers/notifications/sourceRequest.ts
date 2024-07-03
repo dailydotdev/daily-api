@@ -33,7 +33,7 @@ const worker: NotificationWorker = {
         return [{ type: NotificationType.SourceRejected, ctx }];
       }
       default:
-        return null;
+        return;
     }
   },
 };

@@ -26,6 +26,10 @@ const worker: TypedWorker<'api.v1.post-downvoted'> = {
           .getRepository(User)
           .findOneBy({ id: data.userId });
 
+        if (!grantBy) {
+          return;
+        }
+
         if (grantBy.reputation < REPUTATION_THRESHOLD) {
           logger.info(
             logDetails,

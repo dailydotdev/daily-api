@@ -28,6 +28,11 @@ const worker: NotificationWorker = {
     const data: Data = messageToJson(message);
     const { requestorId, status, sourceId } = data.request;
     const source = await con.getRepository(Source).findOneBy({ id: sourceId });
+
+    if (!source) {
+      return [];
+    }
+
     const ctx: NotificationSquadRequestContext & NotificationSourceContext = {
       squadRequest: data.request,
       userIds: [requestorId],

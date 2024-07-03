@@ -27,6 +27,10 @@ const worker: TypedWorker<'api.v1.comment-downvoted'> = {
           .getRepository(User)
           .findOneBy({ id: data.userId });
 
+        if (!grantBy) {
+          return;
+        }
+
         if (
           comment.userId === grantBy.id ||
           grantBy.reputation < REPUTATION_THRESHOLD

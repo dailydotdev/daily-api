@@ -25,6 +25,10 @@ const worker: TypedWorker<'post-upvoted'> = {
           .getRepository(User)
           .findOneBy({ id: data.userId });
 
+        if (!grantBy) {
+          return;
+        }
+
         if (grantBy.reputation < REPUTATION_THRESHOLD) {
           logger.info(
             logDetails,

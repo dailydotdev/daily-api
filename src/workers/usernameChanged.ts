@@ -1,3 +1,4 @@
+import { TypeORMQueryFailedError } from '../errors';
 import { notifyCommentsUpdate } from './../common/pubsub';
 import { CommentMention } from './../entity/CommentMention';
 import { messageToJson, Worker } from './worker';
@@ -38,7 +39,9 @@ const worker: Worker = {
         },
         'updated username',
       );
-    } catch (err) {
+    } catch (originalError) {
+      const err = originalError as TypeORMQueryFailedError;
+
       logger.error(
         {
           userId,

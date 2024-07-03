@@ -30,7 +30,7 @@ const worker: NotificationWorker = {
       repo.findOneBy({ id: mentionedUserId }),
     ]);
 
-    if (!doneBy) {
+    if (!doneBy || !doneTo) {
       return;
     }
 
