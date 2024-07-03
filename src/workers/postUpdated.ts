@@ -198,7 +198,7 @@ type CheckExistingPostProps = {
   counter: opentelemetry.Counter;
   logger: FastifyBaseLogger;
   errorMsg: string;
-  id?: string;
+  excludeId?: string;
 };
 
 /**
@@ -209,7 +209,7 @@ type CheckExistingPostProps = {
  * @param counter
  * @param logger
  * @param errorMsg
- * @param id - By passing the id we only search for other posts containing these URLs
+ * @param excludeId - By passing the id we only search for other posts containing these URLs
  */
 const checkExistingUrl = async ({
   entityManager,
@@ -217,7 +217,7 @@ const checkExistingUrl = async ({
   counter,
   logger,
   errorMsg,
-  id,
+  excludeId,
 }: CheckExistingPostProps): Promise<boolean> => {
   let builder = entityManager
     .getRepository(Post)
@@ -227,8 +227,8 @@ const checkExistingUrl = async ({
       '(url = :url or url = :canonicalUrl or "canonicalUrl" = :url or "canonicalUrl" = :canonicalUrl)',
       { url: data.url, canonicalUrl: data.canonicalUrl },
     );
-  if (id) {
-    builder = builder.andWhere('id != :id', { id });
+  if (excludeId) {
+    builder = builder.andWhere('id != :excludeId', { excludeId });
   }
   const existingPost = await builder.getRawOne();
   if (existingPost) {
@@ -387,7 +387,7 @@ const updatePost = async ({
       counter,
       logger,
       errorMsg: 'failed updating post because URL/canonical exists already',
-      id: databasePost?.id,
+      excludeId: databasePost?.id,
     })
   ) {
     return null;
