@@ -46,7 +46,7 @@ const cron: Cron = {
         break;
       }
     }
-    logger.info(`synced subscriptions for ${syncedSubscriptions} users`);
+    logger.info({ count: syncedSubscriptions }, 'synced subscriptions');
   },
 };
 
