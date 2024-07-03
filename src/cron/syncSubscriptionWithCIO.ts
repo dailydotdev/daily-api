@@ -17,6 +17,7 @@ const cron: Cron = {
     logger.info('syncing subscriptions with customer.io');
 
     let iterations = 0;
+    let syncedSubscriptions = 0;
 
     while ((await getRedisListLength(redisKey)) > 0) {
       try {
@@ -32,7 +33,8 @@ const cron: Cron = {
         // Wait for a bit to avoid rate limiting
         await setTimeout(200);
 
-        logger.info(`synced subscriptions for ${userIds.size} users`);
+        syncedSubscriptions += userIds.size;
+        logger.debug(`synced subscriptions for ${userIds.size} users`);
       } catch (err) {
         logger.error({ err }, 'error syncing subscriptions');
         break;
@@ -44,6 +46,7 @@ const cron: Cron = {
         break;
       }
     }
+    logger.info(`synced subscriptions for ${syncedSubscriptions} users`);
   },
 };
 
