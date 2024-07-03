@@ -2,6 +2,7 @@ import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import { User } from './user';
 
 export enum FeatureType {
+  Team = 'team',
   Squad = 'squad',
   Search = 'search',
 }
