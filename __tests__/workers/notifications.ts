@@ -141,7 +141,7 @@ it('should NOT add devcard unlocked notification if user has NOT reached the rep
       reputation: 15,
     },
   });
-  expect(actual).toEqual(undefined);
+  expect(actual).toBeUndefined();
 });
 
 it('should NOT add devcard unlocked notification if user had already reached the dev card threshold', async () => {
@@ -158,7 +158,7 @@ it('should NOT add devcard unlocked notification if user had already reached the
       reputation: 40,
     },
   });
-  expect(actual).toEqual(undefined);
+  expect(actual).toBeUndefined();
 });
 
 describe('source member role changed', () => {
