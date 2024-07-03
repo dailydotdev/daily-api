@@ -200,7 +200,18 @@ type CheckExistingPostProps = {
   errorMsg: string;
   id?: string;
 };
-const checkExistingPost = async ({
+
+/**
+ * Function to check wheter an url/canonical url is already in use
+ *
+ * @param entityManager
+ * @param data
+ * @param counter
+ * @param logger
+ * @param errorMsg
+ * @param id - By passing the id we only search for other posts containing these URLs
+ */
+const checkExistingUrl = async ({
   entityManager,
   data,
   counter,
@@ -241,7 +252,7 @@ const createPost = async ({
   questions,
 }: CreatePostProps): Promise<Post | null> => {
   if (
-    await checkExistingPost({
+    await checkExistingUrl({
       entityManager,
       data,
       counter,
@@ -370,7 +381,7 @@ const updatePost = async ({
   }
 
   if (
-    await checkExistingPost({
+    await checkExistingUrl({
       entityManager,
       data,
       counter,
