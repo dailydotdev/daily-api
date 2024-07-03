@@ -34,7 +34,7 @@ const cron: Cron = {
         await setTimeout(200);
 
         syncedSubscriptions += userIds.size;
-        logger.debug(`synced subscriptions for ${userIds.size} users`);
+        logger.debug({ count: userIds.size }, `synced subscriptions`);
       } catch (err) {
         logger.error({ err }, 'error syncing subscriptions');
         break;
@@ -46,7 +46,7 @@ const cron: Cron = {
         break;
       }
     }
-    logger.info(`synced subscriptions for ${syncedSubscriptions} users`);
+    logger.info({ count: syncedSubscriptions }, 'synced subscriptions');
   },
 };
 
