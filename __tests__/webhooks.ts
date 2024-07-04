@@ -23,9 +23,12 @@ import { sendGenericPush } from '../src/onesignal';
 let app: FastifyInstance;
 let con: DataSource;
 
-const withSignature = (req) => {
+const withSignature = (
+  req,
+  secret: string = process.env.CIO_WEBHOOK_SECRET as string,
+) => {
   const timestamp = Math.floor(Date.now() / 1000);
-  const hmac = createHmac('sha256', process.env.CIO_WEBHOOK_SECRET as string);
+  const hmac = createHmac('sha256', secret);
   hmac.update(`v0:${timestamp}:${JSON.stringify(req['_data'])}`);
   const hash = hmac.digest().toString('hex');
 
@@ -64,14 +67,10 @@ jest.mock('../src/onesignal.ts', () => ({
 }));
 
 describe('POST /webhooks/customerio/marketing_cta', () => {
-  const timestamp = Math.floor(Date.now() / 1000);
   const payload = {
     userId: '1',
     marketingCtaId: 'worlds-best-campaign',
   };
-  const hmac = createHmac('sha256', process.env.CIO_WEBHOOK_SECRET as string);
-  hmac.update(`v0:${timestamp}:${JSON.stringify(payload)}`);
-  const hash = hmac.digest().toString('hex');
 
   const redisKey = generateStorageKey(
     StorageTopic.Boot,
@@ -127,9 +126,8 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
     it('should return 200 when signature is valid (dynamic)', async () => {
       const { body } = await request(app.server)
         .post('/webhooks/customerio/marketing_cta')
-        .set('x-cio-timestamp', timestamp.toString())
-        .set('x-cio-signature', hash)
         .send(payload)
+        .use(withSignature)
         .expect(200);
 
       expect(body.success).toEqual(true);
@@ -140,9 +138,8 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
     it('should return 200 and insert user marketing cta', async () => {
       const { body } = await request(app.server)
         .post('/webhooks/customerio/marketing_cta')
-        .set('x-cio-timestamp', timestamp.toString())
-        .set('x-cio-signature', hash)
         .send(payload)
+        .use(withSignature)
         .expect(200);
 
       expect(body.success).toEqual(true);
@@ -177,9 +174,8 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
 
       const { body } = await request(app.server)
         .post('/webhooks/customerio/marketing_cta')
-        .set('x-cio-timestamp', timestamp.toString())
-        .set('x-cio-signature', hash)
         .send(payload)
+        .use(withSignature)
         .expect(200);
 
       const userMarketingCta = await con
@@ -216,9 +212,8 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
 
       const { body } = await request(app.server)
         .post('/webhooks/customerio/marketing_cta')
-        .set('x-cio-timestamp', timestamp.toString())
-        .set('x-cio-signature', hash)
         .send(payload)
+        .use(withSignature)
         .expect(200);
 
       const userMarketingCta = await con
@@ -259,9 +254,8 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
 
       const { body } = await request(app.server)
         .post('/webhooks/customerio/marketing_cta')
-        .set('x-cio-timestamp', timestamp.toString())
-        .set('x-cio-signature', hash)
         .send(payload)
+        .use(withSignature)
         .expect(400);
 
       const userMarketingCta = await con
@@ -291,9 +285,8 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
 
       const { body } = await request(app.server)
         .post('/webhooks/customerio/marketing_cta/delete')
-        .set('x-cio-timestamp', timestamp.toString())
-        .set('x-cio-signature', hash)
         .send(payload)
+        .use(withSignature)
         .expect(200);
 
       expect(body.success).toEqual(true);
@@ -316,9 +309,8 @@ describe('POST /webhooks/customerio/marketing_cta', () => {
 
       const { body } = await request(app.server)
         .post('/webhooks/customerio/marketing_cta/delete')
-        .set('x-cio-timestamp', timestamp.toString())
-        .set('x-cio-signature', hash)
         .send(payload)
+        .use(withSignature)
         .expect(200);
 
       expect(body.success).toEqual(true);
@@ -362,12 +354,6 @@ describe('POST /webhooks/customerio/reporting', () => {
       transactional_message_id: '9',
     },
   };
-  const hmac = createHmac(
-    'sha256',
-    process.env.CIO_REPORTING_WEBHOOK_SECRET as string,
-  );
-  hmac.update(`v0:${timestamp}:${JSON.stringify(payload)}`);
-  const hash = hmac.digest().toString('hex');
 
   it('should return 403 when no x-cio-timestamp header', async () => {
     const { body } = await request(app.server)
@@ -416,9 +402,10 @@ describe('POST /webhooks/customerio/reporting', () => {
 
     const { body } = await request(app.server)
       .post('/webhooks/customerio/reporting')
-      .set('x-cio-timestamp', timestamp.toString())
-      .set('x-cio-signature', hash)
       .send(payload)
+      .use((req) =>
+        withSignature(req, process.env.CIO_REPORTING_WEBHOOK_SECRET as string),
+      )
       .expect(200);
 
     expect(await getRedisListLength(key)).toEqual(1);
@@ -428,15 +415,10 @@ describe('POST /webhooks/customerio/reporting', () => {
 });
 
 describe('POST /webhooks/customerio/promote_post', () => {
-  const timestamp = Math.floor(Date.now() / 1000);
   const payload = {
     userId: 'abc',
     postId: 'def',
   };
-
-  const hmac = createHmac('sha256', process.env.CIO_WEBHOOK_SECRET as string);
-  hmac.update(`v0:${timestamp}:${JSON.stringify(payload)}`);
-  const hash = hmac.digest().toString('hex');
 
   it('should return 403 when no x-cio-timestamp header', async () => {
     const { body } = await request(app.server)
@@ -461,9 +443,8 @@ describe('POST /webhooks/customerio/promote_post', () => {
   it('should return 200 when signature is valid', async () => {
     const { body } = await request(app.server)
       .post('/webhooks/customerio/promote_post')
-      .set('x-cio-timestamp', timestamp.toString())
-      .set('x-cio-signature', hash)
       .send(payload)
+      .use(withSignature)
       .expect(200);
 
     expect(body.success).toEqual(true);
