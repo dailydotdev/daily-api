@@ -53,24 +53,22 @@ type NotificationPayload = {
 };
 
 type ReportingEvent = {
-  Body: {
-    data: {
-      action_id?: number;
-      broadcast_id?: number;
-      customer_id: string;
-      identifiers: {
-        id: string;
-      };
-      delivery_id: string;
-      recipient?: string;
-      email_address?: string;
+  data: {
+    action_id?: number;
+    broadcast_id?: number;
+    customer_id: string;
+    identifiers: {
+      id: string;
     };
-    event_id: string;
-    trigger_event_id?: string;
-    object_type: string;
-    metric: string;
-    timestamp: number;
+    delivery_id: string;
+    recipient?: string;
+    email_address?: string;
   };
+  event_id: string;
+  trigger_event_id?: string;
+  object_type: string;
+  metric: string;
+  timestamp: number;
 };
 
 const subscriptionMetrics = [
@@ -79,7 +77,7 @@ const subscriptionMetrics = [
   'unsubscribed',
 ];
 
-async function trackCioEvent(payload: ReportingEvent['Body']): Promise<void> {
+async function trackCioEvent(payload: ReportingEvent): Promise<void> {
   const dupPayload = { ...payload, data: { ...payload.data } };
   const userId = dupPayload.data.identifiers.id;
   // Delete personal data
@@ -236,7 +234,7 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
     },
   });
 
-  fastify.post<ReportingEvent>('/reporting', {
+  fastify.post<WebhookPayload<ReportingEvent>>('/reporting', {
     config: {
       rawBody: true,
     },
