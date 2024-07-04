@@ -335,6 +335,31 @@ export const typeDefs = /* GraphQL */ `
     ): PostConnection! @auth
 
     """
+    Get feed by providing post ids
+    """
+    feedByIds(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+
+      """
+      Array of post ids
+      """
+      postIds: [String!]!
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
+    ): PostConnection! @auth
+
+    """
     Get an adhoc feed using a provided config
     """
     feedByConfig(
@@ -1343,6 +1368,13 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         info,
       );
     },
+    feedByIds: feedResolver(
+      (ctx, { postIds }: FeedArgs & { postIds: string[] }, builder, alias) =>
+        fixedIdsFeedBuilder(ctx, postIds, builder, alias),
+      feedPageGenerator,
+      applyFeedPaging,
+      {},
+    ),
     feedByConfig: (
       source,
       args: ConnectionArguments & { config: string },
