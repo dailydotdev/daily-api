@@ -70,7 +70,7 @@ export type ChangeMessage<T> = {
 };
 
 export type WebhookPayload<T> = {
-  Body: T;
+  Body?: T;
 };
 
 export enum DayOfWeek {

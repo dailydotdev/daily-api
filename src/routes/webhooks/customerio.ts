@@ -38,17 +38,13 @@ const verifyCIOSignature = (
 };
 
 type MarketingCtaPayload = {
-  Body: {
-    userId: string;
-    marketingCtaId: string;
-  };
+  userId: string;
+  marketingCtaId: string;
 };
 
 type PromotedPostPayload = {
-  Body: {
-    userId: string;
-    postId: string;
-  };
+  userId: string;
+  postId: string;
 };
 
 type NotificationPayload = {
@@ -117,7 +113,7 @@ const validateNotificationPayload = (payload: NotificationPayload): boolean => {
 export const customerio = async (fastify: FastifyInstance): Promise<void> => {
   fastify.register(
     async (fastify: FastifyInstance): Promise<void> => {
-      fastify.addHook<MarketingCtaPayload>(
+      fastify.addHook<WebhookPayload<MarketingCtaPayload>>(
         'preValidation',
         async (req, res) => {
           const valid = verifyCIOSignature(process.env.CIO_WEBHOOK_SECRET, req);
@@ -127,7 +123,7 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
         },
       );
 
-      fastify.post<MarketingCtaPayload>('/', {
+      fastify.post<WebhookPayload<MarketingCtaPayload>>('/', {
         config: {
           rawBody: true,
         },
@@ -154,7 +150,7 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
         },
       });
 
-      fastify.post<MarketingCtaPayload>('/delete', {
+      fastify.post<WebhookPayload<MarketingCtaPayload>>('/delete', {
         config: {
           rawBody: true,
         },
@@ -181,7 +177,7 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
     { prefix: '/marketing_cta' },
   );
 
-  fastify.post<PromotedPostPayload>('/promote_post', {
+  fastify.post<WebhookPayload<PromotedPostPayload>>('/promote_post', {
     config: {
       rawBody: true,
     },
