@@ -103,11 +103,11 @@ async function trackCioEvent(payload: ReportingEvent): Promise<void> {
 const validateNotificationPayload = (payload: NotificationPayload): boolean => {
   return (
     payload &&
-    payload.notification &&
-    payload.notification.title &&
-    payload.notification.body &&
-    payload.userIds &&
-    payload.userIds.length > 0
+    payload?.notification &&
+    payload?.notification?.title &&
+    payload?.notification?.body &&
+    payload?.userIds &&
+    payload?.userIds.length > 0
   );
 };
 
