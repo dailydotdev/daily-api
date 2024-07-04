@@ -167,6 +167,24 @@ it(`should not update if the post object doesn't have ID`, async () => {
   expect(post.metadataChangedAt).toEqual(new Date('2020-01-05T12:00:00.000Z'));
 });
 
+it(`should not update if the post changed URL already exists`, async () => {
+  await con.getRepository(ArticlePost).insert({
+    id: 'p3',
+    shortId: 'p3',
+    url: 'http://p3.com',
+    sourceId: 'a',
+  });
+  await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+    post_id: 'p1',
+    url: 'http://p3.com',
+    updated_at: new Date('01-05-2023 12:00:00'),
+  });
+  const post = await con.getRepository(ArticlePost).findOneBy({ id: 'p1' });
+  expect(post.url).toEqual('http://p1.com');
+  expect(post.metadataChangedAt).toEqual(new Date('2020-01-05T12:00:00.000Z'));
+});
+
 it('should update the post and keep it invisible if title is missing', async () => {
   await expectSuccessfulBackground(worker, {
     id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',

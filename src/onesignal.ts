@@ -117,3 +117,37 @@ export async function sendStreakReminderPush(
 
   await client.createNotification(push);
 }
+
+export type GenericPushPayload = {
+  title: string;
+  body: string;
+  url?: string;
+  utm_campaign?: string;
+};
+
+export const sendGenericPush = async (
+  userIds: string[],
+  notification: GenericPushPayload,
+) => {
+  if (!appId || !apiKey) return null;
+  const push = new OneSignal.Notification();
+  push.app_id = appId;
+  push.include_external_user_ids = userIds;
+  push.contents = {
+    en: notification.body,
+  };
+  push.headings = {
+    en: notification.title,
+  };
+
+  push.chrome_web_badge = chromeWebBadge;
+  push.chrome_web_icon = chromeWebIcon;
+
+  if (notification.url) {
+    push.url = notification.utm_campaign
+      ? addNotificationUtm(notification.url, 'push', notification.utm_campaign)
+      : notification.url;
+  }
+
+  return client.createNotification(push);
+};

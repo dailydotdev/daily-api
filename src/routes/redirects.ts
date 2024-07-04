@@ -74,9 +74,11 @@ const redirectToStore =
     }
 
     if (browser.includes('firefox') || browser.includes('mozilla')) {
-      return res.redirect(
-        `https://addons.mozilla.org/en-US/firefox/addon/daily/${url.search}`,
-      );
+      // Redirect to webapp since FF downgraded us
+      return res.redirect(`https://app.daily.dev${url.search}`);
+      // return res.redirect(
+      //   `https://addons.mozilla.org/en-US/firefox/addon/daily/${url.search}`,
+      // );
     }
 
     if (browser.includes('edge')) {
