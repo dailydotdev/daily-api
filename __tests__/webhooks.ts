@@ -17,9 +17,20 @@ import {
 import { StorageKey, StorageTopic, generateStorageKey } from '../src/config';
 import nock from 'nock';
 import { triggerTypedEvent } from '../src/common';
+import { NotificationPayload } from '../src/routes/webhooks/customerio';
+import { sendGenericPush } from '../src/onesignal';
 
 let app: FastifyInstance;
 let con: DataSource;
+
+const withSignature = (req) => {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const hmac = createHmac('sha256', process.env.CIO_WEBHOOK_SECRET as string);
+  hmac.update(`v0:${timestamp}:${JSON.stringify(req['_data'])}`);
+  const hash = hmac.digest().toString('hex');
+
+  return req.set('x-cio-timestamp', timestamp).set('x-cio-signature', hash);
+};
 
 beforeAll(async () => {
   con = await createOrGetConnection();
@@ -45,6 +56,11 @@ beforeEach(async () => {
 jest.mock('../src/common', () => ({
   ...(jest.requireActual('../src/common') as Record<string, unknown>),
   triggerTypedEvent: jest.fn(),
+}));
+
+jest.mock('../src/onesignal.ts', () => ({
+  ...(jest.requireActual('../src/onesignal.ts') as Record<string, unknown>),
+  sendGenericPush: jest.fn(),
 }));
 
 describe('POST /webhooks/customerio/marketing_cta', () => {
@@ -462,5 +478,66 @@ describe('POST /webhooks/customerio/promote_post', () => {
       userId: 'abc',
       postId: 'def',
     });
+  });
+});
+
+describe('POST /webhooks/customerio/notification', () => {
+  const payload: NotificationPayload = {
+    userIds: ['u1'],
+    notification: {
+      title: 'title',
+      body: 'body',
+      url: 'url',
+      utm_campaign: 'utm_campaign',
+    },
+  };
+
+  it('should return 403 when no x-cio-timestamp header', async () => {
+    const { body } = await request(app.server)
+      .post('/webhooks/customerio/notification')
+      .set('x-cio-signature', '123')
+      .send(payload)
+      .expect(403);
+
+    expect(body.error).toEqual('Invalid signature');
+  });
+
+  it('should return 403 when no x-cio-signature header', async () => {
+    const { body } = await request(app.server)
+      .post('/webhooks/customerio/notification')
+      .set('x-cio-timestamp', '123')
+      .send(payload)
+      .expect(403);
+
+    expect(body.error).toEqual('Invalid signature');
+  });
+
+  it('should return 200 when signature is valid', async () => {
+    const { body } = await request(app.server)
+      .post('/webhooks/customerio/notification')
+      .send(payload)
+      .use(withSignature)
+      .expect(200);
+
+    expect(body.success).toEqual(true);
+
+    expect(sendGenericPush).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(sendGenericPush).mock.calls[0][0]).toMatchObject(['u1']);
+    expect(jest.mocked(sendGenericPush).mock.calls[0][1]).toMatchObject({
+      body: 'body',
+      title: 'title',
+      url: 'url',
+      utm_campaign: 'utm_campaign',
+    });
+  });
+
+  it('should return 400 when the payload is invalid', async () => {
+    const { body } = await request(app.server)
+      .post('/webhooks/customerio/notification')
+      .send({ invalid: 'payload' })
+      .use(withSignature)
+      .expect(400);
+
+    expect(body.success).toEqual(false);
   });
 });

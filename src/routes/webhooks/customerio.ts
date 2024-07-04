@@ -47,7 +47,7 @@ type PromotedPostPayload = {
   postId: string;
 };
 
-type NotificationPayload = {
+export type NotificationPayload = {
   userIds: string[];
   notification: GenericPushPayload;
 };
