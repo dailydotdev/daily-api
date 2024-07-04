@@ -16,6 +16,7 @@ export const usersFixture: DeepPartial<User>[] = [
     twitter: null,
     username: 'idoshamun',
     infoConfirmed: true,
+    experienceLevel: 'LESS_THAN_1_YEAR',
   },
   {
     id: '2',
