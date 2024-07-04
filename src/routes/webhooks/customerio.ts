@@ -9,6 +9,8 @@ import { triggerTypedEvent } from '../../common';
 import { addDays } from 'date-fns';
 import { pushToRedisList } from '../../redis';
 import { StorageKey, StorageTopic, generateStorageKey } from '../../config';
+import { GenericPushPayload, sendGenericPush } from '../../onesignal';
+import { WebhookPayload } from '../../types';
 
 const verifyCIOSignature = (
   webhookSigningSecret: string,
@@ -47,6 +49,11 @@ type PromotedPostPayload = {
     userId: string;
     postId: string;
   };
+};
+
+type NotificationPayload = {
+  userIds: string[];
+  notification: GenericPushPayload;
 };
 
 type ReportingEvent = {
@@ -95,6 +102,17 @@ async function trackCioEvent(payload: ReportingEvent['Body']): Promise<void> {
   };
   await sendAnalyticsEvent([event]);
 }
+
+const validateNotificationPayload = (payload: NotificationPayload): boolean => {
+  return (
+    payload &&
+    payload.notification &&
+    payload.notification.title &&
+    payload.notification.body &&
+    payload.userIds &&
+    payload.userIds.length > 0
+  );
+};
 
 export const customerio = async (fastify: FastifyInstance): Promise<void> => {
   fastify.register(
@@ -189,6 +207,35 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
       } catch (err) {
         logger.error({ err }, 'Error processing CIO webhook');
         return res.status(400).send({ success: false });
+      }
+    },
+  });
+
+  fastify.post<WebhookPayload<NotificationPayload>>('/notification', {
+    config: {
+      rawBody: true,
+    },
+    handler: async (req, res) => {
+      const valid = verifyCIOSignature(
+        process.env.CIO_REPORTING_WEBHOOK_SECRET,
+        req,
+      );
+      if (!valid) {
+        req.log.warn('cio notifcations webhook invalid signature');
+        return res.status(403).send({ error: 'Invalid signature' });
+      }
+
+      const payload = req.body;
+      if (!validateNotificationPayload(req.body)) {
+        return res.status(400).send({ success: false });
+      }
+
+      try {
+        await sendGenericPush(payload.userIds, payload.notification);
+        return res.send({ success: true });
+      } catch (error) {
+        logger.error({ error }, 'Error sending generic push');
+        return res.status(500).send({ success: false });
       }
     },
   });
