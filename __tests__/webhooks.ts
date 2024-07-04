@@ -512,6 +512,29 @@ describe('POST /webhooks/customerio/notification', () => {
     });
   });
 
+  it('should remove duplicate userIds', async () => {
+    const { body } = await request(app.server)
+      .post('/webhooks/customerio/notification')
+      .send({ ...payload, userIds: ['u1', 'u1', 'u2', 'u3'] })
+      .use(withSignature)
+      .expect(200);
+
+    expect(body.success).toEqual(true);
+
+    expect(sendGenericPush).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(sendGenericPush).mock.calls[0][0]).toMatchObject([
+      'u1',
+      'u2',
+      'u3',
+    ]);
+    expect(jest.mocked(sendGenericPush).mock.calls[0][1]).toMatchObject({
+      body: 'body',
+      title: 'title',
+      url: 'url',
+      utm_campaign: 'utm_campaign',
+    });
+  });
+
   it('should return 400 when the payload is invalid', async () => {
     const { body } = await request(app.server)
       .post('/webhooks/customerio/notification')

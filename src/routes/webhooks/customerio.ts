@@ -225,7 +225,10 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
       }
 
       try {
-        await sendGenericPush(payload.userIds, payload.notification);
+        await sendGenericPush(
+          [...new Set(payload.userIds)],
+          payload.notification,
+        );
         return res.send({ success: true });
       } catch (error) {
         logger.error({ error }, 'Error sending generic push');
