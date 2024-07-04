@@ -46,6 +46,37 @@ describe('POST /p/newUser', () => {
     expect(body).toEqual({ status: 'failed', reason: 'MISSING_FIELDS' });
   });
 
+  it('should handle when experience level is empty on email signup (if username is provided)', async () => {
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: 'randomName',
+        email: 'randomNewEmail@gmail.com',
+      })
+      .expect(200);
+    expect(body).toEqual({ status: 'failed', reason: 'MISSING_FIELDS' });
+  });
+
+  it('should add new user when experience level is empty on sso signup (if username is not provided)', async () => {
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        email: 'randomNewEmail@gmail.com',
+      })
+      .expect(200);
+    expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
+  });
+
   it('should handle existing user ID', async () => {
     await createDefaultUser();
     const { body } = await request(app.server)
@@ -58,6 +89,7 @@ describe('POST /p/newUser', () => {
         image: usersFixture[0].image,
         username: 'randomName',
         email: 'randomNewEmail@gmail.com',
+        experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
 
@@ -77,6 +109,7 @@ describe('POST /p/newUser', () => {
         image: usersFixture[0].image,
         username: usersFixture[0].username,
         email: 'randomNewEmail@gmail.com',
+        experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
 
@@ -95,6 +128,7 @@ describe('POST /p/newUser', () => {
         image: usersFixture[0].image,
         username: usersFixture[0].username.toUpperCase(),
         email: 'randomNewEmail@gmail.com',
+        experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
 
@@ -113,6 +147,7 @@ describe('POST /p/newUser', () => {
         image: usersFixture[0].image,
         username: 'disallow',
         email: 'randomNewEmail@gmail.com',
+        experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
 
@@ -130,6 +165,7 @@ describe('POST /p/newUser', () => {
         image: usersFixture[0].image,
         username: 'h-ello',
         email: 'randomNewEmail@gmail.com',
+        experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
 
@@ -147,6 +183,7 @@ describe('POST /p/newUser', () => {
         image: usersFixture[0].image,
         username: 'h/ello',
         email: 'randomNewEmail@gmail.com',
+        experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
 
@@ -164,6 +201,7 @@ describe('POST /p/newUser', () => {
         image: usersFixture[0].image,
         username: 'he',
         email: 'randomNewEmail@gmail.com',
+        experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
 
@@ -182,6 +220,7 @@ describe('POST /p/newUser', () => {
         image: usersFixture[0].image,
         username: 'randomName',
         email: usersFixture[0].email,
+        experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
 
@@ -203,6 +242,7 @@ describe('POST /p/newUser', () => {
         image: usersFixture[0].image,
         username: 'randomName',
         email: 'iDO@daily.dev',
+        experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
 
@@ -220,6 +260,7 @@ describe('POST /p/newUser', () => {
         image: usersFixture[0].image,
         username: usersFixture[0].username,
         email: usersFixture[0].email.toUpperCase(),
+        experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
 
@@ -244,6 +285,7 @@ describe('POST /p/newUser', () => {
         image: usersFixture[0].image,
         username: 'h_ello',
         email: usersFixture[0].email,
+        experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
 
@@ -283,6 +325,7 @@ describe('POST /p/newUser', () => {
         username: usersFixture[0].username,
         email: usersFixture[0].email,
         github: usersFixture[0].github,
+        experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
 
@@ -310,6 +353,7 @@ describe('POST /p/newUser', () => {
         username: usersFixture[0].username,
         email: usersFixture[0].email,
         github: usersFixture[0].github,
+        experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
 
@@ -333,6 +377,7 @@ describe('POST /p/newUser', () => {
         username: usersFixture[0].username,
         email: usersFixture[0].email,
         twitter: usersFixture[0].twitter,
+        experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
 
@@ -359,6 +404,7 @@ describe('POST /p/newUser', () => {
         username: usersFixture[0].username,
         email: usersFixture[0].email,
         twitter: usersFixture[0].twitter,
+        experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
 
@@ -384,6 +430,7 @@ describe('POST /p/newUser', () => {
         username: usersFixture[0].username,
         email: usersFixture[0].email,
         referral: usersFixture[1].id,
+        experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
 
@@ -409,6 +456,7 @@ describe('POST /p/newUser', () => {
         username: usersFixture[0].username,
         email: usersFixture[0].email,
         referralId: usersFixture[1].id,
+        experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
 
@@ -436,6 +484,7 @@ describe('POST /p/newUser', () => {
         email: usersFixture[0].email,
         referralId: usersFixture[1].id,
         referralOrigin: 'knightcampaign',
+        experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
 
@@ -481,6 +530,7 @@ describe('POST /p/newUser', () => {
         image: usersFixture[0].image,
         username: usersFixture[0].username,
         email: usersFixture[0].email,
+        experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
 
