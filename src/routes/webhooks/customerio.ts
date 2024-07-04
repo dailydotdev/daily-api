@@ -97,6 +97,9 @@ async function trackCioEvent(payload: ReportingEvent): Promise<void> {
   await sendAnalyticsEvent([event]);
 }
 
+/**
+ * Validate the required fields in the notification payload
+ */
 const validateNotificationPayload = (payload: NotificationPayload): boolean => {
   return (
     payload &&
