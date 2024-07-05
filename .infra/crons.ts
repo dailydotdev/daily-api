@@ -32,10 +32,10 @@ export const crons: Cron[] = [
     name: 'update-tags-str',
     schedule: '12 2 * * *',
   },
-  {
-    name: 'export-to-tinybird',
-    schedule: '* * * * *',
-  },
+  // {
+  //   name: 'export-to-tinybird',
+  //   schedule: '* * * * *',
+  // },
   {
     name: 'clean-zombie-users',
     schedule: '32 */1 * * *',
