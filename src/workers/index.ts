@@ -50,6 +50,7 @@ import userDeletedCio from './userDeletedCio';
 import userCreatedCio from './userCreatedCio';
 import userStreakUpdatedCio from './userStreakUpdatedCio';
 import vordrPostCommentPrevented from './vordrPostCommentPrevented';
+import { postAddedSlackChannelSendWorker } from './postAddedSlackChannelSend';
 
 export { Worker } from './worker';
 
@@ -103,6 +104,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   userCreatedCio,
   userStreakUpdatedCio,
   vordrPostCommentPrevented,
+  postAddedSlackChannelSendWorker,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

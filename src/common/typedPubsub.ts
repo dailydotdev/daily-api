@@ -1,5 +1,11 @@
 import { ChangeObject } from '../types';
-import { SourceRequest, SquadPublicRequest, User, UserStreak } from '../entity';
+import {
+  Post,
+  SourceRequest,
+  SquadPublicRequest,
+  User,
+  UserStreak,
+} from '../entity';
 import {
   EventLogger,
   NotificationReason,
@@ -78,6 +84,9 @@ export type PubSubSchema = {
     commentId: string;
     contentHtml: string;
     postId: string;
+  };
+  'api.v1.post-visible': {
+    post: ChangeObject<Post>;
   };
 };
 

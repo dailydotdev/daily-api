@@ -131,6 +131,8 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
         {
           userIntegrationId: slackIntegration.id,
           sourceId: args.sourceId,
+          // TODO AS-413 if we want to support attaching multiple channels to a source
+          // we need to merge the array instead of replacing it
           channelIds: [args.channelId],
         },
         ['userIntegrationId', 'sourceId'],

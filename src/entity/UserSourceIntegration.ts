@@ -6,7 +6,11 @@ import {
   PrimaryColumn,
   TableInheritance,
 } from 'typeorm';
-import { UserIntegrationType, UserIntegration } from './UserIntegration';
+import {
+  UserIntegrationType,
+  UserIntegration,
+  UserIntegrationSlack,
+} from './UserIntegration';
 import { Source } from './Source';
 
 @Entity()
@@ -40,4 +44,10 @@ export class UserSourceIntegration {
 export class UserSourceIntegrationSlack extends UserSourceIntegration {
   @Column({ type: 'text', array: true, default: [] })
   channelIds: string[];
+
+  @ManyToOne(() => UserIntegration, {
+    lazy: true,
+    onDelete: 'CASCADE',
+  })
+  userIntegration: Promise<UserIntegrationSlack>;
 }
