@@ -28,6 +28,8 @@ const worker: TypedWorker<'comment-upvoted'> = {
           .findOneBy({ id: data.userId });
 
         if (!grantBy) {
+          logger.info(logDetails, 'grantBy user does not exist');
+
           return;
         }
 

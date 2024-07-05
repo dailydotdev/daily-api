@@ -28,6 +28,8 @@ const worker: TypedWorker<'api.v1.comment-downvoted'> = {
           .findOneBy({ id: data.userId });
 
         if (!grantBy) {
+          logger.info(logDetails, 'grantBy user does not exist');
+
           return;
         }
 

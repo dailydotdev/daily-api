@@ -36,14 +36,17 @@ const previousRoleToNewRole: Partial<
 
 const worker: NotificationWorker = {
   subscription: 'api.source-member-role-changed-notification',
-  handler: async (message, con) => {
+  handler: async (message, con, logger) => {
     const { previousRole, sourceMember: member }: Data = messageToJson(message);
+    const logDetails = { member, messageId: message.messageId };
 
     const source = await con
       .getRepository(Source)
       .findOneBy({ id: member.sourceId });
 
     if (!source) {
+      logger.info(logDetails, 'source does not exist');
+
       return;
     }
 
@@ -51,9 +54,6 @@ const worker: NotificationWorker = {
       userIds: [member.userId],
       source,
     };
-    if (!source) {
-      return;
-    }
 
     const roleToNotificationMap =
       previousRoleToNewRole[previousRole]?.[member.role];

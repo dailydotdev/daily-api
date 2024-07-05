@@ -24,12 +24,20 @@ const statusToTypeMap: Record<SquadPublicRequestStatus, NotificationType> = {
 
 const worker: NotificationWorker = {
   subscription: 'api.v1.squad-public-request-notification',
-  handler: async (message, con) => {
+  handler: async (message, con, logger) => {
     const data: Data = messageToJson(message);
     const { requestorId, status, sourceId } = data.request;
+    const logDetails = {
+      requestorId,
+      status,
+      sourceId,
+      messageId: message.messageId,
+    };
     const source = await con.getRepository(Source).findOneBy({ id: sourceId });
 
     if (!source) {
+      logger.info(logDetails, 'source does not exist');
+
       return [];
     }
 

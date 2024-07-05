@@ -26,6 +26,8 @@ const worker: TypedWorker<'post-upvoted'> = {
           .findOneBy({ id: data.userId });
 
         if (!grantBy) {
+          logger.info(logDetails, 'grantBy user does not exist');
+
           return;
         }
 
