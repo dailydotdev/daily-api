@@ -5,7 +5,7 @@ import { parse } from 'csv-parse';
 
 (async () => {
   const con = await createOrGetConnection();
-  const subscribed = {};
+  const subscribed = {} as Record<string, boolean>;
 
   console.log('reading csv');
   const stream = fs

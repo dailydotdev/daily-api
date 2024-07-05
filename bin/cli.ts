@@ -5,7 +5,7 @@ import background from '../src/background';
 import cron from '../src/cron';
 import personalizedDigest from '../src/commands/personalizedDigest';
 
-async function run(positionals) {
+async function run(positionals: string[]) {
   switch (positionals[0]) {
     case 'api':
       tracer('api').start();

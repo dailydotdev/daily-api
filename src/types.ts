@@ -2,6 +2,15 @@ import { Roles } from './roles';
 import { AccessToken } from './auth';
 import { opentelemetry } from './telemetry/opentelemetry';
 
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace NodeJS {
+    interface ProcessEnv {
+      PORT: string;
+    }
+  }
+}
+
 declare module 'fastify' {
   interface FastifyRequest {
     // Used for auth

@@ -5504,7 +5504,7 @@ const start = async (): Promise<void> => {
     disallowHandles.reduce((arr, handle) => {
       arr.push({ value: handle });
       return arr;
-    }, []),
+    }, [] as DisallowHandle[]),
   );
   await repo.save(createdResponse);
 };
