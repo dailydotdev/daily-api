@@ -1,10 +1,12 @@
 import {
   ChildEntity,
   Column,
+  CreateDateColumn,
   Entity,
   ManyToOne,
   PrimaryColumn,
   TableInheritance,
+  UpdateDateColumn,
 } from 'typeorm';
 import {
   UserIntegrationType,
@@ -26,6 +28,12 @@ export class UserSourceIntegration {
 
   @Column({ type: 'text' })
   type: UserIntegrationType;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 
   @ManyToOne(() => UserIntegration, {
     lazy: true,
