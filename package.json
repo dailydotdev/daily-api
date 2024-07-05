@@ -64,6 +64,7 @@
     "@opentelemetry/resource-detector-gcp": "^0.29.10",
     "@opentelemetry/sdk-node": "^0.52.1",
     "@sendgrid/eventwebhook": "^8.0.0",
+    "@slack/web-api": "^7.3.0",
     "@slack/webhook": "^7.0.2",
     "@temporalio/activity": "^1.10.1",
     "@temporalio/client": "^1.10.1",

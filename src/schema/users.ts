@@ -70,6 +70,11 @@ import { StorageKey, StorageTopic, generateStorageKey } from '../config';
 import { FastifyBaseLogger } from 'fastify';
 import { cachePrefillMarketingCta } from '../common/redisCache';
 import { cio } from '../cio';
+import {
+  UserIntegrationType,
+  UserIntegration,
+  UserIntegrationSlack,
+} from '../entity/UserIntegration';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -183,6 +188,14 @@ export interface GQLUserPersonalizedDigest {
   type: UserPersonalizedDigestType;
   flags: UserPersonalizedDigestFlagsPublic;
 }
+
+export type GQLUserIntegration = {
+  id: string;
+  type: string;
+  createdAt: Date;
+  updatedAt: Date;
+  name: string;
+};
 
 export const typeDefs = /* GraphQL */ `
   """
@@ -539,6 +552,14 @@ export const typeDefs = /* GraphQL */ `
 
   ${toGQLEnum(UserVoteEntity, 'UserVoteEntity')}
 
+  type UserIntegration {
+    id: ID!
+    type: String!
+    createdAt: DateTime!
+    updatedAt: DateTime!
+    name: String!
+  }
+
   extend type Query {
     """
     Get user based on logged in session
@@ -672,6 +693,11 @@ export const typeDefs = /* GraphQL */ `
     List of users that the logged in user has referred to the platform
     """
     referredUsers: UserConnection @auth
+
+    """
+    Get integrations for the user
+    """
+    userIntegrations: [UserIntegration]! @auth
   }
 
   extend type Mutation {
@@ -930,6 +956,18 @@ const getUserStreakQuery = async (
         id: id,
       }),
   }));
+};
+
+const getUserIntegrationName = (userIntegration: UserIntegration) => {
+  switch (userIntegration.type) {
+    case UserIntegrationType.Slack: {
+      const slackIntegration = userIntegration as UserIntegrationSlack;
+
+      return slackIntegration.meta.teamName;
+    }
+    default:
+      return userIntegration.type;
+  }
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1290,6 +1328,25 @@ export const resolvers: IResolvers<any, BaseContext> = {
           orderByKey: 'DESC',
         },
       );
+    },
+    userIntegrations: async (
+      _,
+      __,
+      ctx: Context,
+    ): Promise<GQLUserIntegration[]> => {
+      const userIntegrations = await ctx.con
+        .getRepository(UserIntegration)
+        .find({ where: { userId: ctx.userId } });
+
+      return userIntegrations.map((item) => {
+        return {
+          id: item.id,
+          type: item.type,
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+          name: getUserIntegrationName(item),
+        };
+      });
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

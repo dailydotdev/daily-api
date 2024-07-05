@@ -653,6 +653,14 @@ const obj = new GraphORM({
       },
     },
   },
+  UserIntegration: {
+    requiredColumns: ['id', 'type'],
+    fields: {
+      meta: {
+        jsonType: true,
+      },
+    },
+  },
 });
 
 export default obj;

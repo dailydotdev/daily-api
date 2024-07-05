@@ -1,6 +1,9 @@
 import { IncomingWebhook } from '@slack/webhook';
 import { Post, Comment, User } from '../entity';
 import { getDiscussionLink } from './links';
+import { NotFoundError } from '../errors';
+import { DataSource } from 'typeorm';
+import { UserIntegrationSlack } from '../entity/UserIntegration';
 
 const nullWebhook = { send: (): Promise<void> => Promise.resolve() };
 export const webhooks = Object.freeze({
@@ -149,4 +152,37 @@ export const notifyCommentReport = async (
       },
     ],
   });
+};
+
+export const getSlackIntegration = async ({
+  id,
+  userId,
+  con,
+}: {
+  id: string;
+  userId: string;
+  con: DataSource;
+}): Promise<UserIntegrationSlack> => {
+  const slackIntegration = await con
+    .getRepository(UserIntegrationSlack)
+    .findOneBy({
+      id,
+      userId: userId,
+    });
+
+  return slackIntegration;
+};
+
+export const getSlackIntegrationOrFail: typeof getSlackIntegration = async ({
+  id,
+  userId,
+  con,
+}) => {
+  const slackIntegration = await getSlackIntegration({ id, userId, con });
+
+  if (!slackIntegration) {
+    throw new NotFoundError('slack integration not found');
+  }
+
+  return slackIntegration;
 };
