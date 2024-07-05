@@ -110,6 +110,7 @@ const LOGGED_IN_BODY = {
     company: null,
     cover: null,
     experienceLevel: null,
+    isTeamMember: false,
   },
   marketingCta: null,
   feeds: [],
@@ -427,6 +428,20 @@ describe('logged in boot', () => {
           LOGGED_IN_BODY.user.reputation >= submitArticleThreshold,
       },
     });
+  });
+
+  it('should set team member to true if user is a team member', async () => {
+    await con.getRepository(Feature).save({
+      feature: FeatureType.Team,
+      userId: '1',
+      value: 1,
+    });
+    mockLoggedIn();
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+    expect(res.body.user.isTeamMember).toEqual(true);
   });
 });
 

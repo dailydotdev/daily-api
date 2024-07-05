@@ -183,6 +183,9 @@ type AddNewUserResult =
   | { status: 'failed'; reason: UserFailErrorKeys; error?: Error };
 
 const checkRequiredFields = (data: AddUserData): boolean => {
+  if (data?.username && !data?.experienceLevel) {
+    return false;
+  }
   return !!(data && data.id);
 };
 
