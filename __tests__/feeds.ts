@@ -9,6 +9,8 @@ import {
   AdvancedSettings,
   ArticlePost,
   BookmarkList,
+  Feature,
+  FeatureType,
   Feed,
   FeedAdvancedSettings,
   FeedSource,
@@ -864,6 +866,73 @@ describe('query feedByConfig', () => {
     const res = await client.query(QUERY, { variables });
     expect(res.errors).toBeFalsy();
     expect(res.data.feedByConfig.edges[0].node.id).toEqual('p1');
+  });
+});
+
+describe('query feedByIds', () => {
+  const QUERY = `
+  query FeedByIds($first: Int, $postIds: [String!]!) {
+    feedByIds(first: $first, postIds: $postIds) {
+      ${feedFields()}
+    }
+  }
+`;
+
+  it('should not authorize when no user is set', async () => {
+    await testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { first: 10, postIds: ['p1', 'p2'] },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should not authorize when no user has no features', async () => {
+    loggedUser = '1';
+    await testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { first: 10, postIds: ['p1', 'p2'] },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should not authorize when no user has team feature at 0', async () => {
+    loggedUser = '1';
+    await con.getRepository(Feature).insert({
+      feature: FeatureType.Team,
+      userId: '1',
+      value: -1,
+    });
+    await testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { first: 10, postIds: ['p1', 'p2'] },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should return feed by ids for team member', async () => {
+    loggedUser = '1';
+    await con.getRepository(Feature).insert({
+      feature: FeatureType.Team,
+      userId: '1',
+      value: 1,
+    });
+    const res = await client.query(QUERY, {
+      variables: { first: 10, postIds: ['p1', 'p2'] },
+    });
+    expect(
+      res.data.feedByIds.edges.every(
+        ({ node }) => node.id === 'p1' || node.id === 'p2',
+      ),
+    ).toBeTruthy();
   });
 });
 
