@@ -4,7 +4,7 @@ import { differenceInDays } from 'date-fns';
 import '../src/config';
 import createOrGetConnection from '../src/db';
 import { User, UserStreak, View } from '../src/entity';
-import { DataSource, DeepPartial, Equal, IsNull, MoreThan, Not } from 'typeorm';
+import { DataSource, Equal, IsNull, MoreThan, Not } from 'typeorm';
 import { shouldResetStreak } from '../src/common';
 import { getRedisObject, setRedisObject } from '../src/redis';
 
@@ -17,12 +17,16 @@ interface UserPointer {
   createdAt?: string;
 }
 
+type ProcessedUser = Pick<User, 'id' | 'timezone'> & {
+  createdAt: string;
+};
+
 const addNextBatch = async (
   con: DataSource,
-  insertQueue: fastq.queueAsPromised<Partial<User>[], void>,
+  insertQueue: fastq.queueAsPromised<ProcessedUser[], void>,
   userPointer?: UserPointer,
   limit: number = BATCH_SIZE,
-): Promise<UserPointer> => {
+): Promise<UserPointer | null> => {
   const qb = con
     .getRepository(User)
     .createQueryBuilder('u')
@@ -47,7 +51,7 @@ const addNextBatch = async (
     .addOrderBy('u."id"', 'ASC')
     .take(limit);
 
-  const users = await qb.execute();
+  const users: ProcessedUser[] = await qb.execute();
 
   // nothing to do anymore, all the users are processed
   if (users.length === 0) {
@@ -73,10 +77,15 @@ interface ViewWithDateTz extends View {
   maxTimestamp: Date;
 }
 
+type ProcessedUserStreak = Pick<
+  UserStreak,
+  'currentStreak' | 'totalStreak' | 'maxStreak' | 'userId' | 'lastViewAt'
+>;
+
 const computeReadingStreaksData = async (
   con: DataSource,
-  user: Partial<User>,
-): Promise<DeepPartial<UserStreak>> => {
+  user: Pick<User, 'id' | 'timezone'>,
+): Promise<ProcessedUserStreak> => {
   const timeZone = user.timezone ?? 'UTC';
 
   const views: ViewWithDateTz[] = await con
@@ -101,7 +110,7 @@ const computeReadingStreaksData = async (
   }
 
   const data = views.reduce(
-    (acc: DeepPartial<UserStreak>, item: ViewWithDateTz, index: number) => {
+    (acc: ProcessedUserStreak, item: ViewWithDateTz, index: number) => {
       // prevent undefined results on first item
       const difference =
         index === 0 ? 1 : differenceInDays(item.date, acc.lastViewAt as Date);
@@ -128,6 +137,7 @@ const computeReadingStreaksData = async (
       totalStreak: 0,
       maxStreak: 0,
       userId: user.id,
+      lastViewAt: null,
     },
   );
 
@@ -140,7 +150,7 @@ const computeReadingStreaksData = async (
   const con = await createOrGetConnection();
 
   let insertCount = 0;
-  const insertQueue = fastq.promise(async (users: Partial<User>[]) => {
+  const insertQueue = fastq.promise(async (users: ProcessedUser[]) => {
     const ids = users.map((u) => u.id);
     console.log('inserting user streaks for: ', ids);
     const updates = await Promise.all(
