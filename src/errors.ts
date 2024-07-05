@@ -1,4 +1,5 @@
 import { ApolloError } from 'apollo-server-errors';
+import { QueryFailedError } from 'typeorm';
 
 export enum UserFailErrorKeys {
   GenericError = 'GENERIC_ERROR',
@@ -107,9 +108,14 @@ export enum SourcePermissionErrorKeys {
 
 // Return 409 HTTP status code
 export class ConflictError extends ApolloError {
-  constructor(message) {
+  constructor(message: string) {
     super(message, 'CONFLICT');
 
     Object.defineProperty(this, 'name', { value: 'ConflictError' });
   }
 }
+
+export type TypeORMQueryFailedError = QueryFailedError & {
+  code?: string;
+  constraint?: string;
+};

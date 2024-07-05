@@ -29,7 +29,7 @@ const worker: Worker = {
         await getNotificationV2AndChildren(con, id);
       if (notification) {
         const stream = await streamNotificationUsers(con, notification.id);
-        await processStream(
+        await processStream<{ userId: string }>(
           stream,
           ({ userId }) =>
             redisPubSub.publish(`events.notifications.${userId}.new`, {
