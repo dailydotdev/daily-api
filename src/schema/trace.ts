@@ -22,12 +22,15 @@ export function traceResolver<TSource, TArgs, TReturn>(
         ['graphql.operation.type']: info.operation.operation,
         ['graphql.variableValues']: JSON.stringify(info.variableValues),
       });
+    }
 
+    if (context?.meter) {
       context.metricGraphqlCounter.add(1, {
         ['graphql.field.name']: info.fieldName,
         ['graphql.operation.name']: info.operation?.name?.value,
       });
     }
+
     return next(source, args, context, info);
   };
 }

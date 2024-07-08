@@ -20,7 +20,6 @@ import { containerDetector } from '@opentelemetry/resource-detector-container';
 import { gcpDetector } from '@opentelemetry/resource-detector-gcp';
 
 import { isProd } from '../common';
-import { startMetrics } from './metrics';
 import { channel, getAppVersion, TelemetrySemanticAttributes } from './common';
 
 const resourceDetectors = [
@@ -130,33 +129,16 @@ export const tracer = (serviceName: string) => {
   });
 
   channel.subscribe(({ fastify }: { fastify: FastifyInstance }) => {
-    const meter = api.metrics.getMeter(serviceName);
-    const requestCounter = meter.createCounter('requests', {
-      description: 'How many requests have been processed',
-    });
-
     fastify.decorate('tracer', api.trace.getTracer(serviceName));
-    fastify.decorate('meter', meter);
-    fastify.decorateRequest('meter', null);
     fastify.decorateRequest('span', null);
 
     fastify.addHook('onRequest', async (req) => {
-      req.meter = meter;
       req.span = api.trace.getSpan(api.context.active());
     });
 
     // Decorate the main span with some metadata
     fastify.addHook('onResponse', async (req, res) => {
       addApiSpanLabels(req.span, req, res);
-
-      if (req.routeOptions.url === '/graphql') {
-        return;
-      }
-
-      requestCounter.add(1, {
-        [TelemetrySemanticAttributes.HTTP_ROUTE]: req.routeOptions.url,
-        [TelemetrySemanticAttributes.DAILY_APPS_VERSION]: getAppVersion(req),
-      });
     });
   });
 
@@ -167,7 +149,6 @@ export const tracer = (serviceName: string) => {
   return {
     start: () => {
       sdk.start();
-      startMetrics(serviceName);
     },
     tracer,
   };

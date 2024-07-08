@@ -1,3 +1,4 @@
+import type { FastifyInstance } from 'fastify';
 import { api, resources, metrics } from '@opentelemetry/sdk-node';
 import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
@@ -9,6 +10,7 @@ import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
 
 import { isProd } from '../common';
 import { logger } from '../logger';
+import { channel, getAppVersion, TelemetrySemanticAttributes } from './common';
 
 export const startMetrics = (serviceName: string): void => {
   const readers: metrics.MetricReader[] = [
@@ -38,4 +40,30 @@ export const startMetrics = (serviceName: string): void => {
 
   const meterProvider = new metrics.MeterProvider({ resource, readers });
   api.metrics.setGlobalMeterProvider(meterProvider);
+
+  channel.subscribe(({ fastify }: { fastify: FastifyInstance }) => {
+    const meter = api.metrics.getMeter(serviceName);
+    const requestCounter = meter.createCounter('requests', {
+      description: 'How many requests have been processed',
+    });
+
+    fastify.decorate('meter', meter);
+    fastify.decorateRequest('meter', null);
+
+    fastify.addHook('onRequest', async (req) => {
+      req.meter = meter;
+    });
+
+    // Decorate the main span with some metadata
+    fastify.addHook('onResponse', async (req) => {
+      if (req.routeOptions.url === '/graphql') {
+        return;
+      }
+
+      requestCounter.add(1, {
+        [TelemetrySemanticAttributes.HTTP_ROUTE]: req.routeOptions.url,
+        [TelemetrySemanticAttributes.DAILY_APPS_VERSION]: getAppVersion(req),
+      });
+    });
+  });
 };

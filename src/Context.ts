@@ -59,6 +59,10 @@ export class Context {
     return this.req.span;
   }
 
+  get meter(): opentelemetry.Meter {
+    return this.req.meter;
+  }
+
   getRepository<Entity>(
     target: ObjectType<Entity> | EntitySchema<Entity> | string,
   ): Repository<Entity> {

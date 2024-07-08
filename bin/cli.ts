@@ -1,4 +1,5 @@
 import { tracer } from '../src/telemetry/opentelemetry';
+import { startMetrics } from '../src/telemetry/metrics';
 import { parseArgs } from 'node:util';
 import api from '../src';
 import background from '../src/background';
@@ -9,6 +10,7 @@ async function run(positionals: string[]) {
   switch (positionals[0]) {
     case 'api':
       tracer('api').start();
+      startMetrics('api');
       const app = await api();
       await app.listen({
         port: parseInt(process.env.PORT) || 3000,
@@ -17,6 +19,7 @@ async function run(positionals: string[]) {
       break;
     case 'background':
       tracer('background').start();
+      startMetrics('background');
       await background();
       break;
     case 'cron':
@@ -25,6 +28,7 @@ async function run(positionals: string[]) {
       break;
     case 'personalized-digest':
       tracer('personalized-digest').start();
+      startMetrics('personalized-digest');
       await personalizedDigest();
       break;
     default:
