@@ -1,7 +1,7 @@
 interface Cron {
   name: string;
   schedule: string;
-  activeDeadlineSeconds?: number
+  activeDeadlineSeconds?: number;
   limits?: {
     memory: string;
   };
@@ -16,10 +16,6 @@ export const crons: Cron[] = [
     name: 'check-analytics-report',
     schedule: '0 */1 * * *',
   },
-  // {
-  //   name: 'hashnode-badge',
-  //   schedule: '0 7 * * *',
-  // },
   {
     name: 'update-views',
     schedule: '*/10 * * * *',
@@ -32,10 +28,6 @@ export const crons: Cron[] = [
     name: 'update-tags-str',
     schedule: '12 2 * * *',
   },
-  // {
-  //   name: 'export-to-tinybird',
-  //   schedule: '* * * * *',
-  // },
   {
     name: 'clean-zombie-users',
     schedule: '32 */1 * * *',
@@ -104,6 +96,6 @@ export const crons: Cron[] = [
   {
     name: 'sync-subscription-with-cio',
     schedule: '*/5 * * * *',
-    activeDeadlineSeconds: 4*60
-  }
+    activeDeadlineSeconds: 4 * 60,
+  },
 ];

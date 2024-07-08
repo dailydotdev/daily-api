@@ -3,7 +3,6 @@ import updateViews from './updateViews';
 import checkAnalyticsReport from './checkAnalyticsReport';
 import updateTrending from './updateTrending';
 import updateTagsStr from './updateTagsStr';
-import exportToTinybird from './exportToTinybird';
 import cleanZombieUsers from './cleanZombieUsers';
 import cleanZombieImages from './cleanZombieImages';
 import personalizedDigest from './personalizedDigest';
@@ -20,7 +19,6 @@ export const crons: Cron[] = [
   checkAnalyticsReport,
   updateTrending,
   updateTagsStr,
-  exportToTinybird,
   cleanZombieUsers,
   cleanZombieImages,
   personalizedDigest,
