@@ -305,7 +305,6 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
     ): Promise<ConnectionRelay<GQLPost> & { query: string }> => {
       const limit = Math.min(args.first || 10);
       const offset = getOffsetWithDefault(args.after, -1) + 1;
-      console.log(`limit: ${limit} --- offset: ${offset}`);
       const meilieSearchRes = await searchMeili(
         `q=${args.query}&attributesToRetrieve=post_id&attributesToSearchOn=title&limit=${limit}&offset=${offset}`,
       );
