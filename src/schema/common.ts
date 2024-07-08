@@ -103,6 +103,7 @@ export interface Page {
 
 export interface OffsetPage extends Page {
   offset: number;
+  current?: number;
 }
 
 export interface CursorPage extends Page {
@@ -148,29 +149,24 @@ export const getSearchQuery = (param: string): string =>
 export const processSearchQuery = (query: string): string =>
   query.trim().split(' ').join(' & ') + ':*';
 
-export const meiliOffsetGenerator = <TReturn>(
-  defaultLimit: number,
-  maxLimit: number,
-  totalLimit?: number,
-): PageGenerator<TReturn, ConnectionArguments, OffsetPage, unknown> => ({
+export const meiliOffsetGenerator = <TReturn>(): PageGenerator<
+  TReturn,
+  unknown,
+  OffsetPage,
+  unknown
+> => ({
   connArgsToPage: ({ pagination }): OffsetPage => {
-    console.log('internal', pagination);
     return {
       limit: pagination?.total || 10,
       offset: pagination?.offset + 1 || 0,
+      current: pagination?.current,
     };
   },
   nodeToCursor: (page, args, node, i): string =>
     offsetToCursor(page.offset + i),
-  hasNextPage: (page, nodesSize): boolean => {
-    console.log(
-      'has next',
-      page,
-      nodesSize,
-      page.limit,
-      page.offset + nodesSize < page.limit,
-    );
-    return page.offset + nodesSize < page.limit;
+  hasNextPage: (page): boolean => {
+    console.log(page);
+    return page.current <= page.limit;
   },
   hasPreviousPage: (page): boolean => page.offset > 0,
 });
@@ -181,7 +177,7 @@ export const offsetPageGenerator = <TReturn>(
   totalLimit?: number,
 ): PageGenerator<TReturn, ConnectionArguments, OffsetPage, unknown> => ({
   connArgsToPage: (args: ConnectionArguments): OffsetPage => {
-    const limit = Math.min(args.first || dzefaultLimit, maxLimit);
+    const limit = Math.min(args.first || defaultLimit, maxLimit);
     const offset = getOffsetWithDefault(args.after, -1) + 1;
     return {
       limit: totalLimit ? Math.min(limit, totalLimit - offset) : limit,

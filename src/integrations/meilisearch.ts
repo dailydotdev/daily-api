@@ -16,11 +16,18 @@ interface MeiliResponse {
   offset: number;
   estimatedTotalHits: number;
 }
+export type MeiliPagination = {
+  limit: number;
+  offset: number;
+  total: number;
+  current: number;
+};
+
 export const searchMeili = async (
   params: string,
 ): Promise<{
   hits: Meili[];
-  pagination: { limit: number; offset: number; total: number };
+  pagination: MeiliPagination;
 }> => {
   const headers = new Headers({
     Authorization: `Bearer ${meiliToken}`,
@@ -38,6 +45,7 @@ export const searchMeili = async (
   );
   return {
     pagination: {
+      current: res.hits.length + res.offset + res.limit,
       limit: res.limit,
       offset: res.offset,
       total: res.estimatedTotalHits,

@@ -16,7 +16,7 @@ import graphorm from '../graphorm';
 import { ConnectionArguments } from 'graphql-relay/index';
 import { FeedArgs, feedResolver, fixedIdsFeedBuilder } from '../common';
 import { GQLPost } from './posts';
-import { searchMeili } from '../integrations/meilisearch';
+import { MeiliPagination, searchMeili } from '../integrations/meilisearch';
 import { Keyword, Post, Source, UserPost } from '../entity';
 import {
   SearchSuggestionArgs,
@@ -224,7 +224,7 @@ export const typeDefs = /* GraphQL */ `
 const meiliSearchResolver = feedResolver(
   (ctx, { ids }: FeedArgs & { ids: string[]; pagination }, builder, alias) =>
     fixedIdsFeedBuilder(ctx, ids, builder, alias),
-  meiliOffsetGenerator(20, 30),
+  meiliOffsetGenerator(),
   (ctx, args, page, builder) => builder,
   {
     removeHiddenPosts: true,
@@ -303,21 +303,22 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       ctx,
       info,
     ): Promise<ConnectionRelay<GQLPost> & { query: string }> => {
-      const limit = Math.min(args.first || 30, 50);
+      const limit = Math.min(args.first || 10);
       const offset = getOffsetWithDefault(args.after, -1) + 1;
       const meilieSearchRes = await searchMeili(
         `q=${args.query}&attributesToRetrieve=post_id&attributesToSearchOn=title&limit=${limit}&offset=${offset}`,
       );
-      console.log(meilieSearchRes.pagination);
 
-      const meilieArgs: FeedArgs & { ids: string[] } = {
+      const meilieArgs: FeedArgs & {
+        ids: string[];
+        pagination: MeiliPagination;
+      } = {
         ...args,
         ids: meilieSearchRes.hits.map((x) => x.post_id),
         pagination: meilieSearchRes.pagination,
       };
 
       const res = await meiliSearchResolver(source, meilieArgs, ctx, info);
-      console.log(res);
       return {
         ...res,
         query: args.query,
