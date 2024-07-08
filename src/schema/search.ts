@@ -10,7 +10,7 @@ import {
   SearchSession,
 } from '../integrations';
 import { ValidationError } from 'apollo-server-errors';
-import { GQLEmptyResponse, offsetPageGenerator } from './common';
+import { GQLEmptyResponse, meiliOffsetGenerator } from './common';
 import { Connection as ConnectionRelay } from 'graphql-relay/connection/connection';
 import graphorm from '../graphorm';
 import { ConnectionArguments } from 'graphql-relay/index';
@@ -23,6 +23,7 @@ import {
   defaultSearchLimit,
   getSearchLimit,
 } from '../common/search';
+import { getOffsetWithDefault } from 'graphql-relay';
 
 type GQLSearchSession = Pick<SearchSession, 'id' | 'prompt' | 'createdAt'>;
 
@@ -221,10 +222,10 @@ export const typeDefs = /* GraphQL */ `
 `;
 
 const meiliSearchResolver = feedResolver(
-  (ctx, { ids }: FeedArgs & { ids: string[] }, builder, alias) =>
+  (ctx, { ids }: FeedArgs & { ids: string[]; pagination }, builder, alias) =>
     fixedIdsFeedBuilder(ctx, ids, builder, alias),
-  offsetPageGenerator(30, 50),
-  (ctx, args, page, builder) => builder.limit(page.limit).offset(page.offset),
+  meiliOffsetGenerator(20, 30),
+  (ctx, args, page, builder) => builder,
   {
     removeHiddenPosts: true,
     removeBannedPosts: false,
@@ -255,7 +256,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       { query }: { query: string; version: number },
       ctx,
     ): Promise<GQLSearchSuggestionsResults> => {
-      const hits = await searchMeili(
+      const { hits } = await searchMeili(
         `q=${query}&attributesToRetrieve=post_id,title&attributesToSearchOn=title`,
       );
       // In case ids is empty make sure the query does not fail
@@ -293,20 +294,30 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
     },
     searchPosts: async (
       source,
-      args: FeedArgs & { query: string; version: number },
+      args: FeedArgs & {
+        query: string;
+        version: number;
+        first: number;
+        after: string;
+      },
       ctx,
       info,
     ): Promise<ConnectionRelay<GQLPost> & { query: string }> => {
+      const limit = Math.min(args.first || 30, 50);
+      const offset = getOffsetWithDefault(args.after, -1) + 1;
       const meilieSearchRes = await searchMeili(
-        `q=${args.query}&attributesToRetrieve=post_id&attributesToSearchOn=title`,
+        `q=${args.query}&attributesToRetrieve=post_id&attributesToSearchOn=title&limit=${limit}&offset=${offset}`,
       );
+      console.log(meilieSearchRes.pagination);
 
       const meilieArgs: FeedArgs & { ids: string[] } = {
         ...args,
-        ids: meilieSearchRes.map((x) => x.post_id),
+        ids: meilieSearchRes.hits.map((x) => x.post_id),
+        pagination: meilieSearchRes.pagination,
       };
 
       const res = await meiliSearchResolver(source, meilieArgs, ctx, info);
+      console.log(res);
       return {
         ...res,
         query: args.query,
