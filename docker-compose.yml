@@ -7,6 +7,7 @@ version: "3.1"
 volumes:
   db:
   redis:
+  search:
 
 services:
 
@@ -32,3 +33,13 @@ services:
       - redis:/data
     ports:
       - "6379:6379"
+
+  search:
+    image: getmeili/meilisearch:v1.9.0
+    restart: always
+    environment:
+        MEILI_MASTER_KEY: topsecret
+    volumes:
+     - search:/data.ms
+    ports:
+      - '7700:7700'
