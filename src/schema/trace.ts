@@ -25,12 +25,10 @@ export function traceResolver<TSource, TArgs, TReturn>(
       });
     }
 
-    if (context?.meter) {
-      counters?.api?.graphqlOperations?.add(1, {
-        ['graphql.field.name']: info.fieldName,
-        ['graphql.operation.name']: info.operation?.name?.value,
-      });
-    }
+    counters?.api?.graphqlOperations?.add(1, {
+      ['graphql.field.name']: info.fieldName,
+      ['graphql.operation.name']: info.operation?.name?.value,
+    });
 
     return next(source, args, context, info);
   };

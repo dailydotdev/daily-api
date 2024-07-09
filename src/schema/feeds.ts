@@ -1255,7 +1255,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
     feed: (source, args: ConfiguredFeedArgs, ctx: Context, info) => {
       if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
-        if (args?.refresh && ctx.meter) {
+        if (args?.refresh) {
           counters?.api?.forceRefresh?.add(1);
         }
 

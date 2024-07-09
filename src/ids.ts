@@ -13,8 +13,6 @@ export const generateTrackingId = (
   req: FastifyRequest,
   origin: string,
 ): Promise<string> => {
-  if (req.meter) {
-    counters?.api?.generateTrackingId?.add(1, { origin });
-  }
+  counters?.api?.generateTrackingId?.add(1, { origin });
   return generateLongId();
 };

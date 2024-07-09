@@ -120,15 +120,6 @@ export const startMetrics = (serviceName: string): void => {
   api.metrics.setGlobalMeterProvider(meterProvider);
 
   channel.subscribe(({ fastify }: { fastify: FastifyInstance }) => {
-    const meter = api.metrics.getMeter(serviceName);
-
-    fastify.decorate('meter', meter);
-    fastify.decorateRequest('meter', null);
-
-    fastify.addHook('onRequest', async (req) => {
-      req.meter = meter;
-    });
-
     // Decorate the main span with some metadata
     fastify.addHook('onResponse', async (req) => {
       if (req.routeOptions.url === '/graphql') {

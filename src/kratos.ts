@@ -82,9 +82,7 @@ export const clearAuthentication = async (
   setCookie(req, res, 'kratosContinuity', undefined);
   setCookie(req, res, 'kratos', undefined);
 
-  if (req.meter) {
-    counters?.api?.clearAuthentication?.add(1, { reason });
-  }
+  counters?.api?.clearAuthentication?.add(1, { reason });
 };
 
 const MOCK_USER_ID = process.env.MOCK_USER_ID;

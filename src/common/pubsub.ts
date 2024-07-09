@@ -419,7 +419,6 @@ export const workerSubscribe = (
   pubsub: PubSub,
   connection: DataSource,
   subscription: string,
-  meter: opentelemetry.Meter,
   handler: (
     message: Message,
     con: DataSource,

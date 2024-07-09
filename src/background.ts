@@ -1,4 +1,4 @@
-import { runInRootSpan, opentelemetry } from './telemetry';
+import { runInRootSpan } from './telemetry';
 import 'reflect-metadata';
 import { PubSub } from '@google-cloud/pubsub';
 
@@ -18,7 +18,6 @@ export default async function app(): Promise<void> {
     createOrGetConnection,
   );
   const pubsub = new PubSub();
-  const meter = opentelemetry.metrics.getMeter('api-bg');
 
   loadAuthKeys();
   await loadFeatures(logger);
@@ -31,7 +30,6 @@ export default async function app(): Promise<void> {
       pubsub,
       connection,
       worker.subscription,
-      meter,
       (message, con, logger, pubsub) =>
         worker.handler(
           {
@@ -51,7 +49,6 @@ export default async function app(): Promise<void> {
       pubsub,
       connection,
       worker.subscription,
-      meter,
       (message, con, logger, pubsub) =>
         worker.handler(
           {
