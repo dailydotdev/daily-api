@@ -66,6 +66,11 @@ const counterMap = {
       name: 'post_error',
       description: 'How many times a post error has occurred',
     },
+    notificationFailed: {
+      name: 'notification_failed',
+      description:
+        'Number of notifications failed to be sent via different channels',
+    },
   },
   cron: {
     streakUpdate: {
@@ -126,7 +131,7 @@ export const startMetrics = (serviceName: string): void => {
         return;
       }
 
-      meter.createCounter(counters.api.requests.name).add(1, {
+      counters.api.requests.add(1, {
         [TelemetrySemanticAttributes.HTTP_ROUTE]: req.routeOptions.url,
         [TelemetrySemanticAttributes.DAILY_APPS_VERSION]: getAppVersion(req),
       });

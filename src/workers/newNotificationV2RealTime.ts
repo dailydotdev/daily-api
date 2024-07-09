@@ -7,7 +7,7 @@ import {
   getNotificationV2AndChildren,
   streamNotificationUsers,
 } from '../notifications/common';
-import { getNotificationFailedCounter } from '../common/metrics';
+import { counters } from '../telemetry';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -18,7 +18,6 @@ const QUEUE_CONCURRENCY = 10;
 const worker: Worker = {
   subscription: 'api.new-notification-real-time',
   handler: async (message, con, logger): Promise<void> => {
-    const counter = getNotificationFailedCounter();
     const data: Data = messageToJson(message);
     if (!data.notification.public) {
       return;
@@ -50,7 +49,7 @@ const worker: Worker = {
         },
         'failed to send new notification event to redis',
       );
-      counter.add(1, { channel: 'real-time' });
+      counters.background.notificationFailed.add(1, { channel: 'real-time' });
     }
   },
 };

@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { customAlphabet } from 'nanoid/async';
 import { FastifyRequest } from 'fastify';
+import { counters } from './telemetry';
 
 const alphabet =
   '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
@@ -13,11 +14,7 @@ export const generateTrackingId = (
   origin: string,
 ): Promise<string> => {
   if (req.meter) {
-    req.meter
-      .createCounter('generate_tracking_id', {
-        description: 'How many times a tracking id was generated',
-      })
-      .add(1, { origin });
+    counters.api.generateTrackingId.add(1, { origin });
   }
   return generateLongId();
 };

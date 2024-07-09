@@ -33,6 +33,7 @@ import { generateTrackingId } from '../../ids';
 import { UserStreak } from './UserStreak';
 import { DEFAULT_TIMEZONE } from '../../types';
 import { validateValidTimeZone } from '../../common/timezone';
+import { counters } from '../../telemetry';
 
 @Entity()
 @Index('IDX_user_lowerusername_username', { synchronize: false })
@@ -285,12 +286,7 @@ const handleInsertError = async (
 
       if (error.message.indexOf('PK_') > -1) {
         if (req.meter) {
-          req.meter
-            .createCounter('user_id_conflict', {
-              description:
-                'How many times a user id conflict happened on registration',
-            })
-            .add(1);
+          counters.api.userIdConflict.add(1);
         }
         if (shouldRetry) {
           data.id = await generateTrackingId(req, 'user creation');

@@ -4,28 +4,18 @@ import { FastifyRequest, FastifyBaseLogger } from 'fastify';
 import { GraphQLDatabaseLoader } from '@mando75/typeorm-graphql-loader';
 import { Roles } from './roles';
 import { DataLoaderService } from './dataLoaderService';
-import { counters } from './telemetry/common';
 
 export class Context {
   req: FastifyRequest;
   con: DataSource;
   loader: GraphQLDatabaseLoader;
   dataLoader: DataLoaderService;
-  metricGraphqlCounter: opentelemetry.Counter;
-  rateLimitCouner: opentelemetry.Counter;
 
   constructor(req: FastifyRequest, con) {
     this.req = req;
     this.con = con;
     this.loader = new GraphQLDatabaseLoader(con);
     this.dataLoader = new DataLoaderService({ ctx: this });
-
-    this.metricGraphqlCounter = this.req.meter.createCounter(
-      counters.api.graphqlOperations.name,
-    );
-    this.rateLimitCouner = this.req.meter.createCounter(
-      counters.api.rateLimit.name,
-    );
   }
 
   get service(): boolean | null {

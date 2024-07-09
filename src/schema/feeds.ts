@@ -63,7 +63,6 @@ import {
   ForbiddenError,
   ValidationError,
 } from 'apollo-server-errors';
-import { opentelemetry } from '../telemetry/opentelemetry';
 import { maxFeedsPerUser, UserVote } from '../types';
 import { createDatePageGenerator } from '../common/datePageGenerator';
 import { generateShortId } from '../ids';
@@ -73,6 +72,7 @@ import {
   validateFeedPayload,
 } from '../common/feed';
 import { FeedLocalConfigGenerator } from '../integrations/feed/configs';
+import { counters } from '../telemetry';
 
 interface GQLTagsCategory {
   id: string;
@@ -1255,10 +1255,8 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
     feed: (source, args: ConfiguredFeedArgs, ctx: Context, info) => {
       if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
-        if (args?.refresh) {
-          const meter = opentelemetry.metrics.getMeter('api-bg');
-          const counter = meter.createCounter('force_refresh');
-          counter.add(1);
+        if (args?.refresh && ctx.meter) {
+          counters.api.forceRefresh.add(1);
         }
 
         return feedResolverCursor(

@@ -6,6 +6,7 @@ import {
 import { GraphQLResolveInfo } from 'graphql';
 import { isFunction, isObject } from 'lodash';
 import { Context } from '../Context';
+import { counters } from '../telemetry';
 
 export function traceResolver<TSource, TArgs, TReturn>(
   next: IFieldResolver<TSource, Context, TArgs>,
@@ -25,7 +26,7 @@ export function traceResolver<TSource, TArgs, TReturn>(
     }
 
     if (context?.meter) {
-      context.metricGraphqlCounter.add(1, {
+      counters.api.graphqlOperations.add(1, {
         ['graphql.field.name']: info.fieldName,
         ['graphql.operation.name']: info.operation?.name?.value,
       });

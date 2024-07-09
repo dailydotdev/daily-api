@@ -14,6 +14,7 @@ import { singleRedisClient } from '../redis';
 import { Context } from '../Context';
 import { logger } from '../logger';
 import { WATERCOOLER_ID } from '../common';
+import { counters } from '../telemetry';
 
 export const highRateLimitedSquads = [WATERCOOLER_ID];
 
@@ -95,7 +96,7 @@ export const onLimit: RateLimitOnLimit<Context> = (
     case 'createFreeformPost':
     case 'submitExternalLink':
     case 'sharePost':
-      context.rateLimitCouner.add(1, { type: 'createPost' });
+      context.meter && counters.api.rateLimit.add(1, { type: 'createPost' });
       const period = highRateLimitedSquads.includes(args.sourceId as string)
         ? 'ten minutes'
         : 'hour';
@@ -104,12 +105,12 @@ export const onLimit: RateLimitOnLimit<Context> = (
       });
     case 'commentOnPost':
     case 'commentOnComment':
-      context.rateLimitCouner.add(1, { type: 'createComment' });
+      context.meter && counters.api.rateLimit.add(1, { type: 'createComment' });
       throw new RateLimitError({
         message: 'Take a break. You already commented enough in the last hour',
       });
     default:
-      context.rateLimitCouner.add(1, { type: 'default' });
+      context.meter && counters.api.rateLimit.add(1, { type: 'default' });
       throw new RateLimitError({ msBeforeNextReset: resource.msBeforeNext });
   }
 };

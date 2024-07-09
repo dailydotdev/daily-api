@@ -37,7 +37,7 @@ import {
   streamNotificationUsers,
 } from '../notifications/common';
 import { processStreamInBatches } from '../common/streaming';
-import { getNotificationFailedCounter } from '../common/metrics';
+import { counters } from '../telemetry';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -597,7 +597,6 @@ const QUEUE_CONCURRENCY = 100;
 const worker: Worker = {
   subscription: 'api.new-notification-mail',
   handler: async (message, con, logger): Promise<void> => {
-    const counter = getNotificationFailedCounter();
     const data: Data = messageToJson(message);
     const { id } = data.notification;
     const [notification, attachments, avatars] =
@@ -659,7 +658,7 @@ const worker: Worker = {
         },
         'failed to send notification email',
       );
-      counter.add(1, { channel: 'email' });
+      counters.background.notificationFailed.add(1, { channel: 'email' });
     }
   },
 };

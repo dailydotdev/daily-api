@@ -7,6 +7,7 @@ import { setTrackingId } from './tracking';
 import { generateTrackingId } from './ids';
 import { HttpError, retryFetch } from './integrations/retry';
 import { LogoutReason } from './common';
+import { counters } from './telemetry';
 
 const heimdallOrigin = process.env.HEIMDALL_ORIGIN;
 const kratosOrigin = process.env.KRATOS_ORIGIN;
@@ -82,13 +83,7 @@ export const clearAuthentication = async (
   setCookie(req, res, 'kratos', undefined);
 
   if (req.meter) {
-    req.meter
-      .createCounter('clear_authentication', {
-        description: 'How many times the authentication has been cleared',
-      })
-      .add(1, {
-        reason,
-      });
+    counters?.api?.clearAuthentication?.add(1, { reason });
   }
 };
 

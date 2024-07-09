@@ -3,12 +3,9 @@ import rateLimit from '@fastify/rate-limit';
 import { Automation, automations } from '../integrations/automation';
 import { HttpError } from '../integrations/retry';
 import { singleRedisClient } from '../redis';
+import { counters } from '../telemetry';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
-  const counter = fastify.meter?.createCounter('automations', {
-    description: 'How many automations were triggered',
-  });
-
   fastify.register(rateLimit, {
     max: 2,
     timeWindow: '1 minute',
@@ -30,7 +27,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         return res.status(401).send();
       }
       try {
-        counter?.add(1, { name });
+        if (fastify?.meter) {
+          counters.api.automations.add(1, { name });
+        }
         const autoRes = await auto.run({ ...body, userId });
         return res.status(200).send(autoRes);
       } catch (err) {
