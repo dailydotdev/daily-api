@@ -87,6 +87,7 @@ export default async function app(
   app.register(cors, {
     origin: isProd ? /daily\.dev$/ : true,
     credentials: true,
+    cacheControl: 86400,
   });
   app.register(cookie, {
     secret: process.env.COOKIES_KEY,
