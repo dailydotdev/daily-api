@@ -814,7 +814,9 @@ const worker: Worker = {
       ) {
         return;
       }
-      counters?.api?.cdcTrigger?.add(1, { table: data.payload.source.table });
+      counters?.background?.cdcTrigger?.add(1, {
+        table: data.payload.source.table,
+      });
       switch (data.payload.source.table) {
         case getTableName(con, Banner):
           await onBannerChange(con, logger, data);

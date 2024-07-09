@@ -60,10 +60,6 @@ const counterMap = {
       name: 'cio_events',
       description: 'How many customerio events were sent to analytics',
     },
-    cdcTrigger: {
-      name: 'cdc_trigger',
-      description: 'How many times the cdc trigger was called',
-    },
   },
   background: {
     postError: {
@@ -74,6 +70,10 @@ const counterMap = {
       name: 'notification_failed',
       description:
         'Number of notifications failed to be sent via different channels',
+    },
+    cdcTrigger: {
+      name: 'cdc_trigger',
+      description: 'How many times the cdc trigger was called',
     },
   },
   cron: {
