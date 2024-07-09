@@ -1,7 +1,7 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import { randomBytes } from 'crypto';
-import { Source } from './Source';
-import { User } from './user';
+import type { Source } from './Source';
+import type { User } from './user';
 import { promisify } from 'util';
 import { SourceMemberRoles } from '../roles';
 
@@ -25,7 +25,7 @@ export class SourceMember {
   @Index('IDX_source_member_sourceId')
   sourceId: string;
 
-  @ManyToOne(() => Source, (source) => source.members, {
+  @ManyToOne('Source', (source: Source) => source.members, {
     lazy: true,
     onDelete: 'CASCADE',
   })
@@ -35,7 +35,7 @@ export class SourceMember {
   @Index('IDX_source_member_userId')
   userId: string;
 
-  @ManyToOne(() => User, {
+  @ManyToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
   })
