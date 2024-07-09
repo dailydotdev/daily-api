@@ -23,6 +23,8 @@ async function run(positionals: string[]) {
       await background();
       break;
     case 'cron':
+      tracer('cron').start();
+      startMetrics('cron');
       await cron(positionals[1]);
       process.exit();
       break;
