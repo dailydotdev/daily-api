@@ -222,8 +222,12 @@ export const typeDefs = /* GraphQL */ `
 `;
 
 const meiliSearchResolver = feedResolver(
-  (ctx, { ids }: FeedArgs & { ids: string[]; pagination }, builder, alias) =>
-    fixedIdsFeedBuilder(ctx, ids, builder, alias),
+  (
+    ctx,
+    { ids }: FeedArgs & { ids: string[]; pagination: MeiliPagination },
+    builder,
+    alias,
+  ) => fixedIdsFeedBuilder(ctx, ids, builder, alias),
   meiliOffsetGenerator(),
   (ctx, args, page, builder) => builder,
   {

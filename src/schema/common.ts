@@ -11,6 +11,7 @@ import GraphQLUpload from 'graphql-upload/GraphQLUpload.js';
 import { GraphQLDateTime } from 'graphql-scalars';
 
 import { Context } from '../Context';
+import type { MeiliPagination } from '../integrations/meilisearch';
 
 export interface GQLEmptyResponse {
   _: boolean;
@@ -149,21 +150,23 @@ export const getSearchQuery = (param: string): string =>
 export const processSearchQuery = (query: string): string =>
   query.trim().split(' ').join(' & ') + ':*';
 
-export const meiliOffsetGenerator = <TReturn>(): PageGenerator<
+export const meiliOffsetGenerator = <
+  TReturn extends { id: string },
+>(): PageGenerator<
   TReturn,
-  unknown,
+  ConnectionArguments & { ids: string[]; pagination: MeiliPagination },
   OffsetPage,
   unknown
 > => ({
   connArgsToPage: ({ pagination }): OffsetPage => {
     return {
       limit: pagination?.total || 10,
-      offset: pagination?.offset + 1 || 0,
+      offset: pagination?.offset || 0,
       current: pagination?.current,
     };
   },
-  nodeToCursor: (page, args, node, i): string =>
-    offsetToCursor(page.offset + i),
+  nodeToCursor: (page, { ids }, node): string =>
+    offsetToCursor(page.offset + ids.findIndex((postId) => postId === node.id)),
   hasNextPage: (page): boolean => page.current < page.limit,
   hasPreviousPage: (page): boolean => page.offset > 0,
 });
