@@ -179,7 +179,6 @@ export const offsetPageGenerator = <TReturn>(
   connArgsToPage: (args: ConnectionArguments): OffsetPage => {
     const limit = Math.min(args.first || defaultLimit, maxLimit);
     const offset = getOffsetWithDefault(args.after, -1) + 1;
-    console.log('my feed', limit, offset);
     return {
       limit: totalLimit ? Math.min(limit, totalLimit - offset) : limit,
       offset,
