@@ -309,7 +309,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { id }: { id: string },
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      // TODO: check if the existing bookmark has a reminder and remove the task associated with it
+      // TODO MI-436: check if the existing bookmark has a reminder and remove the task associated with it
       await ctx.con.getRepository(Bookmark).delete({
         postId: id,
         userId: ctx.userId,
@@ -361,11 +361,11 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         }
 
         if (!remindAt) {
-          // TODO: delete the task from the queueing system
+          // TODO MI-436: delete the task from the queueing system
           return;
         }
 
-        // TODO: add the task to the queueing system
+        // TODO MI-436: add the task to the queueing system
       });
 
       return { _: null };
