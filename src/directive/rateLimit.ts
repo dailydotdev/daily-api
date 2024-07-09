@@ -105,8 +105,7 @@ export const onLimit: RateLimitOnLimit<Context> = (
       });
     case 'commentOnPost':
     case 'commentOnComment':
-      context.meter &&
-        counters?.api?.rateLimit?.add(1, { type: 'createComment' });
+      counters?.api?.rateLimit?.add(1, { type: 'createComment' });
       throw new RateLimitError({
         message: 'Take a break. You already commented enough in the last hour',
       });
