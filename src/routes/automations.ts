@@ -28,7 +28,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       }
       try {
         if (fastify?.meter) {
-          counters.api.automations.add(1, { name });
+          counters?.api?.automations?.add(1, { name });
         }
         const autoRes = await auto.run({ ...body, userId });
         return res.status(200).send(autoRes);

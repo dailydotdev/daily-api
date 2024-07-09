@@ -1256,7 +1256,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     feed: (source, args: ConfiguredFeedArgs, ctx: Context, info) => {
       if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
         if (args?.refresh && ctx.meter) {
-          counters.api.forceRefresh.add(1);
+          counters?.api?.forceRefresh?.add(1);
         }
 
         return feedResolverCursor(
@@ -1356,17 +1356,24 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           )
         : feedGenerators.onboarding;
 
-      return feedResolverCursor(
-        source,
-        {
-          ...(feedArgs as FeedArgs),
-          first: 20,
-          ranking: Ranking.POPULARITY,
-          generator: feedGenerator,
-        },
-        ctx,
-        info,
-      );
+      return process.env.NODE_ENV === 'development'
+        ? feedResolverV1(
+            source,
+            args as unknown as ConfiguredFeedArgs,
+            ctx,
+            info,
+          )
+        : feedResolverCursor(
+            source,
+            {
+              ...(feedArgs as FeedArgs),
+              first: 20,
+              ranking: Ranking.POPULARITY,
+              generator: feedGenerator,
+            },
+            ctx,
+            info,
+          );
     },
     feedByIds: feedResolver(
       (ctx, { postIds }: FeedArgs & { postIds: string[] }, builder, alias) =>

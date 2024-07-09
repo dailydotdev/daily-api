@@ -286,7 +286,7 @@ const handleInsertError = async (
 
       if (error.message.indexOf('PK_') > -1) {
         if (req.meter) {
-          counters.api.userIdConflict.add(1);
+          counters?.api?.userIdConflict?.add(1);
         }
         if (shouldRetry) {
           data.id = await generateTrackingId(req, 'user creation');

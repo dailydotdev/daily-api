@@ -49,7 +49,9 @@ const worker: Worker = {
         },
         'failed to send new notification event to redis',
       );
-      counters.background.notificationFailed.add(1, { channel: 'real-time' });
+      counters?.background?.notificationFailed?.add(1, {
+        channel: 'real-time',
+      });
     }
   },
 };

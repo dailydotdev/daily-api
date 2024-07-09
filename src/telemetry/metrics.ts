@@ -135,7 +135,7 @@ export const startMetrics = (serviceName: string): void => {
         return;
       }
 
-      counters.api.requests.add(1, {
+      counters?.api?.requests?.add(1, {
         [TelemetrySemanticAttributes.HTTP_ROUTE]: req.routeOptions.url,
         [TelemetrySemanticAttributes.DAILY_APPS_VERSION]: getAppVersion(req),
       });

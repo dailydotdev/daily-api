@@ -105,7 +105,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       }
 
       if (req.meter) {
-        counters.api.sendgridEvents.add(events.length);
+        counters?.api?.sendgridEvents?.add(events.length);
       }
       return res.status(204).send();
     },

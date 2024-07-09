@@ -658,7 +658,7 @@ const worker: Worker = {
         },
         'failed to send notification email',
       );
-      counters.background.notificationFailed.add(1, { channel: 'email' });
+      counters?.background?.notificationFailed?.add(1, { channel: 'email' });
     }
   },
 };

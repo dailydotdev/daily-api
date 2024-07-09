@@ -7,7 +7,7 @@ const cron: Cron = {
   name: 'update-current-streak',
   handler: async (con, logger) => {
     try {
-      const streakCounter = counters.cron.streakUpdate;
+      const streakCounter = counters?.cron?.streakUpdate;
       await con.transaction(async (entityManager): Promise<void> => {
         const usersPastStreakTime = await entityManager
           .createQueryBuilder()
@@ -39,10 +39,10 @@ const cron: Cron = {
           entityManager,
           userIdsToReset,
         );
-        streakCounter.add(usersPastStreakTime.length, {
+        streakCounter?.add(usersPastStreakTime.length, {
           type: 'users_in_cron',
         });
-        streakCounter.add(clearedStreaks, { type: 'users_updated' });
+        streakCounter?.add(clearedStreaks, { type: 'users_updated' });
       });
       logger.info('updated current streak cron');
     } catch (err) {

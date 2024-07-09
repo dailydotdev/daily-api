@@ -263,7 +263,7 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
 
       await trackCioEvent(payload);
       if (req.meter) {
-        counters.api.cioEvents.add(1);
+        counters?.api?.cioEvents?.add(1);
       }
 
       return res.send({ success: true });

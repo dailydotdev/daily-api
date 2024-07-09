@@ -228,7 +228,7 @@ const checkExistingUrl = async ({
   }
   const existingPost = await builder.getRawOne();
   if (existingPost) {
-    counters.background.postError.add(1, {
+    counters?.background?.postError?.add(1, {
       reason: 'duplication_conflict',
     });
     logger.info({ data }, errorMsg);
@@ -362,7 +362,7 @@ const updatePost = async ({
     databasePost.metadataChangedAt.toISOString() >=
       data.metadataChangedAt.toISOString()
   ) {
-    counters.background.postError.add(1, {
+    counters?.background?.postError?.add(1, {
       reason: 'date_conflict',
     });
     logger.info(

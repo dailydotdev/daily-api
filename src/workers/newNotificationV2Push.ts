@@ -52,7 +52,7 @@ const worker: Worker = {
             },
             'failed to send push notifications',
           );
-          counters.background.notificationFailed.add(1, { channel: 'push' });
+          counters?.background?.notificationFailed?.add(1, { channel: 'push' });
         }
       }
     }
