@@ -19,7 +19,7 @@ import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
 import { containerDetector } from '@opentelemetry/resource-detector-container';
 import { gcpDetector } from '@opentelemetry/resource-detector-gcp';
 
-import { isProd } from '../common';
+import { isProd } from '../common/utils';
 import { channel, getAppVersion, TelemetrySemanticAttributes } from './common';
 
 const resourceDetectors = [

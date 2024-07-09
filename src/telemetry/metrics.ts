@@ -8,7 +8,7 @@ import { containerDetector } from '@opentelemetry/resource-detector-container';
 import { gcpDetector } from '@opentelemetry/resource-detector-gcp';
 import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
 
-import { isProd } from '../common';
+import { isProd } from '../common/utils';
 import { logger } from '../logger';
 import {
   channel,
