@@ -97,7 +97,7 @@ export const setCookie = (
   req: FastifyRequest,
   res: FastifyReply,
   key: string,
-  value: string,
+  value: string | undefined,
   opts: Partial<CookieSerializeOptions> = {},
 ): FastifyReply => {
   const config = cookies[key];
