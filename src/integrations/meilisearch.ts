@@ -45,7 +45,7 @@ export const searchMeili = async (
   );
   return {
     pagination: {
-      current: res.hits.length + res.offset + res.limit,
+      current: res.hits.length + res.offset,
       limit: res.limit,
       offset: res.offset,
       total: res.estimatedTotalHits,

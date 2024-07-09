@@ -164,7 +164,10 @@ export const meiliOffsetGenerator = <TReturn>(): PageGenerator<
   },
   nodeToCursor: (page, args, node, i): string =>
     offsetToCursor(page.offset + i),
-  hasNextPage: (page): boolean => page.current <= page.limit,
+  hasNextPage: (page): boolean => {
+    console.log('HNP:', page.current, page.limit);
+    return page.current < page.limit;
+  },
   hasPreviousPage: (page): boolean => page.offset > 0,
 });
 
@@ -176,6 +179,7 @@ export const offsetPageGenerator = <TReturn>(
   connArgsToPage: (args: ConnectionArguments): OffsetPage => {
     const limit = Math.min(args.first || defaultLimit, maxLimit);
     const offset = getOffsetWithDefault(args.after, -1) + 1;
+    console.log('my feed', limit, offset);
     return {
       limit: totalLimit ? Math.min(limit, totalLimit - offset) : limit,
       offset,
