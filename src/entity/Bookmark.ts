@@ -16,6 +16,9 @@ export class Bookmark {
   @Column({ type: 'uuid', nullable: true })
   listId: string;
 
+  @Column({ type: 'timestamp', nullable: true })
+  remindAt: Date;
+
   @ManyToOne(() => Post, {
     lazy: true,
     onDelete: 'CASCADE',
