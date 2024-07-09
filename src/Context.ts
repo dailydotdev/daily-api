@@ -1,4 +1,4 @@
-import { opentelemetry } from './telemetry/opentelemetry';
+import { opentelemetry } from './telemetry';
 import { DataSource, EntitySchema, ObjectType, Repository } from 'typeorm';
 import { FastifyRequest, FastifyBaseLogger } from 'fastify';
 import { GraphQLDatabaseLoader } from '@mando75/typeorm-graphql-loader';
@@ -10,25 +10,12 @@ export class Context {
   con: DataSource;
   loader: GraphQLDatabaseLoader;
   dataLoader: DataLoaderService;
-  metricGraphqlCounter: opentelemetry.Counter;
-  rateLimitCouner: opentelemetry.Counter;
 
   constructor(req: FastifyRequest, con) {
     this.req = req;
     this.con = con;
     this.loader = new GraphQLDatabaseLoader(con);
     this.dataLoader = new DataLoaderService({ ctx: this });
-    this.metricGraphqlCounter = opentelemetry.metrics
-      .getMeter('graphql')
-      .createCounter('graphql_operations', {
-        description:
-          'How many graphql operations have been performed, their operation type and name',
-      });
-    this.rateLimitCouner = opentelemetry.metrics
-      .getMeter('graphql')
-      .createCounter('rate_limit', {
-        description: 'How many times a rate limit has been hit',
-      });
   }
 
   get service(): boolean | null {

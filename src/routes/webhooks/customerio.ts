@@ -11,6 +11,7 @@ import { pushToRedisList } from '../../redis';
 import { StorageKey, StorageTopic, generateStorageKey } from '../../config';
 import { GenericPushPayload, sendGenericPush } from '../../onesignal';
 import { WebhookPayload } from '../../types';
+import { counters } from '../../telemetry';
 
 const verifyCIOSignature = (
   webhookSigningSecret: string,
@@ -261,13 +262,7 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
       }
 
       await trackCioEvent(payload);
-      if (req.meter) {
-        req.meter
-          .createCounter('cio_events', {
-            description: 'How many customerio events were sent to analytics',
-          })
-          .add(1);
-      }
+      counters?.api?.cioEvents?.add(1);
 
       return res.send({ success: true });
     },

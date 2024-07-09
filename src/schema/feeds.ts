@@ -63,7 +63,6 @@ import {
   ForbiddenError,
   ValidationError,
 } from 'apollo-server-errors';
-import { opentelemetry } from '../telemetry/opentelemetry';
 import { maxFeedsPerUser, UserVote } from '../types';
 import { createDatePageGenerator } from '../common/datePageGenerator';
 import { generateShortId } from '../ids';
@@ -73,6 +72,7 @@ import {
   validateFeedPayload,
 } from '../common/feed';
 import { FeedLocalConfigGenerator } from '../integrations/feed/configs';
+import { counters } from '../telemetry';
 
 interface GQLTagsCategory {
   id: string;
@@ -1256,9 +1256,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     feed: (source, args: ConfiguredFeedArgs, ctx: Context, info) => {
       if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
         if (args?.refresh) {
-          const meter = opentelemetry.metrics.getMeter('api-bg');
-          const counter = meter.createCounter('force_refresh');
-          counter.add(1);
+          counters?.api?.forceRefresh?.add(1);
         }
 
         return feedResolverCursor(
@@ -1358,17 +1356,24 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           )
         : feedGenerators.onboarding;
 
-      return feedResolverCursor(
-        source,
-        {
-          ...(feedArgs as FeedArgs),
-          first: 20,
-          ranking: Ranking.POPULARITY,
-          generator: feedGenerator,
-        },
-        ctx,
-        info,
-      );
+      return process.env.NODE_ENV === 'development'
+        ? feedResolverV1(
+            source,
+            args as unknown as ConfiguredFeedArgs,
+            ctx,
+            info,
+          )
+        : feedResolverCursor(
+            source,
+            {
+              ...(feedArgs as FeedArgs),
+              first: 20,
+              ranking: Ranking.POPULARITY,
+              generator: feedGenerator,
+            },
+            ctx,
+            info,
+          );
     },
     feedByIds: feedResolver(
       (ctx, { postIds }: FeedArgs & { postIds: string[] }, builder, alias) =>

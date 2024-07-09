@@ -8,7 +8,7 @@ import {
   getNotificationV2AndChildren,
   streamNotificationUsers,
 } from '../notifications/common';
-import { getNotificationFailedCounter } from '../common/metrics';
+import { counters } from '../telemetry';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -20,7 +20,6 @@ const QUEUE_CONCURRENCY = 10;
 const worker: Worker = {
   subscription: 'api.new-notification-push',
   handler: async (message, con, logger): Promise<void> => {
-    const counter = getNotificationFailedCounter();
     const data: Data = messageToJson(message);
     if (data.notification.public) {
       const [notification, , avatars] = await getNotificationV2AndChildren(
@@ -53,7 +52,7 @@ const worker: Worker = {
             },
             'failed to send push notifications',
           );
-          counter.add(1, { channel: 'push' });
+          counters?.background?.notificationFailed?.add(1, { channel: 'push' });
         }
       }
     }

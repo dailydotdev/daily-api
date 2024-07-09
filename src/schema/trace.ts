@@ -6,6 +6,7 @@ import {
 import { GraphQLResolveInfo } from 'graphql';
 import { isFunction, isObject } from 'lodash';
 import { Context } from '../Context';
+import { counters } from '../telemetry';
 
 export function traceResolver<TSource, TArgs, TReturn>(
   next: IFieldResolver<TSource, Context, TArgs>,
@@ -22,12 +23,13 @@ export function traceResolver<TSource, TArgs, TReturn>(
         ['graphql.operation.type']: info.operation.operation,
         ['graphql.variableValues']: JSON.stringify(info.variableValues),
       });
-
-      context.metricGraphqlCounter.add(1, {
-        ['graphql.field.name']: info.fieldName,
-        ['graphql.operation.name']: info.operation?.name?.value,
-      });
     }
+
+    counters?.api?.graphqlOperations?.add(1, {
+      ['graphql.field.name']: info.fieldName,
+      ['graphql.operation.name']: info.operation?.name?.value,
+    });
+
     return next(source, args, context, info);
   };
 }

@@ -1,17 +1,13 @@
 import { Cron } from './cron';
 import { User, UserStreak } from '../entity';
 import { checkUserStreak, clearUserStreak } from '../common';
-import { opentelemetry } from '../telemetry/opentelemetry';
+import { counters } from '../telemetry';
 
 const cron: Cron = {
   name: 'update-current-streak',
   handler: async (con, logger) => {
     try {
-      const streakCounter = opentelemetry.metrics
-        .getMeter('api-bg')
-        .createCounter('streak_update', {
-          description: 'How many streaks get updated',
-        });
+      const streakCounter = counters?.cron?.streakUpdate;
       await con.transaction(async (entityManager): Promise<void> => {
         const usersPastStreakTime = await entityManager
           .createQueryBuilder()
@@ -43,10 +39,10 @@ const cron: Cron = {
           entityManager,
           userIdsToReset,
         );
-        streakCounter.add(usersPastStreakTime.length, {
+        streakCounter?.add(usersPastStreakTime.length, {
           type: 'users_in_cron',
         });
-        streakCounter.add(clearedStreaks, { type: 'users_updated' });
+        streakCounter?.add(clearedStreaks, { type: 'users_updated' });
       });
       logger.info('updated current streak cron');
     } catch (err) {

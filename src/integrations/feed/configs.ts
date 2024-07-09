@@ -8,7 +8,7 @@ import {
 import { AnonymousFeedFilters, feedToFilters } from '../../common';
 import { ISnotraClient, UserState } from '../snotra';
 import { postTypes } from '../../entity';
-import { runInSpan } from '../../telemetry/opentelemetry';
+import { runInSpan } from '../../telemetry';
 import { ILofnClient } from '../lofn';
 import { Context } from '../../Context';
 

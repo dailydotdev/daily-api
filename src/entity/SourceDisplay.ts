@@ -5,7 +5,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { Source } from './Source';
+import type { Source } from './Source';
 
 @Entity()
 @Index(['sourceId', 'userId'], { unique: true })
@@ -17,7 +17,7 @@ export class SourceDisplay {
   @Column()
   sourceId: string;
 
-  @ManyToOne(() => Source, (source) => source.displays, {
+  @ManyToOne('Source', (source: Source) => source.displays, {
     lazy: true,
     onDelete: 'CASCADE',
   })
