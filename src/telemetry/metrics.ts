@@ -60,6 +60,10 @@ const counterMap = {
       name: 'cio_events',
       description: 'How many customerio events were sent to analytics',
     },
+    cdcTrigger: {
+      name: 'cdc_trigger',
+      description: 'How many times the cdc trigger was called',
+    },
   },
   background: {
     postError: {
