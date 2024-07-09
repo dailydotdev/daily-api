@@ -1,4 +1,4 @@
-import { runInRootSpan, opentelemetry } from '../telemetry/opentelemetry';
+import { runInRootSpan, opentelemetry } from '../telemetry';
 import 'reflect-metadata';
 import { PubSub } from '@google-cloud/pubsub';
 

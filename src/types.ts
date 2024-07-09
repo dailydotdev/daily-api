@@ -1,6 +1,6 @@
 import { Roles } from './roles';
 import { AccessToken } from './auth';
-import { opentelemetry } from './telemetry/opentelemetry';
+import { opentelemetry } from './telemetry';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace

@@ -28,7 +28,7 @@ import cookie, { FastifyCookieOptions } from '@fastify/cookie';
 import { getSubscriptionSettings } from './subscription';
 import { ioRedisPool } from './redis';
 import { loadFeatures } from './growthbook';
-import { runInRootSpan } from './telemetry/opentelemetry';
+import { runInRootSpan } from './telemetry';
 import { loggerConfig } from './logger';
 
 type Mutable<Type> = {

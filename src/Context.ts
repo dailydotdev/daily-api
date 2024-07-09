@@ -1,4 +1,4 @@
-import { opentelemetry } from './telemetry/opentelemetry';
+import { opentelemetry } from './telemetry';
 import { DataSource, EntitySchema, ObjectType, Repository } from 'typeorm';
 import { FastifyRequest, FastifyBaseLogger } from 'fastify';
 import { GraphQLDatabaseLoader } from '@mando75/typeorm-graphql-loader';
