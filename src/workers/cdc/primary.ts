@@ -88,6 +88,7 @@ import { getTableName, isChanged, notifyPostContentUpdated } from './common';
 import { UserComment } from '../../entity/user/UserComment';
 import { StorageKey, StorageTopic, generateStorageKey } from '../../config';
 import { deleteRedisKey } from '../../redis';
+import { counters } from '../../telemetry';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -813,6 +814,9 @@ const worker: Worker = {
       ) {
         return;
       }
+      counters?.background?.cdcTrigger?.add(1, {
+        table: data.payload.source.table,
+      });
       switch (data.payload.source.table) {
         case getTableName(con, Banner):
           await onBannerChange(con, logger, data);

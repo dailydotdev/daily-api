@@ -71,6 +71,10 @@ const counterMap = {
       description:
         'Number of notifications failed to be sent via different channels',
     },
+    cdcTrigger: {
+      name: 'cdc_trigger',
+      description: 'How many times the cdc trigger was called',
+    },
   },
   cron: {
     streakUpdate: {
