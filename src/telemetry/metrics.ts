@@ -87,25 +87,25 @@ export const counters: Partial<{
 }> = {};
 
 export const startMetrics = (serviceName: string): void => {
-  const readers: metrics.MetricReader[] = [];
+  if (process.env.METRICS_ENABLED !== 'true') {
+    return;
+  }
 
-  if (process.env.METRICS_ENABLED === 'true') {
+  const readers: metrics.MetricReader[] = [
+    new PrometheusExporter({}, (err) => {
+      if (err) {
+        logger.error({ err }, `Failed to start metrics server`);
+      }
+    }),
+  ];
+
+  if (isProd) {
     readers.push(
-      new PrometheusExporter({}, (err) => {
-        if (err) {
-          logger.error({ err }, `Failed to start metrics server`);
-        }
+      new metrics.PeriodicExportingMetricReader({
+        exportIntervalMillis: 10_000,
+        exporter: new MetricExporter(),
       }),
     );
-
-    if (isProd) {
-      readers.push(
-        new metrics.PeriodicExportingMetricReader({
-          exportIntervalMillis: 10_000,
-          exporter: new MetricExporter(),
-        }),
-      );
-    }
   }
 
   const resource = new resources.Resource({
