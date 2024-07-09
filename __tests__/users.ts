@@ -320,6 +320,10 @@ describe('query userStreaks', () => {
     }
   }`;
 
+  beforeEach(async () => {
+    nock('http://localhost:5000').post('/e').reply(204);
+  });
+
   afterEach(() => {
     jest.useRealTimers();
   });
@@ -633,6 +637,46 @@ describe('query user', () => {
     const res = await client.query(QUERY, { variables: { id: requestUserId } });
     expect(res.errors).toBeFalsy();
     expect(res.data.user).toMatchSnapshot();
+  });
+});
+
+describe('query team members', () => {
+  const QUERY = `query User($id: ID!) {
+    user(id: $id) {
+      name
+      username
+      image
+      isTeamMember
+    }
+  }`;
+
+  it('should return team member as false', async () => {
+    const requestUserId = '1';
+    const res = await client.query(QUERY, { variables: { id: requestUserId } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.user).toMatchObject({
+      name: 'Ido',
+      username: null,
+      image: 'https://daily.dev/ido.jpg',
+      isTeamMember: false,
+    });
+  });
+
+  it('should return team member as true', async () => {
+    await con.getRepository(Feature).insert({
+      feature: FeatureType.Team,
+      userId: '1',
+      value: 1,
+    });
+    const requestUserId = '1';
+    const res = await client.query(QUERY, { variables: { id: requestUserId } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.user).toMatchObject({
+      name: 'Ido',
+      username: null,
+      image: 'https://daily.dev/ido.jpg',
+      isTeamMember: true,
+    });
   });
 });
 

@@ -19,8 +19,9 @@ const worker: NotificationWorker = {
     if (
       data.user.reputation > DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD ||
       data.userAfter.reputation < DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD
-    )
-      return null;
+    ) {
+      return;
+    }
 
     const ctx: NotificationBaseContext = {
       userIds: [data.userAfter.id],

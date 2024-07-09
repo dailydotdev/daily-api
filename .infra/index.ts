@@ -431,7 +431,7 @@ const [apps] = deployApplicationSuite(
           schedule: cron.schedule,
           limits: cron.limits ?? bgLimits,
           requests: cron.requests ?? bgRequests,
-          activeDeadlineSeconds: 300,
+          activeDeadlineSeconds: cron.activeDeadlineSeconds ?? 300,
         })),
     isAdhocEnv,
     dependsOn,

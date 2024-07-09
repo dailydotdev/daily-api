@@ -1,4 +1,10 @@
-import { APIClient, SendEmailRequest, TrackClient } from 'customerio-node';
+import {
+  APIClient,
+  RegionUS,
+  SendEmailRequest,
+  TrackClient,
+} from 'customerio-node';
+import CIORequest from 'customerio-node/dist/lib/request';
 import { SendEmailRequestOptionalOptions } from 'customerio-node/lib/api/requests';
 import { SendEmailRequestWithTemplate } from 'customerio-node/dist/lib/api/requests';
 import { DataSource } from 'typeorm';
@@ -69,36 +75,50 @@ export const resubscribeUser = async (
 };
 
 export const syncSubscription = async function (
-  userId: string,
+  userIds: string[],
   con: DataSource,
 ): Promise<void> {
   if (!process.env.CIO_APP_KEY) {
     return;
   }
 
-  const atts = await cioApi.getAttributes(userId);
-  const subs = JSON.parse(
-    atts?.customer?.attributes?.cio_subscription_preferences || '{}',
+  // This is fetched from APIClient source code
+  // TODO: Remove this once APIClient supports fetching attributes in bulk
+  const request = new CIORequest(process.env.CIO_APP_KEY, {});
+
+  // Return attributes and devices for up to 100 customers by ID. If an ID in the request does not exist, the response omits it.
+  // https://customer.io/docs/api/app/#operation/getPeopleById
+  const userAttributes = await request.post(
+    `${RegionUS.apiUrl}/customers/attributes`,
+    { ids: userIds },
   );
-  const unsubscribed = atts?.customer?.unsubscribed;
-  const marketing =
-    isSubscribed(subs, CioUnsubscribeTopic.Marketing) && !unsubscribed;
-  const notifications =
-    isSubscribed(subs, CioUnsubscribeTopic.Notifications) && !unsubscribed;
-  const digest =
-    isSubscribed(subs, CioUnsubscribeTopic.Digest) && !unsubscribed;
+
   await con.transaction(async (manager) => {
-    await manager
-      .getRepository(User)
-      .update(
-        { id: userId },
-        { notificationEmail: notifications, acceptedMarketing: marketing },
+    userAttributes?.customers.forEach(async (customer) => {
+      const subs = JSON.parse(
+        customer?.attributes?.cio_subscription_preferences || '{}',
       );
-    if (!digest) {
+      const unsubscribed = customer?.unsubscribed;
+      const marketing =
+        isSubscribed(subs, CioUnsubscribeTopic.Marketing) && !unsubscribed;
+      const notifications =
+        isSubscribed(subs, CioUnsubscribeTopic.Notifications) && !unsubscribed;
+      const digest =
+        isSubscribed(subs, CioUnsubscribeTopic.Digest) && !unsubscribed;
+
       await manager
-        .getRepository(UserPersonalizedDigest)
-        .delete({ userId, type: UserPersonalizedDigestType.Digest });
-    }
+        .getRepository(User)
+        .update(
+          { id: customer.id },
+          { notificationEmail: notifications, acceptedMarketing: marketing },
+        );
+      if (!digest) {
+        await manager.getRepository(UserPersonalizedDigest).delete({
+          userId: customer.id,
+          type: UserPersonalizedDigestType.Digest,
+        });
+      }
+    });
   });
 };
 

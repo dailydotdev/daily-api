@@ -11,14 +11,14 @@ const onNotificationsChange = async (
   logger: FastifyBaseLogger,
   data: ChangeMessage<NotificationV2>,
 ): Promise<void> => {
-  if (data.payload.op === 'c') {
+  if (data.payload.op === 'c' && data.payload.after) {
     await notifyNewNotification(logger, data.payload.after);
   }
 };
 
 const worker: Worker = {
   subscription: 'api.cdc-notifications',
-  maxMessages: parseInt(process.env.CDC_WORKER_MAX_MESSAGES) || null,
+  maxMessages: parseInt(process.env.CDC_WORKER_MAX_MESSAGES) || undefined,
   handler: async (message, con, logger): Promise<void> => {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

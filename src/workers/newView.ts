@@ -1,7 +1,7 @@
 import { DeepPartial, EntityManager } from 'typeorm';
 import { Alerts, User, UserStreak, View } from '../entity';
 import { messageToJson, Worker } from './worker';
-import { TypeOrmError } from '../errors';
+import { TypeORMQueryFailedError, TypeOrmError } from '../errors';
 import { isFibonacci } from '../common/fibonacci';
 
 interface ShouldIncrement {
@@ -37,7 +37,7 @@ const shouldIncrementStreak = async (
   con: EntityManager,
   userId: string,
   viewTime: Date,
-): Promise<ShouldIncrement> => {
+): Promise<ShouldIncrement | undefined> => {
   return await con
     .createQueryBuilder()
     .select(
@@ -75,6 +75,11 @@ const incrementReadingStreak = async (
     userId,
     viewTime,
   );
+
+  if (!shouldIncrementResult) {
+    return false;
+  }
+
   const { currentStreak, totalStreak, maxStreak, shouldIncrement } =
     shouldIncrementResult ?? {};
   if (shouldIncrement) {
@@ -126,7 +131,9 @@ const worker: Worker = {
             'ignored view event',
           );
         }
-      } catch (err) {
+      } catch (originalError) {
+        const err = originalError as TypeORMQueryFailedError;
+
         // Foreign / unique
         if (
           err?.code === TypeOrmError.NULL_VIOLATION ||

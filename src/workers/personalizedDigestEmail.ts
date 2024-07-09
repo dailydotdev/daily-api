@@ -49,7 +49,7 @@ const digestTypeToFunctionMap: Record<
     data: Data,
     con: DataSource,
     logger: FastifyBaseLogger,
-    allocationClient: ExperimentAllocationClient,
+    allocationClient?: ExperimentAllocationClient,
   ) => Promise<void>
 > = {
   [UserPersonalizedDigestType.Digest]: async (
@@ -83,8 +83,9 @@ const digestTypeToFunctionMap: Record<
     }
 
     const featureInstance =
-      sendTypeToFeatureMap[personalizedDigest.flags.sendType] ||
-      features.personalizedDigest;
+      sendTypeToFeatureMap[
+        personalizedDigest.flags.sendType as UserPersonalizedDigestSendType
+      ] || features.personalizedDigest;
     let featureValue: PersonalizedDigestFeatureConfig;
 
     if (config) {

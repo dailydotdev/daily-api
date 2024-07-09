@@ -1,6 +1,7 @@
 import { messageToJson, Worker } from './worker';
 import { Comment } from '../entity';
 import { notifyNewComment } from '../common';
+import { TypeORMQueryFailedError } from '../errors';
 
 interface Data {
   userId: string;
@@ -31,7 +32,9 @@ const worker: Worker = {
         },
         'Slack new comment message send',
       );
-    } catch (err) {
+    } catch (originalError) {
+      const err = originalError as TypeORMQueryFailedError;
+
       logger.error(
         {
           data,

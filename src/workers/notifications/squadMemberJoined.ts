@@ -21,8 +21,9 @@ interface Data {
 
 const worker: NotificationWorker = {
   subscription: 'api.member-joined-source-notification',
-  handler: async (message, con) => {
+  handler: async (message, con, logger) => {
     const { sourceMember: member }: Data = messageToJson(message);
+    const logDetails = { member, messageId: message.messageId };
     const admins = await getSubscribedMembers(
       con,
       NotificationType.SquadMemberJoined,
@@ -39,6 +40,8 @@ const worker: NotificationWorker = {
       .findOneBy({ id: member.userId });
 
     if (!doneBy) {
+      logger.info(logDetails, 'doneBy user does not exist');
+
       return;
     }
 
@@ -53,6 +56,13 @@ const worker: NotificationWorker = {
       con.getRepository(Source).findOneBy({ id: member.sourceId }),
       con.getRepository(WelcomePost).findOneBy({ sourceId: member.sourceId }),
     ]);
+
+    if (!source) {
+      logger.info(logDetails, 'source does not exist');
+
+      return;
+    }
+
     if (!post || source.type !== SourceType.Squad) {
       return;
     }

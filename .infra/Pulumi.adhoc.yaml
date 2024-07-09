@@ -45,6 +45,7 @@ config:
     accessSecret: topsecret
     analyticsUrl: http://localhost:3000
     cioWebhookSecret: topsecret
+    cioReportingWebhookSecret: topsecret
     commentsPrefix: http://webapp.local.com:5002
     cookiesKey: topsecret
     defaultImageRatio: 1

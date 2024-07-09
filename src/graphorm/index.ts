@@ -14,6 +14,8 @@ import {
   defaultPublicSourceFlags,
   UserPersonalizedDigestFlagsPublic,
   UserPersonalizedDigestSendType,
+  Feature,
+  FeatureType,
 } from '../entity';
 import {
   SourceMemberRoles,
@@ -79,6 +81,18 @@ const obj = new GraphORM({
       },
       createdAt: {
         transform: transformDate,
+      },
+      isTeamMember: {
+        select: (_, alias, qb) => {
+          const query = qb
+            .select('1')
+            .from(Feature, 'f')
+            .where(`f."userId" = ${alias}.id`)
+            .andWhere(`f."feature" = :feature`, { feature: FeatureType.Team });
+
+          return `EXISTS${query.getQuery()}`;
+        },
+        transform: (value: number): boolean => value > 0,
       },
     },
   },

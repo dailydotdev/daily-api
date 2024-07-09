@@ -5,8 +5,12 @@ import { UserMarketingCta } from '../../entity';
 import { logger } from '../../logger';
 import { cachePrefillMarketingCta } from '../../common/redisCache';
 import { sendAnalyticsEvent } from '../../integrations/analytics';
-import { syncSubscription, triggerTypedEvent } from '../../common';
+import { triggerTypedEvent } from '../../common';
 import { addDays } from 'date-fns';
+import { pushToRedisList } from '../../redis';
+import { StorageKey, StorageTopic, generateStorageKey } from '../../config';
+import { GenericPushPayload, sendGenericPush } from '../../onesignal';
+import { WebhookPayload } from '../../types';
 
 const verifyCIOSignature = (
   webhookSigningSecret: string,
@@ -34,38 +38,37 @@ const verifyCIOSignature = (
 };
 
 type MarketingCtaPayload = {
-  Body: {
-    userId: string;
-    marketingCtaId: string;
-  };
+  userId: string;
+  marketingCtaId: string;
 };
 
 type PromotedPostPayload = {
-  Body: {
-    userId: string;
-    postId: string;
-  };
+  userId: string;
+  postId: string;
+};
+
+export type NotificationPayload = {
+  userIds: string[];
+  notification: GenericPushPayload;
 };
 
 type ReportingEvent = {
-  Body: {
-    data: {
-      action_id?: number;
-      broadcast_id?: number;
-      customer_id: string;
-      identifiers: {
-        id: string;
-      };
-      delivery_id: string;
-      recipient?: string;
-      email_address?: string;
+  data: {
+    action_id?: number;
+    broadcast_id?: number;
+    customer_id: string;
+    identifiers: {
+      id: string;
     };
-    event_id: string;
-    trigger_event_id?: string;
-    object_type: string;
-    metric: string;
-    timestamp: number;
+    delivery_id: string;
+    recipient?: string;
+    email_address?: string;
   };
+  event_id: string;
+  trigger_event_id?: string;
+  object_type: string;
+  metric: string;
+  timestamp: number;
 };
 
 const subscriptionMetrics = [
@@ -74,7 +77,7 @@ const subscriptionMetrics = [
   'unsubscribed',
 ];
 
-async function trackCioEvent(payload: ReportingEvent['Body']): Promise<void> {
+async function trackCioEvent(payload: ReportingEvent): Promise<void> {
   const dupPayload = { ...payload, data: { ...payload.data } };
   const userId = dupPayload.data.identifiers.id;
   // Delete personal data
@@ -94,10 +97,24 @@ async function trackCioEvent(payload: ReportingEvent['Body']): Promise<void> {
   await sendAnalyticsEvent([event]);
 }
 
+/**
+ * Validate the required fields in the notification payload
+ */
+const validateNotificationPayload = (payload: NotificationPayload): boolean => {
+  return (
+    payload &&
+    payload?.notification &&
+    payload?.notification?.title &&
+    payload?.notification?.body &&
+    payload?.userIds &&
+    payload?.userIds.length > 0
+  );
+};
+
 export const customerio = async (fastify: FastifyInstance): Promise<void> => {
   fastify.register(
     async (fastify: FastifyInstance): Promise<void> => {
-      fastify.addHook<MarketingCtaPayload>(
+      fastify.addHook<WebhookPayload<MarketingCtaPayload>>(
         'preValidation',
         async (req, res) => {
           const valid = verifyCIOSignature(process.env.CIO_WEBHOOK_SECRET, req);
@@ -107,7 +124,7 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
         },
       );
 
-      fastify.post<MarketingCtaPayload>('/', {
+      fastify.post<WebhookPayload<MarketingCtaPayload>>('/', {
         config: {
           rawBody: true,
         },
@@ -134,7 +151,7 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
         },
       });
 
-      fastify.post<MarketingCtaPayload>('/delete', {
+      fastify.post<WebhookPayload<MarketingCtaPayload>>('/delete', {
         config: {
           rawBody: true,
         },
@@ -161,7 +178,7 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
     { prefix: '/marketing_cta' },
   );
 
-  fastify.post<PromotedPostPayload>('/promote_post', {
+  fastify.post<WebhookPayload<PromotedPostPayload>>('/promote_post', {
     config: {
       rawBody: true,
     },
@@ -191,7 +208,36 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
     },
   });
 
-  fastify.post<ReportingEvent>('/reporting', {
+  fastify.post<WebhookPayload<NotificationPayload>>('/notification', {
+    config: {
+      rawBody: true,
+    },
+    handler: async (req, res) => {
+      const valid = verifyCIOSignature(process.env.CIO_WEBHOOK_SECRET, req);
+      if (!valid) {
+        req.log.warn('cio notifcations webhook invalid signature');
+        return res.status(403).send({ error: 'Invalid signature' });
+      }
+
+      const payload = req.body;
+      if (!validateNotificationPayload(req.body)) {
+        return res.status(400).send({ success: false });
+      }
+
+      try {
+        await sendGenericPush(
+          [...new Set(payload.userIds)],
+          payload.notification,
+        );
+        return res.send({ success: true });
+      } catch (error) {
+        logger.error({ error }, 'Error sending generic push');
+        return res.status(500).send({ success: false });
+      }
+    },
+  });
+
+  fastify.post<WebhookPayload<ReportingEvent>>('/reporting', {
     config: {
       rawBody: true,
     },
@@ -208,8 +254,10 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
       const payload = req.body;
 
       if (subscriptionMetrics.includes(payload.metric)) {
-        const con = await createOrGetConnection();
-        await syncSubscription(payload.data.identifiers.id, con);
+        pushToRedisList(
+          generateStorageKey(StorageTopic.CIO, StorageKey.Reporting, 'global'),
+          payload.data.identifiers.id,
+        );
       }
 
       await trackCioEvent(payload);

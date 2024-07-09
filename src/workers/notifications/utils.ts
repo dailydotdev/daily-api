@@ -30,7 +30,7 @@ export const uniquePostOwners = (
 ): string[] =>
   [...new Set([post.scoutId, post.authorId])].filter(
     (userId) => userId && !ignoreIds.includes(userId),
-  );
+  ) as string[];
 
 export const getSubscribedMembers = (
   con: DataSource,
