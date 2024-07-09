@@ -25,6 +25,12 @@ const worker: TypedWorker<'post-upvoted'> = {
           .getRepository(User)
           .findOneBy({ id: data.userId });
 
+        if (!grantBy) {
+          logger.info(logDetails, 'grantBy user does not exist');
+
+          return;
+        }
+
         if (grantBy.reputation < REPUTATION_THRESHOLD) {
           logger.info(
             logDetails,

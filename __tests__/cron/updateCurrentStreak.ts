@@ -5,6 +5,7 @@ import { User, UserStreak } from '../../src/entity';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
+import nock from 'nock';
 
 let con: DataSource;
 
@@ -55,6 +56,7 @@ describe('updateCurrentStreak cron', () => {
   });
 
   it('should reset a past streak if 2 days old', async () => {
+    nock('http://localhost:5000').post('/e').reply(204);
     await expectSuccessfulCron(cron);
     const streak = await con
       .getRepository(UserStreak)

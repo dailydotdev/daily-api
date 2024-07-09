@@ -15,10 +15,12 @@ export const REDIS_BANNER_KEY = 'boot:latest_banner';
 export enum StorageTopic {
   Boot = 'boot',
   Search = 'search',
+  CIO = 'customer_io',
 }
 
 export enum StorageKey {
   MarketingCta = 'marketing_cta',
+  Reporting = 'reporting',
 }
 
 export const generateStorageKey = (

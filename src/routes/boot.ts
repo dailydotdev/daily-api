@@ -430,6 +430,7 @@ const loggedInBoot = async (
         roles,
         permalink: `${process.env.COMMENTS_PREFIX}/${user.username || user.id}`,
         canSubmitArticle: user.reputation >= submitArticleThreshold,
+        isTeamMember: exp?.a?.team === 1,
       },
       visit,
       alerts: {

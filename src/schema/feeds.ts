@@ -1,5 +1,7 @@
 import {
   BookmarkList,
+  Feature,
+  FeatureType,
   Feed,
   FeedAdvancedSettings,
   FeedFlagsPublic,
@@ -38,10 +40,10 @@ import { In, SelectQueryBuilder } from 'typeorm';
 import { ensureSourcePermissions, GQLSource } from './sources';
 import {
   feedCursorPageGenerator,
+  GQLEmptyResponse,
   offsetPageGenerator,
   Page,
   PageGenerator,
-  GQLEmptyResponse,
 } from './common';
 import { GQLPost } from './posts';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -62,7 +64,7 @@ import {
   ValidationError,
 } from 'apollo-server-errors';
 import { opentelemetry } from '../telemetry/opentelemetry';
-import { UserVote, maxFeedsPerUser } from '../types';
+import { maxFeedsPerUser, UserVote } from '../types';
 import { createDatePageGenerator } from '../common/datePageGenerator';
 import { generateShortId } from '../ids';
 import { SubmissionFailErrorMessage } from '../errors';
@@ -332,6 +334,31 @@ export const typeDefs = /* GraphQL */ `
       The filters to use for preview
       """
       filters: FiltersInput
+    ): PostConnection! @auth
+
+    """
+    Get feed by providing post ids
+    """
+    feedByIds(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+
+      """
+      Array of post ids
+      """
+      postIds: [String!]!
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
     ): PostConnection! @auth
 
     """
@@ -1343,6 +1370,25 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         info,
       );
     },
+    feedByIds: feedResolver(
+      (ctx, { postIds }: FeedArgs & { postIds: string[] }, builder, alias) =>
+        fixedIdsFeedBuilder(ctx, postIds, builder, alias),
+
+      feedPageGenerator,
+      applyFeedPaging,
+      {
+        fetchQueryParams: async (ctx): Promise<void> => {
+          const isTeamMember = await ctx.con
+            .getRepository(Feature)
+            .findOneByOrFail({ feature: FeatureType.Team, userId: ctx.userId });
+          if (!isTeamMember || isTeamMember.value !== 1) {
+            throw new ForbiddenError(
+              'Access denied! You need to be authorized to perform this action!',
+            );
+          }
+        },
+      },
+    ),
     feedByConfig: (
       source,
       args: ConnectionArguments & { config: string },

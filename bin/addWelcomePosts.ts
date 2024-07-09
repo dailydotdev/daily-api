@@ -14,7 +14,7 @@ import { createSquadWelcomePost } from '../src/common';
 
   resStream.on('data', async (squadSource: SquadSource) => {
     // Fetch first admin based on created data
-    const { userId } = await con.getRepository(SourceMember).findOne({
+    const { userId } = await con.getRepository(SourceMember).findOneOrFail({
       where: { sourceId: squadSource.id, role: SourceMemberRoles.Admin },
       order: { createdAt: 'ASC' },
     });

@@ -192,6 +192,56 @@ const assignScoutToPost = async ({
   };
 };
 
+type CheckExistingPostProps = {
+  entityManager: EntityManager;
+  data: Partial<ArticlePost>;
+  counter: opentelemetry.Counter;
+  logger: FastifyBaseLogger;
+  errorMsg: string;
+  excludeId?: string;
+};
+
+/**
+ * Function to check wheter an url/canonical url is already in use
+ *
+ * @param entityManager
+ * @param data
+ * @param counter
+ * @param logger
+ * @param errorMsg
+ * @param excludeId - By passing the id we only search for other posts containing these URLs
+ */
+const checkExistingUrl = async ({
+  entityManager,
+  data,
+  counter,
+  logger,
+  errorMsg,
+  excludeId,
+}: CheckExistingPostProps): Promise<boolean> => {
+  let builder = entityManager
+    .getRepository(Post)
+    .createQueryBuilder()
+    .select('id')
+    .where(
+      '(url = :url or url = :canonicalUrl or "canonicalUrl" = :url or "canonicalUrl" = :canonicalUrl)',
+      { url: data.url, canonicalUrl: data.canonicalUrl },
+    );
+  if (excludeId) {
+    builder = builder.andWhere('id != :excludeId', { excludeId });
+  }
+  const existingPost = await builder.getRawOne();
+  if (existingPost) {
+    counter.add(1, {
+      reason: 'duplication_conflict',
+    });
+    logger.info({ data }, errorMsg);
+    return true;
+  }
+
+  return false;
+};
+
 const createPost = async ({
   counter,
   logger,
@@ -201,20 +251,15 @@ const createPost = async ({
   mergedKeywords,
   questions,
 }: CreatePostProps): Promise<Post | null> => {
-  const existingPost = await entityManager
-    .getRepository(Post)
-    .createQueryBuilder()
-    .select('id')
-    .where(
-      'url = :url or url = :canonicalUrl or "canonicalUrl" = :url or "canonicalUrl" = :canonicalUrl',
-      { url: data.url, canonicalUrl: data.canonicalUrl },
-    )
-    .getRawOne();
-  if (existingPost) {
-    counter.add(1, {
-      reason: 'duplication_conflict',
-    });
-    logger.info({ data }, 'failed creating post because it exists already');
+  if (
+    await checkExistingUrl({
+      entityManager,
+      data,
+      counter,
+      logger,
+      errorMsg: 'failed creating post because it exists already',
+    })
+  ) {
     return null;
   }
 
@@ -332,6 +377,19 @@ const updatePost = async ({
       { data },
       'post not updated: database entry is newer than received update',
     );
+    return null;
+  }
+
+  if (
+    await checkExistingUrl({
+      entityManager,
+      data,
+      counter,
+      logger,
+      errorMsg: 'failed updating post because URL/canonical exists already',
+      excludeId: databasePost?.id,
+    })
+  ) {
     return null;
   }
 

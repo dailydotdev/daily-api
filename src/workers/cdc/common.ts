@@ -3,7 +3,7 @@ import {
   ContentQuality,
   ContentUpdatedMessage,
 } from '@dailydotdev/schema';
-import { DataSource } from 'typeorm';
+import { DataSource, ObjectLiteral } from 'typeorm';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 import {
   ArticlePost,
@@ -20,7 +20,7 @@ import { JsonValue, Message } from '@bufbuild/protobuf';
 export const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
   before[property] != after[property];
 
-export const getTableName = <Entity>(
+export const getTableName = <Entity extends ObjectLiteral>(
   con: DataSource,
   target: EntityTarget<Entity>,
 ): string => con.getRepository(target).metadata.tableName;

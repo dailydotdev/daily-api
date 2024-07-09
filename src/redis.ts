@@ -70,3 +70,24 @@ export const getRedisKeysByPattern = (pattern: string) =>
 
 export const getRedisObjectExpiry = (key: string) =>
   ioRedisPool.execute((client) => client.ttl(key));
+
+export const pushToRedisList = (
+  key: string,
+  value: RedisObject,
+  position: 'start' | 'end' = 'end', // Defaults to end
+) =>
+  ioRedisPool.execute((client) =>
+    position === 'start' ? client.lpush(key, value) : client.rpush(key, value),
+  );
+
+export const popFromRedisList = (
+  key: string,
+  count: number = 1,
+  position: 'start' | 'end' = 'start', // Defaults to start
+) =>
+  ioRedisPool.execute((client) =>
+    position === 'start' ? client.lpop(key, count) : client.rpop(key, count),
+  );
+
+export const getRedisListLength = (key: string) =>
+  ioRedisPool.execute((client) => client.llen(key));
