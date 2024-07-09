@@ -339,6 +339,41 @@ describe('bookmarked field', () => {
   });
 });
 
+describe('bookmark field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      bookmark {
+        createdAt
+        remindAt
+      }
+    }
+  }`;
+
+  it('should return null when user is not logged in', async () => {
+    const res = await client.query(QUERY);
+    expect(res.data.post.bookmark).toEqual(null);
+  });
+
+  it('should return null when user did not bookmark the post', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY);
+    expect(res.data.post.bookmark).toEqual(null);
+  });
+
+  it('should return bookmark object when user did bookmark the post', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(Bookmark);
+    await repo.save({
+      postId: 'p1',
+      userId: loggedUser,
+      remindAt: new Date(),
+    });
+    const res = await client.query(QUERY);
+    expect(res.data.post.bookmark.createdAt).toBeTruthy();
+    expect(res.data.post.bookmark.remindAt).toBeTruthy();
+  });
+});
+
 describe('bookmarkList field', () => {
   const QUERY = `{
     post(id: "p1") {

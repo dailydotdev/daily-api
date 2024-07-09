@@ -49,6 +49,9 @@ const existsByUserAndPost =
 const nullIfNotLoggedIn = <T>(value: T, ctx: Context): T | null =>
   ctx.userId ? value : null;
 
+const transformDate = (value: string | Date): Date =>
+  value ? new Date(value) : undefined;
+
 const nullIfNotSameUser = <T>(
   value: T,
   ctx: Context,
@@ -73,6 +76,9 @@ const obj = new GraphORM({
       },
       notificationEmail: {
         transform: nullIfNotSameUser,
+      },
+      createdAt: {
+        transform: transformDate,
       },
     },
   },
@@ -137,6 +143,20 @@ const obj = new GraphORM({
           }
 
           return null;
+        },
+      },
+      bookmark: {
+        relation: {
+          isMany: false,
+          customRelation: (
+            { userId },
+            parentAlias,
+            childAlias,
+            qb,
+          ): QueryBuilder =>
+            qb
+              .where(`${parentAlias}.id = ${childAlias}."postId"`)
+              .andWhere(`${childAlias}."userId" = :userId`, { userId }),
         },
       },
       bookmarkList: {
@@ -360,16 +380,17 @@ const obj = new GraphORM({
       },
     },
   },
+  Bookmark: {
+    from: 'Bookmark',
+    fields: {
+      remindAt: { transform: transformDate },
+    },
+  },
   Comment: {
     requiredColumns: ['id', 'postId', 'createdAt'],
     fields: {
-      createdAt: {
-        transform: (value: string | Date): Date => new Date(value),
-      },
-      lastUpdatedAt: {
-        transform: (value?: string | Date): Date =>
-          value ? new Date(value) : undefined,
-      },
+      createdAt: { transform: transformDate },
+      lastUpdatedAt: { transform: transformDate },
       upvoted: {
         select: (ctx: Context, alias: string, qb: QueryBuilder): string => {
           const query = qb

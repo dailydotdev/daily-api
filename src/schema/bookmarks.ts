@@ -44,6 +44,11 @@ export const typeDefs = /* GraphQL */ `
     name: String!
   }
 
+  type Bookmark {
+    createdAt: DateTime
+    remindAt: DateTime
+  }
+
   type SearchBookmarksSuggestion {
     title: String!
   }
