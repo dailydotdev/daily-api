@@ -60,7 +60,7 @@ config:
     kratosOrigin: http://heimdall-kratos-public
     logLevel: info
     meiliIndex: dailydev
-    meiliOrigin: 'http://localhost:7700/' # your local inet address, can be sorted by adding meilisearch to local pulumi stack
+    meiliOrigin: 'http://localhost:7700/' # your local inet address, you can update it in .env file, can be sorted by adding meilisearch to local pulumi stack
     meiliToken: topsecret
     nodeEnv: development
     ogUrl: http://localhost:3000
@@ -81,5 +81,6 @@ config:
     typeormUser: postgres
     tz: UTC
     urlPrefix: http://api.local.com
+  api:image: api-image:tilt-71438a7697ad6ee4
   api:k8s:
     namespace: local
