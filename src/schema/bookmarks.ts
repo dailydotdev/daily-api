@@ -62,6 +62,20 @@ export const typeDefs = /* GraphQL */ `
 
   type Mutation {
     """
+    Set a reminder for a bookmark
+    """
+    setBookmarkReminder(
+      """
+      Post id to set reminder for
+      """
+      postId: ID!
+      """
+      UTC time to remind at
+      """
+      remindAt: DateTime
+    ): EmptyResponse! @auth
+
+    """
     Add new bookmarks
     """
     addBookmarks(data: AddBookmarkInput!): EmptyResponse! @auth
@@ -91,20 +105,6 @@ export const typeDefs = /* GraphQL */ `
     """
     renameBookmarkList(id: ID!, name: String!): BookmarkList!
       @auth(premium: true)
-
-    """
-    Set a reminder for a bookmark
-    """
-    setBookmarkReminder(
-      """
-      UTC time to remind at
-      """
-      remindAt: DateTime
-      """
-      Post id to set reminder for
-      """
-      postId: ID!
-    ): EmptyResponse! @auth
   }
 
   type Query {
