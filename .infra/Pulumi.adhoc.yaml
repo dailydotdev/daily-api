@@ -44,8 +44,8 @@ config:
   api:env:
     accessSecret: topsecret
     analyticsUrl: http://localhost:3000
-    cioWebhookSecret: topsecret
     cioReportingWebhookSecret: topsecret
+    cioWebhookSecret: topsecret
     commentsPrefix: http://webapp.local.com:5002
     cookiesKey: topsecret
     defaultImageRatio: 1
@@ -59,6 +59,9 @@ config:
     jwtSecret: '|r+.2!!!.Qf_-|63*%.D'
     kratosOrigin: http://heimdall-kratos-public
     logLevel: info
+    meiliIndex: dailydev
+    meiliOrigin: 'http://localhost:7700/' # your local inet address, you can update it in .env file, can be sorted by adding meilisearch to local pulumi stack
+    meiliToken: topsecret
     nodeEnv: development
     ogUrl: http://localhost:3000
     otelEnabled: false
