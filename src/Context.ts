@@ -4,6 +4,7 @@ import { FastifyRequest, FastifyBaseLogger } from 'fastify';
 import { GraphQLDatabaseLoader } from '@mando75/typeorm-graphql-loader';
 import { Roles } from './roles';
 import { DataLoaderService } from './dataLoaderService';
+import { counters } from './telemetry/common';
 
 export class Context {
   req: FastifyRequest;
@@ -18,17 +19,13 @@ export class Context {
     this.con = con;
     this.loader = new GraphQLDatabaseLoader(con);
     this.dataLoader = new DataLoaderService({ ctx: this });
-    this.metricGraphqlCounter = opentelemetry.metrics
-      .getMeter('graphql')
-      .createCounter('graphql_operations', {
-        description:
-          'How many graphql operations have been performed, their operation type and name',
-      });
-    this.rateLimitCouner = opentelemetry.metrics
-      .getMeter('graphql')
-      .createCounter('rate_limit', {
-        description: 'How many times a rate limit has been hit',
-      });
+
+    this.metricGraphqlCounter = this.req.meter.createCounter(
+      counters.api.graphqlOperations.name,
+    );
+    this.rateLimitCouner = this.req.meter.createCounter(
+      counters.api.rateLimit.name,
+    );
   }
 
   get service(): boolean | null {

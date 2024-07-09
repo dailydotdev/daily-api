@@ -25,7 +25,7 @@ declare module 'fastify' {
     sessionId?: string;
     isBot?: boolean;
 
-    // Used for tracing
+    // Used for tracing and metrics
     span?: opentelemetry.Span;
     meter?: opentelemetry.Meter;
   }

@@ -1,6 +1,7 @@
 import { FastifyRequest } from 'fastify';
 import dc from 'node:diagnostics_channel';
 import { SemanticAttributes as SemAttr } from '@opentelemetry/semantic-conventions';
+import type { MetricOptions } from '@opentelemetry/api';
 
 export const channel = dc.channel('fastify.initialization');
 
@@ -14,3 +15,5 @@ export const TelemetrySemanticAttributes = {
   DAILY_APPS_VERSION: 'dailydev.apps.version',
   DAILY_APPS_USER_ID: 'dailydev.apps.userId',
 };
+
+export type CounterOptions = { name: string } & MetricOptions;
