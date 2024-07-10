@@ -5,8 +5,8 @@ import { Roles } from './roles';
 import { cookies } from './cookies';
 import * as fs from 'fs';
 
-let publicKey: Buffer = undefined;
-let privateKey: Buffer = undefined;
+let publicKey: Buffer;
+let privateKey: Buffer;
 
 export type AccessToken = { token: string; expiresIn: Date };
 
@@ -63,7 +63,7 @@ export const signJwt = <T>(
           return reject(err);
         }
         return resolve({
-          token,
+          token: token as string,
           expiresIn,
         });
       },
@@ -113,13 +113,15 @@ const plugin = async (
       try {
         const unsigned = req.unsignCookie(authCookie);
         if (unsigned.valid) {
-          const payload = await verifyJwt(unsigned.value);
+          const validValue = unsigned.value as string;
+
+          const payload = await verifyJwt(validValue);
           if (payload) {
             req.userId = payload.userId;
             req.premium = payload.premium;
             req.roles = payload.roles;
             req.accessToken = {
-              token: unsigned.value,
+              token: validValue,
               expiresIn: new Date(payload.exp * 1000),
             };
           }

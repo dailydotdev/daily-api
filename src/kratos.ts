@@ -14,8 +14,8 @@ const kratosOrigin = process.env.KRATOS_ORIGIN;
 
 const addKratosHeaderCookies = (req: FastifyRequest): RequestInit => ({
   headers: {
-    cookie: req.headers.cookie,
-    forwarded: req.headers.forwarded,
+    cookie: req.headers.cookie as string,
+    forwarded: req.headers.forwarded as string,
   },
 });
 
@@ -137,12 +137,14 @@ export const dispatchWhoami = async (
         valid: true,
         userId: session.identity.traits.userId,
         expires: new Date(session.expires_at),
-        cookie: headers.get('set-cookie'),
+        cookie: headers.get('set-cookie') || undefined,
         email: session.identity.traits.email,
       };
     }
     req.log.info({ whoami }, 'invalid whoami response');
-  } catch (e) {
+  } catch (originalError) {
+    const e = originalError as HttpError;
+
     if (e.statusCode !== 401) {
       throw e;
     }
@@ -157,8 +159,9 @@ export const logout = async (
   isDeletion = false,
 ): Promise<FastifyReply> => {
   const query = req.query as { reason?: LogoutReason };
-  const reason = Object.values(LogoutReason).includes(query?.reason)
-    ? query.reason
+  const queryReason = query?.reason as LogoutReason;
+  const reason = Object.values(LogoutReason).includes(queryReason)
+    ? queryReason
     : LogoutReason.ManualLogout;
 
   try {
@@ -171,7 +174,9 @@ export const logout = async (
       const logoutUrl = `${kratosOrigin}/self-service/${logoutParts[1]}`;
       await fetchKratos(req, logoutUrl, { redirect: 'manual' }, false);
     }
-  } catch (e) {
+  } catch (originalError) {
+    const e = originalError as HttpError;
+
     if (e.statusCode !== 303 && e.statusCode !== 401) {
       req.log.warn({ err: e }, 'unexpected error while logging out');
     }
