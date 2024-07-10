@@ -85,7 +85,7 @@ export default async function app(
 
   app.register(helmet);
   app.register(cors, {
-    origin: isProd ? /daily\.dev$/ : true,
+    origin: isProd ? /^(?:https:\/\/)?(?:[\w-]+\.)*daily\.dev$/ : true,
     credentials: true,
     cacheControl: 86400,
   });
