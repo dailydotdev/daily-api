@@ -5,6 +5,7 @@ import { User } from '../entity';
 import { In } from 'typeorm';
 import { sendAnalyticsEvent } from '../integrations/analytics';
 import { customerio } from './webhooks/customerio';
+import { counters } from '../telemetry';
 
 type SendgridEvent = {
   email: string;
@@ -103,13 +104,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         await sendAnalyticsEvent(events);
       }
 
-      if (req.meter) {
-        req.meter
-          .createCounter('sendgrid_events', {
-            description: 'How many sendgrid events were to analytics',
-          })
-          .add(events.length);
-      }
+      counters?.api?.sendgridEvents?.add(events.length);
       return res.status(204).send();
     },
   });

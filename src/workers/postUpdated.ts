@@ -33,8 +33,8 @@ import { generateShortId } from '../ids';
 import { FastifyBaseLogger } from 'fastify';
 import { EntityManager } from 'typeorm';
 import { parseDate, updateFlagsStatement } from '../common';
-import { opentelemetry } from '../telemetry/opentelemetry';
 import { markdown } from '../common/markdown';
+import { counters } from '../telemetry';
 
 interface Data {
   id: string;
@@ -113,7 +113,6 @@ const handleRejection = async ({
 };
 
 type CreatePostProps = {
-  counter: opentelemetry.Counter;
   logger: FastifyBaseLogger;
   entityManager: EntityManager;
   data: Partial<ArticlePost>;
@@ -195,7 +194,6 @@ const assignScoutToPost = async ({
 type CheckExistingPostProps = {
   entityManager: EntityManager;
   data: Partial<ArticlePost>;
-  counter: opentelemetry.Counter;
   logger: FastifyBaseLogger;
   errorMsg: string;
   excludeId?: string;
@@ -206,7 +204,6 @@ type CheckExistingPostProps = {
  *
  * @param entityManager
  * @param data
- * @param counter
  * @param logger
  * @param errorMsg
  * @param excludeId - By passing the id we only search for other posts containing these URLs
@@ -214,7 +211,6 @@ type CheckExistingPostProps = {
 const checkExistingUrl = async ({
   entityManager,
   data,
-  counter,
   logger,
   errorMsg,
   excludeId,
@@ -232,7 +228,7 @@ const checkExistingUrl = async ({
   }
   const existingPost = await builder.getRawOne();
   if (existingPost) {
-    counter.add(1, {
+    counters?.background?.postError?.add(1, {
       reason: 'duplication_conflict',
     });
     logger.info({ data }, errorMsg);
@@ -243,7 +239,6 @@ const checkExistingUrl = async ({
 };
 
 const createPost = async ({
-  counter,
   logger,
   entityManager,
   data,
@@ -255,7 +250,6 @@ const createPost = async ({
     await checkExistingUrl({
       entityManager,
       data,
-      counter,
       logger,
       errorMsg: 'failed creating post because it exists already',
     })
@@ -321,7 +315,6 @@ const contentTypeFromPostType: Record<PostType, typeof Post> = {
 };
 
 type UpdatePostProps = {
-  counter: opentelemetry.Counter;
   logger: FastifyBaseLogger;
   entityManager: EntityManager;
   data: Partial<ArticlePost>;
@@ -332,7 +325,6 @@ type UpdatePostProps = {
   submissionId?: string;
 };
 const updatePost = async ({
-  counter,
   logger,
   entityManager,
   data,
@@ -370,7 +362,7 @@ const updatePost = async ({
     databasePost.metadataChangedAt.toISOString() >=
       data.metadataChangedAt.toISOString()
   ) {
-    counter.add(1, {
+    counters?.background?.postError?.add(1, {
       reason: 'date_conflict',
     });
     logger.info(
@@ -384,7 +376,6 @@ const updatePost = async ({
     await checkExistingUrl({
       entityManager,
       data,
-      counter,
       logger,
       errorMsg: 'failed updating post because URL/canonical exists already',
       excludeId: databasePost?.id,
@@ -631,8 +622,6 @@ const fixData = async ({
 const worker: Worker = {
   subscription: 'api.content-published',
   handler: async (message, con, logger): Promise<void> => {
-    const meter = opentelemetry.metrics.getMeter('api-bg');
-    const counter = meter.createCounter('post_error');
     const data: Data = messageToJson(message);
     logger.info({ data }, 'content-updated received');
     try {
@@ -677,7 +666,6 @@ const worker: Worker = {
         if (!postId) {
           // Handle creation of new post
           const newPost = await createPost({
-            counter,
             logger,
             entityManager,
             data: fixedData,
@@ -690,7 +678,6 @@ const worker: Worker = {
         } else {
           // Handle update of existing post
           await updatePost({
-            counter,
             logger,
             entityManager,
             data: fixedData,

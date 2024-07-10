@@ -12,7 +12,6 @@ import { TypeormInstrumentation } from 'opentelemetry-instrumentation-typeorm';
 
 import { NodeSDK, logs, node, api, resources } from '@opentelemetry/sdk-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
-import { SemanticAttributes as SemAttr } from '@opentelemetry/semantic-conventions';
 import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter';
 import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
 // import { CloudPropagator } from '@google-cloud/opentelemetry-cloud-trace-propagator';
@@ -20,10 +19,8 @@ import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
 import { containerDetector } from '@opentelemetry/resource-detector-container';
 import { gcpDetector } from '@opentelemetry/resource-detector-gcp';
 
-import dc from 'node:diagnostics_channel';
-import { isProd } from '../common';
-import { startMetrics } from './metrics';
-const channel = dc.channel('fastify.initialization');
+import { isProd } from '../common/utils';
+import { channel, getAppVersion, TelemetrySemanticAttributes } from './common';
 
 const resourceDetectors = [
   resources.envDetectorSync,
@@ -34,17 +31,6 @@ const resourceDetectors = [
   gcpDetector,
   new GcpDetectorSync(),
 ];
-
-// Try to get the app version from the header, then query param, then default to unknown
-export const getAppVersion = (req: FastifyRequest): string => {
-  return req.headers['x-app-version'] || req.query['v'] || 'unknown';
-};
-
-export const TelemetrySemanticAttributes = {
-  ...SemAttr,
-  DAILY_APPS_VERSION: 'dailydev.apps.version',
-  DAILY_APPS_USER_ID: 'dailydev.apps.userId',
-};
 
 export const addApiSpanLabels = (
   span: api.Span,
@@ -143,33 +129,16 @@ export const tracer = (serviceName: string) => {
   });
 
   channel.subscribe(({ fastify }: { fastify: FastifyInstance }) => {
-    const meter = api.metrics.getMeter(serviceName);
-    const requestCounter = meter.createCounter('requests', {
-      description: 'How many requests have been processed',
-    });
-
     fastify.decorate('tracer', api.trace.getTracer(serviceName));
-    fastify.decorate('meter', meter);
-    fastify.decorateRequest('meter', null);
     fastify.decorateRequest('span', null);
 
     fastify.addHook('onRequest', async (req) => {
-      req.meter = meter;
       req.span = api.trace.getSpan(api.context.active());
     });
 
     // Decorate the main span with some metadata
     fastify.addHook('onResponse', async (req, res) => {
       addApiSpanLabels(req.span, req, res);
-
-      if (req.routeOptions.url === '/graphql') {
-        return;
-      }
-
-      requestCounter.add(1, {
-        [TelemetrySemanticAttributes.HTTP_ROUTE]: req.routeOptions.url,
-        [TelemetrySemanticAttributes.DAILY_APPS_VERSION]: getAppVersion(req),
-      });
     });
   });
 
@@ -180,7 +149,6 @@ export const tracer = (serviceName: string) => {
   return {
     start: () => {
       sdk.start();
-      startMetrics(serviceName);
     },
     tracer,
   };

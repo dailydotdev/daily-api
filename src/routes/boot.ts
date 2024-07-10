@@ -52,7 +52,7 @@ import { Context } from '../Context';
 import { SourceMemberRoles } from '../roles';
 import { getEncryptedFeatures } from '../growthbook';
 import { differenceInMinutes, isSameDay, subDays } from 'date-fns';
-import { runInSpan } from '../telemetry/opentelemetry';
+import { runInSpan } from '../telemetry';
 import { getUnreadNotificationsCount } from '../notifications/common';
 import { maxFeedsPerUser } from '../types';
 

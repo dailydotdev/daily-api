@@ -26,7 +26,7 @@ import {
   opentelemetry,
   runInRootSpan,
   runInSpan,
-} from '../telemetry/opentelemetry';
+} from '../telemetry';
 import { Message } from '@google-cloud/pubsub';
 // import { performance } from 'perf_hooks';
 import { DataSource } from 'typeorm';
@@ -419,7 +419,6 @@ export const workerSubscribe = (
   pubsub: PubSub,
   connection: DataSource,
   subscription: string,
-  meter: opentelemetry.Meter,
   handler: (
     message: Message,
     con: DataSource,

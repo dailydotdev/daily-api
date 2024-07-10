@@ -26,7 +26,7 @@ import {
 } from '../schema/common';
 import graphorm from '../graphorm';
 import { mapArrayToOjbect } from './object';
-import { runInSpan } from '../telemetry/opentelemetry';
+import { runInSpan } from '../telemetry';
 
 export const WATERCOOLER_ID = 'fd062672-63b7-4a10-87bd-96dcd10e9613';
 
