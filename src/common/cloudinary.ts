@@ -12,8 +12,11 @@ export const uploadLogo = (name: string, stream: Readable): Promise<string> =>
         if (err) {
           return reject(err);
         }
+
+        const successResult = callResult as cloudinary.UploadApiResponse;
+
         return resolve(
-          `https://res.cloudinary.com/daily-now/image/upload/t_logo,f_auto/v1/${callResult.public_id}`,
+          `https://res.cloudinary.com/daily-now/image/upload/t_logo,f_auto/v1/${successResult.public_id}`,
         );
       },
     );
@@ -61,14 +64,16 @@ export const uploadFile = (
           return reject(err);
         }
 
+        const successResult = callResult as cloudinary.UploadApiResponse;
+
         return resolve({
-          url: cloudinary.v2.url(callResult.public_id, {
-            version: callResult.version,
+          url: cloudinary.v2.url(successResult.public_id, {
+            version: successResult.version,
             secure: true,
             fetch_format: 'auto',
             sign_url: true,
           }),
-          id: callResult.public_id,
+          id: successResult.public_id,
         });
       },
     );

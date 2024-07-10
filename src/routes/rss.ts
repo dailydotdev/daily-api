@@ -15,6 +15,7 @@ import {
 } from '../common';
 import { Post, Bookmark, Settings } from '../entity';
 import createOrGetConnection from '../db';
+import { TypeORMQueryFailedError } from '../errors';
 
 interface RssItem {
   id: string;
@@ -90,7 +91,9 @@ const generateRSS =
         }),
       );
       return res.type('application/rss+xml').send(feed.xml());
-    } catch (err) {
+    } catch (originalError) {
+      const err = originalError as TypeORMQueryFailedError;
+
       if (err.name === 'QueryFailedError' && err.code === '22P02') {
         return res.status(404).send();
       }

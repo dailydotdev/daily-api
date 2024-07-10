@@ -11,10 +11,10 @@ export const excludeFromStandardization = [
   'play.google.com',
 ];
 
-const isExcluded = (url: string) =>
+const isExcluded = (url: string | null) =>
   excludeFromStandardization.some((e) => url?.includes(e));
 
-const subtractDomain = (url: string): string => {
+const subtractDomain = (url: string): string | null => {
   const matches = url.match(
     /^(?:https?:\/\/)?(?:[^@/\n]+@)?(?:www\.)?([^:/?\n]+)/i,
   );

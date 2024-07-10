@@ -18,7 +18,7 @@ export const isNullOrUndefined = (value: unknown) =>
   typeof value === 'undefined' || value === null;
 
 type Key = string;
-type Value = string;
+type Value = string | undefined;
 type IsRequired = boolean;
 export type ValidateRegex = [Key, Value, RegExp, IsRequired?];
 
@@ -28,7 +28,7 @@ export const validateRegex = (params: ValidateRegex[]): void => {
       return isRequired ? { ...result, [key]: `${key} is required!` } : result;
     }
 
-    const isValid = regex.test(value);
+    const isValid = regex.test(value as string);
     return isValid ? result : { ...result, [key]: `${key} is invalid!` };
   }, {});
 

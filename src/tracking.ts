@@ -18,7 +18,7 @@ export const generateSessionId = async (
     // Refresh session cookie
     setCookie(req, res, 'session', req.sessionId);
   }
-  return req.sessionId;
+  return req.sessionId as string;
 };
 
 export const setTrackingId = (
@@ -45,7 +45,7 @@ const plugin = async (fastify: FastifyInstance): Promise<void> => {
       req.trackingId = await generateTrackingId(req, 'tracking middleware');
     }
     if (req.trackingId !== trackingCookie) {
-      setTrackingId(req, res, req.trackingId);
+      setTrackingId(req, res, req.trackingId as string);
     }
   });
 };
