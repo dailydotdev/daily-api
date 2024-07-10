@@ -38,7 +38,6 @@
     "@fastify/helmet": "^11.1.1",
     "@fastify/rate-limit": "^9.1.0",
     "@fastify/websocket": "^10.0.1",
-    "@google-cloud/opentelemetry-cloud-monitoring-exporter": "^0.18.0",
     "@google-cloud/opentelemetry-cloud-trace-exporter": "^2.2.0",
     "@google-cloud/opentelemetry-cloud-trace-propagator": "^0.18.0",
     "@google-cloud/opentelemetry-resource-util": "^2.2.0",

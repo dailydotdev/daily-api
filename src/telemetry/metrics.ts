@@ -2,13 +2,11 @@ import type { FastifyInstance } from 'fastify';
 import { api, resources, metrics } from '@opentelemetry/sdk-node';
 import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
-import { MetricExporter } from '@google-cloud/opentelemetry-cloud-monitoring-exporter';
 
 import { containerDetector } from '@opentelemetry/resource-detector-container';
 import { gcpDetector } from '@opentelemetry/resource-detector-gcp';
 import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
 
-import { isProd } from '../common/utils';
 import { logger } from '../logger';
 import {
   channel,
@@ -102,15 +100,6 @@ export const startMetrics = (serviceName: string): void => {
       }
     }),
   ];
-
-  if (isProd) {
-    readers.push(
-      new metrics.PeriodicExportingMetricReader({
-        exportIntervalMillis: 10_000,
-        exporter: new MetricExporter(),
-      }),
-    );
-  }
 
   const resource = new resources.Resource({
     [SemanticResourceAttributes.SERVICE_NAME]: serviceName,

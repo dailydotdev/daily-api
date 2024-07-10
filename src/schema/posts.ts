@@ -365,6 +365,11 @@ export const typeDefs = /* GraphQL */ `
     """
     Whether the user bookmarked this post
     """
+    bookmark: Bookmark
+
+    """
+    Whether the user bookmarked this post
+    """
     bookmarked: Boolean
 
     """
