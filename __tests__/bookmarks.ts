@@ -603,3 +603,61 @@ describe('query searchBookmarks', () => {
     expect(res.data).toMatchSnapshot();
   });
 });
+
+describe('mutation setBookmarkReminder', () => {
+  const mutation = `
+    mutation SetBookmarkReminder($postId: ID!, $remindAt: DateTime) {
+      setBookmarkReminder(postId: $postId, remindAt: $remindAt) {
+        _
+      }
+    }
+  `;
+
+  it('should throw UNAUTHENTICATED for anonymous users', async () =>
+    testMutationErrorCode(
+      client,
+      { mutation, variables: { postId: 'p1' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw GRAPHQL_VALIDATION_ERROR if post id is missing', async () =>
+    testMutationErrorCode(client, { mutation }, 'GRAPHQL_VALIDATION_FAILED'));
+
+  it('should set remind at based on what the user sent', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(Bookmark);
+    const bookmark = await repo.save({ postId: 'p1', userId: loggedUser });
+    expect(bookmark.remindAt).toBeNull();
+    const date = new Date().toISOString();
+    const res = await client.mutate(mutation, {
+      variables: { postId: 'p1', remindAt: date },
+    });
+    expect(res.errors).toBeFalsy();
+
+    const result = await repo.findOneBy({ postId: 'p1', userId: loggedUser });
+    expect(result.remindAt.toISOString()).toEqual(date);
+
+    // TODO MI-436: we should add another check whether the task was sent to the queue
+  });
+
+  it('should remove the reading reminder when null is sent', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(Bookmark);
+    const date = new Date();
+    const bookmark = await repo.save({
+      postId: 'p1',
+      userId: loggedUser,
+      remindAt: date,
+    });
+    expect(bookmark.remindAt).toEqual(date);
+    const res = await client.mutate(mutation, {
+      variables: { postId: 'p1', remindAt: null },
+    });
+    expect(res.errors).toBeFalsy();
+
+    const result = await repo.findOneBy({ postId: 'p1', userId: loggedUser });
+    expect(result.remindAt).toBeNull();
+
+    // TODO MI-436: we should add another check whether the task from the queue was cleared
+  });
+});
