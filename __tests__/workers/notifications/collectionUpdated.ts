@@ -44,9 +44,9 @@ beforeEach(async () => {
   await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, ArticlePost, [
     {
-      id: 'cp1',
-      shortId: 'cp1',
-      url: 'http://cp1.com',
+      id: 'cupp1',
+      shortId: 'cupp1',
+      url: 'http://cupp1.com',
       score: 0,
       metadataChangedAt: new Date('01-05-2020 12:00:00'),
       sourceId: 'a',
@@ -56,9 +56,9 @@ beforeEach(async () => {
       yggdrasilId: '3d5da6ec-b960-4ad8-8278-665a66b71c1f',
     },
     {
-      id: 'cp2',
-      shortId: 'cp2',
-      url: 'http://cp2.com',
+      id: 'cupp2',
+      shortId: 'cupp2',
+      url: 'http://cupp2.com',
       score: 0,
       metadataChangedAt: new Date('01-05-2020 12:00:00'),
       sourceId: 'b',
@@ -68,9 +68,9 @@ beforeEach(async () => {
       yggdrasilId: '5a829977-189a-4ac9-85cc-9e822cc7c737',
     },
     {
-      id: 'cp3',
-      shortId: 'cp3',
-      url: 'http://cp3.com',
+      id: 'cupp3',
+      shortId: 'cupp3',
+      url: 'http://cupp3.com',
       score: 0,
       metadataChangedAt: new Date('01-05-2020 12:00:00'),
       sourceId: 'c',
@@ -80,9 +80,9 @@ beforeEach(async () => {
       yggdrasilId: '0920dcaa-60f1-4136-b10e-14804e3dfffd',
     },
     {
-      id: 'cp4',
-      shortId: 'cp4',
-      url: 'http://cp4.com',
+      id: 'cupp4',
+      shortId: 'cupp4',
+      url: 'http://cupp4.com',
       score: 0,
       metadataChangedAt: new Date('01-05-2020 12:00:00'),
       sourceId: 'community',
@@ -92,9 +92,9 @@ beforeEach(async () => {
       yggdrasilId: '25918bbc-e883-4d5a-bf98-c55272b8543c',
     },
     {
-      id: 'cp5',
-      shortId: 'cp5',
-      url: 'http://cp5.com',
+      id: 'cupp5',
+      shortId: 'cupp5',
+      url: 'http://cupp5.com',
       score: 0,
       metadataChangedAt: new Date('01-05-2020 12:00:00'),
       sourceId: 'community',
@@ -106,8 +106,8 @@ beforeEach(async () => {
   ]);
   await saveFixtures(con, CollectionPost, [
     {
-      id: 'c1',
-      shortId: 'c1',
+      id: 'cup1',
+      shortId: 'cup1',
       title: 'My collection',
       score: 0,
       metadataChangedAt: new Date('01-05-2020 12:00:00'),
@@ -117,8 +117,8 @@ beforeEach(async () => {
       yggdrasilId: '01893589-6627-46cc-a752-4941da92006f',
     },
     {
-      id: 'c2',
-      shortId: 'c2',
+      id: 'cup2',
+      shortId: 'cup2',
       title: 'My collection 2',
       score: 0,
       metadataChangedAt: new Date('01-05-2020 12:00:00'),
@@ -130,48 +130,48 @@ beforeEach(async () => {
   ]);
   await saveFixtures(con, PostRelation, [
     {
-      postId: 'c1',
-      relatedPostId: 'cp1',
+      postId: 'cup1',
+      relatedPostId: 'cupp1',
       type: PostRelationType.Collection,
     },
     {
-      postId: 'c1',
-      relatedPostId: 'cp2',
+      postId: 'cup1',
+      relatedPostId: 'cupp2',
       type: PostRelationType.Collection,
     },
     {
-      postId: 'c1',
-      relatedPostId: 'cp3',
+      postId: 'cup1',
+      relatedPostId: 'cupp3',
       type: PostRelationType.Collection,
     },
     {
-      postId: 'c1',
-      relatedPostId: 'cp4',
+      postId: 'cup1',
+      relatedPostId: 'cupp4',
       type: PostRelationType.Collection,
     },
   ]);
   await saveFixtures(con, NotificationPreferencePost, [
     {
       userId: '1',
-      referenceId: 'c1',
+      referenceId: 'cup1',
       notificationType: NotificationType.CollectionUpdated,
       status: NotificationPreferenceStatus.Subscribed,
     },
     {
       userId: '2',
-      referenceId: 'c1',
+      referenceId: 'cup1',
       notificationType: NotificationType.CollectionUpdated,
       status: NotificationPreferenceStatus.Subscribed,
     },
     {
       userId: '3',
-      referenceId: 'c1',
+      referenceId: 'cup1',
       notificationType: NotificationType.CollectionUpdated,
       status: NotificationPreferenceStatus.Subscribed,
     },
     {
       userId: '4',
-      referenceId: 'c1',
+      referenceId: 'cup1',
       notificationType: NotificationType.CollectionUpdated,
       status: NotificationPreferenceStatus.Muted,
     },
@@ -190,7 +190,7 @@ describe('collectionUpdated worker', () => {
   it('should notify when a collection is updated', async () => {
     const actual = await invokeNotificationWorker(worker, {
       post: {
-        id: 'c1',
+        id: 'cup1',
         title: 'My collection',
         content_type: PostType.Collection,
       },
@@ -200,7 +200,7 @@ describe('collectionUpdated worker', () => {
 
     const ctx = actual[0].ctx as NotificationCollectionContext;
     expect(actual[0].type).toEqual('collection_updated');
-    expect(ctx.post.id).toEqual('c1');
+    expect(ctx.post.id).toEqual('cup1');
     expect(ctx.sources.length).toEqual(3);
     expect(ctx.total).toEqual('4');
     expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '2', '3']);
@@ -215,14 +215,14 @@ describe('collectionUpdated worker', () => {
   it('should generate valid notification', async () => {
     await expectSuccessfulBackground(notificationWorkerToWorker(worker), {
       post: {
-        id: 'c1',
+        id: 'cup1',
         title: 'My collection',
         content_type: PostType.Collection,
       },
     });
 
     const notification = await con.getRepository(NotificationV2).findOneBy({
-      referenceId: 'c1',
+      referenceId: 'cup1',
     });
     const users = await con
       .getRepository(UserNotification)
@@ -231,7 +231,7 @@ describe('collectionUpdated worker', () => {
 
     const collectionPost = await con
       .getRepository(CollectionPost)
-      .findOneBy({ id: 'c1' });
+      .findOneBy({ id: 'cup1' });
 
     expect(collectionPost).not.toBeNull();
 
@@ -241,9 +241,9 @@ describe('collectionUpdated worker', () => {
       title:
         'The collection "<b>My collection</b>" just got updated with new details',
       description: null,
-      targetUrl: 'http://localhost:5002/posts/c1',
+      targetUrl: 'http://localhost:5002/posts/cup1',
       public: true,
-      referenceId: 'c1',
+      referenceId: 'cup1',
       referenceType: 'post',
       numTotalAvatars: 4,
       uniqueKey: collectionPost?.metadataChangedAt.toString(),
@@ -270,7 +270,7 @@ describe('collectionUpdated worker', () => {
   it('should not notify when a collection is updated but the user is muted', async () => {
     const actual = await invokeNotificationWorker(worker, {
       post: {
-        id: 'c1',
+        id: 'cup1',
         title: 'My collection',
         content_type: PostType.Collection,
       },
@@ -283,7 +283,7 @@ describe('collectionUpdated worker', () => {
   it('should notify when a collection is updated but the no sources are found', async () => {
     const actual = await invokeNotificationWorker(worker, {
       post: {
-        id: 'c2',
+        id: 'cup2',
         title: 'My collection',
         content_type: PostType.Collection,
       },
@@ -296,14 +296,14 @@ describe('collectionUpdated worker', () => {
   it('should notify when a collection is updated with an existing source', async () => {
     await saveFixtures(con, PostRelation, [
       {
-        postId: 'c1',
-        relatedPostId: 'cp5',
+        postId: 'cup1',
+        relatedPostId: 'cupp5',
         type: PostRelationType.Collection,
       },
     ]);
     const actual = await invokeNotificationWorker(worker, {
       post: {
-        id: 'c1',
+        id: 'cup1',
         title: 'My collection',
         content_type: PostType.Collection,
       },
