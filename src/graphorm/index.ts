@@ -398,6 +398,7 @@ const obj = new GraphORM({
     from: 'Bookmark',
     fields: {
       remindAt: { transform: transformDate },
+      createdAt: { transform: transformDate },
     },
   },
   Comment: {
