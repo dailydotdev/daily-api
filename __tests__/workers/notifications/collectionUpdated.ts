@@ -31,6 +31,7 @@ import {
   notificationWorkerToWorker,
   workers,
 } from '../../../src/workers/notifications';
+import { addSeconds } from 'date-fns';
 
 let con: DataSource;
 
@@ -128,26 +129,31 @@ beforeEach(async () => {
       yggdrasilId: 'c2c88c38-16da-4046-b150-7d518ab341dc',
     },
   ]);
+  const createdAt = new Date();
   await saveFixtures(con, PostRelation, [
     {
       postId: 'cup1',
       relatedPostId: 'cupp1',
       type: PostRelationType.Collection,
+      createdAt: addSeconds(createdAt, 4),
     },
     {
       postId: 'cup1',
       relatedPostId: 'cupp2',
       type: PostRelationType.Collection,
+      createdAt: addSeconds(createdAt, 3),
     },
     {
       postId: 'cup1',
       relatedPostId: 'cupp3',
       type: PostRelationType.Collection,
+      createdAt: addSeconds(createdAt, 2),
     },
     {
       postId: 'cup1',
       relatedPostId: 'cupp4',
       type: PostRelationType.Collection,
+      createdAt: addSeconds(createdAt, 1),
     },
   ]);
   await saveFixtures(con, NotificationPreferencePost, [
