@@ -95,8 +95,8 @@ export type BootUserReferral = Partial<{
 }>;
 
 interface AnonymousUser extends BootUserReferral {
-  id: string;
-  firstVisit: string;
+  id: string | undefined;
+  firstVisit: string | null;
   shouldVerify?: boolean;
   email?: string;
 }
@@ -112,7 +112,7 @@ export type LoggedInBoot = BaseBoot & {
     roles: string[];
     canSubmitArticle: boolean;
   };
-  accessToken: AccessToken;
+  accessToken: AccessToken | undefined;
   marketingCta: MarketingCta | null;
 };
 
@@ -271,7 +271,7 @@ const setAuthCookie = async (
 
 const getAndUpdateLastBannerRedis = async (
   con: DataSource,
-): Promise<string> => {
+): Promise<string | null> => {
   let bannerFromRedis = await getRedisObject(REDIS_BANNER_KEY);
 
   if (!bannerFromRedis) {
@@ -318,7 +318,7 @@ export function getReferralFromCookie({
 }
 
 const getExperimentation = async (
-  userId: string,
+  userId: string | undefined,
   con: DataSource | EntityManager,
 ): Promise<Experimentation> => {
   if (userId) {
@@ -349,7 +349,7 @@ const getExperimentation = async (
 };
 
 const getUser = (con: DataSource, userId: string): Promise<User> =>
-  con.getRepository(User).findOne({
+  con.getRepository(User).findOneOrFail({
     where: { id: userId },
     select: [
       'id',
@@ -375,15 +375,23 @@ const getUser = (con: DataSource, userId: string): Promise<User> =>
     ],
   });
 
-const loggedInBoot = async (
-  con: DataSource,
-  req: FastifyRequest,
-  res: FastifyReply,
-  refreshToken: boolean,
-  middleware?: BootMiddleware,
-): Promise<LoggedInBoot | AnonymousBoot> =>
+const loggedInBoot = async ({
+  con,
+  req,
+  res,
+  refreshToken,
+  middleware,
+  userId,
+}: {
+  con: DataSource;
+  req: FastifyRequest;
+  res: FastifyReply;
+  refreshToken: boolean;
+  middleware?: BootMiddleware;
+  userId: string;
+}): Promise<LoggedInBoot | AnonymousBoot> =>
   runInSpan('loggedInBoot', async () => {
-    const { userId, log } = req;
+    const { log } = req;
     const [
       visit,
       user,
@@ -440,9 +448,14 @@ const loggedInBoot = async (
         changelog: false,
         // read only, used in frontend to decide if banner should be fetched
         banner:
-          lastBanner !== 'false' && alerts.lastBanner < new Date(lastBanner),
+          !!lastBanner &&
+          lastBanner !== 'false' &&
+          !!alerts.lastBanner &&
+          alerts.lastBanner < new Date(lastBanner),
         // read only, used in frontend to decide if boot popup should be shown
-        bootPopup: !isSameDay(alerts.lastBootPopup, new Date()),
+        bootPopup: alerts.lastBootPopup
+          ? !isSameDay(alerts.lastBootPopup, new Date())
+          : false,
         shouldShowFeedFeedback:
           subDays(new Date(), FEED_SURVEY_INTERVAL) >
           alerts.lastFeedSettingsFeedback,
@@ -462,7 +475,7 @@ const loggedInBoot = async (
     };
   });
 
-const getAnonymousFirstVisit = async (trackingId: string) => {
+const getAnonymousFirstVisit = async (trackingId: string | undefined) => {
   if (!trackingId) return null;
 
   const key = generateStorageKey(StorageTopic.Boot, 'first_visit', trackingId);
@@ -526,7 +539,14 @@ export const getBootData = async (
     req.accessToken?.expiresIn &&
     differenceInMinutes(req.accessToken?.expiresIn, new Date()) > 3
   ) {
-    return loggedInBoot(con, req, res, false, middleware);
+    return loggedInBoot({
+      con,
+      req,
+      res,
+      refreshToken: false,
+      middleware,
+      userId: req.userId,
+    });
   }
 
   const whoami = await dispatchWhoami(req);
@@ -542,7 +562,14 @@ export const getBootData = async (
       req.trackingId = req.userId;
       setTrackingId(req, res, req.trackingId);
     }
-    return loggedInBoot(con, req, res, true, middleware);
+    return loggedInBoot({
+      con,
+      req,
+      res,
+      refreshToken: true,
+      middleware,
+      userId: req.userId,
+    });
   } else if (req.cookies[cookies.kratos.key]) {
     await clearAuthentication(req, res, 'invalid cookie');
     return anonymousBoot(con, req, res, middleware);

@@ -112,7 +112,7 @@ export interface GQLUser {
   cover?: string;
   readme?: string;
   readmeHtml?: string;
-  experienceLevel?: string;
+  experienceLevel?: string | null;
 }
 
 export interface GQLView {
