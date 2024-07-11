@@ -1,4 +1,4 @@
-import MarkdownIt from 'markdown-it';
+import MarkdownIt, { Renderer, Token } from 'markdown-it';
 import hljs from 'highlight.js';
 import { getUserProfileUrl } from './users';
 import { CommentMention, PostMention, User } from '../entity';
@@ -34,19 +34,25 @@ const defaultRender =
     return self.renderToken(tokens, idx, options);
   };
 
-const setTokenAttribute = (tokens, attribute, attributeValue) => {
+const setTokenAttribute = (
+  tokens: Token,
+  attribute: string,
+  attributeValue: string,
+) => {
   const attributeIndex = tokens.attrIndex('attribute');
   if (attributeIndex < 0) {
     tokens.attrPush([attribute, attributeValue]);
-  } else {
+  } else if (tokens.attrs) {
     tokens.attrs[attributeIndex][1] = attributeValue;
   }
   return tokens;
 };
 
-const defaultTextRender = markdown.renderer.rules.text;
+const defaultTextRender = markdown.renderer.rules.text as Renderer.RenderRule;
 
-type MarkdownMention = Pick<User, 'id' | 'username'>;
+type MarkdownMention = Pick<User, 'id'> & {
+  username: string;
+};
 
 export const mentionSpecialCharacters = new RegExp('[^a-zA-Z0-9_@-]', 'g');
 
@@ -56,7 +62,7 @@ type ReplacedCharacters = string[];
 // then while we reconstruct the word as the length changes afterwards, we passed the reference to which were those replaced characters
 const getReplacedCharacters = (word: string): [string, ReplacedCharacters] => {
   const specialCharacters = [];
-  let match: RegExpExecArray;
+  let match: RegExpExecArray | null;
   while ((match = mentionSpecialCharacters.exec(word)) != null) {
     specialCharacters.push(word.charAt(match.index));
   }
@@ -82,7 +88,7 @@ export const renderMentions = (
       }
 
       const user = mentions.find(({ username }) => `@${username}` === section);
-      const reconstructed = user ? getMentionLink(user) : section;
+      const reconstructed = user?.username ? getMentionLink(user) : section;
       return result + reconstructed + removed;
     }, '');
   });
