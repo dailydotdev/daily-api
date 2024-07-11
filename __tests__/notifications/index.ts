@@ -282,7 +282,14 @@ describe('generateNotification', () => {
         type: 'source',
       },
     ]);
-    expect(actual.attachments.length).toEqual(0);
+    expect(actual.attachments).toEqual([
+      {
+        image: 'https://daily.dev/image.jpg',
+        referenceId: 'p1',
+        title: 'P1',
+        type: 'post',
+      },
+    ]);
   });
 
   it('should generate article_upvote_milestone notification', () => {
