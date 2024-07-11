@@ -23,7 +23,7 @@ export const markdown: MarkdownIt = MarkdownIt({
 });
 
 export const getMentionLink = ({ id, username }: MarkdownMention): string => {
-  const href = getUserProfileUrl(username);
+  const href = getUserProfileUrl(username || '404');
 
   return `<a href="${href}" data-mention-id="${id}" data-mention-username="${username}">@${username}</a>`;
 };
@@ -50,9 +50,7 @@ const setTokenAttribute = (
 
 const defaultTextRender = markdown.renderer.rules.text as Renderer.RenderRule;
 
-type MarkdownMention = Pick<User, 'id'> & {
-  username: string;
-};
+type MarkdownMention = Pick<User, 'id' | 'username'>;
 
 export const mentionSpecialCharacters = new RegExp('[^a-zA-Z0-9_@-]', 'g');
 
