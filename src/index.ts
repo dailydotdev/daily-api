@@ -88,6 +88,7 @@ export default async function app(
     origin: isProd ? /^(?:https:\/\/)?(?:[\w-]+\.)*daily\.dev$/ : true,
     credentials: true,
     cacheControl: 86400,
+    maxAge: 86400,
   });
   app.register(cookie, {
     secret: process.env.COOKIES_KEY,
