@@ -44,6 +44,11 @@ export const typeDefs = /* GraphQL */ `
     name: String!
   }
 
+  type Bookmark {
+    createdAt: DateTime
+    remindAt: DateTime
+  }
+
   type SearchBookmarksSuggestion {
     title: String!
   }
@@ -61,6 +66,20 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type Mutation {
+    """
+    Set a reminder for a bookmark
+    """
+    setBookmarkReminder(
+      """
+      Post id to set reminder for
+      """
+      postId: ID!
+      """
+      UTC time to remind at
+      """
+      remindAt: DateTime
+    ): EmptyResponse! @auth
+
     """
     Add new bookmarks
     """
@@ -295,6 +314,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { id }: { id: string },
       ctx,
     ): Promise<GQLEmptyResponse> => {
+      // TODO MI-436: check if the existing bookmark has a reminder and remove the task associated with it
       await ctx.con.getRepository(Bookmark).delete({
         postId: id,
         userId: ctx.userId,
@@ -330,6 +350,30 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       const list = await repo.findOneByOrFail({ userId: ctx.userId, id });
       list.name = name;
       return repo.save(list);
+    },
+    setBookmarkReminder: async (
+      source,
+      { remindAt, postId }: { remindAt: Date; postId: string },
+      { con, userId },
+    ): Promise<GQLEmptyResponse> => {
+      await con.transaction(async (manager) => {
+        const repo = manager.getRepository(Bookmark);
+
+        const result = await repo.update({ userId, postId }, { remindAt });
+
+        if (result.affected === 0) {
+          return;
+        }
+
+        if (!remindAt) {
+          // TODO MI-436: delete the task from the queueing system
+          return;
+        }
+
+        // TODO MI-436: add the task to the queueing system
+      });
+
+      return { _: null };
     },
   },
   Query: {

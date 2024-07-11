@@ -94,31 +94,38 @@ export const syncSubscription = async function (
   );
 
   await con.transaction(async (manager) => {
-    userAttributes?.customers.forEach(async (customer) => {
-      const subs = JSON.parse(
-        customer?.attributes?.cio_subscription_preferences || '{}',
-      );
-      const unsubscribed = customer?.unsubscribed;
-      const marketing =
-        isSubscribed(subs, CioUnsubscribeTopic.Marketing) && !unsubscribed;
-      const notifications =
-        isSubscribed(subs, CioUnsubscribeTopic.Notifications) && !unsubscribed;
-      const digest =
-        isSubscribed(subs, CioUnsubscribeTopic.Digest) && !unsubscribed;
-
-      await manager
-        .getRepository(User)
-        .update(
-          { id: customer.id },
-          { notificationEmail: notifications, acceptedMarketing: marketing },
+    userAttributes?.customers.forEach(
+      async (customer: {
+        id: string;
+        attributes: { cio_subscription_preferences: string };
+        unsubscribed: boolean;
+      }) => {
+        const subs = JSON.parse(
+          customer?.attributes?.cio_subscription_preferences || '{}',
         );
-      if (!digest) {
-        await manager.getRepository(UserPersonalizedDigest).delete({
-          userId: customer.id,
-          type: UserPersonalizedDigestType.Digest,
-        });
-      }
-    });
+        const unsubscribed = customer?.unsubscribed;
+        const marketing =
+          isSubscribed(subs, CioUnsubscribeTopic.Marketing) && !unsubscribed;
+        const notifications =
+          isSubscribed(subs, CioUnsubscribeTopic.Notifications) &&
+          !unsubscribed;
+        const digest =
+          isSubscribed(subs, CioUnsubscribeTopic.Digest) && !unsubscribed;
+
+        await manager
+          .getRepository(User)
+          .update(
+            { id: customer.id },
+            { notificationEmail: notifications, acceptedMarketing: marketing },
+          );
+        if (!digest) {
+          await manager.getRepository(UserPersonalizedDigest).delete({
+            userId: customer.id,
+            type: UserPersonalizedDigestType.Digest,
+          });
+        }
+      },
+    );
   });
 };
 

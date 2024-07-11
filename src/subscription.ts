@@ -55,7 +55,7 @@ export const getSubscriptionSettings = (
         try {
           if (payload?.token) {
             const jwtPayload = await verifyJwt(payload?.token);
-            const userId = jwtPayload.userId;
+            const userId = jwtPayload!.userId;
             // Don't block connection for caching
             cacheConnectedUser(userId);
             return { userId };
