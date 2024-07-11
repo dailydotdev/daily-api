@@ -1,5 +1,6 @@
 import { invokeNotificationWorker } from '../helpers';
 import {
+  Bookmark,
   Comment,
   MachineSource,
   NotificationPreferenceComment,
@@ -559,6 +560,50 @@ describe('post added notifications', () => {
     expect((bundle.ctx as NotificationPostContext).post.id).toEqual('p1');
     expect((bundle.ctx as NotificationPostContext).source.id).toEqual('a');
     expect(bundle.ctx.userIds).toEqual(['3']);
+  });
+});
+
+describe('post bookmark reminder', () => {
+  it('should add notification for the user that set the reminder', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/postBookmarkReminder'
+    );
+    await con
+      .getRepository(Bookmark)
+      .save({ userId: '1', postId: 'p1', remindAt: new Date() });
+    const actual = await invokeNotificationWorker(worker.default, {
+      userId: '1',
+      postId: 'p1',
+    });
+    expect(actual.length).toEqual(1);
+    const bundle = actual[0];
+    const ctx = bundle.ctx as NotificationPostContext;
+    expect(bundle.type).toEqual('post_bookmark_reminder');
+    expect(ctx.post.id).toEqual('p1');
+    expect(ctx.source.id).toEqual('a');
+  });
+
+  it('should not add notification if the reminder has been removed', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/postBookmarkReminder'
+    );
+    await con.getRepository(Bookmark).save({ userId: '1', postId: 'p1' });
+    const actual = await invokeNotificationWorker(worker.default, {
+      userId: '1',
+      postId: 'p1',
+    });
+    expect(actual).toBeFalsy();
+  });
+
+  it('should not add notification if the post is not found', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/postBookmarkReminder'
+    );
+    const actual = await invokeNotificationWorker(worker.default, {
+      userId: '1',
+      postId: 'p1notfound',
+    });
+    expect(actual).toBeFalsy();
   });
 });
 

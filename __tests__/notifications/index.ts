@@ -252,6 +252,39 @@ describe('generateNotification', () => {
     expect(actual.attachments.length).toEqual(0);
   });
 
+  it('should generate post_bookmark_reminder notification', () => {
+    const type = NotificationType.PostBookmarkReminder;
+    const post = postsFixture[0] as Reference<Post>;
+    const ctx: NotificationPostContext = {
+      post,
+      userIds: [userId],
+      source: sourcesFixture[0] as Reference<Source>,
+    };
+    const title = `Reading reminder! <b>${post.title}</b>`;
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('p1');
+    expect(actual.notification.referenceType).toEqual('post');
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/posts/p1',
+    );
+    expect(actual.notification.title).toEqual(title);
+    expect(actual.notification.description).toBeUndefined();
+    expect(actual.avatars).toEqual([
+      {
+        image: 'http://image.com/a',
+        name: 'A',
+        referenceId: 'a',
+        targetUrl: 'http://localhost:5002/sources/a',
+        type: 'source',
+      },
+    ]);
+    expect(actual.attachments.length).toEqual(0);
+  });
+
   it('should generate article_upvote_milestone notification', () => {
     const type = NotificationType.ArticleUpvoteMilestone;
     const ctx: NotificationPostContext & NotificationUpvotersContext = {
