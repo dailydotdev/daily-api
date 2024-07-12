@@ -162,10 +162,6 @@ export const workers: Worker[] = [
     subscription: 'api.article-new-comment-notification.comment-commented',
   },
   {
-    topic: 'api.v1.post-bookmark-reminder',
-    subscription: 'api.post-bookmark-reminder-notification',
-  },
-  {
     topic: 'comment-commented',
     subscription: 'api.comment-commented-images',
   },

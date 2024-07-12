@@ -43,7 +43,6 @@ export enum NotificationType {
   SquadPublicApproved = 'squad_public_approved',
   SquadPublicRejected = 'squad_public_rejected',
   SquadPublicSubmitted = 'squad_public_submitted',
-  PostBookmarkReminder = 'post_bookmark_reminder',
 }
 
 export enum NotificationPreferenceType {
