@@ -95,7 +95,7 @@ export type BootUserReferral = Partial<{
 }>;
 
 interface AnonymousUser extends BootUserReferral {
-  id: string | undefined;
+  id?: string;
   firstVisit: string | null;
   shouldVerify?: boolean;
   email?: string;
@@ -112,7 +112,7 @@ export type LoggedInBoot = BaseBoot & {
     roles: string[];
     canSubmitArticle: boolean;
   };
-  accessToken: AccessToken | undefined;
+  accessToken?: AccessToken;
   marketingCta: MarketingCta | null;
 };
 
@@ -317,10 +317,13 @@ export function getReferralFromCookie({
   };
 }
 
-const getExperimentation = async (
-  userId: string | undefined,
-  con: DataSource | EntityManager,
-): Promise<Experimentation> => {
+const getExperimentation = async ({
+  userId,
+  con,
+}: {
+  userId?: string;
+  con: DataSource | EntityManager;
+}): Promise<Experimentation> => {
   if (userId) {
     const [hash, features] = await Promise.all([
       ioRedisPool.execute((client) => client.hgetall(`exp:${userId}`)),
@@ -348,7 +351,7 @@ const getExperimentation = async (
   };
 };
 
-const getUser = (con: DataSource, userId: string): Promise<User | undefined> =>
+const getUser = (con: DataSource, userId: string): Promise<User | null> =>
   con.getRepository(User).findOne({
     where: { id: userId },
     select: [
@@ -414,7 +417,7 @@ const loggedInBoot = async ({
       getUnreadNotificationsCount(con, userId),
       getSquads(con, userId),
       getAndUpdateLastBannerRedis(con),
-      getExperimentation(userId, con),
+      getExperimentation({ userId, con }),
       getMarketingCta(con, log, userId),
       middleware ? middleware(con, req, res) : {},
       getFeeds({ con, userId }),
@@ -475,7 +478,7 @@ const loggedInBoot = async ({
     };
   });
 
-const getAnonymousFirstVisit = async (trackingId: string | undefined) => {
+const getAnonymousFirstVisit = async (trackingId?: string) => {
   if (!trackingId) return null;
 
   const key = generateStorageKey(StorageTopic.Boot, 'first_visit', trackingId);
@@ -503,7 +506,7 @@ const anonymousBoot = async (
     visitSection(req, res),
     middleware ? middleware(con, req, res) : {},
     getAnonymousFirstVisit(req.trackingId),
-    getExperimentation(req.trackingId, con),
+    getExperimentation({ userId: req.trackingId, con }),
   ]);
 
   return {
