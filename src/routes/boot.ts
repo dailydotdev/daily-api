@@ -348,8 +348,8 @@ const getExperimentation = async (
   };
 };
 
-const getUser = (con: DataSource, userId: string): Promise<User> =>
-  con.getRepository(User).findOneOrFail({
+const getUser = (con: DataSource, userId: string): Promise<User | undefined> =>
+  con.getRepository(User).findOne({
     where: { id: userId },
     select: [
       'id',
@@ -455,7 +455,7 @@ const loggedInBoot = async ({
         // read only, used in frontend to decide if boot popup should be shown
         bootPopup: alerts.lastBootPopup
           ? !isSameDay(alerts.lastBootPopup, new Date())
-          : false,
+          : true,
         shouldShowFeedFeedback:
           subDays(new Date(), FEED_SURVEY_INTERVAL) >
           alerts.lastFeedSettingsFeedback,
