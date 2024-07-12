@@ -125,6 +125,7 @@
     "@types/jest": "^29.5.12",
     "@types/jsonwebtoken": "^9.0.6",
     "@types/lodash": "^4.17.5",
+    "@types/markdown-it": "14.1.1",
     "@types/node": "^20.14.2",
     "@types/node-fetch": "^2.6.11",
     "@types/retry": "^0.12.5",
