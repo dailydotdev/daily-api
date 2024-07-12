@@ -9,5 +9,4 @@ export enum NotificationIcon {
   User = 'User',
   Star = 'Star',
   DevCard = 'DevCard',
-  BookmarkReminder = 'BookmarkReminder',
 }

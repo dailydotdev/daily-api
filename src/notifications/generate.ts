@@ -88,8 +88,6 @@ export const notificationTitleMap: Record<
   collection_updated: (ctx: NotificationPostContext) =>
     `The collection "<b>${ctx.post.title}</b>" just got updated with new details`,
   dev_card_unlocked: () => 'DevCard unlocked!',
-  post_bookmark_reminder: (ctx: NotificationPostContext) =>
-    `Reading reminder! <b>${ctx.post.title}</b>`,
   source_post_added: (
     ctx: NotificationPostContext & NotificationDoneByContext,
   ) => `New post from <b>${ctx.source.name}</b>, check it out now!`,
@@ -131,13 +129,6 @@ export const generateNotificationMap: Record<
       .descriptionComment(ctx.comment)
       .targetPost(ctx.post, ctx.comment)
       .avatarManyUsers([ctx.commenter]),
-  post_bookmark_reminder: (builder, ctx: NotificationPostContext) =>
-    builder
-      .icon(NotificationIcon.BookmarkReminder)
-      .referencePost(ctx.post)
-      .targetPost(ctx.post)
-      .avatarSource(ctx.source)
-      .objectPost(ctx.post, ctx.source, ctx.sharedPost),
   article_upvote_milestone: (
     builder,
     ctx: NotificationPostContext & NotificationUpvotersContext,
