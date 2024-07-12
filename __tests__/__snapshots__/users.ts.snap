@@ -523,12 +523,12 @@ Array [
 exports[`query userReadingRankHistory should return the reading rank history v2 utilizing timezone 1`] = `
 Array [
   Object {
-    "count": 2,
-    "rank": 3,
-  },
-  Object {
     "count": 1,
     "rank": 1,
+  },
+  Object {
+    "count": 2,
+    "rank": 3,
   },
 ]
 `;
