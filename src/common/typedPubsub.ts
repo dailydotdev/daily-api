@@ -69,6 +69,10 @@ export type PubSubSchema = {
   'api.v1.user-streak-updated': {
     streak: ChangeObject<UserStreak>;
   };
+  'api.v1.post-bookmark-reminder': {
+    postId: string;
+    userId: string;
+  };
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(
