@@ -73,7 +73,6 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   squad_public_submitted: '42',
   squad_public_rejected: '43',
   squad_public_approved: '41',
-  post_bookmark_reminder: '',
 };
 
 type TemplateData = Record<string, string | number>;
@@ -86,7 +85,6 @@ type TemplateDataFunc = (
   avatars: NotificationAvatarV2[],
 ) => Promise<TemplateData | null>;
 const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
-  post_bookmark_reminder: async () => null,
   community_picks_failed: async (con, user, notification) => {
     const submission = await con
       .getRepository(Submission)

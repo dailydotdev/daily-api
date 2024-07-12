@@ -20,7 +20,6 @@ import { TypeOrmError, TypeORMQueryFailedError } from '../../errors';
 import postMention from './postMention';
 import { collectionUpdated } from './collectionUpdated';
 import devCardUnlocked from './devCardUnlocked';
-import postBookmarkReminder from './postBookmarkReminder';
 
 export function notificationWorkerToWorker(worker: NotificationWorker): Worker {
   return {
@@ -79,7 +78,6 @@ const notificationWorkers: NotificationWorker[] = [
   squadPublicRequestNotification,
   collectionUpdated,
   devCardUnlocked,
-  postBookmarkReminder,
 ];
 
 export const workers = [...notificationWorkers.map(notificationWorkerToWorker)];
