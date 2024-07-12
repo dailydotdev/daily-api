@@ -42,6 +42,7 @@ import { createSquadWelcomePost, NotificationReason } from '../../src/common';
 import { randomUUID } from 'crypto';
 import { UserVote } from '../../src/types';
 import { UserComment } from '../../src/entity/user/UserComment';
+import { workers } from '../../src/workers';
 
 let con: DataSource;
 
@@ -564,6 +565,18 @@ describe('post added notifications', () => {
 });
 
 describe('post bookmark reminder', () => {
+  it('should be registered', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/postBookmarkReminder'
+    );
+
+    const registeredWorker = workers.find(
+      (item) => item.subscription === worker.default.subscription,
+    );
+
+    expect(registeredWorker).toBeDefined();
+  });
+
   it('should add notification for the user that set the reminder', async () => {
     const worker = await import(
       '../../src/workers/notifications/postBookmarkReminder'
