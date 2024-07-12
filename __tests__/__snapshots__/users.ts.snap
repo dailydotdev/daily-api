@@ -465,7 +465,7 @@ Object {
   "rankLastWeek": 0,
   "rankThisWeek": 0,
   "readToday": Anything,
-  "tags": null,
+  "tags": Array [],
 }
 `;
 
@@ -477,7 +477,7 @@ Object {
   "rankLastWeek": 1,
   "rankThisWeek": 2,
   "readToday": Anything,
-  "tags": null,
+  "tags": Array [],
 }
 `;
 
@@ -523,12 +523,12 @@ Array [
 exports[`query userReadingRankHistory should return the reading rank history v2 utilizing timezone 1`] = `
 Array [
   Object {
-    "count": 1,
-    "rank": 1,
-  },
-  Object {
     "count": 2,
     "rank": 3,
+  },
+  Object {
+    "count": 1,
+    "rank": 1,
   },
 ]
 `;
