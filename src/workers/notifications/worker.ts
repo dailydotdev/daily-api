@@ -26,9 +26,9 @@ export interface NotificationWorker {
 
 interface TypedNotificationWorkerProps<
   T extends keyof PubSubSchema,
-  D extends PubSubSchema[T],
+  D extends PubSubSchema[T] = PubSubSchema[T],
 > {
-  subscription: T;
+  subscription: string;
   handler: (
     data: D,
     con: DataSource,
@@ -36,18 +36,18 @@ interface TypedNotificationWorkerProps<
   ) => Promise<NotificationHandlerReturn>;
 }
 
-interface GenerateTypeWorkerResult<T extends keyof PubSubSchema> {
-  subscription: T;
+interface GenerateTypeWorkerResult {
+  subscription: string;
   handler: NotificationWorkerHandler;
 }
 
 export const generateTypedNotificationWorker = <
   T extends keyof PubSubSchema,
-  D extends PubSubSchema[T],
+  D extends PubSubSchema[T] = PubSubSchema[T],
 >({
   subscription,
   handler,
-}: TypedNotificationWorkerProps<T, D>): GenerateTypeWorkerResult<T> => {
+}: TypedNotificationWorkerProps<T, D>): GenerateTypeWorkerResult => {
   return {
     subscription,
     handler: (message, ...props) => {
