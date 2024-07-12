@@ -1,18 +1,11 @@
-import { messageToJson } from '../worker';
 import { Bookmark } from '../../entity';
 import { NotificationType } from '../../notifications/common';
-import { NotificationWorker } from './worker';
+import { generateTypedNotificationWorker } from './worker';
 import { buildPostContext } from './utils';
 
-interface Data {
-  postId: string;
-  userId: string;
-}
-
-const worker: NotificationWorker = {
-  subscription: 'api.post-bookmark-reminder-notification',
-  handler: async (message, con) => {
-    const { postId, userId }: Data = messageToJson(message);
+const worker = generateTypedNotificationWorker({
+  subscription: 'api.v1.post-bookmark-reminder',
+  handler: async ({ postId, userId }, con) => {
     const postCtx = await buildPostContext(con, postId);
 
     if (!postCtx) {
@@ -34,6 +27,6 @@ const worker: NotificationWorker = {
       },
     ];
   },
-};
+});
 
 export default worker;
