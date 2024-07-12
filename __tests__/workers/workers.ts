@@ -1,10 +1,11 @@
 import {
-  personalizedDigestWorkers,
   workers as infraWorkers,
+  personalizedDigestWorkers as infraDigestWorkers,
 } from '../../.infra/workers';
 import {
   typedWorkers,
   workers as legacyWorkers,
+  personalizedDigestWorkers,
 } from '../../src/workers/index';
 
 const infraWorkersMap = infraWorkers.reduce(
@@ -12,7 +13,12 @@ const infraWorkersMap = infraWorkers.reduce(
   {},
 );
 
-describe('workers', () => {
+const infraDigestWorkersMap = infraDigestWorkers.reduce(
+  (acc, { subscription }) => ({ ...acc, [subscription]: true }),
+  {},
+);
+
+describe('pubsub workers', () => {
   it('should have all subscriptions from typed workers to be defined', () => {
     const allIsFound = legacyWorkers.every(
       ({ subscription }) => subscription in infraWorkersMap,
@@ -31,7 +37,7 @@ describe('workers', () => {
 
   it('should have all subscriptions from personalized digest workers to be defined', () => {
     const allIsFound = personalizedDigestWorkers.every(
-      ({ subscription }) => subscription in infraWorkersMap,
+      ({ subscription }) => subscription in infraDigestWorkersMap,
     );
 
     expect(allIsFound).toBe(true);
