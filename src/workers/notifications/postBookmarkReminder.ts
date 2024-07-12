@@ -4,7 +4,7 @@ import { generateTypedNotificationWorker } from './worker';
 import { buildPostContext } from './utils';
 
 const worker = generateTypedNotificationWorker({
-  subscription: 'api.v1.post-bookmark-reminder',
+  subscription: 'api.post-bookmark-reminder-notification',
   handler: async ({ postId, userId }, con) => {
     const postCtx = await buildPostContext(con, postId);
 
