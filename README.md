@@ -22,7 +22,7 @@ along with other very useful endpoints.
 
 ## Stack
 
-- Node v18 (a `.nvmrc` is presented for [nvm](https://github.com/nvm-sh/nvm) users).
+- Node v20 (a `.nvmrc` is presented for [nvm](https://github.com/nvm-sh/nvm) users).
 - NPM for managing dependencies.
 - Fastify as the web framework
 - Apollo for GraphQL
