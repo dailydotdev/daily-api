@@ -1,7 +1,7 @@
 import {
   workers as infraWorkers,
   personalizedDigestWorkers as infraDigestWorkers,
-} from '../../.infra/workers';
+} from '../../.infra/common';
 import {
   typedWorkers,
   workers as legacyWorkers,
