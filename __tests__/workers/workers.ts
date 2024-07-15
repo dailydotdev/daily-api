@@ -20,7 +20,7 @@ const infraDigestWorkersMap = infraDigestWorkers.reduce(
 
 describe('pubsub workers', () => {
   it('should have all subscriptions from typed workers to be defined', () => {
-    const allIsFound = legacyWorkers.every(
+    const allIsFound = typedWorkers.every(
       ({ subscription }) => subscription in infraWorkersMap,
     );
 
@@ -28,7 +28,7 @@ describe('pubsub workers', () => {
   });
 
   it('should have all subscriptions from legacy workers to be defined', () => {
-    const allIsFound = typedWorkers.every(
+    const allIsFound = legacyWorkers.every(
       ({ subscription }) => subscription in infraWorkersMap,
     );
 
