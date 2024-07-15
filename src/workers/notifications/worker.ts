@@ -1,22 +1,51 @@
 import { DataSource } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
-import { Message } from '../worker';
+import {
+  Message,
+  messageToJson,
+  TypedNotificationWorkerProps,
+} from '../worker';
 import { NotificationBaseContext } from '../../notifications';
 import { NotificationType } from '../../notifications/common';
+import { PubSubSchema } from '../../common';
 
-export type NotificationHandlerReturn =
-  | {
-      type: NotificationType;
-      ctx: NotificationBaseContext;
-    }[]
-  | undefined;
+interface NotificationWorkerResult {
+  type: NotificationType;
+  ctx: NotificationBaseContext;
+}
+
+export type NotificationHandlerReturn = NotificationWorkerResult[] | undefined;
+
+type NotificationMessageHandler = (
+  message: Message,
+  con: DataSource,
+  logger: FastifyBaseLogger,
+) => Promise<NotificationHandlerReturn>;
 
 export interface NotificationWorker {
   subscription: string;
-  handler: (
-    message: Message,
-    con: DataSource,
-    logger: FastifyBaseLogger,
-  ) => Promise<NotificationHandlerReturn>;
+  handler: NotificationMessageHandler;
   maxMessages?: number;
 }
+
+interface GenerateTypeWorkerResult {
+  subscription: string;
+  handler: NotificationMessageHandler;
+}
+
+export const generateTypedNotificationWorker = <
+  T extends keyof PubSubSchema,
+  D extends PubSubSchema[T] = PubSubSchema[T],
+>({
+  subscription,
+  handler,
+}: TypedNotificationWorkerProps<T>): GenerateTypeWorkerResult => {
+  return {
+    subscription,
+    handler: (message, ...props) => {
+      const data: D = messageToJson(message);
+
+      return handler(data, ...props);
+    },
+  };
+};

@@ -222,7 +222,9 @@ const obj = new GraphORM({
           isMany: false,
           customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder => {
             return qb
-              .where(`${childAlias}."userId" = :userId`, { userId: ctx.userId })
+              .where(`${childAlias}."userId" = :voteUserId`, {
+                voteUserId: ctx.userId,
+              })
               .andWhere(`${childAlias}."postId" = "${parentAlias}".id`);
           },
         },
@@ -449,7 +451,9 @@ const obj = new GraphORM({
           isMany: false,
           customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder => {
             return qb
-              .where(`${childAlias}."userId" = :userId`, { userId: ctx.userId })
+              .where(`${childAlias}."userId" = :voteUserId`, {
+                voteUserId: ctx.userId,
+              })
               .andWhere(`${childAlias}."commentId" = "${parentAlias}".id`);
           },
         },

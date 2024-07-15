@@ -104,7 +104,7 @@ export class Feature<T extends JSONValue> {
 }
 
 const digestFeatureBaseConfig = {
-  templateId: '46',
+  templateId: '48',
   feedConfig: 'digest',
   maxPosts: 5,
   longTextLimit: 150,
