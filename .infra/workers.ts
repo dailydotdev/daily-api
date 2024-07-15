@@ -4,6 +4,7 @@ import {
   personalizedDigestWorkers as commonDigestWorkers,
   digestDeadLetter,
   WorkerArgs,
+  Worker,
 } from './common';
 
 export { workers, digestDeadLetter };
@@ -23,12 +24,14 @@ const digestWorkersArgsMap: Record<string, WorkerArgs> = {
   },
 };
 
-export const personalizedDigestWorkers = commonDigestWorkers.map((worker) => {
-  const args: WorkerArgs = digestWorkersArgsMap[worker.subscription];
+export const personalizedDigestWorkers: Worker[] = commonDigestWorkers.map(
+  (worker) => {
+    const args: WorkerArgs = digestWorkersArgsMap[worker.subscription];
 
-  if (!args) {
-    return worker;
-  }
+    if (!args) {
+      return worker;
+    }
 
-  return { ...worker, args };
-});
+    return { ...worker, args };
+  },
+);

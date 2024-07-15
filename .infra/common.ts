@@ -10,7 +10,7 @@ export interface WorkerArgs {
   };
 }
 
-interface Worker {
+export interface Worker {
   topic: string;
   subscription: string;
   args?: WorkerArgs;
@@ -271,7 +271,7 @@ export const workers: Worker[] = [
   },
 ];
 
-export const personalizedDigestWorkers = [
+export const personalizedDigestWorkers: Worker[] = [
   {
     topic: 'api.v1.generate-personalized-digest',
     subscription: 'api.personalized-digest-email',
