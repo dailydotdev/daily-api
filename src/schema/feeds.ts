@@ -1379,8 +1379,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       (ctx, { postIds }: FeedArgs & { postIds: string[] }, builder, alias) =>
         fixedIdsFeedBuilder(ctx, postIds, builder, alias),
 
-      feedPageGenerator,
-      applyFeedPaging,
+      offsetPageGenerator(30, 50, 100),
+      (ctx, args, { limit, offset }, builder) =>
+        builder.limit(limit).offset(offset),
       {
         fetchQueryParams: async (ctx): Promise<void> => {
           const isTeamMember = await ctx.con

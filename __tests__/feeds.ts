@@ -926,13 +926,10 @@ describe('query feedByIds', () => {
       value: 1,
     });
     const res = await client.query(QUERY, {
-      variables: { first: 10, postIds: ['p1', 'p2'] },
+      variables: { first: 10, postIds: ['p3', 'p2', 'p1'] },
     });
-    expect(
-      res.data.feedByIds.edges.every(
-        ({ node }) => node.id === 'p1' || node.id === 'p2',
-      ),
-    ).toBeTruthy();
+    const ids = res.data.feedByIds.edges.map(({ node }) => node.id);
+    expect(ids).toEqual(['p3', 'p2', 'p1']);
   });
 });
 
