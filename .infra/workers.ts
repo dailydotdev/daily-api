@@ -32,6 +32,10 @@ export const personalizedDigestWorkers: Worker[] = commonDigestWorkers.map(
       return worker;
     }
 
-    return { ...worker, args };
+    const updated: Worker = { ...worker };
+
+    updated.args = args;
+
+    return updated;
   },
 );
