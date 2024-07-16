@@ -65,7 +65,7 @@ export class Settings {
   optOutCompanion: boolean;
 
   @Column({ type: 'text', array: true, default: null })
-  customLinks: string[];
+  customLinks: string[] | null;
 
   @Column({ default: true })
   autoDismissNotifications: boolean;
@@ -77,7 +77,7 @@ export class Settings {
   onboardingChecklistView: ChecklistViewState;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt: Date | null;
 
   @OneToOne(() => User, {
     lazy: true,

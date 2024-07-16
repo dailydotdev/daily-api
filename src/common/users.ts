@@ -20,7 +20,7 @@ export interface User {
   username?: string;
   timezone?: string;
   acceptedMarketing?: boolean;
-  experienceLevel?: string;
+  experienceLevel: string | null;
 }
 
 export interface GQLUserStreak {
@@ -100,7 +100,7 @@ export interface ReadingDaysArgs {
 
 interface RecentMentionsProps {
   query?: string;
-  limit?: number;
+  limit: number;
   postId?: string;
   sourceId?: string;
   excludeIds?: string[];
@@ -182,8 +182,9 @@ export const recommendUsersByQuery = async (
   userId: string,
   { query, limit, sourceId }: RecentMentionsProps,
 ): Promise<string[]> => {
-  const privateSource = await (sourceId &&
-    con.getRepository(Source).findOneBy({ id: sourceId, private: true }));
+  const privateSource = sourceId
+    ? await con.getRepository(Source).findOneBy({ id: sourceId, private: true })
+    : undefined;
   const recentIds = await getRecentMentionsIds(con, userId, {
     query,
     limit,
@@ -234,8 +235,9 @@ export const recommendUsersToMention = async (
     return ids;
   }
 
-  const privateSource = await (sourceId &&
-    con.getRepository(Source).findOneBy({ id: sourceId, private: true }));
+  const privateSource = sourceId
+    ? await con.getRepository(Source).findOneBy({ id: sourceId, private: true })
+    : undefined;
   const recent = await getRecentMentionsIds(con, userId, {
     limit: missing,
     excludeIds: ids,
@@ -327,7 +329,7 @@ export const getUserReadingRank = async (
   const now = new Date();
   const getReadingTags = () => {
     if (version === 1) {
-      return Promise.resolve(null);
+      return Promise.resolve([]);
     }
 
     const start = getTimezonedStartOfISOWeek({
@@ -343,10 +345,16 @@ export const getUserReadingRank = async (
     });
   };
 
-  const [{ thisWeek, lastWeek, lastReadTime }, tags] = await Promise.all([
+  const [readingStreakResult, tags] = await Promise.all([
     req.getRawOne<ReadingRankQueryResult>(),
     getReadingTags(),
   ]);
+
+  if (!readingStreakResult) {
+    throw new Error('failed to get user reading streak');
+  }
+
+  const { thisWeek, lastWeek, lastReadTime } = readingStreakResult;
   const rankThisWeek = version === 1 ? rankFromProgress(thisWeek) : thisWeek;
   const rankLastWeek = version === 1 ? rankFromProgress(lastWeek) : lastWeek;
   return {
@@ -392,7 +400,7 @@ export const clearUserStreak = async (
     .where('userId IN (:...userIds)', { userIds })
     .execute();
 
-  return result.affected;
+  return result.affected || 0;
 };
 
 // Computes whether we should reset user streak

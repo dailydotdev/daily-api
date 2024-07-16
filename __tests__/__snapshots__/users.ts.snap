@@ -465,7 +465,7 @@ Object {
   "rankLastWeek": 0,
   "rankThisWeek": 0,
   "readToday": Anything,
-  "tags": null,
+  "tags": Array [],
 }
 `;
 
@@ -477,7 +477,7 @@ Object {
   "rankLastWeek": 1,
   "rankThisWeek": 2,
   "readToday": Anything,
-  "tags": null,
+  "tags": Array [],
 }
 `;
 
