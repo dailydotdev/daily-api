@@ -260,9 +260,14 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       { query, version }: { query: string; version: number },
       ctx,
     ): Promise<GQLSearchSuggestionsResults> => {
-      const { hits } = await searchMeili(
-        `q=${query}&attributesToRetrieve=post_id,title${version === 2 && '&attributesToSearchOn=title'}`,
-      );
+      const searchParams = new URLSearchParams({
+        q: query,
+        attributesToRetrieve: 'post_id,title',
+      });
+      if (version === 2) {
+        searchParams.append('attributesToSearchOn', 'title');
+      }
+      const { hits } = await searchMeili(searchParams.toString());
       // In case ids is empty make sure the query does not fail
       const idsStr = hits.length
         ? hits.map((id) => `'${id.post_id}'`).join(',')
@@ -309,10 +314,15 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
     ): Promise<ConnectionRelay<GQLPost> & { query: string }> => {
       const limit = Math.min(args.first || 10);
       const offset = getOffsetWithDefault(args.after, -1) + 1;
-      const meilieSearchRes = await searchMeili(
-        `q=${args.query}&attributesToRetrieve=post_id${args.version === 2 && '&attributesToSearchOn=title'}&limit=${limit}&offset=${offset}`,
-      );
-
+      const searchParams = new URLSearchParams({
+        q: args.query,
+        limit: limit.toString(),
+        offset: offset.toString(),
+      });
+      if (args.version === 2) {
+        searchParams.append('attributesToSearchOn', 'title');
+      }
+      const meilieSearchRes = await searchMeili(searchParams.toString());
       const meilieArgs: FeedArgs & {
         ids: string[];
         pagination: MeiliPagination;
