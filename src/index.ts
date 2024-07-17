@@ -278,10 +278,15 @@ export default async function app(
   app.register(compatibility, { prefix: '/v1' });
   app.register(routes, { prefix: '/' });
 
-  run().catch((err) => {
-    console.error(err);
-    process.exit(1);
-  });
-
   return app;
 }
+
+// run()
+//   .then(() => {
+//     console.log('registered worker');
+//   })
+//   .catch((err) => {
+//     console.log('error registering worker');
+//     console.error(err);
+//     process.exit(1);
+//   });

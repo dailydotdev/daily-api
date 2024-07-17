@@ -6,7 +6,7 @@ export enum WorkflowTopic {
 }
 
 export enum WorkflowTopicScope {
-  Reminder = 'Reminder',
+  Reminder = 'reminder',
 }
 
 export enum WorkflowQueue {
