@@ -30,6 +30,7 @@ import { ioRedisPool } from './redis';
 import { loadFeatures } from './growthbook';
 import { runInRootSpan } from './telemetry';
 import { loggerConfig } from './logger';
+import { run } from './queue/bookmark';
 
 type Mutable<Type> = {
   -readonly [Key in keyof Type]: Type[Key];
@@ -276,6 +277,11 @@ export default async function app(
 
   app.register(compatibility, { prefix: '/v1' });
   app.register(routes, { prefix: '/' });
+
+  run().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
 
   return app;
 }

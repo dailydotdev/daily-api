@@ -21,6 +21,14 @@ import {
 import { SelectQueryBuilder } from 'typeorm';
 import { GQLPost } from './posts';
 import { Connection } from 'graphql-relay';
+// import { Client } from '@temporalio/client';
+// import { bookmarkReminderWorkflow } from '../queue/bookmark/workflows';
+// import {
+//   generateWorkflowId,
+//   WorkflowQueue,
+//   WorkflowTopic,
+//   WorkflowTopicScope,
+// } from '../queue/common';
 
 interface GQLAddBookmarkInput {
   postIds: string[];
@@ -67,6 +75,11 @@ export const typeDefs = /* GraphQL */ `
 
   type Mutation {
     """
+    Add new bookmarks
+    """
+    addBookmarks(data: AddBookmarkInput!): EmptyResponse! @auth
+
+    """
     Set a reminder for a bookmark
     """
     setBookmarkReminder(
@@ -78,12 +91,7 @@ export const typeDefs = /* GraphQL */ `
       UTC time to remind at
       """
       remindAt: DateTime
-    ): EmptyResponse! @auth
-
-    """
-    Add new bookmarks
-    """
-    addBookmarks(data: AddBookmarkInput!): EmptyResponse! @auth
+    ): EmptyResponse!
 
     """
     Add or move bookmark to list
@@ -356,6 +364,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { remindAt, postId }: { remindAt: Date; postId: string },
       { con, userId },
     ): Promise<GQLEmptyResponse> => {
+      console.log('user id: ', userId);
+
+      if (!userId) {
+        return { _: null };
+      }
+
       await con.transaction(async (manager) => {
         const repo = manager.getRepository(Bookmark);
 
@@ -369,6 +383,24 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           // TODO MI-436: delete the task from the queueing system
           return;
         }
+
+        // const afterFiveSeconds = new Date(Date.now() + 5000);
+        // const params = {
+        //   userId,
+        //   postId,
+        //   remindAt: afterFiveSeconds.toISOString(),
+        // };
+        // const workflowId = generateWorkflowId(
+        //   WorkflowTopic.Bookmark,
+        //   WorkflowTopicScope.Reminder,
+        //   [userId, postId],
+        // );
+        // const client = new Client();
+        // await client.workflow.start(bookmarkReminderWorkflow, {
+        //   args: [params],
+        //   workflowId,
+        //   taskQueue: WorkflowQueue.Bookmark,
+        // });
 
         // TODO MI-436: add the task to the queueing system
       });
