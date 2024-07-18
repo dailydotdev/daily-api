@@ -30,8 +30,8 @@ import { ioRedisPool } from './redis';
 import { loadFeatures } from './growthbook';
 import { runInRootSpan } from './telemetry';
 import { loggerConfig } from './logger';
-import { run } from './queue/bookmark';
-import { getTemporalClient } from './queue/client';
+import { run } from './temporal/notifications';
+import { getTemporalClient } from './temporal/client';
 
 type Mutable<Type> = {
   -readonly [Key in keyof Type]: Type[Key];

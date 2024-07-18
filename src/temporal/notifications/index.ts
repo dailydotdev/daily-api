@@ -11,7 +11,7 @@ export async function run() {
   const worker = await Worker.create({
     connection,
     workflowsPath: require.resolve('./workflows'),
-    taskQueue: WorkflowQueue.Bookmark,
+    taskQueue: WorkflowQueue.Notification,
     activities: createActivities({ con: dbCon }),
   });
 

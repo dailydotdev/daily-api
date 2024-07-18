@@ -1,16 +1,15 @@
 import { DataSource } from 'typeorm';
-import { EventLogger } from '../common';
 
 export enum WorkflowTopic {
-  Bookmark = 'bookmark',
+  Notification = 'notification',
 }
 
 export enum WorkflowTopicScope {
-  Reminder = 'reminder',
+  Bookmark = 'bookmark',
 }
 
 export enum WorkflowQueue {
-  Bookmark = 'bookmark-queue',
+  Notification = 'notification-queue',
 }
 
 export const generateWorkflowId = (

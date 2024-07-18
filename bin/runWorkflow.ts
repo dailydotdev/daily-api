@@ -1,4 +1,4 @@
-import { runReminderWorkflow } from '../src/queue/bookmark/utils';
+import { runReminderWorkflow } from '../src/temporal/notifications/utils';
 
 const afterFiveSeconds = () => Date.now() + 5000;
 const userId = 'B4AdaAXLKy1SdZxDhZwL1';

@@ -26,7 +26,7 @@ import { usersFixture } from './fixture/user';
 import {
   runReminderWorkflow,
   cancelReminderWorkflow,
-} from '../src/queue/bookmark/utils';
+} from '../src/temporal/notifications/utils';
 
 let con: DataSource;
 let state: GraphQLTestingState;

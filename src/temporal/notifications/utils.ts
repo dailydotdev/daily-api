@@ -12,7 +12,7 @@ export const getReminderWorkflowId = ({
   postId,
   remindAt,
 }: BookmarkReminderParams) =>
-  generateWorkflowId(WorkflowTopic.Bookmark, WorkflowTopicScope.Reminder, [
+  generateWorkflowId(WorkflowTopic.Notification, WorkflowTopicScope.Bookmark, [
     userId,
     postId,
     remindAt.toString(),
@@ -25,7 +25,7 @@ export const runReminderWorkflow = async (params: BookmarkReminderParams) => {
   return client.workflow.start(bookmarkReminderWorkflow, {
     args: [params],
     workflowId,
-    taskQueue: WorkflowQueue.Bookmark,
+    taskQueue: WorkflowQueue.Notification,
   });
 };
 

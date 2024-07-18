@@ -93,7 +93,7 @@ import { counters } from '../../telemetry';
 import {
   cancelReminderWorkflow,
   runReminderWorkflow,
-} from '../../queue/bookmark/utils';
+} from '../../temporal/notifications/utils';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,

@@ -124,7 +124,7 @@ import { generateUUID } from '../../../src/ids';
 import {
   cancelReminderWorkflow,
   runReminderWorkflow,
-} from '../../../src/queue/bookmark/utils';
+} from '../../../src/temporal/notifications/utils';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -166,8 +166,8 @@ jest.mock('../../../src/common', () => ({
   cancelReminderWorkflow: jest.fn(),
 }));
 
-jest.mock('../../../src/queue/bookmark/utils', () => ({
-  ...jest.requireActual('../../../src/queue/bookmark/utils'),
+jest.mock('../../../src/temporal/notifications/utils', () => ({
+  ...jest.requireActual('../../../src/temporal/notifications/utils'),
   runReminderWorkflow: jest.fn(),
   cancelReminderWorkflow: jest.fn(),
 }));
