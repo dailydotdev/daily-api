@@ -1,13 +1,14 @@
 import { InjectedProps } from '../common';
 import { triggerTypedEvent } from '../../common';
 import { Bookmark } from '../../entity';
+import { logger } from '../../logger';
 
 interface CommonBookmarkReminderParams {
   userId: string;
   postId: string;
 }
 
-export const createActivities = ({ con, logger }: InjectedProps) => ({
+export const createActivities = ({ con }: InjectedProps) => ({
   async validateBookmark({
     userId,
     postId,

@@ -2,7 +2,6 @@ import { NativeConnection, Worker } from '@temporalio/worker';
 import { createActivities } from './activities';
 import createOrGetConnection from '../../db';
 import { WorkflowQueue } from '../common';
-import { logger } from '../../logger';
 
 export async function run() {
   const connection = await NativeConnection.connect({
@@ -13,7 +12,7 @@ export async function run() {
     connection,
     workflowsPath: require.resolve('./workflows'),
     taskQueue: WorkflowQueue.Bookmark,
-    activities: createActivities({ logger, con: dbCon }),
+    activities: createActivities({ con: dbCon }),
   });
 
   await worker.run();

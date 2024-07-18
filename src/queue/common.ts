@@ -21,5 +21,4 @@ export const generateWorkflowId = (
 
 export interface InjectedProps {
   con: DataSource;
-  logger: EventLogger;
 }
