@@ -955,6 +955,9 @@ describe('mutation commentOnComment', () => {
     const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
     expect(post.comments).toEqual(6);
     expect(actual.find((c) => c.id === 'c1')!.comments).toEqual(2);
+    expect(post.statsUpdatedAt.getTime()).toBeGreaterThan(
+      beforePost.statsUpdatedAt.getTime(),
+    );
   });
 
   it('should disallow comment on comment from post on public source for blocked members', async () => {
@@ -1089,6 +1092,9 @@ describe('mutation deleteComment', () => {
     expect(actual.find((c) => c.id === 'c1')!.comments).toEqual(0);
     const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
     expect(post.comments).toEqual(4);
+    expect(post.statsUpdatedAt.getTime()).toBeGreaterThan(
+      beforePost.statsUpdatedAt.getTime(),
+    );
   });
 
   it('should delete a comment and its children', async () => {
