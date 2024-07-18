@@ -230,18 +230,6 @@ export const getPersonalizedDigestEmailPayload = async ({
     return undefined;
   }
 
-  if (posts.length < feature.maxPosts) {
-    logger.warn(
-      {
-        personalizedDigest,
-        feedConfig: feedConfigPayload,
-        emailBatchId,
-        postsCount: posts.length,
-      },
-      'lower then max posts found for personalized digest',
-    );
-  }
-
   const variationProps = await getEmailVariation({
     personalizedDigest,
     posts,
