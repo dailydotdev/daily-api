@@ -370,10 +370,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { remindAt, postId }: { remindAt: Date; postId: string },
       { con, userId },
     ): Promise<GQLEmptyResponse> => {
-      if (!userId) {
-        return { _: null };
-      }
-
       await con.transaction(async (manager) => {
         const repo = manager.getRepository(Bookmark);
         const bookmark = await repo.findOneBy({ userId, postId });
