@@ -21,7 +21,8 @@ export const getReminderWorkflowId = ({
 export const runReminderWorkflow = async (params: BookmarkReminderParams) => {
   const workflowId = getReminderWorkflowId(params);
   const client = await getTemporalClient();
-  client.workflow.start(bookmarkReminderWorkflow, {
+
+  return client.workflow.start(bookmarkReminderWorkflow, {
     args: [params],
     workflowId,
     taskQueue: WorkflowQueue.Bookmark,
@@ -37,6 +38,6 @@ export const cancelReminderWorkflow = async (
   const description = await handle.describe();
 
   if (description.status.name === 'RUNNING') {
-    handle.terminate();
+    await handle.terminate();
   }
 };

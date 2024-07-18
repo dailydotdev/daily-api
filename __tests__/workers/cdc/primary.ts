@@ -24,6 +24,7 @@ import {
   YouTubePost,
   ChecklistViewState,
   UserStreak,
+  Bookmark,
 } from '../../../src/entity';
 import {
   notifyCommentCommented,
@@ -120,6 +121,10 @@ import {
   generateStorageKey,
 } from '../../../src/config';
 import { generateUUID } from '../../../src/ids';
+import {
+  cancelReminderWorkflow,
+  runReminderWorkflow,
+} from '../../../src/queue/bookmark/utils';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -157,6 +162,14 @@ jest.mock('../../../src/common', () => ({
   notifyPostCollectionUpdated: jest.fn(),
   notifyUserReadmeUpdated: jest.fn(),
   notifyReputationIncrease: jest.fn(),
+  runReminderWorkflow: jest.fn(),
+  cancelReminderWorkflow: jest.fn(),
+}));
+
+jest.mock('../../../src/queue/bookmark/utils', () => ({
+  ...jest.requireActual('../../../src/queue/bookmark/utils'),
+  runReminderWorkflow: jest.fn(),
+  cancelReminderWorkflow: jest.fn(),
 }));
 
 let con: DataSource;
@@ -3259,5 +3272,163 @@ describe('user streak change', () => {
       'api.v1.user-streak-updated',
       { streak: base },
     ]);
+  });
+});
+
+describe('bookmark change', () => {
+  type ObjectType = Bookmark;
+  const base: ChangeObject<ObjectType> = {
+    userId: '1',
+    postId: 'p1',
+    createdAt: new Date().getTime(),
+    listId: null,
+    remindAt: null,
+  };
+
+  describe('on create', () => {
+    it('should not run reminder workflow', async () => {
+      const after: ChangeObject<ObjectType> = base;
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: null,
+          op: 'c',
+          table: 'bookmark',
+        }),
+      );
+      expect(runReminderWorkflow).not.toHaveBeenCalled();
+    });
+
+    it('should run reminder workflow if remind at is present', async () => {
+      const date = new Date();
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        remindAt: date.getTime(),
+      };
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: null,
+          op: 'c',
+          table: 'bookmark',
+        }),
+      );
+      expect(runReminderWorkflow).toHaveBeenCalledWith({
+        postId: 'p1',
+        remindAt: date.getTime(),
+        userId: '1',
+      });
+    });
+  });
+
+  describe('on update', () => {
+    it('should NOT cancel reminder workflow if remind at is NOT present before', async () => {
+      const after: ChangeObject<ObjectType> = base;
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: base,
+          op: 'u',
+          table: 'bookmark',
+        }),
+      );
+      expect(cancelReminderWorkflow).not.toHaveBeenCalled();
+    });
+
+    it('should cancel reminder workflow if remind at is present before', async () => {
+      const date = new Date();
+      const after: ChangeObject<ObjectType> = base;
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: { ...base, remindAt: date.getTime() },
+          op: 'u',
+          table: 'bookmark',
+        }),
+      );
+      expect(cancelReminderWorkflow).toHaveBeenCalledWith({
+        postId: 'p1',
+        remindAt: date.getTime(),
+        userId: '1',
+      });
+    });
+
+    it('should NOT run reminder workflow if remind at is NOT present after', async () => {
+      const after: ChangeObject<ObjectType> = base;
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: base,
+          op: 'u',
+          table: 'bookmark',
+        }),
+      );
+      expect(runReminderWorkflow).not.toHaveBeenCalled();
+    });
+
+    it('should run reminder workflow if remind at is present after', async () => {
+      const date = new Date();
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        remindAt: date.getTime(),
+      };
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: base,
+          op: 'u',
+          table: 'bookmark',
+        }),
+      );
+      expect(runReminderWorkflow).toHaveBeenCalledWith({
+        postId: 'p1',
+        remindAt: date.getTime(),
+        userId: '1',
+      });
+    });
+  });
+
+  describe('on delete', () => {
+    it('should not run reminder workflow', async () => {
+      const before: ChangeObject<ObjectType> = base;
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after: null,
+          before,
+          op: 'd',
+          table: 'bookmark',
+        }),
+      );
+      expect(runReminderWorkflow).not.toHaveBeenCalled();
+    });
+
+    it('should run reminder workflow if remind at is present', async () => {
+      const date = new Date();
+      const before: ChangeObject<ObjectType> = {
+        ...base,
+        remindAt: date.getTime(),
+      };
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after: null,
+          before,
+          op: 'd',
+          table: 'bookmark',
+        }),
+      );
+      expect(cancelReminderWorkflow).toHaveBeenCalledWith({
+        postId: 'p1',
+        remindAt: date.getTime(),
+        userId: '1',
+      });
+    });
   });
 });

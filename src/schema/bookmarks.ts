@@ -21,10 +21,6 @@ import {
 import { SelectQueryBuilder } from 'typeorm';
 import { GQLPost } from './posts';
 import { Connection } from 'graphql-relay';
-import {
-  cancelReminderWorkflow,
-  runReminderWorkflow,
-} from '../queue/bookmark/utils';
 
 interface GQLAddBookmarkInput {
   postIds: string[];
@@ -318,17 +314,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { id }: { id: string },
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      const repo = ctx.con.getRepository(Bookmark);
-      const bookmark = await repo.findOneBy({ userId: ctx.userId, postId: id });
-
-      if (bookmark?.remindAt) {
-        cancelReminderWorkflow({
-          userId: ctx.userId,
-          postId: id,
-          remindAt: bookmark.remindAt.getTime(),
-        });
-      }
-
       await ctx.con.getRepository(Bookmark).delete({
         postId: id,
         userId: ctx.userId,
@@ -374,37 +359,11 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         const repo = manager.getRepository(Bookmark);
         const bookmark = await repo.findOneBy({ userId, postId });
 
-        if (bookmark) {
-          const result = await repo.update({ userId, postId }, { remindAt });
-          if (result.affected === 0) {
-            return;
-          }
-        } else {
-          await repo.insert({ userId, postId, remindAt });
+        if (!bookmark) {
+          return repo.insert({ userId, postId, remindAt });
         }
 
-        if (remindAt) {
-          if (bookmark?.remindAt) {
-            cancelReminderWorkflow({
-              userId,
-              postId,
-              remindAt: bookmark.remindAt.getTime(),
-            });
-          }
-
-          runReminderWorkflow({ userId, postId, remindAt: remindAt.getTime() });
-          return;
-        }
-
-        if (!bookmark.remindAt) {
-          return;
-        }
-
-        cancelReminderWorkflow({
-          userId,
-          postId,
-          remindAt: bookmark.remindAt.getTime(),
-        });
+        return repo.update({ userId, postId }, { remindAt });
       });
 
       return { _: null };
