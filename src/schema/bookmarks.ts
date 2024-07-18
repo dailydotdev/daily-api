@@ -21,10 +21,7 @@ import {
 import { SelectQueryBuilder } from 'typeorm';
 import { GQLPost } from './posts';
 import { Connection } from 'graphql-relay';
-import { getReminderWorkflowId } from '../queue/bookmark/utils';
-import { bookmarkReminderWorkflow } from '../queue/bookmark/workflows';
-import { WorkflowQueue } from '../queue/common';
-import { Client, Connection as TemporalConnection } from '@temporalio/client';
+import { runReminderWorkflow } from '../queue/bookmark/utils';
 
 interface GQLAddBookmarkInput {
   postIds: string[];
@@ -382,16 +379,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           return;
         }
 
-        const workflowId = getReminderWorkflowId({ userId, postId });
-        const connection = await TemporalConnection.connect({
-          address: 'host.docker.internal:7233',
-        });
-        const client = new Client({ connection });
-        client.workflow.start(bookmarkReminderWorkflow, {
-          args: [{ userId, postId, remindAt: remindAt.getTime() }],
-          workflowId,
-          taskQueue: WorkflowQueue.Bookmark,
-        });
+        runReminderWorkflow({ userId, postId, remindAt: remindAt.getTime() });
       });
 
       return { _: null };
