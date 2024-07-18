@@ -12,18 +12,16 @@ export async function bookmarkReminderWorkflow({
   postId,
   remindAt,
 }: BookmarkReminderParams): Promise<void> {
-  const diff = remindAt - Date.now();
-  // consider specifying heartbeat timeout for long-running workflows
   const { validateBookmark, sendBookmarkReminder } =
-    proxyActivities<BookmarkActivities>({
-      startToCloseTimeout: diff + 5000,
-    });
+    proxyActivities<BookmarkActivities>({ scheduleToCloseTimeout: '15s' }); // the amount of time the process is willing to wait for the activity to complete
 
   const isValid = await validateBookmark({ userId, postId });
 
   if (!isValid) {
     return;
   }
+
+  const diff = remindAt - Date.now();
 
   await sleep(diff);
   await sendBookmarkReminder({ userId, postId });
