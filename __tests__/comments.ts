@@ -652,6 +652,10 @@ describe('mutation commentOnPost', () => {
 
   it('should comment markdown on a post', async () => {
     loggedUser = '1';
+    const beforePost = await con
+      .getRepository(Post)
+      .findOneByOrFail({ id: 'p1' });
+    expect(beforePost.comments).toEqual(5);
     const res = await client.mutate(MUTATION, {
       variables: { postId: 'p1', content: '# my comment http://daily.dev' },
     });
@@ -667,8 +671,8 @@ describe('mutation commentOnPost', () => {
       contentHtml: `<h1>my comment <a href=\"http://daily.dev\" target=\"_blank\" rel=\"noopener nofollow\">http://daily.dev</a></h1>\n`,
     });
     expect(res.data.commentOnPost.id).toEqual(actual[0].id);
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post.comments).toEqual(1);
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post.comments).toEqual(6);
   });
 
   it('should comment markdown on a post with user mention', async () => {
@@ -680,6 +684,10 @@ describe('mutation commentOnPost', () => {
     };
     const before = await con.getRepository(CommentMention).findBy(params);
     expect(before.length).toEqual(1);
+    const beforePost = await con
+      .getRepository(Post)
+      .findOneByOrFail({ id: 'p1' });
+    expect(beforePost.comments).toEqual(0);
     const res = await client.mutate(MUTATION, {
       variables: { postId: 'p1', content: '@Lee' },
     });
@@ -695,7 +703,7 @@ describe('mutation commentOnPost', () => {
       contentHtml: `<p>${getMentionLink({ id: '4', username: 'Lee' })}</p>\n`,
     });
     expect(res.data.commentOnPost.id).toEqual(actual[0].id);
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
     const after = await con.getRepository(CommentMention).findBy(params);
     expect(after.length).toEqual(2);
     expect(post.comments).toEqual(1);
@@ -709,6 +717,10 @@ describe('mutation commentOnPost', () => {
     await con
       .getRepository(Source)
       .update({ id: sourceId }, { type: SourceType.Squad });
+    const beforePost = await con
+      .getRepository(Post)
+      .findOneByOrFail({ id: 'p1' });
+    expect(beforePost.comments).toEqual(0);
     const res = await client.mutate(MUTATION, {
       variables: { postId: 'p1', content: '@sample1 @sample2' },
     });
@@ -728,7 +740,7 @@ describe('mutation commentOnPost', () => {
       contentHtml: `<p>${mention} @sample2</p>\n`,
     });
     expect(res.data.commentOnPost.id).toEqual(actual[0].id);
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
     expect(post.comments).toEqual(1);
   });
 
@@ -736,6 +748,10 @@ describe('mutation commentOnPost', () => {
     loggedUser = '1';
     const mention = '@Ido';
     await saveCommentMentionFixtures();
+    const beforePost = await con
+      .getRepository(Post)
+      .findOneByOrFail({ id: 'p1' });
+    expect(beforePost.comments).toEqual(0);
     const res = await client.mutate(MUTATION, {
       variables: { postId: 'p1', content: mention },
     });
@@ -751,7 +767,7 @@ describe('mutation commentOnPost', () => {
       contentHtml: `<p>${mention}</p>\n`,
     });
     expect(res.data.commentOnPost.id).toEqual(actual[0].id);
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
     expect(post.comments).toEqual(1);
   });
 
@@ -920,6 +936,10 @@ describe('mutation commentOnComment', () => {
       .getRepository(Comment)
       .findOneByOrFail({ id: 'c1' });
     expect(before.comments).toEqual(1);
+    const beforePost = await con
+      .getRepository(Post)
+      .findOneByOrFail({ id: 'p1' });
+    expect(beforePost.comments).toEqual(5);
     const res = await client.mutate(MUTATION, {
       variables: { content: '# my comment http://daily.dev', commentId: 'c1' },
     });
@@ -933,7 +953,7 @@ describe('mutation commentOnComment', () => {
     expect(actual[0]).toMatchSnapshot({ id: expect.any(String) });
     expect(res.data.commentOnComment.id).toEqual(actual[0].id);
     const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
-    expect(post.comments).toEqual(1);
+    expect(post.comments).toEqual(6);
     expect(actual.find((c) => c.id === 'c1')!.comments).toEqual(2);
   });
 
@@ -1056,6 +1076,10 @@ describe('mutation deleteComment', () => {
       .getRepository(Comment)
       .findOneByOrFail({ id: 'c1' });
     expect(before.comments).toEqual(1);
+    const beforePost = await con
+      .getRepository(Post)
+      .findOneByOrFail({ id: 'p1' });
+    expect(beforePost.comments).toEqual(5);
     const res = await client.mutate(MUTATION, { variables: { id: 'c2' } });
     expect(res.errors).toBeFalsy();
     const actual = await con
@@ -1064,17 +1088,23 @@ describe('mutation deleteComment', () => {
     expect(actual.length).toEqual(4);
     expect(actual.find((c) => c.id === 'c1')!.comments).toEqual(0);
     const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
-    expect(post.comments).toEqual(-1);
+    expect(post.comments).toEqual(4);
   });
 
   it('should delete a comment and its children', async () => {
     loggedUser = '1';
+    const before = await con.getRepository(Comment).findBy({ postId: 'p1' });
+    expect(before.length).toEqual(5);
+    const beforePost = await con
+      .getRepository(Post)
+      .findOneByOrFail({ id: 'p1' });
+    expect(beforePost.comments).toEqual(5);
     const res = await client.mutate(MUTATION, { variables: { id: 'c1' } });
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(Comment).findBy({ postId: 'p1' });
     expect(actual.length).toEqual(3);
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post.comments).toEqual(-2);
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post.comments).toEqual(3);
   });
 
   it("should forbidden when other user doesn't have the right permissions", async () => {
@@ -1103,14 +1133,22 @@ describe('mutation deleteComment', () => {
       role: SourceMemberRoles.Admin,
       referralToken: 's1',
     });
+    const before = await con.getRepository(Comment).findBy({ postId: 'p1' });
+    expect(before.length).toEqual(5);
+    const beforePost = await con
+      .getRepository(Post)
+      .findOneByOrFail({ id: 'p1' });
+    expect(beforePost.comments).toEqual(5);
     const res = await client.mutate(MUTATION, { variables: { id: 'c8' } });
     expect(res.errors).toBeFalsy();
     const actual = await con
       .getRepository(Comment)
       .find({ select: ['id', 'comments'], where: { postId: 'squadP1' } });
     expect(actual.length).toEqual(0);
-    const post = await con.getRepository(Post).findOneBy({ id: 'squadP1' });
-    expect(post.comments).toEqual(-1);
+    const post = await con
+      .getRepository(Post)
+      .findOneByOrFail({ id: 'squadP1' });
+    expect(post.comments).toEqual(0);
   });
 });
 
