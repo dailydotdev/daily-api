@@ -16,7 +16,7 @@ export class CommentTriggers1721296457196 implements MigrationInterface {
         END;
         $$
       `)
-      queryRunner.query('CREATE OR REPLACE TRIGGER increment_comment_count_create_trigger AFTER INSERT ON "comment" FOR EACH ROW WHEN (NEW."parentId" IS NOT NULL)  EXECUTE PROCEDURE increment_comment_count()')
+      queryRunner.query('CREATE OR REPLACE TRIGGER increment_comment_count_create_trigger AFTER INSERT ON "comment" FOR EACH ROW WHEN (NEW."parentId" IS NOT NULL) EXECUTE PROCEDURE increment_comment_count()')
       queryRunner.query(`
         CREATE OR REPLACE FUNCTION decrement_comment_count()
           RETURNS TRIGGER
