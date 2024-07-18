@@ -21,7 +21,11 @@ import {
 import { SelectQueryBuilder } from 'typeorm';
 import { GQLPost } from './posts';
 import { Connection } from 'graphql-relay';
-import { runReminderWorkflow } from '../queue/bookmark/utils';
+import {
+  getReminderWorkflowId,
+  runReminderWorkflow,
+} from '../queue/bookmark/utils';
+import { getTemporalClient } from '../queue/client';
 
 interface GQLAddBookmarkInput {
   postIds: string[];
@@ -374,12 +378,26 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           await repo.insert({ userId, postId, remindAt });
         }
 
-        if (!remindAt) {
-          // TODO MI-436: delete the task from the queueing system
+        if (remindAt) {
+          runReminderWorkflow({ userId, postId, remindAt: remindAt.getTime() });
           return;
         }
 
-        runReminderWorkflow({ userId, postId, remindAt: remindAt.getTime() });
+        if (!bookmark.remindAt) {
+          return;
+        }
+
+        const client = await getTemporalClient();
+        const workflowId = getReminderWorkflowId({
+          userId,
+          postId,
+          remindAt: bookmark.remindAt.getTime(),
+        });
+        const handle = client.workflow.getHandle(workflowId);
+
+        if (handle) {
+          handle.terminate();
+        }
       });
 
       return { _: null };
