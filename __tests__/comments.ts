@@ -916,6 +916,10 @@ describe('mutation commentOnComment', () => {
 
   it('should comment on a comment', async () => {
     loggedUser = '1';
+    const before = await con
+      .getRepository(Comment)
+      .findOneByOrFail({ id: 'c1' });
+    expect(before.comments).toEqual(1);
     const res = await client.mutate(MUTATION, {
       variables: { content: '# my comment http://daily.dev', commentId: 'c1' },
     });
@@ -928,9 +932,9 @@ describe('mutation commentOnComment', () => {
     expect(actual.length).toEqual(6);
     expect(actual[0]).toMatchSnapshot({ id: expect.any(String) });
     expect(res.data.commentOnComment.id).toEqual(actual[0].id);
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
     expect(post.comments).toEqual(1);
-    expect(actual.find((c) => c.id === 'c1').comments).toEqual(1);
+    expect(actual.find((c) => c.id === 'c1')!.comments).toEqual(2);
   });
 
   it('should disallow comment on comment from post on public source for blocked members', async () => {
@@ -1048,14 +1052,18 @@ describe('mutation deleteComment', () => {
 
   it('should delete a comment', async () => {
     loggedUser = '1';
+    const before = await con
+      .getRepository(Comment)
+      .findOneByOrFail({ id: 'c1' });
+    expect(before.comments).toEqual(1);
     const res = await client.mutate(MUTATION, { variables: { id: 'c2' } });
     expect(res.errors).toBeFalsy();
     const actual = await con
       .getRepository(Comment)
       .find({ select: ['id', 'comments'], where: { postId: 'p1' } });
     expect(actual.length).toEqual(4);
-    expect(actual.find((c) => c.id === 'c1').comments).toEqual(-1);
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(actual.find((c) => c.id === 'c1')!.comments).toEqual(0);
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
     expect(post.comments).toEqual(-1);
   });
 
