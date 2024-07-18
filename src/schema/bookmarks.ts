@@ -321,7 +321,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       const repo = ctx.con.getRepository(Bookmark);
       const bookmark = await repo.findOneBy({ userId: ctx.userId, postId: id });
 
-      if (bookmark.remindAt) {
+      if (bookmark?.remindAt) {
         cancelReminderWorkflow({
           userId: ctx.userId,
           postId: id,

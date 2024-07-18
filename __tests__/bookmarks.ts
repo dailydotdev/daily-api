@@ -23,6 +23,10 @@ import { postsFixture, postTagsFixture } from './fixture/post';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
+import {
+  runReminderWorkflow,
+  cancelReminderWorkflow,
+} from '../src/queue/bookmark/utils';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -49,6 +53,12 @@ const bookmarksFixture = [
   },
 ];
 
+jest.mock('../src/queue/bookmark/utils', () => ({
+  ...jest.requireActual('../src/queue/bookmark/utils'),
+  runReminderWorkflow: jest.fn(),
+  cancelReminderWorkflow: jest.fn(),
+}));
+
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
@@ -61,6 +71,7 @@ beforeEach(async () => {
   loggedUser = null;
   premiumUser = false;
 
+  jest.clearAllMocks();
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
@@ -167,6 +178,29 @@ describe('mutation removeBookmark', () => {
       select: ['postId', 'userId'],
     });
     expect(actual.length).toEqual(0);
+    expect(cancelReminderWorkflow).not.toHaveBeenCalled();
+  });
+
+  it('should remove existing bookmark and cancel any workflow', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(Bookmark);
+    const date = new Date();
+    await repo.save(
+      repo.create({ postId: 'p1', userId: loggedUser, remindAt: date }),
+    );
+    const res = await client.mutate(MUTATION('p1'));
+    expect(res.errors).toBeFalsy();
+    const actual = await repo.find({
+      where: { userId: loggedUser },
+      select: ['postId', 'userId'],
+    });
+    expect(actual.length).toEqual(0);
+
+    expect(cancelReminderWorkflow).toHaveBeenCalledWith({
+      postId: 'p1',
+      remindAt: date.getTime(),
+      userId: '1',
+    });
   });
 
   it('should ignore remove non-existing bookmark', async () => {
@@ -179,6 +213,7 @@ describe('mutation removeBookmark', () => {
       select: ['postId', 'userId'],
     });
     expect(actual.length).toEqual(0);
+    expect(cancelReminderWorkflow).not.toHaveBeenCalled();
   });
 });
 
@@ -659,5 +694,70 @@ describe('mutation setBookmarkReminder', () => {
     expect(result.remindAt).toBeNull();
 
     // TODO MI-436: we should add another check whether the task from the queue was cleared
+  });
+
+  describe('reminder workflow execution', () => {
+    it('should execute the reminder workflow', async () => {
+      loggedUser = '1';
+      const repo = con.getRepository(Bookmark);
+      const date = new Date();
+      await repo.save({
+        postId: 'p1',
+        userId: loggedUser,
+      });
+      await client.mutate(mutation, {
+        variables: { postId: 'p1', remindAt: date.toISOString() },
+      });
+      expect(cancelReminderWorkflow).not.toHaveBeenCalled();
+      expect(runReminderWorkflow).toHaveBeenCalledWith({
+        postId: 'p1',
+        remindAt: date.getTime(),
+        userId: '1',
+      });
+    });
+
+    it('should cancel any existing workflow', async () => {
+      loggedUser = '1';
+      const repo = con.getRepository(Bookmark);
+      const date = new Date();
+      await repo.save({
+        postId: 'p1',
+        userId: loggedUser,
+        remindAt: date,
+      });
+      await client.mutate(mutation, {
+        variables: { postId: 'p1', remindAt: null },
+      });
+      expect(runReminderWorkflow).not.toHaveBeenCalled();
+      expect(cancelReminderWorkflow).toHaveBeenCalledWith({
+        postId: 'p1',
+        remindAt: date.getTime(),
+        userId: '1',
+      });
+    });
+
+    it('should cancel any existing workflow then execute the reminder workflow', async () => {
+      loggedUser = '1';
+      const repo = con.getRepository(Bookmark);
+      const date = new Date();
+      await repo.save({
+        postId: 'p1',
+        userId: loggedUser,
+        remindAt: date,
+      });
+      await client.mutate(mutation, {
+        variables: { postId: 'p1', remindAt: date.toISOString() },
+      });
+      expect(cancelReminderWorkflow).toHaveBeenCalledWith({
+        postId: 'p1',
+        remindAt: date.getTime(),
+        userId: '1',
+      });
+      expect(runReminderWorkflow).toHaveBeenCalledWith({
+        postId: 'p1',
+        remindAt: date.getTime(),
+        userId: '1',
+      });
+    });
   });
 });
