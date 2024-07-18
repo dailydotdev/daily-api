@@ -671,8 +671,6 @@ describe('mutation setBookmarkReminder', () => {
 
     const result = await repo.findOneBy({ postId: 'p1', userId: loggedUser });
     expect(result.remindAt.toISOString()).toEqual(date);
-
-    // TODO MI-436: we should add another check whether the task was sent to the queue
   });
 
   it('should remove the reading reminder when null is sent', async () => {
@@ -692,8 +690,6 @@ describe('mutation setBookmarkReminder', () => {
 
     const result = await repo.findOneBy({ postId: 'p1', userId: loggedUser });
     expect(result.remindAt).toBeNull();
-
-    // TODO MI-436: we should add another check whether the task from the queue was cleared
   });
 
   describe('reminder workflow execution', () => {
