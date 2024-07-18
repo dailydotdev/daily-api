@@ -11,7 +11,7 @@ export class PostCommentTriggers1721300643032 implements MigrationInterface {
           AS
         $$
         BEGIN
-          UPDATE post SET comments = comments + 1, "statsUpdatedAt" = NOW() WHERE id = NEW."postId";
+          UPDATE post SET comments = comments + 1 WHERE id = NEW."postId";
           RETURN NEW;
         END;
         $$
@@ -24,7 +24,7 @@ export class PostCommentTriggers1721300643032 implements MigrationInterface {
           AS
         $$
         BEGIN
-          UPDATE post SET comments = comments - 1, "statsUpdatedAt" = NOW() WHERE id = OLD."postId" AND comments > 0;
+          UPDATE post SET comments = comments - 1 WHERE id = OLD."postId" AND comments > 0;
           RETURN OLD;
         END;
         $$
