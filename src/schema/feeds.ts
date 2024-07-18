@@ -116,6 +116,7 @@ export const typeDefs = /* GraphQL */ `
     userId: String
     includeTags: [String]
     blockedTags: [String]
+    includeSources: [Source]
     excludeSources: [Source]
     advancedSettings: [FeedAdvancedSettings]
   }
@@ -880,6 +881,7 @@ export interface GQLFeedSettings {
   userId: string;
   includeTags: string[];
   blockedTags: string[];
+  includeSources: GQLSource[];
   excludeSources: GQLSource[];
   advancedSettings: GQLFeedAdvancedSettings[];
 }
@@ -1090,6 +1092,7 @@ const getDefaultFeedSettings = async ({
   return {
     id: ctx.userId,
     userId: ctx.userId,
+    includeSources: [],
     excludeSources: [],
     includeTags: [],
     blockedTags: [],
@@ -1461,7 +1464,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       info,
     ): Promise<GQLFeedSettings> => {
       const feedId = args.feedId || ctx.userId;
-
       return getFeedSettings({ ctx, info, feedId });
     },
     advancedSettings: async (
