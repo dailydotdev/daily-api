@@ -31,7 +31,7 @@ import { loadFeatures } from './growthbook';
 import { runInRootSpan } from './telemetry';
 import { loggerConfig } from './logger';
 import { run } from './queue/bookmark';
-import { Client } from '@temporalio/client';
+import { getTemporalClient } from './queue/client';
 
 type Mutable<Type> = {
   -readonly [Key in keyof Type]: Type[Key];
@@ -73,10 +73,10 @@ export default async function app(
   await loadFeatures(app.log);
 
   const gracefulShutdown = () => {
-    const client = new Client();
     app.log.info('starting termination');
     isTerminating = true;
     setTimeout(async () => {
+      const client = await getTemporalClient();
       await app.close();
       await connection.destroy();
       await ioRedisPool.end();
