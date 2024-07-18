@@ -22,10 +22,9 @@ import { SelectQueryBuilder } from 'typeorm';
 import { GQLPost } from './posts';
 import { Connection } from 'graphql-relay';
 import {
-  getReminderWorkflowId,
+  cancelReminderWorkflow,
   runReminderWorkflow,
 } from '../queue/bookmark/utils';
-import { getTemporalClient } from '../queue/client';
 
 interface GQLAddBookmarkInput {
   postIds: string[];
@@ -319,7 +318,17 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { id }: { id: string },
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      // TODO MI-436: check if the existing bookmark has a reminder and remove the task associated with it
+      const repo = ctx.con.getRepository(Bookmark);
+      const bookmark = await repo.findOneBy({ userId: ctx.userId, postId: id });
+
+      if (bookmark.remindAt) {
+        cancelReminderWorkflow({
+          userId: ctx.userId,
+          postId: id,
+          remindAt: bookmark.remindAt.getTime(),
+        });
+      }
+
       await ctx.con.getRepository(Bookmark).delete({
         postId: id,
         userId: ctx.userId,
@@ -387,17 +396,11 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           return;
         }
 
-        const client = await getTemporalClient();
-        const workflowId = getReminderWorkflowId({
+        cancelReminderWorkflow({
           userId,
           postId,
           remindAt: bookmark.remindAt.getTime(),
         });
-        const handle = client.workflow.getHandle(workflowId);
-
-        if (handle) {
-          handle.terminate();
-        }
       });
 
       return { _: null };
