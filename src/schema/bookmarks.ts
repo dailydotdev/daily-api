@@ -388,6 +388,14 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         }
 
         if (remindAt) {
+          if (bookmark?.remindAt) {
+            cancelReminderWorkflow({
+              userId,
+              postId,
+              remindAt: bookmark.remindAt.getTime(),
+            });
+          }
+
           runReminderWorkflow({ userId, postId, remindAt: remindAt.getTime() });
           return;
         }
