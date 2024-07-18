@@ -71,11 +71,6 @@ export const typeDefs = /* GraphQL */ `
 
   type Mutation {
     """
-    Add new bookmarks
-    """
-    addBookmarks(data: AddBookmarkInput!): EmptyResponse! @auth
-
-    """
     Set a reminder for a bookmark
     """
     setBookmarkReminder(
@@ -88,6 +83,11 @@ export const typeDefs = /* GraphQL */ `
       """
       remindAt: DateTime
     ): EmptyResponse! @auth
+
+    """
+    Add new bookmarks
+    """
+    addBookmarks(data: AddBookmarkInput!): EmptyResponse! @auth
 
     """
     Add or move bookmark to list
