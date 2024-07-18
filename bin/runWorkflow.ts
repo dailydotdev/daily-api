@@ -1,30 +1,20 @@
-import {
-  generateWorkflowId,
-  WorkflowQueue,
-  WorkflowTopic,
-  WorkflowTopicScope,
-} from '../src/queue/common';
+import { WorkflowQueue } from '../src/queue/common';
 import { Client } from '@temporalio/client';
 import { bookmarkReminderWorkflow } from '../src/queue/bookmark/workflows';
-import { generateUUID } from '../src/ids';
+import { getReminderWorkflowId } from '../src/queue/bookmark/utils';
 
 const userId = 'B4AdaAXLKy1SdZxDhZwL1';
 const postId = 's-UJPyk4i';
 
 const runWorkflow = async () => {
-  const afterFiveSeconds = new Date(Date.now() + 5000);
+  const afterFiveSeconds = Date.now() + 5000;
+  const client = new Client();
   const params = {
     userId,
     postId,
-    remindAt: afterFiveSeconds.toISOString(),
+    remindAt: afterFiveSeconds,
   };
-  const uuid = generateUUID();
-  const workflowId = generateWorkflowId(
-    WorkflowTopic.Bookmark,
-    WorkflowTopicScope.Reminder,
-    [userId, postId, uuid],
-  );
-  const client = new Client();
+  const workflowId = getReminderWorkflowId(params);
   await client.workflow.start(bookmarkReminderWorkflow, {
     args: [params],
     workflowId,

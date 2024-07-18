@@ -1,27 +1,22 @@
-import { Bookmark } from '../../entity';
 import { InjectedProps } from '../common';
 import { triggerTypedEvent } from '../../common';
+import { Bookmark } from '../../entity';
 
 interface CommonBookmarkReminderParams {
   userId: string;
   postId: string;
 }
 
-interface ValidateBookmarkReminderParams extends CommonBookmarkReminderParams {
-  remindAt: string;
-}
-
 export const createActivities = ({ con, logger }: InjectedProps) => ({
-  async validateReminder({
+  async validateBookmark({
     userId,
     postId,
-    remindAt,
-  }: ValidateBookmarkReminderParams): Promise<boolean> {
+  }: CommonBookmarkReminderParams): Promise<boolean> {
     const bookmark = await con
       .getRepository(Bookmark)
       .findOneBy({ userId, postId });
 
-    return bookmark && remindAt === bookmark.remindAt.toISOString();
+    return !!bookmark;
   },
   async sendBookmarkReminder({
     userId,

@@ -31,6 +31,7 @@ import { loadFeatures } from './growthbook';
 import { runInRootSpan } from './telemetry';
 import { loggerConfig } from './logger';
 import { run } from './queue/bookmark';
+import { Client } from '@temporalio/client';
 
 type Mutable<Type> = {
   -readonly [Key in keyof Type]: Type[Key];
@@ -72,12 +73,14 @@ export default async function app(
   await loadFeatures(app.log);
 
   const gracefulShutdown = () => {
+    const client = new Client();
     app.log.info('starting termination');
     isTerminating = true;
     setTimeout(async () => {
       await app.close();
       await connection.destroy();
       await ioRedisPool.end();
+      await client.connection.close();
       process.exit();
     }, GRACEFUL_DELAY);
   };
@@ -281,12 +284,12 @@ export default async function app(
   return app;
 }
 
-// run()
-//   .then(() => {
-//     console.log('registered worker');
-//   })
-//   .catch((err) => {
-//     console.log('error registering worker');
-//     console.error(err);
-//     process.exit(1);
-//   });
+run()
+  .then(() => {
+    console.log('registered worker');
+  })
+  .catch((err) => {
+    console.log('error registering worker');
+    console.error(err);
+    process.exit(1);
+  });

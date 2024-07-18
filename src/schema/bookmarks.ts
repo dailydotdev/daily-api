@@ -21,6 +21,10 @@ import {
 import { SelectQueryBuilder } from 'typeorm';
 import { GQLPost } from './posts';
 import { Connection } from 'graphql-relay';
+import { getReminderWorkflowId } from '../queue/bookmark/utils';
+import { bookmarkReminderWorkflow } from '../queue/bookmark/workflows';
+import { WorkflowQueue } from '../queue/common';
+import { Client, Connection as TemporalConnection } from '@temporalio/client';
 
 interface GQLAddBookmarkInput {
   postIds: string[];
@@ -362,11 +366,15 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
 
       await con.transaction(async (manager) => {
         const repo = manager.getRepository(Bookmark);
+        const bookmark = await repo.findOneBy({ userId, postId });
 
-        const result = await repo.update({ userId, postId }, { remindAt });
-
-        if (result.affected === 0) {
-          return;
+        if (bookmark) {
+          const result = await repo.update({ userId, postId }, { remindAt });
+          if (result.affected === 0) {
+            return;
+          }
+        } else {
+          await repo.insert({ userId, postId, remindAt });
         }
 
         if (!remindAt) {
@@ -374,7 +382,16 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           return;
         }
 
-        // TODO MI-436: add the task to the queueing system
+        const workflowId = getReminderWorkflowId({ userId, postId });
+        const connection = await TemporalConnection.connect({
+          address: 'host.docker.internal:7233',
+        });
+        const client = new Client({ connection });
+        client.workflow.start(bookmarkReminderWorkflow, {
+          args: [{ userId, postId, remindAt: remindAt.getTime() }],
+          workflowId,
+          taskQueue: WorkflowQueue.Bookmark,
+        });
       });
 
       return { _: null };

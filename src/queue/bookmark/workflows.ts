@@ -1,10 +1,10 @@
 import { proxyActivities, sleep } from '@temporalio/workflow';
 import { BookmarkActivities } from './activities';
 
-interface BookmarkReminderParams {
+export interface BookmarkReminderParams {
   userId: string;
   postId: string;
-  remindAt: string;
+  remindAt: number;
 }
 
 export async function bookmarkReminderWorkflow({
@@ -12,11 +12,14 @@ export async function bookmarkReminderWorkflow({
   postId,
   remindAt,
 }: BookmarkReminderParams): Promise<void> {
-  const diff = new Date(remindAt).getTime() - Date.now();
+  const diff = remindAt - Date.now();
   // consider specifying heartbeat timeout for long-running workflows
-  const { validateReminder, sendBookmarkReminder } =
-    proxyActivities<BookmarkActivities>({ startToCloseTimeout: diff + 5000 });
-  const isValid = await validateReminder({ userId, postId, remindAt });
+  const { validateBookmark, sendBookmarkReminder } =
+    proxyActivities<BookmarkActivities>({
+      startToCloseTimeout: diff + 5000,
+    });
+
+  const isValid = await validateBookmark({ userId, postId });
 
   if (!isValid) {
     return;
