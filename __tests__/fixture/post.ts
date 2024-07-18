@@ -362,4 +362,5 @@ export const contentUpdatedPost = {
   sentAnalyticsReport: false,
   viewsThreshold: 0,
   tsv: null,
+  statsUpdatedAt: 0,
 };
