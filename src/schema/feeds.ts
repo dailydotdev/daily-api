@@ -1783,17 +1783,34 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           userId: ctx.userId,
           id: feedId,
         });
+
+        if (filters?.includeSources?.length) {
+          const [query, params] = ctx.con
+            .createQueryBuilder()
+            .select('id', 'sourceId')
+            .addSelect(`'${feedId}'`, 'feedId')
+            .addSelect('FALSE', 'blocked')
+            .from(Source, 'source')
+            .where('source.id IN (:...ids)', { ids: filters.includeSources })
+            .getQueryAndParameters();
+          await manager.query(
+            `insert into feed_source("sourceId", "feedId", "blocked") ${query} on CONFLICT ("sourceId", "feedId")
+            do UPDATE SET BLOCKED = FALSE`,
+            params,
+          );
+        }
         if (filters?.excludeSources?.length) {
           const [query, params] = ctx.con
             .createQueryBuilder()
             .select('id', 'sourceId')
             .addSelect(`'${feedId}'`, 'feedId')
+            .addSelect('TRUE', 'blocked')
             .from(Source, 'source')
             .where('source.id IN (:...ids)', { ids: filters.excludeSources })
             .getQueryAndParameters();
           await manager.query(
-            `insert into feed_source("sourceId", "feedId") ${query} on conflict
-            do nothing`,
+            `insert into feed_source("sourceId", "feedId", "blocked") ${query} on CONFLICT ("sourceId", "feedId")
+            do UPDATE SET BLOCKED = TRUE`,
             params,
           );
         }
