@@ -102,55 +102,37 @@ export const feedToFilters = async (
   userId: string,
 ): Promise<AnonymousFeedFilters> => {
   const settings = await getExcludedAdvancedSettings(con, feedId);
-  const [tags, includeSources, excludeSources, memberships] = await Promise.all(
-    [
-      con.getRepository(FeedTag).find({ where: { feedId: feedId ?? '' } }),
-      con
-        .getRepository(Source)
-        .createQueryBuilder('s')
-        .select('s.id AS "id"')
-        .where((qb) => {
-          const subQuery = qb
-            .subQuery()
-            .select('fs."sourceId"')
-            .from(FeedSource, 'fs')
-            .where('fs."feedId" = :feedId', { feedId })
-            .andWhere('fs.blocked = FALSE')
-            .getQuery();
+  const [tags, excludeSources, memberships] = await Promise.all([
+    con.getRepository(FeedTag).find({ where: { feedId: feedId ?? '' } }),
+    con
+      .getRepository(Source)
+      .createQueryBuilder('s')
+      .select('s.id AS "id"')
+      .where((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select('fs."sourceId"')
+          .from(FeedSource, 'fs')
+          .where('fs."feedId" = :feedId', { feedId })
+          .andWhere('fs.blocked = TRUE')
+          .getQuery();
 
-          return `s.id IN (${subQuery})`;
-        })
-        .execute(),
-      con
-        .getRepository(Source)
-        .createQueryBuilder('s')
-        .select('s.id AS "id"')
-        .where((qb) => {
-          const subQuery = qb
-            .subQuery()
-            .select('fs."sourceId"')
-            .from(FeedSource, 'fs')
-            .where('fs."feedId" = :feedId', { feedId })
-            .andWhere('fs.blocked = TRUE')
-            .getQuery();
-
-          return `s.id IN (${subQuery})`;
-        })
-        .execute(),
-      feedId
-        ? con
-            .getRepository(SourceMember)
-            .createQueryBuilder('sm')
-            .select('sm."sourceId"')
-            .addSelect(
-              "COALESCE((flags->'hideFeedPosts')::boolean, FALSE)",
-              'hide',
-            )
-            .where('sm."userId" = :userId', { userId })
-            .execute()
-        : [],
-    ],
-  );
+        return `s.id IN (${subQuery})`;
+      })
+      .execute(),
+    feedId
+      ? con
+          .getRepository(SourceMember)
+          .createQueryBuilder('sm')
+          .select('sm."sourceId"')
+          .addSelect(
+            "COALESCE((flags->'hideFeedPosts')::boolean, FALSE)",
+            'hide',
+          )
+          .where('sm."userId" = :userId', { userId })
+          .execute()
+      : [],
+  ]);
   const tagFilters = tags.reduce(
     (acc, value) => {
       if (value.blocked) {
@@ -195,9 +177,6 @@ export const feedToFilters = async (
   return {
     ...tagFilters,
     excludeTypes,
-    includeSources: includeSources
-      .map((sources: Source) => sources.id)
-      .concat(membershipsByHide.hide),
     excludeSources: excludeSources
       .map((sources: Source) => sources.id)
       .concat(membershipsByHide.hide),

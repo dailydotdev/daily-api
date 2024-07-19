@@ -2266,21 +2266,6 @@ describe('function feedToFilters', () => {
     ]);
   });
 
-  it('should return filters having includes sources based on advanced settings', async () => {
-    loggedUser = '1';
-    await saveAdvancedSettingsFiltersFixtures();
-    await con.getRepository(FeedSource).save([
-      { feedId: '1', sourceId: 'includedSource', blocked: false },
-      { feedId: '1', sourceId: 'settingsCombinationSource', blocked: false },
-    ]);
-    const filters = await feedToFilters(con, '1', '1');
-    expect(filters.includeSources).toEqual([
-      'includedSource',
-      'settingsCombinationSource',
-      WATERCOOLER_ID,
-    ]);
-  });
-
   it('should return filters having excluded content types based on advanced settings', async () => {
     loggedUser = '1';
     await saveAdvancedSettingsFiltersFixtures();
