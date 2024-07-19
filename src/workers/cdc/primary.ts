@@ -624,14 +624,6 @@ const onSourceChange = async (
   logger: FastifyBaseLogger,
   data: ChangeMessage<Source>,
 ) => {
-  logger.info(
-    {
-      op: data.payload.op,
-      before: data.payload.before,
-      after: data.payload.after,
-    },
-    'source change',
-  );
   if (data.payload.op === 'c') {
     await notifySourceCreated(logger, data.payload.after);
 
