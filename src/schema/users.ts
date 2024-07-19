@@ -156,8 +156,8 @@ export interface ReadingRankArgs {
 
 export interface ReferralCampaign {
   referredUsersCount: number;
-  referralCountLimit: number;
-  referralToken: string;
+  referralCountLimit?: number;
+  referralToken?: string;
   url: string;
 }
 
@@ -1134,7 +1134,7 @@ export const resolvers: IResolvers<any, BaseContext> = {
       const { referralOrigin } = args;
       const userRepo = ctx.getRepository(User);
 
-      const userInvite = await ctx.getRepository(Invite).findOneByOrFail({
+      const userInvite = await ctx.getRepository(Invite).findOneBy({
         userId: ctx.userId,
         campaign: referralOrigin as CampaignType,
       });
