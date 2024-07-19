@@ -80,6 +80,14 @@ export interface GQLUpdateUserInput {
   image?: string;
   twitter?: string;
   github?: string;
+  roadmap?: string;
+  threads?: string;
+  codepen?: string;
+  reddit?: string;
+  stackoverflow?: string;
+  youtube?: string;
+  linkedin?: string;
+  mastodon?: string;
   hashnode?: string;
   portfolio?: string;
   acceptedMarketing?: boolean;
@@ -306,6 +314,38 @@ export const typeDefs = /* GraphQL */ `
     Hashnode handle of the user
     """
     hashnode: String
+    """
+    Roadmap profile of the user
+    """
+    roadmap: String
+    """
+    Threads profile of the user
+    """
+    threads: String
+    """
+    Codepen profile of the user
+    """
+    codepen: String
+    """
+    Reddit profile of the user
+    """
+    reddit: String
+    """
+    Stackoverflow profile of the user
+    """
+    stackoverflow: String
+    """
+    Youtube profile of the user
+    """
+    youtube: String
+    """
+    Linkedin profile of the user
+    """
+    linkedin: String
+    """
+    Mastodon profile of the user
+    """
+    mastodon: String
     """
     Preferred timezone of the user that affects data
     """

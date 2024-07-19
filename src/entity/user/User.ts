@@ -25,15 +25,27 @@ import { ValidationError } from 'apollo-server-errors';
 import { GQLUpdateUserInput } from '../../schema/users';
 import {
   nameRegex,
-  socialHandleRegex,
-  validateRegex,
   ValidateRegex,
+  validateRegexAndAssign,
 } from '../../common/object';
 import { generateTrackingId } from '../../ids';
 import { UserStreak } from './UserStreak';
 import { DEFAULT_TIMEZONE } from '../../types';
 import { validateValidTimeZone } from '../../common/timezone';
 import { counters } from '../../telemetry';
+import {
+  codepenSocialUrlMatch,
+  githubSocialUrl,
+  linkedinSocialUrlMatch,
+  mastodonSocialUrlMatch,
+  redditSocialUrlMatch,
+  roadmapShSocialUrlMatch,
+  socialUrlMatch,
+  stackoverflowSocialUrlMatch,
+  threadsSocialUrlMatch,
+  twitterSocialUrlMatch,
+  youtubeSocialUrlMatch,
+} from '../../common/users';
 
 @Entity()
 @Index('IDX_user_lowerusername_username', { synchronize: false })
@@ -87,6 +99,38 @@ export class User {
   @Column({ length: 39, nullable: true })
   @Index('users_github_unique', { unique: true })
   github?: string;
+
+  @Column({ length: 39, nullable: true })
+  @Index('users_roadmap_unique', { unique: true })
+  roadmap?: string;
+
+  @Column({ length: 39, nullable: true })
+  @Index('users_threads_unique', { unique: true })
+  threads?: string;
+
+  @Column({ length: 39, nullable: true })
+  @Index('users_codepen_unique', { unique: true })
+  codepen?: string;
+
+  @Column({ length: 39, nullable: true })
+  @Index('users_reddit_unique', { unique: true })
+  reddit?: string;
+
+  @Column({ length: 39, nullable: true })
+  @Index('users_stackoverflow_unique', { unique: true })
+  stackoverflow?: string;
+
+  @Column({ length: 39, nullable: true })
+  @Index('users_youtube_unique', { unique: true })
+  youtube?: string;
+
+  @Column({ length: 39, nullable: true })
+  @Index('users_linkedin_unique', { unique: true })
+  linkedin?: string;
+
+  @Column({ length: 39, nullable: true })
+  @Index('users_mastodon_unique', { unique: true })
+  mastodon?: string;
 
   @Column({ type: 'text', nullable: true })
   portfolio?: string;
@@ -413,12 +457,22 @@ export const validateUserUpdate = async (
 
   const regexParams: ValidateRegex[] = [
     ['name', data.name, nameRegex, !user.name],
-    ['github', data.github, socialHandleRegex],
-    ['twitter', data.twitter, new RegExp(/^@?(\w){1,15}$/)],
-    ['hashnode', data.hashnode, socialHandleRegex],
+    ['github', data.github, githubSocialUrl],
+    ['twitter', data.twitter, twitterSocialUrlMatch],
+    ['hashnode', data.hashnode, socialUrlMatch],
+    ['roadmap', data.roadmap, roadmapShSocialUrlMatch],
+    ['threads', data.threads, threadsSocialUrlMatch],
+    ['codepen', data.codepen, codepenSocialUrlMatch],
+    ['reddit', data.reddit, redditSocialUrlMatch],
+    ['stackoverflow', data.stackoverflow, stackoverflowSocialUrlMatch],
+    ['youtube', data.youtube, youtubeSocialUrlMatch],
+    ['linkedin', data.linkedin, linkedinSocialUrlMatch],
+    ['mastodon', data.mastodon, mastodonSocialUrlMatch],
   ];
 
-  validateRegex(regexParams);
+  const validatedData = validateRegexAndAssign(regexParams, {
+    ...data,
+  });
 
-  return data;
+  return validatedData;
 };
