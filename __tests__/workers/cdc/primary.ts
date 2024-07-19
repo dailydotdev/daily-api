@@ -3409,7 +3409,7 @@ describe('bookmark change', () => {
       expect(runReminderWorkflow).not.toHaveBeenCalled();
     });
 
-    it('should run reminder workflow if remind at is present', async () => {
+    it('should cancel reminder workflow if remind at is present before', async () => {
       const date = new Date();
       const before: ChangeObject<ObjectType> = {
         ...base,
