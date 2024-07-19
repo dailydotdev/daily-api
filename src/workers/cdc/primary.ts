@@ -624,7 +624,7 @@ const onSourceChange = async (
   logger: FastifyBaseLogger,
   data: ChangeMessage<Source>,
 ) => {
-  console.log('source operation: ', data.payload.op);
+  logger.info('source operation: ', data.payload.op);
   if (data.payload.op === 'c') {
     await notifySourceCreated(logger, data.payload.after);
 
@@ -636,7 +636,7 @@ const onSourceChange = async (
     if (!data.payload.before) {
       return;
     }
-    console.log('source data diff: ', data.payload.before, data.payload.after);
+    logger.info('source data diff: ', data.payload.before, data.payload.after);
     if (data.payload.before.private !== data.payload.after.private) {
       await notifySourcePrivacyUpdated(logger, data.payload.after);
     }
