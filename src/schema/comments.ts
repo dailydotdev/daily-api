@@ -550,7 +550,7 @@ export const reportCommentReasons = new Map([
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Query: traceResolverObject<any, any>({
+  Query: traceResolverObject<any, any, Context>({
     commentFeed: async (
       _,
       args: ConnectionArguments,
@@ -746,7 +746,7 @@ export const resolvers: IResolvers<any, Context> = {
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Mutation: traceResolverObject<any, any>({
+  Mutation: traceResolverObject<any, any, Context>({
     commentOnPost: async (
       source,
       { postId, content }: GQLPostCommentArgs,

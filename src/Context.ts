@@ -1,5 +1,11 @@
 import { opentelemetry } from './telemetry';
-import { DataSource, EntitySchema, ObjectType, Repository } from 'typeorm';
+import {
+  DataSource,
+  EntitySchema,
+  ObjectLiteral,
+  ObjectType,
+  Repository,
+} from 'typeorm';
 import { FastifyRequest, FastifyBaseLogger } from 'fastify';
 import { GraphQLDatabaseLoader } from '@mando75/typeorm-graphql-loader';
 import { Roles } from './roles';
@@ -11,27 +17,27 @@ export class Context {
   loader: GraphQLDatabaseLoader;
   dataLoader: DataLoaderService;
 
-  constructor(req: FastifyRequest, con) {
+  constructor(req: FastifyRequest, con: DataSource) {
     this.req = req;
     this.con = con;
     this.loader = new GraphQLDatabaseLoader(con);
     this.dataLoader = new DataLoaderService({ ctx: this });
   }
 
-  get service(): boolean | null {
-    return this.req.service;
+  get service(): boolean {
+    return !!this.req.service;
   }
 
-  get userId(): string | null {
+  get userId(): string | undefined {
     return this.req.userId;
   }
 
-  get trackingId(): string | null {
+  get trackingId(): string | undefined {
     return this.req.trackingId;
   }
 
   get premium(): boolean {
-    return this.req.premium;
+    return !!this.req.premium;
   }
 
   get roles(): Roles[] {
@@ -42,11 +48,11 @@ export class Context {
     return this.req.log;
   }
 
-  get span(): opentelemetry.Span {
+  get span(): opentelemetry.Span | undefined {
     return this.req.span;
   }
 
-  getRepository<Entity>(
+  getRepository<Entity extends ObjectLiteral>(
     target: ObjectType<Entity> | EntitySchema<Entity> | string,
   ): Repository<Entity> {
     return this.con.getRepository(target);
@@ -58,4 +64,11 @@ export type SubscriptionContext = {
   con: DataSource;
   log: FastifyBaseLogger;
   userId?: string;
+};
+
+export type BaseContext = Omit<Context, 'userId' | 'trackingId'>;
+
+export type AuthContext = BaseContext & {
+  userId: string;
+  trackingId: string;
 };
