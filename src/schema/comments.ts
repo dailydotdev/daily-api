@@ -547,6 +547,15 @@ export const reportCommentReasons = new Map([
   ['OTHER', 'Other'],
 ]);
 
+const validateComment = (content: string): void => {
+  if (!content.trim().length) {
+    throw new ValidationError('Content cannot be empty!');
+  }
+  if (content.includes('zone.invest')) {
+    throw new ValidationError('Invalid content');
+  }
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -753,9 +762,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
       info,
     ): Promise<GQLComment> => {
-      if (!content.trim().length) {
-        throw new ValidationError('Content cannot be empty!');
-      }
+      validateComment(content);
 
       try {
         const post = await ctx.con
@@ -789,9 +796,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
       info,
     ): Promise<GQLComment> => {
-      if (!content.trim().length) {
-        throw new ValidationError('Content cannot be empty!');
-      }
+      validateComment(content);
 
       try {
         const comment = await ctx.con.transaction(async (entityManager) => {
