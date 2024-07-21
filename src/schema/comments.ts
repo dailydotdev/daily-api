@@ -551,7 +551,7 @@ const validateComment = (content: string): void => {
   if (!content.trim().length) {
     throw new ValidationError('Content cannot be empty!');
   }
-  if (content.includes('zone.invest')) {
+  if (content.includes('groza3377')) {
     throw new ValidationError('Invalid content');
   }
 };
