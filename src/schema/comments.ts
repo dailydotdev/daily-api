@@ -511,16 +511,6 @@ const saveNewComment = async (
 ) => {
   const savedComment = await saveComment(con, comment, sourceId);
 
-  await con
-    .getRepository(Post)
-    .increment({ id: savedComment.postId }, 'comments', 1);
-
-  if (savedComment.parentId) {
-    await con
-      .getRepository(Comment)
-      .increment({ id: savedComment.parentId }, 'comments', 1);
-  }
-
   return savedComment;
 };
 
@@ -884,15 +874,6 @@ export const resolvers: IResolvers<any, Context> = {
         ) {
           throw new ForbiddenError("Cannot delete someone else's comment");
         }
-        if (comment.parentId) {
-          await repo.decrement({ id: comment.parentId }, 'comments', 1);
-        }
-        const childComments = await entityManager
-          .getRepository(Comment)
-          .countBy({ parentId: comment.id });
-        await entityManager
-          .getRepository(Post)
-          .decrement({ id: comment.postId }, 'comments', 1 + childComments);
         await repo.delete({ id: comment.id });
       });
       return { _: true };

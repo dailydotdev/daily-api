@@ -446,6 +446,7 @@ it('should save a new post with basic information', async () => {
     showOnFeed: true,
     language: 'en',
     contentQuality: expect.any(Object),
+    statsUpdatedAt: expect.any(Date),
   });
 });
 

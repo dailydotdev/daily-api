@@ -87,3 +87,81 @@ describe('trigger increment_source_views_count', () => {
     expect(updatedSource.flags.totalViews).toEqual(1);
   });
 });
+
+describe('trigger post_stats_updated_at_update_trigger', () => {
+  it('should update statsUpdatedAt when upvotes change', async () => {
+    const repo = con.getRepository(Post);
+    const beforePost = await repo.findOneByOrFail({ id: 'p1' });
+    expect(beforePost.upvotes).toEqual(0);
+    await repo.update({ id: 'p1' }, { upvotes: 15 });
+    const afterPost = await repo.findOneByOrFail({ id: 'p1' });
+    expect(afterPost.statsUpdatedAt.getTime()).toBeGreaterThan(
+      beforePost.statsUpdatedAt.getTime(),
+    );
+  });
+
+  it('should update statsUpdatedAt when downvotes change', async () => {
+    const repo = con.getRepository(Post);
+    const beforePost = await repo.findOneByOrFail({ id: 'p1' });
+    expect(beforePost.downvotes).toEqual(0);
+    await repo.update({ id: 'p1' }, { downvotes: 15 });
+    const afterPost = await repo.findOneByOrFail({ id: 'p1' });
+    expect(afterPost.statsUpdatedAt.getTime()).toBeGreaterThan(
+      beforePost.statsUpdatedAt.getTime(),
+    );
+  });
+
+  it('should update statsUpdatedAt when comments change', async () => {
+    const repo = con.getRepository(Post);
+    const beforePost = await repo.findOneByOrFail({ id: 'p1' });
+    expect(beforePost.comments).toEqual(0);
+    await repo.update({ id: 'p1' }, { comments: 15 });
+    const afterPost = await repo.findOneByOrFail({ id: 'p1' });
+    expect(afterPost.statsUpdatedAt.getTime()).toBeGreaterThan(
+      beforePost.statsUpdatedAt.getTime(),
+    );
+  });
+
+  it('should update statsUpdatedAt when multiple columns change', async () => {
+    const repo = con.getRepository(Post);
+    const beforePost = await repo.findOneByOrFail({ id: 'p1' });
+    expect(beforePost.upvotes).toEqual(0);
+    expect(beforePost.downvotes).toEqual(0);
+    expect(beforePost.comments).toEqual(0);
+    await repo.update(
+      { id: 'p1' },
+      { upvotes: 15, downvotes: 35, comments: 25 },
+    );
+    const afterPost = await repo.findOneByOrFail({ id: 'p1' });
+    expect(afterPost.statsUpdatedAt.getTime()).toBeGreaterThan(
+      beforePost.statsUpdatedAt.getTime(),
+    );
+  });
+
+  it("should not update statsUpdatedAt when columns don't change", async () => {
+    const repo = con.getRepository(Post);
+    await repo.update(
+      { id: 'p1' },
+      { upvotes: 15, downvotes: 35, comments: 25 },
+    );
+    const beforePost = await repo.findOneByOrFail({ id: 'p1' });
+    await repo.update(
+      { id: 'p1' },
+      { title: 'new title', upvotes: 15, downvotes: 35, comments: 25 },
+    );
+    const afterPost = await repo.findOneByOrFail({ id: 'p1' });
+    expect(afterPost.statsUpdatedAt.getTime()).toEqual(
+      beforePost.statsUpdatedAt.getTime(),
+    );
+  });
+
+  it('should not update statsUpdatedAt when other columns change', async () => {
+    const repo = con.getRepository(Post);
+    const beforePost = await repo.findOneByOrFail({ id: 'p1' });
+    await repo.update({ id: 'p1' }, { title: 'new title' });
+    const afterPost = await repo.findOneByOrFail({ id: 'p1' });
+    expect(afterPost.statsUpdatedAt.getTime()).toEqual(
+      beforePost.statsUpdatedAt.getTime(),
+    );
+  });
+});
