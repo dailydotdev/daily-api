@@ -24,7 +24,7 @@
     "pretest": "npm run lint && cross-env NODE_ENV=test npm run db:migrate:reset",
     "test": "jest --testEnvironment=node --runInBand",
     "typeorm": "typeorm-ts-node-commonjs",
-    "temporal:dev": "nodemon ./src/temporal/local.ts",
+    "temporal:dev": "cross-env TEMPORAL_ADDRESS=0.0.0.0:7233 nodemon ./src/temporal/local.ts",
     "temporal:server": "temporal server start-dev --ip=0.0.0.0"
   },
   "dependencies": {

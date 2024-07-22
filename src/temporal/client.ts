@@ -1,7 +1,6 @@
 import { Client } from '@temporalio/client';
 import { Connection as TemporalConnection } from '@temporalio/client/lib/connection';
-
-const TEMPORAL_NAMESPACE = process.env.TEMPORAL_NAMESPACE || 'default';
+import { TEMPORAL_ADDRESS, TEMPORAL_NAMESPACE } from './config';
 
 let client: Client;
 
@@ -11,7 +10,7 @@ export const getTemporalClient = async (): Promise<Client> => {
   }
 
   const connection = await TemporalConnection.connect({
-    address: 'host.docker.internal:7233',
+    address: TEMPORAL_ADDRESS,
   });
 
   client = new Client({ connection, namespace: TEMPORAL_NAMESPACE });
