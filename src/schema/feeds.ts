@@ -1203,29 +1203,29 @@ const legacySimilarPostsResolver = randomPostsResolver(
     let similarPostsQuery;
     if (tags?.length > 0) {
       similarPostsQuery = `select post.id
-                           from post
-                                  inner join (select count(*)           as similar,
-                                                     min(k.occurrences) as occurrences,
-                                                     pk."postId"
-                                              from post_keyword pk
-                                                     inner join keyword k on pk.keyword = k.value
-                                              where k.value in (:...tags)
-                                                and k.status = 'allow'
-                                              group by pk."postId") k
-                                             on k."postId" = post.id
-                           where post.id != :postId
-                             and post."createdAt" >= now() - interval '6 month'
-                             and post.visible = true and post.deleted = false
-                           order by (pow(post.upvotes, k.similar) * 1000 /
-                             k.occurrences) desc
-                             limit 25`;
-    } else {
-      similarPostsQuery = `select post.id
                                from post
+                                      inner join (select count(*)           as similar,
+                                                         min(k.occurrences) as occurrences,
+                                                         pk."postId"
+                                                  from post_keyword pk
+                                                         inner join keyword k on pk.keyword = k.value
+                                                  where k.value in (:...tags)
+                                                    and k.status = 'allow'
+                                                  group by pk."postId") k
+                                                 on k."postId" = post.id
                                where post.id != :postId
                                  and post."createdAt" >= now() - interval '6 month'
-                               order by post.upvotes desc
+                                 and post.visible = true and post.deleted = false
+                               order by (pow(post.upvotes, k.similar) * 1000 /
+                                 k.occurrences) desc
                                  limit 25`;
+    } else {
+      similarPostsQuery = `select post.id
+                           from post
+                           where post.id != :postId
+                                 and post."createdAt" >= now() - interval '6 month'
+                           order by post.upvotes desc
+                             limit 25`;
     }
     return builder.andWhere(`${alias}."id" in (${similarPostsQuery})`, {
       postId: post,
