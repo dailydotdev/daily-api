@@ -283,15 +283,3 @@ export default async function app(
 
   return app;
 }
-
-if (process.env.NODE_ENV === 'development') {
-  run()
-    .then(() => {
-      console.log('registered worker');
-    })
-    .catch((err) => {
-      console.log('error registering worker');
-      console.error(err);
-      process.exit(1);
-    });
-}

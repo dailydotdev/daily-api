@@ -23,7 +23,9 @@
     "start:background": "npm run cli -- background",
     "pretest": "npm run lint && cross-env NODE_ENV=test npm run db:migrate:reset",
     "test": "jest --testEnvironment=node --runInBand",
-    "typeorm": "typeorm-ts-node-commonjs"
+    "typeorm": "typeorm-ts-node-commonjs",
+    "temporal:dev": "nodemon ./src/temporal/local.ts",
+    "temporal:server": "temporal server start-dev --ip=0.0.0.0"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^1.10.0",

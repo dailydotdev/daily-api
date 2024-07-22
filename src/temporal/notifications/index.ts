@@ -5,7 +5,7 @@ import { WorkflowQueue } from '../common';
 
 export async function run() {
   const connection = await NativeConnection.connect({
-    address: 'host.docker.internal:7233',
+    address: '0.0.0.0:7233',
   });
   const dbCon = await createOrGetConnection();
   const worker = await Worker.create({
