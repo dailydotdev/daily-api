@@ -1261,7 +1261,7 @@ export const resolvers: IResolvers<any, Context> = {
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Mutation: traceResolverObject<any, any>({
+  Mutation: traceResolverObject<any, any, Context>({
     hidePost: async (
       source,
       { id }: { id: string },

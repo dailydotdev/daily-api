@@ -3,12 +3,12 @@ import { NotFoundError, TypeOrmError } from '../errors';
 import { Comment, Post, UserPost } from '../entity';
 import { GQLEmptyResponse } from '../schema/common';
 import { ensureSourcePermissions } from '../schema/sources';
-import { Context } from '../Context';
+import { AuthContext } from '../Context';
 import { UserComment } from '../entity/user/UserComment';
 import { UserVote } from '../types';
 
 type UserVoteProps = {
-  ctx: Context;
+  ctx: AuthContext;
   id: string;
   vote: UserVote;
 };
