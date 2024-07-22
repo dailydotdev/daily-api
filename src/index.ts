@@ -30,7 +30,6 @@ import { ioRedisPool } from './redis';
 import { loadFeatures } from './growthbook';
 import { runInRootSpan } from './telemetry';
 import { loggerConfig } from './logger';
-import { run } from './temporal/notifications';
 import { getTemporalClient } from './temporal/client';
 
 type Mutable<Type> = {
