@@ -3928,6 +3928,9 @@ describe('mutation vote post', () => {
       id: 'p1',
       upvotes: 3,
     });
+    const beforePost = await con
+      .getRepository(Post)
+      .findOneByOrFail({ id: 'p1' });
     const res = await client.mutate(MUTATION, {
       variables: { id: 'p1', vote: UserVote.Up, entity: UserVoteEntity.Post },
     });
@@ -3942,8 +3945,11 @@ describe('mutation vote post', () => {
       vote: UserVote.Up,
       hidden: false,
     });
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.upvotes).toEqual(4);
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post.upvotes).toEqual(4);
+    expect(post.statsUpdatedAt.getTime()).toBeGreaterThan(
+      beforePost.statsUpdatedAt.getTime(),
+    );
   };
 
   it('should upvote', async () => {
@@ -3983,6 +3989,9 @@ describe('mutation vote post', () => {
       id: 'p1',
       downvotes: 3,
     });
+    const beforePost = await con
+      .getRepository(Post)
+      .findOneByOrFail({ id: 'p1' });
     const res = await client.mutate(MUTATION, {
       variables: { id: 'p1', vote: UserVote.Down, entity: UserVoteEntity.Post },
     });
@@ -3997,8 +4006,11 @@ describe('mutation vote post', () => {
       vote: UserVote.Down,
       hidden: true,
     });
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.downvotes).toEqual(4);
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post.downvotes).toEqual(4);
+    expect(post.statsUpdatedAt.getTime()).toBeGreaterThan(
+      beforePost.statsUpdatedAt.getTime(),
+    );
   };
 
   it('should downvote', async () => {
@@ -4038,11 +4050,14 @@ describe('mutation vote post', () => {
   });
 
   const testCancelVote = async (initialVote = UserVote.Up) => {
+    const beforePost = await con
+      .getRepository(Post)
+      .findOneByOrFail({ id: 'p1' });
     await client.mutate(MUTATION, {
       variables: { id: 'p1', vote: initialVote, entity: UserVoteEntity.Post },
     });
-    const oldPost = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(oldPost?.upvotes).toEqual(1);
+    const oldPost = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(oldPost.upvotes).toEqual(1);
     const res = await client.mutate(MUTATION, {
       variables: { id: 'p1', vote: UserVote.None, entity: UserVoteEntity.Post },
     });
@@ -4057,6 +4072,9 @@ describe('mutation vote post', () => {
       vote: UserVote.None,
       hidden: false,
     });
+    expect(oldPost.statsUpdatedAt.getTime()).toBeGreaterThan(
+      beforePost.statsUpdatedAt.getTime(),
+    );
   };
 
   it('should cancel vote', async () => {

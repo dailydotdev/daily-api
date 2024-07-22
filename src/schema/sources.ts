@@ -1128,7 +1128,7 @@ const paginateSourceMembers = (
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Query: traceResolverObject<any, any>({
+  Query: traceResolverObject<any, any, Context>({
     sources: async (
       _,
       args: SourcesArgs,
@@ -1463,7 +1463,7 @@ export const resolvers: IResolvers<any, Context> = {
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Mutation: traceResolverObject<any, any>({
+  Mutation: traceResolverObject<any, any, Context>({
     createSquad: async (
       _,
       {

@@ -167,7 +167,7 @@ export const resolvers: IResolvers<any, Context> = {
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Mutation: traceResolverObject<any, any>({
+  Mutation: traceResolverObject<any, any, Context>({
     generateDevCard: async (
       source,
       { file, url }: { file?: FileUpload; url: string },

@@ -41,6 +41,7 @@ Object {
   "siteTwitter": null,
   "slug": Any<String>,
   "sourceId": "a",
+  "statsUpdatedAt": Any<Date>,
   "summary": null,
   "tagsStr": null,
   "title": "Title",
