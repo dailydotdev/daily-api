@@ -1140,6 +1140,7 @@ describe('post', () => {
       visible: true,
       visibleAt: 0,
       pinnedAt: null,
+      statsUpdatedAt: 0,
     };
     const after: ChangeObject<ObjectType> = {
       ...localBase,
@@ -1173,6 +1174,7 @@ describe('post', () => {
       visible: true,
       visibleAt: 0,
       pinnedAt: null,
+      statsUpdatedAt: 0,
     };
     const after: ChangeObject<ObjectType> = {
       ...localBase,

@@ -30,7 +30,7 @@ import {
 } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
-import { Context } from '../Context';
+import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolverObject } from './trace';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
 import {
@@ -57,6 +57,7 @@ import {
   NotFoundError,
   SubmissionFailErrorKeys,
   TypeOrmError,
+  TypeORMQueryFailedError,
 } from '../errors';
 import { deleteUser } from '../directive/user';
 import { randomInt } from 'crypto';
@@ -155,8 +156,8 @@ export interface ReadingRankArgs {
 
 export interface ReferralCampaign {
   referredUsersCount: number;
-  referralCountLimit: number;
-  referralToken: string;
+  referralCountLimit?: number;
+  referralToken?: string;
   url: string;
 }
 
@@ -712,13 +713,23 @@ const getCurrentUser = (
   info: GraphQLResolveInfo,
 ): Promise<GQLUser> =>
   graphorm.queryOneOrFail<GQLUser>(ctx, info, (builder) => ({
+    ...builder,
     queryBuilder: builder.queryBuilder.where(`"${builder.alias}"."id" = :id`, {
       id: ctx.userId,
     }),
-    ...builder,
   }));
 
-export const getUserReadHistory = async ({ con, userId, after, before }) => {
+export const getUserReadHistory = async ({
+  con,
+  userId,
+  after,
+  before,
+}: {
+  con: DataSource;
+  userId: string;
+  after: Date;
+  before: Date;
+}) => {
   return con
     .getRepository(ActiveView)
     .createQueryBuilder('view')
@@ -747,7 +758,7 @@ interface userStreakProfileArgs {
 const readHistoryResolver = async (
   args: ConnectionArguments & { query?: string; isPublic?: boolean },
   ctx: Context,
-  info,
+  info: GraphQLResolveInfo,
 ): Promise<Connection<GQLView>> => {
   const user = await ctx.con
     .getRepository(User)
@@ -815,12 +826,19 @@ export const getMarketingCta = async (
   }
 
   // If the vale in redis is `EMPTY`, we fallback to `null`
-  const marketingCta: MarketingCta | null = JSON.parse(rawRedisValue || null);
+  const marketingCta: MarketingCta | null = rawRedisValue
+    ? JSON.parse(rawRedisValue)
+    : null;
   return marketingCta || cachePrefillMarketingCta(con, userId);
 };
 
-const getUserStreakQuery = async (id, ctx, info) => {
+const getUserStreakQuery = async (
+  id: string,
+  ctx: Context,
+  info: GraphQLResolveInfo,
+) => {
   return await graphorm.queryOne<GQLUserStreakTz>(ctx, info, (builder) => ({
+    ...builder,
     queryBuilder: builder.queryBuilder
       .addSelect(
         `(date_trunc('day', "${builder.alias}"."lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date) AS "lastViewAtTz"`,
@@ -831,15 +849,14 @@ const getUserStreakQuery = async (id, ctx, info) => {
       .where(`"${builder.alias}"."userId" = :id`, {
         id: id,
       }),
-    ...builder,
   }));
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvers: IResolvers<any, Context> = {
+export const resolvers: IResolvers<any, BaseContext> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Query: traceResolverObject<any, any>({
-    whoami: async (_, __, ctx: Context, info: GraphQLResolveInfo) => {
+  Query: traceResolverObject<any, any, any>({
+    whoami: async (_, __, ctx: AuthContext, info: GraphQLResolveInfo) => {
       const res = await graphorm.query<GQLUser>(ctx, info, (builder) => {
         builder.queryBuilder = builder.queryBuilder
           .andWhere(`${builder.alias}.id = :id`, { id: ctx.userId })
@@ -963,8 +980,18 @@ export const resolvers: IResolvers<any, Context> = {
       { id, after, before }: ReadingHistyoryArgs,
       ctx: Context,
     ): Promise<GQLReadingRankHistory[]> =>
-      getUserReadHistory({ con: ctx.con, userId: id, after, before }),
-    userStreak: async (_, __, ctx: Context, info): Promise<GQLUserStreak> => {
+      getUserReadHistory({
+        con: ctx.con,
+        userId: id,
+        after: new Date(after),
+        before: new Date(before),
+      }),
+    userStreak: async (
+      _,
+      __,
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLUserStreak> => {
       const streak = await getUserStreakQuery(ctx.userId, ctx, info);
 
       if (!streak) {
@@ -972,7 +999,6 @@ export const resolvers: IResolvers<any, Context> = {
           max: 0,
           total: 0,
           current: 0,
-          lastViewAt: null,
           userId: ctx.userId,
         };
       }
@@ -1052,7 +1078,7 @@ export const resolvers: IResolvers<any, Context> = {
     generateUniqueUsername: async (
       _,
       args: { name: string },
-      ctx: Context,
+      ctx: AuthContext,
     ): Promise<string> => {
       const name = args.name.toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
 
@@ -1103,7 +1129,7 @@ export const resolvers: IResolvers<any, Context> = {
     referralCampaign: async (
       source,
       args: { referralOrigin: string },
-      ctx: Context,
+      ctx: AuthContext,
     ): Promise<ReferralCampaign> => {
       const { referralOrigin } = args;
       const userRepo = ctx.getRepository(User);
@@ -1137,7 +1163,7 @@ export const resolvers: IResolvers<any, Context> = {
     personalizedDigest: async (
       _,
       __,
-      ctx: Context,
+      ctx: AuthContext,
       info,
     ): Promise<GQLUserPersonalizedDigest[]> => {
       const personalizedDigest =
@@ -1163,7 +1189,7 @@ export const resolvers: IResolvers<any, Context> = {
     referredUsers: async (
       _,
       args: ConnectionArguments,
-      ctx: Context,
+      ctx: AuthContext,
       info,
     ): Promise<Connection<GQLUser>> => {
       return queryPaginatedByDate(
@@ -1187,11 +1213,11 @@ export const resolvers: IResolvers<any, Context> = {
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Mutation: traceResolverObject<any, any>({
+  Mutation: traceResolverObject<any, any, any>({
     updateUserProfile: async (
       _,
       { data, upload }: GQLUserParameters,
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLUser> => {
       const repo = ctx.con.getRepository(User);
       const user = await repo.findOneBy({ id: ctx.userId });
@@ -1208,7 +1234,7 @@ export const resolvers: IResolvers<any, Context> = {
       data = await validateUserUpdate(user, data, ctx.con);
 
       const avatar =
-        upload && process.env.CLOUDINARY_URL
+        !!upload && process.env.CLOUDINARY_URL
           ? (await uploadAvatar(user.id, (await upload).createReadStream())).url
           : data.image || user.image;
 
@@ -1224,7 +1250,9 @@ export const resolvers: IResolvers<any, Context> = {
           updatedUser.infoConfirmed = true;
         }
         return await ctx.con.getRepository(User).save(updatedUser);
-      } catch (err) {
+      } catch (originalError) {
+        const err = originalError as TypeORMQueryFailedError;
+
         if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
           if (err.message.indexOf('users_username_unique') > -1) {
             throw new ValidationError(
@@ -1254,14 +1282,14 @@ export const resolvers: IResolvers<any, Context> = {
         throw err;
       }
     },
-    deleteUser: async (_, __, ctx: Context): Promise<unknown> => {
+    deleteUser: async (_, __, ctx: AuthContext): Promise<unknown> => {
       const userId = ctx.userId;
       return await deleteUser(ctx.con, ctx.log, userId);
     },
     hideReadHistory: (
       _,
       { postId, timestamp }: { postId?: string; timestamp: Date },
-      ctx: Context,
+      ctx: AuthContext,
     ): Promise<unknown> =>
       ctx
         .getRepository(View)
@@ -1283,7 +1311,7 @@ export const resolvers: IResolvers<any, Context> = {
         type?: UserPersonalizedDigestType;
         sendType?: UserPersonalizedDigestSendType;
       },
-      ctx: Context,
+      ctx: AuthContext,
     ): Promise<GQLUserPersonalizedDigest> => {
       const {
         hour,
@@ -1296,7 +1324,7 @@ export const resolvers: IResolvers<any, Context> = {
         throw new ValidationError('Invalid hour');
       }
 
-      if (!isNullOrUndefined(hour) && (day < 0 || day > 6)) {
+      if (!isNullOrUndefined(day) && (day < 0 || day > 6)) {
         throw new ValidationError('Invalid day');
       }
 
@@ -1324,7 +1352,7 @@ export const resolvers: IResolvers<any, Context> = {
       {
         type = UserPersonalizedDigestType.Digest,
       }: { type?: UserPersonalizedDigestType },
-      ctx: Context,
+      ctx: AuthContext,
     ): Promise<unknown> => {
       const repo = ctx.con.getRepository(UserPersonalizedDigest);
 
@@ -1348,7 +1376,7 @@ export const resolvers: IResolvers<any, Context> = {
         referrerId: string;
         feature: string;
       },
-      ctx: Context,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       const referrerInvite = await ctx.con
         .getRepository(Invite)
@@ -1370,7 +1398,9 @@ export const resolvers: IResolvers<any, Context> = {
             invitedById: referrerId,
             value: FeatureValue.Allow,
           });
-        } catch (err) {
+        } catch (originalError) {
+          const err = originalError as TypeORMQueryFailedError;
+
           if (err.code === TypeOrmError.DUPLICATE_ENTRY) return;
           throw err;
         }
@@ -1388,7 +1418,7 @@ export const resolvers: IResolvers<any, Context> = {
     uploadCoverImage: async (
       _,
       { image }: { image: Promise<FileUpload> },
-      ctx,
+      ctx: AuthContext,
       info,
     ): Promise<GQLUser> => {
       if (!image) {
@@ -1412,7 +1442,7 @@ export const resolvers: IResolvers<any, Context> = {
     updateReadme: async (
       _,
       { content }: { content: string },
-      ctx,
+      ctx: AuthContext,
       info,
     ): Promise<GQLUser> => {
       if (content.length >= MAX_README_LENGTH) {
@@ -1430,7 +1460,7 @@ export const resolvers: IResolvers<any, Context> = {
     addUserAcquisitionChannel: async (
       _,
       { acquisitionChannel }: { acquisitionChannel: string },
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       const maxLength = 50;
       if (acquisitionChannel?.length > maxLength) {
@@ -1443,12 +1473,12 @@ export const resolvers: IResolvers<any, Context> = {
         .getRepository(User)
         .update({ id: ctx.userId }, { acquisitionChannel });
 
-      return { _: null };
+      return { _: true };
     },
     clearUserMarketingCta: async (
       _,
       { campaignId }: { campaignId: string },
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       const updateResult = await ctx.con
         .getRepository(UserMarketingCta)
@@ -1457,7 +1487,9 @@ export const resolvers: IResolvers<any, Context> = {
           { readAt: new Date() },
         );
 
-      if (updateResult.affected > 0) {
+      const affected = updateResult.affected || 0;
+
+      if (affected > 0) {
         await deleteRedisKey(
           generateStorageKey(
             StorageTopic.Boot,
@@ -1470,7 +1502,7 @@ export const resolvers: IResolvers<any, Context> = {
         await getMarketingCta(ctx.con, ctx.log, ctx.userId);
       }
 
-      return { _: null };
+      return { _: true };
     },
     vote: async (
       _,
@@ -1479,7 +1511,7 @@ export const resolvers: IResolvers<any, Context> = {
         vote,
         entity,
       }: { id: string; vote: UserVote; entity: UserVoteEntity },
-      ctx: Context,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       switch (entity) {
         case UserVoteEntity.Post:
