@@ -108,6 +108,9 @@ export class Post {
   @Index('IDX_post_metadataChangedAt')
   metadataChangedAt: Date;
 
+  @Column({ default: () => 'now()' })
+  statsUpdatedAt: Date;
+
   @Column({ type: 'text', default: UNKNOWN_SOURCE })
   sourceId: string;
 

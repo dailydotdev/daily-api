@@ -511,16 +511,6 @@ const saveNewComment = async (
 ) => {
   const savedComment = await saveComment(con, comment, sourceId);
 
-  await con
-    .getRepository(Post)
-    .increment({ id: savedComment.postId }, 'comments', 1);
-
-  if (savedComment.parentId) {
-    await con
-      .getRepository(Comment)
-      .increment({ id: savedComment.parentId }, 'comments', 1);
-  }
-
   return savedComment;
 };
 
@@ -547,10 +537,22 @@ export const reportCommentReasons = new Map([
   ['OTHER', 'Other'],
 ]);
 
+const validateComment = (ctx: Context, content: string): void => {
+  if (!content.trim().length) {
+    throw new ValidationError('Content cannot be empty!');
+  }
+  if (
+    content.includes('groza3377') ||
+    ['105.120.128.195'].includes(ctx.req.ip)
+  ) {
+    throw new ValidationError('Invalid content');
+  }
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Query: traceResolverObject<any, any>({
+  Query: traceResolverObject<any, any, Context>({
     commentFeed: async (
       _,
       args: ConnectionArguments,
@@ -746,16 +748,14 @@ export const resolvers: IResolvers<any, Context> = {
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Mutation: traceResolverObject<any, any>({
+  Mutation: traceResolverObject<any, any, Context>({
     commentOnPost: async (
       source,
       { postId, content }: GQLPostCommentArgs,
       ctx: Context,
       info,
     ): Promise<GQLComment> => {
-      if (!content.trim().length) {
-        throw new ValidationError('Content cannot be empty!');
-      }
+      validateComment(ctx, content);
 
       try {
         const post = await ctx.con
@@ -789,9 +789,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
       info,
     ): Promise<GQLComment> => {
-      if (!content.trim().length) {
-        throw new ValidationError('Content cannot be empty!');
-      }
+      validateComment(ctx, content);
 
       try {
         const comment = await ctx.con.transaction(async (entityManager) => {
@@ -876,15 +874,6 @@ export const resolvers: IResolvers<any, Context> = {
         ) {
           throw new ForbiddenError("Cannot delete someone else's comment");
         }
-        if (comment.parentId) {
-          await repo.decrement({ id: comment.parentId }, 'comments', 1);
-        }
-        const childComments = await entityManager
-          .getRepository(Comment)
-          .countBy({ parentId: comment.id });
-        await entityManager
-          .getRepository(Post)
-          .decrement({ id: comment.postId }, 'comments', 1 + childComments);
         await repo.delete({ id: comment.id });
       });
       return { _: true };
