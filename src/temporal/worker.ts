@@ -10,9 +10,7 @@ export const getTemporalWorkerConnection = async () => {
 
   const { tls, address } = getTemporalServerOptions();
 
-  const con = await NativeConnection.connect({ address, tls });
+  connection = await NativeConnection.connect({ address, tls });
 
-  connection = con;
-
-  return con;
+  return connection;
 };
