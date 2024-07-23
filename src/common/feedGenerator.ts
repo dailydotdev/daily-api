@@ -73,6 +73,10 @@ export const getExcludedAdvancedSettings = async (
   con: DataSource,
   feedId: string,
 ): Promise<Partial<AdvancedSettings>[]> => {
+  if (!feedId) {
+    return [];
+  }
+
   const [settings, feedAdvancedSettings] = await Promise.all([
     con.getRepository(AdvancedSettings).find(),
     con.getRepository(FeedAdvancedSettings).findBy({ feedId }),
@@ -103,23 +107,27 @@ export const feedToFilters = async (
 ): Promise<AnonymousFeedFilters> => {
   const settings = await getExcludedAdvancedSettings(con, feedId);
   const [tags, excludeSources, memberships] = await Promise.all([
-    con.getRepository(FeedTag).find({ where: { feedId: feedId ?? '' } }),
-    con
-      .getRepository(Source)
-      .createQueryBuilder('s')
-      .select('s.id AS "id"')
-      .where((qb) => {
-        const subQuery = qb
-          .subQuery()
-          .select('fs."sourceId"')
-          .from(FeedSource, 'fs')
-          .where('fs."feedId" = :feedId', { feedId })
-          .getQuery();
-
-        return `s.id IN (${subQuery})`;
-      })
-      .execute(),
     feedId
+      ? con.getRepository(FeedTag).find({ where: { feedId } })
+      : ([] as FeedTag[]),
+    feedId
+      ? con
+          .getRepository(Source)
+          .createQueryBuilder('s')
+          .select('s.id AS "id"')
+          .where((qb) => {
+            const subQuery = qb
+              .subQuery()
+              .select('fs."sourceId"')
+              .from(FeedSource, 'fs')
+              .where('fs."feedId" = :feedId', { feedId })
+              .getQuery();
+
+            return `s.id IN (${subQuery})`;
+          })
+          .execute()
+      : [],
+    feedId && userId
       ? con
           .getRepository(SourceMember)
           .createQueryBuilder('sm')
@@ -192,7 +200,7 @@ export const selectRead = (
   const query = builder
     .select('1')
     .from(View, 'view')
-    .where(`view.userId = :userId`, { userId })
+    .where(`view.userId = :userId`, { userId: userId || '' })
     .andWhere(`view.postId = ${alias}.id`)
     .getQuery();
   return `EXISTS${query}`;
@@ -248,7 +256,7 @@ export const applyFeedWhere = (
       .andWhere(`source.id = "${alias}"."sourceId"`);
 
     newBuilder = builder.andWhere(`NOT EXISTS${selectSource.getQuery()}`, {
-      userId: ctx.userId,
+      userId: ctx.userId || '',
     });
   }
 
