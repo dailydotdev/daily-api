@@ -451,31 +451,31 @@ export enum LogoutReason {
 }
 
 export const roadmapShSocialUrlMatch =
-  /^(?:https:\/\/)?(?:www\.)?roadmap\.sh\/u\/(?<value>[\w-]{2,})\/?$/;
+  /^(?:(?:https:\/\/)?(?:www\.)?roadmap\.sh\/u\/)?(?<value>[\w-]{2,})\/?$/;
 
 export const twitterSocialUrlMatch =
-  /^(?:https:\/\/)?(?:www\.)?(?:twitter|x)\.com\/@?(?<value>[\w-]{2,})\/?$/;
+  /^(?:(?:https:\/\/)?(?:www\.)?(?:twitter|x)\.com\/)?@?(?<value>[\w-]{2,})\/?$/;
 
 export const githubSocialUrl =
-  /^(?:https:\/\/)?(?:www\.)?github\.com\/(?<value>[\w-]{2,})\/?$/;
+  /^(?:(?:https:\/\/)?(?:www\.)?github\.com\/)?(?<value>[\w-]{2,})\/?$/;
 
 export const threadsSocialUrlMatch =
-  /^(?:https:\/\/)?(?:www\.)?threads\.net\/@?(?<value>[\w-]{2,})\/?$/;
+  /(?:^(?:https:\/\/)?(?:www\.)?threads\.net\/)?@?(?<value>[\w-]{2,})\/?$/;
 
 export const codepenSocialUrlMatch =
-  /^(?:https:\/\/)?(?:www\.)?codepen\.io\/(?<value>[\w-]{2,})\/?$/;
+  /^(?:(?:https:\/\/)?(?:www\.)?codepen\.io\/)?(?<value>[\w-]{2,})\/?$/;
 
 export const redditSocialUrlMatch =
-  /^(?:https:\/\/)?(?:www\.)?reddit\.com\/user\/(?<value>[\w-]{2,})\/?$/;
+  /(?:^(?:https:\/\/)?(?:www\.)?reddit\.com\/user\/)?(?<value>[\w-]{2,})\/?$/;
 
 export const stackoverflowSocialUrlMatch =
   /^(?:https:\/\/)?(?:www\.)?stackoverflow\.com\/users\/(?<value>\d{2,}\/?[\w-]{2,}?)\/?$/;
 
 export const youtubeSocialUrlMatch =
-  /^(?:https:\/\/)?(?:www\.)?youtube\.com\/@?(?<value>[\w-]{2,})\/?$/;
+  /(?:^(?:https:\/\/)?(?:www\.)?youtube\.com\/)?@?(?<value>[\w-]{2,})\/?$/;
 
 export const linkedinSocialUrlMatch =
-  /^(?:https:\/\/)?(?:www\.)?linkedin\.com\/in\/(?<value>[\w-]{2,})\/?$/;
+  /^(?:(?:https:\/\/)?(?:www\.)?linkedin\.com\/in\/)?(?<value>[\w-]{2,})\/?$/;
 
 export const mastodonSocialUrlMatch =
   /^(?<value>(?:https:\/\/)?(?:[a-z0-9-]+\.)*[a-z0-9-]+\.[a-z]{2,}\/@[\w-]{2,}\/?)$/;

@@ -23,11 +23,7 @@ import { fallbackImages } from '../../config';
 import { validateAndTransformHandle } from '../../common/handles';
 import { ValidationError } from 'apollo-server-errors';
 import { GQLUpdateUserInput } from '../../schema/users';
-import {
-  nameRegex,
-  ValidateRegex,
-  validateRegexAndAssign,
-} from '../../common/object';
+import { nameRegex, validateRegex, ValidateRegex } from '../../common/object';
 import { generateTrackingId } from '../../ids';
 import { UserStreak } from './UserStreak';
 import { DEFAULT_TIMEZONE } from '../../types';
@@ -470,9 +466,7 @@ export const validateUserUpdate = async (
     ['mastodon', data.mastodon, mastodonSocialUrlMatch],
   ];
 
-  const validatedData = validateRegexAndAssign(regexParams, {
-    ...data,
-  });
+  const validatedData = validateRegex(regexParams, data);
 
   return validatedData;
 };
