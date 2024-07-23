@@ -18,7 +18,7 @@
     "dev": "nodemon ./bin/cli api | pino-pretty --messageKey message --levelKey severity",
     "dev:background": "nodemon ./bin/cli background | pino-pretty --messageKey message --levelKey severity",
     "dev:personalized-digest": "nodemon ./bin/cli personalized-digest | pino-pretty --messageKey message --levelKey severity",
-    "dev:temporal-worker": "cross-env TEMPORAL_ADDRESS=0.0.0.0:7233 nodemon ./src/temporal/local.ts",
+    "dev:temporal-worker": "nodemon ./src/temporal/local.ts",
     "dev:temporal-server": "temporal server start-dev --ip=0.0.0.0",
     "lint": "eslint . --ext .js,.ts --max-warnings 0",
     "start": "npm run cli -- api",
