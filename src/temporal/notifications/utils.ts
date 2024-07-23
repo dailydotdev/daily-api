@@ -7,30 +7,36 @@ import {
 import { BookmarkReminderParams, bookmarkReminderWorkflow } from './workflows';
 import { getTemporalClient } from '../client';
 
+interface ReminderWorkflowParams extends BookmarkReminderParams {
+  remindAt: number;
+}
+
 export const getReminderWorkflowId = ({
   userId,
   postId,
   remindAt,
-}: BookmarkReminderParams) =>
+}: ReminderWorkflowParams) =>
   generateWorkflowId(WorkflowTopic.Notification, WorkflowTopicScope.Bookmark, [
     userId,
     postId,
     remindAt.toString(),
   ]);
 
-export const runReminderWorkflow = async (params: BookmarkReminderParams) => {
+export const runReminderWorkflow = async (params: ReminderWorkflowParams) => {
   const workflowId = getReminderWorkflowId(params);
   const client = await getTemporalClient();
+  const delay = params.remindAt - Date.now();
 
   return client.workflow.start(bookmarkReminderWorkflow, {
     args: [params],
     workflowId,
     taskQueue: WorkflowQueue.Notification,
+    startDelay: delay,
   });
 };
 
 export const cancelReminderWorkflow = async (
-  params: BookmarkReminderParams,
+  params: ReminderWorkflowParams,
 ) => {
   const client = await getTemporalClient();
   const workflowId = getReminderWorkflowId(params);
