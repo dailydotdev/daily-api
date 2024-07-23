@@ -19,7 +19,7 @@
     "dev:background": "nodemon ./bin/cli background | pino-pretty --messageKey message --levelKey severity",
     "dev:personalized-digest": "nodemon ./bin/cli personalized-digest | pino-pretty --messageKey message --levelKey severity",
     "dev:temporal-worker": "nodemon ./src/temporal/local.ts",
-    "dev:temporal-server": "temporal server start-dev --ip=0.0.0.0",
+    "dev:temporal-server": "temporal server start-dev",
     "lint": "eslint . --ext .js,.ts --max-warnings 0",
     "start": "npm run cli -- api",
     "start:background": "npm run cli -- background",
