@@ -1,5 +1,5 @@
 import { NativeConnection } from '@temporalio/worker';
-import { TEMPORAL_ADDRESS } from './config';
+import { getTemporalServerOptions } from './config';
 
 let connection: NativeConnection;
 
@@ -8,9 +8,9 @@ export const getTemporalWorkerConnection = async () => {
     return connection;
   }
 
-  const con = await NativeConnection.connect({
-    address: TEMPORAL_ADDRESS,
-  });
+  const { tls, address } = getTemporalServerOptions();
+
+  const con = await NativeConnection.connect({ address, tls });
 
   connection = con;
 
