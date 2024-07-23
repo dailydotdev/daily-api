@@ -537,14 +537,13 @@ export const reportCommentReasons = new Map([
   ['OTHER', 'Other'],
 ]);
 
+const blockedIPs = process.env.VORDR_IPS?.split(',') || [];
+
 const validateComment = (ctx: Context, content: string): void => {
   if (!content.trim().length) {
     throw new ValidationError('Content cannot be empty!');
   }
-  if (
-    content.includes('groza3377') ||
-    ['105.120.128.195'].includes(ctx.req.ip)
-  ) {
+  if (content.includes('groza3377') || blockedIPs.includes(ctx.req.ip)) {
     throw new ValidationError('Invalid content');
   }
 };
