@@ -8,10 +8,10 @@ export class NewSocialHandles1721403018310 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "user" ADD "threads" character varying(39)`);
         await queryRunner.query(`ALTER TABLE "user" ADD "codepen" character varying(39)`);
         await queryRunner.query(`ALTER TABLE "user" ADD "reddit" character varying(39)`);
-        await queryRunner.query(`ALTER TABLE "user" ADD "stackoverflow" character varying(39)`);
+        await queryRunner.query(`ALTER TABLE "user" ADD "stackoverflow" character varying(100)`);
         await queryRunner.query(`ALTER TABLE "user" ADD "youtube" character varying(39)`);
         await queryRunner.query(`ALTER TABLE "user" ADD "linkedin" character varying(39)`);
-        await queryRunner.query(`ALTER TABLE "user" ADD "mastodon" character varying(39)`);
+        await queryRunner.query(`ALTER TABLE "user" ADD "mastodon" character varying(100)`);
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {

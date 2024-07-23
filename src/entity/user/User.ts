@@ -112,7 +112,7 @@ export class User {
   @Index('users_reddit_unique', { unique: true })
   reddit?: string;
 
-  @Column({ length: 39, nullable: true })
+  @Column({ length: 100, nullable: true })
   @Index('users_stackoverflow_unique', { unique: true })
   stackoverflow?: string;
 
@@ -124,7 +124,7 @@ export class User {
   @Index('users_linkedin_unique', { unique: true })
   linkedin?: string;
 
-  @Column({ length: 39, nullable: true })
+  @Column({ length: 100, nullable: true })
   @Index('users_mastodon_unique', { unique: true })
   mastodon?: string;
 
@@ -464,6 +464,7 @@ export const validateUserUpdate = async (
     ['youtube', data.youtube, youtubeSocialUrlMatch],
     ['linkedin', data.linkedin, linkedinSocialUrlMatch],
     ['mastodon', data.mastodon, mastodonSocialUrlMatch],
+    ['portfolio', data.portfolio, socialUrlMatch],
   ];
 
   const validatedData = validateRegex(regexParams, data);
