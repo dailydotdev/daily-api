@@ -537,14 +537,19 @@ export const reportCommentReasons = new Map([
   ['OTHER', 'Other'],
 ]);
 
+const BLOCKED_IPS = [
+  '105.120.129.190',
+  '105.116.0.156',
+  '105.120.128.195',
+  '105.113.9.12',
+  '105.120.128.195',
+];
+
 const validateComment = (ctx: Context, content: string): void => {
   if (!content.trim().length) {
     throw new ValidationError('Content cannot be empty!');
   }
-  if (
-    content.includes('groza3377') ||
-    ['105.120.128.195'].includes(ctx.req.ip)
-  ) {
+  if (content.includes('groza3377') || BLOCKED_IPS.includes(ctx.req.ip)) {
     throw new ValidationError('Invalid content');
   }
 };
