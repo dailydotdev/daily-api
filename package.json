@@ -91,6 +91,7 @@
     "he": "^1.2.0",
     "highlight.js": "^11.10.0",
     "ioredis": "^5.4.1",
+    "is-in-subnet": "^4.0.1",
     "isbot": "^5.1.12",
     "jsonexport": "^3.2.0",
     "jsonwebtoken": "^9.0.2",
