@@ -478,7 +478,7 @@ export const linkedinSocialUrlMatch =
   /^(?:(?:https:\/\/)?(?:www\.)?linkedin\.com\/in\/)?(?<value>[\w-]{2,})\/?$/;
 
 export const mastodonSocialUrlMatch =
-  /^(?<value>(?:https:\/\/)?(?:[a-z0-9-]+\.)*[a-z0-9-]+\.[a-z]{2,}\/@[\w-]{2,}\/?)$/;
+  /^(?<value>https:\/\/(?:[a-z0-9-]+\.)*[a-z0-9-]+\.[a-z]{2,}\/@[\w-]{2,}\/?)$/;
 
 export const socialUrlMatch =
-  /^(?<value>(?:https:\/\/)?(?:[a-z0-9-]{1,50}\.){0,5}[a-z0-9-]{1,50}\.[a-z]{2,24}\/?[\w\-?&=]{0,100})$/;
+  /^(?<value>https:\/\/(?:[a-z0-9-]{1,50}\.){0,5}[a-z0-9-]{1,50}\.[a-z]{2,24}\/?[\w\-?&=]{0,100})$/;
