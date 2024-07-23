@@ -460,19 +460,19 @@ export const githubSocialUrl =
   /^(?:(?:https:\/\/)?(?:www\.)?github\.com\/)?(?<value>[\w-]{2,})\/?$/;
 
 export const threadsSocialUrlMatch =
-  /(?:^(?:https:\/\/)?(?:www\.)?threads\.net\/)?@?(?<value>[\w-]{2,})\/?$/;
+  /^(?:(?:https:\/\/)?(?:www\.)?threads\.net\/)?@?(?<value>[\w-]{2,})\/?$/;
 
 export const codepenSocialUrlMatch =
   /^(?:(?:https:\/\/)?(?:www\.)?codepen\.io\/)?(?<value>[\w-]{2,})\/?$/;
 
 export const redditSocialUrlMatch =
-  /(?:^(?:https:\/\/)?(?:www\.)?reddit\.com\/user\/)?(?<value>[\w-]{2,})\/?$/;
+  /^(?:(?:https:\/\/)?(?:www\.)?reddit\.com\/user\/)?(?<value>[\w-]{2,})\/?$/;
 
 export const stackoverflowSocialUrlMatch =
   /^(?:https:\/\/)?(?:www\.)?stackoverflow\.com\/users\/(?<value>\d{2,}\/?[\w-]{2,}?)\/?$/;
 
 export const youtubeSocialUrlMatch =
-  /(?:^(?:https:\/\/)?(?:www\.)?youtube\.com\/)?@?(?<value>[\w-]{2,})\/?$/;
+  /^(?:(?:https:\/\/)?(?:www\.)?youtube\.com\/)?@?(?<value>[\w-]{2,})\/?$/;
 
 export const linkedinSocialUrlMatch =
   /^(?:(?:https:\/\/)?(?:www\.)?linkedin\.com\/in\/)?(?<value>[\w-]{2,})\/?$/;
