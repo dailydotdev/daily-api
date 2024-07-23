@@ -1,4 +1,4 @@
-FROM node:20-bullseye
+FROM node:20-bookworm-slim
 RUN set -ex \
     && sed -i -- 's/# deb-src/deb-src/g' /etc/apt/sources.list \
     && apt-get update \

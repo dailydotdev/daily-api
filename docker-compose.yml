@@ -12,7 +12,7 @@ volumes:
 services:
 
   db:
-    image: postgres:15.4-bullseye
+    image: postgres:15.4-alpine
     environment:
       - POSTGRES_MULTIPLE_DATABASES=api,api_test
       - POSTGRES_PASSWORD=12345
