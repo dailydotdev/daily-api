@@ -248,7 +248,7 @@ export const applyFeedWhere = (
     newBuilder = builder.andWhere(`EXISTS${selectSource.getQuery()}`);
   }
 
-  if (ctx.userId && !allowSquadPosts) {
+  if (!allowSquadPosts) {
     const selectSource = builder
       .subQuery()
       .from(Source, 'source')
@@ -256,7 +256,7 @@ export const applyFeedWhere = (
       .andWhere(`source.id = "${alias}"."sourceId"`);
 
     newBuilder = builder.andWhere(`NOT EXISTS${selectSource.getQuery()}`, {
-      userId: ctx.userId,
+      userId: ctx.userId || '',
     });
   }
 
