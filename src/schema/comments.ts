@@ -36,7 +36,7 @@ import { ensureSourcePermissions, SourcePermissions } from './sources';
 import { generateShortId } from '../ids';
 import { CommentReport } from '../entity/CommentReport';
 import { UserVote } from '../types';
-import { isInSubnet } from 'is-in-subnet';
+import { isInSubnet, isIP } from 'is-in-subnet';
 
 export interface GQLComment {
   id: string;
@@ -544,7 +544,10 @@ const validateComment = (ctx: Context, content: string): void => {
   if (!content.trim().length) {
     throw new ValidationError('Content cannot be empty!');
   }
-  if (content.includes('groza3377') || isInSubnet(ctx.req.ip, blockedIPs)) {
+  if (
+    content.includes('groza3377') ||
+    (isIP(ctx.req.ip) && isInSubnet(ctx.req.ip, blockedIPs))
+  ) {
     throw new ValidationError('Invalid content');
   }
 };
