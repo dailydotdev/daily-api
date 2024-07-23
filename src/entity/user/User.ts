@@ -26,7 +26,7 @@ import { GQLUpdateUserInput } from '../../schema/users';
 import { nameRegex, validateRegex, ValidateRegex } from '../../common/object';
 import { generateTrackingId } from '../../ids';
 import { UserStreak } from './UserStreak';
-import { DEFAULT_TIMEZONE } from '../../types';
+import { DEFAULT_TIMEZONE, DEFAULT_WEEK_START } from '../../types';
 import { validateValidTimeZone } from '../../common/timezone';
 import { counters } from '../../telemetry';
 import {
@@ -148,6 +148,9 @@ export class User {
 
   @Column({ type: 'text', nullable: true, default: DEFAULT_TIMEZONE })
   timezone?: string;
+
+  @Column({ type: 'int', nullable: true })
+  weekStart?: number;
 
   @Column({ type: 'boolean', default: false })
   profileConfirmed: boolean | null;
@@ -410,6 +413,7 @@ export const addNewUser = async (
       referralOrigin: data.referralOrigin,
       acceptedMarketing: data.acceptedMarketing,
       timezone: data.timezone || DEFAULT_TIMEZONE,
+      weekStart: DEFAULT_WEEK_START,
       github: data.github,
       twitter: data.twitter,
       experienceLevel: data.experienceLevel,

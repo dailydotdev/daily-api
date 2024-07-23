@@ -102,6 +102,7 @@ export enum UserVoteEntity {
 }
 
 export const DEFAULT_TIMEZONE = 'Etc/UTC';
+export const DEFAULT_WEEK_START = DayOfWeek.Sunday;
 
 export const maxFeedsPerUser = 10;
 

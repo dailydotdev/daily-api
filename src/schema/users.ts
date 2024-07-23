@@ -102,6 +102,7 @@ export interface GQLUpdateUserInput {
   acceptedMarketing?: boolean;
   notificationEmail?: boolean;
   timezone?: string;
+  weekStart?: number;
   infoConfirmed?: boolean;
   experienceLevel?: string;
 }
@@ -407,6 +408,10 @@ export const typeDefs = /* GraphQL */ `
     Preferred timezone of the user that affects data
     """
     timezone: String
+    """
+    Preferred day of the week to start the week
+    """
+    weekStart: Int
     """
     Current company of the user
     """
