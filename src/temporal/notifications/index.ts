@@ -1,13 +1,11 @@
-import { NativeConnection, Worker } from '@temporalio/worker';
+import { Worker } from '@temporalio/worker';
 import { createActivities } from './activities';
 import createOrGetConnection from '../../db';
 import { WorkflowQueue } from '../common';
-import { TEMPORAL_ADDRESS } from '../config';
+import { getTemporalWorkerConnection } from '../worker';
 
 export async function run() {
-  const connection = await NativeConnection.connect({
-    address: TEMPORAL_ADDRESS,
-  });
+  const connection = await getTemporalWorkerConnection();
   const dbCon = await createOrGetConnection();
   const worker = await Worker.create({
     connection,
