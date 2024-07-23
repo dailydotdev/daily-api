@@ -36,7 +36,7 @@ export const runReminderWorkflow = async (params: ReminderWorkflowParams) => {
       startDelay: delay,
     });
   } catch (error) {
-    logger.info('error running workflow', error);
+    logger.info(error, 'error running workflow');
   }
 };
 
@@ -53,6 +53,6 @@ export const cancelReminderWorkflow = async (
       await handle.terminate();
     }
   } catch (error) {
-    logger.info('error cancelling workflow', error);
+    logger.info(error, 'error cancelling workflow');
   }
 };
