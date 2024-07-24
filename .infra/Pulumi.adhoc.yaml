@@ -84,3 +84,6 @@ config:
     urlPrefix: http://api.local.com
   api:k8s:
     namespace: local
+  api:temporal:
+    chain: ''
+    key: ''
