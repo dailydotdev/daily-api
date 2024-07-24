@@ -48,6 +48,7 @@ import {
   githubSocialUrlMatch,
   linkedinSocialUrlMatch,
   mastodonSocialUrlMatch,
+  portfolioLimit,
   redditSocialUrlMatch,
   roadmapShSocialUrlMatch,
   socialUrlMatch,
@@ -2147,6 +2148,7 @@ describe('mutation updateUserProfile', () => {
   it('should validate github handle', () => {
     const valid = [
       'lee',
+      '@lee',
       'github.com/lee',
       'https://github.com/lee',
       'https://github.com/lee/',
@@ -2173,6 +2175,7 @@ describe('mutation updateUserProfile', () => {
   it('should validate twitter handle', () => {
     const valid = [
       'lee',
+      '@lee',
       'x.com/lee',
       'https://x.com/lee',
       'https://x.com/lee/',
@@ -2232,6 +2235,7 @@ describe('mutation updateUserProfile', () => {
   it('should validate threads handle', () => {
     const valid = [
       'lee',
+      '@lee',
       'threads.net/lee',
       'https://threads.net/@lee',
       'https://threads.net/@lee/',
@@ -2399,10 +2403,19 @@ describe('mutation updateUserProfile', () => {
     const valid = [
       'https://example.com',
       'https://example.com/',
+      'https://example.com?bla=1',
+      'https://example.com/portfolio?bla=1',
       'https://example.com/portfolio',
+      'https://example.com/portfolio/design',
+      'https://example.com/portfolio/design/',
       'https://example.com/portfolio?bla=1&da=2',
+      'https://example.com/portfolio/?bla=1&da=2',
     ];
     const invalid = [
+      'lee#',
+      '//example.com',
+      '/example.com',
+      'example.com/',
       'http://example.com',
       'example.com',
       'ftp://example.com/portfolio',
@@ -2416,6 +2429,21 @@ describe('mutation updateUserProfile', () => {
     invalid.forEach((item) => {
       expect(socialUrlMatch.test(item)).toBe(false);
     });
+  });
+
+  it('should throw validation error if portfolio is larger then limit', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: MUTATION,
+        variables: {
+          data: { portfolio: new Array(portfolioLimit).fill('a').join('') },
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
   });
 });
 

@@ -457,7 +457,7 @@ export const twitterSocialUrlMatch =
   /^(?:(?:https:\/\/)?(?:www\.)?(?:twitter|x)\.com\/)?@?(?<value>[\w-]{2,})\/?$/;
 
 export const githubSocialUrlMatch =
-  /^(?:(?:https:\/\/)?(?:www\.)?github\.com\/)?(?<value>[\w-]{2,})\/?$/;
+  /^(?:(?:https:\/\/)?(?:www\.)?github\.com\/)?@?(?<value>[\w-]{2,})\/?$/;
 
 export const threadsSocialUrlMatch =
   /^(?:(?:https:\/\/)?(?:www\.)?threads\.net\/)?@?(?<value>[\w-]{2,})\/?$/;
@@ -481,4 +481,6 @@ export const mastodonSocialUrlMatch =
   /^(?<value>https:\/\/(?:[a-z0-9-]+\.)*[a-z0-9-]+\.[a-z]{2,}\/@[\w-]{2,}\/?)$/;
 
 export const socialUrlMatch =
-  /^(?<value>https:\/\/(?:[a-z0-9-]{1,50}\.){0,5}[a-z0-9-]{1,50}\.[a-z]{2,24}\/?[\w\-?&=]{0,100})$/;
+  /^(?<value>https:\/\/(?:[a-z0-9-]{1,50}\.){0,5}[a-z0-9-]{1,50}\.[a-z]{2,24}\b([-a-zA-Z0-9@:%_\+.~#?&\/=]*))$/;
+
+export const portfolioLimit = 500;

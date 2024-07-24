@@ -34,6 +34,7 @@ import {
   githubSocialUrlMatch,
   linkedinSocialUrlMatch,
   mastodonSocialUrlMatch,
+  portfolioLimit,
   redditSocialUrlMatch,
   roadmapShSocialUrlMatch,
   socialUrlMatch,
@@ -42,6 +43,8 @@ import {
   twitterSocialUrlMatch,
   youtubeSocialUrlMatch,
 } from '../../common/users';
+import { logger } from '../../logger';
+import { safeJSONParse } from '../../common';
 
 @Entity()
 @Index('IDX_user_lowerusername_username', { synchronize: false })
@@ -451,6 +454,10 @@ export const validateUserUpdate = async (
     }
   });
 
+  if ((data.portfolio?.length || 0) >= portfolioLimit) {
+    throw new ValidationError('portfolio length is too long');
+  }
+
   const regexParams: ValidateRegex[] = [
     ['name', data.name, nameRegex, !user.name],
     ['github', data.github, githubSocialUrlMatch],
@@ -467,7 +474,22 @@ export const validateUserUpdate = async (
     ['portfolio', data.portfolio, socialUrlMatch],
   ];
 
-  const validatedData = validateRegex(regexParams, data);
+  try {
+    const validatedData = validateRegex(regexParams, data);
 
-  return validatedData;
+    return validatedData;
+  } catch (originalError) {
+    if (originalError instanceof ValidationError) {
+      const validationError = originalError as ValidationError;
+
+      logger.warn(
+        {
+          errors: safeJSONParse(validationError.message) || {},
+        },
+        'social handles validation error',
+      );
+    }
+
+    throw originalError;
+  }
 };
