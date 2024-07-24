@@ -18,3 +18,5 @@ export async function run() {
 
   await worker.run();
 }
+
+export default run;

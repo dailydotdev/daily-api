@@ -3,6 +3,7 @@ import { startMetrics } from '../src/telemetry/metrics';
 import { parseArgs } from 'node:util';
 import api from '../src';
 import background from '../src/background';
+import temporal from '../src/temporal/notifications';
 import cron from '../src/cron';
 import personalizedDigest from '../src/commands/personalizedDigest';
 
@@ -21,6 +22,11 @@ async function run(positionals: string[]) {
       tracer('background').start();
       startMetrics('background');
       await background();
+      break;
+    case 'temporal':
+      tracer('temporal').start();
+      startMetrics('temporal');
+      await temporal();
       break;
     case 'cron':
       tracer('cron').start();
