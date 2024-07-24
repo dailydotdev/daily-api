@@ -30,6 +30,7 @@ import { ioRedisPool } from './redis';
 import { loadFeatures } from './growthbook';
 import { runInRootSpan } from './telemetry';
 import { loggerConfig } from './logger';
+import { getTemporalClient } from './temporal/client';
 
 type Mutable<Type> = {
   -readonly [Key in keyof Type]: Type[Key];
@@ -74,9 +75,13 @@ export default async function app(
     app.log.info('starting termination');
     isTerminating = true;
     setTimeout(async () => {
+      const client = await getTemporalClient();
       await app.close();
       await connection.destroy();
       await ioRedisPool.end();
+      if (client) {
+        await client.connection.close();
+      }
       process.exit();
     }, GRACEFUL_DELAY);
   };

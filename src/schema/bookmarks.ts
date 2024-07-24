@@ -314,7 +314,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { id }: { id: string },
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      // TODO MI-436: check if the existing bookmark has a reminder and remove the task associated with it
       await ctx.con.getRepository(Bookmark).delete({
         postId: id,
         userId: ctx.userId,
@@ -358,19 +357,13 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     ): Promise<GQLEmptyResponse> => {
       await con.transaction(async (manager) => {
         const repo = manager.getRepository(Bookmark);
+        const bookmark = await repo.findOneBy({ userId, postId });
 
-        const result = await repo.update({ userId, postId }, { remindAt });
-
-        if (result.affected === 0) {
-          return;
+        if (!bookmark) {
+          return repo.insert({ userId, postId, remindAt });
         }
 
-        if (!remindAt) {
-          // TODO MI-436: delete the task from the queueing system
-          return;
-        }
-
-        // TODO MI-436: add the task to the queueing system
+        return repo.update({ userId, postId }, { remindAt });
       });
 
       return { _: null };

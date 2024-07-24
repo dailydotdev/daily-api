@@ -121,6 +121,7 @@ export const feedToFilters = async (
               .select('fs."sourceId"')
               .from(FeedSource, 'fs')
               .where('fs."feedId" = :feedId', { feedId })
+              .andWhere('fs.blocked = TRUE')
               .getQuery();
 
             return `s.id IN (${subQuery})`;

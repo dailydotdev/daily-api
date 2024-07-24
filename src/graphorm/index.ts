@@ -492,6 +492,21 @@ const obj = new GraphORM({
             .andWhere('ft.blocked = true'),
         transform: (value: string): string[] => value?.split(',') ?? [],
       },
+      includeSources: {
+        relation: {
+          isMany: true,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .innerJoin(
+                FeedSource,
+                'fs',
+                `"${childAlias}"."id" = fs."sourceId"`,
+              )
+              .where(`fs."feedId" = "${parentAlias}".id`)
+              .andWhere(`fs."blocked" = false`)
+              .orderBy(`"${childAlias}".name`),
+        },
+      },
       excludeSources: {
         relation: {
           isMany: true,
@@ -503,6 +518,7 @@ const obj = new GraphORM({
                 `"${childAlias}"."id" = fs."sourceId"`,
               )
               .where(`fs."feedId" = "${parentAlias}".id`)
+              .andWhere(`fs."blocked" = true`)
               .orderBy(`"${childAlias}".name`),
         },
       },

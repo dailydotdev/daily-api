@@ -141,6 +141,12 @@ const bgRequests: pulumi.Input<{ cpu: string; memory: string }> = {
   memory: '150Mi',
 };
 
+const temporalLimits: pulumi.Input<{ memory: string }> = { memory: '256Mi' };
+const temporalRequests: pulumi.Input<{ cpu: string; memory: string }> = {
+  cpu: '200m',
+  memory: '150Mi',
+};
+
 const initialDelaySeconds = 20;
 const readinessProbe: k8s.types.input.core.v1.Probe = {
   httpGet: { path: '/health', port: 'http' },
@@ -156,7 +162,9 @@ const livenessProbe: k8s.types.input.core.v1.Probe = {
   initialDelaySeconds,
 };
 
-const jwtVols = {
+const temporalCert = config.requireObject<Record<string, string>>('temporal');
+
+const vols = {
   volumes: [
     {
       name: 'cert',
@@ -164,8 +172,17 @@ const jwtVols = {
         secretName: 'cert-secret',
       },
     },
+    {
+      name: 'temporal',
+      secret: {
+        secretName: 'temporal-secret',
+      },
+    },
   ],
-  volumeMounts: [{ name: 'cert', mountPath: '/opt/app/cert' }],
+  volumeMounts: [
+    { name: 'cert', mountPath: '/opt/app/cert' },
+    { name: 'temporal', mountPath: '/opt/app/temporal' },
+  ],
 };
 const jwtEnv = [
   {
@@ -211,7 +228,7 @@ if (isAdhocEnv) {
         'prometheus.io/port': '9464',
       },
       createService: true,
-      ...jwtVols,
+      ...vols,
     },
     {
       nameSuffix: 'bg',
@@ -232,7 +249,7 @@ if (isAdhocEnv) {
         'prometheus.io/port': '9464',
       },
       env: [...jwtEnv],
-      ...jwtVols,
+      ...vols,
     },
   ];
 
@@ -256,7 +273,7 @@ if (isAdhocEnv) {
         'prometheus.io/port': '9464',
       },
       env: [...jwtEnv],
-      ...jwtVols,
+      ...vols,
     });
   }
 } else {
@@ -282,7 +299,7 @@ if (isAdhocEnv) {
         { targetPort: 3000, port: 80, name: 'http' },
         { targetPort: 9464, port: 9464, name: 'metrics' },
       ],
-      ...jwtVols,
+      ...vols,
     },
     {
       nameSuffix: 'ws',
@@ -301,7 +318,7 @@ if (isAdhocEnv) {
       disableLifecycle: true,
       // ports: [{ containerPort: 9464, name: 'metrics' }],
       // servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
-      ...jwtVols,
+      ...vols,
     },
     {
       nameSuffix: 'bg',
@@ -318,7 +335,20 @@ if (isAdhocEnv) {
       },
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
-      ...jwtVols,
+      ...vols,
+    },
+    {
+      nameSuffix: 'temporal',
+      env: [...jwtEnv],
+      args: ['dumb-init', 'node', 'bin/cli', 'temporal'],
+      minReplicas: 1,
+      maxReplicas: 3,
+      limits: temporalLimits,
+      requests: temporalRequests,
+      metric: { type: 'memory_cpu', cpu: 80, memory: 130 },
+      ports: [{ containerPort: 9464, name: 'metrics' }],
+      servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
+      ...vols,
     },
     {
       nameSuffix: 'private',
@@ -344,7 +374,7 @@ if (isAdhocEnv) {
       //   { targetPort: 3000, port: 80, name: 'http' },
       //   { targetPort: 9464, port: 9464, name: 'metrics' },
       // ],
-      ...jwtVols,
+      ...vols,
     },
   ];
 
@@ -362,7 +392,7 @@ if (isAdhocEnv) {
         labels: { app: name, subapp: 'personalized-digest' },
         targetAverageValue: 100,
       },
-      ...jwtVols,
+      ...vols,
       // ports: [{ containerPort: 9464, name: 'metrics' }],
       // servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
     });
@@ -419,6 +449,13 @@ const [apps] = deployApplicationSuite(
         data: {
           'public.pem': Buffer.from(cert.public).toString('base64'),
           'key.pem': Buffer.from(cert.key).toString('base64'),
+        },
+      },
+      {
+        name: 'temporal-secret',
+        data: {
+          'chain.pem': Buffer.from(temporalCert.chain).toString('base64'),
+          'key.pem': Buffer.from(temporalCert.key).toString('base64'),
         },
       },
     ],
