@@ -2145,13 +2145,18 @@ describe('mutation updateUserProfile', () => {
   });
 
   it('should validate github handle', () => {
-    const valid = ['lee', 'github.com/lee', 'https://github.com/lee'];
+    const valid = [
+      'lee',
+      'github.com/lee',
+      'https://github.com/lee',
+      'https://github.com/lee/',
+    ];
     const invalid = [
       'lee#',
       'http://github.com/lee',
       'http://github.com',
       'github.com',
-      'https://example.com/u/lee',
+      'https://example.com/lee',
       'https://github.com/lee?bla=1',
     ];
 
@@ -2229,6 +2234,7 @@ describe('mutation updateUserProfile', () => {
       'lee',
       'threads.net/lee',
       'https://threads.net/@lee',
+      'https://threads.net/@lee/',
       'https://threads.net/lee',
       'https://threads.net/lee/',
     ];
@@ -2236,8 +2242,9 @@ describe('mutation updateUserProfile', () => {
       'lee#',
       'http://threads.net/lee',
       'http://threads.net',
-      'threads.sh',
-      'https://example.com/u/lee',
+      'threads.net',
+      'https://example.com/@lee',
+      'https://example.com/lee',
       'https://threads.net/lee?bla=1',
     ];
 
@@ -2262,8 +2269,8 @@ describe('mutation updateUserProfile', () => {
       'lee#',
       'http://codepen.io/lee',
       'http://codepen.io',
-      'codepen.sh',
-      'https://example.com/u/lee',
+      'codepen.io',
+      'https://example.com/lee',
       'https://codepen.io/lee?bla=1',
     ];
 
@@ -2283,6 +2290,7 @@ describe('mutation updateUserProfile', () => {
       'reddit.com/u/lee',
       'reddit.com/user/lee',
       'https://reddit.com/u/lee',
+      'https://reddit.com/u/lee/',
       'https://reddit.com/user/lee',
       'https://reddit.com/user/lee/',
     ];
@@ -2290,7 +2298,7 @@ describe('mutation updateUserProfile', () => {
       'lee#',
       'http://reddit.com/lee',
       'http://reddit.com',
-      'reddit.sh',
+      'reddit.com',
       'https://example.com/u/lee',
       'https://reddit.com/user/lee?bla=1',
     ];
@@ -2309,6 +2317,7 @@ describe('mutation updateUserProfile', () => {
     const valid = [
       'stackoverflow.com/users/999999/lee',
       'https://stackoverflow.com/users/999999/lee',
+      'https://stackoverflow.com/users/999999/lee/',
     ];
     const invalid = [
       '99999/lee',
@@ -2316,8 +2325,9 @@ describe('mutation updateUserProfile', () => {
       'lee#',
       'http://stackoverflow.com/lee',
       'http://stackoverflow.com',
-      'stackoverflow.sh',
-      'https://example.com/u/lee',
+      'stackoverflow.com',
+      'https://example.com/users/lee',
+      'https://example.com/users/999999/lee',
       'kfdfsfs/lee',
       'https://stackoverflow.com/users/999999/lee?bla=1',
     ];
@@ -2335,13 +2345,18 @@ describe('mutation updateUserProfile', () => {
   });
 
   it('should validate linkedin handle', () => {
-    const valid = ['lee', 'linkedin.com/in/lee', 'https://linkedin.com/in/lee'];
+    const valid = [
+      'lee',
+      'linkedin.com/in/lee',
+      'https://linkedin.com/in/lee',
+      'https://linkedin.com/in/lee/',
+    ];
     const invalid = [
       'lee#',
       'http://linkedin.com/lee',
       'http://linkedin.com',
-      'linkedin.sh',
-      'https://example.com/u/lee',
+      'linkedin.com',
+      'https://example.com/in/lee',
       'https://linkedin.com/in/lee?bla=1',
     ];
 
@@ -2359,6 +2374,7 @@ describe('mutation updateUserProfile', () => {
     const valid = [
       'https://mastodon.social/@lee',
       'https://selfhostedmastodon.dev/@lee',
+      'https://selfhostedmastodon.dev/@lee/',
     ];
     const invalid = [
       'lee#',
