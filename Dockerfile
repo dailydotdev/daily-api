@@ -1,5 +1,7 @@
-FROM node:20-alpine
-RUN apk add g++ make python3 dumb-init
+FROM node:20-bookworm-slim
+RUN apt-get update \
+    && apt-get install -y ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /opt/app
 WORKDIR /opt/app
@@ -7,10 +9,6 @@ WORKDIR /opt/app
 COPY .npmrc .
 COPY package.json .
 COPY package-lock.json .
-
-RUN \
-  apk --no-cache add \
-  libc6-compat
 
 RUN npm i --only=prod
 
