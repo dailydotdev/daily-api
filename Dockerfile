@@ -1,6 +1,6 @@
 FROM node:20-bookworm-slim
 RUN apt-get update \
-    && apt-get install -y ca-certificates \
+    && apt-get install -y ca-certificates dumb-init \
     && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /opt/app
