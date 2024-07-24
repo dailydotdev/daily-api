@@ -42,7 +42,19 @@ import {
   UserPersonalizedDigestSendType,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
-import { getTimezonedStartOfISOWeek } from '../src/common';
+import {
+  codepenSocialUrlMatch,
+  getTimezonedStartOfISOWeek,
+  githubSocialUrlMatch,
+  linkedinSocialUrlMatch,
+  mastodonSocialUrlMatch,
+  redditSocialUrlMatch,
+  roadmapShSocialUrlMatch,
+  socialUrlMatch,
+  stackoverflowSocialUrlMatch,
+  threadsSocialUrlMatch,
+  twitterSocialUrlMatch,
+} from '../src/common';
 import { DataSource, In, IsNull } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import request from 'supertest';
@@ -104,7 +116,7 @@ beforeEach(async () => {
       threads: 'lee',
       codepen: 'lee',
       reddit: 'lee',
-      stackoverflow: '999O999/lee',
+      stackoverflow: '999999/lee',
       youtube: 'lee',
       linkedin: 'lee',
       mastodon: 'https://mastodon.social/@lee',
@@ -1882,7 +1894,7 @@ describe('mutation updateUserProfile', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { data: { stackoverflow: '999O999/lee' } },
+        variables: { data: { stackoverflow: '999999/lee' } },
       },
       'GRAPHQL_VALIDATION_FAILED',
     );
@@ -2130,6 +2142,264 @@ describe('mutation updateUserProfile', () => {
       },
       'GRAPHQL_VALIDATION_FAILED',
     );
+  });
+
+  it('should validate github handle', () => {
+    const valid = ['lee', 'github.com/lee', 'https://github.com/lee'];
+    const invalid = [
+      'lee#',
+      'http://github.com/lee',
+      'http://github.com',
+      'github.com',
+      'https://example.com/u/lee',
+      'https://github.com/lee?bla=1',
+    ];
+
+    valid.forEach((item) => {
+      expect(githubSocialUrlMatch.test(item)).toBe(true);
+      expect(item.match(githubSocialUrlMatch)?.groups?.value).toBe('lee');
+    });
+
+    invalid.forEach((item) => {
+      expect(githubSocialUrlMatch.test(item)).toBe(false);
+    });
+  });
+
+  it('should validate twitter handle', () => {
+    const valid = [
+      'lee',
+      'x.com/lee',
+      'https://x.com/lee',
+      'https://x.com/lee/',
+      'twitter.com/lee',
+      'https://twitter.com/lee',
+      'https://twitter.com/lee/',
+    ];
+    const invalid = [
+      'lee#',
+      'http://twitter.com/lee',
+      'http://x.com/lee',
+      'http://twitter.com',
+      'http://x.com',
+      'twitter.com',
+      'x.com',
+      'https://example.com/u/lee',
+      'https://twitter.com/lee?bla=1',
+      'https://x.com/lee?bla=1',
+    ];
+
+    valid.forEach((item) => {
+      expect(twitterSocialUrlMatch.test(item)).toBe(true);
+      expect(item.match(twitterSocialUrlMatch)?.groups?.value).toBe('lee');
+    });
+
+    invalid.forEach((item) => {
+      expect(twitterSocialUrlMatch.test(item)).toBe(false);
+    });
+  });
+
+  it('should validate roadmap handle', () => {
+    const valid = [
+      'lee',
+      'roadmap.sh/u/lee',
+      'https://roadmap.sh/u/lee',
+      'https://roadmap.sh/u/lee/',
+    ];
+    const invalid = [
+      'lee#',
+      'http://roadmap.sh/lee',
+      'http://roadmap.sh',
+      'roadmap.sh',
+      'https://example.com/u/lee',
+      'https://roadmap.sh/lee?bla=1',
+    ];
+
+    valid.forEach((item) => {
+      expect(roadmapShSocialUrlMatch.test(item)).toBe(true);
+      expect(item.match(roadmapShSocialUrlMatch)?.groups?.value).toBe('lee');
+    });
+
+    invalid.forEach((item) => {
+      expect(roadmapShSocialUrlMatch.test(item)).toBe(false);
+    });
+  });
+
+  it('should validate threads handle', () => {
+    const valid = [
+      'lee',
+      'threads.net/lee',
+      'https://threads.net/@lee',
+      'https://threads.net/lee',
+      'https://threads.net/lee/',
+    ];
+    const invalid = [
+      'lee#',
+      'http://threads.net/lee',
+      'http://threads.net',
+      'threads.sh',
+      'https://example.com/u/lee',
+      'https://threads.net/lee?bla=1',
+    ];
+
+    valid.forEach((item) => {
+      expect(threadsSocialUrlMatch.test(item)).toBe(true);
+      expect(item.match(threadsSocialUrlMatch)?.groups?.value).toBe('lee');
+    });
+
+    invalid.forEach((item) => {
+      expect(threadsSocialUrlMatch.test(item)).toBe(false);
+    });
+  });
+
+  it('should validate codepen handle', () => {
+    const valid = [
+      'lee',
+      'codepen.io/lee',
+      'https://codepen.io/lee',
+      'https://codepen.io/lee/',
+    ];
+    const invalid = [
+      'lee#',
+      'http://codepen.io/lee',
+      'http://codepen.io',
+      'codepen.sh',
+      'https://example.com/u/lee',
+      'https://codepen.io/lee?bla=1',
+    ];
+
+    valid.forEach((item) => {
+      expect(codepenSocialUrlMatch.test(item)).toBe(true);
+      expect(item.match(codepenSocialUrlMatch)?.groups?.value).toBe('lee');
+    });
+
+    invalid.forEach((item) => {
+      expect(codepenSocialUrlMatch.test(item)).toBe(false);
+    });
+  });
+
+  it('should validate reddit handle', () => {
+    const valid = [
+      'lee',
+      'reddit.com/u/lee',
+      'reddit.com/user/lee',
+      'https://reddit.com/u/lee',
+      'https://reddit.com/user/lee',
+      'https://reddit.com/user/lee/',
+    ];
+    const invalid = [
+      'lee#',
+      'http://reddit.com/lee',
+      'http://reddit.com',
+      'reddit.sh',
+      'https://example.com/u/lee',
+      'https://reddit.com/user/lee?bla=1',
+    ];
+
+    valid.forEach((item) => {
+      expect(redditSocialUrlMatch.test(item)).toBe(true);
+      expect(item.match(redditSocialUrlMatch)?.groups?.value).toBe('lee');
+    });
+
+    invalid.forEach((item) => {
+      expect(redditSocialUrlMatch.test(item)).toBe(false);
+    });
+  });
+
+  it('should validate stackoverflow handle', () => {
+    const valid = [
+      'stackoverflow.com/users/999999/lee',
+      'https://stackoverflow.com/users/999999/lee',
+    ];
+    const invalid = [
+      '99999/lee',
+      'lee',
+      'lee#',
+      'http://stackoverflow.com/lee',
+      'http://stackoverflow.com',
+      'stackoverflow.sh',
+      'https://example.com/u/lee',
+      'kfdfsfs/lee',
+      'https://stackoverflow.com/users/999999/lee?bla=1',
+    ];
+
+    valid.forEach((item) => {
+      expect(stackoverflowSocialUrlMatch.test(item)).toBe(true);
+      expect(item.match(stackoverflowSocialUrlMatch)?.groups?.value).toBe(
+        '999999/lee',
+      );
+    });
+
+    invalid.forEach((item) => {
+      expect(stackoverflowSocialUrlMatch.test(item)).toBe(false);
+    });
+  });
+
+  it('should validate linkedin handle', () => {
+    const valid = ['lee', 'linkedin.com/in/lee', 'https://linkedin.com/in/lee'];
+    const invalid = [
+      'lee#',
+      'http://linkedin.com/lee',
+      'http://linkedin.com',
+      'linkedin.sh',
+      'https://example.com/u/lee',
+      'https://linkedin.com/in/lee?bla=1',
+    ];
+
+    valid.forEach((item) => {
+      expect(linkedinSocialUrlMatch.test(item)).toBe(true);
+      expect(item.match(linkedinSocialUrlMatch)?.groups?.value).toBe('lee');
+    });
+
+    invalid.forEach((item) => {
+      expect(linkedinSocialUrlMatch.test(item)).toBe(false);
+    });
+  });
+
+  it('should validate mastodon handle', () => {
+    const valid = [
+      'https://mastodon.social/@lee',
+      'https://selfhostedmastodon.dev/@lee',
+    ];
+    const invalid = [
+      'lee#',
+      'http://mastodon.social/lee',
+      'http://mastodon.social',
+      'mastodon.sh',
+      'https://mastodon.social/@lee?bla=1',
+      'mastodon.social/@lee',
+    ];
+
+    valid.forEach((item) => {
+      expect(mastodonSocialUrlMatch.test(item)).toBe(true);
+      expect(item.match(mastodonSocialUrlMatch)?.groups?.value).toBe(item);
+    });
+
+    invalid.forEach((item) => {
+      expect(mastodonSocialUrlMatch.test(item)).toBe(false);
+    });
+  });
+
+  it('should validate portfolio link', () => {
+    const valid = [
+      'https://example.com',
+      'https://example.com/',
+      'https://example.com/portfolio',
+      'https://example.com/portfolio?bla=1&da=2',
+    ];
+    const invalid = [
+      'http://example.com',
+      'example.com',
+      'ftp://example.com/portfolio',
+    ];
+
+    valid.forEach((item) => {
+      expect(socialUrlMatch.test(item)).toBe(true);
+      expect(item.match(socialUrlMatch)?.groups?.value).toBe(item);
+    });
+
+    invalid.forEach((item) => {
+      expect(socialUrlMatch.test(item)).toBe(false);
+    });
   });
 });
 

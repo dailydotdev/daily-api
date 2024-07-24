@@ -31,7 +31,7 @@ import { validateValidTimeZone } from '../../common/timezone';
 import { counters } from '../../telemetry';
 import {
   codepenSocialUrlMatch,
-  githubSocialUrl,
+  githubSocialUrlMatch,
   linkedinSocialUrlMatch,
   mastodonSocialUrlMatch,
   redditSocialUrlMatch,
@@ -453,7 +453,7 @@ export const validateUserUpdate = async (
 
   const regexParams: ValidateRegex[] = [
     ['name', data.name, nameRegex, !user.name],
-    ['github', data.github, githubSocialUrl],
+    ['github', data.github, githubSocialUrlMatch],
     ['twitter', data.twitter, twitterSocialUrlMatch],
     ['hashnode', data.hashnode, socialUrlMatch],
     ['roadmap', data.roadmap, roadmapShSocialUrlMatch],

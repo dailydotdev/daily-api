@@ -456,7 +456,7 @@ export const roadmapShSocialUrlMatch =
 export const twitterSocialUrlMatch =
   /^(?:(?:https:\/\/)?(?:www\.)?(?:twitter|x)\.com\/)?@?(?<value>[\w-]{2,})\/?$/;
 
-export const githubSocialUrl =
+export const githubSocialUrlMatch =
   /^(?:(?:https:\/\/)?(?:www\.)?github\.com\/)?(?<value>[\w-]{2,})\/?$/;
 
 export const threadsSocialUrlMatch =
@@ -466,7 +466,7 @@ export const codepenSocialUrlMatch =
   /^(?:(?:https:\/\/)?(?:www\.)?codepen\.io\/)?(?<value>[\w-]{2,})\/?$/;
 
 export const redditSocialUrlMatch =
-  /^(?:(?:https:\/\/)?(?:www\.)?reddit\.com\/user\/)?(?<value>[\w-]{2,})\/?$/;
+  /^(?:(?:https:\/\/)?(?:www\.)?reddit\.com\/(?:u|user)\/)?(?<value>[\w-]{2,})\/?$/;
 
 export const stackoverflowSocialUrlMatch =
   /^(?:https:\/\/)?(?:www\.)?stackoverflow\.com\/users\/(?<value>\d{2,}\/?[\w-]{2,}?)\/?$/;
