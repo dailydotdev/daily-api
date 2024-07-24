@@ -1186,6 +1186,12 @@ describe('query feedSettings', () => {
       userId
       includeTags
       blockedTags
+      includeSources {
+        id
+        name
+        image
+        public
+      }
       excludeSources {
         id
         name
@@ -1211,6 +1217,12 @@ describe('query feedSettings', () => {
       userId
       includeTags
       blockedTags
+      includeSources {
+        id
+        name
+        image
+        public
+      }
       excludeSources {
         id
         name
@@ -1243,6 +1255,7 @@ describe('query feedSettings', () => {
         feedId: 'cf2',
         filters: {
           includeTags: ['javascript'],
+          includeSources: ['a'],
           excludeSources: ['b'],
           blockedTags: ['golang'],
         },
@@ -1252,6 +1265,14 @@ describe('query feedSettings', () => {
     const res = await client.query(QUERY, { variables: { feedId: 'cf2' } });
     expect(res.data.feedSettings).toMatchObject({
       includeTags: ['javascript'],
+      includeSources: [
+        {
+          id: 'a',
+          image: 'http://image.com/a',
+          name: 'A',
+          public: true,
+        },
+      ],
       excludeSources: [
         {
           id: 'b',
@@ -1260,6 +1281,65 @@ describe('query feedSettings', () => {
           public: true,
         },
       ],
+      blockedTags: ['golang'],
+    });
+  });
+
+  it('should remove blocked source from feed settings if followed', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await saveFixtures(con, Feed, [{ id: 'cf2', userId: '1' }]);
+    // add blocked source
+    await client.mutate(ADD_FILTERS_MUTATION, {
+      variables: {
+        feedId: 'cf2',
+        filters: {
+          includeTags: ['javascript'],
+          excludeSources: ['b'],
+          blockedTags: ['golang'],
+        },
+      },
+    });
+
+    // blocked should be present
+    const res = await client.query(QUERY, { variables: { feedId: 'cf2' } });
+    expect(res.data.feedSettings).toMatchObject({
+      includeTags: ['javascript'],
+      includeSources: [],
+      excludeSources: [
+        {
+          id: 'b',
+          image: 'http://image.com/b',
+          name: 'B',
+          public: true,
+        },
+      ],
+      blockedTags: ['golang'],
+    });
+
+    // follow the blocked source
+    await client.mutate(ADD_FILTERS_MUTATION, {
+      variables: {
+        feedId: 'cf2',
+        filters: {
+          includeSources: ['b'],
+        },
+      },
+    });
+
+    // blocked should be removed
+    const res2 = await client.query(QUERY, { variables: { feedId: 'cf2' } });
+    expect(res2.data.feedSettings).toMatchObject({
+      includeTags: ['javascript'],
+      includeSources: [
+        {
+          id: 'b',
+          image: 'http://image.com/b',
+          name: 'B',
+          public: true,
+        },
+      ],
+      excludeSources: [],
       blockedTags: ['golang'],
     });
   });
@@ -2038,6 +2118,12 @@ describe('mutation removeFiltersFromFeed', () => {
       userId
       includeTags
       blockedTags
+      includeSources {
+        id
+        name
+        image
+        public
+      }
       excludeSources {
         id
         name
@@ -2057,6 +2143,12 @@ describe('mutation removeFiltersFromFeed', () => {
       userId
       includeTags
       blockedTags
+      includeSources {
+        id
+        name
+        image
+        public
+      }
       excludeSources {
         id
         name
@@ -2104,6 +2196,7 @@ describe('mutation removeFiltersFromFeed', () => {
         feedId: 'cf2',
         filters: {
           includeTags: ['webdev', 'javascript'],
+          includeSources: ['includedSource'],
           excludeSources: ['a', 'b'],
           blockedTags: ['golang'],
         },
@@ -2115,6 +2208,7 @@ describe('mutation removeFiltersFromFeed', () => {
         feedId: 'cf2',
         filters: {
           includeTags: ['webdev'],
+          includeSources: ['includedSource', 'b'],
           excludeSources: ['a'],
           blockedTags: ['golang'],
         },
@@ -2122,6 +2216,7 @@ describe('mutation removeFiltersFromFeed', () => {
     });
     expect(res.data.removeFiltersFromFeed).toMatchObject({
       includeTags: ['javascript'],
+      includeSources: [],
       excludeSources: [
         {
           id: 'b',
@@ -2160,8 +2255,8 @@ describe('function feedToFilters', () => {
     loggedUser = '1';
     await saveAdvancedSettingsFiltersFixtures();
     await con.getRepository(FeedSource).save([
-      { feedId: '1', sourceId: 'excludedSource' },
-      { feedId: '1', sourceId: 'settingsCombinationSource' },
+      { feedId: '1', sourceId: 'excludedSource', blocked: true },
+      { feedId: '1', sourceId: 'settingsCombinationSource', blocked: true },
     ]);
     const filters = await feedToFilters(con, '1', '1');
     expect(filters.excludeSources).toEqual([

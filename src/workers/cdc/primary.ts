@@ -7,6 +7,7 @@ import {
   UserMarketingCta,
   SquadPublicRequest,
   UserStreak,
+  Bookmark,
 } from '../../entity';
 import { messageToJson, Worker } from '../worker';
 import {
@@ -89,6 +90,10 @@ import { UserComment } from '../../entity/user/UserComment';
 import { StorageKey, StorageTopic, generateStorageKey } from '../../config';
 import { deleteRedisKey } from '../../redis';
 import { counters } from '../../telemetry';
+import {
+  cancelReminderWorkflow,
+  runReminderWorkflow,
+} from '../../temporal/notifications/utils';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -801,6 +806,26 @@ const onUserStreakChange = async (
   }
 };
 
+const onBookmarkChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<Bookmark>,
+) => {
+  const getParams = (key: 'before' | 'after') => ({
+    userId: data.payload[key].userId,
+    postId: data.payload[key].postId,
+    remindAt: data.payload[key].remindAt,
+  });
+
+  if (data.payload.before?.remindAt) {
+    cancelReminderWorkflow(getParams('before'));
+  }
+
+  if (data.payload.after?.remindAt) {
+    runReminderWorkflow(getParams('after'));
+  }
+};
+
 const worker: Worker = {
   subscription: 'api-cdc',
   maxMessages: parseInt(process.env.CDC_WORKER_MAX_MESSAGES) || null,
@@ -892,6 +917,9 @@ const worker: Worker = {
           break;
         case getTableName(con, UserStreak):
           await onUserStreakChange(con, logger, data);
+          break;
+        case getTableName(con, Bookmark):
+          await onBookmarkChange(con, logger, data);
           break;
       }
     } catch (err) {
