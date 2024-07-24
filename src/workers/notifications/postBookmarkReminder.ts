@@ -2,6 +2,10 @@ import { Bookmark } from '../../entity';
 import { NotificationType } from '../../notifications/common';
 import { generateTypedNotificationWorker } from './worker';
 import { buildPostContext } from './utils';
+import {
+  NotificationBookmarkContext,
+  NotificationPostContext,
+} from '../../notifications';
 
 const worker = generateTypedNotificationWorker<'api.v1.post-bookmark-reminder'>(
   {
@@ -21,12 +25,13 @@ const worker = generateTypedNotificationWorker<'api.v1.post-bookmark-reminder'>(
         return;
       }
 
-      return [
-        {
-          type: NotificationType.PostBookmarkReminder,
-          ctx: { ...postCtx, userIds: [userId] },
-        },
-      ];
+      const ctx: NotificationPostContext & NotificationBookmarkContext = {
+        ...postCtx,
+        bookmark,
+        userIds: [userId],
+      };
+
+      return [{ type: NotificationType.PostBookmarkReminder, ctx }];
     },
   },
 );
