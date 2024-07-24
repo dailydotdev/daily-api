@@ -26,6 +26,7 @@ import { usersFixture } from '../fixture/user';
 import { postsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture/source';
 import {
+  NotificationBookmarkContext,
   NotificationCommentContext,
   NotificationCommenterContext,
   NotificationDoneByContext,
@@ -581,19 +582,24 @@ describe('post bookmark reminder', () => {
     const worker = await import(
       '../../src/workers/notifications/postBookmarkReminder'
     );
+    const remindAt = new Date();
     await con
       .getRepository(Bookmark)
-      .save({ userId: '1', postId: 'p1', remindAt: new Date() });
+      .save({ userId: '1', postId: 'p1', remindAt });
     const actual = await invokeNotificationWorker(worker.default, {
       userId: '1',
       postId: 'p1',
     });
     expect(actual.length).toEqual(1);
     const bundle = actual[0];
-    const ctx = bundle.ctx as NotificationPostContext;
+    const ctx = bundle.ctx as NotificationPostContext &
+      NotificationBookmarkContext;
     expect(bundle.type).toEqual('post_bookmark_reminder');
     expect(ctx.post.id).toEqual('p1');
     expect(ctx.source.id).toEqual('a');
+    expect(ctx.bookmark.userId).toEqual('1');
+    expect(ctx.bookmark.postId).toEqual('p1');
+    expect(ctx.bookmark.remindAt).toEqual(remindAt);
   });
 
   it('should not add notification if the reminder has been removed', async () => {

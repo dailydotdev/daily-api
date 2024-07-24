@@ -9,6 +9,7 @@ import {
 } from '../common';
 import {
   NotificationBaseContext,
+  NotificationBookmarkContext,
   NotificationCollectionContext,
   NotificationCommentContext,
   NotificationCommenterContext,
@@ -131,12 +132,16 @@ export const generateNotificationMap: Record<
       .descriptionComment(ctx.comment)
       .targetPost(ctx.post, ctx.comment)
       .avatarManyUsers([ctx.commenter]),
-  post_bookmark_reminder: (builder, ctx: NotificationPostContext) =>
+  post_bookmark_reminder: (
+    builder,
+    ctx: NotificationPostContext & NotificationBookmarkContext,
+  ) =>
     builder
       .icon(NotificationIcon.BookmarkReminder)
       .referencePost(ctx.post)
       .targetPost(ctx.post)
       .avatarSource(ctx.source)
+      .uniqueKey(ctx.bookmark.remindAt.toString())
       .objectPost(ctx.post, ctx.source, ctx.sharedPost),
   article_upvote_milestone: (
     builder,

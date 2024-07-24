@@ -1,4 +1,5 @@
 import {
+  Bookmark,
   Comment,
   NotificationAttachmentV2,
   NotificationAvatarV2,
@@ -41,6 +42,10 @@ export type NotificationPostContext<T extends Post = Post> =
 
 export type NotificationCommentContext = NotificationPostContext & {
   comment: Reference<Comment>;
+};
+
+export type NotificationBookmarkContext = NotificationBaseContext & {
+  bookmark: Reference<Bookmark>;
 };
 
 export type NotificationCommenterContext = NotificationCommentContext & {
