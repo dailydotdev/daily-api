@@ -1,6 +1,7 @@
 import {
   generateNotificationV2,
   NotificationBaseContext,
+  NotificationBookmarkContext,
   NotificationBundleV2,
   NotificationCommentContext,
   NotificationCommenterContext,
@@ -16,6 +17,7 @@ import {
 } from '../../src/notifications';
 import { postsFixture } from '../fixture/post';
 import {
+  Bookmark,
   Comment,
   FreeformPost,
   NotificationAttachmentType,
@@ -255,8 +257,15 @@ describe('generateNotification', () => {
   it('should generate post_bookmark_reminder notification', () => {
     const type = NotificationType.PostBookmarkReminder;
     const post = postsFixture[0] as Reference<Post>;
-    const ctx: NotificationPostContext = {
+    const remindAt = new Date();
+    const bookmark = {
+      userId,
+      postId: post.id,
+      remindAt,
+    } as Reference<Bookmark>;
+    const ctx: NotificationPostContext & NotificationBookmarkContext = {
       post,
+      bookmark,
       userIds: [userId],
       source: sourcesFixture[0] as Reference<Source>,
     };
@@ -273,6 +282,7 @@ describe('generateNotification', () => {
     );
     expect(actual.notification.title).toEqual(title);
     expect(actual.notification.description).toBeUndefined();
+    expect(actual.notification.uniqueKey).toEqual(remindAt.toString());
     expect(actual.avatars).toEqual([
       {
         image: 'http://image.com/a',
