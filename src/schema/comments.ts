@@ -36,6 +36,7 @@ import { ensureSourcePermissions, SourcePermissions } from './sources';
 import { generateShortId } from '../ids';
 import { CommentReport } from '../entity/CommentReport';
 import { UserVote } from '../types';
+import { isInSubnet, isIP } from 'is-in-subnet';
 
 export interface GQLComment {
   id: string;
@@ -537,19 +538,17 @@ export const reportCommentReasons = new Map([
   ['OTHER', 'Other'],
 ]);
 
-const BLOCKED_IPS = [
-  '105.120.129.190',
-  '105.116.0.156',
-  '105.120.128.195',
-  '105.113.9.12',
-  '105.120.128.195',
-];
+const blockedIPs =
+  process.env.VORDR_IPS?.split(',').filter((ip) => isIP(ip)) || [];
 
 const validateComment = (ctx: Context, content: string): void => {
   if (!content.trim().length) {
     throw new ValidationError('Content cannot be empty!');
   }
-  if (content.includes('groza3377') || BLOCKED_IPS.includes(ctx.req.ip)) {
+  if (
+    content.includes('groza3377') ||
+    (isIP(ctx.req.ip) && isInSubnet(ctx.req.ip, blockedIPs))
+  ) {
     throw new ValidationError('Invalid content');
   }
 };
