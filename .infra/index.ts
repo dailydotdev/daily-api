@@ -141,6 +141,12 @@ const bgRequests: pulumi.Input<{ cpu: string; memory: string }> = {
   memory: '150Mi',
 };
 
+const temporalLimits: pulumi.Input<{ memory: string }> = { memory: '256Mi' };
+const temporalRequests: pulumi.Input<{ cpu: string; memory: string }> = {
+  cpu: '200m',
+  memory: '150Mi',
+};
+
 const initialDelaySeconds = 20;
 const readinessProbe: k8s.types.input.core.v1.Probe = {
   httpGet: { path: '/health', port: 'http' },
@@ -336,9 +342,9 @@ if (isAdhocEnv) {
       env: [...jwtEnv],
       args: ['dumb-init', 'node', 'bin/cli', 'temporal'],
       minReplicas: 1,
-      maxReplicas: 10,
-      limits: bgLimits,
-      requests: bgRequests,
+      maxReplicas: 3,
+      limits: temporalLimits,
+      requests: temporalRequests,
       metric: { type: 'memory_cpu', cpu: 80, memory: 130 },
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],

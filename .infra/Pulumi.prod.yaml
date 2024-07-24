@@ -129,8 +129,7 @@ config:
     snotraOrigin:
       secure: AAABAM3Qu52eMoaSlPREVb2PqCspNM/PQR5VeM6vguyRKF1E0h9nTwRwcNm7k3FFRfemxOLKmVyJiqfYMg==
     submitArticleThreshold: 250
-    temporalAddress:
-      secure: AAABANY3voDF/1tAO/USmEsgNxHG7RnFbmdMJWE1zHalm5d+aoR3k4FmKv3zZ2lalCR3i6sKuYdH+MHHY3W7fKNU0sttfOQ=
+    temporalAddress: api.84ed5.tmprl.cloud:7233
     temporalClientCertPath: /opt/app/temporal/chain.pem
     temporalClientKeyPath: /opt/app/temporal/key.pem
     temporalNamespace:
