@@ -205,6 +205,7 @@ Object {
       },
     ],
     "id": "1",
+    "includeSources": Array [],
     "includeTags": Array [
       "html",
     ],
@@ -2469,6 +2470,7 @@ Object {
       },
     ],
     "id": "1",
+    "includeSources": Array [],
     "includeTags": Array [
       "html",
       "javascript",

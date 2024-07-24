@@ -1,4 +1,4 @@
-import { Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
+import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import { Feed } from './Feed';
 import { Source } from './Source';
 
@@ -11,6 +11,9 @@ export class FeedSource {
   @PrimaryColumn({ type: 'text' })
   @Index()
   sourceId: string;
+
+  @Column({ default: true })
+  blocked: boolean;
 
   @ManyToOne(() => Feed, {
     lazy: true,
