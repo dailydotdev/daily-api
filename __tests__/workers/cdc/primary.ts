@@ -3433,4 +3433,24 @@ describe('bookmark change', () => {
       });
     });
   });
+
+  it('should have a precision of 3 for the timestamp', async () => {
+    const repo = con.getRepository(Bookmark);
+    await saveFixtures(con, User, usersFixture);
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, Post, postsFixture);
+    const date = new Date(2024, 5, 23, 2, 34, 12);
+    await repo.save({
+      postId: 'p1',
+      userId: '1',
+      remindAt: date,
+    });
+
+    const bookmark = await repo
+      .createQueryBuilder()
+      .select('CAST(EXTRACT(epoch from "remindAt") as varchar)', 'remindAt')
+      .getRawOne();
+
+    expect(bookmark.remindAt).toBe(date.getTime());
+  });
 });
