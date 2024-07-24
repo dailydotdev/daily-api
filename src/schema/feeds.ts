@@ -1239,11 +1239,7 @@ const legacySimilarPostsResolver = randomPostsResolver(
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
     anonymousFeed: (source, args: AnonymousFeedArgs, ctx: Context, info) => {
-      if (
-        args.version >= 2 &&
-        args.ranking === Ranking.POPULARITY &&
-        ctx.userId
-      ) {
+      if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
         return feedResolverCursor(
           source,
           {

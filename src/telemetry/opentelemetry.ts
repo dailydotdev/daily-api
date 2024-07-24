@@ -6,7 +6,6 @@ import { IORedisInstrumentation } from '@opentelemetry/instrumentation-ioredis';
 import { PgInstrumentation } from '@opentelemetry/instrumentation-pg';
 import { FastifyInstrumentation } from '@opentelemetry/instrumentation-fastify';
 import { GraphQLInstrumentation } from '@opentelemetry/instrumentation-graphql';
-import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
 import { GrpcInstrumentation } from '@opentelemetry/instrumentation-grpc';
 import { TypeormInstrumentation } from 'opentelemetry-instrumentation-typeorm';
 
@@ -76,13 +75,6 @@ const instrumentations = [
   new GraphQLInstrumentation({
     mergeItems: true,
     ignoreTrivialResolveSpans: true,
-  }),
-  new PinoInstrumentation({
-    logKeys: {
-      traceId: 'trace',
-      spanId: 'spanId',
-      traceFlags: 'traceSampled',
-    },
   }),
   // Did not really get anything from IORedis
   new IORedisInstrumentation(),
