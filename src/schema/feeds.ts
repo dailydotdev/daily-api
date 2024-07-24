@@ -116,6 +116,7 @@ export const typeDefs = /* GraphQL */ `
     userId: String
     includeTags: [String]
     blockedTags: [String]
+    includeSources: [Source]
     excludeSources: [Source]
     advancedSettings: [FeedAdvancedSettings]
   }
@@ -880,6 +881,7 @@ export interface GQLFeedSettings {
   userId: string;
   includeTags: string[];
   blockedTags: string[];
+  includeSources: GQLSource[];
   excludeSources: GQLSource[];
   advancedSettings: GQLFeedAdvancedSettings[];
 }
@@ -1090,6 +1092,7 @@ const getDefaultFeedSettings = async ({
   return {
     id: ctx.userId,
     userId: ctx.userId,
+    includeSources: [],
     excludeSources: [],
     includeTags: [],
     blockedTags: [],
@@ -1200,29 +1203,29 @@ const legacySimilarPostsResolver = randomPostsResolver(
     let similarPostsQuery;
     if (tags?.length > 0) {
       similarPostsQuery = `select post.id
-                               from post
-                                      inner join (select count(*)           as similar,
-                                                         min(k.occurrences) as occurrences,
-                                                         pk."postId"
-                                                  from post_keyword pk
-                                                         inner join keyword k on pk.keyword = k.value
-                                                  where k.value in (:...tags)
-                                                    and k.status = 'allow'
-                                                  group by pk."postId") k
-                                                 on k."postId" = post.id
-                               where post.id != :postId
+                           from post
+                                  inner join (select count(*)           as similar,
+                                                     min(k.occurrences) as occurrences,
+                                                     pk."postId"
+                                              from post_keyword pk
+                                                     inner join keyword k on pk.keyword = k.value
+                                              where k.value in (:...tags)
+                                                and k.status = 'allow'
+                                              group by pk."postId") k
+                                             on k."postId" = post.id
+                           where post.id != :postId
                                  and post."createdAt" >= now() - interval '6 month'
                                  and post.visible = true and post.deleted = false
-                               order by (pow(post.upvotes, k.similar) * 1000 /
-                                 k.occurrences) desc
-                                 limit 25`;
+                           order by (pow(post.upvotes, k.similar) * 1000 /
+                             k.occurrences) desc
+                             limit 25`;
     } else {
       similarPostsQuery = `select post.id
-                               from post
-                               where post.id != :postId
+                           from post
+                           where post.id != :postId
                                  and post."createdAt" >= now() - interval '6 month'
-                               order by post.upvotes desc
-                                 limit 25`;
+                           order by post.upvotes desc
+                             limit 25`;
     }
     return builder.andWhere(`${alias}."id" in (${similarPostsQuery})`, {
       postId: post,
@@ -1457,7 +1460,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       info,
     ): Promise<GQLFeedSettings> => {
       const feedId = args.feedId || ctx.userId;
-
       return getFeedSettings({ ctx, info, feedId });
     },
     advancedSettings: async (
@@ -1777,17 +1779,36 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           userId: ctx.userId,
           id: feedId,
         });
+
+        if (filters?.includeSources?.length) {
+          const [query, params] = ctx.con
+            .createQueryBuilder()
+            .select('id', 'sourceId')
+            .addSelect(`'${feedId}'`, 'feedId')
+            .addSelect('FALSE', 'blocked')
+            .from(Source, 'source')
+            .where('source.id IN (:...ids)', { ids: filters.includeSources })
+            .getQueryAndParameters();
+          await manager.query(
+            `insert into feed_source("sourceId", "feedId", "blocked") ${query} on CONFLICT ("sourceId", "feedId")
+            do
+            UPDATE SET BLOCKED = FALSE`,
+            params,
+          );
+        }
         if (filters?.excludeSources?.length) {
           const [query, params] = ctx.con
             .createQueryBuilder()
             .select('id', 'sourceId')
             .addSelect(`'${feedId}'`, 'feedId')
+            .addSelect('TRUE', 'blocked')
             .from(Source, 'source')
             .where('source.id IN (:...ids)', { ids: filters.excludeSources })
             .getQueryAndParameters();
           await manager.query(
-            `insert into feed_source("sourceId", "feedId") ${query} on conflict
-            do nothing`,
+            `insert into feed_source("sourceId", "feedId", "blocked") ${query} on CONFLICT ("sourceId", "feedId")
+            do
+            UPDATE SET BLOCKED = TRUE`,
             params,
           );
         }
@@ -1834,11 +1855,29 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         await ctx
           .getRepository(Feed)
           .findOneByOrFail({ id: feedId, userId: ctx.userId });
+        if (filters?.includeSources?.length) {
+          await manager
+            .getRepository(FeedSource)
+            .createQueryBuilder()
+            .delete()
+            .where('feedId = :feedId AND sourceId IN (:...sourceIds)', {
+              feedId,
+              sourceIds: filters.includeSources,
+            })
+            .andWhere('blocked = false')
+            .execute();
+        }
         if (filters?.excludeSources?.length) {
-          await manager.getRepository(FeedSource).delete({
-            feedId,
-            sourceId: In(filters.excludeSources),
-          });
+          await manager
+            .getRepository(FeedSource)
+            .createQueryBuilder()
+            .delete()
+            .where('feedId = :feedId AND sourceId IN (:...sourceIds)', {
+              feedId,
+              sourceIds: filters.excludeSources,
+            })
+            .andWhere('blocked = true')
+            .execute();
         }
         if (filters?.includeTags?.length) {
           await manager.getRepository(FeedTag).delete({
