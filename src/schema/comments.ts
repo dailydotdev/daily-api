@@ -546,7 +546,8 @@ const validateComment = (ctx: Context, content: string): void => {
     throw new ValidationError('Content cannot be empty!');
   }
   if (
-    content.includes('groza3377') ||
+    content.toLowerCase().includes('groza3377') ||
+    content.toLowerCase().includes('hugewin') ||
     (isIP(ctx.req.ip) && isInSubnet(ctx.req.ip, blockedIPs))
   ) {
     throw new ValidationError('Invalid content');
