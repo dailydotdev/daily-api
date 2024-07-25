@@ -102,3 +102,13 @@ export function camelCaseToSnakeCase(
 export function debeziumTimeToDate(time: number): Date {
   return new Date(Math.floor(time / 1000));
 }
+
+export const ensureMsFormat = (value: number): number => {
+  if (value <= 9999999999999) {
+    return value;
+  }
+
+  const string = (value / 1000).toFixed(0);
+
+  return parseInt(string);
+};

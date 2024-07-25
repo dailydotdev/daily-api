@@ -74,6 +74,7 @@ import {
   triggerTypedEvent,
   notifyReputationIncrease,
   PubSubSchema,
+  ensureMsFormat,
 } from '../../common';
 import { ChangeMessage, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
@@ -806,7 +807,6 @@ const onUserStreakChange = async (
   }
 };
 
-const nsToMs = 1000;
 const onBookmarkChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -815,7 +815,7 @@ const onBookmarkChange = async (
   const getParams = (key: 'before' | 'after') => ({
     userId: data.payload[key].userId,
     postId: data.payload[key].postId,
-    remindAt: data.payload[key].remindAt / nsToMs,
+    remindAt: ensureMsFormat(data.payload[key].remindAt),
   });
 
   if (data.payload.before?.remindAt) {
