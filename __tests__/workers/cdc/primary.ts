@@ -60,6 +60,7 @@ import {
   triggerTypedEvent,
   notifyReputationIncrease,
   PubSubSchema,
+  debeziumTimeToDate,
 } from '../../../src/common';
 import worker from '../../../src/workers/cdc/primary';
 import {
@@ -3286,6 +3287,7 @@ describe('bookmark change', () => {
     listId: null,
     remindAt: null,
   };
+  const debeziumTime = new Date().getTime() * 1000;
 
   describe('on create', () => {
     it('should not run reminder workflow', async () => {
@@ -3303,10 +3305,9 @@ describe('bookmark change', () => {
     });
 
     it('should run reminder workflow if remind at is present', async () => {
-      const date = new Date();
       const after: ChangeObject<ObjectType> = {
         ...base,
-        remindAt: date.getTime(),
+        remindAt: debeziumTime,
       };
       await expectSuccessfulBackground(
         worker,
@@ -3319,7 +3320,7 @@ describe('bookmark change', () => {
       );
       expect(runReminderWorkflow).toHaveBeenCalledWith({
         postId: 'p1',
-        remindAt: date.getTime(),
+        remindAt: debeziumTimeToDate(debeziumTime).getTime(),
         userId: '1',
       });
     });
@@ -3341,20 +3342,19 @@ describe('bookmark change', () => {
     });
 
     it('should cancel reminder workflow if remind at is present before', async () => {
-      const date = new Date();
       const after: ChangeObject<ObjectType> = base;
       await expectSuccessfulBackground(
         worker,
         mockChangeMessage<ObjectType>({
           after,
-          before: { ...base, remindAt: date.getTime() },
+          before: { ...base, remindAt: debeziumTime },
           op: 'u',
           table: 'bookmark',
         }),
       );
       expect(cancelReminderWorkflow).toHaveBeenCalledWith({
         postId: 'p1',
-        remindAt: date.getTime(),
+        remindAt: debeziumTimeToDate(debeziumTime).getTime(),
         userId: '1',
       });
     });
@@ -3374,10 +3374,9 @@ describe('bookmark change', () => {
     });
 
     it('should run reminder workflow if remind at is present after', async () => {
-      const date = new Date();
       const after: ChangeObject<ObjectType> = {
         ...base,
-        remindAt: date.getTime(),
+        remindAt: debeziumTime,
       };
       await expectSuccessfulBackground(
         worker,
@@ -3390,7 +3389,7 @@ describe('bookmark change', () => {
       );
       expect(runReminderWorkflow).toHaveBeenCalledWith({
         postId: 'p1',
-        remindAt: date.getTime(),
+        remindAt: debeziumTimeToDate(debeziumTime).getTime(),
         userId: '1',
       });
     });
@@ -3412,10 +3411,9 @@ describe('bookmark change', () => {
     });
 
     it('should cancel reminder workflow if remind at is present before', async () => {
-      const date = new Date();
       const before: ChangeObject<ObjectType> = {
         ...base,
-        remindAt: date.getTime(),
+        remindAt: debeziumTime,
       };
       await expectSuccessfulBackground(
         worker,
@@ -3428,7 +3426,7 @@ describe('bookmark change', () => {
       );
       expect(cancelReminderWorkflow).toHaveBeenCalledWith({
         postId: 'p1',
-        remindAt: date.getTime(),
+        remindAt: debeziumTimeToDate(debeziumTime).getTime(),
         userId: '1',
       });
     });

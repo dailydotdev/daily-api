@@ -74,7 +74,7 @@ import {
   triggerTypedEvent,
   notifyReputationIncrease,
   PubSubSchema,
-  ensureMsFormat,
+  debeziumTimeToDate,
 } from '../../common';
 import { ChangeMessage, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
@@ -815,7 +815,7 @@ const onBookmarkChange = async (
   const getParams = (key: 'before' | 'after') => ({
     userId: data.payload[key].userId,
     postId: data.payload[key].postId,
-    remindAt: ensureMsFormat(data.payload[key].remindAt),
+    remindAt: debeziumTimeToDate(data.payload[key].remindAt).getTime(),
   });
 
   if (data.payload.before?.remindAt) {
