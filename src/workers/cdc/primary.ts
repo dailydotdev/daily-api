@@ -806,6 +806,7 @@ const onUserStreakChange = async (
   }
 };
 
+const nsToMs = 1000;
 const onBookmarkChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -814,7 +815,7 @@ const onBookmarkChange = async (
   const getParams = (key: 'before' | 'after') => ({
     userId: data.payload[key].userId,
     postId: data.payload[key].postId,
-    remindAt: data.payload[key].remindAt,
+    remindAt: data.payload[key].remindAt / nsToMs,
   });
 
   if (data.payload.before?.remindAt) {
