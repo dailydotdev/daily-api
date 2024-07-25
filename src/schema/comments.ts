@@ -539,7 +539,7 @@ export const reportCommentReasons = new Map([
 ]);
 
 const blockedIPs =
-  process.env.VORDR_IPS?.split(',').filter((ip) => isIP(ip)) || [];
+  process.env.VORDR_IPS?.split(',').filter((ip) => Boolean(ip)) || [];
 
 const validateComment = (ctx: Context, content: string): void => {
   if (!content.trim().length) {
