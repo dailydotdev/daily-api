@@ -103,8 +103,10 @@ export function debeziumTimeToDate(time: number): Date {
   return new Date(Math.floor(time / 1000));
 }
 
+const MAX_MS = 9999999999999;
+
 export const ensureMsFormat = (value: number): number => {
-  if (value <= 9999999999999) {
+  if (value <= MAX_MS) {
     return value;
   }
 
