@@ -102,3 +102,11 @@ export function camelCaseToSnakeCase(
 export function debeziumTimeToDate(time: number): Date {
   return new Date(Math.floor(time / 1000));
 }
+
+export const safeJSONParse = <T>(json: string): T | undefined => {
+  try {
+    return JSON.parse(json);
+  } catch {
+    return undefined;
+  }
+};

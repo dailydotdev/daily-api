@@ -91,6 +91,14 @@ describe('dedicated api routes', () => {
         reputation: 10,
         acceptedMarketing: false,
         notificationEmail: true,
+        roadmap: null,
+        threads: null,
+        codepen: null,
+        reddit: null,
+        stackoverflow: null,
+        youtube: null,
+        linkedin: null,
+        mastodon: null,
       });
     });
   });

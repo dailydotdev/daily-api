@@ -17,6 +17,14 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         twitter
         github
         hashnode
+        roadmap
+        threads
+        codepen
+        reddit
+        stackoverflow
+        youtube
+        linkedin
+        mastodon
         portfolio
         infoConfirmed
         timezone

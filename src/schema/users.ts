@@ -81,6 +81,14 @@ export interface GQLUpdateUserInput {
   image?: string;
   twitter?: string;
   github?: string;
+  roadmap?: string;
+  threads?: string;
+  codepen?: string;
+  reddit?: string;
+  stackoverflow?: string;
+  youtube?: string;
+  linkedin?: string;
+  mastodon?: string;
   hashnode?: string;
   portfolio?: string;
   acceptedMarketing?: boolean;
@@ -105,6 +113,14 @@ export interface GQLUser {
   bio?: string;
   twitter?: string;
   github?: string;
+  roadmap?: string;
+  threads?: string;
+  codepen?: string;
+  reddit?: string;
+  stackoverflow?: string;
+  youtube?: string;
+  linkedin?: string;
+  mastodon?: string;
   hashnode?: string;
   portfolio?: string;
   reputation?: number;
@@ -226,6 +242,38 @@ export const typeDefs = /* GraphQL */ `
     """
     hashnode: String
     """
+    Roadmap profile of the user
+    """
+    roadmap: String
+    """
+    Threads profile of the user
+    """
+    threads: String
+    """
+    Codepen profile of the user
+    """
+    codepen: String
+    """
+    Reddit profile of the user
+    """
+    reddit: String
+    """
+    Stackoverflow profile of the user
+    """
+    stackoverflow: String
+    """
+    Youtube profile of the user
+    """
+    youtube: String
+    """
+    Linkedin profile of the user
+    """
+    linkedin: String
+    """
+    Mastodon profile of the user
+    """
+    mastodon: String
+    """
     Portfolio URL of the user
     """
     portfolio: String
@@ -307,6 +355,38 @@ export const typeDefs = /* GraphQL */ `
     Hashnode handle of the user
     """
     hashnode: String
+    """
+    Roadmap profile of the user
+    """
+    roadmap: String
+    """
+    Threads profile of the user
+    """
+    threads: String
+    """
+    Codepen profile of the user
+    """
+    codepen: String
+    """
+    Reddit profile of the user
+    """
+    reddit: String
+    """
+    Stackoverflow profile of the user
+    """
+    stackoverflow: String
+    """
+    Youtube profile of the user
+    """
+    youtube: String
+    """
+    Linkedin profile of the user
+    """
+    linkedin: String
+    """
+    Mastodon profile of the user
+    """
+    mastodon: String
     """
     Preferred timezone of the user that affects data
     """
@@ -1254,30 +1334,30 @@ export const resolvers: IResolvers<any, BaseContext> = {
         const err = originalError as TypeORMQueryFailedError;
 
         if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
-          if (err.message.indexOf('users_username_unique') > -1) {
-            throw new ValidationError(
-              JSON.stringify({ username: 'username already exists' }),
-            );
-          }
-          if (err.message.indexOf('users_twitter_unique') > -1) {
-            throw new ValidationError(
-              JSON.stringify({
-                twitter: 'twitter handle already exists',
-              }),
-            );
-          }
-          if (err.message.indexOf('users_github_unique') > -1) {
-            throw new ValidationError(
-              JSON.stringify({ github: 'github handle already exists' }),
-            );
-          }
-          if (err.message.indexOf('users_hashnode_unique') > -1) {
-            throw new ValidationError(
-              JSON.stringify({
-                hashnode: 'hashnode handle already exists',
-              }),
-            );
-          }
+          const uniqueColumns: Array<keyof User> = [
+            'username',
+            'github',
+            'twitter',
+            'hashnode',
+            'roadmap',
+            'threads',
+            'codepen',
+            'reddit',
+            'stackoverflow',
+            'youtube',
+            'linkedin',
+            'mastodon',
+          ];
+
+          uniqueColumns.forEach((uniqueColumn) => {
+            if (err.message.indexOf(`users_${uniqueColumn}_unique`) > -1) {
+              throw new ValidationError(
+                JSON.stringify({
+                  [uniqueColumn]: `${uniqueColumn} already exists`,
+                }),
+              );
+            }
+          });
         }
         throw err;
       }
