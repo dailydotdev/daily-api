@@ -1,7 +1,7 @@
 import { Alerts, ALERTS_DEFAULT, UserActionType } from '../entity';
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
-import { AuthContext, BaseContext } from '../Context';
+import { AuthContext, BaseContext, Context } from '../Context';
 import { DataSource } from 'typeorm';
 import { insertOrIgnoreAction } from './actions';
 import { GQLEmptyResponse } from './common';
@@ -154,7 +154,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get the alerts for user
     """
-    userAlerts: Alerts! @auth
+    userAlerts: Alerts!
   }
 `;
 
@@ -207,11 +207,14 @@ export const updateAlerts = async (
 
 export const getAlerts = async (
   con: DataSource,
-  userId: string,
+  userId?: string,
 ): Promise<Omit<Alerts, 'flags'>> => {
-  const alerts = await con.getRepository(Alerts).findOneBy({
-    userId,
-  });
+  const alerts = userId
+    ? await con.getRepository(Alerts).findOneBy({
+        userId,
+      })
+    : undefined;
+
   if (alerts) {
     return saveReturnAlerts(alerts);
   }
@@ -264,7 +267,7 @@ export const resolvers: IResolvers<any, BaseContext> = traceResolvers<
     },
   },
   Query: {
-    userAlerts: (_, __, ctx: AuthContext): Promise<GQLAlerts> | GQLAlerts =>
+    userAlerts: (_, __, ctx: Context): Promise<GQLAlerts> | GQLAlerts =>
       getAlerts(ctx.con, ctx.userId),
   },
 });
