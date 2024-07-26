@@ -2,7 +2,7 @@ import { GraphQLResolveInfo } from 'graphql';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
-import { Context } from '../Context';
+import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolverObject } from './trace';
 import {
   getDiscussionLink,
@@ -19,14 +19,21 @@ import {
   User,
   PostType,
 } from '../entity';
-import { NotFoundError, TypeOrmError } from '../errors';
+import {
+  NotFoundError,
+  TypeOrmError,
+  TypeORMQueryFailedError,
+} from '../errors';
 import { GQLEmptyResponse } from './common';
 import { GQLUser } from './users';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import graphorm from '../graphorm';
 import { GQLPost } from './posts';
 import { Roles } from '../roles';
-import { queryPaginatedByDate } from '../common/datePageGenerator';
+import {
+  GQLDatePageGeneratorConfig,
+  queryPaginatedByDate,
+} from '../common/datePageGenerator';
 import {
   markdown,
   mentionSpecialCharacters,
@@ -37,6 +44,7 @@ import { generateShortId } from '../ids';
 import { CommentReport } from '../entity/CommentReport';
 import { UserVote } from '../types';
 import { isInSubnet, isIP } from 'is-in-subnet';
+import { UserComment } from '../entity/user/UserComment';
 
 export interface GQLComment {
   id: string;
@@ -428,7 +436,7 @@ export const getMentions = async (
     }
 
     return list.concat(word.substring(1));
-  }, []);
+  }, [] as string[]);
 
   if (result.length === 0) {
     return [];
@@ -442,7 +450,9 @@ export const getMentions = async (
     return getUsers();
   }
 
-  const source = await con.getRepository(Source).findOneBy({ id: sourceId });
+  const source = await con
+    .getRepository(Source)
+    .findOneByOrFail({ id: sourceId });
 
   if (!source.private) {
     return getUsers();
@@ -555,13 +565,13 @@ const validateComment = (ctx: Context, content: string): void => {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvers: IResolvers<any, Context> = {
+export const resolvers: IResolvers<any, BaseContext> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Query: traceResolverObject<any, any, Context>({
+  Query: traceResolverObject<any, any, any>({
     commentFeed: async (
       _,
       args: ConnectionArguments,
-      ctx,
+      ctx: AuthContext,
       info,
     ): Promise<Connection<GQLComment>> => {
       return queryPaginatedByDate(
@@ -590,7 +600,7 @@ export const resolvers: IResolvers<any, Context> = {
     postComments: async (
       _,
       args: GQLPostCommentsArgs,
-      ctx,
+      ctx: Context,
       info,
     ): Promise<Connection<GQLComment>> => {
       const post = await ctx.con
@@ -618,7 +628,7 @@ export const resolvers: IResolvers<any, Context> = {
     userComments: async (
       _,
       args: GQLUserCommentsArgs,
-      ctx,
+      ctx: Context,
       info,
     ): Promise<Connection<GQLComment>> => {
       return queryPaginatedByDate(
@@ -647,7 +657,7 @@ export const resolvers: IResolvers<any, Context> = {
     commentUpvotes: async (
       _,
       args: GQLCommentUpvoteArgs,
-      ctx,
+      ctx: Context,
       info,
     ): Promise<Connection<GQLUserComment>> => {
       const comment = await ctx.con.getRepository(Comment).findOneOrFail({
@@ -660,7 +670,10 @@ export const resolvers: IResolvers<any, Context> = {
         ctx,
         info,
         args,
-        { key: 'votedAt' },
+        { key: 'votedAt' } as GQLDatePageGeneratorConfig<
+          UserComment,
+          'votedAt'
+        >,
         {
           queryBuilder: (builder) => {
             builder.queryBuilder = builder.queryBuilder
@@ -680,7 +693,7 @@ export const resolvers: IResolvers<any, Context> = {
     recommendedMentions: async (
       _,
       { postId, query, limit = 5, sourceId }: GQLMentionUserArgs,
-      ctx,
+      ctx: AuthContext,
       info,
     ): Promise<User[]> => {
       const { con, userId } = ctx;
@@ -704,7 +717,7 @@ export const resolvers: IResolvers<any, Context> = {
     commentPreview: async (
       _,
       { content, sourceId }: GQLCommentPreviewArgs,
-      ctx,
+      ctx: AuthContext,
     ): Promise<string> => {
       const trimmed = content.trim();
 
@@ -728,18 +741,18 @@ export const resolvers: IResolvers<any, Context> = {
     comment: async (
       _,
       { id }: { id: string },
-      ctx,
+      ctx: AuthContext,
       info,
     ): Promise<GQLComment> => {
       const comment = await graphorm.queryOneOrFail<GQLComment>(
         ctx,
         info,
         (builder) => ({
+          ...builder,
           queryBuilder: builder.queryBuilder.where(
             `"${builder.alias}"."id" = :id`,
             { id },
           ),
-          ...builder,
         }),
       );
 
@@ -753,11 +766,11 @@ export const resolvers: IResolvers<any, Context> = {
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Mutation: traceResolverObject<any, any, Context>({
+  Mutation: traceResolverObject<any, any, any>({
     commentOnPost: async (
       source,
       { postId, content }: GQLPostCommentArgs,
-      ctx: Context,
+      ctx: AuthContext,
       info,
     ): Promise<GQLComment> => {
       validateComment(ctx, content);
@@ -780,7 +793,8 @@ export const resolvers: IResolvers<any, Context> = {
           return saveNewComment(entityManager, createdComment, squadId);
         });
         return getCommentById(comment.id, ctx, info);
-      } catch (err) {
+      } catch (originalError) {
+        const err = originalError as TypeORMQueryFailedError;
         // Foreign key violation
         if (err?.code === TypeOrmError.FOREIGN_KEY) {
           throw new NotFoundError('Post or user not found');
@@ -791,7 +805,7 @@ export const resolvers: IResolvers<any, Context> = {
     commentOnComment: async (
       source,
       { commentId, content }: GQLCommentCommentArgs,
-      ctx: Context,
+      ctx: AuthContext,
       info,
     ): Promise<GQLComment> => {
       validateComment(ctx, content);
@@ -822,7 +836,9 @@ export const resolvers: IResolvers<any, Context> = {
           return saveNewComment(entityManager, createdComment, squadId);
         });
         return getCommentById(comment.id, ctx, info);
-      } catch (err) {
+      } catch (originalError) {
+        const err = originalError as TypeORMQueryFailedError;
+
         // Foreign key violation
         if (err?.code === TypeOrmError.FOREIGN_KEY) {
           throw new NotFoundError('User or parent comment not found');
@@ -833,7 +849,7 @@ export const resolvers: IResolvers<any, Context> = {
     editComment: async (
       _,
       { id, content }: { id: string; content: string },
-      ctx: Context,
+      ctx: AuthContext,
       info,
     ): Promise<GQLComment> => {
       if (!content.trim().length) {
@@ -859,7 +875,7 @@ export const resolvers: IResolvers<any, Context> = {
     deleteComment: async (
       source,
       { id }: { id: string },
-      ctx: Context,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (entityManager) => {
         const repo = entityManager.getRepository(Comment);
@@ -886,7 +902,7 @@ export const resolvers: IResolvers<any, Context> = {
     reportComment: async (
       source,
       { commentId: id, reason, note }: ReportCommentArgs,
-      ctx: Context,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       if (!reportCommentReasons.has(reason)) {
         throw new ValidationError('Reason is invalid');
@@ -903,7 +919,9 @@ export const resolvers: IResolvers<any, Context> = {
           reason,
           note,
         });
-      } catch (err) {
+      } catch (originalError) {
+        const err = originalError as TypeORMQueryFailedError;
+
         if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
           throw new Error('Failed to save report to database');
         }

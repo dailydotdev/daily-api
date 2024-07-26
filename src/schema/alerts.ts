@@ -1,7 +1,7 @@
 import { Alerts, ALERTS_DEFAULT, UserActionType } from '../entity';
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
-import { Context } from '../Context';
+import { AuthContext, BaseContext } from '../Context';
 import { DataSource } from 'typeorm';
 import { insertOrIgnoreAction } from './actions';
 import { GQLEmptyResponse } from './common';
@@ -154,7 +154,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get the alerts for user
     """
-    userAlerts: Alerts!
+    userAlerts: Alerts! @auth
   }
 `;
 
@@ -219,17 +219,20 @@ export const getAlerts = async (
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvers: IResolvers<any, Context> = traceResolvers({
+export const resolvers: IResolvers<any, BaseContext> = traceResolvers<
+  unknown,
+  BaseContext
+>({
   Mutation: {
     updateUserAlerts: async (
       _,
       { data }: { data: GQLUpdateAlertsInput },
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLAlerts> => updateAlerts(ctx.con, ctx.userId, data),
     updateLastReferralReminder: async (
       _,
       __,
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await updateAlerts(
         ctx.con,
@@ -241,23 +244,27 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       );
       return { _: true };
     },
-    updateLastBootPopup: async (_, __, ctx): Promise<GQLEmptyResponse> => {
+    updateLastBootPopup: async (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
       await updateAlerts(ctx.con, ctx.userId, { lastBootPopup: new Date() });
       return { _: true };
     },
     updateFeedFeedbackReminder: async (
       _,
       __,
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await updateAlerts(ctx.con, ctx.userId, {
         lastFeedSettingsFeedback: new Date(),
       });
-      return { _: null };
+      return { _: true };
     },
   },
   Query: {
-    userAlerts: (_, __, ctx): Promise<GQLAlerts> | GQLAlerts =>
+    userAlerts: (_, __, ctx: AuthContext): Promise<GQLAlerts> | GQLAlerts =>
       getAlerts(ctx.con, ctx.userId),
   },
 });

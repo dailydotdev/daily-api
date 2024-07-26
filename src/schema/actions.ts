@@ -2,10 +2,10 @@ import { UserAction, UserActionType } from '../entity';
 
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
-import { Context } from '../Context';
 import { GQLEmptyResponse } from './common';
 import graphorm from '../graphorm';
 import { DataSource } from 'typeorm';
+import { AuthContext, BaseContext } from '../Context';
 
 type GQLUserAction = Pick<UserAction, 'userId' | 'type' | 'completedAt'>;
 
@@ -63,20 +63,25 @@ export const insertOrIgnoreAction = (
     .execute();
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvers: IResolvers<any, Context> = traceResolvers({
+export const resolvers: IResolvers<any, BaseContext> = traceResolvers<
+  unknown,
+  BaseContext
+>({
   Mutation: {
     completeAction: async (
       _,
       { type }: CompleteActionParams,
-      { con, userId },
+      { con, userId }: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await insertOrIgnoreAction(con, userId, type);
 
-      return;
+      return {
+        _: true,
+      };
     },
   },
   Query: {
-    actions: (_, __, ctx, info): Promise<GQLUserAction[]> =>
+    actions: (_, __, ctx: AuthContext, info): Promise<GQLUserAction[]> =>
       graphorm.query<GQLUserAction>(ctx, info, (builder) => {
         builder.queryBuilder = builder.queryBuilder.where({
           userId: ctx.userId,
