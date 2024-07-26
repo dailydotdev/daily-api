@@ -22,9 +22,8 @@ import {
 import { SourceMemberRoles } from '../../src/roles';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
-import { usersFixture } from '../fixture/user';
+import { usersFixture, sourcesFixture } from '../fixture';
 import { postsFixture } from '../fixture/post';
-import { sourcesFixture } from '../fixture/source';
 import {
   NotificationBookmarkContext,
   NotificationCommentContext,
@@ -1734,4 +1733,36 @@ it('should add squad reply notification', async () => {
     '4',
   );
   expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '3', '2']);
+
+  // add new comment for testing notification after first comment
+  // should notify users who commented on the first comment
+  // not userId 3 who is the one who is writing
+  await con.getRepository(Comment).save([
+    {
+      id: 'c6',
+      postId: 'p1',
+      userId: '3',
+      content: 'sub comment5',
+      createdAt: new Date(2020, 1, 6, 0, 0),
+      parentId: 'c1',
+    },
+  ]);
+
+  const actual2 = await invokeNotificationWorker(worker.default, {
+    postId: 'p1',
+    userId: '3',
+    childCommentId: 'c6',
+  });
+
+  expect(actual2.length).toEqual(1);
+  const bundle2 = actual2[0];
+  expect(bundle2.type).toEqual('squad_reply');
+  expect((bundle2.ctx as NotificationPostContext).post.id).toEqual('p1');
+  expect((bundle2.ctx as NotificationPostContext).source.id).toEqual('a');
+  expect((bundle2.ctx as NotificationCommentContext).comment.id).toEqual('c6');
+  expect((bundle2.ctx as NotificationCommenterContext).commenter.id).toEqual(
+    '3',
+  );
+  expect(actual2[0].ctx.userIds).toIncludeSameMembers(['1', '4', '2']);
+  expect(actual2[0].ctx.userIds).not.toIncludeSameMembers(['3']);
 });
