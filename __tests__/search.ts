@@ -366,6 +366,24 @@ describe('query searchPostSuggestions', () => {
       },
     });
   });
+
+  it('should return empty search suggestion if no hits found', async () => {
+    nock.cleanAll();
+    mockMeili(
+      'q=p1&attributesToRetrieve=post_id,title',
+      JSON.stringify({
+        hits: [],
+      }),
+    );
+
+    const res = await client.query(QUERY('p1'));
+    expect(res.data).toEqual({
+      searchPostSuggestions: {
+        query: 'p1',
+        hits: [],
+      },
+    });
+  });
 });
 
 describe('query searchTagSuggestions', () => {
