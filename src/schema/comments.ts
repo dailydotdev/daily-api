@@ -1,7 +1,7 @@
 import { GraphQLResolveInfo } from 'graphql';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
-import { DataSource, EntityManager, In, Not } from 'typeorm';
+import { Brackets, DataSource, EntityManager, In, Not } from 'typeorm';
 import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolverObject } from './trace';
 import {
@@ -619,7 +619,18 @@ export const resolvers: IResolvers<any, BaseContext> = {
               .andWhere(`${builder.alias}.postId = :postId`, {
                 postId: args.postId,
               })
-              .andWhere(`${builder.alias}.parentId is null`);
+              .andWhere(`${builder.alias}.parentId is null`)
+              // Only show comments that vordr prevented, if the user is the author of the comment
+              .andWhere(
+                new Brackets((qb) => {
+                  qb.where(`${builder.alias}.userId = :userId`, {
+                    userId: ctx.userId,
+                  }).orWhere(
+                    `(${builder.alias}.flags ->> 'vordr')::boolean = false`,
+                  );
+                }),
+              )
+              .andWhere('1=1');
 
             return builder;
           },

@@ -31,6 +31,7 @@ import { GQLComment } from '../schema/comments';
 import { GQLUserPost } from '../schema/posts';
 import { UserComment } from '../entity/user/UserComment';
 import { UserVote } from '../types';
+import { Brackets } from 'typeorm';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -430,6 +431,19 @@ const obj = new GraphORM({
           parentColumn: 'id',
           order: 'ASC',
           sort: 'createdAt',
+          customRelation(ctx, parentAlias, childAlias, qb) {
+            return qb
+              .where(`"${childAlias}"."parentId" = "${parentAlias}"."id"`)
+              .andWhere(
+                new Brackets((qb) => {
+                  qb.where(`${childAlias}.userId = :userId`, {
+                    userId: ctx.userId,
+                  }).orWhere(
+                    `(${childAlias}.flags ->> 'vordr')::boolean = false`,
+                  );
+                }),
+              );
+          },
         },
         pagination: {
           limit: 50,
