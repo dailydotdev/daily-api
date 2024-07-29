@@ -10,6 +10,9 @@ const vordrIPs =
 const vordrWords =
   process.env.VORDR_WORDS?.split(',').filter((word) => Boolean(word)) || [];
 
+export const validateVordrIPs = (ip: string): boolean =>
+  isIP(ip) && isInSubnet(ip, vordrIPs);
+
 export const checkWithVordr = async (
   comment: Comment,
   { userId, con, req }: Context,
@@ -35,7 +38,7 @@ export const checkWithVordr = async (
     return true;
   }
 
-  if (isIP(req.ip) && isInSubnet(req.ip, vordrIPs)) {
+  if (validateVordrIPs(req.ip)) {
     logger.info(
       { commentId: comment.id, userId, ip: req.ip },
       'Prevented comment because IP is in Vordr subnet',
