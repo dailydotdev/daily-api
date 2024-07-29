@@ -9,7 +9,7 @@ import {
   processSearchQuery,
 } from './common';
 import { traceResolvers } from './trace';
-import { Context } from '../Context';
+import { AuthContext, BaseContext, Context } from '../Context';
 import { Bookmark, BookmarkList, Post } from '../entity';
 import {
   base64,
@@ -17,6 +17,7 @@ import {
   FeedArgs,
   feedResolver,
   getCursorFromAfter,
+  Ranking,
 } from '../common';
 import { SelectQueryBuilder } from 'typeorm';
 import { GQLPost } from './posts';
@@ -161,7 +162,7 @@ export const typeDefs = /* GraphQL */ `
       The query to search for
       """
       query: String!
-    ): SearchBookmarksSuggestionsResults!
+    ): SearchBookmarksSuggestionsResults! @auth
 
     """
     Search through users bookmarks
@@ -210,6 +211,7 @@ interface BookmarksArgs extends ConnectionArguments {
   unreadOnly: boolean;
   listId: string;
   supportedTypes?: string[];
+  ranking: Ranking;
 }
 
 interface BookmarkPage extends Page {
@@ -219,11 +221,11 @@ interface BookmarkPage extends Page {
 
 const bookmarkPageGenerator: PageGenerator<
   GQLPost,
-  ConnectionArguments,
+  BookmarksArgs,
   BookmarkPage
 > = {
   connArgsToPage: ({ first, after }: FeedArgs) => {
-    const cursor = getCursorFromAfter(after);
+    const cursor = getCursorFromAfter(after || undefined);
     const limit = Math.min(first || 30, 50);
     if (cursor) {
       return { limit, timestamp: new Date(parseInt(cursor)) };
@@ -231,7 +233,7 @@ const bookmarkPageGenerator: PageGenerator<
     return { limit };
   },
   nodeToCursor: (page, args, node) => {
-    return base64(`time:${node.bookmarkedAt.getTime()}`);
+    return base64(`time:${node.bookmarkedAt!.getTime()}`);
   },
   hasNextPage: (page, nodesSize) => page.limit === nodesSize,
   hasPreviousPage: (page) => !!page.timestamp,
@@ -239,7 +241,7 @@ const bookmarkPageGenerator: PageGenerator<
 
 const applyBookmarkPaging = (
   ctx: Context,
-  args,
+  args: unknown,
   page: BookmarkPage,
   builder: SelectQueryBuilder<Post>,
 ): SelectQueryBuilder<Post> => {
@@ -257,7 +259,7 @@ const applyBookmarkPaging = (
 const searchResolver = feedResolver(
   (
     ctx,
-    { query, unreadOnly, listId = null }: BookmarksArgs & { query: string },
+    { query, unreadOnly, listId }: BookmarksArgs & { query: string },
     builder,
     alias,
   ) => bookmarksFeedBuilder(ctx, unreadOnly, listId, builder, alias, query),
@@ -267,12 +269,15 @@ const searchResolver = feedResolver(
 );
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvers: IResolvers<any, Context> = traceResolvers({
+export const resolvers: IResolvers<any, BaseContext> = traceResolvers<
+  unknown,
+  BaseContext
+>({
   Mutation: {
     addBookmarks: async (
       source,
       { data }: { data: GQLAddBookmarkInput },
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       const [query, params] = ctx.con
         .createQueryBuilder()
@@ -289,8 +294,8 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
     addBookmarkToList: async (
       source,
-      { id, listId = null }: { id: string; listId?: string },
-      ctx,
+      { id, listId }: { id: string; listId?: string },
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       if (listId) {
         await ctx.con
@@ -312,7 +317,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     removeBookmark: async (
       source,
       { id }: { id: string },
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.getRepository(Bookmark).delete({
         postId: id,
@@ -323,7 +328,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     createBookmarkList: async (
       source,
       { name }: { name: string },
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLBookmarkList> =>
       ctx.con.getRepository(BookmarkList).save({
         name,
@@ -332,7 +337,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     removeBookmarkList: async (
       source,
       { id }: { id: string },
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.getRepository(BookmarkList).delete({
         id,
@@ -343,7 +348,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     renameBookmarkList: async (
       source,
       { id, name }: { id: string; name: string },
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLBookmarkList> => {
       const repo = ctx.con.getRepository(BookmarkList);
       const list = await repo.findOneByOrFail({ userId: ctx.userId, id });
@@ -353,7 +358,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     setBookmarkReminder: async (
       source,
       { remindAt, postId }: { remindAt: Date; postId: string },
-      { con, userId },
+      { con, userId }: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await con.transaction(async (manager) => {
         const repo = manager.getRepository(Bookmark);
@@ -366,18 +371,23 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         return repo.update({ userId, postId }, { remindAt });
       });
 
-      return { _: null };
+      return { _: true };
     },
   },
   Query: {
     bookmarksFeed: feedResolver(
-      (ctx, { unreadOnly, listId = null }: BookmarksArgs, builder, alias) =>
+      (ctx, { unreadOnly, listId }: BookmarksArgs, builder, alias) =>
         bookmarksFeedBuilder(ctx, unreadOnly, listId, builder, alias),
       bookmarkPageGenerator,
       applyBookmarkPaging,
       { removeHiddenPosts: false, removeBannedPosts: false },
     ),
-    bookmarkLists: (source, args, ctx, info): Promise<GQLBookmarkList[]> =>
+    bookmarkLists: (
+      source,
+      args,
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLBookmarkList[]> =>
       ctx.loader.loadMany<BookmarkList>(
         BookmarkList,
         { userId: ctx.userId },
@@ -389,7 +399,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     searchBookmarksSuggestions: async (
       source,
       { query }: { query: string },
-      ctx,
+      ctx: AuthContext,
     ) => {
       const hits: { title: string }[] = await ctx.con.query(
         `
@@ -413,8 +423,8 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
     searchBookmarks: async (
       source,
-      args: FeedArgs & { query: string },
-      ctx,
+      args: FeedArgs & BookmarksArgs & { query: string },
+      ctx: AuthContext,
       info,
     ): Promise<Connection<GQLPost> & { query: string }> => {
       const res = await searchResolver(source, args, ctx, info);
