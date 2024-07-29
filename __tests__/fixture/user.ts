@@ -56,3 +56,38 @@ export const usersFixture: DeepPartial<User>[] = [
     infoConfirmed: true,
   },
 ];
+
+export const badUsersFixture: DeepPartial<User>[] = [
+  {
+    id: 'vordr',
+    bio: null,
+    github: null,
+    hashnode: null,
+    name: 'Vordr was here',
+    image: 'https://daily.dev/lee.jpg',
+    createdAt: new Date(userCreatedDate),
+    twitter: null,
+    username: 'vordr',
+    infoConfirmed: true,
+    flags: {
+      vordr: true,
+      trustScore: 1,
+    },
+  },
+  {
+    id: 'low-score',
+    bio: null,
+    github: null,
+    hashnode: null,
+    name: 'Low Score',
+    image: 'https://daily.dev/lee.jpg',
+    createdAt: new Date(userCreatedDate),
+    twitter: null,
+    username: 'low-score',
+    infoConfirmed: true,
+    flags: {
+      vordr: false,
+      trustScore: 0,
+    },
+  },
+];
