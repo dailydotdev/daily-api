@@ -48,6 +48,7 @@ import { safeJSONParse } from '../../common';
 
 export type UserFlags = Partial<{
   vordr: boolean;
+  trustScore: number;
 }>;
 
 @Entity()
@@ -178,7 +179,7 @@ export class User {
   @Column({ type: 'text', nullable: true })
   experienceLevel: string | null;
 
-  @Column({ type: 'jsonb', default: { vordr: false } })
+  @Column({ type: 'jsonb', default: { trustScore: 1, vordr: false } })
   @Index('IDX_user_flags_vordr', { synchronize: false })
   flags: UserFlags;
 
