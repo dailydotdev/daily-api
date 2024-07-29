@@ -45,6 +45,7 @@ import { CommentReport } from '../entity/CommentReport';
 import { UserVote } from '../types';
 import { isInSubnet, isIP } from 'is-in-subnet';
 import { UserComment } from '../entity/user/UserComment';
+import { checkWithVordr } from '../common/comments';
 
 export interface GQLComment {
   id: string;
@@ -783,11 +784,13 @@ export const resolvers: IResolvers<any, BaseContext> = {
         const squadId =
           source.type === SourceType.Squad ? source.id : undefined;
         const comment = await ctx.con.transaction(async (entityManager) => {
+          const commentId = await generateShortId();
           const createdComment = entityManager.getRepository(Comment).create({
-            id: await generateShortId(),
+            id: commentId,
             postId,
             userId: ctx.userId,
             content,
+            flags: { vordr: await checkWithVordr(commentId, ctx) },
           });
 
           return saveNewComment(entityManager, createdComment, squadId);
