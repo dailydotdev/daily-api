@@ -9,6 +9,9 @@ Object {
   "createdAt": Any<Date>,
   "downvotes": 0,
   "featured": false,
+  "flags": Object {
+    "vordr": false,
+  },
   "id": "cm",
   "lastUpdatedAt": null,
   "parentId": null,
@@ -27,6 +30,9 @@ Object {
   "createdAt": Any<Date>,
   "downvotes": 0,
   "featured": false,
+  "flags": Object {
+    "vordr": false,
+  },
   "id": "cm",
   "lastUpdatedAt": null,
   "parentId": null,
