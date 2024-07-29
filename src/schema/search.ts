@@ -292,7 +292,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           'source.id = post.sourceId AND source.private = false AND source.id != :sourceId',
           { sourceId: 'unknown' },
         )
-        .where('post.id IN (:...ids)', { ids: hits.map((x) => x.post_id) })
+        .where('post.id IN (:...ids)', {
+          ids: hits.length ? hits.map((x) => x.post_id) : ['nosuchid'],
+        })
         .orderBy(`array_position(array[${idsStr}], post.id)`);
       if (ctx.userId) {
         newBuilder = newBuilder
