@@ -43,9 +43,8 @@ import { ensureSourcePermissions, SourcePermissions } from './sources';
 import { generateShortId } from '../ids';
 import { CommentReport } from '../entity/CommentReport';
 import { UserVote } from '../types';
-import { isInSubnet, isIP } from 'is-in-subnet';
 import { UserComment } from '../entity/user/UserComment';
-import { checkWithVordr } from '../common/comments';
+import { checkWithVordr } from '../common/vordr';
 
 export interface GQLComment {
   id: string;
@@ -549,19 +548,9 @@ export const reportCommentReasons = new Map([
   ['OTHER', 'Other'],
 ]);
 
-const blockedIPs =
-  process.env.VORDR_IPS?.split(',').filter((ip) => Boolean(ip)) || [];
-
 const validateComment = (ctx: Context, content: string): void => {
   if (!content.trim().length) {
     throw new ValidationError('Content cannot be empty!');
-  }
-  if (
-    content.toLowerCase().includes('groza3377') ||
-    content.toLowerCase().includes('hugewin') ||
-    (isIP(ctx.req.ip) && isInSubnet(ctx.req.ip, blockedIPs))
-  ) {
-    throw new ValidationError('Invalid content');
   }
 };
 
@@ -801,8 +790,11 @@ export const resolvers: IResolvers<any, BaseContext> = {
             postId,
             userId: ctx.userId,
             content,
-            flags: { vordr: await checkWithVordr(commentId, ctx) },
           });
+
+          createdComment.flags = {
+            vordr: await checkWithVordr(createdComment, ctx),
+          };
 
           return saveNewComment(entityManager, createdComment, squadId);
         });
