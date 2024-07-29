@@ -2,7 +2,7 @@ import { messageToJson } from '../worker';
 import { NotificationWorker } from './worker';
 import { articleNewCommentHandler } from './utils';
 
-interface Data {
+export interface Data {
   userId: string;
   childCommentId: string;
   postId: string;

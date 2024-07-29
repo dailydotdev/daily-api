@@ -13,7 +13,7 @@ import { NotificationWorker } from './worker';
 import { buildPostContext } from './utils';
 import { In } from 'typeorm';
 
-interface Data {
+export interface Data {
   userId: string;
   childCommentId: string;
   postId: string;
@@ -28,6 +28,9 @@ const worker: NotificationWorker = {
       relations: ['parent', 'user'],
     });
     if (!comment) {
+      return;
+    }
+    if (comment.flags.vordr) {
       return;
     }
     const postCtx = await buildPostContext(con, comment.postId);
