@@ -1,9 +1,9 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { Context } from '../Context';
+import { BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import { Keyword } from '../entity';
 import { TagRecommendation } from '../entity/TagRecommendation';
-import { In, Not } from 'typeorm';
+import { In, Not, ObjectType } from 'typeorm';
 import { ValidationError } from 'apollo-server-errors';
 import { SubmissionFailErrorMessage } from '../errors';
 import graphorm from '../graphorm';
@@ -110,7 +110,13 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-const getFormattedTags = async (entity, args, ctx): Promise<GQLTag[]> => {
+type TagQueryArgs = { limit?: number };
+
+const getFormattedTags = async (
+  entity: ObjectType<TrendingTag | PopularTag>,
+  args: TagQueryArgs,
+  ctx: Context,
+): Promise<GQLTag[]> => {
   const { limit = 10 } = args;
   const tags = await ctx.getRepository(entity).find({
     select: ['tag'],
@@ -121,9 +127,12 @@ const getFormattedTags = async (entity, args, ctx): Promise<GQLTag[]> => {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvers: IResolvers<any, Context> = traceResolvers({
+export const resolvers: IResolvers<any, BaseContext> = traceResolvers<
+  unknown,
+  BaseContext
+>({
   Query: {
-    tags: (_, __, ctx, info): Promise<GQLKeyword[]> =>
+    tags: (_, __, ctx: Context, info): Promise<GQLKeyword[]> =>
       graphorm.query<GQLKeyword>(ctx, info, (builder) => {
         builder.queryBuilder = builder.queryBuilder
           .where({
@@ -134,10 +143,16 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
 
         return builder;
       }),
-    trendingTags: async (_, args, ctx): Promise<GQLTag[]> =>
-      await getFormattedTags(TrendingTag, args, ctx),
-    popularTags: async (_, args, ctx): Promise<GQLTag[]> =>
-      await getFormattedTags(PopularTag, args, ctx),
+    trendingTags: async (
+      _,
+      args: TagQueryArgs,
+      ctx: Context,
+    ): Promise<GQLTag[]> => await getFormattedTags(TrendingTag, args, ctx),
+    popularTags: async (
+      _,
+      args: TagQueryArgs,
+      ctx: Context,
+    ): Promise<GQLTag[]> => await getFormattedTags(PopularTag, args, ctx),
     searchTags: async (
       source,
       { query }: { query: string },
@@ -174,7 +189,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         .execute();
 
       return {
-        hits: hits.map((hit) => ({ name: hit.value })),
+        hits: hits.map((hit: Keyword) => ({ name: hit.value })),
       };
     },
     recommendedTags: async (

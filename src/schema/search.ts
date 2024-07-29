@@ -1,6 +1,6 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
-import { Context } from '../Context';
+import { AuthContext, BaseContext, Context } from '../Context';
 import {
   getSessions,
   postFeedback,
@@ -237,12 +237,15 @@ const meiliSearchResolver = feedResolver(
   },
 );
 
-export const resolvers: IResolvers<unknown, Context> = traceResolvers({
+export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
+  unknown,
+  BaseContext
+>({
   Query: {
     searchSessionHistory: async (
       _,
       args: ConnectionArguments,
-      ctx,
+      ctx: AuthContext,
     ): Promise<ConnectionRelay<GQLSearchSession>> => {
       const { first, after } = args;
 
@@ -250,15 +253,22 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
         () => !!after,
         (nodeSize) => nodeSize === first,
         (node) => node.id,
-        () => getSessions(ctx.userId, { limit: first, lastId: after }),
+        () =>
+          getSessions(ctx.userId, {
+            limit: first || undefined,
+            lastId: after || undefined,
+          }),
       );
     },
-    searchSession: async (_, { id }: { id: string }, ctx): Promise<Search> =>
-      getSession(ctx.userId, id),
+    searchSession: async (
+      _,
+      { id }: { id: string },
+      ctx: AuthContext,
+    ): Promise<Search> => getSession(ctx.userId, id),
     searchPostSuggestions: async (
       source,
       { query, version }: { query: string; version: number },
-      ctx,
+      ctx: Context,
     ): Promise<GQLSearchSuggestionsResults> => {
       const searchParams = new URLSearchParams({
         q: query,
@@ -282,7 +292,9 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
           'source.id = post.sourceId AND source.private = false AND source.id != :sourceId',
           { sourceId: 'unknown' },
         )
-        .where('post.id IN (:...ids)', { ids: hits.map((x) => x.post_id) })
+        .where('post.id IN (:...ids)', {
+          ids: hits.length ? hits.map((x) => x.post_id) : ['nosuchid'],
+        })
         .orderBy(`array_position(array[${idsStr}], post.id)`);
       if (ctx.userId) {
         newBuilder = newBuilder
@@ -309,7 +321,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
         first: number;
         after: string;
       },
-      ctx,
+      ctx: Context,
       info,
     ): Promise<ConnectionRelay<GQLPost> & { query: string }> => {
       const limit = Math.min(args.first || 10);
@@ -386,7 +398,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
     searchResultFeedback: async (
       _,
       { chunkId, value }: SearchResultFeedback,
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       if (value > 1 || value < -1) {
         throw new ValidationError('Invalid value');

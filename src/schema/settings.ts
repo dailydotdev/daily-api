@@ -1,6 +1,6 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
-import { Context } from '../Context';
+import { AuthContext, BaseContext } from '../Context';
 import {
   CampaignCtaPlacement,
   ChecklistViewState,
@@ -297,13 +297,16 @@ export const getSettings = async (
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvers: IResolvers<any, Context> = traceResolvers({
+export const resolvers: IResolvers<any, BaseContext> = traceResolvers<
+  unknown,
+  BaseContext
+>({
   Mutation: {
     updateUserSettings: async (
       _,
       { data }: { data: GQLUpdateSettingsInput },
-      { con, userId },
-    ): Promise<GQLSettings> => {
+      { con, userId }: AuthContext,
+    ): Promise<Settings> => {
       if (data.customLinks?.length && !data.customLinks.every(isValidHttpUrl)) {
         throw new ValidationError('One of the links is invalid');
       }
@@ -329,7 +332,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     setBookmarksSharing: async (
       _,
       { enabled }: { enabled: boolean },
-      { con, userId },
+      { con, userId }: AuthContext,
     ): Promise<PartialBookmarkSharing> => {
       const settings = await con.transaction(
         async (manager): Promise<Settings> => {
@@ -349,18 +352,26 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         },
       );
 
-      return { slug: settings.bookmarkSlug };
+      return { slug: settings.bookmarkSlug || null };
     },
   },
   Query: {
-    userSettings: (_, __, { con, userId }): Promise<GQLSettings> => {
+    userSettings: (
+      _,
+      __,
+      { con, userId }: AuthContext,
+    ): ReturnType<typeof getSettings> => {
       return getSettings(con, userId);
     },
-    bookmarksSharing: async (_, __, ctx): Promise<PartialBookmarkSharing> => {
+    bookmarksSharing: async (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<PartialBookmarkSharing> => {
       const settings = await ctx.con
         .getRepository(Settings)
         .findOneBy({ userId: ctx.userId });
-      return { slug: settings?.bookmarkSlug };
+      return { slug: settings?.bookmarkSlug || null };
     },
   },
   Settings: {
