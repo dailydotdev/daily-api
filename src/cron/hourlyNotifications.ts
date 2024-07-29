@@ -33,7 +33,7 @@ const cron: Cron = {
           defaultTimezone: DEFAULT_TIMEZONE,
         },
       )
-      .andWhere(`flags->>'sendType' = :sendType`, { sendType })
+      .andWhere(`upd.flags->>'sendType' = :sendType`, { sendType })
       .andWhere(`upd.type in (:...digestTypes)`, { digestTypes });
 
     await schedulePersonalizedDigestSubscriptions({
