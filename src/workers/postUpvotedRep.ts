@@ -39,6 +39,11 @@ const worker: TypedWorker<'post-upvoted'> = {
           return;
         }
 
+        if (grantBy.flags.vordr) {
+          logger.info(logDetails, `vordr has prevented upvote`);
+          return;
+        }
+
         const repo = transaction.getRepository(ReputationEvent);
         const props = {
           grantById: data.userId,
