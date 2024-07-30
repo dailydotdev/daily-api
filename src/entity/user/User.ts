@@ -46,6 +46,10 @@ import {
 import { logger } from '../../logger';
 import { safeJSONParse } from '../../common';
 
+export type UserFlags = Partial<{
+  vordr: boolean;
+}>;
+
 @Entity()
 @Index('IDX_user_lowerusername_username', { synchronize: false })
 @Index('IDX_user_lowertwitter', { synchronize: false })
@@ -173,6 +177,10 @@ export class User {
 
   @Column({ type: 'text', nullable: true })
   experienceLevel: string | null;
+
+  @Column({ type: 'jsonb', default: { vordr: false } })
+  @Index('IDX_user_flags_vordr', { synchronize: false })
+  flags: UserFlags;
 
   @ManyToOne(() => User, {
     lazy: true,
