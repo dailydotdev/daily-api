@@ -12,7 +12,7 @@ const worker: TypedWorker<'post-commented'> = {
         .getRepository(Comment)
         .findOne({ where: { id: data.commentId }, relations: ['post'] });
 
-      if (!comment.flags.vordr) {
+      if (!comment.flags?.vordr) {
         return;
       }
 

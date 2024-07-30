@@ -92,7 +92,7 @@ export async function articleNewCommentHandler(
   if (!comment) {
     return;
   }
-  if (comment.flags.vordr) {
+  if (comment.flags?.vordr) {
     return;
   }
   const postCtx = await buildPostContext(con, comment.postId);
