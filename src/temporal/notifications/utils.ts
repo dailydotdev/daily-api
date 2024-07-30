@@ -1,5 +1,8 @@
 import {
   generateWorkflowId,
+  getDescribeOrError,
+  getWorkflowDescription,
+  getWorkflowHandle,
   WorkflowQueue,
   WorkflowTopic,
   WorkflowTopicScope,
@@ -26,6 +29,11 @@ export const runReminderWorkflow = async (params: ReminderWorkflowParams) => {
   const workflowId = getReminderWorkflowId(params);
   const client = await getTemporalClient();
   const delay = params.remindAt - Date.now();
+  const description = await getWorkflowDescription(workflowId);
+
+  if (description?.status.name === 'RUNNING') {
+    return;
+  }
 
   return client.workflow.start(bookmarkReminderWorkflow, {
     args: [params],
@@ -38,12 +46,16 @@ export const runReminderWorkflow = async (params: ReminderWorkflowParams) => {
 export const cancelReminderWorkflow = async (
   params: ReminderWorkflowParams,
 ) => {
-  const client = await getTemporalClient();
   const workflowId = getReminderWorkflowId(params);
-  const handle = client.workflow.getHandle(workflowId);
-  const description = await handle.describe();
+  const handle = await getWorkflowHandle(workflowId);
 
-  if (description.status.name === 'RUNNING') {
+  if (!handle) {
+    return;
+  }
+
+  const description = await getDescribeOrError(handle);
+
+  if (description?.status.name === 'RUNNING') {
     await handle.terminate();
   }
 };
