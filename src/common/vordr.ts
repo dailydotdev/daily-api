@@ -27,6 +27,14 @@ export const checkWithVordr = async (
     .where('user.id = :id', { id: userId })
     .getRawOne();
 
+  if (!user) {
+    logger.error(
+      { commentId: comment.id, userId },
+      'Failed to fetch user for comment',
+    );
+    return true;
+  }
+
   if (user.flags?.vordr) {
     logger.info(
       { commentId: comment.id, userId },
