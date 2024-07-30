@@ -13,6 +13,9 @@ const vordrWords =
 export const validateVordrIPs = (ip: string): boolean =>
   isIP(ip) && isInSubnet(ip, vordrIPs);
 
+export const validateVordrWords = (content: string): boolean =>
+  vordrWords.some((word) => content.toLowerCase().includes(word.toLowerCase()));
+
 export const checkWithVordr = async (
   comment: Comment,
   { userId, con, req }: Context,
@@ -46,11 +49,7 @@ export const checkWithVordr = async (
     return true;
   }
 
-  if (
-    vordrWords.some((word) =>
-      comment.content.toLowerCase().includes(word.toLowerCase()),
-    )
-  ) {
+  if (validateVordrWords(comment.content)) {
     logger.info(
       { commentId: comment.id, userId },
       'Prevented comment because it contains spam',
