@@ -84,6 +84,10 @@ export const workers: Worker[] = [
     subscription: 'post-commented-slack-message',
   },
   {
+    topic: 'post-commented',
+    subscription: 'api.vordr-post-comment-prevented',
+  },
+  {
     topic: 'post-upvoted',
     subscription: 'post-upvoted-redis',
   },

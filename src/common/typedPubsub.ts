@@ -73,6 +73,11 @@ export type PubSubSchema = {
     postId: string;
     userId: string;
   };
+  'post-commented': {
+    userId: string;
+    commentId: string;
+    postId: string;
+  };
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(
