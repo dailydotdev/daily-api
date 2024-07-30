@@ -20,9 +20,14 @@ export const checkWithVordr = async (
   comment: Comment,
   { userId, con, req }: Context,
 ): Promise<boolean> => {
-  const user = await con.getRepository(User).findOneByOrFail({ id: userId });
+  const user: Pick<User, 'flags'> = await con
+    .getRepository(User)
+    .createQueryBuilder('user')
+    .select(['flags'])
+    .where('user.id = :id', { id: userId })
+    .getRawOne();
 
-  if (user.flags.vordr) {
+  if (user.flags?.vordr) {
     logger.info(
       { commentId: comment.id, userId },
       'Vordr prevented user from commenting',
@@ -31,7 +36,7 @@ export const checkWithVordr = async (
     return true;
   }
 
-  if (user.flags.trustScore <= 0) {
+  if (!user.flags?.trustScore || user.flags?.trustScore <= 0) {
     logger.info(
       { commentId: comment.id, userId },
       'Prevented comment because user has a score of 0',
