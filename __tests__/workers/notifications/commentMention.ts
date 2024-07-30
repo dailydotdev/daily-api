@@ -13,7 +13,7 @@ import {
 import { badUsersFixture, sourcesFixture, usersFixture } from '../../fixture';
 import { postsFixture } from '../../fixture/post';
 import { workers } from '../../../src/workers';
-import { invokeNotificationWorker } from '../../helpers';
+import { invokeNotificationWorker, saveFixtures } from '../../helpers';
 
 let con: DataSource;
 
@@ -23,11 +23,11 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   jest.resetAllMocks();
-  await con.getRepository(User).save(usersFixture);
-  await con.getRepository(User).save(badUsersFixture);
-  await con.getRepository(Source).save(sourcesFixture);
-  await con.getRepository(Post).save(postsFixture);
-  await con.getRepository(Comment).save([
+  await saveFixtures(con, User, usersFixture);
+  await saveFixtures(con, User, badUsersFixture);
+  await saveFixtures(con, Source, sourcesFixture);
+  await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, Comment, [
     {
       id: 'c1',
       postId: 'p1',
@@ -37,7 +37,7 @@ beforeEach(async () => {
       flags: { vordr: true },
     },
   ]);
-  await con.getRepository(CommentMention).save([
+  await saveFixtures(con, CommentMention, [
     {
       commentId: 'c1',
       commentByUserId: '1',

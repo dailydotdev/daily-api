@@ -256,7 +256,7 @@ describe('query postComments', () => {
   it('should filter out comments that are vordr prevented', async () => {
     loggedUser = '1';
 
-    await con.getRepository(Comment).save([
+    await saveFixtures(con, Comment, [
       {
         id: 'vordr-comment',
         postId: 'p1',
@@ -275,7 +275,7 @@ describe('query postComments', () => {
   it('should not filter out my own comments that vordr prevented', async () => {
     loggedUser = '2';
 
-    await con.getRepository(Comment).save([
+    await saveFixtures(con, Comment, [
       {
         id: 'vordr-comment',
         postId: 'p1',
