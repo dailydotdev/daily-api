@@ -168,6 +168,8 @@ config:
       secure: AAABABn4A3L8LlBI77M+EM73dUMete6GUvoWIcaEj4DYxn+wNRB3lKKnSVNOZxb3/D9jniDoQIWOvPPeZkzOoQ==
     vordrIps:
       secure: AAABAJVP2wMe/dPCPkzyRYci+QTa2MjfkQey0stZKV/5DGh2iajm8EaXyrHLwGpw/TAZcHRMuL/MewuZiIAfC+hLnWCoUpHMM9xjE3pVBnbc7XY4T/ydNC2PsZIchLcZT0mr+yrigmp9d8ycRj8QNcc=
+    vordrWords:
+      secure: AAABANZjpwPca1vPOQylEh3GKz5/eFeXqcg25UFbBtsdUXV1z/W8zKjnYpH3IGz7+zrRfYYG
     webflowToken:
       secure: AAABAEGzQasDisCZXKxcKbA7RJ/+nJLyzh6hNUcRCeBx3727YfGxBF8IUhJiDNK9ibava+80BbSSM2+zQxm020TtaQc3uUmVih19EXTVd6cP9YvRC9JorQKwvH9rSZSy
     webhookSecret:
