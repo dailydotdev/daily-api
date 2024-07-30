@@ -18,7 +18,6 @@ export const checkWithVordr = async (
   { userId, con, req }: Context,
 ): Promise<boolean> => {
   const user = await con.getRepository(User).findOneByOrFail({ id: userId });
-  logger.info({ vordrWords }, 'Vordr words');
 
   if (user.flags.vordr) {
     logger.info(
