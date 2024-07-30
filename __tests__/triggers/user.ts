@@ -26,7 +26,7 @@ describe('user', () => {
 
       await saveFixtures(con, User, usersFixture);
 
-      const user = await con.getRepository(User).findOneBy({
+      const user = await con.getRepository(User).findOneByOrFail({
         id: '1',
       });
       expect(user).toBeTruthy();
