@@ -23,7 +23,6 @@ const worker: TypedWorker<'post-commented'> = {
       const user = await comment.user;
 
       await notifyNewVordrComment(post, user, comment);
-      logger.info({ data }, 'Slack new comment message send');
     } catch (originalError) {
       const err = originalError as TypeORMQueryFailedError;
 
