@@ -1,12 +1,12 @@
 import { FastifyInstance, FastifyReply } from 'fastify';
-import createOrGetConnection from '../db';
-import { logger } from '../logger';
+import createOrGetConnection from '../../db';
+import { logger } from '../../logger';
 import {
   IntegrationMetaSlack,
   UserIntegrationSlack,
-} from '../entity/UserIntegration';
-import { SlackAuthResponse } from '../types';
-import { RedirectError } from '../errors';
+} from '../../entity/UserIntegration';
+import { SlackAuthResponse } from '../../types';
+import { RedirectError } from '../../errors';
 
 const redirectResponse = ({
   res,

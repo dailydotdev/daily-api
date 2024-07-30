@@ -16,13 +16,13 @@ import webhooks from './webhooks';
 import localAds from './localAds';
 import automations from './automations';
 import sitemaps from './sitemaps';
-import slack from './slack';
 import createOrGetConnection from '../db';
 import { UserPersonalizedDigest, UserPersonalizedDigestType } from '../entity';
 import { notifyGeneratePersonalizedDigest } from '../common';
 import { PersonalizedDigestFeatureConfig } from '../growthbook';
 import privateRpc from './privateRpc';
 import { connectRpcPlugin } from '../common/connectRpc';
+import integrations from './integrations';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(rss, { prefix: '/rss' });
@@ -47,7 +47,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(redirects);
   fastify.register(automations, { prefix: '/auto' });
   fastify.register(sitemaps, { prefix: '/sitemaps' });
-  fastify.register(slack, { prefix: '/slack' });
+  fastify.register(integrations, { prefix: '/integrations' });
 
   fastify.get('/robots.txt', (req, res) => {
     return res.type('text/plain').send(`User-agent: *

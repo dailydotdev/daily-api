@@ -5,7 +5,6 @@ import * as comments from './schema/comments';
 import * as compatibility from './schema/compatibility';
 import * as bookmarks from './schema/bookmarks';
 import * as feed from './schema/feeds';
-import * as integrations from './schema/integrations';
 import * as notifications from './schema/notifications';
 import * as posts from './schema/posts';
 import * as settings from './schema/settings';
@@ -23,7 +22,7 @@ import * as urlShortener from './schema/urlShortener';
 import * as authDirective from './directive/auth';
 import * as urlDirective from './directive/url';
 import * as leaderboard from './schema/leaderboard';
-import * as slack from './schema/slack';
+import * as integrations from './schema/integrations';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import {
   rateLimitTypeDefs,
@@ -43,7 +42,6 @@ export const schema = urlDirective.transformer(
           compatibility.typeDefs,
           bookmarks.typeDefs,
           feed.typeDefs,
-          integrations.typeDefs,
           notifications.typeDefs,
           posts.typeDefs,
           settings.typeDefs,
@@ -59,7 +57,7 @@ export const schema = urlDirective.transformer(
           devcards.typeDefs,
           urlShortener.typeDefs,
           leaderboard.typeDefs,
-          slack.typeDefs,
+          integrations.typeDefs,
         ],
         resolvers: merge(
           common.resolvers,
@@ -67,7 +65,6 @@ export const schema = urlDirective.transformer(
           compatibility.resolvers,
           bookmarks.resolvers,
           feed.resolvers,
-          integrations.resolvers,
           notifications.resolvers,
           posts.resolvers,
           settings.resolvers,
@@ -83,7 +80,7 @@ export const schema = urlDirective.transformer(
           devcards.resolvers,
           urlShortener.resolvers,
           leaderboard.resolvers,
-          slack.resolvers,
+          integrations.resolvers,
         ),
       }),
     ),

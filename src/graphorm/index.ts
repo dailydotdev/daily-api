@@ -654,10 +654,16 @@ const obj = new GraphORM({
     },
   },
   UserIntegration: {
-    requiredColumns: ['id', 'type'],
+    requiredColumns: ['type', 'meta', 'createdAt'],
     fields: {
       meta: {
         jsonType: true,
+      },
+      createdAt: {
+        transform: transformDate,
+      },
+      updatedAt: {
+        transform: transformDate,
       },
     },
   },
