@@ -1,4 +1,5 @@
 import {
+  DEFAULT_TIMEZONE,
   getPersonalizedDigestPreviousSendDate,
   getPersonalizedDigestSendDate,
   notifyGeneratePersonalizedDigest,
@@ -9,7 +10,6 @@ import {
   UserPersonalizedDigest,
   UserPersonalizedDigestSendType,
 } from '../entity';
-import { DEFAULT_TIMEZONE } from '../types';
 import { Cron } from './cron';
 import { Brackets } from 'typeorm';
 

@@ -51,6 +51,7 @@ import {
   votePost,
   voteComment,
   resubscribeUser,
+  DayOfWeek,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -66,7 +67,7 @@ import { deleteUser } from '../directive/user';
 import { randomInt } from 'crypto';
 import { DataSource, In, IsNull } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
-import { DayOfWeek, UserVote, UserVoteEntity } from '../types';
+import { UserVote, UserVoteEntity } from '../types';
 import { markdown } from '../common/markdown';
 import { RedisMagicValues, deleteRedisKey, getRedisObject } from '../redis';
 import { StorageKey, StorageTopic, generateStorageKey } from '../config';

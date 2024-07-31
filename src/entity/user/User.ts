@@ -26,7 +26,6 @@ import { GQLUpdateUserInput } from '../../schema/users';
 import { nameRegex, validateRegex, ValidateRegex } from '../../common/object';
 import { generateTrackingId } from '../../ids';
 import { UserStreak } from './UserStreak';
-import { DEFAULT_TIMEZONE, DEFAULT_WEEK_START } from '../../types';
 import { validateValidTimeZone } from '../../common/timezone';
 import { counters } from '../../telemetry';
 import {
@@ -44,7 +43,11 @@ import {
   youtubeSocialUrlMatch,
 } from '../../common/users';
 import { logger } from '../../logger';
-import { safeJSONParse } from '../../common';
+import {
+  DEFAULT_TIMEZONE,
+  DEFAULT_WEEK_START,
+  safeJSONParse,
+} from '../../common';
 
 export type UserFlags = Partial<{
   vordr: boolean;

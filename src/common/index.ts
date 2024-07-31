@@ -1,6 +1,7 @@
 export * from './base64';
 export * from './cloudinary';
 export * from './crypto';
+export * from './date';
 export * from './feedGenerator';
 export * from './healthCheck';
 export * from './pagination';

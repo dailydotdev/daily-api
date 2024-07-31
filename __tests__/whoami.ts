@@ -12,7 +12,7 @@ import {
 import { userCreatedDate, usersFixture } from './fixture/user';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
-import { DEFAULT_TIMEZONE } from '../src/types';
+import { DEFAULT_TIMEZONE } from '../src/common';
 
 let app: FastifyInstance;
 let con: DataSource;

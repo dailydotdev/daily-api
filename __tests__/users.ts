@@ -46,6 +46,7 @@ import { sourcesFixture } from './fixture/source';
 import {
   codepenSocialUrlMatch,
   encrypt,
+  DayOfWeek,
   getTimezonedStartOfISOWeek,
   githubSocialUrlMatch,
   linkedinSocialUrlMatch,
@@ -64,7 +65,6 @@ import request from 'supertest';
 import { FastifyInstance } from 'fastify';
 import setCookieParser from 'set-cookie-parser';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
-import { DayOfWeek } from '../src/types';
 import { CampaignType, Invite } from '../src/entity/Invite';
 import { usersFixture } from './fixture/user';
 import { deleteRedisKey, getRedisObject } from '../src/redis';

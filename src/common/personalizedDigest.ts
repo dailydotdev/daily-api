@@ -7,7 +7,6 @@ import {
   UserPersonalizedDigestSendType,
   UserStreak,
 } from '../entity';
-import { DayOfWeek } from '../types';
 import { format, isSameDay, nextDay, previousDay } from 'date-fns';
 import { PersonalizedDigestFeatureConfig } from '../growthbook';
 import { feedToFilters, fixedIdsFeedBuilder } from './feedGenerator';
@@ -21,6 +20,7 @@ import { zonedTimeToUtc } from 'date-fns-tz';
 import fastq from 'fastq';
 import { SendEmailRequestWithTemplate } from 'customerio-node/dist/lib/api/requests';
 import { v4 as uuidv4 } from 'uuid';
+import { DayOfWeek } from './date';
 
 type TemplatePostData = Pick<
   ArticlePost,

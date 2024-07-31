@@ -2,6 +2,7 @@ import { utcToZonedTime } from 'date-fns-tz';
 import {
   schedulePersonalizedDigestSubscriptions,
   notifyGeneratePersonalizedDigest,
+  DEFAULT_TIMEZONE,
 } from '../common';
 import {
   User,
@@ -11,7 +12,6 @@ import {
 } from '../entity';
 import { Cron } from './cron';
 import { isWeekend, subDays } from 'date-fns';
-import { DEFAULT_TIMEZONE } from '../types';
 
 const sendType = UserPersonalizedDigestSendType.workdays;
 const digestTypes = [UserPersonalizedDigestType.StreakReminder];
