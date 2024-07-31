@@ -1683,7 +1683,9 @@ export const resolvers: IResolvers<any, BaseContext> = {
         case UserIntegrationType.Slack: {
           const slackIntegration = userIntegration as UserIntegrationSlack;
 
-          return slackIntegration.meta.teamName;
+          return (
+            slackIntegration.meta.teamName ?? `Slack ${slackIntegration.id}`
+          );
         }
         default:
           return userIntegration.type;

@@ -14,10 +14,27 @@ export type GQLSlackChannels = {
   name?: string;
 };
 
+export type GQLSlackChannelConnection = {
+  data: GQLSlackChannels[];
+  cursor?: string;
+};
+
 export const typeDefs = /* GraphQL */ `
-  type Channel {
+  type SlackChannel {
     id: String
     name: String
+  }
+
+  type SlackChannelConnection {
+    """
+    Channels list
+    """
+    data: [SlackChannel!]!
+
+    """
+    Next page cursor, if exists
+    """
+    cursor: String
   }
 
   extend type Query {
@@ -39,7 +56,7 @@ export const typeDefs = /* GraphQL */ `
       Cursor for pagination
       """
       cursor: String
-    ): [Channel]! @auth
+    ): SlackChannelConnection @auth
   }
 
   extend type Mutation {
@@ -71,7 +88,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
       _,
       args: { integrationId: string; limit: number; cursor: string },
       ctx: AuthContext,
-    ): Promise<GQLSlackChannels[]> => {
+    ): Promise<GQLSlackChannelConnection> => {
       const slackIntegration = await getSlackIntegrationOrFail({
         id: args.integrationId,
         userId: ctx.userId,
@@ -103,7 +120,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         throw new Error(message);
       }
 
-      return result.channels;
+      return {
+        data: result.channels.map((channel) => {
+          return {
+            id: channel.id,
+            name: channel.name,
+          };
+        }),
+        cursor: result.response_metadata?.next_cursor,
+      };
     },
   },
   Mutation: {

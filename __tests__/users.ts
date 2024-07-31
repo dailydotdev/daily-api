@@ -5,6 +5,7 @@ import { PostKeyword } from './../src/entity/PostKeyword';
 import {
   addDays,
   addHours,
+  addSeconds,
   startOfDay,
   startOfISOWeek,
   subDays,
@@ -67,6 +68,10 @@ import { CampaignType, Invite } from '../src/entity/Invite';
 import { usersFixture } from './fixture/user';
 import { deleteRedisKey, getRedisObject } from '../src/redis';
 import { StorageKey, StorageTopic, generateStorageKey } from '../src/config';
+import {
+  UserIntegration,
+  UserIntegrationType,
+} from '../src/entity/UserIntegration';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -3512,5 +3517,105 @@ describe('mutation clearUserMarketingCta', () => {
         readAt: IsNull(),
       }),
     ).toBeTruthy();
+  });
+});
+
+describe('query userIntegrations', () => {
+  const QUERY = `
+  query UserIntegrations {
+    userIntegrations {
+      edges {
+        node {
+          id
+          type
+          name
+        }
+      }
+    }
+  }
+`;
+
+  it('should require authentication', async () => {
+    await testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED');
+  });
+
+  it('should return user integrations', async () => {
+    loggedUser = '1';
+    const createdAt = new Date();
+
+    await con.getRepository(UserIntegration).save([
+      {
+        userId: '1',
+        type: UserIntegrationType.Slack,
+        createdAt: addSeconds(createdAt, 3),
+        name: 'daily.dev',
+        meta: {
+          appId: 'sapp1',
+          scope: 'channels:read,chat:write,channels:join',
+          teamId: 'st1',
+          teamName: 'daily.dev',
+          tokenType: 'bot',
+          accessToken: 'xoxb-token',
+          slackUserId: 'su1',
+        },
+      },
+      {
+        userId: '1',
+        type: UserIntegrationType.Slack,
+        createdAt: addSeconds(createdAt, 2),
+        name: 'daily.dev',
+        meta: {
+          appId: 'sapp2',
+          scope: 'channels:read,chat:write,channels:join',
+          teamId: 'st2',
+          teamName: 'example team',
+          tokenType: 'bot',
+          accessToken: 'xoxb-token2',
+          slackUserId: 'su2',
+        },
+      },
+      {
+        userId: '1',
+        type: UserIntegrationType.Slack,
+        createdAt: addSeconds(createdAt, 1),
+        name: 'daily.dev',
+        meta: {
+          appId: 'sapp2',
+          scope: 'channels:read,chat:write,channels:join',
+          teamId: 'st2',
+          tokenType: 'bot',
+          accessToken: 'xoxb-token2',
+          slackUserId: 'su2',
+        },
+      },
+    ]);
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userIntegrations).toMatchObject({
+      edges: [
+        {
+          node: {
+            id: expect.any(String),
+            type: 'slack',
+            name: 'daily.dev',
+          },
+        },
+        {
+          node: {
+            id: expect.any(String),
+            type: 'slack',
+            name: 'example team',
+          },
+        },
+        {
+          node: {
+            id: expect.any(String),
+            type: 'slack',
+            name: expect.stringContaining('Slack '),
+          },
+        },
+      ],
+    });
   });
 });
