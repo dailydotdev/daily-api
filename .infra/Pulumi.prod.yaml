@@ -132,6 +132,8 @@ config:
       secure: AAABABnP+xVyOkzYEXf/7ImrzhbJzc0k+eH5JI03jdJZYBWNUt9cwLHXJ5uyzFmA8mD2x4adt1DawYGNDhM0J/ukvQBPqzdAOjvW4AY8ykqHTSXzxbJojMeOuSO+4YeopZhv2J7xa+gTxipkvZR5hhA=
     slackDbKey:
       secure: AAABAIdDZkm/UZtL5RRblv6AMC6iEsRmXdbflb/0qYtLbLFkD/ooMuXs7SAXl8XtXHpwO59BYxlOyOZvnxfOkw==
+    slackSigningSecret:
+      secure: AAABAEMRZIx1L++yrKAFNs1G7ui++oHS51jEmTO7b99fmK8aS7qKMRuK7T1Zn0dctkO1mbv39UDdyuEuiEnIkw==
     slackWebhook:
       secure: AAABANMRr419hiCx/eBF5NJvKB8LDGb8GffeQzg5PxXoD5A9iQn7cPM30aB0jl3cWTKX65VrDShNl+GO86zvRIq4nXvwpjSdi/ToCHDBxyg7sIIQvngrlJuPQ9da+fj426VWkg5fFnwg02QuxMoHqrM=
     snotraOrigin:

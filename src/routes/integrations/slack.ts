@@ -7,7 +7,12 @@ import {
 } from '../../entity/UserIntegration';
 import { SlackAuthResponse } from '../../types';
 import { RedirectError } from '../../errors';
-import { encrypt } from '../../common';
+import {
+  encrypt,
+  SlackEvent,
+  SlackEventType,
+  verifySlackSignature,
+} from '../../common';
 import fetch from 'node-fetch';
 
 const redirectResponse = ({
@@ -168,5 +173,85 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         error: isRedirectError ? error : new RedirectError('internal error'),
       });
     }
+  });
+
+  fastify.post<{
+    Body: {
+      token: string;
+      challenge: string;
+      type: string;
+      team_id: string;
+      event: {
+        type: SlackEvent;
+      };
+    };
+    Headers: {
+      'x-slack-request-timestamp': string;
+      'x-slack-signature': string;
+    };
+  }>('/events', {
+    config: {
+      rawBody: true,
+    },
+    handler: async (req, res) => {
+      try {
+        if (req.body.type === SlackEventType.UrlVerification) {
+          const isValid = verifySlackSignature({ req });
+
+          return res.status(isValid ? 200 : 403).send({
+            challenge: isValid ? req.body.challenge : 'invalid signature',
+          });
+        }
+
+        const eventType = req.body.type;
+        const event = req.body.event?.type || 'unknown';
+
+        switch (event) {
+          case SlackEvent.AppUninstalled:
+          case SlackEvent.TokensRevoked: {
+            const teamId = req.body.team_id;
+
+            if (!teamId) {
+              logger.error(
+                {
+                  event,
+                  eventType,
+                },
+                'missing team id for slack event',
+              );
+
+              break;
+            }
+
+            const con = await createOrGetConnection();
+
+            await con
+              .getRepository(UserIntegrationSlack)
+              .createQueryBuilder()
+              .delete()
+              .where(`meta->>'teamId' = :teamId`, { teamId })
+              .execute();
+
+            break;
+          }
+          default:
+            logger.warn(
+              {
+                event,
+                eventType,
+              },
+              'unhandled slack event type',
+            );
+
+            break;
+        }
+
+        return res.status(200).send({ success: true });
+      } catch (error) {
+        logger.error({ err: error }, 'error processing slack event');
+
+        return res.status(500).send({ success: false });
+      }
+    },
   });
 }

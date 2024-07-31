@@ -4,6 +4,8 @@ import { getDiscussionLink } from './links';
 import { NotFoundError } from '../errors';
 import { DataSource } from 'typeorm';
 import { UserIntegrationSlack } from '../entity/UserIntegration';
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import { FastifyRequest } from 'fastify';
 
 const nullWebhook = { send: (): Promise<void> => Promise.resolve() };
 export const webhooks = Object.freeze({
@@ -186,3 +188,41 @@ export const getSlackIntegrationOrFail: typeof getSlackIntegration = async ({
 
   return slackIntegration;
 };
+
+export const verifySlackSignature = ({
+  req,
+}: {
+  req: FastifyRequest<{
+    Headers: {
+      'x-slack-request-timestamp': string;
+      'x-slack-signature': string;
+    };
+  }>;
+}): boolean => {
+  const timestamp = req.headers['x-slack-request-timestamp'] as string;
+  const signature = req.headers['x-slack-signature'] as string;
+
+  if (!timestamp || !signature) {
+    return false;
+  }
+
+  const hmac = createHmac('sha256', process.env.SLACK_SIGNING_SECRET);
+  hmac.update(`v0:${timestamp}:${req.rawBody}`);
+
+  const hash = hmac.digest();
+
+  return timingSafeEqual(
+    hash,
+    Buffer.from(signature.replace('v0=', ''), 'hex'),
+  );
+};
+
+export enum SlackEventType {
+  UrlVerification = 'url_verification',
+  EventCallback = 'event_callback',
+}
+
+export enum SlackEvent {
+  AppUninstalled = 'app_uninstalled',
+  TokensRevoked = 'tokens_revoked',
+}
