@@ -15,7 +15,11 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   jest.resetAllMocks();
-  await saveFixtures(con, User, usersFixture);
+  await saveFixtures(
+    con,
+    User,
+    usersFixture.map((u) => ({ ...u, reputation: 10 })),
+  );
   await saveFixtures(con, User, badUsersFixture);
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Post, postsFixture);
@@ -95,6 +99,34 @@ describe('commmon/vordr', () => {
       } as Context);
 
       expect(result).toBeTruthy();
+    });
+
+    it('should return true if the user has low reputation', async () => {
+      const comment = await con
+        .getRepository(Comment)
+        .findOneByOrFail({ id: 'c1' });
+
+      const result = await checkWithVordr(comment, {
+        req: { ip: '127.0.0.1' },
+        userId: 'low-reputation',
+        con,
+      } as Context);
+
+      expect(result).toBeTruthy();
+    });
+
+    it('should return true if the user has high reputation', async () => {
+      const comment = await con
+        .getRepository(Comment)
+        .findOneByOrFail({ id: 'c1' });
+
+      const result = await checkWithVordr(comment, {
+        req: { ip: '127.0.0.1' },
+        userId: '1',
+        con,
+      } as Context);
+
+      expect(result).toBeFalsy();
     });
 
     it('should return false if it passes all Vordr filters', async () => {

@@ -71,6 +71,10 @@ export const notifyNewVordrComment = async (
             title: 'Trust score',
             value: user.flags.trustScore.toString() ?? '',
           },
+          {
+            title: 'Repuation',
+            value: user.reputation.toString() ?? '',
+          },
         ],
         color: '#1DDC6F',
       },

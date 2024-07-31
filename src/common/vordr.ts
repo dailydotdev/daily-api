@@ -38,10 +38,10 @@ export const checkWithVordr = async (
     return true;
   }
 
-  const user: Pick<User, 'flags'> = await con
+  const user: Pick<User, 'flags' | 'reputation'> = await con
     .getRepository(User)
     .createQueryBuilder('user')
-    .select(['flags'])
+    .select(['flags', 'reputation'])
     .where('user.id = :id', { id: userId })
     .getRawOne();
 
@@ -68,6 +68,15 @@ export const checkWithVordr = async (
       'Prevented comment because user has a score of 0',
     );
     counters?.api?.preventComment?.add(1, { reason: 'score' });
+    return true;
+  }
+
+  if (user.reputation < 10) {
+    logger.info(
+      { commentId: comment.id, userId },
+      'Prevented comment because user has low reputation',
+    );
+    counters?.api?.preventComment?.add(1, { reason: 'reputation' });
     return true;
   }
 
