@@ -1,7 +1,7 @@
 import { GraphQLResolveInfo } from 'graphql';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
-import { Brackets, DataSource, EntityManager, In, Not } from 'typeorm';
+import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolverObject } from './trace';
 import {
@@ -44,7 +44,7 @@ import { generateShortId } from '../ids';
 import { CommentReport } from '../entity/CommentReport';
 import { UserVote } from '../types';
 import { UserComment } from '../entity/user/UserComment';
-import { checkWithVordr } from '../common/vordr';
+import { checkWithVordr, whereVordrFilter } from '../common/vordr';
 
 export interface GQLComment {
   id: string;
@@ -610,15 +610,7 @@ export const resolvers: IResolvers<any, BaseContext> = {
               })
               .andWhere(`${builder.alias}.parentId is null`)
               // Only show comments that vordr prevented, if the user is the author of the comment
-              .andWhere(
-                new Brackets((qb) => {
-                  qb.where(`${builder.alias}.userId = :userId`, {
-                    userId: ctx.userId,
-                  }).orWhere(
-                    `(${builder.alias}.flags ->> 'vordr')::boolean = false`,
-                  );
-                }),
-              )
+              .andWhere(whereVordrFilter(builder.alias, ctx.userId))
               .andWhere('1=1');
 
             return builder;
