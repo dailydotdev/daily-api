@@ -56,6 +56,6 @@ export const cancelReminderWorkflow = async (
   const description = await getDescribeOrError(handle);
 
   if (description?.status.name === 'RUNNING') {
-    await handle.terminate();
+    return await handle.terminate();
   }
 };
