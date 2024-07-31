@@ -16,13 +16,13 @@ const mockActivities: BookmarkActivities = {
   sendBookmarkReminder,
 };
 
-afterAll(async () => {
-  await testEnv?.teardown();
-});
-
 let worker: Worker;
 
-beforeAll(async () => {
+jest.mock('../../../src/temporal/client', () => ({
+  getTemporalClient: () => testEnv.client,
+}));
+
+beforeEach(async () => {
   testEnv = await TestWorkflowEnvironment.createTimeSkipping();
   worker = await Worker.create({
     connection: testEnv.nativeConnection,
@@ -32,14 +32,11 @@ beforeAll(async () => {
       '../../../src/temporal/notifications/workflows',
     ),
   });
+  jest.clearAllMocks();
 });
 
-jest.mock('../../../src/temporal/client', () => ({
-  getTemporalClient: () => testEnv.client,
-}));
-
-beforeEach(async () => {
-  jest.clearAllMocks();
+afterEach(async () => {
+  await testEnv?.teardown();
 });
 
 describe('getReminderWorkflowId', () => {
