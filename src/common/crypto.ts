@@ -30,3 +30,33 @@ export const encrypt = async (
   );
   return bufToBase64(iv) + ':' + bufToBase64(encrypted);
 };
+
+export const decrypt = async (
+  input: string,
+  key: string,
+  algorithmName = 'AES-CBC',
+  algorithmLength = 256,
+): Promise<string> => {
+  const keyObject = await crypto.subtle.importKey(
+    'raw',
+    Buffer.from(key, 'utf-8'),
+    {
+      name: algorithmName,
+      length: algorithmLength,
+    },
+    true,
+    ['encrypt', 'decrypt'],
+  );
+
+  const [iv, encrypted] = input.split(':').map((x) => Buffer.from(x, 'base64'));
+
+  const decrypted = await crypto.subtle.decrypt(
+    {
+      name: algorithmName,
+      iv,
+    },
+    keyObject,
+    encrypted,
+  );
+  return new TextDecoder().decode(decrypted);
+};

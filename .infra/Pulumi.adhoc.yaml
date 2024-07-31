@@ -75,6 +75,7 @@ config:
     pubsubProjectId: local
     redisHost: redis
     redisPort: 6379
+    slackDbKey: 438c104d85cecd56b88bd58d3a51d5bc
     submitArticleThreshold: 250
     typeormDatabase: api
     typeormHost: postgres

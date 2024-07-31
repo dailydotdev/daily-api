@@ -3,7 +3,11 @@ import { AuthContext, BaseContext } from '../Context';
 import { traceResolvers } from './trace';
 import { WebClient } from '@slack/web-api';
 import { logger } from '../logger';
-import { getLimit, getSlackIntegrationOrFail } from '../common';
+import {
+  getIntegrationToken,
+  getLimit,
+  getSlackIntegrationOrFail,
+} from '../common';
 import { GQLEmptyResponse } from './common';
 import { ValidationError } from 'apollo-server-errors';
 import { UserSourceIntegrationSlack } from '../entity/UserSourceIntegration';
@@ -95,7 +99,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         con: ctx.con,
       });
 
-      const client = new WebClient(slackIntegration.meta.accessToken);
+      const client = new WebClient(
+        await getIntegrationToken({ integration: slackIntegration }),
+      );
 
       const result = await client.conversations.list({
         limit: getLimit({
@@ -148,7 +154,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         }),
       ]);
 
-      const client = new WebClient(slackIntegration.meta.accessToken);
+      const client = new WebClient(
+        await getIntegrationToken({ integration: slackIntegration }),
+      );
 
       const channelResult = await client.conversations.info({
         channel: args.channelId,

@@ -45,6 +45,7 @@ import {
 import { sourcesFixture } from './fixture/source';
 import {
   codepenSocialUrlMatch,
+  encrypt,
   getTimezonedStartOfISOWeek,
   githubSocialUrlMatch,
   linkedinSocialUrlMatch,
@@ -3555,7 +3556,10 @@ describe('query userIntegrations', () => {
           teamId: 'st1',
           teamName: 'daily.dev',
           tokenType: 'bot',
-          accessToken: 'xoxb-token',
+          accessToken: await encrypt(
+            'xoxb-token',
+            process.env.SLACK_DB_KEY as string,
+          ),
           slackUserId: 'su1',
         },
       },
@@ -3570,7 +3574,10 @@ describe('query userIntegrations', () => {
           teamId: 'st2',
           teamName: 'example team',
           tokenType: 'bot',
-          accessToken: 'xoxb-token2',
+          accessToken: await encrypt(
+            'xoxb-token2',
+            process.env.SLACK_DB_KEY as string,
+          ),
           slackUserId: 'su2',
         },
       },
@@ -3584,7 +3591,10 @@ describe('query userIntegrations', () => {
           scope: 'channels:read,chat:write,channels:join',
           teamId: 'st2',
           tokenType: 'bot',
-          accessToken: 'xoxb-token2',
+          accessToken: await encrypt(
+            'xoxb-token3',
+            process.env.SLACK_DB_KEY as string,
+          ),
           slackUserId: 'su2',
         },
       },
@@ -3597,21 +3607,21 @@ describe('query userIntegrations', () => {
         {
           node: {
             id: expect.any(String),
-            type: 'slack',
+            type: UserIntegrationType.Slack,
             name: 'daily.dev',
           },
         },
         {
           node: {
             id: expect.any(String),
-            type: 'slack',
+            type: UserIntegrationType.Slack,
             name: 'example team',
           },
         },
         {
           node: {
             id: expect.any(String),
-            type: 'slack',
+            type: UserIntegrationType.Slack,
             name: expect.stringContaining('Slack '),
           },
         },

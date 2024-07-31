@@ -7,6 +7,8 @@ import {
 } from '../../entity/UserIntegration';
 import { SlackAuthResponse } from '../../types';
 import { RedirectError } from '../../errors';
+import { encrypt } from '../../common';
+import fetch from 'node-fetch';
 
 const redirectResponse = ({
   res,
@@ -43,7 +45,17 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
     try {
       if (!req.userId) {
-        return res.status(401).send();
+        const message = 'unauthorized';
+        const error = new RedirectError(message);
+
+        logger.error(
+          {
+            err: error,
+          },
+          message,
+        );
+
+        throw error;
       }
 
       if (req.query.state !== req.userId) {
@@ -123,7 +135,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         slackUserId: result.authed_user.id,
         scope: result.scope,
         tokenType: result.token_type,
-        accessToken: result.access_token,
+        accessToken: await encrypt(
+          result.access_token,
+          process.env.SLACK_DB_KEY,
+        ),
         teamId: result.team.id,
         teamName: result.team.name,
       };

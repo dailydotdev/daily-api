@@ -18,6 +18,7 @@ import { usersFixture } from './fixture/user';
 import { Source, User } from '../src/entity';
 import { Context } from '../src/Context';
 import { sourcesFixture } from './fixture/source';
+import { encrypt } from '../src/common';
 
 jest.mock('@slack/web-api', () => ({
   ...(jest.requireActual('@slack/web-api') as Record<string, unknown>),
@@ -110,7 +111,10 @@ describe('slack integration', () => {
           teamId: 'st1',
           teamName: 'daily.dev',
           tokenType: 'bot',
-          accessToken: 'xoxb-token',
+          accessToken: await encrypt(
+            'xoxb-token',
+            process.env.SLACK_DB_KEY as string,
+          ),
           slackUserId: 'su1',
         },
       },
