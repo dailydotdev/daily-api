@@ -20,6 +20,24 @@ export const checkWithVordr = async (
   comment: Comment,
   { userId, con, req }: Context,
 ): Promise<boolean> => {
+  if (validateVordrIPs(req.ip)) {
+    logger.info(
+      { commentId: comment.id, userId, ip: req.ip },
+      'Prevented comment because IP is in Vordr subnet',
+    );
+    counters?.api?.preventComment?.add(1, { reason: 'vordr_ip' });
+    return true;
+  }
+
+  if (validateVordrWords(comment.content)) {
+    logger.info(
+      { commentId: comment.id, userId },
+      'Prevented comment because it contains spam',
+    );
+    counters?.api?.preventComment?.add(1, { reason: 'vordr_word' });
+    return true;
+  }
+
   const user: Pick<User, 'flags'> = await con
     .getRepository(User)
     .createQueryBuilder('user')
@@ -50,24 +68,6 @@ export const checkWithVordr = async (
       'Prevented comment because user has a score of 0',
     );
     counters?.api?.preventComment?.add(1, { reason: 'score' });
-    return true;
-  }
-
-  if (validateVordrIPs(req.ip)) {
-    logger.info(
-      { commentId: comment.id, userId, ip: req.ip },
-      'Prevented comment because IP is in Vordr subnet',
-    );
-    counters?.api?.preventComment?.add(1, { reason: 'vordr_ip' });
-    return true;
-  }
-
-  if (validateVordrWords(comment.content)) {
-    logger.info(
-      { commentId: comment.id, userId },
-      'Prevented comment because it contains spam',
-    );
-    counters?.api?.preventComment?.add(1, { reason: 'vordr_word' });
     return true;
   }
 
