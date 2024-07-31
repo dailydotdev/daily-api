@@ -22,7 +22,7 @@ jest.mock('../../../src/temporal/client', () => ({
   getTemporalClient: () => testEnv.client,
 }));
 
-beforeEach(async () => {
+const setupTestEnv = async () => {
   testEnv = await TestWorkflowEnvironment.createTimeSkipping();
   worker = await Worker.create({
     connection: testEnv.nativeConnection,
@@ -32,11 +32,16 @@ beforeEach(async () => {
       '../../../src/temporal/notifications/workflows',
     ),
   });
-  jest.clearAllMocks();
-});
+};
 
-afterEach(async () => {
+const cleanupTestEnv = async () => {
   await testEnv?.teardown();
+  testEnv = null;
+  worker = null;
+};
+
+beforeEach(async () => {
+  jest.clearAllMocks();
 });
 
 describe('getReminderWorkflowId', () => {
@@ -54,6 +59,14 @@ describe('getReminderWorkflowId', () => {
 });
 
 describe('runReminderWorkflow', () => {
+  beforeEach(async () => {
+    await setupTestEnv();
+  });
+
+  afterEach(async () => {
+    await cleanupTestEnv();
+  });
+
   it('should start reminder workflow', async () => {
     const params = {
       postId: 'p1',
@@ -86,6 +99,14 @@ describe('runReminderWorkflow', () => {
 });
 
 describe('cancelReminderWorkflow', () => {
+  beforeEach(async () => {
+    await setupTestEnv();
+  });
+
+  afterEach(async () => {
+    await cleanupTestEnv();
+  });
+
   it('should cancel workflow', async () => {
     const params = {
       postId: 'p1',
