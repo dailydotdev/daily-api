@@ -31,13 +31,14 @@ EXECUTE FUNCTION comment_flags_update_vordr();`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`DROP TRIGGER user_flags_vordr ON "user"`);
+    await queryRunner.query(`DROP FUNCTION comment_flags_update_vordr`);
+
     await queryRunner.query(`DROP INDEX "IDX_user_flags_vordr"`);
     await queryRunner.query(`DROP INDEX "IDX_comment_flags_vordr"`);
 
     await queryRunner.query(`ALTER TABLE "user" DROP COLUMN "flags"`);
     await queryRunner.query(`ALTER TABLE "comment" DROP COLUMN "flags"`);
 
-    await queryRunner.query(`DROP TRIGGER user_flags_vordr ON "user"`);
-    await queryRunner.query(`DROP FUNCTION comment_flags_update_vordr`);
   }
 }
