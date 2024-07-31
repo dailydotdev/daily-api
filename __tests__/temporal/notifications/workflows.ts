@@ -69,13 +69,11 @@ describe('bookmarkReminderWorkflow workflow', () => {
 
     validateBookmark.mockReturnValueOnce(true);
 
-    await worker.runUntil(
-      testEnv.client.workflow.execute(bookmarkReminderWorkflow, {
-        workflowId: getReminderWorkflowId(params),
-        args: [params],
-        taskQueue: 'test',
-      }),
-    );
+    await testEnv.client.workflow.execute(bookmarkReminderWorkflow, {
+      workflowId: getReminderWorkflowId(params),
+      args: [params],
+      taskQueue: 'test',
+    });
 
     expect(mockActivities.sendBookmarkReminder).toHaveBeenCalledWith({
       postId: 'p1',
