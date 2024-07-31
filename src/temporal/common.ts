@@ -31,7 +31,7 @@ export enum TemporalError {
 
 export const getWorkflowHandle = async (
   workflowId: string,
-): Promise<WorkflowHandle> => {
+): Promise<WorkflowHandle | undefined> => {
   const client = await getTemporalClient();
 
   return client.workflow.getHandle(workflowId);
