@@ -23,7 +23,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;`);
 
-    await queryRunner.query(`CREATE TRIGGER user_flags_vordr
+    await queryRunner.query(`CREATE OR REPLACE TRIGGER user_flags_vordr
 AFTER UPDATE OF flags ON "user"
 FOR EACH ROW
 WHEN ((OLD.flags ->> 'vordr')::boolean IS DISTINCT FROM ((NEW.flags ->> 'vordr'))::boolean)
