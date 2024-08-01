@@ -60,6 +60,7 @@ describe('vordrPostCommentPrevented', () => {
       userId: 'vordr',
       commentId: 'c2',
       postId: 'p1',
+      contentHtml: '<p>comment</p>',
     })) as unknown as PubSubSchema['post-commented'];
 
     expect(notifyNewVordrComment).toHaveBeenCalledTimes(1);
@@ -70,6 +71,7 @@ describe('vordrPostCommentPrevented', () => {
       userId: 'vordr',
       commentId: 'c1',
       postId: 'p1',
+      contentHtml: '<p>comment</p>',
     })) as unknown as PubSubSchema['post-commented'];
 
     expect(notifyNewVordrComment).toHaveBeenCalledTimes(0);
