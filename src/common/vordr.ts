@@ -92,5 +92,7 @@ export const whereVordrFilter = (alias: string, userId: string) =>
   new Brackets((qb) => {
     qb.where(`${alias}.userId = :userId`, {
       userId: userId,
-    }).orWhere(`(${alias}.flags ->> 'vordr')::boolean = false`);
+    }).orWhere(
+      `COALESCE((${alias}.flags ->> 'vordr')::boolean, false) = false`,
+    );
   });
