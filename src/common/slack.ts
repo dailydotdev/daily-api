@@ -65,11 +65,11 @@ export const notifyNewVordrComment = async (
           },
           {
             title: 'Vordr status',
-            value: user.flags.vordr.toString() ?? '',
+            value: user.flags?.vordr?.toString() ?? '',
           },
           {
             title: 'Trust score',
-            value: user.flags.trustScore.toString() ?? '',
+            value: user.flags?.trustScore?.toString() ?? '',
           },
           {
             title: 'Repuation',
