@@ -43,10 +43,10 @@ export const checkWithVordr = async (
 
   const user: Pick<User, 'flags' | 'reputation'> = await con
     .getRepository(User)
-    .createQueryBuilder('user')
-    .select(['flags', 'reputation'])
-    .where('user.id = :id', { id: userId })
-    .getRawOne();
+    .findOne({
+      select: ['flags', 'reputation'],
+      where: { id: userId },
+    });
 
   if (!user) {
     logger.error(
