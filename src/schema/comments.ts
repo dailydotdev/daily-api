@@ -610,8 +610,7 @@ export const resolvers: IResolvers<any, BaseContext> = {
               })
               .andWhere(`${builder.alias}.parentId is null`)
               // Only show comments that vordr prevented, if the user is the author of the comment
-              .andWhere(whereVordrFilter(builder.alias, ctx.userId))
-              .andWhere('1=1');
+              .andWhere(whereVordrFilter(builder.alias, ctx.userId));
 
             return builder;
           },
