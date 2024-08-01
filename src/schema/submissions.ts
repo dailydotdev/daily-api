@@ -2,7 +2,7 @@ import { DataSource } from 'typeorm';
 import { ArticlePost, Submission, User } from './../entity';
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
-import { Context } from '../Context';
+import { AuthContext, BaseContext, Context } from '../Context';
 import { isValidHttpUrl, standardizeURL } from '../common';
 import { getPostByUrl, GQLPost } from './posts';
 import { SubmissionFailErrorMessage } from '../errors';
@@ -100,14 +100,20 @@ const getSubmissionsToday = (con: DataSource, user: User) => {
     .execute();
 };
 
-export const resolvers: IResolvers<unknown, Context> = traceResolvers({
+export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
+  unknown,
+  BaseContext
+>({
   Query: {
     submissionAvailability: async (
       _,
       __,
-      ctx,
+      ctx: Context,
     ): Promise<GQLSubmissionAvailability> => {
-      const user = await ctx.getRepository(User).findOneBy({ id: ctx.userId });
+      const user = ctx.userId
+        ? await ctx.getRepository(User).findOneBy({ id: ctx.userId })
+        : null;
+
       if (!user) {
         return {
           limit: submissionLimit,
@@ -129,10 +135,12 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
     submitArticle: async (
       _,
       { url }: GQLArticleSubmission,
-      ctx,
+      ctx: AuthContext,
       info,
     ): Promise<GQLSubmitArticleResponse> => {
-      const user = await ctx.getRepository(User).findOneBy({ id: ctx.userId });
+      const user = await ctx
+        .getRepository(User)
+        .findOneByOrFail({ id: ctx.userId });
 
       if (!hasSubmissionAccess(user)) {
         return {
@@ -185,7 +193,9 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
         return {
           result: 'rejected',
           reason:
-            SubmissionFailErrorMessage[`EXISTS_${existingSubmission.status}`],
+            SubmissionFailErrorMessage[
+              `EXISTS_${existingSubmission.status}` as keyof typeof SubmissionFailErrorMessage
+            ],
         };
       }
 
