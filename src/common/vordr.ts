@@ -65,7 +65,7 @@ export const checkWithVordr = async (
     return true;
   }
 
-  if (!user.flags?.trustScore || user.flags?.trustScore <= 0) {
+  if (user.flags?.trustScore <= 0) {
     logger.info(
       { commentId: comment.id, userId },
       'Prevented comment because user has a score of 0',
