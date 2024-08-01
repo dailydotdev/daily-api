@@ -7,11 +7,22 @@ import {
   getIntegrationToken,
   getLimit,
   getSlackIntegrationOrFail,
+  toGQLEnum,
 } from '../common';
 import { GQLEmptyResponse } from './common';
 import { ValidationError } from 'apollo-server-errors';
-import { UserSourceIntegrationSlack } from '../entity/UserSourceIntegration';
-import { Source } from '../entity';
+import {
+  UserSourceIntegration,
+  UserSourceIntegrationSlack,
+} from '../entity/UserSourceIntegration';
+import { ConflictError } from '../errors';
+import graphorm from '../graphorm';
+import { UserIntegrationType } from '../entity/UserIntegration';
+import {
+  ensureSourcePermissions,
+  GQLSource,
+  SourcePermissions,
+} from './sources';
 
 export type GQLSlackChannels = {
   id?: string;
@@ -23,7 +34,16 @@ export type GQLSlackChannelConnection = {
   cursor?: string;
 };
 
+export type GQLUserSourceIntegration = Pick<
+  UserSourceIntegration,
+  'userIntegrationId' | 'type' | 'createdAt' | 'updatedAt'
+> & {
+  source: GQLSource;
+};
+
 export const typeDefs = /* GraphQL */ `
+  ${toGQLEnum(UserIntegrationType, 'UserIntegrationType')}
+
   type SlackChannel {
     id: String
     name: String
@@ -39,6 +59,14 @@ export const typeDefs = /* GraphQL */ `
     Next page cursor, if exists
     """
     cursor: String
+  }
+
+  type UserSourceIntegration {
+    userIntegrationId: ID!
+    type: String!
+    createdAt: DateTime
+    updatedAt: DateTime
+    source: Source!
   }
 
   extend type Query {
@@ -61,6 +89,21 @@ export const typeDefs = /* GraphQL */ `
       """
       cursor: String
     ): SlackChannelConnection @auth
+
+    """
+    Get source integration
+    """
+    sourceIntegration(
+      """
+      ID of source
+      """
+      sourceId: ID!
+
+      """
+      Type of integration
+      """
+      type: UserIntegrationType!
+    ): UserSourceIntegration @auth
   }
 
   extend type Mutation {
@@ -136,6 +179,29 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         cursor: result.response_metadata?.next_cursor,
       };
     },
+    sourceIntegration: async (
+      _,
+      args: { sourceId: string; type: UserIntegrationType },
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLUserSourceIntegration | null> => {
+      await ensureSourcePermissions(
+        ctx,
+        args.sourceId,
+        SourcePermissions.ConnectSlack,
+      );
+
+      return graphorm.queryOneOrFail<GQLUserSourceIntegration>(
+        ctx,
+        info,
+        (builder) => ({
+          queryBuilder: builder.queryBuilder
+            .where(`"${builder.alias}"."sourceId" = :id`, { id: args.sourceId })
+            .andWhere(`"${builder.alias}"."type" = :type`, { type: args.type }),
+          ...builder,
+        }),
+      );
+    },
   },
   Mutation: {
     slackConnectSource: async (
@@ -143,14 +209,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
       args: { integrationId: string; channelId: string; sourceId: string },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      const [slackIntegration, source] = await Promise.all([
+      const source = await ensureSourcePermissions(
+        ctx,
+        args.sourceId,
+        SourcePermissions.ConnectSlack,
+      );
+
+      const [slackIntegration] = await Promise.all([
         getSlackIntegrationOrFail({
           id: args.integrationId,
           userId: ctx.userId,
           con: ctx.con,
-        }),
-        ctx.con.getRepository(Source).findOneByOrFail({
-          id: args.sourceId,
         }),
       ]);
 
@@ -164,6 +233,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
 
       if (!channelResult.ok && channelResult.channel.id !== args.channelId) {
         throw new ValidationError('invalid channel');
+      }
+
+      const existing = await ctx.con
+        .getRepository(UserSourceIntegrationSlack)
+        .findOneBy({
+          sourceId: args.sourceId,
+        });
+
+      if (existing && existing.userIntegrationId !== slackIntegration.id) {
+        throw new ConflictError('source already connected to a channel');
       }
 
       await ctx.con.getRepository(UserSourceIntegrationSlack).upsert(

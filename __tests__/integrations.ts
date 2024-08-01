@@ -15,10 +15,21 @@ import {
   UserIntegrationType,
 } from '../src/entity/UserIntegration';
 import { usersFixture } from './fixture/user';
-import { Source, User } from '../src/entity';
+import {
+  Source,
+  SourceMember,
+  SourceType,
+  SquadSource,
+  User,
+} from '../src/entity';
 import { Context } from '../src/Context';
 import { sourcesFixture } from './fixture/source';
 import { encrypt } from '../src/common';
+import {
+  UserSourceIntegration,
+  UserSourceIntegrationSlack,
+} from '../src/entity/UserSourceIntegration';
+import { SourceMemberRoles } from '../src/roles';
 
 jest.mock('@slack/web-api', () => ({
   ...(jest.requireActual('@slack/web-api') as Record<string, unknown>),
@@ -81,7 +92,7 @@ beforeEach(async () => {
 
 afterAll(() => disposeGraphQLTesting(state));
 
-const getIntegrationId = async ({
+const getIntegration = async ({
   type,
   userId,
 }: {
@@ -119,6 +130,37 @@ describe('slack integration', () => {
         },
       },
     ]);
+    await con.getRepository(SquadSource).save([
+      {
+        id: 'squadslack',
+        name: 'Squad Slack',
+        image: 'http//image.com/s',
+        handle: 'squadslack',
+        type: SourceType.Squad,
+        active: true,
+        private: true,
+      },
+    ]);
+    await con.getRepository(SourceMember).save([
+      {
+        sourceId: 'squadslack',
+        userId: '1',
+        role: SourceMemberRoles.Admin,
+        referralToken: 'squadslacktoken1',
+      },
+      {
+        sourceId: 'squadslack',
+        userId: '2',
+        role: SourceMemberRoles.Admin,
+        referralToken: 'squadslacktoken2',
+      },
+      {
+        sourceId: 'squadslack',
+        userId: '3',
+        role: SourceMemberRoles.Member,
+        referralToken: 'squadslacktoken3',
+      },
+    ]);
   });
 
   describe('query slackChannels', () => {
@@ -148,7 +190,7 @@ describe('slack integration', () => {
 
     it('should return a list of slack channels', async () => {
       loggedUser = '1';
-      const userIntegration = await getIntegrationId({
+      const userIntegration = await getIntegration({
         type: UserIntegrationType.Slack,
         userId: loggedUser,
       });
@@ -199,7 +241,7 @@ describe('slack integration', () => {
 
     it('should connect a slack channel to a source', async () => {
       loggedUser = '1';
-      const userIntegration = await getIntegrationId({
+      const userIntegration = await getIntegration({
         type: UserIntegrationType.Slack,
         userId: loggedUser,
       });
@@ -208,11 +250,286 @@ describe('slack integration', () => {
         MUTATION({
           integrationId: userIntegration.id,
           channelId: '1',
-          sourceId: 'a',
+          sourceId: 'squadslack',
         }),
       );
 
       expect(res.errors).toBeFalsy();
+    });
+
+    it('should update channel for source', async () => {
+      loggedUser = '1';
+      const userIntegration = await getIntegration({
+        type: UserIntegrationType.Slack,
+        userId: loggedUser,
+      });
+
+      const res = await client.mutate(
+        MUTATION({
+          integrationId: userIntegration.id,
+          channelId: '1',
+          sourceId: 'squadslack',
+        }),
+      );
+
+      expect(res.errors).toBeFalsy();
+
+      const userSourceIntegration = await con
+        .getRepository(UserSourceIntegration)
+        .findOneByOrFail({
+          userIntegrationId: userIntegration.id,
+          sourceId: 'squadslack',
+        });
+      expect(userSourceIntegration).toMatchObject({
+        channelIds: ['1'],
+      });
+
+      const resUpdate = await client.mutate(
+        MUTATION({
+          integrationId: userIntegration.id,
+          channelId: '2',
+          sourceId: 'squadslack',
+        }),
+      );
+
+      expect(resUpdate.errors).toBeFalsy();
+
+      const userSourceIntegrationUpdate = await con
+        .getRepository(UserSourceIntegration)
+        .findOneByOrFail({
+          userIntegrationId: userIntegration.id,
+          sourceId: 'squadslack',
+        });
+      expect(userSourceIntegrationUpdate).toMatchObject({
+        channelIds: ['2'],
+      });
+    });
+
+    it('should not allow connecting source if existing connection is already present', async () => {
+      loggedUser = '2';
+
+      await con.getRepository(UserIntegration).save([
+        {
+          userId: '2',
+          type: UserIntegrationType.Slack,
+          name: 'daily.dev',
+          meta: {
+            appId: 'sapp1',
+            scope: 'channels:read,chat:write,channels:join',
+            teamId: 'st1',
+            teamName: 'daily.dev',
+            tokenType: 'bot',
+            accessToken: await encrypt(
+              'xoxb-token',
+              process.env.SLACK_DB_KEY as string,
+            ),
+            slackUserId: 'su2',
+          },
+        },
+      ]);
+      const existingUserIntegration = await getIntegration({
+        type: UserIntegrationType.Slack,
+        userId: '1',
+      });
+      const userIntegration = await getIntegration({
+        type: UserIntegrationType.Slack,
+        userId: loggedUser,
+      });
+
+      await con.getRepository(UserSourceIntegrationSlack).save([
+        {
+          userIntegrationId: existingUserIntegration.id,
+          sourceId: 'squadslack',
+          channelIds: ['1'],
+        },
+      ]);
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION({
+            integrationId: userIntegration.id,
+            channelId: '1',
+            sourceId: 'squadslack',
+          }),
+        },
+        'CONFLICT',
+      );
+    });
+
+    it('should return error if user does not have access to source', async () => {
+      loggedUser = '4';
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION({
+            integrationId: 'integration-id',
+            channelId: '1',
+            sourceId: 'squadslack',
+          }),
+        },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should return error if user is not admin', async () => {
+      loggedUser = '3';
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION({
+            integrationId: 'integration-id',
+            channelId: '1',
+            sourceId: 'squadslack',
+          }),
+        },
+        'FORBIDDEN',
+      );
+    });
+  });
+
+  describe('query sourceIntegration', () => {
+    const QUERY = ({ sourceId, type }) => `
+      query {
+        sourceIntegration(sourceId: "${sourceId}", type: ${type}) {
+          userIntegrationId
+          type
+          createdAt
+          updatedAt
+          source {
+            id
+          }
+        }
+      }
+    `;
+
+    it('should require authentication', async () => {
+      await testQueryErrorCode(
+        client,
+        {
+          query: QUERY({
+            sourceId: 'source-id',
+            type: UserIntegrationType.Slack,
+          }),
+        },
+        'UNAUTHENTICATED',
+      );
+    });
+
+    it('should return source integration', async () => {
+      loggedUser = '1';
+
+      const userIntegration = await getIntegration({
+        type: UserIntegrationType.Slack,
+        userId: loggedUser,
+      });
+
+      await con.getRepository(UserSourceIntegrationSlack).save([
+        {
+          userIntegrationId: userIntegration.id,
+          sourceId: 'squadslack',
+          channelIds: ['1'],
+        },
+      ]);
+
+      const res = await client.query(
+        QUERY({
+          sourceId: 'squadslack',
+          type: UserIntegrationType.Slack,
+        }),
+      );
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.sourceIntegration).toMatchObject({
+        userIntegrationId: userIntegration.id,
+        type: UserIntegrationType.Slack,
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String),
+        source: {
+          id: 'squadslack',
+        },
+      });
+    });
+
+    it('should return error if source integration does not exist', async () => {
+      loggedUser = '1';
+
+      await testQueryErrorCode(
+        client,
+        {
+          query: QUERY({
+            sourceId: 'squadslack',
+            type: UserIntegrationType.Slack,
+          }),
+        },
+        'NOT_FOUND',
+      );
+    });
+
+    it('should return error if user does not have access to source', async () => {
+      loggedUser = '4';
+
+      await testQueryErrorCode(
+        client,
+        {
+          query: QUERY({
+            sourceId: 'squadslack',
+            type: UserIntegrationType.Slack,
+          }),
+        },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should return error if user is not admin', async () => {
+      loggedUser = '3';
+
+      await testQueryErrorCode(
+        client,
+        {
+          query: QUERY({
+            sourceId: 'squadslack',
+            type: UserIntegrationType.Slack,
+          }),
+        },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should return source if user has access to private source', async () => {
+      loggedUser = '1';
+
+      const userIntegration = await getIntegration({
+        type: UserIntegrationType.Slack,
+        userId: loggedUser,
+      });
+      await con.getRepository(UserSourceIntegrationSlack).save([
+        {
+          userIntegrationId: userIntegration.id,
+          sourceId: 'squadslack',
+          channelIds: ['1'],
+        },
+      ]);
+
+      const res = await client.query(
+        QUERY({
+          sourceId: 'squadslack',
+          type: UserIntegrationType.Slack,
+        }),
+      );
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.sourceIntegration).toMatchObject({
+        userIntegrationId: userIntegration.id,
+        type: UserIntegrationType.Slack,
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String),
+        source: {
+          id: 'squadslack',
+        },
+      });
     });
   });
 });
