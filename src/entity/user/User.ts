@@ -413,6 +413,10 @@ export const addNewUser = async (
       github: data.github,
       twitter: data.twitter,
       experienceLevel: data.experienceLevel,
+      flags: {
+        trustScore: 1,
+        vordr: false,
+      },
     });
   } catch (error) {
     if (error instanceof ValidationError) {
