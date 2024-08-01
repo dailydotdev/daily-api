@@ -23,6 +23,7 @@ import {
   GQLSource,
   SourcePermissions,
 } from './sources';
+import { SourceType } from '../entity';
 
 export type GQLSlackChannels = {
   id?: string;
@@ -259,9 +260,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         channel: args.channelId,
       });
 
+      const sourceTypeName =
+        source.type === SourceType.Squad ? 'squad' : 'source';
+
       await client.chat.postMessage({
         channel: args.channelId,
-        text: `Connected source "${source.name}" to this channel 🙌`,
+        text: `You've successfully connected the "${source.name}" ${sourceTypeName} from daily.dev to this channel. Important ${sourceTypeName} updates will be posted here 🙌`,
       });
 
       return { _: true };
