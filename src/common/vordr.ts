@@ -16,8 +16,10 @@ const vordrWords =
 export const validateVordrIPs = (ip: string): boolean =>
   isIP(ip) && isInSubnet(ip, vordrIPs);
 
-export const validateVordrWords = (content: string): boolean =>
-  vordrWords.some((word) => content.toLowerCase().includes(word));
+export const validateVordrWords = (content: string): boolean => {
+  const lowerCaseContent = content.toLowerCase();
+  return vordrWords.some((word) => lowerCaseContent.includes(word));
+};
 
 export const checkWithVordr = async (
   comment: Comment,
