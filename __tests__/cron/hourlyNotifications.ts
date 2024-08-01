@@ -9,7 +9,7 @@ import {
   UserPersonalizedDigestType,
 } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
-import { notifyGeneratePersonalizedDigest } from '../../src/common';
+import { DayOfWeek, notifyGeneratePersonalizedDigest } from '../../src/common';
 import { logger } from '../../src/logger';
 import { getTimezoneOffset } from 'date-fns-tz';
 import { crons } from '../../src/cron/index';
@@ -357,31 +357,139 @@ describe('hourlyNotifications cron', () => {
     );
   });
 
-  it('should not schedule send time during weekends', async () => {
-    jest.setSystemTime(setDay(new Date(), 6)); // Saturday
-    const usersToSchedule = usersFixture;
-
-    await con.getRepository(UserPersonalizedDigest).save(
-      usersToSchedule.map((item) => ({
-        userId: item.id,
-        preferredDay,
-        preferredHour: fakePreferredHour,
-        flags: {
-          sendType,
-        },
-        type: UserPersonalizedDigestType.StreakReminder,
-      })),
-    );
-
-    await expectSuccessfulCron(cron);
-
-    const scheduledPersonalizedDigests = await con
-      .getRepository(UserPersonalizedDigest)
-      .findBy({
-        preferredDay,
+  describe('weekend', () => {
+    describe('start of week is Sunday', () => {
+      beforeEach(async () => {
+        await con
+          .getRepository(User)
+          .update({}, { weekStart: DayOfWeek.Sunday });
       });
 
-    expect(scheduledPersonalizedDigests).toHaveLength(usersToSchedule.length);
-    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(0);
+      it('should not schedule send time on Friday', async () => {
+        jest.setSystemTime(setDay(new Date(), DayOfWeek.Friday));
+        const usersToSchedule = usersFixture;
+
+        await con.getRepository(UserPersonalizedDigest).save(
+          usersToSchedule.map((item) => ({
+            userId: item.id,
+            preferredDay,
+            preferredHour: fakePreferredHour,
+            flags: {
+              sendType,
+            },
+            type: UserPersonalizedDigestType.StreakReminder,
+          })),
+        );
+
+        await expectSuccessfulCron(cron);
+
+        const scheduledPersonalizedDigests = await con
+          .getRepository(UserPersonalizedDigest)
+          .findBy({
+            preferredDay,
+          });
+
+        expect(scheduledPersonalizedDigests).toHaveLength(
+          usersToSchedule.length,
+        );
+        expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(0);
+      });
+
+      it('should schedule send time on Sunday', async () => {
+        jest.setSystemTime(setDay(new Date(), DayOfWeek.Sunday));
+        const usersToSchedule = usersFixture;
+
+        await con.getRepository(UserPersonalizedDigest).save(
+          usersToSchedule.map((item) => ({
+            userId: item.id,
+            preferredDay,
+            preferredHour: fakePreferredHour,
+            flags: {
+              sendType,
+            },
+            type: UserPersonalizedDigestType.StreakReminder,
+          })),
+        );
+
+        await expectSuccessfulCron(cron);
+
+        const scheduledPersonalizedDigests = await con
+          .getRepository(UserPersonalizedDigest)
+          .findBy({
+            preferredDay,
+          });
+
+        expect(scheduledPersonalizedDigests).toHaveLength(
+          usersToSchedule.length,
+        );
+        expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(
+          usersToSchedule.length,
+        );
+      });
+    });
+
+    describe('start of week is Monday', () => {
+      it('should not schedule send time on Sunday', async () => {
+        jest.setSystemTime(setDay(new Date(), DayOfWeek.Sunday));
+        const usersToSchedule = usersFixture;
+
+        await con.getRepository(UserPersonalizedDigest).save(
+          usersToSchedule.map((item) => ({
+            userId: item.id,
+            preferredDay,
+            preferredHour: fakePreferredHour,
+            flags: {
+              sendType,
+            },
+            type: UserPersonalizedDigestType.StreakReminder,
+          })),
+        );
+
+        await expectSuccessfulCron(cron);
+
+        const scheduledPersonalizedDigests = await con
+          .getRepository(UserPersonalizedDigest)
+          .findBy({
+            preferredDay,
+          });
+
+        expect(scheduledPersonalizedDigests).toHaveLength(
+          usersToSchedule.length,
+        );
+        expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(0);
+      });
+
+      it('should schedule send time on Friday', async () => {
+        jest.setSystemTime(setDay(new Date(), DayOfWeek.Friday));
+        const usersToSchedule = usersFixture;
+
+        await con.getRepository(UserPersonalizedDigest).save(
+          usersToSchedule.map((item) => ({
+            userId: item.id,
+            preferredDay,
+            preferredHour: fakePreferredHour,
+            flags: {
+              sendType,
+            },
+            type: UserPersonalizedDigestType.StreakReminder,
+          })),
+        );
+
+        await expectSuccessfulCron(cron);
+
+        const scheduledPersonalizedDigests = await con
+          .getRepository(UserPersonalizedDigest)
+          .findBy({
+            preferredDay,
+          });
+
+        expect(scheduledPersonalizedDigests).toHaveLength(
+          usersToSchedule.length,
+        );
+        expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(
+          usersToSchedule.length,
+        );
+      });
+    });
   });
 });

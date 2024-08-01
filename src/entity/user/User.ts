@@ -44,6 +44,7 @@ import {
 } from '../../common/users';
 import { logger } from '../../logger';
 import {
+  DayOfWeek,
   DEFAULT_TIMEZONE,
   DEFAULT_WEEK_START,
   safeJSONParse,
@@ -153,7 +154,7 @@ export class User {
   timezone?: string;
 
   @Column({ type: 'int', nullable: true })
-  weekStart?: number;
+  weekStart?: DayOfWeek;
 
   @Column({ type: 'boolean', default: false })
   profileConfirmed: boolean | null;

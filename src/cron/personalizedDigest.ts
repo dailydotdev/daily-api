@@ -21,7 +21,7 @@ const cron: Cron = {
     const nextPreferredDay = (new Date().getDay() + 1) % 7;
     const personalizedDigestQuery = con
       .createQueryBuilder()
-      .select('upd.*, u.timezone')
+      .select('upd.*, u.timezone, u.weekStart')
       .from(UserPersonalizedDigest, 'upd')
       .leftJoin(User, 'u', 'u.id = upd."userId"')
       .where('upd."preferredDay" = :nextPreferredDay', {
