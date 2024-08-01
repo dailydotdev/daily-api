@@ -7,6 +7,7 @@ import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
 import { GraphQLResolveInfo } from 'graphql';
 import { utcToZonedTime } from 'date-fns-tz';
 import { sendAnalyticsEvent } from '../integrations/analytics';
+import { DayOfWeek, DEFAULT_WEEK_START } from './date';
 
 export interface User {
   id: string;
@@ -406,7 +407,20 @@ export const clearUserStreak = async (
 // Computes whether we should reset user streak
 // Even though it is the weekend, we should still clear the streak for when the user's last read was Thursday
 // Due to the fact that when Monday comes, we will clear it anyway when we notice the gap in Friday
-export const shouldResetStreak = (day: number, difference: number) => {
+export const shouldResetStreak = (
+  day: number,
+  difference: number,
+  startOfWeek: DayOfWeek = DEFAULT_WEEK_START,
+) => {
+  if (startOfWeek === DayOfWeek.Sunday) {
+    return (
+      (day === Day.Saturday && difference > FREEZE_DAYS_IN_A_WEEK) ||
+      (day === Day.Sunday &&
+        difference > FREEZE_DAYS_IN_A_WEEK + MISSED_LIMIT) ||
+      (day > Day.Sunday && difference > MISSED_LIMIT)
+    );
+  }
+
   return (
     (day === Day.Sunday && difference > FREEZE_DAYS_IN_A_WEEK) ||
     (day === Day.Monday && difference > FREEZE_DAYS_IN_A_WEEK + MISSED_LIMIT) ||
