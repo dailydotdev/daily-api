@@ -11,8 +11,8 @@ import {
   SourcePermissions,
   sourceTypesWithMembers,
 } from './sources';
-import { Context } from '../Context';
-import { traceResolverObject } from './trace';
+import { AuthContext, BaseContext, Context } from '../Context';
+import { traceResolvers } from './trace';
 import {
   CreatePost,
   CreatePostArgs,
@@ -64,6 +64,7 @@ import {
   NotFoundError,
   SubmissionFailErrorMessage,
   TypeOrmError,
+  TypeORMQueryFailedError,
 } from '../errors';
 import { GQLBookmarkList } from './bookmarks';
 import { getMentions } from './comments';
@@ -74,10 +75,14 @@ import {
   redisPubSub,
   setRedisObjectWithExpiry,
 } from '../redis';
-import { queryPaginatedByDate } from '../common/datePageGenerator';
+import {
+  GQLDatePageGeneratorConfig,
+  queryPaginatedByDate,
+} from '../common/datePageGenerator';
 import { GraphQLResolveInfo } from 'graphql';
 import { Roles } from '../roles';
 import { markdown, saveMentions } from '../common/markdown';
+// @ts-expect-error graphql-upload is not typed
 import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { insertOrIgnoreAction } from './actions';
 import { generateShortId, generateUUID } from '../ids';
@@ -173,12 +178,12 @@ export interface SubmitExternalLinkArgs extends ExternalLink {
 export const getPostNotification = async (
   con: DataSource,
   postId: string,
-): Promise<GQLPostNotification> => {
+): Promise<GQLPostNotification | undefined> => {
   const post = await con
     .getRepository(Post)
     .findOne({ where: { id: postId }, select: ['id', 'upvotes', 'comments'] });
   if (!post) {
-    return null;
+    return undefined;
   }
   return { id: post.id, numUpvotes: post.upvotes, numComments: post.comments };
 };
@@ -969,7 +974,9 @@ const saveHiddenPost = async (
         hidden: true,
       });
     });
-  } catch (err) {
+  } catch (originalError) {
+    const err = originalError as TypeORMQueryFailedError;
+
     // Foreign key violation
     if (err?.code === TypeOrmError.FOREIGN_KEY) {
       throw new NotFoundError('Post not found');
@@ -1006,6 +1013,7 @@ export const getPostByUrl = async (
     info,
     ['post'],
     (builder) => ({
+      ...builder,
       queryBuilder: builder.queryBuilder
         .addSelect(`"${builder.alias}"."deleted"`)
         .where(
@@ -1013,7 +1021,6 @@ export const getPostByUrl = async (
           { url },
         )
         .limit(1),
-      ...builder,
     }),
   );
 
@@ -1023,7 +1030,7 @@ export const getPostByUrl = async (
 const updatePromoteToPublicFlag = async (
   ctx: Context,
   id: string,
-  value: number,
+  value: number | null,
 ): Promise<GQLEmptyResponse> => {
   if (!ctx.roles.includes(Roles.Moderator)) {
     throw new ForbiddenError('Access denied!');
@@ -1045,11 +1052,11 @@ const getPostById = async (
   id: string,
 ): Promise<GQLPost> => {
   const res = await graphorm.query<GQLPost>(ctx, info, (builder) => ({
+    ...builder,
     queryBuilder: builder.queryBuilder.where(
       `"${builder.alias}"."id" = :id AND "${builder.alias}"."deleted" = false`,
       { id },
     ),
-    ...builder,
   }));
   if (res.length) {
     return res[0];
@@ -1066,9 +1073,11 @@ const validateEditAllowed = (
   }
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvers: IResolvers<any, Context> = {
-  Query: traceResolverObject({
+export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
+  unknown,
+  BaseContext
+>({
+  Query: {
     post: async (
       source,
       { id }: { id: string },
@@ -1110,19 +1119,19 @@ export const resolvers: IResolvers<any, Context> = {
     },
     postByUrl: async (
       source,
-      { url }: { id: string; url: string },
+      { url }: { url: string },
       ctx: Context,
       info,
     ): Promise<GQLPost> => {
       const standardizedUrl = standardizeURL(url);
       const res = await graphorm.query(ctx, info, (builder) => ({
+        ...builder,
         queryBuilder: builder.queryBuilder
           .where(
             `("${builder.alias}"."canonicalUrl" = :url OR "${builder.alias}"."url" = :url) AND "${builder.alias}"."deleted" = false`,
             { url: standardizedUrl },
           )
           .limit(1),
-        ...builder,
       }));
       if (res.length) {
         const post = res[0] as GQLPost;
@@ -1144,7 +1153,7 @@ export const resolvers: IResolvers<any, Context> = {
     postUpvotes: async (
       _,
       args: GQLPostUpvoteArgs,
-      ctx,
+      ctx: Context,
       info,
     ): Promise<ConnectionRelay<GQLUserPost>> => {
       const post = await ctx.con
@@ -1155,7 +1164,7 @@ export const resolvers: IResolvers<any, Context> = {
         ctx,
         info,
         args,
-        { key: 'votedAt' },
+        { key: 'votedAt' } as GQLDatePageGeneratorConfig<UserPost, 'votedAt'>,
         {
           queryBuilder: (builder) => {
             builder.queryBuilder = builder.queryBuilder
@@ -1173,7 +1182,7 @@ export const resolvers: IResolvers<any, Context> = {
     searchQuestionRecommendations: async (
       source,
       _,
-      ctx: Context,
+      ctx: AuthContext,
       info,
     ): Promise<GQLPostQuestion[]> => {
       const key = generateStorageKey(StorageTopic.Search, 'rec', ctx.userId);
@@ -1187,6 +1196,7 @@ export const resolvers: IResolvers<any, Context> = {
         ctx,
         info,
         (builder) => ({
+          ...builder,
           queryBuilder: builder.queryBuilder
             .innerJoin(
               (query) => {
@@ -1211,7 +1221,6 @@ export const resolvers: IResolvers<any, Context> = {
             )
             .orderBy('random()', 'DESC')
             .limit(3),
-          ...builder,
         }),
       );
       await setRedisObjectWithExpiry(
@@ -1225,7 +1234,7 @@ export const resolvers: IResolvers<any, Context> = {
     relatedPosts: async (
       _,
       args: GQLPostRelationArgs,
-      ctx,
+      ctx: Context,
       info,
     ): Promise<ConnectionRelay<GQLPost>> => {
       const post = await ctx.con
@@ -1259,13 +1268,12 @@ export const resolvers: IResolvers<any, Context> = {
         },
       );
     },
-  }),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Mutation: traceResolverObject<any, any, Context>({
+  },
+  Mutation: {
     hidePost: async (
       source,
       { id }: { id: string },
-      ctx: Context,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await saveHiddenPost(ctx.con, { userId: ctx.userId, postId: id });
       return { _: true };
@@ -1273,7 +1281,7 @@ export const resolvers: IResolvers<any, Context> = {
     unhidePost: async (
       _,
       { id }: { id: string },
-      ctx: Context,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (entityManager) => {
         await entityManager.getRepository(UserPost).save({
@@ -1288,7 +1296,7 @@ export const resolvers: IResolvers<any, Context> = {
     reportPost: async (
       source,
       { id, reason, comment, tags }: ReportPostArgs,
-      ctx: Context,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       if (!reportReasons.has(reason)) {
         throw new ValidationError('Reason is invalid');
@@ -1315,7 +1323,9 @@ export const resolvers: IResolvers<any, Context> = {
               comment,
               tags,
             });
-          } catch (err) {
+          } catch (originalError) {
+            const err = originalError as TypeORMQueryFailedError;
+
             if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
               throw new Error('Failed to save report to database');
             }
@@ -1359,7 +1369,7 @@ export const resolvers: IResolvers<any, Context> = {
     deletePost: async (
       _,
       { id }: { id: string },
-      ctx: Context,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       if (ctx.roles.includes(Roles.Moderator)) {
         await deletePost({ con: ctx.con, id, userId: ctx.userId });
@@ -1368,7 +1378,7 @@ export const resolvers: IResolvers<any, Context> = {
 
       await ctx.con.transaction(async (manager) => {
         const repo = manager.getRepository(Post);
-        const post = await repo.findOneBy({ id });
+        const post = await repo.findOneByOrFail({ id });
         if (post.authorId !== ctx.userId) {
           await ensureSourcePermissions(
             ctx,
@@ -1384,7 +1394,7 @@ export const resolvers: IResolvers<any, Context> = {
     promoteToPublic: async (
       _,
       { id }: { id: string },
-      ctx: Context,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       const nextWeek = new Date();
       nextWeek.setDate(nextWeek.getDate() + 7);
@@ -1394,16 +1404,16 @@ export const resolvers: IResolvers<any, Context> = {
     demoteFromPublic: async (
       _,
       { id }: { id: string },
-      ctx: Context,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => updatePromoteToPublicFlag(ctx, id, null),
     updatePinPost: async (
       _,
       { id, pinned }: PinPostArgs,
-      ctx: Context,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (manager) => {
         const repo = manager.getRepository(Post);
-        const post = await repo.findOneBy({ id });
+        const post = await repo.findOneByOrFail({ id });
 
         await ensureSourcePermissions(
           ctx,
@@ -1411,7 +1421,9 @@ export const resolvers: IResolvers<any, Context> = {
           SourcePermissions.PostPin,
         );
 
-        await repo.update({ id }, { pinnedAt: pinned ? new Date() : null });
+        const pinnedAt = pinned ? new Date() : null;
+
+        await repo.update({ id }, { pinnedAt: pinnedAt as Date });
       });
 
       return { _: true };
@@ -1419,12 +1431,12 @@ export const resolvers: IResolvers<any, Context> = {
     swapPinnedPosts: async (
       _,
       { id, swapWithId }: SwapPinnedPostArgs,
-      ctx: Context,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (manager) => {
         const repo = manager.getRepository(Post);
-        const post = await repo.findOneBy({ id });
-        const swapWithPost = await repo.findOneBy({
+        const post = await repo.findOneByOrFail({ id });
+        const swapWithPost = await repo.findOneByOrFail({
           id: swapWithId,
         });
 
@@ -1479,7 +1491,7 @@ export const resolvers: IResolvers<any, Context> = {
     createFreeformPost: async (
       source,
       args: CreatePostArgs,
-      ctx: Context,
+      ctx: AuthContext,
       info,
     ): Promise<GQLPost> => {
       const { sourceId, image } = args;
@@ -1520,17 +1532,17 @@ export const resolvers: IResolvers<any, Context> = {
       });
 
       return graphorm.queryOneOrFail<GQLPost>(ctx, info, (builder) => ({
+        ...builder,
         queryBuilder: builder.queryBuilder.where(
           `"${builder.alias}"."id" = :id`,
           { id },
         ),
-        ...builder,
       }));
     },
     editPost: async (
       source,
       args: EditPostArgs,
-      ctx: Context,
+      ctx: AuthContext,
       info,
     ): Promise<GQLPost> => {
       const { id, image } = args;
@@ -1611,17 +1623,17 @@ export const resolvers: IResolvers<any, Context> = {
       });
 
       return graphorm.queryOneOrFail<GQLPost>(ctx, info, (builder) => ({
+        ...builder,
         queryBuilder: builder.queryBuilder.where(
           `"${builder.alias}"."id" = :id`,
           { id },
         ),
-        ...builder,
       }));
     },
     banPost: async (
       source,
       { id }: { id: string },
-      ctx: Context,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       const post = await ctx.getRepository(Post).findOneByOrFail({ id });
       if (!post.banned) {
@@ -1638,7 +1650,7 @@ export const resolvers: IResolvers<any, Context> = {
     checkLinkPreview: async (
       _,
       { url }: SubmitExternalLinkArgs,
-      ctx,
+      ctx: AuthContext,
     ): Promise<ExternalLinkPreview> => {
       const standardizedUrl = standardizeURL(url);
       const post = await ctx.con
@@ -1658,7 +1670,7 @@ export const resolvers: IResolvers<any, Context> = {
     submitExternalLink: async (
       _,
       { sourceId, commentary, url, title, image }: SubmitExternalLinkArgs,
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (manager) => {
         await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
@@ -1667,14 +1679,16 @@ export const resolvers: IResolvers<any, Context> = {
           throw new ValidationError('URL is not valid');
         }
 
-        const existingPost: Pick<ArticlePost, 'id' | 'deleted' | 'visible'> =
-          await manager
-            .createQueryBuilder(Post, 'post')
-            .select(['post.id', 'post.deleted', 'post.visible'])
-            .where('post.url = :url OR post.canonicalUrl = :url', {
-              url: cleanUrl,
-            })
-            .getOne();
+        const existingPost: Pick<
+          ArticlePost,
+          'id' | 'deleted' | 'visible'
+        > | null = await manager
+          .createQueryBuilder(Post, 'post')
+          .select(['post.id', 'post.deleted', 'post.visible'])
+          .where('post.url = :url OR post.canonicalUrl = :url', {
+            url: cleanUrl,
+          })
+          .getOne();
         if (existingPost) {
           if (existingPost.deleted) {
             throw new ValidationError(SubmissionFailErrorMessage.POST_DELETED);
@@ -1708,7 +1722,7 @@ export const resolvers: IResolvers<any, Context> = {
         commentary,
         sourceId,
       }: { id: string; commentary: string; sourceId: string },
-      ctx,
+      ctx: AuthContext,
       info,
     ): Promise<GQLPost> => {
       await ctx.con.getRepository(Post).findOneByOrFail({ id });
@@ -1726,7 +1740,7 @@ export const resolvers: IResolvers<any, Context> = {
     editSharePost: async (
       _,
       { id, commentary }: { id: string; commentary: string },
-      ctx,
+      ctx: AuthContext,
       info,
     ): Promise<GQLPost> => {
       const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
@@ -1746,7 +1760,7 @@ export const resolvers: IResolvers<any, Context> = {
     viewPost: async (
       _,
       { id }: { id: string },
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
       await ensureSourcePermissions(ctx, post.sourceId);
@@ -1765,7 +1779,7 @@ export const resolvers: IResolvers<any, Context> = {
     dismissPostFeedback: async (
       source,
       { id }: { id: string },
-      ctx: Context,
+      ctx: AuthContext,
     ) => {
       try {
         const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
@@ -1785,7 +1799,9 @@ export const resolvers: IResolvers<any, Context> = {
             `("postId", "userId") DO UPDATE SET flags = up."flags" || excluded.flags`,
           )
           .execute();
-      } catch (err) {
+      } catch (originalError) {
+        const err = originalError as TypeORMQueryFailedError;
+
         // Foreign key violation
         if (err?.code === TypeOrmError.FOREIGN_KEY) {
           throw new NotFoundError('Post or user not found');
@@ -1796,7 +1812,7 @@ export const resolvers: IResolvers<any, Context> = {
 
       return { _: true };
     },
-  }),
+  },
   Subscription: {
     postsEngaged: {
       subscribe: async (): Promise<
@@ -1817,18 +1833,19 @@ export const resolvers: IResolvers<any, Context> = {
     },
   },
   Post: {
-    image: (post: GQLPost): string => {
+    image: (post: GQLPost): string | undefined => {
       if (nullableImageType.includes(post.type)) return post.image;
 
       return post.image || pickImageUrl(post);
     },
-    placeholder: (post: GQLPost): string =>
+    placeholder: (post: GQLPost): string | undefined =>
       post.image ? post.placeholder : defaultImage.placeholder,
-    ratio: (post: GQLPost): number =>
+    ratio: (post: GQLPost): number | undefined =>
       post.image ? post.ratio : defaultImage.ratio,
     permalink: getPostPermalink,
-    commentsPermalink: (post: GQLPost): string => getDiscussionLink(post.slug),
-    feedMeta: (post: GQLPost): string => {
+    commentsPermalink: (post: GQLPost): string | undefined =>
+      post.slug ? getDiscussionLink(post.slug) : undefined,
+    feedMeta: (post: GQLPost): string | undefined => {
       if (post.feedMeta) {
         return Buffer.from(post.feedMeta).toString('base64');
       }
@@ -1841,4 +1858,4 @@ export const resolvers: IResolvers<any, Context> = {
     title: (preview: ExternalLinkPreview) =>
       preview.title?.length ? preview.title : DEFAULT_POST_TITLE,
   },
-};
+});

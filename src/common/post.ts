@@ -201,7 +201,9 @@ const MAX_CONTENT_LENGTH = 4000;
 
 type ValidatePostArgs = Pick<EditPostArgs, 'title' | 'content'>;
 
-export const validatePost = (args: ValidatePostArgs): ValidatePostArgs => {
+export const validatePost = (
+  args: ValidatePostArgs,
+): Required<ValidatePostArgs> => {
   const title = args.title?.trim() ?? '';
   const content = args.content?.trim() ?? '';
 
