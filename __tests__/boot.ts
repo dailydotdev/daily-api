@@ -119,6 +119,7 @@ const LOGGED_IN_BODY = {
     youtube: null,
     linkedin: null,
     mastodon: null,
+    weekStart: null,
   },
   marketingCta: null,
   feeds: [],
