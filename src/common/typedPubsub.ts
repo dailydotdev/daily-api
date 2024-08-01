@@ -76,6 +76,7 @@ export type PubSubSchema = {
   'post-commented': {
     userId: string;
     commentId: string;
+    contentHtml: string;
     postId: string;
   };
 };
