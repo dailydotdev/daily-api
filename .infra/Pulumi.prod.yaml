@@ -167,7 +167,7 @@ config:
     urlShortenerSecret:
       secure: AAABABn4A3L8LlBI77M+EM73dUMete6GUvoWIcaEj4DYxn+wNRB3lKKnSVNOZxb3/D9jniDoQIWOvPPeZkzOoQ==
     vordrIps:
-      secure: AAABAJVP2wMe/dPCPkzyRYci+QTa2MjfkQey0stZKV/5DGh2iajm8EaXyrHLwGpw/TAZcHRMuL/MewuZiIAfC+hLnWCoUpHMM9xjE3pVBnbc7XY4T/ydNC2PsZIchLcZT0mr+yrigmp9d8ycRj8QNcc=
+      secure: AAABAA4dXiqxV1BvtARPWkChH2xuLIjL9x+NWJfSlqQ=
     vordrWords:
       secure: AAABANZjpwPca1vPOQylEh3GKz5/eFeXqcg25UFbBtsdUXV1z/W8zKjnYpH3IGz7+zrRfYYG
     webflowToken:
