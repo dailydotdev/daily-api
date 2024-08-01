@@ -1789,14 +1789,15 @@ it('users should get a reply notification if they commented in the same thread',
     },
   ]);
 
-  const actual2 = await invokeNotificationWorker(worker.default, {
+  const worker = await import('../../src/workers/notifications/commentReply');
+  const actual = await invokeNotificationWorker(worker.default, {
     postId: 'p1',
     userId: '3',
     childCommentId: 'c6',
   });
 
-  expect(actual2.length).toEqual(1);
-  const bundle2 = actual2[0];
+  expect(actual.length).toEqual(1);
+  const bundle2 = actual[0];
   expect(bundle2.type).toEqual('squad_reply');
   expect((bundle2.ctx as NotificationPostContext).post.id).toEqual('p1');
   expect((bundle2.ctx as NotificationPostContext).source.id).toEqual('a');
@@ -1804,6 +1805,6 @@ it('users should get a reply notification if they commented in the same thread',
   expect((bundle2.ctx as NotificationCommenterContext).commenter.id).toEqual(
     '3',
   );
-  expect(actual2[0].ctx.userIds).toIncludeSameMembers(['1', '4', '2']);
-  expect(actual2[0].ctx.userIds).not.toIncludeSameMembers(['3']);
+  expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '4', '2']);
+  expect(actual[0].ctx.userIds).not.toIncludeSameMembers(['3']);
 });
