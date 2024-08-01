@@ -1733,6 +1733,47 @@ it('should add squad reply notification', async () => {
     '4',
   );
   expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '3', '2']);
+});
+
+it('users should get a reply notification if they commented in the same thread', async () => {
+  await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
+
+  await con.getRepository(Comment).save([
+    {
+      id: 'c2',
+      postId: 'p1',
+      userId: '2',
+      content: 'sub comment',
+      createdAt: new Date(2020, 1, 6, 0, 0),
+      parentId: 'c1',
+    },
+    {
+      id: 'c3',
+      postId: 'p1',
+      userId: '1',
+      content: 'sub comment2',
+      createdAt: new Date(2020, 1, 6, 0, 0),
+      parentId: 'c1',
+    },
+    {
+      id: 'c4',
+      postId: 'p1',
+      userId: '3',
+      content: 'sub comment3',
+      createdAt: new Date(2020, 1, 6, 0, 0),
+      parentId: 'c1',
+    },
+    {
+      id: 'c5',
+      postId: 'p1',
+      userId: '4',
+      content: 'sub comment4',
+      createdAt: new Date(2020, 1, 6, 0, 0),
+      parentId: 'c1',
+    },
+  ]);
 
   // add new comment for testing notification after first comment
   // should notify users who commented on the first comment
