@@ -45,7 +45,7 @@ beforeEach(async () => {
 
 describe('commmon/vordr', () => {
   describe('checkWithVordr', () => {
-    it('should return true if user har vordr flag set', async () => {
+    it('should return true if user has vordr flag set', async () => {
       const comment = await con
         .getRepository(Comment)
         .findOneByOrFail({ id: 'c1' });
