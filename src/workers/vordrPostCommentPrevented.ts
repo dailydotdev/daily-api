@@ -31,11 +31,8 @@ const worker: TypedWorker<'post-commented'> = {
           data,
           err,
         },
-        'failed to send new slack commented message',
+        'failed to notify vordr post comment prevented',
       );
-      if (err.name === 'QueryFailedError') {
-        return;
-      }
       throw err;
     }
   },
