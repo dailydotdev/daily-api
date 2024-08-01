@@ -179,7 +179,7 @@ export class User {
   @Column({ type: 'text', nullable: true })
   experienceLevel: string | null;
 
-  @Column({ type: 'jsonb', default: { trustScore: 1, vordr: false } })
+  @Column({ type: 'jsonb', default: {} })
   @Index('IDX_user_flags_vordr', { synchronize: false })
   flags: UserFlags;
 
