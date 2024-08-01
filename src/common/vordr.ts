@@ -9,13 +9,15 @@ const vordrIPs =
   process.env.VORDR_IPS?.split(',').filter((ip) => Boolean(ip)) || [];
 
 const vordrWords =
-  process.env.VORDR_WORDS?.split(',').filter((word) => Boolean(word)) || [];
+  process.env.VORDR_WORDS?.split(',')
+    .filter((word) => Boolean(word))
+    .map((word) => word.toLowerCase()) || [];
 
 export const validateVordrIPs = (ip: string): boolean =>
   isIP(ip) && isInSubnet(ip, vordrIPs);
 
 export const validateVordrWords = (content: string): boolean =>
-  vordrWords.some((word) => content.toLowerCase().includes(word.toLowerCase()));
+  vordrWords.some((word) => content.toLowerCase().includes(word));
 
 export const checkWithVordr = async (
   comment: Comment,
