@@ -40,6 +40,11 @@ const worker: TypedWorker<'api.v1.post-downvoted'> = {
           return;
         }
 
+        if (grantBy.flags.vordr) {
+          logger.info(logDetails, `vordr has prevented downvote`);
+          return;
+        }
+
         const repo = transaction.getRepository(ReputationEvent);
         const props = {
           grantById: data.userId,

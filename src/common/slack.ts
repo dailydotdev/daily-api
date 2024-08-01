@@ -1,5 +1,5 @@
 import { IncomingWebhook } from '@slack/webhook';
-import { Post, Comment } from '../entity';
+import { Post, Comment, User } from '../entity';
 import { getDiscussionLink } from './links';
 
 const nullWebhook = { send: (): Promise<void> => Promise.resolve() };
@@ -9,6 +9,9 @@ export const webhooks = Object.freeze({
     : nullWebhook,
   comments: process.env.SLACK_COMMENTS_WEBHOOK
     ? new IncomingWebhook(process.env.SLACK_COMMENTS_WEBHOOK)
+    : nullWebhook,
+  vordr: process.env.SLACK_VORDR_WEBHOOK
+    ? new IncomingWebhook(process.env.SLACK_VORDR_WEBHOOK)
     : nullWebhook,
 });
 
@@ -32,6 +35,45 @@ export const notifyNewComment = async (
           {
             title: 'Post title',
             value: post.title ?? '',
+          },
+        ],
+        color: '#1DDC6F',
+      },
+    ],
+  });
+};
+
+export const notifyNewVordrComment = async (
+  post: Post,
+  user: User,
+  comment: Comment,
+): Promise<void> => {
+  await webhooks.vordr.send({
+    text: 'New comment prevented by vordr',
+    attachments: [
+      {
+        title: comment.content,
+        title_link: getDiscussionLink(post.id, comment.id),
+        fields: [
+          {
+            title: 'User',
+            value: user.id,
+          },
+          {
+            title: 'Post title',
+            value: post.title ?? '',
+          },
+          {
+            title: 'Vordr status',
+            value: user.flags?.vordr?.toString() ?? '',
+          },
+          {
+            title: 'Trust score',
+            value: user.flags?.trustScore?.toString() ?? '',
+          },
+          {
+            title: 'Repuation',
+            value: user.reputation.toString() ?? '',
           },
         ],
         color: '#1DDC6F',

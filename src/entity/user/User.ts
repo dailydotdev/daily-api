@@ -46,6 +46,11 @@ import {
 import { logger } from '../../logger';
 import { safeJSONParse } from '../../common';
 
+export type UserFlags = Partial<{
+  vordr: boolean;
+  trustScore: number;
+}>;
+
 @Entity()
 @Index('IDX_user_lowerusername_username', { synchronize: false })
 @Index('IDX_user_lowertwitter', { synchronize: false })
@@ -173,6 +178,10 @@ export class User {
 
   @Column({ type: 'text', nullable: true })
   experienceLevel: string | null;
+
+  @Column({ type: 'jsonb', default: {} })
+  @Index('IDX_user_flags_vordr', { synchronize: false })
+  flags: UserFlags;
 
   @ManyToOne(() => User, {
     lazy: true,
@@ -404,6 +413,10 @@ export const addNewUser = async (
       github: data.github,
       twitter: data.twitter,
       experienceLevel: data.experienceLevel,
+      flags: {
+        trustScore: 1,
+        vordr: false,
+      },
     });
   } catch (error) {
     if (error instanceof ValidationError) {

@@ -105,9 +105,7 @@ export const tracer = (serviceName: string) => {
         url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
       });
 
-  const spanProcessor = isProd
-    ? new node.BatchSpanProcessor(traceExporter)
-    : new node.SimpleSpanProcessor(traceExporter);
+  const spanProcessor = new node.BatchSpanProcessor(traceExporter);
 
   const sdk = new NodeSDK({
     serviceName,

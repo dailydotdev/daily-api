@@ -252,6 +252,44 @@ describe('query postComments', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
+
+  it('should filter out comments that are vordr prevented', async () => {
+    loggedUser = '1';
+
+    await saveFixtures(con, Comment, [
+      {
+        id: 'vordr-comment',
+        postId: 'p1',
+        userId: '2',
+        content: 'comment',
+        contentHtml: '<p>comment</p>',
+        flags: { vordr: true },
+      },
+    ]);
+
+    const res = await client.query(QUERY, { variables: { postId: 'p1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.postComments.edges.length).toEqual(3);
+  });
+
+  it('should not filter out my own comments that vordr prevented', async () => {
+    loggedUser = '2';
+
+    await saveFixtures(con, Comment, [
+      {
+        id: 'vordr-comment',
+        postId: 'p1',
+        userId: '2',
+        content: 'comment',
+        contentHtml: '<p>comment</p>',
+        flags: { vordr: true },
+      },
+    ]);
+
+    const res = await client.query(QUERY, { variables: { postId: 'p1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.postComments.edges.length).toEqual(4);
+  });
 });
 
 describe('query userComments', () => {

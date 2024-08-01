@@ -30,8 +30,8 @@ const cron: Cron = {
       .andWhere(
         new Brackets((qb) => {
           return qb
-            .where(`flags->>'sendType' IS NULL`)
-            .orWhere(`flags->>'sendType' = :sendType`, {
+            .where(`upd.flags->>'sendType' IS NULL`)
+            .orWhere(`upd.flags->>'sendType' = :sendType`, {
               sendType,
             });
         }),

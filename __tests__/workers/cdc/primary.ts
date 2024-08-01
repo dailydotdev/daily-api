@@ -200,6 +200,10 @@ const defaultUser: ChangeObject<Omit<User, 'createdAt'>> = {
   notificationEmail: true,
   acquisitionChannel: null,
   experienceLevel: null,
+  flags: {
+    trustScore: 1,
+    vordr: false,
+  },
 };
 
 describe('source request', () => {
@@ -591,6 +595,9 @@ describe('comment', () => {
     featured: false,
     createdAt: 0,
     lastUpdatedAt: 0,
+    flags: {
+      vordr: false,
+    },
   };
 
   it('should notify on new post comment', async () => {

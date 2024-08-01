@@ -2,6 +2,10 @@ import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import { Post } from './posts';
 import { User } from './user';
 
+export type CommentFlags = Partial<{
+  vordr: boolean;
+}>;
+
 @Entity()
 export class Comment {
   @PrimaryColumn({ length: 14 })
@@ -44,6 +48,10 @@ export class Comment {
 
   @Column({ default: false })
   featured: boolean;
+
+  @Column({ type: 'jsonb', default: {} })
+  @Index('IDX_user_flags_vordr', { synchronize: false })
+  flags: CommentFlags;
 
   @ManyToOne(() => Post, {
     lazy: true,

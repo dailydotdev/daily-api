@@ -5,7 +5,7 @@ import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
 import { buildPostContext } from './utils';
 
-interface Data {
+export interface Data {
   commentMention: ChangeObject<CommentMention>;
 }
 
@@ -19,6 +19,9 @@ const worker: NotificationWorker = {
       relations: ['user'],
     });
     if (!comment) {
+      return;
+    }
+    if (comment.flags?.vordr) {
       return;
     }
     const postCtx = await buildPostContext(con, comment.postId);

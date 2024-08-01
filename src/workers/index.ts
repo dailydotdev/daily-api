@@ -49,6 +49,7 @@ import userUpdatedCio from './userUpdatedCio';
 import userDeletedCio from './userDeletedCio';
 import userCreatedCio from './userCreatedCio';
 import userStreakUpdatedCio from './userStreakUpdatedCio';
+import vordrPostCommentPrevented from './vordrPostCommentPrevented';
 
 export { Worker } from './worker';
 
@@ -101,6 +102,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   userDeletedCio,
   userCreatedCio,
   userStreakUpdatedCio,
+  vordrPostCommentPrevented,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
