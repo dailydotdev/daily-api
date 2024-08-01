@@ -83,6 +83,7 @@ config:
     tz: UTC
     urlPrefix: http://api.local.com
     vordrIps: ""
+    vordrWords: "VordrWillCatchYou,AndVordrWillHaveFun"
   api:k8s:
     namespace: local
   api:temporal:

@@ -31,6 +31,7 @@ import { GQLComment } from '../schema/comments';
 import { GQLUserPost } from '../schema/posts';
 import { UserComment } from '../entity/user/UserComment';
 import { UserVote } from '../types';
+import { whereVordrFilter } from '../common/vordr';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -427,9 +428,13 @@ const obj = new GraphORM({
         relation: {
           isMany: true,
           childColumn: 'parentId',
-          parentColumn: 'id',
           order: 'ASC',
           sort: 'createdAt',
+          customRelation(ctx, parentAlias, childAlias, qb) {
+            return qb
+              .where(`"${childAlias}"."parentId" = "${parentAlias}"."id"`)
+              .andWhere(whereVordrFilter(childAlias, ctx.userId));
+          },
         },
         pagination: {
           limit: 50,
