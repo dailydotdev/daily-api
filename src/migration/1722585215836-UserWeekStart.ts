@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class User1721746827472 implements MigrationInterface {
-  name = 'User1721746827472'
+export class UserWeekStart1722585215836 implements MigrationInterface {
+  name = 'UserWeekStart1722585215836'
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`ALTER TABLE "user" ADD "weekStart" integer`);
