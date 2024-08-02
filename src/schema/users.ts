@@ -974,6 +974,7 @@ const getUserStreakQuery = async (
       )
       .addSelect('u.id', 'userId')
       .addSelect('u.timezone', 'timezone')
+      .addSelect('u.weekStart', 'weekStart')
       .innerJoin(User, 'u', `"${builder.alias}"."userId" = u.id`)
       .where(`"${builder.alias}"."userId" = :id`, {
         id: id,

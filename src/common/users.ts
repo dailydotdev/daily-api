@@ -35,6 +35,7 @@ export interface GQLUserStreak {
 export interface GQLUserStreakTz extends GQLUserStreak {
   timezone: string;
   lastViewAtTz: Date;
+  weekStart: DayOfWeek;
 }
 
 export const fetchUser = async (
@@ -441,7 +442,7 @@ export const checkUserStreak = (streak: GQLUserStreakTz): boolean => {
   const day = today.getDay();
   const difference = differenceInDays(today, lastViewAt);
 
-  return shouldResetStreak(day, difference);
+  return shouldResetStreak(day, difference, streak.weekStart);
 };
 
 export const checkAndClearUserStreak = async (
