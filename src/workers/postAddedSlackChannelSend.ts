@@ -67,10 +67,13 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
 
               logger.error(
                 {
-                  integrationId: userIntegration.id,
-                  sourceId: data.post.sourceId,
-                  channelId,
-                  error: error.message,
+                  data: {
+                    integrationId: userIntegration.id,
+                    sourceId: data.post.sourceId,
+                    channelId,
+                  },
+                  messageId: message.messageId,
+                  err: error,
                 },
                 'failed to send slack message',
               );
