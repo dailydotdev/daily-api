@@ -13,7 +13,10 @@ const worker: Worker = {
     const data: Data = messageToJson(message);
     try {
       const postNotificatiion = await getPostNotification(con, data.postId);
-      await redisPubSub.publish('events.posts.upvoted', postNotificatiion);
+
+      if (postNotificatiion) {
+        await redisPubSub.publish('events.posts.upvoted', postNotificatiion);
+      }
     } catch (err) {
       logger.error(
         {

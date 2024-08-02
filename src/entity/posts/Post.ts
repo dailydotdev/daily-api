@@ -38,7 +38,7 @@ export type PostFlags = Partial<{
   private: boolean;
   visible: boolean;
   showOnFeed: boolean;
-  promoteToPublic: number;
+  promoteToPublic: number | null;
   deletedBy: string;
 }>;
 
