@@ -463,6 +463,19 @@ describe('commentsPermalink field', () => {
   });
 });
 
+describe('domain field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      domain
+    }
+  }`;
+
+  it('should return domain of the post', async () => {
+    const res = await client.query(QUERY);
+    expect(res.data.post.domain).toEqual('p1.com');
+  });
+});
+
 describe('upvoted field', () => {
   const QUERY = `{
     post(id: "p1") {

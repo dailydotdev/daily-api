@@ -58,6 +58,12 @@ export function isValidHttpUrl(link: string): boolean {
   }
 }
 
+export const domainOnly = (url: string): string => {
+  const { hostname } = new URL(url);
+
+  return hostname;
+};
+
 type GetInviteLinkProps = {
   referralOrigin: string;
   userId: User['id'];

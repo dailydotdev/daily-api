@@ -26,7 +26,7 @@ import {
 
 import { Context } from '../Context';
 import { GQLBookmarkList } from '../schema/bookmarks';
-import { base64 } from '../common';
+import { base64, domainOnly } from '../common';
 import { GQLComment } from '../schema/comments';
 import { GQLUserPost } from '../schema/posts';
 import { UserComment } from '../entity/user/UserComment';
@@ -259,6 +259,10 @@ const obj = new GraphORM({
       numCollectionSources: {
         select: 'collectionSources',
         transform: (value: string[]): number => value?.length ?? 0,
+      },
+      domain: {
+        alias: { field: 'url', type: 'string' },
+        transform: (value: string): string => domainOnly(value),
       },
     },
   },
