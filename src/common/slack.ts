@@ -69,6 +69,10 @@ export const notifyNewVordrComment = async (
             value: post.title ?? '',
           },
           {
+            title: 'Comment ID',
+            value: comment.id,
+          },
+          {
             title: 'Vordr status',
             value: user.flags?.vordr?.toString() ?? '',
           },
