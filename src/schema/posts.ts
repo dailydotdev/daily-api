@@ -417,6 +417,11 @@ export const typeDefs = /* GraphQL */ `
     commentsPermalink: String!
 
     """
+    Domain the post belongs to
+    """
+    domain: String!
+
+    """
     Author of the post (if they have a daily.dev account)
     """
     author: User
