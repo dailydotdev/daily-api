@@ -52,12 +52,7 @@ const worker: NotificationWorker = {
       .distinct(true)
       .where('"parentId" = :parentId', { parentId: parent.id })
       .andWhere('"userId" not in (:...exclude)', {
-        exclude: [
-          parent.userId,
-          comment.userId,
-          postCtx.post.authorId ?? '',
-          postCtx.post.scoutId ?? '',
-        ],
+        exclude: [parent.userId, comment.userId],
       })
       .getRawMany();
     const ctx: Omit<NotificationCommenterContext, 'userIds'> = {
