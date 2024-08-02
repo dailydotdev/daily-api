@@ -11,7 +11,7 @@ import { PopularVideoSource } from '../src/entity/PopularVideoSource';
 import { TrendingPost } from '../src/entity/TrendingPost';
 import { TrendingSource } from '../src/entity/TrendingSource';
 import { TrendingTag } from '../src/entity/TrendingTag';
-import { UserStats } from '../src/entity';
+import { UserStats } from '../src/entity/user/UserStats';
 
 const importEntity = async (
   con: DataSource,
