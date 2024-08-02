@@ -118,6 +118,7 @@ Object {
         "member_role_update",
         "post_limit",
         "delete",
+        "connect_slack",
       ],
       "role": "admin",
       "roleRank": 10,

@@ -722,6 +722,7 @@ export enum SourcePermissions {
   Leave = 'leave',
   Delete = 'delete',
   Edit = 'edit',
+  ConnectSlack = 'connect_slack',
 }
 
 const memberPermissions = [
@@ -746,6 +747,7 @@ const adminPermissions = [
   SourcePermissions.MemberRoleUpdate,
   SourcePermissions.PostLimit,
   SourcePermissions.Delete,
+  SourcePermissions.ConnectSlack,
 ];
 
 export const roleSourcePermissions: Record<

@@ -1,6 +1,11 @@
 import { IncomingWebhook } from '@slack/webhook';
 import { Post, Comment, User } from '../entity';
 import { getDiscussionLink } from './links';
+import { NotFoundError } from '../errors';
+import { DataSource } from 'typeorm';
+import { UserIntegrationSlack } from '../entity/UserIntegration';
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import { FastifyRequest } from 'fastify';
 
 const nullWebhook = { send: (): Promise<void> => Promise.resolve() };
 export const webhooks = Object.freeze({
@@ -150,3 +155,74 @@ export const notifyCommentReport = async (
     ],
   });
 };
+
+export const getSlackIntegration = async ({
+  id,
+  userId,
+  con,
+}: {
+  id: string;
+  userId: string;
+  con: DataSource;
+}): Promise<UserIntegrationSlack> => {
+  const slackIntegration = await con
+    .getRepository(UserIntegrationSlack)
+    .findOneBy({
+      id,
+      userId: userId,
+    });
+
+  return slackIntegration;
+};
+
+export const getSlackIntegrationOrFail: typeof getSlackIntegration = async ({
+  id,
+  userId,
+  con,
+}) => {
+  const slackIntegration = await getSlackIntegration({ id, userId, con });
+
+  if (!slackIntegration) {
+    throw new NotFoundError('slack integration not found');
+  }
+
+  return slackIntegration;
+};
+
+export const verifySlackSignature = ({
+  req,
+}: {
+  req: FastifyRequest<{
+    Headers: {
+      'x-slack-request-timestamp': string;
+      'x-slack-signature': string;
+    };
+  }>;
+}): boolean => {
+  const timestamp = req.headers['x-slack-request-timestamp'] as string;
+  const signature = req.headers['x-slack-signature'] as string;
+
+  if (!timestamp || !signature) {
+    return false;
+  }
+
+  const hmac = createHmac('sha256', process.env.SLACK_SIGNING_SECRET);
+  hmac.update(`v0:${timestamp}:${req.rawBody}`);
+
+  const hash = hmac.digest();
+
+  return timingSafeEqual(
+    hash,
+    Buffer.from(signature.replace('v0=', ''), 'hex'),
+  );
+};
+
+export enum SlackEventType {
+  UrlVerification = 'url_verification',
+  EventCallback = 'event_callback',
+}
+
+export enum SlackEvent {
+  AppUninstalled = 'app_uninstalled',
+  TokensRevoked = 'tokens_revoked',
+}

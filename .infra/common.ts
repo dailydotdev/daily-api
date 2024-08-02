@@ -273,6 +273,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.user-streak-updated',
     subscription: 'api.user-streak-updated-cio',
   },
+  {
+    topic: 'api.v1.post-visible',
+    subscription: 'api.post-added-slack-channel-send',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

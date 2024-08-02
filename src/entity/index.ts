@@ -9,7 +9,6 @@ export * from './Feed';
 export * from './FeedAdvancedSettings';
 export * from './FeedSource';
 export * from './FeedTag';
-export * from './Integration';
 export * from './posts';
 export * from './PostReport';
 export * from './PostTag';

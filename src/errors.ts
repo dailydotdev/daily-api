@@ -119,3 +119,13 @@ export type TypeORMQueryFailedError = QueryFailedError & {
   code?: string;
   constraint?: string;
 };
+
+export class RedirectError extends Error {
+  statusCode: number;
+
+  constructor(message: string, statusCode: number = 307) {
+    super(message);
+
+    this.statusCode = statusCode;
+  }
+}

@@ -32,7 +32,10 @@ import { IResolvers } from '@graphql-tools/utils';
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolverObject } from './trace';
-import { queryPaginatedByDate } from '../common/datePageGenerator';
+import {
+  GQLDatePageGeneratorConfig,
+  queryPaginatedByDate,
+} from '../common/datePageGenerator';
 import {
   getInviteLink,
   getShortUrl,
@@ -70,6 +73,11 @@ import { StorageKey, StorageTopic, generateStorageKey } from '../config';
 import { FastifyBaseLogger } from 'fastify';
 import { cachePrefillMarketingCta } from '../common/redisCache';
 import { cio } from '../cio';
+import {
+  UserIntegration,
+  UserIntegrationSlack,
+  UserIntegrationType,
+} from '../entity/UserIntegration';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -183,6 +191,14 @@ export interface GQLUserPersonalizedDigest {
   type: UserPersonalizedDigestType;
   flags: UserPersonalizedDigestFlagsPublic;
 }
+
+export type GQLUserIntegration = {
+  id: string;
+  type: string;
+  createdAt: Date;
+  updatedAt: Date;
+  name: string;
+};
 
 export const typeDefs = /* GraphQL */ `
   """
@@ -539,6 +555,28 @@ export const typeDefs = /* GraphQL */ `
 
   ${toGQLEnum(UserVoteEntity, 'UserVoteEntity')}
 
+  type UserIntegration {
+    id: ID!
+    type: String!
+    createdAt: DateTime!
+    updatedAt: DateTime!
+    name: String!
+  }
+
+  type UserIntegrationEdge {
+    node: UserIntegration!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type UserIntegrationConnection {
+    pageInfo: PageInfo!
+    edges: [UserIntegrationEdge!]!
+  }
+
   extend type Query {
     """
     Get user based on logged in session
@@ -672,6 +710,11 @@ export const typeDefs = /* GraphQL */ `
     List of users that the logged in user has referred to the platform
     """
     referredUsers: UserConnection @auth
+
+    """
+    Get integrations for the user
+    """
+    userIntegrations: UserIntegrationConnection @auth
   }
 
   extend type Mutation {
@@ -1291,6 +1334,34 @@ export const resolvers: IResolvers<any, BaseContext> = {
         },
       );
     },
+    userIntegrations: async (
+      _,
+      args: ConnectionArguments,
+      ctx: AuthContext,
+      info,
+    ): Promise<Connection<GQLUserIntegration>> => {
+      return queryPaginatedByDate(
+        ctx,
+        info,
+        args,
+        { key: 'createdAt' } as GQLDatePageGeneratorConfig<
+          GQLUserIntegration,
+          'createdAt'
+        >,
+        {
+          queryBuilder: (builder) => {
+            builder.queryBuilder = builder.queryBuilder.andWhere(
+              `${builder.alias}."userId" = :integrationUserId`,
+              {
+                integrationUserId: ctx.userId,
+              },
+            );
+            return builder;
+          },
+          orderByKey: 'DESC',
+        },
+      );
+    },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Mutation: traceResolverObject<any, any, any>({
@@ -1605,5 +1676,20 @@ export const resolvers: IResolvers<any, BaseContext> = {
   }),
   User: {
     permalink: getUserPermalink,
+  },
+  UserIntegration: {
+    name: (userIntegration: UserIntegration) => {
+      switch (userIntegration.type) {
+        case UserIntegrationType.Slack: {
+          const slackIntegration = userIntegration as UserIntegrationSlack;
+
+          return (
+            slackIntegration.meta.teamName ?? `Slack ${slackIntegration.id}`
+          );
+        }
+        default:
+          return userIntegration.type;
+      }
+    },
   },
 };

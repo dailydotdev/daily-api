@@ -122,10 +122,18 @@ config:
     sendgridApiKey: placeholder
     sendgridWebhookAnalyticsKey:
       secure: AAABAN93rTdOaHRB0LdcCsxtW0iEDhqNeUQaldjnx44gUVu2xjn0lR9bW1MgPZ8v6KBfAG8k8Uf2tqg2zWKiP9Dk1eDH7TR5v2XmKnvnP/rzCwhz0eZ0Yd3qoSJ8NUBhxcB/somueTshRZI2xfjtQf2aKyZ9KKIoPPs1U8D1fiyQPeQm2e7in0CouLbEGkS/FUpyHVLS6l2mUlq4
+    slackClientId:
+      secure: AAABAMjNwZ4rF4TE1pfqO7HZxzT7v5SYQ7p+cuQqkrzjI3Gw2FfIUqSQQwdYBxJ+02HLuQQFT3MePKM=
+    slackClientSecret:
+      secure: AAABAAkwTYdkUIQosW8a1WiA3G5OgijTvrq+XJGRqePLlGFqa70KIa8v2RpWkDJDEXwqK+7e1NK4OH9UH83q9g==
     slackCommentsWebhook:
       secure: AAABAG7/pYJ5ygBQmCdyiDR0DwOV9KrJxvVHSXNUqK2bTjFygyCUnr10RZD6wedYdBKkxJ1bPZeYD/uqSAj/NVkl69yPaURJYtb99G+O11Sjj/rKptKWWx+NLBkGW6GQjlApc3Zk1yykF7dKpooeoaM=
     slackVordrWebhook:
       secure: AAABABnP+xVyOkzYEXf/7ImrzhbJzc0k+eH5JI03jdJZYBWNUt9cwLHXJ5uyzFmA8mD2x4adt1DawYGNDhM0J/ukvQBPqzdAOjvW4AY8ykqHTSXzxbJojMeOuSO+4YeopZhv2J7xa+gTxipkvZR5hhA=
+    slackDbKey:
+      secure: AAABAIdDZkm/UZtL5RRblv6AMC6iEsRmXdbflb/0qYtLbLFkD/ooMuXs7SAXl8XtXHpwO59BYxlOyOZvnxfOkw==
+    slackSigningSecret:
+      secure: AAABAEMRZIx1L++yrKAFNs1G7ui++oHS51jEmTO7b99fmK8aS7qKMRuK7T1Zn0dctkO1mbv39UDdyuEuiEnIkw==
     slackWebhook:
       secure: AAABANMRr419hiCx/eBF5NJvKB8LDGb8GffeQzg5PxXoD5A9iQn7cPM30aB0jl3cWTKX65VrDShNl+GO86zvRIq4nXvwpjSdi/ToCHDBxyg7sIIQvngrlJuPQ9da+fj426VWkg5fFnwg02QuxMoHqrM=
     snotraOrigin:
