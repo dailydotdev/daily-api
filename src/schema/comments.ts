@@ -590,7 +590,7 @@ export const resolvers: IResolvers<any, BaseContext> = {
     postComments: async (
       _,
       args: GQLPostCommentsArgs,
-      ctx: Context,
+      ctx: AuthContext,
       info,
     ): Promise<Connection<GQLComment>> => {
       const post = await ctx.con

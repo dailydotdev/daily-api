@@ -202,7 +202,7 @@ export const notifyView = (
   log: EventLogger,
   postId: string,
   userId: string,
-  referer: string,
+  referer: string | undefined,
   timestamp: Date,
   tags?: string[],
 ): Promise<void> =>
