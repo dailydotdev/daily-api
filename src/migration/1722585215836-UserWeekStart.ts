@@ -4,7 +4,7 @@ export class UserWeekStart1722585215836 implements MigrationInterface {
   name = 'UserWeekStart1722585215836'
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE "user" ADD "weekStart" integer`);
+    await queryRunner.query(`ALTER TABLE "user" ADD "weekStart" integer DEFAULT '1'`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

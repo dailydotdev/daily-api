@@ -153,7 +153,7 @@ export class User {
   @Column({ type: 'text', nullable: true, default: DEFAULT_TIMEZONE })
   timezone?: string;
 
-  @Column({ type: 'int', nullable: true })
+  @Column({ type: 'int', nullable: true, default: DEFAULT_WEEK_START })
   weekStart?: DayOfWeek;
 
   @Column({ type: 'boolean', default: false })
