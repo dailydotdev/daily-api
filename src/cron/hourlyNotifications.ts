@@ -26,7 +26,7 @@ const cron: Cron = {
   handler: async (con, logger) => {
     const personalizedDigestQuery = con
       .createQueryBuilder()
-      .select('upd.*, u.timezone, u.weekStart')
+      .select('upd.*, u.timezone, u."weekStart"')
       .from(UserPersonalizedDigest, 'upd')
       .innerJoin(User, 'u', 'u.id = upd."userId"')
       .where(
