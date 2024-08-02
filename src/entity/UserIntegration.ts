@@ -29,11 +29,11 @@ export type IntegrationMetaSlack = {
 @TableInheritance({
   column: { type: 'text', name: 'type' },
 })
-@Index('IDX_user_id_type', ['userId', 'type'])
 export class UserIntegration {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
   @Column({ type: 'text' })
   userId: string;
 
