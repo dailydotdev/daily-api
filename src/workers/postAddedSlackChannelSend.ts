@@ -2,7 +2,8 @@ import { WebClient } from '@slack/web-api';
 import { UserSourceIntegrationSlack } from '../entity/UserSourceIntegration';
 import { TypedWorker } from './worker';
 import fastq from 'fastq';
-import { Post } from '../entity';
+import { Post, SourceType } from '../entity';
+import { getIntegrationToken } from '../common';
 
 const sendQueueConcurrency = 10;
 
@@ -33,6 +34,9 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
         ]);
         const source = await post.source;
 
+        const sourceTypeName =
+          source.type === SourceType.Squad ? 'squad' : 'source';
+
         const sendQueue = fastq.promise(
           async ({
             integration,
@@ -42,18 +46,35 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
             channelId: string;
           }) => {
             const userIntegration = await integration.userIntegration;
-            const slackClient = new WebClient(userIntegration.meta.accessToken);
 
-            // channel should already be joined when the integration is connected
-            // but just in case
-            await slackClient.conversations.join({
-              channel: channelId,
-            });
+            try {
+              const slackClient = new WebClient(
+                await getIntegrationToken({ integration: userIntegration }),
+              );
 
-            await slackClient.chat.postMessage({
-              channel: channelId,
-              text: `New post added to source "${source.name}" - ${process.env.COMMENTS_PREFIX}/posts/${post.id}`,
-            });
+              // channel should already be joined when the integration is connected
+              // but just in case
+              await slackClient.conversations.join({
+                channel: channelId,
+              });
+
+              await slackClient.chat.postMessage({
+                channel: channelId,
+                text: `New post added to ${sourceTypeName} "${source.name}" ${process.env.COMMENTS_PREFIX}/posts/${post.id}`,
+              });
+            } catch (originalError) {
+              const error = originalError as Error;
+
+              logger.error(
+                {
+                  integrationId: userIntegration.id,
+                  sourceId: data.post.sourceId,
+                  channelId,
+                  error: error.message,
+                },
+                'failed to send slack message',
+              );
+            }
           },
           sendQueueConcurrency,
         );
