@@ -471,8 +471,19 @@ describe('domain field', () => {
   }`;
 
   it('should return domain of the post', async () => {
+    await con
+      .getRepository(ArticlePost)
+      .update('p1', { url: 'http://www.p1.com' });
     const res = await client.query(QUERY);
     expect(res.data.post.domain).toEqual('p1.com');
+  });
+
+  it('should return domain plus subdomain of the post', async () => {
+    await con
+      .getRepository(ArticlePost)
+      .update('p1', { url: 'http://api.p1.com' });
+    const res = await client.query(QUERY);
+    expect(res.data.post.domain).toEqual('api.p1.com');
   });
 });
 
