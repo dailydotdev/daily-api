@@ -30,12 +30,12 @@ export interface GQLUserStreak {
   current?: number;
   lastViewAt?: Date;
   userId: string;
+  weekStart: DayOfWeek;
 }
 
 export interface GQLUserStreakTz extends GQLUserStreak {
   timezone: string;
   lastViewAtTz: Date;
-  weekStart: DayOfWeek;
 }
 
 export const fetchUser = async (

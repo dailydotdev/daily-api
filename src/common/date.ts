@@ -11,6 +11,8 @@ export enum DayOfWeek {
 export const DEFAULT_TIMEZONE = 'Etc/UTC';
 export const DEFAULT_WEEK_START = DayOfWeek.Monday;
 
+export const VALID_WEEK_STARTS = [DayOfWeek.Monday, DayOfWeek.Sunday];
+
 export const isWeekend = (
   date: Date | string | number,
   startOfWeek: DayOfWeek = DEFAULT_WEEK_START,

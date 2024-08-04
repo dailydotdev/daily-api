@@ -52,6 +52,7 @@ import {
   voteComment,
   resubscribeUser,
   DayOfWeek,
+  VALID_WEEK_STARTS,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -555,6 +556,7 @@ export const typeDefs = /* GraphQL */ `
     total: Int
     current: Int
     lastViewAt: DateTime
+    weekStart: Int
   }
 
   ${toGQLEnum(UserPersonalizedDigestType, 'DigestType')}
@@ -834,6 +836,11 @@ export const typeDefs = /* GraphQL */ `
       """
       vote: Int!
     ): EmptyResponse @auth
+
+    """
+    Update the user's streak configuration
+    """
+    updateStreakConfig(weekStart: Int): UserStreak @auth
   }
 `;
 
@@ -1130,6 +1137,7 @@ export const resolvers: IResolvers<any, BaseContext> = {
           total: 0,
           current: 0,
           userId: ctx.userId,
+          weekStart: DayOfWeek.Monday,
         };
       }
 
@@ -1157,6 +1165,7 @@ export const resolvers: IResolvers<any, BaseContext> = {
           max: 0,
           total: 0,
           userId: id,
+          weekStart: DayOfWeek.Monday,
         };
       }
 
@@ -1679,6 +1688,33 @@ export const resolvers: IResolvers<any, BaseContext> = {
         default:
           throw new ValidationError('Unsupported vote entity');
       }
+    },
+    updateStreakConfig: async (
+      _,
+      { weekStart }: { weekStart: number },
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLUserStreak> => {
+      if (VALID_WEEK_STARTS.indexOf(weekStart) === -1) {
+        throw new ValidationError('Invalid week start');
+      }
+
+      await ctx.con.getRepository(User).findOneByOrFail({ id: ctx.userId });
+
+      const streak = await getUserStreakQuery(ctx.userId, ctx, info);
+
+      if (!streak) {
+        throw new NotFoundError('User streak not found');
+      }
+
+      await ctx.con
+        .getRepository(User)
+        .update({ id: ctx.userId }, { weekStart });
+
+      return {
+        ...streak,
+        weekStart,
+      };
     },
   }),
   User: {

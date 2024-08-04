@@ -383,7 +383,6 @@ const getUser = (con: DataSource, userId: string): Promise<User | null> =>
       'createdAt',
       'cover',
       'experienceLevel',
-      'weekStart',
     ],
   });
 
