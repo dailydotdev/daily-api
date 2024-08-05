@@ -92,7 +92,6 @@ export const checkWithVordr = async (
 export const whereVordrFilter = (alias: string, userId?: string) =>
   new Brackets((qb) => {
     const vordrFilter = `COALESCE((${alias}.flags ->> 'vordr')::boolean, false) = false`;
-    console.log(isNullOrUndefined(userId));
     isNullOrUndefined(userId)
       ? qb.where(vordrFilter)
       : qb
