@@ -8,6 +8,7 @@ import { FastifyInstrumentation } from '@opentelemetry/instrumentation-fastify';
 import { GraphQLInstrumentation } from '@opentelemetry/instrumentation-graphql';
 import { GrpcInstrumentation } from '@opentelemetry/instrumentation-grpc';
 import { TypeormInstrumentation } from 'opentelemetry-instrumentation-typeorm';
+import { UndiciInstrumentation } from '@opentelemetry/instrumentation-undici';
 
 import { NodeSDK, logs, node, api, resources } from '@opentelemetry/sdk-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
@@ -87,6 +88,7 @@ const instrumentations = [
   new TypeormInstrumentation({
     suppressInternalInstrumentation: true,
   }),
+  new UndiciInstrumentation(),
 ];
 
 api.diag.setLogger(new api.DiagConsoleLogger(), api.DiagLogLevel.INFO);
