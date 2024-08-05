@@ -59,6 +59,8 @@ export function isValidHttpUrl(link: string): boolean {
 }
 
 export const domainOnly = (url: string): string => {
+  if (!url) return '';
+
   const { hostname } = new URL(url);
 
   return hostname.replace(/^www\d?\./, '');
