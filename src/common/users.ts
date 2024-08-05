@@ -413,19 +413,17 @@ export const shouldResetStreak = (
   difference: number,
   startOfWeek: DayOfWeek = DEFAULT_WEEK_START,
 ) => {
-  if (startOfWeek === DayOfWeek.Sunday) {
-    return (
-      (day === Day.Saturday && difference > FREEZE_DAYS_IN_A_WEEK) ||
-      (day === Day.Sunday &&
-        difference > FREEZE_DAYS_IN_A_WEEK + MISSED_LIMIT) ||
-      (day > Day.Sunday && difference > MISSED_LIMIT)
-    );
-  }
+  const firstDayOfWeek =
+    startOfWeek === DayOfWeek.Monday ? Day.Monday : Day.Sunday;
+
+  const lastDayOfWeek =
+    startOfWeek === DayOfWeek.Monday ? Day.Sunday : Day.Saturday;
 
   return (
-    (day === Day.Sunday && difference > FREEZE_DAYS_IN_A_WEEK) ||
-    (day === Day.Monday && difference > FREEZE_DAYS_IN_A_WEEK + MISSED_LIMIT) ||
-    (day > Day.Monday && difference > MISSED_LIMIT)
+    (day === lastDayOfWeek && difference > FREEZE_DAYS_IN_A_WEEK) ||
+    (day === firstDayOfWeek &&
+      difference > FREEZE_DAYS_IN_A_WEEK + MISSED_LIMIT) ||
+    (day > firstDayOfWeek && difference > MISSED_LIMIT)
   );
 };
 
