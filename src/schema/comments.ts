@@ -579,7 +579,8 @@ export const resolvers: IResolvers<any, BaseContext> = {
               .andWhere('p.visible = true')
               .andWhere('p.deleted = false')
               .andWhere('p.type != :type', { type: PostType.Welcome })
-              .andWhere('u.reputation > 10');
+              .andWhere('u.reputation > 10')
+              .andWhere(whereVordrFilter(builder.alias, ctx.userId));
 
             return builder;
           },
