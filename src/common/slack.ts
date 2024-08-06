@@ -69,6 +69,10 @@ export const notifyNewVordrComment = async (
             value: post.title ?? '',
           },
           {
+            title: 'Comment ID',
+            value: comment.id,
+          },
+          {
             title: 'Vordr status',
             value: user.flags?.vordr?.toString() ?? '',
           },
@@ -77,7 +81,7 @@ export const notifyNewVordrComment = async (
             value: user.flags?.trustScore?.toString() ?? '',
           },
           {
-            title: 'Repuation',
+            title: 'Reputation',
             value: user.reputation.toString() ?? '',
           },
         ],
