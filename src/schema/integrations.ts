@@ -354,17 +354,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         ['userIntegrationId', 'sourceId'],
       );
 
-      await client.conversations.join({
-        channel: args.channelId,
-      });
+      if (!channelResult.channel.is_member) {
+        await client.conversations.join({
+          channel: args.channelId,
+        });
 
-      const sourceTypeName =
-        source.type === SourceType.Squad ? 'squad' : 'source';
+        const sourceTypeName =
+          source.type === SourceType.Squad ? 'squad' : 'source';
 
-      await client.chat.postMessage({
-        channel: args.channelId,
-        text: `You've successfully connected the "${source.name}" ${sourceTypeName} from daily.dev to this channel. Important ${sourceTypeName} updates will be posted here 🙌`,
-      });
+        await client.chat.postMessage({
+          channel: args.channelId,
+          text: `You've successfully connected the "${source.name}" ${sourceTypeName} from daily.dev to this channel. Important ${sourceTypeName} updates will be posted here 🙌`,
+        });
+      }
 
       return { _: true };
     },
