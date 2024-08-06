@@ -18,7 +18,10 @@ import {
 } from '../entity/UserSourceIntegration';
 import { ConflictError } from '../errors';
 import graphorm from '../graphorm';
-import { UserIntegrationType } from '../entity/UserIntegration';
+import {
+  UserIntegration,
+  UserIntegrationType,
+} from '../entity/UserIntegration';
 import {
   ensureSourcePermissions,
   GQLSource,
@@ -79,6 +82,20 @@ export const typeDefs = /* GraphQL */ `
     channelIds: [String!]
   }
 
+  type UserSourceIntegrationEdge {
+    node: UserSourceIntegration!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type UserSourceIntegrationConnection {
+    pageInfo: PageInfo!
+    edges: [UserSourceIntegrationEdge!]!
+  }
+
   extend type Query {
     """
     Get slack channels
@@ -114,6 +131,16 @@ export const typeDefs = /* GraphQL */ `
       """
       type: UserIntegrationType!
     ): UserSourceIntegration @auth
+
+    """
+    Get source integrations
+    """
+    sourceIntegrations(
+      """
+      ID of integration
+      """
+      integrationId: ID!
+    ): UserSourceIntegrationConnection @auth
   }
 
   extend type Mutation {
@@ -210,6 +237,43 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
             .where(`"${builder.alias}"."sourceId" = :id`, { id: args.sourceId })
             .andWhere(`"${builder.alias}"."type" = :type`, { type: args.type }),
         }),
+      );
+    },
+    sourceIntegrations: async (
+      _,
+      args: { integrationId: string } & ConnectionArguments,
+      ctx: AuthContext,
+      info,
+    ): Promise<Connection<GQLUserSourceIntegration>> => {
+      return queryPaginatedByDate(
+        ctx,
+        info,
+        args,
+        { key: 'createdAt' } as GQLDatePageGeneratorConfig<
+          GQLUserSourceIntegration,
+          'createdAt'
+        >,
+        {
+          queryBuilder: (builder) => {
+            builder.queryBuilder = builder.queryBuilder
+              .innerJoin(
+                UserIntegration,
+                'ui',
+                `"${builder.alias}"."userIntegrationId" = ui.id`,
+              )
+              .andWhere(`ui."userId" = :integrationUserId`, {
+                integrationUserId: ctx.userId,
+              })
+              .andWhere(
+                `${builder.alias}."userIntegrationId" = :integrationId`,
+                {
+                  integrationId: args.integrationId,
+                },
+              );
+            return builder;
+          },
+          orderByKey: 'DESC',
+        },
       );
     },
   },

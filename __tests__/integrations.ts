@@ -30,6 +30,7 @@ import {
   UserSourceIntegrationSlack,
 } from '../src/entity/UserSourceIntegration';
 import { SourceMemberRoles } from '../src/roles';
+import { addSeconds } from 'date-fns';
 
 jest.mock('@slack/web-api', () => ({
   ...(jest.requireActual('@slack/web-api') as Record<string, unknown>),
@@ -136,6 +137,24 @@ describe('slack integration', () => {
         name: 'Squad Slack',
         image: 'http//image.com/s',
         handle: 'squadslack',
+        type: SourceType.Squad,
+        active: true,
+        private: true,
+      },
+      {
+        id: 'squadslack2',
+        name: 'Squad Slack 2',
+        image: 'http//image.com/s2',
+        handle: 'squadslack2',
+        type: SourceType.Squad,
+        active: true,
+        private: true,
+      },
+      {
+        id: 'squadslack3',
+        name: 'Squad Slack 3',
+        image: 'http//image.com/s3',
+        handle: 'squadslack3',
         type: SourceType.Squad,
         active: true,
         private: true,
@@ -538,6 +557,135 @@ describe('slack integration', () => {
         source: {
           id: 'squadslack',
         },
+      });
+    });
+  });
+
+  describe('query sourceIntegrations', () => {
+    const QUERY = ({ integrationId }) => `
+      query {
+        sourceIntegrations(integrationId: "${integrationId}") {
+          edges {
+            node {
+              userIntegration {
+                id
+                userId
+              }
+              type
+              createdAt
+              updatedAt
+              source {
+                id
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    it('should require authentication', async () => {
+      await testQueryErrorCode(
+        client,
+        {
+          query: QUERY({
+            integrationId: 'integration-id',
+          }),
+        },
+        'UNAUTHENTICATED',
+      );
+    });
+
+    it('should return source integrations', async () => {
+      loggedUser = '1';
+
+      const [additionalIntegration] = await con
+        .getRepository(UserIntegration)
+        .save([
+          {
+            userId: '2',
+            type: UserIntegrationType.Slack,
+            name: 'daily.dev',
+            meta: {
+              appId: 'sapp1',
+              scope: 'channels:read,chat:write,channels:join',
+              teamId: 'st1',
+              teamName: 'daily.dev',
+              tokenType: 'bot',
+              accessToken: await encrypt(
+                'xoxb-token',
+                process.env.SLACK_DB_KEY as string,
+              ),
+              slackUserId: 'su2',
+            },
+          },
+        ]);
+
+      const userIntegration = await getIntegration({
+        type: UserIntegrationType.Slack,
+        userId: loggedUser,
+      });
+
+      const createdAt = new Date();
+
+      await con.getRepository(UserSourceIntegrationSlack).save([
+        {
+          userIntegrationId: userIntegration.id,
+          sourceId: 'squadslack',
+          channelIds: ['1'],
+          createdAt: addSeconds(createdAt, 3),
+        },
+        {
+          userIntegrationId: userIntegration.id,
+          sourceId: 'squadslack2',
+          channelIds: ['2'],
+          createdAt: addSeconds(createdAt, 2),
+        },
+        {
+          userIntegrationId: additionalIntegration.id,
+          sourceId: 'squadslack3',
+          channelIds: ['3'],
+          createdAt: addSeconds(createdAt, 1),
+        },
+      ]);
+
+      const res = await client.query(
+        QUERY({
+          integrationId: userIntegration.id,
+        }),
+      );
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.sourceIntegrations).toMatchObject({
+        edges: [
+          {
+            node: {
+              userIntegration: {
+                id: userIntegration.id,
+                userId: userIntegration.userId,
+              },
+              type: UserIntegrationType.Slack,
+              createdAt: expect.any(String),
+              updatedAt: expect.any(String),
+              source: {
+                id: 'squadslack',
+              },
+            },
+          },
+          {
+            node: {
+              userIntegration: {
+                id: userIntegration.id,
+                userId: userIntegration.userId,
+              },
+              type: UserIntegrationType.Slack,
+              createdAt: expect.any(String),
+              updatedAt: expect.any(String),
+              source: {
+                id: 'squadslack2',
+              },
+            },
+          },
+        ],
       });
     });
   });
