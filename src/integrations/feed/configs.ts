@@ -186,6 +186,7 @@ export class FeedLofnConfigGenerator implements FeedConfigGenerator {
           this.lofnClient.fetchConfig({
             user_id: opts.user_id,
             feed_version: this.opts.feed_version,
+            cursor: opts.cursor,
           }),
           this.feedPreferencesConfigGenerator.generate(ctx, opts),
         ]);

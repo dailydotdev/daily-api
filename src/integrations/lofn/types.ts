@@ -16,6 +16,7 @@ export type LofnFeedConfigResponse = {
 export type LofnFeedConfigPayload = {
   user_id: string;
   feed_version: FeedVersion;
+  cursor: string;
 };
 
 export interface ILofnClient {
