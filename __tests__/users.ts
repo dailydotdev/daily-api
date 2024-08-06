@@ -344,6 +344,7 @@ describe('query userStreaks', () => {
       total
       current
       lastViewAt
+      weekStart
     }
   }`;
 
@@ -368,6 +369,7 @@ describe('query userStreaks', () => {
         total: 0,
         current: 0,
         lastViewAt: null,
+        weekStart: DayOfWeek.Monday,
       },
     });
   });
@@ -384,6 +386,26 @@ describe('query userStreaks', () => {
         total: 0,
         current: 0,
         lastViewAt: null,
+        weekStart: DayOfWeek.Monday,
+      },
+    });
+  });
+
+  it('should return the correct weekStart', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { weekStart: DayOfWeek.Sunday });
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      userStreak: {
+        max: 0,
+        total: 0,
+        current: 0,
+        lastViewAt: null,
+        weekStart: DayOfWeek.Sunday,
       },
     });
   });
@@ -517,6 +539,48 @@ describe('query userStreaks', () => {
 
     jest.useFakeTimers({ advanceTimers: true, now: fakeTodayTz });
     await expectStreak(5, 5, lastViewAtTz);
+  });
+});
+
+describe('mutation updateStreakConfig', () => {
+  const QUERY = `mutation UpdateStreakConfig($weekStart: Int) {
+    updateStreakConfig(weekStart: $weekStart) {
+      max
+      total
+      current
+      lastViewAt
+      weekStart
+    }
+  }`;
+
+  it('should not allow unauthenticated users', () =>
+    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
+
+  it('should update the streak config and return the streak', async () => {
+    loggedUser = '1';
+
+    expect(
+      (await con.getRepository(User).findOneBy({ id: loggedUser }))?.weekStart,
+    ).toEqual(DayOfWeek.Monday);
+
+    const res = await client.query(QUERY, {
+      variables: { weekStart: DayOfWeek.Sunday },
+    });
+
+    expect(
+      (await con.getRepository(User).findOneBy({ id: loggedUser }))?.weekStart,
+    ).toEqual(DayOfWeek.Sunday);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      updateStreakConfig: {
+        max: 0,
+        total: 0,
+        current: 0,
+        lastViewAt: null,
+        weekStart: DayOfWeek.Sunday,
+      },
+    });
   });
 });
 
