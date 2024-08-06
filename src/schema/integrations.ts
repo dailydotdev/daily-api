@@ -11,7 +11,7 @@ import {
   toGQLEnum,
 } from '../common';
 import { GQLEmptyResponse } from './common';
-import { ValidationError } from 'apollo-server-errors';
+import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import {
   UserSourceIntegration,
   UserSourceIntegrationSlack,
@@ -162,6 +162,31 @@ export const typeDefs = /* GraphQL */ `
       ID of source to connect
       """
       sourceId: ID!
+    ): EmptyResponse! @auth
+
+    """
+    Remove integration
+    """
+    removeIntegration(
+      """
+      ID of integration to remove
+      """
+      integrationId: ID!
+    ): EmptyResponse! @auth
+
+    """
+    Remove source integration
+    """
+    removeSourceIntegration(
+      """
+      ID of source to remove integration from
+      """
+      sourceId: ID!
+
+      """
+      ID of integration connected to source
+      """
+      integrationId: ID!
     ): EmptyResponse! @auth
   }
 `;
@@ -339,6 +364,50 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
       await client.chat.postMessage({
         channel: args.channelId,
         text: `You've successfully connected the "${source.name}" ${sourceTypeName} from daily.dev to this channel. Important ${sourceTypeName} updates will be posted here 🙌`,
+      });
+
+      return { _: true };
+    },
+    removeIntegration: async (
+      _,
+      args: { integrationId: string },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const integration = await ctx.con
+        .getRepository(UserIntegration)
+        .findOneByOrFail({
+          id: args.integrationId,
+        });
+
+      if (integration.userId !== ctx.userId) {
+        throw new ForbiddenError('not allowed');
+      }
+
+      await ctx.con.getRepository(UserIntegration).delete({
+        id: integration.id,
+        userId: ctx.userId,
+      });
+
+      return { _: true };
+    },
+    removeSourceIntegration: async (
+      _,
+      args: { sourceId: string; integrationId: string },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const integration = await ctx.con
+        .getRepository(UserIntegration)
+        .findOneByOrFail({
+          id: args.integrationId,
+        });
+
+      if (integration.userId !== ctx.userId) {
+        throw new ForbiddenError('not allowed');
+      }
+
+      await ctx.con.getRepository(UserSourceIntegration).delete({
+        sourceId: args.sourceId,
+        userIntegrationId: integration.id,
       });
 
       return { _: true };

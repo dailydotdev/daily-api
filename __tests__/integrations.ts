@@ -689,4 +689,240 @@ describe('slack integration', () => {
       });
     });
   });
+
+  describe('mutation removeIntegration', () => {
+    const MUTATION = ({ integrationId }) => `
+      mutation {
+        removeIntegration(integrationId: "${integrationId}") {
+          _
+        }
+      }
+    `;
+
+    it('should require authentication', async () => {
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION({
+            integrationId: 'integration-id',
+          }),
+        },
+        'UNAUTHENTICATED',
+      );
+    });
+
+    it('should remove integration', async () => {
+      loggedUser = '1';
+
+      await con.getRepository(UserIntegration).save([
+        {
+          userId: '2',
+          type: UserIntegrationType.Slack,
+          name: 'daily.dev',
+          meta: {
+            appId: 'sapp1',
+            scope: 'channels:read,chat:write,channels:join',
+            teamId: 'st1',
+            teamName: 'daily.dev',
+            tokenType: 'bot',
+            accessToken: await encrypt(
+              'xoxb-token',
+              process.env.SLACK_DB_KEY as string,
+            ),
+            slackUserId: 'su2',
+          },
+        },
+      ]);
+
+      const userIntegration = await getIntegration({
+        type: UserIntegrationType.Slack,
+        userId: loggedUser,
+      });
+      const integrationCount = await con.getRepository(UserIntegration).count();
+      expect(integrationCount).toBe(2);
+
+      const res = await client.mutate(
+        MUTATION({
+          integrationId: userIntegration.id,
+        }),
+      );
+
+      expect(res.errors).toBeFalsy();
+
+      const integration = await con.getRepository(UserIntegration).findOneBy({
+        id: userIntegration.id,
+      });
+      expect(integration).toBe(null);
+
+      const integrationCountAfter = await con
+        .getRepository(UserIntegration)
+        .count();
+      expect(integrationCountAfter).toBe(1);
+    });
+
+    it('should return error if user does not have access to integration', async () => {
+      loggedUser = '4';
+
+      const userIntegration = await getIntegration({
+        type: UserIntegrationType.Slack,
+        userId: '1',
+      });
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION({
+            integrationId: userIntegration.id,
+          }),
+        },
+        'FORBIDDEN',
+      );
+
+      const integration = await con.getRepository(UserIntegration).findOneBy({
+        id: userIntegration.id,
+      });
+      expect(integration).not.toBe(null);
+    });
+
+    it('should return error if integration is not found', async () => {
+      loggedUser = '4';
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION({
+            integrationId: '4a51defd-a083-4967-82a8-edb009d57d05',
+          }),
+        },
+        'NOT_FOUND',
+      );
+    });
+  });
+
+  describe('mutation removeSourceIntegration', () => {
+    const MUTATION = ({ sourceId, integrationId }) => `
+      mutation {
+        removeSourceIntegration(sourceId: "${sourceId}", integrationId: "${integrationId}") {
+          _
+        }
+      }
+    `;
+
+    beforeEach(async () => {
+      const userIntegration = await getIntegration({
+        type: UserIntegrationType.Slack,
+        userId: '1',
+      });
+
+      await con.getRepository(UserSourceIntegrationSlack).save([
+        {
+          userIntegrationId: userIntegration.id,
+          sourceId: 'squadslack',
+          channelIds: ['1'],
+        },
+        {
+          userIntegrationId: userIntegration.id,
+          sourceId: 'squadslack2',
+          channelIds: ['2'],
+        },
+        {
+          userIntegrationId: userIntegration.id,
+          sourceId: 'squadslack3',
+          channelIds: ['3'],
+        },
+      ]);
+    });
+
+    it('should require authentication', async () => {
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION({
+            sourceId: 'source-id',
+            integrationId: 'integration-id',
+          }),
+        },
+        'UNAUTHENTICATED',
+      );
+    });
+
+    it('should remove source integration', async () => {
+      loggedUser = '1';
+
+      const userIntegration = await getIntegration({
+        type: UserIntegrationType.Slack,
+        userId: loggedUser,
+      });
+
+      const sourceIntegrationCount = await con
+        .getRepository(UserSourceIntegrationSlack)
+        .count();
+      expect(sourceIntegrationCount).toBe(3);
+
+      const sourceIntegration = await con
+        .getRepository(UserSourceIntegration)
+        .findOneBy({
+          userIntegrationId: userIntegration.id,
+          sourceId: 'squadslack',
+        });
+      expect(sourceIntegration).not.toBe(null);
+
+      const res = await client.mutate(
+        MUTATION({
+          sourceId: 'squadslack',
+          integrationId: userIntegration.id,
+        }),
+      );
+
+      expect(res.errors).toBeFalsy();
+
+      const sourceIntegrationAfter = await con
+        .getRepository(UserSourceIntegration)
+        .findOneBy({
+          userIntegrationId: userIntegration.id,
+          sourceId: 'squadslack',
+        });
+      expect(sourceIntegrationAfter).toBe(null);
+
+      const sourceIntegrationCountAfter = await con
+        .getRepository(UserSourceIntegrationSlack)
+        .count();
+      expect(sourceIntegrationCountAfter).toBe(2);
+    });
+
+    it('should return error if user does not have access to integration', async () => {
+      loggedUser = '4';
+
+      const userIntegration = await getIntegration({
+        type: UserIntegrationType.Slack,
+        userId: '1',
+      });
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION({
+            sourceId: 'squadslack',
+            integrationId: userIntegration.id,
+          }),
+        },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should return error if integration is not found', async () => {
+      loggedUser = '4';
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION({
+            sourceId: 'squadslack',
+            integrationId: '4a51defd-a083-4967-82a8-edb009d57d05',
+          }),
+        },
+        'NOT_FOUND',
+      );
+    });
+  });
 });
