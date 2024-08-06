@@ -463,7 +463,16 @@ describe('FeedLofnConfigGenerator', () => {
       user_id: '1',
       page_size: 10,
       offset: 3,
+      cursor: 'cursor-1',
     });
+
+    expect(mockClient.fetchConfig).toHaveBeenCalledTimes(1);
+    expect(mockClient.fetchConfig).toHaveBeenCalledWith({
+      user_id: '1',
+      feed_version: '30',
+      cursor: 'cursor-1',
+    });
+
     expect(actual).toMatchObject({
       config: {
         user_id: '1',
