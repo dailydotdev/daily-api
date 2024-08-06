@@ -5,6 +5,14 @@ import {
 } from '../entity/UserIntegration';
 import { decrypt } from './crypto';
 
+export type GQLUserIntegration = {
+  id: string;
+  type: string;
+  createdAt: Date;
+  updatedAt: Date;
+  name: string;
+};
+
 export const getIntegrationToken = async <
   TIntegration extends UserIntegration,
 >({

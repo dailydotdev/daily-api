@@ -7,6 +7,7 @@ import {
   getIntegrationToken,
   getLimit,
   getSlackIntegrationOrFail,
+  GQLUserIntegration,
   toGQLEnum,
 } from '../common';
 import { GQLEmptyResponse } from './common';
@@ -24,6 +25,11 @@ import {
   SourcePermissions,
 } from './sources';
 import { SourceType } from '../entity';
+import { Connection, ConnectionArguments } from 'graphql-relay';
+import {
+  GQLDatePageGeneratorConfig,
+  queryPaginatedByDate,
+} from '../common/datePageGenerator';
 
 export type GQLSlackChannels = {
   id?: string;
@@ -37,9 +43,11 @@ export type GQLSlackChannelConnection = {
 
 export type GQLUserSourceIntegration = Pick<
   UserSourceIntegration,
-  'userIntegrationId' | 'type' | 'createdAt' | 'updatedAt'
+  'type' | 'createdAt' | 'updatedAt'
 > & {
+  userIntegration: GQLUserIntegration;
   source: GQLSource;
+  channelIds: string[];
 };
 
 export const typeDefs = /* GraphQL */ `
@@ -63,11 +71,12 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type UserSourceIntegration {
-    userIntegrationId: ID!
+    userIntegration: UserIntegration!
     type: String!
     createdAt: DateTime
     updatedAt: DateTime
     source: Source!
+    channelIds: [String!]
   }
 
   extend type Query {
@@ -196,10 +205,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         ctx,
         info,
         (builder) => ({
+          ...builder,
           queryBuilder: builder.queryBuilder
             .where(`"${builder.alias}"."sourceId" = :id`, { id: args.sourceId })
             .andWhere(`"${builder.alias}"."type" = :type`, { type: args.type }),
-          ...builder,
         }),
       );
     },

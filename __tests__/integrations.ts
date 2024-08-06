@@ -394,7 +394,10 @@ describe('slack integration', () => {
     const QUERY = ({ sourceId, type }) => `
       query {
         sourceIntegration(sourceId: "${sourceId}", type: ${type}) {
-          userIntegrationId
+          userIntegration {
+            id
+            userId
+          }
           type
           createdAt
           updatedAt
@@ -443,7 +446,10 @@ describe('slack integration', () => {
 
       expect(res.errors).toBeFalsy();
       expect(res.data.sourceIntegration).toMatchObject({
-        userIntegrationId: userIntegration.id,
+        userIntegration: {
+          id: userIntegration.id,
+          userId: userIntegration.userId,
+        },
         type: UserIntegrationType.Slack,
         createdAt: expect.any(String),
         updatedAt: expect.any(String),
@@ -522,7 +528,10 @@ describe('slack integration', () => {
 
       expect(res.errors).toBeFalsy();
       expect(res.data.sourceIntegration).toMatchObject({
-        userIntegrationId: userIntegration.id,
+        userIntegration: {
+          id: userIntegration.id,
+          userId: userIntegration.userId,
+        },
         type: UserIntegrationType.Slack,
         createdAt: expect.any(String),
         updatedAt: expect.any(String),
