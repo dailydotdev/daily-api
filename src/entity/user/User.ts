@@ -67,6 +67,7 @@ export class User {
   name: string;
 
   @Column({ type: 'text', nullable: true })
+  @Index('IDX_user_email')
   email: string;
 
   @Column({ type: 'text', nullable: true })
