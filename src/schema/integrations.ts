@@ -297,6 +297,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         }),
       ]);
 
+      const existing = await ctx.con
+        .getRepository(UserSourceIntegrationSlack)
+        .findOneBy({
+          sourceId: args.sourceId,
+        });
+
+      if (existing && existing.userIntegrationId !== slackIntegration.id) {
+        throw new ConflictError('source already connected to a channel');
+      }
+
       const client = new WebClient(
         await getIntegrationToken({ integration: slackIntegration }),
       );
@@ -307,16 +317,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
 
       if (!channelResult.ok && channelResult.channel.id !== args.channelId) {
         throw new ValidationError('invalid channel');
-      }
-
-      const existing = await ctx.con
-        .getRepository(UserSourceIntegrationSlack)
-        .findOneBy({
-          sourceId: args.sourceId,
-        });
-
-      if (existing && existing.userIntegrationId !== slackIntegration.id) {
-        throw new ConflictError('source already connected to a channel');
       }
 
       await ctx.con.getRepository(UserSourceIntegrationSlack).upsert(
