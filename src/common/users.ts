@@ -7,6 +7,7 @@ import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
 import { GraphQLResolveInfo } from 'graphql';
 import { utcToZonedTime } from 'date-fns-tz';
 import { sendAnalyticsEvent } from '../integrations/analytics';
+import { DayOfWeek, DEFAULT_WEEK_START } from './date';
 
 export interface User {
   id: string;
@@ -29,6 +30,7 @@ export interface GQLUserStreak {
   current?: number;
   lastViewAt?: Date;
   userId: string;
+  weekStart: DayOfWeek;
 }
 
 export interface GQLUserStreakTz extends GQLUserStreak {
@@ -406,11 +408,22 @@ export const clearUserStreak = async (
 // Computes whether we should reset user streak
 // Even though it is the weekend, we should still clear the streak for when the user's last read was Thursday
 // Due to the fact that when Monday comes, we will clear it anyway when we notice the gap in Friday
-export const shouldResetStreak = (day: number, difference: number) => {
+export const shouldResetStreak = (
+  day: number,
+  difference: number,
+  startOfWeek: DayOfWeek = DEFAULT_WEEK_START,
+) => {
+  const firstDayOfWeek =
+    startOfWeek === DayOfWeek.Monday ? Day.Monday : Day.Sunday;
+
+  const lastDayOfWeek =
+    startOfWeek === DayOfWeek.Monday ? Day.Sunday : Day.Saturday;
+
   return (
-    (day === Day.Sunday && difference > FREEZE_DAYS_IN_A_WEEK) ||
-    (day === Day.Monday && difference > FREEZE_DAYS_IN_A_WEEK + MISSED_LIMIT) ||
-    (day > Day.Monday && difference > MISSED_LIMIT)
+    (day === lastDayOfWeek && difference > FREEZE_DAYS_IN_A_WEEK) ||
+    (day === firstDayOfWeek &&
+      difference > FREEZE_DAYS_IN_A_WEEK + MISSED_LIMIT) ||
+    (day > firstDayOfWeek && difference > MISSED_LIMIT)
   );
 };
 
@@ -427,7 +440,7 @@ export const checkUserStreak = (streak: GQLUserStreakTz): boolean => {
   const day = today.getDay();
   const difference = differenceInDays(today, lastViewAt);
 
-  return shouldResetStreak(day, difference);
+  return shouldResetStreak(day, difference, streak.weekStart);
 };
 
 export const checkAndClearUserStreak = async (

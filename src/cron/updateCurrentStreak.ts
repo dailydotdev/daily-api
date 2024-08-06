@@ -15,6 +15,7 @@ const cron: Cron = {
             `us.*, (date_trunc('day', us."lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date) AS "lastViewAtTz", u.timezone`,
           )
           .addSelect('us.currentStreak', 'current')
+          .addSelect('u."weekStart"', 'weekStart')
           .from(UserStreak, 'us')
           .innerJoin(User, 'u', 'u.id = us."userId"')
           .where(`us."currentStreak" != 0`)

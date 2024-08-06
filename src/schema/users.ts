@@ -51,6 +51,8 @@ import {
   votePost,
   voteComment,
   resubscribeUser,
+  DayOfWeek,
+  VALID_WEEK_STARTS,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -66,7 +68,7 @@ import { deleteUser } from '../directive/user';
 import { randomInt } from 'crypto';
 import { DataSource, In, IsNull } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
-import { DayOfWeek, UserVote, UserVoteEntity } from '../types';
+import { UserVote, UserVoteEntity } from '../types';
 import { markdown } from '../common/markdown';
 import { RedisMagicValues, deleteRedisKey, getRedisObject } from '../redis';
 import { StorageKey, StorageTopic, generateStorageKey } from '../config';
@@ -102,6 +104,7 @@ export interface GQLUpdateUserInput {
   acceptedMarketing?: boolean;
   notificationEmail?: boolean;
   timezone?: string;
+  weekStart?: number;
   infoConfirmed?: boolean;
   experienceLevel?: string;
 }
@@ -408,6 +411,10 @@ export const typeDefs = /* GraphQL */ `
     """
     timezone: String
     """
+    Preferred day of the week to start the week
+    """
+    weekStart: Int
+    """
     Current company of the user
     """
     company: String
@@ -549,6 +556,7 @@ export const typeDefs = /* GraphQL */ `
     total: Int
     current: Int
     lastViewAt: DateTime
+    weekStart: Int
   }
 
   ${toGQLEnum(UserPersonalizedDigestType, 'DigestType')}
@@ -828,6 +836,11 @@ export const typeDefs = /* GraphQL */ `
       """
       vote: Int!
     ): EmptyResponse @auth
+
+    """
+    Update the user's streak configuration
+    """
+    updateStreakConfig(weekStart: Int): UserStreak @auth
   }
 `;
 
@@ -968,6 +981,7 @@ const getUserStreakQuery = async (
       )
       .addSelect('u.id', 'userId')
       .addSelect('u.timezone', 'timezone')
+      .addSelect('u."weekStart"', 'weekStart')
       .innerJoin(User, 'u', `"${builder.alias}"."userId" = u.id`)
       .where(`"${builder.alias}"."userId" = :id`, {
         id: id,
@@ -1123,6 +1137,7 @@ export const resolvers: IResolvers<any, BaseContext> = {
           total: 0,
           current: 0,
           userId: ctx.userId,
+          weekStart: DayOfWeek.Monday,
         };
       }
 
@@ -1150,6 +1165,7 @@ export const resolvers: IResolvers<any, BaseContext> = {
           max: 0,
           total: 0,
           userId: id,
+          weekStart: DayOfWeek.Monday,
         };
       }
 
@@ -1672,6 +1688,33 @@ export const resolvers: IResolvers<any, BaseContext> = {
         default:
           throw new ValidationError('Unsupported vote entity');
       }
+    },
+    updateStreakConfig: async (
+      _,
+      { weekStart }: { weekStart: number },
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLUserStreak> => {
+      if (VALID_WEEK_STARTS.indexOf(weekStart) === -1) {
+        throw new ValidationError('Invalid week start');
+      }
+
+      await ctx.con.getRepository(User).findOneByOrFail({ id: ctx.userId });
+
+      const streak = await getUserStreakQuery(ctx.userId, ctx, info);
+
+      if (!streak) {
+        throw new NotFoundError('User streak not found');
+      }
+
+      await ctx.con
+        .getRepository(User)
+        .update({ id: ctx.userId }, { weekStart });
+
+      return {
+        ...streak,
+        weekStart,
+      };
     },
   }),
   User: {

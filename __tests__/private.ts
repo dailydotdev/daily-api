@@ -8,7 +8,7 @@ import { usersFixture } from './fixture/user';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
-import { DayOfWeek } from '../src/types';
+import { DayOfWeek } from '../src/common';
 
 let app: FastifyInstance;
 let con: DataSource;

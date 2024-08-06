@@ -15,6 +15,7 @@ import { usersFixture } from '../fixture/user';
 import { postsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture/source';
 import {
+  DEFAULT_TIMEZONE,
   getPersonalizedDigestPreviousSendDate,
   getPersonalizedDigestSendDate,
   sendEmail,
@@ -27,7 +28,6 @@ import {
   sendReadingReminderPush,
   sendStreakReminderPush,
 } from '../../src/onesignal';
-import { DEFAULT_TIMEZONE } from '../../src/types';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),

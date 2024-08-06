@@ -9,6 +9,18 @@ module.exports = {
   rules: {
     'prettier/prettier': 'error',
     'unused-imports/no-unused-imports': 'error',
+    'no-restricted-imports': [
+      'error',
+      {
+        paths: [
+          {
+            name: 'date-fns',
+            importNames: ['isWeekend'],
+            message: 'Please import from src/common instead.',
+          },
+        ],
+      },
+    ],
   },
   overrides: [
     {

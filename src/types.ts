@@ -80,16 +80,6 @@ export type WebhookPayload<T> = {
   Body?: T;
 };
 
-export enum DayOfWeek {
-  Sunday = 0,
-  Monday = 1,
-  Tuesday = 2,
-  Wednesday = 3,
-  Thursday = 4,
-  Friday = 5,
-  Saturday = 6,
-}
-
 export enum UserVote {
   Up = 1,
   None = 0,
@@ -100,8 +90,6 @@ export enum UserVoteEntity {
   Comment = 'comment',
   Post = 'post',
 }
-
-export const DEFAULT_TIMEZONE = 'Etc/UTC';
 
 export const maxFeedsPerUser = 10;
 

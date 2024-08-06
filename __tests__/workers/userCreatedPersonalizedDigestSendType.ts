@@ -9,10 +9,10 @@ import {
   UserPersonalizedDigestType,
 } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
-import { DayOfWeek } from '../../src/types';
 import { workers } from '../../src/workers';
 import { ExperimentAllocationClient, features } from '../../src/growthbook';
 import { sendExperimentAllocationEvent } from '../../src/integrations/analytics';
+import { DayOfWeek } from '../../src/common';
 
 jest.mock('../../src/integrations/analytics', () => ({
   ...(jest.requireActual('../../src/integrations/analytics') as Record<

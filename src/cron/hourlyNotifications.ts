@@ -2,6 +2,9 @@ import { utcToZonedTime } from 'date-fns-tz';
 import {
   schedulePersonalizedDigestSubscriptions,
   notifyGeneratePersonalizedDigest,
+  DEFAULT_TIMEZONE,
+  isWeekend,
+  DEFAULT_WEEK_START,
 } from '../common';
 import {
   User,
@@ -10,8 +13,7 @@ import {
   UserPersonalizedDigestType,
 } from '../entity';
 import { Cron } from './cron';
-import { isWeekend, subDays } from 'date-fns';
-import { DEFAULT_TIMEZONE } from '../types';
+import { subDays } from 'date-fns';
 
 const sendType = UserPersonalizedDigestSendType.workdays;
 const digestTypes = [UserPersonalizedDigestType.StreakReminder];
@@ -24,7 +26,7 @@ const cron: Cron = {
   handler: async (con, logger) => {
     const personalizedDigestQuery = con
       .createQueryBuilder()
-      .select('upd.*, u.timezone')
+      .select('upd.*, u.timezone, u."weekStart"')
       .from(UserPersonalizedDigest, 'upd')
       .innerJoin(User, 'u', 'u.id = upd."userId"')
       .where(
@@ -43,14 +45,17 @@ const cron: Cron = {
         personalizedDigest: personalizedDigestWithTimezome,
         emailBatchId,
       }) => {
-        const { timezone = DEFAULT_TIMEZONE, ...personalizedDigest } =
-          personalizedDigestWithTimezome as UserPersonalizedDigest &
-            Pick<User, 'timezone'>;
+        const {
+          timezone = DEFAULT_TIMEZONE,
+          weekStart = DEFAULT_WEEK_START,
+          ...personalizedDigest
+        } = personalizedDigestWithTimezome as UserPersonalizedDigest &
+          Pick<User, 'timezone' | 'weekStart'>;
 
         const timestamp = new Date().getTime();
         const previousSendTimestamp = subDays(timestamp, 1).getTime();
         const sendDateInTimezone = utcToZonedTime(timestamp, timezone);
-        if (isWeekend(sendDateInTimezone)) {
+        if (isWeekend(sendDateInTimezone, weekStart)) {
           return;
         }
 

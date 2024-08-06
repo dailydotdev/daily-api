@@ -59,9 +59,9 @@ import { getEncryptedFeatures } from '../src/growthbook';
 import { base64 } from 'graphql-relay/utils/base64';
 import { cookies } from '../src/cookies';
 import { signJwt } from '../src/auth';
-import { submitArticleThreshold } from '../src/common';
+import { DEFAULT_TIMEZONE, submitArticleThreshold } from '../src/common';
 import { saveReturnAlerts } from '../src/schema/alerts';
-import { DEFAULT_TIMEZONE, UserVote } from '../src/types';
+import { UserVote } from '../src/types';
 import { BootAlerts, excludeProperties } from '../src/routes/boot';
 
 let app: FastifyInstance;
