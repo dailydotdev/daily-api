@@ -1,6 +1,6 @@
 import { isInSubnet, isIP } from 'is-in-subnet';
 import { Context } from '../Context';
-import { Comment, User } from '../entity';
+import { Comment, FreeformPost, Post, User } from '../entity';
 import { logger } from '../logger';
 import { counters } from '../telemetry';
 import { Brackets } from 'typeorm';
@@ -23,24 +23,26 @@ export const validateVordrWords = (content: string): boolean => {
 };
 
 export const checkWithVordr = async (
-  comment: Comment,
+  { comment, post }: { comment?: Comment; post?: Post | FreeformPost },
   { userId, con, req }: Context,
 ): Promise<boolean> => {
+  const type = isNullOrUndefined(post) ? 'comment' : 'post';
+  const id = type === 'comment' ? comment?.id : post?.id;
   if (validateVordrIPs(req.ip)) {
     logger.info(
-      { commentId: comment.id, userId, ip: req.ip },
-      'Prevented comment because IP is in Vordr subnet',
+      { id, type, userId, ip: req.ip },
+      `Prevented ${type} because IP is in Vordr subnet`,
     );
-    counters?.api?.preventComment?.add(1, { reason: 'vordr_ip' });
+    counters?.api?.vordr?.add(1, { reason: 'vordr_ip', type: type });
     return true;
   }
 
   if (validateVordrWords(comment.content)) {
     logger.info(
-      { commentId: comment.id, userId },
-      'Prevented comment because it contains spam',
+      { id, type, userId },
+      `Prevented ${type} because it contains spam`,
     );
-    counters?.api?.preventComment?.add(1, { reason: 'vordr_word' });
+    counters?.api?.vordr?.add(1, { reason: 'vordr_word', type: type });
     return true;
   }
 
@@ -52,37 +54,31 @@ export const checkWithVordr = async (
     });
 
   if (!user) {
-    logger.error(
-      { commentId: comment.id, userId },
-      'Failed to fetch user for comment',
-    );
+    logger.error({ id, type, userId }, `Failed to fetch user for ${type}`);
     return true;
   }
 
   if (user.flags?.vordr) {
-    logger.info(
-      { commentId: comment.id, userId },
-      'Vordr prevented user from commenting',
-    );
-    counters?.api?.preventComment?.add(1, { reason: 'vordr' });
+    logger.info({ id, type, userId }, `Vordr prevented user from ${type}ing`);
+    counters?.api?.vordr?.add(1, { reason: 'vordr', type: type });
     return true;
   }
 
   if (user.flags?.trustScore <= 0) {
     logger.info(
-      { commentId: comment.id, userId },
-      'Prevented comment because user has a score of 0',
+      { id, type, userId },
+      `Prevented ${type} because user has a score of 0`,
     );
-    counters?.api?.preventComment?.add(1, { reason: 'score' });
+    counters?.api?.vordr?.add(1, { reason: 'score', type: type });
     return true;
   }
 
   if (user.reputation < 10) {
     logger.info(
-      { commentId: comment.id, userId },
-      'Prevented comment because user has low reputation',
+      { id, type, userId },
+      `Prevented ${type} because user has low reputation`,
     );
-    counters?.api?.preventComment?.add(1, { reason: 'reputation' });
+    counters?.api?.vordr?.add(1, { reason: 'reputation', type: type });
     return true;
   }
 
