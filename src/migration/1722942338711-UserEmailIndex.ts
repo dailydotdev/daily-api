@@ -5,7 +5,7 @@ export class UserEmailIndex1722942338711 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `CREATE INDEX "IDX_user_loweremail" ON "user" ((lower(email)))`,
+      `CREATE INDEX CONCURRENTLY "IDX_user_loweremail" ON "user" ((lower(email)));`,
     );
     await queryRunner.query(`DROP INDEX IF EXISTS "public"."IDX_user_email"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "public"."user_email_index"`);
