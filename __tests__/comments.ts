@@ -294,18 +294,105 @@ describe('query postComments', () => {
 
 describe('query userComments', () => {
   const QUERY = `query UserComments($userId: ID!, $after: String, $first: Int) {
-  userComments(userId: $userId, after: $after, first: $first) {
-    pageInfo { endCursor, hasNextPage }
-    edges { node {
-      ${commentFields}
-    } }
-  }
+    userComments(userId: $userId, after: $after, first: $first) {
+      pageInfo { endCursor, hasNextPage }
+      edges { node {
+        ${commentFields}
+      } }
+    }
   }`;
 
   it('should fetch comments by user id', async () => {
     const res = await client.query(QUERY, { variables: { userId: '1' } });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
+  });
+
+  describe('vordr', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, Comment, [
+        {
+          id: 'vordr-comment',
+          postId: 'p1',
+          userId: '2',
+          content: 'comment',
+          contentHtml: '<p>comment</p>',
+          flags: { vordr: true },
+        },
+      ]);
+    });
+
+    it('should filter out comments that are vordr prevented', async () => {
+      loggedUser = '1';
+      const res = await client.query(QUERY, { variables: { userId: '2' } });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.userComments.edges.length).toEqual(2);
+    });
+
+    it('should not filter out comments that are vordr prevented if user is author', async () => {
+      loggedUser = '2';
+      const res = await client.query(QUERY, { variables: { userId: '2' } });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.userComments.edges.length).toEqual(3);
+    });
+  });
+});
+
+describe('query commentFeed', () => {
+  const QUERY = `query CommentFeed($after: String, $first: Int) {
+    commentFeed(after: $after, first: $first) {
+      pageInfo { endCursor, hasNextPage }
+      edges { node {
+        ${commentFields}
+      } }
+    }
+  }`;
+
+  beforeEach(async () => {
+    usersFixture.forEach(async (user) => {
+      await con
+        .getRepository(User)
+        .update({ id: user.id }, { ...user, reputation: 100 });
+    });
+  });
+
+  it('should not allow unauthenticated users', () =>
+    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
+
+  it('should fetch comments feed', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, { variables: { first: 20 } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.commentFeed.edges.length).toEqual(7);
+  });
+
+  describe('vordr', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, Comment, [
+        {
+          id: 'vordr-comment',
+          postId: 'p1',
+          userId: '2',
+          content: 'comment',
+          contentHtml: '<p>comment</p>',
+          flags: { vordr: true },
+        },
+      ]);
+    });
+
+    it('should filter out comments that are vordr prevented', async () => {
+      loggedUser = '1';
+      const res = await client.query(QUERY, { variables: { first: 20 } });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.commentFeed.edges.length).toEqual(7);
+    });
+
+    it('should not filter out comments that are vordr prevented if user is author', async () => {
+      loggedUser = '2';
+      const res = await client.query(QUERY, { variables: { first: 20 } });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.commentFeed.edges.length).toEqual(8);
+    });
   });
 });
 
