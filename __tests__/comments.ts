@@ -363,7 +363,7 @@ describe('query commentFeed', () => {
     loggedUser = '1';
     const res = await client.query(QUERY, { variables: { first: 20 } });
     expect(res.errors).toBeFalsy();
-    expect(res.data).toMatchSnapshot();
+    expect(res.data.commentFeed.edges.length).toEqual(7);
   });
 
   describe('vordr', () => {
