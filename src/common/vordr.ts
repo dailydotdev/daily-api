@@ -4,6 +4,7 @@ import { Comment, User } from '../entity';
 import { logger } from '../logger';
 import { counters } from '../telemetry';
 import { Brackets } from 'typeorm';
+import { isNullOrUndefined } from './object';
 
 const vordrIPs =
   process.env.VORDR_IPS?.split(',').filter((ip) => Boolean(ip)) || [];
@@ -88,11 +89,14 @@ export const checkWithVordr = async (
   return false;
 };
 
-export const whereVordrFilter = (alias: string, userId: string) =>
+export const whereVordrFilter = (alias: string, userId?: string) =>
   new Brackets((qb) => {
-    qb.where(`${alias}.userId = :userId`, {
-      userId: userId,
-    }).orWhere(
-      `COALESCE((${alias}.flags ->> 'vordr')::boolean, false) = false`,
-    );
+    const vordrFilter = `COALESCE((${alias}.flags ->> 'vordr')::boolean, false) = false`;
+    isNullOrUndefined(userId)
+      ? qb.where(vordrFilter)
+      : qb
+          .where(`${alias}.userId = :userId`, {
+            userId: userId,
+          })
+          .orWhere(vordrFilter);
   });
