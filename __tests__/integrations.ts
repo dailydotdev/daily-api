@@ -453,6 +453,22 @@ describe('slack integration', () => {
       expect(resUpdate.errors).toBeFalsy();
       expect(slackPostMessage).toHaveBeenCalledTimes(1);
     });
+
+    it('should return error if integration is not found', async () => {
+      loggedUser = '1';
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION({
+            integrationId: '4a51defd-a083-4967-82a8-edb009d57d05',
+            channelId: '1',
+            sourceId: 'squadslack',
+          }),
+        },
+        'NOT_FOUND',
+      );
+    });
   });
 
   describe('query sourceIntegration', () => {

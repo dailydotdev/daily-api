@@ -33,6 +33,7 @@ import {
   GQLDatePageGeneratorConfig,
   queryPaginatedByDate,
 } from '../common/datePageGenerator';
+import { ConversationsInfoResponse } from '@slack/web-api';
 
 export type GQLSlackChannels = {
   id?: string;
@@ -315,7 +316,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
       );
 
       const [slackIntegration] = await Promise.all([
-        ctx.con.getRepository(UserIntegrationSlack).findOne({
+        ctx.con.getRepository(UserIntegrationSlack).findOneOrFail({
           where: {
             id: args.integrationId,
             userId: ctx.userId,
@@ -341,11 +342,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         integration: slackIntegration,
       });
 
-      const channelResult = await client.conversations.info({
-        channel: args.channelId,
-      });
+      let channelResult: ConversationsInfoResponse | undefined;
 
-      if (!channelResult.ok && channelResult.channel.id !== args.channelId) {
+      try {
+        channelResult = await client.conversations.info({
+          channel: args.channelId,
+        });
+
+        if (!channelResult.ok) {
+          throw new Error(channelResult.error);
+        }
+      } catch {
         throw new ValidationError('invalid channel');
       }
 
@@ -359,7 +366,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         ['userIntegrationId', 'sourceId'],
       );
 
-      if (!channelResult.channel.is_member) {
+      if (!channelResult.channel?.is_member) {
         await client.conversations.join({
           channel: args.channelId,
         });
