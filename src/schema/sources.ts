@@ -1415,8 +1415,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return paginateSourceMembers(
         (queryBuilder, alias) => {
-          queryBuilder = queryBuilder.andWhere(`${alias}."userId" = :user`, {
-            user: ctx.userId,
+          queryBuilder = queryBuilder.andWhere(`${alias}."userId" = :userId`, {
+            userId: ctx.userId,
           });
 
           if (
@@ -1455,8 +1455,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<Connection<GQLSourceMember>> => {
       return paginateSourceMembers(
         (queryBuilder, alias) => {
-          queryBuilder = queryBuilder.andWhere(`${alias}."userId" = :user`, {
-            user: userId,
+          queryBuilder = queryBuilder.andWhere(`${alias}."userId" = :userId`, {
+            userId,
           });
 
           if (
