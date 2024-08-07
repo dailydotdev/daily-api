@@ -1,15 +1,13 @@
 import { LogLevel, MessageAttachment, WebClient } from '@slack/web-api';
 import { DataSource } from 'typeorm';
-import {
-  PostType,
-  Post,
-  ArticlePost,
-  FreeformPost,
-  SharePost,
-  WelcomePost,
-  CollectionPost,
-  YouTubePost,
-} from '../entity';
+import { Post, PostType } from '../entity/posts/Post';
+import { ArticlePost } from '../entity/posts/ArticlePost';
+import { FreeformPost } from '../entity/posts/FreeformPost';
+import { SharePost } from '../entity/posts/SharePost';
+import { WelcomePost } from '../entity/posts/WelcomePost';
+import { CollectionPost } from '../entity/posts/CollectionPost';
+import { YouTubePost } from '../entity/posts/YouTubePost';
+
 import {
   UserIntegration,
   UserIntegrationSlack,
