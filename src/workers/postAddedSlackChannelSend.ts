@@ -1,9 +1,12 @@
-import { WebClient } from '@slack/web-api';
 import { UserSourceIntegrationSlack } from '../entity/UserSourceIntegration';
 import { TypedWorker } from './worker';
 import fastq from 'fastq';
 import { Post, SourceType } from '../entity';
-import { getIntegrationToken } from '../common';
+import {
+  getAttachmentForPostType,
+  getSlackClient,
+} from '../common/userIntegration';
+import { addNotificationUtm } from '../common';
 
 const sendQueueConcurrency = 10;
 
@@ -21,6 +24,7 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
             },
             relations: {
               source: true,
+              author: true,
             },
           }),
           con.getRepository(UserSourceIntegrationSlack).find({
@@ -35,7 +39,7 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
         const source = await post.source;
 
         const sourceTypeName =
-          source.type === SourceType.Squad ? 'squad' : 'source';
+          source.type === SourceType.Squad ? 'Squad' : 'source';
 
         const sendQueue = fastq.promise(
           async ({
@@ -48,9 +52,9 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
             const userIntegration = await integration.userIntegration;
 
             try {
-              const slackClient = new WebClient(
-                await getIntegrationToken({ integration: userIntegration }),
-              );
+              const slackClient = await getSlackClient({
+                integration: userIntegration,
+              });
 
               // channel should already be joined when the integration is connected
               // but just in case
@@ -58,9 +62,32 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
                 channel: channelId,
               });
 
+              const postLinkPlain = `${process.env.COMMENTS_PREFIX}/posts/${post.id}`;
+              const postLink = addNotificationUtm(
+                postLinkPlain,
+                'slack',
+                'new_post',
+              );
+              let message = `New post on "${source.name}" ${sourceTypeName}. <${postLink}|${postLinkPlain}>`;
+              const author = await post.author;
+              const authorName = author?.name || author?.username;
+
+              if (sourceTypeName === 'Squad' && authorName) {
+                message = `${authorName} shared a new post on "${source.name}" ${sourceTypeName}. ${process.env.COMMENTS_PREFIX}/posts/${post.id}`;
+              }
+
+              const attachment = await getAttachmentForPostType({
+                con,
+                post,
+                postType: data.post.type,
+                postLink,
+              });
+
               await slackClient.chat.postMessage({
                 channel: channelId,
-                text: `New post added to ${sourceTypeName} "${source.name}" ${process.env.COMMENTS_PREFIX}/posts/${post.id}`,
+                text: message,
+                attachments: [attachment],
+                unfurl_links: false,
               });
             } catch (originalError) {
               const error = originalError as Error;
