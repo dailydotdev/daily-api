@@ -109,10 +109,12 @@ describe('postAddedSlackChannelSend worker', () => {
           author_name: 'daily.dev',
           image_url: 'https://daily.dev/image.jpg',
           title: 'P1',
-          title_link: 'http://localhost:5002/posts/p1',
+          title_link:
+            'http://localhost:5002/posts/p1?utm_source=notification&utm_medium=slack&utm_campaign=new_post',
         },
       ],
-      text: 'New post on "A" source. http://localhost:5002/posts/p1',
+      text: 'New post on "A" source. <http://localhost:5002/posts/p1?utm_source=notification&utm_medium=slack&utm_campaign=new_post|http://localhost:5002/posts/p1>',
+      unfurl_links: false,
     });
   });
 

@@ -6,6 +6,7 @@ import {
   getAttachmentForPostType,
   getSlackClient,
 } from '../common/userIntegration';
+import { addNotificationUtm } from '../common';
 
 const sendQueueConcurrency = 10;
 
@@ -61,7 +62,13 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
                 channel: channelId,
               });
 
-              let message = `New post on "${source.name}" ${sourceTypeName}. ${process.env.COMMENTS_PREFIX}/posts/${post.id}`;
+              const postLinkPlain = `${process.env.COMMENTS_PREFIX}/posts/${post.id}`;
+              const postLink = addNotificationUtm(
+                postLinkPlain,
+                'slack',
+                'new_post',
+              );
+              let message = `New post on "${source.name}" ${sourceTypeName}. <${postLink}|${postLinkPlain}>`;
               const author = await post.author;
               const authorName = author?.name || author?.username;
 
@@ -73,6 +80,7 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
                 con,
                 post,
                 postType: data.post.type,
+                postLink,
               });
 
               await slackClient.chat.postMessage({

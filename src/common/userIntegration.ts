@@ -62,16 +62,17 @@ export const getAttachmentForPostType = async <TPostType extends PostType>({
   con,
   post,
   postType,
+  postLink,
 }: {
   con: DataSource;
   post: Post;
   postType: TPostType;
+  postLink: string;
 }): Promise<MessageAttachment> => {
   const attachment: MessageAttachment = {
     author_name: 'daily.dev',
     author_icon: 'https://app.daily.dev/apple-touch-icon.png',
   };
-  const postLink = `${process.env.COMMENTS_PREFIX}/posts/${post.id}`;
 
   switch (postType) {
     case PostType.Article:
