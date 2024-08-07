@@ -1,12 +1,13 @@
 import { UserSourceIntegrationSlack } from '../entity/UserSourceIntegration';
 import { TypedWorker } from './worker';
 import fastq from 'fastq';
-import { Post, SourceType } from '../entity';
+import { Post, SourceMember, SourceType } from '../entity';
 import {
   getAttachmentForPostType,
   getSlackClient,
 } from '../common/userIntegration';
 import { addNotificationUtm } from '../common';
+import { SourceMemberRoles } from '../roles';
 
 const sendQueueConcurrency = 10;
 
@@ -38,6 +39,24 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
         ]);
         const source = await post.source;
 
+        let adminJoinToken: string | undefined;
+
+        if (source.type === SourceType.Squad) {
+          const admin = await con.getRepository(SourceMember).findOne({
+            where: {
+              sourceId: source.id,
+              role: SourceMemberRoles.Admin,
+            },
+            order: {
+              createdAt: 'ASC',
+            },
+          });
+
+          if (admin?.referralToken) {
+            adminJoinToken = admin.referralToken;
+          }
+        }
+
         const sourceTypeName =
           source.type === SourceType.Squad ? 'Squad' : 'source';
 
@@ -63,8 +82,16 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
               });
 
               const postLinkPlain = `${process.env.COMMENTS_PREFIX}/posts/${post.id}`;
+              const postLinkUrl = new URL(postLinkPlain);
+
+              if (adminJoinToken) {
+                postLinkUrl.searchParams.set('jt', adminJoinToken);
+                postLinkUrl.searchParams.set('source', source.handle);
+                postLinkUrl.searchParams.set('type', source.type);
+              }
+
               const postLink = addNotificationUtm(
-                postLinkPlain,
+                postLinkUrl.toString(),
                 'slack',
                 'new_post',
               );
