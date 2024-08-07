@@ -32,6 +32,10 @@ import {
 import { SourceMemberRoles } from '../src/roles';
 import { addSeconds } from 'date-fns';
 
+const slackPostMessage = jest.fn().mockResolvedValue({
+  ok: true,
+});
+
 jest.mock('@slack/web-api', () => ({
   ...(jest.requireActual('@slack/web-api') as Record<string, unknown>),
   WebClient: function () {
@@ -66,9 +70,7 @@ jest.mock('@slack/web-api', () => ({
         }),
       },
       chat: {
-        postMessage: jest.fn().mockResolvedValue({
-          ok: true,
-        }),
+        postMessage: slackPostMessage,
       },
     };
   },
@@ -89,6 +91,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   loggedUser = undefined;
+  jest.clearAllMocks();
 });
 
 afterAll(() => disposeGraphQLTesting(state));
@@ -274,6 +277,7 @@ describe('slack integration', () => {
       );
 
       expect(res.errors).toBeFalsy();
+      expect(slackPostMessage).toHaveBeenCalledTimes(1);
     });
 
     it('should update channel for source', async () => {
@@ -322,6 +326,8 @@ describe('slack integration', () => {
       expect(userSourceIntegrationUpdate).toMatchObject({
         channelIds: ['2'],
       });
+
+      expect(slackPostMessage).toHaveBeenCalledTimes(2);
     });
 
     it('should not allow connecting source if existing connection is already present', async () => {
@@ -406,6 +412,46 @@ describe('slack integration', () => {
         },
         'FORBIDDEN',
       );
+    });
+
+    it('should not post join message to channel if already connected', async () => {
+      loggedUser = '1';
+      const userIntegration = await getIntegration({
+        type: UserIntegrationType.Slack,
+        userId: loggedUser,
+      });
+
+      const res = await client.mutate(
+        MUTATION({
+          integrationId: userIntegration.id,
+          channelId: '1',
+          sourceId: 'squadslack',
+        }),
+      );
+
+      expect(res.errors).toBeFalsy();
+      expect(slackPostMessage).toHaveBeenCalledTimes(1);
+
+      const userSourceIntegration = await con
+        .getRepository(UserSourceIntegration)
+        .findOneByOrFail({
+          userIntegrationId: userIntegration.id,
+          sourceId: 'squadslack',
+        });
+      expect(userSourceIntegration).toMatchObject({
+        channelIds: ['1'],
+      });
+
+      const resUpdate = await client.mutate(
+        MUTATION({
+          integrationId: userIntegration.id,
+          channelId: '1',
+          sourceId: 'squadslack',
+        }),
+      );
+
+      expect(resUpdate.errors).toBeFalsy();
+      expect(slackPostMessage).toHaveBeenCalledTimes(1);
     });
   });
 
