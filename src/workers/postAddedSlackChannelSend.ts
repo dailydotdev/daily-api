@@ -82,6 +82,7 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
                 channel: channelId,
                 text: message,
                 attachments: [attachment],
+                unfurl_links: false,
               });
             } catch (originalError) {
               const error = originalError as Error;
