@@ -7,23 +7,32 @@ import {
   getIntegrationToken,
   getLimit,
   getSlackIntegrationOrFail,
+  GQLUserIntegration,
   toGQLEnum,
 } from '../common';
 import { GQLEmptyResponse } from './common';
-import { ValidationError } from 'apollo-server-errors';
+import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import {
   UserSourceIntegration,
   UserSourceIntegrationSlack,
 } from '../entity/UserSourceIntegration';
 import { ConflictError } from '../errors';
 import graphorm from '../graphorm';
-import { UserIntegrationType } from '../entity/UserIntegration';
+import {
+  UserIntegration,
+  UserIntegrationType,
+} from '../entity/UserIntegration';
 import {
   ensureSourcePermissions,
   GQLSource,
   SourcePermissions,
 } from './sources';
 import { SourceType } from '../entity';
+import { Connection, ConnectionArguments } from 'graphql-relay';
+import {
+  GQLDatePageGeneratorConfig,
+  queryPaginatedByDate,
+} from '../common/datePageGenerator';
 
 export type GQLSlackChannels = {
   id?: string;
@@ -37,9 +46,11 @@ export type GQLSlackChannelConnection = {
 
 export type GQLUserSourceIntegration = Pick<
   UserSourceIntegration,
-  'userIntegrationId' | 'type' | 'createdAt' | 'updatedAt'
+  'type' | 'createdAt' | 'updatedAt'
 > & {
+  userIntegration: GQLUserIntegration;
   source: GQLSource;
+  channelIds: string[];
 };
 
 export const typeDefs = /* GraphQL */ `
@@ -63,11 +74,26 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type UserSourceIntegration {
-    userIntegrationId: ID!
+    userIntegration: UserIntegration!
     type: String!
     createdAt: DateTime
     updatedAt: DateTime
     source: Source!
+    channelIds: [String!]
+  }
+
+  type UserSourceIntegrationEdge {
+    node: UserSourceIntegration!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type UserSourceIntegrationConnection {
+    pageInfo: PageInfo!
+    edges: [UserSourceIntegrationEdge!]!
   }
 
   extend type Query {
@@ -105,6 +131,16 @@ export const typeDefs = /* GraphQL */ `
       """
       type: UserIntegrationType!
     ): UserSourceIntegration @auth
+
+    """
+    Get source integrations
+    """
+    sourceIntegrations(
+      """
+      ID of integration
+      """
+      integrationId: ID!
+    ): UserSourceIntegrationConnection @auth
   }
 
   extend type Mutation {
@@ -126,6 +162,31 @@ export const typeDefs = /* GraphQL */ `
       ID of source to connect
       """
       sourceId: ID!
+    ): EmptyResponse! @auth
+
+    """
+    Remove integration
+    """
+    removeIntegration(
+      """
+      ID of integration to remove
+      """
+      integrationId: ID!
+    ): EmptyResponse! @auth
+
+    """
+    Remove source integration
+    """
+    removeSourceIntegration(
+      """
+      ID of source to remove integration from
+      """
+      sourceId: ID!
+
+      """
+      ID of integration connected to source
+      """
+      integrationId: ID!
     ): EmptyResponse! @auth
   }
 `;
@@ -196,11 +257,48 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         ctx,
         info,
         (builder) => ({
+          ...builder,
           queryBuilder: builder.queryBuilder
             .where(`"${builder.alias}"."sourceId" = :id`, { id: args.sourceId })
             .andWhere(`"${builder.alias}"."type" = :type`, { type: args.type }),
-          ...builder,
         }),
+      );
+    },
+    sourceIntegrations: async (
+      _,
+      args: { integrationId: string } & ConnectionArguments,
+      ctx: AuthContext,
+      info,
+    ): Promise<Connection<GQLUserSourceIntegration>> => {
+      return queryPaginatedByDate(
+        ctx,
+        info,
+        args,
+        { key: 'createdAt' } as GQLDatePageGeneratorConfig<
+          GQLUserSourceIntegration,
+          'createdAt'
+        >,
+        {
+          queryBuilder: (builder) => {
+            builder.queryBuilder = builder.queryBuilder
+              .innerJoin(
+                UserIntegration,
+                'ui',
+                `"${builder.alias}"."userIntegrationId" = ui.id`,
+              )
+              .andWhere(`ui."userId" = :integrationUserId`, {
+                integrationUserId: ctx.userId,
+              })
+              .andWhere(
+                `${builder.alias}."userIntegrationId" = :integrationId`,
+                {
+                  integrationId: args.integrationId,
+                },
+              );
+            return builder;
+          },
+          orderByKey: 'DESC',
+        },
       );
     },
   },
@@ -224,6 +322,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         }),
       ]);
 
+      const existing = await ctx.con
+        .getRepository(UserSourceIntegrationSlack)
+        .findOneBy({
+          sourceId: args.sourceId,
+        });
+
+      if (existing && existing.userIntegrationId !== slackIntegration.id) {
+        throw new ConflictError('source already connected to a channel');
+      }
+
       const client = new WebClient(
         await getIntegrationToken({ integration: slackIntegration }),
       );
@@ -236,16 +344,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         throw new ValidationError('invalid channel');
       }
 
-      const existing = await ctx.con
-        .getRepository(UserSourceIntegrationSlack)
-        .findOneBy({
-          sourceId: args.sourceId,
-        });
-
-      if (existing && existing.userIntegrationId !== slackIntegration.id) {
-        throw new ConflictError('source already connected to a channel');
-      }
-
       await ctx.con.getRepository(UserSourceIntegrationSlack).upsert(
         {
           userIntegrationId: slackIntegration.id,
@@ -256,16 +354,62 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         ['userIntegrationId', 'sourceId'],
       );
 
-      await client.conversations.join({
-        channel: args.channelId,
+      if (!channelResult.channel.is_member) {
+        await client.conversations.join({
+          channel: args.channelId,
+        });
+
+        const sourceTypeName =
+          source.type === SourceType.Squad ? 'squad' : 'source';
+
+        await client.chat.postMessage({
+          channel: args.channelId,
+          text: `You've successfully connected the "${source.name}" ${sourceTypeName} from daily.dev to this channel. Important ${sourceTypeName} updates will be posted here 🙌`,
+        });
+      }
+
+      return { _: true };
+    },
+    removeIntegration: async (
+      _,
+      args: { integrationId: string },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const integration = await ctx.con
+        .getRepository(UserIntegration)
+        .findOneByOrFail({
+          id: args.integrationId,
+        });
+
+      if (integration.userId !== ctx.userId) {
+        throw new ForbiddenError('not allowed');
+      }
+
+      await ctx.con.getRepository(UserIntegration).delete({
+        id: integration.id,
+        userId: ctx.userId,
       });
 
-      const sourceTypeName =
-        source.type === SourceType.Squad ? 'squad' : 'source';
+      return { _: true };
+    },
+    removeSourceIntegration: async (
+      _,
+      args: { sourceId: string; integrationId: string },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const integration = await ctx.con
+        .getRepository(UserIntegration)
+        .findOneByOrFail({
+          id: args.integrationId,
+        });
 
-      await client.chat.postMessage({
-        channel: args.channelId,
-        text: `You've successfully connected the "${source.name}" ${sourceTypeName} from daily.dev to this channel. Important ${sourceTypeName} updates will be posted here 🙌`,
+      if (integration.userId !== ctx.userId) {
+        throw new ForbiddenError('not allowed');
+      }
+
+      await ctx.con.getRepository(UserSourceIntegration).delete({
+        sourceId: args.sourceId,
+        userIntegrationId: integration.id,
       });
 
       return { _: true };

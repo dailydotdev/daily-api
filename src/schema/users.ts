@@ -53,6 +53,7 @@ import {
   resubscribeUser,
   DayOfWeek,
   VALID_WEEK_STARTS,
+  GQLUserIntegration,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -194,14 +195,6 @@ export interface GQLUserPersonalizedDigest {
   type: UserPersonalizedDigestType;
   flags: UserPersonalizedDigestFlagsPublic;
 }
-
-export type GQLUserIntegration = {
-  id: string;
-  type: string;
-  createdAt: Date;
-  updatedAt: Date;
-  name: string;
-};
 
 export const typeDefs = /* GraphQL */ `
   """
@@ -569,6 +562,7 @@ export const typeDefs = /* GraphQL */ `
     createdAt: DateTime!
     updatedAt: DateTime!
     name: String!
+    userId: ID!
   }
 
   type UserIntegrationEdge {

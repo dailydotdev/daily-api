@@ -3594,6 +3594,7 @@ describe('query userIntegrations', () => {
           id
           type
           name
+          userId
         }
       }
     }
@@ -3673,6 +3674,7 @@ describe('query userIntegrations', () => {
             id: expect.any(String),
             type: UserIntegrationType.Slack,
             name: 'daily.dev',
+            userId: '1',
           },
         },
         {
@@ -3680,6 +3682,7 @@ describe('query userIntegrations', () => {
             id: expect.any(String),
             type: UserIntegrationType.Slack,
             name: 'example team',
+            userId: '1',
           },
         },
         {
@@ -3687,6 +3690,7 @@ describe('query userIntegrations', () => {
             id: expect.any(String),
             type: UserIntegrationType.Slack,
             name: expect.stringContaining('Slack '),
+            userId: '1',
           },
         },
       ],
