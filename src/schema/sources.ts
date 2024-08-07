@@ -1,8 +1,7 @@
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
 import { ConnectionArguments } from 'graphql-relay';
-import { traceResolverObject } from './trace';
-import { Context } from '../Context';
+import { AuthContext, BaseContext, Context } from '../Context';
 import {
   createSharePost,
   generateMemberToken,
@@ -50,6 +49,7 @@ import {
   SourcePermissionErrorKeys,
   SourceRequestErrorMessage,
   TypeOrmError,
+  TypeORMQueryFailedError,
 } from '../errors';
 import {
   descriptionRegex,
@@ -66,6 +66,7 @@ import { TrendingSource } from '../entity/TrendingSource';
 import { PopularSource } from '../entity/PopularSource';
 import { PopularVideoSource } from '../entity/PopularVideoSource';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
+import { traceResolvers } from './trace';
 
 export interface GQLSource {
   id: string;
@@ -805,7 +806,7 @@ export const sourceTypesWithMembers = ['squad'];
 export const canAccessSource = async (
   ctx: Context,
   source: Source,
-  member: SourceMember,
+  member: SourceMember | null,
   permission: SourcePermissions,
   validateRankAgainstId?: string,
 ): Promise<boolean> => {
@@ -828,7 +829,7 @@ export const canAccessSource = async (
   const repo = ctx.getRepository(SourceMember);
   const validateRankAgainst = await (requireGreaterAccessPrivilege[permission]
     ? repo.findOneByOrFail({ sourceId, userId: validateRankAgainstId })
-    : Promise.resolve(null));
+    : Promise.resolve(undefined));
 
   return hasPermissionCheck(source, member, permission, validateRankAgainst);
 };
@@ -836,7 +837,7 @@ export const canAccessSource = async (
 export const canPostToSquad = (
   ctx: Context,
   squad: SquadSource,
-  sourceMember: SourceMember,
+  sourceMember: SourceMember | null,
 ): boolean => {
   if (!sourceMember) {
     return false;
@@ -917,7 +918,7 @@ export const ensureSourcePermissions = async (
     if (
       source.type === SourceType.Squad &&
       permission === SourcePermissions.Post &&
-      !canPostToSquad(ctx, source, sourceMember)
+      !canPostToSquad(ctx, source as SquadSource, sourceMember)
     ) {
       throw new ForbiddenError('Posting not allowed!');
     }
@@ -927,7 +928,10 @@ export const ensureSourcePermissions = async (
   throw new ForbiddenError('Access denied!');
 };
 
-const sourceByFeed = async (feed: string, ctx: Context): Promise<GQLSource> => {
+const sourceByFeed = async (
+  feed: string,
+  ctx: Context,
+): Promise<GQLSource | null> => {
   const res = await ctx.con
     .createQueryBuilder()
     .select('source.*')
@@ -998,7 +1002,7 @@ const addNewSourceMember = async (
 
 export const getPermissionsForMember = (
   member: Pick<SourceMember, 'role'>,
-  source: Pick<SquadSource, 'memberPostingRank' | 'memberInviteRank'>,
+  source: Partial<Pick<SquadSource, 'memberPostingRank' | 'memberInviteRank'>>,
 ): SourcePermissions[] => {
   const permissions =
     roleSourcePermissions[member.role] ?? roleSourcePermissions.member;
@@ -1006,11 +1010,11 @@ export const getPermissionsForMember = (
     sourceRoleRank[member.role] ?? sourceRoleRank[SourceMemberRoles.Member];
   const permissionsToRemove: SourcePermissions[] = [];
 
-  if (memberRank < source.memberPostingRank) {
+  if (source.memberPostingRank && memberRank < source.memberPostingRank) {
     permissionsToRemove.push(SourcePermissions.Post);
   }
 
-  if (memberRank < source.memberInviteRank) {
+  if (source.memberInviteRank && memberRank < source.memberInviteRank) {
     permissionsToRemove.push(SourcePermissions.Invite);
   }
 
@@ -1127,14 +1131,15 @@ const paginateSourceMembers = (
   );
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvers: IResolvers<any, Context> = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Query: traceResolverObject<any, any, Context>({
+export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
+  unknown,
+  BaseContext
+>({
+  Query: {
     sources: async (
       _,
       args: SourcesArgs,
-      ctx,
+      ctx: Context,
       info,
     ): Promise<Connection<GQLSource>> => {
       const filter: FindOptionsWhere<Source> = { active: true };
@@ -1174,7 +1179,7 @@ export const resolvers: IResolvers<any, Context> = {
     sourcesByTag: async (
       _,
       args: SourcesByTag,
-      ctx,
+      ctx: Context,
       info,
     ): Promise<Connection<GQLSource>> => {
       const alwaysExcludeSources = ['unknown', 'community', 'collections'];
@@ -1216,7 +1221,7 @@ export const resolvers: IResolvers<any, Context> = {
     similarSources: async (
       _,
       args: SimilarSources,
-      ctx,
+      ctx: Context,
       info,
     ): Promise<Connection<GQLSource>> => {
       const alwaysExcludeSources = ['unknown', 'community', 'collections'];
@@ -1257,7 +1262,7 @@ export const resolvers: IResolvers<any, Context> = {
             .andWhere('id IN (:...subQuery)', {
               subQuery:
                 subQuery.length > 0
-                  ? subQuery.map((s) => s.sourceId)
+                  ? subQuery.map((s: { sourceId: string }) => s.sourceId)
                   : ['NULL'],
             })
             .andWhere(filter)
@@ -1266,7 +1271,12 @@ export const resolvers: IResolvers<any, Context> = {
         },
       );
     },
-    mostRecentSources: async (_, args, ctx, info): Promise<GQLSource[]> => {
+    mostRecentSources: async (
+      _,
+      args,
+      ctx: Context,
+      info,
+    ): Promise<GQLSource[]> => {
       const { limit = 10 } = args;
       return await graphorm.query(ctx, info, (builder) => {
         builder.queryBuilder
@@ -1276,27 +1286,41 @@ export const resolvers: IResolvers<any, Context> = {
         return builder;
       });
     },
-    trendingSources: async (_, args, ctx, info): Promise<GQLSource[]> =>
+    trendingSources: async (
+      _,
+      args,
+      ctx: Context,
+      info,
+    ): Promise<GQLSource[]> =>
       getFormattedSources(TrendingSource, args, ctx, info),
-    popularSources: async (_, args, ctx, info): Promise<GQLSource[]> =>
+    popularSources: async (_, args, ctx: Context, info): Promise<GQLSource[]> =>
       getFormattedSources(PopularSource, args, ctx, info),
-    topVideoSources: async (_, args, ctx, info): Promise<GQLSource[]> =>
+    topVideoSources: async (
+      _,
+      args,
+      ctx: Context,
+      info,
+    ): Promise<GQLSource[]> =>
       getFormattedSources(PopularVideoSource, args, ctx, info),
     sourceByFeed: async (
       _,
       { feed }: { feed: string },
-      ctx,
-    ): Promise<GQLSource> => sourceByFeed(feed, ctx),
+      ctx: AuthContext,
+    ): Promise<GQLSource | null> => sourceByFeed(feed, ctx),
     source: async (
       _,
       { id }: { id: string },
-      ctx,
+      ctx: Context,
       info,
     ): Promise<GQLSource> => {
       await ensureSourcePermissions(ctx, id);
       return getSourceById(ctx, info, id);
     },
-    sourceHandleExists: async (_, { handle }: { handle: string }, ctx) => {
+    sourceHandleExists: async (
+      _,
+      { handle }: { handle: string },
+      ctx: AuthContext,
+    ) => {
       try {
         const transformed = await validateAndTransformHandle(
           handle,
@@ -1321,7 +1345,7 @@ export const resolvers: IResolvers<any, Context> = {
     sourceMembers: async (
       _,
       { role, sourceId, query, ...args }: SourceMemberArgs,
-      ctx,
+      ctx: Context,
       info,
     ): Promise<Connection<GQLSourceMember>> => {
       const permission =
@@ -1332,15 +1356,27 @@ export const resolvers: IResolvers<any, Context> = {
       await ensureSourcePermissions(ctx, sourceId, permission);
       return paginateSourceMembers(
         (queryBuilder, alias) => {
-          queryBuilder
-            .andWhere(`${alias}."sourceId" = :source`, {
+          queryBuilder = queryBuilder.andWhere(
+            `${alias}."sourceId" = :source`,
+            {
               source: sourceId,
-            })
-            .addOrderBy(
-              graphorm.mappings.SourceMember.fields.roleRank.select as string,
+            },
+          );
+
+          if (
+            typeof graphorm.mappings?.SourceMember.fields?.roleRank.select ===
+            'string'
+          ) {
+            queryBuilder = queryBuilder.addOrderBy(
+              graphorm.mappings.SourceMember.fields?.roleRank.select,
               'DESC',
-            )
-            .addOrderBy(`${alias}."createdAt"`, 'DESC');
+            );
+          }
+
+          queryBuilder = queryBuilder.addOrderBy(
+            `${alias}."createdAt"`,
+            'DESC',
+          );
 
           if (query) {
             queryBuilder = queryBuilder
@@ -1354,11 +1390,12 @@ export const resolvers: IResolvers<any, Context> = {
             queryBuilder = queryBuilder.andWhere(`${alias}.role = :role`, {
               role,
             });
-          } else {
+          } else if (
+            typeof graphorm.mappings?.SourceMember.fields?.roleRank.select ===
+            'string'
+          ) {
             queryBuilder = queryBuilder.andWhere(
-              `${
-                graphorm.mappings.SourceMember.fields.roleRank.select as string
-              } >= 0`,
+              `${graphorm.mappings.SourceMember.fields.roleRank.select} >= 0`,
             );
           }
           return queryBuilder;
@@ -1371,24 +1408,33 @@ export const resolvers: IResolvers<any, Context> = {
     mySourceMemberships: async (
       _,
       args: SourcesByType,
-      ctx,
+      ctx: AuthContext,
       info,
     ): Promise<Connection<GQLSourceMember>> => {
       const { type, ...connectionArgs } = args;
 
       return paginateSourceMembers(
         (queryBuilder, alias) => {
-          queryBuilder
-            .andWhere(`${alias}."userId" = :user`, { user: ctx.userId })
-            .andWhere(
-              `${
-                graphorm.mappings.SourceMember.fields.roleRank.select as string
-              } >= 0`,
-            )
-            .addOrderBy(`${alias}."createdAt"`, 'DESC');
+          queryBuilder = queryBuilder.andWhere(`${alias}."userId" = :user`, {
+            user: ctx.userId,
+          });
+
+          if (
+            typeof graphorm.mappings?.SourceMember.fields?.roleRank.select ===
+            'string'
+          ) {
+            queryBuilder = queryBuilder.andWhere(
+              `${graphorm.mappings.SourceMember.fields.roleRank.select} >= 0`,
+            );
+          }
+
+          queryBuilder = queryBuilder.addOrderBy(
+            `${alias}."createdAt"`,
+            'DESC',
+          );
 
           if (type) {
-            queryBuilder
+            queryBuilder = queryBuilder
               .innerJoin(Source, 's', `${alias}."sourceId" = s.id`)
               .andWhere(`s."type" = :type`, {
                 type,
@@ -1404,22 +1450,30 @@ export const resolvers: IResolvers<any, Context> = {
     publicSourceMemberships: async (
       _,
       { userId, ...args }: { userId: string } & ConnectionArguments,
-      ctx,
+      ctx: Context,
       info,
     ): Promise<Connection<GQLSourceMember>> => {
       return paginateSourceMembers(
         (queryBuilder, alias) => {
+          queryBuilder = queryBuilder.andWhere(`${alias}."userId" = :user`, {
+            user: userId,
+          });
+
+          if (
+            typeof graphorm.mappings?.SourceMember.fields?.roleRank.select ===
+            'string'
+          ) {
+            queryBuilder = queryBuilder
+              .andWhere(
+                `${graphorm.mappings.SourceMember.fields.roleRank.select} >= 0`,
+              )
+              .addOrderBy(
+                graphorm.mappings.SourceMember.fields.roleRank.select,
+                'DESC',
+              );
+          }
+
           return queryBuilder
-            .andWhere(`${alias}."userId" = :user`, { user: userId })
-            .andWhere(
-              `${
-                graphorm.mappings.SourceMember.fields.roleRank.select as string
-              } >= 0`,
-            )
-            .addOrderBy(
-              graphorm.mappings.SourceMember.fields.roleRank.select as string,
-              'DESC',
-            )
             .addOrderBy(`${alias}."createdAt"`, 'DESC')
             .innerJoin(Source, 's', `${alias}."sourceId" = s.id`)
             .andWhere('s.private = false');
@@ -1432,7 +1486,7 @@ export const resolvers: IResolvers<any, Context> = {
     sourceMemberByToken: async (
       _,
       { token }: { token: string },
-      ctx,
+      ctx: AuthContext,
       info,
     ): Promise<GQLSourceMember> => {
       const res = await graphorm.query<GQLSourceMember>(
@@ -1450,7 +1504,11 @@ export const resolvers: IResolvers<any, Context> = {
       }
       return res[0];
     },
-    relatedTags: async (_, { sourceId }, ctx): Promise<GQLTagResults> => {
+    relatedTags: async (
+      _,
+      { sourceId },
+      ctx: Context,
+    ): Promise<GQLTagResults> => {
       const keywords = await ctx.con
         .createQueryBuilder()
         .from(SourceTagView, 'stv')
@@ -1463,9 +1521,8 @@ export const resolvers: IResolvers<any, Context> = {
         hits: keywords.map(({ tag }) => ({ name: tag })),
       };
     },
-  }),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Mutation: traceResolverObject<any, any, Context>({
+  },
+  Mutation: {
     createSquad: async (
       _,
       {
@@ -1478,7 +1535,7 @@ export const resolvers: IResolvers<any, Context> = {
         memberPostingRole = SourceMemberRoles.Member,
         memberInviteRole = SourceMemberRoles.Member,
       }: CreateSquadArgs,
-      ctx,
+      ctx: AuthContext,
       info,
     ): Promise<GQLSource> => {
       const handle = await validateSquadData(
@@ -1522,7 +1579,7 @@ export const resolvers: IResolvers<any, Context> = {
               id,
               ctx.userId,
               postId,
-              commentary,
+              commentary || null,
             );
           }
           // Upload the image (if provided)
@@ -1535,7 +1592,9 @@ export const resolvers: IResolvers<any, Context> = {
           return id;
         });
         return getSourceById(ctx, info, sourceId);
-      } catch (err) {
+      } catch (originalError) {
+        const err = originalError as TypeORMQueryFailedError;
+
         if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
           if (err.message.indexOf('source_handle') > -1) {
             throw new ValidationError(
@@ -1558,7 +1617,7 @@ export const resolvers: IResolvers<any, Context> = {
         memberInviteRole,
         isPrivate,
       }: EditSquadArgs,
-      ctx,
+      ctx: AuthContext,
       info,
     ): Promise<GQLSource> => {
       const current = await ensureSourcePermissions(
@@ -1582,8 +1641,12 @@ export const resolvers: IResolvers<any, Context> = {
         name,
         handle,
         description,
-        memberPostingRank: sourceRoleRank[memberPostingRole],
-        memberInviteRank: sourceRoleRank[memberInviteRole],
+        memberPostingRank: memberPostingRole
+          ? sourceRoleRank[memberPostingRole]
+          : undefined,
+        memberInviteRank: memberInviteRole
+          ? sourceRoleRank[memberInviteRole]
+          : undefined,
       };
 
       if (!isNullOrUndefined(isPrivate) && current.private !== isPrivate) {
@@ -1621,7 +1684,9 @@ export const resolvers: IResolvers<any, Context> = {
           },
         );
         return getSourceById(ctx, info, editedSourceId);
-      } catch (err) {
+      } catch (originalError) {
+        const err = originalError as TypeORMQueryFailedError;
+
         if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
           if (err.message.indexOf('source_handle') > -1) {
             throw new ValidationError(
@@ -1635,7 +1700,7 @@ export const resolvers: IResolvers<any, Context> = {
     deleteSource: async (
       _,
       { sourceId }: { sourceId: string },
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Delete);
       await ctx.con.getRepository(Source).delete({
@@ -1646,7 +1711,7 @@ export const resolvers: IResolvers<any, Context> = {
     leaveSource: async (
       _,
       { sourceId }: { sourceId: string },
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Leave);
       await ctx.con.getRepository(SourceMember).delete({
@@ -1658,7 +1723,7 @@ export const resolvers: IResolvers<any, Context> = {
     updateMemberRole: async (
       _,
       { sourceId, memberId, role }: UpdateMemberRoleArgs,
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       if (role === SourceMemberRoles.Blocked) {
         await ensureSourcePermissions(
@@ -1688,7 +1753,7 @@ export const resolvers: IResolvers<any, Context> = {
     unblockMember: async (
       _,
       { sourceId, memberId }: UpdateMemberRoleArgs,
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await ensureSourcePermissions(
         ctx,
@@ -1705,7 +1770,7 @@ export const resolvers: IResolvers<any, Context> = {
     joinSource: async (
       _,
       { sourceId, token }: { sourceId: string; token: string },
-      ctx,
+      ctx: AuthContext,
       info,
     ): Promise<GQLSource> => {
       const source = await ctx.con
@@ -1756,7 +1821,9 @@ export const resolvers: IResolvers<any, Context> = {
             .getRepository(Source)
             .update({ id: sourceId }, { active: true });
         });
-      } catch (err) {
+      } catch (originalError) {
+        const err = originalError as TypeORMQueryFailedError;
+
         if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
           throw err;
         }
@@ -1764,22 +1831,42 @@ export const resolvers: IResolvers<any, Context> = {
 
       return getSourceById(ctx, info, sourceId);
     },
-    hideSourceFeedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
+    hideSourceFeedPosts: async (
+      _,
+      { sourceId }: { sourceId: string },
+      ctx: AuthContext,
+    ) => {
       return updateHideFeedPostsFlag(ctx, sourceId, true);
     },
-    showSourceFeedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
+    showSourceFeedPosts: async (
+      _,
+      { sourceId }: { sourceId: string },
+      ctx: AuthContext,
+    ) => {
       return updateHideFeedPostsFlag(ctx, sourceId, false);
     },
-    collapsePinnedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
+    collapsePinnedPosts: async (
+      _,
+      { sourceId }: { sourceId: string },
+      ctx: AuthContext,
+    ) => {
       return togglePinnedPosts(ctx, sourceId, true);
     },
-    expandPinnedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
+    expandPinnedPosts: async (
+      _,
+      { sourceId }: { sourceId: string },
+      ctx: AuthContext,
+    ) => {
       return togglePinnedPosts(ctx, sourceId, false);
     },
-  }),
+  },
   Source: {
     permalink: (source: GQLSource): string => getSourceLink(source),
-    referralUrl: async (source: GQLSource, _, ctx): Promise<string> => {
+    referralUrl: async (
+      source: GQLSource,
+      _,
+      ctx: Context,
+    ): Promise<string | null> => {
       if (!ctx.userId) {
         return null;
       }
@@ -1796,4 +1883,4 @@ export const resolvers: IResolvers<any, Context> = {
       return referralUrl;
     },
   },
-};
+});

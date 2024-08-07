@@ -140,8 +140,8 @@ export class MachineSource extends Source {
 @ChildEntity(SourceType.Squad)
 export class SquadSource extends Source {
   @Column({ default: 0 })
-  memberPostingRank?: number;
+  memberPostingRank: number;
 
   @Column({ default: 0 })
-  memberInviteRank?: number;
+  memberInviteRank: number;
 }
