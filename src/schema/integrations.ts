@@ -1,10 +1,9 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { AuthContext, BaseContext } from '../Context';
 import { traceResolvers } from './trace';
-import { WebClient } from '@slack/web-api';
 import { logger } from '../logger';
 import {
-  getIntegrationToken,
+  getSlackClient,
   getLimit,
   getSlackIntegrationOrFail,
   GQLUserIntegration,
@@ -20,6 +19,7 @@ import { ConflictError } from '../errors';
 import graphorm from '../graphorm';
 import {
   UserIntegration,
+  UserIntegrationSlack,
   UserIntegrationType,
 } from '../entity/UserIntegration';
 import {
@@ -204,9 +204,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         con: ctx.con,
       });
 
-      const client = new WebClient(
-        await getIntegrationToken({ integration: slackIntegration }),
-      );
+      const client = await getSlackClient({
+        integration: slackIntegration,
+      });
 
       const result = await client.conversations.list({
         limit: getLimit({
@@ -315,12 +315,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
       );
 
       const [slackIntegration] = await Promise.all([
-        getSlackIntegrationOrFail({
-          id: args.integrationId,
-          userId: ctx.userId,
-          con: ctx.con,
+        ctx.con.getRepository(UserIntegrationSlack).findOne({
+          where: {
+            id: args.integrationId,
+            userId: ctx.userId,
+          },
+          relations: {
+            user: true,
+          },
         }),
       ]);
+      const user = await slackIntegration.user;
 
       const existing = await ctx.con
         .getRepository(UserSourceIntegrationSlack)
@@ -332,9 +337,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         throw new ConflictError('source already connected to a channel');
       }
 
-      const client = new WebClient(
-        await getIntegrationToken({ integration: slackIntegration }),
-      );
+      const client = await getSlackClient({
+        integration: slackIntegration,
+      });
 
       const channelResult = await client.conversations.info({
         channel: args.channelId,
@@ -364,11 +369,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
 
       if (channelChanged) {
         const sourceTypeName =
-          source.type === SourceType.Squad ? 'squad' : 'source';
+          source.type === SourceType.Squad ? 'Squad' : 'source';
 
         await client.chat.postMessage({
           channel: args.channelId,
-          text: `You've successfully connected the "${source.name}" ${sourceTypeName} from daily.dev to this channel. Important ${sourceTypeName} updates will be posted here 🙌`,
+          text: `${user.name || user.username} successfully connected "${source.name}" ${sourceTypeName} from daily.dev to this channel. Important updates from this ${sourceTypeName} will be posted here 🙌`,
         });
       }
 
