@@ -358,7 +358,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         await client.conversations.join({
           channel: args.channelId,
         });
+      }
 
+      const channelChanged = existing?.channelIds?.[0] !== args.channelId;
+
+      if (channelChanged) {
         const sourceTypeName =
           source.type === SourceType.Squad ? 'squad' : 'source';
 
