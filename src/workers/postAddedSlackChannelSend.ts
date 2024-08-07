@@ -3,7 +3,6 @@ import { TypedWorker } from './worker';
 import fastq from 'fastq';
 import { Post, SourceType } from '../entity';
 import {
-  contentTypeFromPostType,
   getAttachmentForPostType,
   getSlackClient,
 } from '../common/userIntegration';
@@ -16,11 +15,9 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
     handler: async (message, con, logger): Promise<void> => {
       const { data } = message;
 
-      const postType = contentTypeFromPostType[data.post.type] || Post;
-
       try {
         const [post, integrations] = await Promise.all([
-          con.getRepository(postType).findOneOrFail({
+          con.getRepository(Post).findOneOrFail({
             where: {
               id: data.post.id,
             },
