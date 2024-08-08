@@ -382,6 +382,70 @@ describe('slack integration', () => {
       );
     });
 
+    it('should allow connecting source if integration is from the same user', async () => {
+      loggedUser = '1';
+
+      const [otherIntegration] = await con.getRepository(UserIntegration).save([
+        {
+          userId: '1',
+          type: UserIntegrationType.Slack,
+          name: 'example.com',
+          meta: {
+            appId: 'exapp2',
+            scope: 'channels:read,chat:write,channels:join',
+            teamId: 'ext2',
+            teamName: 'example.com',
+            tokenType: 'bot',
+            accessToken: await encrypt(
+              'xoxb-token',
+              process.env.SLACK_DB_KEY as string,
+            ),
+            slackUserId: 'su1',
+          },
+        },
+      ]);
+      const existingUserIntegration = await getIntegration({
+        type: UserIntegrationType.Slack,
+        userId: loggedUser,
+      });
+
+      await con.getRepository(UserSourceIntegrationSlack).save([
+        {
+          userIntegrationId: existingUserIntegration.id,
+          sourceId: 'squadslack',
+          channelIds: ['1'],
+        },
+      ]);
+
+      const res = await client.mutate(
+        MUTATION({
+          integrationId: otherIntegration.id,
+          channelId: '2',
+          sourceId: 'squadslack',
+        }),
+      );
+
+      const userSourceIntegrationExisting = await con
+        .getRepository(UserSourceIntegrationSlack)
+        .findOneBy({
+          userIntegrationId: existingUserIntegration.id,
+          sourceId: 'squadslack',
+        });
+      const userSourceIntegrationUpdate = await con
+        .getRepository(UserSourceIntegrationSlack)
+        .findOneByOrFail({
+          userIntegrationId: otherIntegration.id,
+          sourceId: 'squadslack',
+        });
+      expect(userSourceIntegrationUpdate).toMatchObject({
+        channelIds: ['2'],
+      });
+      expect(userSourceIntegrationExisting).toBeNull();
+
+      expect(res.errors).toBeFalsy();
+      expect(slackPostMessage).toHaveBeenCalledTimes(1);
+    });
+
     it('should return error if user does not have access to source', async () => {
       loggedUser = '4';
 

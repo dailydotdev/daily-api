@@ -39,6 +39,7 @@ import {
   getRedisObject,
   getRedisObjectExpiry,
 } from '../src/redis';
+import { badUsersFixture } from './fixture';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -72,6 +73,7 @@ beforeEach(async () => {
   await saveFixtures(con, ArticlePost, sharedPostsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
   await con.getRepository(User).save(usersFixture);
+  await con.getRepository(User).save(badUsersFixture);
   await con.getRepository(Comment).save([
     {
       id: 'c1',
@@ -958,6 +960,40 @@ describe('mutation commentOnPost', () => {
       expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(3590);
     });
   });
+
+  describe('vordr', () => {
+    it('should set correct vordr flags on good user', async () => {
+      loggedUser = '1';
+
+      const res = await client.mutate(MUTATION, {
+        variables: { postId: 'p1', content: 'comment' },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const comment = await con.getRepository(Comment).findOneByOrFail({
+        id: res.data.commentOnPost.id,
+      });
+
+      expect(comment.flags).toEqual({ vordr: false });
+    });
+
+    it('should set correct vordr flags on bad user', async () => {
+      loggedUser = 'vordr';
+
+      const res = await client.mutate(MUTATION, {
+        variables: { postId: 'p1', content: 'comment' },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const comment = await con.getRepository(Comment).findOneByOrFail({
+        id: res.data.commentOnPost.id,
+      });
+
+      expect(comment.flags).toEqual({ vordr: true });
+    });
+  });
 });
 
 describe('mutation commentOnComment', () => {
@@ -1152,6 +1188,40 @@ describe('mutation commentOnComment', () => {
       // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
       expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(3600);
       expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(3590);
+    });
+  });
+
+  describe('vordr', () => {
+    it('should set correct vordr flags on good user', async () => {
+      loggedUser = '1';
+
+      const res = await client.mutate(MUTATION, {
+        variables: { commentId: 'c1', content: 'comment' },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const comment = await con.getRepository(Comment).findOneByOrFail({
+        id: res.data.commentOnComment.id,
+      });
+
+      expect(comment.flags).toEqual({ vordr: false });
+    });
+
+    it('should set correct vordr flags on bad user', async () => {
+      loggedUser = 'vordr';
+
+      const res = await client.mutate(MUTATION, {
+        variables: { commentId: 'c1', content: 'comment' },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const comment = await con.getRepository(Comment).findOneByOrFail({
+        id: res.data.commentOnComment.id,
+      });
+
+      expect(comment.flags).toEqual({ vordr: true });
     });
   });
 });
