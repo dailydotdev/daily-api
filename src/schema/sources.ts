@@ -347,6 +347,11 @@ export const typeDefs = /* GraphQL */ `
       Add filter for featured sources
       """
       featured: Boolean
+
+      """
+      Filter by category
+      """
+      categoryId: String
     ): SourceConnection!
 
     """
@@ -1054,6 +1059,7 @@ export const getPermissionsForMember = (
 
 interface SourcesArgs extends ConnectionArguments {
   filterOpenSquads?: boolean;
+  categoryId?: string;
   featured?: boolean;
 }
 
@@ -1180,6 +1186,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       if (args.filterOpenSquads) {
         filter.type = SourceType.Squad;
         filter.private = false;
+      }
+
+      if (args.categoryId) {
+        filter.categoryId = args.categoryId;
       }
 
       const page = sourcePageGenerator.connArgsToPage(args);

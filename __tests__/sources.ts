@@ -181,15 +181,24 @@ describe('query sourceCategories', () => {
 });
 
 describe('query sources', () => {
-  const QUERY = (
+  interface Props {
+    first: number;
+    featured: boolean;
+    filterOpenSquads: boolean;
+    categoryId: string;
+  }
+
+  const QUERY = ({
     first = 10,
     filterOpenSquads = false,
-    featured?: boolean,
-  ): string => `{
+    featured,
+    categoryId,
+  }: Partial<Props> = {}): string => `{
     sources(
       first: ${first},
       filterOpenSquads: ${filterOpenSquads}
       ${isNullOrUndefined(featured) ? '' : `, featured: ${featured}`}
+      ${isNullOrUndefined(categoryId) ? '' : `, categoryId: "${categoryId}"`}
     ) {
       pageInfo {
         endCursor
@@ -207,15 +216,32 @@ describe('query sources', () => {
           flags {
             featured
           }
+          category {
+            id
+          }
         }
       }
     }
   }`;
 
   it('should return only public sources', async () => {
-    const res = await client.query(QUERY(10, true));
+    const res = await client.query(
+      QUERY({ first: 10, filterOpenSquads: true }),
+    );
     const isPublic = res.data.sources.edges.every(({ node }) => !!node.public);
     expect(isPublic).toBeTruthy();
+  });
+
+  it('should filter by category', async () => {
+    console.log('entry');
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, { categoryId: 'general' });
+    await repo.update({ id: 'b' }, { categoryId: 'web' });
+    const res = await client.query(QUERY({ first: 10, categoryId: 'web' }));
+    const isAllWeb = res.data.sources.edges.every(
+      ({ node }) => node.category.id === 'web',
+    );
+    expect(isAllWeb).toBeTruthy();
   });
 
   const prepareFeaturedTests = async () => {
@@ -232,7 +258,9 @@ describe('query sources', () => {
 
   it('should return only featured sources', async () => {
     await prepareFeaturedTests();
-    const res = await client.query(QUERY(10, false, true));
+    const res = await client.query(
+      QUERY({ first: 10, filterOpenSquads: false, featured: true }),
+    );
     const isFeatured = res.data.sources.edges.every(
       ({ node }) => !!node.flags.featured,
     );
@@ -241,7 +269,13 @@ describe('query sources', () => {
 
   it('should return only not featured sources', async () => {
     await prepareFeaturedTests();
-    const res = await client.query(QUERY(10, false, false));
+    const res = await client.query(
+      QUERY({
+        first: 10,
+        filterOpenSquads: false,
+        featured: false,
+      }),
+    );
     const isNotFeatured = res.data.sources.edges.every(
       ({ node }) => !node.flags.featured,
     );
@@ -249,7 +283,7 @@ describe('query sources', () => {
   });
 
   it('should flag that more pages available', async () => {
-    const res = await client.query(QUERY(1));
+    const res = await client.query(QUERY({ first: 1 }));
     expect(res.data.sources.pageInfo.hasNextPage).toBeTruthy();
   });
 
@@ -272,7 +306,9 @@ describe('query sources', () => {
 
   const prepareSquads = async () => {
     const repo = con.getRepository(Source);
-    const res = await client.query(QUERY(10, true));
+    const res = await client.query(
+      QUERY({ first: 10, filterOpenSquads: true }),
+    );
     expect(res.errors).toBeFalsy();
     expect(res.data.sources.edges.length).toEqual(0);
 
@@ -286,7 +322,9 @@ describe('query sources', () => {
   it('should return only public squads', async () => {
     await prepareSquads();
 
-    const res = await client.query(QUERY(10, true));
+    const res = await client.query(
+      QUERY({ first: 10, filterOpenSquads: true }),
+    );
     expect(res.errors).toBeFalsy();
     expect(res.data.sources.edges.length).toEqual(1);
     const allSquad = res.data.sources.edges.every(
@@ -297,7 +335,9 @@ describe('query sources', () => {
 
   it('should return public squad color and headerImage', async () => {
     await prepareSquads();
-    const res = await client.query(QUERY(10, true));
+    const res = await client.query(
+      QUERY({ first: 10, filterOpenSquads: true }),
+    );
     expect(res.errors).toBeFalsy();
     expect(res.data.sources.edges.length).toEqual(1);
     expect(res.data.sources.edges[0].node.public).toBeTruthy();
