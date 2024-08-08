@@ -2597,6 +2597,100 @@ describe('mutation submitExternalLink', () => {
       });
     });
   });
+
+  describe('vordr', () => {
+    describe('new post', () => {
+      beforeEach(async () => {
+        await con.getRepository(Source).insert({
+          id: UNKNOWN_SOURCE,
+          handle: UNKNOWN_SOURCE,
+          name: UNKNOWN_SOURCE,
+        });
+      });
+      it('should set the correct vordr flags on a good user', async () => {
+        loggedUser = '1';
+
+        const res = await client.mutate(MUTATION, {
+          variables: { ...variables, url: 'http://vordr.com' },
+        });
+
+        expect(res.errors).toBeFalsy();
+        const post = await con
+          .getRepository(SharePost)
+          .findOneByOrFail({ sourceId: 's1', authorId: loggedUser });
+
+        expect(post.flags.vordr).toEqual(false);
+      });
+
+      it('should set the correct vordr flags on a bad user', async () => {
+        loggedUser = 'vordr';
+
+        await con.getRepository(SourceMember).save({
+          userId: loggedUser,
+          sourceId: 's1',
+          role: SourceMemberRoles.Member,
+          referralToken: randomUUID(),
+        });
+
+        const res = await client.mutate(MUTATION, {
+          variables: { ...variables, url: 'http://vordr.com' },
+        });
+
+        expect(res.errors).toBeFalsy();
+        const post = await con
+          .getRepository(SharePost)
+          .findOneByOrFail({ sourceId: 's1', authorId: loggedUser });
+
+        expect(post.flags.vordr).toEqual(true);
+      });
+    });
+
+    describe('existing post', () => {
+      beforeEach(async () => {
+        await con.getRepository(Source).insert({
+          id: UNKNOWN_SOURCE,
+          handle: UNKNOWN_SOURCE,
+          name: UNKNOWN_SOURCE,
+        });
+      });
+      it('should set the correct vordr flags on a good user', async () => {
+        loggedUser = '1';
+
+        const res = await client.mutate(MUTATION, {
+          variables: { ...variables, url: 'http://p6.com' },
+        });
+
+        expect(res.errors).toBeFalsy();
+        const post = await con
+          .getRepository(SharePost)
+          .findOneByOrFail({ sourceId: 's1', authorId: loggedUser });
+
+        expect(post.flags.vordr).toEqual(false);
+      });
+
+      it('should set the correct vordr flags on a bad user', async () => {
+        loggedUser = 'vordr';
+
+        await con.getRepository(SourceMember).save({
+          userId: loggedUser,
+          sourceId: 's1',
+          role: SourceMemberRoles.Member,
+          referralToken: randomUUID(),
+        });
+
+        const res = await client.mutate(MUTATION, {
+          variables: { ...variables, url: 'http://p6.com' },
+        });
+
+        expect(res.errors).toBeFalsy();
+        const post = await con
+          .getRepository(SharePost)
+          .findOneByOrFail({ sourceId: 's1', authorId: loggedUser });
+
+        expect(post.flags.vordr).toEqual(true);
+      });
+    });
+  });
 });
 
 describe('mutation checkLinkPreview', () => {
