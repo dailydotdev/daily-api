@@ -1142,6 +1142,30 @@ describe('query sourceFeed', () => {
       'FORBIDDEN',
     );
   });
+
+  describe('vordr', () => {
+    it('should filter out posts that vordr has prevented', async () => {
+      loggedUser = '1';
+      await con
+        .getRepository(ArticlePost)
+        .update({ id: 'p5' }, { authorId: '2', flags: { vordr: true } });
+
+      const res = await client.query(QUERY('b'));
+
+      expect(res.data.sourceFeed.edges.length).toBe(1);
+    });
+
+    it('should not filter out posts that vordr has prevented when author is viewer', async () => {
+      loggedUser = '2';
+      await con
+        .getRepository(ArticlePost)
+        .update({ id: 'p5' }, { authorId: '2', flags: { vordr: true } });
+
+      const res = await client.query(QUERY('b'));
+
+      expect(res.data.sourceFeed.edges.length).toBe(2);
+    });
+  });
 });
 
 describe('query tagFeed', () => {
