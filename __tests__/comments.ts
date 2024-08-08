@@ -978,6 +978,22 @@ describe('mutation commentOnPost', () => {
       expect(comment.flags).toEqual({ vordr: false });
     });
 
+    it('should set correct vordr flags on good user if vordr filter catches it', async () => {
+      loggedUser = '1';
+
+      const res = await client.mutate(MUTATION, {
+        variables: { postId: 'p1', content: 'VordrWillCatchYou' },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const comment = await con.getRepository(Comment).findOneByOrFail({
+        id: res.data.commentOnPost.id,
+      });
+
+      expect(comment.flags).toEqual({ vordr: true });
+    });
+
     it('should set correct vordr flags on bad user', async () => {
       loggedUser = 'vordr';
 
@@ -1206,6 +1222,22 @@ describe('mutation commentOnComment', () => {
       });
 
       expect(comment.flags).toEqual({ vordr: false });
+    });
+
+    it('should set correct vordr flags on good user if vordr filter catches it', async () => {
+      loggedUser = '1';
+
+      const res = await client.mutate(MUTATION, {
+        variables: { commentId: 'c1', content: 'VordrWillCatchYou' },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const comment = await con.getRepository(Comment).findOneByOrFail({
+        id: res.data.commentOnComment.id,
+      });
+
+      expect(comment.flags).toEqual({ vordr: true });
     });
 
     it('should set correct vordr flags on bad user', async () => {
@@ -1438,6 +1470,40 @@ describe('mutation editComment', () => {
       id: 'c2',
       lastUpdatedAt: expect.any(String),
       content: 'Edit',
+    });
+  });
+
+  describe('vordr', () => {
+    it('should set correct vordr flags on good user', async () => {
+      loggedUser = '1';
+
+      const res = await client.mutate(MUTATION, {
+        variables: { id: 'c2', content: 'comment' },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const comment = await con.getRepository(Comment).findOneByOrFail({
+        id: res.data.editComment.id,
+      });
+
+      expect(comment.flags).toEqual({ vordr: false });
+    });
+
+    it('should set correct vordr flags on good user if vordr filter catches it', async () => {
+      loggedUser = '1';
+
+      const res = await client.mutate(MUTATION, {
+        variables: { id: 'c2', content: 'VordrWillCatchYou' },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const comment = await con.getRepository(Comment).findOneByOrFail({
+        id: res.data.editComment.id,
+      });
+
+      expect(comment.flags).toEqual({ vordr: true });
     });
   });
 });
