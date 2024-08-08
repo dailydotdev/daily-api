@@ -837,6 +837,10 @@ export const resolvers: IResolvers<any, BaseContext> = {
             content,
           });
 
+          createdComment.flags = {
+            vordr: await checkWithVordr(createdComment, ctx),
+          };
+
           return saveNewComment(entityManager, createdComment, squadId);
         });
         return getCommentById(comment.id, ctx, info);
