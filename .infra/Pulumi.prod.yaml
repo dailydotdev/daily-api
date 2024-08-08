@@ -177,7 +177,7 @@ config:
     vordrIps:
       secure: AAABAA4dXiqxV1BvtARPWkChH2xuLIjL9x+NWJfSlqQ=
     vordrWords:
-      secure: AAABANZjpwPca1vPOQylEh3GKz5/eFeXqcg25UFbBtsdUXV1z/W8zKjnYpH3IGz7+zrRfYYG
+      secure: AAABAJu+kAHBI8wjnFi2fHLpyTufICaBh5uYwKWknQhD2rIAZ5mfSu4MyYyOfXS95dnu35OfhDGmi2Nob5LxZEjrS94ZFXY=
     webflowToken:
       secure: AAABAEGzQasDisCZXKxcKbA7RJ/+nJLyzh6hNUcRCeBx3727YfGxBF8IUhJiDNK9ibava+80BbSSM2+zQxm020TtaQc3uUmVih19EXTVd6cP9YvRC9JorQKwvH9rSZSy
     webhookSecret:

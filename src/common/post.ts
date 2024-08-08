@@ -121,7 +121,7 @@ We hope you will find ${name} useful!`;
 
 export const createSquadWelcomePost = async (
   con: DataSource | EntityManager,
-  source: SquadSource,
+  source: Pick<SquadSource, 'id' | 'name'>,
   adminId: string,
   args: Partial<FreeformPost> = {},
 ) => {
