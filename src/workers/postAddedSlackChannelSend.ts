@@ -42,15 +42,18 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
         let adminJoinToken: string | undefined;
 
         if (source.type === SourceType.Squad) {
-          const admin = await con.getRepository(SourceMember).findOne({
-            where: {
-              sourceId: source.id,
-              role: SourceMemberRoles.Admin,
-            },
-            order: {
-              createdAt: 'ASC',
-            },
-          });
+          const admin: Pick<SourceMember, 'referralToken'> = await con
+            .getRepository(SourceMember)
+            .findOne({
+              select: ['referralToken'],
+              where: {
+                sourceId: source.id,
+                role: SourceMemberRoles.Admin,
+              },
+              order: {
+                createdAt: 'ASC',
+              },
+            });
 
           if (admin?.referralToken) {
             adminJoinToken = admin.referralToken;
