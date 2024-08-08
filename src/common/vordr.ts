@@ -1,5 +1,5 @@
 import { isInSubnet, isIP } from 'is-in-subnet';
-import { Comment, FreeformPost, Post, User } from '../entity';
+import { Comment, FreeformPost, Post, Submission, User } from '../entity';
 import { logger } from '../logger';
 import { counters } from '../telemetry';
 import { Brackets, DataSource, EntityManager } from 'typeorm';
@@ -22,8 +22,30 @@ export const validateVordrWords = (content: string): boolean => {
   return vordrWords.some((word) => lowerCaseContent.includes(word));
 };
 
+type VordrFilterInput = {
+  comment?: Comment;
+  post?: Post | FreeformPost;
+  submission?: Submission;
+};
+
+const getTypeAndId = ({ comment, post, submission }: VordrFilterInput) => {
+  if (comment) {
+    return { type: 'comment', id: comment.id };
+  }
+
+  if (post) {
+    return { type: 'post', id: post.id };
+  }
+
+  if (submission) {
+    return { type: 'submission', id: submission.id };
+  }
+
+  return { type: 'unknown', id: 'unknown' };
+};
+
 export const checkWithVordr = async (
-  { comment, post }: { comment?: Comment; post?: Post | FreeformPost },
+  { comment, post, submission }: VordrFilterInput,
   {
     userId,
     con,
@@ -31,13 +53,13 @@ export const checkWithVordr = async (
   }: {
     userId: string;
     con: DataSource | EntityManager;
-    req?: Pick<FastifyRequest, 'ip'>;
+    req: Pick<FastifyRequest, 'ip'>;
   },
 ): Promise<boolean> => {
-  const type = isNullOrUndefined(post) ? 'comment' : 'post';
-  const id = type === 'comment' ? comment?.id : post?.id;
+  const { type, id } = getTypeAndId({ comment, post, submission });
 
-  const hasContent = type === 'comment' || post.type === 'freeform';
+  const hasContent =
+    type === 'comment' || (type === 'post' && post.type === 'freeform');
 
   if (validateVordrIPs(req.ip)) {
     logger.info(
