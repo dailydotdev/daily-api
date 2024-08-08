@@ -1531,7 +1531,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           params.image = coverImageUrl;
         }
 
-        await createFreeformPost(ctx, params);
+        await createFreeformPost(manager, ctx, params);
         await saveMentions(manager, id, userId, mentions, PostMention);
       });
 
@@ -1700,8 +1700,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
           await createSharePost(
             manager,
+            ctx,
             sourceId,
-            ctx.userId,
             existingPost.id,
             commentary,
             existingPost.visible,
@@ -1710,9 +1710,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }
         await createExternalLink(
           manager,
-          ctx.log,
+          ctx,
           sourceId,
-          ctx.userId,
           { url, title, image },
           commentary,
         );
@@ -1734,8 +1733,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const newPost = await createSharePost(
         ctx.con,
+        ctx,
         sourceId,
-        ctx.userId,
         id,
         commentary,
       );

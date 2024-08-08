@@ -17,7 +17,7 @@ import { GQLPost } from '../schema/posts';
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { HttpError, retryFetchParse } from '../integrations/retry';
 import { checkWithVordr } from './vordr';
-import { Context } from '../Context';
+import { AuthContext } from '../Context';
 
 export const defaultImage = {
   urls: process.env.DEFAULT_IMAGE_URL?.split?.(',') ?? [],
@@ -166,9 +166,11 @@ export type CreatePost = Pick<
   'title' | 'content' | 'image' | 'contentHtml' | 'authorId' | 'sourceId' | 'id'
 >;
 
-export const createFreeformPost = async (ctx: Context, args: CreatePost) => {
-  const { con } = ctx;
-
+export const createFreeformPost = async (
+  con: DataSource | EntityManager,
+  ctx: AuthContext,
+  args: CreatePost,
+) => {
   const { private: privacy } = await con
     .getRepository(SquadSource)
     .findOneBy({ id: args.sourceId });
@@ -186,7 +188,10 @@ export const createFreeformPost = async (ctx: Context, args: CreatePost) => {
     },
   });
 
-  const vordrStatus = await checkWithVordr({ post: createdPost }, ctx);
+  const vordrStatus = await checkWithVordr(
+    { post: createdPost },
+    { con, userId: ctx.userId, req: ctx.req },
+  );
 
   if (vordrStatus === true) {
     createdPost.banned = true;

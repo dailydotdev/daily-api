@@ -2,7 +2,6 @@ import { DataSource, EntityManager, In } from 'typeorm';
 import { TypeOrmError } from '../../errors';
 import { Keyword } from '../Keyword';
 import {
-  EventLogger,
   notifyContentRequested,
   removeEmptyValues,
   removeSpecialCharacters,
@@ -26,6 +25,7 @@ import { PostQuestion } from './PostQuestion';
 import { PostRelation, PostRelationType } from './PostRelation';
 import { CollectionPost } from './CollectionPost';
 import { checkWithVordr } from '../../common/vordr';
+import { AuthContext } from '../../Context';
 
 export type PostStats = {
   numPosts: number;
@@ -246,9 +246,8 @@ export interface ExternalLink extends Partial<ExternalLinkPreview> {
 
 export const createExternalLink = async (
   con: DataSource | EntityManager,
-  logger: EventLogger,
+  ctx: AuthContext,
   sourceId: string,
-  userId: string,
   { url, title, image }: ExternalLink,
   commentary: string,
 ): Promise<void> => {
@@ -278,13 +277,13 @@ export const createExternalLink = async (
     });
     await createSharePost(
       entityManager,
+      ctx,
       sourceId,
-      userId,
       id,
       commentary,
       isVisible,
     );
-    await notifyContentRequested(logger, {
+    await notifyContentRequested(ctx.log, {
       id,
       url,
       origin: PostOrigin.Squad,
@@ -301,13 +300,14 @@ export const generateTitleHtml = (
 
 export const createSharePost = async (
   con: DataSource | EntityManager,
+  ctx: AuthContext,
   sourceId: string,
-  userId: string,
   postId: string,
   commentary: string | null,
   visible = true,
 ): Promise<SharePost> => {
   const strippedCommentary = await validateCommentary(commentary);
+  const userId = ctx.userId;
 
   try {
     const mentions = await getMentions(con, commentary, userId, sourceId);
@@ -343,7 +343,7 @@ export const createSharePost = async (
 
     const vordrStatus = await checkWithVordr(
       { post: createdPost },
-      { con, userId },
+      { con, userId, req: ctx.req },
     );
 
     if (vordrStatus === true) {

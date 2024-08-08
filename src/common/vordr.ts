@@ -28,7 +28,11 @@ export const checkWithVordr = async (
     userId,
     con,
     req,
-  }: { userId: string; con: DataSource | EntityManager; req?: FastifyRequest },
+  }: {
+    userId: string;
+    con: DataSource | EntityManager;
+    req?: Pick<FastifyRequest, 'ip'>;
+  },
 ): Promise<boolean> => {
   const type = isNullOrUndefined(post) ? 'comment' : 'post';
   const id = type === 'comment' ? comment?.id : post?.id;
