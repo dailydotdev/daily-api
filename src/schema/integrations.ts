@@ -315,7 +315,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         SourcePermissions.ConnectSlack,
       );
 
-      const [slackIntegration] = await Promise.all([
+      const [slackIntegration, existingSourceIntegration] = await Promise.all([
         ctx.con.getRepository(UserIntegrationSlack).findOneOrFail({
           where: {
             id: args.integrationId,
@@ -325,16 +325,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
             user: true,
           },
         }),
+        ctx.con.getRepository(UserSourceIntegrationSlack).findOne({
+          where: {
+            sourceId: args.sourceId,
+          },
+          relations: {
+            userIntegration: true,
+          },
+        }),
       ]);
       const user = await slackIntegration.user;
+      const existingIntegrationUser = existingSourceIntegration
+        ? await existingSourceIntegration.userIntegration
+        : undefined;
 
-      const existing = await ctx.con
-        .getRepository(UserSourceIntegrationSlack)
-        .findOneBy({
-          sourceId: args.sourceId,
-        });
-
-      if (existing && existing.userIntegrationId !== slackIntegration.id) {
+      if (
+        existingSourceIntegration &&
+        existingSourceIntegration.userIntegrationId !== slackIntegration.id &&
+        existingIntegrationUser &&
+        existingIntegrationUser.userId !== slackIntegration.userId
+      ) {
         throw new ConflictError('source already connected to a channel');
       }
 
@@ -372,7 +382,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         });
       }
 
-      const channelChanged = existing?.channelIds?.[0] !== args.channelId;
+      const channelChanged =
+        existingSourceIntegration?.channelIds?.[0] !== args.channelId;
 
       if (channelChanged) {
         const sourceTypeName =
