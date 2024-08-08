@@ -188,6 +188,71 @@ Object {
 }
 `;
 
+exports[`query sourceCategories should return source categories 1`] = `
+Array [
+  Object {
+    "createdAt": Any<String>,
+    "enabled": true,
+    "id": "general",
+    "value": "General",
+  },
+  Object {
+    "createdAt": Any<String>,
+    "enabled": true,
+    "id": "web",
+    "value": "Web",
+  },
+  Object {
+    "createdAt": Any<String>,
+    "enabled": true,
+    "id": "mobile",
+    "value": "Mobile",
+  },
+  Object {
+    "createdAt": Any<String>,
+    "enabled": true,
+    "id": "games",
+    "value": "Games",
+  },
+  Object {
+    "createdAt": Any<String>,
+    "enabled": true,
+    "id": "devops",
+    "value": "DevOps",
+  },
+  Object {
+    "createdAt": Any<String>,
+    "enabled": true,
+    "id": "cloud",
+    "value": "Cloud",
+  },
+  Object {
+    "createdAt": Any<String>,
+    "enabled": true,
+    "id": "career",
+    "value": "Career",
+  },
+  Object {
+    "createdAt": Any<String>,
+    "enabled": true,
+    "id": "data",
+    "value": "Data",
+  },
+  Object {
+    "createdAt": Any<String>,
+    "enabled": true,
+    "id": "fun",
+    "value": "Fun",
+  },
+  Object {
+    "createdAt": Any<String>,
+    "enabled": true,
+    "id": "devtools",
+    "value": "DevTools",
+  },
+]
+`;
+
 exports[`query sourceMembers should return blocked users only when user is a moderator 1`] = `
 Object {
   "sourceMembers": Object {

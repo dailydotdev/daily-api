@@ -40,6 +40,7 @@ import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { NotificationType } from '../src/notifications/common';
 import { SourceTagView } from '../src/entity/SourceTagView';
 import { isNullOrUndefined } from '../src/common/object';
+import { SourceCategory } from '../src/entity/sources/SourceCategory';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -55,9 +56,63 @@ beforeAll(async () => {
   client = state.client;
 });
 
+const getSourceCategories = () => [
+  {
+    id: 'general',
+    value: 'General',
+    enabled: true,
+  },
+  {
+    id: 'web',
+    value: 'Web',
+    enabled: true,
+  },
+  {
+    id: 'mobile',
+    value: 'Mobile',
+    enabled: true,
+  },
+  {
+    id: 'games',
+    value: 'Games',
+    enabled: true,
+  },
+  {
+    id: 'devops',
+    value: 'DevOps',
+    enabled: true,
+  },
+  {
+    id: 'cloud',
+    value: 'Cloud',
+    enabled: true,
+  },
+  {
+    id: 'career',
+    value: 'Career',
+    enabled: true,
+  },
+  {
+    id: 'data',
+    value: 'Data',
+    enabled: true,
+  },
+  {
+    id: 'fun',
+    value: 'Fun',
+    enabled: true,
+  },
+  {
+    id: 'devtools',
+    value: 'DevTools',
+    enabled: true,
+  },
+];
+
 beforeEach(async () => {
   loggedUser = null;
   premiumUser = false;
+  await saveFixtures(con, SourceCategory, getSourceCategories());
   await saveFixtures(con, Source, [
     sourcesFixture[0],
     sourcesFixture[1],
@@ -104,6 +159,26 @@ beforeEach(async () => {
 });
 
 afterAll(() => disposeGraphQLTesting(state));
+
+describe('query sourceCategories', () => {
+  it('should return source categories', async () => {
+    const res = await client.query(`
+      query {
+        sourceCategories {
+          id
+          value
+          enabled
+          createdAt
+        }
+      }
+    `);
+    expect(res.errors).toBeFalsy();
+    const categories = getSourceCategories();
+    expect(res.data.sourceCategories).toMatchSnapshot(
+      Array(categories.length).fill({ createdAt: expect.any(String) }),
+    );
+  });
+});
 
 describe('query sources', () => {
   const QUERY = (
