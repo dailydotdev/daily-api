@@ -1,10 +1,10 @@
 import { isInSubnet, isIP } from 'is-in-subnet';
-import { Context } from '../Context';
 import { Comment, FreeformPost, Post, User } from '../entity';
 import { logger } from '../logger';
 import { counters } from '../telemetry';
-import { Brackets } from 'typeorm';
+import { Brackets, DataSource, EntityManager } from 'typeorm';
 import { isNullOrUndefined } from './object';
+import { FastifyRequest } from 'fastify';
 
 const vordrIPs =
   process.env.VORDR_IPS?.split(',').filter((ip) => Boolean(ip)) || [];
@@ -24,7 +24,11 @@ export const validateVordrWords = (content: string): boolean => {
 
 export const checkWithVordr = async (
   { comment, post }: { comment?: Comment; post?: Post | FreeformPost },
-  { userId, con, req }: Context,
+  {
+    userId,
+    con,
+    req,
+  }: { userId: string; con: DataSource | EntityManager; req?: FastifyRequest },
 ): Promise<boolean> => {
   const type = isNullOrUndefined(post) ? 'comment' : 'post';
   const id = type === 'comment' ? comment?.id : post?.id;

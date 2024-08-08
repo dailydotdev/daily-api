@@ -25,6 +25,7 @@ import { PostMention } from './PostMention';
 import { PostQuestion } from './PostQuestion';
 import { PostRelation, PostRelationType } from './PostRelation';
 import { CollectionPost } from './CollectionPost';
+import { checkWithVordr } from '../../common/vordr';
 
 export type PostStats = {
   numPosts: number;
@@ -319,7 +320,7 @@ export const createSharePost = async (
 
     const id = await generateShortId();
 
-    const post = await con.getRepository(SharePost).save({
+    const createdPost = con.getRepository(SharePost).create({
       id,
       shortId: id,
       createdAt: new Date(),
@@ -339,6 +340,20 @@ export const createSharePost = async (
         visible,
       },
     });
+
+    const vordrStatus = await checkWithVordr(
+      { post: createdPost },
+      { con, userId },
+    );
+
+    if (vordrStatus === true) {
+      createdPost.banned = true;
+      createdPost.showOnFeed = false;
+    }
+
+    createdPost.flags.vordr = vordrStatus;
+
+    const post = await con.getRepository(SharePost).save(createdPost);
 
     if (mentions.length) {
       await saveMentions(con, post.id, userId, mentions, PostMention);
