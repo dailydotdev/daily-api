@@ -425,6 +425,23 @@ describe('slack integration', () => {
         }),
       );
 
+      const userSourceIntegrationExisting = await con
+        .getRepository(UserSourceIntegrationSlack)
+        .findOneBy({
+          userIntegrationId: existingUserIntegration.id,
+          sourceId: 'squadslack',
+        });
+      const userSourceIntegrationUpdate = await con
+        .getRepository(UserSourceIntegrationSlack)
+        .findOneByOrFail({
+          userIntegrationId: otherIntegration.id,
+          sourceId: 'squadslack',
+        });
+      expect(userSourceIntegrationUpdate).toMatchObject({
+        channelIds: ['2'],
+      });
+      expect(userSourceIntegrationExisting).toBeNull();
+
       expect(res.errors).toBeFalsy();
       expect(slackPostMessage).toHaveBeenCalledTimes(1);
     });

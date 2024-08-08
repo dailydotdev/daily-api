@@ -335,15 +335,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         }),
       ]);
       const user = await slackIntegration.user;
-      const existingIntegrationUser = existingSourceIntegration
+      const existingUserIntegration = existingSourceIntegration
         ? await existingSourceIntegration.userIntegration
         : undefined;
 
       if (
         existingSourceIntegration &&
         existingSourceIntegration.userIntegrationId !== slackIntegration.id &&
-        existingIntegrationUser &&
-        existingIntegrationUser.userId !== slackIntegration.userId
+        existingUserIntegration &&
+        existingUserIntegration.userId !== slackIntegration.userId
       ) {
         throw new ConflictError('source already connected to a channel');
       }
@@ -366,15 +366,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         throw new ValidationError('invalid channel');
       }
 
-      await ctx.con.getRepository(UserSourceIntegrationSlack).upsert(
-        {
-          userIntegrationId: slackIntegration.id,
+      const record: Partial<UserSourceIntegrationSlack> = {
+        userIntegrationId: slackIntegration.id,
+        // only one channel per source is allowed currently
+        channelIds: [args.channelId],
+      };
+
+      if (existingSourceIntegration) {
+        await ctx.con.getRepository(UserSourceIntegrationSlack).update(
+          {
+            sourceId: args.sourceId,
+            userIntegrationId: existingUserIntegration.id,
+          },
+          record,
+        );
+      } else {
+        await ctx.con.getRepository(UserSourceIntegrationSlack).insert({
+          ...record,
           sourceId: args.sourceId,
-          // only one channel per source is allowed currently
-          channelIds: [args.channelId],
-        },
-        ['userIntegrationId', 'sourceId'],
-      );
+        });
+      }
 
       if (!channelResult.channel?.is_member) {
         await client.conversations.join({
