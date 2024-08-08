@@ -1,12 +1,13 @@
 import { UserSourceIntegrationSlack } from '../entity/UserSourceIntegration';
 import { TypedWorker } from './worker';
 import fastq from 'fastq';
-import { Post, SourceType } from '../entity';
+import { Post, SourceMember, SourceType } from '../entity';
 import {
   getAttachmentForPostType,
   getSlackClient,
 } from '../common/userIntegration';
 import { addNotificationUtm } from '../common';
+import { SourceMemberRoles } from '../roles';
 
 const sendQueueConcurrency = 10;
 
@@ -37,9 +38,53 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
           }),
         ]);
         const source = await post.source;
-
         const sourceTypeName =
           source.type === SourceType.Squad ? 'Squad' : 'source';
+
+        const postLinkPlain = `${process.env.COMMENTS_PREFIX}/posts/${post.id}`;
+        const postLinkUrl = new URL(postLinkPlain);
+
+        if (source.private && source.type === SourceType.Squad) {
+          const admin: Pick<SourceMember, 'referralToken'> = await con
+            .getRepository(SourceMember)
+            .findOne({
+              select: ['referralToken'],
+              where: {
+                sourceId: source.id,
+                role: SourceMemberRoles.Admin,
+              },
+              order: {
+                createdAt: 'ASC',
+              },
+            });
+
+          if (admin?.referralToken) {
+            postLinkUrl.searchParams.set('jt', admin.referralToken);
+            postLinkUrl.searchParams.set('source', source.handle);
+            postLinkUrl.searchParams.set('type', source.type);
+          }
+        }
+
+        const postLink = addNotificationUtm(
+          postLinkUrl.toString(),
+          'slack',
+          'new_post',
+        );
+
+        const author = await post.author;
+        const authorName = author?.name || author?.username;
+        let messageText = `New post on "${source.name}" ${sourceTypeName}. <${postLink}|${postLinkPlain}>`;
+
+        if (sourceTypeName === 'Squad' && authorName) {
+          messageText = `${authorName} shared a new post on "${source.name}" ${sourceTypeName}. ${process.env.COMMENTS_PREFIX}/posts/${post.id}`;
+        }
+
+        const attachment = await getAttachmentForPostType({
+          con,
+          post,
+          postType: data.post.type,
+          postLink,
+        });
 
         const sendQueue = fastq.promise(
           async ({
@@ -62,30 +107,9 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
                 channel: channelId,
               });
 
-              const postLinkPlain = `${process.env.COMMENTS_PREFIX}/posts/${post.id}`;
-              const postLink = addNotificationUtm(
-                postLinkPlain,
-                'slack',
-                'new_post',
-              );
-              let message = `New post on "${source.name}" ${sourceTypeName}. <${postLink}|${postLinkPlain}>`;
-              const author = await post.author;
-              const authorName = author?.name || author?.username;
-
-              if (sourceTypeName === 'Squad' && authorName) {
-                message = `${authorName} shared a new post on "${source.name}" ${sourceTypeName}. ${process.env.COMMENTS_PREFIX}/posts/${post.id}`;
-              }
-
-              const attachment = await getAttachmentForPostType({
-                con,
-                post,
-                postType: data.post.type,
-                postLink,
-              });
-
               await slackClient.chat.postMessage({
                 channel: channelId,
-                text: message,
+                text: messageText,
                 attachments: [attachment],
                 unfurl_links: false,
               });
