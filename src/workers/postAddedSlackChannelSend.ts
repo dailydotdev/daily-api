@@ -76,7 +76,7 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
         let messageText = `New post on "${source.name}" ${sourceTypeName}. <${postLink}|${postLinkPlain}>`;
 
         if (sourceTypeName === 'Squad' && authorName) {
-          messageText = `${authorName} shared a new post on "${source.name}" ${sourceTypeName}. ${process.env.COMMENTS_PREFIX}/posts/${post.id}`;
+          messageText = `${authorName} shared a new post on "${source.name}" ${sourceTypeName}. <${postLink}|${postLinkPlain}>`;
         }
 
         const attachment = await getAttachmentForPostType({
