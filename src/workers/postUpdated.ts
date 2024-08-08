@@ -275,7 +275,7 @@ const createPost = async ({
   data.score = Math.floor(postCreatedAt.getTime() / (1000 * 60));
   data.origin = data?.scoutId
     ? PostOrigin.CommunityPicks
-    : data.origin ?? PostOrigin.Crawler;
+    : (data.origin ?? PostOrigin.Crawler);
   data.visible = getPostVisible({ post: data });
   data.visibleAt = data.visible ? postCreatedAt : null;
   data.flags = {
