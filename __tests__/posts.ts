@@ -72,6 +72,7 @@ import {
   highRateLimiterName,
   rateLimiterName,
 } from '../src/directive/rateLimit';
+import { badUsersFixture } from './fixture/user';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -105,6 +106,8 @@ beforeEach(async () => {
   await saveFixtures(con, ArticlePost, postsFixture);
   await saveFixtures(con, YouTubePost, videoPostsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
+  // await saveFixtures(con, User, usersFixture);
+  await saveFixtures(con, User, badUsersFixture);
   await con
     .getRepository(User)
     .save({ id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' });
@@ -141,6 +144,15 @@ const saveSquadFixtures = async () => {
       referralToken: randomUUID(),
     },
   ]);
+
+  await con.getRepository(SourceMember).save(
+    badUsersFixture.map((user) => ({
+      userId: user.id,
+      sourceId: 'a',
+      role: SourceMemberRoles.Member,
+      referralToken: randomUUID(),
+    })),
+  );
 };
 
 afterAll(() => disposeGraphQLTesting(state));
@@ -3065,6 +3077,56 @@ describe('mutation createFreeformPost', () => {
           'Take a break. You already posted enough in the last ten minutes',
         );
       });
+    });
+  });
+
+  describe('vordr', () => {
+    it('should set the correct vordr flags on a good user', async () => {
+      loggedUser = '1';
+
+      const content = '# Updated content';
+      const res = await client.mutate(MUTATION, {
+        variables: { ...params, content },
+      });
+      expect(res.errors).toBeFalsy();
+
+      const post = await con
+        .getRepository(FreeformPost)
+        .findOneByOrFail({ id: res.data.createFreeformPost.id });
+
+      expect(post.flags.vordr).toEqual(false);
+    });
+
+    it('should set the correct vordr flags on a good user if vordr filter catches it', async () => {
+      loggedUser = '1';
+
+      const content = '# Updated content VordrWillCatchYou';
+      const res = await client.mutate(MUTATION, {
+        variables: { ...params, content },
+      });
+      expect(res.errors).toBeFalsy();
+
+      const post = await con
+        .getRepository(FreeformPost)
+        .findOneByOrFail({ id: res.data.createFreeformPost.id });
+
+      expect(post.flags.vordr).toEqual(true);
+    });
+
+    it('should set the correct vordr flags on a bad user', async () => {
+      loggedUser = 'vordr';
+
+      const content = '# Updated content';
+      const res = await client.mutate(MUTATION, {
+        variables: { ...params, content },
+      });
+      expect(res.errors).toBeFalsy();
+
+      const post = await con
+        .getRepository(FreeformPost)
+        .findOneByOrFail({ id: res.data.createFreeformPost.id });
+
+      expect(post.flags.vordr).toEqual(true);
     });
   });
 });

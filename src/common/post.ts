@@ -16,6 +16,8 @@ import { generateShortId } from '../ids';
 import { GQLPost } from '../schema/posts';
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { HttpError, retryFetchParse } from '../integrations/retry';
+import { checkWithVordr } from './vordr';
+import { Context } from '../Context';
 
 export const defaultImage = {
   urls: process.env.DEFAULT_IMAGE_URL?.split?.(',') ?? [],
@@ -164,15 +166,14 @@ export type CreatePost = Pick<
   'title' | 'content' | 'image' | 'contentHtml' | 'authorId' | 'sourceId' | 'id'
 >;
 
-export const createFreeformPost = async (
-  con: DataSource | EntityManager,
-  args: CreatePost,
-) => {
+export const createFreeformPost = async (ctx: Context, args: CreatePost) => {
+  const { con } = ctx;
+
   const { private: privacy } = await con
     .getRepository(SquadSource)
     .findOneBy({ id: args.sourceId });
 
-  return con.getRepository(FreeformPost).save({
+  const createdPost = con.getRepository(FreeformPost).create({
     ...args,
     shortId: args.id,
     visible: true,
@@ -184,6 +185,17 @@ export const createFreeformPost = async (
       private: privacy,
     },
   });
+
+  const vordrStatus = await checkWithVordr({ post: createdPost }, ctx);
+
+  if (vordrStatus === true) {
+    createdPost.banned = true;
+    createdPost.showOnFeed = false;
+  }
+
+  createdPost.flags.vordr = vordrStatus;
+
+  return con.getRepository(FreeformPost).save(createdPost);
 };
 
 export interface EditPostArgs

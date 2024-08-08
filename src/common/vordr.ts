@@ -28,6 +28,9 @@ export const checkWithVordr = async (
 ): Promise<boolean> => {
   const type = isNullOrUndefined(post) ? 'comment' : 'post';
   const id = type === 'comment' ? comment?.id : post?.id;
+
+  const hasContent = type === 'comment' || post.type === 'freeform';
+
   if (validateVordrIPs(req.ip)) {
     logger.info(
       { id, type, userId, ip: req.ip },
@@ -37,7 +40,12 @@ export const checkWithVordr = async (
     return true;
   }
 
-  if (validateVordrWords(comment.content)) {
+  if (
+    hasContent &&
+    validateVordrWords(
+      type === 'comment' ? comment.content : (post as FreeformPost).content,
+    )
+  ) {
     logger.info(
       { id, type, userId },
       `Prevented ${type} because it contains spam`,

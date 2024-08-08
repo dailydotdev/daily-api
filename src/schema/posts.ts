@@ -1531,7 +1531,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           params.image = coverImageUrl;
         }
 
-        await createFreeformPost(manager, params);
+        await createFreeformPost(ctx, params);
         await saveMentions(manager, id, userId, mentions, PostMention);
       });
 
