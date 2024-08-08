@@ -876,6 +876,8 @@ export const resolvers: IResolvers<any, BaseContext> = {
           source.type === SourceType.Squad ? source.id : undefined;
         comment.content = content;
         comment.lastUpdatedAt = new Date();
+        comment.flags.vordr = await checkWithVordr({ comment }, ctx);
+
         await saveComment(entityManager, comment, squadId);
       });
       return getCommentById(id, ctx, info);
