@@ -41,7 +41,7 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
 
         let adminJoinToken: string | undefined;
 
-        if (source.type === SourceType.Squad) {
+        if (source.private && source.type === SourceType.Squad) {
           const admin: Pick<SourceMember, 'referralToken'> = await con
             .getRepository(SourceMember)
             .findOne({

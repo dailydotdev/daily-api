@@ -204,6 +204,57 @@ describe('postAddedSlackChannelSend worker', () => {
     });
   });
 
+  it('should send a message to the slack channel for public squad', async () => {
+    await con.getRepository(SquadSource).update(
+      {
+        id: 'squadslackchannel',
+      },
+      {
+        private: false,
+      },
+    );
+    await con.getRepository(Post).save([
+      {
+        ...postsFixture[0],
+        id: 'squadslackchannelp1',
+        title: 'Squad Channel Post 1',
+        shortId: 'sschp1',
+        url: 'http://localhost:5002/posts/squadslackchannelp1',
+        canonicalUrl: 'http://localhost:5002/posts/squadslackchannelp1',
+        sourceId: 'squadslackchannel',
+      },
+    ]);
+    const post = await con.getRepository(ArticlePost).findOneByOrFail({
+      id: 'squadslackchannelp1',
+    });
+
+    await expectSuccessfulTypedBackground(worker, {
+      post: post as unknown as ChangeObject<ArticlePost>,
+    });
+
+    expect(conversationsJoin).toHaveBeenCalledTimes(1);
+    expect(chatPostMessage).toHaveBeenCalledTimes(1);
+
+    expect(conversationsJoin).toHaveBeenCalledWith({
+      channel: '1',
+    });
+    expect(chatPostMessage).toHaveBeenCalledWith({
+      channel: '1',
+      attachments: [
+        {
+          author_icon: 'https://app.daily.dev/apple-touch-icon.png',
+          author_name: 'daily.dev',
+          image_url: 'https://daily.dev/image.jpg',
+          title: 'Squad Channel Post 1',
+          title_link:
+            'http://localhost:5002/posts/squadslackchannelp1?utm_source=notification&utm_medium=slack&utm_campaign=new_post',
+        },
+      ],
+      text: 'New post on "Squad Slack Channel" Squad. <http://localhost:5002/posts/squadslackchannelp1?utm_source=notification&utm_medium=slack&utm_campaign=new_post|http://localhost:5002/posts/squadslackchannelp1>',
+      unfurl_links: false,
+    });
+  });
+
   it('should not send a message to the slack channel if the post source has no slack integrations', async () => {
     await con.getRepository(UserSourceIntegrationSlack).delete({});
 
