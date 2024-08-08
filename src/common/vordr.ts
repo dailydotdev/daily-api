@@ -18,6 +18,10 @@ export const validateVordrIPs = (ip: string): boolean =>
   isIP(ip) && isInSubnet(ip, vordrIPs);
 
 export const validateVordrWords = (content: string): boolean => {
+  if (!content) {
+    return false;
+  }
+
   const lowerCaseContent = content.toLowerCase();
   return vordrWords.some((word) => lowerCaseContent.includes(word));
 };
@@ -57,9 +61,7 @@ export const checkWithVordr = async (
   },
 ): Promise<boolean> => {
   const { type, id } = getTypeAndId({ comment, post, submission });
-
-  const hasContent =
-    type === 'comment' || (type === 'post' && post.type === 'freeform');
+  const hasContent = type === 'comment' || type === 'post';
 
   if (validateVordrIPs(req.ip)) {
     logger.info(
