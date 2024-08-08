@@ -10,7 +10,7 @@ import {
   offsetPageGenerator,
 } from './common';
 import { traceResolvers } from './trace';
-import { Context } from '../Context';
+import { AuthContext, BaseContext, Context } from '../Context';
 import {
   MachineSource,
   Source,
@@ -25,7 +25,11 @@ import { getRelayNodeInfo, uploadLogo } from '../common';
 import { GraphQLResolveInfo } from 'graphql';
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { GQLSubmissionAvailability, hasSubmissionAccess } from './submissions';
-import { ConflictError, SourceRequestErrorMessage } from '../errors';
+import {
+  ConflictError,
+  SourceRequestErrorMessage,
+  TypeORMQueryFailedError,
+} from '../errors';
 import { ConnectionArguments } from 'graphql-relay';
 import { SourceMemberRoles } from '../roles';
 import { MoreThan } from 'typeorm';
@@ -482,13 +486,15 @@ const ensureNotRejected = async (
   }
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvers: IResolvers<any, Context> = traceResolvers({
+export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
+  unknown,
+  BaseContext
+>({
   Mutation: {
     requestSource: async (
       source,
       { data }: GQLDataInput<GQLRequestSourceInput>,
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLSourceRequest> => {
       const user = await ctx
         .getRepository(User)
@@ -511,14 +517,14 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     updateSourceRequest: async (
       source,
       { id, data }: GQLDataIdInput<GQLUpdateSourceRequestInput>,
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLSourceRequest> => {
       return partialUpdateSourceRequest(ctx, id, data);
     },
     declineSourceRequest: async (
       source,
       { id, data }: GQLDataIdInput<GQLDeclineSourceRequestInput>,
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLSourceRequest> => {
       return partialUpdateSourceRequest(ctx, id, {
         approved: false,
@@ -529,7 +535,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     approveSourceRequest: async (
       source,
       { id }: GQLIdInput,
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLSourceRequest> => {
       return partialUpdateSourceRequest(ctx, id, {
         approved: true,
@@ -538,7 +544,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     publishSourceRequest: async (
       source,
       { id }: GQLIdInput,
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLSourceRequest> => {
       const req = await findOrFail(ctx, id);
       if (
@@ -566,7 +572,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     uploadSourceRequestLogo: async (
       source,
       { id, file }: GQLIdInput & { file: FileUpload },
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLSourceRequest> => {
       const req = await findOrFail(ctx, id);
       const { createReadStream } = await file;
@@ -586,7 +592,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     submitSquadForReview: async (
       _,
       { sourceId }: GQLPublicSquadRequestInput,
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLPublicSquadRequest> => {
       // we need to check that the user is squad admin, moderator is not enough
       const squad = await ensureSourceRole(
@@ -613,7 +619,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       try {
         const result = await repo.save(publicReq);
         return result;
-      } catch (err) {
+      } catch (originalError) {
+        const err = originalError as TypeORMQueryFailedError;
+
         if (err.name === 'QueryFailedError' && err.code === '23505') {
           throw new ConflictError('Request already exists!');
         }
@@ -650,7 +658,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     sourceRequestAvailability: async (
       _,
       __,
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLSourceRequestAvailability> => {
       const user = await ctx
         .getRepository(User)
@@ -663,18 +671,23 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     publicSquadRequests: forwardPagination(
       async (
         _,
-        args: PublicSquadRequestsArgs,
+        args,
         ctx,
         { limit, offset },
         info: GraphQLResolveInfo,
       ): Promise<PaginationResponse<GQLPublicSquadRequest>> => {
+        const sourceArgs = args as PublicSquadRequestsArgs;
         // we need to check that the user is squad admin, moderator is not enough
-        await ensureSourceRole(ctx, args.sourceId, SourceMemberRoles.Admin);
+        await ensureSourceRole(
+          ctx,
+          sourceArgs.sourceId,
+          SourceMemberRoles.Admin,
+        );
 
         const [rows, total] =
           await ctx.loader.loadManyPaginated<SquadPublicRequest>(
             SquadPublicRequest,
-            { sourceId: args.sourceId },
+            { sourceId: sourceArgs.sourceId },
             getRelayNodeInfo(info),
             {
               limit,
