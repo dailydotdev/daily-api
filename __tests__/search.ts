@@ -17,6 +17,7 @@ import { ArticlePost, Keyword, Source, User, UserPost } from '../src/entity';
 import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
 import { usersFixture } from './fixture/user';
+import { ghostUser } from '../src/common';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -526,5 +527,91 @@ describe('query searchSourceSuggestions', () => {
         image: 'http://image.com/b',
       },
     ]);
+  });
+});
+
+describe('query searchUserSuggestions', () => {
+  const QUERY = (query: string): string => `{
+    searchUserSuggestions(query: "${query}") {
+      query
+      hits {
+        id
+        title
+        subtitle
+        image
+      }
+    }
+  }
+`;
+
+  beforeEach(async () => {
+    await saveFixtures(con, User, usersFixture);
+  });
+
+  it('should return search suggestions', async () => {
+    const res = await client.query(QUERY('i'));
+    expect(res.errors).toBeFalsy();
+    expect(res.data.searchUserSuggestions).toBeTruthy();
+
+    const result = res.data.searchUserSuggestions;
+
+    expect(result.query).toBe('i');
+    expect(result.hits).toHaveLength(3);
+    expect(result.hits).toMatchObject([
+      {
+        id: '1',
+        image: 'https://daily.dev/ido.jpg',
+        subtitle: 'idoshamun',
+        title: 'Ido',
+      },
+      {
+        id: '2',
+        image: 'https://daily.dev/tsahi.jpg',
+        subtitle: 'tsahidaily',
+        title: 'Tsahi',
+      },
+      {
+        id: '3',
+        image: 'https://daily.dev/nimrod.jpg',
+        subtitle: 'nimroddaily',
+        title: 'Nimrod',
+      },
+    ]);
+  });
+
+  it('should only return infoConfirmed users', async () => {
+    await con.getRepository(User).update({ id: '3' }, { infoConfirmed: false });
+    const res = await client.query(QUERY('i'));
+    expect(res.data.searchUserSuggestions).toBeTruthy();
+
+    const result = res.data.searchUserSuggestions;
+
+    expect(result.query).toBe('i');
+    expect(result.hits).toHaveLength(2);
+    expect(result.hits).toMatchObject([
+      {
+        id: '1',
+        image: 'https://daily.dev/ido.jpg',
+        subtitle: 'idoshamun',
+        title: 'Ido',
+      },
+      {
+        id: '2',
+        image: 'https://daily.dev/tsahi.jpg',
+        subtitle: 'tsahidaily',
+        title: 'Tsahi',
+      },
+    ]);
+  });
+
+  it('should not return 404 user', async () => {
+    await saveFixtures(con, User, [ghostUser]);
+    const res = await client.query(QUERY('ghost'));
+    expect(res.data.searchUserSuggestions).toBeTruthy();
+
+    const result = res.data.searchUserSuggestions;
+
+    expect(result.query).toBe('ghost');
+    expect(result.hits).toHaveLength(0);
   });
 });
