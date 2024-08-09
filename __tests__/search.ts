@@ -17,7 +17,7 @@ import { ArticlePost, Keyword, Source, User, UserPost } from '../src/entity';
 import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
 import { usersFixture } from './fixture/user';
-import { ghostUser } from '../src/common';
+import { ghostUser, updateFlagsStatement } from '../src/common';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -581,6 +581,38 @@ describe('query searchUserSuggestions', () => {
 
   it('should only return infoConfirmed users', async () => {
     await con.getRepository(User).update({ id: '3' }, { infoConfirmed: false });
+    const res = await client.query(QUERY('i'));
+    expect(res.data.searchUserSuggestions).toBeTruthy();
+
+    const result = res.data.searchUserSuggestions;
+
+    expect(result.query).toBe('i');
+    expect(result.hits).toHaveLength(2);
+    expect(result.hits).toMatchObject([
+      {
+        id: '1',
+        image: 'https://daily.dev/ido.jpg',
+        subtitle: 'idoshamun',
+        title: 'Ido',
+      },
+      {
+        id: '2',
+        image: 'https://daily.dev/tsahi.jpg',
+        subtitle: 'tsahidaily',
+        title: 'Tsahi',
+      },
+    ]);
+  });
+
+  it('should only return vodr false users', async () => {
+    await con.getRepository(User).update(
+      { id: '3' },
+      {
+        flags: updateFlagsStatement<User>({
+          vordr: true,
+        }),
+      },
+    );
     const res = await client.query(QUERY('i'));
     expect(res.data.searchUserSuggestions).toBeTruthy();
 

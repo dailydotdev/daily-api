@@ -25,6 +25,7 @@ import {
 } from '../common/search';
 import { getOffsetWithDefault } from 'graphql-relay';
 import { Brackets } from 'typeorm';
+import { whereVordrFilter } from '../common/vordr';
 
 type GQLSearchSession = Pick<SearchSession, 'id' | 'prompt' | 'createdAt'>;
 
@@ -436,6 +437,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               });
           }),
         )
+        .andWhere(whereVordrFilter('u'))
         .limit(getSearchLimit({ limit }));
       const hits = await searchQuery.getRawMany();
 
