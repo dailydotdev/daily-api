@@ -1144,26 +1144,54 @@ describe('query sourceFeed', () => {
   });
 
   describe('vordr', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, ArticlePost, [
+        {
+          id: 'vordr1',
+          shortId: 'svordr1',
+          title: 'vordr1',
+          url: 'http://vordr1.com',
+          image: 'https://daily.dev/image.jpg',
+          score: 10,
+          sourceId: 'b',
+          createdAt: new Date(new Date().getTime() - 4000),
+          tagsStr: 'html,javascript',
+          type: PostType.Article,
+          contentCuration: ['c1', 'c2'],
+          authorId: '2',
+          flags: { vordr: true },
+        },
+        {
+          id: 'vordr2',
+          shortId: 'svordr2',
+          title: 'vordr2',
+          url: 'http://vordr2.com',
+          image: 'https://daily.dev/image.jpg',
+          score: 10,
+          sourceId: 'b',
+          createdAt: new Date(new Date().getTime() - 4000),
+          tagsStr: 'html,javascript',
+          type: PostType.Article,
+          contentCuration: ['c1', 'c2'],
+          authorId: '2',
+          flags: { vordr: true },
+        },
+      ]);
+    });
     it('should filter out posts that vordr has prevented', async () => {
       loggedUser = '1';
-      await con
-        .getRepository(ArticlePost)
-        .update({ id: 'p5' }, { authorId: '2', flags: { vordr: true } });
-
-      const res = await client.query(QUERY('b'));
-
-      expect(res.data.sourceFeed.edges.length).toBe(1);
-    });
-
-    it('should not filter out posts that vordr has prevented when author is viewer', async () => {
-      loggedUser = '2';
-      await con
-        .getRepository(ArticlePost)
-        .update({ id: 'p5' }, { authorId: '2', flags: { vordr: true } });
 
       const res = await client.query(QUERY('b'));
 
       expect(res.data.sourceFeed.edges.length).toBe(2);
+    });
+
+    it('should not filter out posts that vordr has prevented when author is viewer', async () => {
+      loggedUser = '2';
+
+      const res = await client.query(QUERY('b'));
+
+      expect(res.data.sourceFeed.edges.length).toBe(4);
     });
   });
 });
