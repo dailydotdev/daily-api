@@ -3,7 +3,11 @@ import worker from '../../src/workers/userCreatedCio';
 import { ChangeObject } from '../../src/types';
 import { expectSuccessfulTypedBackground } from '../helpers';
 import { User } from '../../src/entity';
-import { getShortGenericInviteLink, PubSubSchema } from '../../src/common';
+import {
+  getShortGenericInviteLink,
+  ghostUser,
+  PubSubSchema,
+} from '../../src/common';
 import { cio } from '../../src/cio';
 import { typedWorkers } from '../../src/workers';
 import mocked = jest.mocked;
@@ -83,7 +87,7 @@ describe('userCreatedCio', () => {
   });
 
   it('should not update customer.io if user is ghost user', async () => {
-    const before: ChangeObject<ObjectType> = { ...base, id: '404' };
+    const before: ChangeObject<ObjectType> = { ...base, id: ghostUser.id };
     await expectSuccessfulTypedBackground(worker, {
       user: before,
     } as unknown as PubSubSchema['api.v1.user-created']);

@@ -5,6 +5,7 @@ import { CommentMention, PostMention, User } from '../entity';
 import { DataSource, EntityManager } from 'typeorm';
 import { MentionedUser } from '../schema/comments';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
+import { ghostUser } from './utils';
 
 export const markdown: MarkdownIt = MarkdownIt({
   html: false,
@@ -23,7 +24,7 @@ export const markdown: MarkdownIt = MarkdownIt({
 });
 
 export const getMentionLink = ({ id, username }: MarkdownMention): string => {
-  const href = getUserProfileUrl(username || '404');
+  const href = getUserProfileUrl(username || ghostUser.id);
 
   return `<a href="${href}" data-mention-id="${id}" data-mention-username="${username}">@${username}</a>`;
 };

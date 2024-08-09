@@ -14,7 +14,12 @@ import { GQLEmptyResponse, meiliOffsetGenerator } from './common';
 import { Connection as ConnectionRelay } from 'graphql-relay/connection/connection';
 import graphorm from '../graphorm';
 import { ConnectionArguments } from 'graphql-relay/index';
-import { FeedArgs, feedResolver, fixedIdsFeedBuilder } from '../common';
+import {
+  FeedArgs,
+  feedResolver,
+  fixedIdsFeedBuilder,
+  ghostUser,
+} from '../common';
 import { GQLPost } from './posts';
 import { MeiliPagination, searchMeili } from '../integrations/meilisearch';
 import { Keyword, Post, Source, UserPost } from '../entity';
@@ -425,7 +430,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .select(`id, name as title, username as subtitle, image`)
         .from('user', 'u')
         .where('u.infoConfirmed = TRUE')
-        .andWhere("u.id != '404'")
+        .andWhere(`u.id != :ghostId`, { ghostId: ghostUser.id })
         .andWhere(
           new Brackets((qb) => {
             return qb
