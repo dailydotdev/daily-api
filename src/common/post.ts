@@ -195,7 +195,10 @@ export const createFreeformPost = async (
 
   if (vordrStatus === true) {
     createdPost.banned = true;
+    createdPost.flags.banned = true;
+
     createdPost.showOnFeed = false;
+    createdPost.flags.showOnFeed = false;
   }
 
   createdPost.flags.vordr = vordrStatus;
