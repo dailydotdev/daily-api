@@ -1474,7 +1474,7 @@ describe('mutation editComment', () => {
   });
 
   describe('vordr', () => {
-    it('should set correct vordr flags on good user', async () => {
+    it('should set correct vordr flags on edited comment by good user', async () => {
       loggedUser = '1';
 
       const res = await client.mutate(MUTATION, {
