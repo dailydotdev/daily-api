@@ -106,7 +106,6 @@ beforeEach(async () => {
   await saveFixtures(con, ArticlePost, postsFixture);
   await saveFixtures(con, YouTubePost, videoPostsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
-  // await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, User, badUsersFixture);
   await con
     .getRepository(User)

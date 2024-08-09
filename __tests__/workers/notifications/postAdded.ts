@@ -9,11 +9,6 @@ import { invokeNotificationWorker, saveFixtures } from '../../helpers';
 
 let con: DataSource;
 
-// jest.mock('../../src/common', () => ({
-//   ...jest.requireActual<Record<string, unknown>>('../../src/common'),
-//   notifyNewVordrComment: jest.fn(),
-// }));
-
 beforeAll(async () => {
   con = await createOrGetConnection();
 });
