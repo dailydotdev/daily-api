@@ -3174,7 +3174,7 @@ describe('mutation createFreeformPost', () => {
   });
 
   describe('vordr', () => {
-    it('should set the correct vordr flags on a good user', async () => {
+    it('should set the correct vordr flags on a freeform post by a good user', async () => {
       loggedUser = '1';
 
       const content = '# Updated content';
@@ -3190,7 +3190,7 @@ describe('mutation createFreeformPost', () => {
       expect(post.flags.vordr).toEqual(false);
     });
 
-    it('should set the correct vordr flags on a good user if vordr filter catches it', async () => {
+    it('should set the correct vordr flags on a freeform post by good user if vordr filter catches it', async () => {
       loggedUser = '1';
 
       const content = '# Updated content VordrWillCatchYou';
@@ -3206,7 +3206,7 @@ describe('mutation createFreeformPost', () => {
       expect(post.flags.vordr).toEqual(true);
     });
 
-    it('should set the correct vordr flags on a bad user', async () => {
+    it('should set the correct vordr flags on a freeform post by bad user', async () => {
       loggedUser = 'vordr';
 
       const content = '# Updated content';
