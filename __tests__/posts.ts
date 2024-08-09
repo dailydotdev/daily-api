@@ -2606,7 +2606,7 @@ describe('mutation submitExternalLink', () => {
           name: UNKNOWN_SOURCE,
         });
       });
-      it('should set the correct vordr flags on a good user', async () => {
+      it('should set the correct vordr flags on new post by a good user', async () => {
         loggedUser = '1';
 
         const res = await client.mutate(MUTATION, {
@@ -2621,7 +2621,7 @@ describe('mutation submitExternalLink', () => {
         expect(post.flags.vordr).toEqual(false);
       });
 
-      it('should set the correct vordr flags on a bad user', async () => {
+      it('should set the correct vordr flags on new post by a bad user', async () => {
         loggedUser = 'vordr';
 
         await con.getRepository(SourceMember).save({
@@ -2652,7 +2652,7 @@ describe('mutation submitExternalLink', () => {
           name: UNKNOWN_SOURCE,
         });
       });
-      it('should set the correct vordr flags on a good user', async () => {
+      it('should set the correct vordr flags on existing post by good user', async () => {
         loggedUser = '1';
 
         const res = await client.mutate(MUTATION, {
@@ -2667,7 +2667,7 @@ describe('mutation submitExternalLink', () => {
         expect(post.flags.vordr).toEqual(false);
       });
 
-      it('should set the correct vordr flags on a bad user', async () => {
+      it('should set the correct vordr flags on existing post by bad user', async () => {
         loggedUser = 'vordr';
 
         await con.getRepository(SourceMember).save({
