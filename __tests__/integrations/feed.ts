@@ -179,6 +179,13 @@ describe('FeedPreferencesConfigGenerator', () => {
         defaultEnabledState: true,
         options: { type: PostType.Article },
       },
+      {
+        title: 'News',
+        group: 'content_curation',
+        description: '',
+        defaultEnabledState: true,
+        options: { type: 'news' },
+      },
     ]);
     await con.getRepository(FeedAdvancedSettings).save([
       { feedId: '1', advancedSettingsId: 1, enabled: false },
@@ -216,6 +223,44 @@ describe('FeedPreferencesConfigGenerator', () => {
         offset: 3,
         page_size: 2,
         squad_ids: expect.arrayContaining(['a', 'b']),
+        total_pages: 20,
+        user_id: '1',
+      },
+    });
+  });
+
+  it('should generate feed config with blocked content curation', async () => {
+    await con
+      .getRepository(FeedAdvancedSettings)
+      .save([{ feedId: '1', advancedSettingsId: 3, enabled: false }]);
+    const generator: FeedConfigGenerator = new FeedPreferencesConfigGenerator(
+      config,
+      {
+        includeBlockedContentCuration: true,
+      },
+    );
+
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 2,
+      offset: 3,
+    });
+    expect(actual).toEqual({
+      config: {
+        allowed_content_curations: [
+          'release',
+          'opinion',
+          'listicle',
+          'comparison',
+          'tutorial',
+          'story',
+          'meme',
+        ],
+        blocked_content_curations: ['news'],
+        feed_config_name: FeedConfigName.Personalise,
+        fresh_page_size: '1',
+        offset: 3,
+        page_size: 2,
         total_pages: 20,
         user_id: '1',
       },

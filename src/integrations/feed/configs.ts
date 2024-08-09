@@ -23,6 +23,16 @@ type Options = {
 };
 
 type BaseConfig = Partial<Omit<FeedConfig, 'user_id' | 'page_size' | 'offset'>>;
+const AllowedContentCurationTypes = [
+  'news',
+  'release',
+  'opinion',
+  'listicle',
+  'comparison',
+  'tutorial',
+  'story',
+  'meme',
+] as const;
 
 function getDefaultConfig(
   baseConfig: BaseConfig,
@@ -88,6 +98,9 @@ const addFiltersToConfig = ({
     opts.includeBlockedContentCuration
   ) {
     baseConfig.blocked_content_curations = filters.blockedContentCuration;
+    baseConfig.allowed_content_curations = AllowedContentCurationTypes.filter(
+      (type) => !filters.blockedContentCuration.includes(type),
+    );
   }
 
   return baseConfig;
