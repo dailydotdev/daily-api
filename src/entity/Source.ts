@@ -3,6 +3,7 @@ import {
   Column,
   Entity,
   Index,
+  ManyToOne,
   OneToMany,
   PrimaryColumn,
   TableInheritance,
@@ -11,6 +12,7 @@ import { SourceDisplay } from './SourceDisplay';
 import { SourceFeed } from './SourceFeed';
 import { Post } from './posts';
 import { SourceMember } from './SourceMember';
+import { SourceCategory } from './sources/SourceCategory';
 
 export const COMMUNITY_PICKS_SOURCE = 'community';
 
@@ -108,6 +110,12 @@ export class Source {
   @Column({ type: 'jsonb', default: {} })
   @Index('IDX_source_flags_featured', { synchronize: false })
   flags: SourceFlagsPublic;
+
+  @Column({ type: 'text', nullable: true, default: null })
+  categoryId?: string;
+
+  @ManyToOne(() => SourceCategory, (category) => category.id, { lazy: true })
+  category: Promise<SourceCategory>;
 
   @OneToMany(() => SourceDisplay, (display) => display.source, { lazy: true })
   displays: Promise<SourceDisplay[]>;

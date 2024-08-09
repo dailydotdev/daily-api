@@ -67,6 +67,15 @@ import { PopularSource } from '../entity/PopularSource';
 import { PopularVideoSource } from '../entity/PopularVideoSource';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { traceResolvers } from './trace';
+import { SourceCategory } from '../entity/sources/SourceCategory';
+
+export interface GQLSourceCategory {
+  id: string;
+  value: string;
+  enabled: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export interface GQLSource {
   id: string;
@@ -114,6 +123,14 @@ export const typeDefs = /* GraphQL */ `
     totalViews: Int
     totalPosts: Int
     totalUpvotes: Int
+  }
+
+  type SourceCategory {
+    id: ID!
+    value: String!
+    enabled: Boolean!
+    createdAt: DateTime!
+    updatedAt: DateTime
   }
 
   """
@@ -219,6 +236,11 @@ export const typeDefs = /* GraphQL */ `
     URL for inviting and referring new users
     """
     referralUrl: String
+
+    """
+    Category that the source/squad belongs to
+    """
+    category: SourceCategory
   }
 
   type SourceConnection {
@@ -325,6 +347,11 @@ export const typeDefs = /* GraphQL */ `
       Add filter for featured sources
       """
       featured: Boolean
+
+      """
+      Filter by category
+      """
+      categoryId: String
     ): SourceConnection!
 
     """
@@ -511,6 +538,11 @@ export const typeDefs = /* GraphQL */ `
     Check if source handle already exists
     """
     sourceHandleExists(handle: String!): Boolean! @auth
+
+    """
+    Fetch all source categories
+    """
+    sourceCategories: [SourceCategory]!
   }
 
   extend type Mutation {
@@ -1027,6 +1059,7 @@ export const getPermissionsForMember = (
 
 interface SourcesArgs extends ConnectionArguments {
   filterOpenSquads?: boolean;
+  categoryId?: string;
   featured?: boolean;
 }
 
@@ -1136,6 +1169,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   BaseContext
 >({
   Query: {
+    sourceCategories: async (
+      _,
+      __,
+      ctx: Context,
+    ): Promise<GQLSourceCategory[]> =>
+      ctx.con.getRepository(SourceCategory).find(),
     sources: async (
       _,
       args: SourcesArgs,
@@ -1147,6 +1186,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       if (args.filterOpenSquads) {
         filter.type = SourceType.Squad;
         filter.private = false;
+      }
+
+      if (args.categoryId) {
+        filter.categoryId = args.categoryId;
       }
 
       const page = sourcePageGenerator.connArgsToPage(args);
