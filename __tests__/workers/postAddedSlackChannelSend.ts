@@ -148,8 +148,8 @@ describe('postAddedSlackChannelSend worker', () => {
       channel: '1',
       attachments: [
         {
-          author_icon: 'https://app.daily.dev/apple-touch-icon.png',
-          author_name: 'daily.dev',
+          author_icon: 'http://image.com/a',
+          author_name: 'A | daily.dev',
           image_url: 'https://daily.dev/image.jpg',
           title: 'P1',
           title_link:
@@ -191,8 +191,8 @@ describe('postAddedSlackChannelSend worker', () => {
       channel: '1',
       attachments: [
         {
-          author_icon: 'https://app.daily.dev/apple-touch-icon.png',
-          author_name: 'daily.dev',
+          author_icon: 'http//image.com/squadslackchannel',
+          author_name: 'Squad Slack Channel | daily.dev',
           image_url: 'https://daily.dev/image.jpg',
           title: 'Squad Channel Post 1',
           title_link:
@@ -242,8 +242,8 @@ describe('postAddedSlackChannelSend worker', () => {
       channel: '1',
       attachments: [
         {
-          author_icon: 'https://app.daily.dev/apple-touch-icon.png',
-          author_name: 'daily.dev',
+          author_icon: 'http//image.com/squadslackchannel',
+          author_name: 'Squad Slack Channel | daily.dev',
           image_url: 'https://daily.dev/image.jpg',
           title: 'Squad Channel Post 1',
           title_link:
@@ -309,8 +309,8 @@ describe('postAddedSlackChannelSend worker', () => {
       channel: '1',
       attachments: [
         {
-          author_icon: 'https://app.daily.dev/apple-touch-icon.png',
-          author_name: 'daily.dev',
+          author_icon: 'http//image.com/squadslackchannel',
+          author_name: 'Squad Slack Channel | daily.dev',
           image_url: 'https://daily.dev/image.jpg',
           title: 'Squad Channel Post 1',
           title_link:
