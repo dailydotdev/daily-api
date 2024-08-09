@@ -18,7 +18,7 @@ type Options = {
   includeBlockedSources?: boolean;
   includeSourceMemberships?: boolean;
   includePostTypes?: boolean;
-  includeBlockedContentCuration?: boolean;
+  includeContentCuration?: boolean;
   feedId?: string;
 };
 
@@ -93,10 +93,7 @@ const addFiltersToConfig = ({
       baseConfig.allowed_post_types || postTypes
     ).filter((x) => !filters.excludeTypes.includes(x));
   }
-  if (
-    filters.blockedContentCuration?.length &&
-    opts.includeBlockedContentCuration
-  ) {
+  if (filters.blockedContentCuration?.length && opts.includeContentCuration) {
     baseConfig.blocked_content_curations = filters.blockedContentCuration;
     baseConfig.allowed_content_curations = AllowedContentCurationTypes.filter(
       (type) => !filters.blockedContentCuration.includes(type),

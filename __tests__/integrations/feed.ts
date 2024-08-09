@@ -236,7 +236,7 @@ describe('FeedPreferencesConfigGenerator', () => {
     const generator: FeedConfigGenerator = new FeedPreferencesConfigGenerator(
       config,
       {
-        includeBlockedContentCuration: true,
+        includeContentCuration: true,
       },
     );
 
