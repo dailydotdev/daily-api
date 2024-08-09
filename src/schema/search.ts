@@ -24,6 +24,8 @@ import {
   getSearchLimit,
 } from '../common/search';
 import { getOffsetWithDefault } from 'graphql-relay';
+import { Brackets } from 'typeorm';
+import { whereVordrFilter } from '../common/vordr';
 
 type GQLSearchSession = Pick<SearchSession, 'id' | 'prompt' | 'createdAt'>;
 
@@ -211,6 +213,26 @@ export const typeDefs = /* GraphQL */ `
       """
       version: Int = 2
     ): SearchSuggestionsResults!
+
+    """
+    Get users for search users query
+    """
+    searchUserSuggestions(
+      """
+      The query to search for
+      """
+      query: String!
+
+      """
+      Maximum number of users to return
+      """
+      limit: Int = ${defaultSearchLimit}
+
+      """
+      Version of the search algorithm
+      """
+      version: Int = 2
+    ): SearchSuggestionsResults!
   }
 
   extend type Mutation {
@@ -385,6 +407,37 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .andWhere(`name ILIKE :query`, {
           query: `%${query}%`,
         })
+        .limit(getSearchLimit({ limit }));
+      const hits = await searchQuery.getRawMany();
+
+      return {
+        query,
+        hits,
+      };
+    },
+    searchUserSuggestions: async (
+      source,
+      { query, limit }: SearchSuggestionArgs,
+      ctx,
+    ): Promise<GQLSearchSuggestionsResults> => {
+      const searchQuery = ctx.con
+        .createQueryBuilder()
+        .select(`id, name as title, username as subtitle, image`)
+        .from('user', 'u')
+        .where('u.infoConfirmed = TRUE')
+        .andWhere("u.id != '404'")
+        .andWhere(
+          new Brackets((qb) => {
+            return qb
+              .where(`name ILIKE :query`, {
+                query: `%${query}%`,
+              })
+              .orWhere(`username ILIKE :query`, {
+                query: `%${query}%`,
+              });
+          }),
+        )
+        .andWhere(whereVordrFilter('u'))
         .limit(getSearchLimit({ limit }));
       const hits = await searchQuery.getRawMany();
 
