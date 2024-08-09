@@ -14,6 +14,10 @@ export enum SubmissionStatus {
   Rejected = 'REJECTED',
 }
 
+export type SubmissionFlags = Partial<{
+  vordr: boolean;
+}>;
+
 @Entity()
 export class Submission {
   @PrimaryGeneratedColumn('uuid')
@@ -34,6 +38,9 @@ export class Submission {
 
   @Column({ type: 'text' })
   reason: SubmissionFailErrorKeys;
+
+  @Column({ type: 'jsonb', default: {} })
+  flags: SubmissionFlags;
 
   @ManyToOne(() => User, {
     lazy: true,

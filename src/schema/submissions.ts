@@ -6,6 +6,7 @@ import { AuthContext, BaseContext, Context } from '../Context';
 import { isValidHttpUrl, standardizeURL } from '../common';
 import { getPostByUrl, GQLPost } from './posts';
 import { SubmissionFailErrorMessage } from '../errors';
+import { checkWithVordr } from '../common/vordr';
 
 interface GQLArticleSubmission {
   url: string;
@@ -199,10 +200,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         };
       }
 
-      const submission = await submissionRepo.save({
+      const createdSubmission = submissionRepo.create({
         url: cleanUrl,
         userId: ctx.userId,
       });
+
+      createdSubmission.flags = {
+        vordr: await checkWithVordr({ submission: createdSubmission }, ctx),
+      };
+
+      const submission = await submissionRepo.save(createdSubmission);
 
       return { result: 'succeed', submission };
     },

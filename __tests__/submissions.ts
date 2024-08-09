@@ -21,6 +21,7 @@ import { SubmissionFailErrorMessage } from '../src/errors';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz';
+import { badUsersFixture, usersFixture } from './fixture';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -37,12 +38,16 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   loggedUser = null;
-  await con.getRepository(User).save({
-    id: '1',
-    name: 'Lee',
-    image: 'https://daily.dev/lee.jpg',
-    reputation: 250,
-  });
+  await saveFixtures(
+    con,
+    User,
+    usersFixture.map((u) => ({ ...u, reputation: 250 })),
+  );
+  await saveFixtures(
+    con,
+    User,
+    badUsersFixture.map((u) => ({ ...u, reputation: 250 })),
+  );
 });
 
 afterAll(() => disposeGraphQLTesting(state));
@@ -325,6 +330,36 @@ describe('mutation submitArticle', () => {
           id: expect.any(String),
         },
       },
+    });
+  });
+
+  describe('vordr', () => {
+    it('should set the correct vordr flags if the submission is from a good user', async () => {
+      loggedUser = '1';
+      const request = 'https://daily.dev/amazing/article';
+      const res = await client.mutate(MUTATION, {
+        variables: { url: request },
+      });
+      expect(res.errors).toBeFalsy();
+      const submission = await con
+        .getRepository(Submission)
+        .findOneByOrFail({ url: request });
+      expect(submission.status).toEqual(SubmissionStatus.Started);
+      expect(submission.flags.vordr).toEqual(false);
+    });
+
+    it('should set the correct vordr flags if the submission is from a bad user', async () => {
+      loggedUser = 'vordr';
+      const request = 'https://daily.dev/amazing/article';
+      const res = await client.mutate(MUTATION, {
+        variables: { url: request },
+      });
+      expect(res.errors).toBeFalsy();
+      const submission = await con
+        .getRepository(Submission)
+        .findOneByOrFail({ url: request });
+      expect(submission.status).toEqual(SubmissionStatus.Started);
+      expect(submission.flags.vordr).toEqual(true);
     });
   });
 });

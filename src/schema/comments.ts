@@ -791,7 +791,7 @@ export const resolvers: IResolvers<any, BaseContext> = {
           });
 
           createdComment.flags = {
-            vordr: await checkWithVordr(createdComment, ctx),
+            vordr: await checkWithVordr({ comment: createdComment }, ctx),
           };
 
           return saveNewComment(entityManager, createdComment, squadId);
@@ -838,7 +838,7 @@ export const resolvers: IResolvers<any, BaseContext> = {
           });
 
           createdComment.flags = {
-            vordr: await checkWithVordr(createdComment, ctx),
+            vordr: await checkWithVordr({ comment: createdComment }, ctx),
           };
 
           return saveNewComment(entityManager, createdComment, squadId);
@@ -876,6 +876,8 @@ export const resolvers: IResolvers<any, BaseContext> = {
           source.type === SourceType.Squad ? source.id : undefined;
         comment.content = content;
         comment.lastUpdatedAt = new Date();
+        comment.flags.vordr = await checkWithVordr({ comment }, ctx);
+
         await saveComment(entityManager, comment, squadId);
       });
       return getCommentById(id, ctx, info);

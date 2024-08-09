@@ -4,7 +4,7 @@ import {
   SourceMember,
   UserPost,
 } from '../entity';
-import { DataSource, SelectQueryBuilder } from 'typeorm';
+import { Brackets, DataSource, SelectQueryBuilder } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import { IFieldResolver } from '@graphql-tools/utils';
 import {
@@ -27,6 +27,7 @@ import {
 import graphorm from '../graphorm';
 import { mapArrayToOjbect } from './object';
 import { runInSpan } from '../telemetry';
+import { whereVordrFilter } from './vordr';
 
 export const WATERCOOLER_ID = 'fd062672-63b7-4a10-87bd-96dcd10e9613';
 
@@ -538,6 +539,16 @@ export const sourceFeedBuilder = (
 
   if (sourceId === 'community') {
     builder.andWhere(`${alias}.banned = false`);
+  } else {
+    builder.andWhere(
+      new Brackets((qb) => {
+        return qb
+          .where(`${alias}.authorId = :userId OR ${alias}.scoutId = :userId`, {
+            userId: ctx.userId,
+          })
+          .orWhere(whereVordrFilter(alias));
+      }),
+    );
   }
 
   return builder;

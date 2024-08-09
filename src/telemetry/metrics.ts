@@ -58,9 +58,10 @@ const counterMap = {
       name: 'cio_events',
       description: 'How many customerio events were sent to analytics',
     },
-    preventComment: {
-      name: 'prevented_comments',
-      description: 'How many comments were prevented from being posted',
+    vordr: {
+      name: 'vordr',
+      description:
+        'How many posts or comments were prevented from being posted',
     },
   },
   background: {

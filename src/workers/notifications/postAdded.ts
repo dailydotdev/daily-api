@@ -42,6 +42,10 @@ const worker: NotificationWorker = {
       return;
     }
 
+    if (post.flags?.vordr) {
+      return;
+    }
+
     const notifs: NotificationHandlerReturn = [];
     // community_picks_succeeded notification
     if (post.scoutId) {
