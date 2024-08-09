@@ -978,7 +978,7 @@ describe('mutation commentOnPost', () => {
       expect(comment.flags).toEqual({ vordr: false });
     });
 
-    it('should set correct vordr flags on good user if vordr filter catches it', async () => {
+    it('should set correct vordr flags on comment by good user if vordr filter catches it', async () => {
       loggedUser = '1';
 
       const res = await client.mutate(MUTATION, {
@@ -994,7 +994,7 @@ describe('mutation commentOnPost', () => {
       expect(comment.flags).toEqual({ vordr: true });
     });
 
-    it('should set correct vordr flags on bad user', async () => {
+    it('should set correct vordr flags on comment by bad user', async () => {
       loggedUser = 'vordr';
 
       const res = await client.mutate(MUTATION, {
@@ -1208,7 +1208,7 @@ describe('mutation commentOnComment', () => {
   });
 
   describe('vordr', () => {
-    it('should set correct vordr flags on good user', async () => {
+    it('should set correct vordr flags on comment reply by good user', async () => {
       loggedUser = '1';
 
       const res = await client.mutate(MUTATION, {
@@ -1224,7 +1224,7 @@ describe('mutation commentOnComment', () => {
       expect(comment.flags).toEqual({ vordr: false });
     });
 
-    it('should set correct vordr flags on good user if vordr filter catches it', async () => {
+    it('should set correct vordr flags on comment reply by good user if vordr filter catches it', async () => {
       loggedUser = '1';
 
       const res = await client.mutate(MUTATION, {
@@ -1240,7 +1240,7 @@ describe('mutation commentOnComment', () => {
       expect(comment.flags).toEqual({ vordr: true });
     });
 
-    it('should set correct vordr flags on bad user', async () => {
+    it('should set correct vordr flags on comment reply by bad user', async () => {
       loggedUser = 'vordr';
 
       const res = await client.mutate(MUTATION, {
@@ -1490,7 +1490,7 @@ describe('mutation editComment', () => {
       expect(comment.flags).toEqual({ vordr: false });
     });
 
-    it('should set correct vordr flags on good user if vordr filter catches it', async () => {
+    it('should set correct vordr flags on edited comment by good user if vordr filter catches it', async () => {
       loggedUser = '1';
 
       const res = await client.mutate(MUTATION, {
