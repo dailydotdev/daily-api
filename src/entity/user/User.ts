@@ -59,6 +59,8 @@ export type UserFlags = Partial<{
 @Index('IDX_user_lowerusername_username', { synchronize: false })
 @Index('IDX_user_lowertwitter', { synchronize: false })
 @Index('IDX_user_loweremail', { synchronize: false })
+@Index('IDX_user_gin_username', { synchronize: false })
+@Index('IDX_user_gin_name', { synchronize: false })
 export class User {
   @PrimaryColumn({ length: 36 })
   id: string;
