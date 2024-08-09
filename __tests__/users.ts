@@ -58,6 +58,7 @@ import {
   stackoverflowSocialUrlMatch,
   threadsSocialUrlMatch,
   twitterSocialUrlMatch,
+  ghostUser,
 } from '../src/common';
 import { DataSource, In, IsNull } from 'typeorm';
 import createOrGetConnection from '../src/db';
@@ -2536,15 +2537,7 @@ describe('mutation deleteUser', () => {
   it('should delete user from database', async () => {
     loggedUser = '1';
 
-    await con.getRepository(User).save([
-      {
-        id: '404',
-        name: 'Not found',
-        image: 'https://daily.dev/404.jpg',
-        timezone: 'utc',
-        createdAt: new Date(),
-      },
-    ]);
+    await con.getRepository(User).save([ghostUser]);
 
     await client.mutate(MUTATION);
 
@@ -2558,15 +2551,7 @@ describe('mutation deleteUser', () => {
   it('should delete author ID from post', async () => {
     loggedUser = '1';
 
-    await con.getRepository(User).save([
-      {
-        id: '404',
-        name: 'Not found',
-        image: 'https://daily.dev/404.jpg',
-        timezone: 'utc',
-        createdAt: new Date(),
-      },
-    ]);
+    await con.getRepository(User).save([ghostUser]);
 
     await client.mutate(MUTATION);
 
@@ -2577,15 +2562,7 @@ describe('mutation deleteUser', () => {
   it('should delete scout ID from post', async () => {
     loggedUser = '1';
 
-    await con.getRepository(User).save([
-      {
-        id: '404',
-        name: 'Not found',
-        image: 'https://daily.dev/404.jpg',
-        timezone: 'utc',
-        createdAt: new Date(),
-      },
-    ]);
+    await con.getRepository(User).save([ghostUser]);
 
     await client.mutate(MUTATION);
 
@@ -2615,15 +2592,7 @@ describe('DELETE /v1/users/me', () => {
   const BASE_PATH = '/v1/users/me';
 
   beforeEach(async () => {
-    await con.getRepository(User).save([
-      {
-        id: '404',
-        name: 'Not found',
-        image: 'https://daily.dev/404.jpg',
-        timezone: 'utc',
-        createdAt: new Date(),
-      },
-    ]);
+    await con.getRepository(User).save([ghostUser]);
   });
 
   it('should not authorize when not logged in', async () => {

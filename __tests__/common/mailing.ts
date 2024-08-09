@@ -4,7 +4,11 @@ import { saveFixtures } from '../helpers';
 import createOrGetConnection from '../../src/db';
 import { User } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
-import { CioUnsubscribeTopic, syncSubscription } from '../../src/common';
+import {
+  CioUnsubscribeTopic,
+  ghostUser,
+  syncSubscription,
+} from '../../src/common';
 
 let con: DataSource;
 
@@ -48,7 +52,7 @@ describe('mailing', () => {
 
       const users = await con.getRepository(User).find({
         where: {
-          id: Not('404'),
+          id: Not(ghostUser.id),
         },
       });
 
