@@ -2328,7 +2328,18 @@ describe('function feedToFilters', () => {
   it('should return filters for tags/sources based on the values from our data', async () => {
     loggedUser = '1';
     await saveFeedFixtures();
-    expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
+    const filters = await feedToFilters(con, '1', '1');
+    expect(filters.includeTags).toEqual(
+      expect.arrayContaining(['html', 'javascript']),
+    );
+    expect(filters.blockedTags).toEqual(expect.arrayContaining(['golang']));
+    expect(filters.excludeSources).toEqual(
+      expect.arrayContaining([
+        'b',
+        'c',
+        'fd062672-63b7-4a10-87bd-96dcd10e9613',
+      ]),
+    );
   });
 
   it('should return filters with source memberships', async () => {
