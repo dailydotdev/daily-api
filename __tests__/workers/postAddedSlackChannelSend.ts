@@ -156,7 +156,7 @@ describe('postAddedSlackChannelSend worker', () => {
             'http://localhost:5002/posts/p1?utm_source=notification&utm_medium=slack&utm_campaign=new_post',
         },
       ],
-      text: 'New post on "A" source. <http://localhost:5002/posts/p1?utm_source=notification&utm_medium=slack&utm_campaign=new_post|http://localhost:5002/posts/p1>',
+      text: 'New post: <http://localhost:5002/posts/p1?utm_source=notification&utm_medium=slack&utm_campaign=new_post|http://localhost:5002/posts/p1>',
       unfurl_links: false,
     });
   });
@@ -196,10 +196,10 @@ describe('postAddedSlackChannelSend worker', () => {
           image_url: 'https://daily.dev/image.jpg',
           title: 'Squad Channel Post 1',
           title_link:
-            'http://localhost:5002/posts/squadslackchannelp1?jt=squadslackchanneltoken1&source=squadslackchannel&type=squad&utm_source=notification&utm_medium=slack&utm_campaign=new_post',
+            'http://localhost:5002/posts/squadslackchannelp1?utm_source=notification&utm_medium=slack&utm_campaign=new_post&jt=squadslackchanneltoken1&source=squadslackchannel&type=squad',
         },
       ],
-      text: 'New post on "Squad Slack Channel" Squad. <http://localhost:5002/posts/squadslackchannelp1?jt=squadslackchanneltoken1&source=squadslackchannel&type=squad&utm_source=notification&utm_medium=slack&utm_campaign=new_post|http://localhost:5002/posts/squadslackchannelp1>',
+      text: 'New post: <http://localhost:5002/posts/squadslackchannelp1?utm_source=notification&utm_medium=slack&utm_campaign=new_post&jt=squadslackchanneltoken1&source=squadslackchannel&type=squad|http://localhost:5002/posts/squadslackchannelp1>',
       unfurl_links: false,
     });
   });
@@ -250,7 +250,7 @@ describe('postAddedSlackChannelSend worker', () => {
             'http://localhost:5002/posts/squadslackchannelp1?utm_source=notification&utm_medium=slack&utm_campaign=new_post',
         },
       ],
-      text: 'New post on "Squad Slack Channel" Squad. <http://localhost:5002/posts/squadslackchannelp1?utm_source=notification&utm_medium=slack&utm_campaign=new_post|http://localhost:5002/posts/squadslackchannelp1>',
+      text: 'New post: <http://localhost:5002/posts/squadslackchannelp1?utm_source=notification&utm_medium=slack&utm_campaign=new_post|http://localhost:5002/posts/squadslackchannelp1>',
       unfurl_links: false,
     });
   });
@@ -314,10 +314,10 @@ describe('postAddedSlackChannelSend worker', () => {
           image_url: 'https://daily.dev/image.jpg',
           title: 'Squad Channel Post 1',
           title_link:
-            'http://localhost:5002/posts/squadslackchannelp1?jt=squadslackchanneltoken1&source=squadslackchannel&type=squad&utm_source=notification&utm_medium=slack&utm_campaign=new_post',
+            'http://localhost:5002/posts/squadslackchannelp1?utm_source=notification&utm_medium=slack&utm_campaign=new_post&jt=squadslackchanneltoken1&source=squadslackchannel&type=squad',
         },
       ],
-      text: 'Ido shared a new post on "Squad Slack Channel" Squad. <http://localhost:5002/posts/squadslackchannelp1?jt=squadslackchanneltoken1&source=squadslackchannel&type=squad&utm_source=notification&utm_medium=slack&utm_campaign=new_post|http://localhost:5002/posts/squadslackchannelp1>',
+      text: 'Ido shared a new post: <http://localhost:5002/posts/squadslackchannelp1?utm_source=notification&utm_medium=slack&utm_campaign=new_post&jt=squadslackchanneltoken1&source=squadslackchannel&type=squad|http://localhost:5002/posts/squadslackchannelp1>',
       unfurl_links: false,
     });
   });

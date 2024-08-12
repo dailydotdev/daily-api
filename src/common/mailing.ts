@@ -9,6 +9,7 @@ import { SendEmailRequestOptionalOptions } from 'customerio-node/lib/api/request
 import { SendEmailRequestWithTemplate } from 'customerio-node/dist/lib/api/requests';
 import { DataSource } from 'typeorm';
 import {
+  Source,
   User,
   UserPersonalizedDigest,
   UserPersonalizedDigestType,
@@ -142,4 +143,21 @@ export const sendEmail = async (
     });
     await cioApi.sendEmail(req);
   }
+};
+
+export const addPrivateSourceJoinParams = ({
+  url,
+  source,
+  referralToken,
+}: {
+  url: string;
+  source: Pick<Source, 'handle' | 'type'>;
+  referralToken: string;
+}): string => {
+  const urlObj = new URL(url);
+  urlObj.searchParams.set('jt', referralToken);
+  urlObj.searchParams.set('source', source.handle);
+  urlObj.searchParams.set('type', source.type);
+
+  return urlObj.toString();
 };
