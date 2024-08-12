@@ -16,7 +16,7 @@ import { generateShortId } from '../ids';
 import { GQLPost } from '../schema/posts';
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { HttpError, retryFetchParse } from '../integrations/retry';
-import { checkWithVordr } from './vordr';
+import { checkWithVordr, VordrFilterType } from './vordr';
 import { AuthContext } from '../Context';
 
 export const defaultImage = {
@@ -189,7 +189,11 @@ export const createFreeformPost = async (
   });
 
   const vordrStatus = await checkWithVordr(
-    { post: createdPost },
+    {
+      id: createdPost.id,
+      type: VordrFilterType.Post,
+      content: createdPost.content,
+    },
     { con, userId: ctx.userId, req: ctx.req },
   );
 

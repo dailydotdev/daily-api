@@ -2,7 +2,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { Comment, Post, Source, User } from '../../src/entity';
 import { badUsersFixture, sourcesFixture, usersFixture } from '../fixture';
-import { checkWithVordr } from '../../src/common/vordr';
+import { checkWithVordr, VordrFilterType } from '../../src/common/vordr';
 import { postsFixture } from '../fixture/post';
 import { saveFixtures } from '../helpers';
 
@@ -50,7 +50,11 @@ describe('commmon/vordr', () => {
         .findOneByOrFail({ id: 'c1' });
 
       const result = await checkWithVordr(
-        { comment },
+        {
+          id: comment.id,
+          type: VordrFilterType.Comment,
+          content: comment.content,
+        },
         {
           req: { ip: '127.0.0.1' },
           userId: 'vordr',
@@ -67,7 +71,11 @@ describe('commmon/vordr', () => {
         .findOneByOrFail({ id: 'c1' });
 
       const result = await checkWithVordr(
-        { comment },
+        {
+          id: comment.id,
+          type: VordrFilterType.Comment,
+          content: comment.content,
+        },
         {
           req: { ip: '127.0.0.1' },
           userId: 'low-score',
@@ -84,7 +92,11 @@ describe('commmon/vordr', () => {
         .findOneByOrFail({ id: 'c1' });
 
       const result = await checkWithVordr(
-        { comment },
+        {
+          id: comment.id,
+          type: VordrFilterType.Comment,
+          content: comment.content,
+        },
         {
           req: { ip: '192.0.2.1' },
           userId: '1',
@@ -101,7 +113,11 @@ describe('commmon/vordr', () => {
         .findOneByOrFail({ id: 'c2' });
 
       const result = await checkWithVordr(
-        { comment },
+        {
+          id: comment.id,
+          type: VordrFilterType.Comment,
+          content: comment.content,
+        },
         {
           req: { ip: '127.0.0.1' },
           userId: '1',
@@ -118,7 +134,11 @@ describe('commmon/vordr', () => {
         .findOneByOrFail({ id: 'c1' });
 
       const result = await checkWithVordr(
-        { comment },
+        {
+          id: comment.id,
+          type: VordrFilterType.Comment,
+          content: comment.content,
+        },
         {
           req: { ip: '127.0.0.1' },
           userId: 'low-reputation',
@@ -135,7 +155,11 @@ describe('commmon/vordr', () => {
         .findOneByOrFail({ id: 'c1' });
 
       const result = await checkWithVordr(
-        { comment },
+        {
+          id: comment.id,
+          type: VordrFilterType.Comment,
+          content: comment.content,
+        },
         {
           req: { ip: '127.0.0.1' },
           userId: '1',
@@ -152,7 +176,11 @@ describe('commmon/vordr', () => {
         .findOneByOrFail({ id: 'c1' });
 
       const result = await checkWithVordr(
-        { comment },
+        {
+          id: comment.id,
+          type: VordrFilterType.Comment,
+          content: comment.content,
+        },
         {
           req: { ip: '127.0.0.1' },
           userId: '1',

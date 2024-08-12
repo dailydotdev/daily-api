@@ -24,7 +24,7 @@ import { PostMention } from './PostMention';
 import { PostQuestion } from './PostQuestion';
 import { PostRelation, PostRelationType } from './PostRelation';
 import { CollectionPost } from './CollectionPost';
-import { checkWithVordr } from '../../common/vordr';
+import { checkWithVordr, VordrFilterType } from '../../common/vordr';
 import { AuthContext } from '../../Context';
 
 export type PostStats = {
@@ -342,7 +342,11 @@ export const createSharePost = async (
     });
 
     const vordrStatus = await checkWithVordr(
-      { post: createdPost },
+      {
+        id: createdPost.id,
+        content: createdPost.title,
+        type: VordrFilterType.Post,
+      },
       { con, userId, req: ctx.req },
     );
 
