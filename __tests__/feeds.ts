@@ -2329,6 +2329,9 @@ describe('function feedToFilters', () => {
     loggedUser = '1';
     await saveFeedFixtures();
     const filters = await feedToFilters(con, '1', '1');
+    expect(filters.blockedContentCuration).toEqual([]);
+    expect(filters.excludeTypes).toEqual([]);
+    expect(filters.sourceIds).toEqual([]);
     expect(filters.includeTags).toEqual(
       expect.arrayContaining(['html', 'javascript']),
     );
