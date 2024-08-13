@@ -300,6 +300,37 @@ describe('mutation submitArticle', () => {
     });
   });
 
+  it('should reject if the post exist but not visible', async () => {
+    loggedUser = '1';
+    const request = 'http://p8.com';
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, ArticlePost, [
+      {
+        id: 'pdeleted',
+        shortId: 'spdeleted',
+        title: 'PDeleted',
+        url: request,
+        canonicalUrl: request,
+        score: 0,
+        sourceId: 'a',
+        createdAt: new Date('2021-09-22T07:15:51.247Z'),
+        tagsStr: 'javascript,webdev',
+        visible: false,
+      },
+    ]);
+
+    const res = await client.mutate(MUTATION, { variables: { url: request } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      submitArticle: {
+        result: 'rejected',
+        reason: SubmissionFailErrorMessage.POST_DELETED,
+        post: null,
+        submission: null,
+      },
+    });
+  });
+
   it('should not allow invalid urls', async () => {
     loggedUser = '1';
     const request = 'test/sample/url';

@@ -173,7 +173,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .getRepository(ArticlePost)
         .findOneBy([{ url }, { canonicalUrl: url }]);
       if (existingPost) {
-        if (existingPost.deleted) {
+        if (existingPost.deleted || !existingPost.visible) {
           return {
             result: 'rejected',
             reason: SubmissionFailErrorMessage.POST_DELETED,
