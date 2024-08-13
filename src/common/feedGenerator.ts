@@ -537,19 +537,19 @@ export const sourceFeedBuilder = (
 ): SelectQueryBuilder<Post> => {
   builder.andWhere(`${alias}.sourceId = :sourceId`, { sourceId });
 
-  builder.andWhere(
-    new Brackets((qb) => {
-      qb.where(`${alias}.authorId = :userId OR ${alias}.scoutId = :userId`, {
-        userId: ctx.userId,
-      }).orWhere(whereVordrFilter(alias));
-
-      if (sourceId === 'community') {
-        qb.andWhere(`${alias}.banned = false`);
-      }
-
-      return qb;
-    }),
-  );
+  if (sourceId === 'community') {
+    builder.andWhere(`${alias}.banned = false`);
+  } else {
+    builder.andWhere(
+      new Brackets((qb) => {
+        return qb
+          .where(`${alias}.authorId = :userId OR ${alias}.scoutId = :userId`, {
+            userId: ctx.userId,
+          })
+          .orWhere(whereVordrFilter(alias));
+      }),
+    );
+  }
 
   return builder;
 };
