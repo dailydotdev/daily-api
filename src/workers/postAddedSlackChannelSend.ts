@@ -6,7 +6,7 @@ import {
   getAttachmentForPostType,
   getSlackClient,
 } from '../common/userIntegration';
-import { addNotificationUtm } from '../common';
+import { addNotificationUtm, addPrivateSourceJoinParams } from '../common';
 import { SourceMemberRoles } from '../roles';
 
 const sendQueueConcurrency = 10;
@@ -43,6 +43,11 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
 
         const postLinkPlain = `${process.env.COMMENTS_PREFIX}/posts/${post.id}`;
         const postLinkUrl = new URL(postLinkPlain);
+        let postLink = addNotificationUtm(
+          postLinkUrl.toString(),
+          'slack',
+          'new_post',
+        );
 
         if (source.private && source.type === SourceType.Squad) {
           const admin: Pick<SourceMember, 'referralToken'> = await con
@@ -59,24 +64,20 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
             });
 
           if (admin?.referralToken) {
-            postLinkUrl.searchParams.set('jt', admin.referralToken);
-            postLinkUrl.searchParams.set('source', source.handle);
-            postLinkUrl.searchParams.set('type', source.type);
+            postLink = addPrivateSourceJoinParams({
+              url: postLink,
+              source,
+              referralToken: admin.referralToken,
+            });
           }
         }
 
-        const postLink = addNotificationUtm(
-          postLinkUrl.toString(),
-          'slack',
-          'new_post',
-        );
-
         const author = await post.author;
         const authorName = author?.name || author?.username;
-        let messageText = `New post on "${source.name}" ${sourceTypeName}. <${postLink}|${postLinkPlain}>`;
+        let messageText = `New post: <${postLink}|${postLinkPlain}>`;
 
         if (sourceTypeName === 'Squad' && authorName) {
-          messageText = `${authorName} shared a new post on "${source.name}" ${sourceTypeName}. <${postLink}|${postLinkPlain}>`;
+          messageText = `${authorName} shared a new post: <${postLink}|${postLinkPlain}>`;
         }
 
         const attachment = await getAttachmentForPostType({

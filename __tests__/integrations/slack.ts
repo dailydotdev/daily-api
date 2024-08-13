@@ -12,6 +12,18 @@ import {
   UserIntegrationType,
 } from '../../src/entity/UserIntegration';
 import { SlackEvent } from '../../src/common';
+import {
+  AnalyticsEventName,
+  sendAnalyticsEvent,
+} from '../../src/integrations/analytics';
+
+jest.mock('../../src/integrations/analytics', () => ({
+  ...(jest.requireActual('../../src/integrations/analytics') as Record<
+    string,
+    unknown
+  >),
+  sendAnalyticsEvent: jest.fn(),
+}));
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -159,6 +171,16 @@ describe('GET /integrations/slack/auth/callback', () => {
         slackUserId: 'su1',
       },
     });
+    expect(sendAnalyticsEvent).toHaveBeenCalledTimes(1);
+    expect(sendAnalyticsEvent).toHaveBeenCalledWith([
+      {
+        event_name: AnalyticsEventName.ConfirmAddingWorkspace,
+        user_id: '1',
+        app_platform: 'api',
+        event_timestamp: expect.any(Date),
+        target_id: UserIntegrationType.Slack,
+      },
+    ]);
   });
 
   it('should update integration if it already exists', async () => {
@@ -218,6 +240,16 @@ describe('GET /integrations/slack/auth/callback', () => {
         slackUserId: 'su1',
       },
     });
+    expect(sendAnalyticsEvent).toHaveBeenCalledTimes(1);
+    expect(sendAnalyticsEvent).toHaveBeenCalledWith([
+      {
+        event_name: AnalyticsEventName.ConfirmAddingWorkspace,
+        user_id: '1',
+        app_platform: 'api',
+        event_timestamp: expect.any(Date),
+        target_id: UserIntegrationType.Slack,
+      },
+    ]);
   });
 });
 

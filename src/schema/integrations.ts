@@ -8,6 +8,8 @@ import {
   getSlackIntegrationOrFail,
   GQLUserIntegration,
   toGQLEnum,
+  addNotificationUtm,
+  addPrivateSourceJoinParams,
 } from '../common';
 import { GQLEmptyResponse } from './common';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
@@ -27,13 +29,14 @@ import {
   GQLSource,
   SourcePermissions,
 } from './sources';
-import { SourceType } from '../entity';
+import { SourceMember, SourceType } from '../entity';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import {
   GQLDatePageGeneratorConfig,
   queryPaginatedByDate,
 } from '../common/datePageGenerator';
 import { ConversationsInfoResponse } from '@slack/web-api';
+import { SourceMemberRoles } from '../roles';
 
 export type GQLSlackChannels = {
   id?: string;
@@ -315,25 +318,38 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         SourcePermissions.ConnectSlack,
       );
 
-      const [slackIntegration, existingSourceIntegration] = await Promise.all([
-        ctx.con.getRepository(UserIntegrationSlack).findOneOrFail({
-          where: {
-            id: args.integrationId,
-            userId: ctx.userId,
-          },
-          relations: {
-            user: true,
-          },
-        }),
-        ctx.con.getRepository(UserSourceIntegrationSlack).findOne({
-          where: {
-            sourceId: args.sourceId,
-          },
-          relations: {
-            userIntegration: true,
-          },
-        }),
-      ]);
+      const [slackIntegration, existingSourceIntegration, sourceAdmin] =
+        await Promise.all([
+          ctx.con.getRepository(UserIntegrationSlack).findOneOrFail({
+            where: {
+              id: args.integrationId,
+              userId: ctx.userId,
+            },
+            relations: {
+              user: true,
+            },
+          }),
+          ctx.con.getRepository(UserSourceIntegrationSlack).findOne({
+            where: {
+              sourceId: args.sourceId,
+            },
+            relations: {
+              userIntegration: true,
+            },
+          }),
+          source.private && source.type === SourceType.Squad
+            ? ctx.con.getRepository(SourceMember).findOne({
+                select: ['referralToken'],
+                where: {
+                  sourceId: source.id,
+                  role: SourceMemberRoles.Admin,
+                },
+                order: {
+                  createdAt: 'ASC',
+                },
+              })
+            : null,
+        ]);
       const user = await slackIntegration.user;
       const existingUserIntegration = existingSourceIntegration
         ? await existingSourceIntegration.userIntegration
@@ -400,9 +416,27 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         const sourceTypeName =
           source.type === SourceType.Squad ? 'Squad' : 'source';
 
+        const squadLinkUrl = new URL(
+          `${process.env.COMMENTS_PREFIX}/${sourceTypeName === 'Squad' ? 'squads' : 'sources'}/${source.handle}`,
+        );
+        let squadLink = addNotificationUtm(
+          squadLinkUrl.toString(),
+          'slack',
+          'connected',
+        );
+
+        if (sourceAdmin?.referralToken) {
+          squadLink = addPrivateSourceJoinParams({
+            url: squadLink,
+            source,
+            referralToken: sourceAdmin?.referralToken,
+          });
+        }
+
         await client.chat.postMessage({
           channel: args.channelId,
-          text: `${user.name || user.username} successfully connected "${source.name}" ${sourceTypeName} from daily.dev to this channel. Important updates from this ${sourceTypeName} will be posted here 🙌`,
+          text: `${user.name || user.username} connected the "<${squadLink}|${source.name}>" ${sourceTypeName} to this channel. Important updates from this ${sourceTypeName} will be posted here 🙌`,
+          unfurl_links: false,
         });
       }
 

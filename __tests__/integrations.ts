@@ -278,6 +278,11 @@ describe('slack integration', () => {
 
       expect(res.errors).toBeFalsy();
       expect(slackPostMessage).toHaveBeenCalledTimes(1);
+      expect(slackPostMessage).toHaveBeenCalledWith({
+        channel: '1',
+        text: `Ido connected the \"<http://localhost:5002/squads/squadslack?utm_source=notification&utm_medium=slack&utm_campaign=connected&jt=squadslacktoken1&source=squadslack&type=squad|Squad Slack>\" Squad to this channel. Important updates from this Squad will be posted here 🙌`,
+        unfurl_links: false,
+      });
     });
 
     it('should update channel for source', async () => {
@@ -328,6 +333,11 @@ describe('slack integration', () => {
       });
 
       expect(slackPostMessage).toHaveBeenCalledTimes(2);
+      expect(slackPostMessage).toHaveBeenNthCalledWith(2, {
+        channel: '2',
+        text: `Ido connected the \"<http://localhost:5002/squads/squadslack?utm_source=notification&utm_medium=slack&utm_campaign=connected&jt=squadslacktoken1&source=squadslack&type=squad|Squad Slack>\" Squad to this channel. Important updates from this Squad will be posted here 🙌`,
+        unfurl_links: false,
+      });
     });
 
     it('should not allow connecting source if existing connection is already present', async () => {
