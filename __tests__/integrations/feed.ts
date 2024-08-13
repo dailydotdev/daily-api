@@ -256,7 +256,6 @@ describe('FeedPreferencesConfigGenerator', () => {
           'story',
           'meme',
         ],
-        blocked_content_curations: ['news'],
         feed_config_name: FeedConfigName.Personalise,
         fresh_page_size: '1',
         offset: 3,
