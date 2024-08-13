@@ -20,5 +20,5 @@ export class ReadingStreakActions {
   timestamp: Date;
 
   @Column({ type: 'text' })
-  type: string;
+  type: ReadingStreakActionType;
 }
