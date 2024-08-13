@@ -13,6 +13,10 @@ export type AnalyticsEvent = {
   user_id: string;
 };
 
+export enum AnalyticsEventName {
+  ConfirmAddingWorkspace = 'confirm adding workspace',
+}
+
 export async function sendAnalyticsEvent<T extends AnalyticsEvent>(
   events: T[],
 ): Promise<void> {
