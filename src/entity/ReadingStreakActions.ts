@@ -7,7 +7,7 @@ export enum ReadingStreakActionType {
 
 @Entity()
 export class ReadingStreakActions {
-  @PrimaryColumn({ length: 36, default: '' })
+  @PrimaryColumn({ type: 'text' })
   id: string;
 
   @OneToOne(() => UserStreak, (userStreak) => userStreak.userId, {
