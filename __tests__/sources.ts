@@ -58,53 +58,43 @@ beforeAll(async () => {
 
 const getSourceCategories = () => [
   {
-    id: 'general',
-    value: 'General',
+    title: 'General',
     enabled: true,
   },
   {
-    id: 'web',
-    value: 'Web',
+    title: 'Web',
     enabled: true,
   },
   {
-    id: 'mobile',
-    value: 'Mobile',
+    title: 'Mobile',
     enabled: true,
   },
   {
-    id: 'games',
-    value: 'Games',
+    title: 'Games',
     enabled: true,
   },
   {
-    id: 'devops',
-    value: 'DevOps',
+    title: 'DevOps',
     enabled: true,
   },
   {
-    id: 'cloud',
-    value: 'Cloud',
+    title: 'Cloud',
     enabled: true,
   },
   {
-    id: 'career',
-    value: 'Career',
+    title: 'Career',
     enabled: true,
   },
   {
-    id: 'data',
-    value: 'Data',
+    title: 'Data',
     enabled: true,
   },
   {
-    id: 'fun',
-    value: 'Fun',
+    title: 'Fun',
     enabled: true,
   },
   {
-    id: 'devtools',
-    value: 'DevTools',
+    title: 'DevTools',
     enabled: true,
   },
 ];
@@ -165,17 +155,15 @@ describe('query sourceCategories', () => {
     const res = await client.query(`
       query {
         sourceCategories {
-          id
-          value
+          title
           enabled
-          createdAt
         }
       }
     `);
     expect(res.errors).toBeFalsy();
     const categories = getSourceCategories();
-    expect(res.data.sourceCategories).toMatchSnapshot(
-      Array(categories.length).fill({ createdAt: expect.any(String) }),
+    expect(res.data.sourceCategories).toEqual(
+      expect.arrayContaining(categories),
     );
   });
 });
