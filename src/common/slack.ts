@@ -62,7 +62,7 @@ export const notifyNewVordrComment = async (
         fields: [
           {
             title: 'User',
-            value: user.id,
+            value: `${user.username} [${user.id}]`,
           },
           {
             title: 'Post title',
@@ -84,6 +84,53 @@ export const notifyNewVordrComment = async (
             title: 'Reputation',
             value: user.reputation.toString() ?? '',
           },
+        ],
+        color: '#1DDC6F',
+      },
+    ],
+  });
+};
+
+export const notifyNewVordrPost = async (
+  post: Post,
+  author?: User,
+  scout?: User,
+): Promise<void> => {
+  const getUser = (title: string, user?: User) =>
+    user
+      ? [
+          {
+            title,
+            value: `${user.username} [${user.id}]`,
+          },
+          {
+            title: `${title} Vordr status`,
+            value: user.flags?.vordr?.toString() ?? '',
+          },
+          {
+            title: `${title} Trust score`,
+            value: user.flags?.trustScore?.toString() ?? '',
+          },
+          {
+            title: `${title} Reputation`,
+            value: user.reputation.toString() ?? '',
+          },
+        ]
+      : [];
+
+  await webhooks.vordr.send({
+    text: 'New post prevented by vordr',
+    attachments: [
+      {
+        title: post.title,
+        title_link: `${process.env.COMMENTS_PREFIX}/posts/${post.id}`,
+        fields: [
+          {
+            title: 'Post type',
+            value: post.type,
+          },
+          ...getUser('Scout', scout),
+          ...getUser('Author', author),
         ],
         color: '#1DDC6F',
       },
