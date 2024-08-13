@@ -268,7 +268,21 @@ const createPost = async ({
     });
 
     data.scoutId = scoutId;
-    data.flags.vordr = vordr;
+    if (vordr === true) {
+      data.banned = true;
+      data.showOnFeed = false;
+
+      data.flags = {
+        ...data.flags,
+        banned: true,
+        showOnFeed: false,
+      };
+    }
+
+    data.flags = {
+      ...data.flags,
+      vordr: vordr,
+    };
   }
 
   const postId = await generateShortId();
@@ -396,7 +410,21 @@ const updatePost = async ({
     });
 
     data.scoutId = scoutId;
-    data.flags.vordr = vordr;
+    if (vordr === true) {
+      data.banned = true;
+      data.showOnFeed = false;
+
+      data.flags = {
+        ...data.flags,
+        banned: true,
+        showOnFeed: false,
+      };
+    }
+
+    data.flags = {
+      ...data.flags,
+      vordr: vordr,
+    };
   }
 
   const title = data?.title || databasePost.title;
