@@ -53,6 +53,7 @@ import {
   postTagsFixture,
   sharedPostsFixture,
   videoPostsFixture,
+  vordrPostsFixture,
 } from './fixture/post';
 import nock from 'nock';
 import { deleteKeysByPattern } from '../src/redis';
@@ -1145,38 +1146,7 @@ describe('query sourceFeed', () => {
 
   describe('vordr', () => {
     beforeEach(async () => {
-      await saveFixtures(con, ArticlePost, [
-        {
-          id: 'vordr1',
-          shortId: 'svordr1',
-          title: 'vordr1',
-          url: 'http://vordr1.com',
-          image: 'https://daily.dev/image.jpg',
-          score: 10,
-          sourceId: 'b',
-          createdAt: new Date(new Date().getTime() - 4000),
-          tagsStr: 'html,javascript',
-          type: PostType.Article,
-          contentCuration: ['c1', 'c2'],
-          authorId: '2',
-          flags: { vordr: true },
-        },
-        {
-          id: 'vordr2',
-          shortId: 'svordr2',
-          title: 'vordr2',
-          url: 'http://vordr2.com',
-          image: 'https://daily.dev/image.jpg',
-          score: 10,
-          sourceId: 'b',
-          createdAt: new Date(new Date().getTime() - 4000),
-          tagsStr: 'html,javascript',
-          type: PostType.Article,
-          contentCuration: ['c1', 'c2'],
-          authorId: '2',
-          flags: { vordr: true },
-        },
-      ]);
+      await saveFixtures(con, ArticlePost, vordrPostsFixture);
     });
     it('should filter out posts that vordr has prevented', async () => {
       loggedUser = '1';

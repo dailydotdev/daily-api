@@ -1,9 +1,9 @@
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
-import { ArticlePost, Post, PostType, Source, User } from '../../src/entity';
+import { ArticlePost, Post, Source, User } from '../../src/entity';
 import { vordrPostPrevented as worker } from '../../src/workers/vordrPostPrevented';
 import { badUsersFixture, sourcesFixture, usersFixture } from '../fixture';
-import { postsFixture } from '../fixture/post';
+import { postsFixture, vordrPostsFixture } from '../fixture/post';
 import { typedWorkers } from '../../src/workers';
 import { expectSuccessfulTypedBackground, saveFixtures } from '../helpers';
 import { notifyNewVordrPost } from '../../src/common';
@@ -26,38 +26,7 @@ beforeEach(async () => {
   await saveFixtures(con, User, badUsersFixture);
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Post, postsFixture);
-  await saveFixtures(con, ArticlePost, [
-    {
-      id: 'vordr1',
-      shortId: 'svordr1',
-      title: 'vordr1',
-      url: 'http://vordr1.com',
-      image: 'https://daily.dev/image.jpg',
-      score: 10,
-      sourceId: 'b',
-      createdAt: new Date(new Date().getTime() - 4000),
-      tagsStr: 'html,javascript',
-      type: PostType.Article,
-      contentCuration: ['c1', 'c2'],
-      authorId: '2',
-      flags: { vordr: true },
-    },
-    {
-      id: 'vordr2',
-      shortId: 'svordr2',
-      title: 'vordr2',
-      url: 'http://vordr2.com',
-      image: 'https://daily.dev/image.jpg',
-      score: 10,
-      sourceId: 'b',
-      createdAt: new Date(new Date().getTime() - 4000),
-      tagsStr: 'html,javascript',
-      type: PostType.Article,
-      contentCuration: ['c1', 'c2'],
-      authorId: '2',
-      flags: { vordr: true },
-    },
-  ]);
+  await saveFixtures(con, ArticlePost, vordrPostsFixture);
 });
 
 describe('vordrPostPrevented', () => {
