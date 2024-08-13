@@ -34,7 +34,10 @@ import {
 } from 'typeorm';
 import { GQLUser } from './users';
 import { Connection } from 'graphql-relay/index';
-import { createDatePageGenerator } from '../common/datePageGenerator';
+import {
+  createDatePageGenerator,
+  queryPaginatedByDate,
+} from '../common/datePageGenerator';
 import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { randomUUID } from 'crypto';
 import {
@@ -67,7 +70,6 @@ import { PopularSource } from '../entity/PopularSource';
 import { PopularVideoSource } from '../entity/PopularVideoSource';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { traceResolvers } from './trace';
-import { SourceCategory } from '../entity/sources/SourceCategory';
 
 export interface GQLSourceCategory {
   id: string;
@@ -250,6 +252,20 @@ export const typeDefs = /* GraphQL */ `
 
   type SourceEdge {
     node: Source!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type SourceCategoryConnection {
+    pageInfo: PageInfo!
+    edges: [SourceCategoryEdge!]!
+  }
+
+  type SourceCategoryEdge {
+    node: SourceCategory!
 
     """
     Used in \`before\` and \`after\` args
@@ -542,7 +558,17 @@ export const typeDefs = /* GraphQL */ `
     """
     Fetch all source categories
     """
-    sourceCategories: [SourceCategory]!
+    sourceCategories(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): SourceCategoryConnection!
   }
 
   extend type Mutation {
@@ -1171,10 +1197,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   Query: {
     sourceCategories: async (
       _,
-      __,
+      args,
       ctx: Context,
-    ): Promise<GQLSourceCategory[]> =>
-      ctx.con.getRepository(SourceCategory).find(),
+      info,
+    ): Promise<Connection<GQLSourceCategory>> =>
+      queryPaginatedByDate(
+        ctx,
+        info,
+        args,
+        { key: 'createdAt' },
+        { orderByKey: 'DESC' },
+      ),
     sources: async (
       _,
       args: SourcesArgs,

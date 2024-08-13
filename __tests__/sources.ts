@@ -153,18 +153,27 @@ afterAll(() => disposeGraphQLTesting(state));
 describe('query sourceCategories', () => {
   it('should return source categories', async () => {
     const res = await client.query(`
-      query {
-        sourceCategories {
-          title
-          enabled
+      query SourceCategories($first: Int, $after: String) {
+        sourceCategories(first: $first, after: $after) {
+          pageInfo {
+            endCursor
+            hasNextPage
+          }
+          edges {
+            node {
+              id
+              title
+            }
+          }
         }
       }
     `);
     expect(res.errors).toBeFalsy();
     const categories = getSourceCategories();
-    expect(res.data.sourceCategories).toEqual(
-      expect.arrayContaining(categories),
+    const isAllFound = res.data.sourceCategories.edges.every(({ node }) =>
+      categories.some((category) => category.title === node.title),
     );
+    expect(isAllFound).toBeTruthy();
   });
 });
 

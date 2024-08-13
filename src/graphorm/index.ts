@@ -266,6 +266,9 @@ const obj = new GraphORM({
       },
     },
   },
+  SourceCategory: {
+    requiredColumns: ['createdAt'],
+  },
   Source: {
     requiredColumns: ['id', 'private', 'handle', 'type'],
     fields: {
