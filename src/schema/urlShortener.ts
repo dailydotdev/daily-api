@@ -1,7 +1,7 @@
 import { IResolvers } from '@graphql-tools/utils';
 
-import { Context } from '../Context';
-import { traceResolverObject } from './trace';
+import { AuthContext, BaseContext } from '../Context';
+import { traceResolvers } from './trace';
 import { getShortUrl, isValidHttpUrl } from '../common';
 import { ValidationError } from 'apollo-server-errors';
 
@@ -19,13 +19,15 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvers: IResolvers<any, Context> = {
-  Query: traceResolverObject({
+export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
+  unknown,
+  BaseContext
+>({
+  Query: {
     getShortUrl: async (
       source,
       { url }: { url: string },
-      ctx: Context,
+      ctx: AuthContext,
     ): Promise<string> => {
       if (
         !isValidHttpUrl(url) ||
@@ -37,5 +39,5 @@ export const resolvers: IResolvers<any, Context> = {
       const result = await getShortUrl(url, ctx.log);
       return result;
     },
-  }),
-};
+  },
+});

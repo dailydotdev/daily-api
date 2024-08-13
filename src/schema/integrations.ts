@@ -195,7 +195,10 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
+export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
+  unknown,
+  BaseContext
+>({
   Query: {
     slackChannels: async (
       _,
@@ -236,7 +239,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
       }
 
       return {
-        data: result.channels.map((channel) => {
+        data: result.channels!.map((channel) => {
           return {
             id: channel.id,
             name: channel.name,
@@ -392,7 +395,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         await ctx.con.getRepository(UserSourceIntegrationSlack).update(
           {
             sourceId: args.sourceId,
-            userIntegrationId: existingUserIntegration.id,
+            userIntegrationId: existingUserIntegration!.id,
           },
           record,
         );
