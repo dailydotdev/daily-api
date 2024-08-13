@@ -1,7 +1,7 @@
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { Comment, Post, Source, User } from '../../src/entity';
-import worker from '../../src/workers/vordrPostCommentPrevented';
+import { vordrPostCommentPrevented as worker } from '../../src/workers/vordrPostCommentPrevented';
 import { badUsersFixture, sourcesFixture, usersFixture } from '../fixture';
 import { postsFixture } from '../fixture/post';
 import { typedWorkers } from '../../src/workers';

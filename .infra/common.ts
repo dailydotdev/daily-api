@@ -277,6 +277,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.post-visible',
     subscription: 'api.post-added-slack-channel-send',
   },
+  {
+    topic: 'api.v1.post-visible',
+    subscription: 'api.vordr-post-prevented',
+  }
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
