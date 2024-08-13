@@ -1,6 +1,6 @@
 import { getPostCommenterIds } from './post';
 import { Post, User as DbUser, UserStreak } from './../entity';
-import { differenceInDays, isSameDay } from 'date-fns';
+import { differenceInDays, isSameDay, max } from 'date-fns';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
@@ -8,6 +8,10 @@ import { GraphQLResolveInfo } from 'graphql';
 import { utcToZonedTime } from 'date-fns-tz';
 import { sendAnalyticsEvent } from '../integrations/analytics';
 import { DayOfWeek, DEFAULT_WEEK_START } from './date';
+import {
+  ReadingStreakActions,
+  ReadingStreakActionType,
+} from '../entity/ReadingStreakActions';
 
 export interface User {
   id: string;
@@ -427,10 +431,18 @@ export const shouldResetStreak = (
   );
 };
 
-export const checkUserStreak = (streak: GQLUserStreakTz): boolean => {
+export const checkUserStreak = (
+  streak: GQLUserStreakTz,
+  lastRecoverAction?: ReadingStreakActions,
+): boolean => {
   const { lastViewAtTz: lastViewAt, timezone, current } = streak;
+  const { timestamp: recoverTime } = lastRecoverAction;
 
-  if (!lastViewAt || current === 0) {
+  const lastStreakUpdate = recoverTime
+    ? max([lastViewAt, recoverTime])
+    : lastViewAt;
+
+  if (!lastStreakUpdate || current === 0) {
     return false;
   }
 
@@ -438,7 +450,7 @@ export const checkUserStreak = (streak: GQLUserStreakTz): boolean => {
   today.setHours(0, 0, 0, 0);
 
   const day = today.getDay();
-  const difference = differenceInDays(today, lastViewAt);
+  const difference = differenceInDays(today, lastStreakUpdate);
 
   return shouldResetStreak(day, difference, streak.weekStart);
 };
@@ -448,7 +460,14 @@ export const checkAndClearUserStreak = async (
   info: GraphQLResolveInfo,
   streak: GQLUserStreakTz,
 ): Promise<boolean> => {
-  if (checkUserStreak(streak)) {
+  const lastRecoverAction = await con
+    .getRepository(ReadingStreakActions)
+    .findOneBy({
+      userStreak: streak,
+      type: ReadingStreakActionType.Recover,
+    });
+
+  if (checkUserStreak(streak, lastRecoverAction)) {
     const result = await clearUserStreak(con, [streak.userId]);
     return result > 0;
   }
@@ -494,6 +513,6 @@ export const mastodonSocialUrlMatch =
   /^(?<value>https:\/\/(?:[a-z0-9-]+\.)*[a-z0-9-]+\.[a-z]{2,}\/@[\w-]{2,}\/?)$/;
 
 export const socialUrlMatch =
-  /^(?<value>https:\/\/(?:[a-z0-9-]{1,50}\.){0,5}[a-z0-9-]{1,50}\.[a-z]{2,24}\b([-a-zA-Z0-9@:%_\+.~#?&\/=]*))$/;
+  /^(?<value>https:\/\/(?:[a-z0-9-]{1,50}\.){0,5}[a-z0-9-]{1,50}\.[a-z]{2,24}\b([-a-zA-Z0-9@:%_+.~#?&\/=]*))$/;
 
 export const portfolioLimit = 500;
