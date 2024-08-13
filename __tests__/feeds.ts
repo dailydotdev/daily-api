@@ -2335,7 +2335,9 @@ describe('function feedToFilters', () => {
     expect(filters.includeTags).toEqual(
       expect.arrayContaining(['html', 'javascript']),
     );
+    expect(filters.includeTags?.length).toBe(2);
     expect(filters.blockedTags).toEqual(expect.arrayContaining(['golang']));
+    expect(filters.blockedTags?.length).toBe(1);
     expect(filters.excludeSources).toEqual(
       expect.arrayContaining([
         'b',
@@ -2343,6 +2345,7 @@ describe('function feedToFilters', () => {
         'fd062672-63b7-4a10-87bd-96dcd10e9613',
       ]),
     );
+    expect(filters.excludeSources?.length).toBe(3);
   });
 
   it('should return filters with source memberships', async () => {
