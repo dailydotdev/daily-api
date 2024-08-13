@@ -19,6 +19,6 @@ export class ReadingStreakActions {
   @Column({ type: 'timestamptz', default: () => 'now()' })
   timestamp: Date;
 
-  @Column({ type: 'enum', enum: ReadingStreakActionType })
-  type: ReadingStreakActionType;
+  @Column({ type: 'text' })
+  type: string;
 }
