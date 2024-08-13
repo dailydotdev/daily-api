@@ -37,6 +37,10 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
             },
           }),
         ]);
+        if (post.flags?.vordr) {
+          return;
+        }
+
         const source = await post.source;
         const sourceTypeName =
           source.type === SourceType.Squad ? 'Squad' : 'source';
