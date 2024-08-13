@@ -53,6 +53,7 @@ import {
   postTagsFixture,
   sharedPostsFixture,
   videoPostsFixture,
+  vordrPostsFixture,
 } from './fixture/post';
 import nock from 'nock';
 import { deleteKeysByPattern } from '../src/redis';
@@ -1145,38 +1146,7 @@ describe('query sourceFeed', () => {
 
   describe('vordr', () => {
     beforeEach(async () => {
-      await saveFixtures(con, ArticlePost, [
-        {
-          id: 'vordr1',
-          shortId: 'svordr1',
-          title: 'vordr1',
-          url: 'http://vordr1.com',
-          image: 'https://daily.dev/image.jpg',
-          score: 10,
-          sourceId: 'b',
-          createdAt: new Date(new Date().getTime() - 4000),
-          tagsStr: 'html,javascript',
-          type: PostType.Article,
-          contentCuration: ['c1', 'c2'],
-          authorId: '2',
-          flags: { vordr: true },
-        },
-        {
-          id: 'vordr2',
-          shortId: 'svordr2',
-          title: 'vordr2',
-          url: 'http://vordr2.com',
-          image: 'https://daily.dev/image.jpg',
-          score: 10,
-          sourceId: 'b',
-          createdAt: new Date(new Date().getTime() - 4000),
-          tagsStr: 'html,javascript',
-          type: PostType.Article,
-          contentCuration: ['c1', 'c2'],
-          authorId: '2',
-          flags: { vordr: true },
-        },
-      ]);
+      await saveFixtures(con, ArticlePost, vordrPostsFixture);
     });
     it('should filter out posts that vordr has prevented', async () => {
       loggedUser = '1';
@@ -2328,7 +2298,24 @@ describe('function feedToFilters', () => {
   it('should return filters for tags/sources based on the values from our data', async () => {
     loggedUser = '1';
     await saveFeedFixtures();
-    expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
+    const filters = await feedToFilters(con, '1', '1');
+    expect(filters.blockedContentCuration).toEqual([]);
+    expect(filters.excludeTypes).toEqual([]);
+    expect(filters.sourceIds).toEqual([]);
+    expect(filters.includeTags).toEqual(
+      expect.arrayContaining(['html', 'javascript']),
+    );
+    expect(filters.includeTags?.length).toBe(2);
+    expect(filters.blockedTags).toEqual(expect.arrayContaining(['golang']));
+    expect(filters.blockedTags?.length).toBe(1);
+    expect(filters.excludeSources).toEqual(
+      expect.arrayContaining([
+        'b',
+        'c',
+        'fd062672-63b7-4a10-87bd-96dcd10e9613',
+      ]),
+    );
+    expect(filters.excludeSources?.length).toBe(3);
   });
 
   it('should return filters with source memberships', async () => {
