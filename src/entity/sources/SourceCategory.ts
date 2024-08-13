@@ -1,17 +1,23 @@
-import { Column, Entity, PrimaryColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
 @Entity()
 export class SourceCategory {
-  @PrimaryColumn({ type: 'text' })
+  @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({ type: 'text', unique: true })
-  value: string;
+  title: string;
 
   @Column()
   enabled: boolean;
 
-  @Column({ default: () => 'now()' })
+  @CreateDateColumn()
   createdAt: Date;
 
   @UpdateDateColumn()

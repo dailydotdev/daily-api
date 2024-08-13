@@ -111,7 +111,7 @@ export class Source {
   @Index('IDX_source_flags_featured', { synchronize: false })
   flags: SourceFlagsPublic;
 
-  @Column({ type: 'text', nullable: true, default: null })
+  @Column({ type: 'text', nullable: true })
   categoryId?: string;
 
   @ManyToOne(() => SourceCategory, (category) => category.id, { lazy: true })

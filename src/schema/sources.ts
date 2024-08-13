@@ -71,7 +71,7 @@ import { SourceCategory } from '../entity/sources/SourceCategory';
 
 export interface GQLSourceCategory {
   id: string;
-  value: string;
+  title: string;
   enabled: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -127,7 +127,7 @@ export const typeDefs = /* GraphQL */ `
 
   type SourceCategory {
     id: ID!
-    value: String!
+    title: String!
     enabled: Boolean!
     createdAt: DateTime!
     updatedAt: DateTime
