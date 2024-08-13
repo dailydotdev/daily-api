@@ -53,6 +53,7 @@ import {
   postTagsFixture,
   sharedPostsFixture,
   videoPostsFixture,
+  vordrPostsFixture,
 } from './fixture/post';
 import nock from 'nock';
 import { deleteKeysByPattern } from '../src/redis';
@@ -1141,6 +1142,27 @@ describe('query sourceFeed', () => {
       },
       'FORBIDDEN',
     );
+  });
+
+  describe('vordr', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, ArticlePost, vordrPostsFixture);
+    });
+    it('should filter out posts that vordr has prevented', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY('b'));
+
+      expect(res.data.sourceFeed.edges.length).toBe(2);
+    });
+
+    it('should not filter out posts that vordr has prevented when author is viewer', async () => {
+      loggedUser = '2';
+
+      const res = await client.query(QUERY('b'));
+
+      expect(res.data.sourceFeed.edges.length).toBe(4);
+    });
   });
 });
 
@@ -2276,7 +2298,24 @@ describe('function feedToFilters', () => {
   it('should return filters for tags/sources based on the values from our data', async () => {
     loggedUser = '1';
     await saveFeedFixtures();
-    expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
+    const filters = await feedToFilters(con, '1', '1');
+    expect(filters.blockedContentCuration).toEqual([]);
+    expect(filters.excludeTypes).toEqual([]);
+    expect(filters.sourceIds).toEqual([]);
+    expect(filters.includeTags).toEqual(
+      expect.arrayContaining(['html', 'javascript']),
+    );
+    expect(filters.includeTags?.length).toBe(2);
+    expect(filters.blockedTags).toEqual(expect.arrayContaining(['golang']));
+    expect(filters.blockedTags?.length).toBe(1);
+    expect(filters.excludeSources).toEqual(
+      expect.arrayContaining([
+        'b',
+        'c',
+        'fd062672-63b7-4a10-87bd-96dcd10e9613',
+      ]),
+    );
+    expect(filters.excludeSources?.length).toBe(3);
   });
 
   it('should return filters with source memberships', async () => {

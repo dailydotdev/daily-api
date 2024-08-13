@@ -113,6 +113,8 @@ const getIntegration = async ({
 
 describe('slack integration', () => {
   beforeEach(async () => {
+    const createdAt = new Date();
+
     await saveFixtures(con, User, usersFixture);
     await saveFixtures(con, Source, sourcesFixture);
     await con.getRepository(UserIntegration).save([
@@ -169,18 +171,21 @@ describe('slack integration', () => {
         userId: '1',
         role: SourceMemberRoles.Admin,
         referralToken: 'squadslacktoken1',
+        createdAt: addSeconds(createdAt, 1),
       },
       {
         sourceId: 'squadslack',
         userId: '2',
         role: SourceMemberRoles.Admin,
         referralToken: 'squadslacktoken2',
+        createdAt: addSeconds(createdAt, 2),
       },
       {
         sourceId: 'squadslack',
         userId: '3',
         role: SourceMemberRoles.Member,
         referralToken: 'squadslacktoken3',
+        createdAt: addSeconds(createdAt, 3),
       },
     ]);
   });

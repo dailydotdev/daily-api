@@ -10,7 +10,7 @@ import {
   User,
 } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
-import { postsFixture } from '../fixture/post';
+import { postsFixture, vordrPostsFixture } from '../fixture/post';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { typedWorkers } from '../../src/workers';
@@ -319,6 +319,24 @@ describe('postAddedSlackChannelSend worker', () => {
       ],
       text: 'Ido shared a new post: <http://localhost:5002/posts/squadslackchannelp1?utm_source=notification&utm_medium=slack&utm_campaign=new_post&jt=squadslackchanneltoken1&source=squadslackchannel&type=squad|http://localhost:5002/posts/squadslackchannelp1>',
       unfurl_links: false,
+    });
+  });
+
+  describe('vordr', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, ArticlePost, vordrPostsFixture);
+    });
+
+    it('should not send a message to the slack channel when the post is prevented by vordr', async () => {
+      const post = await con.getRepository(ArticlePost).findOneByOrFail({
+        id: 'vordr1',
+      });
+
+      const result = await expectSuccessfulTypedBackground(worker, {
+        post: post as unknown as ChangeObject<ArticlePost>,
+      });
+
+      expect(result).toBeUndefined();
     });
   });
 });
