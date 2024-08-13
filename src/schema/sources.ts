@@ -1576,8 +1576,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             // Create the first post of the squad
             await createSharePost(
               entityManager,
+              ctx,
               id,
-              ctx.userId,
               postId,
               commentary || null,
             );
