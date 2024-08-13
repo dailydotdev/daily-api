@@ -2,6 +2,10 @@ import { Cron } from './cron';
 import { User, UserStreak } from '../entity';
 import { checkUserStreak, clearUserStreak } from '../common';
 import { counters } from '../telemetry';
+import {
+  ReadingStreakActions,
+  ReadingStreakActionType,
+} from '../entity/ReadingStreakActions';
 
 const cron: Cron = {
   name: 'update-current-streak',
@@ -25,11 +29,28 @@ const cron: Cron = {
           .getRawMany();
 
         const userIdsToReset = [];
-        usersPastStreakTime.forEach((userStreak) => {
+
+        for (const userStreak of usersPastStreakTime) {
           if (checkUserStreak(userStreak)) {
-            userIdsToReset.push(userStreak.userId);
+
+            // fetch user recover actions only if user has streak lose
+            const lastRecoverAction = await con
+              .getRepository(ReadingStreakActions)
+              .findOne({
+                where: {
+                  userStreak: userStreak.userId,
+                  type: ReadingStreakActionType.Recover,
+                },
+                order: {
+                  timestamp: 'DESC',
+                },
+              });
+
+            if (checkUserStreak(userStreak, lastRecoverAction)) {
+              userIdsToReset.push(userStreak.userId);
+            }
           }
-        });
+        }
 
         if (!userIdsToReset.length) {
           logger.info('no user streaks to reset');
