@@ -841,6 +841,70 @@ describe('on post create', () => {
     expect(post).not.toBeNull();
     expect(post?.contentQuality).toStrictEqual({});
   });
+
+  describe('vordr', () => {
+    it('should create post with the vordr flags on submission with bad scout', async () => {
+      const uuid = randomUUID();
+      await saveFixtures(con, Submission, [
+        {
+          id: uuid,
+          url: 'http://vordr.com/test',
+          userId: '1',
+          flags: {
+            vordr: true,
+          },
+        },
+      ]);
+
+      await expectSuccessfulBackground(worker, {
+        title: 'Title',
+        url: 'http://vordr.com/test',
+        source_id: COMMUNITY_PICKS_SOURCE,
+        submission_id: uuid,
+      });
+
+      const post = await con.getRepository(ArticlePost).findOneByOrFail({
+        url: 'http://vordr.com/test',
+      });
+
+      expect(post.flags.vordr).toEqual(true);
+      expect(post.banned).toEqual(true);
+      expect(post.flags.banned).toEqual(true);
+      expect(post.showOnFeed).toEqual(false);
+      expect(post.flags.showOnFeed).toEqual(false);
+    });
+
+    it('should create post with the vordr flags on submission with good scout', async () => {
+      const uuid = randomUUID();
+      await saveFixtures(con, Submission, [
+        {
+          id: uuid,
+          url: 'http://vordr.com/test',
+          userId: '1',
+          flags: {
+            vordr: false,
+          },
+        },
+      ]);
+
+      await expectSuccessfulBackground(worker, {
+        title: 'Title',
+        url: 'http://vordr.com/test',
+        source_id: COMMUNITY_PICKS_SOURCE,
+        submission_id: uuid,
+      });
+
+      const post = await con.getRepository(ArticlePost).findOneByOrFail({
+        url: 'http://vordr.com/test',
+      });
+
+      expect(post.flags.vordr).toEqual(false);
+      expect(post.banned).toEqual(false);
+      expect(post.flags.banned).toBeUndefined();
+      expect(post.showOnFeed).toEqual(true);
+      expect(post.flags.showOnFeed).toEqual(true);
+    });
+  });
 });
 
 describe('on post update', () => {
@@ -1197,6 +1261,141 @@ describe('on post update', () => {
       .findOneBy({ url: 'https://post.com/scp1' });
     expect(post2).toBeTruthy();
     expect(post2!.scoutId).toEqual('1');
+  });
+
+  describe('vordr', () => {
+    it('should update post with the vordr flags on submission with bad scout', async () => {
+      const uuid = randomUUID();
+      const postId = 'vordr3';
+      await saveFixtures(con, Submission, [
+        {
+          id: uuid,
+          url: 'http://vordr.com/test',
+          userId: '1',
+          flags: {
+            vordr: true,
+          },
+        },
+      ]);
+
+      await con.getRepository(ArticlePost).save({
+        id: postId,
+        shortId: postId,
+        url: 'https://post.com/scp1',
+        title: 'Scouted title',
+        visible: false,
+        yggdrasilId: '90660dab-7cd1-49f0-8fe5-41c587ca837f',
+        sourceId: COMMUNITY_PICKS_SOURCE,
+      });
+
+      await expectSuccessfulBackground(worker, {
+        id: '90660dab-7cd1-49f0-8fe5-41c587ca837f',
+        post_id: postId,
+        url: 'http://vordr.com/test',
+        source_id: COMMUNITY_PICKS_SOURCE,
+        submission_id: uuid,
+      });
+
+      const updatedPost = await con.getRepository(ArticlePost).findOneByOrFail({
+        id: postId,
+      });
+
+      expect(updatedPost.flags.vordr).toEqual(true);
+      expect(updatedPost.banned).toEqual(true);
+      expect(updatedPost.flags.banned).toEqual(true);
+      expect(updatedPost.showOnFeed).toEqual(false);
+      expect(updatedPost.flags.showOnFeed).toEqual(false);
+    });
+
+    it('should update post with the vordr flags on submission with good scout', async () => {
+      const uuid = randomUUID();
+      const postId = 'vordr3';
+      await saveFixtures(con, Submission, [
+        {
+          id: uuid,
+          url: 'http://vordr.com/test',
+          userId: '1',
+          flags: {
+            vordr: false,
+          },
+        },
+      ]);
+
+      await con.getRepository(ArticlePost).save({
+        id: postId,
+        shortId: postId,
+        url: 'https://post.com/scp1',
+        title: 'Scouted title',
+        visible: false,
+        yggdrasilId: '90660dab-7cd1-49f0-8fe5-41c587ca837f',
+        sourceId: COMMUNITY_PICKS_SOURCE,
+      });
+
+      await expectSuccessfulBackground(worker, {
+        id: '90660dab-7cd1-49f0-8fe5-41c587ca837f',
+        post_id: postId,
+        url: 'http://vordr.com/test',
+        source_id: COMMUNITY_PICKS_SOURCE,
+        submission_id: uuid,
+      });
+
+      const updatedPost = await con.getRepository(ArticlePost).findOneByOrFail({
+        id: postId,
+      });
+
+      expect(updatedPost.flags.vordr).toEqual(false);
+      expect(updatedPost.banned).toEqual(false);
+      expect(updatedPost.flags.banned).toBeUndefined();
+      expect(updatedPost.showOnFeed).toEqual(true);
+      expect(updatedPost.flags.showOnFeed).toEqual(true);
+    });
+
+    it('should update post with the vordr flag but keep original flags', async () => {
+      const uuid = randomUUID();
+      const postId = 'vordr3';
+      await saveFixtures(con, Submission, [
+        {
+          id: uuid,
+          url: 'http://vordr.com/test',
+          userId: '1',
+          flags: {
+            vordr: false,
+          },
+        },
+      ]);
+
+      await con.getRepository(ArticlePost).save({
+        id: postId,
+        shortId: postId,
+        url: 'https://post.com/scp1',
+        title: 'Scouted title',
+        visible: false,
+        yggdrasilId: '90660dab-7cd1-49f0-8fe5-41c587ca837f',
+        sourceId: COMMUNITY_PICKS_SOURCE,
+        flags: {
+          promoteToPublic: 1,
+          banned: true,
+          showOnFeed: true,
+        },
+      });
+
+      await expectSuccessfulBackground(worker, {
+        id: '90660dab-7cd1-49f0-8fe5-41c587ca837f',
+        post_id: postId,
+        url: 'http://vordr.com/test',
+        source_id: COMMUNITY_PICKS_SOURCE,
+        submission_id: uuid,
+      });
+
+      const updatedPost = await con.getRepository(ArticlePost).findOneByOrFail({
+        id: postId,
+      });
+
+      expect(updatedPost.flags.vordr).toEqual(false);
+      expect(updatedPost.flags.banned).toEqual(true);
+      expect(updatedPost.flags.showOnFeed).toEqual(true);
+      expect(updatedPost.flags.promoteToPublic).toEqual(1);
+    });
   });
 });
 
