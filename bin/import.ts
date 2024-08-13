@@ -61,9 +61,11 @@ const start = async (): Promise<void> => {
   await importEntity(con, 'PostKeyword');
   await importEntity(con, 'User');
   await importEntity(con, 'MarketingCta');
+  await importEntity(con, 'SourceMember');
   // Manually have to reset these as insert has a issue with `type` columns
   await con.query(`update post set type = 'article' where type = 'Post'`);
   await con.query(`update source set type = 'machine' where type = 'Source'`);
+  await con.query(`update source set type = 'squad' where id = 'publicsquad'`);
   await con.transaction(async (manager) => {
     for (const viewToRefresh of viewsToRefresh) {
       await manager.query(
