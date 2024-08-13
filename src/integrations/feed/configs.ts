@@ -94,7 +94,6 @@ const addFiltersToConfig = ({
     ).filter((x) => !filters.excludeTypes.includes(x));
   }
   if (filters.blockedContentCuration?.length && opts.includeContentCuration) {
-    baseConfig.blocked_content_curations = filters.blockedContentCuration;
     baseConfig.allowed_content_curations = AllowedContentCurationTypes.filter(
       (type) => !filters.blockedContentCuration.includes(type),
     );
