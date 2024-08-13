@@ -44,7 +44,11 @@ import { generateShortId } from '../ids';
 import { CommentReport } from '../entity/CommentReport';
 import { UserVote } from '../types';
 import { UserComment } from '../entity/user/UserComment';
-import { checkWithVordr, whereVordrFilter } from '../common/vordr';
+import {
+  checkWithVordr,
+  VordrFilterType,
+  whereVordrFilter,
+} from '../common/vordr';
 
 export interface GQLComment {
   id: string;
@@ -791,7 +795,15 @@ export const resolvers: IResolvers<any, BaseContext> = {
           });
 
           createdComment.flags = {
-            vordr: await checkWithVordr(createdComment, ctx),
+            ...createdComment.flags,
+            vordr: await checkWithVordr(
+              {
+                id: createdComment.id,
+                type: VordrFilterType.Comment,
+                content: createdComment.content,
+              },
+              ctx,
+            ),
           };
 
           return saveNewComment(entityManager, createdComment, squadId);
@@ -829,6 +841,7 @@ export const resolvers: IResolvers<any, BaseContext> = {
           }
           const squadId =
             source.type === SourceType.Squad ? source.id : undefined;
+
           const createdComment = entityManager.getRepository(Comment).create({
             id: await generateShortId(),
             postId: parentComment.postId,
@@ -838,7 +851,15 @@ export const resolvers: IResolvers<any, BaseContext> = {
           });
 
           createdComment.flags = {
-            vordr: await checkWithVordr(createdComment, ctx),
+            ...createdComment.flags,
+            vordr: await checkWithVordr(
+              {
+                id: createdComment.id,
+                type: VordrFilterType.Comment,
+                content: createdComment.content,
+              },
+              ctx,
+            ),
           };
 
           return saveNewComment(entityManager, createdComment, squadId);
@@ -876,6 +897,18 @@ export const resolvers: IResolvers<any, BaseContext> = {
           source.type === SourceType.Squad ? source.id : undefined;
         comment.content = content;
         comment.lastUpdatedAt = new Date();
+        comment.flags = {
+          ...comment.flags,
+          vordr: await checkWithVordr(
+            {
+              id: comment.id,
+              type: VordrFilterType.Comment,
+              content: comment.content,
+            },
+            ctx,
+          ),
+        };
+
         await saveComment(entityManager, comment, squadId);
       });
       return getCommentById(id, ctx, info);

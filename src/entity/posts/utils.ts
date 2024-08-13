@@ -2,7 +2,6 @@ import { DataSource, EntityManager, In } from 'typeorm';
 import { TypeOrmError } from '../../errors';
 import { Keyword } from '../Keyword';
 import {
-  EventLogger,
   notifyContentRequested,
   removeEmptyValues,
   removeSpecialCharacters,
@@ -25,6 +24,8 @@ import { PostMention } from './PostMention';
 import { PostQuestion } from './PostQuestion';
 import { PostRelation, PostRelationType } from './PostRelation';
 import { CollectionPost } from './CollectionPost';
+import { checkWithVordr, VordrFilterType } from '../../common/vordr';
+import { AuthContext } from '../../Context';
 
 export type PostStats = {
   numPosts: number;
@@ -245,9 +246,8 @@ export interface ExternalLink extends Partial<ExternalLinkPreview> {
 
 export const createExternalLink = async (
   con: DataSource | EntityManager,
-  logger: EventLogger,
+  ctx: AuthContext,
   sourceId: string,
-  userId: string,
   { url, title, image }: ExternalLink,
   commentary: string,
 ): Promise<void> => {
@@ -277,13 +277,13 @@ export const createExternalLink = async (
     });
     await createSharePost(
       entityManager,
+      ctx,
       sourceId,
-      userId,
       id,
       commentary,
       isVisible,
     );
-    await notifyContentRequested(logger, {
+    await notifyContentRequested(ctx.log, {
       id,
       url,
       origin: PostOrigin.Squad,
@@ -300,13 +300,14 @@ export const generateTitleHtml = (
 
 export const createSharePost = async (
   con: DataSource | EntityManager,
+  ctx: AuthContext,
   sourceId: string,
-  userId: string,
   postId: string,
   commentary: string | null,
   visible = true,
 ): Promise<SharePost> => {
   const strippedCommentary = await validateCommentary(commentary);
+  const userId = ctx.userId;
 
   try {
     const mentions = await getMentions(con, commentary, userId, sourceId);
@@ -319,7 +320,7 @@ export const createSharePost = async (
 
     const id = await generateShortId();
 
-    const post = await con.getRepository(SharePost).save({
+    const createdPost = con.getRepository(SharePost).create({
       id,
       shortId: id,
       createdAt: new Date(),
@@ -339,6 +340,30 @@ export const createSharePost = async (
         visible,
       },
     });
+
+    const vordrStatus = await checkWithVordr(
+      {
+        id: createdPost.id,
+        content: createdPost.title,
+        type: VordrFilterType.Post,
+      },
+      { con, userId, req: ctx.req },
+    );
+
+    if (vordrStatus === true) {
+      createdPost.banned = true;
+      createdPost.showOnFeed = false;
+
+      createdPost.flags = {
+        ...createdPost.flags,
+        banned: true,
+        showOnFeed: false,
+      };
+    }
+
+    createdPost.flags.vordr = vordrStatus;
+
+    const post = await con.getRepository(SharePost).save(createdPost);
 
     if (mentions.length) {
       await saveMentions(con, post.id, userId, mentions, PostMention);

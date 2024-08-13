@@ -2,8 +2,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { Comment, Post, Source, User } from '../../src/entity';
 import { badUsersFixture, sourcesFixture, usersFixture } from '../fixture';
-import { checkWithVordr } from '../../src/common/vordr';
-import { Context } from '../../src/Context';
+import { checkWithVordr, VordrFilterType } from '../../src/common/vordr';
 import { postsFixture } from '../fixture/post';
 import { saveFixtures } from '../helpers';
 
@@ -50,11 +49,18 @@ describe('commmon/vordr', () => {
         .getRepository(Comment)
         .findOneByOrFail({ id: 'c1' });
 
-      const result = await checkWithVordr(comment, {
-        req: { ip: '127.0.0.1' },
-        userId: 'vordr',
-        con,
-      } as Context);
+      const result = await checkWithVordr(
+        {
+          id: comment.id,
+          type: VordrFilterType.Comment,
+          content: comment.content,
+        },
+        {
+          req: { ip: '127.0.0.1' },
+          userId: 'vordr',
+          con,
+        },
+      );
 
       expect(result).toBeTruthy();
     });
@@ -64,11 +70,18 @@ describe('commmon/vordr', () => {
         .getRepository(Comment)
         .findOneByOrFail({ id: 'c1' });
 
-      const result = await checkWithVordr(comment, {
-        req: { ip: '127.0.0.1' },
-        userId: 'low-score',
-        con,
-      } as Context);
+      const result = await checkWithVordr(
+        {
+          id: comment.id,
+          type: VordrFilterType.Comment,
+          content: comment.content,
+        },
+        {
+          req: { ip: '127.0.0.1' },
+          userId: 'low-score',
+          con,
+        },
+      );
 
       expect(result).toBeTruthy();
     });
@@ -78,11 +91,18 @@ describe('commmon/vordr', () => {
         .getRepository(Comment)
         .findOneByOrFail({ id: 'c1' });
 
-      const result = await checkWithVordr(comment, {
-        req: { ip: '192.0.2.1' },
-        userId: '1',
-        con,
-      } as Context);
+      const result = await checkWithVordr(
+        {
+          id: comment.id,
+          type: VordrFilterType.Comment,
+          content: comment.content,
+        },
+        {
+          req: { ip: '192.0.2.1' },
+          userId: '1',
+          con,
+        },
+      );
 
       expect(result).toBeTruthy();
     });
@@ -92,11 +112,18 @@ describe('commmon/vordr', () => {
         .getRepository(Comment)
         .findOneByOrFail({ id: 'c2' });
 
-      const result = await checkWithVordr(comment, {
-        req: { ip: '127.0.0.1' },
-        userId: '1',
-        con,
-      } as Context);
+      const result = await checkWithVordr(
+        {
+          id: comment.id,
+          type: VordrFilterType.Comment,
+          content: comment.content,
+        },
+        {
+          req: { ip: '127.0.0.1' },
+          userId: '1',
+          con,
+        },
+      );
 
       expect(result).toBeTruthy();
     });
@@ -106,11 +133,18 @@ describe('commmon/vordr', () => {
         .getRepository(Comment)
         .findOneByOrFail({ id: 'c1' });
 
-      const result = await checkWithVordr(comment, {
-        req: { ip: '127.0.0.1' },
-        userId: 'low-reputation',
-        con,
-      } as Context);
+      const result = await checkWithVordr(
+        {
+          id: comment.id,
+          type: VordrFilterType.Comment,
+          content: comment.content,
+        },
+        {
+          req: { ip: '127.0.0.1' },
+          userId: 'low-reputation',
+          con,
+        },
+      );
 
       expect(result).toBeTruthy();
     });
@@ -120,11 +154,18 @@ describe('commmon/vordr', () => {
         .getRepository(Comment)
         .findOneByOrFail({ id: 'c1' });
 
-      const result = await checkWithVordr(comment, {
-        req: { ip: '127.0.0.1' },
-        userId: '1',
-        con,
-      } as Context);
+      const result = await checkWithVordr(
+        {
+          id: comment.id,
+          type: VordrFilterType.Comment,
+          content: comment.content,
+        },
+        {
+          req: { ip: '127.0.0.1' },
+          userId: '1',
+          con,
+        },
+      );
 
       expect(result).toBeFalsy();
     });
@@ -134,11 +175,18 @@ describe('commmon/vordr', () => {
         .getRepository(Comment)
         .findOneByOrFail({ id: 'c1' });
 
-      const result = await checkWithVordr(comment, {
-        req: { ip: '127.0.0.1' },
-        userId: '1',
-        con,
-      } as Context);
+      const result = await checkWithVordr(
+        {
+          id: comment.id,
+          type: VordrFilterType.Comment,
+          content: comment.content,
+        },
+        {
+          req: { ip: '127.0.0.1' },
+          userId: '1',
+          con,
+        },
+      );
 
       expect(result).toBeFalsy();
     });

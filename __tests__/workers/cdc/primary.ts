@@ -1851,6 +1851,7 @@ describe('submission', () => {
     reason: null,
     status: SubmissionStatus.Started,
     createdAt: Date.now(),
+    flags: {},
   };
 
   it('should notify crawler for this article', async () => {
