@@ -32,7 +32,6 @@ const cron: Cron = {
 
         for (const userStreak of usersPastStreakTime) {
           if (checkUserStreak(userStreak)) {
-
             // fetch user recover actions only if user has streak lose
             const lastRecoverAction = await con
               .getRepository(ReadingStreakActions)

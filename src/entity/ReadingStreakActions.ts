@@ -1,4 +1,4 @@
-import { Column, Entity, ManyToOne, PrimaryColumn } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 import { UserStreak } from './user';
 
 export enum ReadingStreakActionType {
@@ -10,9 +10,11 @@ export class ReadingStreakActions {
   @PrimaryColumn({ type: 'text' })
   id: string;
 
-  @ManyToOne(() => UserStreak, (userStreak) => userStreak.userId, {
+  @ManyToOne(() => UserStreak, {
+    lazy: true,
     onDelete: 'CASCADE',
   })
+  @JoinColumn({ name: 'userStreak' })
   userStreak: Promise<UserStreak>;
 
   @Column({ type: 'timestamptz', default: () => 'now()' })

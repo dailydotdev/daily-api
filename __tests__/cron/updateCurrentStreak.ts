@@ -6,6 +6,10 @@ import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import nock from 'nock';
+import {
+  ReadingStreakActions,
+  ReadingStreakActionType,
+} from '../../src/entity/ReadingStreakActions';
 
 let con: DataSource;
 
@@ -40,6 +44,23 @@ beforeEach(async () => {
       userId: '1',
       currentStreak: 1,
       lastViewAt: new Date('2024-06-24'),
+    },
+    {
+      userId: '2',
+      currentStreak: 0,
+      lastViewAt: new Date('2024-06-24'),
+    },
+  ]);
+  await con.getRepository(ReadingStreakActions).save([
+    {
+      id: '1',
+      userStreak: Promise.resolve({
+        userId: '2',
+        currentStreak: 0,
+        lastViewAt: new Date('2024-06-24'),
+      }),
+      timestamp: new Date('2024-06-25'),
+      type: ReadingStreakActionType.Recover,
     },
   ]);
 });
@@ -106,5 +127,13 @@ describe('updateCurrentStreak cron', () => {
       .getRepository(UserStreak)
       .findOneBy({ userId: '1' });
     expect(streak.currentStreak).toBe(1);
+  });
+
+  it('should not reset a past streak if user has recovered', async () => {
+    await expectSuccessfulCron(cron);
+    const streak = await con
+      .getRepository(UserStreak)
+      .findOneBy({ userId: '2' });
+    expect(streak.currentStreak).toBe(10);
   });
 });
