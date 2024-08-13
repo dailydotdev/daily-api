@@ -1,4 +1,4 @@
-import { Column, Entity, OneToOne, PrimaryColumn } from 'typeorm';
+import { Column, Entity, ManyToOne, PrimaryColumn } from 'typeorm';
 import { UserStreak } from './user';
 
 export enum ReadingStreakActionType {
@@ -10,8 +10,7 @@ export class ReadingStreakActions {
   @PrimaryColumn({ type: 'text' })
   id: string;
 
-  @OneToOne(() => UserStreak, (userStreak) => userStreak.userId, {
-    lazy: true,
+  @ManyToOne(() => UserStreak, (userStreak) => userStreak.userId, {
     onDelete: 'CASCADE',
   })
   userStreak: Promise<UserStreak>;
