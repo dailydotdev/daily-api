@@ -857,7 +857,6 @@ describe('on post create', () => {
       ]);
 
       await expectSuccessfulBackground(worker, {
-        // id: '90660dab-7cd1-49f0-8fe5-41c587ca837f',
         title: 'Title',
         url: 'http://vordr.com/test',
         source_id: COMMUNITY_PICKS_SOURCE,
@@ -889,7 +888,6 @@ describe('on post create', () => {
       ]);
 
       await expectSuccessfulBackground(worker, {
-        // id: '90660dab-7cd1-49f0-8fe5-41c587ca837f',
         title: 'Title',
         url: 'http://vordr.com/test',
         source_id: COMMUNITY_PICKS_SOURCE,
