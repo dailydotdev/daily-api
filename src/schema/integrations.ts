@@ -223,6 +223,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }),
         cursor: args.cursor,
         exclude_archived: true,
+        types: ['public_channel', 'private_channel'].join(','),
       });
 
       if (!result.ok) {
