@@ -69,9 +69,10 @@ export const getAttachmentForPostType = async <TPostType extends PostType>({
   postType: TPostType;
   postLink: string;
 }): Promise<MessageAttachment> => {
+  const source = await post.source;
   const attachment: MessageAttachment = {
-    author_name: 'daily.dev',
-    author_icon: 'https://app.daily.dev/apple-touch-icon.png',
+    author_name: `${source.name} | daily.dev`,
+    author_icon: source.image,
   };
 
   switch (postType) {

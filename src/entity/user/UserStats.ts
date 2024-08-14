@@ -1,4 +1,5 @@
 import { DataSource, ViewColumn, ViewEntity } from 'typeorm';
+import { ghostUser } from '../../common';
 
 @ViewEntity({
   materialized: true,
@@ -40,7 +41,7 @@ import { DataSource, ViewColumn, ViewEntity } from 'typeorm';
       )
       .from('user', 'u')
       .andWhere('u.infoConfirmed = TRUE')
-      .andWhere("u.id != '404'"),
+      .andWhere(`u.id != :ghostId`, { ghostId: ghostUser.id }),
 })
 export class UserStats {
   @ViewColumn()

@@ -10,8 +10,9 @@ import { GraphQLResolveInfo } from 'graphql';
 import GraphQLUpload from 'graphql-upload/GraphQLUpload.js';
 import { GraphQLDateTime } from 'graphql-scalars';
 
-import { Context } from '../Context';
+import { BaseContext, Context } from '../Context';
 import type { MeiliPagination } from '../integrations/meilisearch';
+import { FeedResponse } from '../integrations/feed/types';
 
 export interface GQLEmptyResponse {
   _: boolean;
@@ -86,8 +87,7 @@ export const typeDefs = /* GraphQL */ `
   scalar Upload
 `;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvers: IResolvers<any, Context> = {
+export const resolvers: IResolvers<unknown, BaseContext> = {
   DateTime: GraphQLDateTime,
   Upload: GraphQLUpload,
 };
@@ -167,7 +167,7 @@ export const meiliOffsetGenerator = <
   },
   nodeToCursor: (page, { ids }, node): string =>
     offsetToCursor(page.offset + ids.findIndex((postId) => postId === node.id)),
-  hasNextPage: (page): boolean => page.current < page.limit,
+  hasNextPage: (page): boolean => page.current! < page.limit,
   hasPreviousPage: (page): boolean => page.offset > 0,
 });
 
@@ -189,7 +189,7 @@ export const offsetPageGenerator = <TReturn>(
   hasNextPage: (page, nodesSize, total): boolean =>
     total
       ? page.offset + nodesSize < total
-      : (page.offset + nodesSize < totalLimit || !totalLimit) &&
+      : (page.offset + nodesSize < totalLimit! || !totalLimit) &&
         page.limit === nodesSize,
   hasPreviousPage: (page): boolean => page.offset > 0,
 });
@@ -200,12 +200,7 @@ export const fixedIdsPageGenerator = <
   defaultLimit: number,
   maxLimit: number,
   totalLimit?: number,
-): PageGenerator<
-  TReturn,
-  ConnectionArguments,
-  OffsetPage,
-  { data: [string, string][]; cursor?: string }
-> => ({
+): PageGenerator<TReturn, ConnectionArguments, OffsetPage, FeedResponse> => ({
   connArgsToPage: (args: ConnectionArguments): OffsetPage => {
     const limit = Math.min(args.first || defaultLimit, maxLimit) + 1;
     const offset = getOffsetWithDefault(args.after, -1) + 1;
@@ -217,16 +212,16 @@ export const fixedIdsPageGenerator = <
   nodeToCursor: (page, args, node, i, queryParams): string =>
     offsetToCursor(
       page.offset +
-        queryParams.data.findIndex(([postId]) => postId === node.id),
+        queryParams!.data.findIndex(([postId]) => postId === node.id),
     ),
   hasNextPage: (page, nodesSize, total, queryParams): boolean =>
-    queryParams.data.length >= page.limit,
+    queryParams!.data.length >= page.limit,
   hasPreviousPage: (page): boolean => page.offset > 0,
   transformNodes: (page, nodes, queryParams) => {
     // Add the metadata object
     return nodes.slice(0, page.limit - 1).map((node) => ({
       ...node,
-      feedMeta: queryParams.data.find(([postId]) => postId === node.id)?.[1],
+      feedMeta: queryParams!.data.find(([postId]) => postId === node.id)?.[1],
     }));
   },
 });
@@ -236,29 +231,24 @@ export const feedCursorPageGenerator = <
 >(
   defaultLimit: number,
   maxLimit: number,
-): PageGenerator<
-  TReturn,
-  ConnectionArguments,
-  CursorPage,
-  { data: [string, string][]; cursor?: string }
-> => ({
+): PageGenerator<TReturn, ConnectionArguments, CursorPage, FeedResponse> => ({
   connArgsToPage: (args: ConnectionArguments): CursorPage => {
     const limit = Math.min(args.first || defaultLimit, maxLimit);
     return {
       limit,
-      cursor: args.after,
+      cursor: args.after || undefined,
     };
   },
   nodeToCursor: (page, args, node, i, queryParams): string =>
-    queryParams.cursor,
+    queryParams!.cursor as string,
   hasNextPage: (page, nodesSize, total, queryParams): boolean =>
-    queryParams.data.length >= page.limit,
+    queryParams!.data.length >= page.limit,
   hasPreviousPage: (page): boolean => !!page.cursor,
   transformNodes: (page, nodes, queryParams) => {
     // Add the metadata object
     return nodes.map((node) => ({
       ...node,
-      feedMeta: queryParams.data.find(([postId]) => postId === node.id)?.[1],
+      feedMeta: queryParams!.data.find(([postId]) => postId === node.id)?.[1],
     }));
   },
 });

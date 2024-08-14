@@ -34,10 +34,7 @@ import {
 } from 'typeorm';
 import { GQLUser } from './users';
 import { Connection } from 'graphql-relay/index';
-import {
-  createDatePageGenerator,
-  queryPaginatedByDate,
-} from '../common/datePageGenerator';
+import { queryPaginatedByDate } from '../common/datePageGenerator';
 import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { randomUUID } from 'crypto';
 import {
@@ -1000,12 +997,7 @@ const sourceByFeed = async (
   return res ? sourceToGQL(res) : null;
 };
 
-const membershipsPageGenerator = createDatePageGenerator<
-  GQLSourceMember,
-  'createdAt'
->({
-  key: 'createdAt',
-});
+const membershipsPageGenerator = offsetPageGenerator<GQLSourceMember>(100, 500);
 
 const sourcePageGenerator = offsetPageGenerator<GQLSource>(100, 500);
 
@@ -1178,13 +1170,7 @@ const paginateSourceMembers = (
       membershipsPageGenerator.nodeToCursor(page, args, node, index),
     (builder) => {
       builder.queryBuilder = query(builder.queryBuilder, builder.alias);
-      builder.queryBuilder.limit(page.limit);
-      if (page.timestamp) {
-        builder.queryBuilder = builder.queryBuilder.andWhere(
-          `${builder.alias}."createdAt" < :timestamp`,
-          { timestamp: page.timestamp },
-        );
-      }
+      builder.queryBuilder.limit(page.limit).offset(page.offset);
       return builder;
     },
   );
@@ -1652,8 +1638,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             // Create the first post of the squad
             await createSharePost(
               entityManager,
+              ctx,
               id,
-              ctx.userId,
               postId,
               commentary || null,
             );

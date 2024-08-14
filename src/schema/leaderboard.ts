@@ -1,10 +1,10 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { Context } from '../Context';
+import { BaseContext } from '../Context';
 import { traceResolvers } from './trace';
 import { GQLUser } from './users';
 import { User, UserStats, UserStreak } from '../entity';
 import { DataSource, In, Not } from 'typeorm';
-import { getLimit } from '../common';
+import { getLimit, ghostUser } from '../common';
 
 export type GQLUserLeaderboard = {
   score: number;
@@ -113,12 +113,15 @@ const getUserLeaderboardForStat = async ({
   });
 };
 
-export const resolvers: IResolvers<unknown, Context> = traceResolvers({
+export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
+  unknown,
+  BaseContext
+>({
   Query: {
     highestReputation: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
       const users = await ctx.con.getRepository(User).find({
         where: {
-          id: Not(In(['404'])),
+          id: Not(In([ghostUser.id])),
         },
         order: { reputation: 'DESC' },
         take: getLimit(args),
@@ -130,7 +133,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       const users = await ctx.con.getRepository(UserStreak).find({
         where: {
           user: {
-            id: Not(In(['404'])),
+            id: Not(In([ghostUser.id])),
           },
         },
         order: { currentStreak: 'DESC' },
@@ -168,7 +171,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       const users = await ctx.con.getRepository(UserStreak).find({
         where: {
           user: {
-            id: Not(In(['404'])),
+            id: Not(In([ghostUser.id])),
           },
         },
         order: { totalStreak: 'DESC' },

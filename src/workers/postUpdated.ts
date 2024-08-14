@@ -148,12 +148,12 @@ const handleCollectionRelations = async ({
   }
 };
 
-const assignScoutToPost = async ({
+const assignScoutToPostAndVordrFlags = async ({
   entityManager,
   submissionId,
   data,
 }: Pick<CreatePostProps, 'entityManager' | 'submissionId' | 'data'>): Promise<
-  Partial<Pick<Post, 'scoutId'>>
+  Partial<Pick<Post, 'scoutId'> & { vordr: boolean }>
 > => {
   const submission = await entityManager
     .getRepository(Submission)
@@ -162,6 +162,7 @@ const assignScoutToPost = async ({
   if (!submission) {
     return {
       scoutId: undefined,
+      vordr: undefined,
     };
   }
 
@@ -176,6 +177,7 @@ const assignScoutToPost = async ({
 
     return {
       scoutId: undefined,
+      vordr: submission.flags?.vordr,
     };
   }
 
@@ -188,6 +190,7 @@ const assignScoutToPost = async ({
 
   return {
     scoutId: submission.userId,
+    vordr: submission.flags?.vordr,
   };
 };
 
@@ -258,13 +261,28 @@ const createPost = async ({
   }
 
   if (submissionId) {
-    const { scoutId } = await assignScoutToPost({
+    const { scoutId, vordr } = await assignScoutToPostAndVordrFlags({
       entityManager,
       submissionId,
       data,
     });
 
     data.scoutId = scoutId;
+    if (vordr === true) {
+      data.banned = true;
+      data.showOnFeed = false;
+
+      data.flags = {
+        ...data.flags,
+        banned: true,
+        showOnFeed: false,
+      };
+    }
+
+    data.flags = {
+      ...data.flags,
+      vordr: vordr,
+    };
   }
 
   const postId = await generateShortId();
@@ -385,13 +403,28 @@ const updatePost = async ({
   }
 
   if (submissionId && !databasePost.scoutId) {
-    const { scoutId } = await assignScoutToPost({
+    const { scoutId, vordr } = await assignScoutToPostAndVordrFlags({
       entityManager,
       submissionId,
       data,
     });
 
     data.scoutId = scoutId;
+    if (vordr === true) {
+      data.banned = true;
+      data.showOnFeed = false;
+
+      data.flags = {
+        ...data.flags,
+        banned: true,
+        showOnFeed: false,
+      };
+    }
+
+    data.flags = {
+      ...data.flags,
+      vordr: vordr,
+    };
   }
 
   const title = data?.title || databasePost.title;

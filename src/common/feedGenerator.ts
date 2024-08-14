@@ -4,7 +4,7 @@ import {
   SourceMember,
   UserPost,
 } from '../entity';
-import { DataSource, SelectQueryBuilder } from 'typeorm';
+import { Brackets, DataSource, SelectQueryBuilder } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import { IFieldResolver } from '@graphql-tools/utils';
 import {
@@ -27,6 +27,7 @@ import {
 import graphorm from '../graphorm';
 import { mapArrayToOjbect } from './object';
 import { runInSpan } from '../telemetry';
+import { whereVordrFilter } from './vordr';
 
 export const WATERCOOLER_ID = 'fd062672-63b7-4a10-87bd-96dcd10e9613';
 
@@ -71,7 +72,7 @@ export const whereKeyword = (
 
 export const getExcludedAdvancedSettings = async (
   con: DataSource,
-  feedId: string,
+  feedId?: string,
 ): Promise<Partial<AdvancedSettings>[]> => {
   if (!feedId) {
     return [];
@@ -102,8 +103,8 @@ export const getExcludedAdvancedSettings = async (
 
 export const feedToFilters = async (
   con: DataSource,
-  feedId: string,
-  userId: string,
+  feedId?: string,
+  userId?: string,
 ): Promise<AnonymousFeedFilters> => {
   const settings = await getExcludedAdvancedSettings(con, feedId);
   const [tags, excludeSources, memberships] = await Promise.all([
@@ -443,7 +444,7 @@ export interface AnonymousFeedFilters {
 
 export const anonymousFeedBuilder = (
   ctx: Context,
-  filters: AnonymousFeedFilters,
+  filters: AnonymousFeedFilters | undefined,
   builder: SelectQueryBuilder<Post>,
   alias: string,
 ): SelectQueryBuilder<Post> => {
@@ -478,11 +479,11 @@ export const anonymousFeedBuilder = (
 
 export const configuredFeedBuilder = (
   ctx: Context,
-  feedId: string,
+  feedId: string | undefined,
   unreadOnly: boolean,
   builder: SelectQueryBuilder<Post>,
   alias: string,
-  filters: AnonymousFeedFilters,
+  filters: AnonymousFeedFilters | undefined,
 ): SelectQueryBuilder<Post> => {
   let newBuilder = anonymousFeedBuilder(ctx, filters, builder, alias);
   if (unreadOnly) {
@@ -538,6 +539,16 @@ export const sourceFeedBuilder = (
 
   if (sourceId === 'community') {
     builder.andWhere(`${alias}.banned = false`);
+  } else {
+    builder.andWhere(
+      new Brackets((qb) => {
+        return qb
+          .where(`${alias}.authorId = :userId OR ${alias}.scoutId = :userId`, {
+            userId: ctx.userId,
+          })
+          .orWhere(whereVordrFilter(alias));
+      }),
+    );
   }
 
   return builder;

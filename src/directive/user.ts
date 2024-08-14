@@ -16,6 +16,7 @@ import {
   User,
   View,
 } from '../entity';
+import { ghostUser } from '../common';
 
 export const deleteUser = async (
   con: DataSource,
@@ -32,7 +33,7 @@ export const deleteUser = async (
       await entityManager.getRepository(Comment).update(
         { userId },
         {
-          userId: '404',
+          userId: ghostUser.id,
         },
       );
       await entityManager.getRepository(Comment).delete({ userId });
@@ -48,7 +49,7 @@ export const deleteUser = async (
       // Manually set shared post to 404 dummy user
       await entityManager
         .getRepository(Post)
-        .update({ authorId: userId }, { authorId: '404' });
+        .update({ authorId: userId }, { authorId: ghostUser.id });
       await entityManager
         .getRepository(Post)
         .update({ scoutId: userId }, { scoutId: null });

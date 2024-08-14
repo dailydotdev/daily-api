@@ -1,5 +1,5 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { Context } from '../Context';
+import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import {
   Keyword,
@@ -138,13 +138,15 @@ export const typeDefs = /* GraphQL */ `
 
 const PENDING_THRESHOLD = 25;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvers: IResolvers<any, Context> = traceResolvers({
+export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
+  unknown,
+  BaseContext
+>({
   Query: {
     randomPendingKeyword: async (
       source,
       args,
-      ctx,
+      ctx: AuthContext,
       info,
     ): Promise<GQLKeyword | null> => {
       const res = await graphorm.query<GQLKeyword>(ctx, info, (builder) => {
@@ -160,7 +162,11 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       }
       return null;
     },
-    countPendingKeywords: async (source, args, ctx): Promise<number> => {
+    countPendingKeywords: async (
+      source,
+      args,
+      ctx: AuthContext,
+    ): Promise<number> => {
       return ctx.con.getRepository(Keyword).count({
         where: {
           occurrences: MoreThanOrEqual(PENDING_THRESHOLD),
@@ -171,7 +177,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     searchKeywords: async (
       source,
       { query }: { query: string },
-      ctx,
+      ctx: AuthContext,
       info,
     ): Promise<GQLKeywordSearchResults> => {
       const parsedInfo = parseResolveInfo(info) as ResolveTree;
@@ -197,7 +203,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     keyword: async (
       source,
       { value }: { value: string },
-      ctx,
+      ctx: Context,
       info,
     ): Promise<GQLKeyword | null> => {
       const res = await graphorm.query<GQLKeyword>(ctx, info, (builder) => {
@@ -213,7 +219,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     allowKeyword: async (
       source,
       { keyword }: GQLKeywordArgs,
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (entityManager) => {
         await entityManager.getRepository(Keyword).save({
@@ -226,7 +232,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     denyKeyword: async (
       source,
       { keyword }: GQLKeywordArgs,
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (entityManager) => {
         await entityManager.getRepository(Keyword).save({
@@ -239,7 +245,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     setKeywordAsSynonym: async (
       source,
       { keywordToUpdate, originalKeyword }: GQLSynonymKeywordArgs,
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (entityManager) => {
         const repo = entityManager.getRepository(Keyword);

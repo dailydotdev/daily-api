@@ -6,6 +6,7 @@ import { AuthContext, BaseContext, Context } from '../Context';
 import { isValidHttpUrl, standardizeURL } from '../common';
 import { getPostByUrl, GQLPost } from './posts';
 import { SubmissionFailErrorMessage } from '../errors';
+import { checkWithVordr, VordrFilterType } from '../common/vordr';
 
 interface GQLArticleSubmission {
   url: string;
@@ -172,7 +173,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .getRepository(ArticlePost)
         .findOneBy([{ url }, { canonicalUrl: url }]);
       if (existingPost) {
-        if (existingPost.deleted) {
+        if (existingPost.deleted || !existingPost.visible) {
           return {
             result: 'rejected',
             reason: SubmissionFailErrorMessage.POST_DELETED,
@@ -199,10 +200,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         };
       }
 
-      const submission = await submissionRepo.save({
+      const createdSubmission = submissionRepo.create({
         url: cleanUrl,
         userId: ctx.userId,
       });
+
+      createdSubmission.flags = {
+        ...createdSubmission.flags,
+        vordr: await checkWithVordr(
+          { id: createdSubmission.id, type: VordrFilterType.Submission },
+          ctx,
+        ),
+      };
+
+      const submission = await submissionRepo.save(createdSubmission);
 
       return { result: 'succeed', submission };
     },
