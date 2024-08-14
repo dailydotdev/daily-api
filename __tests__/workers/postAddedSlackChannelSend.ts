@@ -24,6 +24,7 @@ import { UserSourceIntegrationSlack } from '../../src/entity/UserSourceIntegrati
 import { ChangeObject } from '../../src/types';
 import { SourceMemberRoles } from '../../src/roles';
 import { addSeconds } from 'date-fns';
+import { SlackApiErrorCode } from '../../src/errors';
 
 const conversationsJoin = jest.fn().mockResolvedValue({
   ok: true,
@@ -318,6 +319,47 @@ describe('postAddedSlackChannelSend worker', () => {
         },
       ],
       text: 'Ido shared a new post: <http://localhost:5002/posts/squadslackchannelp1?utm_source=notification&utm_medium=slack&utm_campaign=new_post&jt=squadslackchanneltoken1&source=squadslackchannel&type=squad|http://localhost:5002/posts/squadslackchannelp1>',
+      unfurl_links: false,
+    });
+  });
+
+  it('should send a message to the private slack channel', async () => {
+    const post = await con.getRepository(ArticlePost).findOneByOrFail({
+      id: 'p1',
+    });
+
+    conversationsJoin.mockRejectedValueOnce({
+      message: 'An API error occurred',
+      code: 'slack_webapi_platform_error',
+      data: {
+        ok: false,
+        error: SlackApiErrorCode.MethodNotSupportedForChannelType,
+      },
+    });
+
+    await expectSuccessfulTypedBackground(worker, {
+      post: post as unknown as ChangeObject<ArticlePost>,
+    });
+
+    expect(conversationsJoin).toHaveBeenCalledTimes(1);
+    expect(chatPostMessage).toHaveBeenCalledTimes(1);
+
+    expect(conversationsJoin).toHaveBeenCalledWith({
+      channel: '1',
+    });
+    expect(chatPostMessage).toHaveBeenCalledWith({
+      channel: '1',
+      attachments: [
+        {
+          author_icon: 'http://image.com/a',
+          author_name: 'A | daily.dev',
+          image_url: 'https://daily.dev/image.jpg',
+          title: 'P1',
+          title_link:
+            'http://localhost:5002/posts/p1?utm_source=notification&utm_medium=slack&utm_campaign=new_post',
+        },
+      ],
+      text: 'New post: <http://localhost:5002/posts/p1?utm_source=notification&utm_medium=slack&utm_campaign=new_post|http://localhost:5002/posts/p1>',
       unfurl_links: false,
     });
   });

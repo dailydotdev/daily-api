@@ -10,6 +10,8 @@ import {
   toGQLEnum,
   addNotificationUtm,
   addPrivateSourceJoinParams,
+  SlackChannelType,
+  SlackOAuthScope,
 } from '../common';
 import { GQLEmptyResponse } from './common';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
@@ -195,7 +197,10 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
+export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
+  unknown,
+  BaseContext
+>({
   Query: {
     slackChannels: async (
       _,
@@ -212,6 +217,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         integration: slackIntegration,
       });
 
+      const channelTypes = [SlackChannelType.Public];
+
+      if (slackIntegration.meta.scope.includes(SlackOAuthScope.GroupsRead)) {
+        channelTypes.push(SlackChannelType.Private);
+      }
+
       const result = await client.conversations.list({
         limit: getLimit({
           limit: args.limit,
@@ -220,6 +231,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         }),
         cursor: args.cursor,
         exclude_archived: true,
+        types: channelTypes.join(','),
       });
 
       if (!result.ok) {
@@ -236,7 +248,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
       }
 
       return {
-        data: result.channels.map((channel) => {
+        data: result.channels!.map((channel) => {
           return {
             id: channel.id,
             name: channel.name,
@@ -392,7 +404,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers({
         await ctx.con.getRepository(UserSourceIntegrationSlack).update(
           {
             sourceId: args.sourceId,
-            userIntegrationId: existingUserIntegration.id,
+            userIntegrationId: existingUserIntegration!.id,
           },
           record,
         );

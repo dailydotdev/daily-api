@@ -2,8 +2,8 @@ import { IResolvers } from '@graphql-tools/utils';
 import { omitBy, isEmpty } from 'lodash';
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 
-import { Context } from '../Context';
-import { traceResolverObject } from './trace';
+import { AuthContext, BaseContext, Context } from '../Context';
+import { traceResolvers } from './trace';
 import { DevCardTheme, DevCard } from '../entity';
 import { NotFoundError } from '../errors';
 import { DevCardData, getDevCardData } from '../common/devcard';
@@ -141,9 +141,11 @@ interface GenerateDevCardInput
 
 interface DevCardByIdResult extends Omit<DevCard, 'user'>, DevCardData {}
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvers: IResolvers<any, Context> = {
-  Query: traceResolverObject({
+export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
+  unknown,
+  BaseContext
+>({
+  Query: {
     devCard: async (
       source,
       { id }: { id: string },
@@ -165,16 +167,17 @@ export const resolvers: IResolvers<any, Context> = {
       const data = await getDevCardData(id, ctx.con);
       return { ...res, ...data };
     },
-  }),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Mutation: traceResolverObject<any, any, Context>({
+  },
+  Mutation: {
     generateDevCard: async (
       source,
       { file, url }: { file?: FileUpload; url: string },
-      ctx: Context,
+      ctx: AuthContext,
     ): Promise<{ imageUrl: string }> => {
       const repo = ctx.con.getRepository(DevCard);
-      let devCard: DevCard = await repo.findOneBy({ userId: ctx.userId });
+      let devCard: DevCard | null = await repo.findOneBy({
+        userId: ctx.userId,
+      });
       if (!devCard) {
         devCard = await repo.save({ userId: ctx.userId });
       } else if (!file && !url) {
@@ -206,10 +209,12 @@ export const resolvers: IResolvers<any, Context> = {
     generateDevCardV2: async (
       source,
       { theme, isProfileCover, showBorder, type }: GenerateDevCardInput,
-      ctx: Context,
+      ctx: AuthContext,
     ): Promise<{ imageUrl: string }> => {
       const repo = ctx.con.getRepository(DevCard);
-      let devCard: DevCard = await repo.findOneBy({ userId: ctx.userId });
+      let devCard: DevCard | null = await repo.findOneBy({
+        userId: ctx.userId,
+      });
       devCard = await repo.save({
         id: devCard === null ? undefined : devCard.id,
         userId: ctx.userId,
@@ -239,5 +244,5 @@ export const resolvers: IResolvers<any, Context> = {
         imageUrl: url.toString(),
       };
     },
-  }),
-};
+  },
+});

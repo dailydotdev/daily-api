@@ -1,6 +1,11 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
-import { Context, SubscriptionContext } from '../Context';
+import {
+  AuthContext,
+  BaseContext,
+  Context,
+  SubscriptionContext,
+} from '../Context';
 import {
   Banner,
   NotificationPreference,
@@ -330,19 +335,21 @@ const notificationsPageGenerator = createDatePageGenerator<
   key: 'createdAt',
 });
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvers: IResolvers<any, Context> = traceResolvers({
+export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
+  unknown,
+  BaseContext
+>({
   Query: {
     unreadNotificationsCount: async (
       source,
       args: ConnectionArguments,
-      ctx,
+      ctx: AuthContext,
     ): Promise<number> =>
       await getUnreadNotificationsCount(ctx.con, ctx.userId),
     banner: async (
       source,
       { lastSeen }: { lastSeen: Date },
-      ctx,
+      ctx: Context,
     ): Promise<GQLBanner | null> =>
       ctx
         .getRepository(Banner)
@@ -353,7 +360,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     notifications: async (
       source,
       args: ConnectionArguments,
-      ctx,
+      ctx: AuthContext,
       info,
     ): Promise<ConnectionRelay<NotificationV2>> => {
       const page = notificationsPageGenerator.connArgsToPage(args);
@@ -385,7 +392,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     notificationPreferences: async (
       _,
       { data }: NotificationPreferenceInput,
-      ctx,
+      ctx: AuthContext,
       info,
     ): Promise<GQLNotificationPreference[]> => {
       if (!data.length) {
@@ -395,7 +402,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       const params = data.reduce((args, value) => {
         const type = notificationPreferenceMap[value.notificationType];
         return [...args, { ...value, type, userId: ctx.userId }];
-      }, []);
+      }, [] as NotificationPreferenceArgs[]);
 
       const newComments = data.filter(({ notificationType }) =>
         postNewCommentNotificationTypes.includes(notificationType),
@@ -409,7 +416,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
 
         comments.forEach(({ id, postId }) => {
           const param = params.find(({ referenceId }) => referenceId === id);
-          param.referenceId = postId;
+          param!.referenceId = postId;
         });
       }
 
@@ -421,7 +428,11 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
   },
   Mutation: {
-    readNotifications: async (_, __, ctx): Promise<GQLEmptyResponse> => {
+    readNotifications: async (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (entityManager) => {
         await entityManager
           .getRepository(UserNotification)
@@ -435,7 +446,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     muteNotificationPreference: async (
       _,
       { type, referenceId }: NotificationPreferenceMutationArgs,
-      { con, userId },
+      { con, userId }: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       if (!Object.values(NotificationType).includes(type)) {
         throw new ValidationError('Invalid notification type');
@@ -454,7 +465,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     clearNotificationPreference: async (
       _,
       { type, referenceId }: NotificationPreferenceMutationArgs,
-      { con, userId },
+      { con, userId }: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       if (postNewCommentNotificationTypes.includes(type)) {
         const comment = await con.getRepository(Comment).findOne({
@@ -478,7 +489,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     subscribeNotificationPreference: async (
       _,
       { type, referenceId }: NotificationPreferenceMutationArgs,
-      { con, userId },
+      { con, userId }: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       if (!Object.values(NotificationType).includes(type)) {
         throw new ValidationError('Invalid notification type');

@@ -72,7 +72,7 @@ export const whereKeyword = (
 
 export const getExcludedAdvancedSettings = async (
   con: DataSource,
-  feedId: string,
+  feedId?: string,
 ): Promise<Partial<AdvancedSettings>[]> => {
   if (!feedId) {
     return [];
@@ -103,8 +103,8 @@ export const getExcludedAdvancedSettings = async (
 
 export const feedToFilters = async (
   con: DataSource,
-  feedId: string,
-  userId: string,
+  feedId?: string,
+  userId?: string,
 ): Promise<AnonymousFeedFilters> => {
   const settings = await getExcludedAdvancedSettings(con, feedId);
   const [tags, excludeSources, memberships] = await Promise.all([
@@ -444,7 +444,7 @@ export interface AnonymousFeedFilters {
 
 export const anonymousFeedBuilder = (
   ctx: Context,
-  filters: AnonymousFeedFilters,
+  filters: AnonymousFeedFilters | undefined,
   builder: SelectQueryBuilder<Post>,
   alias: string,
 ): SelectQueryBuilder<Post> => {
@@ -479,11 +479,11 @@ export const anonymousFeedBuilder = (
 
 export const configuredFeedBuilder = (
   ctx: Context,
-  feedId: string,
+  feedId: string | undefined,
   unreadOnly: boolean,
   builder: SelectQueryBuilder<Post>,
   alias: string,
-  filters: AnonymousFeedFilters,
+  filters: AnonymousFeedFilters | undefined,
 ): SelectQueryBuilder<Post> => {
   let newBuilder = anonymousFeedBuilder(ctx, filters, builder, alias);
   if (unreadOnly) {
