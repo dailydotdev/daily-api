@@ -10,6 +10,8 @@ import {
   toGQLEnum,
   addNotificationUtm,
   addPrivateSourceJoinParams,
+  SlackChannelType,
+  SlackOAuthScope,
 } from '../common';
 import { GQLEmptyResponse } from './common';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
@@ -215,6 +217,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         integration: slackIntegration,
       });
 
+      const channelTypes = [SlackChannelType.Public];
+
+      if (slackIntegration.meta.scope.includes(SlackOAuthScope.GroupsRead)) {
+        channelTypes.push(SlackChannelType.Private);
+      }
+
       const result = await client.conversations.list({
         limit: getLimit({
           limit: args.limit,
@@ -223,7 +231,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }),
         cursor: args.cursor,
         exclude_archived: true,
-        types: ['public_channel', 'private_channel'].join(','),
+        types: channelTypes.join(','),
       });
 
       if (!result.ok) {
