@@ -115,6 +115,17 @@ export class ConflictError extends ApolloError {
   }
 }
 
+export enum SlackApiErrorCode {
+  MethodNotSupportedForChannelType = 'method_not_supported_for_channel_type',
+}
+
+export type SlackApiError = Error & {
+  data?: {
+    ok: boolean;
+    error: SlackApiErrorCode;
+  };
+};
+
 export type TypeORMQueryFailedError = QueryFailedError & {
   code?: string;
   constraint?: string;

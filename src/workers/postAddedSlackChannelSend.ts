@@ -8,6 +8,7 @@ import {
 } from '../common/userIntegration';
 import { addNotificationUtm, addPrivateSourceJoinParams } from '../common';
 import { SourceMemberRoles } from '../roles';
+import { SlackApiError, SlackApiErrorCode } from '../errors';
 
 const sendQueueConcurrency = 10;
 
@@ -108,9 +109,22 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
 
               // channel should already be joined when the integration is connected
               // but just in case
-              await slackClient.conversations.join({
-                channel: channelId,
-              });
+              try {
+                await slackClient.conversations.join({
+                  channel: channelId,
+                });
+              } catch (originalJoinError) {
+                const conversationsJoinError =
+                  originalJoinError as SlackApiError;
+
+                if (
+                  ![
+                    SlackApiErrorCode.MethodNotSupportedForChannelType,
+                  ].includes(conversationsJoinError.data?.error)
+                ) {
+                  throw originalJoinError;
+                }
+              }
 
               await slackClient.chat.postMessage({
                 channel: channelId,
