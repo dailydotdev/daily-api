@@ -29,7 +29,9 @@ const cron: Cron = {
               FROM    reading_streak_action rsa
               WHERE   rsa."userId" = us."userId"
               AND     rsa.type = 'recovered'
-              AND     date_trunc('day', rsa."createdAt" at time zone COALESCE(u.timezone, 'utc'))::date >= (date_trunc('day', now() at time zone COALESCE(u.timezone, 'utc'))::date) - interval '1 day'`,
+              AND     date_trunc('day', rsa."createdAt" at time zone COALESCE(u.timezone, 'utc'))::date >= (date_trunc('day', now() at time zone COALESCE(u.timezone, 'utc'))::date) - interval '1 day'
+            )
+           `,
           )
           .getRawMany();
 
