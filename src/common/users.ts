@@ -9,9 +9,9 @@ import { utcToZonedTime } from 'date-fns-tz';
 import { sendAnalyticsEvent } from '../integrations/analytics';
 import { DayOfWeek, DEFAULT_WEEK_START } from './date';
 import {
-  ReadingStreakAction,
-  ReadingStreakActionType,
-} from '../entity/ReadingStreakAction';
+  UserStreakAction,
+  UserStreakActionType,
+} from '../entity/UserStreakAction';
 
 export interface User {
   id: string;
@@ -433,16 +433,14 @@ export const shouldResetStreak = (
 
 export const checkUserStreak = (
   streak: GQLUserStreakTz,
-  lastRecoverAction?: ReadingStreakAction,
+  lastRecoveredTime?: Date,
 ): boolean => {
   const { lastViewAtTz: lastViewAt, timezone, current } = streak;
-  const { timestamp: recoverTime } = lastRecoverAction;
-
-  const lastStreakUpdate = recoverTime
-    ? max([lastViewAt, recoverTime])
+  const lastStreakUpdate = lastRecoveredTime
+    ? max([lastViewAt, lastRecoveredTime])
     : lastViewAt;
 
-  if (!lastStreakUpdate || current === 0) {
+  if (!lastViewAt || current === 0) {
     return false;
   }
 
@@ -460,14 +458,13 @@ export const checkAndClearUserStreak = async (
   info: GraphQLResolveInfo,
   streak: GQLUserStreakTz,
 ): Promise<boolean> => {
-  const lastRecoverAction = await con
-    .getRepository(ReadingStreakAction)
-    .findOneBy({
-      userStreak: streak,
-      type: ReadingStreakActionType.Recover,
-    });
+  const lastRecoverAction = await con.getRepository(UserStreakAction).findOne({
+    select: ['createdAt'],
+    where: { userId: streak.userId, type: UserStreakActionType.Recover },
+    order: { createdAt: 'DESC' },
+  });
 
-  if (checkUserStreak(streak, lastRecoverAction)) {
+  if (checkUserStreak(streak, lastRecoverAction?.createdAt)) {
     const result = await clearUserStreak(con, [streak.userId]);
     return result > 0;
   }

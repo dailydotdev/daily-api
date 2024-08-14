@@ -2,10 +2,6 @@ import { Cron } from './cron';
 import { User, UserStreak } from '../entity';
 import { checkUserStreak, clearUserStreak } from '../common';
 import { counters } from '../telemetry';
-import {
-  ReadingStreakAction,
-  ReadingStreakActionType,
-} from '../entity/ReadingStreakAction';
 
 const cron: Cron = {
   name: 'update-current-streak',
@@ -24,32 +20,25 @@ const cron: Cron = {
           .innerJoin(User, 'u', 'u.id = us."userId"')
           .where(`us."currentStreak" != 0`)
           .andWhere(
-            `(date_trunc('day', us. "lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date) < (date_trunc('day', now() at time zone COALESCE(u.timezone, 'utc'))::date) - interval '1 day' `,
+            `(date_trunc('day', us. "lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date) < (date_trunc('day', now() at time zone COALESCE(u.timezone, 'utc'))::date) - interval '1 day'`,
+          )
+          .andWhere(
+            `
+            NOT EXISTS (
+              SELECT  1
+              FROM    reading_streak_action rsa
+              WHERE   rsa."userId" = us."userId"
+              AND     rsa.type = 'recovered'
+              AND     date_trunc('day', rsa."createdAt" at time zone COALESCE(u.timezone, 'utc'))::date >= (date_trunc('day', now() at time zone COALESCE(u.timezone, 'utc'))::date) - interval '1 day'`,
           )
           .getRawMany();
 
         const userIdsToReset = [];
-
-        for (const userStreak of usersPastStreakTime) {
+        usersPastStreakTime.forEach((userStreak) => {
           if (checkUserStreak(userStreak)) {
-            // fetch user recover actions only if user has streak lose
-            const lastRecoverAction = await con
-              .getRepository(ReadingStreakAction)
-              .findOne({
-                where: {
-                  userStreak: userStreak.userId,
-                  type: ReadingStreakActionType.Recover,
-                },
-                order: {
-                  timestamp: 'DESC',
-                },
-              });
-
-            if (checkUserStreak(userStreak, lastRecoverAction)) {
-              userIdsToReset.push(userStreak.userId);
-            }
+            userIdsToReset.push(userStreak.userId);
           }
-        }
+        });
 
         if (!userIdsToReset.length) {
           logger.info('no user streaks to reset');

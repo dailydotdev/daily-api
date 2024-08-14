@@ -7,9 +7,9 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import nock from 'nock';
 import {
-  ReadingStreakAction,
-  ReadingStreakActionType,
-} from '../../src/entity/ReadingStreakAction';
+  UserStreakAction,
+  UserStreakActionType,
+} from '../../src/entity/UserStreakAction';
 
 let con: DataSource;
 
@@ -51,16 +51,11 @@ beforeEach(async () => {
       lastViewAt: new Date('2024-06-24'),
     },
   ]);
-  await con.getRepository(ReadingStreakAction).save([
+  await con.getRepository(UserStreakAction).save([
     {
-      id: '1',
-      userStreak: Promise.resolve({
-        userId: '2',
-        currentStreak: 0,
-        lastViewAt: new Date('2024-06-24'),
-      }),
+      userId: '1',
       timestamp: new Date('2024-06-25'),
-      type: ReadingStreakActionType.Recover,
+      type: UserStreakActionType.Recover,
     },
   ]);
 });
