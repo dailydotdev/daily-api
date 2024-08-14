@@ -138,3 +138,12 @@ export const getAttachmentForPostType = async <TPostType extends PostType>({
 
   return attachment;
 };
+
+export enum SlackChannelType {
+  Public = 'public_channel',
+  Private = 'private_channel',
+}
+
+export enum SlackOAuthScope {
+  GroupsRead = 'groups:read',
+}
