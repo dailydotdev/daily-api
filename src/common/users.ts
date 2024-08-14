@@ -8,10 +8,7 @@ import { GraphQLResolveInfo } from 'graphql';
 import { utcToZonedTime } from 'date-fns-tz';
 import { sendAnalyticsEvent } from '../integrations/analytics';
 import { DayOfWeek, DEFAULT_WEEK_START } from './date';
-import {
-  UserStreakAction,
-  UserStreakActionType,
-} from '../entity/UserStreakAction';
+import { UserStreakAction, UserStreakActionType } from '../entity';
 
 export interface User {
   id: string;

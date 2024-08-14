@@ -6,10 +6,7 @@ import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import nock from 'nock';
-import {
-  UserStreakAction,
-  UserStreakActionType,
-} from '../../src/entity/UserStreakAction';
+import { UserStreakAction, UserStreakActionType } from '../../src/entity';
 
 let con: DataSource;
 
@@ -43,11 +40,6 @@ beforeEach(async () => {
     {
       userId: '1',
       currentStreak: 1,
-      lastViewAt: new Date('2024-06-24'),
-    },
-    {
-      userId: '2',
-      currentStreak: 0,
       lastViewAt: new Date('2024-06-24'),
     },
   ]);

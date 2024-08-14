@@ -1,13 +1,5 @@
-import {
-  Column,
-  PrimaryColumn,
-  Entity,
-  OneToOne,
-  JoinColumn,
-  OneToMany,
-} from 'typeorm';
+import { Column, PrimaryColumn, Entity, OneToOne, JoinColumn } from 'typeorm';
 import { User } from './';
-import { UserStreakAction } from '../UserStreakAction';
 
 @Entity()
 export class UserStreak {
@@ -35,7 +27,4 @@ export class UserStreak {
 
   @Column({ type: 'timestamptz', default: () => 'now()' })
   updatedAt: Date;
-
-  @OneToMany(() => UserStreakAction, (action) => action.streak, { lazy: true })
-  actions: Promise<UserStreakAction[]>;
 }

@@ -1,5 +1,5 @@
-import { Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
-import { UserStreak } from './user';
+import { Entity, JoinColumn, OneToOne, PrimaryColumn } from 'typeorm';
+import { User } from './User';
 
 export enum UserStreakActionType {
   Recover = 'recovered',
@@ -16,10 +16,10 @@ export class UserStreakAction {
   @PrimaryColumn({ type: 'timestamptz', default: () => 'now()' })
   createdAt: Date;
 
-  @ManyToOne(() => UserStreak, {
+  @OneToOne(() => User, (user) => user.streak, {
     lazy: true,
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'userId' })
-  streak: Promise<UserStreak>;
+  user: Promise<User>;
 }
