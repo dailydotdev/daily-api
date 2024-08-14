@@ -114,7 +114,10 @@ export class Source {
   @Column({ type: 'text', nullable: true })
   categoryId?: string;
 
-  @ManyToOne(() => SourceCategory, (category) => category.id, { lazy: true })
+  @ManyToOne(() => SourceCategory, (category) => category.id, {
+    lazy: true,
+    onDelete: 'SET NULL',
+  })
   category: Promise<SourceCategory>;
 
   @OneToMany(() => SourceDisplay, (display) => display.source, { lazy: true })

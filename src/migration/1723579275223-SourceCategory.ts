@@ -9,7 +9,7 @@ export class SourceCategory1723579275223 implements MigrationInterface {
     );
     await queryRunner.query(`ALTER TABLE "source" ADD "categoryId" uuid`);
     await queryRunner.query(
-      `ALTER TABLE "source" ADD CONSTRAINT "FK_02e1cbb6e33fa90e68dd56de2a9" FOREIGN KEY ("categoryId") REFERENCES "source_category"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+      `ALTER TABLE "source" ADD CONSTRAINT "FK_02e1cbb6e33fa90e68dd56de2a9" FOREIGN KEY ("categoryId") REFERENCES "source_category"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
     );
     await queryRunner.query(`
       INSERT INTO "source_category"

@@ -230,13 +230,18 @@ describe('query sources', () => {
   });
 
   it('should filter by category', async () => {
-    console.log('entry');
     const repo = con.getRepository(Source);
-    await repo.update({ id: 'a' }, { categoryId: 'general' });
-    await repo.update({ id: 'b' }, { categoryId: 'web' });
-    const res = await client.query(QUERY({ first: 10, categoryId: 'web' }));
+    const general = await con
+      .getRepository(SourceCategory)
+      .findOneByOrFail({ title: 'General' });
+    const web = await con
+      .getRepository(SourceCategory)
+      .findOneByOrFail({ title: 'Web' });
+    await repo.update({ id: 'a' }, { categoryId: general.id });
+    await repo.update({ id: 'b' }, { categoryId: web.id });
+    const res = await client.query(QUERY({ first: 10, categoryId: web.id }));
     const isAllWeb = res.data.sources.edges.every(
-      ({ node }) => node.category.id === 'web',
+      ({ node }) => node.category.id === web.id,
     );
     expect(isAllWeb).toBeTruthy();
   });
