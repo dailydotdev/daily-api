@@ -3,7 +3,7 @@ import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { AuthContext, BaseContext, Context } from '../Context';
-import { traceResolverObject } from './trace';
+import { traceResolvers } from './trace';
 import {
   getDiscussionLink,
   recommendUsersByQuery,
@@ -558,10 +558,11 @@ const validateComment = (ctx: Context, content: string): void => {
   }
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvers: IResolvers<any, BaseContext> = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Query: traceResolverObject<any, any, any>({
+export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
+  unknown,
+  BaseContext
+>({
+  Query: {
     commentFeed: async (
       _,
       args: ConnectionArguments,
@@ -767,9 +768,8 @@ export const resolvers: IResolvers<any, BaseContext> = {
 
       return comment;
     },
-  }),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Mutation: traceResolverObject<any, any, any>({
+  },
+  Mutation: {
     commentOnPost: async (
       source,
       { postId, content }: GQLPostCommentArgs,
@@ -970,9 +970,9 @@ export const resolvers: IResolvers<any, BaseContext> = {
 
       return { _: true };
     },
-  }),
+  },
   Comment: {
     permalink: (comment: GQLComment): string =>
       getDiscussionLink(comment.postId, comment.id),
   },
-};
+});

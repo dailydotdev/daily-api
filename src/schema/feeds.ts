@@ -16,7 +16,7 @@ import { Category } from '../entity/Category';
 import { GraphQLResolveInfo } from 'graphql';
 
 import { IFieldResolver, IResolvers } from '@graphql-tools/utils';
-import { Context } from '../Context';
+import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import {
   anonymousFeedBuilder,
@@ -39,6 +39,7 @@ import {
 import { In, SelectQueryBuilder } from 'typeorm';
 import { ensureSourcePermissions, GQLSource } from './sources';
 import {
+  CursorPage,
   feedCursorPageGenerator,
   GQLEmptyResponse,
   offsetPageGenerator,
@@ -55,6 +56,7 @@ import {
   FeedGenerator,
   feedGenerators,
   FeedPreferencesConfigGenerator,
+  FeedResponse,
   SimpleFeedConfigGenerator,
   versionToFeedGenerator,
 } from '../integrations/feed';
@@ -928,7 +930,7 @@ interface FeedPage extends Page {
 
 const feedPageGenerator: PageGenerator<GQLPost, FeedArgs, FeedPage, unknown> = {
   connArgsToPage: ({ ranking, first, after }: FeedArgs) => {
-    const cursor = getCursorFromAfter(after);
+    const cursor = getCursorFromAfter(after || undefined);
     // Increment by one to determine if there's one more page
     const limit = Math.min(first || 30, 50) + 1;
     if (cursor) {
@@ -955,7 +957,7 @@ const applyFeedPaging = (
   { ranking }: FeedArgs,
   page: FeedPage,
   builder: SelectQueryBuilder<Post>,
-  alias,
+  alias: string,
 ): SelectQueryBuilder<Post> => {
   let newBuilder = builder
     .addSelect(
@@ -988,11 +990,13 @@ interface UpvotedPage extends Page {
 
 const upvotedPageGenerator: PageGenerator<
   GQLPost,
-  ConnectionArguments,
+  ConnectionArguments & {
+    ranking: Ranking;
+  },
   UpvotedPage
 > = {
   connArgsToPage: ({ first, after }: FeedArgs) => {
-    const cursor = getCursorFromAfter(after);
+    const cursor = getCursorFromAfter(after || undefined);
     const limit = Math.min(first || 30, 50);
     if (cursor) {
       return { limit, timestamp: new Date(parseInt(cursor)) };
@@ -1000,7 +1004,7 @@ const upvotedPageGenerator: PageGenerator<
     return { limit };
   },
   nodeToCursor: (page, args, node) => {
-    return base64(`time:${node.votedAt.getTime()}`);
+    return base64(`time:${node.votedAt!.getTime()}`);
   },
   hasNextPage: (page, nodesSize) => page.limit === nodesSize,
   hasPreviousPage: (page) => !!page.timestamp,
@@ -1008,7 +1012,7 @@ const upvotedPageGenerator: PageGenerator<
 
 const applyUpvotedPaging = (
   ctx: Context,
-  args,
+  args: unknown,
   page: UpvotedPage,
   builder: SelectQueryBuilder<Post>,
 ): SelectQueryBuilder<Post> => {
@@ -1030,7 +1034,7 @@ const feedPageGeneratorWithPin: PageGenerator<
   connArgsToPage: ({ first, after }: FeedArgs) => {
     const limit = Math.min(first || 30, 50) + 1;
     const result: FeedPage = { limit };
-    const { time, pinned } = getArgsFromAfter(after);
+    const { time, pinned } = getArgsFromAfter(after as string);
 
     if (time) {
       result.timestamp = new Date(parseInt(time));
@@ -1059,7 +1063,7 @@ const applyFeedPagingWithPin = (
   ctx: Context,
   { limit, timestamp, pinned }: FeedPage,
   builder: SelectQueryBuilder<Post>,
-  alias,
+  alias: string,
 ): SelectQueryBuilder<Post> => {
   const newBuilder = builder
     .limit(limit)
@@ -1087,7 +1091,7 @@ const applyFeedPagingWithPin = (
 const getDefaultFeedSettings = async ({
   ctx,
 }: {
-  ctx: Context;
+  ctx: AuthContext;
 }): Promise<GQLFeedSettings> => {
   return {
     id: ctx.userId,
@@ -1105,7 +1109,7 @@ const getFeedSettings = async ({
   info,
   feedId,
 }: {
-  ctx: Context;
+  ctx: AuthContext;
   info: GraphQLResolveInfo;
   feedId: string;
 }): Promise<GQLFeedSettings> => {
@@ -1135,7 +1139,13 @@ const anonymousFeedResolverV1: IFieldResolver<
 
 const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
   feedResolver(
-    (ctx, args: ConfiguredFeedArgs, builder, alias, queryParams) => {
+    (
+      ctx,
+      args: ConfiguredFeedArgs,
+      builder,
+      alias,
+      queryParams: AnonymousFeedFilters | undefined,
+    ) => {
       const feedId = args.feedId || ctx.userId;
 
       return configuredFeedBuilder(
@@ -1158,15 +1168,16 @@ const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
     },
   );
 
-const feedResolverCursor: IFieldResolver<
+const feedResolverCursor = feedResolver<
   unknown,
-  Context,
-  FeedArgs & { generator: FeedGenerator }
-> = feedResolver(
+  FeedArgs & { generator: FeedGenerator },
+  CursorPage,
+  FeedResponse
+>(
   (ctx, args, builder, alias, queryParams) =>
     fixedIdsFeedBuilder(
       ctx,
-      queryParams.data.map(([postId]) => postId as string),
+      queryParams!.data.map(([postId]) => postId as string),
       builder,
       alias,
     ),
@@ -1235,8 +1246,10 @@ const legacySimilarPostsResolver = randomPostsResolver(
   3,
 );
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvers: IResolvers<any, Context> = traceResolvers({
+export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
+  unknown,
+  BaseContext
+>({
   Query: {
     anonymousFeed: (source, args: AnonymousFeedArgs, ctx: Context, info) => {
       if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
@@ -1244,7 +1257,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           source,
           {
             ...(args as FeedArgs),
-            generator: feedGenerators['popular'],
+            generator: feedGenerators['popular']!,
           },
           ctx,
           info,
@@ -1272,8 +1285,10 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
     customFeed: async (
       source,
-      args: ConfiguredFeedArgs,
-      ctx: Context,
+      args: ConfiguredFeedArgs & {
+        feedId: string;
+      },
+      ctx: AuthContext,
       info,
     ) => {
       const feedIdOrSlug = args.feedId;
@@ -1332,7 +1347,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       args: Pick<ConfiguredFeedArgs, 'supportedTypes'> & {
         filters: GQLFiltersInput;
       },
-      ctx: Context,
+      ctx: AuthContext,
       info,
     ) => {
       const { filters, ...feedArgs } = args;
@@ -1368,7 +1383,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
               ...(feedArgs as FeedArgs),
               first: 20,
               ranking: Ranking.POPULARITY,
-              generator: feedGenerator,
+              generator: feedGenerator!,
             },
             ctx,
             info,
@@ -1456,7 +1471,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     feedSettings: (
       source,
       args: { feedId: string },
-      ctx,
+      ctx: AuthContext,
       info,
     ): Promise<GQLFeedSettings> => {
       const feedId = args.feedId || ctx.userId;
@@ -1465,14 +1480,14 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     advancedSettings: async (
       _,
       __,
-      ctx,
+      ctx: AuthContext,
       info,
     ): Promise<GQLAdvancedSettings[]> =>
       graphorm.query<GQLAdvancedSettings>(ctx, info, (builder) => {
         builder.queryBuilder = builder.queryBuilder.orderBy('title', 'ASC');
         return builder;
       }),
-    rssFeeds: async (source, args, ctx): Promise<GQLRSSFeed[]> => {
+    rssFeeds: async (source, args, ctx: AuthContext): Promise<GQLRSSFeed[]> => {
       const urlPrefix = `${process.env.URL_PREFIX}/rss`;
       const lists = await ctx.getRepository(BookmarkList).find({
         where: { userId: ctx.userId },
@@ -1630,7 +1645,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       args: ConnectionArguments & {
         post_id: string;
       },
-      ctx,
+      ctx: Context,
       info,
     ) => {
       const { post_id, ...restArgs } = args;
@@ -1654,11 +1669,11 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     randomSimilarPostsByTags: async (
       source,
       args: { tags: string[]; post: string | null; first: number | null },
-      ctx,
+      ctx: Context,
       info,
     ): Promise<GQLPost[]> => {
       if (args.post) {
-        const res = await feedGenerators['post_similarity'].generate(ctx, {
+        const res = await feedGenerators['post_similarity']!.generate(ctx, {
           user_id: ctx.userId,
           page_size: args.first || 3,
           post_id: args.post,
@@ -1709,7 +1724,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     feedList: async (
       source,
       args: ConnectionArguments,
-      ctx,
+      ctx: AuthContext,
       info,
     ): Promise<Connection<GQLFeed>> => {
       const pageGenerator = createDatePageGenerator<GQLFeed, 'createdAt'>({
@@ -1747,7 +1762,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     getFeed: async (
       _,
       { feedId }: { feedId: string },
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLFeed> => {
       const feed = await getFeedByIdentifiersOrFail({
         con: ctx.con,
@@ -1762,7 +1777,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     addFiltersToFeed: async (
       _,
       { feedId: feedIdArg, filters }: GQLFeedFiltersInput,
-      ctx,
+      ctx: AuthContext,
       info,
     ): Promise<GQLFeedSettings> => {
       if (feedIdArg) {
@@ -1847,7 +1862,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     removeFiltersFromFeed: async (
       source,
       { feedId: feedIdArg, filters }: GQLFeedFiltersInput,
-      ctx,
+      ctx: AuthContext,
       info,
     ): Promise<GQLFeedSettings> => {
       const feedId = feedIdArg || ctx.userId;
@@ -1897,7 +1912,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     updateFeedAdvancedSettings: async (
       _,
       { settings }: { settings: GQLFeedAdvancedSettingsInput[] },
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLFeedAdvancedSettings[]> => {
       const feedId = ctx.userId;
       const feedRepo = ctx.con.getRepository(Feed);
@@ -1933,7 +1948,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     createFeed: async (
       _,
       { name }: { name: string },
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLFeed> => {
       validateFeedPayload({ name });
 
@@ -1962,7 +1977,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     updateFeed: async (
       _,
       { feedId, name }: { feedId: string; name: string },
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLFeed> => {
       validateFeedPayload({ name });
 
@@ -1989,7 +2004,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     deleteFeed: async (
       _,
       { feedId }: { feedId: string; name: string },
-      ctx,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       const feedRepo = ctx.con.getRepository(Feed);
       const feed = await getFeedByIdentifiersOrFail({

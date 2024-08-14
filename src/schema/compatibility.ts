@@ -1,6 +1,6 @@
 import { IFieldResolver, IResolvers } from '@graphql-tools/utils';
-import { Context } from '../Context';
-import { traceResolverObject } from './trace';
+import { BaseContext, Context } from '../Context';
+import { traceResolvers } from './trace';
 import { GQLPost } from './posts';
 import {
   anonymousFeedBuilder,
@@ -171,9 +171,11 @@ const orderFeed = (
     'DESC',
   );
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvers: IResolvers<any, Context> = {
-  Query: traceResolverObject({
+export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
+  unknown,
+  BaseContext
+>({
+  Query: {
     latest: compatFeedResolver(
       (
         ctx,
@@ -228,5 +230,5 @@ export const resolvers: IResolvers<any, Context> = {
           alias,
         ),
     ),
-  }),
-};
+  },
+});

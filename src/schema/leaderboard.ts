@@ -1,5 +1,5 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { Context } from '../Context';
+import { BaseContext } from '../Context';
 import { traceResolvers } from './trace';
 import { GQLUser } from './users';
 import { User, UserStats, UserStreak } from '../entity';
@@ -113,7 +113,10 @@ const getUserLeaderboardForStat = async ({
   });
 };
 
-export const resolvers: IResolvers<unknown, Context> = traceResolvers({
+export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
+  unknown,
+  BaseContext
+>({
   Query: {
     highestReputation: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
       const users = await ctx.con.getRepository(User).find({

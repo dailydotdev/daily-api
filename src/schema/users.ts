@@ -31,7 +31,7 @@ import {
 import { IResolvers } from '@graphql-tools/utils';
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { AuthContext, BaseContext, Context } from '../Context';
-import { traceResolverObject } from './trace';
+import { traceResolvers } from './trace';
 import {
   GQLDatePageGeneratorConfig,
   queryPaginatedByDate,
@@ -983,10 +983,11 @@ const getUserStreakQuery = async (
   }));
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvers: IResolvers<any, BaseContext> = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Query: traceResolverObject<any, any, any>({
+export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
+  unknown,
+  BaseContext
+>({
+  Query: {
     whoami: async (_, __, ctx: AuthContext, info: GraphQLResolveInfo) => {
       const res = await graphorm.query<GQLUser>(ctx, info, (builder) => {
         builder.queryBuilder = builder.queryBuilder
@@ -1172,7 +1173,7 @@ export const resolvers: IResolvers<any, BaseContext> = {
     searchReadingHistorySuggestions: async (
       source,
       { query }: { query: string },
-      ctx,
+      ctx: Context,
     ) => {
       const hits: { title: string }[] = await ctx.con.query(
         `
@@ -1199,7 +1200,7 @@ export const resolvers: IResolvers<any, BaseContext> = {
     searchReadingHistory: async (
       source,
       args: ConnectionArguments & { query: string },
-      ctx,
+      ctx: AuthContext,
       info,
     ): Promise<Connection<GQLView>> => readHistoryResolver(args, ctx, info),
     readHistory: async (
@@ -1372,9 +1373,8 @@ export const resolvers: IResolvers<any, BaseContext> = {
         },
       );
     },
-  }),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Mutation: traceResolverObject<any, any, any>({
+  },
+  Mutation: {
     updateUserProfile: async (
       _,
       { data, upload }: GQLUserParameters,
@@ -1710,7 +1710,7 @@ export const resolvers: IResolvers<any, BaseContext> = {
         weekStart,
       };
     },
-  }),
+  },
   User: {
     permalink: getUserPermalink,
   },
@@ -1729,4 +1729,4 @@ export const resolvers: IResolvers<any, BaseContext> = {
       }
     },
   },
-};
+});
