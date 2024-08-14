@@ -36,6 +36,6 @@ export class UserStreak {
   @Column({ type: 'timestamptz', default: () => 'now()' })
   updatedAt: Date;
 
-  @OneToMany(() => UserStreakAction, (action) => action.streak)
-  actions: UserStreakAction[];
+  @OneToMany(() => UserStreakAction, (action) => action.streak, { lazy: true })
+  actions: Promise<UserStreakAction[]>;
 }
