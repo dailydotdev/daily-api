@@ -3,9 +3,9 @@ import { User, UserStreak } from '../entity';
 import { checkUserStreak, clearUserStreak } from '../common';
 import { counters } from '../telemetry';
 import {
-  ReadingStreakActions,
+  ReadingStreakAction,
   ReadingStreakActionType,
-} from '../entity/ReadingStreakActions';
+} from '../entity/ReadingStreakAction';
 
 const cron: Cron = {
   name: 'update-current-streak',
@@ -34,7 +34,7 @@ const cron: Cron = {
           if (checkUserStreak(userStreak)) {
             // fetch user recover actions only if user has streak lose
             const lastRecoverAction = await con
-              .getRepository(ReadingStreakActions)
+              .getRepository(ReadingStreakAction)
               .findOne({
                 where: {
                   userStreak: userStreak.userId,

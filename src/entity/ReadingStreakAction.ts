@@ -6,7 +6,7 @@ export enum ReadingStreakActionType {
 }
 
 @Entity()
-export class ReadingStreakActions {
+export class ReadingStreakAction {
   @PrimaryColumn({ type: 'text' })
   id: string;
 

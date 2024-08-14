@@ -9,9 +9,9 @@ import { utcToZonedTime } from 'date-fns-tz';
 import { sendAnalyticsEvent } from '../integrations/analytics';
 import { DayOfWeek, DEFAULT_WEEK_START } from './date';
 import {
-  ReadingStreakActions,
+  ReadingStreakAction,
   ReadingStreakActionType,
-} from '../entity/ReadingStreakActions';
+} from '../entity/ReadingStreakAction';
 
 export interface User {
   id: string;
@@ -433,7 +433,7 @@ export const shouldResetStreak = (
 
 export const checkUserStreak = (
   streak: GQLUserStreakTz,
-  lastRecoverAction?: ReadingStreakActions,
+  lastRecoverAction?: ReadingStreakAction,
 ): boolean => {
   const { lastViewAtTz: lastViewAt, timezone, current } = streak;
   const { timestamp: recoverTime } = lastRecoverAction;
@@ -461,7 +461,7 @@ export const checkAndClearUserStreak = async (
   streak: GQLUserStreakTz,
 ): Promise<boolean> => {
   const lastRecoverAction = await con
-    .getRepository(ReadingStreakActions)
+    .getRepository(ReadingStreakAction)
     .findOneBy({
       userStreak: streak,
       type: ReadingStreakActionType.Recover,
