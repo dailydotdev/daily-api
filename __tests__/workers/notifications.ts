@@ -19,6 +19,7 @@ import {
   UserAction,
   UserActionType,
   UserPost,
+  UserStreak,
 } from '../../src/entity';
 import { SourceMemberRoles } from '../../src/roles';
 import { DataSource } from 'typeorm';
@@ -33,6 +34,7 @@ import {
   NotificationPostContext,
   NotificationSourceContext,
   NotificationSourceRequestContext,
+  NotificationStreakContext,
   NotificationUpvotersContext,
 } from '../../src/notifications';
 import {
@@ -44,6 +46,8 @@ import { randomUUID } from 'crypto';
 import { UserVote } from '../../src/types';
 import { UserComment } from '../../src/entity/user/UserComment';
 import { workers } from '../../src/workers';
+import { generateStorageKey, StorageKey, StorageTopic } from '../../src/config';
+import { ioRedisPool, setRedisObject } from '../../src/redis';
 
 let con: DataSource;
 
@@ -660,6 +664,78 @@ describe('post bookmark reminder', () => {
       postId: 'p1notfound',
     });
     expect(actual).toBeFalsy();
+  });
+});
+
+describe('streak reset restore', () => {
+  beforeEach(async () => {
+    await ioRedisPool.execute((client) => client.flushall());
+  });
+
+  it('should be registered', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/userStreakResetNotification'
+    );
+
+    const registeredWorker = workers.find(
+      (item) => item.subscription === worker.default.subscription,
+    );
+
+    expect(registeredWorker).toBeDefined();
+  });
+
+  it('should add notification for the user to restore their streak', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/userStreakResetNotification'
+    );
+    const lastViewAt = new Date();
+    const lastStreak = 10;
+    const streak = await con
+      .getRepository(UserStreak)
+      .save({ userId: '1', currentStreak: 0, lastViewAt });
+    const key = generateStorageKey(
+      StorageTopic.Streak,
+      StorageKey.Reset,
+      streak.userId,
+    );
+    await setRedisObject(key, lastStreak.toString());
+    const actual = await invokeNotificationWorker(worker.default, { streak });
+    expect(actual.length).toEqual(1);
+    const bundle = actual[0];
+    const ctx = bundle.ctx as NotificationStreakContext;
+    expect(bundle.type).toEqual('streak_reset_restore');
+    expect(ctx.streak.currentStreak).toEqual(lastStreak);
+    expect(ctx.streak.lastViewAt).toEqual(lastViewAt.toISOString());
+  });
+
+  it('should not add notification if the stored value has expired', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/userStreakResetNotification'
+    );
+    const lastViewAt = new Date();
+    const streak = await con
+      .getRepository(UserStreak)
+      .save({ userId: '1', currentStreak: 0, lastViewAt });
+    const actual = await invokeNotificationWorker(worker.default, { streak });
+    expect(actual).toBeUndefined();
+  });
+
+  it('should not add notification if the stored value is not a number', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/userStreakResetNotification'
+    );
+    const lastViewAt = new Date();
+    const streak = await con
+      .getRepository(UserStreak)
+      .save({ userId: '1', currentStreak: 0, lastViewAt });
+    const key = generateStorageKey(
+      StorageTopic.Streak,
+      StorageKey.Reset,
+      streak.userId,
+    );
+    await setRedisObject(key, '1test');
+    const actual = await invokeNotificationWorker(worker.default, { streak });
+    expect(actual).toBeUndefined();
   });
 });
 

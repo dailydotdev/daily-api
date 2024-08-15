@@ -150,7 +150,11 @@ export const generateNotificationMap: Record<
     builder
       .icon(NotificationIcon.Streak)
       .description('Click here if you wish to restore your streak')
-      .uniqueKey(ctx.streak.lastViewAt.toString()),
+      .uniqueKey(ctx.streak.lastViewAt.toString())
+      .targetUrl(notificationsLink)
+      .setTargetUrlParameter([
+        ['streak_restore', ctx.streak.currentStreak.toString()],
+      ]),
   article_upvote_milestone: (
     builder,
     ctx: NotificationPostContext & NotificationUpvotersContext,
