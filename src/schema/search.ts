@@ -31,7 +31,6 @@ import {
 import { getOffsetWithDefault } from 'graphql-relay';
 import { Brackets } from 'typeorm';
 import { whereVordrFilter } from '../common/vordr';
-import { FastifyBaseLogger } from 'fastify';
 
 type GQLSearchSession = Pick<SearchSession, 'id' | 'prompt' | 'createdAt'>;
 
@@ -425,7 +424,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       source,
       { query, limit }: SearchSuggestionArgs,
       ctx,
-      logger: FastifyBaseLogger,
     ): Promise<GQLSearchSuggestionsResults> => {
       if (!query || query.length < 3) {
         return {
@@ -434,7 +432,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         };
       }
 
-      logger.info(
+      ctx.log.info(
         {
           query,
         },
