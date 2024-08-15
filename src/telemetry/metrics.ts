@@ -78,6 +78,10 @@ const counterMap = {
       name: 'cdc_trigger',
       description: 'How many times the cdc trigger was called',
     },
+    postSentSlack: {
+      name: 'post_sent_slack',
+      description: 'How many posts were sent to slack workspaces',
+    },
   },
   cron: {
     streakUpdate: {
