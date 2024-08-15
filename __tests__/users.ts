@@ -499,7 +499,7 @@ describe('query userStreaks', () => {
     await expectStreak(5, 0, lastViewAt);
   });
 
-  it('should not reset streak when the user restored streak yesterday but read a post', async () => {
+  it('should not reset streak when the user restored streak yesterday and read a post', async () => {
     loggedUser = '1';
 
     const fakeToday = new Date(2024, 0, 2); // Tuesday

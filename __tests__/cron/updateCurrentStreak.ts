@@ -95,6 +95,7 @@ describe('updateCurrentStreak cron', () => {
 
     it('should not reset streak if user has recovered date of today', async () => {
       /*
+      Day today is Wednesday
       1. Last read was Monday
       2. User did not read anything on Tuesday
       3. Wednesday arrived and resets the streak to 0
