@@ -64,7 +64,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   squad_blocked: '',
   promoted_to_admin: '12',
   demoted_to_member: '',
-  post_mention: '',
+  post_mention: '54',
   promoted_to_moderator: '13',
   squad_subscribe_to_notification: '',
   collection_updated: '11',
@@ -447,8 +447,36 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   demoted_to_member: async () => {
     return null;
   },
-  post_mention: async () => {
-    return null;
+  post_mention: async (con, user, notification) => {
+    const post = await con.getRepository(SharePost).findOne({
+      where: { id: notification.referenceId },
+      relations: ['author', 'source'],
+    });
+    if (!post || !post?.sharedPostId) {
+      return;
+    }
+    const [author, source, sharedPost] = await Promise.all([
+      post.author,
+      post.source,
+      con.getRepository(Post).findOneBy({ id: post.sharedPostId }),
+    ]);
+    if (!author || !source || !sharedPost) {
+      return;
+    }
+    return {
+      full_name: author.name,
+      user_reputation: author.reputation,
+      profile_image: author.image,
+      squad_name: source.name,
+      squad_image: source.image,
+      commentary: truncatePostToTweet(post),
+      post_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
+      post_image: (sharedPost as ArticlePost).image || pickImageUrl(sharedPost),
+      post_title: truncatePostToTweet(sharedPost),
+    };
   },
   promoted_to_moderator: async (con, user, notification) => {
     const source = await con
