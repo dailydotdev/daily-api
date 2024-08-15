@@ -9,6 +9,7 @@ import {
 import { addNotificationUtm, addPrivateSourceJoinParams } from '../common';
 import { SourceMemberRoles } from '../roles';
 import { SlackApiError, SlackApiErrorCode } from '../errors';
+import { counters } from '../telemetry/metrics';
 
 const sendQueueConcurrency = 10;
 
@@ -131,6 +132,10 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
                 text: messageText,
                 attachments: [attachment],
                 unfurl_links: false,
+              });
+
+              counters?.background?.postSentSlack?.add(1, {
+                source: source.id,
               });
             } catch (originalError) {
               const error = originalError as Error;
