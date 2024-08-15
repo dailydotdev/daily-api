@@ -1,6 +1,6 @@
 import { getPostCommenterIds } from './post';
 import { Post, User as DbUser, UserStreak } from './../entity';
-import { differenceInDays, isSameDay, max } from 'date-fns';
+import { differenceInDays, isSameDay, max, subDays } from 'date-fns';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
@@ -455,13 +455,23 @@ export const checkAndClearUserStreak = async (
   info: GraphQLResolveInfo,
   streak: GQLUserStreakTz,
 ): Promise<boolean> => {
-  const lastRecoverAction = await con.getRepository(UserStreakAction).findOne({
-    select: ['createdAt'],
-    where: { userId: streak.userId, type: UserStreakActionType.Recover },
-    order: { createdAt: 'DESC' },
-  });
+  const lastRecoverAction = await con
+    .getRepository(UserStreakAction)
+    .createQueryBuilder()
+    .select(
+      `MAX(date_trunc('day', usa."createdAt" at time zone COALESCE(u.timezone, 'utc'))::date - interval '1 day')`,
+      'createdAt',
+    )
+    .from(UserStreakAction, 'usa')
+    .innerJoin(DbUser, 'u', 'u.id = usa."userId"')
+    .where(`usa."userId" = :userId`, { userId: streak.userId })
+    .andWhere(`usa.type = :type`, { type: UserStreakActionType.Recover })
+    .getRawOne<UserStreakAction>();
 
-  if (checkUserStreak(streak, lastRecoverAction?.createdAt)) {
+  const reduced = lastRecoverAction?.createdAt
+    ? subDays(lastRecoverAction?.createdAt, 1)
+    : undefined;
+  if (checkUserStreak(streak, reduced)) {
     const result = await clearUserStreak(con, [streak.userId]);
     return result > 0;
   }
