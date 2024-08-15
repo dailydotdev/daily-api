@@ -450,11 +450,11 @@ export const checkUserStreak = (
   return shouldResetStreak(day, difference, streak.weekStart);
 };
 
-const getUserLastStreakRecovery = (
+export const getUserLastStreak = async (
   con: DataSource | EntityManager,
   userId: string,
-) =>
-  con
+) => {
+  const lastRecoverAction = await con
     .getRepository(UserStreakAction)
     .createQueryBuilder()
     .select(
@@ -467,17 +467,19 @@ const getUserLastStreakRecovery = (
     .andWhere(`usa.type = :type`, { type: UserStreakActionType.Recover })
     .getRawOne<UserStreakAction>();
 
+  return lastRecoverAction?.createdAt
+    ? subDays(lastRecoverAction?.createdAt, 1) // your supposed last streak is the day before from restoration
+    : undefined;
+};
+
 export const checkAndClearUserStreak = async (
   con: DataSource | EntityManager,
   info: GraphQLResolveInfo,
   streak: GQLUserStreakTz,
 ): Promise<boolean> => {
-  const lastRecoverAction = await getUserLastStreakRecovery(con, streak.userId);
-  const supposedMissedStreak = lastRecoverAction?.createdAt
-    ? subDays(lastRecoverAction?.createdAt, 1)
-    : undefined;
+  const lastStreak = await getUserLastStreak(con, streak.userId);
 
-  if (checkUserStreak(streak, supposedMissedStreak)) {
+  if (checkUserStreak(streak, lastStreak)) {
     const result = await clearUserStreak(con, [streak.userId]);
     return result > 0;
   }
