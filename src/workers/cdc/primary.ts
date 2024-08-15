@@ -1,85 +1,84 @@
 import {
-  UserState,
-  UserStateKey,
-  ReputationEvent,
-  CommentMention,
-  MarketingCta,
-  UserMarketingCta,
-  SquadPublicRequest,
-  UserStreak,
+  Banner,
   Bookmark,
-} from '../../entity';
-import { messageToJson, Worker } from '../worker';
-import {
+  CollectionPost,
   Comment,
+  CommentMention,
   COMMUNITY_PICKS_SOURCE,
+  ContentImage,
+  Feature,
   Feed,
+  FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
+  FREEFORM_POST_MINIMUM_CONTENT_LENGTH,
+  FreeformPost,
+  MarketingCta,
+  normalizeCollectionPostSources,
   Post,
+  PostMention,
+  PostRelation,
+  PostRelationType,
+  PostReport,
+  PostType,
+  ReputationEvent,
   Settings,
+  Source,
   SourceFeed,
   SourceMember,
   SourceRequest,
+  SquadPublicRequest,
   Submission,
   SubmissionStatus,
   User,
-  Feature,
-  Source,
-  PostMention,
-  FreeformPost,
-  Banner,
-  PostType,
-  FREEFORM_POST_MINIMUM_CONTENT_LENGTH,
-  FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
+  UserMarketingCta,
   UserPost,
-  PostRelation,
-  PostRelationType,
-  normalizeCollectionPostSources,
-  CollectionPost,
+  UserState,
+  UserStateKey,
+  UserStreak,
 } from '../../entity';
+import { messageToJson, Worker } from '../worker';
 import {
-  notifyCommentCommented,
-  notifyPostBannedOrRemoved,
-  notifyPostCommented,
-  notifyPostReport,
-  notifyCommentReport,
-  notifySendAnalyticsReport,
-  notifySourceFeedAdded,
-  notifySourceFeedRemoved,
-  notifySettingsUpdated,
-  increaseReputation,
+  debeziumTimeToDate,
   decreaseReputation,
-  notifySubmissionRejected,
-  notifySubmissionGrantedAccess,
+  increaseReputation,
   NotificationReason,
-  notifyUsernameChanged,
-  notifyNewCommentMention,
-  notifyMemberJoinedSource,
-  notifyFeatureAccess,
-  notifySourcePrivacyUpdated,
-  notifyPostVisible,
-  notifySourceMemberRoleChanged,
-  notifyNewPostMention,
-  notifyContentRequested,
-  notifyContentImageDeleted,
-  notifyPostContentEdited,
-  notifyCommentEdited,
-  notifyCommentDeleted,
   notifyBannerCreated,
   notifyBannerRemoved,
+  notifyCommentCommented,
+  notifyCommentDeleted,
+  notifyCommentEdited,
+  notifyCommentReport,
+  notifyContentImageDeleted,
+  notifyContentRequested,
+  notifyFeatureAccess,
   notifyFreeformContentRequested,
-  notifySourceCreated,
-  notifyPostYggdrasilIdSet,
+  notifyMemberJoinedSource,
+  notifyNewCommentMention,
+  notifyNewPostMention,
+  notifyPostBannedOrRemoved,
   notifyPostCollectionUpdated,
-  notifyUserReadmeUpdated,
-  triggerTypedEvent,
+  notifyPostCommented,
+  notifyPostContentEdited,
+  notifyPostReport,
+  notifyPostVisible,
+  notifyPostYggdrasilIdSet,
   notifyReputationIncrease,
+  notifySendAnalyticsReport,
+  notifySettingsUpdated,
+  notifySourceCreated,
+  notifySourceFeedAdded,
+  notifySourceFeedRemoved,
+  notifySourceMemberRoleChanged,
+  notifySourcePrivacyUpdated,
+  notifySubmissionGrantedAccess,
+  notifySubmissionRejected,
+  notifyUsernameChanged,
+  notifyUserReadmeUpdated,
   PubSubSchema,
-  debeziumTimeToDate,
+  triggerTypedEvent,
 } from '../../common';
 import { ChangeMessage, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
-import { PostReport, ContentImage } from '../../entity';
 import { reportReasons } from '../../schema/posts';
 import { updateAlerts } from '../../schema/alerts';
 import { submissionAccessThreshold } from '../../schema/submissions';
@@ -88,13 +87,14 @@ import { CommentReport } from '../../entity/CommentReport';
 import { reportCommentReasons } from '../../schema/comments';
 import { getTableName, isChanged, notifyPostContentUpdated } from './common';
 import { UserComment } from '../../entity/user/UserComment';
-import { StorageKey, StorageTopic, generateStorageKey } from '../../config';
-import { deleteRedisKey } from '../../redis';
+import { generateStorageKey, StorageKey, StorageTopic } from '../../config';
+import { deleteRedisKey, setRedisObjectWithExpiry } from '../../redis';
 import { counters } from '../../telemetry';
 import {
   cancelReminderWorkflow,
   runReminderWorkflow,
 } from '../../temporal/notifications/utils';
+import { addDays, differenceInDays } from 'date-fns';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -795,12 +795,42 @@ const onSquadPublicRequestChange = async (
   });
 };
 
+const setRestoreStreakCache = async (
+  userId: string,
+  lastViewAt: Date,
+  previousStreak: number,
+) => {
+  const today = new Date();
+  const lastViewDifference = differenceInDays(today, lastViewAt);
+
+  if (lastViewDifference !== 2) {
+    return;
+  }
+
+  const key = generateStorageKey(StorageTopic.Streak, StorageKey.Reset, userId);
+  const now = today.getTime();
+  const nextDay = addDays(now, 1).setHours(0, 0, 0, 0);
+  const differenceInSeconds = (nextDay - now) * 1000;
+  await setRedisObjectWithExpiry(key, previousStreak, differenceInSeconds);
+};
+
 const onUserStreakChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
   data: ChangeMessage<UserStreak>,
 ) => {
   if (data.payload.op === 'u') {
+    if (
+      data.payload.after.currentStreak === 0 &&
+      data.payload.before.currentStreak > 0
+    ) {
+      await setRestoreStreakCache(
+        data.payload.after.userId,
+        debeziumTimeToDate(data.payload.after.lastViewAt),
+        data.payload.before.currentStreak,
+      );
+    }
+
     await triggerTypedEvent(logger, 'api.v1.user-streak-updated', {
       streak: data.payload.after,
     });

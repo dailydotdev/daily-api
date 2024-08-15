@@ -110,3 +110,7 @@ export const safeJSONParse = <T>(json: string): T | undefined => {
     return undefined;
   }
 };
+
+export function isNumber(value: string | number): boolean {
+  return !!value && !isNaN(Number(value.toString()));
+}
