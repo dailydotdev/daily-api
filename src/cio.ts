@@ -37,13 +37,21 @@ export async function identifyUserStreak(
     lastSevenDays: { [key: string]: boolean };
   },
 ): Promise<void> {
-  const { userId, currentStreak, totalStreak, maxStreak, lastSevenDays } = data;
+  const {
+    userId,
+    currentStreak,
+    totalStreak,
+    maxStreak,
+    lastSevenDays,
+    lastViewAt,
+  } = data;
 
   try {
     await cio.identify(userId, {
       current_streak: currentStreak,
       total_streak: totalStreak,
       max_streak: maxStreak,
+      last_view_at: dateToCioTimestamp(debeziumTimeToDate(lastViewAt)),
       last_seven_days_streak: lastSevenDays,
     });
   } catch (err) {
