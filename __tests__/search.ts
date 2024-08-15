@@ -579,6 +579,33 @@ describe('query searchUserSuggestions', () => {
     ]);
   });
 
+  it('should order by reputation', async () => {
+    await con
+      .getRepository(User)
+      .update({ id: '2' }, { name: 'Ido test 2', reputation: 100 });
+    const res = await client.query(QUERY('ido'));
+    expect(res.data.searchUserSuggestions).toBeTruthy();
+
+    const result = res.data.searchUserSuggestions;
+
+    expect(result.query).toBe('ido');
+    expect(result.hits).toHaveLength(2);
+    expect(result.hits).toMatchObject([
+      {
+        id: '2',
+        image: 'https://daily.dev/tsahi.jpg',
+        subtitle: 'tsahidaily',
+        title: 'Ido test 2',
+      },
+      {
+        id: '1',
+        image: 'https://daily.dev/ido.jpg',
+        subtitle: 'idoshamun',
+        title: 'Ido',
+      },
+    ]);
+  });
+
   it('should only return infoConfirmed users', async () => {
     await con.getRepository(User).update({ id: '1' }, { infoConfirmed: false });
     await con.getRepository(User).update({ id: '2' }, { name: 'Ido test 2' });
