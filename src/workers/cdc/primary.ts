@@ -1,4 +1,5 @@
 import {
+  Alerts,
   Banner,
   Bookmark,
   CollectionPost,
@@ -39,6 +40,7 @@ import { messageToJson, Worker } from '../worker';
 import {
   debeziumTimeToDate,
   decreaseReputation,
+  getUserLastStreak,
   increaseReputation,
   NotificationReason,
   notifyBannerCreated,
@@ -76,7 +78,7 @@ import {
   PubSubSchema,
   triggerTypedEvent,
 } from '../../common';
-import { ChangeMessage, UserVote } from '../../types';
+import { ChangeMessage, ChangeObject, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import { reportReasons } from '../../schema/posts';
@@ -94,7 +96,7 @@ import {
   cancelReminderWorkflow,
   runReminderWorkflow,
 } from '../../temporal/notifications/utils';
-import { addDays, differenceInDays } from 'date-fns';
+import { addDays, differenceInDays, max } from 'date-fns';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -796,14 +798,21 @@ const onSquadPublicRequestChange = async (
 };
 
 const setRestoreStreakCache = async (
-  userId: string,
-  lastViewAt: Date,
-  previousStreak: number,
+  con: DataSource,
+  streak: ChangeObject<UserStreak>,
 ) => {
+  const {
+    userId,
+    lastViewAt: lastViewAtDb,
+    currentStreak: previousStreak,
+  } = streak;
   const today = new Date();
-  const lastViewDifference = differenceInDays(today, lastViewAt);
+  const lastView = debeziumTimeToDate(lastViewAtDb);
+  const lastRecovery = await getUserLastStreak(con, userId);
+  const lastStreak = lastRecovery ? max([lastView, lastRecovery]) : lastView;
+  const lastStreakDifference = differenceInDays(today, lastStreak);
 
-  if (lastViewDifference !== 2) {
+  if (lastStreakDifference !== 2) {
     return;
   }
 
@@ -811,7 +820,11 @@ const setRestoreStreakCache = async (
   const now = today.getTime();
   const nextDay = addDays(now, 1).setHours(0, 0, 0, 0);
   const differenceInSeconds = (nextDay - now) * 1000;
-  await setRedisObjectWithExpiry(key, previousStreak, differenceInSeconds);
+
+  await Promise.all([
+    setRedisObjectWithExpiry(key, previousStreak, differenceInSeconds),
+    con.getRepository(Alerts).update({ userId }, { showResetStreak: true }),
+  ]);
 };
 
 const onUserStreakChange = async (
@@ -824,11 +837,7 @@ const onUserStreakChange = async (
       data.payload.after.currentStreak === 0 &&
       data.payload.before.currentStreak > 0
     ) {
-      await setRestoreStreakCache(
-        data.payload.after.userId,
-        debeziumTimeToDate(data.payload.after.lastViewAt),
-        data.payload.before.currentStreak,
-      );
+      await setRestoreStreakCache(con, data.payload.before);
     }
 
     await triggerTypedEvent(logger, 'api.v1.user-streak-updated', {

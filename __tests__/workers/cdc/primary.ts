@@ -3243,6 +3243,10 @@ describe('post content updated', () => {
 });
 
 describe('user streak change', () => {
+  beforeEach(async () => {
+    await ioRedisPool.execute((client) => client.flushall());
+  });
+
   type ObjectType = UserStreak;
   const base: ChangeObject<ObjectType> = {
     userId: '1',
@@ -3278,6 +3282,79 @@ describe('user streak change', () => {
         table: 'user_streak',
       }),
     );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.user-streak-updated',
+      { streak: base },
+    ]);
+  });
+
+  it('should NOT set cache for reset streak', async () => {
+    const after: ChangeObject<ObjectType> = { ...base, currentStreak: 0 };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'user_streak',
+      }),
+    );
+    const key = generateStorageKey(
+      StorageTopic.Streak,
+      StorageKey.Reset,
+      after.userId,
+    );
+    const lastStreak = await getRedisObject(key);
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.user-streak-updated',
+      { streak: after },
+    ]);
+    expect(parseInt(lastStreak, 10)).toEqual(base.currentStreak);
+  });
+
+  it('should set cache for reset streak', async () => {
+    const after: ChangeObject<ObjectType> = { ...base, currentStreak: 0 };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'user_streak',
+      }),
+    );
+    const key = generateStorageKey(
+      StorageTopic.Streak,
+      StorageKey.Reset,
+      after.userId,
+    );
+    const lastStreak = await getRedisObject(key);
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.user-streak-updated',
+      { streak: after },
+    ]);
+    expect(parseInt(lastStreak, 10)).toEqual(base.currentStreak);
+  });
+
+  it('should NOT set cache if the new streak value is not 0', async () => {
+    const after: ChangeObject<ObjectType> = base;
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: { ...after, currentStreak: 0 },
+        before: base,
+        op: 'u',
+        table: 'user_streak',
+      }),
+    );
+    // const key = generateStorageKey(
+    //   StorageTopic.Streak,
+    //   StorageKey.Reset,
+    //   after.userId,
+    // );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
     expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
       'api.v1.user-streak-updated',
