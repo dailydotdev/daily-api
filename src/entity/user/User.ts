@@ -49,6 +49,7 @@ import {
   DEFAULT_WEEK_START,
   safeJSONParse,
 } from '../../common';
+import { UserStreakAction } from './UserStreakAction';
 
 export type UserFlags = Partial<{
   vordr: boolean;
@@ -204,6 +205,9 @@ export class User {
 
   @OneToMany(() => DevCard, (devcard) => devcard.user, { lazy: true })
   devCards: Promise<DevCard[]>;
+
+  @OneToMany(() => UserStreakAction, (action) => action.user, { lazy: true })
+  streakActions: Promise<UserStreakAction[]>;
 
   @OneToOne(() => UserStreak, (streak) => streak.user, {
     lazy: true,
