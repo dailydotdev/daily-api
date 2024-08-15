@@ -2,6 +2,7 @@ import { messageToJson } from '../worker';
 import {
   NotificationPreferenceSource,
   Post,
+  PostMention,
   PostType,
   SourceType,
   User,
@@ -72,13 +73,23 @@ const worker: NotificationWorker = {
         const doneBy = await con
           .getRepository(User)
           .findOneBy({ id: post.authorId });
+        // Get mentioned users and exclude them
+        const mentions = await con.getRepository(PostMention).find({
+          select: { mentionedUserId: true },
+          where: { postId: post.id },
+        });
         const members = await getSubscribedMembers(
           con,
           NotificationType.SquadPostAdded,
           source.id,
           {
             sourceId: source.id,
-            userId: Not(In([post.authorId])),
+            userId: Not(
+              In([
+                post.authorId,
+                ...mentions.flatMap(({ mentionedUserId }) => mentionedUserId),
+              ]),
+            ),
             role: Not(SourceMemberRoles.Blocked),
           },
         );
