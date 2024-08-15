@@ -2,7 +2,7 @@ import { Entity, JoinColumn, OneToOne, PrimaryColumn } from 'typeorm';
 import { User } from './User';
 
 export enum UserStreakActionType {
-  Recover = 'recovered',
+  Recover = 'recover',
 }
 
 @Entity()
