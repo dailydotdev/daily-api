@@ -40,6 +40,7 @@ import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { NotificationType } from '../src/notifications/common';
 import { SourceTagView } from '../src/entity/SourceTagView';
 import { isNullOrUndefined } from '../src/common/object';
+import { SourceCategory } from '../src/entity/sources/SourceCategory';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -55,9 +56,53 @@ beforeAll(async () => {
   client = state.client;
 });
 
+const getSourceCategories = () => [
+  {
+    title: 'General',
+    enabled: true,
+  },
+  {
+    title: 'Web',
+    enabled: true,
+  },
+  {
+    title: 'Mobile',
+    enabled: true,
+  },
+  {
+    title: 'Games',
+    enabled: true,
+  },
+  {
+    title: 'DevOps',
+    enabled: true,
+  },
+  {
+    title: 'Cloud',
+    enabled: true,
+  },
+  {
+    title: 'Career',
+    enabled: true,
+  },
+  {
+    title: 'Data',
+    enabled: true,
+  },
+  {
+    title: 'Fun',
+    enabled: true,
+  },
+  {
+    title: 'DevTools',
+    enabled: true,
+  },
+];
+
 beforeEach(async () => {
   loggedUser = null;
   premiumUser = false;
+  await saveFixtures(con, SourceCategory, getSourceCategories());
   await saveFixtures(con, Source, [
     sourcesFixture[0],
     sourcesFixture[1],
@@ -105,16 +150,52 @@ beforeEach(async () => {
 
 afterAll(() => disposeGraphQLTesting(state));
 
+describe('query sourceCategories', () => {
+  it('should return source categories', async () => {
+    const res = await client.query(`
+      query SourceCategories($first: Int, $after: String) {
+        sourceCategories(first: $first, after: $after) {
+          pageInfo {
+            endCursor
+            hasNextPage
+          }
+          edges {
+            node {
+              id
+              title
+            }
+          }
+        }
+      }
+    `);
+    expect(res.errors).toBeFalsy();
+    const categories = getSourceCategories();
+    const isAllFound = res.data.sourceCategories.edges.every(({ node }) =>
+      categories.some((category) => category.title === node.title),
+    );
+    expect(isAllFound).toBeTruthy();
+  });
+});
+
 describe('query sources', () => {
-  const QUERY = (
+  interface Props {
+    first: number;
+    featured: boolean;
+    filterOpenSquads: boolean;
+    categoryId: string;
+  }
+
+  const QUERY = ({
     first = 10,
     filterOpenSquads = false,
-    featured?: boolean,
-  ): string => `{
+    featured,
+    categoryId,
+  }: Partial<Props> = {}): string => `{
     sources(
       first: ${first},
       filterOpenSquads: ${filterOpenSquads}
       ${isNullOrUndefined(featured) ? '' : `, featured: ${featured}`}
+      ${isNullOrUndefined(categoryId) ? '' : `, categoryId: "${categoryId}"`}
     ) {
       pageInfo {
         endCursor
@@ -132,15 +213,37 @@ describe('query sources', () => {
           flags {
             featured
           }
+          category {
+            id
+          }
         }
       }
     }
   }`;
 
   it('should return only public sources', async () => {
-    const res = await client.query(QUERY(10, true));
+    const res = await client.query(
+      QUERY({ first: 10, filterOpenSquads: true }),
+    );
     const isPublic = res.data.sources.edges.every(({ node }) => !!node.public);
     expect(isPublic).toBeTruthy();
+  });
+
+  it('should filter by category', async () => {
+    const repo = con.getRepository(Source);
+    const general = await con
+      .getRepository(SourceCategory)
+      .findOneByOrFail({ title: 'General' });
+    const web = await con
+      .getRepository(SourceCategory)
+      .findOneByOrFail({ title: 'Web' });
+    await repo.update({ id: 'a' }, { categoryId: general.id });
+    await repo.update({ id: 'b' }, { categoryId: web.id });
+    const res = await client.query(QUERY({ first: 10, categoryId: web.id }));
+    const isAllWeb = res.data.sources.edges.every(
+      ({ node }) => node.category.id === web.id,
+    );
+    expect(isAllWeb).toBeTruthy();
   });
 
   const prepareFeaturedTests = async () => {
@@ -157,7 +260,9 @@ describe('query sources', () => {
 
   it('should return only featured sources', async () => {
     await prepareFeaturedTests();
-    const res = await client.query(QUERY(10, false, true));
+    const res = await client.query(
+      QUERY({ first: 10, filterOpenSquads: false, featured: true }),
+    );
     const isFeatured = res.data.sources.edges.every(
       ({ node }) => !!node.flags.featured,
     );
@@ -166,7 +271,13 @@ describe('query sources', () => {
 
   it('should return only not featured sources', async () => {
     await prepareFeaturedTests();
-    const res = await client.query(QUERY(10, false, false));
+    const res = await client.query(
+      QUERY({
+        first: 10,
+        filterOpenSquads: false,
+        featured: false,
+      }),
+    );
     const isNotFeatured = res.data.sources.edges.every(
       ({ node }) => !node.flags.featured,
     );
@@ -174,7 +285,7 @@ describe('query sources', () => {
   });
 
   it('should flag that more pages available', async () => {
-    const res = await client.query(QUERY(1));
+    const res = await client.query(QUERY({ first: 1 }));
     expect(res.data.sources.pageInfo.hasNextPage).toBeTruthy();
   });
 
@@ -197,7 +308,9 @@ describe('query sources', () => {
 
   const prepareSquads = async () => {
     const repo = con.getRepository(Source);
-    const res = await client.query(QUERY(10, true));
+    const res = await client.query(
+      QUERY({ first: 10, filterOpenSquads: true }),
+    );
     expect(res.errors).toBeFalsy();
     expect(res.data.sources.edges.length).toEqual(0);
 
@@ -211,7 +324,9 @@ describe('query sources', () => {
   it('should return only public squads', async () => {
     await prepareSquads();
 
-    const res = await client.query(QUERY(10, true));
+    const res = await client.query(
+      QUERY({ first: 10, filterOpenSquads: true }),
+    );
     expect(res.errors).toBeFalsy();
     expect(res.data.sources.edges.length).toEqual(1);
     const allSquad = res.data.sources.edges.every(
@@ -222,7 +337,9 @@ describe('query sources', () => {
 
   it('should return public squad color and headerImage', async () => {
     await prepareSquads();
-    const res = await client.query(QUERY(10, true));
+    const res = await client.query(
+      QUERY({ first: 10, filterOpenSquads: true }),
+    );
     expect(res.errors).toBeFalsy();
     expect(res.data.sources.edges.length).toEqual(1);
     expect(res.data.sources.edges[0].node.public).toBeTruthy();

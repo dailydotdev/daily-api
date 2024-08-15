@@ -107,6 +107,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           code: req.query.code,
           client_id: process.env.SLACK_CLIENT_ID,
           client_secret: process.env.SLACK_CLIENT_SECRET,
+          redirect_uri: `${process.env.URL_PREFIX}/integrations/slack/auth/callback`,
         }),
       });
 

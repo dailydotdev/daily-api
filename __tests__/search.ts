@@ -548,7 +548,7 @@ describe('query searchUserSuggestions', () => {
     await saveFixtures(con, User, usersFixture);
   });
 
-  it('should return search suggestions', async () => {
+  it('should not return search suggestions if query length < 3', async () => {
     const res = await client.query(QUERY('i'));
     expect(res.errors).toBeFalsy();
     expect(res.data.searchUserSuggestions).toBeTruthy();
@@ -556,82 +556,72 @@ describe('query searchUserSuggestions', () => {
     const result = res.data.searchUserSuggestions;
 
     expect(result.query).toBe('i');
-    expect(result.hits).toHaveLength(3);
+    expect(result.hits).toHaveLength(0);
+    expect(result.hits).toMatchObject([]);
+  });
+
+  it('should return search suggestions', async () => {
+    const res = await client.query(QUERY('ido'));
+    expect(res.errors).toBeFalsy();
+    expect(res.data.searchUserSuggestions).toBeTruthy();
+
+    const result = res.data.searchUserSuggestions;
+
+    expect(result.query).toBe('ido');
+    expect(result.hits).toHaveLength(1);
     expect(result.hits).toMatchObject([
       {
         id: '1',
         image: 'https://daily.dev/ido.jpg',
         subtitle: 'idoshamun',
         title: 'Ido',
-      },
-      {
-        id: '2',
-        image: 'https://daily.dev/tsahi.jpg',
-        subtitle: 'tsahidaily',
-        title: 'Tsahi',
-      },
-      {
-        id: '3',
-        image: 'https://daily.dev/nimrod.jpg',
-        subtitle: 'nimroddaily',
-        title: 'Nimrod',
       },
     ]);
   });
 
   it('should only return infoConfirmed users', async () => {
-    await con.getRepository(User).update({ id: '3' }, { infoConfirmed: false });
-    const res = await client.query(QUERY('i'));
+    await con.getRepository(User).update({ id: '1' }, { infoConfirmed: false });
+    await con.getRepository(User).update({ id: '2' }, { name: 'Ido test 2' });
+    const res = await client.query(QUERY('ido'));
     expect(res.data.searchUserSuggestions).toBeTruthy();
 
     const result = res.data.searchUserSuggestions;
 
-    expect(result.query).toBe('i');
-    expect(result.hits).toHaveLength(2);
+    expect(result.query).toBe('ido');
+    expect(result.hits).toHaveLength(1);
     expect(result.hits).toMatchObject([
-      {
-        id: '1',
-        image: 'https://daily.dev/ido.jpg',
-        subtitle: 'idoshamun',
-        title: 'Ido',
-      },
       {
         id: '2',
         image: 'https://daily.dev/tsahi.jpg',
         subtitle: 'tsahidaily',
-        title: 'Tsahi',
+        title: 'Ido test 2',
       },
     ]);
   });
 
   it('should only return vodr false users', async () => {
     await con.getRepository(User).update(
-      { id: '3' },
+      { id: '1' },
       {
         flags: updateFlagsStatement<User>({
           vordr: true,
         }),
       },
     );
-    const res = await client.query(QUERY('i'));
+    await con.getRepository(User).update({ id: '2' }, { name: 'Ido test 2' });
+    const res = await client.query(QUERY('ido'));
     expect(res.data.searchUserSuggestions).toBeTruthy();
 
     const result = res.data.searchUserSuggestions;
 
-    expect(result.query).toBe('i');
-    expect(result.hits).toHaveLength(2);
+    expect(result.query).toBe('ido');
+    expect(result.hits).toHaveLength(1);
     expect(result.hits).toMatchObject([
-      {
-        id: '1',
-        image: 'https://daily.dev/ido.jpg',
-        subtitle: 'idoshamun',
-        title: 'Ido',
-      },
       {
         id: '2',
         image: 'https://daily.dev/tsahi.jpg',
         subtitle: 'tsahidaily',
-        title: 'Tsahi',
+        title: 'Ido test 2',
       },
     ]);
   });

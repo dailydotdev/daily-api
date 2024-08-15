@@ -425,6 +425,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { query, limit }: SearchSuggestionArgs,
       ctx,
     ): Promise<GQLSearchSuggestionsResults> => {
+      if (!query || query.length < 3) {
+        return {
+          query,
+          hits: [],
+        };
+      }
+
+      ctx.log.info(
+        {
+          query,
+        },
+        'Searching user suggestions',
+      );
+
       const searchQuery = ctx.con
         .createQueryBuilder()
         .select(`id, name as title, username as subtitle, image`)
