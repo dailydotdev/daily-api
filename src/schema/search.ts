@@ -31,6 +31,7 @@ import {
 import { getOffsetWithDefault } from 'graphql-relay';
 import { Brackets } from 'typeorm';
 import { whereVordrFilter } from '../common/vordr';
+import { FastifyBaseLogger } from 'fastify';
 
 type GQLSearchSession = Pick<SearchSession, 'id' | 'prompt' | 'createdAt'>;
 
@@ -424,6 +425,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       source,
       { query, limit }: SearchSuggestionArgs,
       ctx,
+      logger: FastifyBaseLogger,
     ): Promise<GQLSearchSuggestionsResults> => {
       if (!query || query.length < 3) {
         return {
@@ -431,6 +433,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           hits: [],
         };
       }
+
+      logger.info(
+        {
+          query,
+        },
+        'Searching user suggestions',
+      );
+
       const searchQuery = ctx.con
         .createQueryBuilder()
         .select(`id, name as title, username as subtitle, image`)
