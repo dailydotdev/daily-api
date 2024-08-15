@@ -54,40 +54,38 @@ describe('updateCurrentStreak cron', () => {
     expect(registeredWorker).toBeDefined();
   });
 
-  describe('without recovery', () => {
-    it('should reset a past streak if 2 days old', async () => {
-      nock('http://localhost:5000').post('/e').reply(204);
-      await expectSuccessfulCron(cron);
-      const streak = await con
-        .getRepository(UserStreak)
-        .findOneBy({ userId: '1' });
-      expect(streak.currentStreak).toBe(0);
-    });
+  it('should reset a past streak if 2 days old', async () => {
+    nock('http://localhost:5000').post('/e').reply(204);
+    await expectSuccessfulCron(cron);
+    const streak = await con
+      .getRepository(UserStreak)
+      .findOneBy({ userId: '1' });
+    expect(streak.currentStreak).toBe(0);
+  });
 
-    it('should not reset a past streak if 1 days old', async () => {
-      await con
-        .getRepository(UserStreak)
-        .update({ userId: '1' }, { lastViewAt: new Date('2024-06-25') });
-      await expectSuccessfulCron(cron);
-      const streak = await con
-        .getRepository(UserStreak)
-        .findOneBy({ userId: '1' });
-      expect(streak.currentStreak).toBe(1);
-    });
+  it('should not reset a past streak if 1 days old', async () => {
+    await con
+      .getRepository(UserStreak)
+      .update({ userId: '1' }, { lastViewAt: new Date('2024-06-25') });
+    await expectSuccessfulCron(cron);
+    const streak = await con
+      .getRepository(UserStreak)
+      .findOneBy({ userId: '1' });
+    expect(streak.currentStreak).toBe(1);
+  });
 
-    it('should not reset a past streak if weekend', async () => {
-      // This is a friday
-      await con
-        .getRepository(UserStreak)
-        .update({ userId: '1' }, { lastViewAt: new Date('2024-06-21') });
-      // This is a Monday
-      jest.useFakeTimers({ doNotFake }).setSystemTime(new Date('2024-06-24'));
-      await expectSuccessfulCron(cron);
-      const streak = await con
-        .getRepository(UserStreak)
-        .findOneBy({ userId: '1' });
-      expect(streak.currentStreak).toBe(1);
-    });
+  it('should not reset a past streak if weekend', async () => {
+    // This is a friday
+    await con
+      .getRepository(UserStreak)
+      .update({ userId: '1' }, { lastViewAt: new Date('2024-06-21') });
+    // This is a Monday
+    jest.useFakeTimers({ doNotFake }).setSystemTime(new Date('2024-06-24'));
+    await expectSuccessfulCron(cron);
+    const streak = await con
+      .getRepository(UserStreak)
+      .findOneBy({ userId: '1' });
+    expect(streak.currentStreak).toBe(1);
   });
 
   describe('incorporating streaks recovery', () => {
