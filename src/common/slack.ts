@@ -61,8 +61,14 @@ export const notifyNewVordrComment = async (
         title_link: getDiscussionLink(post.id, comment.id),
         fields: [
           {
-            title: 'User',
-            value: `${user.username} [${user.id}]`,
+            title: 'Username',
+            value: user.username,
+            short: true,
+          },
+          {
+            title: 'User ID',
+            value: user.id,
+            short: true,
           },
           {
             title: 'Post title',
@@ -100,8 +106,14 @@ export const notifyNewVordrPost = async (
     user
       ? [
           {
-            title,
-            value: `${user.username} [${user.id}]`,
+            title: `${title} Username`,
+            value: user.username,
+            short: true,
+          },
+          {
+            title: `${title} ID`,
+            value: user.id,
+            short: true,
           },
           {
             title: `${title} Vordr status`,
@@ -128,6 +140,12 @@ export const notifyNewVordrPost = async (
           {
             title: 'Post type',
             value: post.type,
+            short: true,
+          },
+          {
+            title: 'Source',
+            value: post.sourceId,
+            short: true,
           },
           ...getUser('Scout', scout),
           ...getUser('Author', author),
