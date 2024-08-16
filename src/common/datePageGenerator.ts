@@ -35,7 +35,7 @@ export function createDatePageGenerator<
 > {
   return {
     connArgsToPage: ({ first, after }: ConnectionArguments) => {
-      const cursor = getCursorFromAfter(after);
+      const cursor = getCursorFromAfter(after || undefined);
       const limit = Math.min(first || DEFAULT_PAGE_SIZE, maxSize);
       if (cursor) {
         return { limit, timestamp: new Date(parseInt(cursor)) };

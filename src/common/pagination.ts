@@ -27,7 +27,7 @@ export const getFieldNodeInfo = (
 export const getRelayNodeInfo = (info: GraphQLResolveInfo): FieldNodeInfo =>
   getFieldNodeInfo(getFieldNodeInfo(info, 'edges'), 'node');
 
-export const getCursorFromAfter = (after?: string): string => {
+export const getCursorFromAfter = (after?: string): string | null => {
   if (!after) {
     return null;
   }

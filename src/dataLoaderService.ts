@@ -4,7 +4,7 @@ import { getShortUrl } from './common';
 import { SourceMember } from './entity';
 import { GQLSource } from './schema/sources';
 
-export const defaultCacheKeyFn = <K>(key: K) => {
+export const defaultCacheKeyFn = <K extends object | string>(key: K) => {
   if (typeof key === 'object') {
     return JSON.stringify(key);
   }
@@ -27,7 +27,7 @@ export class DataLoaderService {
     cacheKeyFn,
   }: {
     type: string;
-    loadFn: (params: K) => Promise<V> | V;
+    loadFn: (params: K) => Promise<V | null> | V;
     cacheKeyFn: (key: K) => string;
   }): DataLoader<K, V> {
     if (!this.loaders[type]) {
@@ -83,7 +83,7 @@ export class DataLoaderService {
           let referralToken = source.currentMember?.referralToken;
 
           if (!referralToken) {
-            const sourceMember: Pick<SourceMember, 'referralToken'> =
+            const sourceMember: Pick<SourceMember, 'referralToken'> | null =
               await this.ctx.con.getRepository(SourceMember).findOne({
                 select: ['referralToken'],
                 where: { sourceId: source.id, userId },
