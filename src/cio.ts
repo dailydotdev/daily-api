@@ -51,7 +51,9 @@ export async function identifyUserStreak(
       current_streak: currentStreak,
       total_streak: totalStreak,
       max_streak: maxStreak,
-      last_view_at: lastViewAt ? dateToCioTimestamp(debeziumTimeToDate(lastViewAt)) : undefined,
+      last_view_at: lastViewAt
+        ? dateToCioTimestamp(debeziumTimeToDate(lastViewAt))
+        : undefined,
       last_seven_days_streak: lastSevenDays,
     });
   } catch (err) {
