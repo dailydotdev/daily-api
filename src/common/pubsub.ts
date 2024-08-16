@@ -331,13 +331,16 @@ export const notifyContentRequested = async (
 export const notifyFreeformContentRequested = async (
   logger: EventLogger,
   freeform: ChangeMessage<FreeformPost>,
-): Promise<void> =>
-  notifyContentRequested(logger, {
-    id: freeform.payload.after!.id,
-    content: freeform.payload.after!.content,
-    title: freeform.payload.after!.title,
-    post_type: freeform.payload.after!.type,
+): Promise<void> => {
+  const after = freeform.payload.after!;
+
+  return notifyContentRequested(logger, {
+    id: after.id,
+    content: after.content,
+    title: after.title,
+    post_type: after.type,
   });
+};
 
 export const notifyContentImageDeleted = async (
   log: EventLogger,
