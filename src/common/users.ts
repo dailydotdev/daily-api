@@ -467,9 +467,7 @@ export const getUserLastStreak = async (
     .andWhere(`usa.type = :type`, { type: UserStreakActionType.Recover })
     .getRawOne<UserStreakAction>();
 
-  return lastRecoverAction?.createdAt
-    ? subDays(lastRecoverAction?.createdAt, 1) // your supposed last streak is the day before from restoration
-    : undefined;
+  return lastRecoverAction?.createdAt;
 };
 
 export const checkAndClearUserStreak = async (
