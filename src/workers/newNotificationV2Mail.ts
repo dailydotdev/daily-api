@@ -335,7 +335,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     ]);
     if (
       (!author || !source) &&
-      (!sharedPost || [PostType.Freeform, PostType.Share].includes(post.type))
+      (!sharedPost || ![PostType.Freeform, PostType.Share].includes(post.type))
     ) {
       return;
     }
@@ -490,7 +490,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     ]);
     if (
       (!author || !source) &&
-      (!sharedPost || [PostType.Freeform, PostType.Share].includes(post.type))
+      (!sharedPost || ![PostType.Freeform, PostType.Share].includes(post.type))
     ) {
       return;
     }
