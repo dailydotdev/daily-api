@@ -1,6 +1,6 @@
 import { Post } from '../entity';
 
-export const truncateToTweet = (text: string): string => {
+export const truncateToTweet = (text?: string): string => {
   if (!text) return '';
 
   return text.length <= 130 ? text : `${text.substring(0, 127)}...`;
