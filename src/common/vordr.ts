@@ -84,7 +84,10 @@ export const checkWithVordr = async (
     return true;
   }
 
-  if (user.flags?.trustScore && user.flags.trustScore <= 0) {
+  if (
+    typeof user.flags?.trustScore === 'number' &&
+    user.flags.trustScore <= 0
+  ) {
     logger.info(
       { id, type, userId },
       `Prevented ${type} because user has a score of 0`,
