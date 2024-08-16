@@ -3438,7 +3438,7 @@ describe('user streak change', () => {
       expect(alert.showResetStreak).toEqual(true);
     });
 
-    it('should NOT set cache of previous streak over the weekend 3 valid days had passed', async () => {
+    it('should NOT set cache of previous streak over the weekend if 3 valid days had passed', async () => {
       jest
         .useFakeTimers({ doNotFake })
         .setSystemTime(new Date('2024-06-25T12:00:00')); // Tuesday
@@ -3480,7 +3480,7 @@ describe('user streak change', () => {
     });
 
     it('should set cache value of previous streak while considering existing streak recoveries', async () => {
-      // on a regular check similar to one of the tests above, this should not set the cache
+      // on a regular check similar to one of the tests, this should not set the cache
       // but since we will add a recovery date, this should consider the existing streak recovery
       jest
         .useFakeTimers({ doNotFake })
