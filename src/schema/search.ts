@@ -456,6 +456,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               });
           }),
         )
+        .orderBy('u.reputation', 'DESC')
         .andWhere(whereVordrFilter('u'))
         .limit(getSearchLimit({ limit }));
       const hits = await searchQuery.getRawMany();
