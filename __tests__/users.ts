@@ -351,6 +351,10 @@ describe('query userStreaks', () => {
     }
   }`;
 
+  beforeEach(async () => {
+    nock('http://localhost:5000').post('/e').reply(204);
+  });
+
   afterEach(() => {
     jest.useRealTimers();
   });
