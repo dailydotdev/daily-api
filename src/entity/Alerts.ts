@@ -21,7 +21,7 @@ export class Alerts {
   rankLastSeen: Date | null;
 
   @Column({ type: 'text', default: null })
-  myFeed: string;
+  myFeed: string | null;
 
   @Column({ type: 'bool', default: true })
   companionHelper: boolean;

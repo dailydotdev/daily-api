@@ -80,6 +80,8 @@ const getPostsTemplateData = ({
   feature: PersonalizedDigestFeatureConfig;
 }) => {
   return posts.map((post) => {
+    const summary = post.summary || '';
+
     return {
       post_title: post.title,
       post_image: post.image || pickImageUrl(post),
@@ -91,8 +93,8 @@ const getPostsTemplateData = ({
       post_upvotes: post.upvotes || 0,
       post_comments: post.comments || 0,
       post_summary:
-        post.summary?.length > feature.longTextLimit
-          ? `${post.summary.slice(0, feature.longTextLimit).trim()}...`
+        summary.length > feature.longTextLimit
+          ? `${summary.slice(0, feature.longTextLimit).trim()}...`
           : post.summary,
       post_read_time: post.readTime,
       post_views: post.views || 0,
@@ -118,9 +120,10 @@ const getEmailVariation = async ({
 }): Promise<
   Pick<SendEmailRequestWithTemplate, 'to' | 'message_data' | 'identifiers'>
 > => {
-  const [dayName] = Object.entries(DayOfWeek).find(
+  const dayEntry = Object.entries(DayOfWeek).find(
     ([, value]) => value === personalizedDigest.preferredDay,
   );
+  const dayName = dayEntry ? dayEntry[0] : undefined;
   const userName = user.name?.trim().split(' ')[0] || user.username;
   const userStreak = await user.streak;
   const data = {
@@ -323,7 +326,9 @@ const setEmailSendDate = async ({
   personalizedDigest,
   date,
   deduplicate,
-}: SetEmailSendDateProps) => {
+}: Omit<SetEmailSendDateProps, 'date'> & {
+  date: Date | null;
+}) => {
   if (!deduplicate) {
     return;
   }
@@ -334,7 +339,7 @@ const setEmailSendDate = async ({
       type: personalizedDigest.type,
     },
     {
-      lastSendDate: date,
+      lastSendDate: date as Date,
     },
   );
 };

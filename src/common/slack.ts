@@ -62,7 +62,7 @@ export const notifyNewVordrComment = async (
         fields: [
           {
             title: 'Username',
-            value: user.username,
+            value: user.username || '',
             short: true,
           },
           {
@@ -107,7 +107,7 @@ export const notifyNewVordrPost = async (
       ? [
           {
             title: `${title} Username`,
-            value: user.username,
+            value: user.username || '',
             short: true,
           },
           {
@@ -180,11 +180,11 @@ export const notifyPostReport = async (
           },
           {
             title: 'Comment',
-            value: comment,
+            value: comment || '',
           },
           {
             title: 'Tags',
-            value: tags?.join(', '),
+            value: tags?.join(', ') || '',
           },
         ],
         color: '#FF1E1F',
@@ -216,7 +216,7 @@ export const notifyCommentReport = async (
           },
           {
             title: 'Note',
-            value: note,
+            value: note || '',
           },
         ],
         color: '#FF1E1F',
@@ -233,7 +233,7 @@ export const getSlackIntegration = async ({
   id: string;
   userId: string;
   con: DataSource;
-}): Promise<UserIntegrationSlack> => {
+}): Promise<UserIntegrationSlack | null> => {
   const slackIntegration = await con
     .getRepository(UserIntegrationSlack)
     .findOneBy({

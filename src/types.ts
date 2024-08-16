@@ -7,6 +7,7 @@ declare global {
   namespace NodeJS {
     interface ProcessEnv {
       PORT: string;
+      CDC_WORKER_MAX_MESSAGES: string;
     }
   }
 }
@@ -40,8 +41,8 @@ type IgnoredTypes = Promise<unknown> | ((...args: unknown[]) => unknown);
 export type ChangeObject<Type> = {
   [Property in keyof Type as Exclude<
     Property,
-    Type[Property] extends IgnoredTypes ? Property : never
-  >]: Type[Property] extends Date ? number : Type[Property];
+    Required<Type>[Property] extends IgnoredTypes ? Property : never
+  >]: Required<Type>[Property] extends Date ? number : Type[Property];
 };
 
 export type ChangeSchema = {
