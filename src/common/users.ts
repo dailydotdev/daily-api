@@ -452,7 +452,7 @@ export const checkRestoreValidity = (
   const lastDayOfWeek =
     startOfWeek === DayOfWeek.Monday ? Day.Sunday : Day.Saturday;
 
-  const getValue = () => {
+  const getAllowedDays = () => {
     if (day === lastDayOfWeek) {
       return FREEZE_DAYS_IN_A_WEEK;
     }
@@ -464,9 +464,7 @@ export const checkRestoreValidity = (
     return STREAK_RECOVERY_MAX_GAP_DAYS;
   };
 
-  const limit = getValue();
-
-  return difference - limit === 0;
+  return difference - getAllowedDays() === 0;
 };
 
 export const checkUserStreak = (
