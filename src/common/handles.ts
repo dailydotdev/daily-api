@@ -8,7 +8,9 @@ export async function validateAndTransformHandle(
   key: string,
   entityManager: DataSource | EntityManager,
 ): Promise<string> {
-  const transformed = handle?.toLowerCase().replace('@', '').trim();
+  const transformed = handle
+    ? handle.toLowerCase().replace('@', '').trim()
+    : '';
   validateRegex([[key, transformed, handleRegex, true]]);
   const disallowHandle = await checkDisallowHandle(entityManager, transformed);
   if (disallowHandle) {

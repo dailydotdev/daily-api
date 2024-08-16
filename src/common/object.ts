@@ -34,7 +34,7 @@ export const validateRegex = <T extends ObjectLiteral>(
       return isRequired ? { ...result, [key]: `${key} is required!` } : result;
     }
 
-    const matchResult = value.match(regex);
+    const matchResult = value!.match(regex);
     const isValid = !!matchResult;
 
     if (data && matchResult?.groups?.value) {
