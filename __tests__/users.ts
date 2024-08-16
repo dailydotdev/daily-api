@@ -474,7 +474,7 @@ describe('query userStreaks', () => {
       await con
         .getRepository(User)
         .update({ id: loggedUser }, { weekStart: DayOfWeek.Sunday });
-      const fakeToday = new Date(2024, 0, 6); // Saturday
+      const fakeToday = new Date(2024, 0, 6, 12, 0, 0, 0); // Saturday
       const lastViewAt = subDays(fakeToday, 2); // Thursday
 
       jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
