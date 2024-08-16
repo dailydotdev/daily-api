@@ -336,12 +336,6 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     if (!author || !source) {
       return;
     }
-    if (
-      !sharedPost ||
-      ![PostType.Freeform, PostType.Share].includes(post.type)
-    ) {
-      return;
-    }
 
     const baseObject = {
       full_name: author.name,
@@ -364,12 +358,16 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       };
     }
 
-    return {
-      ...baseObject,
-      commentary: truncatePostToTweet(post),
-      post_image: (sharedPost as ArticlePost).image || pickImageUrl(sharedPost),
-      post_title: truncatePostToTweet(sharedPost),
-    };
+    if (sharedPost && post.type === PostType.Share) {
+      return {
+        ...baseObject,
+        commentary: truncatePostToTweet(post),
+        post_image:
+          (sharedPost as ArticlePost).image || pickImageUrl(sharedPost),
+        post_title: truncatePostToTweet(sharedPost),
+      };
+    }
+    return null;
   },
   squad_new_comment: async (con, user, notification) => {
     const comment = await con.getRepository(Comment).findOne({
@@ -494,12 +492,6 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     if (!author || !source) {
       return;
     }
-    if (
-      !sharedPost ||
-      ![PostType.Freeform, PostType.Share].includes(post.type)
-    ) {
-      return;
-    }
 
     const baseObject = {
       full_name: author.name,
@@ -522,12 +514,16 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       };
     }
 
-    return {
-      ...baseObject,
-      commentary: truncatePostToTweet(post),
-      post_image: (sharedPost as ArticlePost).image || pickImageUrl(sharedPost),
-      post_title: truncatePostToTweet(sharedPost),
-    };
+    if (sharedPost && post.type === PostType.Share) {
+      return {
+        ...baseObject,
+        commentary: truncatePostToTweet(post),
+        post_image:
+          (sharedPost as ArticlePost).image || pickImageUrl(sharedPost),
+        post_title: truncatePostToTweet(sharedPost),
+      };
+    }
+    return null;
   },
   promoted_to_moderator: async (con, user, notification) => {
     const source = await con
