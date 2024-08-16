@@ -349,8 +349,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       user_reputation: author.reputation,
     };
 
-    if (!sharedPost) {
-      // Freeform post
+    if (post.type === PostType.Freeform) {
       return {
         ...baseObject,
         commentary: truncateToTweet((post as FreeformPost)?.content),
@@ -502,8 +501,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       user_reputation: author.reputation,
     };
 
-    if (!sharedPost) {
-      // Freeform post
+    if (post.type === PostType.Freeform) {
       return {
         ...baseObject,
         commentary: truncateToTweet((post as FreeformPost)?.content),
