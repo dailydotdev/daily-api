@@ -420,12 +420,15 @@ export const shouldResetStreak = (
   const lastDayOfWeek =
     startOfWeek === DayOfWeek.Monday ? Day.Sunday : Day.Saturday;
 
-  return (
-    (day === lastDayOfWeek && difference > FREEZE_DAYS_IN_A_WEEK) ||
-    (day === firstDayOfWeek &&
-      difference > FREEZE_DAYS_IN_A_WEEK + MISSED_LIMIT) ||
-    (day > firstDayOfWeek && difference > MISSED_LIMIT)
-  );
+  if (day === lastDayOfWeek) {
+    return difference > FREEZE_DAYS_IN_A_WEEK;
+  }
+
+  if (day === firstDayOfWeek) {
+    return difference > FREEZE_DAYS_IN_A_WEEK + MISSED_LIMIT;
+  }
+
+  return day > firstDayOfWeek && difference > MISSED_LIMIT;
 };
 
 export const checkUserStreak = (
