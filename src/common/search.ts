@@ -13,7 +13,7 @@ export const getSearchLimit = ({
   limit,
 }: Pick<SearchSuggestionArgs, 'limit'>) => {
   return getLimit({
-    limit,
+    limit: limit ?? defaultSearchLimit,
     defaultLimit: defaultSearchLimit,
     max: maxSearchLimit,
   });

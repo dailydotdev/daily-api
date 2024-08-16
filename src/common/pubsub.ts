@@ -316,7 +316,7 @@ type ContentRequestedFreeForm = Pick<
   FreeformPost,
   'id' | 'content' | 'title'
 > & {
-  post_type;
+  post_type: string;
 };
 export type ContentRequested =
   | ContentRequestedSubmission
@@ -333,10 +333,10 @@ export const notifyFreeformContentRequested = async (
   freeform: ChangeMessage<FreeformPost>,
 ): Promise<void> =>
   notifyContentRequested(logger, {
-    id: freeform.payload.after.id,
-    content: freeform.payload.after.content,
-    title: freeform.payload.after.title,
-    post_type: freeform.payload.after.type,
+    id: freeform.payload.after!.id,
+    content: freeform.payload.after!.content,
+    title: freeform.payload.after!.title,
+    post_type: freeform.payload.after!.type,
   });
 
 export const notifyContentImageDeleted = async (

@@ -24,7 +24,7 @@ const cron: Cron = {
           )
           .getRawMany();
 
-        const userIdsToReset = [];
+        const userIdsToReset: string[] = [];
         usersPastStreakTime.forEach((userStreak) => {
           if (checkUserStreak(userStreak)) {
             userIdsToReset.push(userStreak.userId);

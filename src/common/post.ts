@@ -173,7 +173,7 @@ export const createFreeformPost = async (
 ) => {
   const { private: privacy } = await con
     .getRepository(SquadSource)
-    .findOneBy({ id: args.sourceId });
+    .findOneByOrFail({ id: args.sourceId });
 
   const createdPost = con.getRepository(FreeformPost).create({
     ...args,

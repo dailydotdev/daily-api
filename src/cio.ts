@@ -19,7 +19,7 @@ export function dateToCioTimestamp(date: Date): number {
   return Math.floor(date.getTime() / 1000);
 }
 
-const OMIT_FIELDS: (keyof User)[] = [
+const OMIT_FIELDS: (keyof ChangeObject<User>)[] = [
   'id',
   'bio',
   'devcardEligible',
@@ -72,7 +72,9 @@ export async function identifyUser(
       ...camelCaseToSnakeCase(dup),
       first_name: getFirstName(dup.name),
       created_at: dateToCioTimestamp(debeziumTimeToDate(dup.createdAt)),
-      updated_at: dateToCioTimestamp(debeziumTimeToDate(dup.updatedAt)),
+      updated_at: dup.updatedAt
+        ? dateToCioTimestamp(debeziumTimeToDate(dup.updatedAt))
+        : undefined,
       referral_link: genericInviteURL,
       cio_subscription_preferences: {
         topics: {
