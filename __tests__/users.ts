@@ -473,6 +473,7 @@ describe('query userStreaks', () => {
     const fakeToday = new Date(2024, 0, 8); // Monday
     const lastViewAt = subDays(fakeToday, 3); // Friday
 
+    expect(lastViewAt.getDay()).toEqual(5); // Friday
     jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
     await expectStreak(5, 5, lastViewAt);
   });
@@ -486,6 +487,7 @@ describe('query userStreaks', () => {
       const fakeToday = new Date(2024, 0, 6, 12, 0, 0, 0); // Saturday
       const lastViewAt = subDays(fakeToday, 2); // Thursday
 
+      expect(lastViewAt.getDay()).toEqual(4); // Thursday
       jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
       await expectStreak(5, 5, lastViewAt);
     });
@@ -496,8 +498,9 @@ describe('query userStreaks', () => {
         .getRepository(User)
         .update({ id: loggedUser }, { weekStart: DayOfWeek.Sunday });
       const fakeToday = new Date(2024, 0, 7, 12, 0, 0, 0); // Sunday
-      const lastViewAt = subDays(fakeToday, 4); // Thursday
+      const lastViewAt = subDays(fakeToday, 3); // Thursday
 
+      expect(lastViewAt.getDay()).toEqual(4); // Thursday
       jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
       await expectStreak(5, 5, lastViewAt);
     });
