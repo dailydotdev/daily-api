@@ -1,6 +1,6 @@
 import { getPostCommenterIds } from './post';
 import { Alerts, Post, User as DbUser, UserStreak } from './../entity';
-import { addDays, differenceInDays, isSameDay, max, subDays } from 'date-fns';
+import { addDays, differenceInDays, isSameDay, max } from 'date-fns';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
 import {
