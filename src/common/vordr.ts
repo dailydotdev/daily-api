@@ -15,9 +15,9 @@ const vordrWords =
     .map((word) => word.toLowerCase()) || [];
 
 export const validateVordrIPs = (ip: string): boolean =>
-  isIP(ip) && isInSubnet(ip, vordrIPs);
+  !!isIP(ip) && isInSubnet(ip, vordrIPs);
 
-export const validateVordrWords = (content: string): boolean => {
+export const validateVordrWords = (content?: string): boolean => {
   if (!content) {
     return false;
   }
@@ -66,7 +66,7 @@ export const checkWithVordr = async (
     return true;
   }
 
-  const user: Pick<User, 'flags' | 'reputation'> = await con
+  const user: Pick<User, 'flags' | 'reputation'> | null = await con
     .getRepository(User)
     .findOne({
       select: ['flags', 'reputation'],
@@ -84,7 +84,10 @@ export const checkWithVordr = async (
     return true;
   }
 
-  if (user.flags?.trustScore <= 0) {
+  if (
+    typeof user.flags?.trustScore === 'number' &&
+    user.flags.trustScore <= 0
+  ) {
     logger.info(
       { id, type, userId },
       `Prevented ${type} because user has a score of 0`,
