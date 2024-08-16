@@ -4,6 +4,7 @@ import {
   ArticlePost,
   CollectionPost,
   Comment,
+  FreeformPost,
   getAuthorPostStats,
   NotificationAttachmentV2,
   NotificationAvatarV2,
@@ -11,6 +12,7 @@ import {
   Post,
   PostRelation,
   PostRelationType,
+  PostType,
   SharePost,
   Source,
   SourceRequest,
@@ -27,6 +29,7 @@ import {
   pickImageUrl,
   sendEmail,
   truncatePostToTweet,
+  truncateToTweet,
 } from '../common';
 import { DataSource, In, IsNull, Not } from 'typeorm';
 import { SubmissionFailErrorMessage } from '../errors';
@@ -314,35 +317,57 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     };
   },
   squad_post_added: async (con, user, notification) => {
-    const post = await con.getRepository(SharePost).findOne({
+    const post = await con.getRepository(Post).findOne({
       where: { id: notification.referenceId },
       relations: ['author', 'source'],
     });
-    if (!post || !post?.sharedPostId) {
+    if (!post) {
       return;
     }
     const [author, source, sharedPost] = await Promise.all([
       post.author,
       post.source,
-      con.getRepository(Post).findOneBy({ id: post.sharedPostId }),
+      post.type === PostType.Share
+        ? con.getRepository(Post).findOneBy({
+            id: (post as SharePost)?.sharedPostId,
+          })
+        : null,
     ]);
-    if (!author || !source || !sharedPost) {
+    if (!author || !source) {
       return;
     }
-    return {
+
+    const baseObject = {
       full_name: author.name,
       profile_image: author.image,
       squad_name: source.name,
       squad_image: source.image,
-      commentary: truncatePostToTweet(post),
       post_link: addNotificationEmailUtm(
         notification.targetUrl,
         notification.type,
       ),
-      post_image: (sharedPost as ArticlePost).image || pickImageUrl(sharedPost),
-      post_title: truncatePostToTweet(sharedPost),
       user_reputation: author.reputation,
     };
+
+    if (post.type === PostType.Freeform) {
+      return {
+        ...baseObject,
+        commentary: truncateToTweet((post as FreeformPost)?.content),
+        post_image: (post as FreeformPost).image || pickImageUrl(post),
+        post_title: truncatePostToTweet(post),
+      };
+    }
+
+    if (sharedPost && post.type === PostType.Share) {
+      return {
+        ...baseObject,
+        commentary: truncatePostToTweet(post),
+        post_image:
+          (sharedPost as ArticlePost).image || pickImageUrl(sharedPost),
+        post_title: truncatePostToTweet(sharedPost),
+      };
+    }
+    return null;
   },
   squad_new_comment: async (con, user, notification) => {
     const comment = await con.getRepository(Comment).findOne({
@@ -448,35 +473,57 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     return null;
   },
   post_mention: async (con, user, notification) => {
-    const post = await con.getRepository(SharePost).findOne({
+    const post = await con.getRepository(Post).findOne({
       where: { id: notification.referenceId },
       relations: ['author', 'source'],
     });
-    if (!post || !post?.sharedPostId) {
+    if (!post) {
       return;
     }
     const [author, source, sharedPost] = await Promise.all([
       post.author,
       post.source,
-      con.getRepository(Post).findOneBy({ id: post.sharedPostId }),
+      post.type === PostType.Share
+        ? con.getRepository(Post).findOneBy({
+            id: (post as SharePost)?.sharedPostId,
+          })
+        : null,
     ]);
-    if (!author || !source || !sharedPost) {
+    if (!author || !source) {
       return;
     }
-    return {
+
+    const baseObject = {
       full_name: author.name,
-      user_reputation: author.reputation,
       profile_image: author.image,
       squad_name: source.name,
       squad_image: source.image,
-      commentary: truncatePostToTweet(post),
       post_link: addNotificationEmailUtm(
         notification.targetUrl,
         notification.type,
       ),
-      post_image: (sharedPost as ArticlePost).image || pickImageUrl(sharedPost),
-      post_title: truncatePostToTweet(sharedPost),
+      user_reputation: author.reputation,
     };
+
+    if (post.type === PostType.Freeform) {
+      return {
+        ...baseObject,
+        commentary: truncateToTweet((post as FreeformPost)?.content),
+        post_image: (post as FreeformPost).image || pickImageUrl(post),
+        post_title: truncatePostToTweet(post),
+      };
+    }
+
+    if (sharedPost && post.type === PostType.Share) {
+      return {
+        ...baseObject,
+        commentary: truncatePostToTweet(post),
+        post_image:
+          (sharedPost as ArticlePost).image || pickImageUrl(sharedPost),
+        post_title: truncatePostToTweet(sharedPost),
+      };
+    }
+    return null;
   },
   promoted_to_moderator: async (con, user, notification) => {
     const source = await con
