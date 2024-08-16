@@ -3500,7 +3500,6 @@ describe('user streak change', () => {
       await con
         .getRepository(UserStreak)
         .update({ userId: '1' }, { lastViewAt });
-      // Thursday came and the streak was reset again due to not reading on Wednesday but reset should still be valid
       await expectSuccessfulBackground(
         worker,
         mockChangeMessage<ObjectType>({
@@ -3549,7 +3548,6 @@ describe('user streak change', () => {
       await con
         .getRepository(UserStreak)
         .update({ userId: '1' }, { lastViewAt });
-      // Thursday came and the streak was reset again due to not reading on Wednesday but reset should still be valid
       await expectSuccessfulBackground(
         worker,
         mockChangeMessage<ObjectType>({
