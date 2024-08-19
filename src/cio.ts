@@ -46,6 +46,18 @@ export async function identifyUserStreak(
     lastViewAt,
   } = data;
 
+  log.info(
+    {
+      userId,
+      currentStreak,
+      totalStreak,
+      maxStreak,
+      lastViewAt,
+      lastSevenDays,
+    },
+    'Identifying user streak',
+  );
+
   try {
     await cio.identify(userId, {
       current_streak: currentStreak,
