@@ -442,6 +442,24 @@ export const shouldResetStreak = (
   return day > firstDayOfWeek && difference > MISSED_LIMIT;
 };
 
+interface DaysProps {
+  day: number;
+  firstDayOfWeek: Day;
+  lastDayOfWeek: Day;
+}
+
+const getAllowedDays = ({ day, lastDayOfWeek, firstDayOfWeek }: DaysProps) => {
+  if (day === lastDayOfWeek) {
+    return FREEZE_DAYS_IN_A_WEEK;
+  }
+
+  if (day === firstDayOfWeek) {
+    return FREEZE_DAYS_IN_A_WEEK + STREAK_RECOVERY_MAX_GAP_DAYS;
+  }
+
+  return STREAK_RECOVERY_MAX_GAP_DAYS;
+};
+
 export const checkRestoreValidity = (
   day: number,
   difference: number,
@@ -453,19 +471,9 @@ export const checkRestoreValidity = (
   const lastDayOfWeek =
     startOfWeek === DayOfWeek.Monday ? Day.Sunday : Day.Saturday;
 
-  const getAllowedDays = () => {
-    if (day === lastDayOfWeek) {
-      return FREEZE_DAYS_IN_A_WEEK;
-    }
+  const allowedDays = getAllowedDays({ day, lastDayOfWeek, firstDayOfWeek });
 
-    if (day === firstDayOfWeek) {
-      return FREEZE_DAYS_IN_A_WEEK + STREAK_RECOVERY_MAX_GAP_DAYS;
-    }
-
-    return STREAK_RECOVERY_MAX_GAP_DAYS;
-  };
-
-  return difference - getAllowedDays() === 0;
+  return difference - allowedDays === 0;
 };
 
 export const checkUserStreak = (
