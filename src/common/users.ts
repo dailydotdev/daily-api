@@ -498,7 +498,7 @@ export const checkUserStreak = (
   return shouldResetStreak(day, difference, streak.weekStart);
 };
 
-export const getUserLastStreak = async (
+export const getLastStreakRecoverDate = async (
   con: DataSource | EntityManager,
   userId: string,
 ) => {
@@ -523,7 +523,7 @@ export const checkAndClearUserStreak = async (
   info: GraphQLResolveInfo,
   streak: GQLUserStreakTz,
 ): Promise<boolean> => {
-  const lastStreak = await getUserLastStreak(con, streak.userId);
+  const lastStreak = await getLastStreakRecoverDate(con, streak.userId);
 
   if (checkUserStreak(streak, lastStreak)) {
     const result = await clearUserStreak(con, [streak.userId]);
