@@ -328,7 +328,9 @@ describe('generateNotification', () => {
     expect(actual.notification.description).toEqual(
       'Click here if you wish to restore your streak',
     );
-    expect(actual.notification.uniqueKey).toEqual(lastViewAt.toString());
+    expect(actual.notification.uniqueKey).toEqual(
+      lastViewAt.toISOString().split('T')[0],
+    );
   });
 
   it('should generate article_upvote_milestone notification', () => {

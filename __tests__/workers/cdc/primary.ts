@@ -3333,7 +3333,7 @@ describe('user streak change', () => {
         { streak: after },
       ]);
       const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
-      expect(alert.showResetStreak).toEqual(false);
+      expect(alert.showRecoverStreak).toEqual(false);
     });
 
     it('should NOT set cache if the new streak value is not 0', async () => {
@@ -3363,7 +3363,7 @@ describe('user streak change', () => {
         { streak: after },
       ]);
       const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
-      expect(alert.showResetStreak).toEqual(false);
+      expect(alert.showRecoverStreak).toEqual(false);
     });
 
     it('should set cache of previous streak for recovery', async () => {
@@ -3394,7 +3394,7 @@ describe('user streak change', () => {
       ]);
       expect(lastStreak).toEqual(base.currentStreak.toString());
       const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
-      expect(alert.showResetStreak).toEqual(true);
+      expect(alert.showRecoverStreak).toEqual(true);
     });
 
     it('should set cache of previous streak even when weekend had passed if it has only been 2 valid days', async () => {
@@ -3435,7 +3435,7 @@ describe('user streak change', () => {
       ]);
       expect(lastStreak).toEqual(base.currentStreak.toString());
       const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
-      expect(alert.showResetStreak).toEqual(true);
+      expect(alert.showRecoverStreak).toEqual(true);
     });
 
     it('should NOT set cache of previous streak over the weekend if 3 valid days had passed', async () => {
@@ -3476,7 +3476,7 @@ describe('user streak change', () => {
       ]);
       expect(lastStreak).toBeFalsy();
       const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
-      expect(alert.showResetStreak).toEqual(false);
+      expect(alert.showRecoverStreak).toEqual(false);
     });
 
     it('should set cache value of previous streak while considering existing streak recoveries', async () => {
@@ -3525,7 +3525,7 @@ describe('user streak change', () => {
       ]);
       expect(lastStreak).toEqual(base.currentStreak.toString());
       const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
-      expect(alert.showResetStreak).toEqual(true);
+      expect(alert.showRecoverStreak).toEqual(true);
     });
 
     it('should set cache value of previous streak over the weekend while considering existing streak recoveries', async () => {
@@ -3573,7 +3573,7 @@ describe('user streak change', () => {
       ]);
       expect(lastStreak).toEqual(base.currentStreak.toString());
       const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
-      expect(alert.showResetStreak).toEqual(true);
+      expect(alert.showRecoverStreak).toEqual(true);
     });
   });
 });

@@ -72,6 +72,11 @@ export const typeDefs = /* GraphQL */ `
     showStreakMilestone: Boolean!
 
     """
+    Whether to show the the popup for recovering streaks
+    """
+    showRecoverStreak: Boolean
+
+    """
     Date of the last time user saw a boot popup
     """
     lastBootPopup: DateTime
@@ -122,6 +127,11 @@ export const typeDefs = /* GraphQL */ `
     Whether to show the reading streaks milestone banner
     """
     showStreakMilestone: Boolean
+
+    """
+    Whether to show the the popup for recovering streaks
+    """
+    showRecoverStreak: Boolean
 
     """
     Date of the last time user saw a boot popup

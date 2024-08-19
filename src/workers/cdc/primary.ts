@@ -8,6 +8,7 @@ import {
   SquadPublicRequest,
   UserStreak,
   Bookmark,
+  Alerts,
 } from '../../entity';
 import { messageToJson, Worker } from '../worker';
 import {
@@ -75,9 +76,9 @@ import {
   notifyReputationIncrease,
   PubSubSchema,
   debeziumTimeToDate,
-  setRestoreStreakCache,
+  shouldAllowRestore,
 } from '../../common';
-import { ChangeMessage, UserVote } from '../../types';
+import { ChangeMessage, ChangeObject, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import { PostReport, ContentImage } from '../../entity';
@@ -90,12 +91,13 @@ import { reportCommentReasons } from '../../schema/comments';
 import { getTableName, isChanged, notifyPostContentUpdated } from './common';
 import { UserComment } from '../../entity/user/UserComment';
 import { StorageKey, StorageTopic, generateStorageKey } from '../../config';
-import { deleteRedisKey } from '../../redis';
+import { deleteRedisKey, setRedisObjectWithExpiry } from '../../redis';
 import { counters } from '../../telemetry';
 import {
   cancelReminderWorkflow,
   runReminderWorkflow,
 } from '../../temporal/notifications/utils';
+import { addDays } from 'date-fns';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -804,6 +806,29 @@ const onSquadPublicRequestChange = async (
   await triggerTypedEvent(logger, 'api.v1.squad-public-request', {
     request: data.payload.after!,
   });
+};
+
+const setRestoreStreakCache = async (
+  con: DataSource,
+  streak: ChangeObject<UserStreak>,
+) => {
+  const { userId, currentStreak: previousStreak } = streak;
+  const today = new Date();
+  const shouldAllow = await shouldAllowRestore(con, streak);
+
+  if (!shouldAllow) {
+    return;
+  }
+
+  const key = generateStorageKey(StorageTopic.Streak, StorageKey.Reset, userId);
+  const now = today.getTime();
+  const nextDay = addDays(now, 1).setHours(0, 0, 0, 0);
+  const differenceInSeconds = (nextDay - now) * 1000;
+
+  await Promise.all([
+    setRedisObjectWithExpiry(key, previousStreak, differenceInSeconds),
+    con.getRepository(Alerts).update({ userId }, { showRecoverStreak: true }),
+  ]);
 };
 
 const onUserStreakChange = async (
