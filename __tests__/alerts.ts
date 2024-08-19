@@ -57,6 +57,7 @@ describe('query userAlerts', () => {
       squadTour
       showGenericReferral
       showStreakMilestone
+      showRecoverStreak
       lastBootPopup
       lastFeedSettingsFeedback
     }

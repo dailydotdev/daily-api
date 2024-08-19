@@ -827,7 +827,7 @@ const setRestoreStreakCache = async (
 
   await Promise.all([
     setRedisObjectWithExpiry(key, previousStreak, differenceInSeconds),
-    con.getRepository(Alerts).update({ userId }, { showResetStreak: true }),
+    con.getRepository(Alerts).update({ userId }, { showRecoverStreak: true }),
   ]);
 };
 
