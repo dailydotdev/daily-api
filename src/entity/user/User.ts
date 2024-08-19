@@ -49,6 +49,7 @@ import {
   DEFAULT_WEEK_START,
   safeJSONParse,
 } from '../../common';
+import { ContentLanguage } from '../../types';
 
 export type UserFlags = Partial<{
   vordr: boolean;
@@ -220,6 +221,9 @@ export class User {
       this.username ?? this.id
     }`;
   }
+
+  @Column({ type: 'text', default: ContentLanguage.English })
+  language: ContentLanguage;
 }
 
 export type AddUserData = Pick<

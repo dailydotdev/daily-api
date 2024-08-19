@@ -12,6 +12,7 @@ import { PostTag } from '../PostTag';
 import { PostKeyword } from '../PostKeyword';
 import { User } from '../user';
 import { PostRelation } from './PostRelation';
+import { ContentLanguage } from '../../types';
 
 export enum PostType {
   Article = 'article',
@@ -48,6 +49,12 @@ export type PostFlagsPublic = Pick<PostFlags, 'private' | 'promoteToPublic'>;
 export type PostContentQuality = Partial<{
   is_ai_probability: number;
 }>;
+
+export type PostI18n = {
+  title: Partial<
+    Record<Exclude<ContentLanguage, ContentLanguage.English>, string>
+  >;
+};
 
 @Entity()
 @Index('IDX_post_id_sourceid', ['id', 'sourceId'])
@@ -261,4 +268,7 @@ export class Post {
 
   @Column({ type: 'jsonb', default: {} })
   contentQuality: PostContentQuality;
+
+  @Column({ type: 'jsonb', default: {} })
+  i18n: PostI18n;
 }
