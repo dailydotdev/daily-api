@@ -133,3 +133,5 @@ export enum ContentLanguage {
   PortuguesePortugal = 'pt-PT',
   ChineseSimplified = 'zh-Hans',
 }
+
+export type I18nRecord = Partial<Record<ContentLanguage, string>>;

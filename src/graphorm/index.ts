@@ -1,5 +1,5 @@
 import { getPermissionsForMember } from './../schema/sources';
-import { GraphORM, QueryBuilder } from './graphorm';
+import { GraphORM, GraphORMField, QueryBuilder } from './graphorm';
 import {
   Bookmark,
   FeedSource,
@@ -30,7 +30,7 @@ import { base64, domainOnly } from '../common';
 import { GQLComment } from '../schema/comments';
 import { GQLUserPost } from '../schema/posts';
 import { UserComment } from '../entity/user/UserComment';
-import { UserVote } from '../types';
+import { I18nRecord, UserVote } from '../types';
 import { whereVordrFilter } from '../common/vordr';
 
 const existsByUserAndPost =
@@ -60,6 +60,26 @@ const nullIfNotSameUser = <T>(
   ctx: Context,
   parent: Pick<User, 'id'>,
 ): T | null => (ctx.userId === parent.id ? value : null);
+
+const createI18nField = (fieldName: string): GraphORMField => {
+  return {
+    select: fieldName,
+    transform: (value: string, ctx: Context, parent): string => {
+      const i18nParent = parent as {
+        i18n: {
+          [key: string]: I18nRecord;
+        };
+      };
+      const i18nValue = i18nParent.i18n[fieldName]?.[ctx.contentLanguage];
+
+      if (i18nValue) {
+        return i18nValue;
+      }
+
+      return value;
+    },
+  };
+};
 
 const obj = new GraphORM({
   User: {
@@ -120,6 +140,7 @@ const obj = new GraphORM({
       'private',
       'type',
       'slug',
+      'i18n',
     ],
     fields: {
       tags: {
@@ -264,6 +285,7 @@ const obj = new GraphORM({
         alias: { field: 'url', type: 'string' },
         transform: (value: string): string => domainOnly(value),
       },
+      title: createI18nField('title'),
     },
   },
   SourceCategory: {

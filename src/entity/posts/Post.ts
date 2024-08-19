@@ -12,7 +12,7 @@ import { PostTag } from '../PostTag';
 import { PostKeyword } from '../PostKeyword';
 import { User } from '../user';
 import { PostRelation } from './PostRelation';
-import { ContentLanguage } from '../../types';
+import { I18nRecord } from '../../types';
 
 export enum PostType {
   Article = 'article',
@@ -50,11 +50,9 @@ export type PostContentQuality = Partial<{
   is_ai_probability: number;
 }>;
 
-export type PostI18n = {
-  title: Partial<
-    Record<Exclude<ContentLanguage, ContentLanguage.English>, string>
-  >;
-};
+export type PostI18n = Partial<{
+  title: I18nRecord;
+}>;
 
 @Entity()
 @Index('IDX_post_id_sourceid', ['id', 'sourceId'])
