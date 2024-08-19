@@ -1220,7 +1220,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             userId,
           },
           {
-            showResetStreak: false,
+            showRecoverStreak: false,
           },
         );
 
