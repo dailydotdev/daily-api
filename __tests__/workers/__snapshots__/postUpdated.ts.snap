@@ -21,6 +21,7 @@ Object {
     "showOnFeed": true,
     "visible": true,
   },
+  "i18n": Object {},
   "id": Any<String>,
   "image": null,
   "language": "en",
