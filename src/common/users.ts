@@ -1,6 +1,6 @@
 import { getPostCommenterIds } from './post';
-import { Alerts, Post, User as DbUser, UserStreak } from './../entity';
-import { addDays, differenceInDays, isSameDay, max } from 'date-fns';
+import { Post, User as DbUser, UserStreak } from './../entity';
+import { differenceInDays, isSameDay, max } from 'date-fns';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
 import {
@@ -14,8 +14,6 @@ import { sendAnalyticsEvent } from '../integrations/analytics';
 import { DayOfWeek, DEFAULT_WEEK_START } from './date';
 import { UserStreakAction, UserStreakActionType } from '../entity';
 import { ChangeObject } from '../types';
-import { generateStorageKey, StorageKey, StorageTopic } from '../config';
-import { setRedisObjectWithExpiry } from '../redis';
 
 export interface User {
   id: string;
@@ -551,29 +549,6 @@ export const shouldAllowRestore = async (
     lastStreakDifference,
     user.weekStart,
   );
-};
-
-export const setRestoreStreakCache = async (
-  con: DataSource,
-  streak: ChangeObject<UserStreak>,
-) => {
-  const { userId, currentStreak: previousStreak } = streak;
-  const today = new Date();
-  const shouldAllow = await shouldAllowRestore(con, streak);
-
-  if (!shouldAllow) {
-    return;
-  }
-
-  const key = generateStorageKey(StorageTopic.Streak, StorageKey.Reset, userId);
-  const now = today.getTime();
-  const nextDay = addDays(now, 1).setHours(0, 0, 0, 0);
-  const differenceInSeconds = (nextDay - now) * 1000;
-
-  await Promise.all([
-    setRedisObjectWithExpiry(key, previousStreak, differenceInSeconds),
-    con.getRepository(Alerts).update({ userId }, { showResetStreak: true }),
-  ]);
 };
 
 export const roadmapShSocialUrlMatch =
