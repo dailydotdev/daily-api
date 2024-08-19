@@ -467,6 +467,12 @@ export const typeDefs = /* GraphQL */ `
     tags: [TagsReadingStatus]
   }
 
+  type StreakRecoveryQuery {
+    canDo: Boolean!
+    cost: Int!
+    oldStreakLength: Int!
+  }
+
   type MostReadTag {
     value: String!
     count: Int!
@@ -609,7 +615,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get information about the user streak recovery
     """
-    streakRecovery(): StreakRecoveryQueryResult
+    streakRecovery: StreakRecoveryQuery
     """
     Get the most read tags of the user
     """
