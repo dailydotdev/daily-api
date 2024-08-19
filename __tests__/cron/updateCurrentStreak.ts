@@ -2,7 +2,7 @@ import { crons } from '../../src/cron/index';
 import cron from '../../src/cron/updateCurrentStreak';
 import { usersFixture } from '../fixture';
 import { User, UserStreak } from '../../src/entity';
-import { expectSuccessfulCron, saveFixtures } from '../helpers';
+import { doNotFake, expectSuccessfulCron, saveFixtures } from '../helpers';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import nock from 'nock';
@@ -13,23 +13,6 @@ let con: DataSource;
 beforeAll(async () => {
   con = await createOrGetConnection();
 });
-
-const doNotFake: FakeableAPI[] = [
-  'hrtime',
-  'nextTick',
-  'performance',
-  'queueMicrotask',
-  'requestAnimationFrame',
-  'cancelAnimationFrame',
-  'requestIdleCallback',
-  'cancelIdleCallback',
-  'setImmediate',
-  'clearImmediate',
-  'setInterval',
-  'clearInterval',
-  'setTimeout',
-  'clearTimeout',
-];
 
 beforeEach(async () => {
   jest.useFakeTimers({ doNotFake }).setSystemTime(new Date('2024-06-26')); // Wednesday

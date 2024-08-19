@@ -10,4 +10,5 @@ export enum NotificationIcon {
   Star = 'Star',
   DevCard = 'DevCard',
   BookmarkReminder = 'BookmarkReminder',
+  Streak = 'Streak',
 }

@@ -75,6 +75,7 @@ import {
   notifyReputationIncrease,
   PubSubSchema,
   debeziumTimeToDate,
+  setRestoreStreakCache,
 } from '../../common';
 import { ChangeMessage, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
@@ -811,6 +812,13 @@ const onUserStreakChange = async (
   data: ChangeMessage<UserStreak>,
 ) => {
   if (data.payload.op === 'u') {
+    if (
+      data.payload.after.currentStreak === 0 &&
+      data.payload.before.currentStreak > 0
+    ) {
+      await setRestoreStreakCache(con, data.payload.before);
+    }
+
     await triggerTypedEvent(logger, 'api.v1.user-streak-updated', {
       streak: data.payload.after!,
     });

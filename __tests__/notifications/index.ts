@@ -10,6 +10,7 @@ import {
   NotificationSourceContext,
   NotificationSourceMemberRoleContext,
   NotificationSourceRequestContext,
+  NotificationStreakContext,
   NotificationSubmissionContext,
   NotificationUpvotersContext,
   Reference,
@@ -32,6 +33,7 @@ import {
   SourceType,
   SquadSource,
   User,
+  UserStreak,
   WelcomePost,
 } from '../../src/entity';
 import {
@@ -300,6 +302,33 @@ describe('generateNotification', () => {
         type: 'post',
       },
     ]);
+  });
+
+  it('should generate streak_reset_restore notification', () => {
+    const type = NotificationType.StreakResetRestore;
+    const lastViewAt = new Date();
+    const streak = {
+      userId,
+      lastViewAt,
+      currentStreak: 10,
+    } as Reference<UserStreak>;
+    const ctx: NotificationStreakContext = {
+      streak,
+      userIds: [userId],
+    };
+    const title = `<b>Oh no! Your 10 day streak has been broken</b>`;
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/notifications?streak_restore=10',
+    );
+    expect(actual.notification.title).toEqual(title);
+    expect(actual.notification.description).toEqual(
+      'Click here if you wish to restore your streak',
+    );
+    expect(actual.notification.uniqueKey).toEqual(lastViewAt.toString());
   });
 
   it('should generate article_upvote_milestone notification', () => {

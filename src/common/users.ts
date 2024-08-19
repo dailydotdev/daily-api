@@ -1,14 +1,21 @@
 import { getPostCommenterIds } from './post';
-import { Post, User as DbUser, UserStreak } from './../entity';
-import { differenceInDays, isSameDay, max } from 'date-fns';
+import { Alerts, Post, User as DbUser, UserStreak } from './../entity';
+import { addDays, differenceInDays, isSameDay, max } from 'date-fns';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
-import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
+import {
+  getTimezonedStartOfISOWeek,
+  getTimezonedEndOfISOWeek,
+  debeziumTimeToDate,
+} from './utils';
 import { GraphQLResolveInfo } from 'graphql';
 import { utcToZonedTime } from 'date-fns-tz';
 import { sendAnalyticsEvent } from '../integrations/analytics';
 import { DayOfWeek, DEFAULT_WEEK_START } from './date';
 import { UserStreakAction, UserStreakActionType } from '../entity';
+import { ChangeObject } from '../types';
+import { generateStorageKey, StorageKey, StorageTopic } from '../config';
+import { setRedisObjectWithExpiry } from '../redis';
 
 export interface User {
   id: string;
@@ -385,6 +392,12 @@ export const Weekends = [Day.Sunday, Day.Saturday];
 export const FREEZE_DAYS_IN_A_WEEK = Weekends.length;
 export const MISSED_LIMIT = 1;
 
+/*
+ * if last streak was Monday, and today is Wednesday, we should allow recovering streak
+ * if last streak was Friday, then the gap is 3 days (the 24-hour period had passed), we should not allow it
+ * */
+export const STREAK_RECOVERY_MAX_GAP_DAYS = 2;
+
 export const clearUserStreak = async (
   con: DataSource | EntityManager,
   userIds: string[],
@@ -429,6 +442,32 @@ export const shouldResetStreak = (
   }
 
   return day > firstDayOfWeek && difference > MISSED_LIMIT;
+};
+
+export const checkRestoreValidity = (
+  day: number,
+  difference: number,
+  startOfWeek: DayOfWeek = DEFAULT_WEEK_START,
+) => {
+  const firstDayOfWeek =
+    startOfWeek === DayOfWeek.Monday ? Day.Monday : Day.Sunday;
+
+  const lastDayOfWeek =
+    startOfWeek === DayOfWeek.Monday ? Day.Sunday : Day.Saturday;
+
+  const getAllowedDays = () => {
+    if (day === lastDayOfWeek) {
+      return FREEZE_DAYS_IN_A_WEEK;
+    }
+
+    if (day === firstDayOfWeek) {
+      return FREEZE_DAYS_IN_A_WEEK + STREAK_RECOVERY_MAX_GAP_DAYS;
+    }
+
+    return STREAK_RECOVERY_MAX_GAP_DAYS;
+  };
+
+  return difference - getAllowedDays() === 0;
 };
 
 export const checkUserStreak = (
@@ -494,6 +533,48 @@ export enum LogoutReason {
   UserDeleted = 'user deleted',
   KratosSessionAlreadyAvailable = 'kratos session already available',
 }
+
+export const shouldAllowRestore = async (
+  con: DataSource,
+  streak: ChangeObject<UserStreak>,
+) => {
+  const { userId, lastViewAt: lastViewAtDb } = streak;
+  const user = await con.getRepository(DbUser).findOneBy({ id: userId });
+  const today = new Date();
+  const lastView = debeziumTimeToDate(lastViewAtDb);
+  const lastRecovery = await getUserLastStreak(con, userId);
+  const lastStreak = lastRecovery ? max([lastView, lastRecovery]) : lastView;
+  const lastStreakDifference = differenceInDays(today, lastStreak);
+
+  return checkRestoreValidity(
+    today.getDay(),
+    lastStreakDifference,
+    user.weekStart,
+  );
+};
+
+export const setRestoreStreakCache = async (
+  con: DataSource,
+  streak: ChangeObject<UserStreak>,
+) => {
+  const { userId, currentStreak: previousStreak } = streak;
+  const today = new Date();
+  const shouldAllow = await shouldAllowRestore(con, streak);
+
+  if (!shouldAllow) {
+    return;
+  }
+
+  const key = generateStorageKey(StorageTopic.Streak, StorageKey.Reset, userId);
+  const now = today.getTime();
+  const nextDay = addDays(now, 1).setHours(0, 0, 0, 0);
+  const differenceInSeconds = (nextDay - now) * 1000;
+
+  await Promise.all([
+    setRedisObjectWithExpiry(key, previousStreak, differenceInSeconds),
+    con.getRepository(Alerts).update({ userId }, { showResetStreak: true }),
+  ]);
+};
 
 export const roadmapShSocialUrlMatch =
   /^(?:(?:https:\/\/)?(?:www\.)?roadmap\.sh\/u\/)?(?<value>[\w-]{2,})\/?$/;
