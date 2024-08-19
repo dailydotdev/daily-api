@@ -5,6 +5,8 @@ export enum UserStreakActionType {
   Recover = 'recover',
 }
 
+export const streakRecoverCost = 25;
+
 @Entity()
 export class UserStreakAction {
   @PrimaryColumn({ length: 36 })

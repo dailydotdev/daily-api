@@ -22,6 +22,10 @@ import {
   UserPersonalizedDigestFlags,
   UserPersonalizedDigestSendType,
   UserPersonalizedDigestFlagsPublic,
+  Alerts,
+  UserStreakAction,
+  UserStreakActionType,
+  streakRecoverCost,
 } from '../entity';
 import {
   AuthenticationError,
@@ -54,6 +58,8 @@ import {
   DayOfWeek,
   VALID_WEEK_STARTS,
   GQLUserIntegration,
+  StreakRecoveryQueryResult,
+  isNumber,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -600,6 +606,10 @@ export const typeDefs = /* GraphQL */ `
     Get the reading rank of the user
     """
     userReadingRank(id: ID!, version: Int, limit: Int): ReadingRank
+    """
+    Get information about the user streak recovery
+    """
+    streakRecovery(): StreakRecoveryQueryResult
     """
     Get the most read tags of the user
     """
@@ -1165,6 +1175,61 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       return streak;
+    },
+    streakRecovery: async (
+      _,
+      __,
+      ctx: Context,
+      info,
+    ): Promise<StreakRecoveryQueryResult> => {
+      const failResult: StreakRecoveryQueryResult = {
+        canDo: false,
+        cost: 0,
+        oldStreakLength: 0,
+      };
+
+      const { id: userId } = await getCurrentUser(ctx, info);
+
+      if (!userId) {
+        return failResult;
+      }
+
+      const key = generateStorageKey(
+        StorageTopic.Streak,
+        StorageKey.Reset,
+        userId,
+      );
+
+      const oldStreakLength = await getRedisObject(key);
+      if (!oldStreakLength || !isNumber(oldStreakLength)) {
+        return failResult;
+      }
+
+      const { current } = await getUserStreakQuery(userId, ctx, info);
+      const recoverCount = await ctx.con
+        .getRepository(UserStreakAction)
+        .countBy({
+          userId,
+          type: UserStreakActionType.Recover,
+        });
+
+      if (current > 1) {
+        // if the user has a streak, we don't need the recovery popup anymore
+        await ctx.con.getRepository(Alerts).update(
+          {
+            userId,
+          },
+          {
+            showResetStreak: false,
+          },
+        );
+
+        return {
+          canDo: true,
+          oldStreakLength: +oldStreakLength,
+          cost: recoverCount > 0 ? streakRecoverCost : 0,
+        };
+      }
     },
     userReads: async (): Promise<number> => {
       // Kept for backwards compatability
