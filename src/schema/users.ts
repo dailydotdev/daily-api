@@ -1182,16 +1182,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: Context,
       info,
     ): Promise<StreakRecoveryQueryResult> => {
-      const failResult: StreakRecoveryQueryResult = {
+      const cantRecoverResult: StreakRecoveryQueryResult = {
         canDo: false,
         cost: 0,
         oldStreakLength: 0,
       };
 
       const { id: userId } = await getCurrentUser(ctx, info);
-
       if (!userId) {
-        return failResult;
+        return cantRecoverResult;
       }
 
       const key = generateStorageKey(
@@ -1200,21 +1199,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         userId,
       );
 
-      const oldStreakLength = await getRedisObject(key);
-      if (!oldStreakLength || !isNumber(oldStreakLength)) {
-        return failResult;
+      const oldStreakLength = Number(await getRedisObject(key));
+      const userDontHaveOldStreak = !isNumber(oldStreakLength);
+      if (userDontHaveOldStreak) {
+        return cantRecoverResult;
       }
 
       const { current } = await getUserStreakQuery(userId, ctx, info);
-      const recoverCount = await ctx.con
-        .getRepository(UserStreakAction)
-        .countBy({
-          userId,
-          type: UserStreakActionType.Recover,
-        });
-
-      if (current > 1) {
-        // if the user has a streak, we don't need the recovery popup anymore
+      const streakIsTooLongToRecover = current > 1;
+      if (streakIsTooLongToRecover) {
         await ctx.con.getRepository(Alerts).update(
           {
             userId,
@@ -1223,13 +1216,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             showRecoverStreak: false,
           },
         );
-
-        return {
-          canDo: true,
-          oldStreakLength: +oldStreakLength,
-          cost: recoverCount > 0 ? streakRecoverCost : 0,
-        };
+        return cantRecoverResult;
       }
+
+      const recoverCount = await ctx.con
+        .getRepository(UserStreakAction)
+        .countBy({
+          userId,
+          type: UserStreakActionType.Recover,
+        });
+      const cost = recoverCount > 0 ? streakRecoverCost : 0;
+
+      return {
+        canDo: true,
+        oldStreakLength,
+        cost,
+      };
     },
     userReads: async (): Promise<number> => {
       // Kept for backwards compatability
