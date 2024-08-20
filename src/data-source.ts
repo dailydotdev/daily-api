@@ -16,7 +16,7 @@ export const AppDataSource = new DataSource({
     max: 20,
     idleTimeoutMillis: 120000,
   },
-  logging: true,
+  logging: false,
   entities: ['src/entity/**/*.{js,ts}'],
   migrations: ['src/migration/**/*.{js,ts}'],
   subscribers: ['src/subscriber/**/*.{js,ts}'],
