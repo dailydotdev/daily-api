@@ -12,7 +12,6 @@ import { PostTag } from '../PostTag';
 import { PostKeyword } from '../PostKeyword';
 import { User } from '../user';
 import { PostRelation } from './PostRelation';
-import { I18nRecord } from '../../types';
 
 export enum PostType {
   Article = 'article',
@@ -48,10 +47,6 @@ export type PostFlagsPublic = Pick<PostFlags, 'private' | 'promoteToPublic'>;
 
 export type PostContentQuality = Partial<{
   is_ai_probability: number;
-}>;
-
-export type PostI18n = Partial<{
-  title: I18nRecord;
 }>;
 
 @Entity()

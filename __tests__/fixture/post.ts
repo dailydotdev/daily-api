@@ -396,5 +396,4 @@ export const contentUpdatedPost = {
   viewsThreshold: 0,
   tsv: null,
   statsUpdatedAt: 0,
-  i18n: {},
 };

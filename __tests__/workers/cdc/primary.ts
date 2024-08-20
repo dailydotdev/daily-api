@@ -92,7 +92,7 @@ import {
   UserStateKey,
   ContentImage,
 } from '../../../src/entity';
-import { ChangeObject, ContentLanguage, UserVote } from '../../../src/types';
+import { ChangeObject, UserVote } from '../../../src/types';
 import { sourcesFixture } from '../../fixture/source';
 import {
   contentUpdatedPost,
@@ -204,7 +204,6 @@ const defaultUser: ChangeObject<Omit<User, 'createdAt'>> = {
     trustScore: 1,
     vordr: false,
   },
-  language: ContentLanguage.English,
 };
 
 describe('source request', () => {
