@@ -1377,16 +1377,25 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return personalizedDigest;
     },
-    companies: async (_, __, ctx: AuthContext, info) => {
-      const userCompanies = await graphorm.query(ctx, info, (builder) => {
-        builder.queryBuilder = builder.queryBuilder
-          .andWhere(`${builder.alias}."userId" = :userId`, {
-            userId: ctx.userId,
-          })
-          .andWhere(`${builder.alias}."verified" = true`);
+    companies: async (
+      _,
+      __,
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLUserCompany[]> => {
+      const userCompanies = await graphorm.query<GQLUserCompany>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .andWhere(`${builder.alias}."userId" = :userId`, {
+              userId: ctx.userId,
+            })
+            .andWhere(`${builder.alias}."verified" = true`);
 
-        return builder;
-      });
+          return builder;
+        },
+      );
       if (userCompanies.length === 0) {
         throw new NotFoundError('No companies found');
       }
