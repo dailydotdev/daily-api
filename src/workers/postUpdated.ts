@@ -35,6 +35,7 @@ import { EntityManager } from 'typeorm';
 import { parseDate, updateFlagsStatement } from '../common';
 import { markdown } from '../common/markdown';
 import { counters } from '../telemetry';
+import { I18nRecord } from '../types';
 
 interface Data {
   id: string;
@@ -73,6 +74,9 @@ interface Data {
   meta?: {
     scraped_html?: string;
     cleaned_trafilatura_xml?: string;
+    translate_title?: {
+      translations?: I18nRecord;
+    };
   };
   content_quality?: PostContentQuality;
 }
