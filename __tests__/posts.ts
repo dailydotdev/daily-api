@@ -90,7 +90,7 @@ let roles: Roles[] = [];
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    () => new MockContext(con, loggedUser, premiumUser, roles),
+    (req) => new MockContext(con, loggedUser, premiumUser, roles, req),
   );
   client = state.client;
 });
@@ -4726,6 +4726,65 @@ describe('query relatedPosts', () => {
           ],
         },
       },
+    });
+  });
+});
+
+describe('posts title field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      title
+    }
+  }`;
+
+  it('should return title', async () => {
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.post).toEqual({
+      title: 'P1',
+    });
+  });
+
+  it('should return i18n title if exists', async () => {
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        contentMeta: {
+          translate_title: {
+            translations: {
+              de: 'P1 german',
+            },
+          },
+        },
+      },
+    );
+
+    const res = await client.query(QUERY, {
+      headers: {
+        'content-language': 'de',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.post).toEqual({
+      title: 'P1 german',
+    });
+  });
+
+  it('should return default title if i18n title does not exist', async () => {
+    const res = await client.query(QUERY, {
+      headers: {
+        'content-language': 'fr',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.post).toEqual({
+      title: 'P1',
     });
   });
 });

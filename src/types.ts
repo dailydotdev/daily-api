@@ -120,3 +120,18 @@ export type SlackAuthResponse = {
   };
   error?: string;
 };
+
+export enum ContentLanguage {
+  English = 'en',
+  German = 'de',
+  Spanish = 'es',
+  French = 'fr',
+  Italian = 'it',
+  Japanese = 'ja',
+  Korean = 'ko',
+  PortugueseBrazil = 'pt-BR',
+  PortuguesePortugal = 'pt-PT',
+  ChineseSimplified = 'zh-Hans',
+}
+
+export type I18nRecord = Partial<Record<ContentLanguage, string>>;
