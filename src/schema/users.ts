@@ -54,6 +54,7 @@ import {
   DayOfWeek,
   VALID_WEEK_STARTS,
   GQLUserIntegration,
+  GQLUserCompany,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -67,7 +68,7 @@ import {
 } from '../errors';
 import { deleteUser } from '../directive/user';
 import { randomInt } from 'crypto';
-import { DataSource, In, IsNull } from 'typeorm';
+import { ArrayContains, DataSource, In, IsNull } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
 import { UserVote, UserVoteEntity } from '../types';
 import { markdown } from '../common/markdown';
@@ -81,6 +82,9 @@ import {
   UserIntegrationSlack,
   UserIntegrationType,
 } from '../entity/UserIntegration';
+import { Company } from '../entity/Company';
+import { UserCompany } from '../entity/UserCompany';
+import { generateVerifyCode } from '../ids';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -197,6 +201,35 @@ export interface GQLUserPersonalizedDigest {
 }
 
 export const typeDefs = /* GraphQL */ `
+  type Company {
+    id: String!
+    name: String!
+    image: String
+  }
+
+  type UserCompany {
+    """
+    Date when the record was created
+    """
+    createdAt: DateTime!
+    """
+    Date when the record was updated
+    """
+    updatedAt: DateTime!
+    """
+    Whether the record is verified
+    """
+    verified: Boolean!
+    """
+    Email associated with record
+    """
+    email: String!
+    """
+    Company connected to this record
+    """
+    company: Company
+  }
+
   """
   Registered user
   """
@@ -329,6 +362,10 @@ export const typeDefs = /* GraphQL */ `
     Whether the user is a team member
     """
     isTeamMember: Boolean
+    """
+    Verified companies for this user
+    """
+    companies: [Company]
   }
 
   """
@@ -717,6 +754,11 @@ export const typeDefs = /* GraphQL */ `
     Get integrations for the user
     """
     userIntegrations: UserIntegrationConnection @auth
+
+    """
+    Get companies for user
+    """
+    companies: [UserCompany] @auth
   }
 
   extend type Mutation {
@@ -805,6 +847,21 @@ export const typeDefs = /* GraphQL */ `
     Stores user source tracking information
     """
     addUserAcquisitionChannel(acquisitionChannel: String!): EmptyResponse @auth
+
+    """
+    Store user company
+    """
+    addUserCompany(email: String!): EmptyResponse @auth
+
+    """
+    Clear user company
+    """
+    removeUserCompany(email: String!): [UserCompany] @auth
+
+    """
+    Verify a user company code
+    """
+    verifyUserCompanyCode(email: String!, code: String!): [UserCompany] @auth
 
     """
     Clears the user marketing CTA and marks it as read
@@ -1320,6 +1377,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return personalizedDigest;
     },
+    companies: async (_, __, ctx: AuthContext, info) => {
+      const userCompanies = await graphorm.query(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder
+          .andWhere(`${builder.alias}."userId" = :userId`, {
+            userId: ctx.userId,
+          })
+          .andWhere(`${builder.alias}."verified" = true`);
+
+        return builder;
+      });
+      if (userCompanies.length === 0) {
+        throw new NotFoundError('No companies found');
+      }
+
+      return userCompanies;
+    },
     referredUsers: async (
       _,
       args: ConnectionArguments,
@@ -1635,6 +1708,75 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .update({ id: ctx.userId }, { acquisitionChannel });
 
       return { _: true };
+    },
+    addUserCompany: async (
+      _,
+      { email }: { email: string },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      if (!email?.length) {
+        throw new ValidationError('Email is required');
+      }
+      const company = await ctx.con.getRepository(Company).findOneBy({
+        domains: ArrayContains([email.split('@')[1]]),
+      });
+
+      const code = await generateVerifyCode();
+
+      await ctx.con.getRepository(UserCompany).insert({
+        email,
+        code,
+        userId: ctx.userId,
+        companyId: company?.id ?? null,
+      });
+
+      return { _: true };
+    },
+    removeUserCompany: async (
+      _,
+      { email }: { email: string },
+      ctx: AuthContext,
+    ): Promise<GQLUserCompany[]> => {
+      if (!email?.length) {
+        throw new ValidationError('Email is required');
+      }
+      await ctx.con
+        .getRepository(UserCompany)
+        .delete({ email, userId: ctx.userId });
+
+      return ctx.con.getRepository(UserCompany).findBy({
+        userId: ctx.userId,
+      });
+    },
+    verifyUserCompanyCode: async (
+      _,
+      { email, code }: { email: string; code: string },
+      ctx: AuthContext,
+    ): Promise<GQLUserCompany[]> => {
+      if (!email?.length) {
+        throw new ValidationError('Email is required');
+      }
+      if (code?.length !== 6) {
+        throw new ValidationError('Invalid code');
+      }
+      const userCompany = await ctx.con
+        .getRepository(UserCompany)
+        .findOneByOrFail({
+          email,
+          userId: ctx.userId,
+          verified: false,
+        });
+
+      if (userCompany.code !== code) {
+        throw new ValidationError('Invalid code');
+      }
+
+      const updatedRecord = { ...userCompany, verified: true };
+      await ctx.con.getRepository(UserCompany).save(updatedRecord);
+
+      return ctx.con.getRepository(UserCompany).findBy({
+        userId: ctx.userId,
+      });
     },
     clearUserMarketingCta: async (
       _,

@@ -31,6 +31,7 @@ import { GQLUserPost } from '../schema/posts';
 import { UserComment } from '../entity/user/UserComment';
 import { I18nRecord, UserVote } from '../types';
 import { whereVordrFilter } from '../common/vordr';
+import { UserCompany } from '../entity/UserCompany';
 import { Post } from '../entity/posts/Post';
 
 const existsByUserAndPost =
@@ -118,6 +119,20 @@ const obj = new GraphORM({
           return `EXISTS${query.getQuery()}`;
         },
         transform: (value: number): boolean => value > 0,
+      },
+      companies: {
+        relation: {
+          isMany: true,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .innerJoin(
+                UserCompany,
+                'uc',
+                `"${childAlias}"."id" = uc."companyId"`,
+              )
+              .where('uc.verified = true')
+              .andWhere(`uc."userId" = "${parentAlias}".id`),
+        },
       },
     },
   },

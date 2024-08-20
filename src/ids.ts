@@ -7,6 +7,9 @@ const alphabet =
   '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 export const generateLongId = customAlphabet(alphabet, 21);
 export const generateShortId = customAlphabet(alphabet, 9);
+
+export const generateVerifyCode = customAlphabet('1234567890', 6);
+
 export const generateUUID = () => randomUUID();
 
 export const generateTrackingId = (

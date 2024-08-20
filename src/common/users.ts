@@ -33,6 +33,20 @@ export interface GQLUserStreak {
   weekStart: DayOfWeek;
 }
 
+export interface GQLCompany {
+  id: string;
+  name: string;
+  createdAt: Date;
+  image?: string;
+  domains: string[];
+}
+
+export interface GQLUserCompany {
+  createdAt: Date;
+  updatedAt: Date;
+  email: string;
+}
+
 export interface GQLUserStreakTz extends GQLUserStreak {
   timezone: string;
   lastViewAtTz: Date;
