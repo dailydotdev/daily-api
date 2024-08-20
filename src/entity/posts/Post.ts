@@ -266,7 +266,4 @@ export class Post {
 
   @Column({ type: 'jsonb', default: {} })
   contentQuality: PostContentQuality;
-
-  @Column({ type: 'jsonb', default: {} })
-  i18n: PostI18n;
 }

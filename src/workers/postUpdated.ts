@@ -14,7 +14,6 @@ import {
   parseReadTime,
   Post,
   PostContentQuality,
-  PostI18n,
   PostOrigin,
   PostRelationType,
   PostType,
@@ -454,10 +453,8 @@ const updatePost = async ({
     data.visibleAt = data.metadataChangedAt;
   }
 
-  const jsonMetaFields: (keyof Pick<
-    Post,
-    'contentMeta' | 'contentQuality' | 'i18n'
-  >)[] = ['contentMeta', 'contentQuality', 'i18n'];
+  const jsonMetaFields: (keyof Pick<Post, 'contentMeta' | 'contentQuality'>)[] =
+    ['contentMeta', 'contentQuality'];
 
   jsonMetaFields.forEach((metaField) => {
     if (
@@ -613,12 +610,6 @@ const fixData = async ({
   }
 
   const duration = data?.extra?.duration / 60;
-  const i18n: PostI18n = {};
-  const titleI18n = data?.meta?.translate_title?.translations;
-
-  if (titleI18n) {
-    i18n.title = titleI18n;
-  }
 
   // Try and fix generic data here
   return {
@@ -661,7 +652,6 @@ const fixData = async ({
       language: data?.language,
       contentMeta: data?.meta || {},
       contentQuality: data?.content_quality || {},
-      i18n,
     },
   };
 };

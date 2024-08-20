@@ -905,43 +905,6 @@ describe('on post create', () => {
       expect(post.flags.showOnFeed).toEqual(true);
     });
   });
-
-  it('should save title i18n', async () => {
-    const uuid = randomUUID();
-    await createDefaultSubmission(uuid);
-
-    const postBefore = await con.getRepository(Post).findOneBy({
-      yggdrasilId: '81baa161-63b2-4b61-a96c-22898532e58e',
-    });
-    expect(postBefore).toBeNull();
-
-    await expectSuccessfulBackground(worker, {
-      id: '81baa161-63b2-4b61-a96c-22898532e58e',
-      title: 'Without questions',
-      url: `https://post.com/${uuid}`,
-      source_id: 'a',
-      submission_id: uuid,
-      meta: {
-        translate_title: {
-          translations: {
-            de: 'Ohne Fragen',
-            fr: 'Sans questions',
-          },
-        },
-      },
-    });
-
-    const post = await con.getRepository(Post).findOneBy({
-      yggdrasilId: '81baa161-63b2-4b61-a96c-22898532e58e',
-    });
-    expect(post).not.toBeNull();
-    expect(post?.i18n).toMatchObject({
-      title: {
-        de: 'Ohne Fragen',
-        fr: 'Sans questions',
-      },
-    });
-  });
 });
 
 describe('on post update', () => {
@@ -1432,82 +1395,6 @@ describe('on post update', () => {
       expect(updatedPost.flags.banned).toEqual(true);
       expect(updatedPost.flags.showOnFeed).toEqual(true);
       expect(updatedPost.flags.promoteToPublic).toEqual(1);
-    });
-  });
-
-  it('should update title i18n', async () => {
-    const postId = 'p1';
-
-    const existingPost = await con.getRepository(ArticlePost).save({
-      id: postId,
-      yggdrasilId: '81baa161-63b2-4b61-a96c-22898532e58e',
-      i18n: {
-        title: {
-          de: 'Ohne Fragen',
-          fr: 'Sans questions',
-        },
-      },
-    });
-
-    expect(existingPost).not.toBeNull();
-
-    await expectSuccessfulBackground(worker, {
-      id: '81baa161-63b2-4b61-a96c-22898532e58e',
-      post_id: postId,
-      meta: {
-        translate_title: {
-          translations: {
-            de: 'Ohne Fragen 2',
-            fr: 'Sans questions 2',
-            it: 'Senza domande 2',
-          },
-        },
-      },
-    });
-
-    const updatedPost = await con.getRepository(ArticlePost).findOneBy({
-      id: postId,
-    });
-    expect(updatedPost).not.toBeNull();
-    expect(updatedPost?.i18n).toMatchObject({
-      title: {
-        de: 'Ohne Fragen 2',
-        fr: 'Sans questions 2',
-        it: 'Senza domande 2',
-      },
-    });
-  });
-
-  it('should not update empty i18n when meta is empty', async () => {
-    const postId = 'p1';
-
-    const existingPost = await con.getRepository(ArticlePost).save({
-      id: postId,
-      yggdrasilId: '81baa161-63b2-4b61-a96c-22898532e58e',
-      i18n: {
-        title: {
-          de: 'Ohne Fragen',
-          fr: 'Sans questions',
-        },
-      },
-    });
-
-    expect(existingPost).not.toBeNull();
-
-    await expectSuccessfulBackground(worker, {
-      id: '81baa161-63b2-4b61-a96c-22898532e58e',
-      post_id: postId,
-    });
-
-    const updatedPost = await con.getRepository(ArticlePost).findOneBy({
-      id: postId,
-    });
-    expect(updatedPost).not.toBeNull();
-    expect(updatedPost?.i18n).toMatchObject({
-      title: {
-        de: 'Ohne Fragen',
-        fr: 'Sans questions',
-      },
     });
   });
 });

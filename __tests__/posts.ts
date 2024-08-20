@@ -4751,9 +4751,11 @@ describe('posts title field', () => {
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
-        i18n: {
-          title: {
-            de: 'P1 german',
+        contentMeta: {
+          translate_title: {
+            translations: {
+              de: 'P1 german',
+            },
           },
         },
       },

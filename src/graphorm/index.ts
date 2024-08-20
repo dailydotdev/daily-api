@@ -4,7 +4,6 @@ import {
   Bookmark,
   FeedSource,
   FeedTag,
-  Post,
   Source,
   SourceMember,
   User,
@@ -32,6 +31,7 @@ import { GQLUserPost } from '../schema/posts';
 import { UserComment } from '../entity/user/UserComment';
 import { I18nRecord, UserVote } from '../types';
 import { whereVordrFilter } from '../common/vordr';
+import { Post } from '../entity/posts/Post';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -61,16 +61,20 @@ const nullIfNotSameUser = <T>(
   parent: Pick<User, 'id'>,
 ): T | null => (ctx.userId === parent.id ? value : null);
 
-const createI18nField = (fieldName: string): GraphORMField => {
+const createI18nField = ({
+  field,
+  fieldAs,
+}: {
+  field: string;
+  fieldAs: string;
+}): GraphORMField => {
   return {
-    select: fieldName,
+    select: field,
     transform: (value: string, ctx: Context, parent): string => {
       const i18nParent = parent as {
-        i18n: {
-          [key: string]: I18nRecord;
-        };
+        [key: string]: I18nRecord;
       };
-      const i18nValue = i18nParent.i18n[fieldName]?.[ctx.contentLanguage];
+      const i18nValue = i18nParent[fieldAs]?.[ctx.contentLanguage];
 
       if (i18nValue) {
         return i18nValue;
@@ -140,7 +144,11 @@ const obj = new GraphORM({
       'private',
       'type',
       'slug',
-      'i18n',
+      {
+        column: `"contentMeta"->'translate_title'->'translations'`,
+        columnAs: 'i18nTitle',
+        isJson: true,
+      },
     ],
     fields: {
       tags: {
@@ -285,7 +293,10 @@ const obj = new GraphORM({
         alias: { field: 'url', type: 'string' },
         transform: (value: string): string => domainOnly(value),
       },
-      title: createI18nField('title'),
+      title: createI18nField({
+        field: 'title',
+        fieldAs: 'i18nTitle',
+      }),
     },
   },
   SourceCategory: {
