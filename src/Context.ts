@@ -10,18 +10,31 @@ import { FastifyRequest, FastifyBaseLogger } from 'fastify';
 import { GraphQLDatabaseLoader } from '@mando75/typeorm-graphql-loader';
 import { Roles } from './roles';
 import { DataLoaderService } from './dataLoaderService';
+import { ContentLanguage } from './types';
+
+const validLanguages = Object.values(ContentLanguage);
 
 export class Context {
   req: FastifyRequest;
   con: DataSource;
   loader: GraphQLDatabaseLoader;
   dataLoader: DataLoaderService;
+  contentLanguage: ContentLanguage;
 
   constructor(req: FastifyRequest, con: DataSource) {
     this.req = req;
     this.con = con;
     this.loader = new GraphQLDatabaseLoader(con);
     this.dataLoader = new DataLoaderService({ ctx: this });
+
+    const contentLanguageHeader =
+      req.headers['content-language']?.toLowerCase();
+
+    this.contentLanguage = validLanguages.includes(
+      contentLanguageHeader as ContentLanguage,
+    )
+      ? (contentLanguageHeader as ContentLanguage)
+      : ContentLanguage.English;
   }
 
   get service(): boolean {

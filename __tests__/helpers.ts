@@ -12,7 +12,7 @@ import { Message, TypedWorker, Worker } from '../src/workers/worker';
 import { base64, PubSubSchema, triggerTypedEvent } from '../src/common';
 import { Roles } from '../src/roles';
 import { Cron } from '../src/cron/cron';
-import { ChangeMessage, ChangeObject } from '../src/types';
+import { ChangeMessage, ChangeObject, ContentLanguage } from '../src/types';
 import { PubSub } from '@google-cloud/pubsub';
 import { Logger } from 'pino';
 import { createMercuriusTestClient } from 'mercurius-integration-testing';
@@ -38,12 +38,14 @@ export class MockContext extends Context {
   mockPremium: boolean;
   mockRoles: Roles[];
   logger: FastifyLoggerInstance;
+  contentLanguage: ContentLanguage;
 
   constructor(
     con: DataSource,
     userId: string = null,
     premium = false,
     roles = [],
+    req?: FastifyRequest,
   ) {
     super(mock<FastifyRequest>(), con);
     this.mockSpan = mock<opentelemetry.Span>();
@@ -54,6 +56,10 @@ export class MockContext extends Context {
     this.mockPremium = premium;
     this.mockRoles = roles;
     this.logger = mock<FastifyLoggerInstance>();
+
+    if (req?.headers['content-language']) {
+      this.contentLanguage = req.headers['content-language'] as ContentLanguage;
+    }
   }
 
   get span(): opentelemetry.Span {
