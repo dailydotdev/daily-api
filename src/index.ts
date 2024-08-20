@@ -207,6 +207,20 @@ export default async function app(
         response: execution,
       };
     },
+    additionalRouteOptions: {
+      preHandler: async (request, reply) => {
+        const varyHeader = reply.getHeader('vary');
+        const varyHeaders = Array.isArray(varyHeader)
+          ? varyHeader
+          : [varyHeader];
+
+        if (request.headers['content-language']) {
+          varyHeaders.push('content-language');
+        }
+
+        reply.header('vary', varyHeaders);
+      },
+    },
   });
 
   if (isProd) {

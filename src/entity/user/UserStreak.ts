@@ -1,7 +1,16 @@
-import { Column, PrimaryColumn, Entity, OneToOne, JoinColumn } from 'typeorm';
+import {
+  Column,
+  PrimaryColumn,
+  Entity,
+  OneToOne,
+  JoinColumn,
+  Index,
+} from 'typeorm';
 import { User } from './';
 
 @Entity()
+@Index('IDX_user_streak_currentStreak_userId', { synchronize: false })
+@Index('IDX_user_streak_totalStreak_userId', { synchronize: false })
 export class UserStreak {
   @PrimaryColumn({ length: 36 })
   userId: string;

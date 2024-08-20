@@ -60,6 +60,12 @@ export interface GraphORMField {
   jsonType?: boolean;
 }
 
+export type RequiredColumnConfig = {
+  column: string;
+  columnAs: string;
+  isJson?: boolean;
+};
+
 export interface GraphORMType {
   // Define manually the table to select from
   from?: string;
@@ -68,7 +74,7 @@ export interface GraphORMType {
   // Define fields customizations
   fields?: { [name: string]: GraphORMField };
   // Array of columns to select regardless of the resolve tree
-  requiredColumns?: string[];
+  requiredColumns?: (string | RequiredColumnConfig)[];
   // Define a function to manipulate the query every time
   additionalQuery?: (
     ctx: Context,
@@ -338,7 +344,26 @@ export class GraphORM {
       newBuilder = this.mappings[type].additionalQuery(ctx, alias, newBuilder);
     }
     (this.mappings?.[type]?.requiredColumns ?? []).forEach((col) => {
-      newBuilder = newBuilder.addSelect(`${alias}."${col}"`, col);
+      const columnOptions =
+        typeof col === 'object'
+          ? col
+          : {
+              column: col,
+              columnAs: col,
+              isJson: false,
+            };
+
+      if (columnOptions.isJson) {
+        newBuilder = newBuilder.addSelect(
+          `${alias}.${columnOptions.column}`,
+          columnOptions.columnAs,
+        );
+      } else {
+        newBuilder = newBuilder.addSelect(
+          `${alias}."${columnOptions.column}"`,
+          columnOptions.columnAs,
+        );
+      }
     });
     return { queryBuilder: newBuilder, alias };
   }

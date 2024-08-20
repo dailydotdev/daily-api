@@ -52,7 +52,7 @@ export async function identifyUserStreak(
       total_streak: totalStreak,
       max_streak: maxStreak,
       last_view_at: lastViewAt
-        ? dateToCioTimestamp(debeziumTimeToDate(lastViewAt))
+        ? dateToCioTimestamp(new Date(lastViewAt))
         : undefined,
       last_seven_days_streak: lastSevenDays,
     });

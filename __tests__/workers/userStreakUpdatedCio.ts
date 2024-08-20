@@ -59,8 +59,8 @@ describe('userStreakUpdatedCio worker', () => {
     currentStreak: 2,
     totalStreak: 3,
     maxStreak: 4,
-    lastViewAt: 1714577744717000,
-    updatedAt: 1714577744717000,
+    lastViewAt: new Date('2024-01-26T17:17Z').getTime(),
+    updatedAt: new Date('2024-01-26T17:17Z').getTime(),
   };
 
   beforeEach(async () => {
@@ -93,7 +93,7 @@ describe('userStreakUpdatedCio worker', () => {
         { day: 'Tu', read: false },
         { day: 'We', read: false },
       ],
-      last_view_at: 1714577744,
+      last_view_at: 1706289420,
     });
   });
 
@@ -134,7 +134,7 @@ describe('userStreakUpdatedCio worker', () => {
         { day: 'Tu', read: true },
         { day: 'We', read: false },
       ],
-      last_view_at: 1714577744,
+      last_view_at: 1706289420,
     });
   });
 });
