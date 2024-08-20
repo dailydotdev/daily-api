@@ -10,9 +10,7 @@ import { FastifyRequest, FastifyBaseLogger } from 'fastify';
 import { GraphQLDatabaseLoader } from '@mando75/typeorm-graphql-loader';
 import { Roles } from './roles';
 import { DataLoaderService } from './dataLoaderService';
-import { ContentLanguage } from './types';
-
-const validLanguages = Object.values(ContentLanguage);
+import { ContentLanguage, validLanguages } from './types';
 
 export class Context {
   req: FastifyRequest;

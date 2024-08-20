@@ -49,6 +49,7 @@ import {
   DEFAULT_WEEK_START,
   safeJSONParse,
 } from '../../common';
+import { ContentLanguage, validLanguages } from '../../types';
 
 export type UserFlags = Partial<{
   vordr: boolean;
@@ -194,6 +195,9 @@ export class User {
   @Index('IDX_user_flags_vordr', { synchronize: false })
   flags: UserFlags;
 
+  @Column({ type: 'text', nullable: true })
+  language: ContentLanguage | null;
+
   @ManyToOne(() => User, {
     lazy: true,
     onDelete: 'SET NULL',
@@ -239,6 +243,7 @@ export type AddUserData = Pick<
   | 'acceptedMarketing'
   | 'timezone'
   | 'experienceLevel'
+  | 'language'
 >;
 export type AddUserDataPost = { referral: string } & AddUserData;
 export type UpdateUserEmailData = Pick<User, 'id' | 'email'>;
@@ -246,8 +251,15 @@ type AddNewUserResult =
   | { status: 'ok'; userId: string }
   | { status: 'failed'; reason: UserFailErrorKeys; error?: Error };
 
+const checkLanguage = (language?: string): boolean => {
+  return !!language && validLanguages.includes(language as ContentLanguage);
+};
+
 const checkRequiredFields = (data: AddUserData): boolean => {
-  if (data?.username && !data?.experienceLevel) {
+  if (
+    data?.username &&
+    (!data?.experienceLevel || !checkLanguage(data?.language))
+  ) {
     return false;
   }
   return !!(data && data.id);
@@ -425,6 +437,7 @@ export const addNewUser = async (
       github: data.github,
       twitter: data.twitter,
       experienceLevel: data.experienceLevel,
+      language: data.language,
       flags: {
         trustScore: 1,
         vordr: false,
@@ -471,6 +484,10 @@ export const validateUserUpdate = async (
         JSON.stringify({ timezone: 'invalid timezone' }),
       );
     }
+  }
+
+  if (!!data.language && !validLanguages.includes(data.language)) {
+    throw new ValidationError(JSON.stringify({ language: 'invalid language' }));
   }
 
   ['name', 'twitter', 'github', 'hashnode'].forEach((key) => {
