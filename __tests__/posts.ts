@@ -4787,4 +4787,31 @@ describe('posts title field', () => {
       title: 'P1',
     });
   });
+
+  it('should return i18n title for cased language codes', async () => {
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        contentMeta: {
+          translate_title: {
+            translations: {
+              'pt-BR': 'P1 Portugal Brazil',
+            },
+          },
+        },
+      },
+    );
+
+    const res = await client.query(QUERY, {
+      headers: {
+        'content-language': 'pt-BR',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.post).toEqual({
+      title: 'P1 Portugal Brazil',
+    });
+  });
 });

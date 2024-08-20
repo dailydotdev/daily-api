@@ -27,8 +27,7 @@ export class Context {
     this.loader = new GraphQLDatabaseLoader(con);
     this.dataLoader = new DataLoaderService({ ctx: this });
 
-    const contentLanguageHeader =
-      req.headers['content-language']?.toLowerCase();
+    const contentLanguageHeader = req.headers['content-language'];
 
     this.contentLanguage = validLanguages.includes(
       contentLanguageHeader as ContentLanguage,
