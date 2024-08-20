@@ -579,6 +579,25 @@ describe('query userStreaks', () => {
 
       await expectStreak(5, 5, lastViewAt);
     });
+
+    it('should return recover data when user fetch query', async () => {
+      nock('http://localhost:5000').post('/e').reply(204);
+      loggedUser = '1';
+
+      const QUERY = `query StreakRecover {
+        userStreak {
+          canDo
+          cost
+          oldStreakLength
+        }
+      }`;
+
+      const res = await client.query(QUERY);
+      // console.log(res);
+      expect(res.errors).toBeFalsy();
+      // expect(res.canDo).toBeDefined();
+      // expect(res.canDo).toBeFalsy();
+    });
   });
 
   it('should not reset streak on Saturday when last read is Friday', async () => {

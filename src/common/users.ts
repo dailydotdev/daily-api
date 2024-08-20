@@ -554,7 +554,7 @@ export const shouldAllowRestore = async (
   const user = await con.getRepository(DbUser).findOneBy({ id: userId });
   const today = new Date();
   const lastView = debeziumTimeToDate(lastViewAtDb);
-  const lastRecovery = await getUserLastStreak(con, userId);
+  const lastRecovery = await getLastStreakRecoverDate(con, userId);
   const lastStreak = lastRecovery ? max([lastView, lastRecovery]) : lastView;
   const lastStreakDifference = differenceInDays(today, lastStreak);
 
