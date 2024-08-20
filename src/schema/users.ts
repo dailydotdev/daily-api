@@ -1383,24 +1383,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLUserCompany[]> => {
-      const userCompanies = await graphorm.query<GQLUserCompany>(
-        ctx,
-        info,
-        (builder) => {
-          builder.queryBuilder = builder.queryBuilder
-            .andWhere(`${builder.alias}."userId" = :userId`, {
-              userId: ctx.userId,
-            })
-            .andWhere(`${builder.alias}."verified" = true`);
+      return await graphorm.query<GQLUserCompany>(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder
+          .andWhere(`${builder.alias}."userId" = :userId`, {
+            userId: ctx.userId,
+          })
+          .andWhere(`${builder.alias}."verified" = true`);
 
-          return builder;
-        },
-      );
-      if (userCompanies.length === 0) {
-        throw new NotFoundError('No companies found');
-      }
-
-      return userCompanies;
+        return builder;
+      });
     },
     referredUsers: async (
       _,
