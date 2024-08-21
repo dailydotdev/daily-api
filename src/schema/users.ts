@@ -1040,6 +1040,18 @@ const getUserStreakQuery = async (
   }));
 };
 
+const getUserCompanies = async (_, ctx: Context, info: GraphQLResolveInfo) => {
+  return await graphorm.query<GQLUserCompany>(ctx, info, (builder) => {
+    builder.queryBuilder = builder.queryBuilder
+      .andWhere(`${builder.alias}."userId" = :userId`, {
+        userId: ctx.userId,
+      })
+      .andWhere(`${builder.alias}."verified" = true`);
+
+    return builder;
+  });
+};
+
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
   BaseContext
@@ -1382,17 +1394,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       __,
       ctx: AuthContext,
       info,
-    ): Promise<GQLUserCompany[]> => {
-      return await graphorm.query<GQLUserCompany>(ctx, info, (builder) => {
-        builder.queryBuilder = builder.queryBuilder
-          .andWhere(`${builder.alias}."userId" = :userId`, {
-            userId: ctx.userId,
-          })
-          .andWhere(`${builder.alias}."verified" = true`);
-
-        return builder;
-      });
-    },
+    ): Promise<GQLUserCompany[]> => getUserCompanies(_, ctx, info),
     referredUsers: async (
       _,
       args: ConnectionArguments,
@@ -1723,12 +1725,27 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const code = await generateVerifyCode();
 
-      await ctx.con.getRepository(UserCompany).insert({
-        email,
-        code,
-        userId: ctx.userId,
-        companyId: company?.id ?? null,
-      });
+      const existingUserCompanyEmail = await ctx.con
+        .getRepository(UserCompany)
+        .findOneBy({
+          email,
+        });
+
+      if (existingUserCompanyEmail) {
+        if (existingUserCompanyEmail.userId !== ctx.userId) {
+          throw new ValidationError('Email already exists');
+        }
+
+        const updatedRecord = { ...existingUserCompanyEmail, code };
+        await ctx.con.getRepository(UserCompany).save(updatedRecord);
+      } else {
+        await ctx.con.getRepository(UserCompany).insert({
+          email,
+          code,
+          userId: ctx.userId,
+          companyId: company?.id ?? null,
+        });
+      }
 
       return { _: true };
     },
@@ -1736,29 +1753,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       _,
       { email }: { email: string },
       ctx: AuthContext,
+      info,
     ): Promise<GQLUserCompany[]> => {
-      if (!email?.length) {
-        throw new ValidationError('Email is required');
-      }
       await ctx.con
         .getRepository(UserCompany)
         .delete({ email, userId: ctx.userId });
 
-      return ctx.con.getRepository(UserCompany).findBy({
-        userId: ctx.userId,
-      });
+      return getUserCompanies(_, ctx, info);
     },
     verifyUserCompanyCode: async (
       _,
       { email, code }: { email: string; code: string },
       ctx: AuthContext,
+      info,
     ): Promise<GQLUserCompany[]> => {
-      if (!email?.length) {
-        throw new ValidationError('Email is required');
-      }
-      if (code?.length !== 6) {
-        throw new ValidationError('Invalid code');
-      }
       const userCompany = await ctx.con
         .getRepository(UserCompany)
         .findOneByOrFail({
@@ -1774,9 +1782,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const updatedRecord = { ...userCompany, verified: true };
       await ctx.con.getRepository(UserCompany).save(updatedRecord);
 
-      return ctx.con.getRepository(UserCompany).findBy({
-        userId: ctx.userId,
-      });
+      return getUserCompanies(_, ctx, info);
     },
     clearUserMarketingCta: async (
       _,

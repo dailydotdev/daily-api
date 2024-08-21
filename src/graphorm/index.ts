@@ -136,6 +136,24 @@ const obj = new GraphORM({
       },
     },
   },
+  UserCompany: {
+    fields: {
+      user: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'userId',
+        },
+      },
+      company: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'companyId',
+        },
+      },
+    },
+  },
   UserStreak: {
     requiredColumns: ['lastViewAt'],
     fields: {

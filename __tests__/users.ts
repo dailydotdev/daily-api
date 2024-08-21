@@ -74,6 +74,8 @@ import {
   UserIntegration,
   UserIntegrationType,
 } from '../src/entity/UserIntegration';
+import { Company } from '../src/entity/Company';
+import { UserCompany } from '../src/entity/UserCompany';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -806,6 +808,395 @@ describe('query team members', () => {
       username: null,
       image: 'https://daily.dev/ido.jpg',
       isTeamMember: true,
+    });
+  });
+});
+
+describe('user company', () => {
+  beforeEach(async () => {
+    await con.getRepository(Company).save([
+      {
+        id: '1',
+        name: 'Company 1',
+        image: 'https://daily.dev/company1.jpg',
+        domains: ['company1.com'],
+      },
+      {
+        id: '2',
+        name: 'Company 2',
+        image: 'https://daily.dev/company2.jpg',
+        domains: ['company2.com'],
+      },
+      {
+        id: '3',
+        name: 'Company 3',
+        image: 'https://daily.dev/company3.jpg',
+        domains: ['company3.com'],
+      },
+    ]);
+    await con.getRepository(UserCompany).save([
+      {
+        userId: '1',
+        companyId: '1',
+        verified: true,
+        email: 'u1@com1.com',
+        code: '123',
+      },
+      {
+        userId: '1',
+        companyId: '2',
+        verified: true,
+        email: 'u1@com2.com',
+        code: '123',
+      },
+      {
+        userId: '1',
+        companyId: '3',
+        verified: false,
+        email: 'u1@com3.com',
+        code: '123',
+      },
+      {
+        userId: '2',
+        companyId: '3',
+        verified: true,
+        email: 'u2@com4.com',
+        code: '123',
+      },
+      { userId: '1', verified: true, email: 'u1@com5.com', code: '123' },
+    ]);
+  });
+
+  describe('query user (companies)', () => {
+    const QUERY = `query User($id: ID!) {
+    user(id: $id) {
+      companies {
+        id
+        name
+        image
+      }
+    }
+  }`;
+    it('should return verified records where companies exist', async () => {
+      const requestUserId = '1';
+      const res = await client.query(QUERY, {
+        variables: { id: requestUserId },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.user.companies).toMatchObject([
+        {
+          id: '1',
+          image: 'https://daily.dev/company1.jpg',
+          name: 'Company 1',
+        },
+        {
+          id: '2',
+          image: 'https://daily.dev/company2.jpg',
+          name: 'Company 2',
+        },
+      ]);
+    });
+
+    it('return data for other users', async () => {
+      loggedUser = '1';
+      const requestUserId = '2';
+      const res = await client.query(QUERY, {
+        variables: { id: requestUserId },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.user.companies).toMatchObject([
+        { id: '3', name: 'Company 3', image: 'https://daily.dev/company3.jpg' },
+      ]);
+    });
+
+    it('return empty array if no companies found', async () => {
+      const requestUserId = '3';
+      const res = await client.query(QUERY, {
+        variables: { id: requestUserId },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.user.companies).toMatchObject([]);
+    });
+  });
+
+  describe('query companies', () => {
+    const QUERY = `query Companies {
+    companies {
+      email
+      company {
+      id
+     }
+    }
+  }`;
+
+    it('should not authorize when not logged in', () =>
+      testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
+
+    it('should return user companies that are verified', async () => {
+      loggedUser = '1';
+      const res = await client.query(QUERY);
+      expect(res.errors).toBeFalsy();
+      expect(res.data.companies).toMatchObject([
+        { email: 'u1@com1.com', company: { id: '1' } },
+        { email: 'u1@com2.com', company: { id: '2' } },
+        { email: 'u1@com5.com', company: null },
+      ]);
+    });
+  });
+
+  describe('mutation addUserCompany', () => {
+    const QUERY = `mutation addUserCompany($email: String!) {
+    addUserCompany(email: $email) {
+      _
+    }
+  }`;
+
+    it('should not authorize when not logged in', () => {
+      return testQueryError(
+        client,
+        { query: QUERY, variables: { email: 'test@test.com' } },
+        (errors) => {
+          expect(errors[0].extensions.code).toEqual('UNAUTHENTICATED');
+        },
+      );
+    });
+
+    it('should fail if no email is passed', async () => {
+      loggedUser = '1';
+      return testQueryErrorCode(
+        client,
+        { query: QUERY },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should fail if email was already used by other user', async () => {
+      loggedUser = '1';
+      return testQueryError(
+        client,
+        { query: QUERY, variables: { email: 'u2@com4.com' } },
+        (errors) => {
+          expect(errors[0].extensions.code).toEqual(
+            'GRAPHQL_VALIDATION_FAILED',
+          );
+          expect(errors[0].message).toEqual('Email already exists');
+        },
+      );
+    });
+
+    it('should create user company record without linked company', async () => {
+      loggedUser = '1';
+      const res = await client.query(QUERY, {
+        variables: { email: 'u1@com4.com' },
+      });
+      expect(res.errors).toBeFalsy();
+      const row = await con.getRepository(UserCompany).findOneBy({
+        email: 'u1@com4.com',
+      });
+      expect(row.verified).toBeFalsy();
+      expect(row.code.length).toEqual(6);
+      expect(row.companyId).toEqual(null);
+    });
+
+    it('should create user company record with linked company', async () => {
+      loggedUser = '1';
+      await con.getRepository(Company).save([
+        {
+          id: '4',
+          name: 'Company 4',
+          image: 'https://daily.dev/company4.jpg',
+          domains: ['com4.com'],
+        },
+      ]);
+      const res = await client.query(QUERY, {
+        variables: { email: 'u1@com4.com' },
+      });
+      expect(res.errors).toBeFalsy();
+      const row = await con.getRepository(UserCompany).findOneBy({
+        email: 'u1@com4.com',
+      });
+      expect(row.verified).toBeFalsy();
+      expect(row.code.length).toEqual(6);
+      expect(row.companyId).toEqual('4');
+    });
+
+    it('should update verification code if it was an existing record', async () => {
+      loggedUser = '1';
+      const res = await client.query(QUERY, {
+        variables: { email: 'u1@com3.com' },
+      });
+      expect(res.errors).toBeFalsy();
+      const row = await con.getRepository(UserCompany).findOneBy({
+        email: 'u1@com3.com',
+      });
+      expect(row.verified).toBeFalsy();
+      expect(row.code.length).toEqual(6);
+    });
+  });
+
+  describe('mutation removeUserCompany', () => {
+    const QUERY = `mutation RemoveUserCompany($email: String!) {
+    removeUserCompany(email: $email) {
+      email
+      company {
+        id
+      }
+    }
+  }`;
+
+    it('should not authorize when not logged in', () => {
+      return testQueryError(
+        client,
+        { query: QUERY, variables: { email: 'test@test.com' } },
+        (errors) => {
+          expect(errors[0].extensions.code).toEqual('UNAUTHENTICATED');
+        },
+      );
+    });
+
+    it('should fail if no email is passed', async () => {
+      loggedUser = '1';
+      return testQueryErrorCode(
+        client,
+        { query: QUERY },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should ignore if email is not known', async () => {
+      loggedUser = '1';
+      const res = await client.query(QUERY, {
+        variables: { email: 'random@random.com' },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.removeUserCompany).toEqual([
+        { email: 'u1@com1.com', company: { id: '1' } },
+        { email: 'u1@com2.com', company: { id: '2' } },
+        { email: 'u1@com5.com', company: null },
+      ]);
+    });
+
+    it('should ignore if email is not owned by user', async () => {
+      loggedUser = '1';
+      const res = await client.query(QUERY, {
+        variables: { email: 'u2@com4.com' },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.removeUserCompany).toEqual([
+        { email: 'u1@com1.com', company: { id: '1' } },
+        { email: 'u1@com2.com', company: { id: '2' } },
+        { email: 'u1@com5.com', company: null },
+      ]);
+    });
+
+    it('should delete if user is owner of email', async () => {
+      loggedUser = '1';
+      const res = await client.query(QUERY, {
+        variables: { email: 'u1@com2.com' },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.removeUserCompany).toEqual([
+        { email: 'u1@com1.com', company: { id: '1' } },
+        { email: 'u1@com5.com', company: null },
+      ]);
+    });
+  });
+
+  describe('mutation verifyUserCompanyCode', () => {
+    const QUERY = `mutation VerifyUserCompanyCode($email: String!, $code: String!) {
+    verifyUserCompanyCode(email: $email, code: $code) {
+      email
+      verified
+      company {
+        id
+      }
+    }
+  }`;
+
+    it('should not authorize when not logged in', () => {
+      return testQueryError(
+        client,
+        { query: QUERY, variables: { email: 'test@test.com', code: '123' } },
+        (errors) => {
+          expect(errors[0].extensions.code).toEqual('UNAUTHENTICATED');
+        },
+      );
+    });
+
+    it('should fail if no email is passed', async () => {
+      loggedUser = '1';
+      return testQueryErrorCode(
+        client,
+        { query: QUERY, variables: { code: '123' } },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should fail if email but no code is passed', async () => {
+      loggedUser = '1';
+      return testQueryErrorCode(
+        client,
+        { query: QUERY, variables: { email: 'test@test.com' } },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should fail if email not found', async () => {
+      loggedUser = '1';
+      return testQueryError(
+        client,
+        { query: QUERY, variables: { email: 'test@test.com', code: '123' } },
+        (errors) => {
+          expect(errors[0].message).toEqual('Entity not found');
+        },
+      );
+    });
+
+    it('should fail if email not owned by user', async () => {
+      loggedUser = '1';
+      return testQueryError(
+        client,
+        { query: QUERY, variables: { email: 'u2@com4.com', code: '123' } },
+        (errors) => {
+          expect(errors[0].message).toEqual('Entity not found');
+        },
+      );
+    });
+
+    it('should fail if email already verified', async () => {
+      loggedUser = '1';
+      return testQueryError(
+        client,
+        { query: QUERY, variables: { email: 'u1@com1.com', code: '123' } },
+        (errors) => {
+          expect(errors[0].message).toEqual('Entity not found');
+        },
+      );
+    });
+
+    it('should fail if code not correct', async () => {
+      loggedUser = '1';
+      return testQueryError(
+        client,
+        { query: QUERY, variables: { email: 'u1@com3.com', code: '456' } },
+        (errors) => {
+          expect(errors[0].message).toEqual('Invalid code');
+        },
+      );
+    });
+
+    it('should verify the record', async () => {
+      loggedUser = '1';
+      const res = await client.query(QUERY, {
+        variables: { email: 'u1@com3.com', code: '123' },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.verifyUserCompanyCode).toEqual([
+        { email: 'u1@com1.com', verified: true, company: { id: '1' } },
+        { email: 'u1@com2.com', verified: true, company: { id: '2' } },
+        { email: 'u1@com5.com', verified: true, company: null },
+        { email: 'u1@com3.com', verified: true, company: { id: '3' } },
+      ]);
     });
   });
 });

@@ -1,21 +1,23 @@
 import {
   Column,
+  CreateDateColumn,
   Entity,
   Index,
   JoinColumn,
   ManyToOne,
   OneToOne,
   PrimaryColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { User } from './user';
 import { Company } from './Company';
 
 @Entity()
 export class UserCompany {
-  @Column({ default: () => 'now()' })
+  @CreateDateColumn()
   createdAt: Date;
 
-  @Column({ default: () => 'now()' })
+  @UpdateDateColumn()
   updatedAt: Date;
 
   @Column({ default: false })
@@ -26,7 +28,6 @@ export class UserCompany {
   email: string;
 
   @Column({ type: 'text' })
-  @Index({ unique: true })
   code: string;
 
   @PrimaryColumn()
@@ -47,6 +48,5 @@ export class UserCompany {
     lazy: true,
     onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'companyId' })
   company: Promise<Company>;
 }

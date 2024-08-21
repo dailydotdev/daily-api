@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, PrimaryColumn } from 'typeorm';
 
 @Entity()
 export class Company {
@@ -8,7 +8,7 @@ export class Company {
   @Column({ type: 'text' })
   name: string;
 
-  @Column({ default: () => 'now()' })
+  @CreateDateColumn()
   createdAt: Date;
 
   @Column({ type: 'text', nullable: true })
