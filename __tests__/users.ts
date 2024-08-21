@@ -31,23 +31,26 @@ import {
   Feature,
   FeatureType,
   FeatureValue,
+  MarketingCta,
   Post,
   Source,
   User,
-  View,
-  UserPersonalizedDigest,
-  UserStreak,
-  MarketingCta,
   UserMarketingCta,
-  UserPersonalizedDigestType,
+  UserPersonalizedDigest,
   UserPersonalizedDigestSendType,
+  UserPersonalizedDigestType,
+  UserStreak,
+  UserStreakAction,
+  UserStreakActionType,
+  View,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import {
   codepenSocialUrlMatch,
-  encrypt,
   DayOfWeek,
+  encrypt,
   getTimezonedStartOfISOWeek,
+  ghostUser,
   githubSocialUrlMatch,
   linkedinSocialUrlMatch,
   mastodonSocialUrlMatch,
@@ -58,7 +61,6 @@ import {
   stackoverflowSocialUrlMatch,
   threadsSocialUrlMatch,
   twitterSocialUrlMatch,
-  ghostUser,
 } from '../src/common';
 import { DataSource, In, IsNull } from 'typeorm';
 import createOrGetConnection from '../src/db';
@@ -69,7 +71,7 @@ import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { CampaignType, Invite } from '../src/entity/Invite';
 import { usersFixture } from './fixture/user';
 import { deleteRedisKey, getRedisObject } from '../src/redis';
-import { StorageKey, StorageTopic, generateStorageKey } from '../src/config';
+import { generateStorageKey, StorageKey, StorageTopic } from '../src/config';
 import {
   UserIntegration,
   UserIntegrationType,
@@ -448,6 +450,135 @@ describe('query userStreaks', () => {
 
     jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
     await expectStreak(5, 0, lastViewAt);
+  });
+
+  describe('incorporating streak restore', () => {
+    beforeEach(async () => {
+      nock('http://localhost:5000').post('/e').reply(204);
+    });
+
+    it('should not reset streak when the user restored streak today', async () => {
+      loggedUser = '1';
+
+      const fakeToday = new Date(2024, 0, 1); // Monday
+      const lastViewAt = subDays(fakeToday, 4); // Thursday
+
+      jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+      await expectStreak(5, 0, lastViewAt);
+
+      await con
+        .getRepository(UserStreak)
+        .update({ userId: loggedUser }, { currentStreak: 5 });
+      await con.getRepository(UserStreakAction).save([
+        {
+          userId: loggedUser,
+          type: UserStreakActionType.Recover,
+          createdAt: fakeToday,
+        },
+      ]);
+
+      await expectStreak(5, 5, lastViewAt);
+    });
+
+    it('should reset streak when the user restored streak was yesterday and did not read', async () => {
+      nock('http://localhost:5000').post('/e').reply(204);
+      loggedUser = '1';
+
+      const fakeToday = new Date(2024, 0, 2); // Tuesday
+      const lastViewAt = subDays(fakeToday, 5); // Thursday
+
+      jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+      await expectStreak(5, 0, lastViewAt);
+
+      await con
+        .getRepository(UserStreak)
+        .update({ userId: loggedUser }, { currentStreak: 5 });
+      await con.getRepository(UserStreakAction).save([
+        {
+          userId: loggedUser,
+          type: UserStreakActionType.Recover,
+          createdAt: subDays(fakeToday, 1),
+        },
+      ]);
+
+      await expectStreak(5, 0, lastViewAt);
+    });
+
+    it('should not reset streak when the user restored streak yesterday and read a post', async () => {
+      nock('http://localhost:5000').post('/e').reply(204);
+      loggedUser = '1';
+
+      const fakeToday = new Date(2024, 0, 2); // Tuesday
+      const lastViewAt = subDays(fakeToday, 5); // Thursday
+
+      jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+      await expectStreak(5, 0, lastViewAt);
+
+      await con
+        .getRepository(UserStreak)
+        .update({ userId: loggedUser }, { currentStreak: 5 });
+      const yesterday = subDays(fakeToday, 1);
+      await con.getRepository(UserStreakAction).save([
+        {
+          userId: loggedUser,
+          type: UserStreakActionType.Recover,
+          createdAt: yesterday,
+        },
+      ]);
+
+      await expectStreak(5, 5, yesterday);
+    });
+
+    it('should not reset streak when the user restored streak on Saturday and it is only Sunday', async () => {
+      nock('http://localhost:5000').post('/e').reply(204);
+      loggedUser = '1';
+
+      const fakeToday = new Date(2024, 0, 7); // Sunday
+      const lastViewAt = subDays(fakeToday, 3); // Thursday
+
+      jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+      await expectStreak(5, 0, lastViewAt);
+
+      await con
+        .getRepository(UserStreak)
+        .update({ userId: loggedUser }, { currentStreak: 5 });
+      await con.getRepository(UserStreakAction).save([
+        {
+          userId: loggedUser,
+          type: UserStreakActionType.Recover,
+          createdAt: subDays(fakeToday, 1), // Saturday
+        },
+      ]);
+
+      await expectStreak(5, 5, lastViewAt);
+    });
+
+    it('should not reset streak when the user restored streak on Friday and it is only Saturday with Sunday as workday', async () => {
+      nock('http://localhost:5000').post('/e').reply(204);
+      loggedUser = '1';
+
+      const fakeToday = new Date(2024, 0, 6); // Saturday
+      const lastViewAt = subDays(fakeToday, 3); // Wednesday
+      await con
+        .getRepository(User)
+        .update({ id: loggedUser }, { weekStart: DayOfWeek.Sunday });
+
+      jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+      await expectStreak(5, 0, lastViewAt);
+
+      await con
+        .getRepository(UserStreak)
+        .update({ userId: loggedUser }, { currentStreak: 5 });
+      await con.getRepository(UserStreakAction).save([
+        {
+          userId: loggedUser,
+          type: UserStreakActionType.Recover,
+          createdAt: subDays(fakeToday, 1), // Friday
+        },
+      ]);
+
+      await expectStreak(5, 5, lastViewAt);
+    });
   });
 
   it('should not reset streak on Saturday when last read is Friday', async () => {
