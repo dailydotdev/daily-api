@@ -1187,7 +1187,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       _,
       __,
       ctx: AuthContext,
-      info,
     ): Promise<StreakRecoverQueryResult> => {
       const cantRecoverResult: StreakRecoverQueryResult = {
         canDo: false,
