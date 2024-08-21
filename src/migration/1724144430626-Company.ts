@@ -5,7 +5,7 @@ export class Company1724144430626 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `CREATE TABLE "company" ("id" text NOT NULL, "name" text NOT NULL, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "image" text, "domains" text array NOT NULL DEFAULT '{}', CONSTRAINT "PK_056f7854a7afdba7cbd6d45fc20" PRIMARY KEY ("id"))`,
+      `CREATE TABLE "company" ("id" text NOT NULL, "name" text NOT NULL, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), "image" text, "domains" text array NOT NULL DEFAULT '{}', CONSTRAINT "PK_056f7854a7afdba7cbd6d45fc20" PRIMARY KEY ("id"))`,
     );
     await queryRunner.query(
       `CREATE TABLE "user_company" ("createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), "verified" boolean NOT NULL DEFAULT false, "email" text NOT NULL, "code" text NOT NULL, "userId" character varying NOT NULL, "companyId" text, CONSTRAINT "PK_6576f99bbbc8080bb7ef40e5dbc" PRIMARY KEY ("email", "userId"))`,

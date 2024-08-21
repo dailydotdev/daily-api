@@ -1037,10 +1037,7 @@ describe('user company', () => {
   describe('mutation removeUserCompany', () => {
     const QUERY = `mutation RemoveUserCompany($email: String!) {
     removeUserCompany(email: $email) {
-      email
-      company {
-        id
-      }
+      _
     }
   }`;
 
@@ -1069,11 +1066,7 @@ describe('user company', () => {
         variables: { email: 'random@random.com' },
       });
       expect(res.errors).toBeFalsy();
-      expect(res.data.removeUserCompany).toEqual([
-        { email: 'u1@com1.com', company: { id: '1' } },
-        { email: 'u1@com2.com', company: { id: '2' } },
-        { email: 'u1@com5.com', company: null },
-      ]);
+      expect(res.data.removeUserCompany._).toBeTruthy();
     });
 
     it('should ignore if email is not owned by user', async () => {
@@ -1082,11 +1075,11 @@ describe('user company', () => {
         variables: { email: 'u2@com4.com' },
       });
       expect(res.errors).toBeFalsy();
-      expect(res.data.removeUserCompany).toEqual([
-        { email: 'u1@com1.com', company: { id: '1' } },
-        { email: 'u1@com2.com', company: { id: '2' } },
-        { email: 'u1@com5.com', company: null },
-      ]);
+      expect(res.data.removeUserCompany._).toBeTruthy();
+      const row = await con.getRepository(UserCompany).findOneBy({
+        email: 'u2@com4.com',
+      });
+      expect(row).toBeTruthy();
     });
 
     it('should delete if user is owner of email', async () => {
@@ -1095,21 +1088,18 @@ describe('user company', () => {
         variables: { email: 'u1@com2.com' },
       });
       expect(res.errors).toBeFalsy();
-      expect(res.data.removeUserCompany).toEqual([
-        { email: 'u1@com1.com', company: { id: '1' } },
-        { email: 'u1@com5.com', company: null },
-      ]);
+      expect(res.data.removeUserCompany._).toBeTruthy();
+      const row = await con.getRepository(UserCompany).findOneBy({
+        email: 'u1@com2.com',
+      });
+      expect(row).toBeFalsy();
     });
   });
 
   describe('mutation verifyUserCompanyCode', () => {
     const QUERY = `mutation VerifyUserCompanyCode($email: String!, $code: String!) {
     verifyUserCompanyCode(email: $email, code: $code) {
-      email
-      verified
-      company {
-        id
-      }
+      _
     }
   }`;
 
@@ -1191,12 +1181,11 @@ describe('user company', () => {
         variables: { email: 'u1@com3.com', code: '123' },
       });
       expect(res.errors).toBeFalsy();
-      expect(res.data.verifyUserCompanyCode).toEqual([
-        { email: 'u1@com1.com', verified: true, company: { id: '1' } },
-        { email: 'u1@com2.com', verified: true, company: { id: '2' } },
-        { email: 'u1@com5.com', verified: true, company: null },
-        { email: 'u1@com3.com', verified: true, company: { id: '3' } },
-      ]);
+      expect(res.data.verifyUserCompanyCode._).toBeTruthy();
+      const row = await con.getRepository(UserCompany).findOneBy({
+        email: 'u1@com3.com',
+      });
+      expect(row.verified).toBeTruthy();
     });
   });
 });

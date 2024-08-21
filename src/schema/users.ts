@@ -866,12 +866,12 @@ export const typeDefs = /* GraphQL */ `
     """
     Clear user company
     """
-    removeUserCompany(email: String!): [UserCompany] @auth
+    removeUserCompany(email: String!): EmptyResponse @auth
 
     """
     Verify a user company code
     """
-    verifyUserCompanyCode(email: String!, code: String!): [UserCompany] @auth
+    verifyUserCompanyCode(email: String!, code: String!): EmptyResponse @auth
 
     """
     Clears the user marketing CTA and marks it as read
@@ -1763,20 +1763,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       _,
       { email }: { email: string },
       ctx: AuthContext,
-      info,
-    ): Promise<GQLUserCompany[]> => {
+    ): Promise<GQLEmptyResponse> => {
       await ctx.con
         .getRepository(UserCompany)
         .delete({ email, userId: ctx.userId });
 
-      return getUserCompanies(_, ctx, info);
+      return { _: true };
     },
     verifyUserCompanyCode: async (
       _,
       { email, code }: { email: string; code: string },
       ctx: AuthContext,
-      info,
-    ): Promise<GQLUserCompany[]> => {
+    ): Promise<GQLEmptyResponse> => {
       const userCompany = await ctx.con
         .getRepository(UserCompany)
         .findOneByOrFail({
@@ -1792,7 +1790,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const updatedRecord = { ...userCompany, verified: true };
       await ctx.con.getRepository(UserCompany).save(updatedRecord);
 
-      return getUserCompanies(_, ctx, info);
+      return { _: true };
     },
     clearUserMarketingCta: async (
       _,
