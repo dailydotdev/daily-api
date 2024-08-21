@@ -580,10 +580,7 @@ describe('query userStreaks', () => {
       await expectStreak(5, 5, lastViewAt);
     });
 
-    it('should return recover data when user fetch query', async () => {
-      nock('http://localhost:5000').post('/e').reply(204);
-      loggedUser = '1';
-
+    describe('streak recover query', () => {
       const QUERY = `query StreakRecover {
         streakRecover {
           canDo
@@ -592,15 +589,25 @@ describe('query userStreaks', () => {
         }
       }`;
 
-      const { data, errors } = await client.query(QUERY);
-      expect(errors).toBeFalsy();
+      it('should return recover data when user fetch query', async () => {
+        nock('http://localhost:5000').post('/e').reply(204);
+        loggedUser = '1';
 
-      const { streakRecover } = data;
-      console.log({ streakRecover });
-      expect(streakRecover).toHaveProperty('canDo');
-      expect(streakRecover.canDo).toBeFalsy();
-      expect(streakRecover).toHaveProperty('cost');
-      expect(streakRecover).toHaveProperty('oldStreakLength');
+        const { data, errors } = await client.query(QUERY);
+        expect(errors).toBeFalsy();
+        const { streakRecover } = data;
+        expect(streakRecover).toHaveProperty('canDo');
+        expect(streakRecover.canDo).toBeFalsy();
+        expect(streakRecover).toHaveProperty('cost');
+        expect(streakRecover).toHaveProperty('oldStreakLength');
+      });
+
+      it('should disallow recover when user is not authenticated', async () => {
+        loggedUser = null;
+        const { data, errors } = await client.query(QUERY);
+        expect(errors).toBeTruthy();
+        expect(data.streakRecover).toBeNull();
+      });
     });
   });
 
