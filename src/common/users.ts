@@ -1,5 +1,11 @@
 import { getPostCommenterIds } from './post';
-import { Post, User as DbUser, UserStreak, UserStreakAction, UserStreakActionType } from '../entity';
+import {
+  Post,
+  User as DbUser,
+  UserStreak,
+  UserStreakAction,
+  UserStreakActionType,
+} from '../entity';
 import { differenceInDays, isSameDay, max } from 'date-fns';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
