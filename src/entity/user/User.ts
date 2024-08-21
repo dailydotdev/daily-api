@@ -252,14 +252,19 @@ type AddNewUserResult =
   | { status: 'failed'; reason: UserFailErrorKeys; error?: Error };
 
 const checkLanguage = (language?: string): boolean => {
-  return !!language && validLanguages.includes(language as ContentLanguage);
+  if (!language) {
+    return true;
+  }
+
+  return validLanguages.includes(language as ContentLanguage);
 };
 
 const checkRequiredFields = (data: AddUserData): boolean => {
-  if (
-    data?.username &&
-    (!data?.experienceLevel || !checkLanguage(data?.language))
-  ) {
+  if (!checkLanguage(data.language)) {
+    return false;
+  }
+
+  if (data?.username && !data?.experienceLevel) {
     return false;
   }
   return !!(data && data.id);
@@ -486,7 +491,7 @@ export const validateUserUpdate = async (
     }
   }
 
-  if (!!data.language && !validLanguages.includes(data.language)) {
+  if (!checkLanguage(data.language)) {
     throw new ValidationError(JSON.stringify({ language: 'invalid language' }));
   }
 

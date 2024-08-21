@@ -91,7 +91,6 @@ describe('POST /p/newUser', () => {
         username: 'randomName',
         email: 'randomNewEmail@gmail.com',
         experienceLevel: 'LESS_THAN_1_YEAR',
-        language: ContentLanguage.English,
       })
       .expect(200);
 
@@ -112,7 +111,6 @@ describe('POST /p/newUser', () => {
         username: usersFixture[0].username,
         email: 'randomNewEmail@gmail.com',
         experienceLevel: 'LESS_THAN_1_YEAR',
-        language: ContentLanguage.English,
       })
       .expect(200);
 
@@ -132,7 +130,6 @@ describe('POST /p/newUser', () => {
         username: usersFixture[0].username.toUpperCase(),
         email: 'randomNewEmail@gmail.com',
         experienceLevel: 'LESS_THAN_1_YEAR',
-        language: ContentLanguage.English,
       })
       .expect(200);
 
@@ -152,7 +149,6 @@ describe('POST /p/newUser', () => {
         username: 'disallow',
         email: 'randomNewEmail@gmail.com',
         experienceLevel: 'LESS_THAN_1_YEAR',
-        language: ContentLanguage.English,
       })
       .expect(200);
 
@@ -171,7 +167,6 @@ describe('POST /p/newUser', () => {
         username: 'h-ello',
         email: 'randomNewEmail@gmail.com',
         experienceLevel: 'LESS_THAN_1_YEAR',
-        language: ContentLanguage.English,
       })
       .expect(200);
 
@@ -190,7 +185,6 @@ describe('POST /p/newUser', () => {
         username: 'h/ello',
         email: 'randomNewEmail@gmail.com',
         experienceLevel: 'LESS_THAN_1_YEAR',
-        language: ContentLanguage.English,
       })
       .expect(200);
 
@@ -209,7 +203,6 @@ describe('POST /p/newUser', () => {
         username: 'he',
         email: 'randomNewEmail@gmail.com',
         experienceLevel: 'LESS_THAN_1_YEAR',
-        language: ContentLanguage.English,
       })
       .expect(200);
 
@@ -229,7 +222,6 @@ describe('POST /p/newUser', () => {
         username: 'randomName',
         email: usersFixture[0].email,
         experienceLevel: 'LESS_THAN_1_YEAR',
-        language: ContentLanguage.English,
       })
       .expect(200);
 
@@ -252,7 +244,6 @@ describe('POST /p/newUser', () => {
         username: 'randomName',
         email: 'iDO@daily.dev',
         experienceLevel: 'LESS_THAN_1_YEAR',
-        language: ContentLanguage.English,
       })
       .expect(200);
 
@@ -271,7 +262,6 @@ describe('POST /p/newUser', () => {
         username: usersFixture[0].username,
         email: usersFixture[0].email.toUpperCase(),
         experienceLevel: 'LESS_THAN_1_YEAR',
-        language: ContentLanguage.English,
       })
       .expect(200);
 
@@ -297,7 +287,6 @@ describe('POST /p/newUser', () => {
         username: 'h_ello',
         email: usersFixture[0].email,
         experienceLevel: 'LESS_THAN_1_YEAR',
-        language: ContentLanguage.English,
       })
       .expect(200);
 
@@ -338,7 +327,6 @@ describe('POST /p/newUser', () => {
         email: usersFixture[0].email,
         github: usersFixture[0].github,
         experienceLevel: 'LESS_THAN_1_YEAR',
-        language: ContentLanguage.English,
       })
       .expect(200);
 
@@ -367,7 +355,6 @@ describe('POST /p/newUser', () => {
         email: usersFixture[0].email,
         github: usersFixture[0].github,
         experienceLevel: 'LESS_THAN_1_YEAR',
-        language: ContentLanguage.English,
       })
       .expect(200);
 
@@ -392,7 +379,6 @@ describe('POST /p/newUser', () => {
         email: usersFixture[0].email,
         twitter: usersFixture[0].twitter,
         experienceLevel: 'LESS_THAN_1_YEAR',
-        language: ContentLanguage.English,
       })
       .expect(200);
 
@@ -420,7 +406,6 @@ describe('POST /p/newUser', () => {
         email: usersFixture[0].email,
         twitter: usersFixture[0].twitter,
         experienceLevel: 'LESS_THAN_1_YEAR',
-        language: ContentLanguage.English,
       })
       .expect(200);
 
@@ -447,7 +432,6 @@ describe('POST /p/newUser', () => {
         email: usersFixture[0].email,
         referral: usersFixture[1].id,
         experienceLevel: 'LESS_THAN_1_YEAR',
-        language: ContentLanguage.English,
       })
       .expect(200);
 
@@ -474,7 +458,6 @@ describe('POST /p/newUser', () => {
         email: usersFixture[0].email,
         referralId: usersFixture[1].id,
         experienceLevel: 'LESS_THAN_1_YEAR',
-        language: ContentLanguage.English,
       })
       .expect(200);
 
@@ -503,7 +486,6 @@ describe('POST /p/newUser', () => {
         referralId: usersFixture[1].id,
         referralOrigin: 'knightcampaign',
         experienceLevel: 'LESS_THAN_1_YEAR',
-        language: ContentLanguage.English,
       })
       .expect(200);
 
@@ -528,7 +510,6 @@ describe('POST /p/newUser', () => {
         username: usersFixture[0].username,
         email: usersFixture[0].email,
         experienceLevel: 'foo',
-        language: ContentLanguage.English,
       })
       .expect(200);
 
@@ -551,7 +532,6 @@ describe('POST /p/newUser', () => {
         username: usersFixture[0].username,
         email: usersFixture[0].email,
         experienceLevel: 'LESS_THAN_1_YEAR',
-        language: ContentLanguage.English,
       })
       .expect(200);
 
