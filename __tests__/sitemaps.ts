@@ -20,6 +20,7 @@ const postsFixture: DeepPartial<Post>[] = [
     sourceId: 'a',
     createdAt: now,
     type: PostType.Article,
+    upvotes: 20,
   },
   {
     id: 'p2',
@@ -46,6 +47,7 @@ const postsFixture: DeepPartial<Post>[] = [
     sourceId: 'a',
     createdAt: new Date(now.getTime() - 3000),
     type: PostType.Article,
+    upvotes: 80,
   },
   {
     id: 'p5',
@@ -81,7 +83,6 @@ describe('GET /sitemaps/posts.txt', () => {
     expect(res.header['cache-control']).toBeTruthy();
     expect(res.text).toEqual(`http://localhost:5002/posts/p1-p1
 http://localhost:5002/posts/p4-p4
-http://localhost:5002/posts/p5-p5
 `);
   });
 });

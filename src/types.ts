@@ -135,3 +135,5 @@ export enum ContentLanguage {
 }
 
 export type I18nRecord = Partial<Record<ContentLanguage, string>>;
+
+export const validLanguages = Object.values(ContentLanguage);
