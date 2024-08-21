@@ -22,6 +22,8 @@ import {
   UserPersonalizedDigestFlags,
   UserPersonalizedDigestSendType,
   UserPersonalizedDigestFlagsPublic,
+  UserStreakAction,
+  UserStreakActionType,
 } from '../entity';
 import {
   AuthenticationError,
@@ -81,6 +83,7 @@ import {
   UserIntegrationSlack,
   UserIntegrationType,
 } from '../entity/UserIntegration';
+import { isBefore, max, set, subDays } from 'date-fns';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -845,6 +848,11 @@ export const typeDefs = /* GraphQL */ `
     Update the user's streak configuration
     """
     updateStreakConfig(weekStart: Int): UserStreak @auth
+
+    """
+    Restore user's streak
+    """
+    recoverStreak: UserStreak @auth
   }
 `;
 
@@ -1719,6 +1727,52 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ...streak,
         weekStart,
       };
+    },
+    recoverStreak: async (
+      _,
+      __,
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLUserStreak> => {
+      const { userId } = ctx;
+      const user = await ctx.con
+        .getRepository(User)
+        .findOneByOrFail({ id: userId });
+
+      const streak = await getUserStreakQuery(userId, ctx, info);
+      const hasNoStreakOrCurrentIsGreaterThanOne =
+        !streak || streak.current > 1;
+      if (hasNoStreakOrCurrentIsGreaterThanOne) {
+        return streak;
+      }
+
+      const lastUserRecoverAction = await ctx.con
+        .getRepository(UserStreakAction)
+        .findOneBy({
+          userId,
+          type: UserStreakActionType.Recover,
+        });
+
+      const isFirstRecover = !lastUserRecoverAction;
+      const recoverCost = isFirstRecover ? 0 : 25;
+      if (user.reputation < recoverCost) {
+        throw new ValidationError('Not enough reputation to recover streak');
+      }
+
+      const lastStreakUpdateDate = max([
+        streak.lastViewAt,
+        lastUserRecoverAction.createdAt ?? new Date(0),
+      ]);
+      const todayDate = set(new Date(), { hours: 0, minutes: 0, seconds: 0 });
+      const lastOkDate = subDays(todayDate, 1);
+
+      if (isBefore(lastStreakUpdateDate, lastOkDate)) {
+        throw new ValidationError(
+          'You can only recover your streak until the next day',
+        );
+      }
+
+      return streak;
     },
   },
   User: {
