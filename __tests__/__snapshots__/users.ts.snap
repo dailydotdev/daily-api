@@ -48,6 +48,7 @@ Object {
   "id": "1",
   "image": "https://daily.dev/ido.jpg",
   "infoConfirmed": false,
+  "language": null,
   "name": "Ido",
   "notificationEmail": true,
   "permalink": "http://localhost:5002/aaa1",

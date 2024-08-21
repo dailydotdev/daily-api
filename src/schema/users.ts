@@ -69,7 +69,7 @@ import { deleteUser } from '../directive/user';
 import { randomInt } from 'crypto';
 import { DataSource, In, IsNull } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
-import { UserVote, UserVoteEntity } from '../types';
+import { ContentLanguage, UserVote, UserVoteEntity } from '../types';
 import { markdown } from '../common/markdown';
 import { RedisMagicValues, deleteRedisKey, getRedisObject } from '../redis';
 import { StorageKey, StorageTopic, generateStorageKey } from '../config';
@@ -108,6 +108,7 @@ export interface GQLUpdateUserInput {
   weekStart?: number;
   infoConfirmed?: boolean;
   experienceLevel?: string;
+  language?: ContentLanguage;
 }
 
 interface GQLUserParameters {
@@ -142,6 +143,7 @@ export interface GQLUser {
   readme?: string;
   readmeHtml?: string;
   experienceLevel?: string | null;
+  language?: ContentLanguage;
 }
 
 export interface GQLView {
@@ -329,6 +331,10 @@ export const typeDefs = /* GraphQL */ `
     Whether the user is a team member
     """
     isTeamMember: Boolean
+    """
+    Preferred language of the user
+    """
+    language: String
   }
 
   """
@@ -435,6 +441,10 @@ export const typeDefs = /* GraphQL */ `
     Experience level of the user
     """
     experienceLevel: String
+    """
+    Preferred language of the user
+    """
+    language: String
   }
 
   type TagsReadingStatus {
