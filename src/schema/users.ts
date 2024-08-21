@@ -26,6 +26,7 @@ import {
   UserStreakAction,
   UserStreakActionType,
   streakRecoverCost,
+  UserStreak,
 } from '../entity';
 import {
   AuthenticationError,
@@ -1206,13 +1207,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       );
 
       const oldStreakLength = Number(await getRedisObject(key));
-      const userDontHaveOldStreak = !isNumber(oldStreakLength);
+      const userDontHaveOldStreak =
+        !!oldStreakLength && !isNumber(oldStreakLength);
       if (userDontHaveOldStreak) {
         return cantRecoverResult;
       }
 
-      const { current } = await getUserStreakQuery(userId, ctx, info);
-      const streakIsTooLongToRecover = current > 1;
+      const streak = await ctx.con.getRepository(UserStreak).findOneBy({
+        userId,
+      });
+
+      if (!streak) {
+        return cantRecoverResult;
+      }
+
+      const { currentStreak } = streak;
+      const streakIsTooLongToRecover = currentStreak > 1;
       if (streakIsTooLongToRecover) {
         await ctx.con.getRepository(Alerts).update(
           {

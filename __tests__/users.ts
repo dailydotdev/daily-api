@@ -70,7 +70,11 @@ import setCookieParser from 'set-cookie-parser';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { CampaignType, Invite } from '../src/entity/Invite';
 import { usersFixture } from './fixture/user';
-import { deleteRedisKey, getRedisObject } from '../src/redis';
+import {
+  deleteRedisKey,
+  getRedisObject,
+  setRedisObjectWithExpiry,
+} from '../src/redis';
 import { generateStorageKey, StorageKey, StorageTopic } from '../src/config';
 import {
   UserIntegration,
@@ -607,6 +611,42 @@ describe('query userStreaks', () => {
         const { data, errors } = await client.query(QUERY);
         expect(errors).toBeTruthy();
         expect(data.streakRecover).toBeNull();
+      });
+
+      it('should disallow recover when user has no streak', async () => {
+        loggedUser = '2';
+        const { data, errors } = await client.query(QUERY);
+        expect(errors).toBeFalsy();
+        expect(data.streakRecover.canDo).toBeFalsy();
+      });
+
+      it('should allow recover when user has streak', async () => {
+        loggedUser = '1';
+        const oldLength = 5;
+        await con.getRepository(UserStreak).save({
+          userId: loggedUser,
+          currentStreak: 0,
+          lastViewAt: subDays(new Date(), 2),
+        });
+
+        // insert redis key with old streak length
+        const redisKey = generateStorageKey(
+          StorageTopic.Streak,
+          StorageKey.Reset,
+          loggedUser,
+        );
+        await setRedisObjectWithExpiry(
+          redisKey,
+          oldLength,
+          addDays(new Date(), 1).getTime(),
+        );
+
+        const { data, errors } = await client.query(QUERY);
+        expect(errors).toBeFalsy();
+        expect(data.streakRecover.canDo).toBeTruthy();
+        expect(data.streakRecover.oldStreakLength).toBe(oldLength);
+
+        await deleteRedisKey(redisKey);
       });
     });
   });
