@@ -58,7 +58,7 @@ import {
   DayOfWeek,
   VALID_WEEK_STARTS,
   GQLUserIntegration,
-  StreakRecoveryQueryResult,
+  StreakRecoverQueryResult,
   isNumber,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
@@ -467,7 +467,7 @@ export const typeDefs = /* GraphQL */ `
     tags: [TagsReadingStatus]
   }
 
-  type StreakRecoveryQuery {
+  type StreakRecoverQuery {
     canDo: Boolean!
     cost: Int!
     oldStreakLength: Int!
@@ -615,7 +615,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get information about the user streak recovery
     """
-    streakRecovery: StreakRecoveryQuery
+    streakRecover: StreakRecoverQuery @auth
     """
     Get the most read tags of the user
     """
@@ -1182,19 +1182,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return streak;
     },
-    streakRecovery: async (
+    streakRecover: async (
       _,
       __,
-      ctx: Context,
+      ctx: AuthContext,
       info,
-    ): Promise<StreakRecoveryQueryResult> => {
-      const cantRecoverResult: StreakRecoveryQueryResult = {
+    ): Promise<StreakRecoverQueryResult> => {
+      const cantRecoverResult: StreakRecoverQueryResult = {
         canDo: false,
         cost: 0,
         oldStreakLength: 0,
       };
 
-      const { id: userId } = await getCurrentUser(ctx, info);
+      const { userId } = ctx;
       if (!userId) {
         return cantRecoverResult;
       }

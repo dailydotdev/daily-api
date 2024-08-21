@@ -85,7 +85,7 @@ interface ReadingRankQueryResult {
   lastReadTime: Date;
 }
 
-export interface StreakRecoveryQueryResult {
+export interface StreakRecoverQueryResult {
   canDo: boolean;
   cost: number;
   oldStreakLength: number;

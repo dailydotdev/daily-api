@@ -585,18 +585,22 @@ describe('query userStreaks', () => {
       loggedUser = '1';
 
       const QUERY = `query StreakRecover {
-        userStreak {
+        streakRecover {
           canDo
           cost
           oldStreakLength
         }
       }`;
 
-      const res = await client.query(QUERY);
-      // console.log(res);
-      expect(res.errors).toBeFalsy();
-      // expect(res.canDo).toBeDefined();
-      // expect(res.canDo).toBeFalsy();
+      const { data, errors } = await client.query(QUERY);
+      expect(errors).toBeFalsy();
+
+      const { streakRecover } = data;
+      console.log({ streakRecover });
+      expect(streakRecover).toHaveProperty('canDo');
+      expect(streakRecover.canDo).toBeFalsy();
+      expect(streakRecover).toHaveProperty('cost');
+      expect(streakRecover).toHaveProperty('oldStreakLength');
     });
   });
 
