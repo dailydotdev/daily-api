@@ -39,6 +39,11 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
             },
           }),
         ]);
+
+        if (integrations.length === 0) {
+          return;
+        }
+
         if (post.flags?.vordr) {
           return;
         }

@@ -204,6 +204,7 @@ const defaultUser: ChangeObject<Omit<User, 'createdAt'>> = {
     trustScore: 1,
     vordr: false,
   },
+  language: null,
 };
 
 describe('source request', () => {

@@ -8,6 +8,7 @@ import { GraphQLResolveInfo } from 'graphql';
 import { utcToZonedTime } from 'date-fns-tz';
 import { sendAnalyticsEvent } from '../integrations/analytics';
 import { DayOfWeek, DEFAULT_WEEK_START } from './date';
+import { ContentLanguage } from '../types';
 
 export interface User {
   id: string;
@@ -22,6 +23,7 @@ export interface User {
   timezone?: string;
   acceptedMarketing?: boolean;
   experienceLevel: string | null;
+  language?: ContentLanguage;
 }
 
 export interface GQLUserStreak {

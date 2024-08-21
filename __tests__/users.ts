@@ -2297,6 +2297,7 @@ describe('mutation updateUserProfile', () => {
         notificationEmail
         timezone
         experienceLevel
+        language
       }
     }
   `;
@@ -2576,6 +2577,48 @@ describe('mutation updateUserProfile', () => {
     expect(res.errors?.length).toBeFalsy();
     const updatedUser = await repo.findOneBy({ id: loggedUser });
     expect(updatedUser?.experienceLevel).toEqual(experienceLevel);
+  });
+
+  it('should update user profile and change language', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(User);
+    const user = await repo.findOneBy({ id: loggedUser });
+
+    const language = 'de';
+    expect(user!.language).toBeNull();
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: { language, username: 'uuu1', name: user!.name },
+      },
+    });
+    expect(res.errors?.length).toBeFalsy();
+    const updatedUser = await repo.findOneBy({ id: loggedUser });
+    expect(updatedUser!.language).toEqual(language);
+  });
+
+  it('should not update user profile if language is invalid', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(User);
+    const user = await repo.findOneBy({ id: loggedUser });
+
+    const language = 'klingon';
+    expect(user!.language).toBeNull();
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          data: { language, username: 'uuu1', name: user!.name },
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+
+    const updatedUser = await repo.findOneBy({ id: loggedUser });
+    expect(updatedUser!.language).toEqual(null);
   });
 
   it('should update notification email preference', async () => {
