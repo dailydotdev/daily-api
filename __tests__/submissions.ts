@@ -208,6 +208,8 @@ describe('mutation submitArticle', () => {
     await repo.save(repo.create({ url: `${request}1`, userId: loggedUser }));
     await repo.save(repo.create({ url: `${request}2`, userId: loggedUser }));
     await repo.save(repo.create({ url: `${request}3`, userId: loggedUser }));
+    await repo.save(repo.create({ url: `${request}4`, userId: loggedUser }));
+    await repo.save(repo.create({ url: `${request}5`, userId: loggedUser }));
 
     const res = await client.mutate(MUTATION, { variables: { url: request } });
     expect(res.errors).toBeFalsy();

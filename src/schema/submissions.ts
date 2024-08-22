@@ -7,6 +7,7 @@ import { isValidHttpUrl, standardizeURL } from '../common';
 import { getPostByUrl, GQLPost } from './posts';
 import { SubmissionFailErrorMessage } from '../errors';
 import { checkWithVordr, VordrFilterType } from '../common/vordr';
+import { submissionAccessThreshold, submissionLimit } from '../config';
 
 interface GQLArticleSubmission {
   url: string;
@@ -73,15 +74,6 @@ export const typeDefs = /* GraphQL */ `
     submitArticle(url: String!): SubmitArticle @auth
   }
 `;
-
-const submissionLimit = parseInt(
-  process.env.SCOUT_SUBMISSION_LIMIT || DEFAULT_SUBMISSION_LIMIT,
-);
-
-export const submissionAccessThreshold = parseInt(
-  process.env.SCOUT_SUBMISSION_ACCESS_THRESHOLD ||
-    DEFAULT_SUBMISSION_ACCESS_THRESHOLD,
-);
 
 export const hasSubmissionAccess = (user: User) =>
   user.reputation >= submissionAccessThreshold;
