@@ -3,30 +3,29 @@ import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import {
+  CampaignType,
   Comment,
   Feature,
   FeatureType,
   FeatureValue,
+  getAuthorPostStats,
+  Invite,
+  MarketingCta,
   Post,
   PostStats,
+  streakRecoverCost,
   User,
-  validateUserUpdate,
-  View,
-  CampaignType,
-  Invite,
-  UserPersonalizedDigest,
-  getAuthorPostStats,
   UserMarketingCta,
-  MarketingCta,
-  UserPersonalizedDigestType,
+  UserPersonalizedDigest,
   UserPersonalizedDigestFlags,
-  UserPersonalizedDigestSendType,
   UserPersonalizedDigestFlagsPublic,
-  Alerts,
+  UserPersonalizedDigestSendType,
+  UserPersonalizedDigestType,
+  UserStreak,
   UserStreakAction,
   UserStreakActionType,
-  streakRecoverCost,
-  UserStreak,
+  validateUserUpdate,
+  View,
 } from '../entity';
 import {
   AuthenticationError,
@@ -42,25 +41,25 @@ import {
   queryPaginatedByDate,
 } from '../common/datePageGenerator';
 import {
+  checkAndClearUserStreak,
+  DayOfWeek,
   getInviteLink,
   getShortUrl,
+  getUserPermalink,
   getUserReadingRank,
+  GQLUserIntegration,
   GQLUserStreak,
+  GQLUserStreakTz,
+  isNumber,
+  resubscribeUser,
+  StreakRecoverQueryResult,
   TagsReadingStatus,
+  toGQLEnum,
   uploadAvatar,
   uploadProfileCover,
-  checkAndClearUserStreak,
-  GQLUserStreakTz,
-  toGQLEnum,
-  getUserPermalink,
-  votePost,
-  voteComment,
-  resubscribeUser,
-  DayOfWeek,
   VALID_WEEK_STARTS,
-  GQLUserIntegration,
-  StreakRecoverQueryResult,
-  isNumber,
+  voteComment,
+  votePost,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -78,8 +77,8 @@ import { DataSource, In, IsNull } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
 import { ContentLanguage, UserVote, UserVoteEntity } from '../types';
 import { markdown } from '../common/markdown';
-import { RedisMagicValues, deleteRedisKey, getRedisObject } from '../redis';
-import { StorageKey, StorageTopic, generateStorageKey } from '../config';
+import { deleteRedisKey, getRedisObject, RedisMagicValues } from '../redis';
+import { generateStorageKey, StorageKey, StorageTopic } from '../config';
 import { FastifyBaseLogger } from 'fastify';
 import { cachePrefillMarketingCta } from '../common/redisCache';
 import { cio } from '../cio';
@@ -1198,47 +1197,29 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       __,
       ctx: AuthContext,
     ): Promise<StreakRecoverQueryResult> => {
-      const cantRecoverResult: StreakRecoverQueryResult = {
-        canDo: false,
-        cost: 0,
-        oldStreakLength: 0,
-      };
-
       const { userId } = ctx;
+
+      const streak = await ctx.con.getRepository(UserStreak).findOneBy({
+        userId,
+      });
+      const { currentStreak } = streak;
+      const currentStreakIsTooLongToRecover = currentStreak > 1;
 
       const key = generateStorageKey(
         StorageTopic.Streak,
         StorageKey.Reset,
         userId,
       );
-
       const oldStreakLength = Number(await getRedisObject(key));
       const userDoesntHaveOldStreak =
         !!oldStreakLength && !isNumber(oldStreakLength);
-      if (userDoesntHaveOldStreak) {
-        return cantRecoverResult;
-      }
 
-      const streak = await ctx.con.getRepository(UserStreak).findOneBy({
-        userId,
-      });
-
-      if (!streak) {
-        return cantRecoverResult;
-      }
-
-      const { currentStreak } = streak;
-      const streakIsTooLongToRecover = currentStreak > 1;
-      if (streakIsTooLongToRecover) {
-        await ctx.con.getRepository(Alerts).update(
-          {
-            userId,
-          },
-          {
-            showRecoverStreak: false,
-          },
-        );
-        return cantRecoverResult;
+      if (userDoesntHaveOldStreak || currentStreakIsTooLongToRecover) {
+        return {
+          canDo: false,
+          cost: 0,
+          oldStreakLength: 0,
+        };
       }
 
       const recoverCount = await ctx.con
