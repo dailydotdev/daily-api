@@ -195,7 +195,7 @@ export class Post {
 
   @Column({ nullable: true, type: 'tsvector', select: false })
   @Index('IDX_post_tsv', { synchronize: false })
-  tsv: unknown;
+  tsv: string;
 
   @Column({ default: false })
   private: boolean;
@@ -257,7 +257,7 @@ export class Post {
   slug: string;
 
   @Column({ type: 'jsonb', default: {} })
-  contentMeta: unknown;
+  contentMeta: object;
 
   @Column({ type: 'jsonb', default: {} })
   contentQuality: PostContentQuality;

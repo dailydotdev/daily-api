@@ -55,7 +55,7 @@ const cron: Cron = {
           )
           .getRawMany();
 
-        const userIdsToReset = [];
+        const userIdsToReset: string[] = [];
         usersPastStreakTime.forEach(({ lastRecoverAt, ...userStreak }) => {
           if (checkUserStreak(userStreak, lastRecoverAt)) {
             userIdsToReset.push(userStreak.userId);

@@ -134,7 +134,7 @@ export const notifyNewVordrPost = async (
     text: 'New post prevented by vordr',
     attachments: [
       {
-        title: post.title,
+        title: post.title!,
         title_link: `${process.env.COMMENTS_PREFIX}/posts/${post.id}`,
         fields: [
           {

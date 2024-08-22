@@ -17,7 +17,9 @@ export const loggerConfig: LoggerOptions = {
     level(label, number) {
       return {
         severity:
-          PinoLevelToSeverityLookup[label] || PinoLevelToSeverityLookup['info'],
+          PinoLevelToSeverityLookup[
+            label as keyof typeof PinoLevelToSeverityLookup
+          ] || PinoLevelToSeverityLookup['info'],
         level: number,
       };
     },

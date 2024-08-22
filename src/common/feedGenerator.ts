@@ -107,7 +107,11 @@ export const feedToFilters = async (
   userId?: string,
 ): Promise<AnonymousFeedFilters> => {
   const settings = await getExcludedAdvancedSettings(con, feedId);
-  const [tags, excludeSources, memberships] = await Promise.all([
+  const [tags, excludeSources, memberships]: [
+    FeedTag[],
+    Source[],
+    { sourceId: SourceMember['sourceId']; hide: boolean }[],
+  ] = await Promise.all([
     feedId
       ? con.getRepository(FeedTag).find({ where: { feedId } })
       : ([] as FeedTag[]),
@@ -151,12 +155,15 @@ export const feedToFilters = async (
       }
       return acc;
     },
-    { includeTags: [], blockedTags: [] },
+    { includeTags: [], blockedTags: [] } as {
+      includeTags: string[];
+      blockedTags: string[];
+    },
   );
 
   const { excludeTypes, blockedContentCuration } = settings.reduce(
     (acc, curr) => {
-      if (curr.options.type) {
+      if (curr.options?.type) {
         if (curr.group === 'content_types') {
           acc.excludeTypes.push(curr.options.type);
         }
@@ -166,16 +173,22 @@ export const feedToFilters = async (
       }
       return acc;
     },
-    { excludeTypes: [], blockedContentCuration: [] },
+    { excludeTypes: [], blockedContentCuration: [] } as {
+      excludeTypes: string[];
+      blockedContentCuration: string[];
+    },
   );
 
   // Split memberships by hide flag
   const membershipsByHide = memberships.reduce(
-    (acc, value: { sourceId: SourceMember['sourceId']; hide: boolean }) => {
+    (acc, value) => {
       acc[value.hide ? 'hide' : 'show'].push(value.sourceId);
       return acc;
     },
-    { hide: [], show: [] },
+    { hide: [], show: [] } as {
+      hide: string[];
+      show: string[];
+    },
   );
 
   // If the user is not a member of the watercooler, hide it
@@ -195,7 +208,7 @@ export const feedToFilters = async (
 };
 
 export const selectRead = (
-  userId: string,
+  userId: string | undefined,
   builder: SelectQueryBuilder<Post>,
   alias: string,
 ): string => {
@@ -209,7 +222,7 @@ export const selectRead = (
 };
 
 export const whereUnread = (
-  userId: string,
+  userId: string | undefined,
   builder: SelectQueryBuilder<Post>,
   alias: string,
 ): string => `NOT ${selectRead(userId, builder.subQuery(), alias)}`;
@@ -381,7 +394,7 @@ export function feedResolver<
     if (
       warnOnPartialFirstPage &&
       !args.after &&
-      result.edges.length < args.first * 0.5
+      result.edges.length < args.first! * 0.5
     ) {
       context.log.warn(
         {
@@ -466,12 +479,12 @@ export const anonymousFeedBuilder = (
 
   if (filters?.includeTags?.length) {
     newBuilder = newBuilder.andWhere((builder) =>
-      whereTags(filters.includeTags, builder, alias),
+      whereTags(filters.includeTags!, builder, alias),
     );
   }
   if (filters?.blockedTags?.length) {
     newBuilder = newBuilder.andWhere((builder) =>
-      whereNotTags(filters.blockedTags, builder, alias),
+      whereNotTags(filters.blockedTags!, builder, alias),
     );
   }
   return newBuilder;

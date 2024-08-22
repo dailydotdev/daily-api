@@ -129,6 +129,7 @@ export type SlackApiError = Error & {
 export type TypeORMQueryFailedError = QueryFailedError & {
   code?: string;
   constraint?: string;
+  detail?: string;
 };
 
 export class RedirectError extends Error {
