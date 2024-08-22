@@ -14,7 +14,6 @@ import {
   saveFixtures,
   testMutationErrorCode,
 } from './helpers';
-import { DEFAULT_SUBMISSION_LIMIT } from '../src/schema/submissions';
 import { subDays } from 'date-fns';
 import { sourcesFixture } from './fixture/source';
 import { SubmissionFailErrorMessage } from '../src/errors';
@@ -22,6 +21,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz';
 import { badUsersFixture, usersFixture } from './fixture';
+import { DEFAULT_SUBMISSION_LIMIT } from '../src/config';
 
 let con: DataSource;
 let state: GraphQLTestingState;

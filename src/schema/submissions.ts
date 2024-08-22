@@ -35,9 +35,6 @@ export interface GQLSubmissionAvailability {
   todaySubmissionsCount: number;
 }
 
-export const DEFAULT_SUBMISSION_LIMIT = '5';
-export const DEFAULT_SUBMISSION_ACCESS_THRESHOLD = '250';
-
 export const typeDefs = /* GraphQL */ `
   type SubmissionAvailability {
     hasAccess: Boolean!

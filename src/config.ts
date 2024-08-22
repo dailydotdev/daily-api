@@ -1,8 +1,4 @@
 import dotenv from 'dotenv';
-import {
-  DEFAULT_SUBMISSION_ACCESS_THRESHOLD,
-  DEFAULT_SUBMISSION_LIMIT,
-} from './schema/submissions';
 
 const env = process.env.NODE_ENV || 'development';
 
@@ -15,6 +11,9 @@ export const fallbackImages = {
 };
 
 export const REDIS_BANNER_KEY = 'boot:latest_banner';
+
+export const DEFAULT_SUBMISSION_LIMIT = '5';
+export const DEFAULT_SUBMISSION_ACCESS_THRESHOLD = '250';
 
 export const submissionLimit = parseInt(
   process.env.SCOUT_SUBMISSION_LIMIT || DEFAULT_SUBMISSION_LIMIT,
