@@ -16,7 +16,7 @@ export class UserStreakAction {
   @PrimaryColumn({ type: 'timestamptz', default: () => 'now()' })
   createdAt: Date;
 
-  @ManyToOne(() => User, (user) => user.streak, {
+  @ManyToOne(() => User, (user) => user.streakActions, {
     lazy: true,
     onDelete: 'CASCADE',
   })
