@@ -60,7 +60,6 @@ import {
   VALID_WEEK_STARTS,
   voteComment,
   votePost,
-  GQLUserIntegration,
   GQLUserCompany,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
