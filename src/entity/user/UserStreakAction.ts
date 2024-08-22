@@ -1,4 +1,9 @@
-import { Entity, JoinColumn, OneToOne, PrimaryColumn } from 'typeorm';
+import {
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryColumn,
+} from 'typeorm';
 import { User } from './User';
 
 export enum UserStreakActionType {
@@ -16,7 +21,7 @@ export class UserStreakAction {
   @PrimaryColumn({ type: 'timestamptz', default: () => 'now()' })
   createdAt: Date;
 
-  @OneToOne(() => User, (user) => user.streak, {
+  @ManyToOne(() => User, (user) => user.streak, {
     lazy: true,
     onDelete: 'CASCADE',
   })
