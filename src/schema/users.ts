@@ -23,6 +23,7 @@ import {
   UserPersonalizedDigestFlagsPublic,
   UserPersonalizedDigestSendType,
   UserPersonalizedDigestType,
+  UserStreak,
   UserStreakAction,
   UserStreakActionType,
   validateUserUpdate,
@@ -52,6 +53,7 @@ import {
   GQLUserIntegration,
   GQLUserStreak,
   GQLUserStreakTz,
+  isNumber,
   resubscribeUser,
   TagsReadingStatus,
   toGQLEnum,
@@ -1888,11 +1890,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .getRepository(User)
         .findOneByOrFail({ id: userId });
 
+      const key = generateStorageKey(
+        StorageTopic.Streak,
+        StorageKey.Reset,
+        userId,
+      );
+      const oldStreakLength = Number(await getRedisObject(key));
+      const userDoesntHaveOldStreak =
+        !oldStreakLength || !isNumber(oldStreakLength);
+      if (userDoesntHaveOldStreak) {
+        throw new ValidationError('No streak to recover');
+      }
+
       const streak = await getUserStreakQuery(userId, ctx, info);
       const hasNoStreakOrCurrentIsGreaterThanOne =
         !streak || streak.current > 1;
       if (hasNoStreakOrCurrentIsGreaterThanOne) {
-        return streak;
+        throw new ValidationError('Time to recover streak has passed');
       }
 
       const lastUserRecoverAction = await ctx.con
@@ -1901,20 +1915,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           userId,
           type: UserStreakActionType.Recover,
         });
-
       const isFirstRecover = !lastUserRecoverAction;
       const recoverCost = isFirstRecover ? 0 : 25;
       const userCanAfford = user.reputation >= recoverCost;
+
       if (!userCanAfford) {
         throw new ValidationError('Not enough reputation to recover streak');
       }
 
       const lastStreakUpdateDate = max([
-        streak.lastViewAt,
-        lastUserRecoverAction.createdAt ?? new Date(0),
+        streak.lastViewAt ?? new Date(0),
+        lastUserRecoverAction?.createdAt ?? new Date(0),
       ]);
       const todayDate = set(new Date(), { hours: 0, minutes: 0, seconds: 0 });
-      const lastOkDate = subDays(todayDate, 1);
+      const lastOkDate = subDays(todayDate, 2);
 
       if (isBefore(lastStreakUpdateDate, lastOkDate)) {
         throw new ValidationError(
@@ -1929,11 +1943,25 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         reason: isFirstRecover
           ? ReputationReason.StreakFirstRecovery
           : ReputationReason.StreakRecover,
+        amount: recoverCost * -1,
       };
 
       await ctx.con.getRepository(ReputationEvent).save(reputationEvent);
+      await ctx.con.getRepository(UserStreakAction).save({
+        userId,
+        type: UserStreakActionType.Recover,
+      });
 
-      return streak;
+      await ctx.con.getRepository(UserStreak).update(
+        {
+          userId,
+        },
+        {
+          currentStreak: oldStreakLength + streak.current,
+        },
+      );
+
+      return { ...streak, current: oldStreakLength + streak.current };
     },
   },
   User: {
