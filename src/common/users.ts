@@ -1,5 +1,11 @@
 import { getPostCommenterIds } from './post';
-import { Post, User as DbUser, UserStreak } from './../entity';
+import {
+  Post,
+  User as DbUser,
+  UserStreak,
+  UserStreakAction,
+  UserStreakActionType,
+} from '../entity';
 import { differenceInDays, isSameDay, max } from 'date-fns';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
@@ -12,8 +18,7 @@ import { GraphQLResolveInfo } from 'graphql';
 import { utcToZonedTime } from 'date-fns-tz';
 import { sendAnalyticsEvent } from '../integrations/analytics';
 import { DayOfWeek, DEFAULT_WEEK_START } from './date';
-import { UserStreakAction, UserStreakActionType } from '../entity';
-import { ChangeObject } from '../types';
+import { ChangeObject, ContentLanguage } from '../types';
 
 export interface User {
   id: string;
@@ -28,6 +33,7 @@ export interface User {
   timezone?: string;
   acceptedMarketing?: boolean;
   experienceLevel: string | null;
+  language?: ContentLanguage;
 }
 
 export interface GQLUserStreak {
