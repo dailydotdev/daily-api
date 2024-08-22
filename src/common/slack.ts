@@ -244,11 +244,13 @@ export const getSlackIntegration = async ({
   return slackIntegration;
 };
 
-export const getSlackIntegrationOrFail: typeof getSlackIntegration = async ({
+export const getSlackIntegrationOrFail = async ({
   id,
   userId,
   con,
-}) => {
+}: Parameters<
+  typeof getSlackIntegration
+>[0]): Promise<UserIntegrationSlack> => {
   const slackIntegration = await getSlackIntegration({ id, userId, con });
 
   if (!slackIntegration) {
