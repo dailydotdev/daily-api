@@ -14,23 +14,6 @@ beforeAll(async () => {
   con = await createOrGetConnection();
 });
 
-const doNotFake: FakeableAPI[] = [
-  'hrtime',
-  'nextTick',
-  'performance',
-  'queueMicrotask',
-  'requestAnimationFrame',
-  'cancelAnimationFrame',
-  'requestIdleCallback',
-  'cancelIdleCallback',
-  'setImmediate',
-  'clearImmediate',
-  'setInterval',
-  'clearInterval',
-  'setTimeout',
-  'clearTimeout',
-];
-
 beforeEach(async () => {
   jest.useFakeTimers({ doNotFake }).setSystemTime(new Date('2024-06-26')); // Wednesday
   await saveFixtures(con, User, [usersFixture[0]]);
