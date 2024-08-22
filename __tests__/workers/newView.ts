@@ -1,5 +1,9 @@
 import worker from '../../src/workers/newView';
-import { expectSuccessfulBackground, saveFixtures } from '../helpers';
+import {
+  expectSuccessfulBackground,
+  expectSuccessfulCron,
+  saveFixtures,
+} from '../helpers';
 import { postsFixture } from '../fixture/post';
 import {
   Alerts,
@@ -7,12 +11,16 @@ import {
   Source,
   User,
   UserStreak,
+  UserStreakAction,
+  UserStreakActionType,
   View,
 } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { usersFixture } from '../fixture/user';
 import { DataSource, IsNull, Not } from 'typeorm';
 import createOrGetConnection from '../../src/db';
+import cron from '../../src/cron/updateCurrentStreak';
+import nock from 'nock';
 
 let con: DataSource;
 
@@ -426,6 +434,79 @@ describe('reading streaks', () => {
         .getRepository(Alerts)
         .findOne({ where: { userId: 'u1' } });
       expect(alerts).toBeNull();
+    });
+
+    it('should increment streak if user restored streak today', async () => {
+      nock('http://localhost:5000').post('/e').reply(204);
+      await runTest(
+        '2024-01-08T17:23Z',
+        '2024-01-05T17:23Z',
+        {
+          ...defaultStreak,
+          currentStreak: 4,
+        },
+        {
+          ...defaultStreak,
+          totalStreak: 43,
+          currentStreak: 5,
+        },
+      );
+
+      jest
+        .useFakeTimers({
+          doNotFake: [
+            'hrtime',
+            'nextTick',
+            'performance',
+            'queueMicrotask',
+            'requestAnimationFrame',
+            'cancelAnimationFrame',
+            'requestIdleCallback',
+            'cancelIdleCallback',
+            'setImmediate',
+            'clearImmediate',
+            'setInterval',
+            'clearInterval',
+            'setTimeout',
+            'clearTimeout',
+          ],
+        })
+        .setSystemTime(new Date('2024-01-10')); // Thursday
+
+      await expectSuccessfulCron(cron);
+
+      const streak = await con
+        .getRepository(UserStreak)
+        .findOneBy({ userId: 'u1' });
+
+      expect(streak.currentStreak).toBe(0);
+
+      const today = new Date();
+
+      await con.getRepository(UserStreakAction).save({
+        userId: 'u1',
+        type: UserStreakActionType.Recover,
+        createdAt: today,
+      });
+      await con
+        .getRepository(UserStreak)
+        .update({ userId: 'u1' }, { currentStreak: 5 });
+
+      const data = {
+        postId: 'p2',
+        userId: 'u1',
+        referer: 'referer',
+        agent: 'agent',
+        ip: '127.0.0.1',
+        timestamp: today,
+      };
+      await expectSuccessfulBackground(worker, data);
+
+      const updated = await con
+        .getRepository(UserStreak)
+        .findOneBy({ userId: 'u1' });
+
+      expect(updated?.currentStreak).toBe(6);
     });
   });
 });

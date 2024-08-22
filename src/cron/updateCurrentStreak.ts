@@ -1,5 +1,10 @@
 import { Cron } from './cron';
-import { User, UserStreak } from '../entity';
+import {
+  User,
+  UserStreak,
+  UserStreakAction,
+  UserStreakActionType,
+} from '../entity';
 import { checkUserStreak, clearUserStreak } from '../common';
 import { counters } from '../telemetry';
 
@@ -16,17 +21,43 @@ const cron: Cron = {
           )
           .addSelect('us.currentStreak', 'current')
           .addSelect('u."weekStart"', 'weekStart')
+          .addSelect(
+            `(date_trunc('day', usa."lastRecoverAt" at time zone COALESCE(u.timezone, 'utc'))::date) - interval '1 day'`,
+            'lastRecoverAt',
+          )
           .from(UserStreak, 'us')
           .innerJoin(User, 'u', 'u.id = us."userId"')
+          .leftJoin(
+            (qb) =>
+              qb
+                .select('MAX(a."createdAt")', 'lastRecoverAt')
+                .addSelect('a."userId"', 'userId')
+                .from(UserStreakAction, 'a')
+                .where(`a.type = :type`, { type: UserStreakActionType.Recover })
+                .groupBy('a."userId"'),
+            'usa',
+            'usa."userId" = us."userId"',
+          )
           .where(`us."currentStreak" != 0`)
           .andWhere(
-            `(date_trunc('day', us. "lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date) < (date_trunc('day', now() at time zone COALESCE(u.timezone, 'utc'))::date) - interval '1 day' `,
+            `(date_trunc('day', us."lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date) < (date_trunc('day', now() at time zone COALESCE(u.timezone, 'utc'))::date) - interval '1 day'`,
+          )
+          .andWhere(
+            `
+            (
+              usa."lastRecoverAt" IS NULL OR
+              (
+                (date_trunc('day', usa."lastRecoverAt" at time zone COALESCE(u.timezone, 'utc'))::date)
+                  <
+                (date_trunc('day', now() at time zone COALESCE(u.timezone, 'utc'))::date)
+              )
+            )`,
           )
           .getRawMany();
 
-        const userIdsToReset: string[] = [];
-        usersPastStreakTime.forEach((userStreak) => {
-          if (checkUserStreak(userStreak)) {
+        const userIdsToReset = [];
+        usersPastStreakTime.forEach(({ lastRecoverAt, ...userStreak }) => {
+          if (checkUserStreak(userStreak, lastRecoverAt)) {
             userIdsToReset.push(userStreak.userId);
           }
         });

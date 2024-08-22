@@ -50,6 +50,7 @@ import {
   safeJSONParse,
 } from '../../common';
 import { ContentLanguage, validLanguages } from '../../types';
+import { UserStreakAction } from './UserStreakAction';
 import { UserCompany } from '../UserCompany';
 
 export type UserFlags = Partial<{
@@ -210,6 +211,9 @@ export class User {
 
   @OneToMany(() => DevCard, (devcard) => devcard.user, { lazy: true })
   devCards: Promise<DevCard[]>;
+
+  @OneToMany(() => UserStreakAction, (action) => action.user, { lazy: true })
+  streakActions: Promise<UserStreakAction[]>;
 
   @OneToMany(() => UserCompany, (userCompany) => userCompany.user, {
     lazy: true,
@@ -528,12 +532,10 @@ export const validateUserUpdate = async (
   ];
 
   try {
-    const validatedData = validateRegex(regexParams, data);
-
-    return validatedData;
+    return validateRegex(regexParams, data);
   } catch (originalError) {
     if (originalError instanceof ValidationError) {
-      const validationError = originalError as ValidationError;
+      const validationError: ValidationError = originalError;
 
       logger.warn(
         {
