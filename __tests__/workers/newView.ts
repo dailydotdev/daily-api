@@ -190,6 +190,45 @@ describe('reading streaks', () => {
     });
   });
 
+  it('should set show recover to false if streak is greater than 1', async () => {
+    await con
+      .getRepository(Alerts)
+      .update({ userId: 'u1' }, { showRecoverStreak: true });
+    await prepareTest(undefined, undefined);
+
+    const streak = await con
+      .getRepository(UserStreak)
+      .findOne({ where: { userId: 'u1', lastViewAt: Not(IsNull()) } });
+    expect(streak.currentStreak).toBeGreaterThan(1);
+
+    const alert = await con.getRepository(Alerts).findOneBy({ userId: 'u1' });
+    expect(alert.showRecoverStreak).toBe(false);
+  });
+
+  it('should not change show recover if streak is 1', async () => {
+    await con
+      .getRepository(Alerts)
+      .update({ userId: 'u1' }, { showRecoverStreak: true });
+    await con
+      .getRepository(UserStreak)
+      .update({ userId: 'u1' }, { currentStreak: 0 });
+
+    await runTest('2024-01-26T17:17Z', undefined, null, {
+      currentStreak: 1,
+      totalStreak: 1,
+      maxStreak: 1,
+      lastViewAt: new Date('2024-01-26T17:17Z'),
+    });
+
+    const streak = await con
+      .getRepository(UserStreak)
+      .findOne({ where: { userId: 'u1', lastViewAt: Not(IsNull()) } });
+    expect(streak.currentStreak).toEqual(1);
+
+    const alert = await con.getRepository(Alerts).findOneBy({ userId: 'u1' });
+    expect(alert.showRecoverStreak).toBe(true);
+  });
+
   it('does not update reading streak if view was not written', async () => {
     await prepareTest('2024-01-25T17:17Z', '2024-01-24T14:17Z');
 
