@@ -608,9 +608,7 @@ describe('query userStreaks', () => {
 
       it('should disallow recover when user is not authenticated', async () => {
         loggedUser = null;
-        const { data, errors } = await client.query(QUERY);
-        expect(errors).toBeTruthy();
-        expect(data.streakRecover).toBeNull();
+        return testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED');
       });
 
       it('should disallow recover when user has no streak', async () => {
