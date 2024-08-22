@@ -131,7 +131,8 @@ const obj = new GraphORM({
                 `"${childAlias}"."id" = uc."companyId"`,
               )
               .where('uc.verified = true')
-              .andWhere(`uc."userId" = "${parentAlias}".id`),
+              .andWhere(`uc."userId" = "${parentAlias}".id`)
+              .limit(50),
         },
       },
     },
