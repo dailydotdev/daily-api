@@ -1202,8 +1202,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const streak = await ctx.con.getRepository(UserStreak).findOneBy({
         userId,
       });
-      const { currentStreak } = streak;
-      const currentStreakIsTooLongToRecover = currentStreak > 1;
+      const timeForRecoveryPassed = streak.currentStreak > 1;
 
       const key = generateStorageKey(
         StorageTopic.Streak,
@@ -1214,7 +1213,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const userDoesntHaveOldStreak =
         !!oldStreakLength && !isNumber(oldStreakLength);
 
-      if (userDoesntHaveOldStreak || currentStreakIsTooLongToRecover) {
+      if (userDoesntHaveOldStreak || timeForRecoveryPassed) {
         return {
           canDo: false,
           cost: 0,
