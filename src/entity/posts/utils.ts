@@ -231,7 +231,7 @@ export const addQuestions = async (
 };
 
 const validateCommentary = async (commentary?: string) => {
-  const strippedCommentary = commentary?.trim();
+  const strippedCommentary = commentary?.trim() || null;
 
   if ((strippedCommentary?.length ?? 0) > MAX_COMMENTARY_LENGTH) {
     throw new ValidationError(
@@ -413,7 +413,7 @@ export const updateSharePost = async (
       .getRepository(SharePost)
       .update(
         { id: postId },
-        { title: strippedCommentary, titleHtml: titleHtml || '' },
+        { title: strippedCommentary, titleHtml: titleHtml },
       );
 
     if (mentions.length) {

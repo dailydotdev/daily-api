@@ -92,10 +92,10 @@ export class Post {
   type: PostType;
 
   @Column({ type: 'text', nullable: true })
-  title?: string;
+  title?: string | null;
 
   @Column({ type: 'text', nullable: true })
-  titleHtml?: string;
+  titleHtml?: string | null;
 
   @Column({ length: 14 })
   @Index('IDX_post_shortid', { unique: true })
