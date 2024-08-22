@@ -1213,9 +1213,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       );
 
       const oldStreakLength = Number(await getRedisObject(key));
-      const userDontHaveOldStreak =
+      const userDoesntHaveOldStreak =
         !!oldStreakLength && !isNumber(oldStreakLength);
-      if (userDontHaveOldStreak) {
+      if (userDoesntHaveOldStreak) {
         return cantRecoverResult;
       }
 
