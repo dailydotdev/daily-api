@@ -1280,7 +1280,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       );
       const oldStreakLength = Number(await getRedisObject(key));
       const userDoesntHaveOldStreak =
-        !!oldStreakLength && !isNumber(oldStreakLength);
+        !oldStreakLength || !isNumber(oldStreakLength);
 
       if (userDoesntHaveOldStreak || timeForRecoveryPassed) {
         return {
@@ -1297,6 +1297,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           type: UserStreakActionType.Recover,
         });
       const cost = recoverCount > 0 ? streakRecoverCost : 0;
+
+      console.log({
+        key,
+        oldStreakLength,
+        streak,
+      });
 
       return {
         canDo: true,
