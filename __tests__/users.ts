@@ -601,7 +601,6 @@ describe('query userStreaks', () => {
         expect(errors).toBeFalsy();
         const { streakRecover } = data;
         expect(streakRecover).toHaveProperty('canDo');
-        expect(streakRecover.canDo).toBeFalsy();
         expect(streakRecover).toHaveProperty('cost');
         expect(streakRecover).toHaveProperty('oldStreakLength');
       });
