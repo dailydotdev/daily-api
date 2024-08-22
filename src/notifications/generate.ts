@@ -26,6 +26,7 @@ import {
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
 import { NotificationType } from './common';
+import { format } from 'date-fns';
 
 const systemTitle = () => undefined;
 
@@ -150,7 +151,7 @@ export const generateNotificationMap: Record<
     builder
       .icon(NotificationIcon.Streak)
       .description('Click here if you wish to restore your streak')
-      .uniqueKey(new Date(ctx.streak.lastViewAt).toISOString().split('T')[0])
+      .uniqueKey(format(ctx.streak.lastViewAt, 'dd-MM-yyyy'))
       .targetUrl(notificationsLink)
       .setTargetUrlParameter([
         ['streak_restore', ctx.streak.currentStreak.toString()],

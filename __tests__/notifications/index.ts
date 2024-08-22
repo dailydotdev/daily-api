@@ -47,6 +47,7 @@ import { DataSource } from 'typeorm';
 import { sourcesFixture } from '../fixture/source';
 import { SourceMemberRoles } from '../../src/roles';
 import { NotificationType } from '../../src/notifications/common';
+import { format } from 'date-fns';
 
 const userId = '1';
 const commentFixture: Reference<Comment> = {
@@ -329,7 +330,7 @@ describe('generateNotification', () => {
       'Click here if you wish to restore your streak',
     );
     expect(actual.notification.uniqueKey).toEqual(
-      lastViewAt.toISOString().split('T')[0],
+      format(ctx.streak.lastViewAt, 'dd-MM-yyyy'),
     );
   });
 
