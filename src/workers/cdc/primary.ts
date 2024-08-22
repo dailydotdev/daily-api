@@ -82,13 +82,17 @@ import { FastifyBaseLogger } from 'fastify';
 import { PostReport, ContentImage } from '../../entity';
 import { reportReasons } from '../../schema/posts';
 import { updateAlerts } from '../../schema/alerts';
-import { submissionAccessThreshold } from '../../schema/submissions';
 import { TypeOrmError, TypeORMQueryFailedError } from '../../errors';
 import { CommentReport } from '../../entity/CommentReport';
 import { reportCommentReasons } from '../../schema/comments';
 import { getTableName, isChanged, notifyPostContentUpdated } from './common';
 import { UserComment } from '../../entity/user/UserComment';
-import { StorageKey, StorageTopic, generateStorageKey } from '../../config';
+import {
+  StorageKey,
+  StorageTopic,
+  generateStorageKey,
+  submissionAccessThreshold,
+} from '../../config';
 import { deleteRedisKey } from '../../redis';
 import { counters } from '../../telemetry';
 import {
