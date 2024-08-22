@@ -1,11 +1,14 @@
 import { Entity, JoinColumn, OneToOne, PrimaryColumn } from 'typeorm';
 import { User } from './User';
+import { ReputationReason, reputationReasonAmount } from '../ReputationEvent';
 
 export enum UserStreakActionType {
   Recover = 'recover',
 }
 
-export const streakRecoverCost = 25;
+export const streakRecoverCost = Math.abs(
+  reputationReasonAmount[ReputationReason.StreakRecover],
+);
 
 @Entity()
 export class UserStreakAction {
