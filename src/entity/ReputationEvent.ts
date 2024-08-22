@@ -15,6 +15,8 @@ export enum ReputationReason {
   PostReportConfirmed = 'post_report_confirmed',
   SourceRequestApproved = 'source_request_approved',
   CommentDownvoted = 'comment_downvoted',
+  StreakRecover = 'streak_recover',
+  StreakRecoverForFree = 'streak_recover_for_free',
 }
 
 export enum ReputationType {
@@ -23,7 +25,7 @@ export enum ReputationType {
   Source = 'source',
 }
 
-const reputationReasonAmount: Record<ReputationReason, number> = {
+export const reputationReasonAmount: Record<ReputationReason, number> = {
   [ReputationReason.PostDownvoted]: -10,
   [ReputationReason.PostUpvoted]: 10,
   [ReputationReason.PostBanned]: -100,
@@ -31,6 +33,8 @@ const reputationReasonAmount: Record<ReputationReason, number> = {
   [ReputationReason.PostReportConfirmed]: 100,
   [ReputationReason.SourceRequestApproved]: 200,
   [ReputationReason.CommentDownvoted]: -50,
+  [ReputationReason.StreakRecover]: -25,
+  [ReputationReason.StreakRecoverForFree]: 0,
 };
 
 export const REPUTATION_THRESHOLD = parseInt(
