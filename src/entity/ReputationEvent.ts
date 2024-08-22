@@ -23,6 +23,7 @@ export enum ReputationType {
   Post = 'post',
   Comment = 'comment',
   Source = 'source',
+  Streak = 'streak',
 }
 
 export const reputationReasonAmount: Record<ReputationReason, number> = {
