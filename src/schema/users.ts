@@ -3,27 +3,30 @@ import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import {
+  CampaignType,
   Comment,
   Feature,
   FeatureType,
   FeatureValue,
+  getAuthorPostStats,
+  Invite,
+  MarketingCta,
   Post,
   PostStats,
+  ReputationEvent,
+  ReputationReason,
+  ReputationType,
   User,
-  validateUserUpdate,
-  View,
-  CampaignType,
-  Invite,
-  UserPersonalizedDigest,
-  getAuthorPostStats,
   UserMarketingCta,
-  MarketingCta,
-  UserPersonalizedDigestType,
+  UserPersonalizedDigest,
   UserPersonalizedDigestFlags,
-  UserPersonalizedDigestSendType,
   UserPersonalizedDigestFlagsPublic,
+  UserPersonalizedDigestSendType,
+  UserPersonalizedDigestType,
   UserStreakAction,
   UserStreakActionType,
+  validateUserUpdate,
+  View,
 } from '../entity';
 import {
   AuthenticationError,
@@ -39,24 +42,24 @@ import {
   queryPaginatedByDate,
 } from '../common/datePageGenerator';
 import {
+  checkAndClearUserStreak,
+  DayOfWeek,
   getInviteLink,
   getShortUrl,
+  getUserPermalink,
   getUserReadingRank,
+  GQLUserCompany,
+  GQLUserIntegration,
   GQLUserStreak,
+  GQLUserStreakTz,
+  resubscribeUser,
   TagsReadingStatus,
+  toGQLEnum,
   uploadAvatar,
   uploadProfileCover,
-  checkAndClearUserStreak,
-  GQLUserStreakTz,
-  toGQLEnum,
-  getUserPermalink,
-  votePost,
-  voteComment,
-  resubscribeUser,
-  DayOfWeek,
   VALID_WEEK_STARTS,
-  GQLUserIntegration,
-  GQLUserCompany,
+  voteComment,
+  votePost,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -74,8 +77,8 @@ import { ArrayContains, DataSource, In, IsNull } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
 import { ContentLanguage, UserVote, UserVoteEntity } from '../types';
 import { markdown } from '../common/markdown';
-import { RedisMagicValues, deleteRedisKey, getRedisObject } from '../redis';
-import { StorageKey, StorageTopic, generateStorageKey } from '../config';
+import { deleteRedisKey, getRedisObject, RedisMagicValues } from '../redis';
+import { generateStorageKey, StorageKey, StorageTopic } from '../config';
 import { FastifyBaseLogger } from 'fastify';
 import { cachePrefillMarketingCta } from '../common/redisCache';
 import { cio } from '../cio';
@@ -1918,6 +1921,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           'You can only recover your streak until the next day',
         );
       }
+
+      const reputationEvent = {
+        grantToId: userId,
+        targetId: userId,
+        targetType: ReputationType.Streak,
+        reason: isFirstRecover
+          ? ReputationReason.StreakFirstRecovery
+          : ReputationReason.StreakRecover,
+      };
+
+      await ctx.con.getRepository(ReputationEvent).save(reputationEvent);
 
       return streak;
     },
