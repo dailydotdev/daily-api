@@ -51,6 +51,7 @@ import {
 } from '../../common';
 import { ContentLanguage, validLanguages } from '../../types';
 import { UserStreakAction } from './UserStreakAction';
+import { UserCompany } from '../UserCompany';
 
 export type UserFlags = Partial<{
   vordr: boolean;
@@ -213,6 +214,11 @@ export class User {
 
   @OneToMany(() => UserStreakAction, (action) => action.user, { lazy: true })
   streakActions: Promise<UserStreakAction[]>;
+
+  @OneToMany(() => UserCompany, (userCompany) => userCompany.user, {
+    lazy: true,
+  })
+  userCompanies: Promise<UserCompany[]>;
 
   @OneToOne(() => UserStreak, (streak) => streak.user, {
     lazy: true,
