@@ -1205,9 +1205,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       };
 
       const { userId } = ctx;
-      if (!userId) {
-        return cantRecoverResult;
-      }
 
       const key = generateStorageKey(
         StorageTopic.Streak,
