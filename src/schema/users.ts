@@ -1755,7 +1755,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const isFirstRecover = !lastUserRecoverAction;
       const recoverCost = isFirstRecover ? 0 : 25;
-      if (user.reputation < recoverCost) {
+      const userCanAfford = user.reputation >= recoverCost;
+      if (!userCanAfford) {
         throw new ValidationError('Not enough reputation to recover streak');
       }
 
