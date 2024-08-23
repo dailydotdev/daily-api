@@ -1298,11 +1298,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         });
       const cost = recoverCount > 0 ? streakRecoverCost : 0;
 
-      console.log({
-        key,
-        oldStreakLength,
-        streak,
-      });
 
       return {
         canDo: true,
