@@ -1269,11 +1269,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<StreakRecoverQueryResult> => {
       const { userId } = ctx;
 
-      const streak = await ctx.con.getRepository(UserStreak).findOneBy({
-        userId,
-      });
+      const [streak, oldStreakLength] = await Promise.all([
+        await ctx.con.getRepository(UserStreak).findOneBy({
+          userId,
+        }),
+        await getRestoreStreakCache({ userId }),
+      ]);
       const timeForRecoveryPassed = streak.currentStreak > 1;
-      const oldStreakLength = await getRestoreStreakCache({ userId });
 
       if (!oldStreakLength || timeForRecoveryPassed) {
         return {
