@@ -104,7 +104,6 @@ import {
   relatedPostsFixture,
 } from '../../fixture/post';
 import { randomUUID } from 'crypto';
-import { submissionAccessThreshold } from '../../../src/schema/submissions';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
 import { TypeOrmError } from '../../../src/errors';
@@ -123,6 +122,7 @@ import {
   StorageKey,
   StorageTopic,
   generateStorageKey,
+  submissionAccessThreshold,
 } from '../../../src/config';
 import { generateUUID } from '../../../src/ids';
 import {
