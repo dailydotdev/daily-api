@@ -840,7 +840,7 @@ const setRestoreStreakCache = async (
   ]);
 };
 
-const getRestoreStreakCache = async ({ userId }) => {
+export const getRestoreStreakCache = async ({ userId }) => {
   const key = generateStorageKey(StorageTopic.Streak, StorageKey.Reset, userId);
   const oldStreakLength = Number(await getRedisObject(key));
   const userDoesntHaveOldStreak =
