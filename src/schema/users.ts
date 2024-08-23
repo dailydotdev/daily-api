@@ -54,7 +54,6 @@ import {
   GQLUserIntegration,
   GQLUserStreak,
   GQLUserStreakTz,
-  isNumber,
   resubscribeUser,
   TagsReadingStatus,
   toGQLEnum,
