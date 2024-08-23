@@ -503,6 +503,6 @@ export const TIME_ZONES: TimeZoneItem[] = [
   },
 ];
 
-export const validateValidTimeZone = (timeZone: string): boolean => {
+export const validateValidTimeZone = (timeZone?: string): boolean => {
   return TIME_ZONES.some((tz) => tz.value === timeZone);
 };

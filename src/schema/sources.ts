@@ -1636,13 +1636,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
           if (postId) {
             // Create the first post of the squad
-            await createSharePost(
-              entityManager,
-              ctx,
-              id,
-              postId,
-              commentary || null,
-            );
+            await createSharePost(entityManager, ctx, id, postId, commentary);
           }
           // Upload the image (if provided)
           if (image) {

@@ -427,7 +427,7 @@ export interface MentionedUser {
 
 export const getMentions = async (
   con: DataSource | EntityManager,
-  content: string,
+  content: string | undefined,
   userId: string,
   sourceId?: string,
 ): Promise<MentionedUser[]> => {
