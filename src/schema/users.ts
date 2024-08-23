@@ -1939,6 +1939,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           },
           {
             currentStreak: oldStreakLength + streak.current,
+            maxStreak: Math.max(streak.max, oldStreakLength + streak.current),
+            updatedAt: new Date(),
           },
         );
       });
