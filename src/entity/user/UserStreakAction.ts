@@ -1,9 +1,14 @@
-import { Entity, JoinColumn, OneToOne, PrimaryColumn } from 'typeorm';
+import { Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 import { User } from './User';
+import { ReputationReason, reputationReasonAmount } from '../ReputationEvent';
 
 export enum UserStreakActionType {
   Recover = 'recover',
 }
+
+export const streakRecoverCost = Math.abs(
+  reputationReasonAmount[ReputationReason.StreakRecover],
+);
 
 @Entity()
 export class UserStreakAction {
@@ -16,7 +21,7 @@ export class UserStreakAction {
   @PrimaryColumn({ type: 'timestamptz', default: () => 'now()' })
   createdAt: Date;
 
-  @OneToOne(() => User, (user) => user.streak, {
+  @ManyToOne(() => User, (user) => user.streakActions, {
     lazy: true,
     onDelete: 'CASCADE',
   })
