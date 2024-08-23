@@ -20,6 +20,7 @@ import {
   MockContext,
   saveFixtures,
   TEST_UA,
+  testMutationError,
   testMutationErrorCode,
   testQueryError,
   testQueryErrorCode,
@@ -603,6 +604,46 @@ describe('query userStreaks', () => {
         { mutation: MUTATION },
         'UNAUTHENTICATED',
       ));
+
+    it('should not recover if user has not enough reputation', async () => {
+      loggedUser = '1';
+      await con.getRepository(UserStreak).update(
+        { userId: loggedUser },
+        {
+          currentStreak: 0,
+          lastViewAt: subDays(new Date(), 2),
+        },
+      );
+      await con.getRepository(UserStreakAction).save([
+        {
+          userId: loggedUser,
+          type: UserStreakActionType.Recover,
+          createdAt: subDays(new Date(), 4),
+        },
+      ]);
+      await con
+        .getRepository(User)
+        .update({ id: loggedUser }, { reputation: 24 });
+
+      const oldLength = 10;
+      const redisKey = generateStorageKey(
+        StorageTopic.Streak,
+        StorageKey.Reset,
+        loggedUser,
+      );
+      await setRedisObjectWithExpiry(
+        redisKey,
+        oldLength,
+        addDays(new Date(), 1).getTime(),
+      );
+
+      await testMutationError(client, { mutation: MUTATION }, (errors) => {
+        expect(errors).toBeDefined();
+        expect(errors[0].message).toEqual(
+          'Not enough reputation to recover streak',
+        );
+      });
+    });
 
     it('should recover the streak if user has enough reputation', async () => {
       loggedUser = '1';
