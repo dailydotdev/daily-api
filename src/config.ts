@@ -12,6 +12,18 @@ export const fallbackImages = {
 
 export const REDIS_BANNER_KEY = 'boot:latest_banner';
 
+export const DEFAULT_SUBMISSION_LIMIT = '5';
+export const DEFAULT_SUBMISSION_ACCESS_THRESHOLD = '250';
+
+export const submissionLimit = parseInt(
+  process.env.SCOUT_SUBMISSION_LIMIT || DEFAULT_SUBMISSION_LIMIT,
+);
+
+export const submissionAccessThreshold = parseInt(
+  process.env.SCOUT_SUBMISSION_ACCESS_THRESHOLD ||
+    DEFAULT_SUBMISSION_ACCESS_THRESHOLD,
+);
+
 export enum StorageTopic {
   Boot = 'boot',
   Search = 'search',
