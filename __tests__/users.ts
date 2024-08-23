@@ -627,9 +627,7 @@ describe('query userStreaks', () => {
 
       await testMutationError(client, { mutation: MUTATION }, (errors) => {
         expect(errors).toBeDefined();
-        expect(errors[0].message).toEqual(
-          'No streak to recover',
-        );
+        expect(errors[0].message).toEqual('No streak to recover');
       });
     });
 
