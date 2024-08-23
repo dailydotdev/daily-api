@@ -1923,19 +1923,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('Not enough reputation to recover streak');
       }
 
-      const lastStreakUpdateDate = max([
-        streak.lastViewAt ?? new Date(0),
-        lastUserRecoverAction?.createdAt ?? new Date(0),
-      ]);
-      const todayDate = set(new Date(), { hours: 0, minutes: 0, seconds: 0 });
-      const lastOkDate = subDays(todayDate, 2);
-
-      if (isBefore(lastStreakUpdateDate, lastOkDate)) {
-        throw new ValidationError(
-          'You can only recover your streak until the next day',
-        );
-      }
-
       const reputationEvent = {
         grantToId: userId,
         targetId: userId,
