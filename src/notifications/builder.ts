@@ -14,6 +14,7 @@ import {
   SquadPublicRequest,
   Submission,
   User,
+  UserStreak,
 } from '../entity';
 import {
   getDiscussionLink,
@@ -100,6 +101,13 @@ export class NotificationBuilder {
     return this.enrichNotification({
       referenceId: source.id,
       referenceType: 'source',
+    });
+  }
+
+  referenceStreak(streak: Reference<UserStreak>): NotificationBuilder {
+    return this.enrichNotification({
+      referenceId: streak.userId,
+      referenceType: 'streak',
     });
   }
 

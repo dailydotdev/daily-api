@@ -153,6 +153,7 @@ export const generateNotificationMap: Record<
       .description('Click here if you wish to restore your streak')
       .uniqueKey(format(ctx.streak.lastViewAt, 'dd-MM-yyyy'))
       .targetUrl(notificationsLink)
+      .referenceStreak(ctx.streak)
       .setTargetUrlParameter([
         ['streak_restore', ctx.streak.currentStreak.toString()],
       ]),

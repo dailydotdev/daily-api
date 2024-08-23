@@ -843,7 +843,7 @@ const onUserStreakChange = async (
   if (data.payload.op === 'u') {
     if (
       data.payload.after.currentStreak === 0 &&
-      data.payload.before.currentStreak > 0
+      data.payload.before.currentStreak > 2
     ) {
       await setRestoreStreakCache(con, data.payload.before);
     }
