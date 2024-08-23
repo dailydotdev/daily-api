@@ -324,6 +324,7 @@ const allowedFieldsMapping = {
     'readTime',
     'summary',
     'tagsStr',
+    'contentMeta',
   ],
 };
 
