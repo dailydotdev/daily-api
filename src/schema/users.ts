@@ -50,7 +50,6 @@ import {
   GQLUserIntegration,
   GQLUserStreak,
   GQLUserStreakTz,
-  isNumber,
   resubscribeUser,
   StreakRecoverQueryResult,
   TagsReadingStatus,
