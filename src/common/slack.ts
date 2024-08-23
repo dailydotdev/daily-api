@@ -6,6 +6,7 @@ import { DataSource } from 'typeorm';
 import { UserIntegrationSlack } from '../entity/UserIntegration';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { FastifyRequest } from 'fastify';
+import { PropsParameters } from '../types';
 
 const nullWebhook = { send: (): Promise<void> => Promise.resolve() };
 export const webhooks = Object.freeze({
@@ -248,9 +249,9 @@ export const getSlackIntegrationOrFail = async ({
   id,
   userId,
   con,
-}: Parameters<
+}: PropsParameters<
   typeof getSlackIntegration
->[0]): Promise<UserIntegrationSlack> => {
+>): Promise<UserIntegrationSlack> => {
   const slackIntegration = await getSlackIntegration({ id, userId, con });
 
   if (!slackIntegration) {
