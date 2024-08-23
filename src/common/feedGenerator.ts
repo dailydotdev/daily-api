@@ -146,7 +146,10 @@ export const feedToFilters = async (
           .execute()
       : [],
   ]);
-  const tagFilters = tags.reduce(
+  const tagFilters = tags.reduce<{
+    includeTags: string[];
+    blockedTags: string[];
+  }>(
     (acc, value) => {
       if (value.blocked) {
         acc.blockedTags.push(value.tag);
@@ -155,13 +158,13 @@ export const feedToFilters = async (
       }
       return acc;
     },
-    { includeTags: [], blockedTags: [] } as {
-      includeTags: string[];
-      blockedTags: string[];
-    },
+    { includeTags: [], blockedTags: [] },
   );
 
-  const { excludeTypes, blockedContentCuration } = settings.reduce(
+  const { excludeTypes, blockedContentCuration } = settings.reduce<{
+    excludeTypes: string[];
+    blockedContentCuration: string[];
+  }>(
     (acc, curr) => {
       if (curr.options?.type) {
         if (curr.group === 'content_types') {
@@ -173,22 +176,19 @@ export const feedToFilters = async (
       }
       return acc;
     },
-    { excludeTypes: [], blockedContentCuration: [] } as {
-      excludeTypes: string[];
-      blockedContentCuration: string[];
-    },
+    { excludeTypes: [], blockedContentCuration: [] },
   );
 
   // Split memberships by hide flag
-  const membershipsByHide = memberships.reduce(
+  const membershipsByHide = memberships.reduce<{
+    hide: string[];
+    show: string[];
+  }>(
     (acc, value) => {
       acc[value.hide ? 'hide' : 'show'].push(value.sourceId);
       return acc;
     },
-    { hide: [], show: [] } as {
-      hide: string[];
-      show: string[];
-    },
+    { hide: [], show: [] },
   );
 
   // If the user is not a member of the watercooler, hide it
