@@ -15,7 +15,8 @@ import {
   PostStats,
   ReputationEvent,
   ReputationReason,
-  ReputationType, streakRecoverCost,
+  ReputationType,
+  streakRecoverCost,
   User,
   UserMarketingCta,
   UserPersonalizedDigest,
@@ -68,6 +69,7 @@ import { ActiveView } from '../entity/ActiveView';
 import graphorm from '../graphorm';
 import { GraphQLResolveInfo } from 'graphql';
 import {
+  ConflictError,
   NotFoundError,
   SubmissionFailErrorKeys,
   TypeOrmError,
@@ -92,6 +94,7 @@ import {
 import { Company } from '../entity/Company';
 import { UserCompany } from '../entity/UserCompany';
 import { generateVerifyCode } from '../ids';
+import { getRestoreStreakCache } from '../workers/cdc/primary';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -1885,19 +1888,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<GQLUserStreak> => {
       const { userId } = ctx;
-      const user = await ctx.con
-        .getRepository(User)
-        .findOneByOrFail({ id: userId });
 
-      const key = generateStorageKey(
-        StorageTopic.Streak,
-        StorageKey.Reset,
-        userId,
-      );
-      const oldStreakLength = Number(await getRedisObject(key));
-      const userDoesntHaveOldStreak =
-        !oldStreakLength || !isNumber(oldStreakLength);
-      if (userDoesntHaveOldStreak) {
+      const oldStreakLength = await getRestoreStreakCache({ userId });
+      if (!oldStreakLength) {
         throw new ValidationError('No streak to recover');
       }
 
@@ -1908,18 +1901,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('Time to recover streak has passed');
       }
 
-      const lastUserRecoverAction = await ctx.con
-        .getRepository(UserStreakAction)
-        .findOneBy({
+      const [user, lastUserRecoverAction] = await Promise.all([
+        ctx.con.getRepository(User).findOneByOrFail({ id: userId }),
+        await ctx.con.getRepository(UserStreakAction).findOneBy({
           userId,
           type: UserStreakActionType.Recover,
-        });
+        }),
+      ]);
       const isFirstRecover = !lastUserRecoverAction;
       const recoverCost = isFirstRecover ? 0 : streakRecoverCost;
       const userCanAfford = user.reputation >= recoverCost;
 
       if (!userCanAfford) {
-        throw new ValidationError('Not enough reputation to recover streak');
+        throw new ConflictError('Not enough reputation to recover streak');
       }
 
       const reputationEvent = {
