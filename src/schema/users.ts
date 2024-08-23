@@ -91,6 +91,7 @@ import {
 import { Company } from '../entity/Company';
 import { UserCompany } from '../entity/UserCompany';
 import { generateVerifyCode } from '../ids';
+import { getRestoreStreakCache } from '../workers/cdc/primary';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -1272,17 +1273,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         userId,
       });
       const timeForRecoveryPassed = streak.currentStreak > 1;
+      const oldStreakLength = await getRestoreStreakCache({ userId });
 
-      const key = generateStorageKey(
-        StorageTopic.Streak,
-        StorageKey.Reset,
-        userId,
-      );
-      const oldStreakLength = Number(await getRedisObject(key));
-      const userDoesntHaveOldStreak =
-        !oldStreakLength || !isNumber(oldStreakLength);
-
-      if (userDoesntHaveOldStreak || timeForRecoveryPassed) {
+      if (!oldStreakLength || timeForRecoveryPassed) {
         return {
           canDo: false,
           cost: 0,
@@ -1297,7 +1290,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           type: UserStreakActionType.Recover,
         });
       const cost = recoverCount > 0 ? streakRecoverCost : 0;
-
 
       return {
         canDo: true,
