@@ -77,6 +77,7 @@ import {
   PubSubSchema,
   debeziumTimeToDate,
   shouldAllowRestore,
+  isNumber,
 } from '../../common';
 import { ChangeMessage, ChangeObject, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
@@ -95,7 +96,11 @@ import {
   generateStorageKey,
   submissionAccessThreshold,
 } from '../../config';
-import { deleteRedisKey, setRedisObjectWithExpiry } from '../../redis';
+import {
+  deleteRedisKey,
+  getRedisObject,
+  setRedisObjectWithExpiry,
+} from '../../redis';
 import { counters } from '../../telemetry';
 import {
   cancelReminderWorkflow,
@@ -833,6 +838,23 @@ const setRestoreStreakCache = async (
     setRedisObjectWithExpiry(key, previousStreak, differenceInSeconds),
     con.getRepository(Alerts).update({ userId }, { showRecoverStreak: true }),
   ]);
+};
+
+export const getRestoreStreakCache = async ({
+  userId,
+}: {
+  userId: User['id'];
+}): Promise<null | number> => {
+  const key = generateStorageKey(StorageTopic.Streak, StorageKey.Reset, userId);
+  const oldStreakLength = Number(await getRedisObject(key));
+  const userDoesntHaveOldStreak =
+    !oldStreakLength || !isNumber(oldStreakLength);
+
+  if (userDoesntHaveOldStreak) {
+    return null;
+  }
+
+  return oldStreakLength;
 };
 
 const onUserStreakChange = async (
