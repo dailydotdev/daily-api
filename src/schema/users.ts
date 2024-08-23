@@ -1926,20 +1926,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         amount: recoverCost * -1,
       };
 
-      await ctx.con.getRepository(ReputationEvent).save(reputationEvent);
-      await ctx.con.getRepository(UserStreakAction).save({
-        userId,
-        type: UserStreakActionType.Recover,
-      });
-
-      await ctx.con.getRepository(UserStreak).update(
-        {
+      await ctx.con.transaction(async (entityManager) => {
+        await entityManager
+          .getRepository(ReputationEvent)
+          .save(reputationEvent);
+        await entityManager.getRepository(UserStreakAction).save({
           userId,
-        },
-        {
-          currentStreak: oldStreakLength + streak.current,
-        },
-      );
+          type: UserStreakActionType.Recover,
+        });
+        await entityManager.getRepository(UserStreak).update(
+          {
+            userId,
+          },
+          {
+            currentStreak: oldStreakLength + streak.current,
+          },
+        );
+      });
 
       return { ...streak, current: oldStreakLength + streak.current };
     },
