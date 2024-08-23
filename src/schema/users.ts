@@ -15,7 +15,7 @@ import {
   PostStats,
   ReputationEvent,
   ReputationReason,
-  ReputationType,
+  ReputationType, streakRecoverCost,
   User,
   UserMarketingCta,
   UserPersonalizedDigest,
@@ -1915,7 +1915,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           type: UserStreakActionType.Recover,
         });
       const isFirstRecover = !lastUserRecoverAction;
-      const recoverCost = isFirstRecover ? 0 : 25;
+      const recoverCost = isFirstRecover ? 0 : streakRecoverCost;
       const userCanAfford = user.reputation >= recoverCost;
 
       if (!userCanAfford) {
