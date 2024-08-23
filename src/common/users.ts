@@ -106,7 +106,7 @@ interface ReadingRankQueryResult {
 }
 
 export interface StreakRecoverQueryResult {
-  canDo: boolean;
+  canRecover: boolean;
   cost: number;
   oldStreakLength: number;
 }

@@ -515,7 +515,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type StreakRecoverQuery {
-    canDo: Boolean!
+    canRecover: Boolean!
     cost: Int!
     oldStreakLength: Int!
   }
@@ -1278,7 +1278,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       if (!oldStreakLength || timeForRecoveryPassed) {
         return {
-          canDo: false,
+          canRecover: false,
           cost: 0,
           oldStreakLength: 0,
         };
@@ -1293,7 +1293,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const cost = recoverCount > 0 ? streakRecoverCost : 0;
 
       return {
-        canDo: true,
+        canRecover: true,
         oldStreakLength,
         cost,
       };

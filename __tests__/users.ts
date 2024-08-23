@@ -589,7 +589,7 @@ describe('query userStreaks', () => {
     describe('streak recover query', () => {
       const QUERY = `query StreakRecover {
         streakRecover {
-          canDo
+          canRecover
           cost
           oldStreakLength
         }
@@ -602,7 +602,7 @@ describe('query userStreaks', () => {
         const { data, errors } = await client.query(QUERY);
         expect(errors).toBeFalsy();
         const { streakRecover } = data;
-        expect(streakRecover).toHaveProperty('canDo');
+        expect(streakRecover).toHaveProperty('canRecover');
         expect(streakRecover).toHaveProperty('cost');
         expect(streakRecover).toHaveProperty('oldStreakLength');
       });
@@ -616,7 +616,7 @@ describe('query userStreaks', () => {
         loggedUser = '2';
         const { data, errors } = await client.query(QUERY);
         expect(errors).toBeFalsy();
-        expect(data.streakRecover.canDo).toBeFalsy();
+        expect(data.streakRecover.canRecover).toBeFalsy();
       });
 
       it('should allow recover when user has streak', async () => {
@@ -642,7 +642,7 @@ describe('query userStreaks', () => {
 
         const { data, errors } = await client.query(QUERY);
         expect(errors).toBeFalsy();
-        expect(data.streakRecover.canDo).toBeTruthy();
+        expect(data.streakRecover.canRecover).toBeTruthy();
         expect(data.streakRecover.oldStreakLength).toBe(oldLength);
 
         await deleteRedisKey(redisKey);
