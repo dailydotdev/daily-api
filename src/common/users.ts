@@ -560,10 +560,10 @@ export const shouldAllowRestore = async (
   con: DataSource,
   streak: ChangeObject<UserStreak>,
 ) => {
-  const { userId, lastViewAt: lastViewAtDb } = streak;
+  const { userId, lastViewAt: lastViewAtCdc } = streak;
   const user = await con.getRepository(DbUser).findOneBy({ id: userId });
   const today = new Date();
-  const lastView = new Date(lastViewAtDb);
+  const lastView = new Date(lastViewAtCdc);
   const lastRecovery = await getLastStreakRecoverDate(con, userId);
   const lastStreak = lastRecovery ? max([lastView, lastRecovery]) : lastView;
   const lastStreakDifference = differenceInDays(today, lastStreak);
