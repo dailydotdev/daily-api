@@ -3250,7 +3250,7 @@ describe('user streak change', () => {
   type ObjectType = UserStreak;
   const base: ChangeObject<ObjectType> = {
     userId: '1',
-    currentStreak: 2,
+    currentStreak: 3,
     totalStreak: 3,
     maxStreak: 4,
     lastViewAt: new Date().getTime(),
@@ -3292,8 +3292,8 @@ describe('user streak change', () => {
   describe('streak recovery', () => {
     const lastView = new Date('2024-06-24T12:00:00'); // Monday
     const dates = {
-      lastViewAt: lastView.getTime() * 1000,
-      updatedAt: lastView.getTime() * 1000,
+      lastViewAt: lastView.toISOString(),
+      updatedAt: lastView.toISOString(),
     };
 
     beforeEach(async () => {
@@ -3405,7 +3405,7 @@ describe('user streak change', () => {
       const lastViewAt = new Date('2024-06-20T12:00:00'); // previous Thursday
       const after: ChangeObject<ObjectType> = {
         ...base,
-        lastViewAt: lastViewAt.getTime() * 1000,
+        lastViewAt: lastViewAt.toISOString(),
         currentStreak: 0,
       };
       await con
@@ -3417,7 +3417,7 @@ describe('user streak change', () => {
           after,
           before: {
             ...base,
-            lastViewAt: lastViewAt.getTime() * 1000,
+            lastViewAt: lastViewAt.toISOString(),
           },
           op: 'u',
           table: 'user_streak',
@@ -3446,7 +3446,7 @@ describe('user streak change', () => {
       const lastViewAt = new Date('2024-06-20T12:00:00'); // previous Thursday
       const after: ChangeObject<ObjectType> = {
         ...base,
-        lastViewAt: lastViewAt.getTime() * 1000,
+        lastViewAt: lastViewAt.toISOString(),
         currentStreak: 0,
       };
       await con
@@ -3458,7 +3458,7 @@ describe('user streak change', () => {
           after,
           before: {
             ...base,
-            lastViewAt: lastViewAt.getTime() * 1000,
+            lastViewAt: lastViewAt.toISOString(),
           },
           op: 'u',
           table: 'user_streak',
@@ -3490,7 +3490,7 @@ describe('user streak change', () => {
       const lastViewAt = new Date('2024-06-24T12:00:00'); // Monday
       const after: ChangeObject<ObjectType> = {
         ...base,
-        lastViewAt: lastViewAt.getTime() * 1000,
+        lastViewAt: lastViewAt.toISOString(),
         currentStreak: 0,
       };
       await con.getRepository(UserStreakAction).save({
@@ -3507,7 +3507,7 @@ describe('user streak change', () => {
           after,
           before: {
             ...base,
-            lastViewAt: lastViewAt.getTime() * 1000,
+            lastViewAt: lastViewAt.toISOString(),
           },
           op: 'u',
           table: 'user_streak',
@@ -3538,7 +3538,7 @@ describe('user streak change', () => {
       const lastViewAt = new Date('2024-06-20T12:00:00'); // previous Thursday
       const after: ChangeObject<ObjectType> = {
         ...base,
-        lastViewAt: lastViewAt.getTime() * 1000,
+        lastViewAt: lastViewAt.toISOString(),
         currentStreak: 0,
       };
       await con.getRepository(UserStreakAction).save({
@@ -3555,7 +3555,8 @@ describe('user streak change', () => {
           after,
           before: {
             ...base,
-            lastViewAt: lastViewAt.getTime() * 1000,
+            currentStreak: 4,
+            lastViewAt: lastViewAt.toISOString(),
           },
           op: 'u',
           table: 'user_streak',
@@ -3572,7 +3573,7 @@ describe('user streak change', () => {
         'api.v1.user-streak-updated',
         { streak: after },
       ]);
-      expect(lastStreak).toEqual(base.currentStreak.toString());
+      expect(lastStreak).toEqual('4');
       const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
       expect(alert.showRecoverStreak).toEqual(true);
     });

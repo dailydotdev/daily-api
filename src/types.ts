@@ -42,7 +42,7 @@ export type ChangeObject<Type> = {
   [Property in keyof Type as Exclude<
     Property,
     Required<Type>[Property] extends IgnoredTypes ? Property : never
-  >]: Required<Type>[Property] extends Date ? number : Type[Property];
+  >]: Required<Type>[Property] extends Date ? number | string : Type[Property];
 };
 
 export type ChangeSchema = {

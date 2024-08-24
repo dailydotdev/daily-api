@@ -15,7 +15,7 @@ const worker: Worker = {
     const { banner } = data;
 
     try {
-      const timestampMs = banner.timestamp / 1000; // createdAt comes as μs here
+      const timestampMs = (banner.timestamp as number) / 1000; // createdAt comes as μs here
 
       await setRedisObject(
         REDIS_BANNER_KEY,

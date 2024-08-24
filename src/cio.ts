@@ -81,9 +81,11 @@ export async function identifyUser(
     await cio.identify(id, {
       ...camelCaseToSnakeCase(dup),
       first_name: getFirstName(dup.name),
-      created_at: dateToCioTimestamp(debeziumTimeToDate(dup.createdAt)),
+      created_at: dateToCioTimestamp(
+        debeziumTimeToDate(dup.createdAt as number),
+      ),
       updated_at: dup.updatedAt
-        ? dateToCioTimestamp(debeziumTimeToDate(dup.updatedAt))
+        ? dateToCioTimestamp(debeziumTimeToDate(dup.updatedAt as number))
         : undefined,
       referral_link: genericInviteURL,
       cio_subscription_preferences: {

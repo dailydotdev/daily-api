@@ -330,7 +330,7 @@ describe('generateNotification', () => {
       'Click here if you wish to restore your streak',
     );
     expect(actual.notification.uniqueKey).toEqual(
-      format(ctx.streak.lastViewAt, 'dd-MM-yyyy'),
+      format(ctx.streak.lastViewAt as Date, 'dd-MM-yyyy'),
     );
   });
 

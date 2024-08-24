@@ -88,8 +88,8 @@ export const notifyPostContentUpdated = async ({
     postId: post.id,
     type: post.type,
     title: post.title,
-    createdAt: post.createdAt,
-    updatedAt: post.metadataChangedAt,
+    createdAt: post.createdAt as number,
+    updatedAt: post.metadataChangedAt as number,
     source: source
       ? {
           ...source,

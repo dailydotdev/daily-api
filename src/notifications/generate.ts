@@ -151,7 +151,7 @@ export const generateNotificationMap: Record<
     builder
       .icon(NotificationIcon.Streak)
       .description('Click here if you wish to restore your streak')
-      .uniqueKey(format(ctx.streak.lastViewAt, 'dd-MM-yyyy'))
+      .uniqueKey(format(ctx.streak.lastViewAt as Date, 'dd-MM-yyyy'))
       .targetUrl(notificationsLink)
       .referenceStreak(ctx.streak)
       .setTargetUrlParameter([

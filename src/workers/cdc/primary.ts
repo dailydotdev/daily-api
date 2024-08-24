@@ -862,7 +862,9 @@ const onBookmarkChange = async (
   const getParams = (key: 'before' | 'after') => ({
     userId: data.payload[key]!.userId,
     postId: data.payload[key]!.postId,
-    remindAt: debeziumTimeToDate(data.payload[key]!.remindAt).getTime(),
+    remindAt: debeziumTimeToDate(
+      data.payload[key]!.remindAt as number,
+    ).getTime(),
   });
 
   if (data.payload.before?.remindAt) {
