@@ -1750,6 +1750,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           );
         }
 
+        if (existingUserCompanyEmail.verified === true) {
+          throw new ValidationError('This email has already been verified');
+        }
+
         const updatedRecord = { ...existingUserCompanyEmail, code };
         await ctx.con.getRepository(UserCompany).save(updatedRecord);
       } else {
