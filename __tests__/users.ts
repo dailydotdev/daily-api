@@ -46,6 +46,7 @@ import {
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import {
+  CioTransactionalMessageTemplateId,
   codepenSocialUrlMatch,
   DayOfWeek,
   encrypt,
@@ -1198,7 +1199,8 @@ describe('user company', () => {
         identifiers: {
           id: loggedUser,
         },
-        transactional_message_id: '51',
+        transactional_message_id:
+          CioTransactionalMessageTemplateId.VerifyCompany,
       });
     });
 
