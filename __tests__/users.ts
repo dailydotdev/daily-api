@@ -1128,6 +1128,20 @@ describe('user company', () => {
       );
     });
 
+    it('should fail if email invalid format', async () => {
+      loggedUser = '1';
+      return testQueryError(
+        client,
+        { query: QUERY, variables: { email: 'u2@com4' } },
+        (errors) => {
+          expect(errors[0].extensions.code).toEqual(
+            'GRAPHQL_VALIDATION_FAILED',
+          );
+          expect(errors[0].message).toEqual('Invalid email');
+        },
+      );
+    });
+
     it('should create user company record without linked company', async () => {
       loggedUser = '1';
       const res = await client.query(QUERY, {
