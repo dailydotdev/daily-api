@@ -16,7 +16,7 @@ import {
 import { logger } from '../../src/logger';
 import { getTimezoneOffset } from 'date-fns-tz';
 import { crons } from '../../src/cron/index';
-import { setDay, startOfHour } from 'date-fns';
+import { setDay, setHours, startOfHour } from 'date-fns';
 
 let con: DataSource;
 
@@ -348,7 +348,7 @@ describe('dailyDigest cron', () => {
       });
 
       it('should not schedule send time on Friday', async () => {
-        jest.setSystemTime(setDay(new Date(), DayOfWeek.Friday));
+        jest.setSystemTime(setHours(setDay(new Date(), DayOfWeek.Friday), 12));
         const usersToSchedule = usersFixture;
 
         await con.getRepository(UserPersonalizedDigest).save(
@@ -377,7 +377,7 @@ describe('dailyDigest cron', () => {
       });
 
       it('should schedule send time on Sunday', async () => {
-        jest.setSystemTime(setDay(new Date(), DayOfWeek.Sunday));
+        jest.setSystemTime(setHours(setDay(new Date(), DayOfWeek.Sunday), 12));
         const usersToSchedule = usersFixture;
 
         await con.getRepository(UserPersonalizedDigest).save(
@@ -410,7 +410,7 @@ describe('dailyDigest cron', () => {
 
     describe('start of week is Monday', () => {
       it('should not schedule send time on Sunday', async () => {
-        jest.setSystemTime(setDay(new Date(), DayOfWeek.Sunday));
+        jest.setSystemTime(setHours(setDay(new Date(), DayOfWeek.Sunday), 12));
         const usersToSchedule = usersFixture;
 
         await con.getRepository(UserPersonalizedDigest).save(
@@ -439,7 +439,7 @@ describe('dailyDigest cron', () => {
       });
 
       it('should schedule send time on Friday', async () => {
-        jest.setSystemTime(setDay(new Date(), DayOfWeek.Friday));
+        jest.setSystemTime(setHours(setDay(new Date(), DayOfWeek.Friday), 12));
         const usersToSchedule = usersFixture;
 
         await con.getRepository(UserPersonalizedDigest).save(
