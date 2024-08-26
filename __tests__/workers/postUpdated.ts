@@ -789,6 +789,38 @@ describe('on post create', () => {
     expect(post?.contentMeta).toStrictEqual({});
   });
 
+  it('should save content meta for freeform', async () => {
+    const uuid = randomUUID();
+    await createDefaultSubmission(uuid);
+
+    const postBefore = await con.getRepository(Post).findOneBy({
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
+    });
+    expect(postBefore).toBeNull();
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
+      title: 'Without questions',
+      url: `https://post.com/${uuid}`,
+      source_id: 'a',
+      submission_id: uuid,
+      meta: {
+        scraped_html: '<html>test</html>',
+        cleaned_trafilatura_xml: '<xml>test</xml>',
+      },
+      content_type: PostType.Freeform,
+    });
+
+    const post = await con.getRepository(Post).findOneBy({
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
+    });
+    expect(post).not.toBeNull();
+    expect(post?.contentMeta).toMatchObject({
+      scraped_html: '<html>test</html>',
+      cleaned_trafilatura_xml: '<xml>test</xml>',
+    });
+  });
+
   it('should save content quality', async () => {
     const uuid = randomUUID();
     await createDefaultSubmission(uuid);
@@ -1097,6 +1129,44 @@ describe('on post update', () => {
     const updatedPost = await con.getRepository(ArticlePost).findOneBy({
       id: postId,
     });
+    expect(updatedPost).not.toBeNull();
+    expect(updatedPost?.contentMeta).toMatchObject({
+      scraped_html: '<html>test2</html>',
+      cleaned_trafilatura_xml: '<xml>test2</xml>',
+    });
+  });
+
+  it('should replace content meta for freeform', async () => {
+    const postId = 'ff-cm-p1';
+
+    const existingPost = await con.getRepository(FreeformPost).save({
+      id: postId,
+      shortId: postId,
+      type: PostType.Freeform,
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      contentMeta: {
+        scraped_html: '<html>test</html>',
+        cleaned_trafilatura_xml: '<xml>test</xml>',
+      },
+      sourceId: 'a',
+    });
+
+    expect(existingPost).not.toBeNull();
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      post_id: postId,
+      content_type: PostType.Freeform,
+      meta: {
+        scraped_html: '<html>test2</html>',
+        cleaned_trafilatura_xml: '<xml>test2</xml>',
+      },
+    });
+
+    const updatedPost = await con.getRepository(FreeformPost).findOneBy({
+      id: postId,
+    });
+
     expect(updatedPost).not.toBeNull();
     expect(updatedPost?.contentMeta).toMatchObject({
       scraped_html: '<html>test2</html>',
