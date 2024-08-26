@@ -1,4 +1,4 @@
-import { isNullOrUndefined } from './../common/object';
+import { emailRegex, isNullOrUndefined } from './../common/object';
 import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -1728,6 +1728,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<GQLEmptyResponse> => {
       if (!email?.length) {
         throw new ValidationError('Email is required');
+      }
+      if (!email!.match(emailRegex)) {
+        throw new ValidationError('Invalid email');
       }
       const company = await ctx.con.getRepository(Company).findOneBy({
         domains: ArrayContains([email.split('@')[1]]),
