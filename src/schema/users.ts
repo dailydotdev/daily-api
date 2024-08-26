@@ -871,7 +871,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Verify a user company code
     """
-    verifyUserCompanyCode(email: String!, code: String!): EmptyResponse @auth
+    verifyUserCompanyCode(email: String!, code: String!): UserCompany @auth
 
     """
     Clears the user marketing CTA and marks it as read
@@ -1743,7 +1743,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       if (existingUserCompanyEmail) {
         if (existingUserCompanyEmail.userId !== ctx.userId) {
-          throw new ValidationError('Email already exists');
+          throw new ValidationError(
+            'Oops, there was an issue verifying this email. Please use a different one.',
+          );
         }
 
         const updatedRecord = { ...existingUserCompanyEmail, code };
@@ -1774,7 +1776,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       _,
       { email, code }: { email: string; code: string },
       ctx: AuthContext,
-    ): Promise<GQLEmptyResponse> => {
+      info,
+    ): Promise<GQLUserCompany> => {
       const userCompany = await ctx.con
         .getRepository(UserCompany)
         .findOneByOrFail({
@@ -1790,7 +1793,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const updatedRecord = { ...userCompany, verified: true };
       await ctx.con.getRepository(UserCompany).save(updatedRecord);
 
-      return { _: true };
+      return await graphorm.queryOne<GQLUserCompany>(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder
+          .andWhere(`${builder.alias}."userId" = :userId`, {
+            userId: ctx.userId,
+          })
+          .andWhere(`${builder.alias}."email" = :email`, { email })
+          .andWhere(`${builder.alias}."verified" = true`);
+
+        return builder;
+      });
     },
     clearUserMarketingCta: async (
       _,
