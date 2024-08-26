@@ -1,10 +1,9 @@
 import { getPermissionsForMember } from './../schema/sources';
-import { GraphORM, QueryBuilder } from './graphorm';
+import { GraphORM, GraphORMField, QueryBuilder } from './graphorm';
 import {
   Bookmark,
   FeedSource,
   FeedTag,
-  Post,
   Source,
   SourceMember,
   User,
@@ -30,8 +29,10 @@ import { base64, domainOnly } from '../common';
 import { GQLComment } from '../schema/comments';
 import { GQLUserPost } from '../schema/posts';
 import { UserComment } from '../entity/user/UserComment';
-import { UserVote } from '../types';
+import { I18nRecord, UserVote } from '../types';
 import { whereVordrFilter } from '../common/vordr';
+import { UserCompany } from '../entity/UserCompany';
+import { Post } from '../entity/posts/Post';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -60,6 +61,30 @@ const nullIfNotSameUser = <T>(
   ctx: Context,
   parent: Pick<User, 'id'>,
 ): T | null => (ctx.userId === parent.id ? value : null);
+
+const createI18nField = ({
+  field,
+  fieldAs,
+}: {
+  field: string;
+  fieldAs: string;
+}): GraphORMField => {
+  return {
+    select: field,
+    transform: (value: string, ctx: Context, parent): string => {
+      const i18nParent = parent as {
+        [key: string]: I18nRecord;
+      };
+      const i18nValue = i18nParent[fieldAs]?.[ctx.contentLanguage];
+
+      if (i18nValue) {
+        return i18nValue;
+      }
+
+      return value;
+    },
+  };
+};
 
 const obj = new GraphORM({
   User: {
@@ -95,6 +120,39 @@ const obj = new GraphORM({
         },
         transform: (value: number): boolean => value > 0,
       },
+      companies: {
+        relation: {
+          isMany: true,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .innerJoin(
+                UserCompany,
+                'uc',
+                `"${childAlias}"."id" = uc."companyId"`,
+              )
+              .where('uc.verified = true')
+              .andWhere(`uc."userId" = "${parentAlias}".id`)
+              .limit(50),
+        },
+      },
+    },
+  },
+  UserCompany: {
+    fields: {
+      user: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'userId',
+        },
+      },
+      company: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'companyId',
+        },
+      },
     },
   },
   UserStreak: {
@@ -120,6 +178,11 @@ const obj = new GraphORM({
       'private',
       'type',
       'slug',
+      {
+        column: `"contentMeta"->'translate_title'->'translations'`,
+        columnAs: 'i18nTitle',
+        isJson: true,
+      },
     ],
     fields: {
       tags: {
@@ -264,7 +327,14 @@ const obj = new GraphORM({
         alias: { field: 'url', type: 'string' },
         transform: (value: string): string => domainOnly(value),
       },
+      title: createI18nField({
+        field: 'title',
+        fieldAs: 'i18nTitle',
+      }),
     },
+  },
+  SourceCategory: {
+    requiredColumns: ['createdAt'],
   },
   Source: {
     requiredColumns: ['id', 'private', 'handle', 'type'],

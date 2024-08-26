@@ -1,25 +1,5 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`function feedToFilters should return filters for tags/sources based on the values from our data 1`] = `
-Object {
-  "blockedContentCuration": Array [],
-  "blockedTags": Array [
-    "golang",
-  ],
-  "excludeSources": Array [
-    "b",
-    "c",
-    "fd062672-63b7-4a10-87bd-96dcd10e9613",
-  ],
-  "excludeTypes": Array [],
-  "includeTags": Array [
-    "html",
-    "javascript",
-  ],
-  "sourceIds": Array [],
-}
-`;
-
 exports[`function feedToFilters should return filters with blocked content types 1`] = `
 Object {
   "blockedContentCuration": Array [

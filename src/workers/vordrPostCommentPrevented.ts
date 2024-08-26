@@ -4,7 +4,7 @@ import { notifyNewVordrComment } from '../common';
 import { TypeORMQueryFailedError } from '../errors';
 import { logger } from '../logger';
 
-const worker: TypedWorker<'post-commented'> = {
+export const vordrPostCommentPrevented: TypedWorker<'post-commented'> = {
   subscription: 'api.vordr-post-comment-prevented',
   handler: async ({ data }, con): Promise<void> => {
     try {
@@ -37,5 +37,3 @@ const worker: TypedWorker<'post-commented'> = {
     }
   },
 };
-
-export default worker;

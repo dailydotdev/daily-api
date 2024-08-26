@@ -138,6 +138,39 @@ export const postsFixture: DeepPartial<ArticlePost | SharePost>[] = [
   },
 ];
 
+export const vordrPostsFixture: DeepPartial<ArticlePost>[] = [
+  {
+    id: 'vordr1',
+    shortId: 'svordr1',
+    title: 'vordr1',
+    url: 'http://vordr1.com',
+    image: 'https://daily.dev/image.jpg',
+    score: 10,
+    sourceId: 'b',
+    createdAt: new Date(new Date().getTime() - 4000),
+    tagsStr: 'html,javascript',
+    type: PostType.Article,
+    contentCuration: ['c1', 'c2'],
+    authorId: '2',
+    flags: { vordr: true },
+  },
+  {
+    id: 'vordr2',
+    shortId: 'svordr2',
+    title: 'vordr2',
+    url: 'http://vordr2.com',
+    image: 'https://daily.dev/image.jpg',
+    score: 10,
+    sourceId: 'b',
+    createdAt: new Date(new Date().getTime() - 4000),
+    tagsStr: 'html,javascript',
+    type: PostType.Article,
+    contentCuration: ['c1', 'c2'],
+    authorId: '2',
+    flags: { vordr: true },
+  },
+];
+
 export const sharedPostsFixture: DeepPartial<ArticlePost | SharePost>[] = [
   {
     id: 'squadP1',

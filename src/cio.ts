@@ -19,7 +19,7 @@ export function dateToCioTimestamp(date: Date): number {
   return Math.floor(date.getTime() / 1000);
 }
 
-const OMIT_FIELDS: (keyof User)[] = [
+const OMIT_FIELDS: (keyof ChangeObject<User>)[] = [
   'id',
   'bio',
   'devcardEligible',
@@ -37,13 +37,23 @@ export async function identifyUserStreak(
     lastSevenDays: { [key: string]: boolean };
   },
 ): Promise<void> {
-  const { userId, currentStreak, totalStreak, maxStreak, lastSevenDays } = data;
+  const {
+    userId,
+    currentStreak,
+    totalStreak,
+    maxStreak,
+    lastSevenDays,
+    lastViewAt,
+  } = data;
 
   try {
     await cio.identify(userId, {
       current_streak: currentStreak,
       total_streak: totalStreak,
       max_streak: maxStreak,
+      last_view_at: lastViewAt
+        ? dateToCioTimestamp(new Date(lastViewAt))
+        : undefined,
       last_seven_days_streak: lastSevenDays,
     });
   } catch (err) {
@@ -72,7 +82,9 @@ export async function identifyUser(
       ...camelCaseToSnakeCase(dup),
       first_name: getFirstName(dup.name),
       created_at: dateToCioTimestamp(debeziumTimeToDate(dup.createdAt)),
-      updated_at: dateToCioTimestamp(debeziumTimeToDate(dup.updatedAt)),
+      updated_at: dup.updatedAt
+        ? dateToCioTimestamp(debeziumTimeToDate(dup.updatedAt))
+        : undefined,
       referral_link: genericInviteURL,
       cio_subscription_preferences: {
         topics: {

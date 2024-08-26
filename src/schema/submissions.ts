@@ -6,6 +6,8 @@ import { AuthContext, BaseContext, Context } from '../Context';
 import { isValidHttpUrl, standardizeURL } from '../common';
 import { getPostByUrl, GQLPost } from './posts';
 import { SubmissionFailErrorMessage } from '../errors';
+import { checkWithVordr, VordrFilterType } from '../common/vordr';
+import { submissionAccessThreshold, submissionLimit } from '../config';
 
 interface GQLArticleSubmission {
   url: string;
@@ -32,9 +34,6 @@ export interface GQLSubmissionAvailability {
   limit: number;
   todaySubmissionsCount: number;
 }
-
-export const DEFAULT_SUBMISSION_LIMIT = '3';
-export const DEFAULT_SUBMISSION_ACCESS_THRESHOLD = '250';
 
 export const typeDefs = /* GraphQL */ `
   type SubmissionAvailability {
@@ -72,15 +71,6 @@ export const typeDefs = /* GraphQL */ `
     submitArticle(url: String!): SubmitArticle @auth
   }
 `;
-
-const submissionLimit = parseInt(
-  process.env.SCOUT_SUBMISSION_LIMIT || DEFAULT_SUBMISSION_LIMIT,
-);
-
-export const submissionAccessThreshold = parseInt(
-  process.env.SCOUT_SUBMISSION_ACCESS_THRESHOLD ||
-    DEFAULT_SUBMISSION_ACCESS_THRESHOLD,
-);
 
 export const hasSubmissionAccess = (user: User) =>
   user.reputation >= submissionAccessThreshold;
@@ -172,7 +162,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .getRepository(ArticlePost)
         .findOneBy([{ url }, { canonicalUrl: url }]);
       if (existingPost) {
-        if (existingPost.deleted) {
+        if (existingPost.deleted || !existingPost.visible) {
           return {
             result: 'rejected',
             reason: SubmissionFailErrorMessage.POST_DELETED,
@@ -199,10 +189,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         };
       }
 
-      const submission = await submissionRepo.save({
+      const createdSubmission = submissionRepo.create({
         url: cleanUrl,
         userId: ctx.userId,
       });
+
+      createdSubmission.flags = {
+        ...createdSubmission.flags,
+        vordr: await checkWithVordr(
+          { id: createdSubmission.id, type: VordrFilterType.Submission },
+          ctx,
+        ),
+      };
+
+      const submission = await submissionRepo.save(createdSubmission);
 
       return { result: 'succeed', submission };
     },

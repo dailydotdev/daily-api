@@ -1,4 +1,4 @@
-import { isNullOrUndefined } from './../common/object';
+import { emailRegex, isNullOrUndefined } from './../common/object';
 import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -31,7 +31,7 @@ import {
 import { IResolvers } from '@graphql-tools/utils';
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { AuthContext, BaseContext, Context } from '../Context';
-import { traceResolverObject } from './trace';
+import { traceResolvers } from './trace';
 import {
   GQLDatePageGeneratorConfig,
   queryPaginatedByDate,
@@ -54,6 +54,9 @@ import {
   DayOfWeek,
   VALID_WEEK_STARTS,
   GQLUserIntegration,
+  GQLUserCompany,
+  sendEmail,
+  CioTransactionalMessageTemplateId,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -67,9 +70,9 @@ import {
 } from '../errors';
 import { deleteUser } from '../directive/user';
 import { randomInt } from 'crypto';
-import { DataSource, In, IsNull } from 'typeorm';
+import { ArrayContains, DataSource, In, IsNull } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
-import { UserVote, UserVoteEntity } from '../types';
+import { ContentLanguage, UserVote, UserVoteEntity } from '../types';
 import { markdown } from '../common/markdown';
 import { RedisMagicValues, deleteRedisKey, getRedisObject } from '../redis';
 import { StorageKey, StorageTopic, generateStorageKey } from '../config';
@@ -81,6 +84,9 @@ import {
   UserIntegrationSlack,
   UserIntegrationType,
 } from '../entity/UserIntegration';
+import { Company } from '../entity/Company';
+import { UserCompany } from '../entity/UserCompany';
+import { generateVerifyCode } from '../ids';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -108,6 +114,7 @@ export interface GQLUpdateUserInput {
   weekStart?: number;
   infoConfirmed?: boolean;
   experienceLevel?: string;
+  language?: ContentLanguage;
 }
 
 interface GQLUserParameters {
@@ -142,6 +149,7 @@ export interface GQLUser {
   readme?: string;
   readmeHtml?: string;
   experienceLevel?: string | null;
+  language?: ContentLanguage;
 }
 
 export interface GQLView {
@@ -197,6 +205,35 @@ export interface GQLUserPersonalizedDigest {
 }
 
 export const typeDefs = /* GraphQL */ `
+  type Company {
+    id: String!
+    name: String!
+    image: String
+  }
+
+  type UserCompany {
+    """
+    Date when the record was created
+    """
+    createdAt: DateTime!
+    """
+    Date when the record was updated
+    """
+    updatedAt: DateTime!
+    """
+    Whether the record is verified
+    """
+    verified: Boolean!
+    """
+    Email associated with record
+    """
+    email: String!
+    """
+    Company connected to this record
+    """
+    company: Company
+  }
+
   """
   Registered user
   """
@@ -329,6 +366,14 @@ export const typeDefs = /* GraphQL */ `
     Whether the user is a team member
     """
     isTeamMember: Boolean
+    """
+    Verified companies for this user
+    """
+    companies: [Company]
+    """
+    Preferred language of the user
+    """
+    language: String
   }
 
   """
@@ -435,6 +480,10 @@ export const typeDefs = /* GraphQL */ `
     Experience level of the user
     """
     experienceLevel: String
+    """
+    Preferred language of the user
+    """
+    language: String
   }
 
   type TagsReadingStatus {
@@ -717,6 +766,11 @@ export const typeDefs = /* GraphQL */ `
     Get integrations for the user
     """
     userIntegrations: UserIntegrationConnection @auth
+
+    """
+    Get companies for user
+    """
+    companies: [UserCompany] @auth
   }
 
   extend type Mutation {
@@ -805,6 +859,21 @@ export const typeDefs = /* GraphQL */ `
     Stores user source tracking information
     """
     addUserAcquisitionChannel(acquisitionChannel: String!): EmptyResponse @auth
+
+    """
+    Store user company
+    """
+    addUserCompany(email: String!): EmptyResponse @auth
+
+    """
+    Clear user company
+    """
+    removeUserCompany(email: String!): EmptyResponse @auth
+
+    """
+    Verify a user company code
+    """
+    verifyUserCompanyCode(email: String!, code: String!): UserCompany @auth
 
     """
     Clears the user marketing CTA and marks it as read
@@ -983,10 +1052,23 @@ const getUserStreakQuery = async (
   }));
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvers: IResolvers<any, BaseContext> = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Query: traceResolverObject<any, any, any>({
+const getUserCompanies = async (_, ctx: Context, info: GraphQLResolveInfo) => {
+  return await graphorm.query<GQLUserCompany>(ctx, info, (builder) => {
+    builder.queryBuilder = builder.queryBuilder
+      .andWhere(`${builder.alias}."userId" = :userId`, {
+        userId: ctx.userId,
+      })
+      .andWhere(`${builder.alias}."verified" = true`);
+
+    return builder;
+  });
+};
+
+export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
+  unknown,
+  BaseContext
+>({
+  Query: {
     whoami: async (_, __, ctx: AuthContext, info: GraphQLResolveInfo) => {
       const res = await graphorm.query<GQLUser>(ctx, info, (builder) => {
         builder.queryBuilder = builder.queryBuilder
@@ -1172,7 +1254,7 @@ export const resolvers: IResolvers<any, BaseContext> = {
     searchReadingHistorySuggestions: async (
       source,
       { query }: { query: string },
-      ctx,
+      ctx: Context,
     ) => {
       const hits: { title: string }[] = await ctx.con.query(
         `
@@ -1199,7 +1281,7 @@ export const resolvers: IResolvers<any, BaseContext> = {
     searchReadingHistory: async (
       source,
       args: ConnectionArguments & { query: string },
-      ctx,
+      ctx: AuthContext,
       info,
     ): Promise<Connection<GQLView>> => readHistoryResolver(args, ctx, info),
     readHistory: async (
@@ -1319,6 +1401,12 @@ export const resolvers: IResolvers<any, BaseContext> = {
 
       return personalizedDigest;
     },
+    companies: async (
+      _,
+      __,
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLUserCompany[]> => getUserCompanies(_, ctx, info),
     referredUsers: async (
       _,
       args: ConnectionArguments,
@@ -1372,9 +1460,8 @@ export const resolvers: IResolvers<any, BaseContext> = {
         },
       );
     },
-  }),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Mutation: traceResolverObject<any, any, any>({
+  },
+  Mutation: {
     updateUserProfile: async (
       _,
       { data, upload }: GQLUserParameters,
@@ -1636,6 +1723,109 @@ export const resolvers: IResolvers<any, BaseContext> = {
 
       return { _: true };
     },
+    addUserCompany: async (
+      _,
+      { email }: { email: string },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      if (!email?.length) {
+        throw new ValidationError('Email is required');
+      }
+      if (!email!.match(emailRegex) || email.length > 200) {
+        throw new ValidationError('Invalid email');
+      }
+      const company = await ctx.con.getRepository(Company).findOneBy({
+        domains: ArrayContains([email.split('@')[1]]),
+      });
+
+      const code = await generateVerifyCode();
+
+      const existingUserCompanyEmail = await ctx.con
+        .getRepository(UserCompany)
+        .findOneBy({
+          email,
+        });
+
+      if (existingUserCompanyEmail) {
+        if (existingUserCompanyEmail.userId !== ctx.userId) {
+          throw new ValidationError(
+            'Oops, there was an issue verifying this email. Please use a different one.',
+          );
+        }
+
+        if (existingUserCompanyEmail.verified === true) {
+          throw new ValidationError('This email has already been verified');
+        }
+
+        const updatedRecord = { ...existingUserCompanyEmail, code };
+        await ctx.con.getRepository(UserCompany).save(updatedRecord);
+      } else {
+        await ctx.con.getRepository(UserCompany).insert({
+          email,
+          code,
+          userId: ctx.userId,
+          companyId: company?.id ?? null,
+        });
+      }
+
+      await sendEmail({
+        send_to_unsubscribed: true,
+        transactional_message_id:
+          CioTransactionalMessageTemplateId.VerifyCompany,
+        message_data: {
+          code,
+        },
+        identifiers: {
+          id: ctx.userId,
+        },
+        to: email,
+      });
+
+      return { _: true };
+    },
+    removeUserCompany: async (
+      _,
+      { email }: { email: string },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      await ctx.con
+        .getRepository(UserCompany)
+        .delete({ email, userId: ctx.userId });
+
+      return { _: true };
+    },
+    verifyUserCompanyCode: async (
+      _,
+      { email, code }: { email: string; code: string },
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLUserCompany> => {
+      const userCompany = await ctx.con
+        .getRepository(UserCompany)
+        .findOneByOrFail({
+          email,
+          userId: ctx.userId,
+          verified: false,
+        });
+
+      if (userCompany.code !== code) {
+        throw new ValidationError('Invalid code');
+      }
+
+      const updatedRecord = { ...userCompany, verified: true };
+      await ctx.con.getRepository(UserCompany).save(updatedRecord);
+
+      return await graphorm.queryOne<GQLUserCompany>(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder
+          .andWhere(`${builder.alias}."userId" = :userId`, {
+            userId: ctx.userId,
+          })
+          .andWhere(`${builder.alias}."email" = :email`, { email })
+          .andWhere(`${builder.alias}."verified" = true`);
+
+        return builder;
+      });
+    },
     clearUserMarketingCta: async (
       _,
       { campaignId }: { campaignId: string },
@@ -1710,7 +1900,7 @@ export const resolvers: IResolvers<any, BaseContext> = {
         weekStart,
       };
     },
-  }),
+  },
   User: {
     permalink: getUserPermalink,
   },
@@ -1729,4 +1919,4 @@ export const resolvers: IResolvers<any, BaseContext> = {
       }
     },
   },
-};
+});

@@ -72,6 +72,7 @@ import {
   highRateLimiterName,
   rateLimiterName,
 } from '../src/directive/rateLimit';
+import { badUsersFixture } from './fixture/user';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -89,7 +90,7 @@ let roles: Roles[] = [];
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    () => new MockContext(con, loggedUser, premiumUser, roles),
+    (req) => new MockContext(con, loggedUser, premiumUser, roles, req),
   );
   client = state.client;
 });
@@ -105,6 +106,7 @@ beforeEach(async () => {
   await saveFixtures(con, ArticlePost, postsFixture);
   await saveFixtures(con, YouTubePost, videoPostsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
+  await saveFixtures(con, User, badUsersFixture);
   await con
     .getRepository(User)
     .save({ id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' });
@@ -141,6 +143,15 @@ const saveSquadFixtures = async () => {
       referralToken: randomUUID(),
     },
   ]);
+
+  await con.getRepository(SourceMember).save(
+    badUsersFixture.map((user) => ({
+      userId: user.id,
+      sourceId: 'a',
+      role: SourceMemberRoles.Member,
+      referralToken: randomUUID(),
+    })),
+  );
 };
 
 afterAll(() => disposeGraphQLTesting(state));
@@ -2585,6 +2596,100 @@ describe('mutation submitExternalLink', () => {
       });
     });
   });
+
+  describe('vordr', () => {
+    describe('new post', () => {
+      beforeEach(async () => {
+        await con.getRepository(Source).insert({
+          id: UNKNOWN_SOURCE,
+          handle: UNKNOWN_SOURCE,
+          name: UNKNOWN_SOURCE,
+        });
+      });
+      it('should set the correct vordr flags on new post by a good user', async () => {
+        loggedUser = '1';
+
+        const res = await client.mutate(MUTATION, {
+          variables: { ...variables, url: 'http://vordr.com' },
+        });
+
+        expect(res.errors).toBeFalsy();
+        const post = await con
+          .getRepository(SharePost)
+          .findOneByOrFail({ sourceId: 's1', authorId: loggedUser });
+
+        expect(post.flags.vordr).toEqual(false);
+      });
+
+      it('should set the correct vordr flags on new post by a bad user', async () => {
+        loggedUser = 'vordr';
+
+        await con.getRepository(SourceMember).save({
+          userId: loggedUser,
+          sourceId: 's1',
+          role: SourceMemberRoles.Member,
+          referralToken: randomUUID(),
+        });
+
+        const res = await client.mutate(MUTATION, {
+          variables: { ...variables, url: 'http://vordr.com' },
+        });
+
+        expect(res.errors).toBeFalsy();
+        const post = await con
+          .getRepository(SharePost)
+          .findOneByOrFail({ sourceId: 's1', authorId: loggedUser });
+
+        expect(post.flags.vordr).toEqual(true);
+      });
+    });
+
+    describe('existing post', () => {
+      beforeEach(async () => {
+        await con.getRepository(Source).insert({
+          id: UNKNOWN_SOURCE,
+          handle: UNKNOWN_SOURCE,
+          name: UNKNOWN_SOURCE,
+        });
+      });
+      it('should set the correct vordr flags on existing post by good user', async () => {
+        loggedUser = '1';
+
+        const res = await client.mutate(MUTATION, {
+          variables: { ...variables, url: 'http://p6.com' },
+        });
+
+        expect(res.errors).toBeFalsy();
+        const post = await con
+          .getRepository(SharePost)
+          .findOneByOrFail({ sourceId: 's1', authorId: loggedUser });
+
+        expect(post.flags.vordr).toEqual(false);
+      });
+
+      it('should set the correct vordr flags on existing post by bad user', async () => {
+        loggedUser = 'vordr';
+
+        await con.getRepository(SourceMember).save({
+          userId: loggedUser,
+          sourceId: 's1',
+          role: SourceMemberRoles.Member,
+          referralToken: randomUUID(),
+        });
+
+        const res = await client.mutate(MUTATION, {
+          variables: { ...variables, url: 'http://p6.com' },
+        });
+
+        expect(res.errors).toBeFalsy();
+        const post = await con
+          .getRepository(SharePost)
+          .findOneByOrFail({ sourceId: 's1', authorId: loggedUser });
+
+        expect(post.flags.vordr).toEqual(true);
+      });
+    });
+  });
 });
 
 describe('mutation checkLinkPreview', () => {
@@ -3065,6 +3170,56 @@ describe('mutation createFreeformPost', () => {
           'Take a break. You already posted enough in the last ten minutes',
         );
       });
+    });
+  });
+
+  describe('vordr', () => {
+    it('should set the correct vordr flags on a freeform post by a good user', async () => {
+      loggedUser = '1';
+
+      const content = '# Updated content';
+      const res = await client.mutate(MUTATION, {
+        variables: { ...params, content },
+      });
+      expect(res.errors).toBeFalsy();
+
+      const post = await con
+        .getRepository(FreeformPost)
+        .findOneByOrFail({ id: res.data.createFreeformPost.id });
+
+      expect(post.flags.vordr).toEqual(false);
+    });
+
+    it('should set the correct vordr flags on a freeform post by good user if vordr filter catches it', async () => {
+      loggedUser = '1';
+
+      const content = '# Updated content VordrWillCatchYou';
+      const res = await client.mutate(MUTATION, {
+        variables: { ...params, content },
+      });
+      expect(res.errors).toBeFalsy();
+
+      const post = await con
+        .getRepository(FreeformPost)
+        .findOneByOrFail({ id: res.data.createFreeformPost.id });
+
+      expect(post.flags.vordr).toEqual(true);
+    });
+
+    it('should set the correct vordr flags on a freeform post by bad user', async () => {
+      loggedUser = 'vordr';
+
+      const content = '# Updated content';
+      const res = await client.mutate(MUTATION, {
+        variables: { ...params, content },
+      });
+      expect(res.errors).toBeFalsy();
+
+      const post = await con
+        .getRepository(FreeformPost)
+        .findOneByOrFail({ id: res.data.createFreeformPost.id });
+
+      expect(post.flags.vordr).toEqual(true);
     });
   });
 });
@@ -4571,6 +4726,92 @@ describe('query relatedPosts', () => {
           ],
         },
       },
+    });
+  });
+});
+
+describe('posts title field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      title
+    }
+  }`;
+
+  it('should return title', async () => {
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.post).toEqual({
+      title: 'P1',
+    });
+  });
+
+  it('should return i18n title if exists', async () => {
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        contentMeta: {
+          translate_title: {
+            translations: {
+              de: 'P1 german',
+            },
+          },
+        },
+      },
+    );
+
+    const res = await client.query(QUERY, {
+      headers: {
+        'content-language': 'de',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.post).toEqual({
+      title: 'P1 german',
+    });
+  });
+
+  it('should return default title if i18n title does not exist', async () => {
+    const res = await client.query(QUERY, {
+      headers: {
+        'content-language': 'fr',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.post).toEqual({
+      title: 'P1',
+    });
+  });
+
+  it('should return i18n title for cased language codes', async () => {
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        contentMeta: {
+          translate_title: {
+            translations: {
+              'pt-BR': 'P1 Portugal Brazil',
+            },
+          },
+        },
+      },
+    );
+
+    const res = await client.query(QUERY, {
+      headers: {
+        'content-language': 'pt-BR',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.post).toEqual({
+      title: 'P1 Portugal Brazil',
     });
   });
 });

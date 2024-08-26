@@ -1,6 +1,6 @@
 import { getPostCommenterIds } from './post';
 import { Post, User as DbUser, UserStreak } from './../entity';
-import { differenceInDays, isSameDay } from 'date-fns';
+import { differenceInDays, isSameDay, max } from 'date-fns';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
@@ -8,6 +8,8 @@ import { GraphQLResolveInfo } from 'graphql';
 import { utcToZonedTime } from 'date-fns-tz';
 import { sendAnalyticsEvent } from '../integrations/analytics';
 import { DayOfWeek, DEFAULT_WEEK_START } from './date';
+import { ContentLanguage } from '../types';
+import { UserStreakAction, UserStreakActionType } from '../entity';
 
 export interface User {
   id: string;
@@ -22,6 +24,7 @@ export interface User {
   timezone?: string;
   acceptedMarketing?: boolean;
   experienceLevel: string | null;
+  language: ContentLanguage | null;
 }
 
 export interface GQLUserStreak {
@@ -31,6 +34,20 @@ export interface GQLUserStreak {
   lastViewAt?: Date;
   userId: string;
   weekStart: DayOfWeek;
+}
+
+export interface GQLCompany {
+  id: string;
+  name: string;
+  createdAt: Date;
+  image: string;
+  domains: string[];
+}
+
+export interface GQLUserCompany {
+  createdAt: Date;
+  updatedAt: Date;
+  email: string;
 }
 
 export interface GQLUserStreakTz extends GQLUserStreak {
@@ -419,16 +436,25 @@ export const shouldResetStreak = (
   const lastDayOfWeek =
     startOfWeek === DayOfWeek.Monday ? Day.Sunday : Day.Saturday;
 
-  return (
-    (day === lastDayOfWeek && difference > FREEZE_DAYS_IN_A_WEEK) ||
-    (day === firstDayOfWeek &&
-      difference > FREEZE_DAYS_IN_A_WEEK + MISSED_LIMIT) ||
-    (day > firstDayOfWeek && difference > MISSED_LIMIT)
-  );
+  if (day === lastDayOfWeek) {
+    return difference > FREEZE_DAYS_IN_A_WEEK;
+  }
+
+  if (day === firstDayOfWeek) {
+    return difference > FREEZE_DAYS_IN_A_WEEK + MISSED_LIMIT;
+  }
+
+  return day > firstDayOfWeek && difference > MISSED_LIMIT;
 };
 
-export const checkUserStreak = (streak: GQLUserStreakTz): boolean => {
+export const checkUserStreak = (
+  streak: GQLUserStreakTz,
+  lastRecoveredTime?: Date,
+): boolean => {
   const { lastViewAtTz: lastViewAt, timezone, current } = streak;
+  const lastStreakUpdate = lastRecoveredTime
+    ? max([lastViewAt, lastRecoveredTime])
+    : lastViewAt;
 
   if (!lastViewAt || current === 0) {
     return false;
@@ -438,9 +464,29 @@ export const checkUserStreak = (streak: GQLUserStreakTz): boolean => {
   today.setHours(0, 0, 0, 0);
 
   const day = today.getDay();
-  const difference = differenceInDays(today, lastViewAt);
+  const difference = differenceInDays(today, lastStreakUpdate);
 
   return shouldResetStreak(day, difference, streak.weekStart);
+};
+
+export const getLastStreakRecoverDate = async (
+  con: DataSource | EntityManager,
+  userId: string,
+) => {
+  const lastRecoverAction = await con
+    .getRepository(UserStreakAction)
+    .createQueryBuilder()
+    .select(
+      `MAX(date_trunc('day', usa."createdAt" at time zone COALESCE(u.timezone, 'utc'))::date - interval '1 day')`,
+      'createdAt',
+    )
+    .from(UserStreakAction, 'usa')
+    .innerJoin(DbUser, 'u', 'u.id = usa."userId"')
+    .where(`usa."userId" = :userId`, { userId })
+    .andWhere(`usa.type = :type`, { type: UserStreakActionType.Recover })
+    .getRawOne<UserStreakAction>();
+
+  return lastRecoverAction?.createdAt;
 };
 
 export const checkAndClearUserStreak = async (
@@ -448,7 +494,9 @@ export const checkAndClearUserStreak = async (
   info: GraphQLResolveInfo,
   streak: GQLUserStreakTz,
 ): Promise<boolean> => {
-  if (checkUserStreak(streak)) {
+  const lastStreak = await getLastStreakRecoverDate(con, streak.userId);
+
+  if (checkUserStreak(streak, lastStreak)) {
     const result = await clearUserStreak(con, [streak.userId]);
     return result > 0;
   }
@@ -494,6 +542,6 @@ export const mastodonSocialUrlMatch =
   /^(?<value>https:\/\/(?:[a-z0-9-]+\.)*[a-z0-9-]+\.[a-z]{2,}\/@[\w-]{2,}\/?)$/;
 
 export const socialUrlMatch =
-  /^(?<value>https:\/\/(?:[a-z0-9-]{1,50}\.){0,5}[a-z0-9-]{1,50}\.[a-z]{2,24}\b([-a-zA-Z0-9@:%_\+.~#?&\/=]*))$/;
+  /^(?<value>https:\/\/(?:[a-z0-9-]{1,50}\.){0,5}[a-z0-9-]{1,50}\.[a-z]{2,24}\b([-a-zA-Z0-9@:%_+.~#?&\/=]*))$/;
 
 export const portfolioLimit = 500;

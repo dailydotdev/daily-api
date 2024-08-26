@@ -9,7 +9,7 @@ import {
   IRateLimiterRedisOptions,
   RateLimiterRedis,
 } from 'rate-limiter-flexible';
-import { GraphQLError } from 'graphql';
+import { GraphQLError, GraphQLSchema } from 'graphql';
 import { singleRedisClient } from '../redis';
 import { Context } from '../Context';
 import { logger } from '../logger';
@@ -69,7 +69,7 @@ class RateLimitError extends GraphQLError {
   message = '';
 
   constructor({
-    msBeforeNextReset,
+    msBeforeNextReset = 0,
     message,
   }: {
     msBeforeNextReset?: number;
@@ -140,7 +140,7 @@ const {
     highRateLimitedSquads.includes(args.sourceId as string) ? 1 : 0,
 });
 
-export const rateLimiterTransformers = (schema) =>
+export const rateLimiterTransformers = (schema: GraphQLSchema) =>
   highRateLimitTransformer(rateLimitDirectiveTransformer(schema));
 
 export const rateLimitTypeDefs = [

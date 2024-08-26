@@ -49,6 +49,9 @@ import {
   DEFAULT_WEEK_START,
   safeJSONParse,
 } from '../../common';
+import { ContentLanguage, validLanguages } from '../../types';
+import { UserStreakAction } from './UserStreakAction';
+import { UserCompany } from '../UserCompany';
 
 export type UserFlags = Partial<{
   vordr: boolean;
@@ -59,6 +62,9 @@ export type UserFlags = Partial<{
 @Index('IDX_user_lowerusername_username', { synchronize: false })
 @Index('IDX_user_lowertwitter', { synchronize: false })
 @Index('IDX_user_loweremail', { synchronize: false })
+@Index('IDX_user_gin_username', { synchronize: false })
+@Index('IDX_user_gin_name', { synchronize: false })
+@Index('IDX_user_reputation', { synchronize: false })
 export class User {
   @PrimaryColumn({ length: 36 })
   id: string;
@@ -191,6 +197,9 @@ export class User {
   @Index('IDX_user_flags_vordr', { synchronize: false })
   flags: UserFlags;
 
+  @Column({ type: 'text', nullable: true })
+  language: ContentLanguage | null;
+
   @ManyToOne(() => User, {
     lazy: true,
     onDelete: 'SET NULL',
@@ -202,6 +211,14 @@ export class User {
 
   @OneToMany(() => DevCard, (devcard) => devcard.user, { lazy: true })
   devCards: Promise<DevCard[]>;
+
+  @OneToMany(() => UserStreakAction, (action) => action.user, { lazy: true })
+  streakActions: Promise<UserStreakAction[]>;
+
+  @OneToMany(() => UserCompany, (userCompany) => userCompany.user, {
+    lazy: true,
+  })
+  userCompanies: Promise<UserCompany[]>;
 
   @OneToOne(() => UserStreak, (streak) => streak.user, {
     lazy: true,
@@ -236,6 +253,7 @@ export type AddUserData = Pick<
   | 'acceptedMarketing'
   | 'timezone'
   | 'experienceLevel'
+  | 'language'
 >;
 export type AddUserDataPost = { referral: string } & AddUserData;
 export type UpdateUserEmailData = Pick<User, 'id' | 'email'>;
@@ -243,7 +261,19 @@ type AddNewUserResult =
   | { status: 'ok'; userId: string }
   | { status: 'failed'; reason: UserFailErrorKeys; error?: Error };
 
+const checkLanguage = (language?: string | null): boolean => {
+  if (!language) {
+    return true;
+  }
+
+  return validLanguages.includes(language as ContentLanguage);
+};
+
 const checkRequiredFields = (data: AddUserData): boolean => {
+  if (!checkLanguage(data.language)) {
+    return false;
+  }
+
   if (data?.username && !data?.experienceLevel) {
     return false;
   }
@@ -356,9 +386,9 @@ const handleInsertError = async (
       // If it's not username or primary key than it's twitter and github.
       if (shouldRetry) {
         if (error.message.indexOf('users_twitter_unique') > -1) {
-          data.twitter = null;
+          data.twitter = undefined;
         } else if (error.message.indexOf('users_github_unique') > -1) {
-          data.github = null;
+          data.github = undefined;
         }
         return safeInsertUser(req, con, data, maxIterations, iteration + 1);
       }
@@ -378,8 +408,10 @@ const safeInsertUser = async (
   try {
     await con.getRepository(User).insert(data);
     req.log.info(`Created profile for user with ID: ${data.id}`);
-    return { status: 'ok', userId: data.id };
-  } catch (error) {
+    return { status: 'ok', userId: data.id as string };
+  } catch (originalError) {
+    const error = originalError as Error;
+
     return handleInsertError(error, req, con, data, maxIterations, iteration);
   }
 };
@@ -422,6 +454,7 @@ export const addNewUser = async (
       github: data.github,
       twitter: data.twitter,
       experienceLevel: data.experienceLevel,
+      language: data.language,
       flags: {
         trustScore: 1,
         vordr: false,
@@ -470,7 +503,16 @@ export const validateUserUpdate = async (
     }
   }
 
-  ['name', 'twitter', 'github', 'hashnode'].forEach((key) => {
+  if (!checkLanguage(data.language)) {
+    throw new ValidationError(JSON.stringify({ language: 'invalid language' }));
+  }
+
+  (
+    ['name', 'twitter', 'github', 'hashnode'] as (keyof Pick<
+      GQLUpdateUserInput,
+      'name' | 'twitter' | 'github' | 'hashnode'
+    >)[]
+  ).forEach((key) => {
     if (data[key]) {
       data[key] = data[key].replace('@', '').trim();
     }
@@ -497,12 +539,10 @@ export const validateUserUpdate = async (
   ];
 
   try {
-    const validatedData = validateRegex(regexParams, data);
-
-    return validatedData;
+    return validateRegex(regexParams, data);
   } catch (originalError) {
     if (originalError instanceof ValidationError) {
-      const validationError = originalError as ValidationError;
+      const validationError: ValidationError = originalError;
 
       logger.warn(
         {

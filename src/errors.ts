@@ -1,5 +1,6 @@
 import { ApolloError } from 'apollo-server-errors';
 import { QueryFailedError } from 'typeorm';
+import { submissionLimit } from './config';
 
 export enum UserFailErrorKeys {
   GenericError = 'GENERIC_ERROR',
@@ -53,8 +54,7 @@ export const SubmissionFailErrorMessage: Record<
     'Unfortunately the article submitted is written by a creator who violated our community guidelines and is banned. We no longer accept submissions from this creator.',
   ACCESS_DENIED:
     'You do not have sufficient permissions and or reputation to submit a community link yet.',
-  LIMIT_REACHED:
-    'You can only submit 3 links per day and have reached your limit. Please try again tomorrow.',
+  LIMIT_REACHED: `You can only submit ${submissionLimit} links per day and have reached your limit. Please try again tomorrow.`,
   INVITE_LIMIT_REACHED: 'You have reached your limit of available invites',
   INVALID_URL:
     'The URL you submitted is not valid, please check and try again.',
@@ -115,9 +115,21 @@ export class ConflictError extends ApolloError {
   }
 }
 
+export enum SlackApiErrorCode {
+  MethodNotSupportedForChannelType = 'method_not_supported_for_channel_type',
+}
+
+export type SlackApiError = Error & {
+  data?: {
+    ok: boolean;
+    error: SlackApiErrorCode;
+  };
+};
+
 export type TypeORMQueryFailedError = QueryFailedError & {
   code?: string;
   constraint?: string;
+  detail?: string;
 };
 
 export class RedirectError extends Error {

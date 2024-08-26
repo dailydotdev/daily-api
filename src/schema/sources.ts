@@ -34,7 +34,7 @@ import {
 } from 'typeorm';
 import { GQLUser } from './users';
 import { Connection } from 'graphql-relay/index';
-import { createDatePageGenerator } from '../common/datePageGenerator';
+import { queryPaginatedByDate } from '../common/datePageGenerator';
 import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { randomUUID } from 'crypto';
 import {
@@ -67,6 +67,14 @@ import { PopularSource } from '../entity/PopularSource';
 import { PopularVideoSource } from '../entity/PopularVideoSource';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { traceResolvers } from './trace';
+
+export interface GQLSourceCategory {
+  id: string;
+  title: string;
+  enabled: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export interface GQLSource {
   id: string;
@@ -114,6 +122,14 @@ export const typeDefs = /* GraphQL */ `
     totalViews: Int
     totalPosts: Int
     totalUpvotes: Int
+  }
+
+  type SourceCategory {
+    id: ID!
+    title: String!
+    enabled: Boolean!
+    createdAt: DateTime!
+    updatedAt: DateTime
   }
 
   """
@@ -219,6 +235,11 @@ export const typeDefs = /* GraphQL */ `
     URL for inviting and referring new users
     """
     referralUrl: String
+
+    """
+    Category that the source/squad belongs to
+    """
+    category: SourceCategory
   }
 
   type SourceConnection {
@@ -228,6 +249,20 @@ export const typeDefs = /* GraphQL */ `
 
   type SourceEdge {
     node: Source!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type SourceCategoryConnection {
+    pageInfo: PageInfo!
+    edges: [SourceCategoryEdge!]!
+  }
+
+  type SourceCategoryEdge {
+    node: SourceCategory!
 
     """
     Used in \`before\` and \`after\` args
@@ -325,6 +360,11 @@ export const typeDefs = /* GraphQL */ `
       Add filter for featured sources
       """
       featured: Boolean
+
+      """
+      Filter by category
+      """
+      categoryId: String
     ): SourceConnection!
 
     """
@@ -511,6 +551,21 @@ export const typeDefs = /* GraphQL */ `
     Check if source handle already exists
     """
     sourceHandleExists(handle: String!): Boolean! @auth
+
+    """
+    Fetch all source categories
+    """
+    sourceCategories(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): SourceCategoryConnection!
   }
 
   extend type Mutation {
@@ -942,12 +997,7 @@ const sourceByFeed = async (
   return res ? sourceToGQL(res) : null;
 };
 
-const membershipsPageGenerator = createDatePageGenerator<
-  GQLSourceMember,
-  'createdAt'
->({
-  key: 'createdAt',
-});
+const membershipsPageGenerator = offsetPageGenerator<GQLSourceMember>(100, 500);
 
 const sourcePageGenerator = offsetPageGenerator<GQLSource>(100, 500);
 
@@ -1027,6 +1077,7 @@ export const getPermissionsForMember = (
 
 interface SourcesArgs extends ConnectionArguments {
   filterOpenSquads?: boolean;
+  categoryId?: string;
   featured?: boolean;
 }
 
@@ -1119,13 +1170,7 @@ const paginateSourceMembers = (
       membershipsPageGenerator.nodeToCursor(page, args, node, index),
     (builder) => {
       builder.queryBuilder = query(builder.queryBuilder, builder.alias);
-      builder.queryBuilder.limit(page.limit);
-      if (page.timestamp) {
-        builder.queryBuilder = builder.queryBuilder.andWhere(
-          `${builder.alias}."createdAt" < :timestamp`,
-          { timestamp: page.timestamp },
-        );
-      }
+      builder.queryBuilder.limit(page.limit).offset(page.offset);
       return builder;
     },
   );
@@ -1136,6 +1181,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   BaseContext
 >({
   Query: {
+    sourceCategories: async (
+      _,
+      args,
+      ctx: Context,
+      info,
+    ): Promise<Connection<GQLSourceCategory>> =>
+      queryPaginatedByDate(
+        ctx,
+        info,
+        args,
+        { key: 'createdAt' },
+        { orderByKey: 'DESC' },
+      ),
     sources: async (
       _,
       args: SourcesArgs,
@@ -1147,6 +1205,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       if (args.filterOpenSquads) {
         filter.type = SourceType.Squad;
         filter.private = false;
+      }
+
+      if (args.categoryId) {
+        filter.categoryId = args.categoryId;
       }
 
       const page = sourcePageGenerator.connArgsToPage(args);
@@ -1574,13 +1636,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
           if (postId) {
             // Create the first post of the squad
-            await createSharePost(
-              entityManager,
-              id,
-              ctx.userId,
-              postId,
-              commentary || null,
-            );
+            await createSharePost(entityManager, ctx, id, postId, commentary);
           }
           // Upload the image (if provided)
           if (image) {

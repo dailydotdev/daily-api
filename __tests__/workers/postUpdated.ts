@@ -789,6 +789,38 @@ describe('on post create', () => {
     expect(post?.contentMeta).toStrictEqual({});
   });
 
+  it('should save content meta for freeform', async () => {
+    const uuid = randomUUID();
+    await createDefaultSubmission(uuid);
+
+    const postBefore = await con.getRepository(Post).findOneBy({
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
+    });
+    expect(postBefore).toBeNull();
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
+      title: 'Without questions',
+      url: `https://post.com/${uuid}`,
+      source_id: 'a',
+      submission_id: uuid,
+      meta: {
+        scraped_html: '<html>test</html>',
+        cleaned_trafilatura_xml: '<xml>test</xml>',
+      },
+      content_type: PostType.Freeform,
+    });
+
+    const post = await con.getRepository(Post).findOneBy({
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
+    });
+    expect(post).not.toBeNull();
+    expect(post?.contentMeta).toMatchObject({
+      scraped_html: '<html>test</html>',
+      cleaned_trafilatura_xml: '<xml>test</xml>',
+    });
+  });
+
   it('should save content quality', async () => {
     const uuid = randomUUID();
     await createDefaultSubmission(uuid);
@@ -840,6 +872,70 @@ describe('on post create', () => {
     });
     expect(post).not.toBeNull();
     expect(post?.contentQuality).toStrictEqual({});
+  });
+
+  describe('vordr', () => {
+    it('should create post with the vordr flags on submission with bad scout', async () => {
+      const uuid = randomUUID();
+      await saveFixtures(con, Submission, [
+        {
+          id: uuid,
+          url: 'http://vordr.com/test',
+          userId: '1',
+          flags: {
+            vordr: true,
+          },
+        },
+      ]);
+
+      await expectSuccessfulBackground(worker, {
+        title: 'Title',
+        url: 'http://vordr.com/test',
+        source_id: COMMUNITY_PICKS_SOURCE,
+        submission_id: uuid,
+      });
+
+      const post = await con.getRepository(ArticlePost).findOneByOrFail({
+        url: 'http://vordr.com/test',
+      });
+
+      expect(post.flags.vordr).toEqual(true);
+      expect(post.banned).toEqual(true);
+      expect(post.flags.banned).toEqual(true);
+      expect(post.showOnFeed).toEqual(false);
+      expect(post.flags.showOnFeed).toEqual(false);
+    });
+
+    it('should create post with the vordr flags on submission with good scout', async () => {
+      const uuid = randomUUID();
+      await saveFixtures(con, Submission, [
+        {
+          id: uuid,
+          url: 'http://vordr.com/test',
+          userId: '1',
+          flags: {
+            vordr: false,
+          },
+        },
+      ]);
+
+      await expectSuccessfulBackground(worker, {
+        title: 'Title',
+        url: 'http://vordr.com/test',
+        source_id: COMMUNITY_PICKS_SOURCE,
+        submission_id: uuid,
+      });
+
+      const post = await con.getRepository(ArticlePost).findOneByOrFail({
+        url: 'http://vordr.com/test',
+      });
+
+      expect(post.flags.vordr).toEqual(false);
+      expect(post.banned).toEqual(false);
+      expect(post.flags.banned).toBeUndefined();
+      expect(post.showOnFeed).toEqual(true);
+      expect(post.flags.showOnFeed).toEqual(true);
+    });
   });
 });
 
@@ -1040,6 +1136,44 @@ describe('on post update', () => {
     });
   });
 
+  it('should replace content meta for freeform', async () => {
+    const postId = 'ff-cm-p1';
+
+    const existingPost = await con.getRepository(FreeformPost).save({
+      id: postId,
+      shortId: postId,
+      type: PostType.Freeform,
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      contentMeta: {
+        scraped_html: '<html>test</html>',
+        cleaned_trafilatura_xml: '<xml>test</xml>',
+      },
+      sourceId: 'a',
+    });
+
+    expect(existingPost).not.toBeNull();
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      post_id: postId,
+      content_type: PostType.Freeform,
+      meta: {
+        scraped_html: '<html>test2</html>',
+        cleaned_trafilatura_xml: '<xml>test2</xml>',
+      },
+    });
+
+    const updatedPost = await con.getRepository(FreeformPost).findOneBy({
+      id: postId,
+    });
+
+    expect(updatedPost).not.toBeNull();
+    expect(updatedPost?.contentMeta).toMatchObject({
+      scraped_html: '<html>test2</html>',
+      cleaned_trafilatura_xml: '<xml>test2</xml>',
+    });
+  });
+
   it('should replace content quality', async () => {
     const postId = 'p1';
 
@@ -1197,6 +1331,141 @@ describe('on post update', () => {
       .findOneBy({ url: 'https://post.com/scp1' });
     expect(post2).toBeTruthy();
     expect(post2!.scoutId).toEqual('1');
+  });
+
+  describe('vordr', () => {
+    it('should update post with the vordr flags on submission with bad scout', async () => {
+      const uuid = randomUUID();
+      const postId = 'vordr3';
+      await saveFixtures(con, Submission, [
+        {
+          id: uuid,
+          url: 'http://vordr.com/test',
+          userId: '1',
+          flags: {
+            vordr: true,
+          },
+        },
+      ]);
+
+      await con.getRepository(ArticlePost).save({
+        id: postId,
+        shortId: postId,
+        url: 'https://post.com/scp1',
+        title: 'Scouted title',
+        visible: false,
+        yggdrasilId: '90660dab-7cd1-49f0-8fe5-41c587ca837f',
+        sourceId: COMMUNITY_PICKS_SOURCE,
+      });
+
+      await expectSuccessfulBackground(worker, {
+        id: '90660dab-7cd1-49f0-8fe5-41c587ca837f',
+        post_id: postId,
+        url: 'http://vordr.com/test',
+        source_id: COMMUNITY_PICKS_SOURCE,
+        submission_id: uuid,
+      });
+
+      const updatedPost = await con.getRepository(ArticlePost).findOneByOrFail({
+        id: postId,
+      });
+
+      expect(updatedPost.flags.vordr).toEqual(true);
+      expect(updatedPost.banned).toEqual(true);
+      expect(updatedPost.flags.banned).toEqual(true);
+      expect(updatedPost.showOnFeed).toEqual(false);
+      expect(updatedPost.flags.showOnFeed).toEqual(false);
+    });
+
+    it('should update post with the vordr flags on submission with good scout', async () => {
+      const uuid = randomUUID();
+      const postId = 'vordr3';
+      await saveFixtures(con, Submission, [
+        {
+          id: uuid,
+          url: 'http://vordr.com/test',
+          userId: '1',
+          flags: {
+            vordr: false,
+          },
+        },
+      ]);
+
+      await con.getRepository(ArticlePost).save({
+        id: postId,
+        shortId: postId,
+        url: 'https://post.com/scp1',
+        title: 'Scouted title',
+        visible: false,
+        yggdrasilId: '90660dab-7cd1-49f0-8fe5-41c587ca837f',
+        sourceId: COMMUNITY_PICKS_SOURCE,
+      });
+
+      await expectSuccessfulBackground(worker, {
+        id: '90660dab-7cd1-49f0-8fe5-41c587ca837f',
+        post_id: postId,
+        url: 'http://vordr.com/test',
+        source_id: COMMUNITY_PICKS_SOURCE,
+        submission_id: uuid,
+      });
+
+      const updatedPost = await con.getRepository(ArticlePost).findOneByOrFail({
+        id: postId,
+      });
+
+      expect(updatedPost.flags.vordr).toEqual(false);
+      expect(updatedPost.banned).toEqual(false);
+      expect(updatedPost.flags.banned).toBeUndefined();
+      expect(updatedPost.showOnFeed).toEqual(true);
+      expect(updatedPost.flags.showOnFeed).toEqual(true);
+    });
+
+    it('should update post with the vordr flag but keep original flags', async () => {
+      const uuid = randomUUID();
+      const postId = 'vordr3';
+      await saveFixtures(con, Submission, [
+        {
+          id: uuid,
+          url: 'http://vordr.com/test',
+          userId: '1',
+          flags: {
+            vordr: false,
+          },
+        },
+      ]);
+
+      await con.getRepository(ArticlePost).save({
+        id: postId,
+        shortId: postId,
+        url: 'https://post.com/scp1',
+        title: 'Scouted title',
+        visible: false,
+        yggdrasilId: '90660dab-7cd1-49f0-8fe5-41c587ca837f',
+        sourceId: COMMUNITY_PICKS_SOURCE,
+        flags: {
+          promoteToPublic: 1,
+          banned: true,
+          showOnFeed: true,
+        },
+      });
+
+      await expectSuccessfulBackground(worker, {
+        id: '90660dab-7cd1-49f0-8fe5-41c587ca837f',
+        post_id: postId,
+        url: 'http://vordr.com/test',
+        source_id: COMMUNITY_PICKS_SOURCE,
+        submission_id: uuid,
+      });
+
+      const updatedPost = await con.getRepository(ArticlePost).findOneByOrFail({
+        id: postId,
+      });
+
+      expect(updatedPost.flags.vordr).toEqual(false);
+      expect(updatedPost.flags.banned).toEqual(true);
+      expect(updatedPost.flags.showOnFeed).toEqual(true);
+      expect(updatedPost.flags.promoteToPublic).toEqual(1);
+    });
   });
 });
 

@@ -15,6 +15,7 @@ import {
   ArticlePost,
   CollectionPost,
   Comment,
+  FreeformPost,
   PostOrigin,
   PostRelation,
   PostRelationType,
@@ -687,7 +688,7 @@ it('should not send email notification if the user prefers not to receive them',
   expect(sendEmail).toHaveBeenCalledTimes(0);
 });
 
-it('should set parameters for squad_post_added email', async () => {
+it('should set parameters for squad_post_added email for sharedPost', async () => {
   const sharedPost = await con.getRepository(ArticlePost).save(postsFixture[0]);
   await con
     .getRepository(Source)
@@ -737,6 +738,264 @@ it('should set parameters for squad_post_added email', async () => {
     user_reputation: '10',
   });
   expect(args.transactional_message_id).toEqual('17');
+});
+
+it('should set parameters for squad_post_added email for freeForm', async () => {
+  await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
+  const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+  const post = await con.getRepository(FreeformPost).save({
+    id: 'ps',
+    shortId: 'ps',
+    sourceId: 'a',
+    title: 'Shared post',
+    content: 'Some copy descriping the post',
+    image: 'https://daily.dev/freeform_image.jpg',
+    authorId: '2',
+  });
+  const doneBy = await con.getRepository(User).findOneBy({ id: '2' });
+  const ctx: NotificationPostContext & NotificationDoneByContext = {
+    userIds: ['1'],
+    post,
+    source,
+    doneBy,
+  };
+
+  const notificationId = await saveNotificationV2Fixture(
+    con,
+    NotificationType.SquadPostAdded,
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId: '1',
+    },
+  });
+  expect(sendEmail).toHaveBeenCalledTimes(1);
+  const args = jest.mocked(sendEmail).mock
+    .calls[0][0] as SendEmailRequestWithTemplate;
+  expect(args.message_data).toEqual({
+    commentary: 'Some copy descriping the post',
+    full_name: 'Tsahi',
+    post_image: 'https://daily.dev/freeform_image.jpg',
+    post_link:
+      'http://localhost:5002/posts/ps?utm_source=notification&utm_medium=email&utm_campaign=squad_post_added',
+    post_title: 'Shared post',
+    profile_image: 'https://daily.dev/tsahi.jpg',
+    squad_image: 'http://image.com/a',
+    squad_name: 'A',
+    user_reputation: '10',
+  });
+  expect(args.transactional_message_id).toEqual('17');
+});
+
+it('should set parameters for squad_post_added email for freeForm with only title', async () => {
+  await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
+  const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+  const post = await con.getRepository(FreeformPost).save({
+    id: 'ps',
+    shortId: 'ps',
+    sourceId: 'a',
+    title: 'Shared post',
+    authorId: '2',
+  });
+  const doneBy = await con.getRepository(User).findOneBy({ id: '2' });
+  const ctx: NotificationPostContext & NotificationDoneByContext = {
+    userIds: ['1'],
+    post,
+    source,
+    doneBy,
+  };
+
+  const notificationId = await saveNotificationV2Fixture(
+    con,
+    NotificationType.SquadPostAdded,
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId: '1',
+    },
+  });
+  expect(sendEmail).toHaveBeenCalledTimes(1);
+  const args = jest.mocked(sendEmail).mock
+    .calls[0][0] as SendEmailRequestWithTemplate;
+  expect(args.message_data).toEqual({
+    commentary: '',
+    full_name: 'Tsahi',
+    post_image: expect.any(String),
+    post_link:
+      'http://localhost:5002/posts/ps?utm_source=notification&utm_medium=email&utm_campaign=squad_post_added',
+    post_title: 'Shared post',
+    profile_image: 'https://daily.dev/tsahi.jpg',
+    squad_image: 'http://image.com/a',
+    squad_name: 'A',
+    user_reputation: '10',
+  });
+  expect(args.transactional_message_id).toEqual('17');
+});
+
+it('should set parameters for post_mention email for SharePost', async () => {
+  const sharedPost = await con.getRepository(ArticlePost).save(postsFixture[0]);
+  await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
+  const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+  const post = await con.getRepository(SharePost).save({
+    id: 'ps',
+    shortId: 'ps',
+    sourceId: 'a',
+    title: 'Shared post',
+    sharedPostId: 'p1',
+    authorId: '2',
+  });
+  const doneBy = await con.getRepository(User).findOneBy({ id: '2' });
+  const doneTo = await con.getRepository(User).findOneBy({ id: '1' });
+  const ctx: NotificationPostContext & NotificationDoneByContext = {
+    userIds: ['1'],
+    post,
+    sharedPost,
+    source,
+    doneBy,
+    doneTo,
+  };
+
+  const notificationId = await saveNotificationV2Fixture(
+    con,
+    NotificationType.PostMention,
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId: '1',
+    },
+  });
+  expect(sendEmail).toHaveBeenCalledTimes(1);
+  const args = jest.mocked(sendEmail).mock
+    .calls[0][0] as SendEmailRequestWithTemplate;
+  expect(args.message_data).toEqual({
+    commentary: 'Shared post',
+    full_name: 'Tsahi',
+    post_image: 'https://daily.dev/image.jpg',
+    post_link:
+      'http://localhost:5002/posts/ps?utm_source=notification&utm_medium=email&utm_campaign=post_mention',
+    post_title: 'P1',
+    profile_image: 'https://daily.dev/tsahi.jpg',
+    squad_image: 'http://image.com/a',
+    squad_name: 'A',
+    user_reputation: '10',
+  });
+  expect(args.transactional_message_id).toEqual('54');
+});
+
+it('should set parameters for post_mention email for freeForm', async () => {
+  await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
+  const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+  const post = await con.getRepository(FreeformPost).save({
+    id: 'ps',
+    shortId: 'ps',
+    sourceId: 'a',
+    title: 'Shared post',
+    content: 'Some copy descriping the post',
+    image: 'https://daily.dev/freeform_image.jpg',
+    authorId: '2',
+  });
+  const doneBy = await con.getRepository(User).findOneBy({ id: '2' });
+  const doneTo = await con.getRepository(User).findOneBy({ id: '1' });
+  const ctx: NotificationPostContext & NotificationDoneByContext = {
+    userIds: ['1'],
+    post,
+    source,
+    doneBy,
+    doneTo,
+  };
+
+  const notificationId = await saveNotificationV2Fixture(
+    con,
+    NotificationType.PostMention,
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId: '1',
+    },
+  });
+  expect(sendEmail).toHaveBeenCalledTimes(1);
+  const args = jest.mocked(sendEmail).mock
+    .calls[0][0] as SendEmailRequestWithTemplate;
+  expect(args.message_data).toEqual({
+    commentary: 'Some copy descriping the post',
+    full_name: 'Tsahi',
+    post_image: 'https://daily.dev/freeform_image.jpg',
+    post_link:
+      'http://localhost:5002/posts/ps?utm_source=notification&utm_medium=email&utm_campaign=post_mention',
+    post_title: 'Shared post',
+    profile_image: 'https://daily.dev/tsahi.jpg',
+    squad_image: 'http://image.com/a',
+    squad_name: 'A',
+    user_reputation: '10',
+  });
+  expect(args.transactional_message_id).toEqual('54');
+});
+
+it('should set parameters for post_mention email for freeForm with only title', async () => {
+  await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
+  const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+  const post = await con.getRepository(FreeformPost).save({
+    id: 'ps',
+    shortId: 'ps',
+    sourceId: 'a',
+    title: 'Shared post',
+    authorId: '2',
+  });
+  const doneBy = await con.getRepository(User).findOneBy({ id: '2' });
+  const doneTo = await con.getRepository(User).findOneBy({ id: '1' });
+  const ctx: NotificationPostContext & NotificationDoneByContext = {
+    userIds: ['1'],
+    post,
+    source,
+    doneBy,
+    doneTo,
+  };
+
+  const notificationId = await saveNotificationV2Fixture(
+    con,
+    NotificationType.PostMention,
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId: '1',
+    },
+  });
+  expect(sendEmail).toHaveBeenCalledTimes(1);
+  const args = jest.mocked(sendEmail).mock
+    .calls[0][0] as SendEmailRequestWithTemplate;
+  expect(args.message_data).toEqual({
+    commentary: '',
+    full_name: 'Tsahi',
+    post_image: expect.any(String),
+    post_link:
+      'http://localhost:5002/posts/ps?utm_source=notification&utm_medium=email&utm_campaign=post_mention',
+    post_title: 'Shared post',
+    profile_image: 'https://daily.dev/tsahi.jpg',
+    squad_image: 'http://image.com/a',
+    squad_name: 'A',
+    user_reputation: '10',
+  });
+  expect(args.transactional_message_id).toEqual('54');
 });
 
 it('should set parameters for squad_member_joined email', async () => {

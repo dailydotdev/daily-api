@@ -1,7 +1,7 @@
 import { generateUUID } from '../ids';
 import { retryFetch } from './retry';
 
-const generateEventId = (now) => {
+const generateEventId = (now: Date) => {
   const randomStr = (Math.random() + 1).toString(36).substring(8);
   const timePart = (now.getTime() / 1000).toFixed(0);
   return `${timePart}${randomStr}`;
@@ -12,6 +12,10 @@ export type AnalyticsEvent = {
   event_timestamp: Date;
   user_id: string;
 };
+
+export enum AnalyticsEventName {
+  ConfirmAddingWorkspace = 'confirm adding workspace',
+}
 
 export async function sendAnalyticsEvent<T extends AnalyticsEvent>(
   events: T[],

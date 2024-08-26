@@ -58,9 +58,10 @@ const counterMap = {
       name: 'cio_events',
       description: 'How many customerio events were sent to analytics',
     },
-    preventComment: {
-      name: 'prevented_comments',
-      description: 'How many comments were prevented from being posted',
+    vordr: {
+      name: 'vordr',
+      description:
+        'How many posts or comments were prevented from being posted',
     },
   },
   background: {
@@ -76,6 +77,10 @@ const counterMap = {
     cdcTrigger: {
       name: 'cdc_trigger',
       description: 'How many times the cdc trigger was called',
+    },
+    postSentSlack: {
+      name: 'post_sent_slack',
+      description: 'How many posts were sent to slack workspaces',
     },
   },
   cron: {

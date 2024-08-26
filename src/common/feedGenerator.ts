@@ -4,7 +4,7 @@ import {
   SourceMember,
   UserPost,
 } from '../entity';
-import { DataSource, SelectQueryBuilder } from 'typeorm';
+import { Brackets, DataSource, SelectQueryBuilder } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import { IFieldResolver } from '@graphql-tools/utils';
 import {
@@ -27,6 +27,7 @@ import {
 import graphorm from '../graphorm';
 import { mapArrayToOjbect } from './object';
 import { runInSpan } from '../telemetry';
+import { whereVordrFilter } from './vordr';
 
 export const WATERCOOLER_ID = 'fd062672-63b7-4a10-87bd-96dcd10e9613';
 
@@ -71,7 +72,7 @@ export const whereKeyword = (
 
 export const getExcludedAdvancedSettings = async (
   con: DataSource,
-  feedId: string,
+  feedId?: string,
 ): Promise<Partial<AdvancedSettings>[]> => {
   if (!feedId) {
     return [];
@@ -102,11 +103,15 @@ export const getExcludedAdvancedSettings = async (
 
 export const feedToFilters = async (
   con: DataSource,
-  feedId: string,
-  userId: string,
+  feedId?: string,
+  userId?: string,
 ): Promise<AnonymousFeedFilters> => {
   const settings = await getExcludedAdvancedSettings(con, feedId);
-  const [tags, excludeSources, memberships] = await Promise.all([
+  const [tags, excludeSources, memberships]: [
+    FeedTag[],
+    Source[],
+    { sourceId: SourceMember['sourceId']; hide: boolean }[],
+  ] = await Promise.all([
     feedId
       ? con.getRepository(FeedTag).find({ where: { feedId } })
       : ([] as FeedTag[]),
@@ -141,7 +146,10 @@ export const feedToFilters = async (
           .execute()
       : [],
   ]);
-  const tagFilters = tags.reduce(
+  const tagFilters = tags.reduce<{
+    includeTags: string[];
+    blockedTags: string[];
+  }>(
     (acc, value) => {
       if (value.blocked) {
         acc.blockedTags.push(value.tag);
@@ -153,9 +161,12 @@ export const feedToFilters = async (
     { includeTags: [], blockedTags: [] },
   );
 
-  const { excludeTypes, blockedContentCuration } = settings.reduce(
+  const { excludeTypes, blockedContentCuration } = settings.reduce<{
+    excludeTypes: string[];
+    blockedContentCuration: string[];
+  }>(
     (acc, curr) => {
-      if (curr.options.type) {
+      if (curr.options?.type) {
         if (curr.group === 'content_types') {
           acc.excludeTypes.push(curr.options.type);
         }
@@ -169,8 +180,11 @@ export const feedToFilters = async (
   );
 
   // Split memberships by hide flag
-  const membershipsByHide = memberships.reduce(
-    (acc, value: { sourceId: SourceMember['sourceId']; hide: boolean }) => {
+  const membershipsByHide = memberships.reduce<{
+    hide: string[];
+    show: string[];
+  }>(
+    (acc, value) => {
       acc[value.hide ? 'hide' : 'show'].push(value.sourceId);
       return acc;
     },
@@ -194,7 +208,7 @@ export const feedToFilters = async (
 };
 
 export const selectRead = (
-  userId: string,
+  userId: string | undefined,
   builder: SelectQueryBuilder<Post>,
   alias: string,
 ): string => {
@@ -208,7 +222,7 @@ export const selectRead = (
 };
 
 export const whereUnread = (
-  userId: string,
+  userId: string | undefined,
   builder: SelectQueryBuilder<Post>,
   alias: string,
 ): string => `NOT ${selectRead(userId, builder.subQuery(), alias)}`;
@@ -380,7 +394,7 @@ export function feedResolver<
     if (
       warnOnPartialFirstPage &&
       !args.after &&
-      result.edges.length < args.first * 0.5
+      result.edges.length < args.first! * 0.5
     ) {
       context.log.warn(
         {
@@ -443,7 +457,7 @@ export interface AnonymousFeedFilters {
 
 export const anonymousFeedBuilder = (
   ctx: Context,
-  filters: AnonymousFeedFilters,
+  filters: AnonymousFeedFilters | undefined,
   builder: SelectQueryBuilder<Post>,
   alias: string,
 ): SelectQueryBuilder<Post> => {
@@ -465,12 +479,12 @@ export const anonymousFeedBuilder = (
 
   if (filters?.includeTags?.length) {
     newBuilder = newBuilder.andWhere((builder) =>
-      whereTags(filters.includeTags, builder, alias),
+      whereTags(filters.includeTags!, builder, alias),
     );
   }
   if (filters?.blockedTags?.length) {
     newBuilder = newBuilder.andWhere((builder) =>
-      whereNotTags(filters.blockedTags, builder, alias),
+      whereNotTags(filters.blockedTags!, builder, alias),
     );
   }
   return newBuilder;
@@ -478,11 +492,11 @@ export const anonymousFeedBuilder = (
 
 export const configuredFeedBuilder = (
   ctx: Context,
-  feedId: string,
+  feedId: string | undefined,
   unreadOnly: boolean,
   builder: SelectQueryBuilder<Post>,
   alias: string,
-  filters: AnonymousFeedFilters,
+  filters: AnonymousFeedFilters | undefined,
 ): SelectQueryBuilder<Post> => {
   let newBuilder = anonymousFeedBuilder(ctx, filters, builder, alias);
   if (unreadOnly) {
@@ -538,6 +552,16 @@ export const sourceFeedBuilder = (
 
   if (sourceId === 'community') {
     builder.andWhere(`${alias}.banned = false`);
+  } else {
+    builder.andWhere(
+      new Brackets((qb) => {
+        return qb
+          .where(`${alias}.authorId = :userId OR ${alias}.scoutId = :userId`, {
+            userId: ctx.userId,
+          })
+          .orWhere(whereVordrFilter(alias));
+      }),
+    );
   }
 
   return builder;

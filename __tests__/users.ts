@@ -31,29 +31,34 @@ import {
   Feature,
   FeatureType,
   FeatureValue,
+  MarketingCta,
   Post,
   Source,
   User,
-  View,
-  UserPersonalizedDigest,
-  UserStreak,
-  MarketingCta,
   UserMarketingCta,
-  UserPersonalizedDigestType,
+  UserPersonalizedDigest,
   UserPersonalizedDigestSendType,
+  UserPersonalizedDigestType,
+  UserStreak,
+  UserStreakAction,
+  UserStreakActionType,
+  View,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import {
+  CioTransactionalMessageTemplateId,
   codepenSocialUrlMatch,
-  encrypt,
   DayOfWeek,
+  encrypt,
   getTimezonedStartOfISOWeek,
+  ghostUser,
   githubSocialUrlMatch,
   linkedinSocialUrlMatch,
   mastodonSocialUrlMatch,
   portfolioLimit,
   redditSocialUrlMatch,
   roadmapShSocialUrlMatch,
+  sendEmail,
   socialUrlMatch,
   stackoverflowSocialUrlMatch,
   threadsSocialUrlMatch,
@@ -68,11 +73,13 @@ import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { CampaignType, Invite } from '../src/entity/Invite';
 import { usersFixture } from './fixture/user';
 import { deleteRedisKey, getRedisObject } from '../src/redis';
-import { StorageKey, StorageTopic, generateStorageKey } from '../src/config';
+import { generateStorageKey, StorageKey, StorageTopic } from '../src/config';
 import {
   UserIntegration,
   UserIntegrationType,
 } from '../src/entity/UserIntegration';
+import { Company } from '../src/entity/Company';
+import { UserCompany } from '../src/entity/UserCompany';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -80,6 +87,14 @@ let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
 const userTimezone = 'Pacific/Midway';
+
+jest.mock('../src/common/mailing.ts', () => ({
+  ...(jest.requireActual('../src/common/mailing.ts') as Record<
+    string,
+    unknown
+  >),
+  sendEmail: jest.fn(),
+}));
 
 beforeAll(async () => {
   con = await createOrGetConnection();
@@ -95,6 +110,7 @@ const now = new Date();
 beforeEach(async () => {
   loggedUser = null;
   nock.cleanAll();
+  jest.clearAllMocks();
 
   await con.getRepository(User).save([
     {
@@ -449,6 +465,135 @@ describe('query userStreaks', () => {
     await expectStreak(5, 0, lastViewAt);
   });
 
+  describe('incorporating streak restore', () => {
+    beforeEach(async () => {
+      nock('http://localhost:5000').post('/e').reply(204);
+    });
+
+    it('should not reset streak when the user restored streak today', async () => {
+      loggedUser = '1';
+
+      const fakeToday = new Date(2024, 0, 1); // Monday
+      const lastViewAt = subDays(fakeToday, 4); // Thursday
+
+      jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+      await expectStreak(5, 0, lastViewAt);
+
+      await con
+        .getRepository(UserStreak)
+        .update({ userId: loggedUser }, { currentStreak: 5 });
+      await con.getRepository(UserStreakAction).save([
+        {
+          userId: loggedUser,
+          type: UserStreakActionType.Recover,
+          createdAt: fakeToday,
+        },
+      ]);
+
+      await expectStreak(5, 5, lastViewAt);
+    });
+
+    it('should reset streak when the user restored streak was yesterday and did not read', async () => {
+      nock('http://localhost:5000').post('/e').reply(204);
+      loggedUser = '1';
+
+      const fakeToday = new Date(2024, 0, 2); // Tuesday
+      const lastViewAt = subDays(fakeToday, 5); // Thursday
+
+      jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+      await expectStreak(5, 0, lastViewAt);
+
+      await con
+        .getRepository(UserStreak)
+        .update({ userId: loggedUser }, { currentStreak: 5 });
+      await con.getRepository(UserStreakAction).save([
+        {
+          userId: loggedUser,
+          type: UserStreakActionType.Recover,
+          createdAt: subDays(fakeToday, 1),
+        },
+      ]);
+
+      await expectStreak(5, 0, lastViewAt);
+    });
+
+    it('should not reset streak when the user restored streak yesterday and read a post', async () => {
+      nock('http://localhost:5000').post('/e').reply(204);
+      loggedUser = '1';
+
+      const fakeToday = new Date(2024, 0, 2); // Tuesday
+      const lastViewAt = subDays(fakeToday, 5); // Thursday
+
+      jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+      await expectStreak(5, 0, lastViewAt);
+
+      await con
+        .getRepository(UserStreak)
+        .update({ userId: loggedUser }, { currentStreak: 5 });
+      const yesterday = subDays(fakeToday, 1);
+      await con.getRepository(UserStreakAction).save([
+        {
+          userId: loggedUser,
+          type: UserStreakActionType.Recover,
+          createdAt: yesterday,
+        },
+      ]);
+
+      await expectStreak(5, 5, yesterday);
+    });
+
+    it('should not reset streak when the user restored streak on Saturday and it is only Sunday', async () => {
+      nock('http://localhost:5000').post('/e').reply(204);
+      loggedUser = '1';
+
+      const fakeToday = new Date(2024, 0, 7); // Sunday
+      const lastViewAt = subDays(fakeToday, 3); // Thursday
+
+      jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+      await expectStreak(5, 0, lastViewAt);
+
+      await con
+        .getRepository(UserStreak)
+        .update({ userId: loggedUser }, { currentStreak: 5 });
+      await con.getRepository(UserStreakAction).save([
+        {
+          userId: loggedUser,
+          type: UserStreakActionType.Recover,
+          createdAt: subDays(fakeToday, 1), // Saturday
+        },
+      ]);
+
+      await expectStreak(5, 5, lastViewAt);
+    });
+
+    it('should not reset streak when the user restored streak on Friday and it is only Saturday with Sunday as workday', async () => {
+      nock('http://localhost:5000').post('/e').reply(204);
+      loggedUser = '1';
+
+      const fakeToday = new Date(2024, 0, 6); // Saturday
+      const lastViewAt = subDays(fakeToday, 3); // Wednesday
+      await con
+        .getRepository(User)
+        .update({ id: loggedUser }, { weekStart: DayOfWeek.Sunday });
+
+      jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+      await expectStreak(5, 0, lastViewAt);
+
+      await con
+        .getRepository(UserStreak)
+        .update({ userId: loggedUser }, { currentStreak: 5 });
+      await con.getRepository(UserStreakAction).save([
+        {
+          userId: loggedUser,
+          type: UserStreakActionType.Recover,
+          createdAt: subDays(fakeToday, 1), // Friday
+        },
+      ]);
+
+      await expectStreak(5, 5, lastViewAt);
+    });
+  });
+
   it('should not reset streak on Saturday when last read is Friday', async () => {
     loggedUser = '1';
     const fakeToday = new Date(2024, 0, 6); // Saturday
@@ -465,6 +610,44 @@ describe('query userStreaks', () => {
 
     jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
     await expectStreak(5, 5, lastViewAt);
+  });
+
+  it('should not reset streak on Monday when last read is Friday', async () => {
+    loggedUser = '1';
+    const fakeToday = new Date(2024, 0, 8); // Monday
+    const lastViewAt = subDays(fakeToday, 3); // Friday
+
+    expect(lastViewAt.getDay()).toEqual(5); // Friday
+    jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+    await expectStreak(5, 5, lastViewAt);
+  });
+
+  describe('Sunday as the start of the week', () => {
+    it('should not reset streak on Saturday when last read is Thursday', async () => {
+      loggedUser = '1';
+      await con
+        .getRepository(User)
+        .update({ id: loggedUser }, { weekStart: DayOfWeek.Sunday });
+      const fakeToday = new Date(2024, 0, 6, 12, 0, 0, 0); // Saturday
+      const lastViewAt = subDays(fakeToday, 2); // Thursday
+
+      expect(lastViewAt.getDay()).toEqual(4); // Thursday
+      jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+      await expectStreak(5, 5, lastViewAt);
+    });
+
+    it('should not reset streak on Sunday when last read is Thursday', async () => {
+      loggedUser = '1';
+      await con
+        .getRepository(User)
+        .update({ id: loggedUser }, { weekStart: DayOfWeek.Sunday });
+      const fakeToday = new Date(2024, 0, 7, 12, 0, 0, 0); // Sunday
+      const lastViewAt = subDays(fakeToday, 3); // Thursday
+
+      expect(lastViewAt.getDay()).toEqual(4); // Thursday
+      jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+      await expectStreak(5, 5, lastViewAt);
+    });
   });
 
   it('should reset streak on Monday when last read was Thursday', async () => {
@@ -767,6 +950,452 @@ describe('query team members', () => {
       username: null,
       image: 'https://daily.dev/ido.jpg',
       isTeamMember: true,
+    });
+  });
+});
+
+describe('user company', () => {
+  beforeEach(async () => {
+    await con.getRepository(Company).save([
+      {
+        id: '1',
+        name: 'Company 1',
+        image: 'https://daily.dev/company1.jpg',
+        domains: ['company1.com'],
+      },
+      {
+        id: '2',
+        name: 'Company 2',
+        image: 'https://daily.dev/company2.jpg',
+        domains: ['company2.com'],
+      },
+      {
+        id: '3',
+        name: 'Company 3',
+        image: 'https://daily.dev/company3.jpg',
+        domains: ['company3.com'],
+      },
+    ]);
+    await con.getRepository(UserCompany).save([
+      {
+        userId: '1',
+        companyId: '1',
+        verified: true,
+        email: 'u1@com1.com',
+        code: '123',
+      },
+      {
+        userId: '1',
+        companyId: '2',
+        verified: true,
+        email: 'u1@com2.com',
+        code: '123',
+      },
+      {
+        userId: '1',
+        companyId: '3',
+        verified: false,
+        email: 'u1@com3.com',
+        code: '123',
+      },
+      {
+        userId: '2',
+        companyId: '3',
+        verified: true,
+        email: 'u2@com4.com',
+        code: '123',
+      },
+      { userId: '1', verified: true, email: 'u1@com5.com', code: '123' },
+    ]);
+  });
+
+  describe('query user (companies)', () => {
+    const QUERY = `query User($id: ID!) {
+    user(id: $id) {
+      companies {
+        id
+        name
+        image
+      }
+    }
+  }`;
+    it('should return verified records where companies exist', async () => {
+      const requestUserId = '1';
+      const res = await client.query(QUERY, {
+        variables: { id: requestUserId },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.user.companies).toMatchObject([
+        {
+          id: '1',
+          image: 'https://daily.dev/company1.jpg',
+          name: 'Company 1',
+        },
+        {
+          id: '2',
+          image: 'https://daily.dev/company2.jpg',
+          name: 'Company 2',
+        },
+      ]);
+    });
+
+    it('return data for other users', async () => {
+      loggedUser = '1';
+      const requestUserId = '2';
+      const res = await client.query(QUERY, {
+        variables: { id: requestUserId },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.user.companies).toMatchObject([
+        { id: '3', name: 'Company 3', image: 'https://daily.dev/company3.jpg' },
+      ]);
+    });
+
+    it('return empty array if no companies found', async () => {
+      const requestUserId = '3';
+      const res = await client.query(QUERY, {
+        variables: { id: requestUserId },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.user.companies).toMatchObject([]);
+    });
+  });
+
+  describe('query companies', () => {
+    const QUERY = `query Companies {
+    companies {
+      email
+      company {
+      id
+     }
+    }
+  }`;
+
+    it('should not authorize when not logged in', () =>
+      testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
+
+    it('should return user companies that are verified', async () => {
+      loggedUser = '1';
+      const res = await client.query(QUERY);
+      expect(res.errors).toBeFalsy();
+      expect(res.data.companies).toMatchObject([
+        { email: 'u1@com1.com', company: { id: '1' } },
+        { email: 'u1@com2.com', company: { id: '2' } },
+        { email: 'u1@com5.com', company: null },
+      ]);
+    });
+  });
+
+  describe('mutation addUserCompany', () => {
+    const QUERY = `mutation addUserCompany($email: String!) {
+    addUserCompany(email: $email) {
+      _
+    }
+  }`;
+
+    it('should not authorize when not logged in', () => {
+      return testQueryError(
+        client,
+        { query: QUERY, variables: { email: 'test@test.com' } },
+        (errors) => {
+          expect(errors[0].extensions.code).toEqual('UNAUTHENTICATED');
+        },
+      );
+    });
+
+    it('should fail if no email is passed', async () => {
+      loggedUser = '1';
+      return testQueryErrorCode(
+        client,
+        { query: QUERY },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should fail if email was already used by other user', async () => {
+      loggedUser = '1';
+      return testQueryError(
+        client,
+        { query: QUERY, variables: { email: 'u2@com4.com' } },
+        (errors) => {
+          expect(errors[0].extensions!.code).toEqual(
+            'GRAPHQL_VALIDATION_FAILED',
+          );
+          expect(errors[0].message).toEqual(
+            'Oops, there was an issue verifying this email. Please use a different one.',
+          );
+        },
+      );
+    });
+
+    it('should fail if email invalid format', async () => {
+      loggedUser = '1';
+      return testQueryError(
+        client,
+        { query: QUERY, variables: { email: 'u2@com4' } },
+        (errors) => {
+          expect(errors[0].extensions.code).toEqual(
+            'GRAPHQL_VALIDATION_FAILED',
+          );
+          expect(errors[0].message).toEqual('Invalid email');
+        },
+      );
+    });
+
+    it('should create user company record without linked company', async () => {
+      loggedUser = '1';
+      const res = await client.query(QUERY, {
+        variables: { email: 'u1@com4.com' },
+      });
+      expect(res.errors).toBeFalsy();
+      const row = await con.getRepository(UserCompany).findOneByOrFail({
+        email: 'u1@com4.com',
+      });
+      expect(row.verified).toBeFalsy();
+      expect(row.code.length).toEqual(6);
+      expect(row.companyId).toEqual(null);
+    });
+
+    it('should create user company record with linked company', async () => {
+      loggedUser = '1';
+      await con.getRepository(Company).save([
+        {
+          id: '4',
+          name: 'Company 4',
+          image: 'https://daily.dev/company4.jpg',
+          domains: ['com4.com'],
+        },
+      ]);
+      const res = await client.query(QUERY, {
+        variables: { email: 'u1@com4.com' },
+      });
+      expect(res.errors).toBeFalsy();
+      const row = await con.getRepository(UserCompany).findOneByOrFail({
+        email: 'u1@com4.com',
+      });
+      expect(row.verified).toBeFalsy();
+      expect(row.code.length).toEqual(6);
+      expect(row.companyId).toEqual('4');
+    });
+
+    it('should update verification code if it was an existing record', async () => {
+      loggedUser = '1';
+      const res = await client.query(QUERY, {
+        variables: { email: 'u1@com3.com' },
+      });
+      expect(res.errors).toBeFalsy();
+      const row = await con.getRepository(UserCompany).findOneByOrFail({
+        email: 'u1@com3.com',
+      });
+      expect(row.verified).toBeFalsy();
+      expect(row.code.length).toEqual(6);
+    });
+
+    it('should send verification email to user if email is not verified', async () => {
+      loggedUser = '1';
+      const res = await client.query(QUERY, {
+        variables: { email: 'u1@com4.com' },
+      });
+      expect(res.errors).toBeFalsy();
+      const row = await con.getRepository(UserCompany).findOneByOrFail({
+        email: 'u1@com4.com',
+      });
+      expect(row.verified).toBeFalsy();
+      expect(row.code.length).toEqual(6);
+      expect(row.companyId).toEqual(null);
+
+      expect(sendEmail).toHaveBeenCalledTimes(1);
+      expect(sendEmail).toHaveBeenCalledWith({
+        to: 'u1@com4.com',
+        send_to_unsubscribed: true,
+        message_data: {
+          code: expect.any(String),
+        },
+        identifiers: {
+          id: loggedUser,
+        },
+        transactional_message_id:
+          CioTransactionalMessageTemplateId.VerifyCompany,
+      });
+    });
+
+    it('should not send verification email to user if email is verified', async () => {
+      loggedUser = '1';
+      await con.getRepository(UserCompany).save({
+        verified: true,
+        email: 'u1@com3.com',
+        code: '654321',
+        userId: loggedUser,
+      });
+      return testQueryError(
+        client,
+        { query: QUERY, variables: { email: 'u1@com3.com' } },
+        (errors) => {
+          expect(errors[0].extensions!.code).toEqual(
+            'GRAPHQL_VALIDATION_FAILED',
+          );
+          expect(errors[0].message).toEqual(
+            'This email has already been verified',
+          );
+
+          expect(sendEmail).not.toHaveBeenCalled();
+        },
+      );
+    });
+  });
+
+  describe('mutation removeUserCompany', () => {
+    const QUERY = `mutation RemoveUserCompany($email: String!) {
+    removeUserCompany(email: $email) {
+      _
+    }
+  }`;
+
+    it('should not authorize when not logged in', () => {
+      return testQueryError(
+        client,
+        { query: QUERY, variables: { email: 'test@test.com' } },
+        (errors) => {
+          expect(errors[0].extensions.code).toEqual('UNAUTHENTICATED');
+        },
+      );
+    });
+
+    it('should fail if no email is passed', async () => {
+      loggedUser = '1';
+      return testQueryErrorCode(
+        client,
+        { query: QUERY },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should ignore if email is not known', async () => {
+      loggedUser = '1';
+      const res = await client.query(QUERY, {
+        variables: { email: 'random@random.com' },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.removeUserCompany._).toBeTruthy();
+    });
+
+    it('should ignore if email is not owned by user', async () => {
+      loggedUser = '1';
+      const res = await client.query(QUERY, {
+        variables: { email: 'u2@com4.com' },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.removeUserCompany._).toBeTruthy();
+      const row = await con.getRepository(UserCompany).findOneBy({
+        email: 'u2@com4.com',
+      });
+      expect(row).toBeTruthy();
+    });
+
+    it('should delete if user is owner of email', async () => {
+      loggedUser = '1';
+      const res = await client.query(QUERY, {
+        variables: { email: 'u1@com2.com' },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.removeUserCompany._).toBeTruthy();
+      const row = await con.getRepository(UserCompany).findOneBy({
+        email: 'u1@com2.com',
+      });
+      expect(row).toBeFalsy();
+    });
+  });
+
+  describe('mutation verifyUserCompanyCode', () => {
+    const QUERY = `mutation VerifyUserCompanyCode($email: String!, $code: String!) {
+    verifyUserCompanyCode(email: $email, code: $code) {
+      email
+    }
+  }`;
+
+    it('should not authorize when not logged in', () => {
+      return testQueryError(
+        client,
+        { query: QUERY, variables: { email: 'test@test.com', code: '123' } },
+        (errors) => {
+          expect(errors[0].extensions.code).toEqual('UNAUTHENTICATED');
+        },
+      );
+    });
+
+    it('should fail if no email is passed', async () => {
+      loggedUser = '1';
+      return testQueryErrorCode(
+        client,
+        { query: QUERY, variables: { code: '123' } },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should fail if email but no code is passed', async () => {
+      loggedUser = '1';
+      return testQueryErrorCode(
+        client,
+        { query: QUERY, variables: { email: 'test@test.com' } },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should fail if email not found', async () => {
+      loggedUser = '1';
+      return testQueryError(
+        client,
+        { query: QUERY, variables: { email: 'test@test.com', code: '123' } },
+        (errors) => {
+          expect(errors[0].message).toEqual('Entity not found');
+        },
+      );
+    });
+
+    it('should fail if email not owned by user', async () => {
+      loggedUser = '1';
+      return testQueryError(
+        client,
+        { query: QUERY, variables: { email: 'u2@com4.com', code: '123' } },
+        (errors) => {
+          expect(errors[0].message).toEqual('Entity not found');
+        },
+      );
+    });
+
+    it('should fail if email already verified', async () => {
+      loggedUser = '1';
+      return testQueryError(
+        client,
+        { query: QUERY, variables: { email: 'u1@com1.com', code: '123' } },
+        (errors) => {
+          expect(errors[0].message).toEqual('Entity not found');
+        },
+      );
+    });
+
+    it('should fail if code not correct', async () => {
+      loggedUser = '1';
+      return testQueryError(
+        client,
+        { query: QUERY, variables: { email: 'u1@com3.com', code: '456' } },
+        (errors) => {
+          expect(errors[0].message).toEqual('Invalid code');
+        },
+      );
+    });
+
+    it('should verify the record', async () => {
+      loggedUser = '1';
+      const res = await client.query(QUERY, {
+        variables: { email: 'u1@com3.com', code: '123' },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.verifyUserCompanyCode.email).toEqual('u1@com3.com');
+      const row = await con.getRepository(UserCompany).findOneBy({
+        email: 'u1@com3.com',
+      });
+      expect(row.verified).toBeTruthy();
     });
   });
 });
@@ -1867,6 +2496,7 @@ describe('mutation updateUserProfile', () => {
         notificationEmail
         timezone
         experienceLevel
+        language
       }
     }
   `;
@@ -2146,6 +2776,48 @@ describe('mutation updateUserProfile', () => {
     expect(res.errors?.length).toBeFalsy();
     const updatedUser = await repo.findOneBy({ id: loggedUser });
     expect(updatedUser?.experienceLevel).toEqual(experienceLevel);
+  });
+
+  it('should update user profile and change language', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(User);
+    const user = await repo.findOneBy({ id: loggedUser });
+
+    const language = 'de';
+    expect(user!.language).toBeNull();
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: { language, username: 'uuu1', name: user!.name },
+      },
+    });
+    expect(res.errors?.length).toBeFalsy();
+    const updatedUser = await repo.findOneBy({ id: loggedUser });
+    expect(updatedUser!.language).toEqual(language);
+  });
+
+  it('should not update user profile if language is invalid', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(User);
+    const user = await repo.findOneBy({ id: loggedUser });
+
+    const language = 'klingon';
+    expect(user!.language).toBeNull();
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          data: { language, username: 'uuu1', name: user!.name },
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+
+    const updatedUser = await repo.findOneBy({ id: loggedUser });
+    expect(updatedUser!.language).toEqual(null);
   });
 
   it('should update notification email preference', async () => {
@@ -2536,15 +3208,7 @@ describe('mutation deleteUser', () => {
   it('should delete user from database', async () => {
     loggedUser = '1';
 
-    await con.getRepository(User).save([
-      {
-        id: '404',
-        name: 'Not found',
-        image: 'https://daily.dev/404.jpg',
-        timezone: 'utc',
-        createdAt: new Date(),
-      },
-    ]);
+    await con.getRepository(User).save([ghostUser]);
 
     await client.mutate(MUTATION);
 
@@ -2558,15 +3222,7 @@ describe('mutation deleteUser', () => {
   it('should delete author ID from post', async () => {
     loggedUser = '1';
 
-    await con.getRepository(User).save([
-      {
-        id: '404',
-        name: 'Not found',
-        image: 'https://daily.dev/404.jpg',
-        timezone: 'utc',
-        createdAt: new Date(),
-      },
-    ]);
+    await con.getRepository(User).save([ghostUser]);
 
     await client.mutate(MUTATION);
 
@@ -2577,15 +3233,7 @@ describe('mutation deleteUser', () => {
   it('should delete scout ID from post', async () => {
     loggedUser = '1';
 
-    await con.getRepository(User).save([
-      {
-        id: '404',
-        name: 'Not found',
-        image: 'https://daily.dev/404.jpg',
-        timezone: 'utc',
-        createdAt: new Date(),
-      },
-    ]);
+    await con.getRepository(User).save([ghostUser]);
 
     await client.mutate(MUTATION);
 
@@ -2615,15 +3263,7 @@ describe('DELETE /v1/users/me', () => {
   const BASE_PATH = '/v1/users/me';
 
   beforeEach(async () => {
-    await con.getRepository(User).save([
-      {
-        id: '404',
-        name: 'Not found',
-        image: 'https://daily.dev/404.jpg',
-        timezone: 'utc',
-        createdAt: new Date(),
-      },
-    ]);
+    await con.getRepository(User).save([ghostUser]);
   });
 
   it('should not authorize when not logged in', async () => {

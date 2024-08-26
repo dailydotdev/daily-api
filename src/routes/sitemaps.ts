@@ -17,6 +17,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       .andWhere('NOT banned')
       .andWhere('NOT deleted')
       .andWhere('"createdAt" > current_timestamp - interval \'90 day\'')
+      .andWhere('upvotes >= 10')
       .orderBy('"createdAt"', 'DESC')
       .limit(50_000);
 

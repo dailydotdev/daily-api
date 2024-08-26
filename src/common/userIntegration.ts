@@ -69,9 +69,10 @@ export const getAttachmentForPostType = async <TPostType extends PostType>({
   postType: TPostType;
   postLink: string;
 }): Promise<MessageAttachment> => {
+  const source = await post.source;
   const attachment: MessageAttachment = {
-    author_name: 'daily.dev',
-    author_icon: 'https://app.daily.dev/apple-touch-icon.png',
+    author_name: `${source.name} | daily.dev`,
+    author_icon: source.image,
   };
 
   switch (postType) {
@@ -99,8 +100,10 @@ export const getAttachmentForPostType = async <TPostType extends PostType>({
     case PostType.Welcome: {
       const freeformPost = post as FreeformPost & WelcomePost;
 
-      attachment.title = freeformPost.title;
-      attachment.title_link = postLink;
+      if (freeformPost.title) {
+        attachment.title = freeformPost.title;
+        attachment.title_link = postLink;
+      }
 
       if (freeformPost.image) {
         attachment.image_url = freeformPost.image;
@@ -137,3 +140,12 @@ export const getAttachmentForPostType = async <TPostType extends PostType>({
 
   return attachment;
 };
+
+export enum SlackChannelType {
+  Public = 'public_channel',
+  Private = 'private_channel',
+}
+
+export enum SlackOAuthScope {
+  GroupsRead = 'groups:read',
+}

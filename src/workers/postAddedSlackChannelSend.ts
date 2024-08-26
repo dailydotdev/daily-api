@@ -6,8 +6,10 @@ import {
   getAttachmentForPostType,
   getSlackClient,
 } from '../common/userIntegration';
-import { addNotificationUtm } from '../common';
+import { addNotificationUtm, addPrivateSourceJoinParams } from '../common';
 import { SourceMemberRoles } from '../roles';
+import { SlackApiError, SlackApiErrorCode } from '../errors';
+import { counters } from '../telemetry/metrics';
 
 const sendQueueConcurrency = 10;
 
@@ -37,12 +39,26 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
             },
           }),
         ]);
+
+        if (integrations.length === 0) {
+          return;
+        }
+
+        if (post.flags?.vordr) {
+          return;
+        }
+
         const source = await post.source;
         const sourceTypeName =
           source.type === SourceType.Squad ? 'Squad' : 'source';
 
         const postLinkPlain = `${process.env.COMMENTS_PREFIX}/posts/${post.id}`;
         const postLinkUrl = new URL(postLinkPlain);
+        let postLink = addNotificationUtm(
+          postLinkUrl.toString(),
+          'slack',
+          'new_post',
+        );
 
         if (source.private && source.type === SourceType.Squad) {
           const admin: Pick<SourceMember, 'referralToken'> = await con
@@ -59,24 +75,20 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
             });
 
           if (admin?.referralToken) {
-            postLinkUrl.searchParams.set('jt', admin.referralToken);
-            postLinkUrl.searchParams.set('source', source.handle);
-            postLinkUrl.searchParams.set('type', source.type);
+            postLink = addPrivateSourceJoinParams({
+              url: postLink,
+              source,
+              referralToken: admin.referralToken,
+            });
           }
         }
 
-        const postLink = addNotificationUtm(
-          postLinkUrl.toString(),
-          'slack',
-          'new_post',
-        );
-
         const author = await post.author;
         const authorName = author?.name || author?.username;
-        let messageText = `New post on "${source.name}" ${sourceTypeName}. <${postLink}|${postLinkPlain}>`;
+        let messageText = `New post: <${postLink}|${postLinkPlain}>`;
 
         if (sourceTypeName === 'Squad' && authorName) {
-          messageText = `${authorName} shared a new post on "${source.name}" ${sourceTypeName}. <${postLink}|${postLinkPlain}>`;
+          messageText = `${authorName} shared a new post: <${postLink}|${postLinkPlain}>`;
         }
 
         const attachment = await getAttachmentForPostType({
@@ -103,15 +115,32 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
 
               // channel should already be joined when the integration is connected
               // but just in case
-              await slackClient.conversations.join({
-                channel: channelId,
-              });
+              try {
+                await slackClient.conversations.join({
+                  channel: channelId,
+                });
+              } catch (originalJoinError) {
+                const conversationsJoinError =
+                  originalJoinError as SlackApiError;
+
+                if (
+                  ![
+                    SlackApiErrorCode.MethodNotSupportedForChannelType,
+                  ].includes(conversationsJoinError.data?.error)
+                ) {
+                  throw originalJoinError;
+                }
+              }
 
               await slackClient.chat.postMessage({
                 channel: channelId,
                 text: messageText,
                 attachments: [attachment],
                 unfurl_links: false,
+              });
+
+              counters?.background?.postSentSlack?.add(1, {
+                source: source.id,
               });
             } catch (originalError) {
               const error = originalError as Error;

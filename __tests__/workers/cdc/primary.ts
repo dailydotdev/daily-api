@@ -101,7 +101,6 @@ import {
   relatedPostsFixture,
 } from '../../fixture/post';
 import { randomUUID } from 'crypto';
-import { submissionAccessThreshold } from '../../../src/schema/submissions';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
 import { TypeOrmError } from '../../../src/errors';
@@ -120,6 +119,7 @@ import {
   StorageKey,
   StorageTopic,
   generateStorageKey,
+  submissionAccessThreshold,
 } from '../../../src/config';
 import { generateUUID } from '../../../src/ids';
 import {
@@ -204,6 +204,7 @@ const defaultUser: ChangeObject<Omit<User, 'createdAt'>> = {
     trustScore: 1,
     vordr: false,
   },
+  language: null,
 };
 
 describe('source request', () => {
@@ -1851,6 +1852,7 @@ describe('submission', () => {
     reason: null,
     status: SubmissionStatus.Started,
     createdAt: Date.now(),
+    flags: {},
   };
 
   it('should notify crawler for this article', async () => {
@@ -3205,7 +3207,10 @@ describe('post content updated', () => {
   });
 
   it('should handle JSON string from jsonb fields', async () => {
-    const after: ChangeObject<ArticlePost> = {
+    type ArticlePostJsonB = Omit<ArticlePost, 'contentMeta'> & {
+      contentMeta: string;
+    };
+    const after: ChangeObject<ArticlePostJsonB> = {
       ...contentUpdatedPost,
       type: PostType.Article,
       url: 'http://p4.com',
@@ -3217,7 +3222,7 @@ describe('post content updated', () => {
     };
     await expectSuccessfulBackground(
       worker,
-      mockChangeMessage<ArticlePost>({
+      mockChangeMessage<ArticlePostJsonB>({
         after,
         before: after,
         op: 'u',

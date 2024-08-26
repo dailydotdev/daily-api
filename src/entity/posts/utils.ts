@@ -1,8 +1,7 @@
-import { DataSource, EntityManager, In } from 'typeorm';
-import { TypeOrmError } from '../../errors';
+import { DataSource, DeepPartial, EntityManager, In } from 'typeorm';
+import { TypeOrmError, TypeORMQueryFailedError } from '../../errors';
 import { Keyword } from '../Keyword';
 import {
-  EventLogger,
   notifyContentRequested,
   removeEmptyValues,
   removeSpecialCharacters,
@@ -25,6 +24,8 @@ import { PostMention } from './PostMention';
 import { PostQuestion } from './PostQuestion';
 import { PostRelation, PostRelationType } from './PostRelation';
 import { CollectionPost } from './CollectionPost';
+import { checkWithVordr, VordrFilterType } from '../../common/vordr';
+import { AuthContext } from '../../Context';
 
 export type PostStats = {
   numPosts: number;
@@ -72,10 +73,19 @@ export const getAuthorPostStats = async (
     .andWhere('post.visible = true')
     .andWhere('post.deleted = false')
     .getRawOne<StringPostStats>();
-  return Object.keys(raw).reduce(
-    (acc, key) => ({ ...acc, [key]: parseInt(raw[key]) || raw[key] }),
-    {},
-  ) as PostStats;
+
+  return Object.entries(raw || {}).reduce(
+    (acc, [key, value]) => ({
+      ...acc,
+      [key]: parseInt(value) || value,
+    }),
+    {
+      numPosts: 0,
+      numPostViews: 0,
+      numPostUpvotes: 0,
+      numPostComments: 0,
+    },
+  );
 };
 
 export const parseReadTime = (
@@ -109,7 +119,7 @@ export const mergeKeywords = async (
       },
     });
     const additionalKeywords = synonymKeywords.map(
-      (synonym) => synonym.synonym,
+      (synonym) => synonym.synonym!,
     );
     const mergedKeywords = uniqueifyArray(
       [...cleanedKeywords, ...additionalKeywords].filter(
@@ -199,17 +209,18 @@ export const addQuestions = async (
   postId: Post['id'],
   existingPost: boolean = false,
 ) => {
-  let existingQuestion: PostQuestion | undefined;
-
   if (existingPost) {
-    existingQuestion = await entityManager
+    const existingQuestion = await entityManager
       .getRepository(PostQuestion)
       .findOneBy({ postId });
-  }
 
-  // for now, we only add questions if there aren't any existing ones
-  // this means that questions don't change on a post once initially created
-  if (existingQuestion) return;
+    // for now, we only add questions if there aren't any existing ones
+    // this means that questions don't change on a post once initially created
+
+    if (existingQuestion) {
+      return;
+    }
+  }
 
   await entityManager.getRepository(PostQuestion).insert(
     questions.map((question) => ({
@@ -245,9 +256,8 @@ export interface ExternalLink extends Partial<ExternalLinkPreview> {
 
 export const createExternalLink = async (
   con: DataSource | EntityManager,
-  logger: EventLogger,
+  ctx: AuthContext,
   sourceId: string,
-  userId: string,
   { url, title, image }: ExternalLink,
   commentary: string,
 ): Promise<void> => {
@@ -277,13 +287,13 @@ export const createExternalLink = async (
     });
     await createSharePost(
       entityManager,
+      ctx,
       sourceId,
-      userId,
       id,
       commentary,
       isVisible,
     );
-    await notifyContentRequested(logger, {
+    await notifyContentRequested(ctx.log, {
       id,
       url,
       origin: PostOrigin.Squad,
@@ -300,13 +310,14 @@ export const generateTitleHtml = (
 
 export const createSharePost = async (
   con: DataSource | EntityManager,
+  ctx: AuthContext,
   sourceId: string,
-  userId: string,
   postId: string,
-  commentary: string | null,
+  commentary?: string,
   visible = true,
 ): Promise<SharePost> => {
   const strippedCommentary = await validateCommentary(commentary);
+  const userId = ctx.userId;
 
   try {
     const mentions = await getMentions(con, commentary, userId, sourceId);
@@ -315,11 +326,11 @@ export const createSharePost = async (
       : null;
     const { private: privacy } = await con
       .getRepository(Source)
-      .findOneBy({ id: sourceId });
+      .findOneByOrFail({ id: sourceId });
 
     const id = await generateShortId();
 
-    const post = await con.getRepository(SharePost).save({
+    const createdPost = con.getRepository(SharePost).create({
       id,
       shortId: id,
       createdAt: new Date(),
@@ -338,16 +349,42 @@ export const createSharePost = async (
         private: privacy,
         visible,
       },
-    });
+    } as DeepPartial<SharePost>);
+
+    const vordrStatus = await checkWithVordr(
+      {
+        id: createdPost.id,
+        content: createdPost.title || undefined,
+        type: VordrFilterType.Post,
+      },
+      { con, userId, req: ctx.req },
+    );
+
+    if (vordrStatus === true) {
+      createdPost.banned = true;
+      createdPost.showOnFeed = false;
+
+      createdPost.flags = {
+        ...createdPost.flags,
+        banned: true,
+        showOnFeed: false,
+      };
+    }
+
+    createdPost.flags.vordr = vordrStatus;
+
+    const post = await con.getRepository(SharePost).save(createdPost);
 
     if (mentions.length) {
       await saveMentions(con, post.id, userId, mentions, PostMention);
     }
 
     return post;
-  } catch (err) {
+  } catch (originalError) {
+    const err = originalError as TypeORMQueryFailedError;
+
     if (err.code === TypeOrmError.FOREIGN_KEY) {
-      if (err.detail.indexOf('sharedPostId') > -1) {
+      if (err.detail && err.detail.indexOf('sharedPostId') > -1) {
         throw new ForbiddenError(
           JSON.stringify({ postId: 'post does not exist' }),
         );
@@ -362,7 +399,7 @@ export const updateSharePost = async (
   userId: string,
   postId: string,
   sourceId: string,
-  commentary: string | null,
+  commentary?: string,
 ) => {
   const strippedCommentary = await validateCommentary(commentary);
 
@@ -374,16 +411,21 @@ export const updateSharePost = async (
 
     await con
       .getRepository(SharePost)
-      .update({ id: postId }, { title: strippedCommentary, titleHtml });
+      .update(
+        { id: postId },
+        { title: strippedCommentary, titleHtml: titleHtml },
+      );
 
     if (mentions.length) {
       await saveMentions(con, postId, userId, mentions, PostMention);
     }
 
     return { postId };
-  } catch (err) {
+  } catch (originalError) {
+    const err = originalError as TypeORMQueryFailedError;
+
     if (err.code === TypeOrmError.FOREIGN_KEY) {
-      if (err.detail.indexOf('sharedPostId') > -1) {
+      if (err.detail && err.detail.indexOf('sharedPostId') > -1) {
         throw new ForbiddenError(
           JSON.stringify({ postId: 'post does not exist' }),
         );

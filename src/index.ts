@@ -146,11 +146,11 @@ export default async function app(
     subscription: getSubscriptionSettings(connection),
     // Disable GraphQL introspection in production
     graphiql: !isProd,
-    validationRules: isProd && [NoSchemaIntrospectionCustomRule],
+    validationRules: isProd ? [NoSchemaIntrospectionCustomRule] : undefined,
     errorFormatter(execution, ctx) {
       if (execution.errors?.length > 0) {
         const flatErrors = execution.errors.flatMap<GraphQLError>((error) => {
-          if (error.originalError.name === 'FastifyError') {
+          if (error.originalError?.name === 'FastifyError') {
             return (
               (error.originalError as MercuriusError<GraphQLError>).errors ||
               error
@@ -206,6 +206,20 @@ export default async function app(
         statusCode: 200,
         response: execution,
       };
+    },
+    additionalRouteOptions: {
+      preHandler: async (request, reply) => {
+        const varyHeader = reply.getHeader('vary');
+        const varyHeaders = Array.isArray(varyHeader)
+          ? varyHeader
+          : [varyHeader];
+
+        if (request.headers['content-language']) {
+          varyHeaders.push('content-language');
+        }
+
+        reply.header('vary', varyHeaders);
+      },
     },
   });
 

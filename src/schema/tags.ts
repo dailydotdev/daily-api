@@ -126,8 +126,7 @@ const getFormattedTags = async (
   return tags.map(({ tag }) => ({ name: tag }));
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvers: IResolvers<any, BaseContext> = traceResolvers<
+export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
   BaseContext
 >({

@@ -9,9 +9,9 @@ export class ArticlePost extends Post {
   @Column({ nullable: true })
   publishedAt?: Date;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'text', nullable: true })
   @Index({ unique: true })
-  url: string;
+  url: string | null;
 
   @Column({ type: 'text', nullable: true })
   @Index({ unique: true })

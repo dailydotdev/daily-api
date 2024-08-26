@@ -4,6 +4,7 @@ import { logger } from '../../logger';
 import {
   IntegrationMetaSlack,
   UserIntegrationSlack,
+  UserIntegrationType,
 } from '../../entity/UserIntegration';
 import { SlackAuthResponse } from '../../types';
 import { RedirectError } from '../../errors';
@@ -14,6 +15,10 @@ import {
   verifySlackSignature,
 } from '../../common';
 import fetch from 'node-fetch';
+import {
+  AnalyticsEventName,
+  sendAnalyticsEvent,
+} from '../../integrations/analytics';
 
 const redirectResponse = ({
   res,
@@ -102,12 +107,16 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           code: req.query.code,
           client_id: process.env.SLACK_CLIENT_ID,
           client_secret: process.env.SLACK_CLIENT_SECRET,
+          redirect_uri: `${process.env.URL_PREFIX}/integrations/slack/auth/callback`,
         }),
       });
 
       if (!response.ok) {
         const message = 'failed to get slack token';
-        logger.error({ response }, message);
+        logger.error(
+          { err: new Error('HTTP error'), statusCode: response.status },
+          message,
+        );
 
         throw new RedirectError(message);
       }
@@ -157,6 +166,25 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           userId: req.userId,
           meta: integrationMeta,
         });
+      }
+
+      try {
+        await sendAnalyticsEvent([
+          {
+            event_timestamp: new Date(),
+            event_name: AnalyticsEventName.ConfirmAddingWorkspace,
+            app_platform: 'api',
+            user_id: req.userId,
+            target_id: UserIntegrationType.Slack,
+          },
+        ]);
+      } catch (analyticsEventError) {
+        logger.error(
+          {
+            err: analyticsEventError,
+          },
+          'error sending slack workspace analytics event',
+        );
       }
 
       return redirectResponse({ res, path: redirectPath });

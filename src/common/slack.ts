@@ -6,6 +6,7 @@ import { DataSource } from 'typeorm';
 import { UserIntegrationSlack } from '../entity/UserIntegration';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { FastifyRequest } from 'fastify';
+import { PropsParameters } from '../types';
 
 const nullWebhook = { send: (): Promise<void> => Promise.resolve() };
 export const webhooks = Object.freeze({
@@ -61,8 +62,14 @@ export const notifyNewVordrComment = async (
         title_link: getDiscussionLink(post.id, comment.id),
         fields: [
           {
-            title: 'User',
+            title: 'Username',
+            value: user.username || '',
+            short: true,
+          },
+          {
+            title: 'User ID',
             value: user.id,
+            short: true,
           },
           {
             title: 'Post title',
@@ -84,6 +91,65 @@ export const notifyNewVordrComment = async (
             title: 'Reputation',
             value: user.reputation.toString() ?? '',
           },
+        ],
+        color: '#1DDC6F',
+      },
+    ],
+  });
+};
+
+export const notifyNewVordrPost = async (
+  post: Post,
+  author?: User,
+  scout?: User,
+): Promise<void> => {
+  const getUser = (title: string, user?: User) =>
+    user
+      ? [
+          {
+            title: `${title} Username`,
+            value: user.username || '',
+            short: true,
+          },
+          {
+            title: `${title} ID`,
+            value: user.id,
+            short: true,
+          },
+          {
+            title: `${title} Vordr status`,
+            value: user.flags?.vordr?.toString() ?? '',
+          },
+          {
+            title: `${title} Trust score`,
+            value: user.flags?.trustScore?.toString() ?? '',
+          },
+          {
+            title: `${title} Reputation`,
+            value: user.reputation.toString() ?? '',
+          },
+        ]
+      : [];
+
+  await webhooks.vordr.send({
+    text: 'New post prevented by vordr',
+    attachments: [
+      {
+        title: post.title!,
+        title_link: `${process.env.COMMENTS_PREFIX}/posts/${post.id}`,
+        fields: [
+          {
+            title: 'Post type',
+            value: post.type,
+            short: true,
+          },
+          {
+            title: 'Source',
+            value: post.sourceId,
+            short: true,
+          },
+          ...getUser('Scout', scout),
+          ...getUser('Author', author),
         ],
         color: '#1DDC6F',
       },
@@ -115,11 +181,11 @@ export const notifyPostReport = async (
           },
           {
             title: 'Comment',
-            value: comment,
+            value: comment || '',
           },
           {
             title: 'Tags',
-            value: tags?.join(', '),
+            value: tags?.join(', ') || '',
           },
         ],
         color: '#FF1E1F',
@@ -151,7 +217,7 @@ export const notifyCommentReport = async (
           },
           {
             title: 'Note',
-            value: note,
+            value: note || '',
           },
         ],
         color: '#FF1E1F',
@@ -168,7 +234,7 @@ export const getSlackIntegration = async ({
   id: string;
   userId: string;
   con: DataSource;
-}): Promise<UserIntegrationSlack> => {
+}): Promise<UserIntegrationSlack | null> => {
   const slackIntegration = await con
     .getRepository(UserIntegrationSlack)
     .findOneBy({
@@ -179,11 +245,13 @@ export const getSlackIntegration = async ({
   return slackIntegration;
 };
 
-export const getSlackIntegrationOrFail: typeof getSlackIntegration = async ({
+export const getSlackIntegrationOrFail = async ({
   id,
   userId,
   con,
-}) => {
+}: PropsParameters<
+  typeof getSlackIntegration
+>): Promise<UserIntegrationSlack> => {
   const slackIntegration = await getSlackIntegration({ id, userId, con });
 
   if (!slackIntegration) {

@@ -1,5 +1,9 @@
 import { ValidationError } from 'apollo-server-errors';
-import { NotFoundError, TypeOrmError } from '../errors';
+import {
+  NotFoundError,
+  TypeOrmError,
+  TypeORMQueryFailedError,
+} from '../errors';
 import { Comment, Post, UserPost } from '../entity';
 import { GQLEmptyResponse } from '../schema/common';
 import { ensureSourcePermissions } from '../schema/sources';
@@ -64,7 +68,9 @@ export const votePost = async ({
       default:
         throw new ValidationError('Unsupported vote type');
     }
-  } catch (err) {
+  } catch (originalError) {
+    const err = originalError as TypeORMQueryFailedError;
+
     // Foreign key violation
     if (err?.code === TypeOrmError.FOREIGN_KEY) {
       throw new NotFoundError('Post or user not found');
@@ -135,7 +141,9 @@ export const voteComment = async ({
           throw new ValidationError('Unsupported vote type');
       }
     });
-  } catch (err) {
+  } catch (originalError) {
+    const err = originalError as TypeORMQueryFailedError;
+
     // Foreign key violation
     if (err?.code === TypeOrmError.FOREIGN_KEY) {
       throw new NotFoundError('Comment or user not found');

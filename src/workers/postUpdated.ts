@@ -35,6 +35,7 @@ import { EntityManager } from 'typeorm';
 import { parseDate, updateFlagsStatement } from '../common';
 import { markdown } from '../common/markdown';
 import { counters } from '../telemetry';
+import { I18nRecord } from '../types';
 
 interface Data {
   id: string;
@@ -73,6 +74,9 @@ interface Data {
   meta?: {
     scraped_html?: string;
     cleaned_trafilatura_xml?: string;
+    translate_title?: {
+      translations?: I18nRecord;
+    };
   };
   content_quality?: PostContentQuality;
 }
@@ -148,12 +152,12 @@ const handleCollectionRelations = async ({
   }
 };
 
-const assignScoutToPost = async ({
+const assignScoutToPostAndVordrFlags = async ({
   entityManager,
   submissionId,
   data,
 }: Pick<CreatePostProps, 'entityManager' | 'submissionId' | 'data'>): Promise<
-  Partial<Pick<Post, 'scoutId'>>
+  Partial<Pick<Post, 'scoutId'> & { vordr: boolean }>
 > => {
   const submission = await entityManager
     .getRepository(Submission)
@@ -162,6 +166,7 @@ const assignScoutToPost = async ({
   if (!submission) {
     return {
       scoutId: undefined,
+      vordr: undefined,
     };
   }
 
@@ -176,6 +181,7 @@ const assignScoutToPost = async ({
 
     return {
       scoutId: undefined,
+      vordr: submission.flags?.vordr,
     };
   }
 
@@ -188,6 +194,7 @@ const assignScoutToPost = async ({
 
   return {
     scoutId: submission.userId,
+    vordr: submission.flags?.vordr,
   };
 };
 
@@ -258,13 +265,28 @@ const createPost = async ({
   }
 
   if (submissionId) {
-    const { scoutId } = await assignScoutToPost({
+    const { scoutId, vordr } = await assignScoutToPostAndVordrFlags({
       entityManager,
       submissionId,
       data,
     });
 
     data.scoutId = scoutId;
+    if (vordr === true) {
+      data.banned = true;
+      data.showOnFeed = false;
+
+      data.flags = {
+        ...data.flags,
+        banned: true,
+        showOnFeed: false,
+      };
+    }
+
+    data.flags = {
+      ...data.flags,
+      vordr: vordr,
+    };
   }
 
   const postId = await generateShortId();
@@ -302,6 +324,7 @@ const allowedFieldsMapping = {
     'readTime',
     'summary',
     'tagsStr',
+    'contentMeta',
   ],
 };
 
@@ -385,13 +408,28 @@ const updatePost = async ({
   }
 
   if (submissionId && !databasePost.scoutId) {
-    const { scoutId } = await assignScoutToPost({
+    const { scoutId, vordr } = await assignScoutToPostAndVordrFlags({
       entityManager,
       submissionId,
       data,
     });
 
     data.scoutId = scoutId;
+    if (vordr === true) {
+      data.banned = true;
+      data.showOnFeed = false;
+
+      data.flags = {
+        ...data.flags,
+        banned: true,
+        showOnFeed: false,
+      };
+    }
+
+    data.flags = {
+      ...data.flags,
+      vordr: vordr,
+    };
   }
 
   const title = data?.title || databasePost.title;
