@@ -55,6 +55,8 @@ import {
   VALID_WEEK_STARTS,
   GQLUserIntegration,
   GQLUserCompany,
+  sendEmail,
+  CioTransactionalMessageTemplateId,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -1758,6 +1760,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           companyId: company?.id ?? null,
         });
       }
+
+      await sendEmail({
+        transactional_message_id:
+          CioTransactionalMessageTemplateId.VerifyCompany,
+        message_data: {
+          code,
+        },
+        identifiers: {
+          id: ctx.userId,
+        },
+        to: email,
+      });
 
       return { _: true };
     },
