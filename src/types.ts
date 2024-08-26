@@ -138,3 +138,9 @@ export enum ContentLanguage {
 export type I18nRecord = Partial<Record<ContentLanguage, string>>;
 
 export const validLanguages = Object.values(ContentLanguage);
+
+export type PropsParameters<T extends (props: object) => unknown> = T extends (
+  props: infer P,
+) => unknown
+  ? P
+  : never;

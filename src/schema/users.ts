@@ -3,25 +3,32 @@ import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import {
+  CampaignType,
   Comment,
   Feature,
   FeatureType,
   FeatureValue,
+  Invite,
+  MarketingCta,
   Post,
   PostStats,
+  ReputationEvent,
+  ReputationReason,
+  ReputationType,
   User,
-  validateUserUpdate,
-  View,
-  CampaignType,
-  Invite,
-  UserPersonalizedDigest,
-  getAuthorPostStats,
   UserMarketingCta,
-  MarketingCta,
-  UserPersonalizedDigestType,
+  UserPersonalizedDigest,
   UserPersonalizedDigestFlags,
-  UserPersonalizedDigestSendType,
   UserPersonalizedDigestFlagsPublic,
+  UserPersonalizedDigestSendType,
+  UserPersonalizedDigestType,
+  UserStreak,
+  UserStreakAction,
+  UserStreakActionType,
+  View,
+  getAuthorPostStats,
+  streakRecoverCost,
+  validateUserUpdate,
 } from '../entity';
 import {
   AuthenticationError,
@@ -37,34 +44,36 @@ import {
   queryPaginatedByDate,
 } from '../common/datePageGenerator';
 import {
+  DayOfWeek,
+  GQLUserCompany,
+  GQLUserIntegration,
+  GQLUserStreak,
+  GQLUserStreakTz,
+  StreakRecoverQueryResult,
+  TagsReadingStatus,
+  VALID_WEEK_STARTS,
+  checkAndClearUserStreak,
   getInviteLink,
   getShortUrl,
+  getUserPermalink,
   getUserReadingRank,
-  GQLUserStreak,
-  TagsReadingStatus,
+  resubscribeUser,
+  toGQLEnum,
   uploadAvatar,
   uploadProfileCover,
-  checkAndClearUserStreak,
-  GQLUserStreakTz,
-  toGQLEnum,
-  getUserPermalink,
-  votePost,
   voteComment,
-  resubscribeUser,
-  DayOfWeek,
-  VALID_WEEK_STARTS,
-  GQLUserIntegration,
-  GQLUserCompany,
+  votePost,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
 import graphorm from '../graphorm';
 import { GraphQLResolveInfo } from 'graphql';
 import {
+  ConflictError,
   NotFoundError,
   SubmissionFailErrorKeys,
-  TypeOrmError,
   TypeORMQueryFailedError,
+  TypeOrmError,
 } from '../errors';
 import { deleteUser } from '../directive/user';
 import { randomInt } from 'crypto';
@@ -72,8 +81,8 @@ import { ArrayContains, DataSource, In, IsNull } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
 import { ContentLanguage, UserVote, UserVoteEntity } from '../types';
 import { markdown } from '../common/markdown';
-import { RedisMagicValues, deleteRedisKey, getRedisObject } from '../redis';
-import { StorageKey, StorageTopic, generateStorageKey } from '../config';
+import { deleteRedisKey, getRedisObject, RedisMagicValues } from '../redis';
+import { generateStorageKey, StorageKey, StorageTopic } from '../config';
 import { FastifyBaseLogger } from 'fastify';
 import { cachePrefillMarketingCta } from '../common/redisCache';
 import { cio } from '../cio';
@@ -85,6 +94,7 @@ import {
 import { Company } from '../entity/Company';
 import { UserCompany } from '../entity/UserCompany';
 import { generateVerifyCode } from '../ids';
+import { getRestoreStreakCache } from '../workers/cdc/primary';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -508,6 +518,12 @@ export const typeDefs = /* GraphQL */ `
     tags: [TagsReadingStatus]
   }
 
+  type StreakRecoverQuery {
+    canRecover: Boolean!
+    cost: Int!
+    oldStreakLength: Int!
+  }
+
   type MostReadTag {
     value: String!
     count: Int!
@@ -647,6 +663,10 @@ export const typeDefs = /* GraphQL */ `
     Get the reading rank of the user
     """
     userReadingRank(id: ID!, version: Int, limit: Int): ReadingRank
+    """
+    Get information about the user streak recovery
+    """
+    streakRecover: StreakRecoverQuery @auth
     """
     Get the most read tags of the user
     """
@@ -871,7 +891,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Verify a user company code
     """
-    verifyUserCompanyCode(email: String!, code: String!): EmptyResponse @auth
+    verifyUserCompanyCode(email: String!, code: String!): UserCompany @auth
 
     """
     Clears the user marketing CTA and marks it as read
@@ -902,6 +922,11 @@ export const typeDefs = /* GraphQL */ `
     Update the user's streak configuration
     """
     updateStreakConfig(weekStart: Int): UserStreak @auth
+
+    """
+    Restore user's streak
+    """
+    recoverStreak: UserStreak @auth
   }
 `;
 
@@ -1244,6 +1269,43 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       return streak;
+    },
+    streakRecover: async (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<StreakRecoverQueryResult> => {
+      const { userId } = ctx;
+
+      const [streak, oldStreakLength] = await Promise.all([
+        await ctx.con.getRepository(UserStreak).findOneBy({
+          userId,
+        }),
+        await getRestoreStreakCache({ userId }),
+      ]);
+      const timeForRecoveryPassed = streak.currentStreak > 1;
+
+      if (!oldStreakLength || timeForRecoveryPassed) {
+        return {
+          canRecover: false,
+          cost: 0,
+          oldStreakLength: 0,
+        };
+      }
+
+      const recoverCount = await ctx.con
+        .getRepository(UserStreakAction)
+        .countBy({
+          userId,
+          type: UserStreakActionType.Recover,
+        });
+      const cost = recoverCount > 0 ? streakRecoverCost : 0;
+
+      return {
+        canRecover: true,
+        oldStreakLength,
+        cost,
+      };
     },
     userReads: async (): Promise<number> => {
       // Kept for backwards compatability
@@ -1743,7 +1805,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       if (existingUserCompanyEmail) {
         if (existingUserCompanyEmail.userId !== ctx.userId) {
-          throw new ValidationError('Email already exists');
+          throw new ValidationError(
+            'Oops, there was an issue verifying this email. Please use a different one.',
+          );
         }
 
         const updatedRecord = { ...existingUserCompanyEmail, code };
@@ -1774,7 +1838,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       _,
       { email, code }: { email: string; code: string },
       ctx: AuthContext,
-    ): Promise<GQLEmptyResponse> => {
+      info,
+    ): Promise<GQLUserCompany> => {
       const userCompany = await ctx.con
         .getRepository(UserCompany)
         .findOneByOrFail({
@@ -1790,7 +1855,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const updatedRecord = { ...userCompany, verified: true };
       await ctx.con.getRepository(UserCompany).save(updatedRecord);
 
-      return { _: true };
+      return await graphorm.queryOne<GQLUserCompany>(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder
+          .andWhere(`${builder.alias}."userId" = :userId`, {
+            userId: ctx.userId,
+          })
+          .andWhere(`${builder.alias}."email" = :email`, { email })
+          .andWhere(`${builder.alias}."verified" = true`);
+
+        return builder;
+      });
     },
     clearUserMarketingCta: async (
       _,
@@ -1865,6 +1939,73 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ...streak,
         weekStart,
       };
+    },
+    recoverStreak: async (
+      _,
+      __,
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLUserStreak> => {
+      const { userId } = ctx;
+
+      const oldStreakLength = await getRestoreStreakCache({ userId });
+      if (!oldStreakLength) {
+        throw new ValidationError('No streak to recover');
+      }
+
+      const streak = await getUserStreakQuery(userId, ctx, info);
+      const hasNoStreakOrCurrentIsGreaterThanOne =
+        !streak || streak.current > 1;
+      if (hasNoStreakOrCurrentIsGreaterThanOne) {
+        throw new ValidationError('Time to recover streak has passed');
+      }
+
+      const [user, lastUserRecoverAction] = await Promise.all([
+        ctx.con.getRepository(User).findOneByOrFail({ id: userId }),
+        await ctx.con.getRepository(UserStreakAction).findOneBy({
+          userId,
+          type: UserStreakActionType.Recover,
+        }),
+      ]);
+      const isFirstRecover = !lastUserRecoverAction;
+      const recoverCost = isFirstRecover ? 0 : streakRecoverCost;
+      const userCanAfford = user.reputation >= recoverCost;
+
+      if (!userCanAfford) {
+        throw new ConflictError('Not enough reputation to recover streak');
+      }
+
+      const reputationEvent = {
+        grantToId: userId,
+        targetId: userId,
+        targetType: ReputationType.Streak,
+        reason: isFirstRecover
+          ? ReputationReason.StreakFirstRecovery
+          : ReputationReason.StreakRecover,
+        amount: recoverCost * -1,
+      };
+
+      await ctx.con.transaction(async (entityManager) => {
+        await entityManager
+          .getRepository(ReputationEvent)
+          .save(reputationEvent);
+        await entityManager.getRepository(UserStreakAction).save({
+          userId,
+          type: UserStreakActionType.Recover,
+        });
+        await entityManager.getRepository(UserStreak).update(
+          {
+            userId,
+          },
+          {
+            currentStreak: oldStreakLength + streak.current,
+            maxStreak: Math.max(streak.max, oldStreakLength + streak.current),
+            updatedAt: new Date(),
+          },
+        );
+      });
+
+      return { ...streak, current: oldStreakLength + streak.current };
     },
   },
   User: {

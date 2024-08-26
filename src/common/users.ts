@@ -29,7 +29,7 @@ export interface User {
   timezone?: string;
   acceptedMarketing?: boolean;
   experienceLevel: string | null;
-  language?: ContentLanguage;
+  language: ContentLanguage | null;
 }
 
 export interface GQLUserStreak {
@@ -45,7 +45,7 @@ export interface GQLCompany {
   id: string;
   name: string;
   createdAt: Date;
-  image?: string;
+  image: string;
   domains: string[];
 }
 
@@ -99,6 +99,12 @@ interface ReadingRankQueryResult {
   lastWeek: number;
   today: number;
   lastReadTime: Date;
+}
+
+export interface StreakRecoverQueryResult {
+  canRecover: boolean;
+  cost: number;
+  oldStreakLength: number;
 }
 
 const V1_STEPS_PER_RANK = [3, 4, 5, 6, 7];

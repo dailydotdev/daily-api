@@ -1,5 +1,5 @@
 import { Code, ConnectError, ConnectRouter } from '@connectrpc/connect';
-import { TypeOrmError } from '../errors';
+import { TypeOrmError, TypeORMQueryFailedError } from '../errors';
 import { ArticlePost } from '../entity';
 import { generateShortId } from '../ids';
 import createOrGetConnection from '../db';
@@ -35,7 +35,7 @@ const getDuplicatePost = async ({
 
     return new CreatePostResponse({
       postId: existingPost.id,
-      url: existingPost.url,
+      url: existingPost.url || undefined,
     });
   } catch (error) {
     logger.error({ err: error }, 'error while getting duplicate post');
@@ -90,7 +90,9 @@ export default function (router: ConnectRouter) {
         postId: newPost.identifiers[0].id,
         url: req.url,
       };
-    } catch (error) {
+    } catch (originalError) {
+      const error = originalError as TypeORMQueryFailedError;
+
       logger.error(
         { err: error, data: originalReq.toJson() },
         'error while creating post',

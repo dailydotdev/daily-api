@@ -261,7 +261,7 @@ type AddNewUserResult =
   | { status: 'ok'; userId: string }
   | { status: 'failed'; reason: UserFailErrorKeys; error?: Error };
 
-const checkLanguage = (language?: string): boolean => {
+const checkLanguage = (language?: string | null): boolean => {
   if (!language) {
     return true;
   }
@@ -386,9 +386,9 @@ const handleInsertError = async (
       // If it's not username or primary key than it's twitter and github.
       if (shouldRetry) {
         if (error.message.indexOf('users_twitter_unique') > -1) {
-          data.twitter = null;
+          data.twitter = undefined;
         } else if (error.message.indexOf('users_github_unique') > -1) {
-          data.github = null;
+          data.github = undefined;
         }
         return safeInsertUser(req, con, data, maxIterations, iteration + 1);
       }
@@ -408,8 +408,10 @@ const safeInsertUser = async (
   try {
     await con.getRepository(User).insert(data);
     req.log.info(`Created profile for user with ID: ${data.id}`);
-    return { status: 'ok', userId: data.id };
-  } catch (error) {
+    return { status: 'ok', userId: data.id as string };
+  } catch (originalError) {
+    const error = originalError as Error;
+
     return handleInsertError(error, req, con, data, maxIterations, iteration);
   }
 };
@@ -505,7 +507,12 @@ export const validateUserUpdate = async (
     throw new ValidationError(JSON.stringify({ language: 'invalid language' }));
   }
 
-  ['name', 'twitter', 'github', 'hashnode'].forEach((key) => {
+  (
+    ['name', 'twitter', 'github', 'hashnode'] as (keyof Pick<
+      GQLUpdateUserInput,
+      'name' | 'twitter' | 'github' | 'hashnode'
+    >)[]
+  ).forEach((key) => {
     if (data[key]) {
       data[key] = data[key].replace('@', '').trim();
     }

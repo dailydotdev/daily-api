@@ -58,7 +58,10 @@ export class SimpleFeedConfigGenerator implements FeedConfigGenerator {
     this.baseConfig = baseConfig;
   }
 
-  async generate(ctx, opts): Promise<FeedConfigGeneratorResult> {
+  async generate(
+    ctx: Context,
+    opts: DynamicConfig,
+  ): Promise<FeedConfigGeneratorResult> {
     return {
       config: getDefaultConfig(this.baseConfig, opts),
     };
@@ -91,11 +94,11 @@ const addFiltersToConfig = ({
   if (filters.excludeTypes?.length && opts.includePostTypes) {
     baseConfig.allowed_post_types = (
       baseConfig.allowed_post_types || postTypes
-    ).filter((x) => !filters.excludeTypes.includes(x));
+    ).filter((x) => !filters.excludeTypes!.includes(x));
   }
   if (filters.blockedContentCuration?.length && opts.includeContentCuration) {
     baseConfig.allowed_content_curations = AllowedContentCurationTypes.filter(
-      (type) => !filters.blockedContentCuration.includes(type),
+      (type) => !filters.blockedContentCuration!.includes(type),
     );
   }
 
@@ -114,7 +117,10 @@ export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
     this.opts = opts;
   }
 
-  async generate(ctx, opts): Promise<FeedConfigGeneratorResult> {
+  async generate(
+    ctx: Context,
+    opts: DynamicConfig,
+  ): Promise<FeedConfigGeneratorResult> {
     return runInSpan('FeedPreferencesConfigGenerator', async () => {
       const defaultConfig = getDefaultConfig(this.baseConfig, opts);
       const userId = opts.user_id;
@@ -149,10 +155,13 @@ export class FeedUserStateConfigGenerator implements FeedConfigGenerator {
     this.personalizationThreshold = personalizationThreshold;
   }
 
-  async generate(ctx, opts): Promise<FeedConfigGeneratorResult> {
+  async generate(
+    ctx: Context,
+    opts: DynamicConfig,
+  ): Promise<FeedConfigGeneratorResult> {
     return runInSpan('FeedUserStateConfigGenerator', async () => {
       const userState = await this.snotraClient.fetchUserState({
-        user_id: opts.user_id,
+        user_id: opts.user_id!,
         providers: { personalise: {} },
         post_rank_count: this.personalizationThreshold,
       });
@@ -193,18 +202,26 @@ export class FeedLofnConfigGenerator implements FeedConfigGenerator {
       try {
         const [lofnConfig, preferencesConfig] = await Promise.all([
           this.lofnClient.fetchConfig({
-            user_id: opts.user_id,
+            user_id: opts.user_id!,
             feed_version: this.opts.feed_version,
-            cursor: opts.cursor,
+            cursor: opts.cursor!,
           }),
           this.feedPreferencesConfigGenerator.generate(ctx, opts),
         ]);
 
-        delete lofnConfig.config.page_size;
-        delete lofnConfig.config.total_pages;
+        const configWithoutPagination = lofnConfig.config as Omit<
+          typeof lofnConfig.config,
+          'page_size' | 'total_pages'
+        > & {
+          page_size?: number;
+          total_pages?: number;
+        };
+
+        delete configWithoutPagination.page_size;
+        delete configWithoutPagination.total_pages;
 
         const config = {
-          config: lofnConfig.config,
+          config: configWithoutPagination,
           ...lofnConfig.extra,
           ...preferencesConfig.config,
         };
@@ -255,7 +272,10 @@ export class FeedLocalConfigGenerator implements FeedConfigGenerator {
     this.opts = opts;
   }
 
-  async generate(ctx, opts): Promise<FeedConfigGeneratorResult> {
+  async generate(
+    ctx: Context,
+    opts: DynamicConfig,
+  ): Promise<FeedConfigGeneratorResult> {
     return runInSpan('FeedLocalConfigGenerator', async () => {
       const defaultConfig = getDefaultConfig(this.baseConfig, opts);
       const filters = this.opts.feedFilters || {};

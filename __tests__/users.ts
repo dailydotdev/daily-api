@@ -20,6 +20,7 @@ import {
   MockContext,
   saveFixtures,
   TEST_UA,
+  testMutationError,
   testMutationErrorCode,
   testQueryError,
   testQueryErrorCode,
@@ -70,7 +71,11 @@ import setCookieParser from 'set-cookie-parser';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { CampaignType, Invite } from '../src/entity/Invite';
 import { usersFixture } from './fixture/user';
-import { deleteRedisKey, getRedisObject } from '../src/redis';
+import {
+  deleteRedisKey,
+  getRedisObject,
+  setRedisObjectWithExpiry,
+} from '../src/redis';
 import { generateStorageKey, StorageKey, StorageTopic } from '../src/config';
 import {
   UserIntegration,
@@ -580,6 +585,189 @@ describe('query userStreaks', () => {
       ]);
 
       await expectStreak(5, 5, lastViewAt);
+    });
+
+    describe('streak recover query', () => {
+      const QUERY = `query StreakRecover {
+        streakRecover {
+          canRecover
+          cost
+          oldStreakLength
+        }
+      }`;
+
+      it('should return recover data when user fetch query', async () => {
+        nock('http://localhost:5000').post('/e').reply(204);
+        loggedUser = '1';
+
+        const { data, errors } = await client.query(QUERY);
+        expect(errors).toBeFalsy();
+        const { streakRecover } = data;
+        expect(streakRecover).toHaveProperty('canRecover');
+        expect(streakRecover).toHaveProperty('cost');
+        expect(streakRecover).toHaveProperty('oldStreakLength');
+      });
+
+      it('should disallow recover when user is not authenticated', async () => {
+        loggedUser = null;
+        return testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED');
+      });
+
+      it('should disallow recover when user has no streak', async () => {
+        loggedUser = '2';
+        const { data, errors } = await client.query(QUERY);
+        expect(errors).toBeFalsy();
+        expect(data.streakRecover.canRecover).toBeFalsy();
+      });
+
+      it('should allow recover when user has streak', async () => {
+        loggedUser = '1';
+        const oldLength = 5;
+        await con.getRepository(UserStreak).save({
+          userId: loggedUser,
+          currentStreak: 0,
+          lastViewAt: subDays(new Date(), 2),
+        });
+
+        // insert redis key with old streak length
+        const redisKey = generateStorageKey(
+          StorageTopic.Streak,
+          StorageKey.Reset,
+          loggedUser,
+        );
+        await setRedisObjectWithExpiry(
+          redisKey,
+          oldLength,
+          addDays(new Date(), 1).getTime(),
+        );
+
+        const { data, errors } = await client.query(QUERY);
+        expect(errors).toBeFalsy();
+        expect(data.streakRecover.canRecover).toBeTruthy();
+        expect(data.streakRecover.oldStreakLength).toBe(oldLength);
+
+        await deleteRedisKey(redisKey);
+      });
+    });
+  });
+
+  describe('streak recovery mutation', () => {
+    const MUTATION = `
+      mutation RecoverStreak {
+        recoverStreak {
+          current
+          lastViewAt
+        }
+      }
+    `;
+
+    it('should not authorize when not logged in', async () =>
+      await testMutationErrorCode(
+        client,
+        { mutation: MUTATION },
+        'UNAUTHENTICATED',
+      ));
+
+    it('should not recover if old streak has expired', async () => {
+      loggedUser = '1';
+      await con.getRepository(UserStreak).update(
+        { userId: loggedUser },
+        {
+          currentStreak: 0,
+          lastViewAt: subDays(new Date(), 2),
+        },
+      );
+      await con.getRepository(UserStreakAction).save([
+        {
+          userId: loggedUser,
+          type: UserStreakActionType.Recover,
+          createdAt: subDays(new Date(), 4),
+        },
+      ]);
+      await con
+        .getRepository(User)
+        .update({ id: loggedUser }, { reputation: 500 });
+
+      await testMutationError(client, { mutation: MUTATION }, (errors) => {
+        expect(errors).toBeDefined();
+        expect(errors[0].message).toEqual('No streak to recover');
+      });
+    });
+
+    it('should not recover if user has not enough reputation', async () => {
+      loggedUser = '1';
+      await con.getRepository(UserStreak).update(
+        { userId: loggedUser },
+        {
+          currentStreak: 0,
+          lastViewAt: subDays(new Date(), 2),
+        },
+      );
+      await con.getRepository(UserStreakAction).save([
+        {
+          userId: loggedUser,
+          type: UserStreakActionType.Recover,
+          createdAt: subDays(new Date(), 4),
+        },
+      ]);
+      await con
+        .getRepository(User)
+        .update({ id: loggedUser }, { reputation: 24 });
+
+      const oldLength = 10;
+      const redisKey = generateStorageKey(
+        StorageTopic.Streak,
+        StorageKey.Reset,
+        loggedUser,
+      );
+      await setRedisObjectWithExpiry(
+        redisKey,
+        oldLength,
+        addDays(new Date(), 1).getTime(),
+      );
+
+      await testMutationError(client, { mutation: MUTATION }, (errors) => {
+        expect(errors).toBeDefined();
+        expect(errors[0].message).toEqual(
+          'Not enough reputation to recover streak',
+        );
+      });
+
+      await deleteRedisKey(redisKey);
+    });
+
+    it('should recover the streak if user has enough reputation', async () => {
+      loggedUser = '1';
+      await con.getRepository(UserStreak).update(
+        { userId: loggedUser },
+        {
+          currentStreak: 0,
+          lastViewAt: subDays(new Date(), 2),
+        },
+      );
+      await con
+        .getRepository(User)
+        .update({ id: loggedUser }, { reputation: 25 });
+
+      // insert redis key with old streak length
+      const oldLength = 10;
+      const redisKey = generateStorageKey(
+        StorageTopic.Streak,
+        StorageKey.Reset,
+        loggedUser,
+      );
+      await setRedisObjectWithExpiry(
+        redisKey,
+        oldLength,
+        addDays(new Date(), 1).getTime(),
+      );
+
+      const { data, errors } = await client.mutate(MUTATION);
+      const { recoverStreak } = data;
+      expect(errors).toBeFalsy();
+      expect(recoverStreak).toBeTruthy();
+      expect(recoverStreak.current).toEqual(oldLength);
+      await deleteRedisKey(redisKey);
     });
   });
 
@@ -1110,7 +1298,9 @@ describe('user company', () => {
           expect(errors[0].extensions.code).toEqual(
             'GRAPHQL_VALIDATION_FAILED',
           );
-          expect(errors[0].message).toEqual('Email already exists');
+          expect(errors[0].message).toEqual(
+            'Oops, there was an issue verifying this email. Please use a different one.',
+          );
         },
       );
     });
@@ -1230,7 +1420,7 @@ describe('user company', () => {
   describe('mutation verifyUserCompanyCode', () => {
     const QUERY = `mutation VerifyUserCompanyCode($email: String!, $code: String!) {
     verifyUserCompanyCode(email: $email, code: $code) {
-      _
+      email
     }
   }`;
 
@@ -1312,7 +1502,7 @@ describe('user company', () => {
         variables: { email: 'u1@com3.com', code: '123' },
       });
       expect(res.errors).toBeFalsy();
-      expect(res.data.verifyUserCompanyCode._).toBeTruthy();
+      expect(res.data.verifyUserCompanyCode.email).toEqual('u1@com3.com');
       const row = await con.getRepository(UserCompany).findOneBy({
         email: 'u1@com3.com',
       });

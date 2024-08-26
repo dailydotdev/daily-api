@@ -6,7 +6,7 @@ import { runInSpan, TelemetrySemanticAttributes } from '../telemetry';
 export class AbortError extends Error {
   public originalError: Error;
 
-  constructor(message) {
+  constructor(message: Error | string) {
     super();
 
     if (message instanceof Error) {
