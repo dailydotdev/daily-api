@@ -33,7 +33,7 @@ export interface User {
   timezone?: string;
   acceptedMarketing?: boolean;
   experienceLevel: string | null;
-  language?: ContentLanguage;
+  language: ContentLanguage | null;
 }
 
 export interface GQLUserStreak {

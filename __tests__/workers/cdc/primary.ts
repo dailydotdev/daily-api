@@ -3210,7 +3210,10 @@ describe('post content updated', () => {
   });
 
   it('should handle JSON string from jsonb fields', async () => {
-    const after: ChangeObject<ArticlePost> = {
+    type ArticlePostJsonB = Omit<ArticlePost, 'contentMeta'> & {
+      contentMeta: string;
+    };
+    const after: ChangeObject<ArticlePostJsonB> = {
       ...contentUpdatedPost,
       type: PostType.Article,
       url: 'http://p4.com',
@@ -3222,7 +3225,7 @@ describe('post content updated', () => {
     };
     await expectSuccessfulBackground(
       worker,
-      mockChangeMessage<ArticlePost>({
+      mockChangeMessage<ArticlePostJsonB>({
         after,
         before: after,
         op: 'u',

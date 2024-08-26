@@ -2,7 +2,7 @@ import { Context } from '../../Context';
 import { GenericMetadata } from '../lofn';
 
 export type FeedResponse = {
-  data: [postId: string, metadata: string | undefined][];
+  data: [postId: string, metadata: string | null][];
   cursor?: string;
 };
 

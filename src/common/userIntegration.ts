@@ -100,8 +100,10 @@ export const getAttachmentForPostType = async <TPostType extends PostType>({
     case PostType.Welcome: {
       const freeformPost = post as FreeformPost & WelcomePost;
 
-      attachment.title = freeformPost.title;
-      attachment.title_link = postLink;
+      if (freeformPost.title) {
+        attachment.title = freeformPost.title;
+        attachment.title_link = postLink;
+      }
 
       if (freeformPost.image) {
         attachment.image_url = freeformPost.image;

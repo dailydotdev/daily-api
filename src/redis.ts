@@ -1,6 +1,6 @@
 import { RedisPubSub } from '@dailydotdev/graphql-redis-subscriptions';
 import { IORedisPool, IORedisPoolOptions } from '@dailydotdev/ts-ioredis-pool';
-import Redis from 'ioredis';
+import Redis, { RedisKey } from 'ioredis';
 
 export const redisOptions = {
   host: process.env.REDIS_HOST,
@@ -62,7 +62,7 @@ export const setRedisObjectWithExpiry = (
   seconds: number,
 ) => ioRedisPool.execute((client) => client.set(key, value, 'EX', seconds));
 
-export const getRedisObject = (key) =>
+export const getRedisObject = (key: RedisKey) =>
   ioRedisPool.execute((client) => client.get(key));
 
 export const getRedisKeysByPattern = (pattern: string) =>

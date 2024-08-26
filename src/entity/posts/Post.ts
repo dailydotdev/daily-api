@@ -92,10 +92,10 @@ export class Post {
   type: PostType;
 
   @Column({ type: 'text', nullable: true })
-  title?: string;
+  title?: string | null;
 
   @Column({ type: 'text', nullable: true })
-  titleHtml?: string;
+  titleHtml?: string | null;
 
   @Column({ length: 14 })
   @Index('IDX_post_shortid', { unique: true })
@@ -195,7 +195,7 @@ export class Post {
 
   @Column({ nullable: true, type: 'tsvector', select: false })
   @Index('IDX_post_tsv', { synchronize: false })
-  tsv: unknown;
+  tsv: string;
 
   @Column({ default: false })
   private: boolean;
@@ -257,7 +257,7 @@ export class Post {
   slug: string;
 
   @Column({ type: 'jsonb', default: {} })
-  contentMeta: unknown;
+  contentMeta: object;
 
   @Column({ type: 'jsonb', default: {} })
   contentQuality: PostContentQuality;

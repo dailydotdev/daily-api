@@ -2,7 +2,8 @@
 
 const objectToString = Object.prototype.toString;
 
-const isError = (value) => objectToString.call(value) === '[object Error]';
+const isError = (value: Error) =>
+  objectToString.call(value) === '[object Error]';
 
 const errorMessages = new Set([
   'Failed to fetch', // Chrome
@@ -13,7 +14,7 @@ const errorMessages = new Set([
   'fetch failed', // Undici (Node.js)
 ]);
 
-export default function isNetworkError(error) {
+export default function isNetworkError(error: Error) {
   const isValid =
     error &&
     isError(error) &&
