@@ -9,8 +9,8 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { User } from './user';
-import { Company } from './Company';
+import type { User } from './user';
+import type { Company } from './Company';
 
 @Entity()
 export class UserCompany {
@@ -33,7 +33,7 @@ export class UserCompany {
   @PrimaryColumn()
   userId: string;
 
-  @ManyToOne(() => User, {
+  @ManyToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
   })
@@ -43,7 +43,7 @@ export class UserCompany {
   @Column()
   companyId: string;
 
-  @OneToOne(() => Company, {
+  @OneToOne('Company', {
     nullable: true,
     lazy: true,
     onDelete: 'CASCADE',
