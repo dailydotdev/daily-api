@@ -1117,7 +1117,7 @@ describe('user company', () => {
         client,
         { query: QUERY, variables: { email: 'u2@com4.com' } },
         (errors) => {
-          expect(errors[0].extensions.code).toEqual(
+          expect(errors[0].extensions!.code).toEqual(
             'GRAPHQL_VALIDATION_FAILED',
           );
           expect(errors[0].message).toEqual(
@@ -1200,6 +1200,30 @@ describe('user company', () => {
         },
         transactional_message_id: '51',
       });
+    });
+
+    it('should not send verification email to user if email is verified', async () => {
+      loggedUser = '1';
+      await con.getRepository(UserCompany).save({
+        verified: true,
+        email: 'u1@com3.com',
+        code: '654321',
+        userId: loggedUser,
+      });
+      return testQueryError(
+        client,
+        { query: QUERY, variables: { email: 'u1@com3.com' } },
+        (errors) => {
+          expect(errors[0].extensions!.code).toEqual(
+            'GRAPHQL_VALIDATION_FAILED',
+          );
+          expect(errors[0].message).toEqual(
+            'This email has already been verified',
+          );
+
+          expect(sendEmail).not.toHaveBeenCalled();
+        },
+      );
     });
   });
 
