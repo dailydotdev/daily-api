@@ -1731,7 +1731,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       if (!email?.length) {
         throw new ValidationError('Email is required');
       }
-      if (!email!.match(emailRegex)) {
+      if (!email!.match(emailRegex) || email.length > 200) {
         throw new ValidationError('Invalid email');
       }
       const company = await ctx.con.getRepository(Company).findOneBy({
