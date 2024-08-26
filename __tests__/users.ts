@@ -1193,6 +1193,7 @@ describe('user company', () => {
       expect(sendEmail).toHaveBeenCalledTimes(1);
       expect(sendEmail).toHaveBeenCalledWith({
         to: 'u1@com4.com',
+        send_to_unsubscribed: true,
         message_data: {
           code: expect.any(String),
         },
