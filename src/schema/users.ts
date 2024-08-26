@@ -1766,6 +1766,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       await sendEmail({
+        send_to_unsubscribed: true,
         transactional_message_id:
           CioTransactionalMessageTemplateId.VerifyCompany,
         message_data: {
