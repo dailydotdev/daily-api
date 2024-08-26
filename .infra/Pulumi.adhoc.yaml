@@ -54,7 +54,7 @@ config:
     enablePubsub: true
     gcloudProject: local
     heimdallOrigin: http://heimdall-api
-    ignoredWorkEmailDomans: "igored.com,ignored.org"
+    ignoredWorkEmailDomains: "igored.com,ignored.org"
     jwtAudience: Daily Staging
     jwtIssuer: Daily API Staging
     jwtSecret: '|r+.2!!!.Qf_-|63*%.D'

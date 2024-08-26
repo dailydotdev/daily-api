@@ -76,7 +76,7 @@ config:
       secure: AAABAKzPgckVKQYS/8TUyknOtW9gknSaYdZSEh+50+IGHe+u9AyZA5hXHCroH32XhjUPnrLjihrno9Yc/PgrN4p9OmE9mHj/GUCgzJMmjAjJ0Kg/wBXuT+BEsYbio3NEDcQ9kp36Ag9rXp0Y0ZHlF3SLy27cbf/rOmG9ag==
     heimdallOrigin:
       secure: AAABAO9RoubWpait/nS4zFIb3Z1WEmfeXA4mr05AqXRYhCD90QWekpmEjTKoUKogyEokJz+6gCpGJxdV
-    ignoredWorkEmailDomans:
+    ignoredWorkEmailDomains:
       secure: AAABAL+eWlgaSDHx8t4n544YeG6dzFEO/2zBskmWu0ZXrEgYGBHeT76kNu95N43QssRgxu4+s9JvcZc4Gk9NIGwrmbF7RY19/V3EC3lPB+hnpUW7D/z7DpQQ
     internalFeed:
       secure: AAABAPV9e8DPb3u4sNEIx14mEknn4noEbMVUH9hv2esac8TvNDY4CJuv9aojztt1B6kfUCsLhC5iBgSvx6LGGxkbk2dug/XvmG0r2Q==

@@ -111,15 +111,15 @@ export const safeJSONParse = <T>(json: string): T | undefined => {
   }
 };
 
-const ignoredWorkEmailDomans =
-  process.env.IGNORED_WORK_EMAIL_DOMANS?.split(',')
+const ignoredWorkEmailDomains =
+  process.env.IGNORED_WORK_EMAIL_DOMAINS?.split(',')
     .filter((domain) => Boolean(domain))
     .map((domain) => domain.toLowerCase()) || [];
 
 export const validateWorkEmailDomain = (domain: string): boolean => {
   const lowerCaseDomain = domain.toLowerCase();
 
-  return ignoredWorkEmailDomans.some((ignoredDomain) =>
+  return ignoredWorkEmailDomains.some((ignoredDomain) =>
     lowerCaseDomain.includes(ignoredDomain),
   );
 };
