@@ -586,6 +586,69 @@ describe('query userStreaks', () => {
 
       await expectStreak(5, 5, lastViewAt);
     });
+
+    describe('streak recover query', () => {
+      const QUERY = `query StreakRecover {
+        streakRecover {
+          canRecover
+          cost
+          oldStreakLength
+        }
+      }`;
+
+      it('should return recover data when user fetch query', async () => {
+        nock('http://localhost:5000').post('/e').reply(204);
+        loggedUser = '1';
+
+        const { data, errors } = await client.query(QUERY);
+        expect(errors).toBeFalsy();
+        const { streakRecover } = data;
+        expect(streakRecover).toHaveProperty('canRecover');
+        expect(streakRecover).toHaveProperty('cost');
+        expect(streakRecover).toHaveProperty('oldStreakLength');
+      });
+
+      it('should disallow recover when user is not authenticated', async () => {
+        loggedUser = null;
+        return testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED');
+      });
+
+      it('should disallow recover when user has no streak', async () => {
+        loggedUser = '2';
+        const { data, errors } = await client.query(QUERY);
+        expect(errors).toBeFalsy();
+        expect(data.streakRecover.canRecover).toBeFalsy();
+      });
+
+      it('should allow recover when user has streak', async () => {
+        loggedUser = '1';
+        const oldLength = 5;
+        await con.getRepository(UserStreak).save({
+          userId: loggedUser,
+          currentStreak: 0,
+          lastViewAt: subDays(new Date(), 2),
+        });
+
+        // insert redis key with old streak length
+        const redisKey = generateStorageKey(
+          StorageTopic.Streak,
+          StorageKey.Reset,
+          loggedUser,
+        );
+        await setRedisObjectWithExpiry(
+          redisKey,
+          oldLength,
+          addDays(new Date(), 1).getTime(),
+        );
+
+        const { data, errors } = await client.query(QUERY);
+        expect(errors).toBeFalsy();
+        expect(data.streakRecover.canRecover).toBeTruthy();
+        expect(data.streakRecover.oldStreakLength).toBe(oldLength);
+
+        await deleteRedisKey(redisKey);
+      });
+    });
   });
 
   describe('streak recovery mutation', () => {

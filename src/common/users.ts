@@ -105,6 +105,12 @@ interface ReadingRankQueryResult {
   lastReadTime: Date;
 }
 
+export interface StreakRecoverQueryResult {
+  canRecover: boolean;
+  cost: number;
+  oldStreakLength: number;
+}
+
 const V1_STEPS_PER_RANK = [3, 4, 5, 6, 7];
 const STEPS_PER_RANK_REVERSE = V1_STEPS_PER_RANK.reverse();
 

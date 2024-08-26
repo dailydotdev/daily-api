@@ -50,7 +50,6 @@ import {
   getShortUrl,
   getUserPermalink,
   getUserReadingRank,
-  GQLUserCompany,
   GQLUserIntegration,
   GQLUserStreak,
   GQLUserStreakTz,
@@ -62,6 +61,7 @@ import {
   VALID_WEEK_STARTS,
   voteComment,
   votePost,
+  GQLUserCompany,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -517,6 +517,12 @@ export const typeDefs = /* GraphQL */ `
     tags: [TagsReadingStatus]
   }
 
+  type StreakRecoverQuery {
+    canRecover: Boolean!
+    cost: Int!
+    oldStreakLength: Int!
+  }
+
   type MostReadTag {
     value: String!
     count: Int!
@@ -656,6 +662,10 @@ export const typeDefs = /* GraphQL */ `
     Get the reading rank of the user
     """
     userReadingRank(id: ID!, version: Int, limit: Int): ReadingRank
+    """
+    Get information about the user streak recovery
+    """
+    streakRecover: StreakRecoverQuery @auth
     """
     Get the most read tags of the user
     """
@@ -1258,6 +1268,43 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       return streak;
+    },
+    streakRecover: async (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<StreakRecoverQueryResult> => {
+      const { userId } = ctx;
+
+      const [streak, oldStreakLength] = await Promise.all([
+        await ctx.con.getRepository(UserStreak).findOneBy({
+          userId,
+        }),
+        await getRestoreStreakCache({ userId }),
+      ]);
+      const timeForRecoveryPassed = streak.currentStreak > 1;
+
+      if (!oldStreakLength || timeForRecoveryPassed) {
+        return {
+          canRecover: false,
+          cost: 0,
+          oldStreakLength: 0,
+        };
+      }
+
+      const recoverCount = await ctx.con
+        .getRepository(UserStreakAction)
+        .countBy({
+          userId,
+          type: UserStreakActionType.Recover,
+        });
+      const cost = recoverCount > 0 ? streakRecoverCost : 0;
+
+      return {
+        canRecover: true,
+        oldStreakLength,
+        cost,
+      };
     },
     userReads: async (): Promise<number> => {
       // Kept for backwards compatability
