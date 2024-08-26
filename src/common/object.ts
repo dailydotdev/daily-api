@@ -55,6 +55,7 @@ export const nameRegex = new RegExp(/^(.){1,60}$/);
 export const socialHandleRegex = new RegExp(/^@?([\w-]){1,39}$/i);
 export const handleRegex = new RegExp(/^@?[a-z0-9](\w){2,38}$/i);
 export const descriptionRegex = new RegExp(/^[\S\s]{1,250}$/);
+// Originated from: https://emailregex.com
 export const emailRegex = new RegExp(
   /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/,
 );
