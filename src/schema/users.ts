@@ -8,7 +8,6 @@ import {
   Feature,
   FeatureType,
   FeatureValue,
-  getAuthorPostStats,
   Invite,
   MarketingCta,
   Post,
@@ -16,7 +15,6 @@ import {
   ReputationEvent,
   ReputationReason,
   ReputationType,
-  streakRecoverCost,
   User,
   UserMarketingCta,
   UserPersonalizedDigest,
@@ -27,8 +25,10 @@ import {
   UserStreak,
   UserStreakAction,
   UserStreakActionType,
-  validateUserUpdate,
   View,
+  getAuthorPostStats,
+  streakRecoverCost,
+  validateUserUpdate,
 } from '../entity';
 import {
   AuthenticationError,
@@ -44,24 +44,25 @@ import {
   queryPaginatedByDate,
 } from '../common/datePageGenerator';
 import {
-  checkAndClearUserStreak,
   DayOfWeek,
+  GQLUserCompany,
+  GQLUserIntegration,
+  GQLUserStreak,
+  GQLUserStreakTz,
+  StreakRecoverQueryResult,
+  TagsReadingStatus,
+  VALID_WEEK_STARTS,
+  checkAndClearUserStreak,
   getInviteLink,
   getShortUrl,
   getUserPermalink,
   getUserReadingRank,
-  GQLUserIntegration,
-  GQLUserStreak,
-  GQLUserStreakTz,
   resubscribeUser,
-  TagsReadingStatus,
   toGQLEnum,
   uploadAvatar,
   uploadProfileCover,
-  VALID_WEEK_STARTS,
   voteComment,
   votePost,
-  GQLUserCompany,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -71,8 +72,8 @@ import {
   ConflictError,
   NotFoundError,
   SubmissionFailErrorKeys,
-  TypeOrmError,
   TypeORMQueryFailedError,
+  TypeOrmError,
 } from '../errors';
 import { deleteUser } from '../directive/user';
 import { randomInt } from 'crypto';
