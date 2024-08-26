@@ -3,25 +3,32 @@ import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import {
+  CampaignType,
   Comment,
   Feature,
   FeatureType,
   FeatureValue,
+  getAuthorPostStats,
+  Invite,
+  MarketingCta,
   Post,
   PostStats,
+  ReputationEvent,
+  ReputationReason,
+  ReputationType,
+  streakRecoverCost,
   User,
+  UserMarketingCta,
+  UserPersonalizedDigest,
+  UserPersonalizedDigestFlags,
+  UserPersonalizedDigestFlagsPublic,
+  UserPersonalizedDigestSendType,
+  UserPersonalizedDigestType,
+  UserStreak,
+  UserStreakAction,
+  UserStreakActionType,
   validateUserUpdate,
   View,
-  CampaignType,
-  Invite,
-  UserPersonalizedDigest,
-  getAuthorPostStats,
-  UserMarketingCta,
-  MarketingCta,
-  UserPersonalizedDigestType,
-  UserPersonalizedDigestFlags,
-  UserPersonalizedDigestSendType,
-  UserPersonalizedDigestFlagsPublic,
 } from '../entity';
 import {
   AuthenticationError,
@@ -37,30 +44,31 @@ import {
   queryPaginatedByDate,
 } from '../common/datePageGenerator';
 import {
+  checkAndClearUserStreak,
+  DayOfWeek,
   getInviteLink,
   getShortUrl,
+  getUserPermalink,
   getUserReadingRank,
+  GQLUserCompany,
+  GQLUserIntegration,
   GQLUserStreak,
+  GQLUserStreakTz,
+  resubscribeUser,
   TagsReadingStatus,
+  toGQLEnum,
   uploadAvatar,
   uploadProfileCover,
-  checkAndClearUserStreak,
-  GQLUserStreakTz,
-  toGQLEnum,
-  getUserPermalink,
-  votePost,
-  voteComment,
-  resubscribeUser,
-  DayOfWeek,
   VALID_WEEK_STARTS,
-  GQLUserIntegration,
-  GQLUserCompany,
+  voteComment,
+  votePost,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
 import graphorm from '../graphorm';
 import { GraphQLResolveInfo } from 'graphql';
 import {
+  ConflictError,
   NotFoundError,
   SubmissionFailErrorKeys,
   TypeOrmError,
@@ -72,8 +80,8 @@ import { ArrayContains, DataSource, In, IsNull } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
 import { ContentLanguage, UserVote, UserVoteEntity } from '../types';
 import { markdown } from '../common/markdown';
-import { RedisMagicValues, deleteRedisKey, getRedisObject } from '../redis';
-import { StorageKey, StorageTopic, generateStorageKey } from '../config';
+import { deleteRedisKey, getRedisObject, RedisMagicValues } from '../redis';
+import { generateStorageKey, StorageKey, StorageTopic } from '../config';
 import { FastifyBaseLogger } from 'fastify';
 import { cachePrefillMarketingCta } from '../common/redisCache';
 import { cio } from '../cio';
@@ -85,6 +93,7 @@ import {
 import { Company } from '../entity/Company';
 import { UserCompany } from '../entity/UserCompany';
 import { generateVerifyCode } from '../ids';
+import { getRestoreStreakCache } from '../workers/cdc/primary';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -902,6 +911,11 @@ export const typeDefs = /* GraphQL */ `
     Update the user's streak configuration
     """
     updateStreakConfig(weekStart: Int): UserStreak @auth
+
+    """
+    Restore user's streak
+    """
+    recoverStreak: UserStreak @auth
   }
 `;
 
@@ -1865,6 +1879,73 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ...streak,
         weekStart,
       };
+    },
+    recoverStreak: async (
+      _,
+      __,
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLUserStreak> => {
+      const { userId } = ctx;
+
+      const oldStreakLength = await getRestoreStreakCache({ userId });
+      if (!oldStreakLength) {
+        throw new ValidationError('No streak to recover');
+      }
+
+      const streak = await getUserStreakQuery(userId, ctx, info);
+      const hasNoStreakOrCurrentIsGreaterThanOne =
+        !streak || streak.current > 1;
+      if (hasNoStreakOrCurrentIsGreaterThanOne) {
+        throw new ValidationError('Time to recover streak has passed');
+      }
+
+      const [user, lastUserRecoverAction] = await Promise.all([
+        ctx.con.getRepository(User).findOneByOrFail({ id: userId }),
+        await ctx.con.getRepository(UserStreakAction).findOneBy({
+          userId,
+          type: UserStreakActionType.Recover,
+        }),
+      ]);
+      const isFirstRecover = !lastUserRecoverAction;
+      const recoverCost = isFirstRecover ? 0 : streakRecoverCost;
+      const userCanAfford = user.reputation >= recoverCost;
+
+      if (!userCanAfford) {
+        throw new ConflictError('Not enough reputation to recover streak');
+      }
+
+      const reputationEvent = {
+        grantToId: userId,
+        targetId: userId,
+        targetType: ReputationType.Streak,
+        reason: isFirstRecover
+          ? ReputationReason.StreakFirstRecovery
+          : ReputationReason.StreakRecover,
+        amount: recoverCost * -1,
+      };
+
+      await ctx.con.transaction(async (entityManager) => {
+        await entityManager
+          .getRepository(ReputationEvent)
+          .save(reputationEvent);
+        await entityManager.getRepository(UserStreakAction).save({
+          userId,
+          type: UserStreakActionType.Recover,
+        });
+        await entityManager.getRepository(UserStreak).update(
+          {
+            userId,
+          },
+          {
+            currentStreak: oldStreakLength + streak.current,
+            maxStreak: Math.max(streak.max, oldStreakLength + streak.current),
+            updatedAt: new Date(),
+          },
+        );
+      });
+
+      return { ...streak, current: oldStreakLength + streak.current };
     },
   },
   User: {

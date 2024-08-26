@@ -20,6 +20,7 @@ import {
   MockContext,
   saveFixtures,
   TEST_UA,
+  testMutationError,
   testMutationErrorCode,
   testQueryError,
   testQueryErrorCode,
@@ -70,7 +71,11 @@ import setCookieParser from 'set-cookie-parser';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { CampaignType, Invite } from '../src/entity/Invite';
 import { usersFixture } from './fixture/user';
-import { deleteRedisKey, getRedisObject } from '../src/redis';
+import {
+  deleteRedisKey,
+  getRedisObject,
+  setRedisObjectWithExpiry,
+} from '../src/redis';
 import { generateStorageKey, StorageKey, StorageTopic } from '../src/config';
 import {
   UserIntegration,
@@ -580,6 +585,126 @@ describe('query userStreaks', () => {
       ]);
 
       await expectStreak(5, 5, lastViewAt);
+    });
+  });
+
+  describe('streak recovery mutation', () => {
+    const MUTATION = `
+      mutation RecoverStreak {
+        recoverStreak {
+          current
+          lastViewAt
+        }
+      }
+    `;
+
+    it('should not authorize when not logged in', async () =>
+      await testMutationErrorCode(
+        client,
+        { mutation: MUTATION },
+        'UNAUTHENTICATED',
+      ));
+
+    it('should not recover if old streak has expired', async () => {
+      loggedUser = '1';
+      await con.getRepository(UserStreak).update(
+        { userId: loggedUser },
+        {
+          currentStreak: 0,
+          lastViewAt: subDays(new Date(), 2),
+        },
+      );
+      await con.getRepository(UserStreakAction).save([
+        {
+          userId: loggedUser,
+          type: UserStreakActionType.Recover,
+          createdAt: subDays(new Date(), 4),
+        },
+      ]);
+      await con
+        .getRepository(User)
+        .update({ id: loggedUser }, { reputation: 500 });
+
+      await testMutationError(client, { mutation: MUTATION }, (errors) => {
+        expect(errors).toBeDefined();
+        expect(errors[0].message).toEqual('No streak to recover');
+      });
+    });
+
+    it('should not recover if user has not enough reputation', async () => {
+      loggedUser = '1';
+      await con.getRepository(UserStreak).update(
+        { userId: loggedUser },
+        {
+          currentStreak: 0,
+          lastViewAt: subDays(new Date(), 2),
+        },
+      );
+      await con.getRepository(UserStreakAction).save([
+        {
+          userId: loggedUser,
+          type: UserStreakActionType.Recover,
+          createdAt: subDays(new Date(), 4),
+        },
+      ]);
+      await con
+        .getRepository(User)
+        .update({ id: loggedUser }, { reputation: 24 });
+
+      const oldLength = 10;
+      const redisKey = generateStorageKey(
+        StorageTopic.Streak,
+        StorageKey.Reset,
+        loggedUser,
+      );
+      await setRedisObjectWithExpiry(
+        redisKey,
+        oldLength,
+        addDays(new Date(), 1).getTime(),
+      );
+
+      await testMutationError(client, { mutation: MUTATION }, (errors) => {
+        expect(errors).toBeDefined();
+        expect(errors[0].message).toEqual(
+          'Not enough reputation to recover streak',
+        );
+      });
+
+      await deleteRedisKey(redisKey);
+    });
+
+    it('should recover the streak if user has enough reputation', async () => {
+      loggedUser = '1';
+      await con.getRepository(UserStreak).update(
+        { userId: loggedUser },
+        {
+          currentStreak: 0,
+          lastViewAt: subDays(new Date(), 2),
+        },
+      );
+      await con
+        .getRepository(User)
+        .update({ id: loggedUser }, { reputation: 25 });
+
+      // insert redis key with old streak length
+      const oldLength = 10;
+      const redisKey = generateStorageKey(
+        StorageTopic.Streak,
+        StorageKey.Reset,
+        loggedUser,
+      );
+      await setRedisObjectWithExpiry(
+        redisKey,
+        oldLength,
+        addDays(new Date(), 1).getTime(),
+      );
+
+      const { data, errors } = await client.mutate(MUTATION);
+      const { recoverStreak } = data;
+      expect(errors).toBeFalsy();
+      expect(recoverStreak).toBeTruthy();
+      expect(recoverStreak.current).toEqual(oldLength);
+      await deleteRedisKey(redisKey);
     });
   });
 
