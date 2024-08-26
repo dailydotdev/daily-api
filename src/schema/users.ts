@@ -1744,7 +1744,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       if (existingUserCompanyEmail) {
         if (existingUserCompanyEmail.userId !== ctx.userId) {
           throw new ValidationError(
-            'Oops, this email has already been verified by another user.',
+            'Oops, there was an issue verifying this email. Please use a different one.',
           );
         }
 
