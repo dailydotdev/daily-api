@@ -55,6 +55,8 @@ import {
   VALID_WEEK_STARTS,
   GQLUserIntegration,
   GQLUserCompany,
+  sendEmail,
+  CioTransactionalMessageTemplateId,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -1751,6 +1753,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           );
         }
 
+        if (existingUserCompanyEmail.verified === true) {
+          throw new ValidationError('This email has already been verified');
+        }
+
         const updatedRecord = { ...existingUserCompanyEmail, code };
         await ctx.con.getRepository(UserCompany).save(updatedRecord);
       } else {
@@ -1761,6 +1767,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           companyId: company?.id ?? null,
         });
       }
+
+      await sendEmail({
+        send_to_unsubscribed: true,
+        transactional_message_id:
+          CioTransactionalMessageTemplateId.VerifyCompany,
+        message_data: {
+          code,
+        },
+        identifiers: {
+          id: ctx.userId,
+        },
+        to: email,
+      });
 
       return { _: true };
     },
