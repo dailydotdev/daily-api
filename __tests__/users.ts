@@ -1298,7 +1298,9 @@ describe('user company', () => {
           expect(errors[0].extensions.code).toEqual(
             'GRAPHQL_VALIDATION_FAILED',
           );
-          expect(errors[0].message).toEqual('Email already exists');
+          expect(errors[0].message).toEqual(
+            'Oops, there was an issue verifying this email. Please use a different one.',
+          );
         },
       );
     });
@@ -1418,7 +1420,7 @@ describe('user company', () => {
   describe('mutation verifyUserCompanyCode', () => {
     const QUERY = `mutation VerifyUserCompanyCode($email: String!, $code: String!) {
     verifyUserCompanyCode(email: $email, code: $code) {
-      _
+      email
     }
   }`;
 
@@ -1500,7 +1502,7 @@ describe('user company', () => {
         variables: { email: 'u1@com3.com', code: '123' },
       });
       expect(res.errors).toBeFalsy();
-      expect(res.data.verifyUserCompanyCode._).toBeTruthy();
+      expect(res.data.verifyUserCompanyCode.email).toEqual('u1@com3.com');
       const row = await con.getRepository(UserCompany).findOneBy({
         email: 'u1@com3.com',
       });

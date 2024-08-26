@@ -20,8 +20,8 @@ export class Company {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @Column({ type: 'text', nullable: true })
-  image?: string;
+  @Column({ type: 'text' })
+  image: string;
 
   @Column({ type: 'text', array: true, default: [] })
   domains: string[];

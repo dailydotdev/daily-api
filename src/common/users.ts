@@ -49,7 +49,7 @@ export interface GQLCompany {
   id: string;
   name: string;
   createdAt: Date;
-  image?: string;
+  image: string;
   domains: string[];
 }
 
