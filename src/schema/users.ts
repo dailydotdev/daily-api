@@ -2028,7 +2028,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           },
           {
             currentStreak: oldStreakLength + streak.current,
-            maxStreak: Math.max(streak.max, oldStreakLength + streak.current),
+            maxStreak: Math.max(
+              streak.max ?? 0,
+              oldStreakLength + (streak.current ?? 0),
+            ),
             updatedAt: new Date(),
           },
         );
