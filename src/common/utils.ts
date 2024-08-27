@@ -113,7 +113,19 @@ export const safeJSONParse = <T>(json: string): T | undefined => {
 };
 
 export function isNumber(value: string | number): boolean {
-  return !isNullOrUndefined(value) && !isNaN(Number(value.toString()));
+  if (isNullOrUndefined(value)) {
+    return false;
+  }
+
+  if (!['string', 'number'].includes(typeof value)) {
+    return false;
+  }
+
+  if (typeof value === 'string' && value.trim().length === 0) {
+    return false;
+  }
+
+  return !isNaN(Number(value.toString()));
 }
 
 const ignoredWorkEmailDomains =

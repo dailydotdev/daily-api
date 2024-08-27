@@ -2,6 +2,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { ArticlePost, Post, PostTag, Source } from '../../src/entity';
 import {
+  isNumber,
   parseDate,
   removeEmptyValues,
   removeSpecialCharacters,
@@ -134,5 +135,38 @@ describe('parseDate', () => {
     expect(parseDate(new Date('2020-01-01T00:00:00Z'))).toEqual(
       new Date('2020-01-01T00:00:00Z'),
     );
+  });
+});
+
+describe('isNumber', () => {
+  it('should return true for number', () => {
+    expect(isNumber(42)).toBeTruthy();
+    expect(isNumber(-42)).toBeTruthy();
+    expect(isNumber(1)).toBeTruthy();
+    expect(isNumber(0)).toBeTruthy();
+    expect(isNumber(-1)).toBeTruthy();
+    expect(isNumber(1.1)).toBeTruthy();
+    expect(isNumber(-1.1)).toBeTruthy();
+    expect(isNumber(Infinity)).toBeTruthy();
+    expect(isNumber(-Infinity)).toBeTruthy();
+    expect(isNumber('Infinity')).toBeTruthy();
+    expect(isNumber('-Infinity')).toBeTruthy();
+    expect(isNumber('1')).toBeTruthy();
+    expect(isNumber('0')).toBeTruthy();
+    expect(isNumber('-1')).toBeTruthy();
+    expect(isNumber('1.1')).toBeTruthy();
+  });
+
+  it('should return false for non-number', () => {
+    expect(isNumber(null as unknown as number)).toBeFalsy();
+    expect(isNumber(undefined as unknown as number)).toBeFalsy();
+    expect(isNumber({} as unknown as number)).toBeFalsy();
+    expect(isNumber([] as unknown as number)).toBeFalsy();
+    expect(isNumber([1] as unknown as number)).toBeFalsy();
+    expect(isNumber([1, 2] as unknown as number)).toBeFalsy();
+    expect(isNumber('')).toBeFalsy();
+    expect(isNumber('    ')).toBeFalsy();
+    expect(isNumber('  f   f  ')).toBeFalsy();
+    expect(isNumber(new Date() as unknown as number)).toBeFalsy();
   });
 });
