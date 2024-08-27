@@ -64,7 +64,9 @@ import {
   PubSubSchema,
   debeziumTimeToDate,
 } from '../../../src/common';
-import worker from '../../../src/workers/cdc/primary';
+import worker, {
+  getRestoreStreakCache,
+} from '../../../src/workers/cdc/primary';
 import {
   doNotFake,
   expectSuccessfulBackground,
@@ -3253,8 +3255,8 @@ describe('user streak change', () => {
   type ObjectType = UserStreak;
   const base: ChangeObject<ObjectType> = {
     userId: '1',
-    currentStreak: 2,
-    totalStreak: 3,
+    currentStreak: 4,
+    totalStreak: 4,
     maxStreak: 4,
     lastViewAt: new Date().getTime(),
     updatedAt: new Date().getTime(),
@@ -3385,18 +3387,14 @@ describe('user streak change', () => {
           table: 'user_streak',
         }),
       );
-      const key = generateStorageKey(
-        StorageTopic.Streak,
-        StorageKey.Reset,
-        after.userId,
-      );
-      const lastStreak = await getRedisObject(key);
+
+      const lastStreak = await getRestoreStreakCache({ userId: after.userId });
       expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
       expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
         'api.v1.user-streak-updated',
         { streak: after },
       ]);
-      expect(lastStreak).toEqual(base.currentStreak.toString());
+      expect(lastStreak).toEqual(base.currentStreak);
       const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
       expect(alert.showRecoverStreak).toEqual(true);
     });
