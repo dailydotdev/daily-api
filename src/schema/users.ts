@@ -10,7 +10,6 @@ import {
   Post,
   PostStats,
   User,
-  validateUserUpdate,
   View,
   CampaignType,
   Invite,
@@ -88,6 +87,7 @@ import {
 import { Company } from '../entity/Company';
 import { UserCompany } from '../entity/UserCompany';
 import { generateVerifyCode } from '../ids';
+import { validateUserUpdate } from '../entity/user/utils';
 
 export interface GQLUpdateUserInput {
   name: string;

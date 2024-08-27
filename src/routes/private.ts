@@ -1,14 +1,13 @@
 import { FastifyInstance } from 'fastify';
-import {
-  addNewUser,
-  AddUserDataPost,
-  updateUserEmail,
-  UpdateUserEmailData,
-  User,
-} from '../entity';
+import { User } from '../entity';
 import createOrGetConnection from '../db';
 import { ValidationError } from 'apollo-server-errors';
 import { validateAndTransformHandle } from '../common/handles';
+import type {
+  AddUserDataPost,
+  UpdateUserEmailData,
+} from '../entity/user/utils';
+import { addNewUser, updateUserEmail } from '../entity/user/utils';
 
 interface SearchUsername {
   search: string;
