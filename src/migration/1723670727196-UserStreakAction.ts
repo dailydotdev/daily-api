@@ -5,7 +5,7 @@ export class UserStreakAction1723670727196 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `CREATE TABLE "user_streak_action" ("userId" character varying(36) NOT NULL, "type" text NOT NULL, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_875298ad33fc69f7d704042cdd4" PRIMARY KEY ("userId", "type", "createdAt"))`,
+      `CREATE TABLE "user_streak_action" ("userId" character varying(36) NOT NULL, "type" text NOT NULL, "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_875298ad33fc69f7d704042cdd4" PRIMARY KEY ("userId", "type", "createdAt"))`,
     );
     await queryRunner.query(
       `ALTER TABLE "user_streak_action" ADD CONSTRAINT "FK_8f82dc90297a05bb4377ef811c9" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
