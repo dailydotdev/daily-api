@@ -3255,8 +3255,8 @@ describe('user streak change', () => {
   type ObjectType = UserStreak;
   const base: ChangeObject<ObjectType> = {
     userId: '1',
-    currentStreak: 4,
-    totalStreak: 4,
+    currentStreak: 2,
+    totalStreak: 3,
     maxStreak: 4,
     lastViewAt: new Date().getTime(),
     updatedAt: new Date().getTime(),
@@ -3382,7 +3382,7 @@ describe('user streak change', () => {
         worker,
         mockChangeMessage<ObjectType>({
           after,
-          before: { ...base, ...dates },
+          before: { ...base, ...dates, currentStreak: 3 },
           op: 'u',
           table: 'user_streak',
         }),
@@ -3394,7 +3394,7 @@ describe('user streak change', () => {
         'api.v1.user-streak-updated',
         { streak: after },
       ]);
-      expect(lastStreak).toEqual(base.currentStreak);
+      expect(lastStreak).toEqual(3);
       const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
       expect(alert.showRecoverStreak).toEqual(true);
     });
@@ -3418,24 +3418,20 @@ describe('user streak change', () => {
           after,
           before: {
             ...base,
+            currentStreak: 3,
             lastViewAt: lastViewAt.getTime() * 1000,
           },
           op: 'u',
           table: 'user_streak',
         }),
       );
-      const key = generateStorageKey(
-        StorageTopic.Streak,
-        StorageKey.Reset,
-        after.userId,
-      );
-      const lastStreak = await getRedisObject(key);
+      const lastStreak = await getRestoreStreakCache({ userId: after.userId });
       expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
       expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
         'api.v1.user-streak-updated',
         { streak: after },
       ]);
-      expect(lastStreak).toEqual(base.currentStreak.toString());
+      expect(lastStreak).toEqual(3);
       const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
       expect(alert.showRecoverStreak).toEqual(true);
     });
@@ -3459,18 +3455,14 @@ describe('user streak change', () => {
           after,
           before: {
             ...base,
+            currentStreak: 3,
             lastViewAt: lastViewAt.getTime() * 1000,
           },
           op: 'u',
           table: 'user_streak',
         }),
       );
-      const key = generateStorageKey(
-        StorageTopic.Streak,
-        StorageKey.Reset,
-        after.userId,
-      );
-      const lastStreak = await getRedisObject(key);
+      const lastStreak = await getRestoreStreakCache({ userId: after.userId });
       expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
       expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
         'api.v1.user-streak-updated',
@@ -3508,24 +3500,20 @@ describe('user streak change', () => {
           after,
           before: {
             ...base,
+            currentStreak: 3,
             lastViewAt: lastViewAt.getTime() * 1000,
           },
           op: 'u',
           table: 'user_streak',
         }),
       );
-      const key = generateStorageKey(
-        StorageTopic.Streak,
-        StorageKey.Reset,
-        after.userId,
-      );
-      const lastStreak = await getRedisObject(key);
+      const lastStreak = await getRestoreStreakCache({ userId: after.userId });
       expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
       expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
         'api.v1.user-streak-updated',
         { streak: after },
       ]);
-      expect(lastStreak).toEqual(base.currentStreak.toString());
+      expect(lastStreak).toEqual(3);
       const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
       expect(alert.showRecoverStreak).toEqual(true);
     });
@@ -3556,24 +3544,20 @@ describe('user streak change', () => {
           after,
           before: {
             ...base,
+            currentStreak: 3,
             lastViewAt: lastViewAt.getTime() * 1000,
           },
           op: 'u',
           table: 'user_streak',
         }),
       );
-      const key = generateStorageKey(
-        StorageTopic.Streak,
-        StorageKey.Reset,
-        after.userId,
-      );
-      const lastStreak = await getRedisObject(key);
+      const lastStreak = await getRestoreStreakCache({ userId: after.userId });
       expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
       expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
         'api.v1.user-streak-updated',
         { streak: after },
       ]);
-      expect(lastStreak).toEqual(base.currentStreak.toString());
+      expect(lastStreak).toEqual(3);
       const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
       expect(alert.showRecoverStreak).toEqual(true);
     });
