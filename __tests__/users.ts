@@ -47,6 +47,7 @@ import {
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import {
+  CioTransactionalMessageTemplateId,
   codepenSocialUrlMatch,
   DayOfWeek,
   encrypt,
@@ -58,6 +59,7 @@ import {
   portfolioLimit,
   redditSocialUrlMatch,
   roadmapShSocialUrlMatch,
+  sendEmail,
   socialUrlMatch,
   stackoverflowSocialUrlMatch,
   threadsSocialUrlMatch,
@@ -91,6 +93,14 @@ let client: GraphQLTestClient;
 let loggedUser: string = null;
 const userTimezone = 'Pacific/Midway';
 
+jest.mock('../src/common/mailing.ts', () => ({
+  ...(jest.requireActual('../src/common/mailing.ts') as Record<
+    string,
+    unknown
+  >),
+  sendEmail: jest.fn(),
+}));
+
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
@@ -105,6 +115,7 @@ const now = new Date();
 beforeEach(async () => {
   loggedUser = null;
   nock.cleanAll();
+  jest.clearAllMocks();
 
   await con.getRepository(User).save([
     {
@@ -1295,12 +1306,26 @@ describe('user company', () => {
         client,
         { query: QUERY, variables: { email: 'u2@com4.com' } },
         (errors) => {
-          expect(errors[0].extensions.code).toEqual(
+          expect(errors[0].extensions!.code).toEqual(
             'GRAPHQL_VALIDATION_FAILED',
           );
           expect(errors[0].message).toEqual(
             'Oops, there was an issue verifying this email. Please use a different one.',
           );
+        },
+      );
+    });
+
+    it('should fail if email invalid format', async () => {
+      loggedUser = '1';
+      return testQueryError(
+        client,
+        { query: QUERY, variables: { email: 'u2@com4' } },
+        (errors) => {
+          expect(errors[0].extensions.code).toEqual(
+            'GRAPHQL_VALIDATION_FAILED',
+          );
+          expect(errors[0].message).toEqual('Invalid email');
         },
       );
     });
@@ -1311,7 +1336,7 @@ describe('user company', () => {
         variables: { email: 'u1@com4.com' },
       });
       expect(res.errors).toBeFalsy();
-      const row = await con.getRepository(UserCompany).findOneBy({
+      const row = await con.getRepository(UserCompany).findOneByOrFail({
         email: 'u1@com4.com',
       });
       expect(row.verified).toBeFalsy();
@@ -1333,7 +1358,7 @@ describe('user company', () => {
         variables: { email: 'u1@com4.com' },
       });
       expect(res.errors).toBeFalsy();
-      const row = await con.getRepository(UserCompany).findOneBy({
+      const row = await con.getRepository(UserCompany).findOneByOrFail({
         email: 'u1@com4.com',
       });
       expect(row.verified).toBeFalsy();
@@ -1347,11 +1372,63 @@ describe('user company', () => {
         variables: { email: 'u1@com3.com' },
       });
       expect(res.errors).toBeFalsy();
-      const row = await con.getRepository(UserCompany).findOneBy({
+      const row = await con.getRepository(UserCompany).findOneByOrFail({
         email: 'u1@com3.com',
       });
       expect(row.verified).toBeFalsy();
       expect(row.code.length).toEqual(6);
+    });
+
+    it('should send verification email to user if email is not verified', async () => {
+      loggedUser = '1';
+      const res = await client.query(QUERY, {
+        variables: { email: 'u1@com4.com' },
+      });
+      expect(res.errors).toBeFalsy();
+      const row = await con.getRepository(UserCompany).findOneByOrFail({
+        email: 'u1@com4.com',
+      });
+      expect(row.verified).toBeFalsy();
+      expect(row.code.length).toEqual(6);
+      expect(row.companyId).toEqual(null);
+
+      expect(sendEmail).toHaveBeenCalledTimes(1);
+      expect(sendEmail).toHaveBeenCalledWith({
+        to: 'u1@com4.com',
+        send_to_unsubscribed: true,
+        message_data: {
+          code: expect.any(String),
+        },
+        identifiers: {
+          id: loggedUser,
+        },
+        transactional_message_id:
+          CioTransactionalMessageTemplateId.VerifyCompany,
+      });
+    });
+
+    it('should not send verification email to user if email is verified', async () => {
+      loggedUser = '1';
+      await con.getRepository(UserCompany).save({
+        verified: true,
+        email: 'u1@com3.com',
+        code: '654321',
+        userId: loggedUser,
+      });
+      return testQueryError(
+        client,
+        { query: QUERY, variables: { email: 'u1@com3.com' } },
+        (errors) => {
+          expect(errors[0].extensions!.code).toEqual(
+            'GRAPHQL_VALIDATION_FAILED',
+          );
+          expect(errors[0].message).toEqual(
+            'This email has already been verified',
+          );
+
+          expect(sendEmail).not.toHaveBeenCalled();
+        },
+      );
     });
   });
 

@@ -21,6 +21,10 @@ export enum CioUnsubscribeTopic {
   Digest = '8',
 }
 
+export enum CioTransactionalMessageTemplateId {
+  VerifyCompany = '51',
+}
+
 export const cioApi = new APIClient(process.env.CIO_APP_KEY);
 
 export const addNotificationUtm = (
