@@ -351,3 +351,20 @@ export function expectTypedEvent<T extends keyof PubSubSchema>(
     data,
   );
 }
+
+export const doNotFake: FakeableAPI[] = [
+  'hrtime',
+  'nextTick',
+  'performance',
+  'queueMicrotask',
+  'requestAnimationFrame',
+  'cancelAnimationFrame',
+  'requestIdleCallback',
+  'cancelIdleCallback',
+  'setImmediate',
+  'clearImmediate',
+  'setInterval',
+  'clearInterval',
+  'setTimeout',
+  'clearTimeout',
+];

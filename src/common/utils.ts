@@ -1,6 +1,7 @@
 import { startOfISOWeek, endOfISOWeek } from 'date-fns';
 import { zonedTimeToUtc } from 'date-fns-tz';
 import { snakeCase } from 'lodash';
+import { isNullOrUndefined } from './object';
 
 const REMOVE_SPECIAL_CHARACTERS_REGEX = /[^a-zA-Z0-9-_#.]/g;
 
@@ -110,6 +111,22 @@ export const safeJSONParse = <T>(json: string): T | undefined => {
     return undefined;
   }
 };
+
+export function isNumber(value: string | number): boolean {
+  if (isNullOrUndefined(value)) {
+    return false;
+  }
+
+  if (!['string', 'number'].includes(typeof value)) {
+    return false;
+  }
+
+  if (typeof value === 'string' && value.trim().length === 0) {
+    return false;
+  }
+
+  return !isNaN(Number(value.toString()));
+}
 
 const ignoredWorkEmailDomains =
   process.env.IGNORED_WORK_EMAIL_DOMAINS?.split(',')

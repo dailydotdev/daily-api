@@ -274,13 +274,17 @@ export const workers: Worker[] = [
     subscription: 'api.user-streak-updated-cio',
   },
   {
+    topic: 'api.v1.user-streak-updated',
+    subscription: 'api.user-streak-reset-notification',
+  },
+  {
     topic: 'api.v1.post-visible',
     subscription: 'api.post-added-slack-channel-send',
   },
   {
     topic: 'api.v1.post-visible',
     subscription: 'api.vordr-post-prevented',
-  }
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

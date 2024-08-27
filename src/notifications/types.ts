@@ -10,6 +10,7 @@ import {
   SquadPublicRequest,
   Submission,
   User,
+  UserStreak,
 } from '../entity';
 import { ChangeObject } from '../types';
 import { DeepPartial } from 'typeorm';
@@ -46,6 +47,10 @@ export type NotificationCommentContext = NotificationPostContext & {
 
 export type NotificationBookmarkContext = NotificationBaseContext & {
   bookmark: Reference<Bookmark>;
+};
+
+export type NotificationStreakContext = NotificationBaseContext & {
+  streak: Reference<UserStreak>;
 };
 
 export type NotificationCommenterContext = NotificationCommentContext & {
