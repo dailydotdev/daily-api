@@ -1,4 +1,4 @@
-import { isNullOrUndefined } from './../common/object';
+import { emailRegex, isNullOrUndefined } from './../common/object';
 import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -44,6 +44,7 @@ import {
   queryPaginatedByDate,
 } from '../common/datePageGenerator';
 import {
+  CioTransactionalMessageTemplateId,
   DayOfWeek,
   GQLUserCompany,
   GQLUserIntegration,
@@ -58,6 +59,7 @@ import {
   getUserPermalink,
   getUserReadingRank,
   resubscribeUser,
+  sendEmail,
   toGQLEnum,
   uploadAvatar,
   uploadProfileCover,
@@ -1791,6 +1793,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       if (!email?.length) {
         throw new ValidationError('Email is required');
       }
+      if (!email!.match(emailRegex) || email.length > 200) {
+        throw new ValidationError('Invalid email');
+      }
       const company = await ctx.con.getRepository(Company).findOneBy({
         domains: ArrayContains([email.split('@')[1]]),
       });
@@ -1810,6 +1815,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           );
         }
 
+        if (existingUserCompanyEmail.verified === true) {
+          throw new ValidationError('This email has already been verified');
+        }
+
         const updatedRecord = { ...existingUserCompanyEmail, code };
         await ctx.con.getRepository(UserCompany).save(updatedRecord);
       } else {
@@ -1820,6 +1829,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           companyId: company?.id ?? null,
         });
       }
+
+      await sendEmail({
+        send_to_unsubscribed: true,
+        transactional_message_id:
+          CioTransactionalMessageTemplateId.VerifyCompany,
+        message_data: {
+          code,
+        },
+        identifiers: {
+          id: ctx.userId,
+        },
+        to: email,
+      });
 
       return { _: true };
     },
