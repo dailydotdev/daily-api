@@ -67,6 +67,8 @@ import { PopularSource } from '../entity/PopularSource';
 import { PopularVideoSource } from '../entity/PopularVideoSource';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { traceResolvers } from './trace';
+import { SourceCategory } from '../entity/sources/SourceCategory';
+import { validate } from 'uuid';
 
 export interface GQLSourceCategory {
   id: string;
@@ -605,6 +607,14 @@ export const typeDefs = /* GraphQL */ `
       Role required for members to invite
       """
       memberInviteRole: String
+      """
+      Whether the Squad should be private or not
+      """
+      isPrivate: Boolean
+      """
+      The category for which the squad belongs to
+      """
+      categoryId: ID
     ): Source! @auth
 
     """
@@ -640,9 +650,13 @@ export const typeDefs = /* GraphQL */ `
       """
       memberInviteRole: String
       """
-      Whether the Squad should change its privacy
+      Whether the Squad should be private or not
       """
       isPrivate: Boolean
+      """
+      The category for which the squad belongs to
+      """
+      categoryId: ID
     ): Source! @auth
 
     """
@@ -908,7 +922,8 @@ const validateSquadData = async (
     description,
     memberPostingRole,
     memberInviteRole,
-  }: Pick<SquadSource, 'handle' | 'name' | 'description'> & {
+    categoryId,
+  }: Pick<SquadSource, 'handle' | 'name' | 'description' | 'categoryId'> & {
     memberPostingRole?: SourceMemberRoles;
     memberInviteRole?: SourceMemberRoles;
   },
@@ -924,6 +939,18 @@ const validateSquadData = async (
   ];
 
   validateRegex(regexParams);
+
+  if (categoryId) {
+    const isValid = validate(categoryId);
+
+    if (!isValid) {
+      throw new ValidationError('Invalid category ID');
+    }
+
+    await entityManager
+      .getRepository(SourceCategory)
+      .findOneByOrFail({ id: categoryId });
+  }
 
   if (
     typeof memberPostingRole !== 'undefined' &&
@@ -1001,19 +1028,7 @@ const membershipsPageGenerator = offsetPageGenerator<GQLSourceMember>(100, 500);
 
 const sourcePageGenerator = offsetPageGenerator<GQLSource>(100, 500);
 
-type CreateSquadArgs = {
-  name: string;
-  handle: string;
-  description?: string;
-  image?: FileUpload;
-  postId?: string;
-  commentary?: string;
-  memberPostingRole?: SourceMemberRoles;
-  memberInviteRole?: SourceMemberRoles;
-};
-
-type EditSquadArgs = {
-  sourceId: string;
+interface SquadInputArgs {
   name: string;
   handle: string;
   description?: string;
@@ -1021,7 +1036,17 @@ type EditSquadArgs = {
   memberPostingRole?: SourceMemberRoles;
   memberInviteRole?: SourceMemberRoles;
   isPrivate?: boolean;
-};
+  categoryId?: string;
+}
+
+interface SquadCreateInputArgs extends SquadInputArgs {
+  postId?: string;
+  commentary?: string;
+}
+
+interface SquadEditInputArgs extends SquadInputArgs {
+  sourceId: string;
+}
 
 const getSourceById = async (
   ctx: Context,
@@ -1596,7 +1621,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         description,
         memberPostingRole = SourceMemberRoles.Member,
         memberInviteRole = SourceMemberRoles.Member,
-      }: CreateSquadArgs,
+        isPrivate,
+        categoryId,
+      }: SquadCreateInputArgs,
       ctx: AuthContext,
       info,
     ): Promise<GQLSource> => {
@@ -1607,6 +1634,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           description,
           memberPostingRole,
           memberInviteRole,
+          categoryId,
         },
         ctx.con,
       );
@@ -1614,17 +1642,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         const sourceId = await ctx.con.transaction(async (entityManager) => {
           const id = randomUUID();
           const repo = entityManager.getRepository(SquadSource);
-          // Create a new source
           const source = repo.create({
             id,
             name,
             handle,
             active: true,
             description,
-            private: true,
+            private: isPrivate,
             memberPostingRank: sourceRoleRank[memberPostingRole],
             memberInviteRank: sourceRoleRank[memberInviteRole],
           });
+
+          if (!isNullOrUndefined(isPrivate) && !isPrivate) {
+            source.categoryId = categoryId;
+          }
+
           await repo.insert(source);
           // Add the logged-in user as admin
           await addNewSourceMember(entityManager, {
@@ -1638,7 +1670,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             // Create the first post of the squad
             await createSharePost(entityManager, ctx, id, postId, commentary);
           }
-          // Upload the image (if provided)
+
           if (image) {
             const { createReadStream } = await image;
             const stream = createReadStream();
@@ -1672,7 +1704,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         memberPostingRole,
         memberInviteRole,
         isPrivate,
-      }: EditSquadArgs,
+        categoryId,
+      }: SquadEditInputArgs,
       ctx: AuthContext,
       info,
     ): Promise<GQLSource> => {
@@ -1688,6 +1721,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           description,
           memberPostingRole,
           memberInviteRole,
+          categoryId,
         },
         ctx.con,
         inputHandle !== current.handle,
@@ -1705,18 +1739,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           : undefined,
       };
 
-      if (!isNullOrUndefined(isPrivate) && current.private !== isPrivate) {
-        const approved = await ctx.con
-          .getRepository(SquadPublicRequest)
-          .findOne({
-            where: { sourceId, status: SquadPublicRequestStatus.Approved },
-          });
-
-        if (!approved) {
-          throw new ValidationError(SourceRequestErrorMessage.SQUAD_INELIGIBLE);
+      if (!isNullOrUndefined(isPrivate)) {
+        if (!isPrivate) {
+          updates.categoryId = categoryId;
         }
 
-        updates.private = isPrivate;
+        if (current.private !== isPrivate) {
+          updates.private = isPrivate;
+        }
       }
 
       try {

@@ -1473,9 +1473,10 @@ query RelatedTags($sourceId: ID!) {
 
 describe('mutation createSquad', () => {
   const MUTATION = `
-  mutation CreateSquad($name: String!, $handle: String!, $description: String, $postId: ID!, $commentary: String!, $memberPostingRole: String, $memberInviteRole: String) {
-  createSquad(name: $name, handle: $handle, description: $description, postId: $postId, commentary: $commentary, memberPostingRole: $memberPostingRole, memberInviteRole: $memberInviteRole) {
+  mutation CreateSquad($name: String!, $handle: String!, $description: String, $postId: ID!, $commentary: String!, $memberPostingRole: String, $memberInviteRole: String, $categoryId: ID, $isPrivate: Boolean) {
+  createSquad(name: $name, handle: $handle, description: $description, postId: $postId, commentary: $commentary, memberPostingRole: $memberPostingRole, memberInviteRole: $memberInviteRole, categoryId: $categoryId, isPrivate: $isPrivate) {
     id
+    category { id }
   }
 }`;
 
@@ -1711,6 +1712,44 @@ describe('mutation createSquad', () => {
     );
   });
 
+  it('should throw error when category id is not found', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).save(postsFixture[0]);
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, categoryId: 'random' },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not update category id when squad is private', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).save(postsFixture[0]);
+    const [sample] = await con.getRepository(SourceCategory).find();
+    expect(sample).not.toBeNull();
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, categoryId: sample.id },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createSquad.category).toBeNull();
+  });
+
+  it('should update category id', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).save(postsFixture[0]);
+    const [sample] = await con.getRepository(SourceCategory).find();
+    expect(sample).not.toBeNull();
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, categoryId: sample.id, isPrivate: false },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createSquad.category.id).toEqual(sample.id);
+  });
+
   it('should create squad with memberInviteRole', async () => {
     loggedUser = '1';
     await con.getRepository(Post).save(postsFixture[0]);
@@ -1748,9 +1787,10 @@ describe('mutation createSquad', () => {
 
 describe('mutation editSquad', () => {
   const MUTATION = `
-  mutation EditSquad($sourceId: ID!, $name: String!, $handle: String!, $description: String, $memberPostingRole: String, $memberInviteRole: String, $isPrivate: Boolean) {
-  editSquad(sourceId: $sourceId, name: $name, handle: $handle, description: $description, memberPostingRole: $memberPostingRole, memberInviteRole: $memberInviteRole, isPrivate: $isPrivate) {
+  mutation EditSquad($sourceId: ID!, $name: String!, $handle: String!, $description: String, $memberPostingRole: String, $memberInviteRole: String, $isPrivate: Boolean, $categoryId: ID) {
+  editSquad(sourceId: $sourceId, name: $name, handle: $handle, description: $description, memberPostingRole: $memberPostingRole, memberInviteRole: $memberInviteRole, isPrivate: $isPrivate, categoryId: $categoryId) {
     id
+    category { id }
   }
 }`;
 
@@ -1796,16 +1836,6 @@ describe('mutation editSquad', () => {
       .getRepository(SquadSource)
       .findOneBy({ id: variables.sourceId });
     expect(editSource.name).toEqual('test');
-  });
-
-  it('should not edit squad to public if no request was approved', async () => {
-    loggedUser = '1';
-
-    return testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { ...variables, isPrivate: false } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
   });
 
   it('should ignore null private value and edit squad', async () => {
@@ -2042,6 +2072,44 @@ describe('mutation editSquad', () => {
       },
       'GRAPHQL_VALIDATION_FAILED',
     );
+  });
+
+  it('should throw error when category id is not found', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).save(postsFixture[0]);
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, categoryId: 'random' },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not update category id when squad is private', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).save(postsFixture[0]);
+    const [sample] = await con.getRepository(SourceCategory).find();
+    expect(sample).not.toBeNull();
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, categoryId: sample.id, isPrivate: true },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editSquad.category).toBeNull();
+  });
+
+  it('should update category id', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).save(postsFixture[0]);
+    const [sample] = await con.getRepository(SourceCategory).find();
+    expect(sample).not.toBeNull();
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, categoryId: sample.id, isPrivate: false },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editSquad.category.id).toEqual(sample.id);
   });
 
   it('should edit squad memberInviteRank', async () => {
