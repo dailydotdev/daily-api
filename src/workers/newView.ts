@@ -89,17 +89,18 @@ const incrementReadingStreak = async (
     const newCurrentStreak = currentStreak + 1;
 
     if (newCurrentStreak > 1) {
-      await manager
-        .getRepository(Alerts)
-        .update({ userId }, { showRecoverStreak: false });
-
       const key = generateStorageKey(
         StorageTopic.Streak,
         StorageKey.Reset,
         userId,
       );
 
-      await deleteRedisKey(key);
+      await Promise.all([
+        manager
+          .getRepository(Alerts)
+          .update({ userId }, { showRecoverStreak: false }),
+        deleteRedisKey(key),
+      ]);
     }
 
     await manager.getRepository(UserStreak).update(
