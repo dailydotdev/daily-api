@@ -3,7 +3,7 @@ import { generateTypedNotificationWorker } from './worker';
 import { NotificationStreakContext } from '../../notifications';
 import { generateStorageKey, StorageKey, StorageTopic } from '../../config';
 import { getRedisObject } from '../../redis';
-import { isNumber } from '../../common';
+import { debeziumTimeToDate, isNumber } from '../../common';
 
 const worker = generateTypedNotificationWorker<'api.v1.user-streak-updated'>({
   subscription: 'api.user-streak-reset-notification',
@@ -26,7 +26,7 @@ const worker = generateTypedNotificationWorker<'api.v1.user-streak-updated'>({
       streak: {
         ...streak,
         currentStreak: parseInt(lastStreak, 10),
-        lastViewAt: new Date(streak.lastViewAt).getTime(),
+        lastViewAt: debeziumTimeToDate(streak.lastViewAt).getTime(),
       },
     };
 
