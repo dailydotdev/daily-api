@@ -18,7 +18,7 @@ export class UserStreakAction {
   @PrimaryColumn({ type: 'text' })
   type: UserStreakActionType;
 
-  @PrimaryColumn({ type: 'timestamptz', default: () => 'now()' })
+  @PrimaryColumn({ type: 'timestamp', default: () => 'now()' })
   createdAt: Date;
 
   @ManyToOne('User', (user: User) => user.streakActions, {

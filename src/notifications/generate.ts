@@ -19,12 +19,14 @@ import {
   NotificationSourceMemberRoleContext,
   NotificationSourceRequestContext,
   NotificationSquadRequestContext,
+  NotificationStreakContext,
   NotificationSubmissionContext,
   NotificationUpvotersContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
 import { NotificationType } from './common';
+import { format } from 'date-fns';
 
 const systemTitle = () => undefined;
 
@@ -100,6 +102,8 @@ export const notificationTitleMap: Record<
     `<b>Congratulations! ${ctx.source.name} has successfully passed the review process and is now officially public!</b>`,
   squad_public_rejected: systemTitle,
   squad_public_submitted: systemTitle,
+  streak_reset_restore: (ctx: NotificationStreakContext) =>
+    `<b>Oh no! Your ${ctx.streak.currentStreak} day streak has been broken</b>`,
 };
 
 export const generateNotificationMap: Record<
@@ -143,6 +147,16 @@ export const generateNotificationMap: Record<
       .avatarSource(ctx.source)
       .uniqueKey(ctx.bookmark.remindAt.toString())
       .objectPost(ctx.post, ctx.source, ctx.sharedPost),
+  streak_reset_restore: (builder, ctx: NotificationStreakContext) =>
+    builder
+      .icon(NotificationIcon.Streak)
+      .description('Click here if you wish to restore your streak')
+      .uniqueKey(format(ctx.streak.lastViewAt, 'dd-MM-yyyy'))
+      .targetUrl(notificationsLink)
+      .referenceStreak(ctx.streak)
+      .setTargetUrlParameter([
+        ['streak_restore', ctx.streak.currentStreak.toString()],
+      ]),
   article_upvote_milestone: (
     builder,
     ctx: NotificationPostContext & NotificationUpvotersContext,

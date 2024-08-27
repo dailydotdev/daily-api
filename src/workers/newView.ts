@@ -3,6 +3,8 @@ import { Alerts, User, UserStreak, View } from '../entity';
 import { messageToJson, Worker } from './worker';
 import { TypeORMQueryFailedError, TypeOrmError } from '../errors';
 import { isFibonacci } from '../common/fibonacci';
+import { generateStorageKey, StorageKey, StorageTopic } from '../config';
+import { deleteRedisKey } from '../redis';
 
 interface ShouldIncrement {
   currentStreak: number;
@@ -82,8 +84,25 @@ const incrementReadingStreak = async (
 
   const { currentStreak, totalStreak, maxStreak, shouldIncrement } =
     shouldIncrementResult ?? {};
+
   if (shouldIncrement) {
     const newCurrentStreak = currentStreak + 1;
+
+    if (newCurrentStreak > 1) {
+      const key = generateStorageKey(
+        StorageTopic.Streak,
+        StorageKey.Reset,
+        userId,
+      );
+
+      await Promise.all([
+        manager
+          .getRepository(Alerts)
+          .update({ userId }, { showRecoverStreak: false }),
+        deleteRedisKey(key),
+      ]);
+    }
+
     await manager.getRepository(UserStreak).update(
       { userId },
       {

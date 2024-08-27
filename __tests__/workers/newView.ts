@@ -21,6 +21,8 @@ import { DataSource, IsNull, Not } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import cron from '../../src/cron/updateCurrentStreak';
 import nock from 'nock';
+import { ioRedisPool, setRedisObjectWithExpiry } from '../../src/redis';
+import { generateStorageKey, StorageKey, StorageTopic } from '../../src/config';
 
 let con: DataSource;
 
@@ -38,6 +40,7 @@ beforeEach(async () => {
   );
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
+  await ioRedisPool.execute((client) => client.flushall());
 });
 
 it('should save a new view without timestamp', async () => {
@@ -188,6 +191,76 @@ describe('reading streaks', () => {
       updatedAt: expect.any(Date),
       lastViewAt: expect.any(Date),
     });
+  });
+
+  it('should set show recover to false if streak is greater than 1', async () => {
+    await con
+      .getRepository(Alerts)
+      .update({ userId: 'u1' }, { showRecoverStreak: true });
+    await prepareTest(undefined, undefined);
+
+    const streak = await con
+      .getRepository(UserStreak)
+      .findOne({ where: { userId: 'u1', lastViewAt: Not(IsNull()) } });
+    expect(streak.currentStreak).toBeGreaterThan(1);
+
+    const alert = await con.getRepository(Alerts).findOneBy({ userId: 'u1' });
+    expect(alert.showRecoverStreak).toBe(false);
+  });
+
+  it('should not change show recover if streak is 1', async () => {
+    await con
+      .getRepository(Alerts)
+      .update({ userId: 'u1' }, { showRecoverStreak: true });
+    await con
+      .getRepository(UserStreak)
+      .update({ userId: 'u1' }, { currentStreak: 0 });
+
+    await runTest('2024-01-26T17:17Z', undefined, null, {
+      currentStreak: 1,
+      totalStreak: 1,
+      maxStreak: 1,
+      lastViewAt: new Date('2024-01-26T17:17Z'),
+    });
+
+    const streak = await con
+      .getRepository(UserStreak)
+      .findOne({ where: { userId: 'u1', lastViewAt: Not(IsNull()) } });
+    expect(streak.currentStreak).toEqual(1);
+
+    const alert = await con.getRepository(Alerts).findOneBy({ userId: 'u1' });
+    expect(alert.showRecoverStreak).toBe(true);
+  });
+
+  it('should clear previous streak cache', async () => {
+    const key = generateStorageKey(StorageTopic.Streak, StorageKey.Reset, 'u1');
+    await setRedisObjectWithExpiry(key, 10, 3600);
+    await prepareTest(undefined, undefined);
+
+    const streak = await con
+      .getRepository(UserStreak)
+      .findOne({ where: { userId: 'u1', lastViewAt: Not(IsNull()) } });
+    expect(streak.currentStreak).toBeGreaterThan(1);
+    const value = await ioRedisPool.execute((client) => client.get(key));
+    expect(value).toBeNull();
+  });
+
+  it('should not change previous streak cache', async () => {
+    const key = generateStorageKey(StorageTopic.Streak, StorageKey.Reset, 'u1');
+    await setRedisObjectWithExpiry(key, 10, 3600);
+    await runTest('2024-01-26T17:17Z', undefined, null, {
+      currentStreak: 1,
+      totalStreak: 1,
+      maxStreak: 1,
+      lastViewAt: new Date('2024-01-26T17:17Z'),
+    });
+
+    const streak = await con
+      .getRepository(UserStreak)
+      .findOne({ where: { userId: 'u1', lastViewAt: Not(IsNull()) } });
+    expect(streak.currentStreak).toEqual(1);
+    const value = await ioRedisPool.execute((client) => client.get(key));
+    expect(value).toEqual('10');
   });
 
   it('does not update reading streak if view was not written', async () => {
