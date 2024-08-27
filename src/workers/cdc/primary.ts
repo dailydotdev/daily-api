@@ -857,6 +857,8 @@ export const getRestoreStreakCache = async ({
   return oldStreakLength;
 };
 
+const VALID_STREAK_RESET = 3;
+
 const onUserStreakChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -865,7 +867,7 @@ const onUserStreakChange = async (
   if (data.payload.op === 'u') {
     if (
       data.payload.after.currentStreak === 0 &&
-      data.payload.before.currentStreak > 2
+      data.payload.before.currentStreak >= VALID_STREAK_RESET
     ) {
       await setRestoreStreakCache(con, data.payload.before);
     }
