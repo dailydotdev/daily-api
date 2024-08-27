@@ -1,3 +1,4 @@
+import { crons } from '../../src/cron/index';
 import { cleanZombieUserCompany as cron } from '../../src/cron/cleanZombieUserCompany';
 import { saveFixtures } from '../helpers';
 import { expectSuccessfulCron } from '../helpers';
@@ -27,6 +28,12 @@ beforeEach(async () => {
 });
 
 describe('cleanZombieUserCompany', () => {
+  it('should be registered', () => {
+    const registeredWorker = crons.find((item) => item.name === cron.name);
+
+    expect(registeredWorker).toBeDefined();
+  });
+
   it('should not delete user company if the email is verified', async () => {
     await expectSuccessfulCron(cron);
     expect(
