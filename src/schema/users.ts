@@ -57,6 +57,7 @@ import {
   GQLUserCompany,
   sendEmail,
   CioTransactionalMessageTemplateId,
+  validateWorkEmailDomain,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -1734,8 +1735,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       if (!email!.match(emailRegex) || email.length > 200) {
         throw new ValidationError('Invalid email');
       }
+
+      const domain = email.toLowerCase().split('@')[1];
+      if (validateWorkEmailDomain(domain)) {
+        throw new ValidationError('We can only verify unique company domains');
+      }
+
       const company = await ctx.con.getRepository(Company).findOneBy({
-        domains: ArrayContains([email.split('@')[1]]),
+        domains: ArrayContains([domain]),
       });
 
       const code = await generateVerifyCode();
