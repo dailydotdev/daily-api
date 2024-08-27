@@ -111,6 +111,10 @@ export const safeJSONParse = <T>(json: string): T | undefined => {
   }
 };
 
+export function isNumber(value: string | number): boolean {
+  return !!value && !isNaN(Number(value.toString()));
+}
+
 const ignoredWorkEmailDomains =
   process.env.IGNORED_WORK_EMAIL_DOMAINS?.split(',')
     .filter(Boolean)

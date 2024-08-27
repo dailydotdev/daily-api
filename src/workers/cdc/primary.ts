@@ -1,4 +1,3 @@
-import { isNumber } from 'lodash';
 import {
   UserState,
   UserStateKey,
@@ -78,6 +77,7 @@ import {
   PubSubSchema,
   debeziumTimeToDate,
   shouldAllowRestore,
+  isNumber,
 } from '../../common';
 import { ChangeMessage, ChangeObject, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';

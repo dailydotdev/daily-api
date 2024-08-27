@@ -1,10 +1,9 @@
-import { isNumber } from 'lodash';
 import { NotificationType } from '../../notifications/common';
 import { generateTypedNotificationWorker } from './worker';
 import { NotificationStreakContext } from '../../notifications';
 import { generateStorageKey, StorageKey, StorageTopic } from '../../config';
 import { getRedisObject } from '../../redis';
-import { debeziumTimeToDate } from '../../common';
+import { debeziumTimeToDate, isNumber } from '../../common';
 
 const worker = generateTypedNotificationWorker<'api.v1.user-streak-updated'>({
   subscription: 'api.user-streak-reset-notification',
