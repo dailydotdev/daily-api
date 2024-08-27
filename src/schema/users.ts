@@ -3,12 +3,10 @@ import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import {
-  CampaignType,
   Comment,
   Feature,
   FeatureType,
   FeatureValue,
-  Invite,
   MarketingCta,
   Post,
   PostStats,
@@ -28,10 +26,8 @@ import {
   UserStreak,
   UserStreakAction,
   UserStreakActionType,
-  View,
   getAuthorPostStats,
   streakRecoverCost,
-  validateUserUpdate,
 } from '../entity';
 import {
   AuthenticationError,
