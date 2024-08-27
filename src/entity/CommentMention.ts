@@ -1,6 +1,6 @@
 import { Entity, ManyToOne, PrimaryColumn } from 'typeorm';
-import { User } from './user';
-import { Comment } from './Comment';
+import type { User } from './user';
+import type { Comment } from './Comment';
 
 @Entity()
 export class CommentMention {
@@ -13,19 +13,19 @@ export class CommentMention {
   @PrimaryColumn({ length: 36 })
   mentionedUserId: string;
 
-  @ManyToOne(() => Comment, {
+  @ManyToOne('Comment', {
     lazy: true,
     onDelete: 'CASCADE',
   })
   comment?: Promise<Comment>;
 
-  @ManyToOne(() => User, {
+  @ManyToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
   })
   commentByUser?: Promise<User>;
 
-  @ManyToOne(() => User, {
+  @ManyToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
   })

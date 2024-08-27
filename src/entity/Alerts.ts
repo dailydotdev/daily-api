@@ -1,5 +1,5 @@
 import { Column, Entity, Index, OneToOne, PrimaryColumn } from 'typeorm';
-import { User } from './user';
+import type { User } from './user';
 
 export type AlertsFlags = Partial<{
   lastReferralReminder: Date | null;
@@ -57,7 +57,7 @@ export class Alerts {
 
   bootPopup?: boolean;
 
-  @OneToOne(() => User, {
+  @OneToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
   })

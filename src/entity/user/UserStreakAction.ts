@@ -1,5 +1,5 @@
 import { Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
-import { User } from './User';
+import type { User } from './User';
 import { ReputationReason, reputationReasonAmount } from '../ReputationEvent';
 
 export enum UserStreakActionType {
@@ -21,7 +21,7 @@ export class UserStreakAction {
   @PrimaryColumn({ type: 'timestamptz', default: () => 'now()' })
   createdAt: Date;
 
-  @ManyToOne(() => User, (user) => user.streakActions, {
+  @ManyToOne('User', (user: User) => user.streakActions, {
     lazy: true,
     onDelete: 'CASCADE',
   })

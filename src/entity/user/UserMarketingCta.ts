@@ -1,6 +1,6 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
-import { User } from './User';
-import { MarketingCta } from '../MarketingCta';
+import type { User } from './User';
+import type { MarketingCta } from '../MarketingCta';
 
 @Entity()
 export class UserMarketingCta {
@@ -16,13 +16,13 @@ export class UserMarketingCta {
   @Column({ nullable: true })
   readAt: Date;
 
-  @ManyToOne(() => MarketingCta, {
+  @ManyToOne('MarketingCta', {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'marketingCtaId' })
   marketingCta: MarketingCta;
 
-  @ManyToOne(() => User, {
+  @ManyToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
   })

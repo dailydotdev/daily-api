@@ -1,7 +1,7 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import { BookmarkList } from './BookmarkList';
-import { Post } from './posts';
-import { User } from './user';
+import type { Post } from './posts';
+import type { User } from './user';
 
 @Entity()
 @Index('IDX_bookmark_userId_createdAt', { synchronize: false })
@@ -19,7 +19,7 @@ export class Bookmark {
   @Column({ type: 'timestamp', nullable: true })
   remindAt: Date;
 
-  @ManyToOne(() => Post, {
+  @ManyToOne('Post', {
     lazy: true,
     onDelete: 'CASCADE',
   })
@@ -35,7 +35,7 @@ export class Bookmark {
   @Index('IDX_bookmark_createdAt', { synchronize: false })
   createdAt: Date;
 
-  @ManyToOne(() => User, {
+  @ManyToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
   })

@@ -1,6 +1,6 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
-import { AdvancedSettings } from './AdvancedSettings';
-import { Feed } from './Feed';
+import type { AdvancedSettings } from './AdvancedSettings';
+import type { Feed } from './Feed';
 
 @Entity()
 export class FeedAdvancedSettings {
@@ -14,13 +14,13 @@ export class FeedAdvancedSettings {
   @Column({ type: 'bool', default: true })
   enabled: boolean;
 
-  @ManyToOne(() => Feed, {
+  @ManyToOne('Feed', {
     lazy: true,
     onDelete: 'CASCADE',
   })
   feed: Promise<Feed>;
 
-  @ManyToOne(() => AdvancedSettings, {
+  @ManyToOne('AdvancedSettings', {
     lazy: true,
     onDelete: 'CASCADE',
   })

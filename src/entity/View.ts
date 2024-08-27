@@ -1,5 +1,5 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
-import { Post } from './posts';
+import type { Post } from './posts';
 
 @Entity()
 @Index(['userId', 'timestamp'])
@@ -10,7 +10,7 @@ export class View {
   @Index()
   postId: string;
 
-  @ManyToOne(() => Post, {
+  @ManyToOne('Post', {
     lazy: true,
     onDelete: 'CASCADE',
   })
