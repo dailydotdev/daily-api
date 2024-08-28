@@ -78,6 +78,7 @@ import {
   debeziumTimeToDate,
   shouldAllowRestore,
   isNumber,
+  notifySquadFeaturedUpdated,
 } from '../../common';
 import { ChangeMessage, ChangeObject, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
@@ -662,6 +663,14 @@ const onSourceChange = async (
     }
     if (data.payload.before!.private !== data.payload.after!.private) {
       await notifySourcePrivacyUpdated(logger, data.payload.after!);
+    }
+
+    if (
+      data.payload.before!.flags?.featured !==
+        data.payload.after!.flags?.featured &&
+      !!data.payload.after!.flags?.featured
+    ) {
+      notifySquadFeaturedUpdated(logger, data.payload.after!);
     }
   }
 };

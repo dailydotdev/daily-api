@@ -278,6 +278,10 @@ export const workers: Worker[] = [
     subscription: 'api.user-streak-reset-notification',
   },
   {
+    topic: 'api.v1.squad-featured-updated',
+    subscription: 'api.squad-featured-updated-notification',
+  },
+  {
     topic: 'api.v1.post-visible',
     subscription: 'api.post-added-slack-channel-send',
   },
