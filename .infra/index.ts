@@ -385,8 +385,11 @@ if (isAdhocEnv) {
       args: ['dumb-init', 'node', 'bin/cli', 'personalized-digest'],
       minReplicas: 1,
       maxReplicas: 25,
-      limits: bgLimits,
-      requests: bgRequests,
+      limits: { memory: '512Mi' },
+      requests: {
+        cpu: '100m',
+        memory: '256Mi',
+      },
       metric: {
         type: 'pubsub',
         labels: { app: name, subapp: 'personalized-digest' },
