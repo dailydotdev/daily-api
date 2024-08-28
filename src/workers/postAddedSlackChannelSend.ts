@@ -10,6 +10,7 @@ import { addNotificationUtm, addPrivateSourceJoinParams } from '../common';
 import { SourceMemberRoles } from '../roles';
 import { SlackApiError, SlackApiErrorCode } from '../errors';
 import { counters } from '../telemetry/metrics';
+import { UserIntegrationSlack } from '../entity/UserIntegration';
 
 const sendQueueConcurrency = 10;
 
@@ -83,14 +84,6 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
           }
         }
 
-        const author = await post.author;
-        const authorName = author?.name || author?.username;
-        let messageText = `New post: <${postLink}|${postLinkPlain}>`;
-
-        if (sourceTypeName === 'Squad' && authorName) {
-          messageText = `${authorName} shared a new post: <${postLink}|${postLinkPlain}>`;
-        }
-
         const attachment = await getAttachmentForPostType({
           con,
           post,
@@ -107,6 +100,36 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
             channelId: string;
           }) => {
             const userIntegration = await integration.userIntegration;
+
+            const author = await post.author;
+            let authorName = author?.name || author?.username;
+
+            if (author) {
+              const isAuthorIntegrationOwner = false;
+
+              if (isAuthorIntegrationOwner) {
+                authorName = `<@${userIntegration.meta.slackUserId}>`;
+              } else {
+                const authorIntegration = await con
+                  .getRepository(UserIntegrationSlack)
+                  .createQueryBuilder()
+                  .where('"userId" = :userId', { userId: author.id })
+                  .andWhere(`meta->>'teamId' = :teamId`, {
+                    teamId: userIntegration.meta.teamId,
+                  })
+                  .getOne();
+
+                if (authorIntegration) {
+                  authorName = `<@${authorIntegration.meta.slackUserId}>`;
+                }
+              }
+            }
+
+            let messageText = `New post: <${postLink}|${postLinkPlain}>`;
+
+            if (sourceTypeName === 'Squad' && authorName) {
+              messageText = `${authorName} shared a new post: <${postLink}|${postLinkPlain}>`;
+            }
 
             try {
               const slackClient = await getSlackClient({
