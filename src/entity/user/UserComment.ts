@@ -7,8 +7,8 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { User } from './User';
-import { Comment } from '../Comment';
+import type { User } from './User';
+import type { Comment } from '../Comment';
 import { UserVote } from '../../types';
 
 export type UserCommentFlags = Partial<{
@@ -40,13 +40,13 @@ export class UserComment {
   @Column({ type: 'jsonb', default: {} })
   flags: UserCommentFlags = {};
 
-  @ManyToOne(() => Comment, {
+  @ManyToOne('Comment', {
     lazy: true,
     onDelete: 'CASCADE',
   })
   comment: Promise<Comment>;
 
-  @ManyToOne(() => User, {
+  @ManyToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
   })

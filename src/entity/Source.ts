@@ -8,11 +8,11 @@ import {
   PrimaryColumn,
   TableInheritance,
 } from 'typeorm';
-import { SourceDisplay } from './SourceDisplay';
-import { SourceFeed } from './SourceFeed';
-import { Post } from './posts';
-import { SourceMember } from './SourceMember';
-import { SourceCategory } from './sources/SourceCategory';
+import type { SourceDisplay } from './SourceDisplay';
+import type { SourceFeed } from './SourceFeed';
+import type { Post } from './posts';
+import type { SourceMember } from './SourceMember';
+import type { SourceCategory } from './sources/SourceCategory';
 
 export const COMMUNITY_PICKS_SOURCE = 'community';
 
@@ -114,22 +114,24 @@ export class Source {
   @Column({ type: 'text', nullable: true })
   categoryId?: string;
 
-  @ManyToOne(() => SourceCategory, (category) => category.id, {
+  @ManyToOne('SourceCategory', (category: SourceCategory) => category.id, {
     lazy: true,
     onDelete: 'SET NULL',
   })
   category: Promise<SourceCategory>;
 
-  @OneToMany(() => SourceDisplay, (display) => display.source, { lazy: true })
+  @OneToMany('SourceDisplay', (display: SourceDisplay) => display.source, {
+    lazy: true,
+  })
   displays: Promise<SourceDisplay[]>;
 
-  @OneToMany(() => SourceFeed, (feed) => feed.source, { lazy: true })
+  @OneToMany('SourceFeed', (feed: SourceFeed) => feed.source, { lazy: true })
   feeds: Promise<SourceFeed[]>;
 
-  @OneToMany(() => Post, (post) => post.source, { lazy: true })
+  @OneToMany('Post', (post: Post) => post.source, { lazy: true })
   posts: Promise<Post[]>;
 
-  @OneToMany(() => SourceMember, (sm) => sm.source, { lazy: true })
+  @OneToMany('SourceMember', (sm: SourceMember) => sm.source, { lazy: true })
   members: Promise<SourceMember[]>;
 
   @Column({ type: 'text', nullable: true })

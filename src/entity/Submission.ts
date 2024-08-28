@@ -5,7 +5,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { User } from './user';
+import type { User } from './user';
 import { SubmissionFailErrorKeys } from '../errors';
 
 export enum SubmissionStatus {
@@ -42,7 +42,7 @@ export class Submission {
   @Column({ type: 'jsonb', default: {} })
   flags: SubmissionFlags;
 
-  @ManyToOne(() => User, {
+  @ManyToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
   })

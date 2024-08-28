@@ -1,5 +1,5 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
-import { User } from './user';
+import type { User } from './user';
 
 export enum FeatureType {
   Team = 'team',
@@ -21,7 +21,7 @@ export class Feature {
   @Index('IDX_feature_userId')
   userId: string;
 
-  @ManyToOne(() => User, {
+  @ManyToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
   })
@@ -36,6 +36,6 @@ export class Feature {
   @Column({ length: 36, nullable: true })
   invitedById: string;
 
-  @ManyToOne(() => User, { lazy: true, nullable: true, onDelete: 'SET NULL' })
+  @ManyToOne('User', { lazy: true, nullable: true, onDelete: 'SET NULL' })
   invitedBy: Promise<User | null>;
 }

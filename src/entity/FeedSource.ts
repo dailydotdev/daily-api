@@ -1,6 +1,6 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
-import { Feed } from './Feed';
-import { Source } from './Source';
+import type { Feed } from './Feed';
+import type { Source } from './Source';
 
 @Entity()
 export class FeedSource {
@@ -15,13 +15,13 @@ export class FeedSource {
   @Column({ default: true })
   blocked: boolean;
 
-  @ManyToOne(() => Feed, {
+  @ManyToOne('Feed', {
     lazy: true,
     onDelete: 'CASCADE',
   })
   feed: Promise<Feed>;
 
-  @ManyToOne(() => Source, {
+  @ManyToOne('Source', {
     lazy: true,
     onDelete: 'CASCADE',
   })

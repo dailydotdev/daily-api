@@ -1,5 +1,5 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
-import { User } from './user';
+import type { User } from './user';
 
 @Entity()
 export class CommentReport {
@@ -19,7 +19,7 @@ export class CommentReport {
   @Column({ type: 'text', nullable: true })
   note: string;
 
-  @ManyToOne(() => User, {
+  @ManyToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
   })

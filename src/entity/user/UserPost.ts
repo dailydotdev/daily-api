@@ -7,8 +7,8 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Post } from '../posts';
-import { User } from './User';
+import type { Post } from '../posts';
+import type { User } from './User';
 import { UserVote } from '../../types';
 
 export type UserPostFlags = Partial<{
@@ -46,13 +46,13 @@ export class UserPost {
   @Column({ type: 'jsonb', default: {} })
   flags: UserPostFlags = {};
 
-  @ManyToOne(() => Post, {
+  @ManyToOne('Post', {
     lazy: true,
     onDelete: 'CASCADE',
   })
   post: Promise<Post>;
 
-  @ManyToOne(() => User, {
+  @ManyToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
   })

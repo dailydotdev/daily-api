@@ -10,7 +10,7 @@ import {
   NotificationPreferenceType,
   NotificationType,
 } from '../../notifications/common';
-import { User } from '../user';
+import type { User } from '../user';
 
 @Entity()
 @TableInheritance({ column: { type: 'varchar', name: 'type' } })
@@ -33,7 +33,7 @@ export class NotificationPreference {
   @Column({ type: 'text' })
   status: NotificationPreferenceStatus;
 
-  @ManyToOne(() => User, {
+  @ManyToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
   })

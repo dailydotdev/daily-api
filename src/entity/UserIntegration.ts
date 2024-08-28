@@ -9,7 +9,7 @@ import {
   TableInheritance,
   UpdateDateColumn,
 } from 'typeorm';
-import { User } from './user/User';
+import type { User } from './user/User';
 
 export enum UserIntegrationType {
   Slack = 'slack',
@@ -46,7 +46,7 @@ export class UserIntegration {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToOne(() => User, {
+  @ManyToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
   })
