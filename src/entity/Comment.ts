@@ -1,6 +1,6 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
-import { Post } from './posts';
-import { User } from './user';
+import type { Post } from './posts';
+import type { User } from './user';
 
 export type CommentFlags = Partial<{
   vordr: boolean;
@@ -53,13 +53,13 @@ export class Comment {
   @Index('IDX_user_flags_vordr', { synchronize: false })
   flags: CommentFlags;
 
-  @ManyToOne(() => Post, {
+  @ManyToOne('Post', {
     lazy: true,
     onDelete: 'CASCADE',
   })
   post: Promise<Post>;
 
-  @ManyToOne(() => User, {
+  @ManyToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
   })

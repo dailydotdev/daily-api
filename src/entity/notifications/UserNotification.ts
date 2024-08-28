@@ -1,5 +1,5 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
-import { User } from '../user';
+import type { User } from '../user';
 import { NotificationV2 } from './NotificationV2';
 
 @Entity()
@@ -31,7 +31,7 @@ export class UserNotification {
   })
   notification: Promise<NotificationV2>;
 
-  @ManyToOne(() => User, {
+  @ManyToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
   })

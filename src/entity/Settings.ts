@@ -6,7 +6,7 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { User } from './user';
+import type { User } from './user';
 
 export enum CampaignCtaPlacement {
   Header = 'header',
@@ -79,7 +79,7 @@ export class Settings {
   @UpdateDateColumn()
   updatedAt: Date | null;
 
-  @OneToOne(() => User, {
+  @OneToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
   })

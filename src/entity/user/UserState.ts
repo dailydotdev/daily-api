@@ -1,5 +1,5 @@
 import { Column, Entity, ManyToOne, PrimaryColumn } from 'typeorm';
-import { User } from './User';
+import type { User } from './User';
 
 export enum UserStateKey {
   CommunityLinkAccess = 'community_link_access',
@@ -16,7 +16,7 @@ export class UserState {
   @Column({ default: false })
   value: boolean;
 
-  @ManyToOne(() => User, {
+  @ManyToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
   })

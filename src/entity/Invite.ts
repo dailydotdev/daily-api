@@ -6,8 +6,8 @@ import {
   Index,
   Generated,
 } from 'typeorm';
-import { User } from './user';
-import { FeatureType } from './Feature';
+import type { User } from './user';
+import type { FeatureType } from './Feature';
 
 export enum CampaignType {
   Search = 'search',
@@ -26,7 +26,7 @@ export class Invite {
   @Column({ length: 36 })
   userId: string;
 
-  @ManyToOne(() => User, {
+  @ManyToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
   })

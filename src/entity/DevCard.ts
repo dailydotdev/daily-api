@@ -5,7 +5,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { User } from './user';
+import type { User } from './user';
 
 export enum DevCardTheme {
   Default = 'default',
@@ -42,7 +42,7 @@ export class DevCard {
   @Column({ type: 'bool', default: true })
   showBorder: boolean;
 
-  @ManyToOne(() => User, (user) => user.devCards, {
+  @ManyToOne('User', (user: User) => user.devCards, {
     lazy: true,
     onDelete: 'CASCADE',
   })

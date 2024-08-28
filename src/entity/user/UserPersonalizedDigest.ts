@@ -1,5 +1,5 @@
 import { Column, Entity, Index, OneToOne, PrimaryColumn } from 'typeorm';
-import { User } from './';
+import type { User } from './';
 import { DayOfWeek } from '../../common';
 
 export enum UserPersonalizedDigestSendType {
@@ -47,7 +47,7 @@ export class UserPersonalizedDigest {
   @Index('IDX_user_personalized_digest_flags_sendType', { synchronize: false })
   flags: UserPersonalizedDigestFlags = {};
 
-  @OneToOne(() => User, {
+  @OneToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
   })

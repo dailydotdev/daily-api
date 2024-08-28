@@ -1,5 +1,5 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
-import { Feed } from './Feed';
+import type { Feed } from './Feed';
 
 @Entity()
 @Index('IDX_feed_id_blocked', ['feedId', 'blocked'])
@@ -13,7 +13,7 @@ export class FeedTag {
   @Column({ default: false })
   blocked: boolean;
 
-  @ManyToOne(() => Feed, {
+  @ManyToOne('Feed', {
     lazy: true,
     onDelete: 'CASCADE',
   })
