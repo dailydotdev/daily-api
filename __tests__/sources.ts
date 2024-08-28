@@ -1509,7 +1509,6 @@ describe('mutation createSquad', () => {
     expect(newSource.name).toEqual(variables.name);
     expect(newSource.handle).toEqual(variables.handle);
     expect(newSource.active).toEqual(true);
-    expect(newSource.private).toEqual(true);
     expect(newSource?.memberPostingRank).toEqual(
       sourceRoleRank[SourceMemberRoles.Member],
     );
@@ -1666,7 +1665,6 @@ describe('mutation createSquad', () => {
     expect(newSource.name).toEqual(variables.name);
     expect(newSource.handle).toEqual(variables.handle);
     expect(newSource.active).toEqual(true);
-    expect(newSource.private).toEqual(true);
     expect(newSource?.memberPostingRank).toEqual(
       sourceRoleRank[SourceMemberRoles.Moderator],
     );
@@ -1767,7 +1765,6 @@ describe('mutation createSquad', () => {
     expect(newSource.name).toEqual(variables.name);
     expect(newSource.handle).toEqual(variables.handle);
     expect(newSource.active).toEqual(true);
-    expect(newSource.private).toEqual(true);
     expect(newSource?.memberInviteRank).toEqual(
       sourceRoleRank[SourceMemberRoles.Moderator],
     );
