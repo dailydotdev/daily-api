@@ -1838,6 +1838,20 @@ describe('mutation editSquad', () => {
     expect(editSource.name).toEqual('test');
   });
 
+  it('should edit squad to public even if no request was approved', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, name: 'test', isPrivate: false },
+    });
+
+    expect(res.errors).toBeFalsy();
+    const editSource = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: variables.sourceId });
+    expect(editSource!.private).toBeFalsy();
+  });
+
   it('should ignore null private value and edit squad', async () => {
     loggedUser = '1';
 
