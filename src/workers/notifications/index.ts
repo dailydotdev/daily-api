@@ -1,4 +1,3 @@
-import { squadsFeaturedPage } from './../../common/links';
 import { NotificationWorker } from './worker';
 import { messageToJson, Worker } from '../worker';
 import { generateAndStoreNotificationsV2 } from '../../notifications';

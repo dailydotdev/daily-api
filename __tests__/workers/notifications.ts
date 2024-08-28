@@ -169,12 +169,6 @@ it('should NOT add devcard unlocked notification if user had already reached the
 });
 
 describe('squad featured updated notification', () => {
-  const baseMember = {
-    userId: '1',
-    sourceId: 'squad',
-    referralToken: 'rt1',
-  };
-
   const squad = {
     ...sourcesFixture[0],
     type: SourceType.Squad,
