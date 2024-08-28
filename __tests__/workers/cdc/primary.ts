@@ -2001,12 +2001,12 @@ describe('source', () => {
     id: 'a',
     private: true,
   };
-  const flags = {
+  const flags = JSON.stringify({
     featured: true,
     totalViews: 0,
     totalUpvotes: 0,
     totalPosts: 0,
-  };
+  }) as never;
 
   it('should notify on source privacy change', async () => {
     const after = { ...base, private: false };
@@ -2039,7 +2039,7 @@ describe('source', () => {
     expect(notifySquadFeaturedUpdated).toHaveBeenCalledTimes(1);
     expect(
       jest.mocked(notifySquadFeaturedUpdated).mock.calls[0].slice(1),
-    ).toEqual([after]);
+    ).toEqual([{ ...after, flags: JSON.parse(flags) }]);
   });
 
   it('should not notify when squad is featured and some other column changed', async () => {
