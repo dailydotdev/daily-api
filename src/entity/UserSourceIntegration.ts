@@ -8,12 +8,9 @@ import {
   TableInheritance,
   UpdateDateColumn,
 } from 'typeorm';
-import {
-  UserIntegrationType,
-  UserIntegration,
-  UserIntegrationSlack,
-} from './UserIntegration';
-import { Source } from './Source';
+import { UserIntegrationType, UserIntegrationSlack } from './UserIntegration';
+import type { UserIntegration } from './UserIntegration';
+import type { Source } from './Source';
 
 @Entity()
 @TableInheritance({
@@ -35,13 +32,13 @@ export class UserSourceIntegration {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToOne(() => UserIntegration, {
+  @ManyToOne('UserIntegration', {
     lazy: true,
     onDelete: 'CASCADE',
   })
   userIntegration: Promise<UserIntegration>;
 
-  @ManyToOne(() => Source, {
+  @ManyToOne('Source', {
     lazy: true,
     onDelete: 'CASCADE',
   })
@@ -53,7 +50,7 @@ export class UserSourceIntegrationSlack extends UserSourceIntegration {
   @Column({ type: 'text', array: true, default: [] })
   channelIds: string[];
 
-  @ManyToOne(() => UserIntegration, {
+  @ManyToOne('UserIntegration', {
     lazy: true,
     onDelete: 'CASCADE',
   })

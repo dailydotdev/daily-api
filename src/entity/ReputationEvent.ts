@@ -5,7 +5,7 @@ import {
   Column,
   BeforeInsert,
 } from 'typeorm';
-import { User } from './user';
+import type { User } from './user';
 
 export enum ReputationReason {
   PostDownvoted = 'post_downvoted',
@@ -65,7 +65,7 @@ export class ReputationEvent {
   @Column({ default: () => 'now()' })
   timestamp: Date;
 
-  @ManyToOne(() => User, {
+  @ManyToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
   })

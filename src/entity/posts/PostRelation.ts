@@ -1,5 +1,5 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
-import { Post } from './Post';
+import type { Post } from './Post';
 
 export enum PostRelationType {
   Collection = 'COLLECTION',
@@ -25,13 +25,13 @@ export class PostRelation {
   @Column({ default: () => 'now()' })
   createdAt: Date;
 
-  @ManyToOne(() => Post, {
+  @ManyToOne('Post', {
     lazy: true,
     onDelete: 'CASCADE',
   })
   post: Promise<Post>;
 
-  @ManyToOne(() => Post, {
+  @ManyToOne('Post', {
     lazy: true,
     onDelete: 'CASCADE',
   })

@@ -386,7 +386,10 @@ if (isAdhocEnv) {
       minReplicas: 1,
       maxReplicas: 25,
       limits: bgLimits,
-      requests: bgRequests,
+      requests: {
+        ...bgRequests,
+        cpu: '500m',
+      },
       metric: {
         type: 'pubsub',
         labels: { app: name, subapp: 'personalized-digest' },

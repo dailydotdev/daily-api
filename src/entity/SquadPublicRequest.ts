@@ -5,8 +5,8 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { Source } from './Source';
-import { User } from './user';
+import type { Source } from './Source';
+import type { User } from './user';
 
 export enum SquadPublicRequestStatus {
   Pending = 'pending',
@@ -26,7 +26,7 @@ export class SquadPublicRequest {
   @Index('IDX_squad_public_request_sourceId')
   sourceId: string;
 
-  @ManyToOne(() => Source, {
+  @ManyToOne('Source', {
     lazy: true,
     onDelete: 'CASCADE',
   })
@@ -35,7 +35,7 @@ export class SquadPublicRequest {
   @Column({ type: 'text' })
   requestorId: string;
 
-  @ManyToOne(() => User, {
+  @ManyToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
   })

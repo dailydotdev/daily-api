@@ -1,5 +1,5 @@
 import { Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
-import { Post } from './posts';
+import type { Post } from './posts';
 
 @Entity()
 export class PostTag {
@@ -10,7 +10,7 @@ export class PostTag {
   @PrimaryColumn({ type: 'text' })
   tag: string;
 
-  @ManyToOne(() => Post, (post) => post.tags, {
+  @ManyToOne('Post', (post: Post) => post.tags, {
     lazy: true,
     onDelete: 'CASCADE',
   })

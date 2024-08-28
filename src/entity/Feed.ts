@@ -1,5 +1,5 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
-import { User } from './user';
+import type { User } from './user';
 
 export type FeedFlags = Partial<{
   name: string;
@@ -35,7 +35,7 @@ export class Feed {
   @Index('IDX_feed_slug', { unique: true })
   slug: string;
 
-  @ManyToOne(() => User, {
+  @ManyToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
   })

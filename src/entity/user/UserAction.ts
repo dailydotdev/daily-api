@@ -1,5 +1,5 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
-import { User } from './User';
+import type { User } from './User';
 
 export enum UserActionType {
   EnableNotification = 'enable_notification',
@@ -24,7 +24,7 @@ export class UserAction {
   @Column({ type: 'timestamp without time zone', default: () => 'now()' })
   completedAt: Date;
 
-  @ManyToOne(() => User, {
+  @ManyToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
   })

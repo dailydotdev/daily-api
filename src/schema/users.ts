@@ -3,12 +3,10 @@ import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import {
-  CampaignType,
   Comment,
   Feature,
   FeatureType,
   FeatureValue,
-  Invite,
   MarketingCta,
   Post,
   PostStats,
@@ -17,6 +15,9 @@ import {
   ReputationType,
   User,
   UserMarketingCta,
+  View,
+  CampaignType,
+  Invite,
   UserPersonalizedDigest,
   UserPersonalizedDigestFlags,
   UserPersonalizedDigestFlagsPublic,
@@ -25,10 +26,8 @@ import {
   UserStreak,
   UserStreakAction,
   UserStreakActionType,
-  View,
   getAuthorPostStats,
   streakRecoverCost,
-  validateUserUpdate,
 } from '../entity';
 import {
   AuthenticationError,
@@ -97,6 +96,7 @@ import {
 import { Company } from '../entity/Company';
 import { UserCompany } from '../entity/UserCompany';
 import { generateVerifyCode } from '../ids';
+import { validateUserUpdate } from '../entity/user/utils';
 import { getRestoreStreakCache } from '../workers/cdc/primary';
 
 export interface GQLUpdateUserInput {

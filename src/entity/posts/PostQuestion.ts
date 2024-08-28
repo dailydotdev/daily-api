@@ -5,7 +5,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { Post } from './Post';
+import type { Post } from './Post';
 
 @Entity()
 export class PostQuestion {
@@ -22,7 +22,7 @@ export class PostQuestion {
   @Column({ default: () => 'now()' })
   createdAt: Date;
 
-  @ManyToOne(() => Post, {
+  @ManyToOne('Post', {
     lazy: true,
     onDelete: 'CASCADE',
   })
