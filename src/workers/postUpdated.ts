@@ -32,7 +32,7 @@ import { SubmissionFailErrorKeys, SubmissionFailErrorMessage } from '../errors';
 import { generateShortId } from '../ids';
 import { FastifyBaseLogger } from 'fastify';
 import { EntityManager } from 'typeorm';
-import { parseDate, updateFlagsStatement } from '../common';
+import { insertCodeSnippets, parseDate, updateFlagsStatement } from '../common';
 import { markdown } from '../common/markdown';
 import { counters } from '../telemetry';
 import { I18nRecord } from '../types';
@@ -77,6 +77,7 @@ interface Data {
     translate_title?: {
       translations?: I18nRecord;
     };
+    stored_code_snippets?: string;
   };
   content_quality?: PostContentQuality;
 }
@@ -728,15 +729,24 @@ const worker: Worker = {
         }
 
         if (postId) {
-          await handleCollectionRelations({
-            entityManager,
-            logger,
-            post: {
-              id: postId,
-              type: content_type,
-            },
-            originalData: data,
-          });
+          await Promise.all([
+            handleCollectionRelations({
+              entityManager,
+              logger,
+              post: {
+                id: postId,
+                type: content_type,
+              },
+              originalData: data,
+            }),
+            insertCodeSnippets({
+              entityManager,
+              post: {
+                id: postId,
+              },
+              codeSnippetsUrl: data?.meta?.stored_code_snippets,
+            }),
+          ]);
         }
       });
     } catch (err) {

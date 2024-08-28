@@ -143,3 +143,7 @@ export type PropsParameters<T extends (props: object) => unknown> = T extends (
 ) => unknown
   ? P
   : never;
+
+export enum PostCodeSnippetLanguage {
+  Plain = 'plain',
+}

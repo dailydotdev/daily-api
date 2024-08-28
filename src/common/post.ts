@@ -1,4 +1,4 @@
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, In, Not } from 'typeorm';
 import {
   Comment,
   ExternalLinkPreview,
@@ -18,6 +18,11 @@ import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { HttpError, retryFetchParse } from '../integrations/retry';
 import { checkWithVordr, VordrFilterType } from './vordr';
 import { AuthContext } from '../Context';
+import { createHash } from 'node:crypto';
+import path from 'path';
+import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
+import { logger } from '../logger';
+import { downloadJsonFile, StorageBucket } from './googleCloud';
 
 export const defaultImage = {
   urls: process.env.DEFAULT_IMAGE_URL?.split?.(',') ?? [],
@@ -252,3 +257,52 @@ export const validatePost = (
 export const submitArticleThreshold = parseInt(
   process.env.SUBMIT_ARTICLE_THRESHOLD,
 );
+
+export const insertCodeSnippets = async ({
+  entityManager,
+  post,
+  codeSnippetsUrl,
+}: {
+  entityManager: EntityManager;
+  post: Pick<Post, 'id'>;
+  codeSnippetsUrl: string | undefined;
+}) => {
+  if (!codeSnippetsUrl) {
+    return;
+  }
+
+  const fileName = path.basename(codeSnippetsUrl);
+
+  try {
+    const codeSnippetsJson = await downloadJsonFile<string[]>({
+      bucket: StorageBucket.CodeSnippets,
+      fileName,
+    });
+
+    const codeSnippets = codeSnippetsJson.map((codeSnippetContent, index) => {
+      const checksum = createHash('sha1');
+      checksum.update(codeSnippetContent);
+
+      return entityManager.getRepository(PostCodeSnippet).create({
+        postId: post.id,
+        contentHash: checksum.digest('hex'),
+        order: index,
+        content: codeSnippetContent,
+      });
+    });
+
+    await entityManager.getRepository(PostCodeSnippet).delete({
+      postId: post.id,
+      contentHash: Not(In(codeSnippets.map((snippet) => snippet.contentHash))),
+    });
+
+    await entityManager.getRepository(PostCodeSnippet).upsert(codeSnippets, {
+      conflictPaths: ['postId', 'contentHash'],
+    });
+  } catch (err) {
+    logger.error(
+      { codeSnippetsUrl, postId: post.id, err },
+      'failed to download code snippets file',
+    );
+  }
+};
