@@ -28,11 +28,13 @@ export enum StorageTopic {
   Boot = 'boot',
   Search = 'search',
   CIO = 'customer_io',
+  Streak = 'streak',
 }
 
 export enum StorageKey {
   MarketingCta = 'marketing_cta',
   Reporting = 'reporting',
+  Reset = 'reset',
 }
 
 export const generateStorageKey = (

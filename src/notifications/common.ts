@@ -44,6 +44,7 @@ export enum NotificationType {
   SquadPublicRejected = 'squad_public_rejected',
   SquadPublicSubmitted = 'squad_public_submitted',
   PostBookmarkReminder = 'post_bookmark_reminder',
+  StreakResetRestore = 'streak_reset_restore',
 }
 
 export enum NotificationPreferenceType {

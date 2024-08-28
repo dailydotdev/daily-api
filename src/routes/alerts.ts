@@ -14,6 +14,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         squadTour
         showGenericReferral
         showStreakMilestone
+        showRecoverStreak
         lastBootPopup
         lastFeedSettingsFeedback
       }

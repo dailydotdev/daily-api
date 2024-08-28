@@ -21,6 +21,7 @@ import postMention from './postMention';
 import { collectionUpdated } from './collectionUpdated';
 import devCardUnlocked from './devCardUnlocked';
 import postBookmarkReminder from './postBookmarkReminder';
+import userStreakResetNotification from './userStreakResetNotification';
 
 export function notificationWorkerToWorker(worker: NotificationWorker): Worker {
   return {
@@ -80,6 +81,7 @@ const notificationWorkers: NotificationWorker[] = [
   collectionUpdated,
   devCardUnlocked,
   postBookmarkReminder,
+  userStreakResetNotification,
 ];
 
 export const workers = [...notificationWorkers.map(notificationWorkerToWorker)];

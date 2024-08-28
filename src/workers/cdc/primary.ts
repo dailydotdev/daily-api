@@ -8,6 +8,7 @@ import {
   SquadPublicRequest,
   UserStreak,
   Bookmark,
+  Alerts,
 } from '../../entity';
 import { messageToJson, Worker } from '../worker';
 import {
@@ -75,8 +76,10 @@ import {
   notifyReputationIncrease,
   PubSubSchema,
   debeziumTimeToDate,
+  shouldAllowRestore,
+  isNumber,
 } from '../../common';
-import { ChangeMessage, UserVote } from '../../types';
+import { ChangeMessage, ChangeObject, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import { PostReport, ContentImage } from '../../entity';
@@ -93,12 +96,17 @@ import {
   generateStorageKey,
   submissionAccessThreshold,
 } from '../../config';
-import { deleteRedisKey } from '../../redis';
+import {
+  deleteRedisKey,
+  getRedisObject,
+  setRedisObjectWithExpiry,
+} from '../../redis';
 import { counters } from '../../telemetry';
 import {
   cancelReminderWorkflow,
   runReminderWorkflow,
 } from '../../temporal/notifications/utils';
+import { addDays } from 'date-fns';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -809,12 +817,61 @@ const onSquadPublicRequestChange = async (
   });
 };
 
+const setRestoreStreakCache = async (
+  con: DataSource,
+  streak: ChangeObject<UserStreak>,
+) => {
+  const { userId, currentStreak: previousStreak } = streak;
+  const today = new Date();
+  const shouldAllow = await shouldAllowRestore(con, streak);
+
+  if (!shouldAllow) {
+    return;
+  }
+
+  const key = generateStorageKey(StorageTopic.Streak, StorageKey.Reset, userId);
+  const now = today.getTime();
+  const nextDay = addDays(now, 1).setHours(0, 0, 0, 0);
+  const differenceInSeconds = (nextDay - now) * 1000;
+
+  await Promise.all([
+    setRedisObjectWithExpiry(key, previousStreak, differenceInSeconds),
+    con.getRepository(Alerts).update({ userId }, { showRecoverStreak: true }),
+  ]);
+};
+
+export const getRestoreStreakCache = async ({
+  userId,
+}: {
+  userId: User['id'];
+}): Promise<null | number> => {
+  const key = generateStorageKey(StorageTopic.Streak, StorageKey.Reset, userId);
+  const oldStreakLength = Number(await getRedisObject(key));
+  const userDoesntHaveOldStreak =
+    !oldStreakLength || !isNumber(oldStreakLength);
+
+  if (userDoesntHaveOldStreak) {
+    return null;
+  }
+
+  return oldStreakLength;
+};
+
+const VALID_STREAK_RESET = 3;
+
 const onUserStreakChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
   data: ChangeMessage<UserStreak>,
 ) => {
   if (data.payload.op === 'u') {
+    if (
+      data.payload.after.currentStreak === 0 &&
+      data.payload.before.currentStreak >= VALID_STREAK_RESET
+    ) {
+      await setRestoreStreakCache(con, data.payload.before);
+    }
+
     await triggerTypedEvent(logger, 'api.v1.user-streak-updated', {
       streak: data.payload.after!,
     });
