@@ -9,6 +9,7 @@ import {
   UserStreak,
   Bookmark,
   Alerts,
+  SourceFlagsPublic,
 } from '../../entity';
 import { messageToJson, Worker } from '../worker';
 import {
@@ -665,12 +666,13 @@ const onSourceChange = async (
       await notifySourcePrivacyUpdated(logger, data.payload.after!);
     }
 
-    if (
-      data.payload.before!.flags?.featured !==
-        data.payload.after!.flags?.featured &&
-      !!data.payload.after!.flags?.featured
-    ) {
-      notifySquadFeaturedUpdated(logger, data.payload.after!);
+    if (!!data.payload.before.flags && !!data.payload.after.flags) {
+      const before = JSON.parse(data.payload.before.flags) as SourceFlagsPublic;
+      const after = JSON.parse(data.payload.after.flags) as SourceFlagsPublic;
+
+      if (before.featured !== after.featured && after.featured) {
+        notifySquadFeaturedUpdated(logger, data.payload.after!);
+      }
     }
   }
 };

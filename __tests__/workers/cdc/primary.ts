@@ -192,7 +192,7 @@ beforeEach(async () => {
   nock.cleanAll();
 });
 
-const defaultUser: ChangeObject<Omit<User, 'createdAt'>> = {
+const defaultUser: ChangeObject<Omit<User, 'createdAt' | 'flags'>> = {
   id: '1',
   name: 'Ido',
   email: 'ido@daily.dev',
@@ -208,12 +208,10 @@ const defaultUser: ChangeObject<Omit<User, 'createdAt'>> = {
   notificationEmail: true,
   acquisitionChannel: null,
   experienceLevel: null,
-  flags: {
-    trustScore: 1,
-    vordr: false,
-  },
   language: null,
 };
+
+const defaultUserFlags = '{"trustScore":1,"vordr":false}';
 
 describe('source request', () => {
   type ObjectType = SourceRequest;
@@ -330,7 +328,7 @@ describe('post upvote', () => {
     hidden: false,
     updatedAt: 0,
     createdAt: 0,
-    flags: {},
+    flags: '{}',
   };
 
   it('should notify on new upvote', async () => {
@@ -464,7 +462,7 @@ describe('comment upvote', () => {
     vote: UserVote.Up,
     updatedAt: 0,
     createdAt: 0,
-    flags: {},
+    flags: '{}',
   };
 
   it('should notify on new upvote', async () => {
@@ -604,9 +602,9 @@ describe('comment', () => {
     featured: false,
     createdAt: 0,
     lastUpdatedAt: 0,
-    flags: {
+    flags: `{
       vordr: false,
-    },
+    }`,
   };
 
   it('should notify on new post comment', async () => {
@@ -692,7 +690,10 @@ describe('comment', () => {
 
 describe('user', () => {
   type ObjectType = Omit<User, 'createdAt'>;
-  const base: ChangeObject<ObjectType> = { ...defaultUser };
+  const base: ChangeObject<ObjectType> = {
+    ...defaultUser,
+    flags: defaultUserFlags,
+  };
 
   beforeEach(async () => {
     await saveFixtures(con, User, usersFixture);
@@ -1158,6 +1159,9 @@ describe('post', () => {
       visibleAt: 0,
       pinnedAt: null,
       statsUpdatedAt: 0,
+      flags: '{}',
+      contentMeta: '{}',
+      contentQuality: '{}',
     };
     const after: ChangeObject<ObjectType> = {
       ...localBase,
@@ -1192,12 +1196,15 @@ describe('post', () => {
       visibleAt: 0,
       pinnedAt: null,
       statsUpdatedAt: 0,
+      flags: '{}',
+      contentMeta: '{}',
+      contentQuality: '{}',
     };
     const after: ChangeObject<ObjectType> = {
       ...localBase,
-      flags: {
+      flags: `{
         promoteToPublic: 123,
-      },
+      }`,
     };
     await expectSuccessfulBackground(
       worker,
@@ -1624,7 +1631,7 @@ describe('feed', () => {
     userId: '1',
     id: '1',
     slug: '1',
-    flags: {},
+    flags: '{}',
     createdAt: Date.now(),
   };
 
@@ -1860,7 +1867,7 @@ describe('submission', () => {
     reason: null,
     status: SubmissionStatus.Started,
     createdAt: Date.now(),
-    flags: {},
+    flags: '{}',
   };
 
   it('should notify crawler for this article', async () => {
@@ -2001,12 +2008,12 @@ describe('source', () => {
     id: 'a',
     private: true,
   };
-  const flags = {
+  const flags = JSON.stringify({
     featured: true,
     totalViews: 0,
     totalUpvotes: 0,
     totalPosts: 0,
-  };
+  });
 
   it('should notify on source privacy change', async () => {
     const after = { ...base, private: false };
@@ -2031,7 +2038,7 @@ describe('source', () => {
       worker,
       mockChangeMessage<ObjectType>({
         after,
-        before: base,
+        before: { ...base, flags: JSON.stringify({ featured: false }) },
         op: 'u',
         table: 'source',
       }),
@@ -2268,7 +2275,7 @@ describe('post downvote', () => {
     hidden: false,
     updatedAt: 0,
     createdAt: 0,
-    flags: {},
+    flags: '{}',
   };
 
   it('should notify on new downvote', async () => {
@@ -2402,7 +2409,7 @@ describe('comment downvote', () => {
     vote: UserVote.Down,
     updatedAt: 0,
     createdAt: 0,
-    flags: {},
+    flags: '{}',
   };
 
   it('should notify on new downvote', async () => {
@@ -2534,19 +2541,28 @@ describe('marketing cta', () => {
     variant: 'card',
     status: MarketingCtaStatus.Active,
     createdAt: 0,
-    flags: {
+    flags: `{
       title: 'Join the best community in the world',
       description: 'Join the best community in the world',
       ctaUrl: 'http://localhost:5002',
       ctaText: 'Join now',
-    },
+    }`,
   };
 
   beforeEach(async () => {
     await ioRedisPool.execute((client) => client.flushall());
     await saveFixtures(con, User, usersFixture);
     await saveFixtures(con, MarketingCta, [
-      { ...base, createdAt: new Date('2024-03-13 12:00:00') },
+      {
+        ...base,
+        flags: {
+          title: 'Join the best community in the world',
+          description: 'Join the best community in the world',
+          ctaUrl: 'http://localhost:5002',
+          ctaText: 'Join now',
+        },
+        createdAt: new Date('2024-03-13 12:00:00'),
+      },
     ]);
     await saveFixtures(
       con,
@@ -2837,7 +2853,7 @@ describe('post content updated', () => {
       type: PostType.Article,
       url: 'http://p4.com',
       canonicalUrl: 'http://p4c.com',
-      contentMeta: {
+      contentMeta: `{
         cleaned: [
           {
             provider: 'test',
@@ -2857,7 +2873,7 @@ describe('post content updated', () => {
           resource_location: 'yggdrasil',
         },
         aigc_detect: { provider: 'test' },
-      },
+      }`,
     };
     await expectSuccessfulBackground(
       worker,
@@ -3262,8 +3278,7 @@ describe('post content updated', () => {
       canonicalUrl: 'http://p4c.com',
       contentMeta:
         '{"cleaned":[{"provider":"test","resource_location":"gs://path.xml"}]}',
-      contentQuality:
-        '{"is_ai_probability":0.9}' as ArticlePost['contentQuality'],
+      contentQuality: '{"is_ai_probability":0.9}',
     };
     await expectSuccessfulBackground(
       worker,
