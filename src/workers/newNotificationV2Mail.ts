@@ -78,6 +78,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   squad_public_approved: '41',
   post_bookmark_reminder: '',
   streak_reset_restore: '',
+  squad_featured: '', // awaiting product's response
 };
 
 type TemplateData = Record<string, string | number>;
@@ -90,6 +91,7 @@ type TemplateDataFunc = (
   avatars: NotificationAvatarV2[],
 ) => Promise<TemplateData | null>;
 const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
+  squad_featured: async () => null,
   post_bookmark_reminder: async () => null,
   streak_reset_restore: async () => null,
   community_picks_failed: async (con, user, notification) => {

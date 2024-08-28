@@ -1,3 +1,4 @@
+import { squadsFeaturedPage } from './../../common/links';
 import { NotificationWorker } from './worker';
 import { messageToJson, Worker } from '../worker';
 import { generateAndStoreNotificationsV2 } from '../../notifications';
@@ -22,6 +23,7 @@ import { collectionUpdated } from './collectionUpdated';
 import devCardUnlocked from './devCardUnlocked';
 import postBookmarkReminder from './postBookmarkReminder';
 import userStreakResetNotification from './userStreakResetNotification';
+import squadFeaturedUpdated from './squadFeaturedUpdated';
 
 export function notificationWorkerToWorker(worker: NotificationWorker): Worker {
   return {
@@ -82,6 +84,7 @@ const notificationWorkers: NotificationWorker[] = [
   devCardUnlocked,
   postBookmarkReminder,
   userStreakResetNotification,
+  squadFeaturedUpdated,
 ];
 
 export const workers = [...notificationWorkers.map(notificationWorkerToWorker)];

@@ -40,6 +40,7 @@ import {
   createSquadWelcomePost,
   notificationsLink,
   scoutArticleLink,
+  squadsFeaturedPage,
 } from '../../src/common';
 import { usersFixture } from '../fixture/user';
 import createOrGetConnection from '../../src/db';
@@ -841,6 +842,30 @@ describe('generateNotification', () => {
     expect(actual.notification.icon).toEqual('Block');
     expect(actual.notification.title).toEqual(
       `You are no longer part of <b>${sourcesFixture[0].name}</b>`,
+    );
+  });
+
+  it('should generate squad_featured notification', async () => {
+    const type = NotificationType.SquadFeatured;
+    const ctx: NotificationSourceContext = {
+      userIds: [userId],
+      source: {
+        ...sourcesFixture[0],
+        type: SourceType.Squad,
+      } as Reference<Source>,
+    };
+
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('a');
+    expect(actual.notification.referenceType).toEqual('source');
+    expect(actual.notification.targetUrl).toEqual(squadsFeaturedPage);
+    expect(actual.notification.icon).toEqual('Bell');
+    expect(actual.notification.title).toEqual(
+      `Congratulations! <b>${ctx.source.name}</b> is now officially featured on the Squads directory`,
     );
   });
 

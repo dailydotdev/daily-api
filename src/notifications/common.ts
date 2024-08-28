@@ -33,6 +33,7 @@ export enum NotificationType {
   SquadReply = 'squad_reply',
   SquadSubscribeToNotification = 'squad_subscribe_to_notification',
   SquadBlocked = 'squad_blocked',
+  SquadFeatured = 'squad_featured',
   PromotedToAdmin = 'promoted_to_admin',
   DemotedToMember = 'demoted_to_member',
   PromotedToModerator = 'promoted_to_moderator',

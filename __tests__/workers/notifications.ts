@@ -1,4 +1,4 @@
-import { invokeNotificationWorker } from '../helpers';
+import { invokeNotificationWorker, saveFixtures } from '../helpers';
 import {
   Bookmark,
   Comment,
@@ -24,7 +24,7 @@ import {
 import { SourceMemberRoles } from '../../src/roles';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
-import { usersFixture, sourcesFixture } from '../fixture';
+import { usersFixture, sourcesFixture, badUsersFixture } from '../fixture';
 import { postsFixture } from '../fixture/post';
 import {
   NotificationBookmarkContext,
@@ -166,6 +166,163 @@ it('should NOT add devcard unlocked notification if user had already reached the
     },
   });
   expect(actual).toBeUndefined();
+});
+
+describe('squad featured updated notification', () => {
+  const baseMember = {
+    userId: '1',
+    sourceId: 'squad',
+    referralToken: 'rt1',
+  };
+
+  const squad = {
+    ...sourcesFixture[0],
+    type: SourceType.Squad,
+    flags: { featured: true },
+  };
+
+  beforeEach(async () => {
+    await saveFixtures(con, User, badUsersFixture);
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    await con.getRepository(SourceMember).save({
+      role: SourceMemberRoles.Admin,
+      sourceId: 'a',
+      userId: '1',
+      referralToken: 't1',
+    });
+    await con.getRepository(SourceMember).save({
+      role: SourceMemberRoles.Admin,
+      sourceId: 'a',
+      userId: '2',
+      referralToken: 't2',
+    });
+    await con.getRepository(SourceMember).save({
+      role: SourceMemberRoles.Moderator,
+      sourceId: 'a',
+      userId: '3',
+      referralToken: 't3',
+    });
+    await con.getRepository(SourceMember).save({
+      role: SourceMemberRoles.Member,
+      sourceId: 'a',
+      userId: '4',
+      referralToken: 't4',
+    });
+    await con.getRepository(SourceMember).save({
+      role: SourceMemberRoles.Blocked,
+      sourceId: 'a',
+      userId: 'low-score',
+      referralToken: 't5',
+    });
+  });
+
+  it('should be registered', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/squadFeaturedUpdated'
+    );
+
+    const registeredWorker = workers.find(
+      (item) => item.subscription === worker.default.subscription,
+    );
+
+    expect(registeredWorker).toBeDefined();
+  });
+
+  it('should not do anything when squad is not featured', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/squadFeaturedUpdated'
+    );
+    const actual = await invokeNotificationWorker(worker.default, {
+      squad: { ...squad, flags: { featured: false } },
+    });
+    expect(actual).toBeFalsy();
+  });
+
+  it('should send notification to admins', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/squadFeaturedUpdated'
+    );
+    const actual = await invokeNotificationWorker(worker.default, { squad });
+    const source = await con.getRepository(Source).findOneBy({ id: squad.id });
+
+    expect(actual).toBeTruthy();
+    expect(actual![0].type).toEqual('squad_featured');
+    expect((actual![0].ctx as NotificationSourceContext).source.id).toEqual(
+      source!.id,
+    );
+    const admins = await con.getRepository(SourceMember).findBy({
+      role: SourceMemberRoles.Admin,
+    });
+    const adminsFound = admins.every((admin) =>
+      actual![0].ctx.userIds.includes(admin.userId),
+    );
+    expect(adminsFound).toBeTruthy;
+  });
+
+  it('should send notification to moderators', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/squadFeaturedUpdated'
+    );
+    const actual = await invokeNotificationWorker(worker.default, { squad });
+    const source = await con.getRepository(Source).findOneBy({ id: squad.id });
+
+    expect(actual).toBeTruthy();
+    expect(actual![0].type).toEqual('squad_featured');
+    expect((actual![0].ctx as NotificationSourceContext).source.id).toEqual(
+      source!.id,
+    );
+    const mods = await con.getRepository(SourceMember).findBy({
+      role: SourceMemberRoles.Moderator,
+    });
+    const modsFound = mods.every((mod) =>
+      actual![0].ctx.userIds.includes(mod.userId),
+    );
+    expect(modsFound).toBeTruthy;
+  });
+
+  it('should not send notification to regular members', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/squadFeaturedUpdated'
+    );
+    const actual = await invokeNotificationWorker(worker.default, { squad });
+    const source = await con.getRepository(Source).findOneBy({ id: squad.id });
+
+    expect(actual).toBeTruthy();
+    expect(actual![0].type).toEqual('squad_featured');
+    expect((actual![0].ctx as NotificationSourceContext).source.id).toEqual(
+      source!.id,
+    );
+    const members = await con.getRepository(SourceMember).findBy({
+      role: SourceMemberRoles.Member,
+    });
+    const membersNotFound = members.every(
+      (member) => !actual![0].ctx.userIds.includes(member.userId),
+    );
+    expect(membersNotFound).toBeTruthy;
+  });
+
+  it('should not send notification to blocked members', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/squadFeaturedUpdated'
+    );
+    const actual = await invokeNotificationWorker(worker.default, { squad });
+    const source = await con.getRepository(Source).findOneBy({ id: squad.id });
+
+    expect(actual).toBeTruthy();
+    expect(actual![0].type).toEqual('squad_featured');
+    expect((actual![0].ctx as NotificationSourceContext).source.id).toEqual(
+      source!.id,
+    );
+    const blocked = await con.getRepository(SourceMember).findBy({
+      role: SourceMemberRoles.Blocked,
+    });
+    const blockedNotFound = blocked.every(
+      (member) => !actual![0].ctx.userIds.includes(member.userId),
+    );
+    expect(blockedNotFound).toBeTruthy;
+  });
 });
 
 describe('source member role changed', () => {
