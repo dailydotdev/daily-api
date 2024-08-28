@@ -180,36 +180,38 @@ describe('squad featured updated notification', () => {
     await con
       .getRepository(Source)
       .update({ id: 'a' }, { type: SourceType.Squad });
-    await con.getRepository(SourceMember).save({
-      role: SourceMemberRoles.Admin,
-      sourceId: 'a',
-      userId: '1',
-      referralToken: 't1',
-    });
-    await con.getRepository(SourceMember).save({
-      role: SourceMemberRoles.Admin,
-      sourceId: 'a',
-      userId: '2',
-      referralToken: 't2',
-    });
-    await con.getRepository(SourceMember).save({
-      role: SourceMemberRoles.Moderator,
-      sourceId: 'a',
-      userId: '3',
-      referralToken: 't3',
-    });
-    await con.getRepository(SourceMember).save({
-      role: SourceMemberRoles.Member,
-      sourceId: 'a',
-      userId: '4',
-      referralToken: 't4',
-    });
-    await con.getRepository(SourceMember).save({
-      role: SourceMemberRoles.Blocked,
-      sourceId: 'a',
-      userId: 'low-score',
-      referralToken: 't5',
-    });
+    await con.getRepository(SourceMember).save([
+      {
+        role: SourceMemberRoles.Admin,
+        sourceId: 'a',
+        userId: '1',
+        referralToken: 't1',
+      },
+      {
+        role: SourceMemberRoles.Admin,
+        sourceId: 'a',
+        userId: '2',
+        referralToken: 't2',
+      },
+      {
+        role: SourceMemberRoles.Moderator,
+        sourceId: 'a',
+        userId: '3',
+        referralToken: 't3',
+      },
+      {
+        role: SourceMemberRoles.Member,
+        sourceId: 'a',
+        userId: '4',
+        referralToken: 't4',
+      },
+      {
+        role: SourceMemberRoles.Blocked,
+        sourceId: 'a',
+        userId: 'low-score',
+        referralToken: 't5',
+      },
+    ]);
   });
 
   it('should be registered', async () => {
