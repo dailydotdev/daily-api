@@ -10,8 +10,6 @@ import {
   SourceFlagsPublic,
   SourceMember,
   SourceMemberFlagsPublic,
-  SquadPublicRequest,
-  SquadPublicRequestStatus,
   SquadSource,
   User,
 } from '../entity';
@@ -47,7 +45,6 @@ import { toGQLEnum } from '../common/utils';
 import { GraphQLResolveInfo } from 'graphql';
 import {
   SourcePermissionErrorKeys,
-  SourceRequestErrorMessage,
   TypeOrmError,
   TypeORMQueryFailedError,
 } from '../errors';
