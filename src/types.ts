@@ -37,17 +37,12 @@ declare module 'fastify' {
 }
 
 type IgnoredTypes = Promise<unknown> | ((...args: unknown[]) => unknown);
-type NonArrayObject = object & { [Symbol.iterator]?: never };
 
 export type ChangeObject<Type> = {
   [Property in keyof Type as Exclude<
     Property,
     Required<Type>[Property] extends IgnoredTypes ? Property : never
-  >]: Required<Type>[Property] extends Date
-    ? number
-    : Required<Type>[Property] extends NonArrayObject
-      ? string
-      : Type[Property];
+  >]: Required<Type>[Property] extends Date ? number : Type[Property];
 };
 
 export type ChangeSchema = {
