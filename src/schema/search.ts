@@ -425,7 +425,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { query, limit = 10 }: SearchSuggestionArgs,
       ctx,
     ): Promise<GQLSearchSuggestionsResults> => {
-      console.log('limit', limit);
       if (!query || query.length < 3 || query.length > 100) {
         return {
           query,
