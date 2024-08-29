@@ -19,10 +19,10 @@ import { HttpError, retryFetchParse } from '../integrations/retry';
 import { checkWithVordr, VordrFilterType } from './vordr';
 import { AuthContext } from '../Context';
 import { createHash } from 'node:crypto';
-import path from 'path';
 import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
 import { logger } from '../logger';
-import { downloadJsonFile, StorageBucket } from './googleCloud';
+import { downloadJsonFile } from './googleCloud';
+import { PostCodeSnippetJsonFile } from '../types';
 
 export const defaultImage = {
   urls: process.env.DEFAULT_IMAGE_URL?.split?.(',') ?? [],
@@ -271,38 +271,54 @@ export const insertCodeSnippets = async ({
     return;
   }
 
-  const fileName = path.basename(codeSnippetsUrl);
-
   try {
-    const codeSnippetsJson = await downloadJsonFile<string[]>({
-      bucket: StorageBucket.CodeSnippets,
-      fileName,
+    const codeSnippetsJson = await downloadJsonFile<PostCodeSnippetJsonFile>({
+      url: codeSnippetsUrl,
     });
 
-    const codeSnippets = codeSnippetsJson.map((codeSnippetContent, index) => {
-      const checksum = createHash('sha1');
-      checksum.update(codeSnippetContent);
+    const codeSnippets = codeSnippetsJson.snippets.reduce(
+      (acc, codeSnippetContent, index) => {
+        const checksum = createHash('sha1');
+        checksum.update(codeSnippetContent);
+        const contentHash = checksum.digest('hex');
 
-      return entityManager.getRepository(PostCodeSnippet).create({
-        postId: post.id,
-        contentHash: checksum.digest('hex'),
-        order: index,
-        content: codeSnippetContent,
-      });
-    });
+        if (!acc.has(contentHash)) {
+          acc.set(
+            contentHash,
+            entityManager.getRepository(PostCodeSnippet).create({
+              postId: post.id,
+              contentHash,
+              order: index,
+              content: codeSnippetContent,
+            }),
+          );
+        }
+
+        return acc;
+      },
+      new Map<string, PostCodeSnippet>(),
+    );
+
+    const uniqueCodeSnippets = Array.from(codeSnippets.values());
 
     await entityManager.getRepository(PostCodeSnippet).delete({
       postId: post.id,
-      contentHash: Not(In(codeSnippets.map((snippet) => snippet.contentHash))),
+      contentHash: Not(
+        In(uniqueCodeSnippets.map((snippet) => snippet.contentHash)),
+      ),
     });
 
-    await entityManager.getRepository(PostCodeSnippet).upsert(codeSnippets, {
-      conflictPaths: ['postId', 'contentHash'],
-    });
+    await entityManager
+      .getRepository(PostCodeSnippet)
+      .upsert(uniqueCodeSnippets, {
+        conflictPaths: ['postId', 'contentHash'],
+      });
   } catch (err) {
     logger.error(
       { codeSnippetsUrl, postId: post.id, err },
       'failed to download code snippets file',
     );
+
+    throw err;
   }
 };

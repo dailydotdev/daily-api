@@ -31,6 +31,21 @@ import { randomUUID } from 'crypto';
 import { usersFixture } from '../fixture/user';
 import { SubmissionFailErrorMessage } from '../../src/errors';
 import { videoPostsFixture } from '../fixture/post';
+import { PostCodeSnippet } from '../../src/entity/posts/PostCodeSnippet';
+import { downloadJsonFile } from '../../src/common/googleCloud';
+import {
+  PostCodeSnippetJsonFile,
+  PostCodeSnippetLanguage,
+} from '../../src/types';
+import { insertCodeSnippets } from '../../src/common';
+
+jest.mock('../../src/common/googleCloud', () => ({
+  ...(jest.requireActual('../../src/common/googleCloud') as Record<
+    string,
+    unknown
+  >),
+  downloadJsonFile: jest.fn(),
+}));
 
 let con: DataSource;
 
@@ -936,6 +951,63 @@ describe('on post create', () => {
       expect(post.showOnFeed).toEqual(true);
       expect(post.flags.showOnFeed).toEqual(true);
     });
+
+    describe('post code snippets', () => {
+      it('should create post with code snippets', async () => {
+        (
+          downloadJsonFile as jest.MockedFunction<typeof downloadJsonFile>
+        ).mockResolvedValueOnce({
+          snippets: [
+            'while (true) {\n    /* remove this */\n}',
+            'const a = 1;\n\nconsole.log(a)',
+          ],
+        });
+
+        const uuid = randomUUID();
+
+        await expectSuccessfulBackground(worker, {
+          id: uuid,
+          title: `Title ${uuid}`,
+          url: `http://example.com/posts/${uuid}`,
+          source_id: 'a',
+          meta: {
+            stored_code_snippets: `gs://bucket/${uuid}.json`,
+          },
+        });
+
+        const post = await con.getRepository(ArticlePost).findOneByOrFail({
+          yggdrasilId: uuid,
+        });
+
+        const codeSnippets = await con.getRepository(PostCodeSnippet).find({
+          where: {
+            postId: post.id,
+          },
+          order: {
+            order: 'ASC',
+          },
+        });
+        expect(codeSnippets.length).toEqual(2);
+        expect(codeSnippets).toMatchObject([
+          {
+            content: 'while (true) {\n    /* remove this */\n}',
+            contentHash: 'ee1cdee8c96afc016935ccde191e021d3327ee79',
+            createdAt: expect.any(Date),
+            language: PostCodeSnippetLanguage.Plain,
+            order: 0,
+            postId: post.id,
+          },
+          {
+            content: 'const a = 1;\n\nconsole.log(a)',
+            contentHash: 'c1d469fbdc2d504110e247b6f754075d1cda2cce',
+            createdAt: expect.any(Date),
+            language: PostCodeSnippetLanguage.Plain,
+            order: 1,
+            postId: post.id,
+          },
+        ]);
+      });
+    });
   });
 });
 
@@ -1465,6 +1537,213 @@ describe('on post update', () => {
       expect(updatedPost.flags.banned).toEqual(true);
       expect(updatedPost.flags.showOnFeed).toEqual(true);
       expect(updatedPost.flags.promoteToPublic).toEqual(1);
+    });
+
+    describe('post code snippets', () => {
+      const createPostWithCodeSnippets = async ({
+        snippets,
+      }: Pick<PostCodeSnippetJsonFile, 'snippets'>) => {
+        (
+          downloadJsonFile as jest.MockedFunction<typeof downloadJsonFile>
+        ).mockResolvedValueOnce({
+          snippets,
+        });
+
+        const uuid = randomUUID();
+        const post = await con.getRepository(ArticlePost).save({
+          id: 'pcs1',
+          shortId: 'pcs1',
+          yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+          url: `http://example.com/posts/${uuid}`,
+          sourceId: 'a',
+        });
+        await insertCodeSnippets({
+          entityManager: con.manager,
+          post: {
+            id: post.id,
+          },
+          codeSnippetsUrl: `gs://bucket/${uuid}.json`,
+        });
+
+        return post;
+      };
+
+      it('should update post with code snippets', async () => {
+        const existingPost = await createPostWithCodeSnippets({
+          snippets: [
+            'while (true) {\n    /* remove this */\n}',
+            'const a = 1;\n\nconsole.log(a)',
+          ],
+        });
+        expect(await con.getRepository(PostCodeSnippet).count()).toBe(2);
+
+        (
+          downloadJsonFile as jest.MockedFunction<typeof downloadJsonFile>
+        ).mockResolvedValueOnce({
+          snippets: [
+            'while (false) {\n    /* remove that */\n}',
+            'const b = 1;\n\nconsole.log(b)',
+          ],
+        });
+
+        await expectSuccessfulBackground(worker, {
+          id: existingPost.yggdrasilId,
+          post_id: existingPost.id,
+          meta: {
+            stored_code_snippets: `gs://bucket/${existingPost.yggdrasilId}.json`,
+          },
+        });
+
+        const post = await con.getRepository(ArticlePost).findOneByOrFail({
+          id: existingPost.id,
+        });
+
+        const codeSnippets = await con.getRepository(PostCodeSnippet).find({
+          where: {
+            postId: post.id,
+          },
+          order: {
+            order: 'ASC',
+          },
+        });
+        expect(codeSnippets.length).toEqual(2);
+        expect(codeSnippets).toMatchObject([
+          {
+            content: 'while (false) {\n    /* remove that */\n}',
+            contentHash: '1274ca65aa00681606f7894a55143607057bf209',
+            createdAt: expect.any(Date),
+            language: PostCodeSnippetLanguage.Plain,
+            order: 0,
+            postId: post.id,
+          },
+          {
+            content: 'const b = 1;\n\nconsole.log(b)',
+            contentHash: '370e2729c7035b45c91b3f34fb76e3aafba4303f',
+            createdAt: expect.any(Date),
+            language: PostCodeSnippetLanguage.Plain,
+            order: 1,
+            postId: post.id,
+          },
+        ]);
+      });
+
+      it('should delete removed code snippets no and insert added ones', async () => {
+        const existingPost = await createPostWithCodeSnippets({
+          snippets: [
+            'while (true) {\n    /* remove this */\n}',
+            'const a = 1;\n\nconsole.log(a)',
+          ],
+        });
+        expect(await con.getRepository(PostCodeSnippet).count()).toBe(2);
+
+        (
+          downloadJsonFile as jest.MockedFunction<typeof downloadJsonFile>
+        ).mockResolvedValueOnce({
+          snippets: [
+            'const response = await fetch("https://example.com")',
+            'const a = 1;\n\nconsole.log(a)',
+            'const timer = setTimeout(console.log, 1000)',
+            'const interval = setInterval(console.log, 200)',
+          ],
+        });
+
+        await expectSuccessfulBackground(worker, {
+          id: existingPost.yggdrasilId,
+          post_id: existingPost.id,
+          meta: {
+            stored_code_snippets: `gs://bucket/${existingPost.yggdrasilId}.json`,
+          },
+        });
+
+        const post = await con.getRepository(ArticlePost).findOneByOrFail({
+          id: existingPost.id,
+        });
+
+        const codeSnippets = await con.getRepository(PostCodeSnippet).find({
+          where: {
+            postId: post.id,
+          },
+          order: {
+            order: 'ASC',
+          },
+        });
+
+        expect(codeSnippets.length).toEqual(4);
+        expect(codeSnippets).toMatchObject([
+          {
+            content: 'const response = await fetch("https://example.com")',
+            contentHash: '4b261b65a7d507fe8effedc225cbdb63af8e234e',
+            createdAt: expect.any(Date),
+            language: PostCodeSnippetLanguage.Plain,
+            order: 0,
+            postId: post.id,
+          },
+          {
+            content: 'const a = 1;\n\nconsole.log(a)',
+            contentHash: 'c1d469fbdc2d504110e247b6f754075d1cda2cce',
+            createdAt: expect.any(Date),
+            language: PostCodeSnippetLanguage.Plain,
+            order: 1,
+            postId: post.id,
+          },
+          {
+            content: 'const timer = setTimeout(console.log, 1000)',
+            contentHash: 'af7d49e07a60a5ac7d4727ce997ab845086b72bb',
+            createdAt: expect.any(Date),
+            language: PostCodeSnippetLanguage.Plain,
+            order: 2,
+            postId: post.id,
+          },
+          {
+            content: 'const interval = setInterval(console.log, 200)',
+            contentHash: 'b48a89bf7863a66a5aa62970b3485880d896419a',
+            createdAt: expect.any(Date),
+            language: PostCodeSnippetLanguage.Plain,
+            order: 3,
+            postId: post.id,
+          },
+        ]);
+      });
+
+      it('should delete all snippets if all are removed', async () => {
+        const existingPost = await createPostWithCodeSnippets({
+          snippets: [
+            'while (true) {\n    /* remove this */\n}',
+            'const a = 1;\n\nconsole.log(a)',
+          ],
+        });
+        expect(await con.getRepository(PostCodeSnippet).count()).toBe(2);
+
+        (
+          downloadJsonFile as jest.MockedFunction<typeof downloadJsonFile>
+        ).mockResolvedValueOnce({
+          snippets: [],
+        });
+
+        await expectSuccessfulBackground(worker, {
+          id: existingPost.yggdrasilId,
+          post_id: existingPost.id,
+          meta: {
+            stored_code_snippets: `gs://bucket/${existingPost.yggdrasilId}.json`,
+          },
+        });
+
+        const post = await con.getRepository(ArticlePost).findOneByOrFail({
+          id: existingPost.id,
+        });
+
+        const codeSnippets = await con.getRepository(PostCodeSnippet).find({
+          where: {
+            postId: post.id,
+          },
+          order: {
+            order: 'ASC',
+          },
+        });
+
+        expect(codeSnippets.length).toEqual(0);
+        expect(codeSnippets).toMatchObject([]);
+      });
     });
   });
 });

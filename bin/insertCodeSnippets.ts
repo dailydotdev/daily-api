@@ -19,6 +19,7 @@ const main = async () => {
     .stream();
 
   let insertCount = 0;
+
   const insertQueue = fastq.promise(
     async ({ postId, filePath }: SnippetRow) => {
       await insertCodeSnippets({

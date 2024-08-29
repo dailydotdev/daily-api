@@ -1,19 +1,16 @@
 import { Storage, DownloadOptions } from '@google-cloud/storage';
 import { PropsParameters } from '../types';
-
-export enum StorageBucket {
-  CodeSnippets = 'daily-dev-yggdrasil-code-snippets',
-}
+import path from 'path';
 
 export const downloadFile = async ({
-  bucket,
-  fileName,
+  url,
   options,
 }: {
-  bucket: StorageBucket;
-  fileName: string;
+  url: string;
   options?: DownloadOptions;
 }): Promise<string> => {
+  const bucket = path.dirname(url);
+  const fileName = path.basename(url);
   const storage = new Storage();
 
   const [result] = await storage
@@ -25,10 +22,10 @@ export const downloadFile = async ({
 };
 
 export const downloadJsonFile = async <T>({
-  bucket,
-  fileName,
+  url,
+  options,
 }: PropsParameters<typeof downloadFile>): Promise<T> => {
-  const result = await downloadFile({ bucket, fileName });
+  const result = await downloadFile({ url, options });
 
   return JSON.parse(result);
 };
