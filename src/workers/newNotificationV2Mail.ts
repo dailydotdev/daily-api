@@ -78,7 +78,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   squad_public_approved: '41',
   post_bookmark_reminder: '',
   streak_reset_restore: '',
-  squad_featured: '', // awaiting product's response
+  squad_featured: '', // TODO: MI-514 - Add template ID and relevant test cases
 };
 
 type TemplateData = Record<string, string | number>;
