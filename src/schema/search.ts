@@ -462,7 +462,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const hits = await searchQuery.getRawMany();
       return {
         query,
-        hits: hits.slice(0, 3),
+        hits: hits.slice(0, limit),
       };
     },
   },
