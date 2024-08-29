@@ -422,7 +422,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     searchUserSuggestions: async (
       source,
-      { query, limit = 10 }: SearchSuggestionArgs,
+      { query, limit }: SearchSuggestionArgs,
       ctx,
     ): Promise<GQLSearchSuggestionsResults> => {
       if (!query || query.length < 3 || query.length > 100) {
