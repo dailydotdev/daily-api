@@ -231,7 +231,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Maximum number of users to return
       """
-      limit: Int = ${defaultSearchLimit}
+      limit: Int = 10
 
       """
       Version of the search algorithm
@@ -422,9 +422,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     searchUserSuggestions: async (
       source,
-      { query, limit }: SearchSuggestionArgs,
+      { query, limit = 10 }: SearchSuggestionArgs,
       ctx,
     ): Promise<GQLSearchSuggestionsResults> => {
+      console.log('limit', limit);
       if (!query || query.length < 3 || query.length > 100) {
         return {
           query,
@@ -460,10 +461,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .andWhere(whereVordrFilter('u'))
         .limit(getSearchLimit({ limit }));
       const hits = await searchQuery.getRawMany();
-
       return {
         query,
-        hits,
+        hits: hits.slice(0, 3),
       };
     },
   },
