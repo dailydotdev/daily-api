@@ -425,7 +425,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { query, limit }: SearchSuggestionArgs,
       ctx,
     ): Promise<GQLSearchSuggestionsResults> => {
-      if (!query || query.length < 3) {
+      if (!query || query.length < 3 || query.length > 100) {
         return {
           query,
           hits: [],
@@ -458,12 +458,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         )
         .orderBy('u.reputation', 'DESC')
         .andWhere(whereVordrFilter('u'))
-        .limit(getSearchLimit({ limit }));
+        .limit(getSearchLimit({ limit: Math.max(limit, 10) }));
       const hits = await searchQuery.getRawMany();
-
       return {
         query,
-        hits,
+        hits: hits.slice(0, limit),
       };
     },
   },
