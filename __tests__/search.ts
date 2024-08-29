@@ -606,6 +606,45 @@ describe('query searchUserSuggestions', () => {
     ]);
   });
 
+  it('should only return 3', async () => {
+    await con
+      .getRepository(User)
+      .update({ id: '2' }, { name: 'Ido test 2', reputation: 100 });
+    await con
+      .getRepository(User)
+      .update({ id: '3' }, { name: 'Ido test 3', reputation: 99 });
+    await con
+      .getRepository(User)
+      .update({ id: '4' }, { name: 'Ido test 4', reputation: 98 });
+    const res = await client.query(QUERY('ido'));
+    expect(res.data.searchUserSuggestions).toBeTruthy();
+
+    const result = res.data.searchUserSuggestions;
+
+    expect(result.query).toBe('ido');
+    expect(result.hits).toHaveLength(3);
+    expect(result.hits).toMatchObject([
+      {
+        id: '2',
+        image: 'https://daily.dev/tsahi.jpg',
+        subtitle: 'tsahidaily',
+        title: 'Ido test 2',
+      },
+      {
+        id: '3',
+        image: 'https://daily.dev/nimrod.jpg',
+        subtitle: 'nimroddaily',
+        title: 'Ido test 3',
+      },
+      {
+        id: '4',
+        image: 'https://daily.dev/lee.jpg',
+        subtitle: 'lee',
+        title: 'Ido test 4',
+      },
+    ]);
+  });
+
   it('should only return infoConfirmed users', async () => {
     await con.getRepository(User).update({ id: '1' }, { infoConfirmed: false });
     await con.getRepository(User).update({ id: '2' }, { name: 'Ido test 2' });
