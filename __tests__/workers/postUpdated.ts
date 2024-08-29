@@ -1744,6 +1744,65 @@ describe('on post update', () => {
         expect(codeSnippets.length).toEqual(0);
         expect(codeSnippets).toMatchObject([]);
       });
+
+      it('should update snippets when order is changed', async () => {
+        const existingPost = await createPostWithCodeSnippets({
+          snippets: [
+            'while (true) {\n    /* remove this */\n}',
+            'const a = 1;\n\nconsole.log(a)',
+          ],
+        });
+        expect(await con.getRepository(PostCodeSnippet).count()).toBe(2);
+
+        (
+          downloadJsonFile as jest.MockedFunction<typeof downloadJsonFile>
+        ).mockResolvedValueOnce({
+          snippets: [
+            'const a = 1;\n\nconsole.log(a)',
+            'while (true) {\n    /* remove this */\n}',
+          ],
+        });
+
+        await expectSuccessfulBackground(worker, {
+          id: existingPost.yggdrasilId,
+          post_id: existingPost.id,
+          meta: {
+            stored_code_snippets: `gs://bucket/${existingPost.yggdrasilId}.json`,
+          },
+        });
+
+        const post = await con.getRepository(ArticlePost).findOneByOrFail({
+          id: existingPost.id,
+        });
+
+        const codeSnippets = await con.getRepository(PostCodeSnippet).find({
+          where: {
+            postId: post.id,
+          },
+          order: {
+            order: 'ASC',
+          },
+        });
+        expect(codeSnippets.length).toEqual(2);
+        expect(codeSnippets).toMatchObject([
+          {
+            content: 'const a = 1;\n\nconsole.log(a)',
+            contentHash: 'c1d469fbdc2d504110e247b6f754075d1cda2cce',
+            createdAt: expect.any(Date),
+            language: PostCodeSnippetLanguage.Plain,
+            order: 0,
+            postId: post.id,
+          },
+          {
+            content: 'while (true) {\n    /* remove this */\n}',
+            contentHash: 'ee1cdee8c96afc016935ccde191e021d3327ee79',
+            createdAt: expect.any(Date),
+            language: PostCodeSnippetLanguage.Plain,
+            order: 1,
+            postId: post.id,
+          },
+        ]);
+      });
     });
   });
 });
