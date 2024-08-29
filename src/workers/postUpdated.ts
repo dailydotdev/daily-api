@@ -32,10 +32,11 @@ import { SubmissionFailErrorKeys, SubmissionFailErrorMessage } from '../errors';
 import { generateShortId } from '../ids';
 import { FastifyBaseLogger } from 'fastify';
 import { EntityManager } from 'typeorm';
-import { insertCodeSnippets, parseDate, updateFlagsStatement } from '../common';
+import { parseDate, updateFlagsStatement } from '../common';
 import { markdown } from '../common/markdown';
 import { counters } from '../telemetry';
 import { I18nRecord } from '../types';
+import { insertCodeSnippetsFromUrl } from '../common/post';
 
 interface Data {
   id: string;
@@ -739,7 +740,7 @@ const worker: Worker = {
               },
               originalData: data,
             }),
-            insertCodeSnippets({
+            insertCodeSnippetsFromUrl({
               entityManager,
               post: {
                 id: postId,

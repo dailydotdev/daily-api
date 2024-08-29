@@ -37,7 +37,7 @@ import {
   PostCodeSnippetJsonFile,
   PostCodeSnippetLanguage,
 } from '../../src/types';
-import { insertCodeSnippets } from '../../src/common';
+import { insertCodeSnippetsFromUrl } from '../../src/common/post';
 
 jest.mock('../../src/common/googleCloud', () => ({
   ...(jest.requireActual('../../src/common/googleCloud') as Record<
@@ -1557,7 +1557,7 @@ describe('on post update', () => {
           url: `http://example.com/posts/${uuid}`,
           sourceId: 'a',
         });
-        await insertCodeSnippets({
+        await insertCodeSnippetsFromUrl({
           entityManager: con.manager,
           post: {
             id: post.id,

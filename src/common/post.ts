@@ -261,62 +261,74 @@ export const submitArticleThreshold = parseInt(
 export const insertCodeSnippets = async ({
   entityManager,
   post,
+  codeSnippetsJson,
+}: {
+  entityManager: EntityManager;
+  post: Pick<Post, 'id'>;
+  codeSnippetsJson: PostCodeSnippetJsonFile;
+}) => {
+  const codeSnippets = codeSnippetsJson.snippets.reduce(
+    (acc, codeSnippetContent, index) => {
+      const checksum = createHash('sha1');
+      checksum.update(codeSnippetContent);
+      const contentHash = checksum.digest('hex');
+
+      if (!acc.has(contentHash)) {
+        acc.set(
+          contentHash,
+          entityManager.getRepository(PostCodeSnippet).create({
+            postId: post.id,
+            contentHash,
+            order: index,
+            content: codeSnippetContent,
+          }),
+        );
+      }
+
+      return acc;
+    },
+    new Map<string, PostCodeSnippet>(),
+  );
+
+  const uniqueCodeSnippets = Array.from(codeSnippets.values());
+
+  await entityManager.getRepository(PostCodeSnippet).delete({
+    postId: post.id,
+    contentHash: Not(
+      In(uniqueCodeSnippets.map((snippet) => snippet.contentHash)),
+    ),
+  });
+
+  await entityManager
+    .getRepository(PostCodeSnippet)
+    .upsert(uniqueCodeSnippets, {
+      conflictPaths: ['postId', 'contentHash'],
+    });
+};
+
+export const insertCodeSnippetsFromUrl = async ({
+  entityManager,
+  post,
   codeSnippetsUrl,
 }: {
   entityManager: EntityManager;
   post: Pick<Post, 'id'>;
   codeSnippetsUrl: string | undefined;
 }) => {
-  if (!codeSnippetsUrl) {
-    return;
-  }
-
   try {
+    if (!codeSnippetsUrl) {
+      return;
+    }
+
     const codeSnippetsJson = await downloadJsonFile<PostCodeSnippetJsonFile>({
       url: codeSnippetsUrl,
     });
 
-    const codeSnippets = codeSnippetsJson.snippets.reduce(
-      (acc, codeSnippetContent, index) => {
-        const checksum = createHash('sha1');
-        checksum.update(codeSnippetContent);
-        const contentHash = checksum.digest('hex');
-
-        if (!acc.has(contentHash)) {
-          acc.set(
-            contentHash,
-            entityManager.getRepository(PostCodeSnippet).create({
-              postId: post.id,
-              contentHash,
-              order: index,
-              content: codeSnippetContent,
-            }),
-          );
-        }
-
-        return acc;
-      },
-      new Map<string, PostCodeSnippet>(),
-    );
-
-    const uniqueCodeSnippets = Array.from(codeSnippets.values());
-
-    await entityManager.getRepository(PostCodeSnippet).delete({
-      postId: post.id,
-      contentHash: Not(
-        In(uniqueCodeSnippets.map((snippet) => snippet.contentHash)),
-      ),
-    });
-
-    await entityManager
-      .getRepository(PostCodeSnippet)
-      .upsert(uniqueCodeSnippets, {
-        conflictPaths: ['postId', 'contentHash'],
-      });
+    await insertCodeSnippets({ entityManager, post, codeSnippetsJson });
   } catch (err) {
     logger.error(
       { codeSnippetsUrl, postId: post.id, err },
-      'failed to download code snippets file',
+      'failed to save code snippets from bucket',
     );
 
     throw err;
