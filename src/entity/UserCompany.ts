@@ -12,6 +12,10 @@ import {
 import type { User } from './user';
 import type { Company } from './Company';
 
+export type UserCompanyFlags = Partial<{
+  rejected: boolean;
+}>;
+
 @Entity()
 export class UserCompany {
   @CreateDateColumn()
@@ -49,4 +53,7 @@ export class UserCompany {
     onDelete: 'CASCADE',
   })
   company: Promise<Company>;
+
+  @Column({ type: 'jsonb', default: {} })
+  flags: UserCompanyFlags = {};
 }
