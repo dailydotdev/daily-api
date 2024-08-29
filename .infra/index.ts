@@ -393,7 +393,7 @@ if (isAdhocEnv) {
       metric: {
         type: 'pubsub',
         labels: { app: name, subapp: 'personalized-digest' },
-        targetAverageValue: 100,
+        targetAverageValue: 1000,
       },
       ...vols,
       // ports: [{ containerPort: 9464, name: 'metrics' }],
