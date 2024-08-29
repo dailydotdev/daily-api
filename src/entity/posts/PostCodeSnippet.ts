@@ -21,7 +21,7 @@ export class PostCodeSnippet {
   @Column({ type: 'integer' })
   order: number;
 
-  @PrimaryColumn({ type: 'text', default: PostCodeSnippetLanguage.Plain })
+  @Column({ type: 'text', default: PostCodeSnippetLanguage.Plain })
   language: PostCodeSnippetLanguage;
 
   @CreateDateColumn()
