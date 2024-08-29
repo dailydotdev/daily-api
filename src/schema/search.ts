@@ -231,7 +231,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Maximum number of users to return
       """
-      limit: Int = 10
+      limit: Int = ${defaultSearchLimit}
 
       """
       Version of the search algorithm
