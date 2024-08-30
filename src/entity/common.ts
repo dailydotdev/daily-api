@@ -4,6 +4,7 @@ export enum ReportEntity {
 }
 
 export enum CommonReportReason {
+  Nsfw = 'NSFW',
   Other = 'OTHER',
 }
 
@@ -11,13 +12,12 @@ export enum PostReportReason {
   Broken = 'BROKEN',
   Clickbait = 'CLICKBAIT',
   Low = 'LOW',
-  Nsfw = 'NSFW',
   Irrelevant = 'IRRELEVANT',
 }
 
 export enum SourceReportReason {
-  Explicit = 'EXPLICIT',
   Spam = 'SPAM',
+  Bullying = 'BULLYING',
   Hateful = 'HATEFUL',
   Copyright = 'COPYRIGHT',
   Privacy = 'PRIVACY',
@@ -32,13 +32,13 @@ export const postReportReasonsMap = new Map<PostReportReasonType, string>([
   [PostReportReason.Broken, '💔 Link is broken'],
   [PostReportReason.Clickbait, '🔞 Post is NSFW'],
   [PostReportReason.Low, '🎣 Clickbait!!!'],
-  [PostReportReason.Nsfw, '💩 Low quality content'],
+  [CommonReportReason.Nsfw, '💩 Low quality content'],
   [PostReportReason.Irrelevant, `Post's tags are irrelevant`],
   [CommonReportReason.Other, '🤔 Other'],
 ]);
 
 export const sourceReportReasonsMap = new Map<SourceReportReasonType, string>([
-  [SourceReportReason.Explicit, '🔞 Explicit content'],
+  [CommonReportReason.Nsfw, '🔞 Post is NSFW'],
   [SourceReportReason.Spam, '♻️ Spam'],
   [SourceReportReason.Hateful, '📛 Hateful speech'],
   [SourceReportReason.Copyright, '©️ Copyright infringement'],
