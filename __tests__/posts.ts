@@ -39,6 +39,7 @@ import {
 import { Roles, SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
 import {
+  createPostCodeSnippetsFixture,
   postsFixture,
   postTagsFixture,
   relatedPostsFixture,
@@ -73,6 +74,7 @@ import {
   rateLimiterName,
 } from '../src/directive/rateLimit';
 import { badUsersFixture } from './fixture/user';
+import { PostCodeSnippet } from '../src/entity/posts/PostCodeSnippet';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -4812,6 +4814,78 @@ describe('posts title field', () => {
 
     expect(res.data.post).toEqual({
       title: 'P1 Portugal Brazil',
+    });
+  });
+});
+
+describe('query postCodeSnippets', () => {
+  const QUERY = `
+  query PostCodeSnippets($id: ID!, $after: String, $first: Int) {
+    postCodeSnippets(id: $id, after: $after, first: $first) {
+      edges {
+        node {
+          content
+        }
+      }
+    }
+  }
+  `;
+
+  beforeEach(async () => {
+    await con.getRepository(PostCodeSnippet).save(
+      createPostCodeSnippetsFixture({
+        postId: 'p1',
+      }),
+    );
+    await con.getRepository(PostCodeSnippet).save(
+      createPostCodeSnippetsFixture({
+        postId: 'p2',
+      }),
+    );
+  });
+
+  it('should throw error when user cannot access the post', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { id: 'p1' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should return code snippets', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { id: 'p1' },
+    });
+
+    console.log(JSON.stringify(res.data, null, 2));
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchObject({
+      postCodeSnippets: {
+        edges: [
+          {
+            node: {
+              content: 'console.log("Hello World")',
+            },
+          },
+          {
+            node: {
+              content: 'const a = 1;\n\nconsole.log(a)',
+            },
+          },
+          {
+            node: {
+              content: 'while (true) {\n    /* remove this */\n}',
+            },
+          },
+        ],
+      },
     });
   });
 });

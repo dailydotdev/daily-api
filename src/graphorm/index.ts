@@ -741,6 +741,9 @@ const obj = new GraphORM({
       },
     },
   },
+  PostCodeSnippet: {
+    requiredColumns: ['order'],
+  },
 });
 
 export default obj;

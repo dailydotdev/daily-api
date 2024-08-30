@@ -32,6 +32,7 @@ import {
   UploadPreset,
   validatePost,
   ONE_MINUTE_IN_SECONDS,
+  toGQLEnum,
 } from '../common';
 import {
   ArticlePost,
@@ -59,7 +60,7 @@ import {
   PostRelation,
   deletePost,
 } from '../entity';
-import { GQLEmptyResponse } from './common';
+import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
   NotFoundError,
   SubmissionFailErrorMessage,
@@ -87,7 +88,8 @@ import { insertOrIgnoreAction } from './actions';
 import { generateShortId, generateUUID } from '../ids';
 import { generateStorageKey, StorageTopic } from '../config';
 import { subDays } from 'date-fns';
-import { UserVote } from '../types';
+import { PostCodeSnippetLanguage, UserVote } from '../types';
+import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
 
 export interface GQLPost {
   id: string;
@@ -198,6 +200,11 @@ export interface GQLPostRelationArgs extends ConnectionArguments {
   id: string;
   relationType: PostRelationType;
 }
+
+export type GQLPostCodeSnippet = Pick<
+  PostCodeSnippet,
+  'postId' | 'language' | 'content' | 'order'
+>;
 
 export const typeDefs = /* GraphQL */ `
   type TocItem {
@@ -575,6 +582,33 @@ export const typeDefs = /* GraphQL */ `
     question: String!
   }
 
+  ${toGQLEnum(PostCodeSnippetLanguage, 'PostCodeSnippetLanguage')}
+
+  type PostCodeSnippet {
+    postId: String!
+    order: Int!
+    language: PostCodeSnippetLanguage!
+    content: String!
+  }
+
+  type PostCodeSnippetEdge {
+    node: PostCodeSnippet!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type PostCodeSnippetConnection {
+    pageInfo: PageInfo!
+    edges: [PostCodeSnippetEdge!]!
+    """
+    The original query in case of a search operation
+    """
+    query: String
+  }
+
   """
   Enum of the possible reasons to report a post
   """
@@ -676,6 +710,26 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): PostConnection!
+
+    """
+    Get code snippets by post id
+    """
+    postCodeSnippets(
+      """
+      Post id
+      """
+      id: ID!
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): PostCodeSnippetConnection!
   }
 
   extend type Mutation {
@@ -1077,6 +1131,11 @@ const validateEditAllowed = (
   }
 };
 
+const postCodeSnippetPageGenerator = offsetPageGenerator<GQLPostCodeSnippet>(
+  100,
+  500,
+);
+
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
   BaseContext
@@ -1269,6 +1328,39 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             return builder;
           },
           orderByKey: 'DESC',
+        },
+      );
+    },
+    postCodeSnippets: async (
+      _,
+      args: GQLPostRelationArgs,
+      ctx: Context,
+      info,
+    ): Promise<ConnectionRelay<GQLPostCodeSnippet>> => {
+      const post = await ctx.con
+        .getRepository(Post)
+        .findOneByOrFail([{ id: args.id }, { slug: args.id }]);
+      await ensureSourcePermissions(ctx, post.sourceId);
+
+      const page = postCodeSnippetPageGenerator.connArgsToPage(args);
+
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) =>
+          postCodeSnippetPageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => postCodeSnippetPageGenerator.hasNextPage(page, nodeSize),
+        (node, index) =>
+          postCodeSnippetPageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder
+            .andWhere(`${builder.alias}."postId" = :postId`, {
+              postId: args.id,
+            })
+            .limit(page.limit)
+            .addOrderBy(`${builder.alias}.order`, 'ASC');
+
+          return builder;
         },
       );
     },
