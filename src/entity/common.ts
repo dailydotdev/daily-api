@@ -17,7 +17,7 @@ export enum PostReportReason {
 
 export enum SourceReportReason {
   Spam = 'SPAM',
-  Bullying = 'BULLYING',
+  Harassment = 'HARASSMENT',
   Hateful = 'HATEFUL',
   Copyright = 'COPYRIGHT',
   Privacy = 'PRIVACY',
@@ -40,7 +40,7 @@ export const postReportReasonsMap: Record<PostReportReasonType, string> = {
 export const sourceReportReasonsMap: Record<SourceReportReasonType, string> = {
   [CommonReportReason.Nsfw]: '🔞 Post is NSFW',
   [SourceReportReason.Spam]: '♻️ Spam',
-  [SourceReportReason.Bullying]: '🤬 Harrasment or bullying',
+  [SourceReportReason.Harassment]: '🤬 Harrasment or bullying',
   [SourceReportReason.Hateful]: '📛 Hateful speech',
   [SourceReportReason.Copyright]: '©️ Copyright infringement',
   [SourceReportReason.Privacy]: '📵 Violates privacy policies',
