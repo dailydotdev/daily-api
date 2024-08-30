@@ -729,6 +729,29 @@ const worker: Worker = {
           });
         }
 
+        // temp wrapper to avoid any issue with post processing
+        // while we test code snippets insertion
+        const safeInsertCodeSnippets = async () => {
+          try {
+            await insertCodeSnippetsFromUrl({
+              entityManager,
+              post: {
+                id: postId,
+              },
+              codeSnippetsUrl: data?.meta?.stored_code_snippets,
+            });
+          } catch (err) {
+            logger.error(
+              {
+                postId,
+                codeSnippetsUrl: data?.meta?.stored_code_snippets,
+                err,
+              },
+              'failed to save code snippets for post',
+            );
+          }
+        };
+
         if (postId) {
           await Promise.all([
             handleCollectionRelations({
@@ -740,13 +763,7 @@ const worker: Worker = {
               },
               originalData: data,
             }),
-            insertCodeSnippetsFromUrl({
-              entityManager,
-              post: {
-                id: postId,
-              },
-              codeSnippetsUrl: data?.meta?.stored_code_snippets,
-            }),
+            safeInsertCodeSnippets(),
           ]);
         }
       });
