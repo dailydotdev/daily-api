@@ -67,7 +67,7 @@ export const reportPost = async ({
   reason,
   comment,
 }: PostReportArgs) => {
-  if (!postReportReasonsMap.has(reason)) {
+  if (!(reason in postReportReasonsMap)) {
     throw new ValidationError('Reason is invalid');
   }
 
@@ -109,7 +109,7 @@ export const reportSource = async ({
   reason,
   comment,
 }: BaseReportArgs<SourceReportReasonType>) => {
-  if (!sourceReportReasonsMap.has(reason)) {
+  if (!(reason in sourceReportReasonsMap)) {
     throw new ValidationError('Reason is invalid');
   }
 

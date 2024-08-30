@@ -1264,7 +1264,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { id, reason, comment, tags }: ReportPostArgs,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      if (!postReportReasonsMap.has(reason)) {
+      if (!(reason in postReportReasonsMap)) {
         throw new ValidationError('Reason is invalid');
       }
 

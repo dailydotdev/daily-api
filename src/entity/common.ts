@@ -28,25 +28,26 @@ export enum SourceReportReason {
 export type PostReportReasonType = PostReportReason | CommonReportReason;
 export type SourceReportReasonType = SourceReportReason | CommonReportReason;
 
-export const postReportReasonsMap = new Map<PostReportReasonType, string>([
-  [PostReportReason.Broken, '💔 Link is broken'],
-  [PostReportReason.Clickbait, '🔞 Post is NSFW'],
-  [PostReportReason.Low, '🎣 Clickbait!!!'],
-  [CommonReportReason.Nsfw, '💩 Low quality content'],
-  [PostReportReason.Irrelevant, `Post's tags are irrelevant`],
-  [CommonReportReason.Other, '🤔 Other'],
-]);
+export const postReportReasonsMap: Record<PostReportReasonType, string> = {
+  [PostReportReason.Broken]: '💔 Link is broken',
+  [PostReportReason.Clickbait]: '🔞 Post is NSFW',
+  [PostReportReason.Low]: '🎣 Clickbait!!!',
+  [CommonReportReason.Nsfw]: '💩 Low quality content',
+  [PostReportReason.Irrelevant]: `Post's tags are irrelevant`,
+  [CommonReportReason.Other]: '🤔 Other',
+};
 
-export const sourceReportReasonsMap = new Map<SourceReportReasonType, string>([
-  [CommonReportReason.Nsfw, '🔞 Post is NSFW'],
-  [SourceReportReason.Spam, '♻️ Spam'],
-  [SourceReportReason.Hateful, '📛 Hateful speech'],
-  [SourceReportReason.Copyright, '©️ Copyright infringement'],
-  [SourceReportReason.Privacy, '📵 Violates privacy policies'],
-  [SourceReportReason.Miscategorized, '🚮 Miscategorized'],
-  [SourceReportReason.Illegal, '❗️ Illegal activities are made'],
-  [CommonReportReason.Other, '🤔 Other'],
-]);
+export const sourceReportReasonsMap: Record<SourceReportReasonType, string> = {
+  [CommonReportReason.Nsfw]: '🔞 Post is NSFW',
+  [SourceReportReason.Spam]: '♻️ Spam',
+  [SourceReportReason.Bullying]: '🤬 Harrasment or bullying',
+  [SourceReportReason.Hateful]: '📛 Hateful speech',
+  [SourceReportReason.Copyright]: '©️ Copyright infringement',
+  [SourceReportReason.Privacy]: '📵 Violates privacy policies',
+  [SourceReportReason.Miscategorized]: '🚮 Miscategorized',
+  [SourceReportReason.Illegal]: '❗️ Illegal activities are made',
+  [CommonReportReason.Other]: '🤔 Other',
+};
 
 export type ReportReason =
   | PostReportReason
