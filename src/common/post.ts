@@ -22,7 +22,7 @@ import { createHash } from 'node:crypto';
 import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
 import { logger } from '../logger';
 import { downloadJsonFile } from './googleCloud';
-import { PostCodeSnippetJsonFile } from '../types';
+import type { PostCodeSnippetJsonFile } from '../types';
 
 export const defaultImage = {
   urls: process.env.DEFAULT_IMAGE_URL?.split?.(',') ?? [],
