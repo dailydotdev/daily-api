@@ -7,7 +7,7 @@ import {
   Settings,
   SETTINGS_DEFAULT,
 } from '../entity';
-import { isValidHttpUrl, toGQLEnum } from '../common';
+import { isValidHttpUrl, mapToGQLEnum } from '../common';
 import { ValidationError } from 'apollo-server-errors';
 import { v4 as uuidv4 } from 'uuid';
 import { DataSource } from 'typeorm';
@@ -51,7 +51,7 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
 }
 
 export const typeDefs = /* GraphQL */ `
-  ${toGQLEnum(ChecklistViewState, 'ChecklistViewState')}
+  ${mapToGQLEnum(ChecklistViewState, 'ChecklistViewState')}
 
   """
   User personal preferences

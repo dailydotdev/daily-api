@@ -43,7 +43,7 @@ import {
   updateFlagsStatement,
   uploadSquadImage,
 } from '../common';
-import { toGQLEnum } from '../common/utils';
+import { mapToGQLEnum } from '../common/utils';
 import { GraphQLResolveInfo } from 'graphql';
 import {
   SourcePermissionErrorKeys,
@@ -334,7 +334,7 @@ export const typeDefs = /* GraphQL */ `
     hits: [Tag]!
   }
 
-  ${toGQLEnum(SourceType, 'SourceType')}
+  ${mapToGQLEnum(SourceType, 'SourceType')}
 
   extend type Query {
     """

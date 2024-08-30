@@ -86,8 +86,12 @@ export const parseDate = (date: string | Date): Date | undefined => {
   return parsedDate;
 };
 
-export const toGQLEnum = (value: Record<string, string>, name: string) => {
+export const mapToGQLEnum = (value: Record<string, string>, name: string) => {
   return `enum ${name} { ${Object.values(value).join(' ')} }`;
+};
+
+export const arrayToGQLEnum = (values: string[], name: string) => {
+  return `enum ${name} { ${values.join(' ')} }`;
 };
 
 export function camelCaseToSnakeCase(

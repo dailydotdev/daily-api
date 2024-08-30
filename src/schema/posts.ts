@@ -88,6 +88,7 @@ import { generateShortId, generateUUID } from '../ids';
 import { generateStorageKey, StorageTopic } from '../config';
 import { subDays } from 'date-fns';
 import { UserVote } from '../types';
+import { postReportReasonsMap, PostReportReasonType } from '../entity/common';
 
 export interface GQLPost {
   id: string;
@@ -189,7 +190,7 @@ export const getPostNotification = async (
 
 interface ReportPostArgs {
   id: string;
-  reason: string;
+  reason: PostReportReasonType;
   comment: string;
   tags?: string[];
 }
@@ -573,36 +574,6 @@ export const typeDefs = /* GraphQL */ `
     id: String!
     post: Post!
     question: String!
-  }
-
-  """
-  Enum of the possible reasons to report a post
-  """
-  enum ReportReason {
-    """
-    The post's link is broken
-    """
-    BROKEN
-    """
-    The post is a clickbait
-    """
-    CLICKBAIT
-    """
-    The post has low quality content
-    """
-    LOW
-    """
-    The post is not safe for work (NSFW), for any reason
-    """
-    NSFW
-    """
-    Reason doesnt fit any specific category
-    """
-    OTHER
-    """
-    When the reason is the post having irrelevant tags
-    """
-    IRRELEVANT
   }
 
   enum PostRelationType {
@@ -995,15 +966,6 @@ const saveHiddenPost = async (
 
 const editablePostTypes = [PostType.Welcome, PostType.Freeform];
 
-export const reportReasons = new Map([
-  ['BROKEN', '💔 Link is broken'],
-  ['NSFW', '🔞 Post is NSFW'],
-  ['CLICKBAIT', '🎣 Clickbait!!!'],
-  ['LOW', '💩 Low quality content'],
-  ['OTHER', '🤔 Other'],
-  ['IRRELEVANT', `Post's tags are irrelevant`],
-]);
-
 export const getPostPermalink = (post: Pick<GQLPost, 'shortId'>): string =>
   `${process.env.URL_PREFIX}/r/${post.shortId}`;
 
@@ -1302,7 +1264,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { id, reason, comment, tags }: ReportPostArgs,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      if (!reportReasons.has(reason)) {
+      if (!postReportReasonsMap.has(reason)) {
         throw new ValidationError('Reason is invalid');
       }
 

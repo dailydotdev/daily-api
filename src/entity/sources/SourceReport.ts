@@ -1,15 +1,6 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import type { User } from '../user';
-
-enum SourceReportReason {
-  Explicit = 'EXPLICIT',
-  Spam = 'SPAM',
-  Hateful = 'HATEFUL',
-  Copyright = 'COPYRIGHT',
-  Privacy = 'PRIVACY',
-  Miscategorized = 'MISCATEGORIZED',
-  Illegal = 'ILLEGAL',
-}
+import { SourceReportReason } from '../common';
 
 @Entity()
 export class SourceReport {

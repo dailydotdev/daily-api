@@ -58,13 +58,14 @@ import {
   getUserReadingRank,
   resubscribeUser,
   sendEmail,
-  toGQLEnum,
+  mapToGQLEnum,
   uploadAvatar,
   uploadProfileCover,
   voteComment,
   votePost,
   CioTransactionalMessageTemplateId,
   validateWorkEmailDomain,
+  arrayToGQLEnum,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -98,6 +99,7 @@ import { UserCompany } from '../entity/UserCompany';
 import { generateVerifyCode } from '../ids';
 import { validateUserUpdate } from '../entity/user/utils';
 import { getRestoreStreakCache } from '../workers/cdc/primary';
+import { reportReasons } from '../entity/common';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -594,7 +596,10 @@ export const typeDefs = /* GraphQL */ `
     type: DigestType
   }
 
-  ${toGQLEnum(UserPersonalizedDigestSendType, 'UserPersonalizedDigestSendType')}
+  ${mapToGQLEnum(
+    UserPersonalizedDigestSendType,
+    'UserPersonalizedDigestSendType',
+  )}
 
   type UserEdge {
     node: User!
@@ -618,9 +623,11 @@ export const typeDefs = /* GraphQL */ `
     weekStart: Int
   }
 
-  ${toGQLEnum(UserPersonalizedDigestType, 'DigestType')}
+  ${mapToGQLEnum(UserPersonalizedDigestType, 'DigestType')}
 
-  ${toGQLEnum(UserVoteEntity, 'UserVoteEntity')}
+  ${mapToGQLEnum(UserVoteEntity, 'UserVoteEntity')}
+
+  ${arrayToGQLEnum(reportReasons, 'ReportReason')}
 
   type UserIntegration {
     id: ID!
