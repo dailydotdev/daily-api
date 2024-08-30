@@ -26,6 +26,7 @@ export const cioV2 = new TrackClient(
   { url: 'https://track.customer.io/api/v2' },
 );
 
+// Magic number from customer.io
 const CIO_COMPANY_OBJECT_ID = '4';
 
 export function dateToCioTimestamp(date: Date): number {
