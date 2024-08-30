@@ -16,6 +16,7 @@ import { PostReport, ReputationEvent } from '../../src/entity';
 import { DataSource, LessThan } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { createSquadWelcomePost, updateFlagsStatement } from '../../src/common';
+import { PostReportReason } from '../../src/entity/common';
 
 let con: DataSource;
 
@@ -42,8 +43,8 @@ beforeEach(async () => {
     },
   ]);
   await con.getRepository(PostReport).insert([
-    { postId: 'p1', userId: '1', reason: 'BROKEN' },
-    { postId: 'p1', userId: '2', reason: 'CLICKBAIT' },
+    { postId: 'p1', userId: '1', reason: PostReportReason.Broken },
+    { postId: 'p1', userId: '2', reason: PostReportReason.Clickbait },
   ]);
 });
 

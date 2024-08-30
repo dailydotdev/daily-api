@@ -2107,6 +2107,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             ctx,
             reason: reason as SourceReportReasonType,
           });
+        default:
+          throw new ValidationError('Unsupported report entity');
       }
     },
   },
