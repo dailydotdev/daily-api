@@ -9,8 +9,8 @@ import {
   getShortGenericInviteLink,
 } from './common';
 import { FastifyBaseLogger } from 'fastify';
-import { UserCompany } from './entity/UserCompany';
-import { Company } from './entity/Company';
+import type { UserCompany } from './entity/UserCompany';
+import type { Company } from './entity/Company';
 
 export const cio = new TrackClient(
   process.env.CIO_SITE_ID,

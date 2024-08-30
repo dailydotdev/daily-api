@@ -36,6 +36,7 @@ import {
   PostRelationType,
   normalizeCollectionPostSources,
   CollectionPost,
+  UserCompany,
 } from '../../entity';
 import {
   notifyCommentCommented,
@@ -107,7 +108,6 @@ import {
   runReminderWorkflow,
 } from '../../temporal/notifications/utils';
 import { addDays } from 'date-fns';
-import { UserCompany } from '../../entity/UserCompany';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,

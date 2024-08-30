@@ -1,10 +1,11 @@
 import { ChangeObject } from '../types';
-import {
+import type {
   Post,
   SourceRequest,
   SquadPublicRequest,
   User,
   UserStreak,
+  UserCompany,
 } from '../entity';
 import {
   EventLogger,
@@ -13,7 +14,6 @@ import {
   pubsub,
 } from './pubsub';
 import { ContentUpdatedMessage } from '@dailydotdev/schema';
-import { UserCompany } from '../entity/UserCompany';
 
 export type PubSubSchema = {
   'pub-request': {

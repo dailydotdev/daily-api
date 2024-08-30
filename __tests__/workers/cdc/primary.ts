@@ -27,6 +27,7 @@ import {
   Bookmark,
   UserStreakAction,
   UserStreakActionType,
+  UserCompany,
 } from '../../../src/entity';
 import {
   notifyCommentCommented,
@@ -131,7 +132,6 @@ import {
   cancelReminderWorkflow,
   runReminderWorkflow,
 } from '../../../src/temporal/notifications/utils';
-import { UserCompany } from '../../../src/entity/UserCompany';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
