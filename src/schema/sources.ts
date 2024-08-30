@@ -1700,12 +1700,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         description,
         memberPostingRole,
         memberInviteRole,
-        isPrivate,
+        isPrivate: _isPrivate,
         categoryId,
       }: SquadEditInputArgs,
       ctx: AuthContext,
       info,
     ): Promise<GQLSource> => {
+      const isPrivate = !!_isPrivate;
       const current = await ensureSourcePermissions(
         ctx,
         sourceId,
@@ -1736,14 +1737,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           : undefined,
       };
 
-      if (!isNullOrUndefined(isPrivate)) {
-        if (!isPrivate) {
-          updates.categoryId = categoryId;
-        }
+      if (!isPrivate) {
+        updates.categoryId = categoryId;
+      }
 
-        if (current.private !== isPrivate) {
-          updates.private = isPrivate;
-        }
+      if (current.private !== isPrivate) {
+        updates.private = isPrivate;
       }
 
       try {
