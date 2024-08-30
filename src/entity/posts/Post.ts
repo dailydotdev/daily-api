@@ -12,6 +12,7 @@ import { PostTag } from '../PostTag';
 import { PostKeyword } from '../PostKeyword';
 import { User } from '../user';
 import { PostRelation } from './PostRelation';
+import type { PostCodeSnippet } from './PostCodeSnippet';
 
 export enum PostType {
   Article = 'article',
@@ -261,4 +262,13 @@ export class Post {
 
   @Column({ type: 'jsonb', default: {} })
   contentQuality: PostContentQuality;
+
+  @OneToMany(
+    'PostCodeSnippet',
+    (postCodeSnippet: PostCodeSnippet) => postCodeSnippet.post,
+    {
+      lazy: true,
+    },
+  )
+  public codeSnippets: Promise<PostCodeSnippet[]>;
 }

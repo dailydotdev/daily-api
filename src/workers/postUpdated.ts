@@ -36,6 +36,7 @@ import { parseDate, updateFlagsStatement } from '../common';
 import { markdown } from '../common/markdown';
 import { counters } from '../telemetry';
 import { I18nRecord } from '../types';
+import { insertCodeSnippetsFromUrl } from '../common/post';
 
 interface Data {
   id: string;
@@ -77,6 +78,7 @@ interface Data {
     translate_title?: {
       translations?: I18nRecord;
     };
+    stored_code_snippets?: string;
   };
   content_quality?: PostContentQuality;
 }
@@ -727,16 +729,42 @@ const worker: Worker = {
           });
         }
 
+        // temp wrapper to avoid any issue with post processing
+        // while we test code snippets insertion
+        const safeInsertCodeSnippets = async () => {
+          try {
+            await insertCodeSnippetsFromUrl({
+              entityManager,
+              post: {
+                id: postId,
+              },
+              codeSnippetsUrl: data?.meta?.stored_code_snippets,
+            });
+          } catch (err) {
+            logger.error(
+              {
+                postId,
+                codeSnippetsUrl: data?.meta?.stored_code_snippets,
+                err,
+              },
+              'failed to save code snippets for post',
+            );
+          }
+        };
+
         if (postId) {
-          await handleCollectionRelations({
-            entityManager,
-            logger,
-            post: {
-              id: postId,
-              type: content_type,
-            },
-            originalData: data,
-          });
+          await Promise.all([
+            handleCollectionRelations({
+              entityManager,
+              logger,
+              post: {
+                id: postId,
+                type: content_type,
+              },
+              originalData: data,
+            }),
+            safeInsertCodeSnippets(),
+          ]);
         }
       });
     } catch (err) {
