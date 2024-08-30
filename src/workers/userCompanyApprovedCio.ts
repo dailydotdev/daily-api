@@ -21,7 +21,7 @@ const worker: TypedWorker<'api.v1.user-company-approved'> = {
       .getRepository(Company)
       .findOneBy({ id: userCompany.companyId });
     if (!company) {
-      log.info(
+      log.warn(
         { userCompany },
         'company not found during CIO user company update',
       );
