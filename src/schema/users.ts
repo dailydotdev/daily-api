@@ -99,7 +99,14 @@ import { UserCompany } from '../entity/UserCompany';
 import { generateVerifyCode } from '../ids';
 import { validateUserUpdate } from '../entity/user/utils';
 import { getRestoreStreakCache } from '../workers/cdc/primary';
-import { reportReasons } from '../entity/common';
+import {
+  PostReportReasonType,
+  ReportEntity,
+  ReportReason,
+  reportReasons,
+  SourceReportReasonType,
+} from '../entity/common';
+import { reportPost, reportSource } from '../common/reporting';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -215,6 +222,14 @@ export interface GQLUserPersonalizedDigest {
   preferredHour: number;
   type: UserPersonalizedDigestType;
   flags: UserPersonalizedDigestFlagsPublic;
+}
+
+export interface SendReportArgs {
+  type: ReportEntity;
+  id: string;
+  reason: ReportReason;
+  comment?: string;
+  tags?: string[];
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -629,6 +644,8 @@ export const typeDefs = /* GraphQL */ `
 
   ${arrayToGQLEnum(reportReasons, 'ReportReason')}
 
+  ${mapToGQLEnum(ReportEntity, 'ReportEntity')}
+
   type UserIntegration {
     id: ID!
     type: String!
@@ -926,6 +943,32 @@ export const typeDefs = /* GraphQL */ `
       Vote type
       """
       vote: Int!
+    ): EmptyResponse @auth
+
+    """
+    When a user tries to report an entity. The entity can be either post/comment/source or user when we get there
+    """
+    sendReport(
+      """
+      The entity the user is trying to report
+      """
+      type: ReportEntity!
+      """
+      The id of the entity the user is trying to report
+      """
+      id: ID!
+      """
+      The reason the user is reporting the entity
+      """
+      reason: ReportReason!
+      """
+      Additional information the user wants to provide
+      """
+      comment: String
+      """
+      Tags associated with the report
+      """
+      tags: [String]
     ): EmptyResponse @auth
 
     """
@@ -2045,6 +2088,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       return { ...streak, current: oldStreakLength + streak.current };
+    },
+    sendReport: async (
+      _,
+      { type, reason, ...args }: SendReportArgs,
+      ctx: AuthContext,
+    ) => {
+      switch (type) {
+        case ReportEntity.Post:
+          return reportPost({
+            ...args,
+            ctx,
+            reason: reason as PostReportReasonType,
+          });
+        case ReportEntity.Source:
+          return reportSource({
+            ...args,
+            ctx,
+            reason: reason as SourceReportReasonType,
+          });
+      }
     },
   },
   User: {
