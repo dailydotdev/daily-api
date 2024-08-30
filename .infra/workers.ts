@@ -14,7 +14,7 @@ const digestWorkersArgsMap: Record<string, WorkerArgs> = {
     ackDeadlineSeconds: 60,
     deadLetterPolicy: {
       deadLetterTopic: `projects/${gcp.config.project}/topics/${digestDeadLetter}`,
-      maxDeliveryAttempts: 3,
+      maxDeliveryAttempts: 5,
     },
   },
   'api.personalized-digest-email-dead-letter-log': {
