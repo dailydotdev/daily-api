@@ -23,6 +23,7 @@ import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
 import { logger } from '../logger';
 import { downloadJsonFile } from './googleCloud';
 import type { PostCodeSnippetJsonFile } from '../types';
+import { uniqueifyObjectArray } from './utils';
 
 export const defaultImage = {
   urls: process.env.DEFAULT_IMAGE_URL?.split?.(',') ?? [],
@@ -267,30 +268,23 @@ export const insertCodeSnippets = async ({
   post: Pick<Post, 'id'>;
   codeSnippetsJson: PostCodeSnippetJsonFile;
 }) => {
-  const codeSnippets = codeSnippetsJson.snippets.reduce(
-    (acc, codeSnippetContent, index) => {
+  const uniqueCodeSnippets = uniqueifyObjectArray(
+    codeSnippetsJson.snippets,
+    (codeSnippetsContent) => {
       const checksum = createHash('sha1');
-      checksum.update(codeSnippetContent);
-      const contentHash = checksum.digest('hex');
+      checksum.update(codeSnippetsContent);
 
-      if (!acc.has(contentHash)) {
-        acc.set(
-          contentHash,
-          entityManager.getRepository(PostCodeSnippet).create({
-            postId: post.id,
-            contentHash,
-            order: index,
-            content: codeSnippetContent,
-          }),
-        );
-      }
-
-      return acc;
+      return checksum.digest('hex');
     },
-    new Map<string, PostCodeSnippet>(),
+    (codeSnippetContent, index, contentHash) => {
+      return entityManager.getRepository(PostCodeSnippet).create({
+        postId: post.id,
+        contentHash,
+        order: index,
+        content: codeSnippetContent,
+      });
+    },
   );
-
-  const uniqueCodeSnippets = Array.from(codeSnippets.values());
 
   await entityManager.getRepository(PostCodeSnippet).delete({
     postId: post.id,
