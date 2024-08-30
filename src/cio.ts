@@ -9,11 +9,24 @@ import {
   getShortGenericInviteLink,
 } from './common';
 import { FastifyBaseLogger } from 'fastify';
+import { UserCompany } from './entity/UserCompany';
+import { Company } from './entity/Company';
 
 export const cio = new TrackClient(
   process.env.CIO_SITE_ID,
   process.env.CIO_API_KEY,
 );
+
+/**
+ * Specific client for using v2 of the Customer.io API.
+ */
+export const cioV2 = new TrackClient(
+  process.env.CIO_SITE_ID,
+  process.env.CIO_API_KEY,
+  { url: 'https://track.customer.io/api/v2' },
+);
+
+const CIO_COMPANY_OBJECT_ID = '4';
 
 export function dateToCioTimestamp(date: Date): number {
   return Math.floor(date.getTime() / 1000);
@@ -97,6 +110,41 @@ export async function identifyUser(
   } catch (err) {
     if (err instanceof CustomerIORequestError && err.statusCode === 400) {
       log.warn({ err, user }, 'failed to update user in cio');
+      return;
+    }
+    throw err;
+  }
+}
+
+export async function identifyUserCompany(
+  log: FastifyBaseLogger,
+  cio: TrackClient,
+  userCompany: ChangeObject<UserCompany>,
+  company: Company,
+): Promise<void> {
+  try {
+    await cio.request.post(`${cio.trackRoot}/entity`, {
+      identifiers: {
+        object_type_id: CIO_COMPANY_OBJECT_ID,
+        object_id: company.id,
+      },
+      type: 'object',
+      action: 'identify',
+      attributes: {
+        name: company.name,
+        image: company.image,
+      },
+      cio_relationships: [
+        {
+          identifiers: {
+            id: userCompany.userId,
+          },
+        },
+      ],
+    });
+  } catch (err) {
+    if (err instanceof CustomerIORequestError && err.statusCode === 400) {
+      log.warn({ err }, 'failed to update user company in cio');
       return;
     }
     throw err;

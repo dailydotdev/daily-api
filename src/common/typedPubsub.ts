@@ -13,6 +13,7 @@ import {
   pubsub,
 } from './pubsub';
 import { ContentUpdatedMessage } from '@dailydotdev/schema';
+import { UserCompany } from '../entity/UserCompany';
 
 export type PubSubSchema = {
   'pub-request': {
@@ -87,6 +88,9 @@ export type PubSubSchema = {
   };
   'api.v1.post-visible': {
     post: ChangeObject<Post>;
+  };
+  'api.v1.user-company-approved': {
+    userCompany: ChangeObject<UserCompany>;
   };
 };
 
