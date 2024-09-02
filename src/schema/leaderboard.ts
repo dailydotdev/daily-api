@@ -212,7 +212,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const companies = await ctx.con
         .getRepository(UserCompany)
         .query(
-          `SELECT "companyId", "company"."name", "company"."image", count("company".*) from user_company LEFT JOIN company ON "companyId" = "company"."id" WHERE "companyId" != ''  GROUP BY "companyId", "name", "image" ORDER BY count DESC LIMIT $1`,
+          `SELECT "companyId", "company"."name", "company"."image", count("company".*) from user_company LEFT JOIN company ON "companyId" = "company"."id" WHERE "companyId" != '' AND "companyId" != 'dailydev'  GROUP BY "companyId", "name", "image" ORDER BY count DESC LIMIT $1`,
           [getLimit(args)],
         );
       return companies.map((company) => ({
