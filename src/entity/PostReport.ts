@@ -1,6 +1,6 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import type { User } from './user';
-import { PostReportReasonType } from './common';
+import { ReportReason } from './common';
 
 @Entity()
 export class PostReport {
@@ -16,7 +16,7 @@ export class PostReport {
   createdAt: Date;
 
   @Column({ length: 12, type: 'varchar' })
-  reason: PostReportReasonType;
+  reason: ReportReason;
 
   @Column({ type: 'text', array: true, default: null })
   tags?: string[];

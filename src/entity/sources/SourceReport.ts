@@ -1,6 +1,6 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import type { User } from '../user';
-import type { SourceReportReasonType } from '../common';
+import { ReportReason } from '../common';
 
 @Entity()
 export class SourceReport {
@@ -16,7 +16,7 @@ export class SourceReport {
   createdAt: Date;
 
   @Column({ length: 32, type: 'varchar' })
-  reason: SourceReportReasonType;
+  reason: ReportReason;
 
   @Column({ type: 'text', nullable: true })
   comment?: string;

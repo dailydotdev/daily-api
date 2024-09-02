@@ -58,14 +58,13 @@ import {
   getUserReadingRank,
   resubscribeUser,
   sendEmail,
-  mapToGQLEnum,
+  toGQLEnum,
   uploadAvatar,
   uploadProfileCover,
   voteComment,
   votePost,
   CioTransactionalMessageTemplateId,
   validateWorkEmailDomain,
-  arrayToGQLEnum,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -99,13 +98,7 @@ import { UserCompany } from '../entity/UserCompany';
 import { generateVerifyCode } from '../ids';
 import { validateUserUpdate } from '../entity/user/utils';
 import { getRestoreStreakCache } from '../workers/cdc/primary';
-import {
-  PostReportReasonType,
-  ReportEntity,
-  ReportReason,
-  reportReasons,
-  SourceReportReasonType,
-} from '../entity/common';
+import { ReportEntity, ReportReason } from '../entity/common';
 import { reportPost, reportSource } from '../common/reporting';
 
 export interface GQLUpdateUserInput {
@@ -611,10 +604,7 @@ export const typeDefs = /* GraphQL */ `
     type: DigestType
   }
 
-  ${mapToGQLEnum(
-    UserPersonalizedDigestSendType,
-    'UserPersonalizedDigestSendType',
-  )}
+  ${toGQLEnum(UserPersonalizedDigestSendType, 'UserPersonalizedDigestSendType')}
 
   type UserEdge {
     node: User!
@@ -638,13 +628,13 @@ export const typeDefs = /* GraphQL */ `
     weekStart: Int
   }
 
-  ${mapToGQLEnum(UserPersonalizedDigestType, 'DigestType')}
+  ${toGQLEnum(UserPersonalizedDigestType, 'DigestType')}
 
-  ${mapToGQLEnum(UserVoteEntity, 'UserVoteEntity')}
+  ${toGQLEnum(UserVoteEntity, 'UserVoteEntity')}
 
-  ${arrayToGQLEnum(reportReasons, 'ReportReason')}
+  ${toGQLEnum(ReportReason, 'ReportReason')}
 
-  ${mapToGQLEnum(ReportEntity, 'ReportEntity')}
+  ${toGQLEnum(ReportEntity, 'ReportEntity')}
 
   type UserIntegration {
     id: ID!
@@ -2091,22 +2081,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     sendReport: async (
       _,
-      { type, reason, ...args }: SendReportArgs,
+      { type, ...args }: SendReportArgs,
       ctx: AuthContext,
     ) => {
       switch (type) {
         case ReportEntity.Post:
-          return reportPost({
-            ...args,
-            ctx,
-            reason: reason as PostReportReasonType,
-          });
+          return reportPost({ ...args, ctx });
         case ReportEntity.Source:
-          return reportSource({
-            ...args,
-            ctx,
-            reason: reason as SourceReportReasonType,
-          });
+          return reportSource({ ...args, ctx });
         default:
           throw new ValidationError('Unsupported report entity');
       }

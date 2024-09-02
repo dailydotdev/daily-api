@@ -7,7 +7,7 @@ import {
   getLimit,
   getSlackIntegrationOrFail,
   GQLUserIntegration,
-  mapToGQLEnum,
+  toGQLEnum,
   addNotificationUtm,
   addPrivateSourceJoinParams,
   SlackChannelType,
@@ -60,7 +60,7 @@ export type GQLUserSourceIntegration = Pick<
 };
 
 export const typeDefs = /* GraphQL */ `
-  ${mapToGQLEnum(UserIntegrationType, 'UserIntegrationType')}
+  ${toGQLEnum(UserIntegrationType, 'UserIntegrationType')}
 
   type SlackChannel {
     id: String

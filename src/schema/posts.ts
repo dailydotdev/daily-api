@@ -88,7 +88,7 @@ import { generateShortId, generateUUID } from '../ids';
 import { generateStorageKey, StorageTopic } from '../config';
 import { subDays } from 'date-fns';
 import { UserVote } from '../types';
-import { postReportReasonsMap, PostReportReasonType } from '../entity/common';
+import { postReportReasonsMap, ReportReason } from '../entity/common';
 
 export interface GQLPost {
   id: string;
@@ -190,7 +190,7 @@ export const getPostNotification = async (
 
 interface ReportPostArgs {
   id: string;
-  reason: PostReportReasonType;
+  reason: ReportReason;
   comment: string;
   tags?: string[];
 }
@@ -1264,7 +1264,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { id, reason, comment, tags }: ReportPostArgs,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      if (!(reason in postReportReasonsMap)) {
+      if (!postReportReasonsMap.has(reason)) {
         throw new ValidationError('Reason is invalid');
       }
 

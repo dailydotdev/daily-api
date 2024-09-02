@@ -7,10 +7,8 @@ import {
 } from '../errors';
 import {
   postReportReasonsMap,
-  PostReportReasonType,
   ReportReason,
   sourceReportReasonsMap,
-  SourceReportReasonType,
 } from '../entity/common';
 import { ValidationError } from 'apollo-server-errors';
 import { Context } from '../Context';
@@ -49,14 +47,14 @@ const saveHiddenPost = async (
   return true;
 };
 
-interface BaseReportArgs<T extends ReportReason> {
+interface BaseReportArgs {
   id: string;
-  reason: T;
+  reason: ReportReason;
   comment?: string;
   ctx: Context;
 }
 
-interface PostReportArgs extends BaseReportArgs<PostReportReasonType> {
+interface PostReportArgs extends BaseReportArgs {
   tags?: string[];
 }
 
@@ -67,7 +65,7 @@ export const reportPost = async ({
   reason,
   comment,
 }: PostReportArgs) => {
-  if (!(reason in postReportReasonsMap)) {
+  if (!postReportReasonsMap.has(reason)) {
     throw new ValidationError('Reason is invalid');
   }
 
@@ -108,8 +106,8 @@ export const reportSource = async ({
   id,
   reason,
   comment,
-}: BaseReportArgs<SourceReportReasonType>) => {
-  if (!(reason in sourceReportReasonsMap)) {
+}: BaseReportArgs) => {
+  if (!sourceReportReasonsMap.has(reason)) {
     throw new ValidationError('Reason is invalid');
   }
 
