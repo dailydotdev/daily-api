@@ -1,10 +1,11 @@
 import { ChangeObject } from '../types';
-import {
+import type {
   Post,
   SourceRequest,
   SquadPublicRequest,
   User,
   UserStreak,
+  UserCompany,
 } from '../entity';
 import {
   EventLogger,
@@ -87,6 +88,9 @@ export type PubSubSchema = {
   };
   'api.v1.post-visible': {
     post: ChangeObject<Post>;
+  };
+  'api.v1.user-company-approved': {
+    userCompany: ChangeObject<UserCompany>;
   };
 };
 
