@@ -36,6 +36,7 @@ import {
   PostRelationType,
   normalizeCollectionPostSources,
   CollectionPost,
+  UserCompany,
 } from '../../entity';
 import {
   notifyCommentCommented,
@@ -878,6 +879,24 @@ const onUserStreakChange = async (
   }
 };
 
+const onUserCompanyCompanyChange = async (
+  _: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<UserCompany>,
+) => {
+  const creationWithCompany =
+    data.payload.op === 'c' && !!data.payload.after?.companyId;
+  const updateWithDifferentCompany =
+    data.payload.op === 'u' &&
+    !!data.payload.after?.companyId &&
+    data.payload.before?.companyId !== data.payload.after?.companyId;
+  if (creationWithCompany || updateWithDifferentCompany) {
+    await triggerTypedEvent(logger, 'api.v1.user-company-approved', {
+      userCompany: data.payload.after!,
+    });
+  }
+};
+
 const onBookmarkChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -992,6 +1011,9 @@ const worker: Worker = {
           break;
         case getTableName(con, Bookmark):
           await onBookmarkChange(con, logger, data);
+          break;
+        case getTableName(con, UserCompany):
+          await onUserCompanyCompanyChange(con, logger, data);
           break;
       }
     } catch (err) {
