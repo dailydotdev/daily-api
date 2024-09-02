@@ -20,7 +20,7 @@ interface SaveHiddenPostArgs {
   userId: string;
 }
 
-const saveHiddenPost = async (
+export const saveHiddenPost = async (
   con: DataSource,
   { postId, userId }: SaveHiddenPostArgs,
 ): Promise<boolean> => {
