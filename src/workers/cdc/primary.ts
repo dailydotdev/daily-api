@@ -76,7 +76,6 @@ import {
   notifyReputationIncrease,
   PubSubSchema,
   debeziumTimeToDate,
-  shouldAllowRestore,
   isNumber,
 } from '../../common';
 import { ChangeMessage, ChangeObject, UserVote } from '../../types';
@@ -822,16 +821,11 @@ const setRestoreStreakCache = async (
   streak: ChangeObject<UserStreak>,
 ) => {
   const { userId, currentStreak: previousStreak } = streak;
-  const today = new Date();
-  const shouldAllow = await shouldAllowRestore(con, streak);
-
-  if (!shouldAllow) {
-    return;
-  }
 
   const key = generateStorageKey(StorageTopic.Streak, StorageKey.Reset, userId);
+  const today = new Date();
   const now = today.getTime();
-  const nextDay = addDays(now, 1).setHours(0, 0, 0, 0);
+  const nextDay = addDays(now, 1).setHours(23, 59, 59, 0);
   const differenceInSeconds = (nextDay - now) * 1000;
 
   await Promise.all([
