@@ -9,16 +9,13 @@ import {
 import { differenceInDays, isSameDay, max } from 'date-fns';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
-import {
-  getTimezonedStartOfISOWeek,
-  getTimezonedEndOfISOWeek,
-  debeziumTimeToDate,
-} from './utils';
+import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
 import { GraphQLResolveInfo } from 'graphql';
 import { utcToZonedTime } from 'date-fns-tz';
 import { sendAnalyticsEvent } from '../integrations/analytics';
 import { DayOfWeek, DEFAULT_WEEK_START } from './date';
 import { ChangeObject, ContentLanguage } from '../types';
+import { logger } from '../logger';
 
 export interface User {
   id: string;
@@ -573,7 +570,7 @@ export const shouldAllowRestore = async (
   const { userId, lastViewAt: lastViewAtDb } = streak;
   const user = await con.getRepository(DbUser).findOneBy({ id: userId });
   const today = new Date();
-  const lastView = debeziumTimeToDate(lastViewAtDb);
+  const lastView = new Date(lastViewAtDb);
   const lastRecovery = await getLastStreakRecoverDate(con, userId);
   const lastStreak = lastRecovery ? max([lastView, lastRecovery]) : lastView;
   const lastStreakDifference = differenceInDays(today, lastStreak);
