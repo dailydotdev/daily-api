@@ -884,7 +884,9 @@ export const typeDefs = /* GraphQL */ `
     """
     Store user company
     """
-    addUserCompany(email: String!): EmptyResponse @auth
+    addUserCompany(email: String!): EmptyResponse
+      @rateLimit(limit: 3, duration: 3600)
+      @auth
 
     """
     Clear user company
@@ -894,7 +896,9 @@ export const typeDefs = /* GraphQL */ `
     """
     Verify a user company code
     """
-    verifyUserCompanyCode(email: String!, code: String!): UserCompany @auth
+    verifyUserCompanyCode(email: String!, code: String!): UserCompany
+      @rateLimit(limit: 3, duration: 3600)
+      @auth
 
     """
     Clears the user marketing CTA and marks it as read
