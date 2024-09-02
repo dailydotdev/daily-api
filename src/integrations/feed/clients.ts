@@ -9,16 +9,20 @@ type RawFeedServiceResponse = {
   cursor?: string;
 };
 
+type FeedFetchOptions = RequestInit & {
+  retries?: number;
+};
+
 /**
  * Naive implementation of a feed client that fetches the feed from the feed service
  */
 export class FeedClient implements IFeedClient {
   private readonly url: string;
-  private readonly fetchOptions: RequestInit;
+  private readonly fetchOptions: FeedFetchOptions;
 
   constructor(
     url = process.env.INTERNAL_FEED,
-    fetchOptions: RequestInit = globalFetchOptions,
+    fetchOptions: FeedFetchOptions = globalFetchOptions,
   ) {
     this.url = url;
     this.fetchOptions = fetchOptions;
@@ -37,7 +41,7 @@ export class FeedClient implements IFeedClient {
         method: 'POST',
         body: JSON.stringify(config),
       },
-      { retries: 5 },
+      { retries: this.fetchOptions.retries ?? 5 },
     );
     if (!res?.data?.length) {
       return { data: [] };
