@@ -1,6 +1,6 @@
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
-import { ArticlePost, Post, Source, User } from '../../src/entity';
+import { ArticlePost, Post, PostType, Source, User } from '../../src/entity';
 import { vordrPostPrevented as worker } from '../../src/workers/vordrPostPrevented';
 import { badUsersFixture, sourcesFixture, usersFixture } from '../fixture';
 import { postsFixture, vordrPostsFixture } from '../fixture/post';
@@ -57,6 +57,23 @@ describe('vordrPostPrevented', () => {
 
     await expectSuccessfulTypedBackground(worker, {
       post: post as unknown as ChangeObject<ArticlePost>,
+    });
+
+    expect(notifyNewVordrPost).toHaveBeenCalledTimes(0);
+  });
+
+  it('should not send slack message when vordr post no longer exists', async () => {
+    await expectSuccessfulTypedBackground(worker, {
+      post: {
+        id: 'nonexisting',
+        shortId: 'nonexisting',
+        title: 'nonexisting',
+        score: 3,
+        sourceId: 'a',
+        tagsStr: 'backend,data,javascript',
+        type: PostType.Article,
+        contentCuration: ['c1', 'c2'],
+      } as unknown as ChangeObject<ArticlePost>,
     });
 
     expect(notifyNewVordrPost).toHaveBeenCalledTimes(0);
