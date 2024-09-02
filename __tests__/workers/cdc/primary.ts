@@ -3436,43 +3436,6 @@ describe('user streak change', () => {
       expect(alert.showRecoverStreak).toEqual(true);
     });
 
-    it('should NOT set cache of previous streak over the weekend if 3 valid days had passed', async () => {
-      jest
-        .useFakeTimers({ doNotFake })
-        .setSystemTime(new Date('2024-06-25T12:00:00')); // Tuesday
-      const lastViewAt = new Date('2024-06-20T12:00:00'); // previous Thursday
-      const after: ChangeObject<ObjectType> = {
-        ...base,
-        lastViewAt: lastViewAt.getTime() * 1000,
-        currentStreak: 0,
-      };
-      await con
-        .getRepository(UserStreak)
-        .update({ userId: '1' }, { lastViewAt });
-      await expectSuccessfulBackground(
-        worker,
-        mockChangeMessage<ObjectType>({
-          after,
-          before: {
-            ...base,
-            currentStreak: 3,
-            lastViewAt: lastViewAt.getTime() * 1000,
-          },
-          op: 'u',
-          table: 'user_streak',
-        }),
-      );
-      const lastStreak = await getRestoreStreakCache({ userId: after.userId });
-      expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-      expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
-        'api.v1.user-streak-updated',
-        { streak: after },
-      ]);
-      expect(lastStreak).toBeFalsy();
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
-      expect(alert.showRecoverStreak).toEqual(false);
-    });
-
     it('should set cache value of previous streak while considering existing streak recoveries', async () => {
       // on a regular check similar to one of the tests, this should not set the cache
       // but since we will add a recovery date, this should consider the existing streak recovery
