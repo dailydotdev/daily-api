@@ -2,19 +2,29 @@ import { IResolvers } from '@graphql-tools/utils';
 import { BaseContext } from '../Context';
 import { traceResolvers } from './trace';
 import { GQLUser } from './users';
-import { User, UserStats, UserStreak } from '../entity';
+import { User, UserCompany, UserStats, UserStreak } from '../entity';
 import { DataSource, In, Not } from 'typeorm';
-import { getLimit, ghostUser } from '../common';
+import { getLimit, ghostUser, GQLCompany } from '../common';
 
 export type GQLUserLeaderboard = {
   score: number;
   user: GQLUser | Promise<GQLUser>;
 };
 
+export type GQLCompanyLeaderboard = {
+  score: number;
+  company: GQLCompany | Promise<GQLCompany>;
+};
+
 export const typeDefs = /* GraphQL */ `
   type Leaderboard {
     score: Int
     user: User
+  }
+
+  type CompanyLeaderboard {
+    score: Int
+    company: Company
   }
 
   extend type Query {
@@ -77,6 +87,16 @@ export const typeDefs = /* GraphQL */ `
       """
       limit: Int
     ): [Leaderboard] @cacheControl(maxAge: 600)
+
+    """
+    Get the companies with most verified users
+    """
+    mostVerifiedUsers(
+      """
+      Limit the number of companies returned
+      """
+      limit: Int
+    ): [CompanyLeaderboard] @cacheControl(maxAge: 600)
   }
 `;
 
@@ -182,6 +202,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return users.map((user) => ({
         score: user.totalStreak,
         user: user.user,
+      }));
+    },
+    mostVerifiedUsers: async (
+      _,
+      args,
+      ctx,
+    ): Promise<GQLCompanyLeaderboard[]> => {
+      const companies = await ctx.con
+        .getRepository(UserCompany)
+        .query(
+          `SELECT "companyId", "company"."name", "company"."image", count("company".*) from user_company LEFT JOIN company ON "companyId" = "company"."id" WHERE "companyId" != ''  GROUP BY "companyId", "name", "image" ORDER BY count DESC LIMIT $1`,
+          [getLimit(args)],
+        );
+      return companies.map((company) => ({
+        score: company.count,
+        company: { name: company.name, image: company.image },
       }));
     },
   },
