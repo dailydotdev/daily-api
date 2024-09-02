@@ -21,6 +21,7 @@ import fastq from 'fastq';
 import { SendEmailRequestWithTemplate } from 'customerio-node/dist/lib/api/requests';
 import { v4 as uuidv4 } from 'uuid';
 import { DayOfWeek } from './date';
+import { fetchOptions } from '../http';
 
 type TemplatePostData = Pick<
   ArticlePost,
@@ -182,6 +183,10 @@ export const getPersonalizedDigestEmailPayload = async ({
   );
   const personalizedDigestFeedClient = new FeedClient(
     process.env.PERSONALIZED_DIGEST_FEED,
+    {
+      ...fetchOptions,
+      retries: 1,
+    },
   );
 
   const feedConfigPayload = {
