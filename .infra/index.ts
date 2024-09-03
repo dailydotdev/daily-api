@@ -45,6 +45,7 @@ const { serviceAccount } = createServiceAccountAndGrantRoles(
     { name: 'monitoring', role: 'roles/monitoring.metricWriter' },
     { name: 'secret', role: 'roles/secretmanager.secretAccessor' },
     { name: 'pubsub', role: 'roles/pubsub.editor' },
+    { name: 'objViewer', role: 'roles/storage.objectViewer' },
   ],
   isAdhocEnv,
 );

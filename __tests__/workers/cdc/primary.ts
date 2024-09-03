@@ -27,6 +27,7 @@ import {
   Bookmark,
   UserStreakAction,
   UserStreakActionType,
+  UserCompany,
 } from '../../../src/entity';
 import {
   notifyCommentCommented,
@@ -3562,6 +3563,84 @@ describe('user streak change', () => {
       const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
       expect(alert.showRecoverStreak).toEqual(true);
     });
+  });
+});
+
+describe('user company approved', () => {
+  type ObjectType = UserCompany;
+  const base: ChangeObject<ObjectType> = {
+    userId: '1',
+    code: '123456',
+    email: 'chris@daily.dev',
+    verified: true,
+    createdAt: new Date().getTime(),
+    updatedAt: new Date().getTime(),
+    companyId: null,
+    flags: {},
+  };
+
+  it('should not notify on creation when company id not set', async () => {
+    const after: ChangeObject<ObjectType> = base;
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'user_company',
+      }),
+    );
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
+  });
+
+  it('should notify on creation when company id is set', async () => {
+    const after: ChangeObject<ObjectType> = { ...base, companyId: '1' };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'user_company',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalled();
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.user-company-approved',
+      { userCompany: after },
+    ]);
+  });
+
+  it('should not notify on update when company not changed', async () => {
+    const after: ChangeObject<ObjectType> = base;
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: { ...after },
+        op: 'u',
+        table: 'user_company',
+      }),
+    );
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
+  });
+
+  it('should notify on update when company id is changed', async () => {
+    const after: ChangeObject<ObjectType> = { ...base, companyId: '1' };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'user_company',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalled();
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.user-company-approved',
+      { userCompany: after },
+    ]);
   });
 });
 

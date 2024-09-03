@@ -77,6 +77,7 @@ import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { CampaignType, Invite } from '../src/entity/Invite';
 import { usersFixture } from './fixture/user';
 import {
+  deleteKeysByPattern,
   deleteRedisKey,
   getRedisObject,
   setRedisObjectWithExpiry,
@@ -90,6 +91,7 @@ import { Company } from '../src/entity/Company';
 import { UserCompany } from '../src/entity/UserCompany';
 import { SourceReport } from '../src/entity/sources/SourceReport';
 import { SourceMemberRoles } from '../src/roles';
+import { rateLimiterName } from '../src/directive/rateLimit';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -1286,6 +1288,10 @@ describe('user company', () => {
     }
   }`;
 
+    beforeEach(async () => {
+      await deleteKeysByPattern(`${rateLimiterName}:*`);
+    });
+
     it('should not authorize when not logged in', () => {
       return testQueryError(
         client,
@@ -1521,6 +1527,10 @@ describe('user company', () => {
       email
     }
   }`;
+
+    beforeEach(async () => {
+      await deleteKeysByPattern(`${rateLimiterName}:*`);
+    });
 
     it('should not authorize when not logged in', () => {
       return testQueryError(
