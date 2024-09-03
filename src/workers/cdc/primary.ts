@@ -87,7 +87,6 @@ import { PostReport, ContentImage } from '../../entity';
 import { updateAlerts } from '../../schema/alerts';
 import { TypeOrmError, TypeORMQueryFailedError } from '../../errors';
 import { CommentReport } from '../../entity/CommentReport';
-import { reportCommentReasons } from '../../schema/comments';
 import { getTableName, isChanged, notifyPostContentUpdated } from './common';
 import { UserComment } from '../../entity/user/UserComment';
 import {
@@ -107,7 +106,10 @@ import {
   runReminderWorkflow,
 } from '../../temporal/notifications/utils';
 import { addDays } from 'date-fns';
-import { postReportReasonsMap } from '../../entity/common';
+import {
+  postReportReasonsMap,
+  reportCommentReasonsMap,
+} from '../../entity/common';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -605,7 +607,7 @@ const onCommentReportChange = async (
       await notifyCommentReport(
         data.payload.after!.userId,
         comment,
-        reportCommentReasons.get(data.payload.after!.reason)!,
+        reportCommentReasonsMap.get(data.payload.after!.reason)!,
         data.payload.after!.note,
       );
     }

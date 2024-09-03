@@ -99,7 +99,7 @@ import { generateVerifyCode } from '../ids';
 import { validateUserUpdate } from '../entity/user/utils';
 import { getRestoreStreakCache } from '../workers/cdc/primary';
 import { ReportEntity, ReportReason } from '../entity/common';
-import { reportPost, reportSource } from '../common/reporting';
+import { reportFunctionMap } from '../common/reporting';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -2088,14 +2088,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { type, ...args }: SendReportArgs,
       ctx: AuthContext,
     ) => {
-      switch (type) {
-        case ReportEntity.Post:
-          return reportPost({ ...args, ctx });
-        case ReportEntity.Source:
-          return reportSource({ ...args, ctx });
-        default:
-          throw new ValidationError('Unsupported report entity');
+      const reportCommand = reportFunctionMap[type];
+
+      if (!reportCommand) {
+        throw new ValidationError('Unsupported report entity');
       }
+
+      return reportCommand({ ...args, ctx });
     },
   },
   User: {

@@ -1,6 +1,7 @@
 export enum ReportEntity {
   Post = 'post',
   Source = 'source',
+  Comment = 'comment',
 }
 
 export enum ReportReason {

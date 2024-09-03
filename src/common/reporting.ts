@@ -8,6 +8,7 @@ import {
 import {
   postReportReasonsMap,
   reportCommentReasonsMap,
+  ReportEntity,
   ReportReason,
   sourceReportReasonsMap,
 } from '../entity/common';
@@ -59,6 +60,8 @@ interface BaseReportArgs {
 interface PostReportArgs extends BaseReportArgs {
   tags?: string[];
 }
+
+type ReportFunction = (params: BaseReportArgs) => Promise<void>;
 
 export const reportPost = async ({
   ctx,
@@ -152,4 +155,10 @@ export const reportSource = async ({
     reason,
     comment,
   });
+};
+
+export const reportFunctionMap: Record<ReportEntity, ReportFunction> = {
+  [ReportEntity.Post]: reportPost,
+  [ReportEntity.Comment]: reportComment,
+  [ReportEntity.Source]: reportSource,
 };
