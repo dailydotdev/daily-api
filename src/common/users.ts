@@ -15,7 +15,6 @@ import { utcToZonedTime } from 'date-fns-tz';
 import { sendAnalyticsEvent } from '../integrations/analytics';
 import { DayOfWeek, DEFAULT_WEEK_START } from './date';
 import { ChangeObject, ContentLanguage } from '../types';
-import { logger } from '../logger';
 
 export interface User {
   id: string;
