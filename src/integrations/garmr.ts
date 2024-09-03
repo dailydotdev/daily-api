@@ -14,6 +14,7 @@ import {
 } from 'cockatiel';
 import { logger } from '../logger';
 import { isTest } from '../common';
+import { counters } from '../telemetry/metrics';
 
 export interface IGarmrService {
   readonly instance: IPolicy;
@@ -69,7 +70,7 @@ export class GarmrService implements IGarmrService {
       queuedRequests?: number;
     };
   }) {
-    // in testing we avoid the circuit breaker logic due to repeatable nature
+    // in testing we avoid the breaker logic due to repeatable nature
     if (isTest) {
       this.instance = noop;
 
@@ -89,6 +90,10 @@ export class GarmrService implements IGarmrService {
         },
         'retrying request',
       );
+
+      counters?.['personalized-digest']?.garmrRetry?.add(1, {
+        service: commonLoggerData.service,
+      });
     });
 
     const bulkheadPolicy = bulkhead(
@@ -114,14 +119,26 @@ export class GarmrService implements IGarmrService {
           ...commonLoggerData,
           event,
         },
-        'circuit breaker opened',
+        'breaker opened',
       );
+
+      counters?.['personalized-digest']?.garmrBreak?.add(1, {
+        service: commonLoggerData.service,
+      });
     });
     circuitBreakerPolicy.onHalfOpen(() => {
-      logger.info(commonLoggerData, 'circuit breaker half-opened');
+      logger.info(commonLoggerData, 'breaker half-opened');
+
+      counters?.['personalized-digest']?.garmrHalfOpen?.add(1, {
+        service: commonLoggerData.service,
+      });
     });
     circuitBreakerPolicy.onReset(() => {
-      logger.info(commonLoggerData, 'circuit breaker reset');
+      logger.info(commonLoggerData, 'breaker reset');
+
+      counters?.['personalized-digest']?.garmrReset?.add(1, {
+        service: commonLoggerData.service,
+      });
     });
 
     this.instance = wrap(retryPolicy, circuitBreakerPolicy, bulkheadPolicy);
