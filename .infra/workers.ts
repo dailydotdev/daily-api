@@ -11,7 +11,7 @@ export { workers, digestDeadLetter };
 
 const digestWorkersArgsMap: Record<string, WorkerArgs> = {
   'api.personalized-digest-email': {
-    ackDeadlineSeconds: 60,
+    ackDeadlineSeconds: 120,
     deadLetterPolicy: {
       deadLetterTopic: `projects/${gcp.config.project}/topics/${digestDeadLetter}`,
       maxDeliveryAttempts: 5,
