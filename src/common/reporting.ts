@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { Post, PostReport, Source, UserPost, Comment } from '../entity';
+import { Post, PostReport, UserPost, Comment } from '../entity';
 import {
   NotFoundError,
   TypeOrmError,
@@ -146,7 +146,6 @@ export const reportSource = async ({
     throw new ValidationError('Reason is invalid');
   }
 
-  await ctx.getRepository(Source).findOneByOrFail({ id });
   await ensureSourcePermissions(ctx, id);
 
   await ctx.getRepository(SourceReport).insert({
