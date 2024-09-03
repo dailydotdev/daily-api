@@ -833,7 +833,7 @@ const setRestoreStreakCache = async (
   const key = generateStorageKey(StorageTopic.Streak, StorageKey.Reset, userId);
   const now = today.getTime();
   const nextDay = addDays(now, 1).setHours(0, 0, 0, 0);
-  const differenceInSeconds = (nextDay - now) / 1000;
+  const differenceInSeconds = Math.round((nextDay - now) / 1000);
 
   await Promise.all([
     setRedisObjectWithExpiry(key, previousStreak, differenceInSeconds),
