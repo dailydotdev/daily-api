@@ -15,6 +15,7 @@ import { utcToZonedTime } from 'date-fns-tz';
 import { sendAnalyticsEvent } from '../integrations/analytics';
 import { DayOfWeek, DEFAULT_WEEK_START } from './date';
 import { ChangeObject, ContentLanguage } from '../types';
+import { checkRestoreValidity } from './streak';
 
 export interface User {
   id: string;
@@ -464,44 +465,6 @@ export const shouldResetStreak = (
   return day > firstDayOfWeek && difference > MISSED_LIMIT;
 };
 
-interface DaysProps {
-  day: number;
-  firstDayOfWeek: Day;
-  lastDayOfWeek: Day;
-}
-
-const getAllowedDays = ({ day, lastDayOfWeek, firstDayOfWeek }: DaysProps) => {
-  if (day === lastDayOfWeek) {
-    return FREEZE_DAYS_IN_A_WEEK;
-  }
-
-  const isDayOne = day === firstDayOfWeek;
-  const isDayTwo = day === firstDayOfWeek + 1;
-  const isOverTheWeekendReset = isDayOne || isDayTwo;
-
-  if (isOverTheWeekendReset) {
-    return FREEZE_DAYS_IN_A_WEEK + STREAK_RECOVERY_MAX_GAP_DAYS;
-  }
-
-  return STREAK_RECOVERY_MAX_GAP_DAYS;
-};
-
-export const checkRestoreValidity = (
-  day: number,
-  difference: number,
-  startOfWeek: DayOfWeek = DEFAULT_WEEK_START,
-) => {
-  const firstDayOfWeek =
-    startOfWeek === DayOfWeek.Monday ? Day.Monday : Day.Sunday;
-
-  const lastDayOfWeek =
-    startOfWeek === DayOfWeek.Monday ? Day.Sunday : Day.Saturday;
-
-  const allowedDays = getAllowedDays({ day, lastDayOfWeek, firstDayOfWeek });
-
-  return difference - allowedDays === 0;
-};
-
 export const checkUserStreak = (
   streak: GQLUserStreakTz,
   lastRecoveredTime?: Date,
@@ -578,11 +541,12 @@ export const shouldAllowRestore = async (
   const lastStreak = lastRecovery ? max([lastView, lastRecovery]) : lastView;
   const lastStreakDifference = differenceInDays(today, lastStreak);
 
-  return checkRestoreValidity(
-    today.getDay(),
-    lastStreakDifference,
-    user.weekStart,
-  );
+  return checkRestoreValidity({
+    day: today.getDay(),
+    difference: lastStreakDifference,
+    startOfWeek: user.weekStart,
+    lastView: lastStreak,
+  });
 };
 
 export const roadmapShSocialUrlMatch =
