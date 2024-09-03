@@ -1516,7 +1516,7 @@ describe('comment report', () => {
     userId: 'u1',
     commentId: 'c1',
     createdAt: 0,
-    reason: 'MISINFORMATION',
+    reason: ReportReason.Misinformation,
     note: 'Test note',
   };
 
