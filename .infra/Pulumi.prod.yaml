@@ -112,7 +112,7 @@ config:
     otelTracesSampler: parentbased_traceidratio
     otelTracesSamplerArg: 0.05
     personalizedDigestFeed:
-      secure: AAABAGP/d+fM8gESq9WXxiaYwkOKuNYIkM2xsxIh0gBoFnHaoak40gPpBfPYgE2GYZGjjln+XhVt406Ci+IIPcw=
+      secure: AAABABnHXr0d1pbDX7KRjoBXvFnr7ImTUJ7Y88GlhlaC7EiSG/nxVLHtnQL0hgczHqt1bPn25TN/R8Au6CEAQpq6dGXLwCfA+gWPypTVHg==
     personalizedDigestSecret:
       secure: AAABAN1TYaqznVMVbKDZtYEnLGB0VIzXDrpcmB6rBsImneobrDOS12T4XwbVvnexdZt1NBCnZRBwH4AL7OgpZkj/2UgT8Lzj0o7TdVSBeIeVDzKa/V6jlvJ4AskEC9rg
     popularFeed:

@@ -553,6 +553,11 @@ export const typeDefs = /* GraphQL */ `
     sourceHandleExists(handle: String!): Boolean! @auth
 
     """
+    Fetch details of a single category
+    """
+    sourceCategory(id: ID!): SourceCategory!
+
+    """
     Fetch all source categories
     """
     sourceCategories(
@@ -1181,6 +1186,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   BaseContext
 >({
   Query: {
+    sourceCategory: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+      info,
+    ): Promise<GQLSourceCategory> =>
+      graphorm.queryOneOrFail(ctx, info, (builder) => ({
+        ...builder,
+        queryBuilder: builder.queryBuilder.where(
+          `"${builder.alias}"."id" = :id`,
+          { id },
+        ),
+      })),
     sourceCategories: async (
       _,
       args,
