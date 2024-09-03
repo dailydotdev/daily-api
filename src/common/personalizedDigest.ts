@@ -10,7 +10,7 @@ import {
 import { format, isSameDay, nextDay, previousDay } from 'date-fns';
 import { PersonalizedDigestFeatureConfig } from '../growthbook';
 import { feedToFilters, fixedIdsFeedBuilder } from './feedGenerator';
-import { FeedClient } from '../integrations/feed';
+import { FeedClient } from '../integrations/feed/clients';
 import { addNotificationUtm, baseNotificationEmailData } from './mailing';
 import { pickImageUrl } from './post';
 import { getDiscussionLink } from './links';

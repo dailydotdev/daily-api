@@ -13,7 +13,7 @@ import {
   wrap,
 } from 'cockatiel';
 import { logger } from '../logger';
-import { isTest } from '../common';
+import { isTest } from '../common/utils';
 import { counters } from '../telemetry/metrics';
 
 export interface IGarmrService {
