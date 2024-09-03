@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { Post, PostReport, Source, UserPost } from '../entity';
+import { Post, PostReport, Source, UserPost, Comment } from '../entity';
 import {
   NotFoundError,
   TypeOrmError,
@@ -7,6 +7,7 @@ import {
 } from '../errors';
 import {
   postReportReasonsMap,
+  reportCommentReasonsMap,
   ReportReason,
   sourceReportReasonsMap,
 } from '../entity/common';
@@ -14,6 +15,7 @@ import { ValidationError } from 'apollo-server-errors';
 import { Context } from '../Context';
 import { SourceReport } from '../entity/sources/SourceReport';
 import { ensureSourcePermissions } from '../schema/sources';
+import { CommentReport } from '../entity/CommentReport';
 
 interface SaveHiddenPostArgs {
   postId: string;
@@ -97,6 +99,36 @@ export const reportPost = async ({
           throw new Error('Failed to save report to database');
         }
       }
+    }
+  }
+};
+
+export const reportComment = async ({
+  ctx,
+  id,
+  reason,
+  comment,
+}: BaseReportArgs) => {
+  if (!reportCommentReasonsMap.has(reason)) {
+    throw new ValidationError('Reason is invalid');
+  }
+
+  await ctx
+    .getRepository(Comment)
+    .findOneOrFail({ where: { id }, select: ['id'] });
+
+  try {
+    await ctx.getRepository(CommentReport).insert({
+      commentId: id,
+      userId: ctx.userId,
+      reason,
+      note: comment,
+    });
+  } catch (originalError) {
+    const err = originalError as TypeORMQueryFailedError;
+
+    if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
+      throw new Error('Failed to save report to database');
     }
   }
 };

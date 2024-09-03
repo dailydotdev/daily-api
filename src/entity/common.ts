@@ -16,6 +16,7 @@ export enum ReportReason {
   Copyright = 'COPYRIGHT',
   Privacy = 'PRIVACY',
   Miscategorized = 'MISCATEGORIZED',
+  Misinformation = 'MISINFORMATION',
   Illegal = 'ILLEGAL',
 }
 
@@ -38,4 +39,13 @@ export const sourceReportReasonsMap: Map<ReportReason, string> = new Map([
   [ReportReason.Miscategorized, '🚮 Miscategorized'],
   [ReportReason.Illegal, '❗️ Illegal activities are made'],
   [ReportReason.Other, '🤔 Other'],
+]);
+
+export const reportCommentReasonsMap: Map<ReportReason, string> = new Map([
+  [ReportReason.Hateful, 'Hateful or Offensive Content'],
+  [ReportReason.Harassment, 'Harassment or Bullying'],
+  [ReportReason.Spam, 'Spam or Scams'],
+  [ReportReason.Nsfw, 'Explicit Sexual Content'],
+  [ReportReason.Misinformation, 'False Information or Misinformation'],
+  [ReportReason.Other, 'Other'],
 ]);

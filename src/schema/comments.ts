@@ -41,7 +41,6 @@ import {
 } from '../common/markdown';
 import { ensureSourcePermissions, SourcePermissions } from './sources';
 import { generateShortId } from '../ids';
-import { CommentReport } from '../entity/CommentReport';
 import { UserVote } from '../types';
 import { UserComment } from '../entity/user/UserComment';
 import {
@@ -49,6 +48,8 @@ import {
   VordrFilterType,
   whereVordrFilter,
 } from '../common/vordr';
+import { reportComment } from '../common/reporting';
+import { ReportReason } from '../entity/common';
 
 export interface GQLComment {
   id: string;
@@ -89,7 +90,7 @@ interface GQLCommentCommentArgs {
 interface ReportCommentArgs {
   commentId: string;
   note: string;
-  reason: string;
+  reason: ReportReason;
 }
 
 export interface GQLUserComment {
@@ -191,36 +192,6 @@ export const typeDefs = /* GraphQL */ `
   type CommentUpvoteConnection {
     pageInfo: PageInfo!
     edges: [CommentUpvoteEdge!]!
-  }
-
-  """
-  Enum of the possible reasons to report a comment
-  """
-  enum ReportCommentReason {
-    """
-    The comment is hateful
-    """
-    HATEFUL
-    """
-    The comment is in any form of bullying or harassment
-    """
-    HARASSMENT
-    """
-    The comment is a spam or a scam
-    """
-    SPAM
-    """
-    The comment contains any sexual or explicit content
-    """
-    EXPLICIT
-    """
-    The comment contains incorrect information
-    """
-    MISINFORMATION
-    """
-    Reason doesnt fit any specific category
-    """
-    OTHER
   }
 
   type UserComment {
@@ -399,7 +370,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Reason the user would like to report
       """
-      reason: ReportCommentReason
+      reason: ReportReason
       """
       Additional comment about report reason
       """
@@ -542,15 +513,6 @@ const getCommentById = async (
   });
   return res[0];
 };
-
-export const reportCommentReasons = new Map([
-  ['HATEFUL', 'Hateful or Offensive Content'],
-  ['HARASSMENT', 'Harassment or Bullying'],
-  ['SPAM', 'Spam or Scams'],
-  ['EXPLICIT', 'Explicit Sexual Content'],
-  ['MISINFORMATION', 'False Information or Misinformation'],
-  ['OTHER', 'Other'],
-]);
 
 const validateComment = (ctx: Context, content: string): void => {
   if (!content.trim().length) {
@@ -945,28 +907,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { commentId: id, reason, note }: ReportCommentArgs,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      if (!reportCommentReasons.has(reason)) {
-        throw new ValidationError('Reason is invalid');
-      }
-
-      await ctx
-        .getRepository(Comment)
-        .findOneOrFail({ where: { id }, select: ['id'] });
-
-      try {
-        await ctx.getRepository(CommentReport).insert({
-          commentId: id,
-          userId: ctx.userId,
-          reason,
-          note,
-        });
-      } catch (originalError) {
-        const err = originalError as TypeORMQueryFailedError;
-
-        if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
-          throw new Error('Failed to save report to database');
-        }
-      }
+      await reportComment({ ctx, id, reason, comment: note });
 
       return { _: true };
     },
