@@ -21,6 +21,7 @@ export class FeedClient implements IFeedClient, IGarmrClient {
   private readonly url: string;
   private readonly fetchOptions: FeedFetchOptions;
   private static readonly garmr = new GarmrService({
+    service: FeedClient.name,
     breakerOpts: {
       halfOpenAfter: 3 * 1000,
       threshold: 0.1,
