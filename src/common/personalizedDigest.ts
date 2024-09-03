@@ -160,6 +160,7 @@ const personalizedDigestFeedClient = new FeedClient(
   process.env.PERSONALIZED_DIGEST_FEED,
   {
     ...fetchOptions,
+    timeout: 10 * 1000,
     retries: 0,
   },
   new GarmrService({
