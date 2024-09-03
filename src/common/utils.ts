@@ -101,6 +101,8 @@ export const removeEmptyValues = <T>(array: T[]): T[] => array.filter(Boolean);
  */
 export const isProd = process.env.NODE_ENV === 'production';
 
+export const isTest = process.env.NODE_ENV === 'test';
+
 export const parseDate = (date: string | Date): Date | undefined => {
   if (!date) {
     return undefined;
