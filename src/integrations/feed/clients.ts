@@ -46,7 +46,7 @@ export class FeedClient implements IFeedClient, IGarmrClient {
           method: 'POST',
           body: JSON.stringify(config),
         },
-        { retries: 0 },
+        { retries: this.fetchOptions.retries ?? 5 },
       );
     });
 
