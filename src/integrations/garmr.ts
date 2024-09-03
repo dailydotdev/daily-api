@@ -31,6 +31,7 @@ export class GarmrService {
       halfOpenAfter: number;
       threshold: number;
       duration: number;
+      minimumRps?: number;
     };
     retryOpts?: {
       maxAttempts: number;
@@ -67,6 +68,7 @@ export class GarmrService {
       breaker: new SamplingBreaker({
         threshold: breakerOpts.threshold,
         duration: breakerOpts.duration,
+        minimumRps: breakerOpts.minimumRps ?? 5,
       }),
     });
     circuitBreakerPolicy.onBreak((event: FailureReason<Error>) => {
