@@ -475,7 +475,11 @@ const getAllowedDays = ({ day, lastDayOfWeek, firstDayOfWeek }: DaysProps) => {
     return FREEZE_DAYS_IN_A_WEEK;
   }
 
-  if (day === firstDayOfWeek) {
+  const isDayOne = day === firstDayOfWeek;
+  const isDayTwo = day === firstDayOfWeek + 1;
+  const isOverTheWeekendReset = isDayOne || isDayTwo;
+
+  if (isOverTheWeekendReset) {
     return FREEZE_DAYS_IN_A_WEEK + STREAK_RECOVERY_MAX_GAP_DAYS;
   }
 
