@@ -12,6 +12,11 @@ export const vordrPostCommentPrevented: TypedWorker<'post-commented'> = {
         .getRepository(Comment)
         .findOne({ where: { id: data.commentId }, relations: ['post'] });
 
+      // Edge cases where the comment is not found in the database
+      if (!comment) {
+        return;
+      }
+
       if (!comment.flags?.vordr) {
         return;
       }

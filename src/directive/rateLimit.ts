@@ -109,6 +109,12 @@ export const onLimit: RateLimitOnLimit<Context> = (
       throw new RateLimitError({
         message: 'Take a break. You already commented enough in the last hour',
       });
+    case 'addUserCompany':
+      counters?.api?.rateLimit?.add(1, { type: 'addUserCompany' });
+      throw new RateLimitError({ msBeforeNextReset: resource.msBeforeNext });
+    case 'verifyUserCompanyCode':
+      counters?.api?.rateLimit?.add(1, { type: 'verifyUserCompanyCode' });
+      throw new RateLimitError({ msBeforeNextReset: resource.msBeforeNext });
     default:
       counters?.api?.rateLimit?.add(1, { type: 'default' });
       throw new RateLimitError({ msBeforeNextReset: resource.msBeforeNext });

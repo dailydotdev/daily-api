@@ -76,4 +76,14 @@ describe('vordrPostCommentPrevented', () => {
 
     expect(notifyNewVordrComment).toHaveBeenCalledTimes(0);
   });
+
+  it('should not send slack message when vordr comment no longer exists', async () => {
+    await expectSuccessfulTypedBackground(worker, {
+      userId: 'vordr',
+      commentId: 'nonexisting',
+      postId: 'p1',
+      contentHtml: '<p>comment</p>',
+    });
+    expect(notifyNewVordrComment).toHaveBeenCalledTimes(0);
+  });
 });
