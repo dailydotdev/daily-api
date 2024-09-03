@@ -150,24 +150,78 @@ beforeEach(async () => {
 
 afterAll(() => disposeGraphQLTesting(state));
 
+describe('query sourceCategory', () => {
+  const QUERY = `
+    query SourceCategory($id: ID!) {
+      sourceCategory(id: $id) {
+        id
+        title
+      }
+    }
+  `;
+
+  it('should return NOT_FOUND when category does not exist', async () => {
+    loggedUser = '1';
+    const uuid = randomUUID();
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: uuid } },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return source category by id', async () => {
+    loggedUser = '1';
+    const [category] = await con.getRepository(SourceCategory).find();
+    const res = await client.query(QUERY, { variables: { id: category.id } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.sourceCategory.id).toEqual(category.id);
+    expect(res.data.sourceCategory.title).toEqual(category.title);
+  });
+
+  it('should return source category by id as anonymous user', async () => {
+    const [category] = await con.getRepository(SourceCategory).find();
+    const res = await client.query(QUERY, { variables: { id: category.id } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.sourceCategory.id).toEqual(category.id);
+    expect(res.data.sourceCategory.title).toEqual(category.title);
+  });
+});
+
 describe('query sourceCategories', () => {
-  it('should return source categories', async () => {
-    const res = await client.query(`
-      query SourceCategories($first: Int, $after: String) {
-        sourceCategories(first: $first, after: $after) {
-          pageInfo {
-            endCursor
-            hasNextPage
-          }
-          edges {
-            node {
-              id
-              title
-            }
+  const QUERY = `
+    query SourceCategories($first: Int, $after: String) {
+      sourceCategories(first: $first, after: $after) {
+        pageInfo {
+          endCursor
+          hasNextPage
+        }
+        edges {
+          node {
+            id
+            title
           }
         }
       }
-    `);
+    }
+  `;
+
+  it('should return source categories', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    const categories = getSourceCategories();
+    const isAllFound = res.data.sourceCategories.edges.every(({ node }) =>
+      categories.some((category) => category.title === node.title),
+    );
+    expect(isAllFound).toBeTruthy();
+  });
+
+  it('should return source categories as an anonymous user', async () => {
+    const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     const categories = getSourceCategories();
     const isAllFound = res.data.sourceCategories.edges.every(({ node }) =>
