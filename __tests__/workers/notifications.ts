@@ -698,7 +698,7 @@ describe('streak reset restore', () => {
       StorageKey.Reset,
       streak.userId,
     );
-    const debeziumTime = streak.lastViewAt.getTime() * 1000;
+    const debeziumTime = streak.lastViewAt.getTime();
     await setRedisObject(key, lastStreak.toString());
     const actual = await invokeNotificationWorker(worker.default, {
       streak: { ...streak, lastViewAt: debeziumTime },
@@ -708,7 +708,7 @@ describe('streak reset restore', () => {
     const ctx = bundle.ctx as NotificationStreakContext;
     expect(bundle.type).toEqual('streak_reset_restore');
     expect(ctx.streak.currentStreak).toEqual(lastStreak);
-    expect(ctx.streak.lastViewAt).toEqual(debeziumTime / 1000);
+    expect(ctx.streak.lastViewAt).toEqual(debeziumTime);
   });
 
   it('should not add notification if the stored value has expired', async () => {
