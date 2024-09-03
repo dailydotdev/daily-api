@@ -50,6 +50,7 @@ export class FeedGenerator {
 export const snotraClient = new SnotraClient();
 export const feedClient = new FeedClient();
 export const lofnClient = new LofnClient();
+export const popularFeedClient = new FeedClient(process.env.POPULAR_FEED);
 
 const opts = {
   includeBlockedTags: true,
@@ -68,7 +69,7 @@ export const baseFeedConfig: Partial<FeedConfig> = {
 export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
   Object.freeze({
     popular: new FeedGenerator(
-      new FeedClient(process.env.POPULAR_FEED),
+      popularFeedClient,
       new FeedPreferencesConfigGenerator(
         {},
         {

@@ -385,11 +385,11 @@ if (isAdhocEnv) {
       env: [...jwtEnv],
       args: ['dumb-init', 'node', 'bin/cli', 'personalized-digest'],
       minReplicas: 1,
-      maxReplicas: 25,
-      limits: { memory: '512Mi' },
+      maxReplicas: 1,
+      limits: { memory: '2Gi' },
       requests: {
-        cpu: '500m',
-        memory: '256Mi',
+        cpu: '1',
+        memory: '1Gi',
       },
       metric: {
         type: 'pubsub',

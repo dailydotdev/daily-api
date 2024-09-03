@@ -89,6 +89,24 @@ const counterMap = {
       description: 'How many streaks get updated',
     },
   },
+  'personalized-digest': {
+    garmrBreak: {
+      name: 'garmr_break',
+      description: 'How many times breaker has been triggered',
+    },
+    garmrHalfOpen: {
+      name: 'garm_half_open',
+      description: 'How many times breaker has been half opened',
+    },
+    garmrReset: {
+      name: 'garmr_reset',
+      description: 'How many times breaker has been reset',
+    },
+    garmrRetry: {
+      name: 'garmr_retry',
+      description: 'How many times a request has been retried',
+    },
+  },
 };
 
 export const counters: Partial<{
