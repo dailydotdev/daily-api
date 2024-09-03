@@ -15,7 +15,7 @@ export class SourceReport {
   @Column({ default: () => 'now()' })
   createdAt: Date;
 
-  @Column({ length: 32, type: 'varchar' })
+  @Column({ type: 'text' })
   reason: ReportReason;
 
   @Column({ type: 'text', nullable: true })
