@@ -28,6 +28,7 @@ import {
   UserStreakActionType,
   getAuthorPostStats,
   streakRecoverCost,
+  Alerts,
 } from '../entity';
 import {
   AuthenticationError,
@@ -1983,6 +1984,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const oldStreakLength = await getRestoreStreakCache({ userId });
       if (!oldStreakLength) {
+        await ctx.con
+          .getRepository(Alerts)
+          .update({ userId }, { showRecoverStreak: false });
         throw new ValidationError('No streak to recover');
       }
 
