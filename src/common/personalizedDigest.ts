@@ -164,7 +164,7 @@ const personalizedDigestFeedClient = new FeedClient(
     retries: 0,
   },
   new GarmrService({
-    service: FeedClient.name,
+    service: 'feed-client-digest',
     breakerOpts: {
       halfOpenAfter: 5 * 1000,
       threshold: 0.1,
