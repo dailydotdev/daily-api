@@ -37,9 +37,12 @@ export const getAllowedDays = ({
   }
 
   const dayOneWeekend = getPreviousDay(lastDayOfWeek);
-  const offset = dayOneWeekend === lastViewDay ? 1 : 2;
+  const offset =
+    dayOneWeekend === lastViewDay
+      ? FREEZE_DAYS_IN_A_WEEK - 1
+      : FREEZE_DAYS_IN_A_WEEK;
 
-  return FREEZE_DAYS_IN_A_WEEK + offset;
+  return STREAK_RECOVERY_MAX_GAP_DAYS + offset;
 };
 
 interface RestoreValidityParams {
