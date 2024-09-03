@@ -194,6 +194,36 @@ export const typeDefs = /* GraphQL */ `
     edges: [CommentUpvoteEdge!]!
   }
 
+  """
+  Enum of the possible reasons to report a comment
+  """
+  enum ReportCommentReason {
+    """
+    The comment is hateful
+    """
+    HATEFUL
+    """
+    The comment is in any form of bullying or harassment
+    """
+    HARASSMENT
+    """
+    The comment is a spam or a scam
+    """
+    SPAM
+    """
+    The comment contains any sexual or explicit content
+    """
+    EXPLICIT
+    """
+    The comment contains incorrect information
+    """
+    MISINFORMATION
+    """
+    Reason doesnt fit any specific category
+    """
+    OTHER
+  }
+
   type UserComment {
     """
     The user's vote for the comment
@@ -370,7 +400,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Reason the user would like to report
       """
-      reason: ReportReason
+      reason: ReportCommentReason
       """
       Additional comment about report reason
       """
@@ -903,7 +933,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return { _: true };
     },
     reportComment: async (
-      source,
+      _,
       { commentId: id, reason, note }: ReportCommentArgs,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
