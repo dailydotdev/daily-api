@@ -5,7 +5,14 @@ import {
   MockContext,
   saveFixtures,
 } from './helpers';
-import { Post, Source, User, UserStats, UserStreak } from '../src/entity';
+import {
+  Post,
+  Source,
+  User,
+  UserCompany,
+  UserStats,
+  UserStreak,
+} from '../src/entity';
 
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
@@ -13,6 +20,7 @@ import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
 import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
+import { Company } from '../src/entity/Company';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -61,6 +69,13 @@ describe('leaderboard', () => {
       }
       mostReadingDays(limit: $limit) {
         ...LeaderboardFragment
+      }
+      mostVerifiedUsers(limit: $limit) {
+        score
+        company {
+          name
+          image
+        }
       }
     }
     ${LEADERBOARD_FRAMENT}
@@ -326,6 +341,143 @@ describe('leaderboard', () => {
         user: {
           id: '2',
           username: 'tsahidaily',
+        },
+      },
+    ]);
+  });
+
+  it('should return most upvoted', async () => {
+    const userUpvotes = ['1', '1', '2', '3', '1', '3'];
+    const upvotes = [10, 5, 3, 2, 1, 3];
+    await saveFixtures(
+      con,
+      Post,
+      userUpvotes.map((userId, index) => {
+        return {
+          ...postsFixture[index],
+          scoutId: userId,
+          upvotes: upvotes[index],
+        };
+      }),
+    );
+    await con.query(
+      `REFRESH MATERIALIZED VIEW ${con.getRepository(UserStats).metadata.tableName}`,
+    );
+
+    const res = await client.query(QUERY());
+    expect(res.data.mostUpvoted).toHaveLength(3);
+    expect(res.data.mostUpvoted).toMatchObject([
+      {
+        score: 16,
+        user: {
+          id: '1',
+          username: 'idoshamun',
+        },
+      },
+      {
+        score: 5,
+        user: {
+          id: '3',
+          username: 'nimroddaily',
+        },
+      },
+      {
+        score: 3,
+        user: {
+          id: '2',
+          username: 'tsahidaily',
+        },
+      },
+    ]);
+  });
+
+  it('should return most verified users', async () => {
+    await con.getRepository(Company).save([
+      {
+        id: '1',
+        name: 'Company 1',
+        image: 'https://daily.dev/company1.jpg',
+        domains: ['company1.com'],
+      },
+      {
+        id: '2',
+        name: 'Company 2',
+        image: 'https://daily.dev/company2.jpg',
+        domains: ['company2.com'],
+      },
+      {
+        id: '3',
+        name: 'Company 3',
+        image: 'https://daily.dev/company3.jpg',
+        domains: ['company3.com'],
+      },
+    ]);
+    await con.getRepository(UserCompany).save([
+      {
+        userId: '1',
+        companyId: '1',
+        verified: true,
+        email: 'u1@com1.com',
+        code: '123',
+      },
+      {
+        userId: '1',
+        companyId: '2',
+        verified: true,
+        email: 'u1@com2.com',
+        code: '123',
+      },
+      {
+        userId: '2',
+        companyId: '2',
+        verified: true,
+        email: 'u2@com2.com',
+        code: '123',
+      },
+      {
+        userId: '1',
+        companyId: '3',
+        verified: true,
+        email: 'u1@com3.com',
+        code: '123',
+      },
+      {
+        userId: '2',
+        companyId: '3',
+        verified: true,
+        email: 'u2@com4.com',
+        code: '123',
+      },
+      {
+        userId: '3',
+        companyId: '3',
+        verified: true,
+        email: 'u3@com4.com',
+        code: '123',
+      },
+    ]);
+    const res = await client.query(QUERY());
+    expect(res.data.mostVerifiedUsers).toHaveLength(3);
+    expect(res.data.mostVerifiedUsers).toMatchObject([
+      {
+        score: 3,
+        company: {
+          name: 'Company 3',
+          image: 'https://daily.dev/company3.jpg',
+        },
+      },
+      {
+        score: 2,
+        company: {
+          name: 'Company 2',
+          image: 'https://daily.dev/company2.jpg',
+        },
+      },
+      {
+        score: 1,
+        company: {
+          name: 'Company 1',
+          image: 'https://daily.dev/company1.jpg',
         },
       },
     ]);
