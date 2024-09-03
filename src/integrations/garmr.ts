@@ -15,8 +15,35 @@ import {
 import { logger } from '../logger';
 import { isTest } from '../common';
 
-export class GarmrService {
-  instance: IPolicy;
+export interface IGarmrService {
+  readonly instance: IPolicy;
+
+  execute<T>(
+    fn: (context: IDefaultPolicyContext) => PromiseLike<T> | T,
+    signal?: AbortSignal,
+  ): Promise<T>;
+}
+
+/**
+ * Placeholder empty service for clients not yet using Garmr
+ *
+ * @export
+ * @class GarmrNoopService
+ * @implements {IGarmrService}
+ */
+export class GarmrNoopService implements IGarmrService {
+  readonly instance: IPolicy = noop;
+
+  execute<T>(
+    fn: (context: IDefaultPolicyContext) => PromiseLike<T> | T,
+    signal?: AbortSignal,
+  ): Promise<T> {
+    return this.instance.execute(fn, signal);
+  }
+}
+
+export class GarmrService implements IGarmrService {
+  readonly instance: IPolicy;
 
   constructor({
     service,
@@ -35,7 +62,7 @@ export class GarmrService {
     };
     retryOpts?: {
       maxAttempts: number;
-      timeout: number;
+      backoff?: number;
     };
     limits?: {
       maxRequests: number;
@@ -51,7 +78,17 @@ export class GarmrService {
 
     const retryPolicy = retry(handleAll, {
       maxAttempts: retryOpts?.maxAttempts ?? 2,
-      backoff: new ConstantBackoff(retryOpts?.timeout ?? 100),
+      backoff: new ConstantBackoff(retryOpts?.backoff ?? 100),
+    });
+
+    retryPolicy.onRetry((event: FailureReason<unknown>) => {
+      logger.debug(
+        {
+          ...commonLoggerData,
+          event,
+        },
+        'retrying request',
+      );
     });
 
     const bulkheadPolicy = bulkhead(
@@ -99,5 +136,5 @@ export class GarmrService {
 }
 
 export interface IGarmrClient {
-  garmr: GarmrService;
+  readonly garmr: IGarmrService;
 }
