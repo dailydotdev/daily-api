@@ -57,7 +57,6 @@ import {
   FeedPreferencesConfigGenerator,
   FeedResponse,
   SimpleFeedConfigGenerator,
-  versionToFeedGenerator,
 } from '../integrations/feed';
 import {
   AuthenticationError,
@@ -1266,7 +1265,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return anonymousFeedResolverV1(source, args, ctx, info);
     },
     feed: (source, args: ConfiguredFeedArgs, ctx: Context, info) => {
-      if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
+      // TODO remove - always use popular feed so its easy to test garm
+      if (true) {
         if (args?.refresh) {
           counters?.api?.forceRefresh?.add(1);
         }
@@ -1275,7 +1275,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           source,
           {
             ...(args as FeedArgs),
-            generator: versionToFeedGenerator(args.version),
+            generator: feedGenerators['popular']!,
           },
           ctx,
           info,
