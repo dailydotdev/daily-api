@@ -21,7 +21,6 @@ export const getAllowedDays = ({
   lastDayOfWeek,
   lastView,
 }: DaysProps) => {
-  // do something
   const lastViewDay = lastView.getDay();
   const dayTwo = getNextDay(firstDayOfWeek);
 
