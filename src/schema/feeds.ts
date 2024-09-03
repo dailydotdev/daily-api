@@ -50,7 +50,6 @@ import { GQLPost } from './posts';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import graphorm from '../graphorm';
 import {
-  FeedClient,
   feedClient,
   FeedConfigName,
   FeedGenerator,
@@ -75,6 +74,7 @@ import {
 } from '../common/feed';
 import { FeedLocalConfigGenerator } from '../integrations/feed/configs';
 import { counters } from '../telemetry';
+import { popularFeedClient } from '../integrations/feed/generators';
 
 interface GQLTagsCategory {
   id: string;
@@ -1306,7 +1306,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ctx.userId
       ) {
         const feedGenerator = new FeedGenerator(
-          new FeedClient(process.env.POPULAR_FEED),
+          popularFeedClient,
           new FeedPreferencesConfigGenerator(
             {},
             {
@@ -1354,7 +1354,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const feedGenerator = filters
         ? new FeedGenerator(
-            new FeedClient(process.env.POPULAR_FEED),
+            popularFeedClient,
             new FeedLocalConfigGenerator(
               {},
               {
