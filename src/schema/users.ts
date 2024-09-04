@@ -2029,7 +2029,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           userId,
           type: UserStreakActionType.Recover,
         });
-
         await entityManager.getRepository(UserStreak).update(
           {
             userId,
@@ -2040,6 +2039,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             updatedAt: new Date(),
           },
         );
+
+        const cacheKey = generateStorageKey(
+          StorageTopic.Streak,
+          StorageKey.Reset,
+          userId,
+        );
+        await deleteRedisKey(cacheKey);
       });
 
       return { ...streak, current: currentStreak, max: maxStreak };
