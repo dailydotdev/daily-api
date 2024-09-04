@@ -2018,6 +2018,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         amount: recoverCost * -1,
       };
 
+      const currentStreak = oldStreakLength + streak.current;
+      const maxStreak = Math.max(currentStreak, streak.max ?? 0);
+
       await ctx.con.transaction(async (entityManager) => {
         await entityManager
           .getRepository(ReputationEvent)
@@ -2026,22 +2029,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           userId,
           type: UserStreakActionType.Recover,
         });
+
         await entityManager.getRepository(UserStreak).update(
           {
             userId,
           },
           {
-            currentStreak: oldStreakLength + streak.current,
-            maxStreak: Math.max(
-              streak.max ?? 0,
-              oldStreakLength + (streak.current ?? 0),
-            ),
+            currentStreak,
+            maxStreak,
             updatedAt: new Date(),
           },
         );
       });
 
-      return { ...streak, current: oldStreakLength + streak.current };
+      return { ...streak, current: currentStreak, max: maxStreak };
     },
   },
   User: {
