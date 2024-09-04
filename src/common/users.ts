@@ -529,6 +529,23 @@ export enum LogoutReason {
   KratosSessionAlreadyAvailable = 'kratos session already available',
 }
 
+const getAbsoluteDifferenceInDays: typeof differenceInDays = (date1, date2) => {
+  const startOfDay = (date: Date) =>
+    new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  const normalizedDate1 = startOfDay(new Date(date1));
+  const normalizedDate2 = startOfDay(new Date(date2));
+
+  const timeDiff = Math.abs(
+    normalizedDate1.getTime() - normalizedDate2.getTime(),
+  );
+
+  const diffInDays = timeDiff / (1000 * 60 * 60 * 24);
+
+  // Round down to the nearest whole number since we want full days
+  return Math.floor(diffInDays);
+};
+
 export const shouldAllowRestore = async (
   con: DataSource,
   streak: ChangeObject<UserStreak>,
@@ -539,7 +556,7 @@ export const shouldAllowRestore = async (
   const lastView = new Date(lastViewAtDb);
   const lastRecovery = await getLastStreakRecoverDate(con, userId);
   const lastStreak = lastRecovery ? max([lastView, lastRecovery]) : lastView;
-  const lastStreakDifference = differenceInDays(today, lastStreak);
+  const lastStreakDifference = getAbsoluteDifferenceInDays(today, lastStreak);
 
   return checkRestoreValidity({
     day: today.getDay(),
