@@ -1,7 +1,8 @@
+import { addHours, startOfHour } from 'date-fns';
 import {
   DEFAULT_TIMEZONE,
   getPersonalizedDigestPreviousSendDate,
-  getPersonalizedDigestSendDate,
+  digestPreferredHourOffset,
   notifyGeneratePersonalizedDigest,
   schedulePersonalizedDigestSubscriptions,
 } from '../common';
@@ -9,24 +10,35 @@ import {
   User,
   UserPersonalizedDigest,
   UserPersonalizedDigestSendType,
+  UserPersonalizedDigestType,
 } from '../entity';
 import { Cron } from './cron';
 import { Brackets } from 'typeorm';
 
 const sendType = UserPersonalizedDigestSendType.weekly;
+const digestTypes = [UserPersonalizedDigestType.Digest];
 
 const cron: Cron = {
   name: 'personalized-digest',
   handler: async (con, logger) => {
-    const nextPreferredDay = (new Date().getDay() + 1) % 7;
     const personalizedDigestQuery = con
       .createQueryBuilder()
       .select('upd.*, u.timezone')
       .from(UserPersonalizedDigest, 'upd')
       .leftJoin(User, 'u', 'u.id = upd."userId"')
-      .where('upd."preferredDay" = :nextPreferredDay', {
-        nextPreferredDay,
-      })
+      .where(
+        `(EXTRACT(DAY FROM NOW() AT TIME ZONE COALESCE(NULLIF(u.timezone, ''), '${DEFAULT_TIMEZONE}')) - 1) = upd."preferredDay"`,
+        {
+          defaultTimezone: DEFAULT_TIMEZONE,
+        },
+      )
+      .andWhere(
+        `clamp_to_hours("preferredHour" - EXTRACT(HOUR FROM NOW() AT TIME ZONE COALESCE(NULLIF(u.timezone, ''), :defaultTimezone))) = :preferredHourOffset`,
+        {
+          preferredHourOffset: digestPreferredHourOffset,
+          defaultTimezone: DEFAULT_TIMEZONE,
+        },
+      )
       .andWhere(
         new Brackets((qb) => {
           return qb
@@ -35,9 +47,11 @@ const cron: Cron = {
               sendType,
             });
         }),
-      );
+      )
+      .andWhere(`upd.type in (:...digestTypes)`, { digestTypes });
 
-    const timestamp = Date.now();
+    // Make sure digest is sent at the beginning of the hour
+    const timestamp = startOfHour(new Date());
 
     await schedulePersonalizedDigestSubscriptions({
       queryBuilder: personalizedDigestQuery,
@@ -48,15 +62,14 @@ const cron: Cron = {
       }) => {
         const { timezone = DEFAULT_TIMEZONE, ...personalizedDigest } =
           personalizedDigestWithTimezome as UserPersonalizedDigest &
-            Pick<User, 'timezone'>;
-        const emailSendTimestamp = getPersonalizedDigestSendDate({
-          personalizedDigest,
-          generationTimestamp: timestamp,
-          timezone: timezone,
-        }).getTime();
+            Pick<User, 'timezone' | 'weekStart'>;
+        const emailSendTimestamp = addHours(
+          timestamp,
+          digestPreferredHourOffset,
+        ).getTime(); // schedule send in X hours to match digest offset
         const previousSendTimestamp = getPersonalizedDigestPreviousSendDate({
           personalizedDigest,
-          generationTimestamp: timestamp,
+          generationTimestamp: timestamp.getTime(),
           timezone: timezone,
         }).getTime();
 
