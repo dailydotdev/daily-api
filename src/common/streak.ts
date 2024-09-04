@@ -12,8 +12,8 @@ interface DaysProps {
   lastView: Date;
 }
 
-const getNextDay = (day: number) => (day === 6 ? 0 : day + 1);
-const getPreviousDay = (day: number) => (day === 0 ? 6 : day - 1);
+const getNextDay = (day: number) => (day + 1) % 7;
+const getPreviousDay = (day: number) => (day + 6) % 7;
 
 export const getAllowedDays = ({
   day: dayToday,
