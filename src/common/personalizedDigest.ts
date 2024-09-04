@@ -10,7 +10,7 @@ import {
 import { format, isSameDay, nextDay, previousDay } from 'date-fns';
 import { PersonalizedDigestFeatureConfig } from '../growthbook';
 import { feedToFilters, fixedIdsFeedBuilder } from './feedGenerator';
-import { FeedClient } from '../integrations/feed';
+import { FeedClient } from '../integrations/feed/clients';
 import { addNotificationUtm, baseNotificationEmailData } from './mailing';
 import { pickImageUrl } from './post';
 import { getDiscussionLink } from './links';
@@ -22,6 +22,7 @@ import { SendEmailRequestWithTemplate } from 'customerio-node/dist/lib/api/reque
 import { v4 as uuidv4 } from 'uuid';
 import { DayOfWeek } from './date';
 import { fetchOptions } from '../http';
+import { GarmrService } from '../integrations/garmr';
 
 type TemplatePostData = Pick<
   ArticlePost,
@@ -155,6 +156,31 @@ const getEmailVariation = async ({
   };
 };
 
+const personalizedDigestFeedClient = new FeedClient(
+  process.env.PERSONALIZED_DIGEST_FEED,
+  {
+    ...fetchOptions,
+    timeout: 10 * 1000,
+    retries: 0,
+  },
+  new GarmrService({
+    service: 'feed-client-digest',
+    breakerOpts: {
+      halfOpenAfter: 5 * 1000,
+      threshold: 0.1,
+      duration: 10 * 1000,
+      minimumRps: 1,
+    },
+    limits: {
+      maxRequests: 50,
+      queuedRequests: 50,
+    },
+    retryOpts: {
+      maxAttempts: 0,
+    },
+  }),
+);
+
 export const getPersonalizedDigestEmailPayload = async ({
   con,
   logger,
@@ -180,13 +206,6 @@ export const getPersonalizedDigestEmailPayload = async ({
     con,
     personalizedDigest.userId,
     personalizedDigest.userId,
-  );
-  const personalizedDigestFeedClient = new FeedClient(
-    process.env.PERSONALIZED_DIGEST_FEED,
-    {
-      ...fetchOptions,
-      retries: 1,
-    },
   );
 
   const feedConfigPayload = {
