@@ -28,6 +28,7 @@ import {
   UserStreakActionType,
   getAuthorPostStats,
   streakRecoverCost,
+  Alerts,
 } from '../entity';
 import {
   AuthenticationError,
@@ -2018,30 +2019,40 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         amount: recoverCost * -1,
       };
 
-      await ctx.con.transaction(async (entityManager) => {
-        await entityManager
-          .getRepository(ReputationEvent)
-          .save(reputationEvent);
-        await entityManager.getRepository(UserStreakAction).save({
-          userId,
-          type: UserStreakActionType.Recover,
-        });
-        await entityManager.getRepository(UserStreak).update(
-          {
+      const currentStreak = oldStreakLength + streak.current;
+      const maxStreak = Math.max(currentStreak, streak.max ?? 0);
+
+      await ctx.con.transaction(async (manager) => {
+        const transactions = [
+          manager.getRepository(ReputationEvent).save(reputationEvent),
+          manager.getRepository(UserStreakAction).save({
             userId,
-          },
-          {
-            currentStreak: oldStreakLength + streak.current,
-            maxStreak: Math.max(
-              streak.max ?? 0,
-              oldStreakLength + (streak.current ?? 0),
-            ),
-            updatedAt: new Date(),
-          },
+            type: UserStreakActionType.Recover,
+          }),
+          manager.getRepository(UserStreak).update(
+            { userId },
+            {
+              currentStreak,
+              maxStreak,
+              updatedAt: new Date(),
+            },
+          ),
+          manager
+            .getRepository(Alerts)
+            .update({ userId }, { showRecoverStreak: false }),
+        ];
+
+        await Promise.all(transactions);
+
+        const cacheKey = generateStorageKey(
+          StorageTopic.Streak,
+          StorageKey.Reset,
+          userId,
         );
+        await deleteRedisKey(cacheKey);
       });
 
-      return { ...streak, current: oldStreakLength + streak.current };
+      return { ...streak, current: currentStreak, max: maxStreak };
     },
   },
   User: {

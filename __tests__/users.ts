@@ -87,6 +87,7 @@ import {
 import { Company } from '../src/entity/Company';
 import { UserCompany } from '../src/entity/UserCompany';
 import { rateLimiterName } from '../src/directive/rateLimit';
+import { getRestoreStreakCache } from '../src/workers/cdc/primary';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -670,6 +671,7 @@ describe('query userStreaks', () => {
         recoverStreak {
           current
           lastViewAt
+          max
         }
       }
     `;
@@ -780,7 +782,79 @@ describe('query userStreaks', () => {
       expect(errors).toBeFalsy();
       expect(recoverStreak).toBeTruthy();
       expect(recoverStreak.current).toEqual(oldLength);
-      await deleteRedisKey(redisKey);
+
+      const redisCache = await getRestoreStreakCache({ userId: loggedUser });
+      expect(redisCache).toBeNull();
+    });
+
+    it('should not update maxStreak if the recovered streak is less than the current maxStreak', async () => {
+      loggedUser = '1';
+      await con.getRepository(UserStreak).update(
+        { userId: loggedUser },
+        {
+          currentStreak: 0,
+          maxStreak: 20,
+          lastViewAt: subDays(new Date(), 2),
+        },
+      );
+      await con
+        .getRepository(User)
+        .update({ id: loggedUser }, { reputation: 25 });
+
+      // insert redis key with old streak length
+      const oldLength = 10;
+      const redisKey = generateStorageKey(
+        StorageTopic.Streak,
+        StorageKey.Reset,
+        loggedUser,
+      );
+      await setRedisObjectWithExpiry(
+        redisKey,
+        oldLength,
+        addDays(new Date(), 1).getTime(),
+      );
+
+      const { data, errors } = await client.mutate(MUTATION);
+      const { recoverStreak } = data;
+      expect(errors).toBeFalsy();
+      expect(recoverStreak).toBeTruthy();
+      expect(recoverStreak.current).toEqual(oldLength);
+      expect(recoverStreak.max).toEqual(20);
+    });
+
+    it('should update maxStreak if the recovered streak is more than the current maxStreak', async () => {
+      loggedUser = '1';
+      await con.getRepository(UserStreak).update(
+        { userId: loggedUser },
+        {
+          currentStreak: 1,
+          maxStreak: 20,
+          lastViewAt: subDays(new Date(), 2),
+        },
+      );
+      await con
+        .getRepository(User)
+        .update({ id: loggedUser }, { reputation: 25 });
+
+      // insert redis key with old streak length
+      const oldLength = 20;
+      const redisKey = generateStorageKey(
+        StorageTopic.Streak,
+        StorageKey.Reset,
+        loggedUser,
+      );
+      await setRedisObjectWithExpiry(
+        redisKey,
+        oldLength,
+        addDays(new Date(), 1).getTime(),
+      );
+
+      const { data, errors } = await client.mutate(MUTATION);
+      const { recoverStreak } = data;
+      expect(errors).toBeFalsy();
+      expect(recoverStreak).toBeTruthy();
+      expect(recoverStreak.current).toEqual(21);
+      expect(recoverStreak.max).toEqual(21);
     });
   });
 
