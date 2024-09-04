@@ -131,6 +131,9 @@ export default function (router: ConnectRouter) {
 
       try {
         req.url = standardizeURL(req.url);
+        if (!isValidHttpUrl(req.url)) {
+          throw new ConnectError('invalid url', Code.InvalidArgument);
+        }
 
         const sourceRequest = await con.getRepository(SourceRequest).insert({
           sourceUrl: req.url,

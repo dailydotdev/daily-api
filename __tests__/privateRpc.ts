@@ -302,4 +302,15 @@ describe('SourceRequestService', () => {
     expect(sourceRequest!.userId).toEqual('yggdrasil');
     expect(sourceRequest!.sourceUrl).toEqual('http://example.com/service/1');
   });
+
+  it('should throw on invalid url', async () => {
+    await expect(
+      mockClient.create(
+        {
+          url: 'thisIsNotUrl',
+        },
+        defaultClientAuthOptions,
+      ),
+    ).rejects.toThrow(new ConnectError('invalid url', Code.InvalidArgument));
+  });
 });
