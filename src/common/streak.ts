@@ -22,12 +22,12 @@ export const getAllowedDays = ({
   lastView,
 }: DaysProps) => {
   const lastViewDay = lastView.getDay();
-  const dayTwo = getNextDay(firstDayOfWeek);
+  const secondDayOfWeek = getNextDay(firstDayOfWeek);
 
   if (
     lastViewDay === lastDayOfWeek ||
     dayToday === lastDayOfWeek ||
-    dayToday > dayTwo
+    dayToday > secondDayOfWeek
   ) {
     return STREAK_RECOVERY_MAX_GAP_DAYS;
   }
