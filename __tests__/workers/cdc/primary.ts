@@ -3437,7 +3437,7 @@ describe('user streak change', () => {
       expect(alert.showRecoverStreak).toEqual(true);
     });
 
-    it('should set cache of previous streak even when weekend had passed if it has only been 2 valid days even when less than 48 hours', async () => {
+    it('should set cache of previous streak if it has only been 2 valid days even when less than 48 hours', async () => {
       jest
         .useFakeTimers({ doNotFake })
         .setSystemTime(new Date('2024-09-04T07:15:10')); // Wednesday
