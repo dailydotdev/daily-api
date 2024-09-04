@@ -3437,6 +3437,43 @@ describe('user streak change', () => {
       expect(alert.showRecoverStreak).toEqual(true);
     });
 
+    it('should set cache of previous streak even when weekend had passed if it has only been 2 valid days even when less than 48 hours', async () => {
+      jest
+        .useFakeTimers({ doNotFake })
+        .setSystemTime(new Date('2024-09-04T07:15:10')); // Wednesday
+      const lastViewAt = new Date('2024-09-02T10:25:27'); // Monday
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        lastViewAt: lastViewAt.toISOString() as never,
+        currentStreak: 0,
+      };
+      await con
+        .getRepository(UserStreak)
+        .update({ userId: '1' }, { lastViewAt });
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: {
+            ...base,
+            currentStreak: 3,
+            lastViewAt: lastViewAt.toISOString() as never,
+          },
+          op: 'u',
+          table: 'user_streak',
+        }),
+      );
+      const lastStreak = await getRestoreStreakCache({ userId: after.userId });
+      expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+      expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+        'api.v1.user-streak-updated',
+        { streak: after },
+      ]);
+      expect(lastStreak).toEqual(3);
+      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      expect(alert.showRecoverStreak).toEqual(true);
+    });
+
     it('should set cache of previous streak even when weekend had passed if it has only been 2 valid days', async () => {
       jest
         .useFakeTimers({ doNotFake })
