@@ -386,10 +386,10 @@ if (isAdhocEnv) {
       args: ['dumb-init', 'node', 'bin/cli', 'personalized-digest'],
       minReplicas: 1,
       maxReplicas: 1,
-      limits: { memory: '2Gi' },
+      limits: { memory: '1Gi' },
       requests: {
         cpu: '1',
-        memory: '1Gi',
+        memory: '512Mi',
       },
       metric: {
         type: 'pubsub',
