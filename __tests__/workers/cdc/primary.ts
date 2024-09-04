@@ -3259,8 +3259,8 @@ describe('user streak change', () => {
     currentStreak: 2,
     totalStreak: 3,
     maxStreak: 4,
-    lastViewAt: new Date().getTime(),
-    updatedAt: new Date().getTime(),
+    lastViewAt: new Date().toISOString() as never,
+    updatedAt: new Date().toISOString() as never,
   };
 
   it('should not notify on creation', async () => {
@@ -3296,10 +3296,9 @@ describe('user streak change', () => {
   });
 
   describe('streak recovery', () => {
-    const lastView = new Date('2024-06-24T12:00:00'); // Monday
-    const dates = {
-      lastViewAt: lastView.getTime() * 1000,
-      updatedAt: lastView.getTime() * 1000,
+    const dates: Record<string, unknown> = {
+      lastViewAt: '2024-06-24T12:00:00',
+      updatedAt: '2024-06-24T12:00:00',
     };
 
     beforeEach(async () => {
@@ -3307,7 +3306,7 @@ describe('user streak change', () => {
       await saveFixtures(con, User, [usersFixture[0]]);
       await con.getRepository(UserStreak).save({
         ...base,
-        lastViewAt: new Date(base.lastViewAt),
+        lastViewAt: new Date(base.lastViewAt as never),
         updatedAt: new Date(base.updatedAt),
       });
 
@@ -3403,11 +3402,11 @@ describe('user streak change', () => {
     it('should set cache of previous streak even when weekend had passed if it has only been 2 valid days', async () => {
       jest
         .useFakeTimers({ doNotFake })
-        .setSystemTime(new Date('2024-06-24T12:00:00')); // Monday
-      const lastViewAt = new Date('2024-06-20T12:00:00'); // previous Thursday
+        .setSystemTime(new Date('2024-09-02T12:00:00.123Z')); // Monday
+      const lastViewAt = new Date('2024-08-29T12:00:00'); // previous Thursday
       const after: ChangeObject<ObjectType> = {
         ...base,
-        lastViewAt: lastViewAt.getTime() * 1000,
+        lastViewAt: lastViewAt.toISOString() as never,
         currentStreak: 0,
       };
       await con
@@ -3420,7 +3419,7 @@ describe('user streak change', () => {
           before: {
             ...base,
             currentStreak: 3,
-            lastViewAt: lastViewAt.getTime() * 1000,
+            lastViewAt: lastViewAt.toISOString() as never,
           },
           op: 'u',
           table: 'user_streak',
@@ -3444,7 +3443,7 @@ describe('user streak change', () => {
       const lastViewAt = new Date('2024-06-20T12:00:00'); // previous Thursday
       const after: ChangeObject<ObjectType> = {
         ...base,
-        lastViewAt: lastViewAt.getTime() * 1000,
+        lastViewAt: lastViewAt.toISOString() as never,
         currentStreak: 0,
       };
       await con
@@ -3457,7 +3456,7 @@ describe('user streak change', () => {
           before: {
             ...base,
             currentStreak: 3,
-            lastViewAt: lastViewAt.getTime() * 1000,
+            lastViewAt: lastViewAt.toISOString() as never,
           },
           op: 'u',
           table: 'user_streak',
@@ -3484,7 +3483,7 @@ describe('user streak change', () => {
       const lastViewAt = new Date('2024-06-24T12:00:00'); // Monday
       const after: ChangeObject<ObjectType> = {
         ...base,
-        lastViewAt: lastViewAt.getTime() * 1000,
+        lastViewAt: lastViewAt.toISOString() as never,
         currentStreak: 0,
       };
       await con.getRepository(UserStreakAction).save({
@@ -3502,7 +3501,7 @@ describe('user streak change', () => {
           before: {
             ...base,
             currentStreak: 3,
-            lastViewAt: lastViewAt.getTime() * 1000,
+            lastViewAt: lastViewAt.toISOString() as never,
           },
           op: 'u',
           table: 'user_streak',
@@ -3528,7 +3527,7 @@ describe('user streak change', () => {
       const lastViewAt = new Date('2024-06-20T12:00:00'); // previous Thursday
       const after: ChangeObject<ObjectType> = {
         ...base,
-        lastViewAt: lastViewAt.getTime() * 1000,
+        lastViewAt: lastViewAt.toISOString() as never,
         currentStreak: 0,
       };
       await con.getRepository(UserStreakAction).save({
@@ -3546,7 +3545,7 @@ describe('user streak change', () => {
           before: {
             ...base,
             currentStreak: 3,
-            lastViewAt: lastViewAt.getTime() * 1000,
+            lastViewAt: lastViewAt.toISOString() as never,
           },
           op: 'u',
           table: 'user_streak',
