@@ -87,6 +87,7 @@ import {
 import { Company } from '../src/entity/Company';
 import { UserCompany } from '../src/entity/UserCompany';
 import { rateLimiterName } from '../src/directive/rateLimit';
+import { getRestoreStreakCache } from '../src/workers/cdc/primary';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -781,7 +782,9 @@ describe('query userStreaks', () => {
       expect(errors).toBeFalsy();
       expect(recoverStreak).toBeTruthy();
       expect(recoverStreak.current).toEqual(oldLength);
-      await deleteRedisKey(redisKey);
+
+      const redisCache = await getRestoreStreakCache({ userId: loggedUser });
+      expect(redisCache).toBeNull();
     });
 
     it('should not update maxStreak if the recovered streak is less than the current maxStreak', async () => {
@@ -817,7 +820,6 @@ describe('query userStreaks', () => {
       expect(recoverStreak).toBeTruthy();
       expect(recoverStreak.current).toEqual(oldLength);
       expect(recoverStreak.max).toEqual(20);
-      await deleteRedisKey(redisKey);
     });
 
     it('should update maxStreak if the recovered streak is more than the current maxStreak', async () => {
@@ -853,7 +855,6 @@ describe('query userStreaks', () => {
       expect(recoverStreak).toBeTruthy();
       expect(recoverStreak.current).toEqual(21);
       expect(recoverStreak.max).toEqual(21);
-      await deleteRedisKey(redisKey);
     });
   });
 
