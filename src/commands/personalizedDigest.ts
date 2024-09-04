@@ -39,7 +39,7 @@ export default async function app(): Promise<void> {
           logger,
           pubsub,
         ),
-      25,
+      50,
     ),
   );
 }

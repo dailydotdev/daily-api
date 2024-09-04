@@ -3407,7 +3407,7 @@ describe('user streak change', () => {
     it('should set cache of previous streak even when weekend had passed if it has only been 2 valid days', async () => {
       jest
         .useFakeTimers({ doNotFake })
-        .setSystemTime(new Date('2024-09-02T12:00:00')); // Monday
+        .setSystemTime(new Date('2024-09-02T12:00:00.123Z')); // Monday
       const lastViewAt = new Date('2024-08-29T12:00:00'); // previous Thursday
       const after: ChangeObject<ObjectType> = {
         ...base,
