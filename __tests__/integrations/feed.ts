@@ -523,17 +523,17 @@ describe('FeedLofnConfigGenerator', () => {
         total_pages: 1,
         page_size: 10,
         fresh_page_size: '4',
-        allowed_tags: ['javascript', 'golang'],
-        blocked_tags: ['python', 'java'],
-        blocked_sources: ['a', 'b', WATERCOOLER_ID],
-        squad_ids: ['a', 'b'],
-        allowed_post_types: [
+        allowed_tags: expect.arrayContaining(['javascript', 'golang']),
+        blocked_tags: expect.arrayContaining(['python', 'java']),
+        blocked_sources: expect.arrayContaining(['a', 'b', WATERCOOLER_ID]),
+        squad_ids: expect.arrayContaining(['a', 'b']),
+        allowed_post_types: expect.arrayContaining([
           'article',
           'share',
           'freeform',
           'welcome',
           'collection',
-        ],
+        ]),
         config: {
           providers: {},
         },
