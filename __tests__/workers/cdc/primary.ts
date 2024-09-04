@@ -2808,6 +2808,7 @@ describe('post content updated', () => {
         scraped: {
           resource_location: 'gs://path.html',
         },
+        storedCodeSnippets: '',
         enriched: { provider: 'test' },
         language: { provider: 'translate' },
         embedding: {
@@ -2846,6 +2847,7 @@ describe('post content updated', () => {
           scraped: {
             resourceLocation: 'gs://path.html',
           },
+          storedCodeSnippets: '',
           enriched: { provider: 'test' },
           language: { provider: 'translate' },
           embedding: {
@@ -2941,6 +2943,7 @@ describe('post content updated', () => {
         contentCuration: ['c1', 'c2'],
         contentMeta: {
           cleaned: [],
+          storedCodeSnippets: '',
         },
         contentQuality: {
           isAiProbability: 0.9,
@@ -3073,6 +3076,7 @@ describe('post content updated', () => {
         contentCuration: ['c1', 'c2'],
         contentMeta: {
           cleaned: [],
+          storedCodeSnippets: '',
         },
         contentQuality: {
           isAiProbability: 0.9,
@@ -3152,6 +3156,7 @@ describe('post content updated', () => {
         contentCuration: ['c1', 'c2'],
         contentMeta: {
           cleaned: [],
+          storedCodeSnippets: '',
         },
         contentQuality: {
           isAiProbability: 0.9,
