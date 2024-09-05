@@ -495,7 +495,7 @@ export const getLastStreakRecoverDate = async (
     .getRepository(UserStreakAction)
     .createQueryBuilder()
     .select(
-      `MAX(date_trunc('day', usa."createdAt" at time zone COALESCE(u.timezone, 'utc'))::date - interval '1 day')`,
+      `MAX(date_trunc('day', usa."createdAt"::timestamptz at time zone COALESCE(u.timezone, 'utc'))::date - interval '1 day')`,
       'createdAt',
     )
     .from(UserStreakAction, 'usa')
