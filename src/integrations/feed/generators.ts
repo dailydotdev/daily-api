@@ -16,7 +16,6 @@ import {
 } from './configs';
 import { SnotraClient } from '../snotra';
 import { LofnClient } from '../lofn';
-import { GarmrService } from '../garmr';
 
 /**
  * Utility class for easily generating feeds using provided config and client
@@ -48,26 +47,10 @@ export class FeedGenerator {
   }
 }
 
-const garmrFeed = new GarmrService({
-  service: FeedClient.name,
-  breakerOpts: {
-    halfOpenAfter: 5 * 1000,
-    threshold: 0.1,
-    duration: 10 * 1000,
-  },
-  retryOpts: {
-    maxAttempts: 2,
-  },
-});
-
 export const snotraClient = new SnotraClient();
-export const feedClient = new FeedClient(process.env.INTERNAL_FEED, {
-  garmr: garmrFeed,
-});
+export const feedClient = new FeedClient();
 export const lofnClient = new LofnClient();
-export const popularFeedClient = new FeedClient(process.env.POPULAR_FEED, {
-  garmr: garmrFeed,
-});
+export const popularFeedClient = new FeedClient(process.env.POPULAR_FEED);
 
 const opts = {
   includeBlockedTags: true,
