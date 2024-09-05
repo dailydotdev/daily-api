@@ -9,13 +9,14 @@ import {
 } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
 import {
+  DEFAULT_TIMEZONE,
   digestPreferredHourOffset,
   notifyGeneratePersonalizedDigest,
 } from '../../src/common';
-import { addDays, format, setDay, setHours, startOfHour } from 'date-fns';
-import { logger } from '../../src/logger';
-import { zonedTimeToUtc } from 'date-fns-tz';
+import { format, setHours, startOfHour } from 'date-fns';
+import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz';
 import { crons } from '../../src/cron/index';
+import { logger } from '../../src/logger';
 
 let con: DataSource;
 
@@ -38,32 +39,35 @@ jest.mock('../../src/common/personalizedDigest', () => ({
   getDigestCronTime: () => digestTime,
 }));
 
-function clampToHours(num: number): number {
-  return ((num % 24) + 24) % 24;
-}
-
 describe('personalizedDigest cron', () => {
   const sendType = UserPersonalizedDigestSendType.weekly;
-  const preferredDay = new Date().getDay();
-  let fakePreferredHour = 9;
+
+  const fakeSendDate = (date, preferredHour, timezone = DEFAULT_TIMEZONE) => {
+    const fakeDate = zonedTimeToUtc(
+      setHours(date, preferredHour - digestPreferredHourOffset),
+      timezone,
+    );
+    const fakePreferredDay = utcToZonedTime(fakeDate, timezone).getDay();
+
+    jest
+      .useFakeTimers({
+        doNotFake,
+      })
+      .setSystemTime(fakeDate);
+
+    digestTime = format(new Date(), 'yyyy-MM-dd HH:mm:ss xxx');
+
+    return {
+      fakePreferredDay,
+      fakePreferredHour: preferredHour,
+    };
+  };
 
   beforeEach(async () => {
     jest.resetAllMocks();
 
     await saveFixtures(con, User, usersFixture);
     await con.getRepository(UserPersonalizedDigest).clear();
-
-    const currentDate = new Date();
-    fakePreferredHour = clampToHours(
-      currentDate.getHours() + digestPreferredHourOffset,
-    );
-
-    jest
-      .useFakeTimers({
-        doNotFake,
-      })
-      // set day to Tuesday to avoid weekend overlaps
-      .setSystemTime(setDay(currentDate, 2));
 
     await saveFixtures(con, User, usersFixture);
     await con.getRepository(UserPersonalizedDigest).clear();
@@ -84,58 +88,10 @@ describe('personalizedDigest cron', () => {
   it('should schedule generation for interval', async () => {
     const usersToSchedule = usersFixture;
 
-    await con.getRepository(UserPersonalizedDigest).save(
-      usersToSchedule.map((item) => ({
-        userId: item.id,
-        preferredDay,
-        preferredHour: fakePreferredHour,
-      })),
-    );
-
-    await expectSuccessfulCron(cron);
-
-    const scheduledPersonalizedDigests = await con
-      .getRepository(UserPersonalizedDigest)
-      .findBy({
-        preferredDay,
-      });
-
-    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(
-      usersToSchedule.length,
-    );
-    scheduledPersonalizedDigests.forEach((personalizedDigest) => {
-      expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledWith({
-        log: expect.anything(),
-        personalizedDigest,
-        emailSendTimestamp: expect.any(Number),
-        previousSendTimestamp: expect.any(Number),
-        emailBatchId: expect.any(String),
-      });
-    });
-    (notifyGeneratePersonalizedDigest as jest.Mock).mock.calls.forEach(
-      (call) => {
-        const { emailSendTimestamp, previousSendTimestamp } = call?.[0] || {};
-
-        expect(emailSendTimestamp).toBeGreaterThan(previousSendTimestamp);
-      },
-    );
-  });
-
-  it('should schedule generation for specific date', async () => {
-    const usersToSchedule = usersFixture;
-
-    const fakePreferredDay = 3;
-    const fakeDate = setHours(
+    const { fakePreferredDay, fakePreferredHour } = fakeSendDate(
       new Date('2024-09-11T10:32:42.680Z'),
-      fakePreferredHour - digestPreferredHourOffset,
+      9,
     );
-    jest
-      .useFakeTimers({
-        doNotFake,
-      })
-      .setSystemTime(fakeDate);
-
-    digestTime = format(new Date(), 'yyyy-MM-dd HH:mm:ss');
 
     await con.getRepository(UserPersonalizedDigest).save(
       usersToSchedule.map((item) => ({
@@ -175,25 +131,18 @@ describe('personalizedDigest cron', () => {
   });
 
   it('should not schedule generation for subscriptions with other preferredDay', async () => {
-    const [, ...usersToSchedule] = usersFixture;
-
-    const fakePreferredDay = 3;
-    const fakeDate = setHours(
+    const { fakePreferredDay, fakePreferredHour } = fakeSendDate(
       new Date('2024-09-11T10:32:42.680Z'),
-      fakePreferredHour - digestPreferredHourOffset,
+      9,
     );
-    jest
-      .useFakeTimers({
-        doNotFake,
-      })
-      .setSystemTime(fakeDate);
+    const movedFakedPreferredDay = fakePreferredDay + 1;
 
-    digestTime = format(addDays(new Date(), 2), 'yyyy-MM-dd HH:mm:ss');
+    const [, ...usersToSchedule] = usersFixture;
 
     await con.getRepository(UserPersonalizedDigest).save(
       usersToSchedule.map((item) => ({
         userId: item.id,
-        preferredDay: fakePreferredDay,
+        preferredDay: movedFakedPreferredDay,
         preferredHour: fakePreferredHour,
       })),
     );
@@ -203,7 +152,7 @@ describe('personalizedDigest cron', () => {
     const scheduledPersonalizedDigests = await con
       .getRepository(UserPersonalizedDigest)
       .findBy({
-        preferredDay: fakePreferredDay,
+        preferredDay: movedFakedPreferredDay,
       });
 
     expect(scheduledPersonalizedDigests.length).toBeGreaterThan(0);
@@ -211,12 +160,17 @@ describe('personalizedDigest cron', () => {
   });
 
   it('should log notify count', async () => {
+    const { fakePreferredDay, fakePreferredHour } = fakeSendDate(
+      new Date('2024-09-11T10:32:42.680Z'),
+      9,
+    );
+
     const [, ...usersToSchedule] = usersFixture;
 
     await con.getRepository(UserPersonalizedDigest).save(
       usersToSchedule.map((item) => ({
         userId: item.id,
-        preferredDay,
+        preferredDay: fakePreferredDay,
         preferredHour: fakePreferredHour,
       })),
     );
@@ -235,12 +189,17 @@ describe('personalizedDigest cron', () => {
   });
 
   it('should not schedule generation for subscriptions with different sendType', async () => {
+    const { fakePreferredDay, fakePreferredHour } = fakeSendDate(
+      new Date('2024-09-11T10:32:42.680Z'),
+      9,
+    );
+
     const usersToSchedule = usersFixture;
 
     await con.getRepository(UserPersonalizedDigest).save(
       usersToSchedule.map((item) => ({
         userId: item.id,
-        preferredDay,
+        preferredDay: fakePreferredDay,
         preferredHour: fakePreferredHour,
         flags: {
           sendType: UserPersonalizedDigestSendType.workdays,
@@ -253,7 +212,7 @@ describe('personalizedDigest cron', () => {
     const personalizedDigestRowsForDay = await con
       .getRepository(UserPersonalizedDigest)
       .findBy({
-        preferredDay,
+        preferredDay: fakePreferredDay,
       });
 
     expect(personalizedDigestRowsForDay).toHaveLength(usersToSchedule.length);
@@ -261,12 +220,17 @@ describe('personalizedDigest cron', () => {
   });
 
   it('should schedule generation for subscriptions with weekly sendType', async () => {
+    const { fakePreferredDay, fakePreferredHour } = fakeSendDate(
+      new Date('2024-09-11T10:32:42.680Z'),
+      9,
+    );
+
     const usersToSchedule = usersFixture;
 
     await con.getRepository(UserPersonalizedDigest).save(
       usersToSchedule.map((item) => ({
         userId: item.id,
-        preferredDay,
+        preferredDay: fakePreferredDay,
         preferredHour: fakePreferredHour,
         flags: {
           sendType,
@@ -279,7 +243,7 @@ describe('personalizedDigest cron', () => {
     const personalizedDigestRowsForDay = await con
       .getRepository(UserPersonalizedDigest)
       .findBy({
-        preferredDay,
+        preferredDay: fakePreferredDay,
       });
 
     expect(personalizedDigestRowsForDay).toHaveLength(usersToSchedule.length);
@@ -287,21 +251,11 @@ describe('personalizedDigest cron', () => {
   });
 
   it('should schedule generation for users with timezone behind UTC', async () => {
-    const fakePreferredDay = 3;
-    const fakeDate = zonedTimeToUtc(
-      setHours(
-        new Date('2024-09-11T10:32:42.680+09:00'),
-        fakePreferredHour - digestPreferredHourOffset,
-      ),
+    const { fakePreferredDay, fakePreferredHour } = fakeSendDate(
+      new Date('2024-09-11T10:32:42.680Z'),
+      9,
       'America/Phoenix',
     );
-    jest
-      .useFakeTimers({
-        doNotFake,
-      })
-      .setSystemTime(fakeDate);
-
-    digestTime = format(new Date(), 'yyyy-MM-dd HH:mm:ss');
 
     const usersToSchedule = usersFixture;
 
@@ -335,21 +289,11 @@ describe('personalizedDigest cron', () => {
   });
 
   it('should schedule generation for users with timezone ahead UTC', async () => {
-    const fakePreferredDay = 3;
-    const fakeDate = zonedTimeToUtc(
-      setHours(
-        new Date('2024-09-11T10:32:42.680+09:00'),
-        fakePreferredHour - digestPreferredHourOffset,
-      ),
+    const { fakePreferredDay, fakePreferredHour } = fakeSendDate(
+      new Date('2024-09-11T10:32:42.680Z'),
+      9,
       'Asia/Tokyo',
     );
-    jest
-      .useFakeTimers({
-        doNotFake,
-      })
-      .setSystemTime(fakeDate);
-
-    digestTime = format(new Date(), 'yyyy-MM-dd HH:mm:ss');
 
     const usersToSchedule = usersFixture;
 
@@ -383,12 +327,17 @@ describe('personalizedDigest cron', () => {
   });
 
   it('should not schedule generation for users with prefferedHour in different timezone', async () => {
+    const { fakePreferredDay, fakePreferredHour } = fakeSendDate(
+      new Date('2024-09-11T10:32:42.680Z'),
+      9,
+    );
+
     const usersToSchedule = usersFixture;
 
     await con.getRepository(UserPersonalizedDigest).save(
       usersToSchedule.map((item) => ({
         userId: item.id,
-        preferredDay,
+        preferredDay: fakePreferredDay,
         preferredHour: fakePreferredHour,
         flags: {
           sendType,
@@ -407,7 +356,7 @@ describe('personalizedDigest cron', () => {
     const scheduledPersonalizedDigests = await con
       .getRepository(UserPersonalizedDigest)
       .findBy({
-        preferredDay,
+        preferredDay: fakePreferredDay,
       });
 
     expect(scheduledPersonalizedDigests).toHaveLength(usersToSchedule.length);
@@ -415,12 +364,17 @@ describe('personalizedDigest cron', () => {
   });
 
   it('should schedule send time in the future to match hours offset', async () => {
+    const { fakePreferredDay, fakePreferredHour } = fakeSendDate(
+      new Date('2024-09-11T10:32:42.680Z'),
+      9,
+    );
+
     const usersToSchedule = usersFixture;
 
     await con.getRepository(UserPersonalizedDigest).save(
       usersToSchedule.map((item) => ({
         userId: item.id,
-        preferredDay,
+        preferredDay: fakePreferredDay,
         preferredHour: fakePreferredHour,
         flags: {
           sendType,
