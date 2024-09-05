@@ -51,34 +51,18 @@ export class FeedGenerator {
 const garmFeedService = new GarmrService({
   service: FeedClient.name,
   breakerOpts: {
-    halfOpenAfter: 10 * 1000,
+    halfOpenAfter: 5 * 1000,
     threshold: 0.1,
-    duration: 1000,
-    minimumRps: 1,
-  },
-  limits: {
-    maxRequests: 50,
-    queuedRequests: 50,
-  },
-  retryOpts: {
-    maxAttempts: 0,
+    duration: 10 * 1000,
   },
 });
 
 const garmLofnService = new GarmrService({
   service: LofnClient.name,
   breakerOpts: {
-    halfOpenAfter: 10 * 1000,
+    halfOpenAfter: 5 * 1000,
     threshold: 0.1,
-    duration: 1000,
-    minimumRps: 1,
-  },
-  limits: {
-    maxRequests: 50,
-    queuedRequests: 50,
-  },
-  retryOpts: {
-    maxAttempts: 0,
+    duration: 10 * 1000,
   },
 });
 
