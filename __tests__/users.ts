@@ -586,6 +586,35 @@ describe('query userStreaks', () => {
       await expectStreak(5, 5, lastViewAt);
     });
 
+    it('should not reset streak when the user restored streak on Thursday and it is still Thursday with timezone', async () => {
+      nock('http://localhost:5000').post('/e').reply(204);
+      loggedUser = '1';
+
+      await con
+        .getRepository(User)
+        .update({ id: loggedUser }, { timezone: 'Asia/Manila' });
+      const fakeToday = new Date(2024, 8, 4, 17, 35, 41); // Wednesday in UTC - but in Manila it is Thursday already
+      const lastViewAt = new Date(2024, 8, 3, 15, 50, 23); // Tuesday
+
+      jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+      await expectStreak(5, 0, lastViewAt);
+
+      await con
+        .getRepository(UserStreak)
+        .update({ userId: loggedUser }, { currentStreak: 5 });
+      await con.getRepository(UserStreakAction).save([
+        {
+          userId: loggedUser,
+          type: UserStreakActionType.Recover,
+          createdAt: subHours(fakeToday, 1),
+          // Same day - without the timestamptz, the recovery is getting pushed way back
+          // Instead of becoming 1AM Thursday after converting, it becomes 5PM Wednesday)
+        },
+      ]);
+
+      await expectStreak(5, 5, lastViewAt);
+    });
+
     it('should not reset streak when the user restored streak on Friday and it is only Saturday with Sunday as workday', async () => {
       nock('http://localhost:5000').post('/e').reply(204);
       loggedUser = '1';
