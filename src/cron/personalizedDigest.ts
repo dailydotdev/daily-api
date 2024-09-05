@@ -27,7 +27,7 @@ const cron: Cron = {
       .from(UserPersonalizedDigest, 'upd')
       .leftJoin(User, 'u', 'u.id = upd."userId"')
       .where(
-        `(EXTRACT(DAY FROM NOW() AT TIME ZONE COALESCE(NULLIF(u.timezone, ''), '${DEFAULT_TIMEZONE}')) - 1) = upd."preferredDay"`,
+        `(EXTRACT(DOW FROM NOW() AT TIME ZONE COALESCE(NULLIF(u.timezone, ''), '${DEFAULT_TIMEZONE}'))) = upd."preferredDay"`,
         {
           defaultTimezone: DEFAULT_TIMEZONE,
         },

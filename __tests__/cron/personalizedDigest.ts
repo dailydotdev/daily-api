@@ -77,7 +77,7 @@ describe('personalizedDigest cron', () => {
     jest.useRealTimers();
   });
 
-  it('should schedule generation', async () => {
+  it('should schedule generation for interval', async () => {
     const usersToSchedule = usersFixture;
 
     await con.getRepository(UserPersonalizedDigest).save(
