@@ -407,3 +407,5 @@ export const dedupedSend = async (
     throw error;
   }
 };
+
+export const getDigestCronTime = (): string => 'NOW()';
