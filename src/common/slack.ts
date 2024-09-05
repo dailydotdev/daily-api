@@ -102,6 +102,7 @@ export const notifyNewVordrPost = async (
   post: Post,
   author?: User,
   scout?: User,
+  sharedPost?: Post,
 ): Promise<void> => {
   const getUser = (title: string, user?: User) =>
     user
@@ -135,7 +136,7 @@ export const notifyNewVordrPost = async (
     text: 'New post prevented by vordr',
     attachments: [
       {
-        title: post.title!,
+        title: sharedPost ? (post.title ?? sharedPost.title) : post.title,
         title_link: `${process.env.COMMENTS_PREFIX}/posts/${post.id}`,
         fields: [
           {
