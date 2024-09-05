@@ -1,28 +1,25 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
-import type { User } from './user';
-import { ReportReason } from './common';
+import type { User } from '../user';
+import { ReportReason } from '../common';
 
 @Entity()
-export class PostReport {
+export class SourceReport {
   @PrimaryColumn({ type: 'text' })
-  @Index('IDX_post_report_post_id')
-  postId: string;
+  @Index('IDX_source_report_source_id')
+  sourceId: string;
 
   @PrimaryColumn({ length: 36 })
-  @Index('IDX_post_report_user_id')
+  @Index('IDX_source_report_user_id')
   userId: string;
 
   @Column({ default: () => 'now()' })
   createdAt: Date;
 
-  @Column({ length: 12, type: 'varchar' })
+  @Column({ type: 'text' })
   reason: ReportReason;
 
-  @Column({ type: 'text', array: true, default: null })
-  tags?: string[];
-
   @Column({ type: 'text', nullable: true })
-  comment: string;
+  comment?: string;
 
   @ManyToOne('User', {
     lazy: true,
