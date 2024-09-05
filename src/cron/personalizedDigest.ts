@@ -5,6 +5,7 @@ import {
   digestPreferredHourOffset,
   notifyGeneratePersonalizedDigest,
   schedulePersonalizedDigestSubscriptions,
+  getDigestCronTime,
 } from '../common';
 import {
   User,
@@ -21,22 +22,26 @@ const digestTypes = [UserPersonalizedDigestType.Digest];
 const cron: Cron = {
   name: 'personalized-digest',
   handler: async (con, logger) => {
+    const digestCronTime = getDigestCronTime();
+
     const personalizedDigestQuery = con
       .createQueryBuilder()
       .select('upd.*, u.timezone')
       .from(UserPersonalizedDigest, 'upd')
       .leftJoin(User, 'u', 'u.id = upd."userId"')
       .where(
-        `(EXTRACT(DOW FROM NOW() AT TIME ZONE COALESCE(NULLIF(u.timezone, ''), '${DEFAULT_TIMEZONE}'))) = upd."preferredDay"`,
+        `(EXTRACT(DOW FROM :digestCronTime AT TIME ZONE COALESCE(NULLIF(u.timezone, ''), :defaultTimezone))) = upd."preferredDay"`,
         {
           defaultTimezone: DEFAULT_TIMEZONE,
+          digestCronTime,
         },
       )
       .andWhere(
-        `clamp_to_hours("preferredHour" - EXTRACT(HOUR FROM NOW() AT TIME ZONE COALESCE(NULLIF(u.timezone, ''), :defaultTimezone))) = :preferredHourOffset`,
+        `clamp_to_hours("preferredHour" - EXTRACT(HOUR FROM :digestCronTime AT TIME ZONE COALESCE(NULLIF(u.timezone, ''), :defaultTimezone))) = :preferredHourOffset`,
         {
           preferredHourOffset: digestPreferredHourOffset,
           defaultTimezone: DEFAULT_TIMEZONE,
+          digestCronTime,
         },
       )
       .andWhere(
