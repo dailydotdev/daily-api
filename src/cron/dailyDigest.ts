@@ -6,6 +6,7 @@ import {
   DEFAULT_TIMEZONE,
   isWeekend,
   DEFAULT_WEEK_START,
+  getDigestCronTime,
 } from '../common';
 import {
   User,
@@ -25,16 +26,19 @@ const digestTypes = [
 const cron: Cron = {
   name: 'daily-digest',
   handler: async (con, logger) => {
+    const digestCronTime = getDigestCronTime();
+
     const personalizedDigestQuery = con
       .createQueryBuilder()
       .select('upd.*, u.timezone, u."weekStart"')
       .from(UserPersonalizedDigest, 'upd')
       .innerJoin(User, 'u', 'u.id = upd."userId"')
       .where(
-        `clamp_to_hours("preferredHour" - EXTRACT(HOUR FROM NOW() AT TIME ZONE COALESCE(NULLIF(u.timezone, ''), :defaultTimezone))) = :preferredHourOffset`,
+        `clamp_to_hours("preferredHour" - EXTRACT(HOUR FROM :digestCronTime AT TIME ZONE COALESCE(NULLIF(u.timezone, ''), :defaultTimezone))) = :preferredHourOffset`,
         {
           preferredHourOffset: digestPreferredHourOffset,
           defaultTimezone: DEFAULT_TIMEZONE,
+          digestCronTime,
         },
       )
       .andWhere(`upd.flags->>'sendType' = :sendType`, {

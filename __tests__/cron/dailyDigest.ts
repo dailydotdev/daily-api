@@ -1,5 +1,5 @@
 import cron from '../../src/cron/dailyDigest';
-import { expectSuccessfulCron, saveFixtures } from '../helpers';
+import { doNotFake, expectSuccessfulCron, saveFixtures } from '../helpers';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import {
@@ -51,22 +51,7 @@ describe('dailyDigest cron', () => {
 
     jest
       .useFakeTimers({
-        doNotFake: [
-          'hrtime',
-          'nextTick',
-          'performance',
-          'queueMicrotask',
-          'requestAnimationFrame',
-          'cancelAnimationFrame',
-          'requestIdleCallback',
-          'cancelIdleCallback',
-          'setImmediate',
-          'clearImmediate',
-          'setInterval',
-          'clearInterval',
-          'setTimeout',
-          'clearTimeout',
-        ],
+        doNotFake,
       })
       // set day to Tuesday to avoid weekend overlaps
       .setSystemTime(setDay(currentDate, 2));

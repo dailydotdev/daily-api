@@ -1,5 +1,5 @@
 import cron from '../../src/cron/personalizedDigest';
-import { expectSuccessfulCron, saveFixtures } from '../helpers';
+import { doNotFake, expectSuccessfulCron, saveFixtures } from '../helpers';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import {
@@ -8,8 +8,14 @@ import {
   UserPersonalizedDigestSendType,
 } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
-import { notifyGeneratePersonalizedDigest } from '../../src/common';
+import {
+  digestPreferredHourOffset,
+  notifyGeneratePersonalizedDigest,
+} from '../../src/common';
+import { addDays, format, setDay, setHours, startOfHour } from 'date-fns';
 import { logger } from '../../src/logger';
+import { getTimezoneOffset } from 'date-fns-tz';
+import { crons } from '../../src/cron/index';
 
 let con: DataSource;
 
@@ -22,23 +28,67 @@ jest.mock('../../src/common/pubsub', () => ({
   notifyGeneratePersonalizedDigest: jest.fn(),
 }));
 
+let digestTime = 'NOW()';
+
+jest.mock('../../src/common/personalizedDigest', () => ({
+  ...(jest.requireActual('../../src/common/personalizedDigest') as Record<
+    string,
+    unknown
+  >),
+  getDigestCronTime: () => digestTime,
+}));
+
+function clampToHours(num: number): number {
+  return ((num % 24) + 24) % 24;
+}
+
 describe('personalizedDigest cron', () => {
-  const preferredDay = (new Date().getDay() + 1) % 7;
+  const sendType = UserPersonalizedDigestSendType.weekly;
+  const preferredDay = new Date().getDay();
+  let fakePreferredHour = 9;
 
   beforeEach(async () => {
     jest.resetAllMocks();
 
     await saveFixtures(con, User, usersFixture);
     await con.getRepository(UserPersonalizedDigest).clear();
+
+    const currentDate = new Date();
+    fakePreferredHour = clampToHours(
+      currentDate.getHours() + digestPreferredHourOffset,
+    );
+
+    jest
+      .useFakeTimers({
+        doNotFake,
+      })
+      // set day to Tuesday to avoid weekend overlaps
+      .setSystemTime(setDay(currentDate, 2));
+
+    await saveFixtures(con, User, usersFixture);
+    await con.getRepository(UserPersonalizedDigest).clear();
   });
 
-  it('should schedule generation', async () => {
+  afterEach(() => {
+    jest.useRealTimers();
+
+    digestTime = 'NOW()';
+  });
+
+  it('should be registered', () => {
+    const registeredWorker = crons.find((item) => item.name === cron.name);
+
+    expect(registeredWorker).toBeDefined();
+  });
+
+  it('should schedule generation for interval', async () => {
     const usersToSchedule = usersFixture;
 
     await con.getRepository(UserPersonalizedDigest).save(
       usersToSchedule.map((item) => ({
         userId: item.id,
         preferredDay,
+        preferredHour: fakePreferredHour,
       })),
     );
 
@@ -71,13 +121,27 @@ describe('personalizedDigest cron', () => {
     );
   });
 
-  it('should only schedule generation for next day subscriptions', async () => {
-    const [, ...usersToSchedule] = usersFixture;
+  it('should schedule generation for specific date', async () => {
+    const usersToSchedule = usersFixture;
+
+    const fakePreferredDay = 3;
+    const fakeDate = setHours(
+      new Date('2024-09-11T10:32:42.680Z'),
+      fakePreferredHour - digestPreferredHourOffset,
+    );
+    jest
+      .useFakeTimers({
+        doNotFake,
+      })
+      .setSystemTime(fakeDate);
+
+    digestTime = format(new Date(), 'yyyy-MM-dd HH:mm:ss');
 
     await con.getRepository(UserPersonalizedDigest).save(
       usersToSchedule.map((item) => ({
         userId: item.id,
-        preferredDay,
+        preferredDay: fakePreferredDay,
+        preferredHour: fakePreferredHour,
       })),
     );
 
@@ -86,7 +150,7 @@ describe('personalizedDigest cron', () => {
     const scheduledPersonalizedDigests = await con
       .getRepository(UserPersonalizedDigest)
       .findBy({
-        preferredDay,
+        preferredDay: fakePreferredDay,
       });
 
     expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(
@@ -108,6 +172,42 @@ describe('personalizedDigest cron', () => {
         expect(emailSendTimestamp).toBeGreaterThan(previousSendTimestamp);
       },
     );
+  });
+
+  it('should not schedule generation for subscriptions with other preferredDay', async () => {
+    const [, ...usersToSchedule] = usersFixture;
+
+    const fakePreferredDay = 3;
+    const fakeDate = setHours(
+      new Date('2024-09-11T10:32:42.680Z'),
+      fakePreferredHour - digestPreferredHourOffset,
+    );
+    jest
+      .useFakeTimers({
+        doNotFake,
+      })
+      .setSystemTime(fakeDate);
+
+    digestTime = format(addDays(new Date(), 2), 'yyyy-MM-dd HH:mm:ss');
+
+    await con.getRepository(UserPersonalizedDigest).save(
+      usersToSchedule.map((item) => ({
+        userId: item.id,
+        preferredDay: fakePreferredDay,
+        preferredHour: fakePreferredHour,
+      })),
+    );
+
+    await expectSuccessfulCron(cron);
+
+    const scheduledPersonalizedDigests = await con
+      .getRepository(UserPersonalizedDigest)
+      .findBy({
+        preferredDay: fakePreferredDay,
+      });
+
+    expect(scheduledPersonalizedDigests.length).toBeGreaterThan(0);
+    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(0);
   });
 
   it('should log notify count', async () => {
@@ -117,6 +217,7 @@ describe('personalizedDigest cron', () => {
       usersToSchedule.map((item) => ({
         userId: item.id,
         preferredDay,
+        preferredHour: fakePreferredHour,
       })),
     );
 
@@ -127,7 +228,7 @@ describe('personalizedDigest cron', () => {
       {
         digestCount: usersToSchedule.length,
         emailBatchId: expect.any(String),
-        sendType: UserPersonalizedDigestSendType.weekly,
+        sendType,
       },
       'personalized digest sent',
     );
@@ -140,6 +241,7 @@ describe('personalizedDigest cron', () => {
       usersToSchedule.map((item) => ({
         userId: item.id,
         preferredDay,
+        preferredHour: fakePreferredHour,
         flags: {
           sendType: UserPersonalizedDigestSendType.workdays,
         },
@@ -165,8 +267,9 @@ describe('personalizedDigest cron', () => {
       usersToSchedule.map((item) => ({
         userId: item.id,
         preferredDay,
+        preferredHour: fakePreferredHour,
         flags: {
-          sendType: UserPersonalizedDigestSendType.weekly,
+          sendType,
         },
       })),
     );
@@ -181,5 +284,144 @@ describe('personalizedDigest cron', () => {
 
     expect(personalizedDigestRowsForDay).toHaveLength(usersToSchedule.length);
     expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(4);
+  });
+
+  it('should schedule generation for users with timezone behind UTC', async () => {
+    const currentDate = new Date();
+    const timezoneOffset =
+      getTimezoneOffset('America/Phoenix') / (60 * 60 * 1000);
+    const fakePreferredHourTimezone = clampToHours(
+      currentDate.getHours() + digestPreferredHourOffset + timezoneOffset,
+    );
+    const usersToSchedule = usersFixture;
+
+    await con.getRepository(UserPersonalizedDigest).save(
+      usersToSchedule.map((item) => ({
+        userId: item.id,
+        preferredDay,
+        preferredHour: fakePreferredHourTimezone,
+        flags: {
+          sendType,
+        },
+      })),
+    );
+    await con.getRepository(User).save(
+      usersToSchedule.map((item) => ({
+        id: item.id,
+        timezone: 'America/Phoenix',
+      })),
+    );
+
+    await expectSuccessfulCron(cron);
+
+    const scheduledPersonalizedDigests = await con
+      .getRepository(UserPersonalizedDigest)
+      .findBy({
+        preferredDay,
+      });
+
+    expect(scheduledPersonalizedDigests).toHaveLength(usersToSchedule.length);
+    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(4);
+  });
+
+  it('should schedule generation for users with timezone ahead UTC', async () => {
+    const currentDate = new Date();
+    const timezoneOffset = getTimezoneOffset('Asia/Tokyo') / (60 * 60 * 1000);
+    const fakePreferredHourTimezone = clampToHours(
+      currentDate.getHours() + digestPreferredHourOffset + timezoneOffset,
+    );
+    const usersToSchedule = usersFixture;
+
+    await con.getRepository(UserPersonalizedDigest).save(
+      usersToSchedule.map((item) => ({
+        userId: item.id,
+        preferredDay,
+        preferredHour: fakePreferredHourTimezone,
+        flags: {
+          sendType,
+        },
+      })),
+    );
+    await con.getRepository(User).save(
+      usersToSchedule.map((item) => ({
+        id: item.id,
+        timezone: 'Asia/Tokyo',
+      })),
+    );
+
+    await expectSuccessfulCron(cron);
+
+    const scheduledPersonalizedDigests = await con
+      .getRepository(UserPersonalizedDigest)
+      .findBy({
+        preferredDay,
+      });
+
+    expect(scheduledPersonalizedDigests).toHaveLength(usersToSchedule.length);
+    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(4);
+  });
+
+  it('should not schedule generation for users with prefferedHour in different timezone', async () => {
+    const usersToSchedule = usersFixture;
+
+    await con.getRepository(UserPersonalizedDigest).save(
+      usersToSchedule.map((item) => ({
+        userId: item.id,
+        preferredDay,
+        preferredHour: fakePreferredHour,
+        flags: {
+          sendType,
+        },
+      })),
+    );
+    await con.getRepository(User).save(
+      usersToSchedule.map((item) => ({
+        id: item.id,
+        timezone: 'America/New_York',
+      })),
+    );
+
+    await expectSuccessfulCron(cron);
+
+    const scheduledPersonalizedDigests = await con
+      .getRepository(UserPersonalizedDigest)
+      .findBy({
+        preferredDay,
+      });
+
+    expect(scheduledPersonalizedDigests).toHaveLength(usersToSchedule.length);
+    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(0);
+  });
+
+  it('should schedule send time in the future to match hours offset', async () => {
+    const usersToSchedule = usersFixture;
+
+    await con.getRepository(UserPersonalizedDigest).save(
+      usersToSchedule.map((item) => ({
+        userId: item.id,
+        preferredDay,
+        preferredHour: fakePreferredHour,
+        flags: {
+          sendType,
+        },
+      })),
+    );
+
+    const timestampBeforeCron = startOfHour(new Date()).getTime();
+
+    await expectSuccessfulCron(cron);
+
+    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(
+      usersToSchedule.length,
+    );
+    (notifyGeneratePersonalizedDigest as jest.Mock).mock.calls.forEach(
+      (call) => {
+        const { emailSendTimestamp } = call?.[0] || {};
+
+        expect(emailSendTimestamp).toBeGreaterThanOrEqual(
+          timestampBeforeCron + digestPreferredHourOffset * 60 * 60 * 1000,
+        );
+      },
+    );
   });
 });

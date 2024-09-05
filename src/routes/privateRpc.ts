@@ -1,6 +1,6 @@
 import { Code, ConnectError, ConnectRouter } from '@connectrpc/connect';
 import { TypeOrmError, TypeORMQueryFailedError } from '../errors';
-import { ArticlePost } from '../entity';
+import { ArticlePost, SourceRequest } from '../entity';
 import { generateShortId } from '../ids';
 import createOrGetConnection from '../db';
 import { isValidHttpUrl, standardizeURL } from '../common/links';
@@ -8,6 +8,7 @@ import { baseRpcContext } from '../common/connectRpc';
 import {
   CreatePostRequest,
   CreatePostResponse,
+  SourceRequestService,
   PostService,
 } from '@dailydotdev/schema';
 import { DataSource, FindOptionsWhere } from 'typeorm';
@@ -116,4 +117,48 @@ export default function (router: ConnectRouter) {
       throw new ConnectError(error.message, Code.Internal);
     }
   });
+
+  router.rpc(
+    SourceRequestService,
+    SourceRequestService.methods.create,
+    async (req, context) => {
+      if (!context.values.get(baseRpcContext).service) {
+        throw new ConnectError('unauthenticated', Code.Unauthenticated);
+      }
+
+      const originalReq = req.clone();
+      const con = await createOrGetConnection();
+
+      try {
+        req.url = standardizeURL(req.url);
+        if (!isValidHttpUrl(req.url)) {
+          throw new ConnectError('invalid url', Code.InvalidArgument);
+        }
+
+        const sourceRequest = await con.getRepository(SourceRequest).insert({
+          sourceUrl: req.url,
+          userId: 'yggdrasil',
+          userName: 'Yggdrasil bot',
+          userEmail: 'yggdrasil@daily.dev',
+        });
+
+        return {
+          id: sourceRequest.identifiers[0].id,
+        };
+      } catch (originalError) {
+        const error = originalError as TypeORMQueryFailedError;
+
+        logger.error(
+          { err: error, data: originalReq.toJson() },
+          'error while creating source request',
+        );
+
+        if (error instanceof ConnectError) {
+          throw error;
+        }
+
+        throw new ConnectError(error.message, Code.Internal);
+      }
+    },
+  );
 }

@@ -42,7 +42,7 @@ export const crons: Cron[] = [
   },
   {
     name: 'personalized-digest',
-    schedule: '15 0 * * *',
+    schedule: '15 * * * *',
     limits: {
       memory: '1Gi',
     },
