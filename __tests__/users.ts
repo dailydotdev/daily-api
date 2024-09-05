@@ -6,6 +6,7 @@ import {
   addDays,
   addHours,
   addSeconds,
+  format,
   startOfDay,
   startOfISOWeek,
   subDays,
@@ -34,6 +35,10 @@ import {
   FeatureValue,
   MarketingCta,
   Post,
+  ReputationEvent,
+  ReputationReason,
+  reputationReasonAmount,
+  ReputationType,
   Source,
   User,
   UserMarketingCta,
@@ -77,6 +82,7 @@ import {
   deleteKeysByPattern,
   deleteRedisKey,
   getRedisObject,
+  ioRedisPool,
   setRedisObjectWithExpiry,
 } from '../src/redis';
 import { generateStorageKey, StorageKey, StorageTopic } from '../src/config';
@@ -629,262 +635,6 @@ describe('query userStreaks', () => {
 
       await expectStreak(5, 5, lastViewAt);
     });
-
-    describe('streak recover query', () => {
-      const QUERY = `query StreakRecover {
-        streakRecover {
-          canRecover
-          cost
-          oldStreakLength
-        }
-      }`;
-
-      it('should return recover data when user fetch query', async () => {
-        nock('http://localhost:5000').post('/e').reply(204);
-        loggedUser = '1';
-
-        const { data, errors } = await client.query(QUERY);
-        expect(errors).toBeFalsy();
-        const { streakRecover } = data;
-        expect(streakRecover).toHaveProperty('canRecover');
-        expect(streakRecover).toHaveProperty('cost');
-        expect(streakRecover).toHaveProperty('oldStreakLength');
-      });
-
-      it('should disallow recover when user is not authenticated', async () => {
-        loggedUser = null;
-        return testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED');
-      });
-
-      it('should disallow recover when user has no streak', async () => {
-        loggedUser = '2';
-        const { data, errors } = await client.query(QUERY);
-        expect(errors).toBeFalsy();
-        expect(data.streakRecover.canRecover).toBeFalsy();
-      });
-
-      it('should allow recover when user has streak', async () => {
-        loggedUser = '1';
-        const oldLength = 5;
-        await con.getRepository(UserStreak).save({
-          userId: loggedUser,
-          currentStreak: 0,
-          lastViewAt: subDays(new Date(), 2),
-        });
-
-        // insert redis key with old streak length
-        const redisKey = generateStorageKey(
-          StorageTopic.Streak,
-          StorageKey.Reset,
-          loggedUser,
-        );
-        await setRedisObjectWithExpiry(
-          redisKey,
-          oldLength,
-          addDays(new Date(), 1).getTime(),
-        );
-
-        const { data, errors } = await client.query(QUERY);
-        expect(errors).toBeFalsy();
-        expect(data.streakRecover.canRecover).toBeTruthy();
-        expect(data.streakRecover.oldStreakLength).toBe(oldLength);
-
-        await deleteRedisKey(redisKey);
-      });
-    });
-  });
-
-  describe('streak recovery mutation', () => {
-    const MUTATION = `
-      mutation RecoverStreak {
-        recoverStreak {
-          current
-          lastViewAt
-          max
-        }
-      }
-    `;
-
-    it('should not authorize when not logged in', async () =>
-      await testMutationErrorCode(
-        client,
-        { mutation: MUTATION },
-        'UNAUTHENTICATED',
-      ));
-
-    it('should not recover if old streak has expired', async () => {
-      loggedUser = '1';
-      await con.getRepository(UserStreak).update(
-        { userId: loggedUser },
-        {
-          currentStreak: 0,
-          lastViewAt: subDays(new Date(), 2),
-        },
-      );
-      await con.getRepository(UserStreakAction).save([
-        {
-          userId: loggedUser,
-          type: UserStreakActionType.Recover,
-          createdAt: subDays(new Date(), 4),
-        },
-      ]);
-      await con
-        .getRepository(User)
-        .update({ id: loggedUser }, { reputation: 500 });
-
-      await testMutationError(client, { mutation: MUTATION }, (errors) => {
-        expect(errors).toBeDefined();
-        expect(errors[0].message).toEqual('No streak to recover');
-      });
-    });
-
-    it('should not recover if user has not enough reputation', async () => {
-      loggedUser = '1';
-      await con.getRepository(UserStreak).update(
-        { userId: loggedUser },
-        {
-          currentStreak: 0,
-          lastViewAt: subDays(new Date(), 2),
-        },
-      );
-      await con.getRepository(UserStreakAction).save([
-        {
-          userId: loggedUser,
-          type: UserStreakActionType.Recover,
-          createdAt: subDays(new Date(), 4),
-        },
-      ]);
-      await con
-        .getRepository(User)
-        .update({ id: loggedUser }, { reputation: 24 });
-
-      const oldLength = 10;
-      const redisKey = generateStorageKey(
-        StorageTopic.Streak,
-        StorageKey.Reset,
-        loggedUser,
-      );
-      await setRedisObjectWithExpiry(
-        redisKey,
-        oldLength,
-        addDays(new Date(), 1).getTime(),
-      );
-
-      await testMutationError(client, { mutation: MUTATION }, (errors) => {
-        expect(errors).toBeDefined();
-        expect(errors[0].message).toEqual(
-          'Not enough reputation to recover streak',
-        );
-      });
-
-      await deleteRedisKey(redisKey);
-    });
-
-    it('should recover the streak if user has enough reputation', async () => {
-      loggedUser = '1';
-      await con.getRepository(UserStreak).update(
-        { userId: loggedUser },
-        {
-          currentStreak: 0,
-          lastViewAt: subDays(new Date(), 2),
-        },
-      );
-      await con
-        .getRepository(User)
-        .update({ id: loggedUser }, { reputation: 25 });
-
-      // insert redis key with old streak length
-      const oldLength = 10;
-      const redisKey = generateStorageKey(
-        StorageTopic.Streak,
-        StorageKey.Reset,
-        loggedUser,
-      );
-      await setRedisObjectWithExpiry(
-        redisKey,
-        oldLength,
-        addDays(new Date(), 1).getTime(),
-      );
-
-      const { data, errors } = await client.mutate(MUTATION);
-      const { recoverStreak } = data;
-      expect(errors).toBeFalsy();
-      expect(recoverStreak).toBeTruthy();
-      expect(recoverStreak.current).toEqual(oldLength);
-
-      const redisCache = await getRestoreStreakCache({ userId: loggedUser });
-      expect(redisCache).toBeNull();
-    });
-
-    it('should not update maxStreak if the recovered streak is less than the current maxStreak', async () => {
-      loggedUser = '1';
-      await con.getRepository(UserStreak).update(
-        { userId: loggedUser },
-        {
-          currentStreak: 0,
-          maxStreak: 20,
-          lastViewAt: subDays(new Date(), 2),
-        },
-      );
-      await con
-        .getRepository(User)
-        .update({ id: loggedUser }, { reputation: 25 });
-
-      // insert redis key with old streak length
-      const oldLength = 10;
-      const redisKey = generateStorageKey(
-        StorageTopic.Streak,
-        StorageKey.Reset,
-        loggedUser,
-      );
-      await setRedisObjectWithExpiry(
-        redisKey,
-        oldLength,
-        addDays(new Date(), 1).getTime(),
-      );
-
-      const { data, errors } = await client.mutate(MUTATION);
-      const { recoverStreak } = data;
-      expect(errors).toBeFalsy();
-      expect(recoverStreak).toBeTruthy();
-      expect(recoverStreak.current).toEqual(oldLength);
-      expect(recoverStreak.max).toEqual(20);
-    });
-
-    it('should update maxStreak if the recovered streak is more than the current maxStreak', async () => {
-      loggedUser = '1';
-      await con.getRepository(UserStreak).update(
-        { userId: loggedUser },
-        {
-          currentStreak: 1,
-          maxStreak: 20,
-          lastViewAt: subDays(new Date(), 2),
-        },
-      );
-      await con
-        .getRepository(User)
-        .update({ id: loggedUser }, { reputation: 25 });
-
-      // insert redis key with old streak length
-      const oldLength = 20;
-      const redisKey = generateStorageKey(
-        StorageTopic.Streak,
-        StorageKey.Reset,
-        loggedUser,
-      );
-      await setRedisObjectWithExpiry(
-        redisKey,
-        oldLength,
-        addDays(new Date(), 1).getTime(),
-      );
-
-      const { data, errors } = await client.mutate(MUTATION);
-      const { recoverStreak } = data;
-      expect(errors).toBeFalsy();
-      expect(recoverStreak).toBeTruthy();
-      expect(recoverStreak.current).toEqual(21);
-      expect(recoverStreak.max).toEqual(21);
-    });
   });
 
   it('should not reset streak on Saturday when last read is Friday', async () => {
@@ -1015,6 +765,503 @@ describe('query userStreaks', () => {
 
     jest.useFakeTimers({ advanceTimers: true, now: fakeTodayTz });
     await expectStreak(5, 5, lastViewAtTz);
+  });
+});
+
+describe('streak recover query', () => {
+  const QUERY = `query StreakRecover {
+    streakRecover {
+      canRecover
+      cost
+      oldStreakLength
+    }
+  }`;
+
+  beforeEach(async () => {
+    await ioRedisPool.execute((client) => client.flushall());
+  });
+
+  it('should return recover data when user fetch query', async () => {
+    nock('http://localhost:5000').post('/e').reply(204);
+    loggedUser = '1';
+
+    const { data, errors } = await client.query(QUERY);
+    expect(errors).toBeFalsy();
+    const { streakRecover } = data;
+    expect(streakRecover).toHaveProperty('canRecover');
+    expect(streakRecover).toHaveProperty('cost');
+    expect(streakRecover).toHaveProperty('oldStreakLength');
+  });
+
+  it('should disallow recover when user is not authenticated', async () => {
+    loggedUser = null;
+    return testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED');
+  });
+
+  it('should disallow recover when user has no streak', async () => {
+    loggedUser = '2';
+    const { data, errors } = await client.query(QUERY);
+    expect(errors).toBeFalsy();
+    expect(data.streakRecover.canRecover).toBeFalsy();
+  });
+
+  it('should allow recover when user has streak', async () => {
+    loggedUser = '1';
+    const oldLength = 5;
+    await con.getRepository(UserStreak).save({
+      userId: loggedUser,
+      currentStreak: 0,
+      lastViewAt: subDays(new Date(), 2),
+    });
+
+    // insert redis key with old streak length
+    const redisKey = generateStorageKey(
+      StorageTopic.Streak,
+      StorageKey.Reset,
+      loggedUser,
+    );
+    await setRedisObjectWithExpiry(
+      redisKey,
+      oldLength,
+      addDays(new Date(), 1).getTime(),
+    );
+
+    const { data, errors } = await client.query(QUERY);
+    expect(errors).toBeFalsy();
+    expect(data.streakRecover.canRecover).toBeTruthy();
+    expect(data.streakRecover.oldStreakLength).toBe(oldLength);
+    expect(data.streakRecover.cost).toBe(0);
+  });
+
+  it('should allow recover when user has streak but greater value on the second time', async () => {
+    loggedUser = '1';
+    const oldLength = 5;
+    await con.getRepository(UserStreak).save({
+      userId: loggedUser,
+      currentStreak: 0,
+      lastViewAt: subDays(new Date(), 2),
+    });
+    await con.getRepository(UserStreakAction).save([
+      {
+        userId: loggedUser,
+        type: UserStreakActionType.Recover,
+        createdAt: subDays(new Date(), 4),
+      },
+    ]);
+
+    // insert redis key with old streak length
+    const redisKey = generateStorageKey(
+      StorageTopic.Streak,
+      StorageKey.Reset,
+      loggedUser,
+    );
+    await setRedisObjectWithExpiry(
+      redisKey,
+      oldLength,
+      addDays(new Date(), 1).getTime(),
+    );
+
+    const { data, errors } = await client.query(QUERY);
+    expect(errors).toBeFalsy();
+    expect(data.streakRecover.canRecover).toBeTruthy();
+    expect(data.streakRecover.oldStreakLength).toBe(oldLength);
+    expect(data.streakRecover.cost).toBe(25);
+  });
+});
+
+describe('streak recovery mutation', () => {
+  const MUTATION = `
+    mutation RecoverStreak {
+      recoverStreak {
+        current
+        lastViewAt
+        max
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await ioRedisPool.execute((client) => client.flushall());
+  });
+
+  it('should not authorize when not logged in', async () =>
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should not recover if old streak has expired', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserStreak).update(
+      { userId: loggedUser },
+      {
+        currentStreak: 0,
+        lastViewAt: subDays(new Date(), 2),
+      },
+    );
+    await con.getRepository(UserStreakAction).save([
+      {
+        userId: loggedUser,
+        type: UserStreakActionType.Recover,
+        createdAt: subDays(new Date(), 4),
+      },
+    ]);
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { reputation: 500 });
+
+    await testMutationError(client, { mutation: MUTATION }, (errors) => {
+      expect(errors).toBeDefined();
+      expect(errors[0].message).toEqual('No streak to recover');
+    });
+  });
+
+  it('should not recover if user has not enough reputation', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserStreak).update(
+      { userId: loggedUser },
+      {
+        currentStreak: 0,
+        lastViewAt: subDays(new Date(), 2),
+      },
+    );
+    await con.getRepository(UserStreakAction).save([
+      {
+        userId: loggedUser,
+        type: UserStreakActionType.Recover,
+        createdAt: subDays(new Date(), 4),
+      },
+    ]);
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { reputation: 24 });
+
+    const oldLength = 10;
+    const redisKey = generateStorageKey(
+      StorageTopic.Streak,
+      StorageKey.Reset,
+      loggedUser,
+    );
+    await setRedisObjectWithExpiry(
+      redisKey,
+      oldLength,
+      addDays(new Date(), 1).getTime(),
+    );
+
+    await testMutationError(client, { mutation: MUTATION }, (errors) => {
+      expect(errors).toBeDefined();
+      expect(errors[0].message).toEqual(
+        'Not enough reputation to recover streak',
+      );
+    });
+  });
+
+  it('should recover the streak if user has enough reputation', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserStreak).update(
+      { userId: loggedUser },
+      {
+        currentStreak: 0,
+        lastViewAt: subDays(new Date(), 2),
+      },
+    );
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { reputation: 25 });
+
+    // insert redis key with old streak length
+    const oldLength = 10;
+    const redisKey = generateStorageKey(
+      StorageTopic.Streak,
+      StorageKey.Reset,
+      loggedUser,
+    );
+    await setRedisObjectWithExpiry(
+      redisKey,
+      oldLength,
+      addDays(new Date(), 1).getTime(),
+    );
+
+    const { data, errors } = await client.mutate(MUTATION);
+    const { recoverStreak } = data;
+    expect(errors).toBeFalsy();
+    expect(recoverStreak).toBeTruthy();
+    expect(recoverStreak.current).toEqual(oldLength);
+
+    const redisCache = await getRestoreStreakCache({ userId: loggedUser });
+    expect(redisCache).toBeNull();
+
+    const reputationEvent = await con.getRepository(ReputationEvent).findOne({
+      select: ['amount', 'targetId'],
+      where: {
+        targetType: ReputationType.Streak,
+        reason: ReputationReason.StreakFirstRecovery,
+      },
+    });
+    expect(reputationEvent).toBeTruthy();
+    expect(reputationEvent!.amount).toEqual(0);
+    expect(reputationEvent!.targetId).toEqual(format(new Date(), 'dd-MM-yyyy'));
+  });
+
+  it('should not update maxStreak if the recovered streak is less than the current maxStreak', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserStreak).update(
+      { userId: loggedUser },
+      {
+        currentStreak: 0,
+        maxStreak: 20,
+        lastViewAt: subDays(new Date(), 2),
+      },
+    );
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { reputation: 25 });
+
+    // insert redis key with old streak length
+    const oldLength = 10;
+    const redisKey = generateStorageKey(
+      StorageTopic.Streak,
+      StorageKey.Reset,
+      loggedUser,
+    );
+    await setRedisObjectWithExpiry(
+      redisKey,
+      oldLength,
+      addDays(new Date(), 1).getTime(),
+    );
+
+    const { data, errors } = await client.mutate(MUTATION);
+    const { recoverStreak } = data;
+    expect(errors).toBeFalsy();
+    expect(recoverStreak).toBeTruthy();
+    expect(recoverStreak.current).toEqual(oldLength);
+    expect(recoverStreak.max).toEqual(20);
+  });
+
+  it('should update maxStreak if the recovered streak is more than the current maxStreak', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserStreak).update(
+      { userId: loggedUser },
+      {
+        currentStreak: 1,
+        maxStreak: 20,
+        lastViewAt: subDays(new Date(), 2),
+      },
+    );
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { reputation: 25 });
+
+    // insert redis key with old streak length
+    const oldLength = 20;
+    const redisKey = generateStorageKey(
+      StorageTopic.Streak,
+      StorageKey.Reset,
+      loggedUser,
+    );
+    await setRedisObjectWithExpiry(
+      redisKey,
+      oldLength,
+      addDays(new Date(), 1).getTime(),
+    );
+
+    const { data, errors } = await client.mutate(MUTATION);
+    const { recoverStreak } = data;
+    expect(errors).toBeFalsy();
+    expect(recoverStreak).toBeTruthy();
+    expect(recoverStreak.current).toEqual(21);
+    expect(recoverStreak.max).toEqual(21);
+  });
+
+  it('should recover streak with 0 points on the first time', async () => {
+    loggedUser = '1';
+    const missing = await con.getRepository(ReputationEvent).findOneBy({
+      targetType: ReputationType.Streak,
+      reason: ReputationReason.StreakFirstRecovery,
+    });
+    expect(missing).toBeNull();
+    await con.getRepository(UserStreak).update(
+      { userId: loggedUser },
+      {
+        currentStreak: 1,
+        maxStreak: 20,
+        lastViewAt: subDays(new Date(), 2),
+      },
+    );
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { reputation: 25 });
+
+    // insert redis key with old streak length
+    const oldLength = 20;
+    const redisKey = generateStorageKey(
+      StorageTopic.Streak,
+      StorageKey.Reset,
+      loggedUser,
+    );
+    await setRedisObjectWithExpiry(
+      redisKey,
+      oldLength,
+      addDays(new Date(), 1).getTime(),
+    );
+
+    const { data, errors } = await client.mutate(MUTATION);
+    const { recoverStreak } = data;
+    expect(errors).toBeFalsy();
+    expect(recoverStreak).toBeTruthy();
+    expect(recoverStreak.current).toEqual(21);
+    expect(recoverStreak.max).toEqual(21);
+    const reputationEvent = await con.getRepository(ReputationEvent).findOneBy({
+      targetType: ReputationType.Streak,
+      reason: ReputationReason.StreakFirstRecovery,
+    });
+    expect(reputationEvent).toBeTruthy();
+    expect(reputationEvent!.amount).toEqual(0);
+  });
+
+  it('should recover streak with 25 points on the second time', async () => {
+    loggedUser = '1';
+    const yesterday = subDays(new Date(), 1);
+    await con.getRepository(ReputationEvent).save({
+      targetType: ReputationType.Streak,
+      reason: ReputationReason.StreakFirstRecovery,
+      timestamp: yesterday,
+      grantToId: '1',
+      targetId: format(yesterday, 'dd-MM-yyyy'),
+      amount: reputationReasonAmount.streak_recover_for_free,
+    });
+    await con.getRepository(UserStreakAction).save([
+      {
+        userId: loggedUser,
+        type: UserStreakActionType.Recover,
+        createdAt: yesterday,
+      },
+    ]);
+    await con.getRepository(UserStreak).update(
+      { userId: loggedUser },
+      {
+        currentStreak: 1,
+        maxStreak: 20,
+        lastViewAt: subDays(new Date(), 2),
+      },
+    );
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { reputation: 25 });
+
+    // insert redis key with old streak length
+    const oldLength = 20;
+    const redisKey = generateStorageKey(
+      StorageTopic.Streak,
+      StorageKey.Reset,
+      loggedUser,
+    );
+    await setRedisObjectWithExpiry(
+      redisKey,
+      oldLength,
+      addDays(new Date(), 1).getTime(),
+    );
+
+    const { data, errors } = await client.mutate(MUTATION);
+    const { recoverStreak } = data;
+    expect(errors).toBeFalsy();
+    expect(recoverStreak).toBeTruthy();
+    expect(recoverStreak.current).toEqual(21);
+    expect(recoverStreak.max).toEqual(21);
+    const redisCache = await getRestoreStreakCache({ userId: loggedUser });
+    expect(redisCache).toBeNull();
+
+    const reputationEvent = await con.getRepository(ReputationEvent).findOne({
+      select: ['amount', 'targetId'],
+      where: {
+        targetType: ReputationType.Streak,
+        reason: ReputationReason.StreakRecover,
+      },
+    });
+    expect(reputationEvent).toBeTruthy();
+    expect(reputationEvent!.amount).toEqual(-25);
+    expect(reputationEvent!.targetId).toEqual(format(new Date(), 'dd-MM-yyyy'));
+  });
+
+  it('should recover streak with 25 points on the third time', async () => {
+    loggedUser = '1';
+    const yesterday = subDays(new Date(), 1);
+    const twoDaysAgo = subDays(yesterday, 1);
+    await con.getRepository(ReputationEvent).save([
+      {
+        targetType: ReputationType.Streak,
+        reason: ReputationReason.StreakFirstRecovery,
+        timestamp: yesterday,
+        grantToId: '1',
+        targetId: format(twoDaysAgo, 'dd-MM-yyyy'),
+        amount: reputationReasonAmount.streak_recover_for_free,
+      },
+      {
+        targetType: ReputationType.Streak,
+        reason: ReputationReason.StreakRecover,
+        timestamp: yesterday,
+        grantToId: '1',
+        targetId: format(yesterday, 'dd-MM-yyyy'),
+        amount: reputationReasonAmount.streak_recover,
+      },
+    ]);
+    await con.getRepository(UserStreakAction).save([
+      {
+        userId: loggedUser,
+        type: UserStreakActionType.Recover,
+        createdAt: twoDaysAgo,
+      },
+      {
+        userId: loggedUser,
+        type: UserStreakActionType.Recover,
+        createdAt: yesterday,
+      },
+    ]);
+    await con.getRepository(UserStreak).update(
+      { userId: loggedUser },
+      {
+        currentStreak: 1,
+        maxStreak: 20,
+        lastViewAt: subDays(new Date(), 2),
+      },
+    );
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { reputation: 25 });
+
+    // insert redis key with old streak length
+    const oldLength = 20;
+    const redisKey = generateStorageKey(
+      StorageTopic.Streak,
+      StorageKey.Reset,
+      loggedUser,
+    );
+    await setRedisObjectWithExpiry(
+      redisKey,
+      oldLength,
+      addDays(new Date(), 1).getTime(),
+    );
+
+    const { data, errors } = await client.mutate(MUTATION);
+    const { recoverStreak } = data;
+    expect(errors).toBeFalsy();
+    expect(recoverStreak).toBeTruthy();
+    expect(recoverStreak.current).toEqual(21);
+    expect(recoverStreak.max).toEqual(21);
+    const redisCache = await getRestoreStreakCache({ userId: loggedUser });
+    expect(redisCache).toBeNull();
+
+    const reputationEvents = await con.getRepository(ReputationEvent).find({
+      select: ['amount'],
+      where: {
+        targetType: ReputationType.Streak,
+        reason: ReputationReason.StreakRecover,
+      },
+    });
+    expect(reputationEvents.length).toEqual(2);
+    const sameAmounts = reputationEvents.every(({ amount }) => amount === -25);
+    expect(sameAmounts).toBeTruthy();
   });
 });
 
