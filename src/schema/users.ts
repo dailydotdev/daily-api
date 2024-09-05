@@ -99,6 +99,7 @@ import { UserCompany } from '../entity/UserCompany';
 import { generateVerifyCode } from '../ids';
 import { validateUserUpdate } from '../entity/user/utils';
 import { getRestoreStreakCache } from '../workers/cdc/primary';
+import { format } from 'date-fns';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -2011,7 +2012,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const reputationEvent = {
         grantToId: userId,
-        targetId: userId,
+        targetId: format(new Date(), 'dd-MM-yyyy'),
         targetType: ReputationType.Streak,
         reason: isFirstRecover
           ? ReputationReason.StreakFirstRecovery
