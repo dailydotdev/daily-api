@@ -66,17 +66,13 @@ const garmFeedService = new GarmrService({
 });
 
 export const snotraClient = new SnotraClient();
-export const feedClient = new FeedClient(
-  undefined,
-  { retries: 0 },
-  garmFeedService,
-);
+export const feedClient = new FeedClient(process.env.INTERNAL_FEED, {
+  garmr: garmFeedService,
+});
 export const lofnClient = new LofnClient();
-export const popularFeedClient = new FeedClient(
-  process.env.POPULAR_FEED,
-  { retries: 0 },
-  garmFeedService,
-);
+export const popularFeedClient = new FeedClient(process.env.POPULAR_FEED, {
+  garmr: garmFeedService,
+});
 
 const opts = {
   includeBlockedTags: true,
