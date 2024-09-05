@@ -35,16 +35,19 @@ import {
   FeatureValue,
   MarketingCta,
   Post,
+  PostReport,
   ReputationEvent,
   ReputationReason,
   reputationReasonAmount,
   ReputationType,
   Source,
+  SourceMember,
   User,
   UserMarketingCta,
   UserPersonalizedDigest,
   UserPersonalizedDigestSendType,
   UserPersonalizedDigestType,
+  UserPost,
   UserStreak,
   UserStreakAction,
   UserStreakActionType,
@@ -92,7 +95,10 @@ import {
 } from '../src/entity/UserIntegration';
 import { Company } from '../src/entity/Company';
 import { UserCompany } from '../src/entity/UserCompany';
+import { SourceReport } from '../src/entity/sources/SourceReport';
+import { SourceMemberRoles } from '../src/roles';
 import { rateLimiterName } from '../src/directive/rateLimit';
+import { CommentReport } from '../src/entity/CommentReport';
 import { getRestoreStreakCache } from '../src/workers/cdc/primary';
 
 let con: DataSource;
@@ -4898,6 +4904,380 @@ describe('query userIntegrations', () => {
           },
         },
       ],
+    });
+  });
+});
+
+describe('mutation sendReport', () => {
+  const MUTATION = `
+    mutation SendReport($type: ReportEntity!, $id: ID!, $reason: ReportReason!, $comment: String, $tags: [String]) {
+      sendReport(type: $type, id: $id, reason: $reason, comment: $comment, tags: $tags) {
+        _
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { type: 'post', id: 'p1', reason: 'BROKEN' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  describe('post report entity', () => {
+    const variables = {
+      type: 'post',
+      id: 'p1',
+      reason: 'BROKEN',
+      comment: 'Test comment',
+    };
+
+    it('should throw not found when cannot find post', () => {
+      loggedUser = '1';
+      return testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: { ...variables, id: 'invalid' },
+        },
+        'NOT_FOUND',
+      );
+    });
+
+    it('should throw error when user cannot access the post', async () => {
+      loggedUser = '1';
+      await con.getRepository(Source).update({ id: 'a' }, { private: true });
+      return testMutationErrorCode(
+        client,
+        { mutation: MUTATION, variables },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should report post with comment', async () => {
+      loggedUser = '1';
+      const res = await client.mutate(MUTATION, { variables });
+      expect(res.errors).toBeFalsy();
+      const actualUserPost = await con.getRepository(UserPost).findOneBy({
+        userId: loggedUser,
+        postId: 'p1',
+      });
+      expect(actualUserPost).toMatchObject({
+        userId: loggedUser,
+        postId: 'p1',
+        hidden: true,
+      });
+      expect(
+        await con
+          .getRepository(PostReport)
+          .findOneBy({ userId: loggedUser, postId: 'p1' }),
+      ).toEqual({
+        postId: 'p1',
+        userId: '1',
+        createdAt: expect.anything(),
+        reason: 'BROKEN',
+        tags: null,
+        comment: 'Test comment',
+      });
+    });
+
+    it('should report post without comment', async () => {
+      loggedUser = '1';
+      const res = await client.mutate(MUTATION, {
+        variables: { ...variables, comment: undefined },
+      });
+      expect(res.errors).toBeFalsy();
+      const actualUserPost = await con.getRepository(UserPost).findOneBy({
+        userId: loggedUser,
+        postId: 'p1',
+      });
+      expect(actualUserPost).toMatchObject({
+        userId: loggedUser,
+        postId: 'p1',
+        hidden: true,
+      });
+      expect(
+        await con
+          .getRepository(PostReport)
+          .findOneBy({ userId: loggedUser, postId: 'p1' }),
+      ).toEqual({
+        postId: 'p1',
+        userId: '1',
+        createdAt: expect.anything(),
+        reason: 'BROKEN',
+        tags: null,
+        comment: null,
+      });
+    });
+
+    it('should ignore conflicts', async () => {
+      loggedUser = '1';
+      await con.getRepository(UserPost).save({
+        userId: loggedUser,
+        postId: 'p1',
+        hidden: true,
+      });
+      const res = await client.mutate(MUTATION, { variables });
+      expect(res.errors).toBeFalsy();
+      const actualUserPost = await con.getRepository(UserPost).findOneBy({
+        userId: loggedUser,
+        postId: 'p1',
+      });
+      expect(actualUserPost).toMatchObject({
+        userId: loggedUser,
+        postId: 'p1',
+        hidden: true,
+      });
+    });
+
+    it('should save all the irrelevant tags', async () => {
+      loggedUser = '1';
+      const tags = ['js', 'react'];
+      const res = await client.mutate(MUTATION, {
+        variables: {
+          ...variables,
+          comment: undefined,
+          reason: 'IRRELEVANT',
+          tags,
+        },
+      });
+      expect(res.errors).toBeFalsy();
+      const actualUserPost = await con.getRepository(UserPost).findOneBy({
+        userId: loggedUser,
+        postId: 'p1',
+      });
+      expect(actualUserPost).toMatchObject({
+        userId: loggedUser,
+        postId: 'p1',
+        hidden: true,
+      });
+      expect(
+        await con
+          .getRepository(PostReport)
+          .findOneBy({ userId: loggedUser, postId: 'p1' }),
+      ).toEqual({
+        postId: 'p1',
+        userId: '1',
+        createdAt: expect.anything(),
+        reason: 'IRRELEVANT',
+        tags,
+        comment: null,
+      });
+    });
+
+    it('should throw an error if there is no irrelevant tags when the reason is IRRELEVANT', async () => {
+      loggedUser = '1';
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: { ...variables, tags: [], reason: 'IRRELEVANT' },
+        },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+
+      return testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: { ...variables, id: 'p1', reason: 'IRRELEVANT' },
+        },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should save report if post is hidden already', async () => {
+      loggedUser = '1';
+      await con.getRepository(UserPost).save({
+        userId: loggedUser,
+        postId: 'p1',
+        hidden: true,
+      });
+      const res = await client.mutate(MUTATION, { variables });
+      expect(res.errors).toBeFalsy();
+      const actual = await con.getRepository(PostReport).findOne({
+        where: { userId: loggedUser },
+        select: ['postId', 'userId'],
+      });
+      expect(actual).toEqual({
+        postId: 'p1',
+        userId: '1',
+      });
+    });
+  });
+
+  describe('source report entity', () => {
+    const variables = {
+      type: 'source',
+      id: 'a',
+      reason: 'SPAM',
+      comment: 'Test comment',
+    };
+
+    it('should throw not found when cannot find source', () => {
+      loggedUser = '1';
+      return testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: { ...variables, id: 'invalid' },
+        },
+        'NOT_FOUND',
+      );
+    });
+
+    it('should throw error when user cannot access the source', async () => {
+      loggedUser = '1';
+      await con.getRepository(Source).update({ id: 'a' }, { private: true });
+      return testMutationErrorCode(
+        client,
+        { mutation: MUTATION, variables },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should report private source as a member', async () => {
+      loggedUser = '1';
+      await con.getRepository(Source).update({ id: 'a' }, { private: true });
+      await con.getRepository(SourceMember).save({
+        userId: loggedUser,
+        sourceId: 'a',
+        role: SourceMemberRoles.Member,
+        referralToken: 't1',
+      });
+      const res = await client.mutate(MUTATION, { variables });
+      expect(res.errors).toBeFalsy();
+
+      const report = await con
+        .getRepository(SourceReport)
+        .findOneBy({ userId: loggedUser, sourceId: 'a' });
+
+      expect(report).toEqual({
+        sourceId: 'a',
+        userId: '1',
+        createdAt: expect.anything(),
+        reason: 'SPAM',
+        comment: 'Test comment',
+      });
+    });
+
+    it('should report source with comment', async () => {
+      loggedUser = '1';
+      const res = await client.mutate(MUTATION, { variables });
+      expect(res.errors).toBeFalsy();
+
+      const report = await con
+        .getRepository(SourceReport)
+        .findOneBy({ userId: loggedUser, sourceId: 'a' });
+
+      expect(report).toEqual({
+        sourceId: 'a',
+        userId: '1',
+        createdAt: expect.anything(),
+        reason: 'SPAM',
+        comment: 'Test comment',
+      });
+    });
+
+    it('should report source without comment', async () => {
+      loggedUser = '1';
+      const res = await client.mutate(MUTATION, {
+        variables: { ...variables, comment: undefined },
+      });
+      expect(res.errors).toBeFalsy();
+
+      const report = await con
+        .getRepository(SourceReport)
+        .findOneBy({ userId: loggedUser, sourceId: 'a' });
+
+      expect(report).toEqual({
+        sourceId: 'a',
+        userId: '1',
+        createdAt: expect.anything(),
+        reason: 'SPAM',
+        comment: null,
+      });
+    });
+  });
+
+  describe('comment report entity', () => {
+    const variables = {
+      type: 'comment',
+      id: 'c1',
+      reason: 'HATEFUL',
+      comment: 'Test comment',
+    };
+
+    it('should throw not found when cannot find comment', () => {
+      loggedUser = '1';
+      return testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: { ...variables, id: 'invalid' },
+        },
+        'NOT_FOUND',
+      );
+    });
+
+    it('should report comment with note', async () => {
+      loggedUser = '1';
+      const res = await client.mutate(MUTATION, { variables });
+      expect(res.errors).toBeFalsy();
+      const comment = await con
+        .getRepository(CommentReport)
+        .findOneBy({ commentId: 'c1' });
+      expect(comment).toEqual({
+        commentId: 'c1',
+        userId: '1',
+        createdAt: expect.anything(),
+        reason: 'HATEFUL',
+        note: 'Test comment',
+      });
+    });
+
+    it('should report comment without note', async () => {
+      loggedUser = '1';
+      const res = await client.mutate(MUTATION, {
+        variables: { type: 'comment', id: 'c1', reason: 'HATEFUL' },
+      });
+      expect(res.errors).toBeFalsy();
+      const comment = await con
+        .getRepository(CommentReport)
+        .findOneBy({ commentId: 'c1' });
+      expect(comment).toEqual({
+        commentId: 'c1',
+        userId: '1',
+        createdAt: expect.anything(),
+        reason: 'HATEFUL',
+        note: null,
+      });
+    });
+
+    it('should ignore conflicts', async () => {
+      loggedUser = '1';
+      const res1 = await client.mutate(MUTATION, {
+        variables: { type: 'comment', id: 'c1', reason: 'HATEFUL' },
+      });
+      expect(res1.errors).toBeFalsy();
+      const comment = await con
+        .getRepository(CommentReport)
+        .findOneBy({ commentId: 'c1' });
+      expect(comment).toEqual({
+        commentId: 'c1',
+        userId: '1',
+        createdAt: expect.anything(),
+        reason: 'HATEFUL',
+        note: null,
+      });
+      const res2 = await client.mutate(MUTATION, {
+        variables: { type: 'comment', id: 'c1', reason: 'HATEFUL' },
+      });
+      expect(res2.errors).toBeFalsy();
     });
   });
 });

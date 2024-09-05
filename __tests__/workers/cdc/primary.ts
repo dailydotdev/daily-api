@@ -133,6 +133,7 @@ import {
   cancelReminderWorkflow,
   runReminderWorkflow,
 } from '../../../src/temporal/notifications/utils';
+import { ReportReason } from '../../../src/entity/common';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -1516,7 +1517,7 @@ describe('comment report', () => {
     userId: 'u1',
     commentId: 'c1',
     createdAt: 0,
-    reason: 'MISINFORMATION',
+    reason: ReportReason.Misinformation,
     note: 'Test note',
   };
 
@@ -1560,7 +1561,7 @@ describe('post report', () => {
     userId: 'u1',
     postId: 'p1',
     createdAt: 0,
-    reason: 'BROKEN',
+    reason: ReportReason.Broken,
     comment: 'Test comment',
   };
 

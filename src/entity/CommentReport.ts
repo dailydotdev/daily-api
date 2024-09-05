@@ -1,5 +1,6 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import type { User } from './user';
+import { ReportReason } from './common';
 
 @Entity()
 export class CommentReport {
@@ -13,8 +14,8 @@ export class CommentReport {
   @Column({ default: () => 'now()' })
   createdAt: Date;
 
-  @Column({ length: 36 })
-  reason: string;
+  @Column({ length: 36, type: 'varchar' })
+  reason: ReportReason;
 
   @Column({ type: 'text', nullable: true })
   note: string;

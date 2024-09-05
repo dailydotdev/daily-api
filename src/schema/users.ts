@@ -99,6 +99,8 @@ import { UserCompany } from '../entity/UserCompany';
 import { generateVerifyCode } from '../ids';
 import { validateUserUpdate } from '../entity/user/utils';
 import { getRestoreStreakCache } from '../workers/cdc/primary';
+import { ReportEntity, ReportReason } from '../entity/common';
+import { reportFunctionMap } from '../common/reporting';
 import { format } from 'date-fns';
 
 export interface GQLUpdateUserInput {
@@ -215,6 +217,14 @@ export interface GQLUserPersonalizedDigest {
   preferredHour: number;
   type: UserPersonalizedDigestType;
   flags: UserPersonalizedDigestFlagsPublic;
+}
+
+export interface SendReportArgs {
+  type: ReportEntity;
+  id: string;
+  reason: ReportReason;
+  comment?: string;
+  tags?: string[];
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -624,6 +634,10 @@ export const typeDefs = /* GraphQL */ `
 
   ${toGQLEnum(UserVoteEntity, 'UserVoteEntity')}
 
+  ${toGQLEnum(ReportReason, 'ReportReason')}
+
+  ${toGQLEnum(ReportEntity, 'ReportEntity')}
+
   type UserIntegration {
     id: ID!
     type: String!
@@ -925,6 +939,32 @@ export const typeDefs = /* GraphQL */ `
       Vote type
       """
       vote: Int!
+    ): EmptyResponse @auth
+
+    """
+    When a user tries to report an entity. The entity can be either post/comment/source or user when we get there
+    """
+    sendReport(
+      """
+      The entity the user is trying to report
+      """
+      type: ReportEntity!
+      """
+      The id of the entity the user is trying to report
+      """
+      id: ID!
+      """
+      The reason the user is reporting the entity
+      """
+      reason: ReportReason!
+      """
+      Additional information the user wants to provide
+      """
+      comment: String
+      """
+      Tags associated with the report
+      """
+      tags: [String]
     ): EmptyResponse @auth
 
     """
@@ -2055,6 +2095,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       return { ...streak, current: currentStreak, max: maxStreak };
+    },
+    sendReport: async (
+      _,
+      { type, ...args }: SendReportArgs,
+      ctx: AuthContext,
+    ) => {
+      const reportCommand = reportFunctionMap[type];
+
+      if (!reportCommand) {
+        throw new ValidationError('Unsupported report entity');
+      }
+
+      return reportCommand({ ...args, ctx });
     },
   },
   User: {
