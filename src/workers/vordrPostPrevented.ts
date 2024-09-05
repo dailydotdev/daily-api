@@ -23,6 +23,7 @@ export const vordrPostPrevented: TypedWorker<'api.v1.post-visible'> = {
 
       const author = await post.author;
       const scout = await post.scout;
+      const source = await post.source;
       const sharedPost =
         post.type === PostType.Share
           ? await (post as SharePost).sharedPost
@@ -36,7 +37,7 @@ export const vordrPostPrevented: TypedWorker<'api.v1.post-visible'> = {
         return;
       }
 
-      await notifyNewVordrPost(post, author, scout, sharedPost);
+      await notifyNewVordrPost(post, author, scout, sharedPost, source);
     } catch (originalError) {
       const err = originalError as TypeORMQueryFailedError;
 
