@@ -385,7 +385,7 @@ if (isAdhocEnv) {
       env: [...jwtEnv],
       args: ['dumb-init', 'node', 'bin/cli', 'personalized-digest'],
       minReplicas: 1,
-      maxReplicas: 1,
+      maxReplicas: 2,
       limits: { memory: '1Gi' },
       requests: {
         cpu: '1',
@@ -394,7 +394,7 @@ if (isAdhocEnv) {
       metric: {
         type: 'pubsub',
         labels: { app: name, subapp: 'personalized-digest' },
-        targetAverageValue: 1000,
+        targetAverageValue: 100_000,
       },
       ...vols,
       // ports: [{ containerPort: 9464, name: 'metrics' }],
