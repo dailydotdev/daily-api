@@ -65,11 +65,30 @@ const garmFeedService = new GarmrService({
   },
 });
 
+const garmLofnService = new GarmrService({
+  service: LofnClient.name,
+  breakerOpts: {
+    halfOpenAfter: 10 * 1000,
+    threshold: 0.1,
+    duration: 1000,
+    minimumRps: 1,
+  },
+  limits: {
+    maxRequests: 50,
+    queuedRequests: 50,
+  },
+  retryOpts: {
+    maxAttempts: 0,
+  },
+});
+
 export const snotraClient = new SnotraClient();
 export const feedClient = new FeedClient(process.env.INTERNAL_FEED, {
   garmr: garmFeedService,
 });
-export const lofnClient = new LofnClient();
+export const lofnClient = new LofnClient(process.env.LOFN_ORIGIN, {
+  garmr: garmLofnService,
+});
 export const popularFeedClient = new FeedClient(process.env.POPULAR_FEED, {
   garmr: garmFeedService,
 });
