@@ -1313,7 +1313,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return {
         canRecover: true,
         oldStreakLength,
-        cost,
+        cost: Math.abs(cost),
       };
     },
     userReads: async (): Promise<number> => {

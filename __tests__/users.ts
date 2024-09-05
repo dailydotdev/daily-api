@@ -748,6 +748,10 @@ describe('streak recover query', () => {
     }
   }`;
 
+  beforeEach(async () => {
+    await ioRedisPool.execute((client) => client.flushall());
+  });
+
   it('should return recover data when user fetch query', async () => {
     nock('http://localhost:5000').post('/e').reply(204);
     loggedUser = '1';
@@ -797,8 +801,42 @@ describe('streak recover query', () => {
     expect(errors).toBeFalsy();
     expect(data.streakRecover.canRecover).toBeTruthy();
     expect(data.streakRecover.oldStreakLength).toBe(oldLength);
+    expect(data.streakRecover.cost).toBe(0);
+  });
 
-    await deleteRedisKey(redisKey);
+  it('should allow recover when user has streak but greater value on the second time', async () => {
+    loggedUser = '1';
+    const oldLength = 5;
+    await con.getRepository(UserStreak).save({
+      userId: loggedUser,
+      currentStreak: 0,
+      lastViewAt: subDays(new Date(), 2),
+    });
+    await con.getRepository(UserStreakAction).save([
+      {
+        userId: loggedUser,
+        type: UserStreakActionType.Recover,
+        createdAt: subDays(new Date(), 4),
+      },
+    ]);
+
+    // insert redis key with old streak length
+    const redisKey = generateStorageKey(
+      StorageTopic.Streak,
+      StorageKey.Reset,
+      loggedUser,
+    );
+    await setRedisObjectWithExpiry(
+      redisKey,
+      oldLength,
+      addDays(new Date(), 1).getTime(),
+    );
+
+    const { data, errors } = await client.query(QUERY);
+    expect(errors).toBeFalsy();
+    expect(data.streakRecover.canRecover).toBeTruthy();
+    expect(data.streakRecover.oldStreakLength).toBe(oldLength);
+    expect(data.streakRecover.cost).toBe(25);
   });
 });
 
@@ -888,8 +926,6 @@ describe('streak recovery mutation', () => {
         'Not enough reputation to recover streak',
       );
     });
-
-    await deleteRedisKey(redisKey);
   });
 
   it('should recover the streak if user has enough reputation', async () => {
