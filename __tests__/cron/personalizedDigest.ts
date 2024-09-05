@@ -12,7 +12,7 @@ import {
   digestPreferredHourOffset,
   notifyGeneratePersonalizedDigest,
 } from '../../src/common';
-import { format, setDay, startOfHour } from 'date-fns';
+import { addDays, format, setDay, setHours, startOfHour } from 'date-fns';
 import { logger } from '../../src/logger';
 import { getTimezoneOffset } from 'date-fns-tz';
 import { crons } from '../../src/cron/index';
@@ -125,11 +125,15 @@ describe('personalizedDigest cron', () => {
     const usersToSchedule = usersFixture;
 
     const fakePreferredDay = 3;
+    const fakeDate = setHours(
+      new Date('2024-09-11T10:32:42.680Z'),
+      fakePreferredHour - digestPreferredHourOffset,
+    );
     jest
       .useFakeTimers({
         doNotFake,
       })
-      .setSystemTime(new Date('2024-09-11T10:32:42.680Z'));
+      .setSystemTime(fakeDate);
 
     digestTime = format(new Date(), 'yyyy-MM-dd HH:mm:ss');
 
@@ -174,14 +178,17 @@ describe('personalizedDigest cron', () => {
     const [, ...usersToSchedule] = usersFixture;
 
     const fakePreferredDay = 3;
+    const fakeDate = setHours(
+      new Date('2024-09-11T10:32:42.680Z'),
+      fakePreferredHour - digestPreferredHourOffset,
+    );
     jest
       .useFakeTimers({
         doNotFake,
       })
-      .setSystemTime(new Date('2024-09-11T10:32:42.680Z'));
+      .setSystemTime(fakeDate);
 
-    const fakeDate = new Date('2024-09-13T10:32:42.680Z');
-    digestTime = format(fakeDate, 'yyyy-MM-dd HH:mm:ss');
+    digestTime = format(addDays(new Date(), 2), 'yyyy-MM-dd HH:mm:ss');
 
     await con.getRepository(UserPersonalizedDigest).save(
       usersToSchedule.map((item) => ({
