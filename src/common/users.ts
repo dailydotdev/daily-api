@@ -13,7 +13,7 @@ import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
 import { GraphQLResolveInfo } from 'graphql';
 import { utcToZonedTime } from 'date-fns-tz';
 import { sendAnalyticsEvent } from '../integrations/analytics';
-import { DayOfWeek, DEFAULT_WEEK_START } from './date';
+import { DayOfWeek, DEFAULT_TIMEZONE, DEFAULT_WEEK_START } from './date';
 import { ChangeObject, ContentLanguage } from '../types';
 import { checkRestoreValidity } from './streak';
 
@@ -546,7 +546,7 @@ export const shouldAllowRestore = async (
 ) => {
   const { userId, lastViewAt: lastViewAtDb } = streak;
   const user = await con.getRepository(DbUser).findOneBy({ id: userId });
-  const timezone = user.timezone || 'utc';
+  const timezone = user.timezone || DEFAULT_TIMEZONE;
   const today = utcToZonedTime(new Date(), timezone);
   const lastView = utcToZonedTime(new Date(lastViewAtDb), timezone);
   const lastRecovery = await getLastStreakRecoverDate(con, userId);
