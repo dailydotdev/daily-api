@@ -119,3 +119,11 @@ export async function retryFetchParse<T>(
   const res = await retryFetch(url, fetchOpts, retryOpts);
   return res.json();
 }
+
+export async function fetchParse<T>(
+  url: RequestInfo,
+  fetchOpts: RequestInit,
+): Promise<T> {
+  const res = await fetch(url, fetchOpts);
+  return res.json() as T;
+}
