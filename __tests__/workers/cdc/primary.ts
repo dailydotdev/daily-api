@@ -3716,6 +3716,45 @@ describe('user streak change', () => {
       const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
       expect(alert.showRecoverStreak).toEqual(true);
     });
+
+    it('should set cache of previous streak for recovery considering the timezone', async () => {
+      jest
+        .useFakeTimers({ doNotFake })
+        .setSystemTime(new Date('2024-09-05T18:32:53')); // Thursday UTC - Friday Asia/Manila
+      const lastViewAt = new Date('2024-09-04T14:24:32'); // Wednesday
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        lastViewAt: lastViewAt.toISOString() as never,
+        currentStreak: 0,
+      };
+      await con
+        .getRepository(User)
+        .update({ id: '1' }, { timezone: 'Asia/Manila' });
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: {
+            ...base,
+            ...dates,
+            lastViewAt: lastViewAt.toISOString() as never,
+            currentStreak: 3,
+          },
+          op: 'u',
+          table: 'user_streak',
+        }),
+      );
+
+      const lastStreak = await getRestoreStreakCache({ userId: after.userId });
+      expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+      expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+        'api.v1.user-streak-updated',
+        { streak: after },
+      ]);
+      expect(lastStreak).toEqual(3);
+      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      expect(alert.showRecoverStreak).toEqual(true);
+    });
   });
 
   describe('streak recovery with Sunday as start of the week', () => {
