@@ -13,6 +13,7 @@ export const vordrPostPrevented: TypedWorker<'api.v1.post-visible'> = {
         relations: {
           author: true,
           scout: true,
+          source: true,
         },
       });
 
