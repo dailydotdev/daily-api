@@ -1,5 +1,5 @@
 import { IncomingWebhook } from '@slack/webhook';
-import { Post, Comment, User, Source } from '../entity';
+import { Post, Comment, User } from '../entity';
 import { getDiscussionLink } from './links';
 import { NotFoundError } from '../errors';
 import { DataSource } from 'typeorm';
@@ -102,8 +102,6 @@ export const notifyNewVordrPost = async (
   post: Post,
   author?: User,
   scout?: User,
-  sharedPost?: Post,
-  source?: Source,
 ): Promise<void> => {
   const getUser = (title: string, user?: User) =>
     user
@@ -137,7 +135,7 @@ export const notifyNewVordrPost = async (
     text: 'New post prevented by vordr',
     attachments: [
       {
-        title: post.title ?? sharedPost?.title,
+        title: post.title!,
         title_link: `${process.env.COMMENTS_PREFIX}/posts/${post.id}`,
         fields: [
           {
@@ -145,9 +143,8 @@ export const notifyNewVordrPost = async (
             value: post.type,
             short: true,
           },
-          ...(source ? [{ title: 'Source Name', value: source.name }] : []),
           {
-            title: 'Source ID',
+            title: 'Source',
             value: post.sourceId,
             short: true,
           },

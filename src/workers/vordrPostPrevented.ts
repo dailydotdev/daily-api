@@ -1,5 +1,5 @@
 import { TypedWorker } from './worker';
-import { Post, PostType, SharePost } from '../entity';
+import { Post } from '../entity';
 import { notifyNewVordrPost } from '../common';
 import { TypeORMQueryFailedError } from '../errors';
 import { logger } from '../logger';
@@ -13,7 +13,6 @@ export const vordrPostPrevented: TypedWorker<'api.v1.post-visible'> = {
         relations: {
           author: true,
           scout: true,
-          source: true,
         },
       });
 
@@ -24,11 +23,6 @@ export const vordrPostPrevented: TypedWorker<'api.v1.post-visible'> = {
 
       const author = await post.author;
       const scout = await post.scout;
-      const source = await post.source;
-      const sharedPost =
-        post.type === PostType.Share
-          ? await (post as SharePost).sharedPost
-          : null;
 
       if (!post.flags?.vordr) {
         return;
@@ -38,7 +32,7 @@ export const vordrPostPrevented: TypedWorker<'api.v1.post-visible'> = {
         return;
       }
 
-      await notifyNewVordrPost(post, author, scout, sharedPost, source);
+      await notifyNewVordrPost(post, author, scout);
     } catch (originalError) {
       const err = originalError as TypeORMQueryFailedError;
 
