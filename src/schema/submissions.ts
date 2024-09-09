@@ -1,5 +1,11 @@
 import { DataSource } from 'typeorm';
-import { ArticlePost, Submission, User } from './../entity';
+import {
+  ArticlePost,
+  Feature,
+  FeatureType,
+  Submission,
+  User,
+} from './../entity';
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, Context } from '../Context';
@@ -128,9 +134,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLSubmitArticleResponse> => {
-      const user = await ctx
-        .getRepository(User)
-        .findOneByOrFail({ id: ctx.userId });
+      const [user, isTeamMember] = await Promise.all([
+        ctx.getRepository(User).findOneByOrFail({ id: ctx.userId }),
+        ctx.con
+          .getRepository(Feature)
+          .findOneBy({ feature: FeatureType.Team, userId: ctx.userId }),
+      ]);
+
+      const submissionRepo = ctx.con.getRepository(Submission);
 
       if (!hasSubmissionAccess(user)) {
         return {
@@ -139,10 +150,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         };
       }
 
-      const submissionRepo = ctx.con.getRepository(Submission);
+      const limit = isTeamMember ? Infinity : submissionLimit;
       const submissionsToday = await getSubmissionsToday(ctx.con, user);
 
-      if (submissionsToday.length >= submissionLimit) {
+      if (submissionsToday.length >= limit) {
         return {
           result: 'rejected',
           reason: SubmissionFailErrorMessage.LIMIT_REACHED,
