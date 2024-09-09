@@ -1699,7 +1699,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }
       }
 
-      return null;
+      return [];
       // Temporary turn off due to heavy query
       return legacySimilarPostsResolver(source, args, ctx, info);
     },
