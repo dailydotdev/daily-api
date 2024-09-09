@@ -80,7 +80,7 @@ config:
     typeormDatabase: api
     typeormHost: postgres
     typeormPassword: 12345
-    typeormUsername: postgres
+    typeormUser: postgres
     tz: UTC
     urlPrefix: http://api.local.com
     vordrIps: ""
