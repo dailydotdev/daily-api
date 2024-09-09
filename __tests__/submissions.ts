@@ -4,6 +4,8 @@ import {
   User,
   Submission,
   SubmissionStatus,
+  Feature,
+  FeatureType,
 } from '../src/entity';
 import {
   disposeGraphQLTesting,
@@ -220,6 +222,34 @@ describe('mutation submitArticle', () => {
         post: null,
         submission: null,
       },
+    });
+  });
+
+  it('should not invalidate if the user has reached limit but is team member', async () => {
+    loggedUser = '1';
+    await con.getRepository(Feature).insert({
+      feature: FeatureType.Team,
+      userId: '1',
+      value: 1,
+    });
+    const request = 'https://abc.com/article';
+    const repo = con.getRepository(Submission);
+    await repo.save(repo.create({ url: `${request}1`, userId: loggedUser }));
+    await repo.save(repo.create({ url: `${request}2`, userId: loggedUser }));
+    await repo.save(repo.create({ url: `${request}3`, userId: loggedUser }));
+    await repo.save(repo.create({ url: `${request}4`, userId: loggedUser }));
+    await repo.save(repo.create({ url: `${request}5`, userId: loggedUser }));
+
+    const res = await client.mutate(MUTATION, { variables: { url: request } });
+    expect(res.errors).toBeFalsy();
+    const submission = await con
+      .getRepository(Submission)
+      .findOneBy({ url: request });
+    expect(submission.status).toEqual(SubmissionStatus.Started);
+    expect(res.data.submitArticle.submission).toEqual({
+      id: submission.id,
+      status: 'STARTED',
+      userId: '1',
     });
   });
 

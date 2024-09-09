@@ -1,5 +1,11 @@
 import { DataSource } from 'typeorm';
-import { ArticlePost, Submission, User } from './../entity';
+import {
+  ArticlePost,
+  Feature,
+  FeatureType,
+  Submission,
+  User,
+} from './../entity';
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, Context } from '../Context';
@@ -132,21 +138,28 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .getRepository(User)
         .findOneByOrFail({ id: ctx.userId });
 
-      if (!hasSubmissionAccess(user)) {
-        return {
-          result: 'rejected',
-          reason: SubmissionFailErrorMessage.ACCESS_DENIED,
-        };
-      }
+      const isTeamMember = await ctx.con
+        .getRepository(Feature)
+        .findOneBy({ feature: FeatureType.Team, userId: ctx.userId });
 
       const submissionRepo = ctx.con.getRepository(Submission);
-      const submissionsToday = await getSubmissionsToday(ctx.con, user);
 
-      if (submissionsToday.length >= submissionLimit) {
-        return {
-          result: 'rejected',
-          reason: SubmissionFailErrorMessage.LIMIT_REACHED,
-        };
+      if (!isTeamMember) {
+        if (!hasSubmissionAccess(user)) {
+          return {
+            result: 'rejected',
+            reason: SubmissionFailErrorMessage.ACCESS_DENIED,
+          };
+        }
+
+        const submissionsToday = await getSubmissionsToday(ctx.con, user);
+
+        if (submissionsToday.length >= submissionLimit) {
+          return {
+            result: 'rejected',
+            reason: SubmissionFailErrorMessage.LIMIT_REACHED,
+          };
+        }
       }
 
       const cleanUrl = standardizeURL(url);
