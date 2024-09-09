@@ -134,32 +134,30 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLSubmitArticleResponse> => {
-      const user = await ctx
-        .getRepository(User)
-        .findOneByOrFail({ id: ctx.userId });
-
-      const isTeamMember = await ctx.con
-        .getRepository(Feature)
-        .findOneBy({ feature: FeatureType.Team, userId: ctx.userId });
+      const [user, isTeamMember] = await Promise.all([
+        ctx.getRepository(User).findOneByOrFail({ id: ctx.userId }),
+        ctx.con
+          .getRepository(Feature)
+          .findOneBy({ feature: FeatureType.Team, userId: ctx.userId }),
+      ]);
 
       const submissionRepo = ctx.con.getRepository(Submission);
 
-      if (!isTeamMember) {
-        if (!hasSubmissionAccess(user)) {
-          return {
-            result: 'rejected',
-            reason: SubmissionFailErrorMessage.ACCESS_DENIED,
-          };
-        }
+      if (!hasSubmissionAccess(user)) {
+        return {
+          result: 'rejected',
+          reason: SubmissionFailErrorMessage.ACCESS_DENIED,
+        };
+      }
 
-        const submissionsToday = await getSubmissionsToday(ctx.con, user);
+      const limit = isTeamMember ? Infinity : submissionLimit;
+      const submissionsToday = await getSubmissionsToday(ctx.con, user);
 
-        if (submissionsToday.length >= submissionLimit) {
-          return {
-            result: 'rejected',
-            reason: SubmissionFailErrorMessage.LIMIT_REACHED,
-          };
-        }
+      if (submissionsToday.length >= limit) {
+        return {
+          result: 'rejected',
+          reason: SubmissionFailErrorMessage.LIMIT_REACHED,
+        };
       }
 
       const cleanUrl = standardizeURL(url);
