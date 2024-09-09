@@ -1698,6 +1698,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           });
         }
       }
+
+      return null;
+      // Temporary turn off due to heavy query
       return legacySimilarPostsResolver(source, args, ctx, info);
     },
     randomDiscussedPosts: randomPostsResolver(
