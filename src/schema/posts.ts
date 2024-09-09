@@ -44,7 +44,6 @@ import {
   Post,
   PostFlagsPublic,
   PostMention,
-  PostReport,
   PostType,
   Toc,
   UserActionType,
@@ -88,6 +87,8 @@ import { insertOrIgnoreAction } from './actions';
 import { generateShortId, generateUUID } from '../ids';
 import { generateStorageKey, StorageTopic } from '../config';
 import { subDays } from 'date-fns';
+import { ReportReason } from '../entity/common';
+import { reportPost, saveHiddenPost } from '../common/reporting';
 import { PostCodeSnippetLanguage, UserVote } from '../types';
 import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
 
@@ -191,7 +192,7 @@ export const getPostNotification = async (
 
 interface ReportPostArgs {
   id: string;
-  reason: string;
+  reason: ReportReason;
   comment: string;
   tags?: string[];
 }
@@ -1014,49 +1015,7 @@ const nullableImageType = [
   PostType.Collection,
 ];
 
-const saveHiddenPost = async (
-  con: DataSource,
-  {
-    postId,
-    userId,
-  }: {
-    postId: string;
-    userId: string;
-  },
-): Promise<boolean> => {
-  try {
-    await con.transaction(async (entityManager) => {
-      await entityManager.getRepository(UserPost).save({
-        postId,
-        userId,
-        hidden: true,
-      });
-    });
-  } catch (originalError) {
-    const err = originalError as TypeORMQueryFailedError;
-
-    // Foreign key violation
-    if (err?.code === TypeOrmError.FOREIGN_KEY) {
-      throw new NotFoundError('Post not found');
-    }
-    // Unique violation
-    if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
-      throw err;
-    }
-  }
-  return true;
-};
-
 const editablePostTypes = [PostType.Welcome, PostType.Freeform];
-
-export const reportReasons = new Map([
-  ['BROKEN', '💔 Link is broken'],
-  ['NSFW', '🔞 Post is NSFW'],
-  ['CLICKBAIT', '🎣 Clickbait!!!'],
-  ['LOW', '💩 Low quality content'],
-  ['OTHER', '🤔 Other'],
-  ['IRRELEVANT', `Post's tags are irrelevant`],
-]);
 
 export const getPostPermalink = (post: Pick<GQLPost, 'shortId'>): string =>
   `${process.env.URL_PREFIX}/r/${post.shortId}`;
@@ -1394,40 +1353,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { id, reason, comment, tags }: ReportPostArgs,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      if (!reportReasons.has(reason)) {
-        throw new ValidationError('Reason is invalid');
-      }
+      await reportPost({ ctx, id, reason, comment, tags });
 
-      if (reason === 'IRRELEVANT' && !tags?.length) {
-        throw new ValidationError('You must include the irrelevant tags!');
-      }
-
-      const added = await saveHiddenPost(ctx.con, {
-        userId: ctx.userId,
-        postId: id,
-      });
-
-      if (added) {
-        const post = await ctx.getRepository(Post).findOneByOrFail({ id });
-        await ensureSourcePermissions(ctx, post.sourceId);
-        if (!post.banned) {
-          try {
-            await ctx.getRepository(PostReport).insert({
-              postId: id,
-              userId: ctx.userId,
-              reason,
-              comment,
-              tags,
-            });
-          } catch (originalError) {
-            const err = originalError as TypeORMQueryFailedError;
-
-            if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
-              throw new Error('Failed to save report to database');
-            }
-          }
-        }
-      }
       return { _: true };
     },
     uploadContentImage: async (

@@ -84,11 +84,9 @@ import { ChangeMessage, ChangeObject, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import { PostReport, ContentImage } from '../../entity';
-import { reportReasons } from '../../schema/posts';
 import { updateAlerts } from '../../schema/alerts';
 import { TypeOrmError, TypeORMQueryFailedError } from '../../errors';
 import { CommentReport } from '../../entity/CommentReport';
-import { reportCommentReasons } from '../../schema/comments';
 import { getTableName, isChanged, notifyPostContentUpdated } from './common';
 import { UserComment } from '../../entity/user/UserComment';
 import {
@@ -108,6 +106,10 @@ import {
   runReminderWorkflow,
 } from '../../temporal/notifications/utils';
 import { addDays } from 'date-fns';
+import {
+  postReportReasonsMap,
+  reportCommentReasonsMap,
+} from '../../entity/common';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -584,7 +586,7 @@ const onPostReportChange = async (
       await notifyPostReport(
         data.payload.after!.userId,
         post,
-        reportReasons.get(data.payload.after!.reason)!,
+        postReportReasonsMap.get(data.payload.after!.reason)!,
         data.payload.after!.comment,
         data.payload.after!.tags,
       );
@@ -605,7 +607,7 @@ const onCommentReportChange = async (
       await notifyCommentReport(
         data.payload.after!.userId,
         comment,
-        reportCommentReasons.get(data.payload.after!.reason)!,
+        reportCommentReasonsMap.get(data.payload.after!.reason)!,
         data.payload.after!.note,
       );
     }

@@ -48,6 +48,7 @@ import { UserComment } from '../../src/entity/user/UserComment';
 import { workers } from '../../src/workers';
 import { generateStorageKey, StorageKey, StorageTopic } from '../../src/config';
 import { ioRedisPool, setRedisObject } from '../../src/redis';
+import { ReportReason } from '../../src/entity/common';
 
 let con: DataSource;
 
@@ -1199,8 +1200,8 @@ it('should add article report approved notification for every reporter', async (
     '../../src/workers/notifications/articleReportApproved'
   );
   await con.getRepository(PostReport).save([
-    { userId: '1', postId: 'p1', reason: 'NSFW' },
-    { userId: '2', postId: 'p1', reason: 'CLICKBAIT' },
+    { userId: '1', postId: 'p1', reason: ReportReason.Nsfw },
+    { userId: '2', postId: 'p1', reason: ReportReason.Clickbait },
   ]);
   const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
   const actual = await invokeNotificationWorker(worker.default, {

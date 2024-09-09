@@ -97,7 +97,7 @@ export class GarmrService implements IGarmrService {
     });
 
     const bulkheadPolicy = bulkhead(
-      limits?.maxRequests ?? 1000,
+      limits?.maxRequests ?? Infinity,
       limits?.queuedRequests ?? 0,
     );
 

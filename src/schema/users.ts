@@ -27,7 +27,8 @@ import {
   UserStreakAction,
   UserStreakActionType,
   getAuthorPostStats,
-  streakRecoverCost,
+  Alerts,
+  reputationReasonAmount,
 } from '../entity';
 import {
   AuthenticationError,
@@ -98,6 +99,9 @@ import { UserCompany } from '../entity/UserCompany';
 import { generateVerifyCode } from '../ids';
 import { validateUserUpdate } from '../entity/user/utils';
 import { getRestoreStreakCache } from '../workers/cdc/primary';
+import { ReportEntity, ReportReason } from '../entity/common';
+import { reportFunctionMap } from '../common/reporting';
+import { format } from 'date-fns';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -213,6 +217,14 @@ export interface GQLUserPersonalizedDigest {
   preferredHour: number;
   type: UserPersonalizedDigestType;
   flags: UserPersonalizedDigestFlagsPublic;
+}
+
+export interface SendReportArgs {
+  type: ReportEntity;
+  id: string;
+  reason: ReportReason;
+  comment?: string;
+  tags?: string[];
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -622,6 +634,10 @@ export const typeDefs = /* GraphQL */ `
 
   ${toGQLEnum(UserVoteEntity, 'UserVoteEntity')}
 
+  ${toGQLEnum(ReportReason, 'ReportReason')}
+
+  ${toGQLEnum(ReportEntity, 'ReportEntity')}
+
   type UserIntegration {
     id: ID!
     type: String!
@@ -923,6 +939,32 @@ export const typeDefs = /* GraphQL */ `
       Vote type
       """
       vote: Int!
+    ): EmptyResponse @auth
+
+    """
+    When a user tries to report an entity. The entity can be either post/comment/source or user when we get there
+    """
+    sendReport(
+      """
+      The entity the user is trying to report
+      """
+      type: ReportEntity!
+      """
+      The id of the entity the user is trying to report
+      """
+      id: ID!
+      """
+      The reason the user is reporting the entity
+      """
+      reason: ReportReason!
+      """
+      Additional information the user wants to provide
+      """
+      comment: String
+      """
+      Tags associated with the report
+      """
+      tags: [String]
     ): EmptyResponse @auth
 
     """
@@ -1300,18 +1342,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         };
       }
 
-      const recoverCount = await ctx.con
-        .getRepository(UserStreakAction)
-        .countBy({
-          userId,
-          type: UserStreakActionType.Recover,
-        });
-      const cost = recoverCount > 0 ? streakRecoverCost : 0;
+      const hasRecord = await ctx.con.getRepository(UserStreakAction).existsBy({
+        userId,
+        type: UserStreakActionType.Recover,
+      });
+      const cost = hasRecord
+        ? reputationReasonAmount[ReputationReason.StreakRecover]
+        : reputationReasonAmount[ReputationReason.StreakFirstRecovery];
 
       return {
         canRecover: true,
         oldStreakLength,
-        cost,
+        cost: Math.abs(cost),
       };
     },
     userReads: async (): Promise<number> => {
@@ -1993,16 +2035,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('Time to recover streak has passed');
       }
 
-      const [user, lastUserRecoverAction] = await Promise.all([
+      const [user, hasRecord] = await Promise.all([
         ctx.con.getRepository(User).findOneByOrFail({ id: userId }),
-        await ctx.con.getRepository(UserStreakAction).findOneBy({
+        ctx.con.getRepository(UserStreakAction).existsBy({
           userId,
           type: UserStreakActionType.Recover,
         }),
       ]);
-      const isFirstRecover = !lastUserRecoverAction;
-      const recoverCost = isFirstRecover ? 0 : streakRecoverCost;
-      const userCanAfford = user.reputation >= recoverCost;
+      const recoverCost = hasRecord
+        ? reputationReasonAmount[ReputationReason.StreakRecover]
+        : reputationReasonAmount[ReputationReason.StreakFirstRecovery];
+      const userCanAfford = user.reputation >= Math.abs(recoverCost);
 
       if (!userCanAfford) {
         throw new ConflictError('Not enough reputation to recover streak');
@@ -2010,38 +2053,61 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const reputationEvent = {
         grantToId: userId,
-        targetId: userId,
+        targetId: format(new Date(), 'dd-MM-yyyy'),
         targetType: ReputationType.Streak,
-        reason: isFirstRecover
-          ? ReputationReason.StreakFirstRecovery
-          : ReputationReason.StreakRecover,
-        amount: recoverCost * -1,
+        reason: hasRecord
+          ? ReputationReason.StreakRecover
+          : ReputationReason.StreakFirstRecovery,
+        amount: recoverCost,
       };
 
-      await ctx.con.transaction(async (entityManager) => {
-        await entityManager
-          .getRepository(ReputationEvent)
-          .save(reputationEvent);
-        await entityManager.getRepository(UserStreakAction).save({
-          userId,
-          type: UserStreakActionType.Recover,
-        });
-        await entityManager.getRepository(UserStreak).update(
-          {
+      const currentStreak = oldStreakLength + streak.current;
+      const maxStreak = Math.max(currentStreak, streak.max ?? 0);
+
+      await ctx.con.transaction(async (manager) => {
+        const transactions = [
+          manager.getRepository(ReputationEvent).save(reputationEvent),
+          manager.getRepository(UserStreakAction).save({
             userId,
-          },
-          {
-            currentStreak: oldStreakLength + streak.current,
-            maxStreak: Math.max(
-              streak.max ?? 0,
-              oldStreakLength + (streak.current ?? 0),
-            ),
-            updatedAt: new Date(),
-          },
+            type: UserStreakActionType.Recover,
+          }),
+          manager.getRepository(UserStreak).update(
+            { userId },
+            {
+              currentStreak,
+              maxStreak,
+              updatedAt: new Date(),
+            },
+          ),
+          manager
+            .getRepository(Alerts)
+            .update({ userId }, { showRecoverStreak: false }),
+        ];
+
+        await Promise.all(transactions);
+
+        const cacheKey = generateStorageKey(
+          StorageTopic.Streak,
+          StorageKey.Reset,
+          userId,
         );
+        await deleteRedisKey(cacheKey);
       });
 
-      return { ...streak, current: oldStreakLength + streak.current };
+      return { ...streak, current: currentStreak, max: maxStreak };
+    },
+    sendReport: async (
+      _,
+      { type, ...args }: SendReportArgs,
+      ctx: AuthContext,
+    ) => {
+      const reportCommand = reportFunctionMap[type];
+
+      if (!reportCommand) {
+        throw new ValidationError('Unsupported report entity');
+      }
+
+      return reportCommand({ ...args, ctx });
     },
   },
   User: {

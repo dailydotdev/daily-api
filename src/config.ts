@@ -12,7 +12,7 @@ export const fallbackImages = {
 
 export const REDIS_BANNER_KEY = 'boot:latest_banner';
 
-export const DEFAULT_SUBMISSION_LIMIT = '5';
+export const DEFAULT_SUBMISSION_LIMIT = '3';
 export const DEFAULT_SUBMISSION_ACCESS_THRESHOLD = '250';
 
 export const submissionLimit = parseInt(
