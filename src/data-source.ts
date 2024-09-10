@@ -18,7 +18,7 @@ export const AppDataSource = new DataSource({
     master: {
       host: process.env.TYPEORM_HOST || 'localhost',
       port: 5432,
-      username: process.env.TYPEORM_USER || 'postgres',
+      username: process.env.TYPEORM_USERNAME || 'postgres',
       password: process.env.TYPEORM_PASSWORD || '12345',
       database:
         process.env.TYPEORM_DATABASE ||
