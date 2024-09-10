@@ -368,6 +368,36 @@ export const typeDefs = /* GraphQL */ `
     ): SourceConnection!
 
     """
+    Get all available sources from read replica
+    """
+    sourcesReadReplica(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+
+      """
+      Fetch public Squads
+      """
+      filterOpenSquads: Boolean
+
+      """
+      Add filter for featured sources
+      """
+      featured: Boolean
+
+      """
+      Filter by category
+      """
+      categoryId: String
+    ): SourceConnection!
+
+    """
     Get the most recent sources
     """
     mostRecentSources(
@@ -1253,6 +1283,56 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return builder;
         },
       );
+    },
+    sourcesReadReplica: async (
+      _,
+      args: SourcesArgs,
+      ctx: Context,
+      info,
+    ): Promise<Connection<GQLSource>> => {
+      const filter: FindOptionsWhere<Source> = { active: true };
+
+      if (args.filterOpenSquads) {
+        filter.type = SourceType.Squad;
+        filter.private = false;
+      }
+
+      if (args.categoryId) {
+        filter.categoryId = args.categoryId;
+      }
+
+      const page = sourcePageGenerator.connArgsToPage(args);
+      const slaveQueryRunner = ctx.con.createQueryRunner('slave');
+      try {
+        return graphorm.queryPaginated(
+          ctx,
+          info,
+          (nodeSize) => sourcePageGenerator.hasPreviousPage(page, nodeSize),
+          (nodeSize) => sourcePageGenerator.hasNextPage(page, nodeSize),
+          (node, index) =>
+            sourcePageGenerator.nodeToCursor(page, args, node, index),
+          (builder) => {
+            builder.queryBuilder.setQueryRunner(slaveQueryRunner);
+            builder.queryBuilder
+              .andWhere(filter)
+              .limit(page.limit)
+              .offset(page.offset);
+
+            if (!isNullOrUndefined(args.featured)) {
+              builder.queryBuilder.andWhere(
+                `(${builder.alias}.flags->'featured')::boolean = :featured`,
+                {
+                  featured: args.featured,
+                },
+              );
+            }
+
+            return builder;
+          },
+        );
+      } finally {
+        await slaveQueryRunner.release();
+      }
     },
     sourcesByTag: async (
       _,
