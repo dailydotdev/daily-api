@@ -1245,10 +1245,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
           if (!isNullOrUndefined(args.featured)) {
             builder.queryBuilder.andWhere(
-              `(${builder.alias}.flags->'featured')::boolean = :featured`,
-              {
-                featured: args.featured,
-              },
+              `COALESCE((${builder.alias}.flags->'featured')::boolean, FALSE) = :featured`,
+              { featured: args.featured },
             );
           }
 
