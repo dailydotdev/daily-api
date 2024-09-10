@@ -26,11 +26,16 @@ export const AppDataSource = new DataSource({
     },
     slaves: [
       {
-        host: process.env.TYPEORM_READ_HOST || process.env.TYPEORM_HOST,
+        host:
+          process.env.TYPEORM_READ_HOST ||
+          process.env.TYPEORM_HOST ||
+          'localhost',
         port: 5432,
         username: process.env.TYPEORM_READ_USERNAME || 'postgres',
         password:
-          process.env.TYPEORM_READ_PASSWORD || process.env.TYPEORM_PASSWORD,
+          process.env.TYPEORM_READ_PASSWORD ||
+          process.env.TYPEORM_PASSWORD ||
+          '12345',
         database:
           process.env.TYPEORM_READ_DATABASE ||
           (process.env.NODE_ENV === 'test' ? 'api_test' : 'api'),
