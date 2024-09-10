@@ -358,6 +358,8 @@ export const postAuthorsFixture = [
   },
 ];
 
+const contentUpdatedPostCreatedAtNs = Date.now() * 1000;
+
 export const contentUpdatedPost = {
   yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
   id: 'p4',
@@ -365,8 +367,8 @@ export const contentUpdatedPost = {
   shortId: 'sp4',
   type: PostType.Article,
   title: 'Post for testing',
-  createdAt: Date.now() - 1000,
-  metadataChangedAt: Date.now(),
+  createdAt: contentUpdatedPostCreatedAtNs,
+  metadataChangedAt: contentUpdatedPostCreatedAtNs + 1000,
   sourceId: 'a',
   tagsStr: 'javascript,webdev,react',
   banned: false,
