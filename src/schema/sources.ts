@@ -1260,7 +1260,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
           if (args.sortByMembersCount) {
             builder.queryBuilder.orderBy(
-              `${builder.alias}."membersCount"`,
+              `(SELECT COUNT(*) FROM source_member sm WHERE sm."sourceId" = ${builder.alias}.id AND sm.role != '${SourceMemberRoles.Blocked}')`,
               'DESC',
             );
           }

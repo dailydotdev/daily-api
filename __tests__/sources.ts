@@ -27,7 +27,7 @@ import {
   WelcomePost,
 } from '../src/entity';
 import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
-import { DataSource, In } from 'typeorm';
+import { DataSource, In, Not } from 'typeorm';
 import { randomUUID } from 'crypto';
 import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
@@ -267,7 +267,6 @@ describe('query sources', () => {
           public
           type
           color
-          membersCount
           flags {
             featured
           }
@@ -423,9 +422,7 @@ describe('query sources', () => {
 
   it('should return public squads ordered by members count', async () => {
     await prepareSquads();
-    await con
-      .getRepository(SourceMember)
-      .delete({ sourceId: In(['a', 'b', 'c']) });
+    await con.getRepository(SourceMember).delete({ sourceId: Not('null') });
     await saveFixtures(con, Source, [sourcesFixture[2]]);
     await saveMembers('a', ['1', '2']);
     await saveMembers('b', ['1']);
