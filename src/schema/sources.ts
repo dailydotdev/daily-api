@@ -122,6 +122,7 @@ export const typeDefs = /* GraphQL */ `
     totalViews: Int
     totalPosts: Int
     totalUpvotes: Int
+    totalMembers: Int
   }
 
   type SourceCategory {
@@ -1258,7 +1259,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
           if (args.sortByMembersCount) {
             builder.queryBuilder.orderBy(
-              `(SELECT COUNT(*) FROM source_member sm WHERE sm."sourceId" = ${builder.alias}.id AND sm.role != '${SourceMemberRoles.Blocked}')`,
+              `COALESCE((${builder.alias}.flags->'totalMembers')::integer, 0)`,
               'DESC',
             );
           }
@@ -1967,5 +1968,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return referralUrl;
     },
+    membersCount: (source: GQLSource): number =>
+      source?.flags?.totalMembers ?? 0,
   },
 });

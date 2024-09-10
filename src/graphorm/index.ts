@@ -342,13 +342,19 @@ const obj = new GraphORM({
       flags: {
         jsonType: true,
         transform: (value: SourceFlagsPublic): SourceFlagsPublic => {
-          const { totalPosts, totalViews, totalUpvotes, featured } =
-            defaultPublicSourceFlags;
+          const {
+            totalPosts,
+            totalViews,
+            totalUpvotes,
+            totalMembers,
+            featured,
+          } = defaultPublicSourceFlags;
 
           return {
             totalPosts: value?.totalPosts ?? totalPosts,
             totalViews: value?.totalViews ?? totalViews,
             totalUpvotes: value?.totalUpvotes ?? totalUpvotes,
+            totalMembers: value?.totalMembers ?? totalMembers,
             featured: value?.featured ?? featured,
           };
         },
@@ -376,14 +382,6 @@ const obj = new GraphORM({
           nodeToCursor: (node: GQLComment): string =>
             base64(`time:${new Date(node.createdAt).getTime()}`),
         },
-      },
-      membersCount: {
-        select: (ctx, alias, qb) =>
-          qb
-            .select('count(*)')
-            .from(SourceMember, 'sm')
-            .where(`sm."sourceId" = ${alias}.id`)
-            .andWhere(`sm."role" != '${SourceMemberRoles.Blocked}'`),
       },
       currentMember: {
         relation: {

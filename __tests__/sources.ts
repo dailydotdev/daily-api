@@ -269,6 +269,7 @@ describe('query sources', () => {
           color
           flags {
             featured
+            totalMembers
           }
           category {
             id
@@ -441,19 +442,61 @@ describe('query sources', () => {
 
   it('should return public squads ordered by members count', async () => {
     await prepareSquads();
-    await con.getRepository(SourceMember).delete({ sourceId: Not('null') });
     await saveFixtures(con, Source, [sourcesFixture[2]]);
+    await con.getRepository(SourceMember).delete({ sourceId: Not('null') });
+    await con.getRepository(Source).update(
+      { id: Not('null') },
+      {
+        type: SourceType.Squad,
+        flags: updateFlagsStatement({ totalMembers: 0 }),
+      },
+    );
     await saveMembers('a', ['1', '2']);
     await saveMembers('b', ['1']);
     await saveMembers('c', ['1', '2', '3']);
-    const res = await client.query(
-      QUERY({ first: 10, sortByMembersCount: true }),
-    );
+
+    const query = QUERY({ first: 10, sortByMembersCount: true });
+    const res = await client.query(query);
     expect(res.errors).toBeFalsy();
+
     const [cSquad, aSquad, bSquad] = res.data.sources.edges;
     expect(cSquad.node.id).toEqual('c');
     expect(aSquad.node.id).toEqual('a');
     expect(bSquad.node.id).toEqual('b');
+    const isBiggest = res.data.sources.edges
+      .filter(({ node }) => node.id !== 'c')
+      .every(
+        ({ node }) => cSquad.node.flags.totalMembers > node.flags.totalMembers,
+      );
+    expect(isBiggest).toEqual(true);
+  });
+
+  it('should not order by members count without the right parameter', async () => {
+    await prepareSquads();
+    await saveFixtures(con, Source, [sourcesFixture[2]]);
+    await con.getRepository(SourceMember).delete({ sourceId: Not('null') });
+    await con.getRepository(Source).update(
+      { id: Not('null') },
+      {
+        type: SourceType.Squad,
+        flags: updateFlagsStatement({ totalMembers: 0 }),
+      },
+    );
+    await saveMembers('a', ['1', '2']);
+    await saveMembers('b', ['1']);
+    await saveMembers('c', ['1', '2', '3']);
+
+    const query = QUERY({ first: 10 });
+    const res = await client.query(query);
+    expect(res.errors).toBeFalsy();
+
+    const [first] = res.data.sources.edges;
+    const isBiggest = res.data.sources.edges
+      .filter(({ node }) => node.id !== first.id)
+      .every(
+        ({ node }) => first.node.flags.totalMembers > node.flags.totalMembers,
+      );
+    expect(isBiggest).toEqual(false);
   });
 });
 
