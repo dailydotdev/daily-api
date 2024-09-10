@@ -111,6 +111,7 @@ export class Source {
 
   @Column({ type: 'jsonb', default: {} })
   @Index('IDX_source_flags_featured', { synchronize: false })
+  @Index('IDX_source_flags_total_members', { synchronize: false })
   flags: SourceFlagsPublic;
 
   @Column({ type: 'text', nullable: true })
