@@ -326,6 +326,25 @@ describe('query sources', () => {
     expect(isFeatured).toBeTruthy();
   });
 
+  it('should return only non-featured sources - this means when flag is false or undefined', async () => {
+    await prepareFeaturedTests();
+    await con.getRepository(Source).save(sourcesFixture[2]);
+    await con
+      .getRepository(Source)
+      .update({ id: 'c' }, { type: SourceType.Squad, private: false });
+    const res = await client.query(
+      QUERY({ first: 10, filterOpenSquads: true, featured: false }),
+    );
+    const isNonFeatured = res.data.sources.edges.every(
+      ({ node }) => node.flags.featured !== true,
+    );
+    expect(isNonFeatured).toBeTruthy();
+    const emptyFlags = res.data.sources.edges.find(
+      ({ node }) => node.id === 'c',
+    );
+    expect(emptyFlags).toBeTruthy();
+  });
+
   it('should return only not featured sources', async () => {
     await prepareFeaturedTests();
     const res = await client.query(
