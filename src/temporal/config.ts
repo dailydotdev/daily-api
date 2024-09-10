@@ -25,7 +25,10 @@ export const getTemporalServerOptions = () => {
   const address = TEMPORAL_ADDRESS;
   const namespace = TEMPORAL_NAMESPACE;
 
-  if (!process.env.TEMPORAL_CLIENT_CERT_PATH) {
+  if (
+    !process.env.TEMPORAL_CLIENT_CERT_PATH ||
+    !process.env.TEMPORAL_CLIENT_KEY_PATH
+  ) {
     serverOptions = { namespace, address };
     return serverOptions;
   }
