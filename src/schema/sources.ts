@@ -368,36 +368,6 @@ export const typeDefs = /* GraphQL */ `
     ): SourceConnection!
 
     """
-    Get all available sources via read replica
-    """
-    sourcesReadReplica(
-      """
-      Paginate after opaque cursor
-      """
-      after: String
-
-      """
-      Paginate first
-      """
-      first: Int
-
-      """
-      Fetch public Squads
-      """
-      filterOpenSquads: Boolean
-
-      """
-      Add filter for featured sources
-      """
-      featured: Boolean
-
-      """
-      Filter by category
-      """
-      categoryId: String
-    ): SourceConnection!
-
-    """
     Get all available sources from read replica
     """
     sourcesReadReplica(
