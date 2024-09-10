@@ -3267,6 +3267,7 @@ describe('post content updated', () => {
       type: PostType.Article,
       url: 'http://p4.com',
       canonicalUrl: 'http://p4c.com',
+      contentMeta: '{}',
     };
     await expectSuccessfulBackground(
       worker,
