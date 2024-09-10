@@ -237,6 +237,7 @@ describe('query sources', () => {
     featured: boolean;
     filterOpenSquads: boolean;
     categoryId: string;
+    sortByMembersCount: boolean;
   }
 
   const QUERY = ({
@@ -244,12 +245,14 @@ describe('query sources', () => {
     filterOpenSquads = false,
     featured,
     categoryId,
+    sortByMembersCount,
   }: Partial<Props> = {}): string => `{
     sources(
       first: ${first},
       filterOpenSquads: ${filterOpenSquads}
       ${isNullOrUndefined(featured) ? '' : `, featured: ${featured}`}
       ${isNullOrUndefined(categoryId) ? '' : `, categoryId: "${categoryId}"`}
+      ${isNullOrUndefined(sortByMembersCount) ? '' : `, sortByMembersCount: ${sortByMembersCount}`}
     ) {
       pageInfo {
         endCursor
@@ -264,6 +267,7 @@ describe('query sources', () => {
           public
           type
           color
+          membersCount
           flags {
             featured
           }
@@ -401,6 +405,39 @@ describe('query sources', () => {
     expect(res.data.sources.edges[0].node.headerImage).toEqual(
       'http://image.com/header',
     );
+  });
+
+  const saveMembers = (sourceId: string, users: string[]) => {
+    const repo = con.getRepository(SourceMember);
+    const members = users.map((userId) =>
+      repo.create({
+        userId,
+        sourceId,
+        referralToken: randomUUID(),
+        role: SourceMemberRoles.Member,
+      }),
+    );
+
+    return repo.save(members);
+  };
+
+  it('should return public squads ordered by members count', async () => {
+    await prepareSquads();
+    await con
+      .getRepository(SourceMember)
+      .delete({ sourceId: In(['a', 'b', 'c']) });
+    await saveFixtures(con, Source, [sourcesFixture[2]]);
+    await saveMembers('a', ['1', '2']);
+    await saveMembers('b', ['1']);
+    await saveMembers('c', ['1', '2', '3']);
+    const res = await client.query(
+      QUERY({ first: 10, sortByMembersCount: true }),
+    );
+    expect(res.errors).toBeFalsy();
+    const [cSquad, aSquad, bSquad] = res.data.sources.edges;
+    expect(cSquad.node.id).toEqual('c');
+    expect(aSquad.node.id).toEqual('a');
+    expect(bSquad.node.id).toEqual('b');
   });
 });
 

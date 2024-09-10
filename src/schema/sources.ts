@@ -365,6 +365,11 @@ export const typeDefs = /* GraphQL */ `
       Filter by category
       """
       categoryId: String
+
+      """
+      Sort by the number of members count in descending order
+      """
+      sortByMembersCount: Boolean
     ): SourceConnection!
 
     """
@@ -1084,6 +1089,7 @@ interface SourcesArgs extends ConnectionArguments {
   filterOpenSquads?: boolean;
   categoryId?: string;
   featured?: boolean;
+  sortByMembersCount?: boolean;
 }
 
 interface SourcesByType extends ConnectionArguments {
@@ -1249,6 +1255,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               {
                 featured: args.featured,
               },
+            );
+          }
+
+          if (args.sortByMembersCount) {
+            builder.queryBuilder.orderBy(
+              `${builder.alias}."membersCount"`,
+              'DESC',
             );
           }
 
