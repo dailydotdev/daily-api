@@ -49,6 +49,7 @@ describe('userCompanyApprovedCio worker', () => {
       id: 'dailydev',
       name: 'daily.dev',
       image: 'cloudinary.com/dailydev/121232121/image',
+      domains: ['daily.dev', 'dailydev.com'],
     });
   });
 
@@ -88,6 +89,7 @@ describe('userCompanyApprovedCio worker', () => {
       attributes: {
         name: 'daily.dev',
         image: 'cloudinary.com/dailydev/121232121/image',
+        domains: ['daily.dev', 'dailydev.com'],
       },
       cio_relationships: [
         {

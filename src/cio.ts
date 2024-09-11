@@ -134,6 +134,7 @@ export async function identifyUserCompany(
       attributes: {
         name: company.name,
         image: company.image,
+        domains: company.domains,
       },
       cio_relationships: [
         {

@@ -2819,6 +2819,7 @@ describe('post content updated', () => {
           provider: 'test',
           content_type: 'title_summary',
           resource_location: 'yggdrasil',
+          updated_at: 1725878687,
         },
         aigc_detect: { provider: 'test' },
       },
@@ -2858,6 +2859,7 @@ describe('post content updated', () => {
             provider: 'test',
             contentType: 'title_summary',
             resourceLocation: 'yggdrasil',
+            updatedAt: 1725878687,
           },
           aigcDetect: { provider: 'test' },
         },
@@ -3253,6 +3255,40 @@ describe('post content updated', () => {
           contentQuality: {
             isAiProbability: 0.9,
           },
+        },
+      ],
+    );
+  });
+
+  it('should transform ns timestamp to seconds', async () => {
+    type ArticlePostJsonB = Omit<ArticlePost, 'contentMeta'> & {
+      contentMeta: string;
+    };
+    const after: ChangeObject<ArticlePostJsonB> = {
+      ...contentUpdatedPost,
+      type: PostType.Article,
+      url: 'http://p4.com',
+      canonicalUrl: 'http://p4c.com',
+      contentMeta: '{}',
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ArticlePostJsonB>({
+        after,
+        before: after,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toMatchObject(
+      [
+        'api.v1.content-updated',
+        {
+          createdAt: Math.floor(contentUpdatedPost.createdAt / 1_000_000),
+          updatedAt: Math.floor(
+            contentUpdatedPost.metadataChangedAt / 1_000_000,
+          ),
         },
       ],
     );
