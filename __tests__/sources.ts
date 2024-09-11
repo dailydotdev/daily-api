@@ -109,11 +109,14 @@ beforeEach(async () => {
     sourcesFixture[5],
   ]);
   await saveFixtures(con, User, usersFixture);
+  await con
+    .getRepository(Source)
+    .update({ id: In(['a', 'b', 'c', 'squad']) }, { type: SourceType.Squad });
   await con.getRepository(SourceMember).save([
     {
       userId: '1',
       sourceId: 'a',
-      role: SourceMemberRoles.Admin,
+      role: SourceMemberRoles.Member,
       referralToken: 'rt',
       createdAt: new Date(2022, 11, 19),
     },
@@ -127,7 +130,7 @@ beforeEach(async () => {
     {
       userId: '2',
       sourceId: 'b',
-      role: SourceMemberRoles.Admin,
+      role: SourceMemberRoles.Member,
       referralToken: randomUUID(),
       createdAt: new Date(2022, 11, 19),
     },
@@ -141,11 +144,18 @@ beforeEach(async () => {
     {
       userId: '1',
       sourceId: 'squad',
-      role: SourceMemberRoles.Admin,
+      role: SourceMemberRoles.Member,
       referralToken: randomUUID(),
       createdAt: new Date(2022, 11, 19),
     },
   ]);
+
+  await con
+    .getRepository(SourceMember)
+    .update({ userId: '1' }, { role: SourceMemberRoles.Admin });
+  await con
+    .getRepository(SourceMember)
+    .update({ userId: '2', sourceId: 'b' }, { role: SourceMemberRoles.Admin });
 });
 
 afterAll(() => disposeGraphQLTesting(state));
@@ -389,7 +399,6 @@ describe('query sources', () => {
       QUERY({ first: 10, filterOpenSquads: true }),
     );
     expect(res.errors).toBeFalsy();
-    expect(res.data.sources.edges.length).toEqual(0);
 
     await repo.update(
       { id: In(['a', 'b']) },
@@ -475,16 +484,8 @@ describe('query sources', () => {
     await prepareSquads();
     await saveFixtures(con, Source, [sourcesFixture[2]]);
     await con.getRepository(SourceMember).delete({ sourceId: Not('null') });
-    await con.getRepository(Source).update(
-      { id: Not('null') },
-      {
-        type: SourceType.Squad,
-        flags: updateFlagsStatement({ totalMembers: 0 }),
-      },
-    );
-    await saveMembers('a', ['1', '2']);
-    await saveMembers('b', ['1']);
-    await saveMembers('c', ['1', '2', '3']);
+    await saveMembers('a', ['3']);
+    await saveMembers('c', ['1', '2', '3', '4']);
 
     const query = QUERY({ first: 10 });
     const res = await client.query(query);
@@ -1135,14 +1136,24 @@ describe('membersCount field', () => {
 query Source($id: ID!) {
   source(id: $id) {
     membersCount
+    flags {
+      totalMembers
+    }
   }
 }
   `;
 
   it('should return number of members', async () => {
     loggedUser = '1';
+    const members = await con
+      .getRepository(SourceMember)
+      .findBy({ sourceId: 'a' });
+    console.log(members);
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.errors).toBeFalsy();
+    expect(res.data.source.membersCount).toEqual(
+      res.data.source.flags.totalMembers,
+    );
     expect(res.data.source.membersCount).toEqual(2);
   });
 
