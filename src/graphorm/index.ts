@@ -383,6 +383,14 @@ const obj = new GraphORM({
             base64(`time:${new Date(node.createdAt).getTime()}`),
         },
       },
+      membersCount: {
+        select: (ctx, alias, qb) =>
+          qb
+            .select('count(*)')
+            .from(SourceMember, 'sm')
+            .where(`sm."sourceId" = ${alias}.id`)
+            .andWhere(`sm."role" != '${SourceMemberRoles.Blocked}'`),
+      },
       currentMember: {
         relation: {
           isMany: false,
