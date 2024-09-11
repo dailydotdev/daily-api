@@ -14,8 +14,10 @@ import {
 import { ChangeObject } from '../../types';
 import { PostKeyword, Source } from '../../entity';
 import { triggerTypedEvent } from '../../common';
+import { getSecondsTimestamp } from '../../common/date';
 import { logger } from '../../logger';
 import { JsonValue, Message } from '@bufbuild/protobuf';
+import { debeziumTimeToDate } from '../../common/utils';
 
 export const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
   before[property] != after[property];
@@ -88,12 +90,12 @@ export const notifyPostContentUpdated = async ({
     postId: post.id,
     type: post.type,
     title: post.title,
-    createdAt: post.createdAt,
-    updatedAt: post.metadataChangedAt,
+    createdAt: getSecondsTimestamp(debeziumTimeToDate(post.createdAt)),
+    updatedAt: getSecondsTimestamp(debeziumTimeToDate(post.metadataChangedAt)),
     source: source
       ? {
           ...source,
-          createdAt: +source.createdAt,
+          createdAt: getSecondsTimestamp(source.createdAt),
         }
       : undefined,
     tags: post.tagsStr?.split(',') || [],
@@ -116,7 +118,7 @@ export const notifyPostContentUpdated = async ({
     }),
     relatedPosts: relatedPosts.map((item) => ({
       ...item,
-      createdAt: +item.createdAt,
+      createdAt: getSecondsTimestamp(item.createdAt),
     })),
     contentCuration: post.contentCuration || [],
     contentQuality: decodeJsonField({
