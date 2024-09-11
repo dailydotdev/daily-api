@@ -175,15 +175,3 @@ export const validateWorkEmailDomain = (domain: string): boolean => {
     lowerCaseDomain.includes(ignoredDomain),
   );
 };
-
-export function checkIsHighestToLowest<T extends object, K extends keyof T>(
-  arr: T[],
-  prop: K,
-): boolean {
-  for (let i = 1; i < arr.length; i++) {
-    if (arr[i][prop] > arr[i - 1][prop]) {
-      return false;
-    }
-  }
-  return true;
-}

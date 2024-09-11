@@ -18,7 +18,6 @@ import {
   SharePost,
   Source,
   SourceFeed,
-  SourceFlagsPublic,
   SourceMember,
   SourceType,
   SquadPublicRequest,
@@ -36,11 +35,7 @@ import { postKeywordsFixture, postsFixture } from './fixture/post';
 import { createSource, sourcesFixture } from './fixture/source';
 import { SourcePermissions } from '../src/schema/sources';
 import { SourcePermissionErrorKeys } from '../src/errors';
-import {
-  checkIsHighestToLowest,
-  updateFlagsStatement,
-  WELCOME_POST_TITLE,
-} from '../src/common';
+import { updateFlagsStatement, WELCOME_POST_TITLE } from '../src/common';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { NotificationType } from '../src/notifications/common';
 import { SourceTagView } from '../src/entity/SourceTagView';
@@ -465,19 +460,20 @@ describe('query sources', () => {
         flags: updateFlagsStatement({ totalMembers: 0 }),
       },
     );
-    await saveMembers('a', ['1', '2']);
+    await saveMembers('a', ['3']);
     await saveMembers('b', ['1']);
-    await saveMembers('c', ['1', '2', '3']);
+    await saveMembers('c', ['1', '2', '3', '4']);
 
     const query = QUERY({ first: 10, sortByMembersCount: true });
     const res = await client.query(query);
     expect(res.errors).toBeFalsy();
 
-    const mapped: SourceFlagsPublic[] = res.data.sources.edges.map(
-      ({ node }) => node.flags,
-    );
-    const isSorted = checkIsHighestToLowest(mapped, 'totalMembers');
-    expect(isSorted).toEqual(true);
+    expect(res.data.sources.edges.map(({ node }) => node.id)).toEqual([
+      'c',
+      'a',
+      'b',
+      'squad',
+    ]);
   });
 
   it('should not order by members count without the right parameter', async () => {
@@ -485,17 +481,19 @@ describe('query sources', () => {
     await saveFixtures(con, Source, [sourcesFixture[2]]);
     await con.getRepository(SourceMember).delete({ sourceId: Not('null') });
     await saveMembers('a', ['3']);
+    await saveMembers('b', ['1']);
     await saveMembers('c', ['1', '2', '3', '4']);
 
     const query = QUERY({ first: 10 });
     const res = await client.query(query);
     expect(res.errors).toBeFalsy();
 
-    const mapped: SourceFlagsPublic[] = res.data.sources.edges.map(
-      ({ node }) => node.flags,
-    );
-    const isSorted = checkIsHighestToLowest(mapped, 'totalMembers');
-    expect(isSorted).toEqual(false);
+    expect(res.data.sources.edges.map(({ node }) => node.id)).toEqual([
+      'c',
+      'squad',
+      'a',
+      'b',
+    ]);
   });
 });
 
