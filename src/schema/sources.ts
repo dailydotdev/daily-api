@@ -2048,7 +2048,5 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return referralUrl;
     },
-    membersCount: (source: GQLSource): number =>
-      source?.flags?.totalMembers ?? 0,
   },
 });
