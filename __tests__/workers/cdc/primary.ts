@@ -3259,6 +3259,40 @@ describe('post content updated', () => {
       ],
     );
   });
+
+  it('should transform ns timestamp to seconds', async () => {
+    type ArticlePostJsonB = Omit<ArticlePost, 'contentMeta'> & {
+      contentMeta: string;
+    };
+    const after: ChangeObject<ArticlePostJsonB> = {
+      ...contentUpdatedPost,
+      type: PostType.Article,
+      url: 'http://p4.com',
+      canonicalUrl: 'http://p4c.com',
+      contentMeta: '{}',
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ArticlePostJsonB>({
+        after,
+        before: after,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toMatchObject(
+      [
+        'api.v1.content-updated',
+        {
+          createdAt: Math.floor(contentUpdatedPost.createdAt / 1_000_000),
+          updatedAt: Math.floor(
+            contentUpdatedPost.metadataChangedAt / 1_000_000,
+          ),
+        },
+      ],
+    );
+  });
 });
 
 describe('user streak change', () => {

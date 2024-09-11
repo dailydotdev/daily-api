@@ -168,6 +168,14 @@ config:
       secure: AAABAMnI31uXJoOSIhdcx9uwiUH+TRhcOUConE8glOTD3hEN/Vd8tqQ=
     typeormPassword:
       secure: AAABAIDcvbMrri+S0XpnfUrMB78Lr5OkBOqmXxShF+bJXrJWmGkyd2w25ldajimawv7tKHrJjK33VbMKvdQJ12nRyZ5M/YvFUW7o7pfkGiY4PunbS/qgkGZuPp97/es=
+    typeormReadDatabase:
+      secure: AAABAGEdNu90u3XL0MQ3Z7k9YrwuML5D4zlUrjijORxHTRc=
+    typeormReadHost:
+      secure: AAABAM2OzfaaAw+QDUS7iS8yErg0amzecj1LuJklncya+8tRRaiKRtllTA==
+    typeormReadPassword:
+      secure: AAABAPtdXF65mr3CECA3frAi2egcCmXOnXjEdU2NkgcPJwlgBwBaBPhYGzJYJpVYSBoCRlV+CuvFyMh9Dic8huOMwnxMWkvBsH/AJlJ1Bz6bB5CE2mNMS+VlVcUdwT4=
+    typeormReadUsername:
+      secure: AAABAAE9W2iTH3vhPyBeuUaVKEqVOkqsLc4TM23qFMHyDEHLJo/yyw==
     typeormUsername:
       secure: AAABAAUY1umWmVMVzZ6t6TePAAmqCFeED54L8NvlKSfBfHAyvz3vQQ==
     urlPrefix:
