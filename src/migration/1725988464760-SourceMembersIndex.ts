@@ -5,7 +5,7 @@ export class SourceMembersIndex1725988464760 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `CREATE INDEX "IDX_source_flags_total_members" ON post USING HASH (((flags->'totalMembers')::integer))`,
+      `CREATE INDEX "IDX_source_flags_total_members" ON source USING HASH (((flags->'totalMembers')::integer))`,
     );
   }
 
