@@ -10,6 +10,8 @@ import { GrpcInstrumentation } from '@opentelemetry/instrumentation-grpc';
 import { TypeormInstrumentation } from 'opentelemetry-instrumentation-typeorm';
 import { UndiciInstrumentation } from '@opentelemetry/instrumentation-undici';
 
+import dc from 'node:diagnostics_channel';
+
 import { NodeSDK, logs, node, api, resources } from '@opentelemetry/sdk-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
 import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter';
@@ -22,15 +24,16 @@ import { gcpDetector } from '@opentelemetry/resource-detector-gcp';
 import { isProd } from '../common/utils';
 import {
   channelName,
-  dc,
   getAppVersion,
   SEMATTRS_DAILY_APPS_USER_ID,
   SEMATTRS_DAILY_APPS_VERSION,
+} from './common';
+import {
   SEMATTRS_MESSAGING_DESTINATION,
   SEMATTRS_MESSAGING_MESSAGE_ID,
   SEMATTRS_MESSAGING_MESSAGE_PAYLOAD_SIZE_BYTES,
   SEMATTRS_MESSAGING_SYSTEM,
-} from './common';
+} from '@opentelemetry/semantic-conventions';
 
 const resourceDetectors = [
   resources.envDetectorSync,

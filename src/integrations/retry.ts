@@ -1,14 +1,14 @@
 import retry, { OperationOptions } from 'retry';
 import isNetworkError from './networkError';
 import fetch, { RequestInfo, RequestInit, Response } from 'node-fetch';
+import { runInSpan } from '../telemetry';
 import {
-  runInSpan,
   SEMATTRS_EXCEPTION_MESSAGE,
   SEMATTRS_EXCEPTION_TYPE,
   SEMATTRS_HTTP_METHOD,
   SEMATTRS_HTTP_STATUS_CODE,
   SEMATTRS_HTTP_URL,
-} from '../telemetry';
+} from '@opentelemetry/semantic-conventions';
 
 export class AbortError extends Error {
   public originalError: Error;

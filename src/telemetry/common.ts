@@ -1,6 +1,4 @@
 import { FastifyRequest } from 'fastify';
-export { default as dc } from 'node:diagnostics_channel';
-export * from '@opentelemetry/semantic-conventions';
 import type { MetricOptions } from '@opentelemetry/api';
 
 export const channelName = 'fastify.initialization';

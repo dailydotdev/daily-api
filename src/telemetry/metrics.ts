@@ -1,7 +1,11 @@
+import dc from 'node:diagnostics_channel';
 import type { FastifyInstance } from 'fastify';
 import { api, resources, metrics } from '@opentelemetry/sdk-node';
 import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
-import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
+import {
+  SEMATTRS_HTTP_ROUTE,
+  SEMRESATTRS_SERVICE_NAME,
+} from '@opentelemetry/semantic-conventions';
 
 import { containerDetector } from '@opentelemetry/resource-detector-container';
 import { gcpDetector } from '@opentelemetry/resource-detector-gcp';
@@ -11,9 +15,7 @@ import { logger } from '../logger';
 import {
   channelName,
   CounterOptions,
-  dc,
   getAppVersion,
-  SEMATTRS_HTTP_ROUTE,
   SEMATTRS_DAILY_APPS_VERSION,
 } from './common';
 
@@ -131,7 +133,7 @@ export const startMetrics = (serviceName: string): void => {
   ];
 
   const resource = new resources.Resource({
-    [SemanticResourceAttributes.SERVICE_NAME]: serviceName,
+    [SEMRESATTRS_SERVICE_NAME]: serviceName,
   }).merge(
     resources.detectResourcesSync({
       detectors: [containerDetector, gcpDetector, new GcpDetectorSync()],
