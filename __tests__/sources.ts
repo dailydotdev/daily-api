@@ -3432,6 +3432,7 @@ describe('Source flags field', () => {
         totalViews
         totalPosts
         totalUpvotes
+        totalMembers
       }
     }
   }`;
