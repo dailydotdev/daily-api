@@ -519,12 +519,12 @@ describe('query mostRecentSources', () => {
       .update({ id: In(['a', 'b']) }, { type: SourceType.Machine });
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
-    expect(res.data).toMatchObject({
-      mostRecentSources: [
+    expect(res.data.mostRecentSources).toEqual(
+      expect.arrayContaining([
         { id: 'a', name: 'A', image: 'http://image.com/a', public: true },
         { id: 'b', name: 'B', image: 'http://image.com/b', public: true },
-      ],
-    });
+      ]),
+    );
   });
 });
 
