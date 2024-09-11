@@ -29,11 +29,11 @@ import {
   SEMATTRS_DAILY_APPS_VERSION,
 } from './common';
 import {
-  SEMATTRS_MESSAGING_DESTINATION,
-  SEMATTRS_MESSAGING_MESSAGE_ID,
-  SEMATTRS_MESSAGING_MESSAGE_PAYLOAD_SIZE_BYTES,
-  SEMATTRS_MESSAGING_SYSTEM,
-} from '@opentelemetry/semantic-conventions';
+  ATTR_MESSAGING_DESTINATION_NAME,
+  ATTR_MESSAGING_MESSAGE_BODY_SIZE,
+  ATTR_MESSAGING_MESSAGE_ID,
+  ATTR_MESSAGING_SYSTEM,
+} from '@opentelemetry/semantic-conventions/incubating';
 
 const resourceDetectors = [
   resources.envDetectorSync,
@@ -64,10 +64,10 @@ export const addPubsubSpanLabels = (
   message: Message | { id: string; data?: Buffer },
 ): void => {
   span.setAttributes({
-    [SEMATTRS_MESSAGING_SYSTEM]: 'pubsub',
-    [SEMATTRS_MESSAGING_DESTINATION]: subscription,
-    [SEMATTRS_MESSAGING_MESSAGE_ID]: message.id,
-    [SEMATTRS_MESSAGING_MESSAGE_PAYLOAD_SIZE_BYTES]: message.data.length,
+    [ATTR_MESSAGING_SYSTEM]: 'pubsub',
+    [ATTR_MESSAGING_DESTINATION_NAME]: subscription,
+    [ATTR_MESSAGING_MESSAGE_ID]: message.id,
+    [ATTR_MESSAGING_MESSAGE_BODY_SIZE]: message.data.length,
   });
 };
 

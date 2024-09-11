@@ -3,8 +3,8 @@ import type { FastifyInstance } from 'fastify';
 import { api, resources, metrics } from '@opentelemetry/sdk-node';
 import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
 import {
-  SEMATTRS_HTTP_ROUTE,
-  SEMRESATTRS_SERVICE_NAME,
+  ATTR_HTTP_ROUTE,
+  ATTR_SERVICE_NAME,
 } from '@opentelemetry/semantic-conventions';
 
 import { containerDetector } from '@opentelemetry/resource-detector-container';
@@ -133,7 +133,7 @@ export const startMetrics = (serviceName: string): void => {
   ];
 
   const resource = new resources.Resource({
-    [SEMRESATTRS_SERVICE_NAME]: serviceName,
+    [ATTR_SERVICE_NAME]: serviceName,
   }).merge(
     resources.detectResourcesSync({
       detectors: [containerDetector, gcpDetector, new GcpDetectorSync()],
@@ -151,7 +151,7 @@ export const startMetrics = (serviceName: string): void => {
       }
 
       counters?.api?.requests?.add(1, {
-        [SEMATTRS_HTTP_ROUTE]: req.routeOptions.url,
+        [ATTR_HTTP_ROUTE]: req.routeOptions.url,
         [SEMATTRS_DAILY_APPS_VERSION]: getAppVersion(req),
       });
     });

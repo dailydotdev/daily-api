@@ -3,11 +3,11 @@ import isNetworkError from './networkError';
 import fetch, { RequestInfo, RequestInit, Response } from 'node-fetch';
 import { runInSpan } from '../telemetry';
 import {
-  SEMATTRS_EXCEPTION_MESSAGE,
-  SEMATTRS_EXCEPTION_TYPE,
-  SEMATTRS_HTTP_METHOD,
-  SEMATTRS_HTTP_STATUS_CODE,
-  SEMATTRS_HTTP_URL,
+  ATTR_EXCEPTION_MESSAGE,
+  ATTR_EXCEPTION_TYPE,
+  ATTR_HTTP_REQUEST_METHOD,
+  ATTR_HTTP_RESPONSE_STATUS_CODE,
+  ATTR_URL_FULL,
 } from '@opentelemetry/semantic-conventions';
 
 export class AbortError extends Error {
@@ -98,9 +98,9 @@ export function retryFetch(
     asyncRetry(async () => {
       const res = await fetch(url, fetchOpts);
       span.setAttributes({
-        [SEMATTRS_HTTP_URL]: url.toString(),
-        [SEMATTRS_HTTP_STATUS_CODE]: res.status,
-        [SEMATTRS_HTTP_METHOD]: fetchOpts.method,
+        [ATTR_URL_FULL]: url.toString(),
+        [ATTR_HTTP_RESPONSE_STATUS_CODE]: res.status,
+        [ATTR_HTTP_REQUEST_METHOD]: fetchOpts.method,
       });
       if (res.ok) {
         return res;
@@ -108,8 +108,8 @@ export function retryFetch(
       const err = new HttpError(url.toString(), res.status, await res.text());
       if (res.status < 500) {
         span.setAttributes({
-          [SEMATTRS_EXCEPTION_TYPE]: err.name,
-          [SEMATTRS_EXCEPTION_MESSAGE]: err.message,
+          [ATTR_EXCEPTION_TYPE]: err.name,
+          [ATTR_EXCEPTION_MESSAGE]: err.message,
         });
         throw new AbortError(err);
       }
