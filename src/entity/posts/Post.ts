@@ -204,7 +204,7 @@ export class Post {
   @Column({ default: true })
   visible: boolean;
 
-  @Column({ default: null })
+  @Column({ type: 'timestamp', default: null })
   visibleAt: Date | null;
 
   @Column({ default: null })
