@@ -18,6 +18,7 @@ import {
   SharePost,
   Source,
   SourceFeed,
+  SourceFlagsPublic,
   SourceMember,
   SourceType,
   SquadPublicRequest,
@@ -35,7 +36,11 @@ import { postKeywordsFixture, postsFixture } from './fixture/post';
 import { createSource, sourcesFixture } from './fixture/source';
 import { SourcePermissions } from '../src/schema/sources';
 import { SourcePermissionErrorKeys } from '../src/errors';
-import { updateFlagsStatement, WELCOME_POST_TITLE } from '../src/common';
+import {
+  checkIsHighestToLowest,
+  updateFlagsStatement,
+  WELCOME_POST_TITLE,
+} from '../src/common';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { NotificationType } from '../src/notifications/common';
 import { SourceTagView } from '../src/entity/SourceTagView';
@@ -468,16 +473,11 @@ describe('query sources', () => {
     const res = await client.query(query);
     expect(res.errors).toBeFalsy();
 
-    const [cSquad, aSquad, bSquad] = res.data.sources.edges;
-    expect(cSquad.node.id).toEqual('c');
-    expect(aSquad.node.id).toEqual('a');
-    expect(bSquad.node.id).toEqual('b');
-    const isBiggest = res.data.sources.edges
-      .filter(({ node }) => node.id !== 'c')
-      .every(
-        ({ node }) => cSquad.node.flags.totalMembers > node.flags.totalMembers,
-      );
-    expect(isBiggest).toEqual(true);
+    const mapped: SourceFlagsPublic[] = res.data.sources.edges.map(
+      ({ node }) => node.flags,
+    );
+    const isSorted = checkIsHighestToLowest(mapped, 'totalMembers');
+    expect(isSorted).toEqual(true);
   });
 
   it('should not order by members count without the right parameter', async () => {
@@ -491,13 +491,11 @@ describe('query sources', () => {
     const res = await client.query(query);
     expect(res.errors).toBeFalsy();
 
-    const [first] = res.data.sources.edges;
-    const isBiggest = res.data.sources.edges
-      .filter(({ node }) => node.id !== first.id)
-      .every(
-        ({ node }) => first.node.flags.totalMembers > node.flags.totalMembers,
-      );
-    expect(isBiggest).toEqual(false);
+    const mapped: SourceFlagsPublic[] = res.data.sources.edges.map(
+      ({ node }) => node.flags,
+    );
+    const isSorted = checkIsHighestToLowest(mapped, 'totalMembers');
+    expect(isSorted).toEqual(false);
   });
 });
 
@@ -1146,10 +1144,6 @@ query Source($id: ID!) {
 
   it('should return number of members', async () => {
     loggedUser = '1';
-    const members = await con
-      .getRepository(SourceMember)
-      .findBy({ sourceId: 'a' });
-    console.log(members);
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.source.membersCount).toEqual(
