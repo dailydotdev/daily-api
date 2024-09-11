@@ -869,10 +869,10 @@ const onUserStreakChange = async (
 ) => {
   if (data.payload.op === 'u') {
     if (
-      data.payload.after.currentStreak === 0 &&
-      data.payload.before.currentStreak >= VALID_STREAK_RESET
+      data.payload.after!.currentStreak === 0 &&
+      data.payload.before!.currentStreak >= VALID_STREAK_RESET
     ) {
-      await setRestoreStreakCache(con, data.payload.before);
+      await setRestoreStreakCache(con, data.payload.before!);
     }
 
     await triggerTypedEvent(logger, 'api.v1.user-streak-updated', {

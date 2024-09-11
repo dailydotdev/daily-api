@@ -26,7 +26,7 @@ const worker = generateTypedNotificationWorker<'api.v1.user-streak-updated'>({
       streak: {
         ...streak,
         currentStreak: parseInt(lastStreak, 10),
-        lastViewAt: new Date(streak.lastViewAt).getTime(),
+        lastViewAt: streak.lastViewAt ? new Date(streak.lastViewAt) : null,
       },
     };
 

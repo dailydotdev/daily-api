@@ -138,7 +138,7 @@ export class Post {
 
   @Column({ type: 'text', nullable: true })
   @Index('IDX_tags')
-  tagsStr: string;
+  tagsStr: string | null;
 
   @Column({ type: 'integer', default: 0 })
   @Index('IDX_post_upvotes')
@@ -205,7 +205,7 @@ export class Post {
   visible: boolean;
 
   @Column({ default: null })
-  visibleAt: Date;
+  visibleAt: Date | null;
 
   @Column({ default: null })
   @Index()
