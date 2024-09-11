@@ -1259,7 +1259,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
           if (args.sortByMembersCount) {
             builder.queryBuilder.orderBy(
-              `COALESCE((${builder.alias}.flags->'totalMembers')::integer, 0)`,
+              `(${builder.alias}.flags->>'totalMembers')::integer`,
               'DESC',
             );
           }
