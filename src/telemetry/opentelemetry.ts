@@ -20,7 +20,12 @@ import { containerDetector } from '@opentelemetry/resource-detector-container';
 import { gcpDetector } from '@opentelemetry/resource-detector-gcp';
 
 import { isProd } from '../common/utils';
-import { channel, getAppVersion, TelemetrySemanticAttributes } from './common';
+import {
+  channelName,
+  dc,
+  getAppVersion,
+  TelemetrySemanticAttributes,
+} from './common';
 
 const resourceDetectors = [
   resources.envDetectorSync,
@@ -120,7 +125,7 @@ export const tracer = (serviceName: string) => {
     // textMapPropagator: new CloudPropagator(),
   });
 
-  channel.subscribe(({ fastify }: { fastify: FastifyInstance }) => {
+  dc.subscribe(channelName, ({ fastify }: { fastify: FastifyInstance }) => {
     fastify.decorate('tracer', api.trace.getTracer(serviceName));
     fastify.decorateRequest('span', null);
 

@@ -3,7 +3,8 @@ import dc from 'node:diagnostics_channel';
 import { SemanticAttributes as SemAttr } from '@opentelemetry/semantic-conventions';
 import type { MetricOptions } from '@opentelemetry/api';
 
-export const channel = dc.channel('fastify.initialization');
+export { dc };
+export const channelName = 'fastify.initialization';
 
 // Try to get the app version from the header, then query param, then default to unknown
 export const getAppVersion = (req: FastifyRequest): string => {

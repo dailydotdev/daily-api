@@ -9,8 +9,9 @@ import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
 
 import { logger } from '../logger';
 import {
-  channel,
+  channelName,
   CounterOptions,
+  dc,
   getAppVersion,
   TelemetrySemanticAttributes,
 } from './common';
@@ -139,7 +140,7 @@ export const startMetrics = (serviceName: string): void => {
   const meterProvider = new metrics.MeterProvider({ resource, readers });
   api.metrics.setGlobalMeterProvider(meterProvider);
 
-  channel.subscribe(({ fastify }: { fastify: FastifyInstance }) => {
+  dc.subscribe(channelName, ({ fastify }: { fastify: FastifyInstance }) => {
     // Decorate the main span with some metadata
     fastify.addHook('onResponse', async (req) => {
       if (req.routeOptions.url === '/graphql') {
