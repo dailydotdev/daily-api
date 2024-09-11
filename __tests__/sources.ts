@@ -514,6 +514,9 @@ describe('query mostRecentSources', () => {
   `;
 
   it('should return most recent sources', async () => {
+    await con
+      .getRepository(Source)
+      .update({ id: In(['a', 'b']) }, { type: SourceType.Machine });
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchObject({
@@ -773,7 +776,7 @@ query Source($id: ID!) {
       .getRepository(SourceMember)
       .update({ userId: '1' }, { role: SourceMemberRoles.Blocked });
     const res = await client.query(QUERY, { variables: { id: 'a' } });
-    expect(res.data).toMatchSnapshot();
+    expect(res.data.source).toBeNull();
   });
 
   it('should not return post permission in case memberPostingRank is set above user roleRank', async () => {
@@ -1115,9 +1118,7 @@ query Source($id: ID!) {
   it('should return source url', async () => {
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.errors).toBeFalsy();
-    expect(res.data.source.permalink).toEqual(
-      'http://localhost:5002/sources/a',
-    );
+    expect(res.data.source.permalink).toEqual('http://localhost:5002/squads/a');
   });
 
   it('should return squad url', async () => {
@@ -1431,10 +1432,10 @@ describe('query mySourceMemberships', () => {
     const res = await client.query(createQuery(SourceType.Squad));
     expect(res.errors).toBeFalsy();
     expect(res.data.mySourceMemberships).toBeDefined();
-    expect(res.data.mySourceMemberships.edges).toHaveLength(1);
+    expect(res.data.mySourceMemberships.edges).toHaveLength(2);
     expect(
       res.data.mySourceMemberships.edges.map(({ node }) => node.source.id),
-    ).toEqual(['squad']);
+    ).toEqual(expect.arrayContaining(['a', 'squad']));
   });
 });
 
@@ -2871,14 +2872,12 @@ describe('mutation joinSource', () => {
 
   it('should throw error when joining non squad source', async () => {
     loggedUser = '1';
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Machine });
     return testMutationErrorCode(
       client,
-      {
-        mutation: MUTATION,
-        variables: {
-          sourceId: 'a',
-        },
-      },
+      { mutation: MUTATION, variables: { sourceId: 'a' } },
       'FORBIDDEN',
     );
   });
@@ -3462,12 +3461,14 @@ describe('Source flags field', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.source.flags).toEqual({
       ...defaultPublicSourceFlags,
+      totalMembers: 2,
       featured: true,
     });
   });
 
   it('should return default values for unset flags', async () => {
     loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { flags: {} });
     const res = await client.query(QUERY);
     expect(res.data.source.flags).toEqual(defaultPublicSourceFlags);
   });

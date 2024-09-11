@@ -128,19 +128,6 @@ Object {
 }
 `;
 
-exports[`query source current member should return current member as blocked 1`] = `
-Object {
-  "source": Object {
-    "currentMember": Object {
-      "permissions": Array [],
-      "role": "blocked",
-      "roleRank": -1,
-    },
-    "id": "a",
-  },
-}
-`;
-
 exports[`query source current member should return current member as member 1`] = `
 Object {
   "source": Object {
