@@ -13,7 +13,8 @@ import {
   CounterOptions,
   dc,
   getAppVersion,
-  TelemetrySemanticAttributes,
+  SEMATTRS_HTTP_ROUTE,
+  SEMATTRS_DAILY_APPS_VERSION,
 } from './common';
 
 const counterMap = {
@@ -148,8 +149,8 @@ export const startMetrics = (serviceName: string): void => {
       }
 
       counters?.api?.requests?.add(1, {
-        [TelemetrySemanticAttributes.HTTP_ROUTE]: req.routeOptions.url,
-        [TelemetrySemanticAttributes.DAILY_APPS_VERSION]: getAppVersion(req),
+        [SEMATTRS_HTTP_ROUTE]: req.routeOptions.url,
+        [SEMATTRS_DAILY_APPS_VERSION]: getAppVersion(req),
       });
     });
   });

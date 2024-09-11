@@ -24,7 +24,12 @@ import {
   channelName,
   dc,
   getAppVersion,
-  TelemetrySemanticAttributes,
+  SEMATTRS_DAILY_APPS_USER_ID,
+  SEMATTRS_DAILY_APPS_VERSION,
+  SEMATTRS_MESSAGING_DESTINATION,
+  SEMATTRS_MESSAGING_MESSAGE_ID,
+  SEMATTRS_MESSAGING_MESSAGE_PAYLOAD_SIZE_BYTES,
+  SEMATTRS_MESSAGING_SYSTEM,
 } from './common';
 
 const resourceDetectors = [
@@ -45,9 +50,8 @@ export const addApiSpanLabels = (
   res?: FastifyReply,
 ): void => {
   span.setAttributes({
-    [TelemetrySemanticAttributes.DAILY_APPS_VERSION]: getAppVersion(req),
-    [TelemetrySemanticAttributes.DAILY_APPS_USER_ID]:
-      req.userId || req.trackingId || 'unknown',
+    [SEMATTRS_DAILY_APPS_VERSION]: getAppVersion(req),
+    [SEMATTRS_DAILY_APPS_USER_ID]: req.userId || req.trackingId || 'unknown',
   });
 };
 
@@ -57,11 +61,10 @@ export const addPubsubSpanLabels = (
   message: Message | { id: string; data?: Buffer },
 ): void => {
   span.setAttributes({
-    [TelemetrySemanticAttributes.MESSAGING_SYSTEM]: 'pubsub',
-    [TelemetrySemanticAttributes.MESSAGING_DESTINATION]: subscription,
-    [TelemetrySemanticAttributes.MESSAGING_MESSAGE_ID]: message.id,
-    [TelemetrySemanticAttributes.MESSAGING_MESSAGE_PAYLOAD_SIZE_BYTES]:
-      message.data.length,
+    [SEMATTRS_MESSAGING_SYSTEM]: 'pubsub',
+    [SEMATTRS_MESSAGING_DESTINATION]: subscription,
+    [SEMATTRS_MESSAGING_MESSAGE_ID]: message.id,
+    [SEMATTRS_MESSAGING_MESSAGE_PAYLOAD_SIZE_BYTES]: message.data.length,
   });
 };
 
