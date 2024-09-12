@@ -1,7 +1,11 @@
 import deepmerge from 'deepmerge';
 import { updateFlagsStatement, User } from '../common';
 import { UserPersonalizedDigest } from '../entity';
-import { features, getUserGrowthBookInstace } from '../growthbook';
+import {
+  features,
+  getUserGrowthBookInstace,
+  PersonalizedDigestFeatureConfig,
+} from '../growthbook';
 import { messageToJson, workerToExperimentWorker } from './worker';
 
 interface Data {
@@ -27,10 +31,10 @@ const worker = workerToExperimentWorker({
     const featureValue = growthbookClient.getFeatureValue(
       features.dailyDigest.id,
       features.dailyDigest.defaultValue,
-    ) as typeof features.dailyDigest.defaultValue;
+    ) as PersonalizedDigestFeatureConfig;
 
     const digestFeature = deepmerge(
-      features.dailyDigest.defaultValue,
+      features.dailyDigest.defaultValue as PersonalizedDigestFeatureConfig,
       featureValue,
     );
 

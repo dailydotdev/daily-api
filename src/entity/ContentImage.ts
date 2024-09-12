@@ -19,8 +19,8 @@ export class ContentImage {
   createdAt: Date;
 
   @Column({ type: 'text', nullable: true })
-  usedByType: ContentImageUsedByType;
+  usedByType: ContentImageUsedByType | null;
 
   @Column({ type: 'text', nullable: true })
-  usedById: string;
+  usedById: string | null;
 }

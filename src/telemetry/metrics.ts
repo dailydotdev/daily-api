@@ -1,7 +1,11 @@
+import dc from 'node:diagnostics_channel';
 import type { FastifyInstance } from 'fastify';
 import { api, resources, metrics } from '@opentelemetry/sdk-node';
 import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
-import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
+import {
+  ATTR_HTTP_ROUTE,
+  ATTR_SERVICE_NAME,
+} from '@opentelemetry/semantic-conventions';
 
 import { containerDetector } from '@opentelemetry/resource-detector-container';
 import { gcpDetector } from '@opentelemetry/resource-detector-gcp';
@@ -9,10 +13,10 @@ import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
 
 import { logger } from '../logger';
 import {
-  channel,
+  channelName,
   CounterOptions,
   getAppVersion,
-  TelemetrySemanticAttributes,
+  SEMATTRS_DAILY_APPS_VERSION,
 } from './common';
 
 const counterMap = {
@@ -129,7 +133,7 @@ export const startMetrics = (serviceName: string): void => {
   ];
 
   const resource = new resources.Resource({
-    [SemanticResourceAttributes.SERVICE_NAME]: serviceName,
+    [ATTR_SERVICE_NAME]: serviceName,
   }).merge(
     resources.detectResourcesSync({
       detectors: [containerDetector, gcpDetector, new GcpDetectorSync()],
@@ -139,7 +143,7 @@ export const startMetrics = (serviceName: string): void => {
   const meterProvider = new metrics.MeterProvider({ resource, readers });
   api.metrics.setGlobalMeterProvider(meterProvider);
 
-  channel.subscribe(({ fastify }: { fastify: FastifyInstance }) => {
+  dc.subscribe(channelName, ({ fastify }: { fastify: FastifyInstance }) => {
     // Decorate the main span with some metadata
     fastify.addHook('onResponse', async (req) => {
       if (req.routeOptions.url === '/graphql') {
@@ -147,8 +151,8 @@ export const startMetrics = (serviceName: string): void => {
       }
 
       counters?.api?.requests?.add(1, {
-        [TelemetrySemanticAttributes.HTTP_ROUTE]: req.routeOptions.url,
-        [TelemetrySemanticAttributes.DAILY_APPS_VERSION]: getAppVersion(req),
+        [ATTR_HTTP_ROUTE]: req.routeOptions.url,
+        [SEMATTRS_DAILY_APPS_VERSION]: getAppVersion(req),
       });
     });
   });

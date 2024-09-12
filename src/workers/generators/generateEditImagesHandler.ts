@@ -4,10 +4,13 @@ import {
   ContentImageUsedByType,
   updateUsedImagesInContent,
 } from '../../entity';
-import { messageToJson } from '../worker';
+import { Message, messageToJson } from '../worker';
+import { DataSource } from 'typeorm';
 
 interface Content {
   id: string;
+  contentHtml?: string;
+  readmeHtml?: string;
 }
 
 interface Data<T extends Content> {
@@ -23,9 +26,9 @@ export const generateEditImagesHandler =
     key: keyof T,
     type: ContentImageUsedByType,
     { shouldClearOnly }: OptionalParams = {},
-    contentKey: keyof Data<Content> = 'contentHtml',
+    contentKey: keyof ChangeObject<Content> = 'contentHtml',
   ) =>
-  async (message, con): Promise<void> => {
+  async (message: Pick<Message, 'data'>, con: DataSource): Promise<void> => {
     const data: T = messageToJson(message);
     const obj = data[key];
 

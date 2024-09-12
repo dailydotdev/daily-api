@@ -106,9 +106,9 @@ config:
       secure: AAABAI/bDI+xz5PMlMZseI2kW5oanHk3z1KcAOZJb+/G8arhgSP1EMdqdOTk0kku1t6KTWtl9+oSSDKWYNH1CG5D+Ac1ZPFAWc/ldmEb/iU=
     onesignalAppId:
       secure: AAABALTizkxZkCfsq6/fx2v7nXxsVP7psWBfSUct0zeyrX0ABxPpD30zIsyx5r5wqt1UJIIXDIVOnhM7W3vzrzaatrE=
-    otelEnabled: false
+    otelEnabled: true
     otelTracesSampler: parentbased_traceidratio
-    otelTracesSamplerArg: 0.05
+    otelTracesSamplerArg: 0
     personalizedDigestFeed:
       secure: AAABABnHXr0d1pbDX7KRjoBXvFnr7ImTUJ7Y88GlhlaC7EiSG/nxVLHtnQL0hgczHqt1bPn25TN/R8Au6CEAQpq6dGXLwCfA+gWPypTVHg==
     personalizedDigestSecret:
@@ -168,6 +168,14 @@ config:
       secure: AAABAMnI31uXJoOSIhdcx9uwiUH+TRhcOUConE8glOTD3hEN/Vd8tqQ=
     typeormPassword:
       secure: AAABAIDcvbMrri+S0XpnfUrMB78Lr5OkBOqmXxShF+bJXrJWmGkyd2w25ldajimawv7tKHrJjK33VbMKvdQJ12nRyZ5M/YvFUW7o7pfkGiY4PunbS/qgkGZuPp97/es=
+    typeormReadDatabase:
+      secure: AAABAGEdNu90u3XL0MQ3Z7k9YrwuML5D4zlUrjijORxHTRc=
+    typeormReadHost:
+      secure: AAABAM2OzfaaAw+QDUS7iS8yErg0amzecj1LuJklncya+8tRRaiKRtllTA==
+    typeormReadPassword:
+      secure: AAABAPtdXF65mr3CECA3frAi2egcCmXOnXjEdU2NkgcPJwlgBwBaBPhYGzJYJpVYSBoCRlV+CuvFyMh9Dic8huOMwnxMWkvBsH/AJlJ1Bz6bB5CE2mNMS+VlVcUdwT4=
+    typeormReadUsername:
+      secure: AAABAAE9W2iTH3vhPyBeuUaVKEqVOkqsLc4TM23qFMHyDEHLJo/yyw==
     typeormUsername:
       secure: AAABAAUY1umWmVMVzZ6t6TePAAmqCFeED54L8NvlKSfBfHAyvz3vQQ==
     urlPrefix:

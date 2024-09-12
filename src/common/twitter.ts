@@ -6,7 +6,9 @@ export const truncateToTweet = (text?: string): string => {
   return text.length <= 130 ? text : `${text.substring(0, 127)}...`;
 };
 
-export const truncatePostToTweet = (post: Pick<Post, 'title'>): string => {
+export const truncatePostToTweet = (
+  post: Pick<Post, 'title'> | undefined,
+): string => {
   if (!post || !post.title?.length) return '';
 
   return truncateToTweet(post.title);

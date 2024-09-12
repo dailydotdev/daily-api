@@ -92,7 +92,7 @@ export class GraphORM {
   mappings: GraphORMMapping | null;
 
   constructor(mappings?: GraphORMMapping) {
-    this.mappings = mappings;
+    this.mappings = mappings || null;
   }
 
   /**
@@ -114,7 +114,7 @@ export class GraphORM {
     parentMetadata: EntityMetadata,
     childMetadata: EntityMetadata,
     field: string,
-  ): GraphORMRelation {
+  ): GraphORMRelation | null {
     const relation = childMetadata.relations.find(
       (rel) => rel.inverseEntityMetadata.name === parentMetadata.name,
     );
@@ -441,7 +441,9 @@ export class GraphORM {
   getMetadataOrNull(ctx: Context, type: string): EntityMetadata | undefined {
     try {
       return this.getMetadata(ctx, type);
-    } catch (err) {
+    } catch (originalError) {
+      const err = originalError as Error;
+
       if (err?.name === 'EntityMetadataNotFoundError') {
         return;
       }
@@ -491,9 +493,9 @@ export class GraphORM {
       (field) => field.name === hierarchy[0],
     );
     if (hierarchy.length === 1) {
-      return child;
+      return child!;
     }
-    return this.getFieldByHierarchy(child, hierarchy.slice(1));
+    return this.getFieldByHierarchy(child!, hierarchy.slice(1));
   }
 
   /**
@@ -591,7 +593,7 @@ export class GraphORM {
 
     if (!res.length) {
       throw new EntityNotFoundError(
-        entityName ?? resolveInfo.path.typename,
+        entityName ?? resolveInfo.path.typename!,
         'not found',
       );
     }

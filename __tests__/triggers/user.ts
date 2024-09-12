@@ -2,7 +2,13 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { saveFixtures } from '../helpers';
 import { badUsersFixture, usersFixture } from '../fixture/user';
-import { Post, Source, User, UserStreak, Comment } from '../../src/entity';
+import {
+  Source,
+  User,
+  UserStreak,
+  Comment,
+  ArticlePost,
+} from '../../src/entity';
 import { sourcesFixture } from '../fixture';
 import { postsFixture } from '../fixture/post';
 
@@ -41,38 +47,46 @@ describe('user', () => {
       await saveFixtures(con, User, usersFixture);
       await saveFixtures(con, User, badUsersFixture);
       await saveFixtures(con, Source, sourcesFixture);
-      await saveFixtures(con, Post, postsFixture);
+      await saveFixtures(con, ArticlePost, [
+        {
+          ...postsFixture[0],
+          id: 'pvr1',
+          shortId: 'pvr1',
+          url: 'http://pvr1.com',
+          canonicalUrl: 'http://pvr1c.com',
+        },
+      ]);
       await saveFixtures(con, Comment, [
         {
-          id: 'c1',
-          postId: 'p1',
+          id: 'cvr1',
+          postId: 'pvr1',
           userId: '1',
           content: 'comment',
           contentHtml: '<p>comment</p>',
           flags: { vordr: false },
         },
         {
-          id: 'c2',
-          parentId: 'c1',
-          postId: 'p1',
+          id: 'cvr2',
+          parentId: 'cvr1',
+          postId: 'pvr1',
           userId: '1',
           content: 'comment',
           contentHtml: '<p>comment</p>',
           flags: { vordr: false },
         },
         {
-          id: 'c3',
-          parentId: 'c1',
-          postId: 'p1',
+          id: 'cvr3',
+          parentId: 'cvr1',
+          postId: 'pvr1',
           userId: 'vordr',
           content: 'comment',
           contentHtml: '<p>comment</p>',
           flags: { vordr: true },
         },
         {
-          id: 'c4',
-          parentId: 'c1',
-          postId: 'p1',
+          id: 'cvr4',
+          parentId: 'cvr1',
+          postId: 'pvr1',
           userId: 'vordr',
           content: 'comment',
           contentHtml: '<p>comment</p>',
