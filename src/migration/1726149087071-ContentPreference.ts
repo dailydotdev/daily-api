@@ -11,6 +11,9 @@ export class ContentPreference1726149087071 implements MigrationInterface {
       `CREATE INDEX "IDX_09955119a32cc1d7a6e8be14c6" ON "content_preference" ("type") `,
     );
     await queryRunner.query(
+      `ALTER TABLE "notification_preference" ADD "referenceUserId" text`,
+    );
+    await queryRunner.query(
       `ALTER TABLE "content_preference" ADD CONSTRAINT "FK_c9c1cda086ffe214d856ab17522" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
     );
   }
@@ -18,6 +21,9 @@ export class ContentPreference1726149087071 implements MigrationInterface {
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
       `ALTER TABLE "content_preference" DROP CONSTRAINT "FK_c9c1cda086ffe214d856ab17522"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "notification_preference" DROP COLUMN "referenceUserId"`,
     );
     await queryRunner.query(
       `DROP INDEX "public"."IDX_09955119a32cc1d7a6e8be14c6"`,
