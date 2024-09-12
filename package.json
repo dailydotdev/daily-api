@@ -65,6 +65,7 @@
     "@opentelemetry/resource-detector-container": "^0.4.1",
     "@opentelemetry/resource-detector-gcp": "^0.29.11",
     "@opentelemetry/sdk-node": "^0.53.0",
+    "@opentelemetry/semantic-conventions": "^1.27.0",
     "@sendgrid/eventwebhook": "^8.0.0",
     "@slack/web-api": "^7.4.0",
     "@slack/webhook": "^7.0.3",
