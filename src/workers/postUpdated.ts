@@ -109,7 +109,7 @@ const handleRejection = async ({
       ...submission,
       status: SubmissionStatus.Rejected,
       reason:
-        reject_reason in SubmissionFailErrorMessage
+        reject_reason && reject_reason in SubmissionFailErrorMessage
           ? <SubmissionFailErrorKeys>reject_reason
           : SubmissionFailErrorKeys.GenericError,
     });
@@ -308,7 +308,11 @@ const createPost = async ({
   };
 
   const post = await entityManager
-    .getRepository(contentTypeFromPostType[data.type] ?? ArticlePost)
+    .getRepository(
+      contentTypeFromPostType[
+        data.type as keyof typeof contentTypeFromPostType
+      ] ?? ArticlePost,
+    )
     .create(data);
   await entityManager.save(post);
 
@@ -318,7 +322,7 @@ const createPost = async ({
   return post;
 };
 
-const allowedFieldsMapping = {
+const allowedFieldsMapping: Partial<Record<PostType, string[]>> = {
   freeform: [
     'contentCuration',
     'description',
@@ -385,7 +389,7 @@ const updatePost = async ({
   if (
     !databasePost ||
     databasePost.metadataChangedAt.toISOString() >=
-      data.metadataChangedAt.toISOString()
+      data.metadataChangedAt!.toISOString()
   ) {
     counters?.background?.postError?.add(1, {
       reason: 'date_conflict',
@@ -461,14 +465,14 @@ const updatePost = async ({
 
   jsonMetaFields.forEach((metaField) => {
     if (
-      Object.keys(data[metaField]).length === 0 &&
+      Object.keys(data[metaField]!).length === 0 &&
       Object.keys(databasePost[metaField]).length > 0
     ) {
       data[metaField] = databasePost[metaField];
     }
   });
 
-  if (content_type in allowedFieldsMapping) {
+  if (allowedFieldsMapping[content_type]) {
     const allowedFields = [
       'id',
       'visible',
@@ -480,7 +484,7 @@ const updatePost = async ({
 
     Object.keys(data).forEach((key) => {
       if (allowedFields.indexOf(key) === -1) {
-        delete data[key];
+        delete data[key as keyof typeof data];
       }
     });
   }
@@ -536,7 +540,7 @@ const getSourcePrivacy = async ({
   logger,
   entityManager,
   data,
-}: GetSourcePrivacyProps): Promise<boolean> => {
+}: GetSourcePrivacyProps): Promise<boolean | undefined> => {
   try {
     let query = entityManager
       .getRepository(Source)
@@ -585,7 +589,7 @@ const fixData = async ({
       ? null
       : data?.extra?.creator_twitter;
 
-  const authorId = await findAuthor(entityManager, creatorTwitter);
+  const authorId = await findAuthor(entityManager, creatorTwitter || undefined);
   const privacy = await getSourcePrivacy({
     logger,
     entityManager,
@@ -612,7 +616,9 @@ const fixData = async ({
     );
   }
 
-  const duration = data?.extra?.duration / 60;
+  const duration = data?.extra?.duration
+    ? data?.extra?.duration / 60
+    : undefined;
 
   // Try and fix generic data here
   return {
@@ -672,7 +678,9 @@ const worker: Worker = {
           return handleRejection({ logger, data, entityManager });
         }
 
-        if (bannedAuthors.indexOf(data?.extra?.creator_twitter) > -1) {
+        const creatorTwitter = data?.extra?.creator_twitter;
+
+        if (creatorTwitter && bannedAuthors.indexOf(creatorTwitter) > -1) {
           logger.info(
             { data, messageId: message.messageId },
             'post update failed because author is banned',
@@ -680,7 +688,7 @@ const worker: Worker = {
           return;
         }
 
-        let postId = data.post_id;
+        let postId: string | undefined = data.post_id;
 
         if (!postId && data.id) {
           const matchedYggdrasilPost = await con
@@ -729,30 +737,30 @@ const worker: Worker = {
           });
         }
 
-        // temp wrapper to avoid any issue with post processing
-        // while we test code snippets insertion
-        const safeInsertCodeSnippets = async () => {
-          try {
-            await insertCodeSnippetsFromUrl({
-              entityManager,
-              post: {
-                id: postId,
-              },
-              codeSnippetsUrl: data?.meta?.stored_code_snippets,
-            });
-          } catch (err) {
-            logger.error(
-              {
-                postId,
-                codeSnippetsUrl: data?.meta?.stored_code_snippets,
-                err,
-              },
-              'failed to save code snippets for post',
-            );
-          }
-        };
-
         if (postId) {
+          // temp wrapper to avoid any issue with post processing
+          // while we test code snippets insertion
+          const safeInsertCodeSnippets = async () => {
+            try {
+              await insertCodeSnippetsFromUrl({
+                entityManager,
+                post: {
+                  id: postId,
+                },
+                codeSnippetsUrl: data?.meta?.stored_code_snippets,
+              });
+            } catch (err) {
+              logger.error(
+                {
+                  postId,
+                  codeSnippetsUrl: data?.meta?.stored_code_snippets,
+                  err,
+                },
+                'failed to save code snippets for post',
+              );
+            }
+          };
+
           await Promise.all([
             handleCollectionRelations({
               entityManager,

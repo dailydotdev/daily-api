@@ -38,7 +38,7 @@ export type NotificationPostContext<T extends Post = Post> =
   NotificationBaseContext &
     NotificationSourceContext & {
       post: Reference<T>;
-      sharedPost?: Reference<Post>;
+      sharedPost?: Reference<Post> | null;
     };
 
 export type NotificationCommentContext = NotificationPostContext & {
