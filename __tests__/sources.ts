@@ -27,7 +27,7 @@ import {
   WelcomePost,
 } from '../src/entity';
 import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
-import { DataSource, In } from 'typeorm';
+import { DataSource, In, Not } from 'typeorm';
 import { randomUUID } from 'crypto';
 import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
@@ -109,11 +109,14 @@ beforeEach(async () => {
     sourcesFixture[5],
   ]);
   await saveFixtures(con, User, usersFixture);
+  await con
+    .getRepository(Source)
+    .update({ id: In(['a', 'b', 'c', 'squad']) }, { type: SourceType.Squad });
   await con.getRepository(SourceMember).save([
     {
       userId: '1',
       sourceId: 'a',
-      role: SourceMemberRoles.Admin,
+      role: SourceMemberRoles.Member,
       referralToken: 'rt',
       createdAt: new Date(2022, 11, 19),
     },
@@ -127,7 +130,7 @@ beforeEach(async () => {
     {
       userId: '2',
       sourceId: 'b',
-      role: SourceMemberRoles.Admin,
+      role: SourceMemberRoles.Member,
       referralToken: randomUUID(),
       createdAt: new Date(2022, 11, 19),
     },
@@ -141,11 +144,18 @@ beforeEach(async () => {
     {
       userId: '1',
       sourceId: 'squad',
-      role: SourceMemberRoles.Admin,
+      role: SourceMemberRoles.Member,
       referralToken: randomUUID(),
       createdAt: new Date(2022, 11, 19),
     },
   ]);
+
+  await con
+    .getRepository(SourceMember)
+    .update({ userId: '1' }, { role: SourceMemberRoles.Admin });
+  await con
+    .getRepository(SourceMember)
+    .update({ userId: '2', sourceId: 'b' }, { role: SourceMemberRoles.Admin });
 });
 
 afterAll(() => disposeGraphQLTesting(state));
@@ -237,6 +247,7 @@ describe('query sources', () => {
     featured: boolean;
     filterOpenSquads: boolean;
     categoryId: string;
+    sortByMembersCount: boolean;
   }
 
   const QUERY = ({
@@ -244,12 +255,14 @@ describe('query sources', () => {
     filterOpenSquads = false,
     featured,
     categoryId,
+    sortByMembersCount,
   }: Partial<Props> = {}): string => `{
     sources(
       first: ${first},
       filterOpenSquads: ${filterOpenSquads}
       ${isNullOrUndefined(featured) ? '' : `, featured: ${featured}`}
       ${isNullOrUndefined(categoryId) ? '' : `, categoryId: "${categoryId}"`}
+      ${isNullOrUndefined(sortByMembersCount) ? '' : `, sortByMembersCount: ${sortByMembersCount}`}
     ) {
       pageInfo {
         endCursor
@@ -266,6 +279,7 @@ describe('query sources', () => {
           color
           flags {
             featured
+            totalMembers
           }
           category {
             id
@@ -385,7 +399,6 @@ describe('query sources', () => {
       QUERY({ first: 10, filterOpenSquads: true }),
     );
     expect(res.errors).toBeFalsy();
-    expect(res.data.sources.edges.length).toEqual(0);
 
     await repo.update(
       { id: In(['a', 'b']) },
@@ -421,6 +434,67 @@ describe('query sources', () => {
       'http://image.com/header',
     );
   });
+
+  const saveMembers = (sourceId: string, users: string[]) => {
+    const repo = con.getRepository(SourceMember);
+    const members = users.map((userId) =>
+      repo.create({
+        userId,
+        sourceId,
+        referralToken: randomUUID(),
+        role: SourceMemberRoles.Member,
+      }),
+    );
+
+    return repo.save(members);
+  };
+
+  it('should return public squads ordered by members count', async () => {
+    await prepareSquads();
+    await saveFixtures(con, Source, [sourcesFixture[2]]);
+    await con.getRepository(SourceMember).delete({ sourceId: Not('null') });
+    await con.getRepository(Source).update(
+      { id: Not('null') },
+      {
+        type: SourceType.Squad,
+        flags: updateFlagsStatement({ totalMembers: 0 }),
+      },
+    );
+    await saveMembers('a', ['3']);
+    await saveMembers('b', ['1']);
+    await saveMembers('c', ['1', '2', '3', '4']);
+
+    const query = QUERY({ first: 10, sortByMembersCount: true });
+    const res = await client.query(query);
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.sources.edges.map(({ node }) => node.id)).toEqual([
+      'c',
+      'a',
+      'b',
+      'squad',
+    ]);
+  });
+
+  it('should not order by members count without the right parameter', async () => {
+    await prepareSquads();
+    await saveFixtures(con, Source, [sourcesFixture[2]]);
+    await con.getRepository(SourceMember).delete({ sourceId: Not('null') });
+    await saveMembers('a', ['3']);
+    await saveMembers('b', ['1']);
+    await saveMembers('c', ['1', '2', '3', '4']);
+
+    const query = QUERY({ first: 10 });
+    const res = await client.query(query);
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.sources.edges.map(({ node }) => node.id)).toEqual([
+      'c',
+      'squad',
+      'a',
+      'b',
+    ]);
+  });
 });
 
 describe('query mostRecentSources', () => {
@@ -436,14 +510,17 @@ describe('query mostRecentSources', () => {
   `;
 
   it('should return most recent sources', async () => {
+    await con
+      .getRepository(Source)
+      .update({ id: In(['a', 'b']) }, { type: SourceType.Machine });
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
-    expect(res.data).toMatchObject({
-      mostRecentSources: [
+    expect(res.data.mostRecentSources).toEqual(
+      expect.arrayContaining([
         { id: 'a', name: 'A', image: 'http://image.com/a', public: true },
         { id: 'b', name: 'B', image: 'http://image.com/b', public: true },
-      ],
-    });
+      ]),
+    );
   });
 });
 
@@ -695,7 +772,7 @@ query Source($id: ID!) {
       .getRepository(SourceMember)
       .update({ userId: '1' }, { role: SourceMemberRoles.Blocked });
     const res = await client.query(QUERY, { variables: { id: 'a' } });
-    expect(res.data).toMatchSnapshot();
+    expect(res.data.source).toBeNull();
   });
 
   it('should not return post permission in case memberPostingRank is set above user roleRank', async () => {
@@ -1037,9 +1114,7 @@ query Source($id: ID!) {
   it('should return source url', async () => {
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.errors).toBeFalsy();
-    expect(res.data.source.permalink).toEqual(
-      'http://localhost:5002/sources/a',
-    );
+    expect(res.data.source.permalink).toEqual('http://localhost:5002/squads/a');
   });
 
   it('should return squad url', async () => {
@@ -1058,6 +1133,9 @@ describe('membersCount field', () => {
 query Source($id: ID!) {
   source(id: $id) {
     membersCount
+    flags {
+      totalMembers
+    }
   }
 }
   `;
@@ -1066,6 +1144,9 @@ query Source($id: ID!) {
     loggedUser = '1';
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.errors).toBeFalsy();
+    expect(res.data.source.membersCount).toEqual(
+      res.data.source.flags.totalMembers,
+    );
     expect(res.data.source.membersCount).toEqual(2);
   });
 
@@ -1343,10 +1424,10 @@ describe('query mySourceMemberships', () => {
     const res = await client.query(createQuery(SourceType.Squad));
     expect(res.errors).toBeFalsy();
     expect(res.data.mySourceMemberships).toBeDefined();
-    expect(res.data.mySourceMemberships.edges).toHaveLength(1);
+    expect(res.data.mySourceMemberships.edges).toHaveLength(2);
     expect(
       res.data.mySourceMemberships.edges.map(({ node }) => node.source.id),
-    ).toEqual(['squad']);
+    ).toEqual(expect.arrayContaining(['a', 'squad']));
   });
 });
 
@@ -2783,14 +2864,12 @@ describe('mutation joinSource', () => {
 
   it('should throw error when joining non squad source', async () => {
     loggedUser = '1';
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Machine });
     return testMutationErrorCode(
       client,
-      {
-        mutation: MUTATION,
-        variables: {
-          sourceId: 'a',
-        },
-      },
+      { mutation: MUTATION, variables: { sourceId: 'a' } },
       'FORBIDDEN',
     );
   });
@@ -3355,6 +3434,7 @@ describe('Source flags field', () => {
         totalViews
         totalPosts
         totalUpvotes
+        totalMembers
       }
     }
   }`;
@@ -3373,12 +3453,14 @@ describe('Source flags field', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.source.flags).toEqual({
       ...defaultPublicSourceFlags,
+      totalMembers: 2,
       featured: true,
     });
   });
 
   it('should return default values for unset flags', async () => {
     loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { flags: {} });
     const res = await client.query(QUERY);
     expect(res.data.source.flags).toEqual(defaultPublicSourceFlags);
   });

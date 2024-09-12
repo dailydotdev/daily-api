@@ -348,13 +348,19 @@ const obj = new GraphORM({
       flags: {
         jsonType: true,
         transform: (value: SourceFlagsPublic): SourceFlagsPublic => {
-          const { totalPosts, totalViews, totalUpvotes, featured } =
-            defaultPublicSourceFlags;
+          const {
+            totalPosts,
+            totalViews,
+            totalUpvotes,
+            totalMembers,
+            featured,
+          } = defaultPublicSourceFlags;
 
           return {
             totalPosts: value?.totalPosts ?? totalPosts,
             totalViews: value?.totalViews ?? totalViews,
             totalUpvotes: value?.totalUpvotes ?? totalUpvotes,
+            totalMembers: value?.totalMembers ?? totalMembers,
             featured: value?.featured ?? featured,
           };
         },

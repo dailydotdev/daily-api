@@ -122,6 +122,7 @@ export const typeDefs = /* GraphQL */ `
     totalViews: Int
     totalPosts: Int
     totalUpvotes: Int
+    totalMembers: Int
   }
 
   type SourceCategory {
@@ -365,6 +366,11 @@ export const typeDefs = /* GraphQL */ `
       Filter by category
       """
       categoryId: String
+
+      """
+      Sort by the number of members count in descending order
+      """
+      sortByMembersCount: Boolean
     ): SourceConnection!
 
     """
@@ -1114,6 +1120,7 @@ interface SourcesArgs extends ConnectionArguments {
   filterOpenSquads?: boolean;
   categoryId?: string;
   featured?: boolean;
+  sortByMembersCount?: boolean;
 }
 
 interface SourcesByType extends ConnectionArguments {
@@ -1277,6 +1284,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             builder.queryBuilder.andWhere(
               `COALESCE((${builder.alias}.flags->'featured')::boolean, FALSE) = :featured`,
               { featured: args.featured },
+            );
+          }
+
+          if (args.sortByMembersCount) {
+            builder.queryBuilder.orderBy(
+              `(${builder.alias}.flags->>'totalMembers')::integer`,
+              'DESC',
             );
           }
 
