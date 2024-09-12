@@ -756,6 +756,9 @@ const obj = new GraphORM({
   PostCodeSnippet: {
     requiredColumns: ['order'],
   },
+  ContentPreference: {
+    requiredColumns: ['createdAt'],
+  },
 });
 
 export default obj;
