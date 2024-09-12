@@ -20,7 +20,13 @@ const QUEUE_CONCURRENCY = 1;
       .createQueryBuilder('sm')
       .select('COUNT(sm.*)', 'count')
       .addSelect('sm."sourceId"')
+      .innerJoin(Source, 's', 's.id = sm."sourceId"')
       .where(`sm.role != 'blocked'`)
+      .andWhere(`sm."sourceId" IS NOT NULL`)
+      .andWhere(
+        `COALESCE((s.flags->>'totalMembers')::integer, 0) != COUNT(sm.*)`,
+      )
+      .limit(1000)
       .groupBy('sm."sourceId"');
 
     const stream = await builder.stream();
