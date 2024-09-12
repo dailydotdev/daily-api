@@ -53,14 +53,18 @@ const existsByUserAndPost =
 const nullIfNotLoggedIn = <T>(value: T, ctx: Context): T | null =>
   ctx.userId ? value : null;
 
-const transformDate = (value: string | Date): Date =>
+const transformDate = (value: string | Date): Date | undefined =>
   value ? new Date(value) : undefined;
 
 const nullIfNotSameUser = <T>(
   value: T,
   ctx: Context,
-  parent: Pick<User, 'id'>,
-): T | null => (ctx.userId === parent.id ? value : null);
+  parent: unknown,
+): T | null => {
+  const user = parent as Pick<User, 'id'>;
+
+  return ctx.userId === user.id ? value : null;
+};
 
 const createI18nField = ({
   field,
@@ -208,14 +212,16 @@ const obj = new GraphORM({
         transform: nullIfNotLoggedIn,
       },
       views: {
-        transform: (value: number, ctx, parent: Post): number | null => {
-          const isAuthor = parent?.authorId && ctx.userId === parent.authorId;
+        transform: (value: number, ctx, parent): number | null => {
+          const post = parent as Post;
+
+          const isAuthor = post?.authorId && ctx.userId === post.authorId;
 
           if (isAuthor) {
             return value;
           }
 
-          const isScout = parent?.scoutId && ctx.userId === parent.scoutId;
+          const isScout = post?.scoutId && ctx.userId === post.scoutId;
           if (isScout) {
             return value;
           }
@@ -437,11 +443,9 @@ const obj = new GraphORM({
             .where(`postingSquad.id = ${alias}."sourceId"`);
           return `${query.getQuery()}`;
         },
-        transform: (
-          value: [number, number],
-          ctx: Context,
-          member: SourceMember,
-        ) => {
+        transform: (value: [number, number], ctx: Context, parent) => {
+          const member = parent as SourceMember;
+
           if (!ctx.userId || member.userId !== ctx.userId) {
             return null;
           }
@@ -461,14 +465,16 @@ const obj = new GraphORM({
               ${sourceRoleRankKeys
                 .map(
                   (role) =>
-                    `WHEN "role" = '${role}' THEN ${sourceRoleRank[role]}`,
+                    `WHEN "role" = '${role}' THEN ${sourceRoleRank[role as keyof typeof sourceRoleRank]}`,
                 )
                 .join(' ')}
             ELSE 0 END)
           `,
       },
       referralToken: {
-        transform: (value: string, ctx: Context, member: SourceMember) => {
+        transform: (value: string, ctx: Context, parent) => {
+          const member = parent as SourceMember;
+
           return nullIfNotSameUser(value, ctx, { id: member.userId });
         },
       },

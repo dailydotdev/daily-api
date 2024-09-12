@@ -89,7 +89,7 @@ export const notifyPostContentUpdated = async ({
     yggdrasilId: post.yggdrasilId,
     postId: post.id,
     type: post.type,
-    title: post.title,
+    title: post.title || undefined,
     createdAt: getSecondsTimestamp(debeziumTimeToDate(post.createdAt)),
     updatedAt: getSecondsTimestamp(debeziumTimeToDate(post.metadataChangedAt)),
     source: source
@@ -104,7 +104,7 @@ export const notifyPostContentUpdated = async ({
     private: post.private,
     visible: post.visible,
     origin: post.origin,
-    url: articlePost.url,
+    url: articlePost.url || undefined,
     canonicalUrl: articlePost.canonicalUrl,
     image: articlePost.image,
     description: articlePost.description,

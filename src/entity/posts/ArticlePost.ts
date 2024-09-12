@@ -30,7 +30,7 @@ export class ArticlePost extends Post {
   siteTwitter?: string;
 
   @Column({ type: 'text', nullable: true })
-  creatorTwitter?: string;
+  creatorTwitter?: string | null;
 
   @Column({ nullable: true })
   readTime?: number;
