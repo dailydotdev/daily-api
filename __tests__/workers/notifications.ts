@@ -10,6 +10,7 @@ import {
   PostMention,
   PostReport,
   PostType,
+  Settings,
   Source,
   SourceMember,
   SourceType,
@@ -713,6 +714,18 @@ describe('streak reset restore', () => {
   });
 
   it('should not add notification if the stored value has expired', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/userStreakResetNotification'
+    );
+    const lastViewAt = new Date();
+    const streak = await con
+      .getRepository(UserStreak)
+      .save({ userId: '1', currentStreak: 0, lastViewAt });
+    const actual = await invokeNotificationWorker(worker.default, { streak });
+    expect(actual).toBeUndefined();
+  });
+
+  it('should not add notification if the user opted out of streaks', async () => {
     const worker = await import(
       '../../src/workers/notifications/userStreakResetNotification'
     );
