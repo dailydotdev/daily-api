@@ -397,6 +397,10 @@ export const typeDefs = /* GraphQL */ `
     Preferred language of the user
     """
     language: String
+    """
+    Content preference in regards to current user
+    """
+    contentPreference: ContentPreference
   }
 
   """

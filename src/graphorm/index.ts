@@ -33,6 +33,7 @@ import { I18nRecord, UserVote } from '../types';
 import { whereVordrFilter } from '../common/vordr';
 import { UserCompany } from '../entity/UserCompany';
 import { Post } from '../entity/posts/Post';
+import { ContentPreferenceType } from '../entity/contentPreference/types';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -138,6 +139,22 @@ const obj = new GraphORM({
               .andWhere(`uc."userId" = "${parentAlias}".id`)
               .limit(50),
         },
+      },
+      contentPreference: {
+        relation: {
+          isMany: false,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder => {
+            return qb
+              .where(`${childAlias}."referenceUserId" = "${parentAlias}".id`)
+              .andWhere(`${childAlias}."userId" = :userId`, {
+                userId: ctx.userId,
+              })
+              .andWhere(`"${childAlias}".type = :type`, {
+                type: ContentPreferenceType.User,
+              });
+          },
+        },
+        transform: nullIfNotLoggedIn,
       },
     },
   },
