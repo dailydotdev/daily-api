@@ -50,6 +50,7 @@ import {
 } from '../common/vordr';
 import { reportComment } from '../common/reporting';
 import { ReportReason } from '../entity/common';
+import { toGQLEnum } from '../common/utils';
 
 export interface GQLComment {
   id: string;
@@ -98,7 +99,14 @@ export interface GQLUserComment {
   votedAt: Date | null;
 }
 
+export enum SortCommentsBy {
+  NewestFirst = 'newest',
+  OldestFirst = 'oldest',
+}
+
 export const typeDefs = /* GraphQL */ `
+  ${toGQLEnum(SortCommentsBy, 'SortCommentsBy')}
+
   type Comment {
     """
     Unique identifier
@@ -274,6 +282,11 @@ export const typeDefs = /* GraphQL */ `
       Paginate first
       """
       first: Int
+
+      """
+      Sort comments by
+      """
+      sortBy: SortCommentsBy = oldest
     ): CommentConnection!
 
     """
@@ -411,6 +424,7 @@ export const typeDefs = /* GraphQL */ `
 
 export interface GQLPostCommentsArgs extends ConnectionArguments {
   postId: string;
+  sortBy: SortCommentsBy;
 }
 
 export interface GQLCommentUpvoteArgs extends ConnectionArguments {
@@ -601,6 +615,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         args,
         { key: 'createdAt', maxSize: 500 },
         {
+          orderByKey:
+            args.sortBy === SortCommentsBy.NewestFirst ? 'DESC' : 'ASC',
           queryBuilder: (builder) => {
             builder.queryBuilder = builder.queryBuilder
               .andWhere(`${builder.alias}.postId = :postId`, {
