@@ -730,9 +730,19 @@ describe('streak reset restore', () => {
       '../../src/workers/notifications/userStreakResetNotification'
     );
     const lastViewAt = new Date();
+    const lastStreak = 10;
     const streak = await con
       .getRepository(UserStreak)
       .save({ userId: '1', currentStreak: 0, lastViewAt });
+    const key = generateStorageKey(
+      StorageTopic.Streak,
+      StorageKey.Reset,
+      streak.userId,
+    );
+    await setRedisObject(key, lastStreak.toString());
+    await con
+      .getRepository(Settings)
+      .save({ userId: '1', optOutReadingStreak: true });
     const actual = await invokeNotificationWorker(worker.default, { streak });
     expect(actual).toBeUndefined();
   });
