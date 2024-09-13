@@ -5,6 +5,11 @@ import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import {
+  getDiscussionLink,
+  recommendUsersByQuery,
+  recommendUsersToMention,
+} from '../common';
+import {
   Comment,
   CommentMention,
   Post,
@@ -45,12 +50,7 @@ import {
 } from '../common/vordr';
 import { reportComment } from '../common/reporting';
 import { ReportReason } from '../entity/common';
-import {
-  getDiscussionLink,
-  recommendUsersByQuery,
-  recommendUsersToMention,
-  toGQLEnum,
-} from '../common';
+import { toGQLEnum } from '../common/utils';
 
 export interface GQLComment {
   id: string;
