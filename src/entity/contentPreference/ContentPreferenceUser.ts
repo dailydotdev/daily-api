@@ -8,7 +8,7 @@ export class ContentPreferenceUser extends ContentPreference {
   @Column({ type: 'text', default: null })
   referenceUserId: string;
 
-  @ManyToOne('Source', { lazy: true, onDelete: 'CASCADE' })
+  @ManyToOne('User', { lazy: true, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'referenceUserId' })
   user: Promise<User>;
 }
