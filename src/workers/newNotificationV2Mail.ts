@@ -98,7 +98,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       .getRepository(Submission)
       .findOneBy({ id: notification.referenceId });
     if (!submission) {
-      return;
+      return null;
     }
     return {
       submitted_at: formatMailDate(submission.createdAt),
@@ -114,12 +114,12 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       .findOneBy({ id: notification.referenceId })) as ArticlePost;
     const submission = await con
       .getRepository(Submission)
-      .findOneBy({ url: post.url, userId: user.id });
+      .findOneByOrFail({ url: post.url!, userId: user.id });
     return {
       submitted_at: formatMailDate(submission.createdAt),
       post_title: truncatePostToTweet(post),
       post_image: post.image || pickImageUrl(post),
-      article_link: post.url,
+      article_link: post.url!,
       discussion_link: addNotificationEmailUtm(
         notification.targetUrl,
         notification.type,
@@ -146,7 +146,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       relations: ['post', 'user'],
     });
     if (!comment) {
-      return;
+      return null;
     }
     const [commenter, post] = await Promise.all([comment.user, comment.post]);
     return {
@@ -154,7 +154,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       full_name: commenter.name,
       post_title: truncatePostToTweet(post),
       post_image: (post as ArticlePost).image || pickImageUrl(post),
-      new_comment: notification.description,
+      new_comment: notification.description!,
       discussion_link: addNotificationEmailUtm(
         notification.targetUrl,
         notification.type,
@@ -171,14 +171,14 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
         notification.targetUrl,
         notification.type,
       ),
-      upvotes: notification.uniqueKey,
+      upvotes: notification.uniqueKey!,
       upvote_title: basicHtmlStrip(notification.title),
     };
   },
   article_report_approved: async (con, user, notification) => {
     const post = await con
       .getRepository(Post)
-      .findOneBy({ id: notification.referenceId });
+      .findOneByOrFail({ id: notification.referenceId });
     return {
       post_title: truncatePostToTweet(post),
       post_image: (post as ArticlePost).image || pickImageUrl(post),
@@ -187,7 +187,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   article_analytics: async (con, user, notification) => {
     const [stats, post] = await Promise.all([
       getAuthorPostStats(con, user.id),
-      con.getRepository(Post).findOneBy({ id: notification.referenceId }),
+      con.getRepository(Post).findOneByOrFail({ id: notification.referenceId }),
     ]);
     return {
       post_image: (post as ArticlePost).image || pickImageUrl(post),
@@ -205,11 +205,11 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     const av = avatars[0];
     const sourceRequest = await con
       .getRepository(SourceRequest)
-      .findOneBy({ id: notification.referenceId });
+      .findOneByOrFail({ id: notification.referenceId });
     return {
       source_name: av.name,
       source_image: av.image,
-      rss_link: sourceRequest.sourceFeed,
+      rss_link: sourceRequest.sourceFeed!,
       source_link: addNotificationEmailUtm(
         notification.targetUrl,
         notification.type,
@@ -219,7 +219,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   source_rejected: async (con, user, notification) => {
     const sourceRequest = await con
       .getRepository(SourceRequest)
-      .findOneBy({ id: notification.referenceId });
+      .findOneByOrFail({ id: notification.referenceId });
     return {
       rss_link: sourceRequest.sourceUrl,
     };
@@ -230,13 +230,13 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       relations: ['post', 'user'],
     });
     if (!comment) {
-      return;
+      return null;
     }
     const [commenter, post] = await Promise.all([comment.user, comment.post]);
     return {
       full_name: commenter.name,
       commenter_profile_image: commenter.image,
-      comment: notification.description,
+      comment: notification.description!,
       post_image: (post as ArticlePost).image || pickImageUrl(post),
       post_title: truncatePostToTweet(post),
       post_link: addNotificationEmailUtm(
@@ -252,7 +252,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       relations: ['parent', 'user', 'post'],
     });
     if (!comment) {
-      return;
+      return null;
     }
     const [commenter, parent, post] = await Promise.all([
       comment.user,
@@ -260,19 +260,19 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       comment.post,
     ]);
     if (!commenter || !parent || !post) {
-      return;
+      return null;
     }
 
     const parentUser = await parent.user;
     if (!parentUser) {
-      return;
+      return null;
     }
 
     return {
       user_profile_image: parentUser.image,
       full_name: commenter.name,
       main_comment: simplifyComment(parent.content),
-      new_comment: notification.description,
+      new_comment: notification.description!,
       post_title: truncatePostToTweet(post),
       discussion_link: addNotificationEmailUtm(
         notification.targetUrl,
@@ -288,7 +288,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     return {
       // Strip HTML tags
       upvote_title: basicHtmlStrip(notification.title),
-      main_comment: notification.description,
+      main_comment: notification.description!,
       discussion_link: addNotificationEmailUtm(
         notification.targetUrl,
         notification.type,
@@ -318,11 +318,11 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       con.getRepository(User).findOneBy({ id: notification.uniqueKey }),
       con
         .getRepository(WelcomePost)
-        .findOneBy({ id: notification.referenceId }),
+        .findOneByOrFail({ id: notification.referenceId }),
     ]);
     const source = await post.source;
     if (!joinedUser || !source) {
-      return;
+      return null;
     }
     return {
       full_name: joinedUser.name,
@@ -334,7 +334,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
         notification.type,
       ),
       user_reputation: joinedUser.reputation,
-      new_member_handle: joinedUser.username,
+      new_member_handle: joinedUser.username!,
     };
   },
   squad_post_added: async (con, user, notification) => {
@@ -343,7 +343,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       relations: ['author', 'source'],
     });
     if (!post) {
-      return;
+      return null;
     }
     const [author, source, sharedPost] = await Promise.all([
       post.author,
@@ -355,7 +355,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
         : null,
     ]);
     if (!author || !source) {
-      return;
+      return null;
     }
 
     const baseObject = {
@@ -396,14 +396,14 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       relations: ['post', 'user'],
     });
     if (!comment) {
-      return;
+      return null;
     }
     const [commenter, post] = [
       await comment.user,
       (await comment.post) as SharePost,
     ];
     if (!post || !post?.sharedPostId || !post?.authorId) {
-      return;
+      return null;
     }
     const [sharedPost, author, source] = await Promise.all([
       con.getRepository(Post).findOneBy({ id: post.sharedPostId }),
@@ -415,9 +415,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       full_name: commenter.name,
       squad_name: source.name,
       squad_image: source.image,
-      post_title: truncatePostToTweet(sharedPost),
+      post_title: truncatePostToTweet(sharedPost || undefined),
       post_image: (sharedPost as ArticlePost).image || pickImageUrl(post),
-      new_comment: notification.description,
+      new_comment: notification.description!,
       post_link: addNotificationEmailUtm(
         notification.targetUrl,
         notification.type,
@@ -435,7 +435,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       relations: ['parent', 'user', 'post'],
     });
     if (!comment) {
-      return;
+      return null;
     }
     const [commenter, parent, post] = await Promise.all([
       comment.user,
@@ -443,12 +443,12 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       comment.post,
     ]);
     if (!commenter || !parent || !post) {
-      return;
+      return null;
     }
 
     const parentUser = await parent.user;
     if (!parentUser) {
-      return;
+      return null;
     }
 
     const source = await post.source;
@@ -458,7 +458,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       squad_name: source.name,
       squad_image: source.image,
       commenter_reputation: commenter.reputation,
-      new_comment: notification.description,
+      new_comment: notification.description!,
       post_link: addNotificationEmailUtm(
         notification.targetUrl,
         notification.type,
@@ -477,7 +477,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       .getRepository(Source)
       .findOneBy({ id: notification.referenceId });
     if (!source) {
-      return;
+      return null;
     }
     return {
       squad_name: source.name,
@@ -499,7 +499,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       relations: ['author', 'source'],
     });
     if (!post) {
-      return;
+      return null;
     }
     const [author, source, sharedPost] = await Promise.all([
       post.author,
@@ -511,7 +511,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
         : null,
     ]);
     if (!author || !source) {
-      return;
+      return null;
     }
 
     const baseObject = {
@@ -551,7 +551,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       .getRepository(Source)
       .findOneBy({ id: notification.referenceId });
     if (!source) {
-      return;
+      return null;
     }
     return {
       squad_name: source.name,
@@ -569,7 +569,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     });
 
     if (!post) {
-      return;
+      return null;
     }
 
     const latestPostRelation = await con.getRepository(PostRelation).findOne({
@@ -588,7 +588,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     });
 
     if (!latestPostRelation) {
-      return;
+      return null;
     }
 
     const latestRelatedPost =
@@ -637,7 +637,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     };
   },
   squad_public_submitted: async (con, user, notification) => {
-    const request = await con.getRepository(SquadPublicRequest).findOne({
+    const request = await con.getRepository(SquadPublicRequest).findOneOrFail({
       where: { id: notification.referenceId },
     });
 

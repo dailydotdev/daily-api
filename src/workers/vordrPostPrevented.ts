@@ -16,6 +16,11 @@ export const vordrPostPrevented: TypedWorker<'api.v1.post-visible'> = {
         },
       });
 
+      // Edge cases where the post is not found in the database
+      if (!post) {
+        return;
+      }
+
       const author = await post.author;
       const scout = await post.scout;
 

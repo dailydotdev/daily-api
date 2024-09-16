@@ -12,6 +12,7 @@ import { PostTag } from '../PostTag';
 import { PostKeyword } from '../PostKeyword';
 import { User } from '../user';
 import { PostRelation } from './PostRelation';
+import type { PostCodeSnippet } from './PostCodeSnippet';
 
 export enum PostType {
   Article = 'article',
@@ -137,7 +138,7 @@ export class Post {
 
   @Column({ type: 'text', nullable: true })
   @Index('IDX_tags')
-  tagsStr: string;
+  tagsStr: string | null;
 
   @Column({ type: 'integer', default: 0 })
   @Index('IDX_post_upvotes')
@@ -203,8 +204,8 @@ export class Post {
   @Column({ default: true })
   visible: boolean;
 
-  @Column({ default: null })
-  visibleAt: Date;
+  @Column({ type: 'timestamp', default: null })
+  visibleAt: Date | null;
 
   @Column({ default: null })
   @Index()
@@ -261,4 +262,13 @@ export class Post {
 
   @Column({ type: 'jsonb', default: {} })
   contentQuality: PostContentQuality;
+
+  @OneToMany(
+    'PostCodeSnippet',
+    (postCodeSnippet: PostCodeSnippet) => postCodeSnippet.post,
+    {
+      lazy: true,
+    },
+  )
+  public codeSnippets: Promise<PostCodeSnippet[]>;
 }

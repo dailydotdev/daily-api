@@ -41,7 +41,6 @@ import {
 } from '../common/markdown';
 import { ensureSourcePermissions, SourcePermissions } from './sources';
 import { generateShortId } from '../ids';
-import { CommentReport } from '../entity/CommentReport';
 import { UserVote } from '../types';
 import { UserComment } from '../entity/user/UserComment';
 import {
@@ -49,6 +48,9 @@ import {
   VordrFilterType,
   whereVordrFilter,
 } from '../common/vordr';
+import { reportComment } from '../common/reporting';
+import { ReportReason } from '../entity/common';
+import { toGQLEnum } from '../common/utils';
 
 export interface GQLComment {
   id: string;
@@ -89,7 +91,7 @@ interface GQLCommentCommentArgs {
 interface ReportCommentArgs {
   commentId: string;
   note: string;
-  reason: string;
+  reason: ReportReason;
 }
 
 export interface GQLUserComment {
@@ -97,7 +99,14 @@ export interface GQLUserComment {
   votedAt: Date | null;
 }
 
+export enum SortCommentsBy {
+  NewestFirst = 'newest',
+  OldestFirst = 'oldest',
+}
+
 export const typeDefs = /* GraphQL */ `
+  ${toGQLEnum(SortCommentsBy, 'SortCommentsBy')}
+
   type Comment {
     """
     Unique identifier
@@ -273,6 +282,11 @@ export const typeDefs = /* GraphQL */ `
       Paginate first
       """
       first: Int
+
+      """
+      Sort comments by
+      """
+      sortBy: SortCommentsBy = oldest
     ): CommentConnection!
 
     """
@@ -410,6 +424,7 @@ export const typeDefs = /* GraphQL */ `
 
 export interface GQLPostCommentsArgs extends ConnectionArguments {
   postId: string;
+  sortBy: SortCommentsBy;
 }
 
 export interface GQLCommentUpvoteArgs extends ConnectionArguments {
@@ -543,15 +558,6 @@ const getCommentById = async (
   return res[0];
 };
 
-export const reportCommentReasons = new Map([
-  ['HATEFUL', 'Hateful or Offensive Content'],
-  ['HARASSMENT', 'Harassment or Bullying'],
-  ['SPAM', 'Spam or Scams'],
-  ['EXPLICIT', 'Explicit Sexual Content'],
-  ['MISINFORMATION', 'False Information or Misinformation'],
-  ['OTHER', 'Other'],
-]);
-
 const validateComment = (ctx: Context, content: string): void => {
   if (!content.trim().length) {
     throw new ValidationError('Content cannot be empty!');
@@ -609,6 +615,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         args,
         { key: 'createdAt', maxSize: 500 },
         {
+          orderByKey:
+            args.sortBy === SortCommentsBy.NewestFirst ? 'DESC' : 'ASC',
           queryBuilder: (builder) => {
             builder.queryBuilder = builder.queryBuilder
               .andWhere(`${builder.alias}.postId = :postId`, {
@@ -941,32 +949,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return { _: true };
     },
     reportComment: async (
-      source,
+      _,
       { commentId: id, reason, note }: ReportCommentArgs,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      if (!reportCommentReasons.has(reason)) {
-        throw new ValidationError('Reason is invalid');
-      }
-
-      await ctx
-        .getRepository(Comment)
-        .findOneOrFail({ where: { id }, select: ['id'] });
-
-      try {
-        await ctx.getRepository(CommentReport).insert({
-          commentId: id,
-          userId: ctx.userId,
-          reason,
-          note,
-        });
-      } catch (originalError) {
-        const err = originalError as TypeORMQueryFailedError;
-
-        if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
-          throw new Error('Failed to save report to database');
-        }
-      }
+      await reportComment({ ctx, id, reason, comment: note });
 
       return { _: true };
     },

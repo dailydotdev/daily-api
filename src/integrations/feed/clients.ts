@@ -1,27 +1,42 @@
 import { FeedResponse, IFeedClient } from './types';
 import { RequestInit } from 'node-fetch';
 import { fetchOptions as globalFetchOptions } from '../../http';
-import { retryFetchParse } from '../retry';
+import { fetchParse } from '../retry';
 import { GenericMetadata } from '../lofn';
+import { GarmrNoopService, IGarmrClient, IGarmrService } from '../garmr';
 
 type RawFeedServiceResponse = {
   data: { post_id: string; metadata: Record<string, string> }[];
   cursor?: string;
 };
 
+type FeedFetchOptions = RequestInit & {
+  retries?: number;
+};
+
 /**
  * Naive implementation of a feed client that fetches the feed from the feed service
  */
-export class FeedClient implements IFeedClient {
+export class FeedClient implements IFeedClient, IGarmrClient {
   private readonly url: string;
-  private readonly fetchOptions: RequestInit;
+  private readonly fetchOptions: FeedFetchOptions;
+  readonly garmr: IGarmrService;
 
   constructor(
     url = process.env.INTERNAL_FEED,
-    fetchOptions: RequestInit = globalFetchOptions,
+    options?: {
+      fetchOptions?: FeedFetchOptions;
+      garmr?: IGarmrService;
+    },
   ) {
+    const {
+      fetchOptions = globalFetchOptions,
+      garmr = new GarmrNoopService(),
+    } = options || {};
+
     this.url = url;
     this.fetchOptions = fetchOptions;
+    this.garmr = garmr;
   }
 
   async fetchFeed(
@@ -30,15 +45,14 @@ export class FeedClient implements IFeedClient {
     config,
     extraMetadata: GenericMetadata = undefined,
   ): Promise<FeedResponse> {
-    const res = await retryFetchParse<RawFeedServiceResponse>(
-      this.url,
-      {
+    const res = await this.garmr.execute(() => {
+      return fetchParse<RawFeedServiceResponse>(this.url, {
         ...this.fetchOptions,
         method: 'POST',
         body: JSON.stringify(config),
-      },
-      { retries: 5 },
-    );
+      });
+    });
+
     if (!res?.data?.length) {
       return { data: [] };
     }

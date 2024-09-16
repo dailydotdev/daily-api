@@ -1,9 +1,9 @@
 import { saveFixtures } from './helpers';
-import { ArticlePost, Source, SourceType } from '../src/entity';
+import { ArticlePost, Source, SourceRequest, SourceType } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
-import { PostService } from '@dailydotdev/schema';
+import { PostService, SourceRequestService } from '@dailydotdev/schema';
 import {
   CallOptions,
   Code,
@@ -53,7 +53,6 @@ const mockTransport = createRouterTransport(privateRpc, {
     ],
   },
 });
-const mockClient = createPromiseClient(PostService, mockTransport);
 const defaultClientAuthOptions: CallOptions = {
   headers: {
     Authorization: `Service ${process.env.SERVICE_SECRET}`,
@@ -61,6 +60,7 @@ const defaultClientAuthOptions: CallOptions = {
 };
 
 describe('PostService', () => {
+  const mockClient = createPromiseClient(PostService, mockTransport);
   it('should return not found when not authorized', async () => {
     baseRpcContext.defaultValue = {
       service: false,
@@ -265,5 +265,52 @@ describe('PostService', () => {
     expect(post).toBeTruthy();
     expect(post!.yggdrasilId).toEqual('95ba892c-d641-4b94-ba47-be03c4c6cc8b');
     expect(post!.url).toBeNull();
+  });
+});
+
+describe('SourceRequestService', () => {
+  const mockClient = createPromiseClient(SourceRequestService, mockTransport);
+  it('should return not found when not authorized', async () => {
+    baseRpcContext.defaultValue = {
+      service: false,
+    };
+
+    await expect(
+      mockClient.create({
+        url: 'http://example.com/service/1',
+      }),
+    ).rejects.toThrow(
+      new ConnectError('unauthenticated', Code.Unauthenticated),
+    );
+  });
+
+  it('should create source request', async () => {
+    const result = await mockClient.create(
+      {
+        url: 'http://example.com/service/1',
+      },
+      defaultClientAuthOptions,
+    );
+
+    expect(result).toEqual({
+      id: expect.any(String),
+    });
+    const sourceRequest = await con
+      .getRepository(SourceRequest)
+      .findOneBy({ id: result.id });
+    expect(sourceRequest).toBeTruthy();
+    expect(sourceRequest!.userId).toEqual('yggdrasil');
+    expect(sourceRequest!.sourceUrl).toEqual('http://example.com/service/1');
+  });
+
+  it('should throw on invalid url', async () => {
+    await expect(
+      mockClient.create(
+        {
+          url: 'thisIsNotUrl',
+        },
+        defaultClientAuthOptions,
+      ),
+    ).rejects.toThrow(new ConnectError('invalid url', Code.InvalidArgument));
   });
 });

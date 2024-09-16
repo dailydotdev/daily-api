@@ -10,6 +10,8 @@ import { GrpcInstrumentation } from '@opentelemetry/instrumentation-grpc';
 import { TypeormInstrumentation } from 'opentelemetry-instrumentation-typeorm';
 import { UndiciInstrumentation } from '@opentelemetry/instrumentation-undici';
 
+import dc from 'node:diagnostics_channel';
+
 import { NodeSDK, logs, node, api, resources } from '@opentelemetry/sdk-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
 import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter';
@@ -20,7 +22,18 @@ import { containerDetector } from '@opentelemetry/resource-detector-container';
 import { gcpDetector } from '@opentelemetry/resource-detector-gcp';
 
 import { isProd } from '../common/utils';
-import { channel, getAppVersion, TelemetrySemanticAttributes } from './common';
+import {
+  channelName,
+  getAppVersion,
+  SEMATTRS_DAILY_APPS_USER_ID,
+  SEMATTRS_DAILY_APPS_VERSION,
+} from './common';
+import {
+  ATTR_MESSAGING_DESTINATION_NAME,
+  ATTR_MESSAGING_MESSAGE_BODY_SIZE,
+  ATTR_MESSAGING_MESSAGE_ID,
+  ATTR_MESSAGING_SYSTEM,
+} from '@opentelemetry/semantic-conventions/incubating';
 
 const resourceDetectors = [
   resources.envDetectorSync,
@@ -40,9 +53,8 @@ export const addApiSpanLabels = (
   res?: FastifyReply,
 ): void => {
   span.setAttributes({
-    [TelemetrySemanticAttributes.DAILY_APPS_VERSION]: getAppVersion(req),
-    [TelemetrySemanticAttributes.DAILY_APPS_USER_ID]:
-      req.userId || req.trackingId || 'unknown',
+    [SEMATTRS_DAILY_APPS_VERSION]: getAppVersion(req),
+    [SEMATTRS_DAILY_APPS_USER_ID]: req.userId || req.trackingId || 'unknown',
   });
 };
 
@@ -52,11 +64,10 @@ export const addPubsubSpanLabels = (
   message: Message | { id: string; data?: Buffer },
 ): void => {
   span.setAttributes({
-    [TelemetrySemanticAttributes.MESSAGING_SYSTEM]: 'pubsub',
-    [TelemetrySemanticAttributes.MESSAGING_DESTINATION]: subscription,
-    [TelemetrySemanticAttributes.MESSAGING_MESSAGE_ID]: message.id,
-    [TelemetrySemanticAttributes.MESSAGING_MESSAGE_PAYLOAD_SIZE_BYTES]:
-      message.data.length,
+    [ATTR_MESSAGING_SYSTEM]: 'pubsub',
+    [ATTR_MESSAGING_DESTINATION_NAME]: subscription,
+    [ATTR_MESSAGING_MESSAGE_ID]: message.id,
+    [ATTR_MESSAGING_MESSAGE_BODY_SIZE]: message.data.length,
   });
 };
 
@@ -120,7 +131,7 @@ export const tracer = (serviceName: string) => {
     // textMapPropagator: new CloudPropagator(),
   });
 
-  channel.subscribe(({ fastify }: { fastify: FastifyInstance }) => {
+  dc.subscribe(channelName, ({ fastify }: { fastify: FastifyInstance }) => {
     fastify.decorate('tracer', api.trace.getTracer(serviceName));
     fastify.decorateRequest('span', null);
 
@@ -130,7 +141,9 @@ export const tracer = (serviceName: string) => {
 
     // Decorate the main span with some metadata
     fastify.addHook('onResponse', async (req, res) => {
-      addApiSpanLabels(req.span, req, res);
+      if (req.span.isRecording()) {
+        addApiSpanLabels(req.span, req, res);
+      }
     });
   });
 

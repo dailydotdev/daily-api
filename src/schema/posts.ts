@@ -32,6 +32,7 @@ import {
   UploadPreset,
   validatePost,
   ONE_MINUTE_IN_SECONDS,
+  toGQLEnum,
 } from '../common';
 import {
   ArticlePost,
@@ -43,7 +44,6 @@ import {
   Post,
   PostFlagsPublic,
   PostMention,
-  PostReport,
   PostType,
   Toc,
   UserActionType,
@@ -59,7 +59,7 @@ import {
   PostRelation,
   deletePost,
 } from '../entity';
-import { GQLEmptyResponse } from './common';
+import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
   NotFoundError,
   SubmissionFailErrorMessage,
@@ -87,7 +87,10 @@ import { insertOrIgnoreAction } from './actions';
 import { generateShortId, generateUUID } from '../ids';
 import { generateStorageKey, StorageTopic } from '../config';
 import { subDays } from 'date-fns';
-import { UserVote } from '../types';
+import { ReportReason } from '../entity/common';
+import { reportPost, saveHiddenPost } from '../common/reporting';
+import { PostCodeSnippetLanguage, UserVote } from '../types';
+import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
 
 export interface GQLPost {
   id: string;
@@ -189,7 +192,7 @@ export const getPostNotification = async (
 
 interface ReportPostArgs {
   id: string;
-  reason: string;
+  reason: ReportReason;
   comment: string;
   tags?: string[];
 }
@@ -198,6 +201,11 @@ export interface GQLPostRelationArgs extends ConnectionArguments {
   id: string;
   relationType: PostRelationType;
 }
+
+export type GQLPostCodeSnippet = Pick<
+  PostCodeSnippet,
+  'postId' | 'language' | 'content' | 'order'
+>;
 
 export const typeDefs = /* GraphQL */ `
   type TocItem {
@@ -575,6 +583,33 @@ export const typeDefs = /* GraphQL */ `
     question: String!
   }
 
+  ${toGQLEnum(PostCodeSnippetLanguage, 'PostCodeSnippetLanguage')}
+
+  type PostCodeSnippet {
+    postId: String!
+    order: Int!
+    language: PostCodeSnippetLanguage!
+    content: String!
+  }
+
+  type PostCodeSnippetEdge {
+    node: PostCodeSnippet!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type PostCodeSnippetConnection {
+    pageInfo: PageInfo!
+    edges: [PostCodeSnippetEdge!]!
+    """
+    The original query in case of a search operation
+    """
+    query: String
+  }
+
   """
   Enum of the possible reasons to report a post
   """
@@ -676,6 +711,26 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): PostConnection!
+
+    """
+    Get code snippets by post id
+    """
+    postCodeSnippets(
+      """
+      Post id
+      """
+      id: ID!
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): PostCodeSnippetConnection!
   }
 
   extend type Mutation {
@@ -960,49 +1015,7 @@ const nullableImageType = [
   PostType.Collection,
 ];
 
-const saveHiddenPost = async (
-  con: DataSource,
-  {
-    postId,
-    userId,
-  }: {
-    postId: string;
-    userId: string;
-  },
-): Promise<boolean> => {
-  try {
-    await con.transaction(async (entityManager) => {
-      await entityManager.getRepository(UserPost).save({
-        postId,
-        userId,
-        hidden: true,
-      });
-    });
-  } catch (originalError) {
-    const err = originalError as TypeORMQueryFailedError;
-
-    // Foreign key violation
-    if (err?.code === TypeOrmError.FOREIGN_KEY) {
-      throw new NotFoundError('Post not found');
-    }
-    // Unique violation
-    if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
-      throw err;
-    }
-  }
-  return true;
-};
-
 const editablePostTypes = [PostType.Welcome, PostType.Freeform];
-
-export const reportReasons = new Map([
-  ['BROKEN', '💔 Link is broken'],
-  ['NSFW', '🔞 Post is NSFW'],
-  ['CLICKBAIT', '🎣 Clickbait!!!'],
-  ['LOW', '💩 Low quality content'],
-  ['OTHER', '🤔 Other'],
-  ['IRRELEVANT', `Post's tags are irrelevant`],
-]);
 
 export const getPostPermalink = (post: Pick<GQLPost, 'shortId'>): string =>
   `${process.env.URL_PREFIX}/r/${post.shortId}`;
@@ -1076,6 +1089,11 @@ const validateEditAllowed = (
     throw new ForbiddenError(`Editing other people's posts is not allowed!`);
   }
 };
+
+const postCodeSnippetPageGenerator = offsetPageGenerator<GQLPostCodeSnippet>(
+  100,
+  500,
+);
 
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
@@ -1272,6 +1290,39 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       );
     },
+    postCodeSnippets: async (
+      _,
+      args: GQLPostRelationArgs,
+      ctx: Context,
+      info,
+    ): Promise<ConnectionRelay<GQLPostCodeSnippet>> => {
+      const post = await ctx.con
+        .getRepository(Post)
+        .findOneByOrFail([{ id: args.id }, { slug: args.id }]);
+      await ensureSourcePermissions(ctx, post.sourceId);
+
+      const page = postCodeSnippetPageGenerator.connArgsToPage(args);
+
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) =>
+          postCodeSnippetPageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => postCodeSnippetPageGenerator.hasNextPage(page, nodeSize),
+        (node, index) =>
+          postCodeSnippetPageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder
+            .andWhere(`${builder.alias}."postId" = :postId`, {
+              postId: args.id,
+            })
+            .limit(page.limit)
+            .addOrderBy(`${builder.alias}.order`, 'ASC');
+
+          return builder;
+        },
+      );
+    },
   },
   Mutation: {
     hidePost: async (
@@ -1302,40 +1353,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { id, reason, comment, tags }: ReportPostArgs,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      if (!reportReasons.has(reason)) {
-        throw new ValidationError('Reason is invalid');
-      }
+      await reportPost({ ctx, id, reason, comment, tags });
 
-      if (reason === 'IRRELEVANT' && !tags?.length) {
-        throw new ValidationError('You must include the irrelevant tags!');
-      }
-
-      const added = await saveHiddenPost(ctx.con, {
-        userId: ctx.userId,
-        postId: id,
-      });
-
-      if (added) {
-        const post = await ctx.getRepository(Post).findOneByOrFail({ id });
-        await ensureSourcePermissions(ctx, post.sourceId);
-        if (!post.banned) {
-          try {
-            await ctx.getRepository(PostReport).insert({
-              postId: id,
-              userId: ctx.userId,
-              reason,
-              comment,
-              tags,
-            });
-          } catch (originalError) {
-            const err = originalError as TypeORMQueryFailedError;
-
-            if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
-              throw new Error('Failed to save report to database');
-            }
-          }
-        }
-      }
       return { _: true };
     },
     uploadContentImage: async (

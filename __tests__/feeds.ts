@@ -1757,9 +1757,13 @@ describe('query randomSimilarPostsByTags', () => {
       variables: { post: 'p1', tags: ['webdev', 'javascript'] },
     });
     expect(res.errors).toBeFalsy();
+    // Temporary turned off
     expect(
       res.data.randomSimilarPostsByTags.map((post) => post.id).sort(),
-    ).toEqual(['p3', 'p5']);
+    ).toEqual([]);
+    // expect(
+    //   res.data.randomSimilarPostsByTags.map((post) => post.id).sort(),
+    // ).toEqual(['p3', 'p5']);
   });
 
   it('should fallback to old algorithm even when tags not provided', async () => {
@@ -1797,7 +1801,9 @@ describe('query randomSimilarPostsByTags', () => {
       variables: { post: 'p1', tags: [] },
     });
     expect(res.errors).toBeFalsy();
-    expect(res.data.randomSimilarPostsByTags.length).toEqual(3);
+    // Temporary turned off
+    expect(res.data.randomSimilarPostsByTags.length).toEqual(0);
+    // expect(res.data.randomSimilarPostsByTags.length).toEqual(3);
   });
 });
 

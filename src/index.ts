@@ -31,6 +31,7 @@ import { loadFeatures } from './growthbook';
 import { runInRootSpan } from './telemetry';
 import { loggerConfig } from './logger';
 import { getTemporalClient } from './temporal/client';
+import { BrokenCircuitError } from 'cockatiel';
 
 type Mutable<Type> = {
   -readonly [Key in keyof Type]: Type[Key];
@@ -181,6 +182,11 @@ export default async function app(
                   { body: ctx?.reply?.request?.body },
                   'unknown query',
                 );
+              } else if (error.originalError instanceof BrokenCircuitError) {
+                newError.message = 'Garmr broken error';
+                newError.extensions = {
+                  code: 'GARMR_BROKEN_ERROR',
+                };
               } else if (!error.extensions?.code) {
                 app.log.warn(
                   {

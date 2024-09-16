@@ -37,6 +37,7 @@ import {
   PostRelationType,
   normalizeCollectionPostSources,
   CollectionPost,
+  UserCompany,
 } from '../../entity';
 import {
   notifyCommentCommented,
@@ -80,16 +81,15 @@ import {
   shouldAllowRestore,
   isNumber,
   notifySquadFeaturedUpdated,
+  DEFAULT_TIMEZONE,
 } from '../../common';
 import { ChangeMessage, ChangeObject, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import { PostReport, ContentImage } from '../../entity';
-import { reportReasons } from '../../schema/posts';
 import { updateAlerts } from '../../schema/alerts';
 import { TypeOrmError, TypeORMQueryFailedError } from '../../errors';
 import { CommentReport } from '../../entity/CommentReport';
-import { reportCommentReasons } from '../../schema/comments';
 import { getTableName, isChanged, notifyPostContentUpdated } from './common';
 import { UserComment } from '../../entity/user/UserComment';
 import {
@@ -109,6 +109,11 @@ import {
   runReminderWorkflow,
 } from '../../temporal/notifications/utils';
 import { addDays } from 'date-fns';
+import {
+  postReportReasonsMap,
+  reportCommentReasonsMap,
+} from '../../entity/common';
+import { utcToZonedTime } from 'date-fns-tz';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -585,7 +590,7 @@ const onPostReportChange = async (
       await notifyPostReport(
         data.payload.after!.userId,
         post,
-        reportReasons.get(data.payload.after!.reason)!,
+        postReportReasonsMap.get(data.payload.after!.reason)!,
         data.payload.after!.comment,
         data.payload.after!.tags,
       );
@@ -606,7 +611,7 @@ const onCommentReportChange = async (
       await notifyCommentReport(
         data.payload.after!.userId,
         comment,
-        reportCommentReasons.get(data.payload.after!.reason)!,
+        reportCommentReasonsMap.get(data.payload.after!.reason)!,
         data.payload.after!.note,
       );
     }
@@ -835,17 +840,18 @@ const setRestoreStreakCache = async (
   streak: ChangeObject<UserStreak>,
 ) => {
   const { userId, currentStreak: previousStreak } = streak;
-  const today = new Date();
-  const shouldAllow = await shouldAllowRestore(con, streak);
+  const user = await con.getRepository(User).findOneBy({ id: userId });
+  const shouldAllow = await shouldAllowRestore(con, streak, user);
 
   if (!shouldAllow) {
     return;
   }
 
   const key = generateStorageKey(StorageTopic.Streak, StorageKey.Reset, userId);
+  const today = utcToZonedTime(new Date(), user.timezone || DEFAULT_TIMEZONE);
   const now = today.getTime();
   const nextDay = addDays(now, 1).setHours(0, 0, 0, 0);
-  const differenceInSeconds = (nextDay - now) * 1000;
+  const differenceInSeconds = Math.round((nextDay - now) / 1000);
 
   await Promise.all([
     setRedisObjectWithExpiry(key, previousStreak, differenceInSeconds),
@@ -879,14 +885,32 @@ const onUserStreakChange = async (
 ) => {
   if (data.payload.op === 'u') {
     if (
-      data.payload.after.currentStreak === 0 &&
-      data.payload.before.currentStreak >= VALID_STREAK_RESET
+      data.payload.after!.currentStreak === 0 &&
+      data.payload.before!.currentStreak >= VALID_STREAK_RESET
     ) {
-      await setRestoreStreakCache(con, data.payload.before);
+      await setRestoreStreakCache(con, data.payload.before!);
     }
 
     await triggerTypedEvent(logger, 'api.v1.user-streak-updated', {
       streak: data.payload.after!,
+    });
+  }
+};
+
+const onUserCompanyCompanyChange = async (
+  _: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<UserCompany>,
+) => {
+  const creationWithCompany =
+    data.payload.op === 'c' && !!data.payload.after?.companyId;
+  const updateWithDifferentCompany =
+    data.payload.op === 'u' &&
+    !!data.payload.after?.companyId &&
+    data.payload.before?.companyId !== data.payload.after?.companyId;
+  if (creationWithCompany || updateWithDifferentCompany) {
+    await triggerTypedEvent(logger, 'api.v1.user-company-approved', {
+      userCompany: data.payload.after!,
     });
   }
 };
@@ -1005,6 +1029,9 @@ const worker: Worker = {
           break;
         case getTableName(con, Bookmark):
           await onBookmarkChange(con, logger, data);
+          break;
+        case getTableName(con, UserCompany):
+          await onUserCompanyCompanyChange(con, logger, data);
           break;
       }
     } catch (err) {

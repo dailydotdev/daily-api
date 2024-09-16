@@ -1,4 +1,4 @@
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, In, Not } from 'typeorm';
 import {
   Comment,
   ExternalLinkPreview,
@@ -18,6 +18,12 @@ import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { HttpError, retryFetchParse } from '../integrations/retry';
 import { checkWithVordr, VordrFilterType } from './vordr';
 import { AuthContext } from '../Context';
+import { createHash } from 'node:crypto';
+import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
+import { logger } from '../logger';
+import { downloadJsonFile } from './googleCloud';
+import type { PostCodeSnippetJsonFile } from '../types';
+import { uniqueifyObjectArray } from './utils';
 
 export const defaultImage = {
   urls: process.env.DEFAULT_IMAGE_URL?.split?.(',') ?? [],
@@ -252,3 +258,73 @@ export const validatePost = (
 export const submitArticleThreshold = parseInt(
   process.env.SUBMIT_ARTICLE_THRESHOLD,
 );
+
+export const insertCodeSnippets = async ({
+  entityManager,
+  post,
+  codeSnippetsJson,
+}: {
+  entityManager: EntityManager;
+  post: Pick<Post, 'id'>;
+  codeSnippetsJson: PostCodeSnippetJsonFile;
+}) => {
+  const uniqueCodeSnippets = uniqueifyObjectArray(
+    codeSnippetsJson.snippets,
+    (codeSnippetsContent) => {
+      const checksum = createHash('sha1');
+      checksum.update(codeSnippetsContent);
+
+      return checksum.digest('hex');
+    },
+    (codeSnippetContent, index, contentHash) => {
+      return entityManager.getRepository(PostCodeSnippet).create({
+        postId: post.id,
+        contentHash,
+        order: index,
+        content: codeSnippetContent,
+      });
+    },
+  );
+
+  await entityManager.getRepository(PostCodeSnippet).delete({
+    postId: post.id,
+    contentHash: Not(
+      In(uniqueCodeSnippets.map((snippet) => snippet.contentHash)),
+    ),
+  });
+
+  await entityManager
+    .getRepository(PostCodeSnippet)
+    .upsert(uniqueCodeSnippets, {
+      conflictPaths: ['postId', 'contentHash'],
+    });
+};
+
+export const insertCodeSnippetsFromUrl = async ({
+  entityManager,
+  post,
+  codeSnippetsUrl,
+}: {
+  entityManager: EntityManager;
+  post: Pick<Post, 'id'>;
+  codeSnippetsUrl: string | undefined;
+}) => {
+  try {
+    if (!codeSnippetsUrl) {
+      return;
+    }
+
+    const codeSnippetsJson = await downloadJsonFile<PostCodeSnippetJsonFile>({
+      url: codeSnippetsUrl,
+    });
+
+    await insertCodeSnippets({ entityManager, post, codeSnippetsJson });
+  } catch (err) {
+    logger.error(
+      { codeSnippetsUrl, postId: post.id, err },
+      'failed to save code snippets from bucket',
+    );
+
+    throw err;
+  }
+};

@@ -8,6 +8,55 @@ declare global {
     interface ProcessEnv {
       PORT: string;
       CDC_WORKER_MAX_MESSAGES: string;
+      TYPEORM_HOST: string;
+      TYPEORM_USERNAME: string;
+      TYPEORM_PASSWORD: string;
+      TYPEORM_DATABASE: string;
+      HEIMDALL_ORIGIN: string;
+      ENABLE_PRIVATE_ROUTES: string;
+      ACCESS_SECRET: string;
+      ALLOCATION_QUEUE_CONCURRENCY: string;
+      QUEUE_CONCURRENCY: string;
+      JWT_AUDIENCE: string;
+      JWT_ISSUER: string;
+      JWT_PUBLIC_KEY_PATH: string;
+      JWT_PRIVATE_KEY_PATH: string;
+      CIO_SITE_ID: string;
+      CIO_API_KEY: string;
+      CIO_APP_KEY: string;
+      CIO_REPORTING_WEBHOOK_SECRET: string;
+      CIO_WEBHOOK_SECRET: string;
+      COMMENTS_PREFIX: string;
+      GROWTHBOOK_CLIENT_KEY: string;
+      EXPERIMENTATION_KEY: string;
+      COOKIES_KEY: string;
+      KRATOS_ORIGIN: string;
+      ONESIGNAL_APP_ID: string;
+      ONESIGNAL_API_KEY: string;
+      REDIS_HOST: string;
+      REDIS_PORT: string;
+      PERSONALIZED_DIGEST_FEED: string;
+      DIGEST_QUEUE_CONCURRENCY: string;
+      URL_PREFIX: string;
+      SLACK_CLIENT_ID: string;
+      SLACK_CLIENT_SECRET: string;
+      SLACK_DB_KEY: string;
+      SENDGRID_WEBHOOK_ANALYTICS_KEY: string;
+      SCRAPER_URL: string;
+      NODE_ENV: 'development' | 'production' | 'test';
+      SNOTRA_ORIGIN: string;
+      LOFN_ORIGIN: string;
+      POPULAR_FEED: string;
+      INTERNAL_FEED: string;
+      ROASTER_URL: string;
+      MEILI_ORIGIN: string;
+      MEILI_TOKEN: string;
+      MEILI_INDEX: string;
+      MAGNI_ORIGIN: string;
+      ANALYTICS_URL: string;
+      DEFAULT_IMAGE_RATIO: string;
+      POST_SCRAPER_ORIGIN: string;
+      SUBMIT_ARTICLE_THRESHOLD: string;
     }
   }
 }
@@ -143,3 +192,11 @@ export type PropsParameters<T extends (props: object) => unknown> = T extends (
 ) => unknown
   ? P
   : never;
+
+export enum PostCodeSnippetLanguage {
+  Plain = 'plain',
+}
+
+export type PostCodeSnippetJsonFile = {
+  snippets: string[];
+};
