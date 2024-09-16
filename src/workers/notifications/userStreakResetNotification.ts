@@ -17,7 +17,9 @@ const worker = generateTypedNotificationWorker<'api.v1.user-streak-updated'>({
     );
 
     const [settings, lastStreak] = await Promise.all([
-      con.getRepository(Settings).findOneBy({ userId }),
+      con
+        .getRepository(Settings)
+        .findOne({ where: { userId }, select: ['optOutReadingStreak'] }),
       getRedisObject(key),
     ]);
 
