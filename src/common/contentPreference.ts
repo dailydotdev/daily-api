@@ -82,6 +82,7 @@ const unfollowUser: UnFollowEntity = async ({ ctx, id }) => {
 
     await repository.delete({
       userId: ctx.userId,
+      referenceUserId: id,
       referenceId: id,
     });
 
