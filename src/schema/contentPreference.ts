@@ -75,7 +75,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Id of user
       """
-      userId: String!
+      userId: ID!
       """
       Entity to list (user, source..)
       """
@@ -97,7 +97,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Id of user
       """
-      userId: String!
+      userId: ID!
       """
       Entity to list (user, source..)
       """

@@ -48,16 +48,17 @@ const followUser: FollowEntity = async ({ ctx, id, status }) => {
 
     await repository.save(contentPreference);
 
-    if (status === ContentPreferenceStatus.Subscribed) {
-      const notificationRepository = entityManager.getRepository(
-        NotificationPreferenceUser,
-      );
+    const notificationRepository = entityManager.getRepository(
+      NotificationPreferenceUser,
+    );
 
+    if (status === ContentPreferenceStatus.Subscribed) {
       const notificationPreferences = entityToNotificationTypeMap.user.map(
         (notificationType) => {
           return notificationRepository.create({
             userId: ctx.userId,
             referenceId: id,
+            referenceUserId: id,
             notificationType,
             status: NotificationPreferenceStatus.Subscribed,
           });
@@ -65,6 +66,12 @@ const followUser: FollowEntity = async ({ ctx, id, status }) => {
       );
 
       await notificationRepository.save(notificationPreferences);
+    } else {
+      await notificationRepository.delete({
+        userId: ctx.userId,
+        referenceUserId: id,
+        referenceId: id,
+      });
     }
   });
 };
