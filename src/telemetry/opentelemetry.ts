@@ -141,7 +141,7 @@ export const tracer = (serviceName: string) => {
 
     // Decorate the main span with some metadata
     fastify.addHook('onResponse', async (req, res) => {
-      if (req.span.isRecording()) {
+      if (req?.span?.isRecording()) {
         addApiSpanLabels(req.span, req, res);
       }
     });
