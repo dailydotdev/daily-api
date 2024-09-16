@@ -591,7 +591,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Fetch details of a single category
     """
-    sourceCategory(id: ID!): SourceCategory!
+    sourceCategory(id: String!): SourceCategory!
 
     """
     Fetch all source categories
@@ -1232,8 +1232,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       graphorm.queryOneOrFail(ctx, info, (builder) => ({
         ...builder,
         queryBuilder: builder.queryBuilder.where(
-          `"${builder.alias}"."id" = :id`,
-          { id },
+          `(CAST("${builder.alias}"."id" AS text) = :id OR LOWER(REPLACE("${builder.alias}".title, ' ', '')) = :id)`,
+          { id: id.replace(' ', '').toLowerCase() },
         ),
       })),
     sourceCategories: async (

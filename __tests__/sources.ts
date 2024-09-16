@@ -162,7 +162,7 @@ afterAll(() => disposeGraphQLTesting(state));
 
 describe('query sourceCategory', () => {
   const QUERY = `
-    query SourceCategory($id: ID!) {
+    query SourceCategory($id: String!) {
       sourceCategory(id: $id) {
         id
         title
@@ -189,6 +189,14 @@ describe('query sourceCategory', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.sourceCategory.id).toEqual(category.id);
     expect(res.data.sourceCategory.title).toEqual(category.title);
+  });
+
+  it('should return source category by title', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, { variables: { id: 'web' } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.sourceCategory.title).toEqual('Web');
   });
 
   it('should return source category by id as anonymous user', async () => {
