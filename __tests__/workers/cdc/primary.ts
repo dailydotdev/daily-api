@@ -122,6 +122,7 @@ import {
   ioRedisPool,
   setRedisObject,
 } from '../../../src/redis';
+import * as redisFile from '../../../src/redis';
 import {
   StorageKey,
   StorageTopic,
@@ -3754,6 +3755,7 @@ describe('user streak change', () => {
     });
 
     it('should set cache of previous streak for recovery considering the timezone', async () => {
+      const spy = jest.spyOn(redisFile, 'setRedisObjectWithExpiry');
       jest
         .useFakeTimers({ doNotFake })
         .setSystemTime(new Date('2024-09-05T18:32:53')); // Thursday UTC - Friday Asia/Manila
@@ -3790,6 +3792,7 @@ describe('user streak change', () => {
       expect(lastStreak).toEqual(3);
       const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
       expect(alert.showRecoverStreak).toEqual(true);
+      expect(spy).toHaveBeenCalledWith('streak:reset:1', 3, 77227);
     });
 
     it('should set cache of previous streak for recovery considering the timezone earlier than UTC', async () => {

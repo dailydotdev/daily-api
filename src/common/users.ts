@@ -543,9 +543,9 @@ const getAbsoluteDifferenceInDays: typeof differenceInDays = (date1, date2) => {
 export const shouldAllowRestore = async (
   con: DataSource,
   streak: ChangeObject<UserStreak>,
+  user: DbUser,
 ) => {
   const { userId, lastViewAt: lastViewAtDb } = streak;
-  const user = await con.getRepository(DbUser).findOneBy({ id: userId });
   const timezone = user.timezone || DEFAULT_TIMEZONE;
   const today = utcToZonedTime(new Date(), timezone);
   const lastView = utcToZonedTime(new Date(lastViewAtDb), timezone);
