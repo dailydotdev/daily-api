@@ -78,7 +78,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   squad_public_approved: '41',
   post_bookmark_reminder: '',
   streak_reset_restore: '',
-  squad_featured: '', // TODO: MI-514 - Add template ID and relevant test cases
+  squad_featured: '56',
 };
 
 type TemplateData = Record<string, string | number>;
@@ -91,7 +91,6 @@ type TemplateDataFunc = (
   avatars: NotificationAvatarV2[],
 ) => Promise<TemplateData | null>;
 const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
-  squad_featured: async () => null,
   post_bookmark_reminder: async () => null,
   streak_reset_restore: async () => null,
   community_picks_failed: async (con, user, notification) => {
@@ -291,6 +290,24 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       upvote_title: basicHtmlStrip(notification.title),
       main_comment: notification.description,
       discussion_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
+    };
+  },
+  squad_featured: async (con, _, notification) => {
+    const source = await con
+      .getRepository(Source)
+      .findOneBy({ id: notification.referenceId });
+
+    if (!source) {
+      return;
+    }
+
+    return {
+      squad_name: source.name,
+      squad_image: source.image,
+      squad_link: addNotificationEmailUtm(
         notification.targetUrl,
         notification.type,
       ),
