@@ -48,6 +48,7 @@ import { UserComment } from '../../src/entity/user/UserComment';
 import { workers } from '../../src/workers';
 import { generateStorageKey, StorageKey, StorageTopic } from '../../src/config';
 import { ioRedisPool, setRedisObject } from '../../src/redis';
+import { ReportReason } from '../../src/entity/common';
 
 let con: DataSource;
 
@@ -851,7 +852,7 @@ describe('streak reset restore', () => {
       StorageKey.Reset,
       streak.userId,
     );
-    const debeziumTime = streak.lastViewAt.getTime() * 1000;
+    const debeziumTime = streak.lastViewAt.getTime();
     await setRedisObject(key, lastStreak.toString());
     const actual = await invokeNotificationWorker(worker.default, {
       streak: { ...streak, lastViewAt: debeziumTime },
@@ -861,7 +862,7 @@ describe('streak reset restore', () => {
     const ctx = bundle.ctx as NotificationStreakContext;
     expect(bundle.type).toEqual('streak_reset_restore');
     expect(ctx.streak.currentStreak).toEqual(lastStreak);
-    expect(ctx.streak.lastViewAt).toEqual(debeziumTime / 1000);
+    expect(ctx.streak.lastViewAt).toEqual(debeziumTime);
   });
 
   it('should not add notification if the stored value has expired', async () => {
@@ -1352,8 +1353,8 @@ it('should add article report approved notification for every reporter', async (
     '../../src/workers/notifications/articleReportApproved'
   );
   await con.getRepository(PostReport).save([
-    { userId: '1', postId: 'p1', reason: 'NSFW' },
-    { userId: '2', postId: 'p1', reason: 'CLICKBAIT' },
+    { userId: '1', postId: 'p1', reason: ReportReason.Nsfw },
+    { userId: '2', postId: 'p1', reason: ReportReason.Clickbait },
   ]);
   const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
   const actual = await invokeNotificationWorker(worker.default, {

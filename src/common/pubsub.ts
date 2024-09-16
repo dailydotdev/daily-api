@@ -33,6 +33,7 @@ import { DataSource } from 'typeorm';
 import { FastifyLoggerInstance } from 'fastify';
 import pino from 'pino';
 import { PersonalizedDigestFeatureConfig } from '../growthbook';
+import { Message as ProtobufMessage } from '@bufbuild/protobuf';
 
 export const pubsub = new PubSub();
 const postCommentedTopic = pubsub.topic('post-commented');
@@ -101,10 +102,18 @@ export const publishEvent = async (
         process.env.NODE_ENV === 'production' ||
         process.env.ENABLE_PUBSUB === 'true'
       ) {
+        const isProtobufMessage = payload instanceof ProtobufMessage;
+
         try {
-          await topic.publishMessage({
-            json: payload,
-          });
+          await topic.publishMessage(
+            isProtobufMessage
+              ? {
+                  data: Buffer.from(payload.toBinary()),
+                }
+              : {
+                  json: payload,
+                },
+          );
         } catch (err) {
           log.error(
             { err, topic: topic.name, payload },

@@ -61,7 +61,7 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
         );
 
         if (source.private && source.type === SourceType.Squad) {
-          const admin: Pick<SourceMember, 'referralToken'> = await con
+          const admin: Pick<SourceMember, 'referralToken'> | null = await con
             .getRepository(SourceMember)
             .findOne({
               select: ['referralToken'],
@@ -126,7 +126,9 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
                 if (
                   ![
                     SlackApiErrorCode.MethodNotSupportedForChannelType,
-                  ].includes(conversationsJoinError.data?.error)
+                  ].includes(
+                    conversationsJoinError.data?.error as SlackApiErrorCode,
+                  )
                 ) {
                   throw originalJoinError;
                 }

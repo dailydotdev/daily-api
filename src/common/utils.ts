@@ -54,6 +54,39 @@ export const uniqueifyArray = <T>(array: T[]): T[] => {
   return [...new Set(array)];
 };
 
+export /**
+ * Remove duplicate values from an array of objects per unique key
+ *
+ * @template T
+ * @template R
+ * @param {T[]} array Array of objects
+ * @param {(item: T) => string} uniqueKey Function to get the unique key from the item
+ * @param {(item: T, index: number, uniqueKey: string) => R} [processItem] Optional function to process the item before adding it to the result array
+ * @return {*}  {R[]}
+ */
+const uniqueifyObjectArray = <T, R = T>(
+  array: T[],
+  uniqueKey: (item: T) => string,
+  processItem?: (item: T, index: number, uniqueKey: string) => R,
+): R[] => {
+  const uniqueMap = array.reduce((acc, item, index) => {
+    const itemKey = uniqueKey(item);
+
+    if (!acc.has(itemKey)) {
+      const newItem =
+        typeof processItem === 'function'
+          ? processItem(item, index, itemKey)
+          : item;
+
+      acc.set(itemKey, newItem as unknown as R);
+    }
+
+    return acc;
+  }, new Map<string, R>());
+
+  return Array.from(uniqueMap.values());
+};
+
 /**
  * Remove empty values from an array
  *
@@ -68,7 +101,11 @@ export const removeEmptyValues = <T>(array: T[]): T[] => array.filter(Boolean);
  */
 export const isProd = process.env.NODE_ENV === 'production';
 
-export const parseDate = (date: string | Date): Date | undefined => {
+export const isTest = process.env.NODE_ENV === 'test';
+
+export const parseDate = (
+  date: string | Date | undefined,
+): Date | undefined => {
   if (!date) {
     return undefined;
   }

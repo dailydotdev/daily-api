@@ -6,19 +6,16 @@ import {
   UserStreakAction,
   UserStreakActionType,
 } from '../entity';
-import { differenceInDays, isSameDay, max } from 'date-fns';
+import { differenceInDays, isSameDay, max, startOfDay } from 'date-fns';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
-import {
-  getTimezonedStartOfISOWeek,
-  getTimezonedEndOfISOWeek,
-  debeziumTimeToDate,
-} from './utils';
+import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
 import { GraphQLResolveInfo } from 'graphql';
 import { utcToZonedTime } from 'date-fns-tz';
 import { sendAnalyticsEvent } from '../integrations/analytics';
-import { DayOfWeek, DEFAULT_WEEK_START } from './date';
+import { DayOfWeek, DEFAULT_TIMEZONE, DEFAULT_WEEK_START } from './date';
 import { ChangeObject, ContentLanguage } from '../types';
+import { checkRestoreValidity } from './streak';
 
 export interface User {
   id: string;
@@ -468,40 +465,6 @@ export const shouldResetStreak = (
   return day > firstDayOfWeek && difference > MISSED_LIMIT;
 };
 
-interface DaysProps {
-  day: number;
-  firstDayOfWeek: Day;
-  lastDayOfWeek: Day;
-}
-
-const getAllowedDays = ({ day, lastDayOfWeek, firstDayOfWeek }: DaysProps) => {
-  if (day === lastDayOfWeek) {
-    return FREEZE_DAYS_IN_A_WEEK;
-  }
-
-  if (day === firstDayOfWeek) {
-    return FREEZE_DAYS_IN_A_WEEK + STREAK_RECOVERY_MAX_GAP_DAYS;
-  }
-
-  return STREAK_RECOVERY_MAX_GAP_DAYS;
-};
-
-export const checkRestoreValidity = (
-  day: number,
-  difference: number,
-  startOfWeek: DayOfWeek = DEFAULT_WEEK_START,
-) => {
-  const firstDayOfWeek =
-    startOfWeek === DayOfWeek.Monday ? Day.Monday : Day.Sunday;
-
-  const lastDayOfWeek =
-    startOfWeek === DayOfWeek.Monday ? Day.Sunday : Day.Saturday;
-
-  const allowedDays = getAllowedDays({ day, lastDayOfWeek, firstDayOfWeek });
-
-  return difference - allowedDays === 0;
-};
-
 export const checkUserStreak = (
   streak: GQLUserStreakTz,
   lastRecoveredTime?: Date,
@@ -532,7 +495,7 @@ export const getLastStreakRecoverDate = async (
     .getRepository(UserStreakAction)
     .createQueryBuilder()
     .select(
-      `MAX(date_trunc('day', usa."createdAt" at time zone COALESCE(u.timezone, 'utc'))::date - interval '1 day')`,
+      `MAX(date_trunc('day', usa."createdAt"::timestamptz at time zone COALESCE(u.timezone, 'utc'))::date - interval '1 day')`,
       'createdAt',
     )
     .from(UserStreakAction, 'usa')
@@ -566,23 +529,36 @@ export enum LogoutReason {
   KratosSessionAlreadyAvailable = 'kratos session already available',
 }
 
+const getAbsoluteDifferenceInDays: typeof differenceInDays = (date1, date2) => {
+  const day1 = startOfDay(date1);
+  const day2 = startOfDay(date2);
+
+  const timeDiff = Math.abs(day1.getTime() - day2.getTime());
+  const diffInDays = timeDiff / (1000 * 60 * 60 * 24);
+
+  // Round down to the nearest whole number since we want full days
+  return Math.floor(diffInDays);
+};
+
 export const shouldAllowRestore = async (
   con: DataSource,
   streak: ChangeObject<UserStreak>,
+  user: DbUser,
 ) => {
   const { userId, lastViewAt: lastViewAtDb } = streak;
-  const user = await con.getRepository(DbUser).findOneBy({ id: userId });
-  const today = new Date();
-  const lastView = debeziumTimeToDate(lastViewAtDb);
+  const timezone = user.timezone || DEFAULT_TIMEZONE;
+  const today = utcToZonedTime(new Date(), timezone);
+  const lastView = utcToZonedTime(new Date(lastViewAtDb), timezone);
   const lastRecovery = await getLastStreakRecoverDate(con, userId);
   const lastStreak = lastRecovery ? max([lastView, lastRecovery]) : lastView;
-  const lastStreakDifference = differenceInDays(today, lastStreak);
+  const lastStreakDifference = getAbsoluteDifferenceInDays(today, lastStreak);
 
-  return checkRestoreValidity(
-    today.getDay(),
-    lastStreakDifference,
-    user.weekStart,
-  );
+  return checkRestoreValidity({
+    day: today.getDay(),
+    difference: lastStreakDifference,
+    startOfWeek: user.weekStart,
+    lastView: lastStreak,
+  });
 };
 
 export const roadmapShSocialUrlMatch =

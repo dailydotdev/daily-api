@@ -64,7 +64,7 @@ export const buildPostContext = async (
   const post = await con
     .getRepository(Post)
     .findOne({ where: { id: postId }, relations: ['source'] });
-  let sharedPost: Post;
+  let sharedPost: Post | null = null;
   if (post) {
     if (post.type === PostType.Share) {
       sharedPost = await con

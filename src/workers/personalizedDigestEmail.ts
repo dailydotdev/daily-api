@@ -87,6 +87,8 @@ const digestTypeToFunctionMap: Record<
         personalizedDigest.flags.sendType as UserPersonalizedDigestSendType
       ] || features.personalizedDigest;
     let featureValue: PersonalizedDigestFeatureConfig;
+    const defaultValue =
+      featureInstance.defaultValue as PersonalizedDigestFeatureConfig;
 
     if (config) {
       featureValue = config;
@@ -99,12 +101,12 @@ const digestTypeToFunctionMap: Record<
 
       featureValue = growthbookClient.getFeatureValue(
         featureInstance.id,
-        featureInstance.defaultValue,
+        defaultValue,
       );
     }
 
     // gb does not handle default values for nested objects
-    const digestFeature = deepmerge(featureInstance.defaultValue, featureValue);
+    const digestFeature = deepmerge(defaultValue, featureValue);
 
     const currentDate = new Date();
 
@@ -176,7 +178,8 @@ const digestTypeToFunctionMap: Record<
     }
 
     if (
-      isSameDay(currentDate, userStreak.lastViewAt) ||
+      (userStreak.lastViewAt &&
+        isSameDay(currentDate, userStreak.lastViewAt)) ||
       userStreak.currentStreak === 0
     ) {
       return;

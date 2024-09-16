@@ -10,6 +10,8 @@ import {
   YouTubePost,
 } from '../../src/entity';
 import { PostRelationType } from '../../src/entity/posts/PostRelation';
+import type { PostCodeSnippet } from '../../src/entity/posts/PostCodeSnippet';
+import { PostCodeSnippetLanguage } from '../../src/types';
 
 const now = new Date();
 
@@ -356,6 +358,8 @@ export const postAuthorsFixture = [
   },
 ];
 
+const contentUpdatedPostCreatedAtNs = Date.now() * 1000;
+
 export const contentUpdatedPost = {
   yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
   id: 'p4',
@@ -363,8 +367,8 @@ export const contentUpdatedPost = {
   shortId: 'sp4',
   type: PostType.Article,
   title: 'Post for testing',
-  createdAt: Date.now() - 1000,
-  metadataChangedAt: Date.now(),
+  createdAt: contentUpdatedPostCreatedAtNs,
+  metadataChangedAt: contentUpdatedPostCreatedAtNs + 1000,
   sourceId: 'a',
   tagsStr: 'javascript,webdev,react',
   banned: false,
@@ -397,3 +401,31 @@ export const contentUpdatedPost = {
   tsv: null,
   statsUpdatedAt: 0,
 };
+
+export const createPostCodeSnippetsFixture = ({
+  postId,
+}: {
+  postId: string;
+}): DeepPartial<PostCodeSnippet>[] => [
+  {
+    postId,
+    contentHash: '865cd55417af5a27ab17ae1fff7510c7acc4f250',
+    order: 0,
+    language: PostCodeSnippetLanguage.Plain,
+    content: 'console.log("Hello World")',
+  },
+  {
+    postId,
+    contentHash: 'ee1cdee8c96afc016935ccde191e021d3327ee79',
+    order: 2,
+    language: PostCodeSnippetLanguage.Plain,
+    content: 'while (true) {\n    /* remove this */\n}',
+  },
+  {
+    postId,
+    contentHash: 'c1d469fbdc2d504110e247b6f754075d1cda2cce',
+    order: 1,
+    language: PostCodeSnippetLanguage.Plain,
+    content: 'const a = 1;\n\nconsole.log(a)',
+  },
+];

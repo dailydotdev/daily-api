@@ -26,3 +26,9 @@ export const isWeekend = (
       return day === DayOfWeek.Saturday || day === DayOfWeek.Sunday;
   }
 };
+
+export const getSecondsTimestamp = (ms: number | Date): number => {
+  const msValue = ms instanceof Date ? ms.getTime() : ms;
+
+  return Math.floor(msValue / 1000);
+};
