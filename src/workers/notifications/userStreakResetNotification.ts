@@ -4,10 +4,11 @@ import { NotificationStreakContext } from '../../notifications';
 import { generateStorageKey, StorageKey, StorageTopic } from '../../config';
 import { getRedisObject } from '../../redis';
 import { isNumber } from '../../common';
+import { Settings } from '../../entity';
 
 const worker = generateTypedNotificationWorker<'api.v1.user-streak-updated'>({
   subscription: 'api.user-streak-reset-notification',
-  handler: async ({ streak }) => {
+  handler: async ({ streak }, con) => {
     const { userId } = streak;
     const key = generateStorageKey(
       StorageTopic.Streak,
@@ -15,9 +16,14 @@ const worker = generateTypedNotificationWorker<'api.v1.user-streak-updated'>({
       userId,
     );
 
-    const lastStreak = await getRedisObject(key);
+    const [settings, lastStreak] = await Promise.all([
+      con
+        .getRepository(Settings)
+        .findOne({ where: { userId }, select: ['optOutReadingStreak'] }),
+      getRedisObject(key),
+    ]);
 
-    if (!lastStreak || !isNumber(lastStreak)) {
+    if (settings?.optOutReadingStreak || !lastStreak || !isNumber(lastStreak)) {
       return;
     }
 
