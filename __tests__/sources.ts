@@ -194,11 +194,14 @@ describe('query sourceCategory', () => {
 
   it('should return source category by slug', async () => {
     loggedUser = '1';
-    const res = await client.query(QUERY, { variables: { id: 'web' } });
+    const [category] = await con.getRepository(SourceCategory).find();
+    const res = await client.query(QUERY, {
+      variables: { id: category.slug },
+    });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.sourceCategory.title).toEqual('Web');
-    expect(res.data.sourceCategory.slug).toEqual('web');
+    expect(res.data.sourceCategory.title).toEqual(category.title);
+    expect(res.data.sourceCategory.slug).toEqual(category.slug);
   });
 
   it('should return source category by id as anonymous user', async () => {

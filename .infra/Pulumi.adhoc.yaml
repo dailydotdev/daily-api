@@ -38,9 +38,9 @@ config:
       6S+tkxhzAgWZNOhtqvSTFxKH9c51/jTCLDrPvHNlzNoeqhvaowUmvOrRoT1TZ8hs
       7QIDAQAB
       -----END PUBLIC KEY-----
-  api:debeziumDbPass: "12345"
+  api:debeziumDbPass: '12345'
   api:debeziumDbUser: postgres
-  api:enablePersonalizedDigest: "false"
+  api:enablePersonalizedDigest: 'false'
   api:env:
     accessSecret: topsecret
     analyticsUrl: http://localhost:3000
@@ -54,7 +54,7 @@ config:
     enablePubsub: true
     gcloudProject: local
     heimdallOrigin: http://heimdall-api
-    ignoredWorkEmailDomains: "igored.com,ignored.org"
+    ignoredWorkEmailDomains: 'igored.com,ignored.org'
     jwtAudience: Daily Staging
     jwtIssuer: Daily API Staging
     jwtSecret: '|r+.2!!!.Qf_-|63*%.D'
@@ -83,8 +83,8 @@ config:
     typeormUsername: postgres
     tz: UTC
     urlPrefix: http://api.local.com
-    vordrIps: ""
-    vordrWords: "VordrWillCatchYou,AndVordrWillHaveFun"
+    vordrIps: ''
+    vordrWords: 'VordrWillCatchYou,AndVordrWillHaveFun'
   api:k8s:
     namespace: local
   api:temporal:
