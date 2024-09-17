@@ -1042,10 +1042,7 @@ const membershipsPageGenerator = offsetPageGenerator<GQLSourceMember>(100, 500);
 
 const sourcePageGenerator = offsetPageGenerator<GQLSource>(100, 500);
 
-const categoriesPageGenerator = offsetPageGenerator<GQLSourceCategory>(
-  100,
-  500,
-);
+const categoriesPageGenerator = offsetPageGenerator<GQLSourceCategory>(15, 50);
 
 type CreateSquadArgs = {
   name: string;
