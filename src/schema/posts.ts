@@ -1317,6 +1317,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               postId: args.id,
             })
             .limit(page.limit)
+            .offset(page.offset)
             .addOrderBy(`${builder.alias}.order`, 'ASC');
 
           return builder;
