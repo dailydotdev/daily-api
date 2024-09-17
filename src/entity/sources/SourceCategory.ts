@@ -19,6 +19,7 @@ export class SourceCategory {
   enabled: boolean;
 
   @Column({ default: null, nullable: true })
+  @Index('IDX_source_category_priority')
   priority?: number;
 
   @CreateDateColumn()
