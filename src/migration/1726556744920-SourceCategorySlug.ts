@@ -5,7 +5,7 @@ export class SourceCategorySlug1726556744920 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE "source_category" ADD "slug" text GENERATED ALWAYS AS (trim(BOTH '-' FROM regexp_replace(lower(trim(COALESCE(LEFT(source_category.title,100),'')||'-'||source_category.id)), '[^a-z0-9-]+', '-', 'gi'))) STORED NOT NULL`,
+      `ALTER TABLE "source_category" ADD "slug" text GENERATED ALWAYS AS (trim(BOTH '-' FROM regexp_replace(lower(trim(COALESCE(LEFT(source_category.title,100),''))), '[^a-z0-9-]+', '-', 'gi'))) STORED NOT NULL`,
     );
     await queryRunner.query(
       `ALTER TABLE "source_category" ADD CONSTRAINT "UQ_c8617f90869d1b40e49f494a460" UNIQUE ("slug")`,
@@ -18,7 +18,7 @@ export class SourceCategorySlug1726556744920 implements MigrationInterface {
         'source_category',
         'GENERATED_COLUMN',
         'slug',
-        "trim(BOTH '-' FROM regexp_replace(lower(trim(COALESCE(LEFT(source_category.title,100),'')||'-'||source_category.id)), '[^a-z0-9-]+', '-', 'gi'))",
+        "trim(BOTH '-' FROM regexp_replace(lower(trim(COALESCE(LEFT(source_category.title,100),''))), '[^a-z0-9-]+', '-', 'gi'))",
       ],
     );
     await queryRunner.query(
