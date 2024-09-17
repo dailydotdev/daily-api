@@ -165,6 +165,7 @@ describe('query sourceCategory', () => {
     query SourceCategory($id: String!) {
       sourceCategory(id: $id) {
         id
+        slug
         title
       }
     }
@@ -197,6 +198,7 @@ describe('query sourceCategory', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.sourceCategory.title).toEqual('Web');
+    expect(res.data.sourceCategory.slug).toEqual('web');
   });
 
   it('should return source category by id as anonymous user', async () => {
@@ -220,6 +222,7 @@ describe('query sourceCategories', () => {
         edges {
           node {
             id
+            slug
             title
           }
         }

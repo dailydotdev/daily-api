@@ -127,6 +127,7 @@ export const typeDefs = /* GraphQL */ `
 
   type SourceCategory {
     id: ID!
+    slug: String!
     title: String!
     enabled: Boolean!
     createdAt: DateTime!
