@@ -207,6 +207,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             .andWhere(`${builder.alias}."type" = :type`, {
               type: args.entity,
             })
+            .limit(page.limit)
+            .offset(page.offset)
             .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
 
           return builder;
@@ -241,6 +243,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             .andWhere(`${builder.alias}."type" = :type`, {
               type: args.entity,
             })
+            .limit(page.limit)
+            .offset(page.offset)
             .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
 
           return builder;
