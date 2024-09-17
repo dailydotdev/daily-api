@@ -18,6 +18,9 @@ export class SourceCategory {
   @Column()
   enabled: boolean;
 
+  @Column({ default: null, nullable: true })
+  priority?: number;
+
   @CreateDateColumn()
   createdAt: Date;
 
