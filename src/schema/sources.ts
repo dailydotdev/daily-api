@@ -127,6 +127,7 @@ export const typeDefs = /* GraphQL */ `
 
   type SourceCategory {
     id: ID!
+    slug: String!
     title: String!
     enabled: Boolean!
     createdAt: DateTime!
@@ -591,7 +592,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Fetch details of a single category
     """
-    sourceCategory(id: ID!): SourceCategory!
+    sourceCategory(id: String!): SourceCategory!
 
     """
     Fetch all source categories
@@ -1231,10 +1232,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<GQLSourceCategory> =>
       graphorm.queryOneOrFail(ctx, info, (builder) => ({
         ...builder,
-        queryBuilder: builder.queryBuilder.where(
-          `"${builder.alias}"."id" = :id`,
-          { id },
-        ),
+        queryBuilder: builder.queryBuilder
+          .where(`CAST("${builder.alias}".id AS text) = :id`, { id })
+          .orWhere(`${builder.alias}.slug = :id`, { id }),
       })),
     sourceCategories: async (
       _,
