@@ -296,9 +296,10 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     };
   },
   squad_featured: async (con, _, notification) => {
-    const source = await con
-      .getRepository(Source)
-      .findOneBy({ id: notification.referenceId });
+    const source = await con.getRepository(Source).findOne({
+      where: { id: notification.referenceId },
+      select: ['name', 'image'],
+    });
 
     if (!source) {
       return;
