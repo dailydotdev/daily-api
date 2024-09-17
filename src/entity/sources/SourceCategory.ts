@@ -8,7 +8,6 @@ import {
 } from 'typeorm';
 
 @Entity()
-@Index('IDX_source_category_lower_title', { synchronize: false })
 export class SourceCategory {
   @PrimaryGeneratedColumn('uuid')
   id: string;
