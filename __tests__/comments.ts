@@ -27,7 +27,11 @@ import {
   sharedPostsFixture,
 } from './fixture/post';
 import { getMentionLink } from '../src/common/markdown';
-import { saveComment, updateMentions } from '../src/schema/comments';
+import {
+  saveComment,
+  SortCommentsBy,
+  updateMentions,
+} from '../src/schema/comments';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { CommentReport } from '../src/entity/CommentReport';
@@ -1655,8 +1659,8 @@ describe('query comment', () => {
 });
 
 describe('userState field', () => {
-  const QUERY = `query PostComments($postId: ID!, $after: String, $first: Int) {
-    postComments(postId: $postId, after: $after, first: $first) {
+  const QUERY = `query PostComments($postId: ID!, $after: String, $first: Int, $sortBy: SortCommentsBy) {
+    postComments(postId: $postId, after: $after, first: $first, sortBy: $sortBy) {
       pageInfo { endCursor, hasNextPage }
       edges { node {
         id
@@ -1692,6 +1696,28 @@ describe('userState field', () => {
         vote,
       });
     });
+  });
+
+  it('should sort comment oldest first', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: { postId: 'p1' },
+    });
+    expect(res.errors).toBeFalsy();
+
+    const map = res.data.postComments.edges.map((edge) => edge.node.id);
+    expect(map).toEqual(['c1', 'c3', 'c6']);
+  });
+
+  it('should sort comment newest first', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: { postId: 'p1', sortBy: SortCommentsBy.NewestFirst },
+    });
+    expect(res.errors).toBeFalsy();
+
+    const map = res.data.postComments.edges.map((edge) => edge.node.id);
+    expect(map).toEqual(['c6', 'c3', 'c1']);
   });
 
   it('should return user state', async () => {

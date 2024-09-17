@@ -15,13 +15,26 @@ const QUEUE_CONCURRENCY = 1;
   const con = await createOrGetConnection();
   await con.transaction(async (manager) => {
     console.log('initializing stream');
+    const subq = manager
+      .createQueryBuilder()
+      .subQuery()
+      .select('COUNT(*)')
+      .from(SourceMember, 'sm2')
+      .where('sm2."sourceId" = sm1."sourceId"')
+      .andWhere(`sm2.role != 'blocked'`)
+      .getQuery();
+
     const builder = manager
       .getRepository(SourceMember)
-      .createQueryBuilder('sm')
-      .select('COUNT(sm.*)', 'count')
-      .addSelect('sm."sourceId"')
-      .where(`sm.role != 'blocked'`)
-      .groupBy('sm."sourceId"');
+      .createQueryBuilder('sm1')
+      .select('COUNT(sm1.*)', 'count')
+      .addSelect('sm1."sourceId"')
+      .innerJoin(Source, 's', 's.id = sm1."sourceId"')
+      .where(`sm1.role != 'blocked'`)
+      .andWhere(`sm1."sourceId" IS NOT NULL`)
+      .andWhere(`COALESCE((s.flags->>'totalMembers')::integer, 0) != ${subq}`)
+      .limit(1000)
+      .groupBy('sm1."sourceId"');
 
     const stream = await builder.stream();
 

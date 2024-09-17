@@ -23,9 +23,9 @@ export enum ReportReason {
 
 export const postReportReasonsMap: Map<ReportReason, string> = new Map([
   [ReportReason.Broken, '💔 Link is broken'],
-  [ReportReason.Clickbait, '🔞 Post is NSFW'],
-  [ReportReason.Low, '🎣 Clickbait!!!'],
-  [ReportReason.Nsfw, '💩 Low quality content'],
+  [ReportReason.Clickbait, '🎣 Clickbait!!!'],
+  [ReportReason.Low, '💩 Low quality content'],
+  [ReportReason.Nsfw, '🔞 Post is NSFW'],
   [ReportReason.Irrelevant, `Post's tags are irrelevant`],
   [ReportReason.Other, '🤔 Other'],
 ]);

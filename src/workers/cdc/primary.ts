@@ -79,6 +79,7 @@ import {
   debeziumTimeToDate,
   shouldAllowRestore,
   isNumber,
+  DEFAULT_TIMEZONE,
 } from '../../common';
 import { ChangeMessage, ChangeObject, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
@@ -110,6 +111,7 @@ import {
   postReportReasonsMap,
   reportCommentReasonsMap,
 } from '../../entity/common';
+import { utcToZonedTime } from 'date-fns-tz';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -825,14 +827,15 @@ const setRestoreStreakCache = async (
   streak: ChangeObject<UserStreak>,
 ) => {
   const { userId, currentStreak: previousStreak } = streak;
-  const today = new Date();
-  const shouldAllow = await shouldAllowRestore(con, streak);
+  const user = await con.getRepository(User).findOneBy({ id: userId });
+  const shouldAllow = await shouldAllowRestore(con, streak, user);
 
   if (!shouldAllow) {
     return;
   }
 
   const key = generateStorageKey(StorageTopic.Streak, StorageKey.Reset, userId);
+  const today = utcToZonedTime(new Date(), user.timezone || DEFAULT_TIMEZONE);
   const now = today.getTime();
   const nextDay = addDays(now, 1).setHours(0, 0, 0, 0);
   const differenceInSeconds = Math.round((nextDay - now) / 1000);
