@@ -1231,10 +1231,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<GQLSourceCategory> =>
       graphorm.queryOneOrFail(ctx, info, (builder) => ({
         ...builder,
-        queryBuilder: builder.queryBuilder.where(
-          `(CAST("${builder.alias}".id AS text) = :id OR ${builder.alias}.slug = :id)`,
-          { id: id.toLowerCase() },
-        ),
+        queryBuilder: builder.queryBuilder
+          .where(`CAST("${builder.alias}".id AS text) = :id`, { id })
+          .orWhere(`${builder.alias}.slug = :id`, { id }),
       })),
     sourceCategories: async (
       _,
