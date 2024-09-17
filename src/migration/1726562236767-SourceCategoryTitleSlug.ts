@@ -1,7 +1,9 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class SourceCategorySlug1726556744920 implements MigrationInterface {
-  name = 'SourceCategorySlug1726556744920';
+export class SourceCategoryTitleSlug1726562236767
+  implements MigrationInterface
+{
+  name = 'SourceCategoryTitleSlug1726562236767';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
