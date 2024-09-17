@@ -1232,7 +1232,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       graphorm.queryOneOrFail(ctx, info, (builder) => ({
         ...builder,
         queryBuilder: builder.queryBuilder.where(
-          `(CAST("${builder.alias}"."id" AS text) = :id OR lower("${builder.alias}".title) = :id)`,
+          `(CAST("${builder.alias}".id AS text) = :id OR ${builder.alias}.slug = :id)`,
           { id: id.toLowerCase() },
         ),
       })),

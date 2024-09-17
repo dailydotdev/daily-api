@@ -191,7 +191,7 @@ describe('query sourceCategory', () => {
     expect(res.data.sourceCategory.title).toEqual(category.title);
   });
 
-  it('should return source category by title', async () => {
+  it('should return source category by slug', async () => {
     loggedUser = '1';
     const res = await client.query(QUERY, { variables: { id: 'web' } });
 
