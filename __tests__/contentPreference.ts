@@ -597,3 +597,94 @@ describe('mutation unfollow', () => {
     expect(notificationPreferences).toHaveLength(0);
   });
 });
+
+describe('query contentPreferenceStatus', () => {
+  const QUERY = `query ContentPreferenceStatus($id: ID!, $entity: ContentPreferenceType!) {
+    contentPreferenceStatus(id: $id, entity: $entity) {
+      user {
+        id
+      }
+      referenceId
+      status
+    }
+  }`;
+
+  beforeEach(async () => {
+    await saveFixtures(
+      con,
+      User,
+      usersFixture.map((item) => {
+        return {
+          ...item,
+          id: `${item.id}-cps`,
+          username: `${item.username}-cps`,
+        };
+      }),
+    );
+
+    await con.getRepository(ContentPreferenceUser).save([
+      {
+        userId: '1-cps',
+        status: ContentPreferenceStatus.Follow,
+        referenceId: '2-cps',
+        referenceUserId: '2-cps',
+      },
+      {
+        userId: '1-cps',
+        status: ContentPreferenceStatus.Follow,
+        referenceId: '3-cps',
+        referenceUserId: '3-cps',
+      },
+    ]);
+  });
+
+  it('should return content preference for user', async () => {
+    loggedUser = '1-cps';
+
+    const res = await client.query(QUERY, {
+      variables: { id: '2-cps', entity: ContentPreferenceType.User },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.contentPreferenceStatus).toMatchObject({
+      referenceId: '2-cps',
+      status: 'follow',
+    });
+
+    const res2 = await client.query(QUERY, {
+      variables: { id: '3-cps', entity: ContentPreferenceType.User },
+    });
+
+    expect(res2.errors).toBeFalsy();
+
+    expect(res2.data.contentPreferenceStatus).toMatchObject({
+      referenceId: '3-cps',
+      status: 'follow',
+    });
+  });
+
+  it('should return null if content preference does not exist', async () => {
+    loggedUser = '1-cps';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { id: '4-cps', entity: ContentPreferenceType.User },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should require authentication', async () => {
+    await testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { id: '2-cps', entity: ContentPreferenceType.User },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+});
