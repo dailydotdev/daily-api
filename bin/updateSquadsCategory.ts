@@ -1,17 +1,15 @@
-import fastq from 'fastq';
 import '../src/config';
 import createOrGetConnection from '../src/db';
 import { SquadSource } from '../src/entity';
 import { SourceCategory } from '../src/entity/sources/SourceCategory';
 import { categorizedSquads } from './categorizedSquads';
 import { In } from 'typeorm';
+import { runInQueueStream } from './common';
 
 interface Result {
   title: string;
   id: string;
 }
-
-const QUEUE_CONCURRENCY = 1;
 
 (async () => {
   const con = await createOrGetConnection();
@@ -41,8 +39,7 @@ const QUEUE_CONCURRENCY = 1;
 
     const stream = await builder.stream();
 
-    let insertCount = 0;
-    const insertQueue = fastq.promise(async ({ title, id }: Result) => {
+    await runInQueueStream<Result>(stream, async ({ title, id }: Result) => {
       const categorized = categorizedSquads
         .filter(({ category }) => category === title)
         .map(({ handle }) => handle);
@@ -50,20 +47,7 @@ const QUEUE_CONCURRENCY = 1;
       await manager
         .getRepository(SquadSource)
         .update({ handle: In(categorized) }, { categoryId: id });
-
-      insertCount += 1;
-    }, QUEUE_CONCURRENCY);
-
-    stream.on('data', (result: Result) => {
-      insertQueue.push(result);
     });
-
-    await new Promise((resolve, reject) => {
-      stream.on('error', reject);
-      stream.on('end', resolve);
-    });
-    await insertQueue.drained();
-    console.log('update finished with a total of: ', insertCount);
   });
 
   process.exit();
