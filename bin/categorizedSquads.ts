@@ -5,7 +5,7 @@ export const categorizedSquads = [
   },
   {
     handle: 'codingcatdev',
-    category: 'DevRel',
+    category: 'Web',
   },
   {
     handle: 'syntax',
