@@ -12,6 +12,7 @@ import { DataSource, EntityManager, IsNull } from 'typeorm';
 import { NotFoundError, TypeOrmError } from '../errors';
 import { ReadStream } from 'fs';
 import { UserNotification } from '../entity';
+import { NotificationPreferenceUser } from '../entity/notifications/NotificationPreferenceUser';
 
 export enum NotificationType {
   CommunityPicksFailed = 'community_picks_failed',
@@ -45,12 +46,14 @@ export enum NotificationType {
   SquadPublicSubmitted = 'squad_public_submitted',
   PostBookmarkReminder = 'post_bookmark_reminder',
   StreakResetRestore = 'streak_reset_restore',
+  UserPostAdded = 'user_post_added',
 }
 
 export enum NotificationPreferenceType {
   Post = 'post',
   Comment = 'comment',
   Source = 'source',
+  User = 'user',
 }
 
 export enum NotificationPreferenceStatus {
@@ -87,7 +90,8 @@ type NotificationPreferenceUnion = NotificationPreferenceComment &
 
 type Properties = Pick<NotificationPreferencePost, 'postId'> &
   Pick<NotificationPreferenceComment, 'commentId'> &
-  Pick<NotificationPreferenceSource, 'sourceId'>;
+  Pick<NotificationPreferenceSource, 'sourceId'> &
+  Pick<NotificationPreferenceUser, 'referenceUserId'>;
 
 const notificationPreferenceProp: Record<
   NotificationPreferenceType,
@@ -96,6 +100,7 @@ const notificationPreferenceProp: Record<
   post: 'postId',
   comment: 'commentId',
   source: 'sourceId',
+  user: 'referenceUserId',
 };
 
 const getRepository = (

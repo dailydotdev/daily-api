@@ -100,6 +100,8 @@ import { SourceMemberRoles } from '../src/roles';
 import { rateLimiterName } from '../src/directive/rateLimit';
 import { CommentReport } from '../src/entity/CommentReport';
 import { getRestoreStreakCache } from '../src/workers/cdc/primary';
+import { ContentPreferenceUser } from '../src/entity/contentPreference/ContentPreferenceUser';
+import { ContentPreferenceStatus } from '../src/entity/contentPreference/types';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -370,6 +372,64 @@ describe('query userStats', () => {
     const res = await client.query(QUERY, { variables: { id: '2' } });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return follow stats', async () => {
+    const QUERY = `query UserStats($id: ID!){
+      userStats(id: $id) {
+        numFollowers
+        numFollowing
+      }
+    }`;
+
+    await saveFixtures(
+      con,
+      User,
+      usersFixture.map((item) => {
+        return {
+          ...item,
+          id: `${item.id}-usf`,
+          username: `${item.username}-usf`,
+        };
+      }),
+    );
+
+    await con.getRepository(ContentPreferenceUser).save([
+      {
+        userId: '1-usf',
+        referenceId: '2-usf',
+        referenceUserId: '2-usf',
+        status: ContentPreferenceStatus.Follow,
+      },
+      {
+        userId: '1-usf',
+        referenceId: '3-usf',
+        referenceUserId: '3-usf',
+        status: ContentPreferenceStatus.Follow,
+      },
+      {
+        userId: '2-usf',
+        referenceId: '1-usf',
+        referenceUserId: '1-usf',
+        status: ContentPreferenceStatus.Follow,
+      },
+      {
+        userId: '1-usf',
+        referenceId: '4-usf',
+        referenceUserId: '4-usf',
+        status: ContentPreferenceStatus.Follow,
+      },
+    ]);
+
+    const res = await client.query(QUERY, { variables: { id: '1-usf' } });
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data).toEqual({
+      userStats: {
+        numFollowers: 1,
+        numFollowing: 3,
+      },
+    });
   });
 });
 
@@ -5279,5 +5339,94 @@ describe('mutation sendReport', () => {
       });
       expect(res2.errors).toBeFalsy();
     });
+  });
+});
+
+describe('contentPreference field', () => {
+  const QUERY = `
+    query User($id: ID!) {
+      user(id: $id) {
+        contentPreference {
+          status
+          referenceId
+        }
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await saveFixtures(
+      con,
+      User,
+      usersFixture.map((item) => {
+        return {
+          ...item,
+          id: `${item.id}-cpf`,
+          username: `${item.username}-cpf`,
+        };
+      }),
+    );
+
+    await con.getRepository(ContentPreferenceUser).save([
+      {
+        userId: '1-cpf',
+        status: ContentPreferenceStatus.Follow,
+        referenceId: '2-cpf',
+        referenceUserId: '2-cpf',
+      },
+      {
+        userId: '1-cpf',
+        status: ContentPreferenceStatus.Follow,
+        referenceId: '3-cpf',
+        referenceUserId: '3-cpf',
+      },
+    ]);
+  });
+
+  it('should return content preference for user', async () => {
+    loggedUser = '1-cpf';
+
+    const res = await client.query(QUERY, {
+      variables: { id: '2-cpf' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.user.contentPreference).toMatchObject({
+      referenceId: '2-cpf',
+      status: 'follow',
+    });
+
+    const res2 = await client.query(QUERY, {
+      variables: { id: '3-cpf' },
+    });
+
+    expect(res2.errors).toBeFalsy();
+
+    expect(res2.data.user.contentPreference).toMatchObject({
+      referenceId: '3-cpf',
+      status: 'follow',
+    });
+  });
+
+  it('should return null if content preference does not exist', async () => {
+    loggedUser = '1-cpf';
+
+    const res = await client.query(QUERY, {
+      variables: { id: '4-cpf' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.user.contentPreference).toBeNull();
+  });
+
+  it('should return null for anonymous', async () => {
+    const res = await client.query(QUERY, {
+      variables: { id: '2-cpf' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.user.contentPreference).toBeNull();
   });
 });
