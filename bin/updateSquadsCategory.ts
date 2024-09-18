@@ -35,7 +35,10 @@ interface Result {
       .getRepository(SourceCategory)
       .createQueryBuilder('sc')
       .select('sc.title', 'title')
-      .addSelect('sc.id', 'id');
+      .addSelect('sc.id', 'id')
+      .where('sc.title IN (:...categories)', {
+        categories: categorizedSquads.map(({ category }) => category),
+      });
 
     const stream = await builder.stream();
 
