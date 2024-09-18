@@ -13,7 +13,7 @@ import { UndiciInstrumentation } from '@opentelemetry/instrumentation-undici';
 import dc from 'node:diagnostics_channel';
 
 import { NodeSDK, logs, node, api, resources } from '@opentelemetry/sdk-node';
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter';
 import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
 // import { CloudPropagator } from '@google-cloud/opentelemetry-cloud-trace-propagator';
