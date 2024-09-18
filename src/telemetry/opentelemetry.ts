@@ -122,9 +122,9 @@ export const tracer = (serviceName: string) => {
 
   const sdk = new NodeSDK({
     serviceName,
-    logRecordProcessor: new logs.SimpleLogRecordProcessor(
-      new logs.ConsoleLogRecordExporter(),
-    ),
+    logRecordProcessors: [
+      new logs.SimpleLogRecordProcessor(new logs.ConsoleLogRecordExporter()),
+    ],
     spanProcessors: [spanProcessor],
     instrumentations,
     resourceDetectors,
