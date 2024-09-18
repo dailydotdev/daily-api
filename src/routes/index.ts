@@ -52,6 +52,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/robots.txt', (req, res) => {
     return res.type('text/plain').send(`User-agent: *
 Allow: /devcards/
+Allow: /graphql/
+Allow: /boot
 Disallow: /`);
   });
 
