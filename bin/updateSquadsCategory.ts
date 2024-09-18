@@ -1,8 +1,7 @@
 import fastq from 'fastq';
 import '../src/config';
 import createOrGetConnection from '../src/db';
-import { Source, SourceMember, SquadSource } from '../src/entity';
-import { updateFlagsStatement } from '../src/common';
+import { SquadSource } from '../src/entity';
 import { SourceCategory } from '../src/entity/sources/SourceCategory';
 import { categorizedSquads } from './categorizedSquads';
 import { In } from 'typeorm';
