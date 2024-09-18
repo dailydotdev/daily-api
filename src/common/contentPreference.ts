@@ -5,10 +5,8 @@ import {
 } from '../entity/contentPreference/types';
 import { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
 import { NotificationPreferenceUser } from '../entity/notifications/NotificationPreferenceUser';
-import {
-  NotificationPreferenceStatus,
-  NotificationType,
-} from '../notifications/common';
+import { NotificationType } from '../notifications/common';
+import { EntityManager, In } from 'typeorm';
 
 type FollowEntity = ({
   ctx,
@@ -35,6 +33,28 @@ const entityToNotificationTypeMap: Record<
   [ContentPreferenceType.User]: [NotificationType.UserPostAdded],
 };
 
+const cleanContentNotificationPreference = async ({
+  ctx,
+  entityManager,
+  id,
+  notificationTypes,
+}: {
+  ctx: AuthContext;
+  entityManager?: EntityManager;
+  id: string;
+  notificationTypes: NotificationType[];
+}) => {
+  const notificationRepository = (entityManager ?? ctx.con).getRepository(
+    NotificationPreferenceUser,
+  );
+
+  await notificationRepository.delete({
+    userId: ctx.userId,
+    referenceId: id,
+    notificationType: In(notificationTypes),
+  });
+};
+
 const followUser: FollowEntity = async ({ ctx, id, status }) => {
   await ctx.con.transaction(async (entityManager) => {
     const repository = entityManager.getRepository(ContentPreferenceUser);
@@ -48,29 +68,12 @@ const followUser: FollowEntity = async ({ ctx, id, status }) => {
 
     await repository.save(contentPreference);
 
-    const notificationRepository = entityManager.getRepository(
-      NotificationPreferenceUser,
-    );
-
-    if (status === ContentPreferenceStatus.Subscribed) {
-      const notificationPreferences = entityToNotificationTypeMap.user.map(
-        (notificationType) => {
-          return notificationRepository.create({
-            userId: ctx.userId,
-            referenceId: id,
-            referenceUserId: id,
-            notificationType,
-            status: NotificationPreferenceStatus.Subscribed,
-          });
-        },
-      );
-
-      await notificationRepository.save(notificationPreferences);
-    } else {
-      await notificationRepository.delete({
-        userId: ctx.userId,
-        referenceUserId: id,
-        referenceId: id,
+    if (status !== ContentPreferenceStatus.Subscribed) {
+      cleanContentNotificationPreference({
+        ctx,
+        entityManager,
+        id,
+        notificationTypes: entityToNotificationTypeMap.user,
       });
     }
   });
@@ -86,14 +89,11 @@ const unfollowUser: UnFollowEntity = async ({ ctx, id }) => {
       referenceId: id,
     });
 
-    const notificationRepository = entityManager.getRepository(
-      NotificationPreferenceUser,
-    );
-
-    await notificationRepository.delete({
-      userId: ctx.userId,
-      referenceUserId: id,
-      referenceId: id,
+    cleanContentNotificationPreference({
+      ctx,
+      entityManager,
+      id,
+      notificationTypes: entityToNotificationTypeMap.user,
     });
   });
 };

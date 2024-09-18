@@ -481,15 +481,6 @@ describe('mutation follow', () => {
 
     expect(contentPreference).not.toBeNull();
     expect(contentPreference?.status).toBe(ContentPreferenceStatus.Subscribed);
-
-    const notificationPreferences = await con
-      .getRepository(NotificationPreferenceUser)
-      .findBy({
-        userId: '1-fm',
-        referenceUserId: '2-fm',
-      });
-
-    expect(notificationPreferences).toHaveLength(1);
   });
 });
 

@@ -91,23 +91,6 @@ describe('followEntity', () => {
         });
 
       expect(followPreference).not.toBeNull();
-
-      const notificationPreferences = await con
-        .getRepository(NotificationPreferenceUser)
-        .findBy({
-          userId: '1-cfe',
-          referenceId: '2-cfe',
-          referenceUserId: '2-cfe',
-        });
-
-      expect(notificationPreferences).toHaveLength(1);
-      expect(notificationPreferences[0]).toMatchObject({
-        userId: '1-cfe',
-        referenceId: '2-cfe',
-        referenceUserId: '2-cfe',
-        status: NotificationPreferenceStatus.Subscribed,
-        notificationType: NotificationType.UserPostAdded,
-      });
     });
   });
 
