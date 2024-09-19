@@ -10,5 +10,5 @@ export class ContentPreferenceUser extends ContentPreference {
 
   @ManyToOne('User', { lazy: true, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'referenceUserId' })
-  user: Promise<User>;
+  referenceUser: Promise<User>;
 }
