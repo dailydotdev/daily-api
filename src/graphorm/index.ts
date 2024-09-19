@@ -775,6 +775,11 @@ const obj = new GraphORM({
   },
   ContentPreference: {
     requiredColumns: ['createdAt'],
+    fields: {
+      createdAt: {
+        transform: transformDate,
+      },
+    },
   },
 });
 
