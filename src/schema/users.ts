@@ -1185,11 +1185,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             .getRawOne(),
           ctx.con.getRepository(ContentPreferenceUser).countBy({
             userId: id,
-            status: ContentPreferenceStatus.Follow,
+            status: In([
+              ContentPreferenceStatus.Follow,
+              ContentPreferenceStatus.Subscribed,
+            ]),
           }),
           ctx.con.getRepository(ContentPreferenceUser).countBy({
             referenceUserId: id,
-            status: ContentPreferenceStatus.Follow,
+            status: In([
+              ContentPreferenceStatus.Follow,
+              ContentPreferenceStatus.Subscribed,
+            ]),
           }),
         ]);
       return {

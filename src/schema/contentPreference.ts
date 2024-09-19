@@ -32,6 +32,8 @@ export const typeDefs = /* GraphQL */ `
 
     user: User!
 
+    referenceUser: User!
+
     type: ContentPreferenceType!
 
     createdAt: DateTime!
