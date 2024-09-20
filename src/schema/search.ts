@@ -432,7 +432,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     searchUserSuggestions: async (
       source,
       { query, limit, includeContentPreference }: SearchSuggestionArgs,
-      ctx: AuthContext,
+      ctx: Context,
     ): Promise<GQLSearchSuggestionsResults> => {
       if (!query || query.length < 3 || query.length > 100) {
         return {
@@ -465,7 +465,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               });
           }),
         );
-      if (includeContentPreference) {
+      if (includeContentPreference && ctx.userId) {
         searchQuery.addSelect((contentPreferenceQueryBuilder) => {
           return contentPreferenceQueryBuilder
             .select('to_json(res)')
