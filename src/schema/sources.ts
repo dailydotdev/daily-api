@@ -32,7 +32,6 @@ import {
 } from 'typeorm';
 import { GQLUser } from './users';
 import { Connection } from 'graphql-relay/index';
-import { queryPaginatedByDate } from '../common/datePageGenerator';
 import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { randomUUID } from 'crypto';
 import {
@@ -126,6 +125,7 @@ export const typeDefs = /* GraphQL */ `
 
   type SourceCategory {
     id: ID!
+    slug: String!
     title: String!
     enabled: Boolean!
     createdAt: DateTime!
@@ -590,7 +590,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Fetch details of a single category
     """
-    sourceCategory(id: ID!): SourceCategory!
+    sourceCategory(id: String!): SourceCategory!
 
     """
     Fetch all source categories
@@ -1066,6 +1066,8 @@ const membershipsPageGenerator = offsetPageGenerator<GQLSourceMember>(100, 500);
 
 const sourcePageGenerator = offsetPageGenerator<GQLSource>(100, 500);
 
+const categoriesPageGenerator = offsetPageGenerator<GQLSourceCategory>(15, 50);
+
 interface SquadInputArgs {
   name: string;
   handle: string;
@@ -1253,24 +1255,35 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<GQLSourceCategory> =>
       graphorm.queryOneOrFail(ctx, info, (builder) => ({
         ...builder,
-        queryBuilder: builder.queryBuilder.where(
-          `"${builder.alias}"."id" = :id`,
-          { id },
-        ),
+        queryBuilder: builder.queryBuilder
+          .where(`CAST("${builder.alias}".id AS text) = :id`, { id })
+          .orWhere(`${builder.alias}.slug = :id`, { id }),
       })),
     sourceCategories: async (
       _,
       args,
       ctx: Context,
       info,
-    ): Promise<Connection<GQLSourceCategory>> =>
-      queryPaginatedByDate(
+    ): Promise<Connection<GQLSourceCategory>> => {
+      const page = categoriesPageGenerator.connArgsToPage(args);
+
+      return graphorm.queryPaginated(
         ctx,
         info,
-        args,
-        { key: 'createdAt' },
-        { orderByKey: 'DESC' },
-      ),
+        (nodeSize) => categoriesPageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => categoriesPageGenerator.hasNextPage(page, nodeSize),
+        (node, index) =>
+          categoriesPageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder
+            .orderBy(`${builder.alias}.priority`, 'ASC')
+            .limit(page.limit)
+            .offset(page.offset);
+
+          return builder;
+        },
+      );
+    },
     sources: async (
       _,
       args: SourcesArgs,

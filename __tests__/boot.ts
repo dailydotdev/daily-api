@@ -110,6 +110,8 @@ const LOGGED_IN_BODY = {
     company: null,
     cover: null,
     experienceLevel: null,
+    followNotifications: true,
+    followingEmail: true,
     isTeamMember: false,
     roadmap: null,
     threads: null,

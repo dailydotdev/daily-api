@@ -102,6 +102,8 @@ import { getRestoreStreakCache } from '../workers/cdc/primary';
 import { ReportEntity, ReportReason } from '../entity/common';
 import { reportFunctionMap } from '../common/reporting';
 import { format } from 'date-fns';
+import { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
+import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -130,6 +132,8 @@ export interface GQLUpdateUserInput {
   infoConfirmed?: boolean;
   experienceLevel?: string;
   language?: ContentLanguage;
+  followingEmail?: boolean;
+  followNotifications?: boolean;
 }
 
 interface GQLUserParameters {
@@ -175,7 +179,11 @@ export interface GQLView {
 
 type CommentStats = { numComments: number; numCommentUpvotes: number };
 
-export type GQLUserStats = Omit<PostStats, 'numPostComments'> & CommentStats;
+type FollowStats = { numFollowing: number; numFollowers: number };
+
+export type GQLUserStats = Omit<PostStats, 'numPostComments'> &
+  CommentStats &
+  FollowStats;
 
 export interface GQLReadingRank {
   rankThisWeek?: number;
@@ -397,6 +405,10 @@ export const typeDefs = /* GraphQL */ `
     Preferred language of the user
     """
     language: String
+    """
+    Content preference in regards to current user
+    """
+    contentPreference: ContentPreference
   }
 
   """
@@ -507,6 +519,14 @@ export const typeDefs = /* GraphQL */ `
     Preferred language of the user
     """
     language: String
+    """
+    Whether the user wants to receive follwing email notifications
+    """
+    followingEmail: Boolean
+    """
+    Whether the user wants to receives following push notifications
+    """
+    followNotifications: Boolean
   }
 
   type TagsReadingStatus {
@@ -521,6 +541,8 @@ export const typeDefs = /* GraphQL */ `
     numPostViews: Int
     numPostUpvotes: Int
     numCommentUpvotes: Int
+    numFollowers: Int
+    numFollowing: Int
   }
 
   type ReadingRank {
@@ -669,7 +691,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get the statistics of the user
     """
-    userStats(id: ID!): UserStats
+    userStats(id: ID!): UserStats @cacheControl(maxAge: 600)
     """
     Get User Streak
     """
@@ -1158,25 +1180,42 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { id }: { id: string },
       ctx: Context,
     ): Promise<GQLUserStats | null> => {
-      const [postStats, commentStats] = await Promise.all([
-        getAuthorPostStats(ctx.con, id),
-        await ctx.con
-          .createQueryBuilder()
-          .select('count(*)', 'numComments')
-          .addSelect('sum(comment.upvotes)', 'numCommentUpvotes')
-          .from(Comment, 'comment')
-          .where({ userId: id })
-          .innerJoin(Post, 'p', `comment.postId = p.id`)
-          .andWhere('p.visible = true')
-          .andWhere('p.deleted = false')
-          .getRawOne(),
-      ]);
+      const [postStats, commentStats, numFollowing, numFollowers] =
+        await Promise.all([
+          getAuthorPostStats(ctx.con, id),
+          ctx.con
+            .createQueryBuilder()
+            .select('count(*)', 'numComments')
+            .addSelect('sum(comment.upvotes)', 'numCommentUpvotes')
+            .from(Comment, 'comment')
+            .where({ userId: id })
+            .innerJoin(Post, 'p', `comment.postId = p.id`)
+            .andWhere('p.visible = true')
+            .andWhere('p.deleted = false')
+            .getRawOne(),
+          ctx.con.getRepository(ContentPreferenceUser).countBy({
+            userId: id,
+            status: In([
+              ContentPreferenceStatus.Follow,
+              ContentPreferenceStatus.Subscribed,
+            ]),
+          }),
+          ctx.con.getRepository(ContentPreferenceUser).countBy({
+            referenceUserId: id,
+            status: In([
+              ContentPreferenceStatus.Follow,
+              ContentPreferenceStatus.Subscribed,
+            ]),
+          }),
+        ]);
       return {
         numPosts: postStats?.numPosts ?? 0,
         numComments: commentStats?.numComments ?? 0,
         numPostViews: postStats?.numPostViews ?? 0,
         numPostUpvotes: postStats?.numPostUpvotes ?? 0,
         numCommentUpvotes: commentStats?.numCommentUpvotes ?? 0,
+        numFollowing,
+        numFollowers,
       };
     },
     user: async (

@@ -104,6 +104,8 @@ export const notificationTitleMap: Record<
   squad_public_submitted: systemTitle,
   streak_reset_restore: (ctx: NotificationStreakContext) =>
     `<b>Oh no! Your ${ctx.streak.currentStreak} day streak has been broken</b>`,
+  // TODO AS-534 add handler
+  user_post_added: () => undefined,
 };
 
 export const generateNotificationMap: Record<
@@ -347,4 +349,6 @@ export const generateNotificationMap: Record<
     builder: NotificationBuilder,
     ctx: NotificationSquadRequestContext & NotificationSourceContext,
   ) => builder.systemNotification().referenceSquadRequest(ctx.squadRequest),
+  // TODO AS-534 add handler
+  user_post_added: (builder) => builder.systemNotification(),
 };

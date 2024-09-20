@@ -58,7 +58,7 @@ beforeAll(async () => {
 
 const getSourceCategories = () => [
   {
-    title: 'General',
+    title: 'Basics',
     enabled: true,
   },
   {
@@ -74,11 +74,11 @@ const getSourceCategories = () => [
     enabled: true,
   },
   {
-    title: 'DevOps',
+    title: 'DevOps & Cloud',
     enabled: true,
   },
   {
-    title: 'Cloud',
+    title: 'Open Source',
     enabled: true,
   },
   {
@@ -86,7 +86,7 @@ const getSourceCategories = () => [
     enabled: true,
   },
   {
-    title: 'Data',
+    title: 'AI',
     enabled: true,
   },
   {
@@ -95,6 +95,10 @@ const getSourceCategories = () => [
   },
   {
     title: 'DevTools',
+    enabled: true,
+  },
+  {
+    title: 'DevRel',
     enabled: true,
   },
 ];
@@ -162,9 +166,10 @@ afterAll(() => disposeGraphQLTesting(state));
 
 describe('query sourceCategory', () => {
   const QUERY = `
-    query SourceCategory($id: ID!) {
+    query SourceCategory($id: String!) {
       sourceCategory(id: $id) {
         id
+        slug
         title
       }
     }
@@ -191,6 +196,17 @@ describe('query sourceCategory', () => {
     expect(res.data.sourceCategory.title).toEqual(category.title);
   });
 
+  it('should return source category by slug', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: { id: 'web' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.sourceCategory.title).toEqual('Web');
+    expect(res.data.sourceCategory.slug).toEqual('web');
+  });
+
   it('should return source category by id as anonymous user', async () => {
     const [category] = await con.getRepository(SourceCategory).find();
     const res = await client.query(QUERY, { variables: { id: category.id } });
@@ -212,6 +228,7 @@ describe('query sourceCategories', () => {
         edges {
           node {
             id
+            slug
             title
           }
         }
@@ -238,6 +255,43 @@ describe('query sourceCategories', () => {
       categories.some((category) => category.title === node.title),
     );
     expect(isAllFound).toBeTruthy();
+  });
+
+  it('should return categories ordered by priority', async () => {
+    await con.createQueryRunner().query(`
+      DO $$
+      DECLARE
+          categories TEXT[] := ARRAY['Basics','Web','Mobile','DevOps & Cloud','AI','Games','DevTools','Career','Open Source','DevRel','Fun'];
+          i INT;
+      BEGIN
+          -- Iterate over the array and update the table
+          FOR i IN 1..array_length(categories, 1) LOOP
+              UPDATE source_category
+              SET priority = i
+              WHERE slug = trim(BOTH '-' FROM regexp_replace(lower(trim(COALESCE(LEFT(categories[i],100),''))), '[^a-z0-9-]+', '-', 'gi'));
+          END LOOP;
+      END $$;
+    `);
+    const expected = [
+      'Basics',
+      'Web',
+      'Mobile',
+      'DevOps & Cloud',
+      'AI',
+      'Games',
+      'DevTools',
+      'Career',
+      'Open Source',
+      'DevRel',
+      'Fun',
+    ];
+    loggedUser = '1';
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    const mapped = res.data.sourceCategories.edges.map(
+      ({ node }) => node.title,
+    );
+    expect(mapped).toEqual(expected);
   });
 });
 
@@ -299,13 +353,13 @@ describe('query sources', () => {
 
   it('should filter by category', async () => {
     const repo = con.getRepository(Source);
-    const general = await con
+    const anyOther = await con
       .getRepository(SourceCategory)
-      .findOneByOrFail({ title: 'General' });
+      .findOneByOrFail({ title: Not('Web') });
     const web = await con
       .getRepository(SourceCategory)
       .findOneByOrFail({ title: 'Web' });
-    await repo.update({ id: 'a' }, { categoryId: general.id });
+    await repo.update({ id: 'a' }, { categoryId: anyOther.id });
     await repo.update({ id: 'b' }, { categoryId: web.id });
     const res = await client.query(QUERY({ first: 10, categoryId: web.id }));
     const isAllWeb = res.data.sources.edges.every(

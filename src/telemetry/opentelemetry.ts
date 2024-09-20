@@ -13,10 +13,9 @@ import { UndiciInstrumentation } from '@opentelemetry/instrumentation-undici';
 import dc from 'node:diagnostics_channel';
 
 import { NodeSDK, logs, node, api, resources } from '@opentelemetry/sdk-node';
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter';
 import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
-// import { CloudPropagator } from '@google-cloud/opentelemetry-cloud-trace-propagator';
 
 import { containerDetector } from '@opentelemetry/resource-detector-container';
 import { gcpDetector } from '@opentelemetry/resource-detector-gcp';
@@ -122,13 +121,12 @@ export const tracer = (serviceName: string) => {
 
   const sdk = new NodeSDK({
     serviceName,
-    logRecordProcessor: new logs.SimpleLogRecordProcessor(
-      new logs.ConsoleLogRecordExporter(),
-    ),
+    logRecordProcessors: [
+      new logs.SimpleLogRecordProcessor(new logs.ConsoleLogRecordExporter()),
+    ],
     spanProcessors: [spanProcessor],
     instrumentations,
     resourceDetectors,
-    // textMapPropagator: new CloudPropagator(),
   });
 
   dc.subscribe(channelName, ({ fastify }: { fastify: FastifyInstance }) => {

@@ -384,6 +384,8 @@ const getUser = (con: DataSource, userId: string): Promise<User | null> =>
       'cover',
       'experienceLevel',
       'language',
+      'followingEmail',
+      'followNotifications',
     ],
   });
 
