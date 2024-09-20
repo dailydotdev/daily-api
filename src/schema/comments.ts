@@ -262,7 +262,7 @@ export const typeDefs = /* GraphQL */ `
       Paginate first
       """
       first: Int
-    ): CommentConnection! @auth
+    ): CommentConnection!
 
     """
     Get the comments of a post

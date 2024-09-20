@@ -79,6 +79,8 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   post_bookmark_reminder: '',
   streak_reset_restore: '',
   squad_featured: '56',
+  // TODO AS-534 add template id
+  user_post_added: '',
 };
 
 type TemplateData = Record<string, string | number>;
@@ -678,6 +680,10 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       squad_handle: squad.handle,
       squad_image: squad.image,
     };
+  },
+  // TODO AS-534 add handler
+  user_post_added: async () => {
+    return null;
   },
 };
 

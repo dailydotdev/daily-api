@@ -163,6 +163,12 @@ export class User {
   @Column({ type: 'text', nullable: true })
   language: ContentLanguage | null;
 
+  @Column({ type: 'boolean', default: true })
+  followingEmail: boolean;
+
+  @Column({ type: 'boolean', default: true })
+  followNotifications: boolean;
+
   @ManyToOne(() => User, {
     lazy: true,
     onDelete: 'SET NULL',

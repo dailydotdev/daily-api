@@ -362,9 +362,6 @@ describe('query commentFeed', () => {
     });
   });
 
-  it('should not allow unauthenticated users', () =>
-    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
-
   it('should fetch comments feed', async () => {
     loggedUser = '1';
     const res = await client.query(QUERY, { variables: { first: 20 } });

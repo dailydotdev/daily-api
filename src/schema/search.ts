@@ -31,6 +31,8 @@ import {
 import { getOffsetWithDefault } from 'graphql-relay';
 import { Brackets } from 'typeorm';
 import { whereVordrFilter } from '../common/vordr';
+import { ContentPreference } from '../entity/contentPreference/ContentPreference';
+import { ContentPreferenceType } from '../entity/contentPreference/types';
 
 type GQLSearchSession = Pick<SearchSession, 'id' | 'prompt' | 'createdAt'>;
 
@@ -39,6 +41,7 @@ interface GQLSearchSuggestion {
   title: string;
   subtitle?: string;
   image?: string;
+  contentPreference?: ContentPreference;
 }
 
 export interface GQLSearchSuggestionsResults {
@@ -101,6 +104,7 @@ export const typeDefs = /* GraphQL */ `
     title: String!
     subtitle: String
     image: String
+    contentPreference: ContentPreference
   }
 
   type SearchSuggestionsResults {
@@ -232,6 +236,11 @@ export const typeDefs = /* GraphQL */ `
       Maximum number of users to return
       """
       limit: Int = ${defaultSearchLimit}
+
+      """
+      Whether to include content preference status in the search
+      """
+      includeContentPreference: Boolean = false
 
       """
       Version of the search algorithm
@@ -422,8 +431,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     searchUserSuggestions: async (
       source,
-      { query, limit }: SearchSuggestionArgs,
-      ctx,
+      { query, limit, includeContentPreference }: SearchSuggestionArgs,
+      ctx: Context,
     ): Promise<GQLSearchSuggestionsResults> => {
       if (!query || query.length < 3 || query.length > 100) {
         return {
@@ -455,7 +464,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 query: `%${query}%`,
               });
           }),
-        )
+        );
+      if (includeContentPreference && ctx.userId) {
+        searchQuery.addSelect((contentPreferenceQueryBuilder) => {
+          return contentPreferenceQueryBuilder
+            .select('to_json(res)')
+            .from((subQuery) => {
+              return subQuery
+                .select('*')
+                .from(ContentPreference, 'cp')
+                .where('cp."referenceId" = u.id')
+                .andWhere('cp."type" = :cpType', {
+                  cpType: ContentPreferenceType.User,
+                })
+                .andWhere('cp."userId" = :cpUserId', {
+                  cpUserId: ctx.userId,
+                });
+            }, 'res');
+        }, 'contentPreference');
+      }
+      searchQuery
         .orderBy('u.reputation', 'DESC')
         .andWhere(whereVordrFilter('u'))
         .limit(getSearchLimit({ limit: Math.max(limit, 10) }));
