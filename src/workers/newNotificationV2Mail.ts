@@ -78,6 +78,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   squad_public_approved: '41',
   post_bookmark_reminder: '',
   streak_reset_restore: '',
+  squad_featured: '56',
   // TODO AS-534 add template id
   user_post_added: '',
 };
@@ -291,6 +292,25 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       upvote_title: basicHtmlStrip(notification.title),
       main_comment: notification.description!,
       discussion_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
+    };
+  },
+  squad_featured: async (con, _, notification) => {
+    const source = await con.getRepository(Source).findOne({
+      where: { id: notification.referenceId },
+      select: ['name', 'image'],
+    });
+
+    if (!source) {
+      return;
+    }
+
+    return {
+      squad_name: source.name,
+      squad_image: source.image,
+      squad_link: addNotificationEmailUtm(
         notification.targetUrl,
         notification.type,
       ),

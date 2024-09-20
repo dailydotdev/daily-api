@@ -1439,6 +1439,40 @@ describe('source_post_added notification', () => {
   });
 });
 
+describe('squad featured notifications', () => {
+  beforeEach(async () => {
+    source = await con.getRepository(Source).findOneBy({ id: 'a' });
+  });
+
+  it('should send an email squad name, image, and squad featured page url', async () => {
+    const ctx: NotificationSourceContext = {
+      userIds: ['1'],
+      source,
+    };
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.SquadFeatured,
+      ctx,
+    );
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data).toEqual({
+      squad_image: 'http://image.com/a',
+      squad_name: 'A',
+      squad_link:
+        'http://localhost:5002/squads/discover/featured?utm_source=notification&utm_medium=email&utm_campaign=squad_featured',
+    });
+    expect(args.transactional_message_id).toEqual('56');
+  });
+});
+
 describe('squad public request notifications', () => {
   beforeEach(async () => {
     source = await con.getRepository(Source).findOneBy({ id: 'a' });

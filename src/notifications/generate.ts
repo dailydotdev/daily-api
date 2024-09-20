@@ -5,6 +5,7 @@ import {
   generateDevCard,
   notificationsLink,
   scoutArticleLink,
+  squadsFeaturedPage,
   subscribeNotificationsLink,
 } from '../common';
 import {
@@ -78,6 +79,8 @@ export const notificationTitleMap: Record<
     `<b>${ctx.commenter.name}</b> <span class="text-theme-color-blueCheese">replied</span> to your comment on <b>${ctx.source.name}</b>.`,
   squad_blocked: (ctx: NotificationSourceContext) =>
     `You are no longer part of <b>${ctx.source.name}</b>`,
+  squad_featured: (ctx: NotificationSourceContext) =>
+    `Congratulations! <b>${ctx.source.name}</b> is now officially featured on the Squads directory`,
   squad_subscribe_to_notification: (ctx: NotificationSourceContext) =>
     `Congrats on your first post on <b>${ctx.source.name}</b>. Subscribe to get updates about activity in your squad.`,
   promoted_to_admin: (ctx: NotificationSourceContext) =>
@@ -271,6 +274,13 @@ export const generateNotificationMap: Record<
       .icon(NotificationIcon.Block)
       .referenceSource(ctx.source)
       .uniqueKey(ctx.userIds[0]),
+  squad_featured: (builder, ctx: NotificationSourceContext) =>
+    builder
+      .targetUrl(squadsFeaturedPage)
+      .avatarSource(ctx.source)
+      .icon(NotificationIcon.Bell)
+      .referenceSource(ctx.source)
+      .uniqueKey(format(new Date(), 'dd-MM-yyyy')),
   squad_subscribe_to_notification: (builder, ctx: NotificationSourceContext) =>
     builder
       .targetUrl(subscribeNotificationsLink)

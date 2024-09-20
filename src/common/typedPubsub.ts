@@ -3,6 +3,7 @@ import type {
   Post,
   SourceRequest,
   SquadPublicRequest,
+  SquadSource,
   User,
   UserStreak,
   UserCompany,
@@ -88,6 +89,9 @@ export type PubSubSchema = {
   };
   'api.v1.post-visible': {
     post: ChangeObject<Post>;
+  };
+  'api.v1.squad-featured-updated': {
+    squad: ChangeObject<SquadSource>;
   };
   'api.v1.user-company-approved': {
     userCompany: ChangeObject<UserCompany>;
