@@ -214,6 +214,8 @@ const defaultUser: ChangeObject<Omit<User, 'createdAt'>> = {
     vordr: false,
   },
   language: null,
+  followingEmail: true,
+  followNotifications: true,
 };
 
 describe('source request', () => {
