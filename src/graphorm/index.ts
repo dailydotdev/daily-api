@@ -146,9 +146,12 @@ const obj = new GraphORM({
           customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder => {
             return qb
               .where(`${childAlias}."referenceId" = "${parentAlias}".id`)
-              .andWhere(`${childAlias}."userId" = :userId`, {
-                userId: ctx.userId,
-              })
+              .andWhere(
+                `${childAlias}."userId" = :currentContentPreferenceUserId`,
+                {
+                  currentContentPreferenceUserId: ctx.userId,
+                },
+              )
               .andWhere(`"${childAlias}".type = :type`, {
                 type: ContentPreferenceType.User,
               });
