@@ -1741,7 +1741,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         description,
         memberPostingRole = SourceMemberRoles.Member,
         memberInviteRole = SourceMemberRoles.Member,
-        isPrivate,
+        isPrivate = true,
         categoryId,
       }: SquadCreateInputArgs,
       ctx: AuthContext,
