@@ -2,6 +2,7 @@ import {
   NotificationPreferenceComment,
   NotificationPreferencePost,
   NotificationPreferenceSource,
+  NotificationPreferenceUser,
   Comment,
   NotificationAttachmentV2,
   NotificationAvatarV2,
@@ -12,7 +13,6 @@ import { DataSource, EntityManager, IsNull } from 'typeorm';
 import { NotFoundError, TypeOrmError } from '../errors';
 import { ReadStream } from 'fs';
 import { UserNotification } from '../entity';
-import { NotificationPreferenceUser } from '../entity/notifications/NotificationPreferenceUser';
 
 export enum NotificationType {
   CommunityPicksFailed = 'community_picks_failed',
@@ -72,6 +72,7 @@ export const notificationPreferenceMap: Partial<
   [NotificationType.SquadMemberJoined]: NotificationPreferenceType.Source,
   [NotificationType.CollectionUpdated]: NotificationPreferenceType.Post,
   [NotificationType.SourcePostAdded]: NotificationPreferenceType.Source,
+  [NotificationType.UserPostAdded]: NotificationPreferenceType.User,
 };
 
 export const commentReplyNotificationTypes = [
@@ -114,6 +115,8 @@ const getRepository = (
       return con.getRepository(NotificationPreferenceComment);
     case NotificationPreferenceType.Source:
       return con.getRepository(NotificationPreferenceSource);
+    case NotificationPreferenceType.User:
+      return con.getRepository(NotificationPreferenceUser);
     default:
       throw new ValidationError('Notification type not supported');
   }

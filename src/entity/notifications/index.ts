@@ -5,4 +5,5 @@ export * from './NotificationPreference';
 export * from './NotificationPreferencePost';
 export * from './NotificationPreferenceSource';
 export * from './NotificationPreferenceComment';
+export * from './NotificationPreferenceUser';
 export * from './UserNotification';
