@@ -31,11 +31,7 @@ import {
 import { getOffsetWithDefault } from 'graphql-relay';
 import { Brackets } from 'typeorm';
 import { whereVordrFilter } from '../common/vordr';
-import { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
-import {
-  ContentPreferenceStatus,
-  ContentPreferenceType,
-} from '../entity/contentPreference/types';
+import type { ContentPreference } from '../entity/contentPreference/ContentPreference';
 
 type GQLSearchSession = Pick<SearchSession, 'id' | 'prompt' | 'createdAt'>;
 
@@ -44,7 +40,7 @@ interface GQLSearchSuggestion {
   title: string;
   subtitle?: string;
   image?: string;
-  contentpreferencestatus?: ContentPreferenceStatus;
+  contentPreference?: ContentPreference;
 }
 
 export interface GQLSearchSuggestionsResults {
@@ -107,7 +103,7 @@ export const typeDefs = /* GraphQL */ `
     title: String!
     subtitle: String
     image: String
-    contentpreferencestatus: ContentPreferenceStatus
+    contentPreference: ContentPreference
   }
 
   type SearchSuggestionsResults {
@@ -469,15 +465,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           }),
         );
       if (includeContentPreference) {
-        searchQuery.addSelect('cpu.status as contentPreferenceStatus');
-        searchQuery.leftJoin(
-          ContentPreferenceUser,
-          'cpu',
-          'cpu.referenceId = u.id AND cpu.type = :cpuType AND cpu.userId = :cpuUserId',
-          {
-            cpuType: ContentPreferenceType.User,
-            cpuUserId: ctx.userId,
-          },
+        searchQuery.addSelect(
+          `(select to_json(res) as children from
+(SELECT * FROM "public"."content_preference" cp WHERE cp."referenceId" = id AND cp."type" = 'user' AND cp."userId" = '${ctx.userId}')
+as "res")`,
+          'contentPreference',
         );
       }
       searchQuery
