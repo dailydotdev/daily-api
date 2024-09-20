@@ -31,7 +31,8 @@ import {
 import { getOffsetWithDefault } from 'graphql-relay';
 import { Brackets } from 'typeorm';
 import { whereVordrFilter } from '../common/vordr';
-import type { ContentPreference } from '../entity/contentPreference/ContentPreference';
+import { ContentPreference } from '../entity/contentPreference/ContentPreference';
+import { ContentPreferenceType } from '../entity/contentPreference/types';
 
 type GQLSearchSession = Pick<SearchSession, 'id' | 'prompt' | 'createdAt'>;
 
@@ -465,12 +466,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           }),
         );
       if (includeContentPreference) {
-        searchQuery.addSelect(
-          `(select to_json(res) as children from
-(SELECT * FROM "public"."content_preference" cp WHERE cp."referenceId" = id AND cp."type" = 'user' AND cp."userId" = '${ctx.userId}')
-as "res")`,
-          'contentPreference',
-        );
+        searchQuery.addSelect((contentPreferenceQueryBuilder) => {
+          return contentPreferenceQueryBuilder
+            .select('to_json(res)')
+            .from((subQuery) => {
+              return subQuery
+                .select('*')
+                .from(ContentPreference, 'cp')
+                .where('cp."referenceId" = u.id')
+                .andWhere('cp."type" = :cpType', {
+                  cpType: ContentPreferenceType.User,
+                })
+                .andWhere('cp."userId" = :cpUserId', {
+                  cpUserId: ctx.userId,
+                });
+            }, 'res');
+        }, 'contentPreference');
       }
       searchQuery
         .orderBy('u.reputation', 'DESC')
