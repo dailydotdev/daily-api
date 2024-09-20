@@ -132,6 +132,8 @@ export interface GQLUpdateUserInput {
   infoConfirmed?: boolean;
   experienceLevel?: string;
   language?: ContentLanguage;
+  followingEmail?: boolean;
+  followNotifications?: boolean;
 }
 
 interface GQLUserParameters {
@@ -517,6 +519,14 @@ export const typeDefs = /* GraphQL */ `
     Preferred language of the user
     """
     language: String
+    """
+    Whether the user wants to receive follwing email notifications
+    """
+    followingEmail: Boolean
+    """
+    Whether the user wants to receives following push notifications
+    """
+    followNotifications: Boolean
   }
 
   type TagsReadingStatus {
