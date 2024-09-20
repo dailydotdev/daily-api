@@ -31,6 +31,11 @@ import {
 import { getOffsetWithDefault } from 'graphql-relay';
 import { Brackets } from 'typeorm';
 import { whereVordrFilter } from '../common/vordr';
+import { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../entity/contentPreference/types';
 
 type GQLSearchSession = Pick<SearchSession, 'id' | 'prompt' | 'createdAt'>;
 
@@ -39,6 +44,7 @@ interface GQLSearchSuggestion {
   title: string;
   subtitle?: string;
   image?: string;
+  contentpreferencestatus?: ContentPreferenceStatus;
 }
 
 export interface GQLSearchSuggestionsResults {
@@ -101,6 +107,7 @@ export const typeDefs = /* GraphQL */ `
     title: String!
     subtitle: String
     image: String
+    contentpreferencestatus: ContentPreferenceStatus
   }
 
   type SearchSuggestionsResults {
@@ -232,6 +239,11 @@ export const typeDefs = /* GraphQL */ `
       Maximum number of users to return
       """
       limit: Int = ${defaultSearchLimit}
+
+      """
+      Whether to include content preference status in the search
+      """
+      includeContentPreference: Boolean = false
 
       """
       Version of the search algorithm
@@ -422,8 +434,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     searchUserSuggestions: async (
       source,
-      { query, limit }: SearchSuggestionArgs,
-      ctx,
+      { query, limit, includeContentPreference }: SearchSuggestionArgs,
+      ctx: AuthContext,
     ): Promise<GQLSearchSuggestionsResults> => {
       if (!query || query.length < 3 || query.length > 100) {
         return {
@@ -455,11 +467,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 query: `%${query}%`,
               });
           }),
-        )
+        );
+      if (includeContentPreference) {
+        searchQuery.addSelect('cpu.status as contentPreferenceStatus');
+        searchQuery.leftJoin(
+          ContentPreferenceUser,
+          'cpu',
+          'cpu.referenceId = u.id AND cpu.type = :cpuType AND cpu.userId = :cpuUserId',
+          {
+            cpuType: ContentPreferenceType.User,
+            cpuUserId: ctx.userId,
+          },
+        );
+      }
+      searchQuery
         .orderBy('u.reputation', 'DESC')
         .andWhere(whereVordrFilter('u'))
         .limit(getSearchLimit({ limit: Math.max(limit, 10) }));
+      console.log(searchQuery.getQueryAndParameters());
       const hits = await searchQuery.getRawMany();
+      console.log(hits);
       return {
         query,
         hits: hits.slice(0, limit),
