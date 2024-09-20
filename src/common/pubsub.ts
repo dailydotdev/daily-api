@@ -55,6 +55,7 @@ const newCommentMentionTopic = pubsub.topic('api.v1.new-comment-mention');
 const memberJoinedSourceTopic = pubsub.topic('api.v1.member-joined-source');
 const featureAccess = pubsub.topic('api.v1.feature-granted');
 const sourcePrivacyUpdatedTopic = pubsub.topic('api.v1.source-privacy-updated');
+const squadFeaturedUpdated = pubsub.topic('api.v1.squad-featured-updated');
 const featuresResetTopic = pubsub.topic('features-reset');
 const contentRequestedTopic = pubsub.topic('api.v1.content-requested');
 const postVisibleTopic = pubsub.topic('api.v1.post-visible');
@@ -198,6 +199,11 @@ export const notifySourcePrivacyUpdated = (
   log: EventLogger,
   source: ChangeObject<Source>,
 ): Promise<void> => publishEvent(log, sourcePrivacyUpdatedTopic, { source });
+
+export const notifySquadFeaturedUpdated = (
+  log: EventLogger,
+  squad: ChangeObject<Source>,
+): Promise<void> => publishEvent(log, squadFeaturedUpdated, { squad });
 
 export const notifySendAnalyticsReport = async (
   log: EventLogger,

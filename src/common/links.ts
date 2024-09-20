@@ -38,6 +38,7 @@ export const scoutArticleLink = `${process.env.COMMENTS_PREFIX}?scout=true`;
 export const squadCreateLink = `${process.env.COMMENTS_PREFIX}?squad=true`;
 export const subscribeNotificationsLink = `${process.env.COMMENTS_PREFIX}?notify=true`;
 export const generateDevCard = `${process.env.COMMENTS_PREFIX}/devcard`;
+export const squadsFeaturedPage = `${process.env.COMMENTS_PREFIX}/squads/discover/featured`;
 
 export const standardizeURL = (url: string): string => {
   const domain = subtractDomain(url);

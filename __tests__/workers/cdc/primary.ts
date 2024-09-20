@@ -27,6 +27,7 @@ import {
   Bookmark,
   UserStreakAction,
   UserStreakActionType,
+  SquadSource,
   UserCompany,
 } from '../../../src/entity';
 import {
@@ -64,6 +65,7 @@ import {
   notifyReputationIncrease,
   PubSubSchema,
   debeziumTimeToDate,
+  notifySquadFeaturedUpdated,
   DayOfWeek,
 } from '../../../src/common';
 import worker, {
@@ -174,6 +176,7 @@ jest.mock('../../../src/common', () => ({
   notifyReputationIncrease: jest.fn(),
   runReminderWorkflow: jest.fn(),
   cancelReminderWorkflow: jest.fn(),
+  notifySquadFeaturedUpdated: jest.fn(),
 }));
 
 jest.mock('../../../src/temporal/notifications/utils', () => ({
@@ -1999,11 +2002,17 @@ describe('feature', () => {
 });
 
 describe('source', () => {
-  type ObjectType = Partial<Source>;
+  type ObjectType = Partial<SquadSource>;
   const base: ChangeObject<ObjectType> = {
     id: 'a',
     private: true,
   };
+  const flags = JSON.stringify({
+    featured: true,
+    totalViews: 0,
+    totalUpvotes: 0,
+    totalPosts: 0,
+  }) as never;
 
   it('should notify on source privacy change', async () => {
     const after = { ...base, private: false };
@@ -2020,6 +2029,37 @@ describe('source', () => {
     expect(
       jest.mocked(notifySourcePrivacyUpdated).mock.calls[0].slice(1),
     ).toEqual([after]);
+  });
+
+  it('should notify when squad is featured from non-featured', async () => {
+    const after = { ...base, flags };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'source',
+      }),
+    );
+    expect(notifySquadFeaturedUpdated).toHaveBeenCalledTimes(1);
+    expect(
+      jest.mocked(notifySquadFeaturedUpdated).mock.calls[0].slice(1),
+    ).toEqual([{ ...after, flags: JSON.parse(flags) }]);
+  });
+
+  it('should not notify when squad is featured and some other column changed', async () => {
+    const after = { ...base, flags, name: 'Aaa' };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: { ...base, flags },
+        op: 'u',
+        table: 'source',
+      }),
+    );
+    expect(notifySquadFeaturedUpdated).not.toHaveBeenCalled();
   });
 });
 
