@@ -83,6 +83,7 @@ describe('GET /sitemaps/posts.txt', () => {
     expect(res.header['cache-control']).toBeTruthy();
     expect(res.text).toEqual(`http://localhost:5002/posts/p1-p1
 http://localhost:5002/posts/p4-p4
+http://localhost:5002/posts/p5-p5
 `);
   });
 });
