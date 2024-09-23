@@ -7,6 +7,7 @@ import {
   initializeGraphQLTesting,
   MockContext,
   saveFixtures,
+  testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
 
@@ -481,6 +482,40 @@ describe('mutation follow', () => {
 
     expect(contentPreference).not.toBeNull();
     expect(contentPreference?.status).toBe(ContentPreferenceStatus.Subscribed);
+  });
+
+  it('should not follow yourself', async () => {
+    loggedUser = '1-fm';
+
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '1-fm',
+          entity: ContentPreferenceType.User,
+          status: ContentPreferenceStatus.Follow,
+        },
+      },
+      'CONFLICT',
+    );
+  });
+
+  it('should not subscribe to yourself', async () => {
+    loggedUser = '1-fm';
+
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '1-fm',
+          entity: ContentPreferenceType.User,
+          status: ContentPreferenceStatus.Subscribed,
+        },
+      },
+      'CONFLICT',
+    );
   });
 });
 

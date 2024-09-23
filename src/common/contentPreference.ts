@@ -7,6 +7,7 @@ import { ContentPreferenceUser } from '../entity/contentPreference/ContentPrefer
 import { NotificationPreferenceUser } from '../entity/notifications/NotificationPreferenceUser';
 import { NotificationType } from '../notifications/common';
 import { EntityManager, In } from 'typeorm';
+import { ConflictError } from '../errors';
 
 type FollowEntity = ({
   ctx,
@@ -56,6 +57,10 @@ const cleanContentNotificationPreference = async ({
 };
 
 const followUser: FollowEntity = async ({ ctx, id, status }) => {
+  if (ctx.userId === id) {
+    throw new ConflictError('Cannot follow yourself');
+  }
+
   await ctx.con.transaction(async (entityManager) => {
     const repository = entityManager.getRepository(ContentPreferenceUser);
 
