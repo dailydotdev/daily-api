@@ -1224,15 +1224,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: Context,
       info: GraphQLResolveInfo,
     ): Promise<GQLUser> => {
-      const res = await graphorm.query<GQLUser>(ctx, info, (builder) => {
-        builder.queryBuilder = builder.queryBuilder
-          .andWhere(
-            `("${builder.alias}"."id" = :id OR "${builder.alias}"."username" = :id)`,
-            { id },
-          )
-          .limit(1);
-        return builder;
-      });
+      const res = await graphorm.query<GQLUser>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .andWhere(
+              `("${builder.alias}"."id" = :id OR "${builder.alias}"."username" = :id)`,
+              { id },
+            )
+            .limit(1);
+          return builder;
+        },
+        true,
+      );
       if (!res[0]) {
         throw new ForbiddenError('user not found');
       }

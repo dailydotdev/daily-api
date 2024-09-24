@@ -545,9 +545,15 @@ export class GraphORM {
     ctx: Context,
     resolveTree: ResolveTree,
     beforeQuery?: (builder: GraphORMBuilder) => GraphORMBuilder,
+    readReplica?: boolean,
   ): Promise<T[]> {
     const rootType = Object.keys(resolveTree.fieldsByTypeName)[0];
     const fieldsByTypeName = resolveTree.fieldsByTypeName[rootType];
+
+    let slaveRunner = null;
+    if (readReplica) {
+      slaveRunner = ctx.con.createQueryRunner('slave');
+    }
 
     let builder = this.selectType(
       ctx,
@@ -558,8 +564,14 @@ export class GraphORM {
     if (beforeQuery) {
       builder = beforeQuery(builder);
     }
+    if (slaveRunner) {
+      builder.queryBuilder.setQueryRunner(slaveRunner);
+    }
 
     const res = await builder.queryBuilder.getRawMany();
+    if (slaveRunner) {
+      await slaveRunner.release();
+    }
     return res.map((value) =>
       this.transformType(ctx, value, rootType, fieldsByTypeName),
     );
@@ -570,15 +582,17 @@ export class GraphORM {
    * @param ctx GraphQL context of the request
    * @param resolveInfo GraphQL resolve info of the request
    * @param beforeQuery A callback function that is called before executing the query
+   * @param readReplica Whether to use the read replica instance
    */
   query<T>(
     ctx: Context,
     resolveInfo: GraphQLResolveInfo,
     beforeQuery?: (builder: GraphORMBuilder) => GraphORMBuilder,
+    readReplica?: boolean,
   ): Promise<T[]> {
     const parsedInfo = parseResolveInfo(resolveInfo) as ResolveTree;
     if (parsedInfo) {
-      return this.queryResolveTree(ctx, parsedInfo, beforeQuery);
+      return this.queryResolveTree(ctx, parsedInfo, beforeQuery, readReplica);
     }
     throw new Error('Resolve info is empty');
   }
