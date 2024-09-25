@@ -764,16 +764,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const comment = await graphorm.queryOneOrFail<GQLComment>(
         ctx,
         info,
-        (builder) => (
-          {
-            ...builder,
-            queryBuilder: builder.queryBuilder.where(
-              `"${builder.alias}"."id" = :id`,
-              { id },
-            ),
-          },
-          true
-        ),
+        (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder.where(
+            `"${builder.alias}"."id" = :id`,
+            { id },
+          ),
+        }),
       );
 
       const post = await ctx.con
