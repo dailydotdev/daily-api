@@ -38,7 +38,7 @@ beforeEach(async () => {
     {
       id: 'c2',
       postId: 'p1',
-      userId: 'vordr',
+      userId: 'low-reputation',
       content: 'comment',
       contentHtml: '<p>comment</p>',
       flags: { vordr: true },
