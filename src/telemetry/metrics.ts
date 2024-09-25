@@ -86,6 +86,10 @@ const counterMap = {
       name: 'post_sent_slack',
       description: 'How many posts were sent to slack workspaces',
     },
+    notificationUserPostAdded: {
+      name: 'notification_user_post_added',
+      description: 'How many user post added notifications were sent',
+    },
   },
   cron: {
     streakUpdate: {

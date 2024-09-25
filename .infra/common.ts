@@ -293,6 +293,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.user-company-approved',
     subscription: 'api.user-company-approved-cio',
   },
+  {
+    topic: 'api.v1.post-visible',
+    subscription: 'api.post-added-user-notification',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

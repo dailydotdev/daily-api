@@ -19,6 +19,7 @@ export enum CioUnsubscribeTopic {
   Marketing = '4',
   Notifications = '7',
   Digest = '8',
+  Follow = '9',
 }
 
 export enum CioTransactionalMessageTemplateId {
@@ -116,13 +117,17 @@ export const syncSubscription = async function (
           !unsubscribed;
         const digest =
           isSubscribed(subs, CioUnsubscribeTopic.Digest) && !unsubscribed;
+        const isFollowSubscribed =
+          isSubscribed(subs, CioUnsubscribeTopic.Follow) && !unsubscribed;
 
-        await manager
-          .getRepository(User)
-          .update(
-            { id: customer.id },
-            { notificationEmail: notifications, acceptedMarketing: marketing },
-          );
+        await manager.getRepository(User).update(
+          { id: customer.id },
+          {
+            notificationEmail: notifications,
+            acceptedMarketing: marketing,
+            followingEmail: isFollowSubscribed,
+          },
+        );
         if (!digest) {
           await manager.getRepository(UserPersonalizedDigest).delete({
             userId: customer.id,
