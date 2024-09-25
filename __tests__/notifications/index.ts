@@ -13,6 +13,7 @@ import {
   NotificationStreakContext,
   NotificationSubmissionContext,
   NotificationUpvotersContext,
+  NotificationUserContext,
   Reference,
   storeNotificationBundleV2,
 } from '../../src/notifications';
@@ -1124,6 +1125,47 @@ describe('storeNotificationBundle', () => {
         referenceId: 'a',
         targetUrl: 'http://localhost:5002/sources/a',
         type: 'source',
+      },
+    ]);
+    expect(actual.attachments!.length).toEqual(1);
+    expect(actual.attachments).toEqual([
+      {
+        image: 'https://daily.dev/image.jpg',
+
+        referenceId: 'p1',
+        title: 'P1',
+        type: 'post',
+      },
+    ]);
+  });
+
+  it('should generate user_post_added notification', () => {
+    const type = NotificationType.UserPostAdded;
+    const ctx: NotificationUserContext & NotificationPostContext = {
+      userIds: [userId],
+      source: sourcesFixture[0] as Reference<Source>,
+      post: postsFixture[0] as Reference<Post>,
+      user: usersFixture[1] as Reference<User>,
+    };
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('p1');
+    expect(actual.notification.referenceType).toEqual('post');
+    expect(actual.notification.description).toBeFalsy();
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/posts/p1',
+    );
+    expect(actual.avatars).toEqual([
+      {
+        image: 'https://daily.dev/tsahi.jpg',
+        name: 'Tsahi',
+
+        referenceId: '2',
+        targetUrl: 'http://localhost:5002/tsahidaily',
+        type: 'user',
       },
     ]);
     expect(actual.attachments!.length).toEqual(1);
