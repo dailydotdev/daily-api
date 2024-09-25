@@ -39,6 +39,7 @@ import {
   notifyPostBannedOrRemoved,
   notifyPostCommented,
   notifyPostReport,
+  notifySourceReport,
   notifyCommentReport,
   notifySendAnalyticsReport,
   notifySettingsUpdated,
@@ -137,6 +138,7 @@ import {
   runReminderWorkflow,
 } from '../../../src/temporal/notifications/utils';
 import { ReportReason } from '../../../src/entity/common';
+import { SourceReport } from '../../../src/entity/sources/SourceReport';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -150,6 +152,7 @@ jest.mock('../../../src/common', () => ({
   notifySendAnalyticsReport: jest.fn(),
   notifyPostBannedOrRemoved: jest.fn(),
   notifyPostReport: jest.fn(),
+  notifySourceReport: jest.fn(),
   notifyCommentReport: jest.fn(),
   notifySourceFeedAdded: jest.fn(),
   notifySourceFeedRemoved: jest.fn(),
@@ -1620,6 +1623,45 @@ describe('post report', () => {
       '💔 Link is broken',
       'Test comment',
       ['php', 'webdev'],
+    );
+  });
+});
+
+describe('source report', () => {
+  type ObjectType = SourceReport;
+  const base: ChangeObject<ObjectType> = {
+    userId: 'u1',
+    sourceId: 'a',
+    createdAt: 0,
+    reason: ReportReason.Harassment,
+    comment: 'Test comment',
+  };
+
+  beforeEach(async () => {
+    await saveFixtures(con, Source, sourcesFixture);
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+  });
+
+  it('should notify on new source report', async () => {
+    const after: ChangeObject<ObjectType> = base;
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'source_report',
+      }),
+    );
+    const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+    expect(notifySourceReport).toHaveBeenCalledTimes(1);
+    expect(notifySourceReport).toHaveBeenCalledWith(
+      'u1',
+      source,
+      '🤬 Harrasment or bullying',
+      'Test comment',
     );
   });
 });

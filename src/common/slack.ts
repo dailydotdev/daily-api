@@ -1,6 +1,6 @@
 import { IncomingWebhook } from '@slack/webhook';
-import { Post, Comment, User } from '../entity';
-import { getDiscussionLink } from './links';
+import { Post, Comment, User, Source } from '../entity';
+import { getDiscussionLink, getSourceLink } from './links';
 import { NotFoundError } from '../errors';
 import { DataSource } from 'typeorm';
 import { UserIntegrationSlack } from '../entity/UserIntegration';
@@ -152,6 +152,38 @@ export const notifyNewVordrPost = async (
           ...getUser('Author', author),
         ],
         color: '#1DDC6F',
+      },
+    ],
+  });
+};
+
+export const notifySourceReport = async (
+  userId: string,
+  source: Source,
+  reason: string,
+  comment?: string,
+): Promise<void> => {
+  await webhooks.content.send({
+    text: 'Source/Squad was just reported!',
+    attachments: [
+      {
+        title: source.name ?? `Source ${source.id}`,
+        title_link: getSourceLink(source),
+        fields: [
+          {
+            title: 'User',
+            value: userId,
+          },
+          {
+            title: 'Reason',
+            value: reason,
+          },
+          {
+            title: 'Comment',
+            value: comment || '',
+          },
+        ],
+        color: '#FF1E1F',
       },
     ],
   });
