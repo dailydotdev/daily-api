@@ -4,11 +4,14 @@ import { NotificationV2 } from '../entity';
 import { sendPushNotification } from '../onesignal';
 import { getDisconnectedUsers } from '../subscription';
 import { processStreamInBatches } from '../common/streaming';
+import { User } from '../entity/user/User';
 import {
   getNotificationV2AndChildren,
   streamNotificationUsers,
 } from '../notifications/common';
 import { counters } from '../telemetry';
+import { contentPreferenceNotificationTypes } from '../common/contentPreference';
+import { In } from 'typeorm';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -28,15 +31,34 @@ const worker: Worker = {
       );
       if (notification) {
         try {
+          const isFollowNotification =
+            contentPreferenceNotificationTypes.includes(notification.type);
+
           const stream = await streamNotificationUsers(con, notification.id);
           await processStreamInBatches(
             stream,
             async (batch: { userId: string }[]) => {
-              const users = await getDisconnectedUsers(
+              const disconnectedUsers = await getDisconnectedUsers(
                 batch.map((b) => b.userId),
               );
+
+              const users = await con.getRepository(User).find({
+                select: ['id'],
+                where: {
+                  id: In(disconnectedUsers),
+                  followingEmail:
+                    isFollowNotification && notification.public
+                      ? true
+                      : undefined,
+                },
+              });
+
               if (users.length) {
-                await sendPushNotification(users, notification, avatars?.[0]);
+                await sendPushNotification(
+                  users.map((item) => item.id),
+                  notification,
+                  avatars?.[0],
+                );
               }
             },
             QUEUE_CONCURRENCY,

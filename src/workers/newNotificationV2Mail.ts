@@ -41,6 +41,7 @@ import {
 } from '../notifications/common';
 import { processStreamInBatches } from '../common/streaming';
 import { counters } from '../telemetry';
+import { contentPreferenceNotificationTypes } from '../common/contentPreference';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -714,12 +715,18 @@ const worker: Worker = {
       await processStreamInBatches(
         stream,
         async (batch: { userId: string }[]) => {
+          const isFollowNotification =
+            contentPreferenceNotificationTypes.includes(notification.type);
+
           const users = await con.getRepository(User).find({
             select: ['id', 'username', 'email'],
             where: {
               id: In(batch.map((b) => b.userId)),
               email: Not(IsNull()),
-              notificationEmail: notification.public ? true : undefined,
+              notificationEmail:
+                !isFollowNotification && notification.public ? true : undefined,
+              followingEmail:
+                isFollowNotification && notification.public ? true : undefined,
             },
           });
           if (!users.length) {
