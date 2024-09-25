@@ -82,6 +82,7 @@ import {
   isNumber,
   notifySquadFeaturedUpdated,
   DEFAULT_TIMEZONE,
+  notifySourceReport,
 } from '../../common';
 import { ChangeMessage, ChangeObject, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
@@ -112,8 +113,10 @@ import { addDays } from 'date-fns';
 import {
   postReportReasonsMap,
   reportCommentReasonsMap,
+  sourceReportReasonsMap,
 } from '../../entity/common';
 import { utcToZonedTime } from 'date-fns-tz';
+import { SourceReport } from '../../entity/sources/SourceReport';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -577,6 +580,26 @@ const onPostChange = async (
   }
 };
 
+const onSourceReportChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<SourceReport>,
+): Promise<void> => {
+  if (data.payload.op === 'c') {
+    const source = await con
+      .getRepository(Source)
+      .findOneBy({ id: data.payload.after!.sourceId });
+    if (source) {
+      await notifySourceReport(
+        data.payload.after!.userId,
+        source,
+        sourceReportReasonsMap.get(data.payload.after!.reason)!,
+        data.payload.after!.comment,
+      );
+    }
+  }
+};
+
 const onPostReportChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -987,6 +1010,9 @@ const worker: Worker = {
           break;
         case getTableName(con, PostReport):
           await onPostReportChange(con, logger, data);
+          break;
+        case getTableName(con, SourceReport):
+          await onSourceReportChange(con, logger, data);
           break;
         case getTableName(con, CommentReport):
           await onCommentReportChange(con, logger, data);
