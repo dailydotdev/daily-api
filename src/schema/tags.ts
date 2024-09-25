@@ -132,16 +132,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 >({
   Query: {
     tags: (_, __, ctx: Context, info): Promise<GQLKeyword[]> =>
-      graphorm.query<GQLKeyword>(ctx, info, (builder) => {
-        builder.queryBuilder = builder.queryBuilder
-          .where({
-            status: 'allow',
-          })
-          .orderBy('value', 'ASC')
-          .limit(1000);
+      graphorm.query<GQLKeyword>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .where({
+              status: 'allow',
+            })
+            .orderBy('value', 'ASC')
+            .limit(1000);
 
-        return builder;
-      }),
+          return builder;
+        },
+        true,
+      ),
     trendingTags: async (
       _,
       args: TagQueryArgs,
