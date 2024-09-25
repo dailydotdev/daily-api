@@ -32,7 +32,7 @@ export const vordrPostPrevented: TypedWorker<'api.v1.post-visible'> = {
         return;
       }
 
-      if (author.flags?.vordr || scout.flags?.vordr) {
+      if (author?.flags?.vordr || scout?.flags?.vordr) {
         return;
       }
 
