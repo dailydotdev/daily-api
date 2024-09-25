@@ -549,17 +549,12 @@ const getCommentById = async (
   ctx: Context,
   info: GraphQLResolveInfo,
 ): Promise<GQLComment> => {
-  const res = await graphorm.query<GQLComment>(
-    ctx,
-    info,
-    (builder) => {
-      builder.queryBuilder = builder.queryBuilder
-        .andWhere(`${builder.alias}.id = :id`, { id })
-        .limit(1);
-      return builder;
-    },
-    true,
-  );
+  const res = await graphorm.query<GQLComment>(ctx, info, (builder) => {
+    builder.queryBuilder = builder.queryBuilder
+      .andWhere(`${builder.alias}.id = :id`, { id })
+      .limit(1);
+    return builder;
+  });
   return res[0];
 };
 

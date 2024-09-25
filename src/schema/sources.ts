@@ -1093,17 +1093,12 @@ const getSourceById = async (
   info: GraphQLResolveInfo,
   id: string,
 ): Promise<GQLSource> => {
-  const res = await graphorm.query<GQLSource>(
-    ctx,
-    info,
-    (builder) => {
-      builder.queryBuilder = builder.queryBuilder
-        .andWhere('(id = :id or handle = :id)', { id })
-        .limit(1);
-      return builder;
-    },
-    true,
-  );
+  const res = await graphorm.query<GQLSource>(ctx, info, (builder) => {
+    builder.queryBuilder = builder.queryBuilder
+      .andWhere('(id = :id or handle = :id)', { id })
+      .limit(1);
+    return builder;
+  });
   if (!res.length) {
     throw new EntityNotFoundError(Source, 'not found');
   }
