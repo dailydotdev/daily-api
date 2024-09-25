@@ -46,10 +46,7 @@ const worker: Worker = {
                 select: ['id'],
                 where: {
                   id: In(disconnectedUsers),
-                  followingEmail:
-                    isFollowNotification && notification.public
-                      ? true
-                      : undefined,
+                  followNotifications: isFollowNotification ? true : undefined,
                 },
               });
 

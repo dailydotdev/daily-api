@@ -46,6 +46,8 @@ import {
   NotificationSquadRequestContext,
   NotificationSubmissionContext,
   NotificationUpvotersContext,
+  NotificationUserContext,
+  Reference,
 } from '../../src/notifications';
 import { postsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture/source';
@@ -677,6 +679,33 @@ it('should not send email notification if the user prefers not to receive them',
   const notificationId = await saveNotificationV2Fixture(
     con,
     NotificationType.CommentUpvoteMilestone,
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId,
+    },
+  });
+  expect(sendEmail).toHaveBeenCalledTimes(0);
+});
+
+it('should not send follow email notification if the user prefers not to receive them', async () => {
+  const userId = '1';
+  const repo = con.getRepository(User);
+  const user = await repo.findOneBy({ id: userId });
+  await repo.save({ ...user, followingEmail: false });
+  const post = await con.getRepository(ArticlePost).save(postsFixture[0]);
+  const ctx: NotificationUserContext & NotificationPostContext = {
+    userIds: ['1'],
+    user: user as Reference<User>,
+    post,
+    source,
+  };
+
+  const notificationId = await saveNotificationV2Fixture(
+    con,
+    NotificationType.UserPostAdded,
     ctx,
   );
   await expectSuccessfulBackground(worker, {
