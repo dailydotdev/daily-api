@@ -2111,9 +2111,6 @@ describe('user post added', () => {
     const { postAddedUserNotification: worker } = await import(
       '../../src/workers/notifications/postAddedUserNotification'
     );
-    await con
-      .getRepository(Source)
-      .update({ id: 'a' }, { type: SourceType.Squad });
     await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
     await con.getRepository(ContentPreferenceUser).save([
       {
@@ -2145,9 +2142,6 @@ describe('user post added', () => {
     const { postAddedUserNotification: worker } = await import(
       '../../src/workers/notifications/postAddedUserNotification'
     );
-    await con
-      .getRepository(Source)
-      .update({ id: 'a' }, { type: SourceType.Squad });
     await con.getRepository(Post).update({ id: 'p1' }, { scoutId: '1' });
     await con.getRepository(ContentPreferenceUser).save([
       {
@@ -2179,9 +2173,6 @@ describe('user post added', () => {
     const { postAddedUserNotification: worker } = await import(
       '../../src/workers/notifications/postAddedUserNotification'
     );
-    await con
-      .getRepository(Source)
-      .update({ id: 'a' }, { type: SourceType.Squad });
     await con.getRepository(Post).update({ id: 'p1' }, { scoutId: '1' });
     await con.getRepository(ContentPreferenceUser).save([
       {
