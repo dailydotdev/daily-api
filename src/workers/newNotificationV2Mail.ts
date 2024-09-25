@@ -684,7 +684,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   },
   user_post_added: async (con, user, notification) => {
     const [post, avatar] = await Promise.all([
-      await con.getRepository(Post).findOneOrFail({
+      con.getRepository(Post).findOneOrFail({
         where: {
           id: notification.referenceId,
         },
