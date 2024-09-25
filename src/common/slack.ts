@@ -167,7 +167,7 @@ export const notifySourceReport = async (
     text: 'Source/Squad was just reported!',
     attachments: [
       {
-        title: source.name ?? `Post ${source.id}`,
+        title: source.name ?? `Source ${source.id}`,
         title_link: getSourceLink(source),
         fields: [
           {
