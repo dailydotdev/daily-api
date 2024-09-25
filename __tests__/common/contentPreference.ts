@@ -18,6 +18,7 @@ import {
   NotificationPreferenceStatus,
   NotificationType,
 } from '../../src/notifications/common';
+import { ConflictError } from '../../src/errors';
 
 let con: DataSource;
 
@@ -91,6 +92,20 @@ describe('followEntity', () => {
         });
 
       expect(followPreference).not.toBeNull();
+    });
+
+    it('should not allow following yourself', async () => {
+      expect(async () => {
+        await followEntity({
+          ctx: {
+            userId: '1-cfe',
+            con,
+          } as AuthContext,
+          id: '1-cfe',
+          entity: ContentPreferenceType.User,
+          status: ContentPreferenceStatus.Follow,
+        });
+      }).rejects.toThrow(new ConflictError('Cannot follow yourself'));
     });
   });
 
