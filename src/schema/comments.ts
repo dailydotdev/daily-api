@@ -549,12 +549,17 @@ const getCommentById = async (
   ctx: Context,
   info: GraphQLResolveInfo,
 ): Promise<GQLComment> => {
-  const res = await graphorm.query<GQLComment>(ctx, info, (builder) => {
-    builder.queryBuilder = builder.queryBuilder
-      .andWhere(`${builder.alias}.id = :id`, { id })
-      .limit(1);
-    return builder;
-  });
+  const res = await graphorm.query<GQLComment>(
+    ctx,
+    info,
+    (builder) => {
+      builder.queryBuilder = builder.queryBuilder
+        .andWhere(`${builder.alias}.id = :id`, { id })
+        .limit(1);
+      return builder;
+    },
+    true,
+  );
   return res[0];
 };
 
@@ -717,14 +722,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         return [];
       }
 
-      return graphorm.query(ctx, info, (builder) => {
-        builder.queryBuilder = builder.queryBuilder
-          .where(`"${builder.alias}".id IN (:...ids)`, { ids })
-          .orderBy(`"${builder.alias}".name`)
-          .limit(limit);
+      return graphorm.query(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .where(`"${builder.alias}".id IN (:...ids)`, { ids })
+            .orderBy(`"${builder.alias}".name`)
+            .limit(limit);
 
-        return builder;
-      });
+          return builder;
+        },
+        true,
+      );
     },
     commentPreview: async (
       _,
@@ -759,13 +769,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const comment = await graphorm.queryOneOrFail<GQLComment>(
         ctx,
         info,
-        (builder) => ({
-          ...builder,
-          queryBuilder: builder.queryBuilder.where(
-            `"${builder.alias}"."id" = :id`,
-            { id },
-          ),
-        }),
+        (builder) => (
+          {
+            ...builder,
+            queryBuilder: builder.queryBuilder.where(
+              `"${builder.alias}"."id" = :id`,
+              { id },
+            ),
+          },
+          true
+        ),
       );
 
       const post = await ctx.con

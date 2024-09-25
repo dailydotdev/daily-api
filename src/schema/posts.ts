@@ -1068,13 +1068,20 @@ const getPostById = async (
   info: GraphQLResolveInfo,
   id: string,
 ): Promise<GQLPost> => {
-  const res = await graphorm.query<GQLPost>(ctx, info, (builder) => ({
-    ...builder,
-    queryBuilder: builder.queryBuilder.where(
-      `"${builder.alias}"."id" = :id AND "${builder.alias}"."deleted" = false`,
-      { id },
+  const res = await graphorm.query<GQLPost>(
+    ctx,
+    info,
+    (builder) => (
+      {
+        ...builder,
+        queryBuilder: builder.queryBuilder.where(
+          `"${builder.alias}"."id" = :id AND "${builder.alias}"."deleted" = false`,
+          { id },
+        ),
+      },
     ),
-  }));
+    true
+  );
   if (res.length) {
     return res[0];
   }
@@ -1146,15 +1153,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<GQLPost> => {
       const standardizedUrl = standardizeURL(url);
-      const res = await graphorm.query(ctx, info, (builder) => ({
-        ...builder,
-        queryBuilder: builder.queryBuilder
-          .where(
-            `("${builder.alias}"."canonicalUrl" = :url OR "${builder.alias}"."url" = :url) AND "${builder.alias}"."deleted" = false`,
-            { url: standardizedUrl },
-          )
-          .limit(1),
-      }));
+      const res = await graphorm.query(
+        ctx,
+        info,
+        (builder) => (
+          {
+            ...builder,
+            queryBuilder: builder.queryBuilder
+              .where(
+                `("${builder.alias}"."canonicalUrl" = :url OR "${builder.alias}"."url" = :url) AND "${builder.alias}"."deleted" = false`,
+                { url: standardizedUrl },
+              )
+              .limit(1),
+          },
+        ),
+        true
+      );
       if (res.length) {
         const post = res[0] as GQLPost;
         if (post.private) {
@@ -1244,6 +1258,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             .orderBy('random()', 'DESC')
             .limit(3),
         }),
+        true,
       );
       await setRedisObjectWithExpiry(
         key,

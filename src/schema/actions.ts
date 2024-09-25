@@ -82,9 +82,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   Query: {
     actions: (_, __, ctx: AuthContext, info): Promise<GQLUserAction[]> =>
       graphorm.query<GQLUserAction>(ctx, info, (builder) => {
-        builder.queryBuilder = builder.queryBuilder.where({
-          userId: ctx.userId,
-        });
+        builder.queryBuilder = builder.queryBuilder.where(
+          {
+            userId: ctx.userId,
+          },
+          true,
+        );
 
         return builder;
       }),
