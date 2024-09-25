@@ -26,6 +26,9 @@ export const vordrPostCommentPrevented: TypedWorker<'post-commented'> = {
         return;
       }
       const user = await comment.user;
+      if (user.flags?.vordr) {
+        return;
+      }
 
       await notifyNewVordrComment(post, user, comment);
     } catch (originalError) {

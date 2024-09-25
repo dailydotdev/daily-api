@@ -32,6 +32,10 @@ export const vordrPostPrevented: TypedWorker<'api.v1.post-visible'> = {
         return;
       }
 
+      if (author?.flags?.vordr || scout?.flags?.vordr) {
+        return;
+      }
+
       await notifyNewVordrPost(post, author, scout);
     } catch (originalError) {
       const err = originalError as TypeORMQueryFailedError;
