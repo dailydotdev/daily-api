@@ -299,6 +299,7 @@ describe('query sources', () => {
   interface Props {
     first: number;
     featured: boolean;
+    publicThreshold: boolean;
     filterOpenSquads: boolean;
     categoryId: string;
     sortByMembersCount: boolean;
@@ -307,6 +308,7 @@ describe('query sources', () => {
   const QUERY = ({
     first = 10,
     filterOpenSquads = false,
+    publicThreshold,
     featured,
     categoryId,
     sortByMembersCount,
@@ -315,6 +317,7 @@ describe('query sources', () => {
       first: ${first},
       filterOpenSquads: ${filterOpenSquads}
       ${isNullOrUndefined(featured) ? '' : `, featured: ${featured}`}
+      ${isNullOrUndefined(publicThreshold) ? '' : `, publicThreshold: ${publicThreshold}`}
       ${isNullOrUndefined(categoryId) ? '' : `, categoryId: "${categoryId}"`}
       ${isNullOrUndefined(sortByMembersCount) ? '' : `, sortByMembersCount: ${sortByMembersCount}`}
     ) {
@@ -334,6 +337,7 @@ describe('query sources', () => {
           flags {
             featured
             totalMembers
+            publicThreshold
           }
           category {
             id
@@ -389,6 +393,25 @@ describe('query sources', () => {
       ({ node }) => !!node.flags.featured,
     );
     expect(isFeatured).toBeTruthy();
+  });
+
+  it('should public squads that passes the threshold', async () => {
+    await prepareFeaturedTests();
+    await con.getRepository(Source).update(
+      { id: 'b' },
+      {
+        type: SourceType.Squad,
+        private: false,
+        flags: updateFlagsStatement<Source>({ publicThreshold: true }),
+      },
+    );
+    const res = await client.query(
+      QUERY({ first: 10, filterOpenSquads: true, publicThreshold: true }),
+    );
+    const passedThreshold = res.data.sources.edges.every(
+      ({ node }) => !!node.flags.publicThreshold,
+    );
+    expect(passedThreshold).toBeTruthy();
   });
 
   it('should return only non-featured sources - this means when flag is false or undefined', async () => {

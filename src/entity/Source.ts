@@ -25,6 +25,7 @@ export enum SourceType {
 }
 
 export interface SourceFlagsPublic {
+  publicThreshold: boolean;
   featured: boolean;
   totalViews: number;
   totalPosts: number;
@@ -33,6 +34,7 @@ export interface SourceFlagsPublic {
 }
 
 export const defaultPublicSourceFlags: SourceFlagsPublic = {
+  publicThreshold: false,
   featured: false,
   totalViews: 0,
   totalPosts: 0,

@@ -373,6 +373,7 @@ const obj = new GraphORM({
             totalViews,
             totalUpvotes,
             totalMembers,
+            publicThreshold,
             featured,
           } = defaultPublicSourceFlags;
 
@@ -381,6 +382,7 @@ const obj = new GraphORM({
             totalViews: value?.totalViews ?? totalViews,
             totalUpvotes: value?.totalUpvotes ?? totalUpvotes,
             totalMembers: value?.totalMembers ?? totalMembers,
+            publicThreshold: value?.publicThreshold ?? publicThreshold,
             featured: value?.featured ?? featured,
           };
         },

@@ -116,6 +116,7 @@ export const typeDefs = /* GraphQL */ `
   flags property of Source entity
   """
   type SourceFlagsPublic {
+    publicThreshold: Boolean
     featured: Boolean
     totalViews: Int
     totalPosts: Int
@@ -360,6 +361,11 @@ export const typeDefs = /* GraphQL */ `
       Add filter for featured sources
       """
       featured: Boolean
+
+      """
+      Filter the sources based on their public threshold status
+      """
+      publicThreshold: Boolean
 
       """
       Filter by category
@@ -1141,6 +1147,7 @@ export const getPermissionsForMember = (
 };
 
 interface SourcesArgs extends ConnectionArguments {
+  publicThreshold?: boolean;
   filterOpenSquads?: boolean;
   categoryId?: string;
   featured?: boolean;
@@ -1314,6 +1321,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             .andWhere(filter)
             .limit(page.limit)
             .offset(page.offset);
+
+          if (args.publicThreshold) {
+            builder.queryBuilder.andWhere(
+              `(${builder.alias}.flags->'publicThreshold')::boolean IS TRUE`,
+            );
+          }
 
           if (!isNullOrUndefined(args.featured)) {
             builder.queryBuilder.andWhere(
