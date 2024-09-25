@@ -682,7 +682,6 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       squad_image: squad.image,
     };
   },
-  // TODO AS-534 add handler
   user_post_added: async (con, user, notification) => {
     const [post, avatar] = await Promise.all([
       await con.getRepository(Post).findOneOrFail({
