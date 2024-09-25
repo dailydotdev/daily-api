@@ -1607,3 +1607,40 @@ describe('squad public request notifications', () => {
     expect(args.transactional_message_id).toEqual('41');
   });
 });
+
+describe('user_post_added notification', () => {
+  it('should send email', async () => {
+    const post = await con.getRepository(ArticlePost).save(postsFixture[0]);
+    const user = await con.getRepository(User).findOneBy({ id: '1' });
+    const ctx: NotificationUserContext & NotificationPostContext = {
+      userIds: ['1'],
+      user: user as Reference<User>,
+      post,
+      source,
+    };
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.UserPostAdded,
+      ctx,
+    );
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data).toEqual({
+      post_image: 'https://daily.dev/image.jpg',
+      post_link: `http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=${NotificationType.UserPostAdded}`,
+      post_title: 'P1',
+      user_name: 'Ido',
+      user_image: 'https://daily.dev/ido.jpg',
+    });
+    expect(args.transactional_message_id).toEqual(
+      notificationToTemplateId[NotificationType.UserPostAdded],
+    );
+  });
+});

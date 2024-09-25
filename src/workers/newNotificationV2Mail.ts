@@ -81,7 +81,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   streak_reset_restore: '',
   squad_featured: '56',
   // TODO AS-534 add template id
-  user_post_added: '',
+  user_post_added: 'test',
 };
 
 type TemplateData = Record<string, string | number>;
@@ -683,8 +683,30 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     };
   },
   // TODO AS-534 add handler
-  user_post_added: async () => {
-    return null;
+  user_post_added: async (con, user, notification) => {
+    const [post, avatar] = await Promise.all([
+      await con.getRepository(Post).findOneOrFail({
+        where: {
+          id: notification.referenceId,
+        },
+      }),
+      con.getRepository(NotificationAvatarV2).findOneOrFail({
+        where: {
+          id: notification.avatars[0],
+        },
+      }),
+    ]);
+
+    return {
+      post_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
+      post_image: (post as ArticlePost).image || pickImageUrl(post),
+      post_title: truncatePostToTweet(post),
+      user_name: avatar.name,
+      user_image: avatar.image,
+    };
   },
 };
 
