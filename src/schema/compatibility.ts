@@ -147,17 +147,22 @@ function compatFeedResolver<
     info,
   ): Promise<GQLPost[]> =>
     compatGenerateFeed(source, args, ctx, (_, limit, offset, opts) =>
-      graphorm.query(ctx, info, (builder) => {
-        builder.queryBuilder = applyFeedWhere(
-          ctx,
-          query(ctx, args, opts, builder.queryBuilder, builder.alias),
-          builder.alias,
-          ['article'],
-        )
-          .limit(limit)
-          .offset(offset);
-        return builder;
-      }),
+      graphorm.query(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = applyFeedWhere(
+            ctx,
+            query(ctx, args, opts, builder.queryBuilder, builder.alias),
+            builder.alias,
+            ['article'],
+          )
+            .limit(limit)
+            .offset(offset);
+          return builder;
+        },
+        true,
+      ),
     );
 }
 
