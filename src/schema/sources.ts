@@ -1141,7 +1141,6 @@ export const getPermissionsForMember = (
 };
 
 interface SourcesArgs extends ConnectionArguments {
-  publicThreshold?: boolean;
   filterOpenSquads?: boolean;
   categoryId?: string;
   featured?: boolean;
