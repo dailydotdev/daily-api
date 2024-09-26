@@ -1313,11 +1313,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         (builder) => {
           builder.queryBuilder
             .andWhere(filter)
-            .andWhere(
-              `(${builder.alias}.flags->'publicThreshold')::boolean IS TRUE`,
-            )
             .limit(page.limit)
             .offset(page.offset);
+
+          if (args.filterOpenSquads) {
+            builder.queryBuilder.andWhere(
+              `(${builder.alias}.flags->'publicThreshold')::boolean IS TRUE`,
+            );
+          }
 
           if (!isNullOrUndefined(args.featured)) {
             builder.queryBuilder.andWhere(
