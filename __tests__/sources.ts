@@ -394,7 +394,7 @@ describe('query sources', () => {
     expect(isFeatured).toBeTruthy();
   });
 
-  it('should public squads that passes the threshold', async () => {
+  it('should return public squads that passes the threshold', async () => {
     await prepareFeaturedTests();
     await con.getRepository(Source).update(
       { id: 'b' },
