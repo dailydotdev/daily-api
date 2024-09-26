@@ -115,10 +115,8 @@ export class Source {
 
   @Column({ type: 'jsonb', default: {} })
   @Index('IDX_source_flags_featured', { synchronize: false })
-  @Index('IDX_source_flags_public_threshold', { synchronize: false })
-  @Index('IDX_source_flags_total_posts', { synchronize: false })
+  @Index('IDX_source_flags_posts_members_threshold', { synchronize: false })
   @Index('IDX_source_flags_total_members', { synchronize: false })
-  @Index('IDX_source_flags_total_members_sort', { synchronize: false })
   flags: SourceFlagsPublic & SourceFlagsPrivate;
 
   @Column({ type: 'text', nullable: true })

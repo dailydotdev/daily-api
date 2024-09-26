@@ -362,11 +362,6 @@ export const typeDefs = /* GraphQL */ `
       featured: Boolean
 
       """
-      Filter the sources based on their public threshold status
-      """
-      publicThreshold: Boolean
-
-      """
       Filter by category
       """
       categoryId: String
@@ -1318,14 +1313,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         (builder) => {
           builder.queryBuilder
             .andWhere(filter)
+            .andWhere(
+              `(${builder.alias}.flags->'publicThreshold')::boolean IS TRUE`,
+            )
             .limit(page.limit)
             .offset(page.offset);
-
-          if (args.publicThreshold) {
-            builder.queryBuilder.andWhere(
-              `(${builder.alias}.flags->'publicThreshold')::boolean IS TRUE`,
-            );
-          }
 
           if (!isNullOrUndefined(args.featured)) {
             builder.queryBuilder.andWhere(
