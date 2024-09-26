@@ -1,6 +1,7 @@
 import * as matchers from 'jest-extended';
 import '../src/config';
 import createOrGetConnection from '../src/db';
+import { remoteConfig } from '../src/remoteConfig';
 
 expect.extend(matchers);
 
@@ -13,6 +14,8 @@ jest.mock('../src/growthbook', () => ({
 }));
 
 const cleanDatabase = async (): Promise<void> => {
+  await remoteConfig.init();
+
   const con = await createOrGetConnection();
   for (const entity of con.entityMetadatas) {
     const repository = con.getRepository(entity.name);

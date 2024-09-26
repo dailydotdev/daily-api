@@ -2,6 +2,7 @@ import { GrowthBook } from '@growthbook/growthbook';
 import { logger } from './logger';
 
 type RemoteConfigValue = {
+  inc: number;
   vordrWords: string[];
   vordrIps: string[];
   ignoredWorkEmailDomains: string[];
