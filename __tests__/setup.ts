@@ -13,6 +13,14 @@ jest.mock('../src/growthbook', () => ({
   getEncryptedFeatures: jest.fn(),
 }));
 
+jest.mock('../src/remoteConfig', () => ({
+  ...(jest.requireActual('../src/remoteConfig') as Record<string, unknown>),
+  remoteConfig: {
+    init: jest.fn(),
+    vars: {},
+  },
+}));
+
 const cleanDatabase = async (): Promise<void> => {
   await remoteConfig.init();
 

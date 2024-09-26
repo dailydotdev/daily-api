@@ -8,7 +8,7 @@ import { FastifyRequest } from 'fastify';
 import { remoteConfig } from '../remoteConfig';
 
 export const validateVordrIPs = (ip: string): boolean =>
-  !!isIP(ip) && isInSubnet(ip, remoteConfig.vars.vordrIps);
+  !!isIP(ip) && isInSubnet(ip, remoteConfig.vars.vordrIps ?? []);
 
 export const validateVordrWords = (content?: string): boolean => {
   if (!content) {
@@ -16,7 +16,7 @@ export const validateVordrWords = (content?: string): boolean => {
   }
 
   const lowerCaseContent = content.toLowerCase();
-  return remoteConfig.vars.vordrWords.some((word) =>
+  return !!remoteConfig.vars.vordrWords?.some((word) =>
     lowerCaseContent.includes(word),
   );
 };

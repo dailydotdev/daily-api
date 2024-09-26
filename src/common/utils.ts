@@ -169,7 +169,7 @@ export function isNumber(value: string | number): boolean {
 export const validateWorkEmailDomain = (domain: string): boolean => {
   const lowerCaseDomain = domain.toLowerCase();
 
-  return remoteConfig.vars.ignoredWorkEmailDomains.some((ignoredDomain) =>
+  return !!remoteConfig.vars.ignoredWorkEmailDomains?.some((ignoredDomain) =>
     lowerCaseDomain.includes(ignoredDomain),
   );
 };
