@@ -13,9 +13,12 @@ export const updateSourcePublicThreshold: Cron = {
       .set({ flags: updateFlagsStatement({ publicThreshold: true }) })
       .where(
         `
-          (flags->>'totalMembers')::int >= 3 AND
-          (flags->>'totalPosts')::int >= 3 AND
-          (flags->>'publicThreshold')::boolean IS NOT TRUE
+          s.type = 'squad' AND
+          s.image IS NOT NULL AND
+          s.description IS NOT NULL AND
+          (s.flags->>'totalMembers')::int >= 3 AND
+          (s.flags->>'totalPosts')::int >= 3 AND
+          (s.flags->>'publicThreshold')::boolean IS NOT TRUE
       `,
       )
       .execute();
