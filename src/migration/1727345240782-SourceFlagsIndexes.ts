@@ -8,7 +8,18 @@ export class SourceFlagsIndexes1727345240782 implements MigrationInterface {
       `CREATE INDEX "IDX_source_flags_posts_members_threshold" ON source(((flags->'totalPosts')::integer), ((flags->'totalMembers')::integer), ((flags->'publicThreshold')::boolean))`,
     );
     await queryRunner.query(
-      `UPDATE "public"."source" SET flags = flags || '{"publicThreshold": false}' WHERE type = 'squad'`,
+      ` UPDATE "public"."source"
+
+        SET flags = jsonb_set(flags, '{publicThreshold}',
+          to_jsonb(
+            "image" IS NOT NULL AND
+            "description" IS NOT NULL AND
+            (flags->>'totalMembers')::int >= 3 AND
+            (flags->>'totalPosts')::int >= 3 AND
+            (flags->>'publicThreshold')::boolean IS NOT TRUE
+          )
+        )
+        WHERE type = 'squad'`,
     );
   }
 
