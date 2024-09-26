@@ -1,6 +1,6 @@
 import { DataSource, QueryRunner } from 'typeorm';
 
-export const readReplica = async <T>(
+export const queryReadReplica = async <T>(
   con: DataSource,
   callback: ({ queryRunner }: { queryRunner: QueryRunner }) => Promise<T>,
 ): Promise<T> => {

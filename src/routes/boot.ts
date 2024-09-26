@@ -55,7 +55,7 @@ import { differenceInMinutes, isSameDay, subDays } from 'date-fns';
 import { runInSpan } from '../telemetry';
 import { getUnreadNotificationsCount } from '../notifications/common';
 import { maxFeedsPerUser } from '../types';
-import { readReplica } from '../common/readReplica';
+import { queryReadReplica } from '../common/queryReadReplica';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -159,7 +159,7 @@ const getSquads = async (
   userId: string,
 ): Promise<BootSquadSource[]> =>
   runInSpan('getSquads', async () => {
-    return readReplica(con, async ({ queryRunner }) => {
+    return queryReadReplica(con, async ({ queryRunner }) => {
       const sources = await queryRunner.manager
         .createQueryBuilder()
         .select('id')
@@ -214,7 +214,7 @@ const getFeeds = async ({
   con: DataSource;
   userId: string;
 }): Promise<Feed[]> => {
-  return readReplica(con, async ({ queryRunner }) =>
+  return queryReadReplica(con, async ({ queryRunner }) =>
     queryRunner.manager.getRepository(Feed).find({
       where: {
         id: Not(userId),
@@ -278,7 +278,7 @@ const getAndUpdateLastBannerRedis = async (
   let bannerFromRedis = await getRedisObject(REDIS_BANNER_KEY);
 
   if (!bannerFromRedis) {
-    const banner = await readReplica(con, async ({ queryRunner }) =>
+    const banner = await queryReadReplica(con, async ({ queryRunner }) =>
       queryRunner.manager.getRepository(Banner).findOne({
         select: ['timestamp'],
         where: [],
@@ -332,7 +332,7 @@ const getExperimentation = async ({
   if (userId) {
     const [hash, features] = await Promise.all([
       ioRedisPool.execute((client) => client.hgetall(`exp:${userId}`)),
-      readReplica(con, async ({ queryRunner }) =>
+      queryReadReplica(con, async ({ queryRunner }) =>
         queryRunner.manager
           .getRepository(Feature)
           .find({ where: { userId }, select: ['feature', 'value'] }),
@@ -359,7 +359,7 @@ const getExperimentation = async ({
 };
 
 const getUser = (con: DataSource, userId: string): Promise<User | null> =>
-  readReplica(con, async ({ queryRunner }) =>
+  queryReadReplica(con, async ({ queryRunner }) =>
     queryRunner.manager.getRepository(User).findOne({
       where: { id: userId },
       select: [
