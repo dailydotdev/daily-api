@@ -80,8 +80,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   post_bookmark_reminder: '',
   streak_reset_restore: '',
   squad_featured: '56',
-  // TODO AS-534 add template id
-  user_post_added: 'test',
+  user_post_added: '58',
 };
 
 type TemplateData = Record<string, string | number>;
@@ -703,8 +702,8 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       ),
       post_image: (post as ArticlePost).image || pickImageUrl(post),
       post_title: truncatePostToTweet(post),
-      user_name: avatar.name,
-      user_image: avatar.image,
+      full_name: avatar.name,
+      profile_image: avatar.image,
     };
   },
 };
