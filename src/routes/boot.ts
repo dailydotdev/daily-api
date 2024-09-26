@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import createOrGetConnection from '../db';
-import { DataSource } from 'typeorm';
+import { DataSource, Not } from 'typeorm';
 import { clearAuthentication, dispatchWhoami } from '../kratos';
 import { generateUUID } from '../ids';
 import { generateSessionId, setTrackingId } from '../tracking';
@@ -217,6 +217,7 @@ const getFeeds = async ({
   return readReplica(con, async ({ queryRunner }) =>
     queryRunner.manager.getRepository(Feed).find({
       where: {
+        id: Not(userId),
         userId,
       },
       take: maxFeedsPerUser,
