@@ -116,7 +116,6 @@ export const typeDefs = /* GraphQL */ `
   flags property of Source entity
   """
   type SourceFlagsPublic {
-    publicThreshold: Boolean
     featured: Boolean
     totalViews: Int
     totalPosts: Int

@@ -696,8 +696,8 @@ const onSourceChange = async (
 
     const beforeFlags = data.payload.before.flags as unknown as string;
     const afterFlags = data.payload.after.flags as unknown as string;
-    const before = JSON.parse(beforeFlags || '{}') as SourceFlagsPublic;
-    const after = JSON.parse(afterFlags || '{}') as SourceFlagsPublic;
+    const before = JSON.parse(beforeFlags || '{}') as Source['flags'];
+    const after = JSON.parse(afterFlags || '{}') as Source['flags'];
     if (before.featured !== after.featured && after.featured) {
       notifySquadFeaturedUpdated(logger, {
         ...data.payload.after,

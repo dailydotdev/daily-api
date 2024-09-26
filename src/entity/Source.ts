@@ -25,7 +25,6 @@ export enum SourceType {
 }
 
 export interface SourceFlagsPublic {
-  publicThreshold: boolean;
   featured: boolean;
   totalViews: number;
   totalPosts: number;
@@ -33,8 +32,11 @@ export interface SourceFlagsPublic {
   totalMembers: number;
 }
 
+export interface SourceFlagsPrivate {
+  publicThreshold: boolean;
+}
+
 export const defaultPublicSourceFlags: SourceFlagsPublic = {
-  publicThreshold: false,
   featured: false,
   totalViews: 0,
   totalPosts: 0,
@@ -113,8 +115,11 @@ export class Source {
 
   @Column({ type: 'jsonb', default: {} })
   @Index('IDX_source_flags_featured', { synchronize: false })
+  @Index('IDX_source_flags_public_threshold', { synchronize: false })
+  @Index('IDX_source_flags_total_posts', { synchronize: false })
   @Index('IDX_source_flags_total_members', { synchronize: false })
-  flags: SourceFlagsPublic;
+  @Index('IDX_source_flags_total_members_sort', { synchronize: false })
+  flags: SourceFlagsPublic & SourceFlagsPrivate;
 
   @Column({ type: 'text', nullable: true })
   categoryId?: string;

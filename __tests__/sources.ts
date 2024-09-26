@@ -337,7 +337,6 @@ describe('query sources', () => {
           flags {
             featured
             totalMembers
-            publicThreshold
           }
           category {
             id
@@ -408,10 +407,8 @@ describe('query sources', () => {
     const res = await client.query(
       QUERY({ first: 10, filterOpenSquads: true, publicThreshold: true }),
     );
-    const passedThreshold = res.data.sources.edges.every(
-      ({ node }) => !!node.flags.publicThreshold,
-    );
-    expect(passedThreshold).toBeTruthy();
+    const passedThreshold = res.data.sources.edges.map(({ node }) => node.id);
+    expect(passedThreshold).toEqual(expect.arrayContaining(['b']));
   });
 
   it('should return only non-featured sources - this means when flag is false or undefined', async () => {
