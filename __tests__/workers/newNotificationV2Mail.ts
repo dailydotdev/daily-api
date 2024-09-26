@@ -1636,8 +1636,8 @@ describe('user_post_added notification', () => {
       post_image: 'https://daily.dev/image.jpg',
       post_link: `http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=${NotificationType.UserPostAdded}`,
       post_title: 'P1',
-      user_name: 'Ido',
-      user_image: 'https://daily.dev/ido.jpg',
+      full_name: 'Ido',
+      profile_image: 'https://daily.dev/ido.jpg',
     });
     expect(args.transactional_message_id).toEqual(
       notificationToTemplateId[NotificationType.UserPostAdded],

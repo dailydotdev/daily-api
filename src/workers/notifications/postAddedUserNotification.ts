@@ -21,6 +21,10 @@ export const postAddedUserNotification =
   generateTypedNotificationWorker<'api.v1.post-visible'>({
     subscription: 'api.post-added-user-notification',
     handler: async (data, con) => {
+      if (data.post.private) {
+        return;
+      }
+
       const baseCtx = await buildPostContext(con, data.post.id);
       const { post } = baseCtx;
 

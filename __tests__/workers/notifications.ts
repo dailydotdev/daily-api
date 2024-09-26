@@ -2199,4 +2199,37 @@ describe('user post added', () => {
     expect((bundle.ctx as NotificationUserContext).user.id).toEqual('1');
     expect(bundle.ctx.userIds).toIncludeSameMembers(['2']);
   });
+
+  it('should not add notification for private post', async () => {
+    const { postAddedUserNotification: worker } = await import(
+      '../../src/workers/notifications/postAddedUserNotification'
+    );
+    const privatePost = await con.getRepository(Post).save({
+      ...postsFixture[0],
+      id: 'p1-upa',
+      shortId: 'sp1-upa',
+      private: true,
+      url: 'https://example.com/p/sp1-upa',
+      canonicalUrl: 'https://example.com/p/sp1-upa',
+      authorId: '1',
+    });
+    await con.getRepository(ContentPreferenceUser).save([
+      {
+        userId: '2',
+        referenceId: '1',
+        referenceUserId: '1',
+        status: ContentPreferenceStatus.Subscribed,
+      },
+      {
+        userId: '3',
+        referenceId: '1',
+        referenceUserId: '1',
+        status: ContentPreferenceStatus.Subscribed,
+      },
+    ]);
+    const actual = await invokeNotificationWorker(worker, {
+      post: privatePost,
+    });
+    expect(actual).toBeUndefined();
+  });
 });
