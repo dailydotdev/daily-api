@@ -1,10 +1,16 @@
-import { expectSuccessfulBackground, saveFixtures } from '../helpers';
+import {
+  expectSuccessfulBackground,
+  saveFixtures,
+  saveNotificationV2Fixture,
+} from '../helpers';
 import worker from '../../src/workers/newNotificationV2Push';
 import {
+  ArticlePost,
   NotificationAttachmentType,
   NotificationAttachmentV2,
   NotificationAvatarV2,
   NotificationV2,
+  Source,
   User,
 } from '../../src/entity';
 import { DataSource } from 'typeorm';
@@ -15,6 +21,14 @@ import { UserNotification } from '../../src/entity/notifications/UserNotificatio
 import { sendPushNotification } from '../../src/onesignal';
 import { cacheConnectedUser } from '../../src/subscription';
 import { deleteKeysByPattern } from '../../src/redis';
+import {
+  NotificationPostContext,
+  NotificationUserContext,
+  Reference,
+} from '../../src/notifications/types';
+import { postsFixture } from '../fixture/post';
+import { NotificationType } from '../../src/notifications/common';
+import { sourcesFixture } from '../fixture';
 
 jest.mock('../../src/onesignal', () => ({
   ...(jest.requireActual('../../src/onesignal') as Record<string, unknown>),
@@ -98,4 +112,36 @@ it('should send push notifications to disconnected users only', async () => {
     },
   });
   expect(sendPushNotification).toHaveBeenCalledWith(['2'], notif, avatars[1]);
+});
+
+it('should not send follow push notification if the user prefers not to receive them', async () => {
+  const userId = '1';
+  const repo = con.getRepository(User);
+  const user = await repo.findOneBy({ id: userId });
+  await repo.save({ ...user, followNotifications: false });
+  await saveFixtures(con, Source, sourcesFixture);
+  const post = await con.getRepository(ArticlePost).save(postsFixture[0]);
+  const source = await con.getRepository(Source).findOneBy({
+    id: post.sourceId,
+  });
+  const ctx: NotificationUserContext & NotificationPostContext = {
+    userIds: ['1'],
+    user: user as Reference<User>,
+    post,
+    source: source as Reference<Source>,
+  };
+
+  const notificationId = await saveNotificationV2Fixture(
+    con,
+    NotificationType.UserPostAdded,
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId,
+      public: true,
+    },
+  });
+  expect(sendPushNotification).toHaveBeenCalledTimes(0);
 });

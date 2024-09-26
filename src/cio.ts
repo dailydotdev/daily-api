@@ -42,6 +42,8 @@ const OMIT_FIELDS: (keyof ChangeObject<User>)[] = [
   'infoConfirmed',
   'profileConfirmed',
   'notificationEmail',
+  'followingEmail',
+  'followNotifications',
 ];
 
 export async function identifyUserStreak(

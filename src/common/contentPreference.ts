@@ -34,6 +34,10 @@ const entityToNotificationTypeMap: Record<
   [ContentPreferenceType.User]: [NotificationType.UserPostAdded],
 };
 
+export const contentPreferenceNotificationTypes = Object.values(
+  entityToNotificationTypeMap,
+).flat();
+
 const cleanContentNotificationPreference = async ({
   ctx,
   entityManager,
