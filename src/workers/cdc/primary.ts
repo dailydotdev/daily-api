@@ -9,7 +9,6 @@ import {
   UserStreak,
   Bookmark,
   Alerts,
-  SourceFlagsPublic,
 } from '../../entity';
 import { messageToJson, Worker } from '../worker';
 import {
