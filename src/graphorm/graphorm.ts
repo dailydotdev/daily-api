@@ -602,8 +602,9 @@ export class GraphORM {
     resolveInfo: GraphQLResolveInfo,
     beforeQuery?: (builder: GraphORMBuilder) => GraphORMBuilder,
     entityName?: EntityTarget<T>,
+    readReplica?: boolean,
   ): Promise<T> {
-    const res = await this.query<T>(ctx, resolveInfo, beforeQuery);
+    const res = await this.query<T>(ctx, resolveInfo, beforeQuery, readReplica);
 
     if (!res.length) {
       throw new EntityNotFoundError(
@@ -622,13 +623,15 @@ export class GraphORM {
    * @param ctx GraphQL context of the request
    * @param resolveInfo GraphQL resolve info of the request
    * @param beforeQuery A callback function that is called before executing the query
+   * @param readReplica Whether to use the read replica instance
    */
   async queryOne<T>(
     ctx: Context,
     resolveInfo: GraphQLResolveInfo,
     beforeQuery?: (builder: GraphORMBuilder) => GraphORMBuilder,
+    readReplica?: boolean,
   ): Promise<T | null> {
-    const res = await this.query<T>(ctx, resolveInfo, beforeQuery);
+    const res = await this.query<T>(ctx, resolveInfo, beforeQuery, readReplica);
 
     if (!res.length) {
       return null;
@@ -643,12 +646,14 @@ export class GraphORM {
    * @param resolveInfo GraphQL resolve info of the request
    * @param hierarchy Array of field names
    * @param beforeQuery A callback function that is called before executing the query
+   * @param readReplica Whether to use the read replica instance
    */
   queryByHierarchy<T>(
     ctx: Context,
     resolveInfo: GraphQLResolveInfo,
     hierarchy: string[],
     beforeQuery?: (builder: GraphORMBuilder) => GraphORMBuilder,
+    readReplica?: boolean,
   ): Promise<T[]> {
     const parsedInfo = parseResolveInfo(resolveInfo) as ResolveTree;
     if (parsedInfo) {
@@ -656,6 +661,7 @@ export class GraphORM {
         ctx,
         this.getFieldByHierarchy(parsedInfo, hierarchy),
         beforeQuery,
+        readReplica,
       );
     }
     throw new Error('Resolve info is empty');
