@@ -1,5 +1,6 @@
 import { GrowthBook } from '@growthbook/growthbook';
 import { logger } from './logger';
+import { isProd } from './common/utils';
 
 type RemoteConfigValue = {
   inc: number;
@@ -13,9 +14,17 @@ class RemoteConfig {
   private readonly configKey = 'api-config';
 
   async init(): Promise<void> {
+    if (!process.env.GROWTHBOOK_API_CONFIG_CLIENT_KEY) {
+      if (isProd) {
+        logger.warn('remote config client key missing');
+      }
+
+      return;
+    }
+
     this.gb = new GrowthBook({
       apiHost: 'https://cdn.growthbook.io',
-      clientKey: process.env.GROWTHBOOK_CLIENT_KEY,
+      clientKey: process.env.GROWTHBOOK_API_CONFIG_CLIENT_KEY,
     });
 
     await this.gb.init({
@@ -26,6 +35,10 @@ class RemoteConfig {
   }
 
   get vars(): Partial<RemoteConfigValue> {
+    if (!process.env.GROWTHBOOK_API_CONFIG_CLIENT_KEY) {
+      return {};
+    }
+
     if (!this.gb) {
       throw new Error('remote config not initialized');
     }
