@@ -149,14 +149,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLKeyword | null> => {
-      const res = await graphorm.query<GQLKeyword>(ctx, info, (builder) => {
-        builder.queryBuilder = builder.queryBuilder
-          .andWhere(`${builder.alias}.occurrences >= ${PENDING_THRESHOLD}`)
-          .andWhere(`${builder.alias}.status = 'pending'`)
-          .orderBy(`${builder.alias}.occurrences`, 'DESC')
-          .limit(30);
-        return builder;
-      });
+      const res = await graphorm.query<GQLKeyword>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .andWhere(`${builder.alias}.occurrences >= ${PENDING_THRESHOLD}`)
+            .andWhere(`${builder.alias}.status = 'pending'`)
+            .orderBy(`${builder.alias}.occurrences`, 'DESC')
+            .limit(30);
+          return builder;
+        },
+        true,
+      );
       if (res.length) {
         return res[Math.floor(Math.random() * res.length)];
       }
@@ -206,12 +211,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: Context,
       info,
     ): Promise<GQLKeyword | null> => {
-      const res = await graphorm.query<GQLKeyword>(ctx, info, (builder) => {
-        builder.queryBuilder = builder.queryBuilder
-          .andWhere(`${builder.alias}.value = :value`, { value })
-          .limit(1);
-        return builder;
-      });
+      const res = await graphorm.query<GQLKeyword>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .andWhere(`${builder.alias}.value = :value`, { value })
+            .limit(1);
+          return builder;
+        },
+        true,
+      );
       return res?.[0] ?? null;
     },
   },

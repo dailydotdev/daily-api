@@ -46,6 +46,8 @@ import {
   NotificationSquadRequestContext,
   NotificationSubmissionContext,
   NotificationUpvotersContext,
+  NotificationUserContext,
+  Reference,
 } from '../../src/notifications';
 import { postsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture/source';
@@ -677,6 +679,33 @@ it('should not send email notification if the user prefers not to receive them',
   const notificationId = await saveNotificationV2Fixture(
     con,
     NotificationType.CommentUpvoteMilestone,
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId,
+    },
+  });
+  expect(sendEmail).toHaveBeenCalledTimes(0);
+});
+
+it('should not send follow email notification if the user prefers not to receive them', async () => {
+  const userId = '1';
+  const repo = con.getRepository(User);
+  const user = await repo.findOneBy({ id: userId });
+  await repo.save({ ...user, followingEmail: false });
+  const post = await con.getRepository(ArticlePost).save(postsFixture[0]);
+  const ctx: NotificationUserContext & NotificationPostContext = {
+    userIds: ['1'],
+    user: user as Reference<User>,
+    post,
+    source,
+  };
+
+  const notificationId = await saveNotificationV2Fixture(
+    con,
+    NotificationType.UserPostAdded,
     ctx,
   );
   await expectSuccessfulBackground(worker, {
@@ -1576,5 +1605,42 @@ describe('squad public request notifications', () => {
       squad_name: 'A',
     });
     expect(args.transactional_message_id).toEqual('41');
+  });
+});
+
+describe('user_post_added notification', () => {
+  it('should send email', async () => {
+    const post = await con.getRepository(ArticlePost).save(postsFixture[0]);
+    const user = await con.getRepository(User).findOneBy({ id: '1' });
+    const ctx: NotificationUserContext & NotificationPostContext = {
+      userIds: ['1'],
+      user: user as Reference<User>,
+      post,
+      source,
+    };
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.UserPostAdded,
+      ctx,
+    );
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data).toEqual({
+      post_image: 'https://daily.dev/image.jpg',
+      post_link: `http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=${NotificationType.UserPostAdded}`,
+      post_title: 'P1',
+      full_name: 'Ido',
+      profile_image: 'https://daily.dev/ido.jpg',
+    });
+    expect(args.transactional_message_id).toEqual(
+      notificationToTemplateId[NotificationType.UserPostAdded],
+    );
   });
 });

@@ -83,3 +83,7 @@ export type NotificationCollectionContext = NotificationPostContext & {
   sources: Reference<Source>[];
   total: number;
 };
+
+export type NotificationUserContext = NotificationBaseContext & {
+  user: Reference<User>;
+};

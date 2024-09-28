@@ -1207,17 +1207,22 @@ const getFormattedSources = async <Entity>(
 ): Promise<GQLSource[]> => {
   const { limit = 10 } = args;
 
-  return await graphorm.query(ctx, info, (builder) => {
-    builder.queryBuilder
-      .innerJoin(
-        ctx.con.getMetadata(entity).tableName,
-        'ts',
-        `ts."sourceId" = ${builder.alias}.id`,
-      )
-      .orderBy('r', 'DESC')
-      .limit(limit);
-    return builder;
-  });
+  return await graphorm.query(
+    ctx,
+    info,
+    (builder) => {
+      builder.queryBuilder
+        .innerJoin(
+          ctx.con.getMetadata(entity).tableName,
+          'ts',
+          `ts."sourceId" = ${builder.alias}.id`,
+        )
+        .orderBy('r', 'DESC')
+        .limit(limit);
+      return builder;
+    },
+    true,
+  );
 };
 
 const paginateSourceMembers = (
@@ -1485,13 +1490,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<GQLSource[]> => {
       const { limit = 10 } = args;
-      return await graphorm.query(ctx, info, (builder) => {
-        builder.queryBuilder
-          .where({ active: true, type: SourceType.Machine })
-          .orderBy('"createdAt"', 'DESC')
-          .limit(limit);
-        return builder;
-      });
+      return await graphorm.query(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .where({ active: true, type: SourceType.Machine })
+            .orderBy('"createdAt"', 'DESC')
+            .limit(limit);
+          return builder;
+        },
+        true,
+      );
     },
     trendingSources: async (
       _,
@@ -1705,6 +1715,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             .limit(1);
           return builder;
         },
+        true,
       );
       if (!res.length) {
         throw new EntityNotFoundError(SourceMember, 'not found');

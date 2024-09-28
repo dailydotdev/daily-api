@@ -1147,15 +1147,20 @@ const getUserStreakQuery = async (
 };
 
 const getUserCompanies = async (_, ctx: Context, info: GraphQLResolveInfo) => {
-  return await graphorm.query<GQLUserCompany>(ctx, info, (builder) => {
-    builder.queryBuilder = builder.queryBuilder
-      .andWhere(`${builder.alias}."userId" = :userId`, {
-        userId: ctx.userId,
-      })
-      .andWhere(`${builder.alias}."verified" = true`);
+  return await graphorm.query<GQLUserCompany>(
+    ctx,
+    info,
+    (builder) => {
+      builder.queryBuilder = builder.queryBuilder
+        .andWhere(`${builder.alias}."userId" = :userId`, {
+          userId: ctx.userId,
+        })
+        .andWhere(`${builder.alias}."verified" = true`);
 
-    return builder;
-  });
+      return builder;
+    },
+    true,
+  );
 };
 
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
@@ -1164,12 +1169,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 >({
   Query: {
     whoami: async (_, __, ctx: AuthContext, info: GraphQLResolveInfo) => {
-      const res = await graphorm.query<GQLUser>(ctx, info, (builder) => {
-        builder.queryBuilder = builder.queryBuilder
-          .andWhere(`${builder.alias}.id = :id`, { id: ctx.userId })
-          .limit(1);
-        return builder;
-      });
+      const res = await graphorm.query<GQLUser>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .andWhere(`${builder.alias}.id = :id`, { id: ctx.userId })
+            .limit(1);
+          return builder;
+        },
+        true,
+      );
       if (!res[0]) {
         throw new NotFoundError('user not found');
       }
@@ -1546,6 +1556,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
             return builder;
           },
+          true,
         );
 
       if (personalizedDigest.length === 0) {

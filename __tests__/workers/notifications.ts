@@ -37,6 +37,7 @@ import {
   NotificationSourceRequestContext,
   NotificationStreakContext,
   NotificationUpvotersContext,
+  NotificationUserContext,
 } from '../../src/notifications';
 import {
   NotificationPreferenceStatus,
@@ -50,6 +51,8 @@ import { workers } from '../../src/workers';
 import { generateStorageKey, StorageKey, StorageTopic } from '../../src/config';
 import { ioRedisPool, setRedisObject } from '../../src/redis';
 import { ReportReason } from '../../src/entity/common';
+import { ContentPreferenceUser } from '../../src/entity/contentPreference/ContentPreferenceUser';
+import { ContentPreferenceStatus } from '../../src/entity/contentPreference/types';
 
 let con: DataSource;
 
@@ -2101,4 +2104,132 @@ it('users should get a reply notification if they commented in the same thread',
   );
   expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '4', '2']);
   expect(actual[0].ctx.userIds).not.toIncludeSameMembers(['3']);
+});
+
+describe('user post added', () => {
+  it('should add notification for author', async () => {
+    const { postAddedUserNotification: worker } = await import(
+      '../../src/workers/notifications/postAddedUserNotification'
+    );
+    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
+    await con.getRepository(ContentPreferenceUser).save([
+      {
+        userId: '2',
+        referenceId: '1',
+        referenceUserId: '1',
+        status: ContentPreferenceStatus.Subscribed,
+      },
+      {
+        userId: '3',
+        referenceId: '1',
+        referenceUserId: '1',
+        status: ContentPreferenceStatus.Subscribed,
+      },
+    ]);
+    const actual = await invokeNotificationWorker(worker, {
+      post: postsFixture[0],
+    });
+    expect(actual!.length).toEqual(1);
+    const bundle = actual![0];
+    expect(bundle.type).toEqual(NotificationType.UserPostAdded);
+    expect((bundle.ctx as NotificationPostContext).post.id).toEqual('p1');
+    expect((bundle.ctx as NotificationPostContext).source.id).toEqual('a');
+    expect((bundle.ctx as NotificationUserContext).user.id).toEqual('1');
+    expect(bundle.ctx.userIds).toIncludeSameMembers(['2', '3']);
+  });
+
+  it('should add notification for scout', async () => {
+    const { postAddedUserNotification: worker } = await import(
+      '../../src/workers/notifications/postAddedUserNotification'
+    );
+    await con.getRepository(Post).update({ id: 'p1' }, { scoutId: '1' });
+    await con.getRepository(ContentPreferenceUser).save([
+      {
+        userId: '2',
+        referenceId: '1',
+        referenceUserId: '1',
+        status: ContentPreferenceStatus.Subscribed,
+      },
+      {
+        userId: '3',
+        referenceId: '1',
+        referenceUserId: '1',
+        status: ContentPreferenceStatus.Subscribed,
+      },
+    ]);
+    const actual = await invokeNotificationWorker(worker, {
+      post: postsFixture[0],
+    });
+    expect(actual!.length).toEqual(1);
+    const bundle = actual![0];
+    expect(bundle.type).toEqual(NotificationType.UserPostAdded);
+    expect((bundle.ctx as NotificationPostContext).post.id).toEqual('p1');
+    expect((bundle.ctx as NotificationPostContext).source.id).toEqual('a');
+    expect((bundle.ctx as NotificationUserContext).user.id).toEqual('1');
+    expect(bundle.ctx.userIds).toIncludeSameMembers(['2', '3']);
+  });
+
+  it('should not add notification for user that are only following', async () => {
+    const { postAddedUserNotification: worker } = await import(
+      '../../src/workers/notifications/postAddedUserNotification'
+    );
+    await con.getRepository(Post).update({ id: 'p1' }, { scoutId: '1' });
+    await con.getRepository(ContentPreferenceUser).save([
+      {
+        userId: '2',
+        referenceId: '1',
+        referenceUserId: '1',
+        status: ContentPreferenceStatus.Subscribed,
+      },
+      {
+        userId: '3',
+        referenceId: '1',
+        referenceUserId: '1',
+        status: ContentPreferenceStatus.Follow,
+      },
+    ]);
+    const actual = await invokeNotificationWorker(worker, {
+      post: postsFixture[0],
+    });
+    expect(actual!.length).toEqual(1);
+    const bundle = actual![0];
+    expect(bundle.type).toEqual(NotificationType.UserPostAdded);
+    expect((bundle.ctx as NotificationPostContext).post.id).toEqual('p1');
+    expect((bundle.ctx as NotificationPostContext).source.id).toEqual('a');
+    expect((bundle.ctx as NotificationUserContext).user.id).toEqual('1');
+    expect(bundle.ctx.userIds).toIncludeSameMembers(['2']);
+  });
+
+  it('should not add notification for private post', async () => {
+    const { postAddedUserNotification: worker } = await import(
+      '../../src/workers/notifications/postAddedUserNotification'
+    );
+    const privatePost = await con.getRepository(Post).save({
+      ...postsFixture[0],
+      id: 'p1-upa',
+      shortId: 'sp1-upa',
+      private: true,
+      url: 'https://example.com/p/sp1-upa',
+      canonicalUrl: 'https://example.com/p/sp1-upa',
+      authorId: '1',
+    });
+    await con.getRepository(ContentPreferenceUser).save([
+      {
+        userId: '2',
+        referenceId: '1',
+        referenceUserId: '1',
+        status: ContentPreferenceStatus.Subscribed,
+      },
+      {
+        userId: '3',
+        referenceId: '1',
+        referenceUserId: '1',
+        status: ContentPreferenceStatus.Subscribed,
+      },
+    ]);
+    const actual = await invokeNotificationWorker(worker, {
+      post: privatePost,
+    });
+    expect(actual).toBeUndefined();
+  });
 });

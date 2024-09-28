@@ -41,6 +41,7 @@ import {
 } from '../notifications/common';
 import { processStreamInBatches } from '../common/streaming';
 import { counters } from '../telemetry';
+import { contentPreferenceNotificationTypes } from '../common/contentPreference';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -79,8 +80,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   post_bookmark_reminder: '',
   streak_reset_restore: '',
   squad_featured: '56',
-  // TODO AS-534 add template id
-  user_post_added: '',
+  user_post_added: '58',
 };
 
 type TemplateData = Record<string, string | number>;
@@ -681,9 +681,30 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       squad_image: squad.image,
     };
   },
-  // TODO AS-534 add handler
-  user_post_added: async () => {
-    return null;
+  user_post_added: async (con, user, notification) => {
+    const [post, avatar] = await Promise.all([
+      con.getRepository(Post).findOneOrFail({
+        where: {
+          id: notification.referenceId,
+        },
+      }),
+      con.getRepository(NotificationAvatarV2).findOneOrFail({
+        where: {
+          id: notification.avatars[0],
+        },
+      }),
+    ]);
+
+    return {
+      post_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
+      post_image: (post as ArticlePost).image || pickImageUrl(post),
+      post_title: truncatePostToTweet(post),
+      full_name: avatar.name,
+      profile_image: avatar.image,
+    };
   },
 };
 
@@ -714,12 +735,18 @@ const worker: Worker = {
       await processStreamInBatches(
         stream,
         async (batch: { userId: string }[]) => {
+          const isFollowNotification =
+            contentPreferenceNotificationTypes.includes(notification.type);
+
           const users = await con.getRepository(User).find({
             select: ['id', 'username', 'email'],
             where: {
               id: In(batch.map((b) => b.userId)),
               email: Not(IsNull()),
-              notificationEmail: notification.public ? true : undefined,
+              notificationEmail:
+                !isFollowNotification && notification.public ? true : undefined,
+              followingEmail:
+                isFollowNotification && notification.public ? true : undefined,
             },
           });
           if (!users.length) {

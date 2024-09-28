@@ -233,6 +233,18 @@ export class NotificationBuilder {
     return this;
   }
 
+  avatarUser(user: Reference<User>): NotificationBuilder {
+    this.avatars.push({
+      type: 'user',
+      referenceId: user.id,
+      image: user.image,
+      name: user.name || user.username,
+      targetUrl: getUserPermalink(user),
+    });
+
+    return this;
+  }
+
   avatarManyUsers(users: Reference<User>[]): NotificationBuilder {
     const newAvatars = users.map(
       (user): DeepPartial<NotificationAvatarV2> => ({
