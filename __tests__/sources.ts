@@ -299,7 +299,6 @@ describe('query sources', () => {
   interface Props {
     first: number;
     featured: boolean;
-    publicThreshold: boolean;
     filterOpenSquads: boolean;
     categoryId: string;
     sortByMembersCount: boolean;
@@ -308,7 +307,6 @@ describe('query sources', () => {
   const QUERY = ({
     first = 10,
     filterOpenSquads = false,
-    publicThreshold,
     featured,
     categoryId,
     sortByMembersCount,
@@ -317,7 +315,6 @@ describe('query sources', () => {
       first: ${first},
       filterOpenSquads: ${filterOpenSquads}
       ${isNullOrUndefined(featured) ? '' : `, featured: ${featured}`}
-      ${isNullOrUndefined(publicThreshold) ? '' : `, publicThreshold: ${publicThreshold}`}
       ${isNullOrUndefined(categoryId) ? '' : `, categoryId: "${categoryId}"`}
       ${isNullOrUndefined(sortByMembersCount) ? '' : `, sortByMembersCount: ${sortByMembersCount}`}
     ) {
@@ -375,11 +372,15 @@ describe('query sources', () => {
     const repo = con.getRepository(Source);
     await repo.update(
       { id: 'a' },
-      { flags: updateFlagsStatement({ featured: true }) },
+      {
+        flags: updateFlagsStatement({ featured: true, publicThreshold: true }),
+      },
     );
     await repo.update(
       { id: 'b' },
-      { flags: updateFlagsStatement({ featured: false }) },
+      {
+        flags: updateFlagsStatement({ featured: false, publicThreshold: true }),
+      },
     );
   };
 
@@ -397,15 +398,15 @@ describe('query sources', () => {
   it('should return public squads that passes the threshold', async () => {
     await prepareFeaturedTests();
     await con.getRepository(Source).update(
-      { id: 'b' },
+      { id: 'a' },
       {
         type: SourceType.Squad,
         private: false,
-        flags: updateFlagsStatement<Source>({ publicThreshold: true }),
+        flags: updateFlagsStatement<Source>({ publicThreshold: false }),
       },
     );
     const res = await client.query(
-      QUERY({ first: 10, filterOpenSquads: true, publicThreshold: true }),
+      QUERY({ first: 10, filterOpenSquads: true }),
     );
     const passedThreshold = res.data.sources.edges.map(({ node }) => node.id);
     expect(passedThreshold).toEqual(expect.arrayContaining(['b']));
@@ -414,20 +415,18 @@ describe('query sources', () => {
   it('should return only non-featured sources - this means when flag is false or undefined', async () => {
     await prepareFeaturedTests();
     await con.getRepository(Source).save(sourcesFixture[2]);
-    await con
-      .getRepository(Source)
-      .update({ id: 'c' }, { type: SourceType.Squad, private: false });
+    await con.getRepository(Source).update(
+      { id: 'c' },
+      {
+        type: SourceType.Squad,
+        private: false,
+        flags: updateFlagsStatement({ publicThreshold: true }),
+      },
+    );
     const res = await client.query(
       QUERY({ first: 10, filterOpenSquads: true, featured: false }),
     );
-    const isNonFeatured = res.data.sources.edges.every(
-      ({ node }) => node.flags.featured !== true,
-    );
-    expect(isNonFeatured).toBeTruthy();
-    const emptyFlags = res.data.sources.edges.find(
-      ({ node }) => node.id === 'c',
-    );
-    expect(emptyFlags).toBeTruthy();
+    expect(res.data.sources.edges.length).toEqual(2);
   });
 
   it('should return only not featured sources', async () => {
@@ -476,9 +475,19 @@ describe('query sources', () => {
 
     await repo.update(
       { id: In(['a', 'b']) },
-      { type: SourceType.Squad, private: true },
+      {
+        type: SourceType.Squad,
+        private: true,
+        flags: updateFlagsStatement({ publicThreshold: true }),
+      },
     );
-    await repo.update({ id: 'b' }, { private: false });
+    await repo.update(
+      { id: 'b' },
+      {
+        private: false,
+        flags: updateFlagsStatement({ publicThreshold: true }),
+      },
+    );
   };
 
   it('should return only public squads', async () => {
@@ -1603,7 +1612,8 @@ query SourcesByTag($tag: String!, $first: Int, $excludedSources: [String]) {
         postKeywordsFixture[5],
         postKeywordsFixture[6],
       ]);
-    await con.manager.query(`UPDATE post_keyword SET status = 'allow'`);
+    await con.manager.query(`UPDATE post_keyword
+                             SET status = 'allow'`);
     const materializedViewName =
       con.getRepository(SourceTagView).metadata.tableName;
     await con.query(`REFRESH MATERIALIZED VIEW ${materializedViewName}`);
@@ -1648,7 +1658,8 @@ query SimilarSources($sourceId: ID!) {
         postKeywordsFixture[5],
         postKeywordsFixture[6],
       ]);
-    await con.manager.query(`UPDATE post_keyword SET status = 'allow'`);
+    await con.manager.query(`UPDATE post_keyword
+                             SET status = 'allow'`);
     const materializedViewName =
       con.getRepository(SourceTagView).metadata.tableName;
     await con.query(`REFRESH MATERIALIZED VIEW ${materializedViewName}`);
@@ -1686,7 +1697,8 @@ query RelatedTags($sourceId: ID!) {
         postKeywordsFixture[5],
         postKeywordsFixture[6],
       ]);
-    await con.manager.query(`UPDATE post_keyword SET status = 'allow'`);
+    await con.manager.query(`UPDATE post_keyword
+                             SET status = 'allow'`);
     const materializedViewName =
       con.getRepository(SourceTagView).metadata.tableName;
     await con.query(`REFRESH MATERIALIZED VIEW ${materializedViewName}`);
