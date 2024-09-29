@@ -5,7 +5,7 @@ import { saveFixtures } from '../helpers';
 import { expectSuccessfulCron } from '../helpers';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
-import { Source, SourceType } from '../../src/entity';
+import { Source, SourceType, SQUAD_IMAGE_PLACEHOLDER } from '../../src/entity';
 import { updateFlagsStatement } from '../../src/common';
 
 let con: DataSource;
@@ -52,6 +52,22 @@ describe('updateSourcePublicThreshold', () => {
     await repo.update(
       { id: 'a' },
       { flags: updateFlagsStatement({ totalMembers: 3, totalPosts: 3 }) },
+    );
+    await expectSuccessfulCron(cron);
+    const source = await repo.findOneBy({ id: 'a' });
+    expect(source!.flags.publicThreshold).toBeFalsy();
+  });
+
+  it('should not update public threshold if image is default', async () => {
+    const repo = con.getRepository(Source);
+    await repo.update(
+      { id: 'a' },
+      {
+        type: SourceType.Squad,
+        image: SQUAD_IMAGE_PLACEHOLDER,
+        description: 'not null',
+        flags: updateFlagsStatement({ totalMembers: 3, totalPosts: 3 }),
+      },
     );
     await expectSuccessfulCron(cron);
     const source = await repo.findOneBy({ id: 'a' });

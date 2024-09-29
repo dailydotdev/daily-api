@@ -1,5 +1,5 @@
 import { Cron } from './cron';
-import { Source } from '../entity';
+import { Source, SQUAD_IMAGE_PLACEHOLDER } from '../entity';
 import { updateFlagsStatement } from '../common';
 
 export const updateSourcePublicThreshold: Cron = {
@@ -15,6 +15,7 @@ export const updateSourcePublicThreshold: Cron = {
         `
           "type" = 'squad' AND
           "image" IS NOT NULL AND
+          "image" != '${SQUAD_IMAGE_PLACEHOLDER}' AND
           "description" IS NOT NULL AND
           (flags->>'totalMembers')::int >= 3 AND
           (flags->>'totalPosts')::int >= 3 AND
