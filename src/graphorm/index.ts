@@ -417,7 +417,8 @@ const obj = new GraphORM({
       },
       membersCount: {
         select: 'flags',
-        transform: (value: SourceFlagsPublic): number => value.totalMembers,
+        transform: (value: SourceFlagsPublic): number =>
+          value?.totalMembers || 0,
       },
       currentMember: {
         relation: {
