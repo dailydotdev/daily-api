@@ -416,12 +416,8 @@ const obj = new GraphORM({
         },
       },
       membersCount: {
-        select: (ctx, alias, qb) =>
-          qb
-            .select('count(*)')
-            .from(SourceMember, 'sm')
-            .where(`sm."sourceId" = ${alias}.id`)
-            .andWhere(`sm."role" != '${SourceMemberRoles.Blocked}'`),
+        select: 'flags',
+        transform: (value: SourceFlagsPublic): number => value.totalMembers,
       },
       currentMember: {
         relation: {
