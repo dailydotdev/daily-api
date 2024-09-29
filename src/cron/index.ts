@@ -13,6 +13,7 @@ import updateHighlightedViews from './updateHighlightedViews';
 import hourlyNotifications from './hourlyNotifications';
 import updateCurrentStreak from './updateCurrentStreak';
 import syncSubscriptionWithCIO from './syncSubscriptionWithCIO';
+import { updateSourcePublicThreshold } from './updateSourcePublicThreshold';
 import { cleanZombieUserCompany } from './cleanZombieUserCompany';
 
 export const crons: Cron[] = [
@@ -31,4 +32,5 @@ export const crons: Cron[] = [
   updateCurrentStreak,
   syncSubscriptionWithCIO,
   cleanZombieUserCompany,
+  updateSourcePublicThreshold,
 ];

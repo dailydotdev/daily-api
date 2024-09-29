@@ -32,6 +32,10 @@ export interface SourceFlagsPublic {
   totalMembers: number;
 }
 
+export interface SourceFlagsPrivate {
+  publicThreshold: boolean;
+}
+
 export const defaultPublicSourceFlags: SourceFlagsPublic = {
   featured: false,
   totalViews: 0,
@@ -111,8 +115,9 @@ export class Source {
 
   @Column({ type: 'jsonb', default: {} })
   @Index('IDX_source_flags_featured', { synchronize: false })
+  @Index('IDX_source_flags_posts_members_threshold', { synchronize: false })
   @Index('IDX_source_flags_total_members', { synchronize: false })
-  flags: SourceFlagsPublic;
+  flags: SourceFlagsPublic & SourceFlagsPrivate;
 
   @Column({ type: 'text', nullable: true })
   categoryId?: string;
