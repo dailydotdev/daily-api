@@ -717,14 +717,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         return [];
       }
 
-      return graphorm.query(ctx, info, (builder) => {
-        builder.queryBuilder = builder.queryBuilder
-          .where(`"${builder.alias}".id IN (:...ids)`, { ids })
-          .orderBy(`"${builder.alias}".name`)
-          .limit(limit);
+      return graphorm.query(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .where(`"${builder.alias}".id IN (:...ids)`, { ids })
+            .orderBy(`"${builder.alias}".name`)
+            .limit(limit);
 
-        return builder;
-      });
+          return builder;
+        },
+        true,
+      );
     },
     commentPreview: async (
       _,

@@ -23,6 +23,7 @@ import devCardUnlocked from './devCardUnlocked';
 import postBookmarkReminder from './postBookmarkReminder';
 import userStreakResetNotification from './userStreakResetNotification';
 import squadFeaturedUpdated from './squadFeaturedUpdated';
+import { postAddedUserNotification } from './postAddedUserNotification';
 
 export function notificationWorkerToWorker(worker: NotificationWorker): Worker {
   return {
@@ -84,6 +85,7 @@ const notificationWorkers: NotificationWorker[] = [
   postBookmarkReminder,
   userStreakResetNotification,
   squadFeaturedUpdated,
+  postAddedUserNotification,
 ];
 
 export const workers = [...notificationWorkers.map(notificationWorkerToWorker)];

@@ -1113,13 +1113,18 @@ const getFeedSettings = async ({
   info: GraphQLResolveInfo;
   feedId: string;
 }): Promise<GQLFeedSettings> => {
-  const res = await graphorm.query<GQLFeedSettings>(ctx, info, (builder) => {
-    builder.queryBuilder = builder.queryBuilder.andWhere(
-      `"${builder.alias}".id = :feedId AND "${builder.alias}"."userId" = :userId`,
-      { userId: ctx.userId, feedId },
-    );
-    return builder;
-  });
+  const res = await graphorm.query<GQLFeedSettings>(
+    ctx,
+    info,
+    (builder) => {
+      builder.queryBuilder = builder.queryBuilder.andWhere(
+        `"${builder.alias}".id = :feedId AND "${builder.alias}"."userId" = :userId`,
+        { userId: ctx.userId, feedId },
+      );
+      return builder;
+    },
+    true,
+  );
   if (res.length) {
     return res[0];
   }
@@ -1483,10 +1488,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLAdvancedSettings[]> =>
-      graphorm.query<GQLAdvancedSettings>(ctx, info, (builder) => {
-        builder.queryBuilder = builder.queryBuilder.orderBy('title', 'ASC');
-        return builder;
-      }),
+      graphorm.query<GQLAdvancedSettings>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder.orderBy('title', 'ASC');
+          return builder;
+        },
+        true,
+      ),
     rssFeeds: async (source, args, ctx: AuthContext): Promise<GQLRSSFeed[]> => {
       const urlPrefix = `${process.env.URL_PREFIX}/rss`;
       const lists = await ctx.getRepository(BookmarkList).find({
@@ -1679,23 +1689,28 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           post_id: args.post,
         });
         if (res?.data?.length) {
-          return graphorm.query(ctx, info, (builder) => {
-            builder.queryBuilder = applyFeedWhere(
-              ctx,
-              fixedIdsFeedBuilder(
+          return graphorm.query(
+            ctx,
+            info,
+            (builder) => {
+              builder.queryBuilder = applyFeedWhere(
                 ctx,
-                res.data.map(([postId]) => postId as string),
-                builder.queryBuilder,
+                fixedIdsFeedBuilder(
+                  ctx,
+                  res.data.map(([postId]) => postId as string),
+                  builder.queryBuilder,
+                  builder.alias,
+                ),
                 builder.alias,
-              ),
-              builder.alias,
-              ['article'],
-              true,
-              true,
-              false,
-            );
-            return builder;
-          });
+                ['article'],
+                true,
+                true,
+                false,
+              );
+              return builder;
+            },
+            true,
+          );
         }
       }
 

@@ -110,6 +110,12 @@ const obj = new GraphORM({
       notificationEmail: {
         transform: nullIfNotSameUser,
       },
+      followingEmail: {
+        transform: nullIfNotSameUser,
+      },
+      followNotifications: {
+        transform: nullIfNotSameUser,
+      },
       createdAt: {
         transform: transformDate,
       },

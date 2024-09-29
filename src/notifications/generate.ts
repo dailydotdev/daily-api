@@ -23,6 +23,7 @@ import {
   NotificationStreakContext,
   NotificationSubmissionContext,
   NotificationUpvotersContext,
+  NotificationUserContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
@@ -107,8 +108,11 @@ export const notificationTitleMap: Record<
   squad_public_submitted: systemTitle,
   streak_reset_restore: (ctx: NotificationStreakContext) =>
     `<b>Oh no! Your ${ctx.streak.currentStreak} day streak has been broken</b>`,
-  // TODO AS-534 add handler
-  user_post_added: () => undefined,
+  user_post_added: (ctx: NotificationUserContext) => {
+    const userName = ctx.user.name || ctx.user.username;
+
+    return `New post from <b>${userName}</b>, check it out now!`;
+  },
 };
 
 export const generateNotificationMap: Record<
@@ -359,6 +363,12 @@ export const generateNotificationMap: Record<
     builder: NotificationBuilder,
     ctx: NotificationSquadRequestContext & NotificationSourceContext,
   ) => builder.systemNotification().referenceSquadRequest(ctx.squadRequest),
-  // TODO AS-534 add handler
-  user_post_added: (builder) => builder.systemNotification(),
+  user_post_added: (
+    builder,
+    ctx: NotificationUserContext & NotificationPostContext,
+  ) =>
+    builder
+      .icon(NotificationIcon.Bell)
+      .avatarUser(ctx.user)
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost),
 };
