@@ -34,6 +34,9 @@ export class UserStreak {
   @Column({ type: 'timestamptz', default: null })
   lastViewAt: Date | null;
 
+  @Column({ type: 'timestamp', default: null })
+  lastClearedAt: Date | null;
+
   @Column({ type: 'timestamptz', default: () => 'now()' })
   updatedAt: Date;
 }

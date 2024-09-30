@@ -4657,6 +4657,27 @@ describe('mutation updateReadme', () => {
   });
 });
 
+describe('update_cleared_timestamp_on_clear trigger', () => {
+  it('should update cleared timestamp on clear', async () => {
+    const [user] = usersFixture;
+    await saveFixtures(con, User, [user]);
+    const repo = con.getRepository(UserStreak);
+    const streak1 = await repo.findOneBy({ userId: user.id });
+    expect(streak1).toBeTruthy();
+    expect(streak1!.lastClearedAt).toBeNull();
+
+    await repo.update({ userId: user.id }, { currentStreak: 3 });
+    const streak2 = await repo.findOneBy({ userId: user.id });
+    expect(streak2).toBeTruthy();
+    expect(streak2!.lastClearedAt).toBeNull();
+
+    await repo.update({ userId: user.id }, { currentStreak: 0 });
+    const streak3 = await repo.findOneBy({ userId: user.id });
+    expect(streak3).toBeTruthy();
+    expect(streak3!.lastClearedAt).not.toBeNull();
+  });
+});
+
 describe('user_create_alerts_trigger after insert trigger', () => {
   it('should insert default alerts', async () => {
     await con.getRepository(User).delete({});
