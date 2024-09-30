@@ -22,7 +22,7 @@ export function traceResolver<
     context: TContext,
     info: GraphQLResolveInfo,
   ): Promise<TReturn> => {
-    if (context?.span) {
+    if (context?.span && context?.span?.isRecording()) {
       context.span.setAttributes({
         ['graphql.operation.name']: info.operation?.name?.value,
         ['graphql.operation.type']: info.operation.operation,
