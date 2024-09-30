@@ -70,6 +70,8 @@ config:
       secure: AAABADH0xT7H6UeMlZG0fUEGjohQ1dvwcbIgJ3WMI5wfqScub3Qp3nvUDhska0DunbFmvj7IrtH07noRL1lCYg==
     flagsmithKey: dontdelete
     flagsmithWebhookSecret: dontdelete
+    growthbookApiConfigClientKey:
+      secure: AAABAJEgS6b8xZv0j06KOawyNMdkTpGmzKs7Ryed5SofiLp3vSTjxhqQuKSVsaHjR5s=
     growthbookClientKey:
       secure: AAABAIVkkeJGes/CVRjekXu8GfXXhC9FihKkcb2C4peMA7yS7HbO52uViOrP5uIFmgAQ2A==
     hashnodeWebhook:

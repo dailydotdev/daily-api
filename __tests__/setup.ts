@@ -1,6 +1,7 @@
 import * as matchers from 'jest-extended';
 import '../src/config';
 import createOrGetConnection from '../src/db';
+import { remoteConfig } from '../src/remoteConfig';
 
 expect.extend(matchers);
 
@@ -12,7 +13,21 @@ jest.mock('../src/growthbook', () => ({
   getEncryptedFeatures: jest.fn(),
 }));
 
+jest.mock('../src/remoteConfig', () => ({
+  ...(jest.requireActual('../src/remoteConfig') as Record<string, unknown>),
+  remoteConfig: {
+    init: jest.fn(),
+    vars: {
+      vordrWords: ['vordrwillcatchyou', 'andvordrwillhavefun'],
+      vordrIps: ['192.0.2.0/24', '198.51.100.0/24', '203.0.113.0/24'],
+      ignoredWorkEmailDomains: ['igored.com', 'ignored.org'],
+    } as typeof remoteConfig.vars,
+  },
+}));
+
 const cleanDatabase = async (): Promise<void> => {
+  await remoteConfig.init();
+
   const con = await createOrGetConnection();
   for (const entity of con.entityMetadatas) {
     const repository = con.getRepository(entity.name);

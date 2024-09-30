@@ -2,6 +2,7 @@ import { startOfISOWeek, endOfISOWeek } from 'date-fns';
 import { zonedTimeToUtc } from 'date-fns-tz';
 import { snakeCase } from 'lodash';
 import { isNullOrUndefined } from './object';
+import { remoteConfig } from '../remoteConfig';
 
 const REMOVE_SPECIAL_CHARACTERS_REGEX = /[^a-zA-Z0-9-_#.]/g;
 
@@ -165,15 +166,10 @@ export function isNumber(value: string | number): boolean {
   return !isNaN(Number(value.toString()));
 }
 
-const ignoredWorkEmailDomains =
-  process.env.IGNORED_WORK_EMAIL_DOMAINS?.split(',')
-    .filter(Boolean)
-    .map((domain) => domain.toLowerCase()) || [];
-
 export const validateWorkEmailDomain = (domain: string): boolean => {
   const lowerCaseDomain = domain.toLowerCase();
 
-  return ignoredWorkEmailDomains.some((ignoredDomain) =>
+  return !!remoteConfig.vars.ignoredWorkEmailDomains?.some((ignoredDomain) =>
     lowerCaseDomain.includes(ignoredDomain),
   );
 };
