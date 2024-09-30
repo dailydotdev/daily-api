@@ -16,6 +16,7 @@ import { sendAnalyticsEvent } from '../integrations/analytics';
 import { DayOfWeek, DEFAULT_TIMEZONE, DEFAULT_WEEK_START } from './date';
 import { ChangeObject, ContentLanguage } from '../types';
 import { checkRestoreValidity } from './streak';
+import { queryReadReplica } from './queryReadReplica';
 
 export interface User {
   id: string;
@@ -214,8 +215,17 @@ export const recommendUsersByQuery = async (
   { query, limit, sourceId }: RecentMentionsProps,
 ): Promise<string[]> => {
   const privateSource = sourceId
-    ? await con.getRepository(Source).findOneBy({ id: sourceId, private: true })
+    ? await queryReadReplica(con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(Source).findOne({
+          select: ['id'],
+          where: {
+            id: sourceId,
+            private: true,
+          },
+        }),
+      )
     : undefined;
+
   const recentIds = await getRecentMentionsIds(con, userId, {
     query,
     limit,

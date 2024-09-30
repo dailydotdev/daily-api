@@ -51,6 +51,7 @@ export function createDatePageGenerator<
 export interface QueryOptions {
   queryBuilder?: (builder: GraphORMBuilder) => GraphORMBuilder;
   orderByKey?: 'ASC' | 'DESC';
+  readReplica?: boolean;
 }
 
 export function queryPaginatedByDate<
@@ -62,7 +63,7 @@ export function queryPaginatedByDate<
   info: GraphQLResolveInfo,
   args: TArgs,
   config: GQLDatePageGeneratorConfig<TEntity, TKey>,
-  { queryBuilder, orderByKey = 'ASC' }: QueryOptions = {},
+  { queryBuilder, orderByKey = 'ASC', readReplica }: QueryOptions = {},
 ): Promise<Connection<TEntity>> {
   const pageGenerator = createDatePageGenerator(config);
   const page = pageGenerator.connArgsToPage(args);
@@ -94,6 +95,6 @@ export function queryPaginatedByDate<
       return builder;
     },
     undefined,
-    true,
+    readReplica,
   );
 }

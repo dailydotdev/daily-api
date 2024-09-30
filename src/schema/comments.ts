@@ -471,7 +471,7 @@ export const getMentions = async (
 
   const source = await con
     .getRepository(Source)
-    .findOneByOrFail({ id: sourceId });
+    .findOneOrFail({ where: { id: sourceId }, select: ['private'] });
 
   if (!source.private) {
     return getUsers();
@@ -596,6 +596,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             return builder;
           },
           orderByKey: 'DESC',
+          readReplica: true,
         },
       );
     },
@@ -605,9 +606,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<Connection<GQLComment>> => {
-      const post = await ctx.con
-        .getRepository(Post)
-        .findOneByOrFail({ id: args.postId });
+      const post = await ctx.con.getRepository(Post).findOneOrFail({
+        select: ['sourceId'],
+        where: { id: args.postId },
+      });
       await ensureSourcePermissions(ctx, post.sourceId);
       return queryPaginatedByDate(
         ctx,
@@ -628,6 +630,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
             return builder;
           },
+          readReplica: true,
         },
       );
     },
@@ -699,6 +702,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             return builder;
           },
           orderByKey: 'DESC',
+          readReplica: true,
         },
       );
     },
@@ -775,7 +779,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const post = await ctx.con
         .getRepository(Post)
-        .findOneByOrFail({ id: comment.postId });
+        .findOneOrFail({ select: ['sourceId'], where: { id: comment.postId } });
 
       await ensureSourcePermissions(ctx, post.sourceId);
 
