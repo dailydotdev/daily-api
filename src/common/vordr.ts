@@ -5,17 +5,10 @@ import { counters } from '../telemetry';
 import { Brackets, DataSource, EntityManager } from 'typeorm';
 import { isNullOrUndefined } from './object';
 import { FastifyRequest } from 'fastify';
-
-const vordrIPs =
-  process.env.VORDR_IPS?.split(',').filter((ip) => Boolean(ip)) || [];
-
-const vordrWords =
-  process.env.VORDR_WORDS?.split(',')
-    .filter((word) => Boolean(word))
-    .map((word) => word.toLowerCase()) || [];
+import { remoteConfig } from '../remoteConfig';
 
 export const validateVordrIPs = (ip: string): boolean =>
-  !!isIP(ip) && isInSubnet(ip, vordrIPs);
+  !!isIP(ip) && isInSubnet(ip, remoteConfig.vars.vordrIps ?? []);
 
 export const validateVordrWords = (content?: string): boolean => {
   if (!content) {
@@ -23,7 +16,9 @@ export const validateVordrWords = (content?: string): boolean => {
   }
 
   const lowerCaseContent = content.toLowerCase();
-  return vordrWords.some((word) => lowerCaseContent.includes(word));
+  return !!remoteConfig.vars.vordrWords?.some((word) =>
+    lowerCaseContent.includes(word),
+  );
 };
 
 export enum VordrFilterType {

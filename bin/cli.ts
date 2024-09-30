@@ -6,8 +6,11 @@ import background from '../src/background';
 import temporal from '../src/temporal/notifications';
 import cron from '../src/cron';
 import personalizedDigest from '../src/commands/personalizedDigest';
+import { remoteConfig } from '../src/remoteConfig';
 
 async function run(positionals: string[]) {
+  await remoteConfig.init();
+
   switch (positionals[0]) {
     case 'api':
       tracer('api').start();

@@ -1294,6 +1294,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             .limit(page.limit)
             .offset(page.offset);
 
+          if (args.filterOpenSquads) {
+            builder.queryBuilder.andWhere(
+              `(${builder.alias}.flags->'publicThreshold')::boolean IS TRUE`,
+            );
+          }
+
           if (!isNullOrUndefined(args.featured)) {
             builder.queryBuilder.andWhere(
               `COALESCE((${builder.alias}.flags->'featured')::boolean, FALSE) = :featured`,
