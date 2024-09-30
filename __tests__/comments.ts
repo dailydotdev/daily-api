@@ -355,11 +355,17 @@ describe('query commentFeed', () => {
   }`;
 
   beforeEach(async () => {
-    usersFixture.forEach(async (user) => {
-      await con
-        .getRepository(User)
-        .update({ id: user.id }, { ...user, reputation: 100 });
-    });
+    await Promise.all(
+      usersFixture.map((user) =>
+        con.getRepository(User).update(
+          { id: user.id },
+          {
+            ...user,
+            reputation: 100,
+          },
+        ),
+      ),
+    );
   });
 
   it('should fetch comments feed', async () => {

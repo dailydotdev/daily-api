@@ -35,6 +35,7 @@ export class UserCompany {
   code: string;
 
   @PrimaryColumn()
+  @Index('IDX_user_company_user_id')
   userId: string;
 
   @ManyToOne('User', {

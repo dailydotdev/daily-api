@@ -373,36 +373,6 @@ export const typeDefs = /* GraphQL */ `
     ): SourceConnection!
 
     """
-    Get all available sources from read replica
-    """
-    sourcesReadReplica(
-      """
-      Paginate after opaque cursor
-      """
-      after: String
-
-      """
-      Paginate first
-      """
-      first: Int
-
-      """
-      Fetch public Squads
-      """
-      filterOpenSquads: Boolean
-
-      """
-      Add filter for featured sources
-      """
-      featured: Boolean
-
-      """
-      Filter by category
-      """
-      categoryId: String
-    ): SourceConnection!
-
-    """
     Get the most recent sources
     """
     mostRecentSources(
@@ -1244,6 +1214,8 @@ const paginateSourceMembers = (
       builder.queryBuilder.limit(page.limit).offset(page.offset);
       return builder;
     },
+    undefined,
+    true,
   );
 };
 
@@ -1287,6 +1259,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
           return builder;
         },
+        undefined,
+        true,
       );
     },
     sources: async (
@@ -1320,6 +1294,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             .limit(page.limit)
             .offset(page.offset);
 
+          if (args.filterOpenSquads) {
+            builder.queryBuilder.andWhere(
+              `(${builder.alias}.flags->'publicThreshold')::boolean IS TRUE`,
+            );
+          }
+
           if (!isNullOrUndefined(args.featured)) {
             builder.queryBuilder.andWhere(
               `COALESCE((${builder.alias}.flags->'featured')::boolean, FALSE) = :featured`,
@@ -1336,57 +1316,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
           return builder;
         },
+        undefined,
+        true,
       );
-    },
-    sourcesReadReplica: async (
-      _,
-      args: SourcesArgs,
-      ctx: Context,
-      info,
-    ): Promise<Connection<GQLSource>> => {
-      const filter: FindOptionsWhere<Source> = { active: true };
-
-      if (args.filterOpenSquads) {
-        filter.type = SourceType.Squad;
-        filter.private = false;
-      }
-
-      if (args.categoryId) {
-        filter.categoryId = args.categoryId;
-      }
-
-      const page = sourcePageGenerator.connArgsToPage(args);
-      const slaveQueryRunner = ctx.con.createQueryRunner('slave');
-      try {
-        return graphorm.queryPaginated(
-          ctx,
-          info,
-          (nodeSize) => sourcePageGenerator.hasPreviousPage(page, nodeSize),
-          (nodeSize) => sourcePageGenerator.hasNextPage(page, nodeSize),
-          (node, index) =>
-            sourcePageGenerator.nodeToCursor(page, args, node, index),
-          (builder) => {
-            builder.queryBuilder.setQueryRunner(slaveQueryRunner);
-            builder.queryBuilder
-              .andWhere(filter)
-              .limit(page.limit)
-              .offset(page.offset);
-
-            if (!isNullOrUndefined(args.featured)) {
-              builder.queryBuilder.andWhere(
-                `(${builder.alias}.flags->'featured')::boolean = :featured`,
-                {
-                  featured: args.featured,
-                },
-              );
-            }
-
-            return builder;
-          },
-        );
-      } finally {
-        await slaveQueryRunner.release();
-      }
     },
     sourcesByTag: async (
       _,
@@ -1428,6 +1360,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             .limit(page.limit);
           return builder;
         },
+        undefined,
+        true,
       );
     },
     similarSources: async (
@@ -1481,6 +1415,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             .limit(page.limit);
           return builder;
         },
+        undefined,
+        true,
       );
     },
     mostRecentSources: async (
