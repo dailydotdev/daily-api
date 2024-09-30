@@ -388,6 +388,7 @@ export function feedResolver<
         },
         (nodes) =>
           pageGenerator.transformNodes?.(page, nodes, queryParams) ?? nodes,
+        true,
       ),
     );
     // Sometimes the feed can have a bit less posts than requested due to recent ban or deletion

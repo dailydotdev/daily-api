@@ -677,6 +677,7 @@ export class GraphORM {
    * @param nodeToCursor A function that creates a cursor from a node
    * @param beforeQuery A callback function that is called before executing the query
    * @param transformNodes Apply any transformation on the nodes before adding page info
+   * @param readReplica Whether to use the read replica instance
    */
   async queryPaginated<T>(
     ctx: Context,
@@ -686,11 +687,17 @@ export class GraphORM {
     nodeToCursor: (node: T, index: number) => string,
     beforeQuery?: (builder: GraphORMBuilder) => GraphORMBuilder,
     transformNodes?: (nodes: T[]) => T[],
+    readReplica?: boolean,
   ): Promise<Connection<T>> {
     const parsedInfo = parseResolveInfo(resolveInfo) as ResolveTree;
     if (parsedInfo) {
       const resolveTree = this.getPaginatedField(parsedInfo);
-      let nodes = await this.queryResolveTree<T>(ctx, resolveTree, beforeQuery);
+      let nodes = await this.queryResolveTree<T>(
+        ctx,
+        resolveTree,
+        beforeQuery,
+        readReplica,
+      );
       const nodesSize = nodes.length;
       if (transformNodes) {
         nodes = transformNodes(nodes);

@@ -93,5 +93,7 @@ export function queryPaginatedByDate<
       }
       return builder;
     },
+    undefined,
+    true,
   );
 }
