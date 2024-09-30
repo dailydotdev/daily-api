@@ -1775,6 +1775,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
           return builder;
         },
+        undefined,
+        true,
       );
     },
     getFeed: async (

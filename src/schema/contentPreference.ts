@@ -215,6 +215,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
           return builder;
         },
+        undefined,
+        true,
       );
     },
     userFollowing: async (
@@ -251,6 +253,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
           return builder;
         },
+        undefined,
+        true,
       );
     },
   },
