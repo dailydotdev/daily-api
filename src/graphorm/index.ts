@@ -408,20 +408,17 @@ const obj = new GraphORM({
               }),
         },
         pagination: {
-          limit: 50,
-          hasNextPage: (size): boolean => size === 50,
+          limit: 5,
+          hasNextPage: (size): boolean => size === 5,
           hasPreviousPage: (): boolean => false,
           nodeToCursor: (node: GQLComment): string =>
             base64(`time:${new Date(node.createdAt).getTime()}`),
         },
       },
       membersCount: {
-        select: (ctx, alias, qb) =>
-          qb
-            .select('count(*)')
-            .from(SourceMember, 'sm')
-            .where(`sm."sourceId" = ${alias}.id`)
-            .andWhere(`sm."role" != '${SourceMemberRoles.Blocked}'`),
+        select: 'flags',
+        transform: (value: SourceFlagsPublic): number =>
+          value?.totalMembers || 0,
       },
       currentMember: {
         relation: {
