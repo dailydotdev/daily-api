@@ -94,6 +94,10 @@ export const crons: Cron[] = [
     schedule: '15 4 * * *',
   },
   {
+    name: 'update-source-public-threshold',
+    schedule: '*/10 * * * *',
+  },
+  {
     name: 'update-current-streak',
     schedule: '30 * * * *',
   },
