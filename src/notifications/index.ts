@@ -4,7 +4,7 @@ import {
   NotificationV2,
   UserNotification,
 } from '../entity';
-import { DeepPartial, EntityManager } from 'typeorm';
+import { DeepPartial, EntityManager, ObjectLiteral } from 'typeorm';
 import { NotificationBuilder } from './builder';
 import { NotificationBaseContext, NotificationBundleV2 } from './types';
 import { generateNotificationMap, notificationTitleMap } from './generate';
@@ -19,9 +19,9 @@ export function generateNotificationV2(
   ctx: NotificationBaseContext,
 ): NotificationBundleV2 {
   const builder = NotificationBuilder.new(type, ctx.userIds).title(
-    notificationTitleMap[type](ctx),
+    notificationTitleMap[type](ctx as never)!,
   );
-  return generateNotificationMap[type](builder, ctx).buildV2();
+  return generateNotificationMap[type](builder, ctx as never).buildV2();
 }
 
 /**
@@ -30,7 +30,7 @@ export function generateNotificationV2(
  * I adjusted the answer below to keep the order of the records.
  * See more here: https://stackoverflow.com/a/42217872/2650104
  */
-const upsertAndReturnIds = async <Entity>(
+const upsertAndReturnIds = async <Entity extends ObjectLiteral>(
   entityManager: EntityManager,
   entity: EntityTarget<Entity>,
   cols: (keyof DeepPartial<Entity>)[],
@@ -82,7 +82,7 @@ const upsertAndReturnIds = async <Entity>(
     `,
     params,
   );
-  return res.map(({ id }) => id);
+  return res.map(({ id }: { id: string }) => id);
 };
 
 async function upsertAvatarsV2(
@@ -94,7 +94,7 @@ async function upsertAvatarsV2(
     NotificationAvatarV2,
     ['type', 'name', 'image', 'targetUrl', 'referenceId'],
     ['type', 'referenceId'],
-    avatars,
+    avatars || [],
   );
 }
 
@@ -107,7 +107,7 @@ async function upsertAttachments(
     NotificationAttachmentV2,
     ['type', 'image', 'title', 'referenceId'],
     ['type', 'referenceId'],
-    attachments,
+    attachments || [],
   );
 }
 
@@ -157,6 +157,10 @@ export async function generateAndStoreNotificationsV2(
   entityManager: EntityManager,
   args: NotificationHandlerReturn,
 ): Promise<void> {
+  if (!args) {
+    return;
+  }
+
   await Promise.all(
     args.map(({ type, ctx }) => {
       const bundle = generateNotificationV2(type, ctx);
