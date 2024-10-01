@@ -4,7 +4,7 @@ export class VordrUser1727578711381 implements MigrationInterface {
   name = 'VordrUser1727578711381'
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`CREATE INDEX "IDX_post_flags_vordr" ON post USING HASH (((flags->'vordr')::boolean))`);
+    await queryRunner.query(`CREATE INDEX "IDX_post_flags_vordr" ON post (((flags->'vordr')::boolean))`);
 
     await queryRunner.query(`CREATE OR REPLACE FUNCTION vordr_update_flags()
 RETURNS TRIGGER AS $$
