@@ -12,10 +12,8 @@ BEGIN
     UPDATE
       post
     SET
-      "showOnFeed" = FALSE,
       "banned" = TRUE,
       "flags" = jsonb_set(jsonb_set(jsonb_set(flags,
-        '{showOnFeed}', 'false', true),   -- set showOnFeed to false
         '{vordr}', 'true', true),         -- set vordr to true
         '{banned}', 'true', true)         -- set banned to true
     WHERE
@@ -33,10 +31,8 @@ BEGIN
     UPDATE
       post
     SET
-      "showOnFeed" = TRUE,
       "banned" = FALSE,
       "flags" = jsonb_set(jsonb_set(jsonb_set(flags,
-        '{showOnFeed}', 'false', true),   -- set showOnFeed to true
         '{vordr}', 'false', true),        -- set vordr to false
         '{banned}', 'false', true)        -- set banned to false
     WHERE
