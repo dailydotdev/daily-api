@@ -189,7 +189,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         builder,
         alias,
       ) => {
-        const newBuilder = orderFeed(opts.ranking, builder, alias);
+        const newBuilder = orderFeed(opts.ranking, builder, alias).andWhere(
+          `${alias}."private" = false`,
+        );
         if (ctx.userId) {
           return configuredFeedBuilder(
             ctx,
