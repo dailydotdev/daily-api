@@ -95,45 +95,47 @@ describe('user', () => {
       ]);
     });
 
-    it('should update all comments the user has made when the vordr flag is set to true', async () => {
-      expect(
+    describe('on comments', () => {
+      it('should update all comments the user has made when the vordr flag is set to true', async () => {
+        expect(
+          await con
+            .getRepository(Comment)
+            .findBy({ userId: '1', flags: { vordr: true } }),
+        ).toHaveLength(0);
+
         await con
+          .getRepository(User)
+          .update({ id: '1' }, { flags: { vordr: true } });
+
+        const comments = await con
           .getRepository(Comment)
-          .findBy({ userId: '1', flags: { vordr: true } }),
-      ).toHaveLength(0);
+          .findBy({ userId: '1', flags: { vordr: true } });
 
-      await con
-        .getRepository(User)
-        .update({ id: '1' }, { flags: { vordr: true } });
-
-      const comments = await con
-        .getRepository(Comment)
-        .findBy({ userId: '1', flags: { vordr: true } });
-
-      expect(comments.length).toBe(2);
-      comments.forEach((comment) => {
-        expect(comment.flags.vordr).toEqual(true);
+        expect(comments.length).toBe(2);
+        comments.forEach((comment) => {
+          expect(comment.flags.vordr).toEqual(true);
+        });
       });
-    });
 
-    it('should update all comments the user has made when the vordr flag is set to false', async () => {
-      expect(
+      it('should update all comments the user has made when the vordr flag is set to false', async () => {
+        expect(
+          await con
+            .getRepository(Comment)
+            .findBy({ userId: 'vordr', flags: { vordr: false } }),
+        ).toHaveLength(0);
+
         await con
+          .getRepository(User)
+          .update({ id: 'vordr' }, { flags: { vordr: false } });
+
+        const comments = await con
           .getRepository(Comment)
-          .findBy({ userId: 'vordr', flags: { vordr: false } }),
-      ).toHaveLength(0);
+          .findBy({ userId: 'vordr', flags: { vordr: false } });
 
-      await con
-        .getRepository(User)
-        .update({ id: 'vordr' }, { flags: { vordr: false } });
-
-      const comments = await con
-        .getRepository(Comment)
-        .findBy({ userId: 'vordr', flags: { vordr: false } });
-
-      expect(comments.length).toBe(2);
-      comments.forEach((comment) => {
-        expect(comment.flags.vordr).toEqual(false);
+        expect(comments.length).toBe(2);
+        comments.forEach((comment) => {
+          expect(comment.flags.vordr).toEqual(false);
+        });
       });
     });
   });
