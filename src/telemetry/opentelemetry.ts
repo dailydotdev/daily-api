@@ -28,6 +28,7 @@ import {
   getAppVersion,
   SEMATTRS_DAILY_APPS_USER_ID,
   SEMATTRS_DAILY_APPS_VERSION,
+  SEMATTRS_DAILY_STAFF,
 } from './common';
 import {
   ATTR_MESSAGING_DESTINATION_NAME,
@@ -35,6 +36,8 @@ import {
   ATTR_MESSAGING_MESSAGE_ID,
   ATTR_MESSAGING_SYSTEM,
 } from '@opentelemetry/semantic-conventions/incubating';
+import createOrGetConnection from '../db';
+import { Feature, FeatureType } from '../entity';
 
 const resourceDetectors = [
   resources.envDetectorSync,
@@ -138,6 +141,18 @@ export const tracer = (serviceName: string) => {
 
     fastify.addHook('onRequest', async (req) => {
       req.span = api.trace.getSpan(api.context.active());
+    });
+
+    fastify.addHook('preHandler', async (req) => {
+      if (req?.span?.isRecording()) {
+        const con = await createOrGetConnection();
+        const isTeamMember = await con.getRepository(Feature).findOneBy({
+          feature: FeatureType.Team,
+          userId: req.userId || req.trackingId,
+        });
+
+        req.span?.setAttribute(SEMATTRS_DAILY_STAFF, isTeamMember?.value === 1);
+      }
     });
 
     // Decorate the main span with some metadata

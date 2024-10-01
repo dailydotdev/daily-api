@@ -22,6 +22,7 @@ export const getAppVersion = (req: AppVersionRequest): string => {
   return 'unknown';
 };
 
+export const SEMATTRS_DAILY_STAFF = 'dailydev.staff';
 export const SEMATTRS_DAILY_APPS_VERSION = 'dailydev.apps.version';
 export const SEMATTRS_DAILY_APPS_USER_ID = 'dailydev.apps.userId';
 
