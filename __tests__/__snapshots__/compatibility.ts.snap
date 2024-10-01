@@ -224,18 +224,6 @@ Object {
       "title": "P1",
       "url": "http://p1.com",
     },
-    Object {
-      "id": "yt2",
-      "publication": Object {
-        "id": "squad",
-        "image": "http//image.com/s",
-        "name": "Squad",
-      },
-      "readTime": null,
-      "tags": Array [],
-      "title": "youtube post",
-      "url": "https://youtu.be/Oso6dYXw5lc",
-    },
   ],
 }
 `;
@@ -312,18 +300,6 @@ Object {
       ],
       "title": "P5",
       "url": "http://p5.com",
-    },
-    Object {
-      "id": "yt2",
-      "publication": Object {
-        "id": "squad",
-        "image": "http//image.com/s",
-        "name": "Squad",
-      },
-      "readTime": null,
-      "tags": Array [],
-      "title": "youtube post",
-      "url": "https://youtu.be/Oso6dYXw5lc",
     },
   ],
 }
