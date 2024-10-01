@@ -32,6 +32,7 @@ config:
       secure: AAABAGn2bvhAkQJ6kvEVRaS8pTG3B51Wspk8XUlHtyUSpfM3km2D9hEgN/rB3oED7W1/IjmCuSnfFMBDG4hl2g==
     analyticsUrl:
       secure: AAABAE0N2Ev1AukY16BKL3cJdx985Y2xZqSl2B9GJM0fSvxfBHxVbV9+OuRWdPOHLgMH+A==
+    apiConfigFeatureKey: api-config
     authorTwitterAccessTokenKey:
       secure: AAABADnvoAQhCnUKTmRoO0HRTKYMHDy5NbVP0QyGhMwAWVn7QlxCyBqW3FxugkakzUxaOhL/kQu2IkGRVQgEXceLYgcEcKhzrCLowUh3quyQdg==
     authorTwitterAccessTokenSecret:
