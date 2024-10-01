@@ -24,6 +24,7 @@ import { isProd } from '../common/utils';
 import {
   AppVersionRequest,
   channelName,
+  enableOpenTelemetryTracing,
   getAppVersion,
   SEMATTRS_DAILY_APPS_USER_ID,
   SEMATTRS_DAILY_APPS_VERSION,
@@ -105,7 +106,7 @@ const instrumentations = [
 api.diag.setLogger(new api.DiagConsoleLogger(), api.DiagLogLevel.INFO);
 
 export const tracer = (serviceName: string) => {
-  if (process.env.OTEL_ENABLED !== 'true') {
+  if (!enableOpenTelemetryTracing) {
     return {
       start: () => {},
       tracer: api.trace.getTracer('noop'),
