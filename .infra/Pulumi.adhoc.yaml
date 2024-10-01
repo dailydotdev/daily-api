@@ -67,7 +67,7 @@ config:
     nodeEnv: development
     ogUrl: http://localhost:3000
     otelEnabled: false
-    otelExporterOtlpEndpoint: http://jaeger-collector.local.svc.cluster.local:4318/v1/traces
+    otelExporterOtlpEndpoint: http://otel-collector.local.svc.cluster.local:4318/v1/traces
     otelTracesSampler: parentbased_traceidratio
     otelTracesSamplerArg: 1
     personalizedDigestSecret: topsecret
