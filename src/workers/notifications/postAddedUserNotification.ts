@@ -58,7 +58,14 @@ export const postAddedUserNotification =
       const contentPreferenceQuery = con
         .getRepository(ContentPreference)
         .createQueryBuilder('cp')
-        .leftJoin(NotificationPreferenceUser, 'np', 'np.userId = cp."userId"')
+        .leftJoin(
+          NotificationPreferenceUser,
+          'np',
+          'np.userId = cp."userId" AND np."notificationType" = :notificationType',
+          {
+            notificationType: NotificationType.UserPostAdded,
+          },
+        )
         .select('cp."referenceId"')
         .addSelect('cp."userId"')
         .where('cp."referenceId" IN(:...referencedUserIds)', {
