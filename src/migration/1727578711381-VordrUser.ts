@@ -8,7 +8,8 @@ export class VordrUser1727578711381 implements MigrationInterface {
 RETURNS TRIGGER AS $$
 BEGIN
   IF NEW.flags @> '{"vordr": true}' THEN
-    -- If vordr is true, set showOnFeed to false and banned to true in post table
+    -- If vordr on user is set to true
+    -- Set banned and vordr to true in post table, and set vordr to true in comment table
     UPDATE
       post
     SET
@@ -26,8 +27,9 @@ BEGIN
     WHERE
       "userId" = NEW.id;
 
+  -- If vordr on user is set to false, and vordr on post is true
+  -- Set banned and vordr to false in post table, and set vordr to false in comment table
   ELSIF NEW.flags @> '{"vordr": false}' THEN
-    -- If vordr is false, set showOnFeed to true and banned to false in post table
     UPDATE
       post
     SET
