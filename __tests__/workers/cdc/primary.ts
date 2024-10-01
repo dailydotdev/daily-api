@@ -3387,7 +3387,6 @@ describe('user streak change', () => {
     currentStreak: 2,
     totalStreak: 3,
     maxStreak: 4,
-    lastClearedAt: null,
     lastViewAt: new Date().toISOString() as never,
     updatedAt: new Date().toISOString() as never,
   };

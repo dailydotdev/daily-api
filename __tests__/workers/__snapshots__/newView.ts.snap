@@ -3,7 +3,6 @@
 exports[`reading streaks updates reading streak without a timestamp 1`] = `
 Object {
   "currentStreak": 5,
-  "lastClearedAt": null,
   "lastViewAt": Any<Date>,
   "maxStreak": 10,
   "totalStreak": 43,
@@ -45,7 +44,6 @@ View {
 exports[`should save a new view with the provided timestamp 2`] = `
 Object {
   "currentStreak": 1,
-  "lastClearedAt": null,
   "lastViewAt": 2020-06-11T01:17:00.000Z,
   "maxStreak": 1,
   "totalStreak": 1,
