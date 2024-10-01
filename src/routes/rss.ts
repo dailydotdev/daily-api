@@ -30,9 +30,9 @@ const generateRSS =
   <State, RouteGeneric extends RouteGenericInterface = RouteGenericInterface>(
     extractUserId: (
       req: FastifyRequest<RouteGeneric>,
-      state: State,
+      state: State | null,
     ) => Promise<string | null>,
-    title: (user: User, state: State) => string,
+    title: (user: User, state: State | null) => string,
     orderBy: string,
     query: (
       req: FastifyRequest<RouteGeneric>,
@@ -60,7 +60,7 @@ const generateRSS =
         title: `${title(user, state)} by daily.dev`,
         generator: 'daily.dev RSS',
         feed_url: `${process.env.URL_PREFIX}${req.raw.url}`,
-        site_url: getUserProfileUrl(user.username),
+        site_url: getUserProfileUrl(user.username!),
       });
       const builder = query(
         req,
@@ -134,8 +134,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
   fastify.get(
     '/b/:slug',
-    generateRSS<Settings, { Params: { slug: string } }>(
-      (req, settings) => Promise.resolve(settings?.userId),
+    generateRSS<Settings | null, { Params: { slug: string } }>(
+      (req, settings) => Promise.resolve(settings?.userId || null),
       (user) => `${extractFirstName(user)}'s bookmarks`,
       'bookmark.createdAt',
       (req, user, builder) =>

@@ -9,7 +9,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(rateLimit, {
     max: 2,
     timeWindow: '1 minute',
-    keyGenerator: (req) => req.userId,
+    keyGenerator: (req) => req.userId as string,
     redis: singleRedisClient,
     nameSpace: 'auto-rl:',
   });
