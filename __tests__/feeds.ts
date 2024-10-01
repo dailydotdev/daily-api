@@ -454,6 +454,22 @@ describe('query anonymousFeed by time', () => {
     expect(res.data).toMatchSnapshot();
   });
 
+  it('should not include posts from squads that pass public threshold', async () => {
+    await con.getRepository(Post).update({ id: 'yt2' }, { private: false });
+    await con.getRepository(Source).update(
+      { id: 'squad' },
+      {
+        private: false,
+      },
+    );
+    const res = await client.query(QUERY, {
+      variables: { ...variables },
+    });
+    delete res.data.anonymousFeed.pageInfo.endCursor;
+    const ids = res.data.anonymousFeed.edges.map((edge) => edge.node.id);
+    expect(ids).not.toIncludeAllMembers(['yt2']);
+  });
+
   it('should include posts from squads that pass public threshold', async () => {
     await con.getRepository(Post).update({ id: 'yt2' }, { private: false });
     await con.getRepository(Source).update(
