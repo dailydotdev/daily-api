@@ -1,0 +1,13 @@
+[
+{"id":"c580e06b-94c2-4e88-a467-7634d886b004","title":"Languages","enabled":true,"createdAt":"2024-09-18T08:36:28.181462","updatedAt":"2024-09-18T08:36:28.181462","slug":"languages","priority":1},
+{"id":"e3baadcc-7d71-4288-a648-8cbe6d47ca90","title":"Web","enabled":true,"createdAt":"2024-09-18T08:36:28.181462","updatedAt":"2024-09-18T08:36:28.181462","slug":"web","priority":2},
+{"id":"2bdb3029-712e-49cf-b20a-2894049189b9","title":"Mobile","enabled":true,"createdAt":"2024-09-18T08:36:28.181462","updatedAt":"2024-09-18T08:36:28.181462","slug":"mobile","priority":3},
+{"id":"8e7ac99b-f542-417c-8ad1-6c78def97158","title":"DevOps & Cloud","enabled":true,"createdAt":"2024-09-18T08:36:28.181462","updatedAt":"2024-09-18T08:36:28.181462","slug":"devops-cloud","priority":4},
+{"id":"3c6411cd-f206-4993-bdb5-b2b967abf645","title":"AI","enabled":true,"createdAt":"2024-09-18T08:36:28.181462","updatedAt":"2024-09-18T08:36:28.181462","slug":"ai","priority":5},
+{"id":"e9365958-4c5f-427f-b5e6-eaf4b6f9a751","title":"Games","enabled":true,"createdAt":"2024-09-18T08:36:28.181462","updatedAt":"2024-09-18T08:36:28.181462","slug":"games","priority":6},
+{"id":"ef5a2fec-5916-4f38-a440-2c340382897c","title":"DevTools","enabled":true,"createdAt":"2024-09-18T08:36:28.181462","updatedAt":"2024-09-18T08:36:28.181462","slug":"devtools","priority":7},
+{"id":"f1917f7d-2e6a-43b3-982c-1a8c86838ac9","title":"Career","enabled":true,"createdAt":"2024-09-18T08:36:28.181462","updatedAt":"2024-09-18T08:36:28.181462","slug":"career","priority":8},
+{"id":"e26779f2-e8bb-4cdf-9723-b4fe6cbd3354","title":"Open Source","enabled":true,"createdAt":"2024-09-18T08:36:28.181462","updatedAt":"2024-09-18T08:36:28.181462","slug":"open-source","priority":9},
+{"id":"f0662ca3-7ce9-4d16-8a76-debbaf88d8f3","title":"DevRel","enabled":true,"createdAt":"2024-09-18T08:36:28.181462","updatedAt":"2024-09-18T08:36:28.181462","slug":"devrel","priority":10},
+{"id":"62f55486-8a37-4eb7-b837-6ccb84927b32","title":"Fun","enabled":true,"createdAt":"2024-09-18T08:36:28.181462","updatedAt":"2024-09-18T08:36:28.181462","slug":"fun","priority":11}
+]
