@@ -17,7 +17,7 @@ BEGIN
         '{vordr}', 'true', true),         -- set vordr to true
         '{banned}', 'true', true)         -- set banned to true
     WHERE
-      "authorId" = NEW.id;
+      ("authorId" = NEW.id OR "scoutId" = NEW.id);
 
     UPDATE
       comment
@@ -36,7 +36,7 @@ BEGIN
         '{vordr}', 'false', true),        -- set vordr to false
         '{banned}', 'false', true)        -- set banned to false
     WHERE
-      "authorId" = NEW.id;
+      ("authorId" = NEW.id OR "scoutId" = NEW.id);
 
     UPDATE
       comment
