@@ -11,7 +11,6 @@ type RemoteConfigValue = {
 
 class RemoteConfig {
   private gb?: GrowthBook;
-  private readonly configKey = 'api-config';
 
   async init(): Promise<void> {
     if (!process.env.GROWTHBOOK_API_CONFIG_CLIENT_KEY) {
@@ -43,7 +42,10 @@ class RemoteConfig {
       throw new Error('remote config not initialized');
     }
 
-    const result = this.gb.getFeatureValue(this.configKey, null);
+    const result = this.gb.getFeatureValue(
+      process.env.API_CONFIG_FEATURE_KEY,
+      null,
+    );
 
     if (!result) {
       logger.error('failed to get remote config');
