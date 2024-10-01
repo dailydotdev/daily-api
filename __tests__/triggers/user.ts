@@ -1,4 +1,4 @@
-import { DataSource } from 'typeorm';
+import { DataSource, JsonContains } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { saveFixtures } from '../helpers';
 import { badUsersFixture, usersFixture } from '../fixture/user';
@@ -54,6 +54,26 @@ describe('user', () => {
           shortId: 'pvr1',
           url: 'http://pvr1.com',
           canonicalUrl: 'http://pvr1c.com',
+          authorId: '1',
+          flags: { vordr: false },
+        },
+        {
+          ...postsFixture[1],
+          id: 'pvr2',
+          shortId: 'pvr2',
+          url: 'http://pvr2.com',
+          canonicalUrl: 'http://pvr2c.com',
+          authorId: '1',
+          flags: { vordr: false },
+        },
+        {
+          ...postsFixture[2],
+          id: 'pvr3',
+          shortId: 'pvr3',
+          url: 'http://pvr3.com',
+          canonicalUrl: 'http://pvr3c.com',
+          authorId: '1',
+          banned: true,
         },
       ]);
       await saveFixtures(con, Comment, [
@@ -136,6 +156,60 @@ describe('user', () => {
         comments.forEach((comment) => {
           expect(comment.flags.vordr).toEqual(false);
         });
+      });
+    });
+
+    describe('on posts', () => {
+      it('should update all posts the user has made when the vordr flag is set to true', async () => {
+        expect(
+          await con.getRepository(ArticlePost).findBy({
+            authorId: '1',
+            flags: JsonContains({ vordr: true }),
+          }),
+        ).toHaveLength(0);
+
+        await con
+          .getRepository(User)
+          .update({ id: '1' }, { flags: { vordr: true } });
+
+        const posts = await con
+          .getRepository(ArticlePost)
+          .findBy({ authorId: '1', flags: JsonContains({ vordr: true }) });
+
+        expect(posts.length).toBe(3);
+        posts.forEach((post) => {
+          expect(post.banned).toEqual(true);
+          expect(post.flags.vordr).toEqual(true);
+        });
+      });
+
+      it('should update all posts the user has made when the vordr flag is set to false', async () => {
+        expect(
+          await con.getRepository(ArticlePost).findBy({
+            authorId: '1',
+          }),
+        ).toHaveLength(3);
+
+        await con
+          .getRepository(User)
+          .update({ id: 'vordr' }, { flags: { vordr: false } });
+
+        const posts = await con
+          .getRepository(ArticlePost)
+          .findBy({ authorId: '1', flags: JsonContains({ vordr: false }) });
+
+        expect(posts.length).toBe(2);
+        posts.forEach((post) => {
+          expect(post.banned).toEqual(false);
+          expect(post.flags.vordr).toEqual(false);
+        });
+
+        // Check that banned but not vordr posts are not updated
+        expect(
+          await con
+            .getRepository(ArticlePost)
+            .findBy({ id: 'pvr3', banned: true }),
+        ).toHaveLength(1);
       });
     });
   });
