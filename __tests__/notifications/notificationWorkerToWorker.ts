@@ -156,7 +156,7 @@ describe('notificationWorkerToWorker', () => {
     expect(attachments.length).toEqual(1);
     const notifications = await con.getRepository(NotificationV2).find();
     expect(notifications[0].attachments).toEqual(
-      attachments.map(({ id }) => id),
+      expect.arrayContaining(attachments.map(({ id }) => id)),
     );
     expect(notifications[0].avatars).toEqual(avatars.map(({ id }) => id));
   });

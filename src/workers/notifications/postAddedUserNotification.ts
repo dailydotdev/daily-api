@@ -5,7 +5,10 @@ import {
   ContentPreferenceType,
 } from '../../entity/contentPreference/types';
 import { generateTypedNotificationWorker } from './worker';
-import { NotificationType } from '../../notifications/common';
+import {
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../../notifications/common';
 import {
   NotificationPostContext,
   NotificationUserContext,
@@ -14,6 +17,8 @@ import { counters } from '../../telemetry/metrics';
 import { processStream } from '../../common/streaming';
 import { buildPostContext } from './utils';
 import { Post } from '../../entity/posts/Post';
+import { NotificationPreferenceUser } from '../../entity';
+import { Brackets } from 'typeorm';
 
 const sendQueueConcurrency = 10;
 
@@ -52,18 +57,33 @@ export const postAddedUserNotification =
 
       const contentPreferenceQuery = con
         .getRepository(ContentPreference)
-        .createQueryBuilder()
-        .select('"referenceId"')
-        .addSelect('"userId"')
-        .where('"referenceId" IN(:...referencedUserIds)', {
+        .createQueryBuilder('cp')
+        .leftJoin(
+          NotificationPreferenceUser,
+          'np',
+          'np.userId = cp."userId" AND np."notificationType" = :notificationType',
+          {
+            notificationType: NotificationType.UserPostAdded,
+          },
+        )
+        .select('cp."referenceId"')
+        .addSelect('cp."userId"')
+        .where('cp."referenceId" IN(:...referencedUserIds)', {
           referencedUserIds: users.map((user) => user.id),
         })
-        .andWhere('type = :referencedType', {
+        .andWhere('cp.type = :referencedType', {
           referencedType: ContentPreferenceType.User,
         })
-        .andWhere('status = :referenceStatus', {
+        .andWhere('cp.status = :referenceStatus', {
           referenceStatus: ContentPreferenceStatus.Subscribed,
-        });
+        })
+        .andWhere(
+          new Brackets((qb) => {
+            qb.where('np.status != :notificationStatus', {
+              notificationStatus: NotificationPreferenceStatus.Muted,
+            }).orWhere('np.status IS NULL');
+          }),
+        );
       const contentPreferenceStream = await contentPreferenceQuery.stream();
 
       const notificationResult = users.reduce(
