@@ -14,7 +14,7 @@ BEGIN
       post
     SET
       "banned" = TRUE,
-      "flags" = jsonb_set(jsonb_set(jsonb_set(flags,
+      "flags" = jsonb_set(jsonb_set(flags,
         '{vordr}', 'true', true),         -- set vordr to true
         '{banned}', 'true', true)         -- set banned to true
     WHERE
@@ -34,7 +34,7 @@ BEGIN
       post
     SET
       "banned" = FALSE,
-      "flags" = jsonb_set(jsonb_set(jsonb_set(flags,
+      "flags" = jsonb_set(jsonb_set(flags,
         '{vordr}', 'false', true),        -- set vordr to false
         '{banned}', 'false', true)        -- set banned to false
     WHERE
