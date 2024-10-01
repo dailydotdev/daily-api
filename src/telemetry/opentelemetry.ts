@@ -130,7 +130,7 @@ export const tracer = (serviceName: string) => {
     resourceDetectors,
   });
 
-  // @ts-expect-error - types are not generic in dc subscribe
+  // ts-expect-error - types are not generic in dc subscribe
   dc.subscribe(channelName, ({ fastify }: { fastify: FastifyInstance }) => {
     fastify.decorate('tracer', api.trace.getTracer(serviceName));
     fastify.decorateRequest('span', null);
