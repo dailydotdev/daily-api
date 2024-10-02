@@ -31,13 +31,14 @@ export const postAddedUserNotification =
       }
 
       const baseCtx = await buildPostContext(con, data.post.id);
-      const { post } = baseCtx;
-
-      const postEntity = post as Post;
 
       if (!baseCtx) {
         return;
       }
+
+      const { post } = baseCtx;
+
+      const postEntity = post as Post;
 
       const userPromises: Promise<User>[] = [];
 

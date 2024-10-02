@@ -34,7 +34,7 @@ const systemTitle = () => undefined;
 
 export const notificationTitleMap: Record<
   NotificationType,
-  (ctx: NotificationBaseContext) => string | undefined
+  (ctx: never) => string | undefined
 > = {
   community_picks_failed: systemTitle,
   community_picks_succeeded: () =>
@@ -48,7 +48,7 @@ export const notificationTitleMap: Record<
   article_upvote_milestone: (
     ctx: NotificationPostContext & NotificationUpvotersContext,
   ) =>
-    UPVOTE_TITLES[ctx.upvotes] ??
+    UPVOTE_TITLES[ctx.upvotes as keyof typeof UPVOTE_TITLES] ??
     `<b>You rock!</b> Your post <span class="text-theme-color-avocado">earned ${ctx.upvotes} upvotes!</span>`,
   article_report_approved: systemTitle,
   article_analytics: systemTitle,
@@ -64,7 +64,7 @@ export const notificationTitleMap: Record<
   comment_upvote_milestone: (
     ctx: NotificationCommentContext & NotificationUpvotersContext,
   ) =>
-    UPVOTE_TITLES[ctx.upvotes] ??
+    UPVOTE_TITLES[ctx.upvotes as keyof typeof UPVOTE_TITLES] ??
     `<b>You rock!</b> Your comment <span class="text-theme-color-avocado">earned ${ctx.upvotes} upvotes!</span>`,
   squad_post_added: (
     ctx: NotificationPostContext & NotificationDoneByContext,
@@ -117,17 +117,14 @@ export const notificationTitleMap: Record<
 
 export const generateNotificationMap: Record<
   NotificationType,
-  (
-    builder: NotificationBuilder,
-    ctx: NotificationBaseContext,
-  ) => NotificationBuilder
+  (builder: NotificationBuilder, ctx: never) => NotificationBuilder
 > = {
   community_picks_failed: (builder, ctx: NotificationSubmissionContext) =>
     builder.systemNotification().referenceSubmission(ctx.submission),
   community_picks_succeeded: (builder, ctx: NotificationPostContext) =>
     builder
       .icon(NotificationIcon.CommunityPicks)
-      .objectPost(ctx.post, ctx.source, ctx.sharedPost),
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost!),
   community_picks_granted: (builder) =>
     builder
       .referenceSystem()
@@ -137,7 +134,7 @@ export const generateNotificationMap: Record<
   article_picked: (builder, ctx: NotificationPostContext) =>
     builder
       .icon(NotificationIcon.DailyDev)
-      .objectPost(ctx.post, ctx.source, ctx.sharedPost),
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost!),
   article_new_comment: (builder, ctx: NotificationCommenterContext) =>
     builder
       .referenceComment(ctx.comment)
@@ -155,12 +152,12 @@ export const generateNotificationMap: Record<
       .targetPost(ctx.post)
       .avatarSource(ctx.source)
       .uniqueKey(ctx.bookmark.remindAt.toString())
-      .objectPost(ctx.post, ctx.source, ctx.sharedPost),
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost!),
   streak_reset_restore: (builder, ctx: NotificationStreakContext) =>
     builder
       .icon(NotificationIcon.Streak)
       .description('Click here if you wish to restore your streak')
-      .uniqueKey(format(ctx.streak.lastViewAt, 'dd-MM-yyyy'))
+      .uniqueKey(format(ctx.streak.lastViewAt!, 'dd-MM-yyyy'))
       .targetUrl(notificationsLink)
       .referenceStreak(ctx.streak)
       .setTargetUrlParameter([
@@ -171,7 +168,7 @@ export const generateNotificationMap: Record<
     ctx: NotificationPostContext & NotificationUpvotersContext,
   ) =>
     builder
-      .objectPost(ctx.post, ctx.source, ctx.sharedPost)
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost!)
       .upvotes(ctx.upvotes, ctx.upvoters),
   article_report_approved: (builder, ctx: NotificationPostContext) =>
     builder.referencePost(ctx.post).systemNotification(),
@@ -203,8 +200,8 @@ export const generateNotificationMap: Record<
       .referencePost(ctx.post)
       .icon(NotificationIcon.Comment)
       .description(
-        checkHasMention(ctx.post.title ?? '', ctx.doneTo.username)
-          ? ctx.post.title
+        checkHasMention(ctx.post.title ?? '', ctx.doneTo?.username ?? '')
+          ? ctx.post.title!
           : ctx.post.content,
         true,
       )
@@ -232,7 +229,7 @@ export const generateNotificationMap: Record<
   ) =>
     builder
       .icon(NotificationIcon.Bell)
-      .objectPost(ctx.post, ctx.source, ctx.sharedPost)
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost!)
       .avatarManyUsers([ctx.doneBy]),
   squad_member_joined: (
     builder,
@@ -329,7 +326,7 @@ export const generateNotificationMap: Record<
       .avatarManySources(ctx.sources)
       .numTotalAvatars(ctx.total)
       .uniqueKey(ctx.post.metadataChangedAt?.toString()),
-  dev_card_unlocked: (builder, ctx) =>
+  dev_card_unlocked: (builder, ctx: NotificationBaseContext) =>
     builder
       .referenceSystem()
       .icon(NotificationIcon.DevCard)
@@ -345,7 +342,7 @@ export const generateNotificationMap: Record<
     builder
       .icon(NotificationIcon.Bell)
       .avatarSource(ctx.source)
-      .objectPost(ctx.post, ctx.source, ctx.sharedPost),
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost!),
   squad_public_approved: (
     builder: NotificationBuilder,
     ctx: NotificationSquadRequestContext & NotificationSourceContext,
@@ -370,5 +367,5 @@ export const generateNotificationMap: Record<
     builder
       .icon(NotificationIcon.Bell)
       .avatarUser(ctx.user)
-      .objectPost(ctx.post, ctx.source, ctx.sharedPost),
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost!),
 };

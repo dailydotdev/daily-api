@@ -197,7 +197,9 @@ export class NotificationBuilder {
 
   attachmentPost(post: Reference<Post>): NotificationBuilder {
     const type =
-      postTypeToAttachmentType[post.type] ?? NotificationAttachmentType.Post;
+      postTypeToAttachmentType[
+        post.type as keyof typeof postTypeToAttachmentType
+      ] ?? NotificationAttachmentType.Post;
 
     this.attachments.push({
       type,
@@ -299,7 +301,7 @@ export class NotificationBuilder {
     if (source.type === SourceType.Squad && addSquadAvatar) {
       newBuilder = newBuilder.avatarSource(source);
     }
-    if (post.type === PostType.Share) {
+    if (post.type === PostType.Share && sharedPost) {
       const title = post.title?.length ? simplifyComment(post.title) : '';
       newBuilder = newBuilder.description(title).attachmentPost(sharedPost);
     } else {
