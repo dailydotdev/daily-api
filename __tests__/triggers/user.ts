@@ -184,6 +184,11 @@ describe('user', () => {
       });
 
       it('should update all posts the user has made when the vordr flag is set to false', async () => {
+        await con.getRepository(ArticlePost).update(['pvr1', 'pvr2'], {
+          banned: true,
+          flags: { vordr: true },
+        });
+
         expect(
           await con.getRepository(ArticlePost).findBy({
             authorId: '1',
@@ -192,7 +197,7 @@ describe('user', () => {
 
         await con
           .getRepository(User)
-          .update({ id: 'vordr' }, { flags: { vordr: false } });
+          .update({ id: '1' }, { flags: { vordr: false } });
 
         const posts = await con
           .getRepository(ArticlePost)
