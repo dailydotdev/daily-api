@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import type { FastifyInstance, FastifyReply } from 'fastify';
 import type { Message } from '@google-cloud/pubsub';
 
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
@@ -22,6 +22,7 @@ import { gcpDetector } from '@opentelemetry/resource-detector-gcp';
 
 import { isProd } from '../common/utils';
 import {
+  AppVersionRequest,
   channelName,
   getAppVersion,
   SEMATTRS_DAILY_APPS_USER_ID,
@@ -45,13 +46,13 @@ const resourceDetectors = [
 ];
 
 export const addApiSpanLabels = (
-  span: api.Span,
-  req: FastifyRequest,
+  span: api.Span | undefined,
+  req: AppVersionRequest,
   // TODO: see if we want to add some attributes from the response
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   res?: FastifyReply,
 ): void => {
-  span.setAttributes({
+  span?.setAttributes({
     [SEMATTRS_DAILY_APPS_VERSION]: getAppVersion(req),
     [SEMATTRS_DAILY_APPS_USER_ID]: req.userId || req.trackingId || 'unknown',
   });
@@ -66,7 +67,7 @@ export const addPubsubSpanLabels = (
     [ATTR_MESSAGING_SYSTEM]: 'pubsub',
     [ATTR_MESSAGING_DESTINATION_NAME]: subscription,
     [ATTR_MESSAGING_MESSAGE_ID]: message.id,
-    [ATTR_MESSAGING_MESSAGE_BODY_SIZE]: message.data.length,
+    [ATTR_MESSAGING_MESSAGE_BODY_SIZE]: message.data?.length || 0,
   });
 };
 
@@ -80,7 +81,7 @@ const instrumentations = [
   }),
   new FastifyInstrumentation({
     requestHook: (span, info) => {
-      addApiSpanLabels(span, info.request as FastifyRequest);
+      addApiSpanLabels(span, info.request);
     },
   }),
   new GraphQLInstrumentation({
@@ -129,6 +130,7 @@ export const tracer = (serviceName: string) => {
     resourceDetectors,
   });
 
+  // ts-expect-error - types are not generic in dc subscribe
   dc.subscribe(channelName, ({ fastify }: { fastify: FastifyInstance }) => {
     fastify.decorate('tracer', api.trace.getTracer(serviceName));
     fastify.decorateRequest('span', null);
@@ -138,7 +140,7 @@ export const tracer = (serviceName: string) => {
     });
 
     // Decorate the main span with some metadata
-    fastify.addHook('onResponse', async (req, res) => {
+    fastify.addHook('onResponse', async (req: AppVersionRequest, res) => {
       if (req?.span?.isRecording()) {
         addApiSpanLabels(req.span, req, res);
       }
@@ -160,14 +162,16 @@ export const tracer = (serviceName: string) => {
 export const runInSpan = async <T>(
   name: string,
   func: (span: api.Span) => Promise<T>,
-  options?: api.SpanOptions,
+  options: api.SpanOptions = {},
 ): Promise<T> =>
   api.trace
     .getTracer('runInSpan')
     .startActiveSpan(name, options, async (span) => {
       try {
         return await func(span);
-      } catch (err) {
+      } catch (originalError) {
+        const err = originalError as Error;
+
         span.setStatus({
           code: api.SpanStatusCode.ERROR,
           message: err?.message,
@@ -176,17 +180,19 @@ export const runInSpan = async <T>(
       } finally {
         span.end();
       }
-    });
+    }) as T;
 
 export const runInSpanSync = <T>(
   name: string,
   func: (span: api.Span) => T,
-  options?: api.SpanOptions,
+  options: api.SpanOptions = {},
 ): T =>
   api.trace.getTracer('runInSpan').startActiveSpan(name, options, (span) => {
     try {
       return func(span);
-    } catch (err) {
+    } catch (originalError) {
+      const err = originalError as Error;
+
       span.setStatus({
         code: api.SpanStatusCode.ERROR,
         message: err?.message,
@@ -195,7 +201,7 @@ export const runInSpanSync = <T>(
     } finally {
       span.end();
     }
-  });
+  }) as T;
 
 export const runInRootSpan = async <T>(
   name: string,
