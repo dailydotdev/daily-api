@@ -41,7 +41,7 @@ BEGIN
         '{banned}', 'false', true)        -- set banned to false
     WHERE
       ("authorId" = NEW.id OR "scoutId" = NEW.id)
-      AND (flags->>'vordr')::boolean = true;
+      AND (flags->'vordr')::boolean = true;
 
     UPDATE
       comment
