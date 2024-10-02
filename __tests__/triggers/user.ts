@@ -216,6 +216,55 @@ describe('user', () => {
             .findBy({ id: 'pvr3', banned: true }),
         ).toHaveLength(1);
       });
+
+      it('should not update banned posts the user has made when the vordr flag is set to false', async () => {
+        await con
+          .getRepository(ArticlePost)
+          .update({ id: 'pvr3' }, { authorId: 'vordr' });
+
+        await con
+          .getRepository(ArticlePost)
+          .update(
+            { id: 'pvr2' },
+            { authorId: 'vordr', banned: true, flags: { vordr: true } },
+          );
+
+        expect(
+          (
+            await con.getRepository(ArticlePost).findOneByOrFail({
+              id: 'pvr2',
+            })
+          ).banned,
+        ).toEqual(true);
+
+        expect(
+          (
+            await con.getRepository(ArticlePost).findOneByOrFail({
+              id: 'pvr3',
+            })
+          ).banned,
+        ).toEqual(true);
+
+        await con
+          .getRepository(User)
+          .update({ id: 'vordr' }, { flags: { vordr: false } });
+
+        expect(
+          (
+            await con.getRepository(ArticlePost).findOneByOrFail({
+              id: 'pvr2',
+            })
+          ).banned,
+        ).toEqual(false);
+
+        expect(
+          (
+            await con.getRepository(ArticlePost).findOneByOrFail({
+              id: 'pvr3',
+            })
+          ).banned,
+        ).toEqual(true);
+      });
     });
   });
 });
