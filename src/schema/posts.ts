@@ -1109,7 +1109,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const partialPost = await ctx.con.getRepository(Post).findOneOrFail({
         select: ['id', 'sourceId', 'private'],
         relations: ['source'],
-        where: [{ id }, { slug: id }, { visible: true }],
+        where: [
+          { id, visible: true },
+          { slug: id, visible: true },
+        ],
       });
       const postSource = await partialPost.source;
 
