@@ -585,9 +585,12 @@ export const checkIfUserIsTeamMember = async (
   con: DataSource,
   userId: string,
 ): Promise<boolean> => {
-  const isTeamMember = await con.getRepository(Feature).findOneBy({
-    feature: FeatureType.Team,
-    userId,
+  const isTeamMember = await con.getRepository(Feature).findOne({
+    select: ['value'],
+    where: {
+      feature: FeatureType.Team,
+      userId,
+    },
   });
 
   return isTeamMember?.value === 1;
