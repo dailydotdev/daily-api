@@ -259,7 +259,7 @@ export const applyFeedWhere = (
   allowPrivatePosts = true,
   allowSquadPosts = true,
   removeNonPublicThresholdSquads = true,
-  sourceTypes: string[],
+  sourceTypes: string[] = [],
 ): SelectQueryBuilder<Post> => {
   let newBuilder = builder.andWhere(`${alias}."type" in (:...postTypes)`, {
     postTypes,
