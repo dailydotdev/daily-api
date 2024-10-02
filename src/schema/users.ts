@@ -1373,6 +1373,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           total: 0,
           userId: id,
           weekStart: DayOfWeek.Monday,
+          current: 0,
         };
       }
 
@@ -2094,7 +2095,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const streak = await getUserStreakQuery(userId, ctx, info);
       const hasNoStreakOrCurrentIsGreaterThanOne =
-        !streak || streak.current! > 1;
+        !streak || streak.current > 1;
       if (hasNoStreakOrCurrentIsGreaterThanOne) {
         throw new ValidationError('Time to recover streak has passed');
       }
@@ -2125,7 +2126,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         amount: recoverCost,
       };
 
-      const currentStreak = oldStreakLength + streak.current!;
+      const currentStreak = oldStreakLength + streak.current;
       const maxStreak = Math.max(currentStreak, streak.max ?? 0);
 
       await ctx.con.transaction(async (manager) => {
