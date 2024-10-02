@@ -1156,7 +1156,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               `("${builder.alias}"."canonicalUrl" = :url OR "${builder.alias}"."url" = :url) AND "${builder.alias}"."deleted" = false`,
               { url: standardizedUrl },
             )
-            .andWhere(`"${builder.alias}"."visible" = truez`)
+            .andWhere(`"${builder.alias}"."visible" = true`)
             .limit(1),
         }),
         true,
