@@ -1,7 +1,6 @@
 import {
   baseFeedConfig,
   DynamicConfig,
-  FeedConfig,
   FeedConfigGenerator,
   FeedConfigName,
   FeedResponse,
