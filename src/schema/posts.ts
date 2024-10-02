@@ -1071,7 +1071,7 @@ const getPostById = async (
   const res = await graphorm.query<GQLPost>(ctx, info, (builder) => ({
     ...builder,
     queryBuilder: builder.queryBuilder.where(
-      `"${builder.alias}"."id" = :id AND "${builder.alias}"."deleted" = false`,
+      `"${builder.alias}"."id" = :id AND "${builder.alias}"."deleted" = false AND "${builder.alias}"."visible" = true`,
       { id },
     ),
   }));
@@ -1153,7 +1153,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           ...builder,
           queryBuilder: builder.queryBuilder
             .where(
-              `("${builder.alias}"."canonicalUrl" = :url OR "${builder.alias}"."url" = :url) AND "${builder.alias}"."deleted" = false`,
+              `("${builder.alias}"."canonicalUrl" = :url OR "${builder.alias}"."url" = :url) AND "${builder.alias}"."deleted" = false AND "${builder.alias}"."visible" = true`,
               { url: standardizedUrl },
             )
             .limit(1),

@@ -869,6 +869,29 @@ describe('query post', () => {
     );
   });
 
+  it('should throw not found when post is not visible', async () => {
+    await saveFixtures(con, ArticlePost, [
+      {
+        id: 'pnotvisible',
+        shortId: 'pnotvisible',
+        title: 'pnotvisible',
+        url: 'http://p8.com',
+        score: 0,
+        sourceId: 'a',
+        createdAt: new Date('2021-09-22T07:15:51.247Z'),
+        tagsStr: 'javascript,webdev',
+        deleted: false,
+        visible: false,
+      },
+    ]);
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY('pnotvisible') },
+      'NOT_FOUND',
+    );
+  });
+
   it('should throw error when user cannot access the post', async () => {
     loggedUser = '1';
     await con.getRepository(Source).update({ id: 'a' }, { private: true });
@@ -978,6 +1001,30 @@ describe('query postByUrl', () => {
         createdAt: new Date('2021-09-22T07:15:51.247Z'),
         tagsStr: 'javascript,webdev',
         deleted: true,
+      },
+    ]);
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY('http://p8.com') },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should throw not found when post is not visible', async () => {
+    await saveFixtures(con, ArticlePost, [
+      {
+        id: 'pnotvisible',
+        shortId: 'pnotvisible',
+        title: 'pnotvisible',
+        url: 'http://p8.com',
+        canonicalUrl: 'http://p8.com',
+        score: 0,
+        sourceId: 'a',
+        createdAt: new Date('2021-09-22T07:15:51.247Z'),
+        tagsStr: 'javascript,webdev',
+        deleted: false,
+        visible: false,
       },
     ]);
 
