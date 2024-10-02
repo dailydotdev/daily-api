@@ -14,7 +14,6 @@ import {
   SquadPublicRequest,
   Submission,
   User,
-  UserStreak,
 } from '../entity';
 import {
   getDiscussionLink,
@@ -23,7 +22,11 @@ import {
   pickImageUrl,
 } from '../common';
 import { markdownToTxt } from 'markdown-to-txt';
-import { NotificationBundleV2, Reference } from './types';
+import {
+  NotificationBundleV2,
+  NotificationStreakContext,
+  Reference,
+} from './types';
 import { NotificationIcon } from './icons';
 import { SourceMemberRoles } from '../roles';
 import { NotificationType } from './common';
@@ -104,7 +107,9 @@ export class NotificationBuilder {
     });
   }
 
-  referenceStreak(streak: Reference<UserStreak>): NotificationBuilder {
+  referenceStreak(
+    streak: NotificationStreakContext['streak'],
+  ): NotificationBuilder {
     return this.enrichNotification({
       referenceId: streak.userId,
       referenceType: 'streak',

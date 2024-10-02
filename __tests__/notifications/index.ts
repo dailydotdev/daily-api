@@ -316,7 +316,10 @@ describe('generateNotification', () => {
       currentStreak: 10,
     } as Reference<UserStreak>;
     const ctx: NotificationStreakContext = {
-      streak,
+      streak: {
+        ...streak,
+        lastViewAt: lastViewAt.getTime(),
+      },
       userIds: [userId],
     };
     const title = `<b>Oh no! Your 10 day streak has been broken</b>`;
