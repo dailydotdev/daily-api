@@ -1109,7 +1109,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const partialPost = await ctx.con.getRepository(Post).findOneOrFail({
         select: ['id', 'sourceId', 'private'],
         relations: ['source'],
-        where: [{ id }, { slug: id }],
+        where: [{ id }, { slug: id }, { visible: true }],
       });
       const postSource = await partialPost.source;
 
@@ -1156,6 +1156,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               `("${builder.alias}"."canonicalUrl" = :url OR "${builder.alias}"."url" = :url) AND "${builder.alias}"."deleted" = false`,
               { url: standardizedUrl },
             )
+            .andWhere(`"${builder.alias}"."visible" = truez`)
             .limit(1),
         }),
         true,
