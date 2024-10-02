@@ -53,6 +53,7 @@ const viewsToRefresh = [
 const start = async (): Promise<void> => {
   const con = await createOrGetConnection();
   await importEntity(con, 'AdvancedSettings');
+  await importEntity(con, 'SourceCategory');
   await importEntity(con, 'Source');
   await importEntity(con, 'Post');
   await importEntity(con, 'YouTubePost');
