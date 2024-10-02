@@ -1,15 +1,13 @@
 import { DataSource } from 'typeorm';
-import {
-  ArticlePost,
-  Feature,
-  FeatureType,
-  Submission,
-  User,
-} from './../entity';
+import { ArticlePost, Submission, User } from './../entity';
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, Context } from '../Context';
-import { isValidHttpUrl, standardizeURL } from '../common';
+import {
+  checkIfUserIsTeamMember,
+  isValidHttpUrl,
+  standardizeURL,
+} from '../common';
 import { getPostByUrl, GQLPost } from './posts';
 import { SubmissionFailErrorMessage } from '../errors';
 import { checkWithVordr, VordrFilterType } from '../common/vordr';
@@ -136,9 +134,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<GQLSubmitArticleResponse> => {
       const [user, isTeamMember] = await Promise.all([
         ctx.getRepository(User).findOneByOrFail({ id: ctx.userId }),
-        ctx.con
-          .getRepository(Feature)
-          .findOneBy({ feature: FeatureType.Team, userId: ctx.userId }),
+        await checkIfUserIsTeamMember(ctx.con, ctx.userId),
       ]);
 
       const submissionRepo = ctx.con.getRepository(Submission);

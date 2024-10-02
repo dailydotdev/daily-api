@@ -1,7 +1,5 @@
 import {
   BookmarkList,
-  Feature,
-  FeatureType,
   Feed,
   FeedAdvancedSettings,
   FeedFlagsPublic,
@@ -23,6 +21,7 @@ import {
   AnonymousFeedFilters,
   applyFeedWhere,
   base64,
+  checkIfUserIsTeamMember,
   configuredFeedBuilder,
   FeedArgs,
   feedResolver,
@@ -1412,10 +1411,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         builder.limit(limit).offset(offset),
       {
         fetchQueryParams: async (ctx): Promise<void> => {
-          const isTeamMember = await ctx.con
-            .getRepository(Feature)
-            .findOneByOrFail({ feature: FeatureType.Team, userId: ctx.userId });
-          if (!isTeamMember || isTeamMember.value !== 1) {
+          const isTeamMember = await checkIfUserIsTeamMember(
+            ctx.con,
+            ctx.userId,
+          );
+
+          if (!isTeamMember) {
             throw new ForbiddenError(
               'Access denied! You need to be authorized to perform this action!',
             );

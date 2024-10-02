@@ -579,6 +579,18 @@ export const shouldAllowRestore = async (
   });
 };
 
+export const checkIfUserIsTeamMember = async (
+  con: DataSource,
+  userId: string,
+): Promise<boolean> => {
+  const isTeamMember = await con.getRepository(Feature).findOneBy({
+    feature: FeatureType.Team,
+    userId,
+  });
+
+  return isTeamMember?.value === 1;
+};
+
 export const roadmapShSocialUrlMatch =
   /^(?:(?:https:\/\/)?(?:www\.)?roadmap\.sh\/u\/)?(?<value>[\w-]{2,})\/?$/;
 

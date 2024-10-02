@@ -37,7 +37,7 @@ import {
   ATTR_MESSAGING_SYSTEM,
 } from '@opentelemetry/semantic-conventions/incubating';
 import createOrGetConnection from '../db';
-import { Feature, FeatureType } from '../entity';
+import { checkIfUserIsTeamMember } from '../common';
 
 const resourceDetectors = [
   resources.envDetectorSync,
@@ -146,12 +146,9 @@ export const tracer = (serviceName: string) => {
     fastify.addHook('preHandler', async (req) => {
       if (req?.span?.isRecording()) {
         const con = await createOrGetConnection();
-        const isTeamMember = await con.getRepository(Feature).findOneBy({
-          feature: FeatureType.Team,
-          userId: req.userId || req.trackingId,
-        });
+        const isTeamMember = await checkIfUserIsTeamMember(con, req.userId);
 
-        req.span?.setAttribute(SEMATTRS_DAILY_STAFF, isTeamMember?.value === 1);
+        req.span?.setAttribute(SEMATTRS_DAILY_STAFF, isTeamMember);
       }
     });
 
