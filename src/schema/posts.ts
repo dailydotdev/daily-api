@@ -82,6 +82,7 @@ import {
 import { GraphQLResolveInfo } from 'graphql';
 import { Roles } from '../roles';
 import { markdown, saveMentions } from '../common/markdown';
+// @ts-expect-error - no types
 import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { insertOrIgnoreAction } from './actions';
 import { generateShortId, generateUUID } from '../ids';

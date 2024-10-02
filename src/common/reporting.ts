@@ -13,7 +13,7 @@ import {
   sourceReportReasonsMap,
 } from '../entity/common';
 import { ValidationError } from 'apollo-server-errors';
-import { Context } from '../Context';
+import { AuthContext } from '../Context';
 import { SourceReport } from '../entity/sources/SourceReport';
 import { ensureSourcePermissions } from '../schema/sources';
 import { CommentReport } from '../entity/CommentReport';
@@ -54,7 +54,7 @@ interface BaseReportArgs {
   id: string;
   reason: ReportReason;
   comment?: string;
-  ctx: Context;
+  ctx: AuthContext;
 }
 
 interface PostReportArgs extends BaseReportArgs {

@@ -41,7 +41,7 @@ export class FeedGenerator {
     const userId = opts.user_id;
     return this.client.fetchFeed(
       ctx,
-      this.feedId ?? userId,
+      this.feedId ?? userId!,
       config,
       extraMetadata,
     );

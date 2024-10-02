@@ -478,7 +478,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       searchQuery
         .orderBy('u.reputation', 'DESC')
         .andWhere(whereVordrFilter('u'))
-        .limit(getSearchLimit({ limit: Math.max(limit, 10) }));
+        .limit(getSearchLimit({ limit: Math.max(limit || 0, 10) }));
       const hits = await searchQuery.getRawMany();
       return {
         query,

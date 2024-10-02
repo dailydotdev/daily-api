@@ -113,7 +113,9 @@ export class GarmrService implements IGarmrService {
         minimumRps: breakerOpts.minimumRps ?? 5,
       }),
     });
-    circuitBreakerPolicy.onBreak((event: FailureReason<Error>) => {
+    circuitBreakerPolicy.onBreak((originalEvent) => {
+      const event = originalEvent as FailureReason<Error>;
+
       logger.warn(
         {
           ...commonLoggerData,

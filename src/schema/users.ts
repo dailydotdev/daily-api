@@ -36,6 +36,7 @@ import {
   ValidationError,
 } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
+// @ts-expect-error - no types
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
@@ -168,7 +169,7 @@ export interface GQLUser {
   readme?: string;
   readmeHtml?: string;
   experienceLevel?: string | null;
-  language?: ContentLanguage;
+  language?: ContentLanguage | null;
 }
 
 export interface GQLView {
@@ -1146,7 +1147,11 @@ const getUserStreakQuery = async (
   }));
 };
 
-const getUserCompanies = async (_, ctx: Context, info: GraphQLResolveInfo) => {
+const getUserCompanies = async (
+  _: unknown,
+  ctx: Context,
+  info: GraphQLResolveInfo,
+) => {
   return await graphorm.query<GQLUserCompany>(
     ctx,
     info,
@@ -1386,7 +1391,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }),
         await getRestoreStreakCache({ userId }),
       ]);
-      const timeForRecoveryPassed = streak.currentStreak > 1;
+      const timeForRecoveryPassed = !!streak && streak.currentStreak > 1;
 
       if (!oldStreakLength || timeForRecoveryPassed) {
         return {
@@ -1904,7 +1909,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('We can only verify unique company domains');
       }
 
-      const company = await ctx.con.getRepository(Company).findOneBy({
+      const company = await ctx.con.getRepository(Company).findOneByOrFail({
         domains: ArrayContains([domain]),
       });
 
@@ -1934,7 +1939,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           email,
           code,
           userId: ctx.userId,
-          companyId: company?.id ?? null,
+          companyId: company.id,
         });
       }
 
@@ -1985,16 +1990,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const updatedRecord = { ...userCompany, verified: true };
       await ctx.con.getRepository(UserCompany).save(updatedRecord);
 
-      return await graphorm.queryOne<GQLUserCompany>(ctx, info, (builder) => {
-        builder.queryBuilder = builder.queryBuilder
-          .andWhere(`${builder.alias}."userId" = :userId`, {
-            userId: ctx.userId,
-          })
-          .andWhere(`${builder.alias}."email" = :email`, { email })
-          .andWhere(`${builder.alias}."verified" = true`);
+      return await graphorm.queryOneOrFail<GQLUserCompany>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .andWhere(`${builder.alias}."userId" = :userId`, {
+              userId: ctx.userId,
+            })
+            .andWhere(`${builder.alias}."email" = :email`, { email })
+            .andWhere(`${builder.alias}."verified" = true`);
 
-        return builder;
-      });
+          return builder;
+        },
+      );
     },
     clearUserMarketingCta: async (
       _,
@@ -2085,7 +2094,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const streak = await getUserStreakQuery(userId, ctx, info);
       const hasNoStreakOrCurrentIsGreaterThanOne =
-        !streak || streak.current > 1;
+        !streak || streak.current! > 1;
       if (hasNoStreakOrCurrentIsGreaterThanOne) {
         throw new ValidationError('Time to recover streak has passed');
       }
@@ -2116,7 +2125,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         amount: recoverCost,
       };
 
-      const currentStreak = oldStreakLength + streak.current;
+      const currentStreak = oldStreakLength + streak.current!;
       const maxStreak = Math.max(currentStreak, streak.max ?? 0);
 
       await ctx.con.transaction(async (manager) => {

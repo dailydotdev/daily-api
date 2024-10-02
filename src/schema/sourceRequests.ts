@@ -23,6 +23,7 @@ import {
 } from '../entity';
 import { getRelayNodeInfo, uploadLogo } from '../common';
 import { GraphQLResolveInfo } from 'graphql';
+// @ts-expect-error - no types
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { GQLSubmissionAvailability, hasSubmissionAccess } from './submissions';
 import {

@@ -42,7 +42,9 @@ export const getDescribeOrError = async (
 ): Promise<WorkflowExecutionDescription | undefined> => {
   try {
     return await handle.describe();
-  } catch (error) {
+  } catch (originalError) {
+    const error = originalError as Error;
+
     if (error.name === TemporalError.NotFound) {
       return;
     }
@@ -56,5 +58,5 @@ export const getWorkflowDescription = async (
 ): Promise<WorkflowExecutionDescription | undefined> => {
   const handle = await getWorkflowHandle(workflowId);
 
-  return getDescribeOrError(handle);
+  return getDescribeOrError(handle as WorkflowHandle);
 };

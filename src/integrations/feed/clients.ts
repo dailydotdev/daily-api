@@ -1,4 +1,4 @@
-import { FeedResponse, IFeedClient } from './types';
+import { FeedConfig, FeedResponse, IFeedClient } from './types';
 import { RequestInit } from 'node-fetch';
 import { fetchOptions as globalFetchOptions } from '../../http';
 import { fetchParse } from '../retry';
@@ -40,10 +40,10 @@ export class FeedClient implements IFeedClient, IGarmrClient {
   }
 
   async fetchFeed(
-    ctx,
-    feedId,
-    config,
-    extraMetadata: GenericMetadata = undefined,
+    ctx: unknown,
+    feedId: string,
+    config: FeedConfig,
+    extraMetadata?: GenericMetadata,
   ): Promise<FeedResponse> {
     const res = await this.garmr.execute(() => {
       return fetchParse<RawFeedServiceResponse>(this.url, {

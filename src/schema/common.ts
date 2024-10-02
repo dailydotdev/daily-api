@@ -7,6 +7,7 @@ import {
   offsetToCursor,
 } from 'graphql-relay';
 import { GraphQLResolveInfo } from 'graphql';
+// @ts-expect-error - no types
 import GraphQLUpload from 'graphql-upload/GraphQLUpload.js';
 import { GraphQLDateTime } from 'graphql-scalars';
 

@@ -13,7 +13,7 @@ export type GQLUserLeaderboard = {
 
 export type GQLCompanyLeaderboard = {
   score: number;
-  company: GQLCompany | Promise<GQLCompany>;
+  company: Pick<GQLCompany, 'name' | 'image'>;
 };
 
 export const typeDefs = /* GraphQL */ `
@@ -209,7 +209,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args,
       ctx,
     ): Promise<GQLCompanyLeaderboard[]> => {
-      const companies = await ctx.con
+      const companies: {
+        companyId: string;
+        name: string;
+        image: string;
+        count: number;
+      }[] = await ctx.con
         .getRepository(UserCompany)
         .query(
           `SELECT "companyId", "company"."name", "company"."image", count("company"."id") from user_company LEFT JOIN company ON "companyId" = "company"."id" WHERE "companyId" != '' AND "companyId" != 'dailydev'  GROUP BY "companyId", "name", "image" ORDER BY count DESC LIMIT $1`,
