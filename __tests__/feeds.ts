@@ -2413,6 +2413,26 @@ describe('function feedToFilters', () => {
     expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
   });
 
+  it('should return filters with blocked source types', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, User, [usersFixture[0]]);
+    await con.getRepository(AdvancedSettings).save({
+      id: 1,
+      title: 'test',
+      group: 'source_types',
+      options: { type: 'squad' },
+      description: '',
+      defaultEnabledState: true,
+    });
+    await con.getRepository(Feed).save({ id: '1', userId: '1' });
+    await con.getRepository(FeedAdvancedSettings).save({
+      feedId: '1',
+      advancedSettingsId: 1,
+      enabled: false,
+    });
+    expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
+  });
+
   it('should not return source in sourceIds if member set hideFeedPosts to true', async () => {
     loggedUser = '1';
     await con.getRepository(User).save(usersFixture[0]);
