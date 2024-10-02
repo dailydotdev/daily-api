@@ -26,7 +26,7 @@ const verifyCIOSignature = (
 
   const hmac = createHmac('sha256', webhookSigningSecret);
   hmac.update(`v0:${timestamp}:`);
-  hmac.update(req.rawBody);
+  hmac.update(req.rawBody!);
 
   const hash = hmac.digest();
   if (!timingSafeEqual(hash, Buffer.from(signature, 'hex'))) {
@@ -82,6 +82,7 @@ async function trackCioEvent(payload: ReportingEvent): Promise<void> {
   const dupPayload = { ...payload, data: { ...payload.data } };
   const userId = dupPayload.data.identifiers.id;
   // Delete personal data
+  // ts-expect-error - we are deleting the personal data
   delete dupPayload.data.identifiers;
   delete dupPayload.data.recipient;
 
@@ -102,7 +103,7 @@ async function trackCioEvent(payload: ReportingEvent): Promise<void> {
  * Validate the required fields in the notification payload
  */
 const validateNotificationPayload = (payload: NotificationPayload): boolean => {
-  return (
+  return !!(
     payload &&
     payload?.notification &&
     payload?.notification?.title &&
@@ -131,7 +132,7 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
         },
         handler: async (req, res) => {
           try {
-            const { userId, marketingCtaId } = req.body;
+            const { userId, marketingCtaId } = req.body as MarketingCtaPayload;
 
             const con = await createOrGetConnection();
             await con.getRepository(UserMarketingCta).upsert(
@@ -158,7 +159,7 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
         },
         handler: async (req, res) => {
           try {
-            const { userId, marketingCtaId } = req.body;
+            const { userId, marketingCtaId } = req.body as MarketingCtaPayload;
 
             const con = await createOrGetConnection();
             await con.getRepository(UserMarketingCta).delete({
@@ -191,7 +192,7 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
       }
 
       try {
-        const { userId, postId } = req.body;
+        const { userId, postId } = req.body as PromotedPostPayload;
 
         const validUntil = addDays(new Date(), 7);
 
@@ -220,8 +221,8 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
         return res.status(403).send({ error: 'Invalid signature' });
       }
 
-      const payload = req.body;
-      if (!validateNotificationPayload(req.body)) {
+      const payload = req.body as NotificationPayload;
+      if (!validateNotificationPayload(req.body!)) {
         return res.status(400).send({ success: false });
       }
 
@@ -252,7 +253,7 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
         return res.status(403).send({ error: 'Invalid signature' });
       }
 
-      const payload = req.body;
+      const payload = req.body as ReportingEvent;
 
       if (subscriptionMetrics.includes(payload.metric)) {
         pushToRedisList(

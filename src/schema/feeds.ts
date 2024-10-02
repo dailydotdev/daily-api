@@ -1140,6 +1140,7 @@ const anonymousFeedResolverV1: IFieldResolver<
     anonymousFeedBuilder(ctx, filters, builder, alias),
   feedPageGenerator,
   applyFeedPaging,
+  { allowPrivatePosts: false },
 );
 
 const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
@@ -1170,6 +1171,7 @@ const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
 
         return feedToFilters(ctx.con, feedId, ctx.userId);
       },
+      allowPrivatePosts: false,
     },
   );
 
@@ -1203,6 +1205,8 @@ const feedResolverCursor = feedResolver<
         ...(args?.refresh && { refresh: true }),
       }),
     warnOnPartialFirstPage: true,
+    // Feed service should take care of this
+    removeNonPublicThresholdSquads: false,
   },
 );
 
@@ -1449,6 +1453,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       {
         removeHiddenPosts: true,
         removeBannedPosts: false,
+        removeNonPublicThresholdSquads: false,
         fetchQueryParams: async (
           ctx,
           { source: sourceId }: SourceFeedArgs,
@@ -1462,7 +1467,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         tagFeedBuilder(ctx, tag, builder, alias),
       feedPageGenerator,
       applyFeedPaging,
-      { allowPrivateSources: false },
+      { allowPrivatePosts: false },
     ),
     keywordFeed: feedResolver(
       (ctx, { keyword }: KeywordFeedArgs, builder, alias) =>
@@ -1471,7 +1476,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ),
       feedPageGenerator,
       applyFeedPaging,
-      { allowPrivateSources: false },
+      { allowPrivatePosts: false },
     ),
     feedSettings: (
       source,
@@ -1533,7 +1538,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       {
         removeHiddenPosts: false,
         removeBannedPosts: false,
-        allowPrivateSources: false,
+        removeNonPublicThresholdSquads: false,
+        allowPrivatePosts: false,
       },
     ),
     userUpvotedFeed: feedResolver(
@@ -1551,7 +1557,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       {
         removeHiddenPosts: false,
         removeBannedPosts: false,
-        allowPrivateSources: false,
+        removeNonPublicThresholdSquads: false,
+        allowPrivatePosts: false,
       },
     ),
     mostUpvotedFeed: feedResolver(
@@ -1592,7 +1599,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         builder.limit(limit).offset(offset),
       {
         removeHiddenPosts: true,
-        allowPrivateSources: false,
+        allowPrivatePosts: false,
         allowSquadPosts: false,
       },
     ),
@@ -1629,7 +1636,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         builder.limit(limit).offset(offset),
       {
         removeHiddenPosts: true,
-        allowPrivateSources: false,
+        allowPrivatePosts: false,
         allowSquadPosts: false,
       },
     ),

@@ -137,6 +137,7 @@ export const postsFixture: DeepPartial<ArticlePost | SharePost>[] = [
     type: PostType.Article,
     origin: PostOrigin.Squad,
     yggdrasilId: 'd1053f05-4d41-4fc7-885c-c0f7c841a7b6',
+    private: true,
   },
 ];
 

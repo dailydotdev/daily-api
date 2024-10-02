@@ -5,6 +5,7 @@ import createOrGetConnection from '../db';
 import { retryFetch } from '../integrations/retry';
 import { getDevCardDataV1 } from '../common/devcard';
 import { generateDevCard } from '../templates/devcard';
+import { TypeORMQueryFailedError } from '../errors';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get<{ Params: { id: string } }>(
@@ -23,13 +24,13 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         const { user, articlesRead, tags, sourcesLogos, rank } =
           await getDevCardDataV1(devCard.userId, con);
         const svgString = generateDevCard({
-          username: user.username,
+          username: user.username!,
           profileImage: user.image,
           articlesRead,
           tags,
           sourcesLogos,
           readingRank: rank.currentRank,
-          backgroundImage: devCard.background,
+          backgroundImage: devCard.background!,
         });
         if (format === 'png') {
           const response = await retryFetch(
@@ -41,7 +42,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             },
           );
           return res
-            .type(response.headers.get('content-type'))
+            .type(response.headers.get('content-type')!)
             .header('cross-origin-opener-policy', 'cross-origin')
             .header('cross-origin-resource-policy', 'cross-origin')
             .header('cache-control', 'public, max-age=3600, s-maxage=3600')
@@ -53,7 +54,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           .header('cross-origin-resource-policy', 'cross-origin')
           .header('cache-control', 'public, max-age=3600, s-maxage=3600')
           .send(svgString);
-      } catch (err) {
+      } catch (originalError) {
+        const err = originalError as TypeORMQueryFailedError;
+
         if (err.code === '22P02') {
           return res.status(404).send();
         }
@@ -120,12 +123,14 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           },
         );
         return res
-          .type(response.headers.get('content-type'))
+          .type(response.headers.get('content-type')!)
           .header('cross-origin-opener-policy', 'cross-origin')
           .header('cross-origin-resource-policy', 'cross-origin')
           .header('cache-control', 'public, max-age=3600, s-maxage=3600')
           .send(await response.buffer());
-      } catch (err) {
+      } catch (originalError) {
+        const err = originalError as TypeORMQueryFailedError;
+
         if (err.code === '22P02') {
           return res.status(404).send();
         }

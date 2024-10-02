@@ -115,7 +115,8 @@ const incrementReadingStreak = async (
     );
 
     // milestones are currently defined on fibonacci sequence
-    const showStreakMilestone = isFibonacci(newCurrentStreak);
+    const showStreakMilestone =
+      isFibonacci(newCurrentStreak) && newCurrentStreak > 1;
     await manager.getRepository(Alerts).save({
       userId,
       showStreakMilestone,

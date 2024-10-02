@@ -24,7 +24,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       const post =
         await q.getRawOne<Pick<ArticlePost, 'id' | 'url' | 'tagsStr'>>();
 
-      if (!post) {
+      if (!post?.url) {
         return res.status(404).send();
       }
       const url = new URL(post.url);

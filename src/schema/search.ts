@@ -269,7 +269,7 @@ const meiliSearchResolver = feedResolver(
   {
     removeHiddenPosts: true,
     removeBannedPosts: false,
-    allowPrivateSources: false,
+    allowPrivatePosts: false,
   },
 );
 
@@ -440,14 +440,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           hits: [],
         };
       }
-
-      ctx.log.info(
-        {
-          query,
-        },
-        'Searching user suggestions',
-      );
-
       const searchQuery = ctx.con
         .createQueryBuilder()
         .select(`id, name as title, username as subtitle, image`)

@@ -14,6 +14,7 @@ import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
 import { logger } from '../logger';
 import {
   channelName,
+  AppVersionRequest,
   CounterOptions,
   getAppVersion,
   SEMATTRS_DAILY_APPS_VERSION,
@@ -115,6 +116,7 @@ const counterMap = {
       description: 'How many times a request has been retried',
     },
   },
+  temporal: {},
 };
 
 export const counters: Partial<{
@@ -123,7 +125,7 @@ export const counters: Partial<{
   }>;
 }> = {};
 
-export const startMetrics = (serviceName: string): void => {
+export const startMetrics = (serviceName: keyof typeof counterMap): void => {
   if (process.env.METRICS_ENABLED !== 'true') {
     return;
   }
@@ -147,6 +149,7 @@ export const startMetrics = (serviceName: string): void => {
   const meterProvider = new metrics.MeterProvider({ resource, readers });
   api.metrics.setGlobalMeterProvider(meterProvider);
 
+  // ts-expect-error - types are not generic in dc subscribe
   dc.subscribe(channelName, ({ fastify }: { fastify: FastifyInstance }) => {
     // Decorate the main span with some metadata
     fastify.addHook('onResponse', async (req) => {
@@ -156,26 +159,29 @@ export const startMetrics = (serviceName: string): void => {
 
       counters?.api?.requests?.add(1, {
         [ATTR_HTTP_ROUTE]: req.routeOptions.url,
-        [SEMATTRS_DAILY_APPS_VERSION]: getAppVersion(req),
+        [SEMATTRS_DAILY_APPS_VERSION]: getAppVersion(req as AppVersionRequest),
       });
     });
   });
 
   // We need to create and default all the counters to ensure that prometheus has scraped them
   // This is a known "limitation" of prometheus and distributed system like kubernetes
-  if (counterMap[serviceName]) {
+  const currentCounter = counterMap[serviceName];
+
+  if (currentCounter) {
     const meter = api.metrics.getMeter(serviceName);
     if (!counters[serviceName]) {
       counters[serviceName] = {};
     }
 
     for (const [counterKey, counterOptions] of Object.entries<CounterOptions>(
-      counterMap[serviceName],
+      currentCounter,
     )) {
       const counter: api.Counter = meter.createCounter(
         counterOptions.name,
         counterOptions,
       );
+      // ts-expect-error - property keys are statically defined above
       counters[serviceName][counterKey] = counter;
       counter.add(0);
     }

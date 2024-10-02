@@ -14,7 +14,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     return res.send({
       ...boot.user,
       ...boot.visit,
-      referralLink: await getShortGenericInviteLink(req.log, req.userId),
+      referralLink: await getShortGenericInviteLink(req.log, req.userId!),
       accessToken: (boot as LoggedInBoot).accessToken,
     });
   });
