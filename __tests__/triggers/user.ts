@@ -176,11 +176,33 @@ describe('user', () => {
           .getRepository(ArticlePost)
           .findBy({ authorId: '1', flags: JsonContains({ vordr: true }) });
 
-        expect(posts.length).toBe(3);
+        expect(posts.length).toBe(2);
         posts.forEach((post) => {
           expect(post.banned).toEqual(true);
           expect(post.flags.vordr).toEqual(true);
         });
+      });
+
+      it('should not update banned posts the user has made when the vordr flag is set to true', async () => {
+        const existingPost = await con
+          .getRepository(ArticlePost)
+          .findOneByOrFail({
+            id: 'pvr3',
+          });
+
+        expect(existingPost.banned).toEqual(true);
+        expect(existingPost.flags.vordr).toBeFalsy();
+
+        await con
+          .getRepository(User)
+          .update({ id: '1' }, { flags: { vordr: true } });
+
+        const post = await con.getRepository(ArticlePost).findOneByOrFail({
+          id: 'pvr3',
+        });
+
+        expect(post.banned).toEqual(true);
+        expect(post.flags.vordr).toBeFalsy();
       });
 
       it('should update all posts the user has made when the vordr flag is set to false', async () => {

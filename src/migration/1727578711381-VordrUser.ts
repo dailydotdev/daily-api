@@ -20,7 +20,8 @@ BEGIN
         '{vordr}', 'true', true),         -- set vordr to true
         '{banned}', 'true', true)         -- set banned to true
     WHERE
-      ("authorId" = NEW.id OR "scoutId" = NEW.id);
+      ("authorId" = NEW.id OR "scoutId" = NEW.id)
+      AND "banned" = FALSE;
 
     UPDATE
       comment
