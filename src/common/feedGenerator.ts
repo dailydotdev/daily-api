@@ -373,7 +373,6 @@ export function feedResolver<
       (el) =>
         !(queryParams as AnonymousFeedFilters).excludeSourceTypes.includes(el),
     );
-    console.log('qp', sourceTypes);
 
     const result = await runInSpan('feedResolver.queryPaginated', async () =>
       graphorm.queryPaginated<GQLPost>(
