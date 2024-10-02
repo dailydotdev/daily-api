@@ -1939,7 +1939,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           email,
           code,
           userId: ctx.userId,
-          companyId: company?.id || null,
+          companyId: company?.id ?? null,
         });
       }
 
