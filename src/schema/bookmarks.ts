@@ -379,7 +379,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         bookmarksFeedBuilder(ctx, unreadOnly, listId, builder, alias),
       bookmarkPageGenerator,
       applyBookmarkPaging,
-      { removeHiddenPosts: false, removeBannedPosts: false },
+      {
+        removeHiddenPosts: false,
+        removeBannedPosts: false,
+        removeNonPublicThresholdSquads: false,
+      },
     ),
     bookmarkLists: (
       source,

@@ -2,6 +2,7 @@ import {
   AdvancedSettings,
   FeedAdvancedSettings,
   SourceMember,
+  SourceType,
   UserPost,
 } from '../entity';
 import { Brackets, DataSource, SelectQueryBuilder } from 'typeorm';
@@ -248,31 +249,33 @@ export const applyFeedWhere = (
   postTypes: string[],
   removeHiddenPosts = true,
   removeBannedPosts = true,
-  allowPrivateSources = true,
+  allowPrivatePosts = true,
   allowSquadPosts = true,
+  removeNonPublicThresholdSquads = true,
 ): SelectQueryBuilder<Post> => {
   let newBuilder = builder.andWhere(`${alias}."type" in (:...postTypes)`, {
     postTypes,
   });
-  if (!allowPrivateSources) {
-    const selectSource = builder
-      .subQuery()
-      .from(Source, 'source')
-      .where('source.private = false')
-      .andWhere(`source.id = "${alias}"."sourceId"`);
-    newBuilder = builder.andWhere(`EXISTS${selectSource.getQuery()}`);
+  if (!allowPrivatePosts) {
+    newBuilder = newBuilder.andWhere(`${alias}."private" = false`);
+  }
+
+  if (!allowSquadPosts || removeNonPublicThresholdSquads) {
+    newBuilder = newBuilder.innerJoin(
+      Source,
+      'source',
+      `${alias}."sourceId" = source.id`,
+    );
   }
 
   if (!allowSquadPosts) {
-    const selectSource = builder
-      .subQuery()
-      .from(Source, 'source')
-      .where("source.type = 'squad'")
-      .andWhere(`source.id = "${alias}"."sourceId"`);
+    newBuilder = newBuilder.andWhere(`source.type != '${SourceType.Squad}'`);
+  }
 
-    newBuilder = builder.andWhere(`NOT EXISTS${selectSource.getQuery()}`, {
-      userId: ctx.userId || '',
-    });
+  if (removeNonPublicThresholdSquads) {
+    newBuilder = newBuilder.andWhere(
+      `(source.type != '${SourceType.Squad}' OR (source.flags->>'publicThreshold')::boolean IS TRUE)`,
+    );
   }
 
   if (ctx.userId && removeHiddenPosts) {
@@ -302,8 +305,9 @@ export type FeedResolverOptions<TArgs, TParams, TPage extends Page> = {
     page: TPage,
   ) => Promise<TParams>;
   warnOnPartialFirstPage?: boolean;
-  allowPrivateSources?: boolean;
+  allowPrivatePosts?: boolean;
   allowSquadPosts?: boolean;
+  removeNonPublicThresholdSquads?: boolean;
 };
 
 export function feedResolver<
@@ -332,8 +336,9 @@ export function feedResolver<
     removeBannedPosts = true,
     fetchQueryParams,
     warnOnPartialFirstPage = false,
-    allowPrivateSources = true,
+    allowPrivatePosts = true,
     allowSquadPosts = true,
+    removeNonPublicThresholdSquads = true,
   }: FeedResolverOptions<TArgs, TParams, TPage> = {},
 ): IFieldResolver<TSource, Context, TArgs> {
   return async (source, args, context, info): Promise<Connection<GQLPost>> => {
@@ -380,8 +385,9 @@ export function feedResolver<
             supportedTypes || ['article'],
             removeHiddenPosts,
             removeBannedPosts,
-            allowPrivateSources,
+            allowPrivatePosts,
             allowSquadPosts,
+            removeNonPublicThresholdSquads,
           );
           // console.log(builder.queryBuilder.getSql());
           return builder;
@@ -475,8 +481,6 @@ export const anonymousFeedBuilder = (
       },
     );
   }
-
-  newBuilder = newBuilder.andWhere(`${alias}."private" = false`);
 
   if (filters?.includeTags?.length) {
     newBuilder = newBuilder.andWhere((builder) =>

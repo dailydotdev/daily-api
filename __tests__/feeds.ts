@@ -3,6 +3,7 @@ import {
   feedToFilters,
   maxFeedNameLength,
   Ranking,
+  updateFlagsStatement,
   WATERCOOLER_ID,
 } from '../src/common';
 import {
@@ -329,15 +330,7 @@ describe('query anonymousFeed', () => {
     });
     expect(
       res.data.anonymousFeed.edges.map(({ node }) => node.id),
-    ).toIncludeSameMembers([
-      'p5',
-      'p2',
-      'p3',
-      'p4',
-      'p1',
-      'yt2',
-      'includedPost',
-    ]);
+    ).toIncludeSameMembers(['p5', 'p2', 'p3', 'p4', 'p1', 'includedPost']);
   });
 
   it('should return anonymous feed filtered by tags and sources', async () => {
@@ -459,6 +452,39 @@ describe('query anonymousFeed by time', () => {
     });
     delete res.data.anonymousFeed.pageInfo.endCursor;
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should not include posts from squads that pass public threshold', async () => {
+    await con.getRepository(Post).update({ id: 'yt2' }, { private: false });
+    await con.getRepository(Source).update(
+      { id: 'squad' },
+      {
+        private: false,
+      },
+    );
+    const res = await client.query(QUERY, {
+      variables: { ...variables },
+    });
+    delete res.data.anonymousFeed.pageInfo.endCursor;
+    const ids = res.data.anonymousFeed.edges.map((edge) => edge.node.id);
+    expect(ids).not.toIncludeAllMembers(['yt2']);
+  });
+
+  it('should include posts from squads that pass public threshold', async () => {
+    await con.getRepository(Post).update({ id: 'yt2' }, { private: false });
+    await con.getRepository(Source).update(
+      { id: 'squad' },
+      {
+        private: false,
+        flags: updateFlagsStatement<Source>({ publicThreshold: true }),
+      },
+    );
+    const res = await client.query(QUERY, {
+      variables: { ...variables },
+    });
+    delete res.data.anonymousFeed.pageInfo.endCursor;
+    const ids = res.data.anonymousFeed.edges.map((edge) => edge.node.id);
+    expect(ids).toIncludeAllMembers(['yt2']);
   });
 });
 
@@ -797,6 +823,29 @@ describe('query feed', () => {
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.feed.edges.length).toEqual(2);
+  });
+
+  it('should support squad posts', async () => {
+    loggedUser = '1';
+    nock('http://localhost:6002')
+      .post('/config')
+      .reply(200, {
+        user_id: '1',
+        config: {
+          providers: {},
+        },
+      });
+    nock('http://localhost:6000')
+      .post('/feed.json')
+      .reply(200, {
+        data: [{ post_id: 'yt2' }],
+        cursor: 'b',
+      });
+    const res = await client.query(QUERY, {
+      variables: { ...variables, version: 20 },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feed.edges.length).toEqual(1);
   });
 
   it('should return only article posts by default', async () => {

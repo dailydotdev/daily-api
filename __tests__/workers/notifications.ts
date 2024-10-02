@@ -2269,4 +2269,70 @@ describe('user post added', () => {
     const bundle = actual![0];
     expect(bundle.ctx.userIds).toIncludeSameMembers(['3']);
   });
+
+  it('should only query subscriptions for user post added notification type', async () => {
+    const { postAddedUserNotification: worker } = await import(
+      '../../src/workers/notifications/postAddedUserNotification'
+    );
+    await con.getRepository(Post).update({ id: 'p1' }, { scoutId: '1' });
+    await con.getRepository(ContentPreferenceUser).save([
+      {
+        userId: '2',
+        referenceId: '1',
+        referenceUserId: '1',
+        status: ContentPreferenceStatus.Subscribed,
+      },
+      {
+        userId: '3',
+        referenceId: '1',
+        referenceUserId: '1',
+        status: ContentPreferenceStatus.Subscribed,
+      },
+      {
+        userId: '4',
+        referenceId: '1',
+        referenceUserId: '1',
+        status: ContentPreferenceStatus.Subscribed,
+      },
+    ]);
+    await con.getRepository(NotificationPreferenceUser).save([
+      {
+        userId: '2',
+        referenceId: '1',
+        referenceUserId: '1',
+        notificationType: NotificationType.UserPostAdded,
+        status: NotificationPreferenceStatus.Muted,
+      },
+    ]);
+    await con.getRepository(NotificationPreferenceSource).save([
+      {
+        userId: '3',
+        referenceId: 'b',
+        sourceId: 'b',
+        notificationType: NotificationType.SourcePostAdded,
+        status: NotificationPreferenceStatus.Subscribed,
+      },
+      {
+        userId: '3',
+        referenceId: 'a',
+        sourceId: 'a',
+        notificationType: NotificationType.SourcePostAdded,
+        status: NotificationPreferenceStatus.Subscribed,
+      },
+      {
+        userId: '4',
+        referenceId: 'a',
+        sourceId: 'a',
+        notificationType: NotificationType.SourcePostAdded,
+        status: NotificationPreferenceStatus.Subscribed,
+      },
+    ]);
+    const actual = await invokeNotificationWorker(worker, {
+      post: postsFixture[0],
+    });
+    expect(actual!.length).toEqual(1);
+    const bundle = actual![0];
+    expect(bundle.ctx.userIds).toHaveLength(2);
+    expect(bundle.ctx.userIds).toIncludeSameMembers(['3', '4']);
+  });
 });

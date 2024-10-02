@@ -269,7 +269,7 @@ const meiliSearchResolver = feedResolver(
   {
     removeHiddenPosts: true,
     removeBannedPosts: false,
-    allowPrivateSources: false,
+    allowPrivatePosts: false,
   },
 );
 
