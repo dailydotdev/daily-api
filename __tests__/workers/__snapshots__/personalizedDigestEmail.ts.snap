@@ -194,6 +194,10 @@ Object {
   "date_from": Any<String>,
   "date_to": Any<String>,
   "feed_config_name": "digest",
+  "source_types": Array [
+    "machine",
+    "squad",
+  ],
   "total_posts": 5,
   "user_id": "1",
 }
@@ -301,6 +305,10 @@ Object {
   "date_from": Any<String>,
   "date_to": Any<String>,
   "feed_config_name": "digest",
+  "source_types": Array [
+    "machine",
+    "squad",
+  ],
   "total_posts": 5,
   "user_id": "1",
 }
@@ -408,6 +416,10 @@ Object {
   "date_from": Any<String>,
   "date_to": Any<String>,
   "feed_config_name": "testfeedconfig",
+  "source_types": Array [
+    "machine",
+    "squad",
+  ],
   "total_posts": 3,
   "user_id": "1",
 }
@@ -515,6 +527,10 @@ Object {
   "date_from": Any<String>,
   "date_to": Any<String>,
   "feed_config_name": "digest",
+  "source_types": Array [
+    "machine",
+    "squad",
+  ],
   "total_posts": 5,
   "user_id": "1",
 }
