@@ -5,6 +5,8 @@ import {
   UserStreak,
   UserStreakAction,
   UserStreakActionType,
+  Feature,
+  FeatureType,
 } from '../entity';
 import { differenceInDays, isSameDay, max, startOfDay } from 'date-fns';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
