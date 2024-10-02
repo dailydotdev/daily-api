@@ -57,7 +57,7 @@ $$ LANGUAGE plpgsql;`);
     await queryRunner.query(`CREATE OR REPLACE TRIGGER user_flags_vordr
 AFTER UPDATE OF flags ON "user"
 FOR EACH ROW
-WHEN ((OLD.flags ->> 'vordr')::boolean IS DISTINCT FROM ((NEW.flags ->> 'vordr'))::boolean)
+WHEN (OLD.flags -> 'vordr' IS DISTINCT FROM NEW.flags -> 'vordr')
 EXECUTE FUNCTION vordr_update_flags();`);
 
     await queryRunner.query(`DROP FUNCTION comment_flags_update_vordr`);
