@@ -22,6 +22,7 @@ import { SendEmailRequestWithTemplate } from 'customerio-node/dist/lib/api/reque
 import { v4 as uuidv4 } from 'uuid';
 import { DayOfWeek } from './date';
 import { GarmrService } from '../integrations/garmr';
+import { baseFeedConfig } from '../integrations/feed/generators';
 
 type TemplatePostData = Pick<
   ArticlePost,
@@ -216,6 +217,9 @@ export const getPersonalizedDigestEmailPayload = async ({
     blocked_tags: feedConfig.blockedTags,
     blocked_sources: feedConfig.excludeSources,
     feed_config_name: feature.feedConfig,
+    source_types: baseFeedConfig.source_types.filter(
+      (el) => !feedConfig.excludeSourceTypes.includes(el),
+    ),
   };
   const feedResponse = await personalizedDigestFeedClient.fetchFeed(
     { log: logger },
