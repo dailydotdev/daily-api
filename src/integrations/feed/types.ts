@@ -99,3 +99,8 @@ export type FeedVersion =
   | 'onboarding'
   | 'post_similarity'
   | '30';
+
+export const baseFeedConfig: Partial<FeedConfig> = {
+  source_types: ['machine', 'squad'],
+  allowed_languages: ['en'],
+};

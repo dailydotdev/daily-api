@@ -22,7 +22,7 @@ import { SendEmailRequestWithTemplate } from 'customerio-node/dist/lib/api/reque
 import { v4 as uuidv4 } from 'uuid';
 import { DayOfWeek } from './date';
 import { GarmrService } from '../integrations/garmr';
-import { baseFeedConfig } from '../integrations/feed/generators';
+import { baseFeedConfig } from '../integrations/feed';
 
 type TemplatePostData = Pick<
   ArticlePost,

@@ -63,9 +63,9 @@ import createOrGetConnection from '../src/db';
 import { randomUUID } from 'crypto';
 import { usersFixture } from './fixture/user';
 import { base64 } from 'graphql-relay/utils/base64';
-import { baseFeedConfig } from '../src/integrations/feed/generators';
 import { maxFeedsPerUser, UserVote } from '../src/types';
 import { SubmissionFailErrorMessage } from '../src/errors';
+import { baseFeedConfig } from '../src/integrations/feed';
 
 let app: FastifyInstance;
 let con: DataSource;

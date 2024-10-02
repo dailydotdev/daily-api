@@ -1,4 +1,5 @@
 import {
+  baseFeedConfig,
   DynamicConfig,
   FeedConfig,
   FeedConfigGenerator,
@@ -84,11 +85,6 @@ const opts = {
   includeSourceMemberships: true,
   includePostTypes: true,
   includeContentCuration: true,
-};
-
-export const baseFeedConfig: Partial<FeedConfig> = {
-  source_types: ['machine', 'squad'],
-  allowed_languages: ['en'],
 };
 
 export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
