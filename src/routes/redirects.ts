@@ -26,7 +26,7 @@ const sendRedirectAnalytics = async (
         event_page: page,
         app_platform: 'redirector',
         query_params: queryStr.length > 2 ? queryStr : undefined,
-        user_id: boot.user.id,
+        user_id: boot.user.id!,
         utm_campaign: query?.utm_campaign,
         utm_content: query?.utm_content,
         utm_medium: query?.utm_medium,
@@ -42,13 +42,19 @@ const sendRedirectAnalytics = async (
 
 const isAndroid = ({ req }: { req: FastifyRequest }): boolean => {
   const ua = uaParser(req.headers['user-agent']);
-  const os = ua.os.name.toLowerCase();
+  const os = ua.os.name?.toLowerCase();
 
-  return os.includes('android');
+  return !!os?.includes('android');
 };
 
-export const redirectToAndroid = ({ req, res }): FastifyReply => {
-  const url = new URL(req.raw.url, 'http://localhost');
+export const redirectToAndroid = ({
+  req,
+  res,
+}: {
+  req: FastifyRequest;
+  res: FastifyReply;
+}): FastifyReply => {
+  const url = new URL(req.raw.url!, 'http://localhost');
   url.searchParams.append('id', 'dev.daily');
 
   return res.redirect(
@@ -65,15 +71,15 @@ const redirectToStore =
     }
 
     const ua = uaParser(req.headers['user-agent']);
-    const browser = ua.browser.name.toLowerCase();
-    const url = new URL(req.raw.url, 'http://localhost');
+    const browser = ua.browser.name?.toLowerCase();
+    const url = new URL(req.raw.url!, 'http://localhost');
     await sendRedirectAnalytics(con, req, res);
 
     if (isAndroid({ req })) {
       return redirectToAndroid({ req, res });
     }
 
-    if (browser.includes('firefox') || browser.includes('mozilla')) {
+    if (browser?.includes('firefox') || browser?.includes('mozilla')) {
       // Redirect to webapp since FF downgraded us
       return res.redirect(`https://app.daily.dev${url.search}`);
       // return res.redirect(
@@ -81,7 +87,7 @@ const redirectToStore =
       // );
     }
 
-    if (browser.includes('edge')) {
+    if (browser?.includes('edge')) {
       return res.redirect(
         `https://microsoftedge.microsoft.com/addons/detail/daily-20-source-for-bu/cbdhgldgiancdheindpekpcbkccpjaeb${url.search}`,
       );
@@ -100,7 +106,7 @@ const redirectToMobile =
       return res.redirect('https://app.daily.dev');
     }
 
-    const url = new URL(req.raw.url, 'http://localhost');
+    const url = new URL(req.raw.url!, 'http://localhost');
     await sendRedirectAnalytics(con, req, res, '/mobile');
     if (isAndroid({ req })) {
       return redirectToAndroid({ req, res });

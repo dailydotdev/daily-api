@@ -121,7 +121,7 @@ const LOGGED_IN_BODY = {
     youtube: null,
     linkedin: null,
     mastodon: null,
-    language: null,
+    language: undefined,
   },
   marketingCta: null,
   feeds: [],
