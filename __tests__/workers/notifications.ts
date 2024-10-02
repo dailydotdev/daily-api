@@ -7,6 +7,7 @@ import {
   NotificationPreferencePost,
   NotificationPreferenceSource,
   NotificationPreferenceUser,
+  NotificationV2,
   Post,
   PostMention,
   PostReport,
@@ -54,6 +55,7 @@ import { ioRedisPool, setRedisObject } from '../../src/redis';
 import { ReportReason } from '../../src/entity/common';
 import { ContentPreferenceUser } from '../../src/entity/contentPreference/ContentPreferenceUser';
 import { ContentPreferenceStatus } from '../../src/entity/contentPreference/types';
+import { notificationV2Fixture } from '../fixture/notifications';
 
 let con: DataSource;
 
@@ -762,6 +764,47 @@ describe('post added notifications', () => {
     expect((bundle.ctx as NotificationPostContext).post.id).toEqual('p1');
     expect((bundle.ctx as NotificationPostContext).source.id).toEqual('a');
     expect(bundle.ctx.userIds).toEqual(['3']);
+  });
+
+  it('should deduplicate multiple notifications for the same post', async () => {
+    const notificationCountBefore = await con
+      .getRepository(NotificationV2)
+      .count({
+        where: {
+          referenceId: 'dedupp1',
+        },
+      });
+    expect(notificationCountBefore).toEqual(0);
+
+    await Promise.all(
+      [
+        NotificationType.UserPostAdded,
+        NotificationType.SourcePostAdded,
+        NotificationType.SquadPostAdded,
+      ].map((notificationType) => {
+        return con
+          .createQueryBuilder()
+          .insert()
+          .into(NotificationV2)
+          .values({
+            ...notificationV2Fixture,
+            referenceId: 'dedupp1',
+            referenceType: 'post',
+            type: notificationType,
+          })
+          .orIgnore()
+          .execute();
+      }),
+    );
+
+    const notificationCountAfter = await con
+      .getRepository(NotificationV2)
+      .count({
+        where: {
+          referenceId: 'dedupp1',
+        },
+      });
+    expect(notificationCountAfter).toEqual(1);
   });
 });
 
