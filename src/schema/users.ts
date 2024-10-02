@@ -1909,10 +1909,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('We can only verify unique company domains');
       }
 
-      const company = await ctx.con.getRepository(Company).findOneByOrFail({
-        domains: ArrayContains([domain]),
-      });
-
       const code = await generateVerifyCode();
 
       const existingUserCompanyEmail = await ctx.con
@@ -1935,11 +1931,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         const updatedRecord = { ...existingUserCompanyEmail, code };
         await ctx.con.getRepository(UserCompany).save(updatedRecord);
       } else {
+        const company = await ctx.con.getRepository(Company).findOneBy({
+          domains: ArrayContains([domain]),
+        });
+
         await ctx.con.getRepository(UserCompany).insert({
           email,
           code,
           userId: ctx.userId,
-          companyId: company.id,
+          companyId: company?.id || null,
         });
       }
 
