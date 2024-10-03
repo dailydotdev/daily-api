@@ -63,9 +63,9 @@ import createOrGetConnection from '../src/db';
 import { randomUUID } from 'crypto';
 import { usersFixture } from './fixture/user';
 import { base64 } from 'graphql-relay/utils/base64';
-import { baseFeedConfig } from '../src/integrations/feed/generators';
 import { maxFeedsPerUser, UserVote } from '../src/types';
 import { SubmissionFailErrorMessage } from '../src/errors';
+import { baseFeedConfig } from '../src/integrations/feed';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -2401,6 +2401,26 @@ describe('function feedToFilters', () => {
       title: 'test',
       group: 'content_curation',
       options: { type: 'listicle' },
+      description: '',
+      defaultEnabledState: true,
+    });
+    await con.getRepository(Feed).save({ id: '1', userId: '1' });
+    await con.getRepository(FeedAdvancedSettings).save({
+      feedId: '1',
+      advancedSettingsId: 1,
+      enabled: false,
+    });
+    expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
+  });
+
+  it('should return filters with blocked source types', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, User, [usersFixture[0]]);
+    await con.getRepository(AdvancedSettings).save({
+      id: 1,
+      title: 'test',
+      group: 'source_types',
+      options: { type: 'squad' },
       description: '',
       defaultEnabledState: true,
     });

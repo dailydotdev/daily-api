@@ -183,6 +183,11 @@ export const typeDefs = /* GraphQL */ `
     Posts must comply with the advanced settings from this list
     """
     blockedContentCuration: [String!]
+
+    """
+    Post must be from certain type of source
+    """
+    excludeSourceTypes: [String!]
   }
 
   type FeedFlagsPublic {

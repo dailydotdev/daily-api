@@ -29,6 +29,7 @@ import graphorm from '../graphorm';
 import { mapArrayToOjbect } from './object';
 import { runInSpan } from '../telemetry';
 import { whereVordrFilter } from './vordr';
+import { baseFeedConfig } from '../integrations/feed';
 
 export const WATERCOOLER_ID = 'fd062672-63b7-4a10-87bd-96dcd10e9613';
 
@@ -162,23 +163,28 @@ export const feedToFilters = async (
     { includeTags: [], blockedTags: [] },
   );
 
-  const { excludeTypes, blockedContentCuration } = settings.reduce<{
-    excludeTypes: string[];
-    blockedContentCuration: string[];
-  }>(
-    (acc, curr) => {
-      if (curr.options?.type) {
-        if (curr.group === 'content_types') {
-          acc.excludeTypes.push(curr.options.type);
+  const { excludeTypes, blockedContentCuration, excludeSourceTypes } =
+    settings.reduce<{
+      excludeTypes: string[];
+      blockedContentCuration: string[];
+      excludeSourceTypes: string[];
+    }>(
+      (acc, curr) => {
+        if (curr.options?.type) {
+          if (curr.group === 'content_types') {
+            acc.excludeTypes.push(curr.options.type);
+          }
+          if (curr.group === 'source_types') {
+            acc.excludeSourceTypes.push(curr.options.type);
+          }
+          if (curr.group === 'content_curation') {
+            acc.blockedContentCuration.push(curr.options.type);
+          }
         }
-        if (curr.group === 'content_curation') {
-          acc.blockedContentCuration.push(curr.options.type);
-        }
-      }
-      return acc;
-    },
-    { excludeTypes: [], blockedContentCuration: [] },
-  );
+        return acc;
+      },
+      { excludeTypes: [], blockedContentCuration: [], excludeSourceTypes: [] },
+    );
 
   // Split memberships by hide flag
   const membershipsByHide = memberships.reduce<{
@@ -205,6 +211,7 @@ export const feedToFilters = async (
       .concat(membershipsByHide.hide),
     sourceIds: membershipsByHide.show,
     blockedContentCuration,
+    excludeSourceTypes,
   };
 };
 
@@ -252,6 +259,7 @@ export const applyFeedWhere = (
   allowPrivatePosts = true,
   allowSquadPosts = true,
   removeNonPublicThresholdSquads = true,
+  sourceTypes: string[] = [],
 ): SelectQueryBuilder<Post> => {
   let newBuilder = builder.andWhere(`${alias}."type" in (:...postTypes)`, {
     postTypes,
@@ -276,6 +284,12 @@ export const applyFeedWhere = (
     newBuilder = newBuilder.andWhere(
       `(source.type != '${SourceType.Squad}' OR (source.flags->>'publicThreshold')::boolean IS TRUE)`,
     );
+  }
+
+  if (sourceTypes.length > 0) {
+    newBuilder = newBuilder.andWhere(`source.type IN (:...sourceTypes)`, {
+      sourceTypes,
+    });
   }
 
   if (ctx.userId && removeHiddenPosts) {
@@ -355,6 +369,14 @@ export function feedResolver<
       return excludedTypes ? !excludedTypes.includes(type) : true;
     });
 
+    const excludeSourceTypes =
+      queryParams && (queryParams as AnonymousFeedFilters).excludeSourceTypes;
+    const sourceTypes = excludeSourceTypes
+      ? baseFeedConfig.source_types.filter(
+          (el) => !excludeSourceTypes.includes(el),
+        )
+      : [];
+
     const result = await runInSpan('feedResolver.queryPaginated', async () =>
       graphorm.queryPaginated<GQLPost>(
         context,
@@ -388,6 +410,7 @@ export function feedResolver<
             allowPrivatePosts,
             allowSquadPosts,
             removeNonPublicThresholdSquads,
+            sourceTypes,
           );
           // console.log(builder.queryBuilder.getSql());
           return builder;
@@ -460,6 +483,7 @@ export interface AnonymousFeedFilters {
   blockedTags?: string[];
   sourceIds?: string[];
   blockedContentCuration?: string[];
+  excludeSourceTypes?: string[];
 }
 
 export const anonymousFeedBuilder = (
