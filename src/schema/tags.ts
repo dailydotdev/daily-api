@@ -111,6 +111,11 @@ export const typeDefs = /* GraphQL */ `
       Tags which should be excluded from recommendations
       """
       excludedTags: [String]!
+
+      """
+      Whether to shuffle the tags
+      """
+      shuffle: Boolean = false
     ): TagResults!
   }
 `;
@@ -211,7 +216,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     recommendedTags: async (
       source,
-      { tags, excludedTags },
+      { tags, excludedTags, shuffle = false },
       ctx,
     ): Promise<GQLTagResults> => {
       const uniqueTagsToExclude = new Set([...tags, ...excludedTags]);
@@ -234,6 +239,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
         take: RECOMMENDED_TAGS_LIMIT,
       });
+
+      if (shuffle) {
+        hits.sort(() => Math.random() - 0.5);
+      }
 
       return {
         hits: hits.map((hit) => ({ name: hit.keywordY })),
