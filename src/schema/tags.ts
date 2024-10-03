@@ -91,7 +91,12 @@ export const typeDefs = /* GraphQL */ `
     """
     Get initial list of tags recommended for onboarding
     """
-    onboardingTags: TagResults!
+    onboardingTags(
+      """
+      Whether to shuffle the tags
+      """
+      shuffle: Boolean = false
+    ): TagResults!
 
     """
     Get recommended tags based on current selected and shown tags
@@ -183,7 +188,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         hits: hits.map((x) => ({ name: x.value })),
       };
     },
-    onboardingTags: async (source, args, ctx): Promise<GQLTagResults> => {
+    onboardingTags: async (
+      source,
+      { shuffle = false }: { shuffle: boolean },
+      ctx,
+    ): Promise<GQLTagResults> => {
       const hits = await ctx
         .getRepository(Keyword)
         .createQueryBuilder()
@@ -191,6 +200,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .where(`(flags->'onboarding') = 'true'`)
         .orderBy('value', 'ASC')
         .execute();
+
+      if (shuffle) {
+        hits.sort(() => Math.random() - 0.5);
+      }
 
       return {
         hits: hits.map((hit: Keyword) => ({ name: hit.value })),
