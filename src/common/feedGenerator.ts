@@ -371,11 +371,12 @@ export function feedResolver<
 
     const excludeSourceTypes =
       queryParams && (queryParams as AnonymousFeedFilters).excludeSourceTypes;
-    const sourceTypes = excludeSourceTypes
-      ? baseFeedConfig.source_types.filter(
-          (el) => !excludeSourceTypes.includes(el),
-        )
-      : [];
+    const sourceTypes =
+      excludeSourceTypes && baseFeedConfig.source_types
+        ? baseFeedConfig.source_types.filter(
+            (el) => !excludeSourceTypes.includes(el),
+          )
+        : [];
 
     const result = await runInSpan('feedResolver.queryPaginated', async () =>
       graphorm.queryPaginated<GQLPost>(
