@@ -149,7 +149,7 @@ export const startMetrics = (serviceName: keyof typeof counterMap): void => {
   const meterProvider = new metrics.MeterProvider({ resource, readers });
   api.metrics.setGlobalMeterProvider(meterProvider);
 
-  // ts-expect-error - types are not generic in dc subscribe
+  // @ts-expect-error - types are not generic in dc subscribe
   dc.subscribe(channelName, ({ fastify }: { fastify: FastifyInstance }) => {
     // Decorate the main span with some metadata
     fastify.addHook('onResponse', async (req) => {
@@ -181,7 +181,7 @@ export const startMetrics = (serviceName: keyof typeof counterMap): void => {
         counterOptions.name,
         counterOptions,
       );
-      // ts-expect-error - property keys are statically defined above
+      // @ts-expect-error - property keys are statically defined above
       counters[serviceName][counterKey] = counter;
       counter.add(0);
     }

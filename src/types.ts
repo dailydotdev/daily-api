@@ -57,6 +57,8 @@ declare global {
       DEFAULT_IMAGE_RATIO: string;
       POST_SCRAPER_ORIGIN: string;
       SUBMIT_ARTICLE_THRESHOLD: string;
+      SLACK_SIGNING_SECRET: string;
+      API_CONFIG_FEATURE_KEY: string;
     }
   }
 }
@@ -187,7 +189,7 @@ export type I18nRecord = Partial<Record<ContentLanguage, string>>;
 
 export const validLanguages = Object.values(ContentLanguage);
 
-export type PropsParameters<T extends (props: object) => unknown> = T extends (
+export type PropsParameters<T extends (props: never) => unknown> = T extends (
   props: infer P,
 ) => unknown
   ? P

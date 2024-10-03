@@ -23,6 +23,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DayOfWeek } from './date';
 import { GarmrService } from '../integrations/garmr';
 import { baseFeedConfig } from '../integrations/feed';
+import { FeedConfigName } from '../integrations/feed';
 
 type TemplatePostData = Pick<
   ArticlePost,
@@ -216,10 +217,13 @@ export const getPersonalizedDigestEmailPayload = async ({
     allowed_tags: feedConfig.includeTags,
     blocked_tags: feedConfig.blockedTags,
     blocked_sources: feedConfig.excludeSources,
-    feed_config_name: feature.feedConfig,
-    source_types: baseFeedConfig.source_types.filter(
-      (el) => !feedConfig.excludeSourceTypes.includes(el),
-    ),
+    feed_config_name: feature.feedConfig as FeedConfigName,
+    source_types:
+      baseFeedConfig.source_types?.filter(
+        (el) => !feedConfig.excludeSourceTypes?.includes(el),
+      ) || [],
+    page_size: feature.maxPosts,
+    total_pages: 1,
   };
   const feedResponse = await personalizedDigestFeedClient.fetchFeed(
     { log: logger },

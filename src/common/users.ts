@@ -38,7 +38,7 @@ export interface User {
 export interface GQLUserStreak {
   max?: number;
   total?: number;
-  current?: number;
+  current: number;
   lastViewAt?: Date;
   userId: string;
   weekStart: DayOfWeek;
@@ -566,7 +566,7 @@ export const shouldAllowRestore = async (
   const { userId, lastViewAt: lastViewAtDb } = streak;
   const timezone = user.timezone || DEFAULT_TIMEZONE;
   const today = utcToZonedTime(new Date(), timezone);
-  const lastView = utcToZonedTime(new Date(lastViewAtDb), timezone);
+  const lastView = utcToZonedTime(new Date(lastViewAtDb!), timezone);
   const lastRecovery = await getLastStreakRecoverDate(con, userId);
   const lastStreak = lastRecovery ? max([lastView, lastRecovery]) : lastView;
   const lastStreakDifference = getAbsoluteDifferenceInDays(today, lastStreak);

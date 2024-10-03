@@ -30,6 +30,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       fastify,
       { query },
       (obj) =>
+        // @ts-expect-error - legacy code
         obj['data']['pendingSourceRequests']['edges'].map((e) =>
           toLegacySourceRequest(e['node'] as SourceRequest),
         ),

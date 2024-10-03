@@ -45,8 +45,11 @@ export class UserCompany {
   @JoinColumn({ name: 'userId' })
   user: Promise<User>;
 
-  @Column()
-  companyId: string;
+  @Column({
+    type: 'text',
+    nullable: true,
+  })
+  companyId: string | null;
 
   @OneToOne('Company', {
     nullable: true,

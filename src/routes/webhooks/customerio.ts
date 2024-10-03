@@ -82,7 +82,7 @@ async function trackCioEvent(payload: ReportingEvent): Promise<void> {
   const dupPayload = { ...payload, data: { ...payload.data } };
   const userId = dupPayload.data.identifiers.id;
   // Delete personal data
-  // ts-expect-error - we are deleting the personal data
+  // @ts-expect-error - we are deleting the personal data
   delete dupPayload.data.identifiers;
   delete dupPayload.data.recipient;
 

@@ -14,6 +14,7 @@ import { isValidHttpUrl } from './links';
 import { markdown } from './markdown';
 import { generateShortId } from '../ids';
 import { GQLPost } from '../schema/posts';
+// @ts-expect-error - no types
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { HttpError, retryFetchParse } from '../integrations/retry';
 import { checkWithVordr, VordrFilterType } from './vordr';
