@@ -212,8 +212,8 @@ describe('query searchTags', () => {
 });
 
 describe('query onboardingTags', () => {
-  const QUERY = `{
-    onboardingTags {
+  const QUERY = `query onboardingTags($shuffle: Boolean) {
+    onboardingTags(shuffle: $shuffle) {
       hits {
         name
       }
@@ -252,12 +252,40 @@ describe('query onboardingTags', () => {
       },
     });
   });
+
+  it('should return shuffled tags', async () => {
+    const res = await client.query(QUERY, {
+      variables: { shuffle: true },
+    });
+
+    const expectedHits = [
+      { name: 'development' },
+      { name: 'fullstack' },
+      { name: 'golang' },
+      { name: 'pending' },
+      { name: 'politics' },
+      { name: 'rust' },
+      { name: 'web-development' },
+      { name: 'webdev' },
+    ];
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data).not.toMatchObject({
+      onboardingTags: {
+        hits: expectedHits,
+      },
+    });
+
+    res.data.onboardingTags.hits.forEach((tag) => {
+      expectedHits.map((hit) => hit.name).includes(tag.name);
+    });
+  });
 });
 
 describe('query recommendedTags', () => {
   const QUERY = `
-    query recommendedTags($tags: [String]!, $excludedTags: [String]!) {
-      recommendedTags(tags: $tags, excludedTags: $excludedTags) {
+    query recommendedTags($tags: [String]!, $excludedTags: [String]!, $shuffle: Boolean) {
+      recommendedTags(tags: $tags, excludedTags: $excludedTags, shuffle: $shuffle) {
         hits {
           name
         }
@@ -309,6 +337,33 @@ describe('query recommendedTags', () => {
           { name: 'webdev' },
         ],
       },
+    });
+  });
+
+  it('should return shuffled recommended tags', async () => {
+    const res = await client.query(QUERY, {
+      variables: {
+        tags: ['javascript'],
+        excludedTags: [],
+        shuffle: true,
+      },
+    });
+
+    const expectedHits = [
+      { name: 'backend' },
+      { name: 'data' },
+      { name: 'html' },
+      { name: 'webdev' },
+    ];
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data).not.toMatchObject({
+      recommendedTags: {
+        hits: expectedHits,
+      },
+    });
+    res.data.recommendedTags.hits.forEach((tag) => {
+      expectedHits.map((hit) => hit.name).includes(tag.name);
     });
   });
 
