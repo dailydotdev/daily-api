@@ -37,6 +37,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     return injectGraphql(
       fastify,
       { query },
+      // ts-expect-error - legacy code
       (obj) => obj['data']['whoami'],
       req,
       res,

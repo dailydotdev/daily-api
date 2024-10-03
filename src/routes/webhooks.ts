@@ -44,7 +44,7 @@ const verifySendgridRequest = (
 
   return eventWebhook.verifySignature(
     ecPublicKey,
-    req.rawBody,
+    req.rawBody!,
     signature,
     timestamp,
   );
@@ -74,10 +74,13 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         select: ['id', 'email'],
         where: { email: In(emails) },
       });
-      const userIdsMap = userIds.reduce((acc, user) => {
-        acc[user.email] = user.id;
-        return acc;
-      }, {});
+      const userIdsMap = userIds.reduce(
+        (acc, user) => {
+          acc[user.email] = user.id;
+          return acc;
+        },
+        {} as Record<string, string>,
+      );
 
       // Transform events and push to analytics
       const events = body

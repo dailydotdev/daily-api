@@ -10,7 +10,11 @@ import {
 } from '../entity';
 import { ValidationError } from 'apollo-server-errors';
 import { DataSource, EntityManager, IsNull } from 'typeorm';
-import { NotFoundError, TypeOrmError } from '../errors';
+import {
+  NotFoundError,
+  TypeOrmError,
+  TypeORMQueryFailedError,
+} from '../errors';
 import { ReadStream } from 'fs';
 import { UserNotification } from '../entity';
 
@@ -170,7 +174,9 @@ export const saveNotificationPreference = async (
       .values(params)
       .orUpdate(['status'], ['referenceId', 'userId', 'notificationType'])
       .execute();
-  } catch (err) {
+  } catch (originalError) {
+    const err = originalError as TypeORMQueryFailedError;
+
     if (err.code === TypeOrmError.FOREIGN_KEY) {
       throw new NotFoundError('Invalid reference id');
     }

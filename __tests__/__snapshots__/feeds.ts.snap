@@ -6,6 +6,23 @@ Object {
     "listicle",
   ],
   "blockedTags": Array [],
+  "excludeSourceTypes": Array [],
+  "excludeSources": Array [
+    "fd062672-63b7-4a10-87bd-96dcd10e9613",
+  ],
+  "excludeTypes": Array [],
+  "includeTags": Array [],
+  "sourceIds": Array [],
+}
+`;
+
+exports[`function feedToFilters should return filters with blocked source types 1`] = `
+Object {
+  "blockedContentCuration": Array [],
+  "blockedTags": Array [],
+  "excludeSourceTypes": Array [
+    "squad",
+  ],
   "excludeSources": Array [
     "fd062672-63b7-4a10-87bd-96dcd10e9613",
   ],
@@ -19,6 +36,7 @@ exports[`function feedToFilters should return filters with source memberships 1`
 Object {
   "blockedContentCuration": Array [],
   "blockedTags": Array [],
+  "excludeSourceTypes": Array [],
   "excludeSources": Array [
     "fd062672-63b7-4a10-87bd-96dcd10e9613",
   ],

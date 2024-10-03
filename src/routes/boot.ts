@@ -462,6 +462,7 @@ const loggedInBoot = async ({
         permalink: `${process.env.COMMENTS_PREFIX}/${user.username || user.id}`,
         canSubmitArticle: user.reputation >= submitArticleThreshold,
         isTeamMember: exp?.a?.team === 1,
+        language: user.language || undefined,
       },
       visit,
       alerts: {

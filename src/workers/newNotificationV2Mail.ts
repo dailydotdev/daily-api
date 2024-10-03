@@ -304,7 +304,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     });
 
     if (!source) {
-      return;
+      return null;
     }
 
     return {
