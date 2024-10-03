@@ -14,10 +14,14 @@ export type NotificationReferenceType =
 @Entity()
 @Index('ID_notification_v2_reference', ['referenceId', 'referenceType'])
 @Index(
-  'ID_notification_v2_uniq',
-  ['type', 'referenceId', 'referenceType', 'uniqueKey'],
-  { unique: true },
+  'IDX_notification_v2_post_added_unique',
+  ['referenceId', 'referenceType'],
+  {
+    unique: true,
+    where: `type IN ('user_post_added', 'source_post_added', 'squad_post_added')`,
+  },
 )
+@Index('ID_notification_v2_reference', ['referenceId', 'referenceType'])
 export class NotificationV2 {
   @PrimaryGeneratedColumn('uuid')
   id: string;
