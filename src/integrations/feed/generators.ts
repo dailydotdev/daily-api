@@ -1,6 +1,6 @@
 import {
+  baseFeedConfig,
   DynamicConfig,
-  FeedConfig,
   FeedConfigGenerator,
   FeedConfigName,
   FeedResponse,
@@ -41,7 +41,7 @@ export class FeedGenerator {
     const userId = opts.user_id;
     return this.client.fetchFeed(
       ctx,
-      this.feedId ?? userId,
+      this.feedId ?? userId!,
       config,
       extraMetadata,
     );
@@ -84,11 +84,6 @@ const opts = {
   includeSourceMemberships: true,
   includePostTypes: true,
   includeContentCuration: true,
-};
-
-export const baseFeedConfig: Partial<FeedConfig> = {
-  source_types: ['machine', 'squad'],
-  allowed_languages: ['en'],
 };
 
 export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =

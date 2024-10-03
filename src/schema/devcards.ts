@@ -1,5 +1,6 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { omitBy, isEmpty } from 'lodash';
+// @ts-expect-error - no types
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 
 import { AuthContext, BaseContext, Context } from '../Context';

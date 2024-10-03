@@ -17,6 +17,7 @@ import { DayOfWeek, DEFAULT_TIMEZONE, DEFAULT_WEEK_START } from './date';
 import { ChangeObject, ContentLanguage } from '../types';
 import { checkRestoreValidity } from './streak';
 import { queryReadReplica } from './queryReadReplica';
+import { logger } from '../logger';
 
 export interface User {
   id: string;
@@ -37,7 +38,7 @@ export interface User {
 export interface GQLUserStreak {
   max?: number;
   total?: number;
-  current?: number;
+  current: number;
   lastViewAt?: Date;
   userId: string;
   weekStart: DayOfWeek;
@@ -523,13 +524,20 @@ export const checkAndClearUserStreak = async (
   streak: GQLUserStreakTz,
 ): Promise<boolean> => {
   const lastStreak = await getLastStreakRecoverDate(con, streak.userId);
+  const shouldClear = checkUserStreak(streak, lastStreak);
 
-  if (checkUserStreak(streak, lastStreak)) {
-    const result = await clearUserStreak(con, [streak.userId]);
-    return result > 0;
+  if (!shouldClear) {
+    return false;
   }
 
-  return false;
+  const result = await clearUserStreak(con, [streak.userId]);
+  const clearedSuccess = result > 0;
+
+  if (clearedSuccess) {
+    logger.info({ streak }, 'Cleared user streak');
+  }
+
+  return clearedSuccess;
 };
 
 export enum LogoutReason {
@@ -558,7 +566,7 @@ export const shouldAllowRestore = async (
   const { userId, lastViewAt: lastViewAtDb } = streak;
   const timezone = user.timezone || DEFAULT_TIMEZONE;
   const today = utcToZonedTime(new Date(), timezone);
-  const lastView = utcToZonedTime(new Date(lastViewAtDb), timezone);
+  const lastView = utcToZonedTime(new Date(lastViewAtDb!), timezone);
   const lastRecovery = await getLastStreakRecoverDate(con, userId);
   const lastStreak = lastRecovery ? max([lastView, lastRecovery]) : lastView;
   const lastStreakDifference = getAbsoluteDifferenceInDays(today, lastStreak);

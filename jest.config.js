@@ -16,4 +16,16 @@ module.exports = {
     printBasicPrototype: true,
   },
   workerIdleMemoryLimit: '2048MB',
+  transform: {
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        // do not report type checking errors when running tests
+        // those are visible on build and inside code editor
+        diagnostics: {
+          exclude: ['**'],
+        },
+      },
+    ],
+  },
 };

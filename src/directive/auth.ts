@@ -32,6 +32,7 @@ export const transformer = (schema: GraphQLSchema): GraphQLSchema =>
     [MapperKind.TYPE]: (type) => {
       const args = getDirective(schema, type, directiveName)?.[0];
       if (args) {
+        // @ts-expect-error - internal mapping
         typeDirectiveArgumentMaps[type.name] = args;
       }
       return undefined;
@@ -39,6 +40,7 @@ export const transformer = (schema: GraphQLSchema): GraphQLSchema =>
     [MapperKind.OBJECT_FIELD]: (fieldConfig, _fieldName, typeName) => {
       const args =
         getDirective(schema, fieldConfig, directiveName)?.[0] ??
+        // @ts-expect-error - internal mapping
         typeDirectiveArgumentMaps[typeName];
       if (args) {
         const { requires, premium } = args;

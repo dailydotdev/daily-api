@@ -17,7 +17,7 @@ interface Result {
     console.log('initializing stream');
     const categories = await manager.getRepository(SourceCategory).find();
 
-    const unfound = [];
+    const unfound: string[] = [];
     categorizedSquads.forEach(({ category }) => {
       const isFound = categories.find(({ title }) => title === category);
       if (!isFound) {

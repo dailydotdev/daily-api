@@ -694,12 +694,12 @@ const onSourceChange = async (
     }
 
     const beforeFlags = data.payload.before.flags as unknown as string;
-    const afterFlags = data.payload.after.flags as unknown as string;
+    const afterFlags = data.payload.after!.flags as unknown as string;
     const before = JSON.parse(beforeFlags || '{}') as Source['flags'];
     const after = JSON.parse(afterFlags || '{}') as Source['flags'];
     if (before.featured !== after.featured && after.featured) {
       notifySquadFeaturedUpdated(logger, {
-        ...data.payload.after,
+        ...data.payload.after!,
         flags: after,
       });
     }
@@ -863,6 +863,11 @@ const setRestoreStreakCache = async (
 ) => {
   const { userId, currentStreak: previousStreak } = streak;
   const user = await con.getRepository(User).findOneBy({ id: userId });
+
+  if (!user) {
+    return;
+  }
+
   const shouldAllow = await shouldAllowRestore(con, streak, user);
 
   if (!shouldAllow) {

@@ -573,6 +573,44 @@ describe('query userStreaks', () => {
       await expectStreak(5, 5, lastViewAt);
     });
 
+    it('should not reset streak when the user restored streak today with timezone', async () => {
+      loggedUser = '1';
+
+      const tz = 'Asia/Tokyo'; // the important part here is that we look at the dates below as if they are in this timezone
+      await con
+        .getRepository(User)
+        .update({ id: loggedUser }, { timezone: tz });
+
+      const lastViewRecoverAt = new Date(2024, 8, 27, 15, 10, 0); // Friday on Asia/Tokyo
+      jest.useFakeTimers({ advanceTimers: true, now: lastViewRecoverAt });
+
+      const lastViewAt = new Date(2024, 8, 26, 13, 47, 0); // Wednesday on both UTC and Asia/Tokyo
+      await expectStreak(5, 0, lastViewAt); // successful clearance
+
+      await con.getRepository(UserStreakAction).save([
+        {
+          userId: loggedUser,
+          type: UserStreakActionType.Recover,
+          createdAt: lastViewRecoverAt,
+        },
+      ]);
+
+      const oldStreak = 5;
+      await con
+        .getRepository(UserStreak)
+        .update({ userId: loggedUser }, { currentStreak: oldStreak });
+
+      const fakeToday = new Date(2024, 8, 28, 0, 2, 0); // Saturday on Asia/Tokyo
+      jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+
+      const repo = con.getRepository(UserStreak);
+      const res = await client.query(QUERY);
+      expect(res.errors).toBeFalsy();
+
+      const streak = await repo.findOneBy({ userId: loggedUser });
+      expect(streak!.currentStreak).toEqual(oldStreak);
+    });
+
     it('should reset streak when the user restored streak was yesterday and did not read', async () => {
       nock('http://localhost:5000').post('/e').reply(204);
       loggedUser = '1';

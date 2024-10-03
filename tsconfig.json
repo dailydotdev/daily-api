@@ -7,7 +7,10 @@
     "experimentalDecorators": true,
     "sourceMap": true,
     "outDir": "build",
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "skipLibCheck": true
   },
   "exclude": [
     "__tests__"

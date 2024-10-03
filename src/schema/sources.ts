@@ -32,6 +32,7 @@ import {
 } from 'typeorm';
 import { GQLUser } from './users';
 import { Connection } from 'graphql-relay/index';
+// @ts-expect-error - no types
 import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { randomUUID } from 'crypto';
 import {

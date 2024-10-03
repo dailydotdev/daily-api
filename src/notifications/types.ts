@@ -50,7 +50,9 @@ export type NotificationBookmarkContext = NotificationBaseContext & {
 };
 
 export type NotificationStreakContext = NotificationBaseContext & {
-  streak: Reference<UserStreak>;
+  streak: Omit<Reference<UserStreak>, 'lastViewAt'> & {
+    lastViewAt: number;
+  };
 };
 
 export type NotificationCommenterContext = NotificationCommentContext & {

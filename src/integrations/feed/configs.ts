@@ -96,6 +96,11 @@ const addFiltersToConfig = ({
       baseConfig.allowed_post_types || postTypes
     ).filter((x) => !filters.excludeTypes!.includes(x));
   }
+  if (filters.excludeSourceTypes && baseConfig.source_types) {
+    baseConfig.source_types = baseConfig.source_types.filter(
+      (el) => !filters.excludeSourceTypes?.includes(el),
+    );
+  }
   if (filters.blockedContentCuration?.length && opts.includeContentCuration) {
     baseConfig.allowed_content_curations = AllowedContentCurationTypes.filter(
       (type) => !filters.blockedContentCuration!.includes(type),

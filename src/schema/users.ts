@@ -36,6 +36,7 @@ import {
   ValidationError,
 } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
+// @ts-expect-error - no types
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
@@ -168,7 +169,7 @@ export interface GQLUser {
   readme?: string;
   readmeHtml?: string;
   experienceLevel?: string | null;
-  language?: ContentLanguage;
+  language?: ContentLanguage | null;
 }
 
 export interface GQLView {
@@ -1146,7 +1147,11 @@ const getUserStreakQuery = async (
   }));
 };
 
-const getUserCompanies = async (_, ctx: Context, info: GraphQLResolveInfo) => {
+const getUserCompanies = async (
+  _: unknown,
+  ctx: Context,
+  info: GraphQLResolveInfo,
+) => {
   return await graphorm.query<GQLUserCompany>(
     ctx,
     info,
@@ -1368,6 +1373,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           total: 0,
           userId: id,
           weekStart: DayOfWeek.Monday,
+          current: 0,
         };
       }
 
@@ -1386,7 +1392,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }),
         await getRestoreStreakCache({ userId }),
       ]);
-      const timeForRecoveryPassed = streak.currentStreak > 1;
+      const timeForRecoveryPassed = !!streak && streak.currentStreak > 1;
 
       if (!oldStreakLength || timeForRecoveryPassed) {
         return {
@@ -1904,10 +1910,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('We can only verify unique company domains');
       }
 
-      const company = await ctx.con.getRepository(Company).findOneBy({
-        domains: ArrayContains([domain]),
-      });
-
       const code = await generateVerifyCode();
 
       const existingUserCompanyEmail = await ctx.con
@@ -1930,6 +1932,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         const updatedRecord = { ...existingUserCompanyEmail, code };
         await ctx.con.getRepository(UserCompany).save(updatedRecord);
       } else {
+        const company = await ctx.con.getRepository(Company).findOneBy({
+          domains: ArrayContains([domain]),
+        });
+
         await ctx.con.getRepository(UserCompany).insert({
           email,
           code,
@@ -1985,16 +1991,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const updatedRecord = { ...userCompany, verified: true };
       await ctx.con.getRepository(UserCompany).save(updatedRecord);
 
-      return await graphorm.queryOne<GQLUserCompany>(ctx, info, (builder) => {
-        builder.queryBuilder = builder.queryBuilder
-          .andWhere(`${builder.alias}."userId" = :userId`, {
-            userId: ctx.userId,
-          })
-          .andWhere(`${builder.alias}."email" = :email`, { email })
-          .andWhere(`${builder.alias}."verified" = true`);
+      return await graphorm.queryOneOrFail<GQLUserCompany>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .andWhere(`${builder.alias}."userId" = :userId`, {
+              userId: ctx.userId,
+            })
+            .andWhere(`${builder.alias}."email" = :email`, { email })
+            .andWhere(`${builder.alias}."verified" = true`);
 
-        return builder;
-      });
+          return builder;
+        },
+      );
     },
     clearUserMarketingCta: async (
       _,
