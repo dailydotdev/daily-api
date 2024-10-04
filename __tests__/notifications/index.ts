@@ -34,6 +34,7 @@ import {
   SourceType,
   SquadSource,
   User,
+  UserNotification,
   UserStreak,
   WelcomePost,
 } from '../../src/entity';
@@ -45,11 +46,12 @@ import {
 } from '../../src/common';
 import { usersFixture } from '../fixture/user';
 import createOrGetConnection from '../../src/db';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import { sourcesFixture } from '../fixture/source';
 import { SourceMemberRoles } from '../../src/roles';
 import { NotificationType } from '../../src/notifications/common';
 import { format } from 'date-fns';
+import { saveFixtures } from '../helpers';
 
 const userId = '1';
 const commentFixture: Reference<Comment> = {
@@ -1181,5 +1183,51 @@ describe('storeNotificationBundle', () => {
         type: 'post',
       },
     ]);
+  });
+
+  it('should not generate duplicate post added notifications', async () => {
+    await saveFixtures(con, User, usersFixture);
+
+    const ctx: NotificationUserContext &
+      NotificationPostContext &
+      NotificationDoneByContext = {
+      userIds: [userId, '3', '4'],
+      source: sourcesFixture[0] as Reference<Source>,
+      post: postsFixture[0] as Reference<Post>,
+      user: usersFixture[1] as Reference<User>,
+      doneBy: usersFixture[1] as Reference<User>,
+    };
+
+    const notificationIds: Awaited<
+      ReturnType<typeof storeNotificationBundleV2>
+    > = [];
+
+    await storeNotificationBundleV2(
+      con.createEntityManager(),
+      generateNotificationV2(NotificationType.SourcePostAdded, ctx),
+    ).then((ids) => {
+      notificationIds.push(...ids);
+    });
+
+    await storeNotificationBundleV2(
+      con.createEntityManager(),
+      generateNotificationV2(NotificationType.SquadPostAdded, ctx),
+    ).then((ids) => {
+      notificationIds.push(...ids);
+    });
+
+    await storeNotificationBundleV2(
+      con.createEntityManager(),
+      generateNotificationV2(NotificationType.UserPostAdded, ctx),
+    ).then((ids) => {
+      notificationIds.push(...ids);
+    });
+
+    expect(notificationIds.length).toEqual(3);
+
+    const notifications = await con.getRepository(UserNotification).findBy({
+      notificationId: In(notificationIds.map((item) => item.id)),
+    });
+    expect(notifications.length).toEqual(3);
   });
 });
