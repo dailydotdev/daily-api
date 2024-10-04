@@ -17,7 +17,12 @@ const worker: TypedWorker<'api.v1.user-created'> = {
       return;
     }
 
-    await identifyUser(log, cio, user);
+    await identifyUser({
+      con,
+      log,
+      cio,
+      user,
+    });
     log.info({ userId: user.id }, 'created user profile in customerio');
   },
 };

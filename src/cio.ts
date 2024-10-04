@@ -1,6 +1,11 @@
 import { CustomerIORequestError, TrackClient } from 'customerio-node';
 import { ChangeObject } from './types';
-import { User, UserStreak } from './entity';
+import {
+  User,
+  UserPersonalizedDigest,
+  UserPersonalizedDigestType,
+  UserStreak,
+} from './entity';
 import {
   camelCaseToSnakeCase,
   CioUnsubscribeTopic,
@@ -11,6 +16,7 @@ import {
 import { FastifyBaseLogger } from 'fastify';
 import type { UserCompany } from './entity/UserCompany';
 import type { Company } from './entity/Company';
+import { DataSource } from 'typeorm';
 
 export const cio = new TrackClient(
   process.env.CIO_SITE_ID,
@@ -81,18 +87,34 @@ export async function identifyUserStreak(
   }
 }
 
-export async function identifyUser(
-  log: FastifyBaseLogger,
-  cio: TrackClient,
-  user: ChangeObject<User>,
-): Promise<void> {
+export async function identifyUser({
+  con,
+  log,
+  cio,
+  user,
+}: {
+  con: DataSource;
+  log: FastifyBaseLogger;
+  cio: TrackClient;
+  user: ChangeObject<User>;
+}): Promise<void> {
   const dup = { ...user };
   const id = dup.id;
   for (const field of OMIT_FIELDS) {
     delete dup[field];
   }
 
-  const genericInviteURL = await getShortGenericInviteLink(log, id);
+  const [genericInviteURL, personalizedDigest] = await Promise.all([
+    getShortGenericInviteLink(log, id),
+    con.getRepository(UserPersonalizedDigest).findOne({
+      select: ['userId'],
+      where: {
+        userId: id,
+        type: UserPersonalizedDigestType.Digest,
+      },
+    }),
+  ]);
+
   try {
     await cio.identify(id, {
       ...camelCaseToSnakeCase(dup),
@@ -106,6 +128,10 @@ export async function identifyUser(
         user.acceptedMarketing,
       [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Notifications}`]:
         user.notificationEmail,
+      [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Digest}`]:
+        !!personalizedDigest,
+      [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Follow}`]:
+        user.followingEmail,
     });
   } catch (err) {
     if (err instanceof CustomerIORequestError && err.statusCode === 400) {
