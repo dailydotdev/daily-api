@@ -939,25 +939,8 @@ describe('query feedByIds', () => {
     );
   });
 
-  it('should not authorize when no user has no features', async () => {
+  it('should not authorize when no user is not team member', async () => {
     loggedUser = '1';
-    await testQueryErrorCode(
-      client,
-      {
-        query: QUERY,
-        variables: { first: 10, postIds: ['p1', 'p2'] },
-      },
-      'NOT_FOUND',
-    );
-  });
-
-  it('should not authorize when no user has team feature at 0', async () => {
-    loggedUser = '1';
-    await con.getRepository(Feature).insert({
-      feature: FeatureType.Team,
-      userId: '1',
-      value: -1,
-    });
     await testQueryErrorCode(
       client,
       {
@@ -970,12 +953,16 @@ describe('query feedByIds', () => {
 
   it('should return feed by ids for team member', async () => {
     loggedUser = '1';
+    state = await initializeGraphQLTesting(
+      (req) => new MockContext(con, loggedUser, false, [], req, true),
+    );
+
     await con.getRepository(Feature).insert({
       feature: FeatureType.Team,
       userId: '1',
       value: 1,
     });
-    const res = await client.query(QUERY, {
+    const res = await state.client.query(QUERY, {
       variables: { first: 10, postIds: ['p3', 'p2', 'p1'] },
     });
     const ids = res.data.feedByIds.edges.map(({ node }) => node.id);
