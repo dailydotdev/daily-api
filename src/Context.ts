@@ -46,8 +46,8 @@ export class Context {
     return this.req.trackingId;
   }
 
-  get isTeamMember(): boolean | undefined {
-    return this.req.isTeamMember;
+  get isTeamMember(): boolean {
+    return !!this.req.isTeamMember;
   }
 
   get premium(): boolean {
