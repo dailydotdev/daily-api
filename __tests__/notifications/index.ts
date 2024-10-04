@@ -1198,29 +1198,23 @@ describe('storeNotificationBundle', () => {
       doneBy: usersFixture[1] as Reference<User>,
     };
 
-    const notificationIds: Awaited<
-      ReturnType<typeof storeNotificationBundleV2>
-    > = [];
+    const notificationIds = await con.transaction(async (manager) => {
+      const results = await Promise.all([
+        storeNotificationBundleV2(
+          manager,
+          generateNotificationV2(NotificationType.SourcePostAdded, ctx),
+        ),
+        storeNotificationBundleV2(
+          manager,
+          generateNotificationV2(NotificationType.SquadPostAdded, ctx),
+        ),
+        storeNotificationBundleV2(
+          manager,
+          generateNotificationV2(NotificationType.UserPostAdded, ctx),
+        ),
+      ]);
 
-    await storeNotificationBundleV2(
-      con.createEntityManager(),
-      generateNotificationV2(NotificationType.SourcePostAdded, ctx),
-    ).then((ids) => {
-      notificationIds.push(...ids);
-    });
-
-    await storeNotificationBundleV2(
-      con.createEntityManager(),
-      generateNotificationV2(NotificationType.SquadPostAdded, ctx),
-    ).then((ids) => {
-      notificationIds.push(...ids);
-    });
-
-    await storeNotificationBundleV2(
-      con.createEntityManager(),
-      generateNotificationV2(NotificationType.UserPostAdded, ctx),
-    ).then((ids) => {
-      notificationIds.push(...ids);
+      return results.flat();
     });
 
     expect(notificationIds.length).toEqual(3);
