@@ -143,7 +143,7 @@ export const testMutationErrorCode = async (
   message?: string,
 ): Promise<void> =>
   testMutationError(client, mutation, (errors) => {
-    expect(errors.length).toEqual(1);
+    expect(errors?.length || 0).toEqual(1);
     expect(errors[0].extensions?.code).toEqual(code);
     if (message) {
       expect(errors[0].message).toEqual(message);
