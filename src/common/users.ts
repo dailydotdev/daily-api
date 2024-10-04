@@ -5,8 +5,6 @@ import {
   UserStreak,
   UserStreakAction,
   UserStreakActionType,
-  Feature,
-  FeatureType,
 } from '../entity';
 import { differenceInDays, isSameDay, max, startOfDay } from 'date-fns';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
@@ -579,21 +577,6 @@ export const shouldAllowRestore = async (
     startOfWeek: user.weekStart,
     lastView: lastStreak,
   });
-};
-
-export const checkIfUserIsTeamMember = async (
-  con: DataSource,
-  userId: string,
-): Promise<boolean> => {
-  const isTeamMember = await con.getRepository(Feature).findOne({
-    select: ['value'],
-    where: {
-      feature: FeatureType.Team,
-      userId,
-    },
-  });
-
-  return isTeamMember?.value === 1;
 };
 
 export const roadmapShSocialUrlMatch =

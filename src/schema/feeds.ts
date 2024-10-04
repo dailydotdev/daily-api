@@ -21,7 +21,6 @@ import {
   AnonymousFeedFilters,
   applyFeedWhere,
   base64,
-  checkIfUserIsTeamMember,
   configuredFeedBuilder,
   FeedArgs,
   feedResolver,
@@ -1411,12 +1410,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         builder.limit(limit).offset(offset),
       {
         fetchQueryParams: async (ctx): Promise<void> => {
-          const isTeamMember = await checkIfUserIsTeamMember(
-            ctx.con,
-            ctx.userId,
-          );
-
-          if (!isTeamMember) {
+          if (!ctx.isTeamMember) {
             throw new ForbiddenError(
               'Access denied! You need to be authorized to perform this action!',
             );

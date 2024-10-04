@@ -3,11 +3,7 @@ import { ArticlePost, Submission, User } from './../entity';
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, Context } from '../Context';
-import {
-  checkIfUserIsTeamMember,
-  isValidHttpUrl,
-  standardizeURL,
-} from '../common';
+import { isValidHttpUrl, standardizeURL } from '../common';
 import { getPostByUrl, GQLPost } from './posts';
 import { SubmissionFailErrorMessage } from '../errors';
 import { checkWithVordr, VordrFilterType } from '../common/vordr';
@@ -132,10 +128,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLSubmitArticleResponse> => {
-      const [user, isTeamMember] = await Promise.all([
-        ctx.getRepository(User).findOneByOrFail({ id: ctx.userId }),
-        await checkIfUserIsTeamMember(ctx.con, ctx.userId),
-      ]);
+      const user = await ctx
+        .getRepository(User)
+        .findOneByOrFail({ id: ctx.userId });
 
       const submissionRepo = ctx.con.getRepository(Submission);
 
@@ -146,7 +141,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         };
       }
 
-      const limit = isTeamMember ? Infinity : submissionLimit;
+      const limit = ctx.isTeamMember ? Infinity : submissionLimit;
       const submissionsToday = await getSubmissionsToday(ctx.con, user);
 
       if (submissionsToday.length >= limit) {
