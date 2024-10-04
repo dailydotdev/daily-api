@@ -258,7 +258,7 @@ export const generateUserNotificationUniqueKey = ({
   referenceId?: string;
   referenceType?: NotificationReferenceType;
 }): string | null => {
-  const uniqueKey = notificationTypeToUniqueKey[type] || null;
+  const uniqueKey = notificationTypeToUniqueKey[type];
 
   if (!uniqueKey) {
     return null;
