@@ -71,6 +71,7 @@ declare module 'fastify' {
     roles?: Roles[];
     service?: boolean;
     accessToken?: AccessToken;
+    isTeamMember?: boolean;
 
     // Used for tracking
     trackingId?: string;

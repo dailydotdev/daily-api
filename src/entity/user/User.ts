@@ -124,7 +124,7 @@ export class User {
   timezone?: string;
 
   @Column({ type: 'int', nullable: true, default: DEFAULT_WEEK_START })
-  weekStart?: DayOfWeek;
+  weekStart: DayOfWeek;
 
   @Column({ type: 'boolean', default: false })
   profileConfirmed: boolean | null;

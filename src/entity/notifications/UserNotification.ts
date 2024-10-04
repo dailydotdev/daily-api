@@ -9,6 +9,14 @@ import { NotificationV2 } from './NotificationV2';
   'createdAt',
 ])
 @Index('IDX_user_notification_user_id_read_at', ['userId', 'readAt'])
+@Index(
+  'IDX_user_notification_userId_uniqueKey_unique',
+  ['userId', 'uniqueKey'],
+  {
+    unique: true,
+    where: `"uniqueKey" IS NOT NULL`,
+  },
+)
 export class UserNotification {
   @PrimaryColumn({ type: 'uuid' })
   notificationId: string;
@@ -36,4 +44,7 @@ export class UserNotification {
     onDelete: 'CASCADE',
   })
   user: Promise<User>;
+
+  @Column({ type: 'text', nullable: true })
+  uniqueKey: string | null;
 }
