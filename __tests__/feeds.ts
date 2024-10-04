@@ -10,8 +10,6 @@ import {
   AdvancedSettings,
   ArticlePost,
   BookmarkList,
-  Feature,
-  FeatureType,
   Feed,
   FeedAdvancedSettings,
   FeedSource,
@@ -957,11 +955,6 @@ describe('query feedByIds', () => {
       (req) => new MockContext(con, loggedUser, false, [], req, true),
     );
 
-    await con.getRepository(Feature).insert({
-      feature: FeatureType.Team,
-      userId: '1',
-      value: 1,
-    });
     const res = await state.client.query(QUERY, {
       variables: { first: 10, postIds: ['p3', 'p2', 'p1'] },
     });
