@@ -14,13 +14,11 @@ import dc from 'node:diagnostics_channel';
 
 import { NodeSDK, logs, node, api, resources } from '@opentelemetry/sdk-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
-import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter';
 import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
 
 import { containerDetector } from '@opentelemetry/resource-detector-container';
 import { gcpDetector } from '@opentelemetry/resource-detector-gcp';
 
-import { isProd } from '../common/utils';
 import {
   AppVersionRequest,
   channelName,
@@ -115,11 +113,9 @@ export const tracer = (serviceName: string) => {
     };
   }
 
-  const traceExporter = isProd
-    ? new TraceExporter()
-    : new OTLPTraceExporter({
-        url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
-      });
+  const traceExporter = new OTLPTraceExporter({
+    url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
+  });
 
   const spanProcessor = new node.BatchSpanProcessor(traceExporter);
 
