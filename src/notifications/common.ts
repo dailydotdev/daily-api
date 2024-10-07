@@ -7,6 +7,7 @@ import {
   NotificationAttachmentV2,
   NotificationAvatarV2,
   NotificationV2,
+  NotificationReferenceType,
 } from '../entity';
 import { ValidationError } from 'apollo-server-errors';
 import { DataSource, EntityManager, IsNull } from 'typeorm';
@@ -235,3 +236,33 @@ export const getUnreadNotificationsCount = async (
       readAt: IsNull(),
     },
   });
+
+enum UserNotificationUniqueKey {
+  PostAdded = 'post_added',
+}
+
+const notificationTypeToUniqueKey: Partial<
+  Record<NotificationType, UserNotificationUniqueKey>
+> = {
+  [NotificationType.SquadPostAdded]: UserNotificationUniqueKey.PostAdded,
+  [NotificationType.SourcePostAdded]: UserNotificationUniqueKey.PostAdded,
+  [NotificationType.UserPostAdded]: UserNotificationUniqueKey.PostAdded,
+};
+
+export const generateUserNotificationUniqueKey = ({
+  type,
+  referenceId,
+  referenceType,
+}: {
+  type: NotificationType;
+  referenceId?: string;
+  referenceType?: NotificationReferenceType;
+}): string | null => {
+  const uniqueKey = notificationTypeToUniqueKey[type];
+
+  if (!uniqueKey) {
+    return null;
+  }
+
+  return [uniqueKey, referenceId, referenceType].filter(Boolean).join(':');
+};

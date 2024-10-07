@@ -8,7 +8,7 @@ import { DeepPartial, EntityManager, ObjectLiteral } from 'typeorm';
 import { NotificationBuilder } from './builder';
 import { NotificationBaseContext, NotificationBundleV2 } from './types';
 import { generateNotificationMap, notificationTitleMap } from './generate';
-import { NotificationType } from './common';
+import { generateUserNotificationUniqueKey, NotificationType } from './common';
 import { NotificationHandlerReturn } from '../workers/notifications/worker';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 
@@ -135,7 +135,9 @@ export async function storeNotificationBundleV2(
     return [];
   }
 
-  const notification = generatedMaps[0];
+  const notification = generatedMaps[0] as NotificationV2;
+  const uniqueKey = generateUserNotificationUniqueKey(notification);
+
   await entityManager
     .createQueryBuilder()
     .insert()
@@ -146,7 +148,13 @@ export async function storeNotificationBundleV2(
         notificationId: notification.id,
         createdAt: notification.createdAt,
         public: notification.public,
+        uniqueKey,
       })),
+    )
+    // onConflict deprecated (but still usable) because no way to use orIgnore with where clause
+    // https://github.com/typeorm/typeorm/issues/8124#issuecomment-1523780405
+    .onConflict(
+      '("userId", "uniqueKey") WHERE "uniqueKey" IS NOT NULL DO NOTHING',
     )
     .execute();
 
