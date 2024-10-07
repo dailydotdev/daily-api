@@ -82,6 +82,7 @@ import {
   notifySquadFeaturedUpdated,
   DEFAULT_TIMEZONE,
   notifySourceReport,
+  DayOfWeek,
 } from '../../common';
 import { ChangeMessage, ChangeObject, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
@@ -108,7 +109,7 @@ import {
   cancelReminderWorkflow,
   runReminderWorkflow,
 } from '../../temporal/notifications/utils';
-import { addDays } from 'date-fns';
+import { addDays, nextMonday } from 'date-fns';
 import {
   postReportReasonsMap,
   reportCommentReasonsMap,
@@ -116,6 +117,7 @@ import {
 } from '../../entity/common';
 import { utcToZonedTime } from 'date-fns-tz';
 import { SourceReport } from '../../entity/sources/SourceReport';
+import { now } from 'lodash';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -857,6 +859,37 @@ const onSquadPublicRequestChange = async (
   });
 };
 
+const WEEKEND_MAP: Partial<Record<DayOfWeek, DayOfWeek[]>> = {
+  [DayOfWeek.Sunday]: [5, 6],
+  [DayOfWeek.Monday]: [6, 0],
+};
+
+const getNextWeekday = (todayTz: Date, weekStart: DayOfWeek): Date => {
+  const weekends = WEEKEND_MAP[weekStart];
+
+  if (!weekends) {
+    throw new Error('Invalid week start: ' + weekStart);
+  }
+
+  if (!weekends.includes(todayTz.getDay())) {
+    return addDays(todayTz, 1);
+  }
+
+  const monday = nextMonday(todayTz);
+  const weekday = weekStart === DayOfWeek.Sunday ? monday : addDays(monday, 1);
+
+  return weekday;
+};
+
+const getNextWeekdayInSeconds = (user: User): number => {
+  const { weekStart } = user;
+  const today = utcToZonedTime(new Date(), user.timezone || DEFAULT_TIMEZONE);
+  const weekday = getNextWeekday(today, weekStart!);
+  const startOfDay = weekday.setHours(0, 0, 0, 0);
+
+  return Math.round((startOfDay - today.getTime()) / 1000);
+};
+
 const setRestoreStreakCache = async (
   con: DataSource,
   streak: ChangeObject<UserStreak>,
@@ -875,10 +908,7 @@ const setRestoreStreakCache = async (
   }
 
   const key = generateStorageKey(StorageTopic.Streak, StorageKey.Reset, userId);
-  const today = utcToZonedTime(new Date(), user.timezone || DEFAULT_TIMEZONE);
-  const now = today.getTime();
-  const nextDay = addDays(now, 1).setHours(0, 0, 0, 0);
-  const differenceInSeconds = Math.round((nextDay - now) / 1000);
+  const differenceInSeconds = getNextWeekdayInSeconds(user);
 
   await Promise.all([
     setRedisObjectWithExpiry(key, previousStreak, differenceInSeconds),
