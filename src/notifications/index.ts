@@ -151,7 +151,11 @@ export async function storeNotificationBundleV2(
         uniqueKey,
       })),
     )
-    .orIgnore()
+    // onConflict deprecated (but still usable) because no way to use orIgnore with where clause
+    // https://github.com/typeorm/typeorm/issues/8124#issuecomment-1523780405
+    .onConflict(
+      '("userId", "uniqueKey") WHERE "uniqueKey" IS NOT NULL DO NOTHING',
+    )
     .execute();
 
   return identifiers as { id: string }[];
