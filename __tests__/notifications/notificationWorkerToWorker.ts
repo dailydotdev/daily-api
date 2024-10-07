@@ -119,6 +119,7 @@ describe('notificationWorkerToWorker', () => {
         public: true,
         readAt: null,
         userId: '3',
+        uniqueKey: null,
       },
       {
         createdAt: notifications[0].createdAt,
@@ -126,6 +127,7 @@ describe('notificationWorkerToWorker', () => {
         public: true,
         readAt: null,
         userId: '4',
+        uniqueKey: null,
       },
     ]);
   });
