@@ -260,11 +260,13 @@ const setAuthCookie = async (
   res: FastifyReply,
   userId: string,
   roles: string[],
+  isTeamMember: boolean,
 ): Promise<AccessToken> => {
   const accessToken = await signJwt(
     {
       userId,
       roles,
+      isTeamMember,
     },
     15 * 60 * 1000,
   );
@@ -445,8 +447,9 @@ const loggedInBoot = async ({
     if (!user) {
       return handleNonExistentUser(con, req, res, middleware);
     }
+    const isTeamMember = exp?.a?.team === 1;
     const accessToken = refreshToken
-      ? await setAuthCookie(req, res, userId, roles)
+      ? await setAuthCookie(req, res, userId, roles, isTeamMember)
       : req.accessToken;
     return {
       user: {
@@ -461,7 +464,7 @@ const loggedInBoot = async ({
         roles,
         permalink: `${process.env.COMMENTS_PREFIX}/${user.username || user.id}`,
         canSubmitArticle: user.reputation >= submitArticleThreshold,
-        isTeamMember: exp?.a?.team === 1,
+        isTeamMember,
         language: user.language || undefined,
       },
       visit,

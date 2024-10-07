@@ -2,6 +2,7 @@ import { FastifyRequest } from 'fastify';
 import type { MetricOptions } from '@opentelemetry/api';
 import { unwrapArray } from '../common';
 
+export const enableOpenTelemetryTracing = process.env.OTEL_ENABLED === 'true';
 export const channelName = 'fastify.initialization';
 
 // Try to get the app version from the header, then query param, then default to unknown
@@ -21,6 +22,7 @@ export const getAppVersion = (req: AppVersionRequest): string => {
   return 'unknown';
 };
 
+export const SEMATTRS_DAILY_STAFF = 'dailydev.staff';
 export const SEMATTRS_DAILY_APPS_VERSION = 'dailydev.apps.version';
 export const SEMATTRS_DAILY_APPS_USER_ID = 'dailydev.apps.userId';
 

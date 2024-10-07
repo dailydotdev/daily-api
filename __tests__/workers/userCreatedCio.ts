@@ -64,11 +64,7 @@ describe('userCreatedCio', () => {
       username: 'cio',
       referral_link: referral,
       accepted_marketing: true,
-      cio_subscription_preferences: {
-        topics: {
-          topic_4: true,
-        },
-      },
+      'cio_subscription_preferences.topics.topic_4': true,
     });
   });
 
@@ -78,12 +74,10 @@ describe('userCreatedCio', () => {
       user: { ...base, acceptedMarketing: false },
     } as unknown as PubSubSchema['api.v1.user-created']);
     expect(
-      mocked(cio.identify).mock.calls[0][1].cio_subscription_preferences,
-    ).toEqual({
-      topics: {
-        topic_4: false,
-      },
-    });
+      mocked(cio.identify).mock.calls[0][1][
+        'cio_subscription_preferences.topics.topic_4'
+      ],
+    ).toEqual(false);
   });
 
   it('should not update customer.io if user is ghost user', async () => {
