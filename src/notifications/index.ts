@@ -11,6 +11,7 @@ import { generateNotificationMap, notificationTitleMap } from './generate';
 import { generateUserNotificationUniqueKey, NotificationType } from './common';
 import { NotificationHandlerReturn } from '../workers/notifications/worker';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
+import { logger } from '../logger';
 
 export * from './types';
 
@@ -119,6 +120,16 @@ export async function storeNotificationBundleV2(
     upsertAvatarsV2(entityManager, bundle.avatars || []),
     upsertAttachments(entityManager, bundle.attachments || []),
   ]);
+
+  logger.info(
+    {
+      notification: bundle.notification,
+      avatars: bundle.avatars,
+      attachments: bundle.attachments,
+    },
+    'debug notif - created notification avatars/attachments',
+  );
+
   const { identifiers, generatedMaps } = await entityManager
     .createQueryBuilder()
     .insert()
@@ -131,6 +142,16 @@ export async function storeNotificationBundleV2(
     .returning('*')
     .orIgnore()
     .execute();
+
+  logger.info(
+    {
+      notification: bundle.notification,
+      avatars: bundle.avatars,
+      attachments: bundle.attachments,
+    },
+    'debug notif - created notification',
+  );
+
   if (!generatedMaps?.[0]?.id) {
     return [];
   }
@@ -171,6 +192,15 @@ export async function storeNotificationBundleV2(
       )
       .execute();
   }
+
+  logger.info(
+    {
+      notification: bundle.notification,
+      avatars: bundle.avatars,
+      attachments: bundle.attachments,
+    },
+    'debug notif - user notifications',
+  );
 
   return identifiers as { id: string }[];
 }
