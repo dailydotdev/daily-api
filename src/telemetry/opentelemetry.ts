@@ -161,11 +161,11 @@ export const tracer = (serviceName: string) => {
 export const runInSpan = async <T>(
   name: string,
   func: (span: api.Span) => Promise<T>,
-  options: api.SpanOptions = {},
+  options?: api.SpanOptions,
 ): Promise<T> =>
   api.trace
     .getTracer('runInSpan')
-    .startActiveSpan(name, options, async (span) => {
+    .startActiveSpan(name, options!, async (span) => {
       try {
         return await func(span);
       } catch (originalError) {
@@ -184,9 +184,9 @@ export const runInSpan = async <T>(
 export const runInSpanSync = <T>(
   name: string,
   func: (span: api.Span) => T,
-  options: api.SpanOptions = {},
+  options?: api.SpanOptions,
 ): T =>
-  api.trace.getTracer('runInSpan').startActiveSpan(name, options, (span) => {
+  api.trace.getTracer('runInSpan').startActiveSpan(name, options!, (span) => {
     try {
       return func(span);
     } catch (originalError) {
