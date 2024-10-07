@@ -112,7 +112,7 @@ if (isPersonalizedDigestEnabled) {
     name,
     isAdhocEnv,
     addLabelsToWorkers(personalizedDigestWorkers, {
-      app: `${name}-personalized-digest`,
+      app: name,
       subapp: 'personalized-digest',
     }),
     { dependsOn: [deadLetterTopic] },
@@ -240,7 +240,10 @@ if (isAdhocEnv) {
       requests: bgRequests,
       metric: {
         type: 'pubsub',
-        labels: { app: name },
+        labels: {
+          app: name,
+          subapp: 'background',
+        },
         targetAverageValue: 50,
       },
       ports: [{ containerPort: 9464, name: 'metrics' }],
@@ -264,7 +267,10 @@ if (isAdhocEnv) {
       requests: bgRequests,
       metric: {
         type: 'pubsub',
-        labels: { app: name, subapp: 'personalized-digest' },
+        labels: {
+          app: name,
+          subapp: 'personalized-digest',
+        },
         targetAverageValue: 50,
       },
       ports: [{ containerPort: 9464, name: 'metrics' }],
@@ -331,7 +337,10 @@ if (isAdhocEnv) {
       requests: bgRequests,
       metric: {
         type: 'pubsub',
-        labels: { app: name },
+        labels: {
+          app: name,
+          subapp: 'background',
+        },
         targetAverageValue: 100,
       },
       ports: [{ containerPort: 9464, name: 'metrics' }],
