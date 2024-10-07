@@ -112,7 +112,7 @@ if (isPersonalizedDigestEnabled) {
     name,
     isAdhocEnv,
     addLabelsToWorkers(personalizedDigestWorkers, {
-      app: name,
+      app: `${name}-personalized-digest`,
       subapp: 'personalized-digest',
     }),
     { dependsOn: [deadLetterTopic] },
@@ -393,7 +393,10 @@ if (isAdhocEnv) {
       },
       metric: {
         type: 'pubsub',
-        labels: { app: name, subapp: 'personalized-digest' },
+        labels: {
+          app: `${name}-personalized-digest`,
+          subapp: 'personalized-digest',
+        },
         targetAverageValue: 100_000,
       },
       ...vols,
