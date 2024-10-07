@@ -102,13 +102,10 @@ export async function identifyUser(
         ? dateToCioTimestamp(debeziumTimeToDate(dup.updatedAt))
         : undefined,
       referral_link: genericInviteURL,
-      cio_subscription_preferences: {
-        topics: {
-          [`topic_${CioUnsubscribeTopic.Marketing}`]: user.acceptedMarketing,
-          [`topic_${CioUnsubscribeTopic.Notifications}`]:
-            user.notificationEmail,
-        },
-      },
+      [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Marketing}`]:
+        user.acceptedMarketing,
+      [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Notifications}`]:
+        user.notificationEmail,
     });
   } catch (err) {
     if (err instanceof CustomerIORequestError && err.statusCode === 400) {
