@@ -403,7 +403,7 @@ if (isAdhocEnv) {
       metric: {
         type: 'pubsub',
         labels: {
-          app: `${name}-personalized-digest`,
+          app: name,
           subapp: 'personalized-digest',
         },
         targetAverageValue: 100_000,
