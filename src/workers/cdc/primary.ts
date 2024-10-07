@@ -117,7 +117,6 @@ import {
 } from '../../entity/common';
 import { utcToZonedTime } from 'date-fns-tz';
 import { SourceReport } from '../../entity/sources/SourceReport';
-import { now } from 'lodash';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
