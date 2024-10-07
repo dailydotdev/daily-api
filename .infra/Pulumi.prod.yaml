@@ -110,6 +110,7 @@ config:
     onesignalAppId:
       secure: AAABALTizkxZkCfsq6/fx2v7nXxsVP7psWBfSUct0zeyrX0ABxPpD30zIsyx5r5wqt1UJIIXDIVOnhM7W3vzrzaatrE=
     otelEnabled: true
+    otelExporterOtlpEndpoint: http://otel-collector.opentelemetry.svc.cluster.local:4318/v1/traces
     otelTracesSampler: parentbased_always_on
     personalizedDigestFeed:
       secure: AAABABnHXr0d1pbDX7KRjoBXvFnr7ImTUJ7Y88GlhlaC7EiSG/nxVLHtnQL0hgczHqt1bPn25TN/R8Au6CEAQpq6dGXLwCfA+gWPypTVHg==
