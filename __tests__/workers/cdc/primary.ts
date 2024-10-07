@@ -3565,7 +3565,7 @@ describe('user streak change', () => {
       expect(lastStreak).toEqual(3);
       const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
       expect(alert!.showRecoverStreak).toEqual(true);
-      expect(spy).toHaveBeenCalledWith('streak:reset:1', 3, 216000); // 60 hours - 2 days = 48 hours + 12 hours
+      expect(spy).toHaveBeenCalledWith('streak:reset:1', 3, 216000); // 60 hours --- 2 days = 48 hours + 12 hours
     });
 
     it('should set cache of previous streak even when weekend had passed if it has only been 2 valid days', async () => {
