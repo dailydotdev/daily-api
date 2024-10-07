@@ -18,6 +18,7 @@ interface AuthPayload {
   userId: string;
   premium: boolean;
   roles?: Roles[];
+  isTeamMember?: boolean;
   exp: number;
 }
 
@@ -90,6 +91,7 @@ const plugin = async (
   fastify.decorateRequest('premium', null);
   fastify.decorateRequest('roles', null);
   fastify.decorateRequest('accessToken', null);
+  fastify.decorateRequest('isTeamMember', null);
 
   // Machine-to-machine authentication
   fastify.addHook('preHandler', async (req) => {
@@ -120,6 +122,7 @@ const plugin = async (
             req.userId = payload.userId;
             req.premium = payload.premium;
             req.roles = payload.roles;
+            req.isTeamMember = payload.isTeamMember;
             req.accessToken = {
               token: validValue,
               expiresIn: new Date(payload.exp * 1000),

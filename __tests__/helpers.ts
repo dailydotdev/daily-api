@@ -37,6 +37,7 @@ export class MockContext extends Context {
   mockUserId: string | null;
   mockPremium: boolean;
   mockRoles: Roles[];
+  mockIsTeamMember: boolean;
   logger: FastifyLoggerInstance;
   contentLanguage: ContentLanguage;
 
@@ -46,6 +47,7 @@ export class MockContext extends Context {
     premium = false,
     roles = [],
     req?: FastifyRequest,
+    isTeamMember = false,
   ) {
     super(mock<FastifyRequest>(), con);
     this.mockSpan = mock<opentelemetry.Span>();
@@ -55,6 +57,7 @@ export class MockContext extends Context {
     this.mockUserId = userId;
     this.mockPremium = premium;
     this.mockRoles = roles;
+    this.mockIsTeamMember = isTeamMember;
     this.logger = mock<FastifyLoggerInstance>();
 
     if (req?.headers['content-language']) {
@@ -76,6 +79,10 @@ export class MockContext extends Context {
 
   get premium(): boolean | null {
     return this.mockPremium;
+  }
+
+  get isTeamMember(): boolean {
+    return this.mockIsTeamMember;
   }
 
   get roles(): Roles[] {

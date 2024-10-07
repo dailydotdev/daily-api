@@ -24,9 +24,11 @@ import { isProd } from '../common/utils';
 import {
   AppVersionRequest,
   channelName,
+  enableOpenTelemetryTracing,
   getAppVersion,
   SEMATTRS_DAILY_APPS_USER_ID,
   SEMATTRS_DAILY_APPS_VERSION,
+  SEMATTRS_DAILY_STAFF,
 } from './common';
 import {
   ATTR_MESSAGING_DESTINATION_NAME,
@@ -55,6 +57,7 @@ export const addApiSpanLabels = (
   span?.setAttributes({
     [SEMATTRS_DAILY_APPS_VERSION]: getAppVersion(req),
     [SEMATTRS_DAILY_APPS_USER_ID]: req.userId || req.trackingId || 'unknown',
+    [SEMATTRS_DAILY_STAFF]: req.isTeamMember,
   });
 };
 
@@ -105,7 +108,7 @@ const instrumentations = [
 api.diag.setLogger(new api.DiagConsoleLogger(), api.DiagLogLevel.INFO);
 
 export const tracer = (serviceName: string) => {
-  if (process.env.OTEL_ENABLED !== 'true') {
+  if (!enableOpenTelemetryTracing) {
     return {
       start: () => {},
       tracer: api.trace.getTracer('noop'),
