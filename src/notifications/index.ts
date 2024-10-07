@@ -138,25 +138,39 @@ export async function storeNotificationBundleV2(
   const notification = generatedMaps[0] as NotificationV2;
   const uniqueKey = generateUserNotificationUniqueKey(notification);
 
-  await entityManager
-    .createQueryBuilder()
-    .insert()
-    .into(UserNotification)
-    .values(
-      bundle.userIds.map((userId) => ({
-        userId,
-        notificationId: notification.id,
-        createdAt: notification.createdAt,
-        public: notification.public,
-        uniqueKey,
-      })),
-    )
-    // onConflict deprecated (but still usable) because no way to use orIgnore with where clause
-    // https://github.com/typeorm/typeorm/issues/8124#issuecomment-1523780405
-    .onConflict(
-      '("userId", "uniqueKey") WHERE "uniqueKey" IS NOT NULL DO NOTHING',
-    )
-    .execute();
+  const chunks: Pick<
+    UserNotification,
+    'userId' | 'notificationId' | 'createdAt' | 'public' | 'uniqueKey'
+  >[][] = [];
+  const chunkSize = 500;
+
+  bundle.userIds.forEach((userId) => {
+    if (chunks.length === 0 || chunks[chunks.length - 1].length === chunkSize) {
+      chunks.push([]);
+    }
+
+    chunks[chunks.length - 1].push({
+      userId,
+      notificationId: notification.id,
+      createdAt: notification.createdAt,
+      public: notification.public,
+      uniqueKey,
+    });
+  });
+
+  for (const chunk of chunks) {
+    await entityManager
+      .createQueryBuilder()
+      .insert()
+      .into(UserNotification)
+      .values(chunk)
+      // onConflict deprecated (but still usable) because no way to use orIgnore with where clause
+      // https://github.com/typeorm/typeorm/issues/8124#issuecomment-1523780405
+      .onConflict(
+        '("userId", "uniqueKey") WHERE "uniqueKey" IS NOT NULL DO NOTHING',
+      )
+      .execute();
+  }
 
   return identifiers as { id: string }[];
 }
