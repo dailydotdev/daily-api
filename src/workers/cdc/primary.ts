@@ -883,7 +883,7 @@ const getNextWeekday = (todayTz: Date, weekStart: DayOfWeek): Date => {
 const getNextWeekdayInSeconds = (user: User): number => {
   const { weekStart } = user;
   const today = utcToZonedTime(new Date(), user.timezone || DEFAULT_TIMEZONE);
-  const weekday = getNextWeekday(today, weekStart!);
+  const weekday = getNextWeekday(today, weekStart);
   const startOfDay = weekday.setHours(0, 0, 0, 0);
 
   return Math.round((startOfDay - today.getTime()) / 1000);
