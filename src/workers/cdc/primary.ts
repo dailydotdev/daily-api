@@ -109,7 +109,7 @@ import {
   cancelReminderWorkflow,
   runReminderWorkflow,
 } from '../../temporal/notifications/utils';
-import { addDays, nextMonday } from 'date-fns';
+import { addDays, nextMonday, nextTuesday } from 'date-fns';
 import {
   postReportReasonsMap,
   reportCommentReasonsMap,
@@ -874,10 +874,10 @@ const getNextWeekday = (todayTz: Date, weekStart: DayOfWeek): Date => {
     return addDays(todayTz, 1);
   }
 
-  const monday = nextMonday(todayTz);
-  const weekday = weekStart === DayOfWeek.Sunday ? monday : addDays(monday, 1);
+  const weekStartEndOfDay =
+    weekStart === DayOfWeek.Sunday ? nextMonday(todayTz) : nextTuesday(todayTz);
 
-  return weekday;
+  return weekStartEndOfDay;
 };
 
 const getNextWeekdayInSeconds = (user: User): number => {
