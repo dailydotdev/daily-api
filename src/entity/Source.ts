@@ -165,4 +165,7 @@ export class SquadSource extends Source {
 
   @Column({ default: 0 })
   memberInviteRank: number;
+
+  @Column({ default: true })
+  moderationRequired: boolean;
 }
