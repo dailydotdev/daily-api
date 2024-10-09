@@ -22,15 +22,13 @@ import {
 
 const redirectResponse = ({
   res,
-  path,
+  url,
   error,
 }: {
   res: FastifyReply;
-  path: string;
+  url: URL;
   error?: RedirectError;
 }): FastifyReply => {
-  const url = new URL(`${process.env.COMMENTS_PREFIX}${path}`);
-
   if (error) {
     url.searchParams.append('error', error.message);
   }
@@ -52,6 +50,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     const redirectPath = redirectPathCookie?.startsWith('/')
       ? redirectPathCookie
       : '/';
+    const redirectUrl = new URL(
+      `${process.env.COMMENTS_PREFIX}${redirectPath}`,
+    );
 
     try {
       if (!req.userId) {
@@ -157,15 +158,20 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         teamName: result.team.name,
       };
 
+      let integrationId;
       if (existingIntegration) {
+        integrationId = existingIntegration.id;
         await con
           .getRepository(UserIntegrationSlack)
           .update({ id: existingIntegration.id }, { meta: integrationMeta });
       } else {
-        await con.getRepository(UserIntegrationSlack).insert({
-          userId: req.userId,
-          meta: integrationMeta,
-        });
+        const newIntegration = await con
+          .getRepository(UserIntegrationSlack)
+          .insert({
+            userId: req.userId,
+            meta: integrationMeta,
+          });
+        integrationId = newIntegration.identifiers[0].id;
       }
 
       try {
@@ -187,7 +193,12 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         );
       }
 
-      return redirectResponse({ res, path: redirectPath });
+      redirectUrl.searchParams.append('iid', integrationId);
+
+      return redirectResponse({
+        res,
+        url: redirectUrl,
+      });
     } catch (error) {
       const isRedirectError = error instanceof RedirectError;
 
@@ -197,7 +208,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
       redirectResponse({
         res,
-        path: redirectPath,
+        url: redirectUrl,
         error: isRedirectError ? error : new RedirectError('internal error'),
       });
     }
