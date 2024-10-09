@@ -1758,6 +1758,7 @@ describe('mutation createSquad', () => {
     handle: 'squadcreatetest',
     postId: 'p1',
     commentary: 'My comment',
+    moderationRequired: true,
   };
 
   it('should not authorize when not logged in', () =>
@@ -1788,6 +1789,7 @@ describe('mutation createSquad', () => {
     expect(newSource?.memberInviteRank).toEqual(
       sourceRoleRank[SourceMemberRoles.Member],
     );
+    expect(newSource?.moderationRequired).toEqual(true);
     const member = await con.getRepository(SourceMember).findOneBy({
       sourceId: newId,
       userId: '1',
