@@ -1641,19 +1641,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info: GraphQLResolveInfo,
     ): Promise<GQLUserIntegration> => {
-      return graphorm.queryOne<GQLUserIntegration>(ctx, info, (builder) => {
-        builder.queryBuilder = builder.queryBuilder.andWhere(
-          `${builder.alias}."id" = :id`,
-          {
-            id,
-          },
-        );
-        builder.queryBuilder = builder.queryBuilder.andWhere(
-          `${builder.alias}."userId" = :userId`,
-          { userId: ctx.userId },
-        );
-        return builder;
-      });
+      return graphorm.queryOneOrFail<GQLUserIntegration>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder.andWhere(
+            `${builder.alias}."id" = :id`,
+            {
+              id,
+            },
+          );
+          builder.queryBuilder = builder.queryBuilder.andWhere(
+            `${builder.alias}."userId" = :userId`,
+            { userId: ctx.userId },
+          );
+          return builder;
+        },
+      );
     },
   },
   Mutation: {
