@@ -7,7 +7,7 @@ export class SourceModerationRequired1727958325934
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE "source" ADD "moderationRequired" boolean DEFAULT true`,
+      `ALTER TABLE "source" ADD "moderationRequired" boolean DEFAULT false`,
     );
   }
 
