@@ -4953,6 +4953,39 @@ describe('query userIntegration', () => {
       userId: '1',
     });
   });
+
+  it('should not return user integration if from different user', async () => {
+    loggedUser = '1';
+    const createdAt = new Date();
+
+    await con.getRepository(UserIntegration).save({
+      id: '5e061c07-d0ee-4f03-84b1-d53daad4b317',
+      userId: '2',
+      type: UserIntegrationType.Slack,
+      createdAt: addSeconds(createdAt, 3),
+      name: 'daily.dev',
+      meta: {
+        appId: 'sapp1',
+        scope: 'channels:read,chat:write,channels:join',
+        teamId: 'st1',
+        teamName: 'daily.dev',
+        tokenType: 'bot',
+        accessToken: await encrypt(
+          'xoxb-token',
+          process.env.SLACK_DB_KEY as string,
+        ),
+        slackUserId: 'su1',
+      },
+    });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        id: '5e061c07-d0ee-4f03-84b1-d53daad4b317',
+      },
+    });
+    expect(res.errors).toBeTruthy();
+    expect(res.errors[0].extensions.code).toEqual('NOT_FOUND');
+  });
 });
 
 describe('query userIntegrations', () => {

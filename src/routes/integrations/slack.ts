@@ -50,7 +50,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     const redirectPath = redirectPathCookie?.startsWith('/')
       ? redirectPathCookie
       : '/';
-    const redirectUrl = new URL(redirectPath, process.env.COMMENTS_PREFIX);
+    new URL(`${process.env.COMMENTS_PREFIX}${redirectPath}`);
 
     try {
       if (!req.userId) {
