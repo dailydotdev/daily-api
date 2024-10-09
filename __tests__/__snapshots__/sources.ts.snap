@@ -169,7 +169,6 @@ Object {
   "source": Object {
     "id": "a",
     "image": "http://image.com/a",
-    "moderationRequired": true,
     "name": "A",
     "public": true,
   },
