@@ -17,6 +17,7 @@ import { FastifyBaseLogger } from 'fastify';
 import type { UserCompany } from './entity/UserCompany';
 import type { Company } from './entity/Company';
 import { DataSource } from 'typeorm';
+import { logger } from './logger';
 
 export const cio = new TrackClient(
   process.env.CIO_SITE_ID,
@@ -172,6 +173,31 @@ export async function identifyUserCompany(
   } catch (err) {
     if (err instanceof CustomerIORequestError && err.statusCode === 400) {
       log.warn({ err }, 'failed to update user company in cio');
+      return;
+    }
+    throw err;
+  }
+}
+
+export async function identifyUserPersonalizedDigest({
+  userId,
+  subscribed,
+}: {
+  cio: TrackClient;
+  userId: string;
+  subscribed: boolean;
+}): Promise<void> {
+  try {
+    await cio.identify(userId, {
+      [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Digest}`]:
+        subscribed,
+    });
+  } catch (err) {
+    if (err instanceof CustomerIORequestError && err.statusCode === 400) {
+      logger.warn(
+        { err },
+        'failed to update user personalized digest subscription in cio',
+      );
       return;
     }
     throw err;
