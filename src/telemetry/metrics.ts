@@ -3,8 +3,11 @@ import type { FastifyInstance } from 'fastify';
 import { api, resources, metrics } from '@opentelemetry/sdk-node';
 import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
 import {
+  ATTR_HTTP_REQUEST_METHOD,
+  ATTR_HTTP_RESPONSE_STATUS_CODE,
   ATTR_HTTP_ROUTE,
   ATTR_SERVICE_NAME,
+  METRIC_HTTP_SERVER_REQUEST_DURATION,
 } from '@opentelemetry/semantic-conventions';
 
 import { containerDetector } from '@opentelemetry/resource-detector-container';
@@ -19,6 +22,7 @@ import {
   getAppVersion,
   SEMATTRS_DAILY_APPS_VERSION,
 } from './common';
+import { ValueType } from '@opentelemetry/api';
 
 const counterMap = {
   api: {
@@ -149,10 +153,27 @@ export const startMetrics = (serviceName: keyof typeof counterMap): void => {
   const meterProvider = new metrics.MeterProvider({ resource, readers });
   api.metrics.setGlobalMeterProvider(meterProvider);
 
+  const performanceMeter = meterProvider.getMeter(`api-${serviceName}-perf`);
+  const requestDuration = performanceMeter.createHistogram(
+    METRIC_HTTP_SERVER_REQUEST_DURATION,
+    {
+      description: 'The duration of HTTP request',
+      unit: 'ms',
+      valueType: ValueType.DOUBLE,
+      advice: {
+        explicitBucketBoundaries: [
+          10, 50, 75, 100, 150, 200, 400, 600, 800, 1000, 2000, 4000, 6000,
+        ],
+      },
+    },
+  );
+
+  const requestDurationIncludePaths = ['/boot'];
+
   // @ts-expect-error - types are not generic in dc subscribe
   dc.subscribe(channelName, ({ fastify }: { fastify: FastifyInstance }) => {
     // Decorate the main span with some metadata
-    fastify.addHook('onResponse', async (req) => {
+    fastify.addHook('onResponse', async (req, res) => {
       if (req.routeOptions.url === '/graphql') {
         return;
       }
@@ -161,6 +182,16 @@ export const startMetrics = (serviceName: keyof typeof counterMap): void => {
         [ATTR_HTTP_ROUTE]: req.routeOptions.url,
         [SEMATTRS_DAILY_APPS_VERSION]: getAppVersion(req as AppVersionRequest),
       });
+
+      if (
+        requestDurationIncludePaths.includes(req.routeOptions.url as string)
+      ) {
+        requestDuration.record(res.elapsedTime, {
+          [ATTR_HTTP_REQUEST_METHOD]: req.method,
+          [ATTR_HTTP_RESPONSE_STATUS_CODE]: res.statusCode,
+          [ATTR_HTTP_ROUTE]: req.routeOptions.url,
+        });
+      }
     });
   });
 
