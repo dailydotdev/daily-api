@@ -150,7 +150,9 @@ describe('GET /integrations/slack/auth/callback', () => {
     ).expect(307);
 
     expect(body).toEqual({});
-    expect(headers.location).toContain('http://localhost:5002/squads/test');
+    const returnUrl = new URL(headers.location);
+    expect(returnUrl.pathname).toBe('/squads/test');
+    expect(returnUrl.searchParams.get('iid')).toBeTruthy();
 
     const integration = await con
       .getRepository(UserIntegration)
@@ -219,9 +221,9 @@ describe('GET /integrations/slack/auth/callback', () => {
     ).expect(307);
 
     expect(body).toEqual({});
-    expect(headers.location).toBe(
-      `http://localhost:5002/squads/test&iid=${existingIntegration[0].id}`,
-    );
+    const returnUrl = new URL(headers.location);
+    expect(returnUrl.pathname).toBe('/squads/test');
+    expect(returnUrl.searchParams.get('iid')).toBe(existingIntegration[0].id);
 
     const integration = await con
       .getRepository(UserIntegration)
