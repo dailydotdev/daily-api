@@ -546,8 +546,8 @@ const obj = new GraphORM({
           },
         },
         pagination: {
-          limit: 50,
-          hasNextPage: (size): boolean => size === 50,
+          limit: 100,
+          hasNextPage: (size): boolean => size === 100,
           hasPreviousPage: (): boolean => false,
           nodeToCursor: (node: GQLComment): string =>
             base64(`time:${new Date(node.createdAt).getTime()}`),
