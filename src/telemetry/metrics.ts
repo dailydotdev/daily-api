@@ -19,6 +19,7 @@ import {
   getAppVersion,
   SEMATTRS_DAILY_APPS_VERSION,
 } from './common';
+import { instrumentationsWithMetrics } from './opentelemetry';
 
 const counterMap = {
   api: {
@@ -167,6 +168,10 @@ export const startMetrics = (serviceName: keyof typeof counterMap): void => {
   // We need to create and default all the counters to ensure that prometheus has scraped them
   // This is a known "limitation" of prometheus and distributed system like kubernetes
   const currentCounter = counterMap[serviceName];
+
+  for (const instrumentation of instrumentationsWithMetrics) {
+    instrumentation.setMeterProvider(meterProvider);
+  }
 
   if (currentCounter) {
     const meter = api.metrics.getMeter(serviceName);

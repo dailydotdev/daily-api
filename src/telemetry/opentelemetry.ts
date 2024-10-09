@@ -72,7 +72,7 @@ export const addPubsubSpanLabels = (
   });
 };
 
-const instrumentations = [
+export const instrumentationsWithMetrics = [
   new HttpInstrumentation({
     // Ignore specific endpoints like health checks or internal metrics
     ignoreIncomingRequestHook: (request) => {
@@ -80,6 +80,9 @@ const instrumentations = [
       return ignorePaths.some((path) => request.url?.includes(path));
     },
   }),
+];
+
+const instrumentations = [
   new FastifyInstrumentation({
     requestHook: (span, info) => {
       addApiSpanLabels(span, info.request);
@@ -125,7 +128,7 @@ export const tracer = (serviceName: string) => {
       new logs.SimpleLogRecordProcessor(new logs.ConsoleLogRecordExporter()),
     ],
     spanProcessors: [spanProcessor],
-    instrumentations,
+    instrumentations: [...instrumentationsWithMetrics, ...instrumentations],
     resourceDetectors,
   });
 
