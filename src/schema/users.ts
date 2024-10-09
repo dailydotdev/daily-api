@@ -828,6 +828,11 @@ export const typeDefs = /* GraphQL */ `
     userIntegrations: UserIntegrationConnection @auth
 
     """
+    Get user integration by id
+    """
+    userIntegration(id: ID!): UserIntegration @auth
+
+    """
     Get companies for user
     """
     companies: [UserCompany] @auth
@@ -1629,6 +1634,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           orderByKey: 'DESC',
         },
       );
+    },
+    userIntegration: async (
+      _,
+      { id }: { id: string },
+      ctx: AuthContext,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLUserIntegration> => {
+      return graphorm.queryOne<GQLUserIntegration>(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder.andWhere(
+          `${builder.alias}."id" = :id`,
+          {
+            id,
+          },
+        );
+        builder.queryBuilder = builder.queryBuilder.andWhere(
+          `${builder.alias}."userId" = :userId`,
+          { userId: ctx.userId },
+        );
+        return builder;
+      });
     },
   },
   Mutation: {

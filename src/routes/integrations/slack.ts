@@ -157,15 +157,20 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         teamName: result.team.name,
       };
 
+      let integrationId;
       if (existingIntegration) {
+        integrationId = existingIntegration.id;
         await con
           .getRepository(UserIntegrationSlack)
           .update({ id: existingIntegration.id }, { meta: integrationMeta });
       } else {
-        await con.getRepository(UserIntegrationSlack).insert({
-          userId: req.userId,
-          meta: integrationMeta,
-        });
+        const newIntegration = await con
+          .getRepository(UserIntegrationSlack)
+          .insert({
+            userId: req.userId,
+            meta: integrationMeta,
+          });
+        integrationId = newIntegration.identifiers[0].id;
       }
 
       try {
@@ -187,7 +192,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         );
       }
 
-      return redirectResponse({ res, path: redirectPath });
+      return redirectResponse({
+        res,
+        path: `${redirectPath}&iid=${integrationId}`,
+      });
     } catch (error) {
       const isRedirectError = error instanceof RedirectError;
 
