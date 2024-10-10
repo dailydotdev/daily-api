@@ -1,6 +1,11 @@
 import { CustomerIORequestError, TrackClient } from 'customerio-node';
 import { ChangeObject } from './types';
-import { User, UserStreak } from './entity';
+import {
+  User,
+  UserPersonalizedDigest,
+  UserPersonalizedDigestType,
+  UserStreak,
+} from './entity';
 import {
   camelCaseToSnakeCase,
   CioUnsubscribeTopic,
@@ -8,9 +13,10 @@ import {
   getFirstName,
   getShortGenericInviteLink,
 } from './common';
-import { FastifyBaseLogger } from 'fastify';
 import type { UserCompany } from './entity/UserCompany';
 import type { Company } from './entity/Company';
+import { DataSource } from 'typeorm';
+import { logger } from './logger';
 
 export const cio = new TrackClient(
   process.env.CIO_SITE_ID,
@@ -46,13 +52,15 @@ const OMIT_FIELDS: (keyof ChangeObject<User>)[] = [
   'followNotifications',
 ];
 
-export async function identifyUserStreak(
-  log: FastifyBaseLogger,
-  cio: TrackClient,
+export async function identifyUserStreak({
+  cio,
+  data,
+}: {
+  cio: TrackClient;
   data: ChangeObject<UserStreak> & {
     lastSevenDays: { [key: string]: boolean };
-  },
-): Promise<void> {
+  };
+}): Promise<void> {
   const {
     userId,
     currentStreak,
@@ -74,25 +82,39 @@ export async function identifyUserStreak(
     });
   } catch (err) {
     if (err instanceof CustomerIORequestError && err.statusCode === 400) {
-      log.warn({ err }, 'failed to update user streak in cio');
+      logger.warn({ err }, 'failed to update user streak in cio');
       return;
     }
     throw err;
   }
 }
 
-export async function identifyUser(
-  log: FastifyBaseLogger,
-  cio: TrackClient,
-  user: ChangeObject<User>,
-): Promise<void> {
+export async function identifyUser({
+  con,
+  cio,
+  user,
+}: {
+  con: DataSource;
+  cio: TrackClient;
+  user: ChangeObject<User>;
+}): Promise<void> {
   const dup = { ...user };
   const id = dup.id;
   for (const field of OMIT_FIELDS) {
     delete dup[field];
   }
 
-  const genericInviteURL = await getShortGenericInviteLink(log, id);
+  const [genericInviteURL, personalizedDigest] = await Promise.all([
+    getShortGenericInviteLink(logger, id),
+    con.getRepository(UserPersonalizedDigest).findOne({
+      select: ['userId'],
+      where: {
+        userId: id,
+        type: UserPersonalizedDigestType.Digest,
+      },
+    }),
+  ]);
+
   try {
     await cio.identify(id, {
       ...camelCaseToSnakeCase(dup),
@@ -106,22 +128,29 @@ export async function identifyUser(
         user.acceptedMarketing,
       [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Notifications}`]:
         user.notificationEmail,
+      [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Digest}`]:
+        !!personalizedDigest,
+      [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Follow}`]:
+        user.followingEmail,
     });
   } catch (err) {
     if (err instanceof CustomerIORequestError && err.statusCode === 400) {
-      log.warn({ err, user }, 'failed to update user in cio');
+      logger.warn({ err, user }, 'failed to update user in cio');
       return;
     }
     throw err;
   }
 }
 
-export async function identifyUserCompany(
-  log: FastifyBaseLogger,
-  cio: TrackClient,
-  userCompany: ChangeObject<UserCompany>,
-  company: Company,
-): Promise<void> {
+export async function identifyUserCompany({
+  cio,
+  userCompany,
+  company,
+}: {
+  cio: TrackClient;
+  userCompany: ChangeObject<UserCompany>;
+  company: Company;
+}): Promise<void> {
   try {
     await cio.request.post(`${cio.trackRoot}/entity`, {
       identifiers: {
@@ -145,7 +174,32 @@ export async function identifyUserCompany(
     });
   } catch (err) {
     if (err instanceof CustomerIORequestError && err.statusCode === 400) {
-      log.warn({ err }, 'failed to update user company in cio');
+      logger.warn({ err }, 'failed to update user company in cio');
+      return;
+    }
+    throw err;
+  }
+}
+
+export async function identifyUserPersonalizedDigest({
+  userId,
+  subscribed,
+}: {
+  cio: TrackClient;
+  userId: string;
+  subscribed: boolean;
+}): Promise<void> {
+  try {
+    await cio.identify(userId, {
+      [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Digest}`]:
+        subscribed,
+    });
+  } catch (err) {
+    if (err instanceof CustomerIORequestError && err.statusCode === 400) {
+      logger.warn(
+        { err },
+        'failed to update user personalized digest subscription in cio',
+      );
       return;
     }
     throw err;
