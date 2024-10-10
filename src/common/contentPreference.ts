@@ -8,6 +8,8 @@ import { NotificationPreferenceUser } from '../entity/notifications/Notification
 import { NotificationType } from '../notifications/common';
 import { EntityManager, In } from 'typeorm';
 import { ConflictError } from '../errors';
+import { ContentPreferenceFeedKeyword } from '../entity/contentPreference/ContentPreferenceFeedKeyword';
+import { FeedTag } from '../entity';
 
 type FollowEntity = ({
   ctx,
@@ -32,6 +34,7 @@ const entityToNotificationTypeMap: Record<
   NotificationType[]
 > = {
   [ContentPreferenceType.User]: [NotificationType.UserPostAdded],
+  [ContentPreferenceType.Keyword]: [],
 };
 
 export const contentPreferenceNotificationTypes = Object.values(
@@ -52,6 +55,10 @@ const cleanContentNotificationPreference = async ({
   const notificationRepository = (entityManager ?? ctx.con).getRepository(
     NotificationPreferenceUser,
   );
+
+  if (!notificationTypes.length) {
+    return;
+  }
 
   await notificationRepository.delete({
     userId: ctx.userId,
@@ -107,6 +114,66 @@ const unfollowUser: UnFollowEntity = async ({ ctx, id }) => {
   });
 };
 
+const followKeyword: FollowEntity = async ({ ctx, id, status }) => {
+  await ctx.con.transaction(async (entityManager) => {
+    const repository = entityManager.getRepository(
+      ContentPreferenceFeedKeyword,
+    );
+
+    const contentPreference = repository.create({
+      userId: ctx.userId,
+      referenceId: id,
+      keywordId: id,
+      feedId: ctx.userId,
+      status,
+    });
+
+    await repository.save(contentPreference);
+
+    if (status !== ContentPreferenceStatus.Subscribed) {
+      cleanContentNotificationPreference({
+        ctx,
+        entityManager,
+        id,
+        notificationTypes: entityToNotificationTypeMap.keyword,
+      });
+    }
+
+    // TODO follow phase 3 remove when backward compatibility is done
+    await entityManager.getRepository(FeedTag).save({
+      feedId: ctx.userId,
+      tag: id,
+    });
+  });
+};
+
+const unfollowKeyword: UnFollowEntity = async ({ ctx, id }) => {
+  await ctx.con.transaction(async (entityManager) => {
+    const repository = entityManager.getRepository(
+      ContentPreferenceFeedKeyword,
+    );
+
+    await repository.delete({
+      userId: ctx.userId,
+      keywordId: id,
+      referenceId: id,
+    });
+
+    cleanContentNotificationPreference({
+      ctx,
+      entityManager,
+      id,
+      notificationTypes: entityToNotificationTypeMap.keyword,
+    });
+
+    // TODO follow phase 3 remove when backward compatibility is done
+    await entityManager.getRepository(FeedTag).delete({
+      feedId: ctx.userId,
+      tag: id,
+    });
+  });
+};
+
 export const followEntity = ({
   ctx,
   id,
@@ -121,6 +188,8 @@ export const followEntity = ({
   switch (entity) {
     case ContentPreferenceType.User:
       return followUser({ ctx, id, status });
+    case ContentPreferenceType.Keyword:
+      return followKeyword({ ctx, id, status });
     default:
       throw new Error('Entity not supported');
   }
@@ -138,6 +207,8 @@ export const unfollowEntity = ({
   switch (entity) {
     case ContentPreferenceType.User:
       return unfollowUser({ ctx, id });
+    case ContentPreferenceType.Keyword:
+      return unfollowKeyword({ ctx, id });
     default:
       throw new Error('Entity not supported');
   }
