@@ -153,10 +153,9 @@ export const startMetrics = (serviceName: keyof typeof counterMap): void => {
   const meterProvider = new metrics.MeterProvider({ resource, readers });
   api.metrics.setGlobalMeterProvider(meterProvider);
 
-  const performanceMeter = meterProvider.getMeter(`api-${serviceName}-perf`);
-  const requestDuration = performanceMeter.createHistogram(
-    METRIC_HTTP_SERVER_REQUEST_DURATION,
-    {
+  const requestDuration = api.metrics
+    .getMeter(serviceName)
+    .createHistogram(METRIC_HTTP_SERVER_REQUEST_DURATION, {
       description: 'The duration of HTTP request',
       unit: 'ms',
       valueType: ValueType.DOUBLE,
@@ -165,8 +164,7 @@ export const startMetrics = (serviceName: keyof typeof counterMap): void => {
           10, 50, 75, 100, 150, 200, 400, 600, 800, 1000, 2000, 4000, 6000,
         ],
       },
-    },
-  );
+    });
 
   const requestDurationIncludePaths = ['/boot'];
 
