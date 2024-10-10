@@ -14,19 +14,19 @@ import dc from 'node:diagnostics_channel';
 
 import { NodeSDK, logs, node, api, resources } from '@opentelemetry/sdk-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
-import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter';
 import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
 
 import { containerDetector } from '@opentelemetry/resource-detector-container';
 import { gcpDetector } from '@opentelemetry/resource-detector-gcp';
 
-import { isProd } from '../common/utils';
 import {
   AppVersionRequest,
   channelName,
+  enableOpenTelemetryTracing,
   getAppVersion,
   SEMATTRS_DAILY_APPS_USER_ID,
   SEMATTRS_DAILY_APPS_VERSION,
+  SEMATTRS_DAILY_STAFF,
 } from './common';
 import {
   ATTR_MESSAGING_DESTINATION_NAME,
@@ -55,6 +55,7 @@ export const addApiSpanLabels = (
   span?.setAttributes({
     [SEMATTRS_DAILY_APPS_VERSION]: getAppVersion(req),
     [SEMATTRS_DAILY_APPS_USER_ID]: req.userId || req.trackingId || 'unknown',
+    [SEMATTRS_DAILY_STAFF]: req.isTeamMember,
   });
 };
 
@@ -105,18 +106,16 @@ const instrumentations = [
 api.diag.setLogger(new api.DiagConsoleLogger(), api.DiagLogLevel.INFO);
 
 export const tracer = (serviceName: string) => {
-  if (process.env.OTEL_ENABLED !== 'true') {
+  if (!enableOpenTelemetryTracing) {
     return {
       start: () => {},
       tracer: api.trace.getTracer('noop'),
     };
   }
 
-  const traceExporter = isProd
-    ? new TraceExporter()
-    : new OTLPTraceExporter({
-        url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
-      });
+  const traceExporter = new OTLPTraceExporter({
+    url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
+  });
 
   const spanProcessor = new node.BatchSpanProcessor(traceExporter);
 
@@ -162,11 +161,11 @@ export const tracer = (serviceName: string) => {
 export const runInSpan = async <T>(
   name: string,
   func: (span: api.Span) => Promise<T>,
-  options: api.SpanOptions = {},
+  options?: api.SpanOptions,
 ): Promise<T> =>
   api.trace
     .getTracer('runInSpan')
-    .startActiveSpan(name, options, async (span) => {
+    .startActiveSpan(name, options!, async (span) => {
       try {
         return await func(span);
       } catch (originalError) {
@@ -185,9 +184,9 @@ export const runInSpan = async <T>(
 export const runInSpanSync = <T>(
   name: string,
   func: (span: api.Span) => T,
-  options: api.SpanOptions = {},
+  options?: api.SpanOptions,
 ): T =>
-  api.trace.getTracer('runInSpan').startActiveSpan(name, options, (span) => {
+  api.trace.getTracer('runInSpan').startActiveSpan(name, options!, (span) => {
     try {
       return func(span);
     } catch (originalError) {

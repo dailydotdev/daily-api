@@ -3501,6 +3501,7 @@ describe('user streak change', () => {
     });
 
     it('should set cache of previous streak for recovery', async () => {
+      const spy = jest.spyOn(redisFile, 'setRedisObjectWithExpiry');
       const after: ChangeObject<ObjectType> = {
         ...base,
         ...dates,
@@ -3524,7 +3525,47 @@ describe('user streak change', () => {
       ]);
       expect(lastStreak).toEqual(3);
       const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
-      expect(alert.showRecoverStreak).toEqual(true);
+      expect(alert!.showRecoverStreak).toEqual(true);
+      expect(spy).toHaveBeenCalledWith('streak:reset:1', 3, 43200); // 12 hours
+    });
+
+    it('should set cache until next weekday as expiry', async () => {
+      const spy = jest.spyOn(redisFile, 'setRedisObjectWithExpiry');
+      jest
+        .useFakeTimers({ doNotFake })
+        .setSystemTime(new Date('2024-08-31T12:00:00.123Z')); // Saturday
+      const lastViewAt = new Date('2024-08-29T12:00:00'); // previous Thursday
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        lastViewAt: lastViewAt.toISOString() as never,
+        currentStreak: 0,
+      };
+      await con
+        .getRepository(UserStreak)
+        .update({ userId: '1' }, { lastViewAt });
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: {
+            ...base,
+            currentStreak: 3,
+            lastViewAt: lastViewAt.toISOString() as never,
+          },
+          op: 'u',
+          table: 'user_streak',
+        }),
+      );
+      const lastStreak = await getRestoreStreakCache({ userId: after.userId });
+      expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+      expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+        'api.v1.user-streak-updated',
+        { streak: after },
+      ]);
+      expect(lastStreak).toEqual(3);
+      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      expect(alert!.showRecoverStreak).toEqual(true);
+      expect(spy).toHaveBeenCalledWith('streak:reset:1', 3, 216000); // 60 hours --- 2 days = 48 hours + 12 hours
     });
 
     it('should set cache of previous streak even when weekend had passed if it has only been 2 valid days', async () => {

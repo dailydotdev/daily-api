@@ -39,7 +39,9 @@ describe('userCreatedCio', () => {
     updatedAt: 1714577744717000,
     bio: 'bio',
     readme: 'readme',
+    notificationEmail: true,
     acceptedMarketing: true,
+    followingEmail: true,
   };
 
   it('should be registered', () => {
@@ -64,11 +66,10 @@ describe('userCreatedCio', () => {
       username: 'cio',
       referral_link: referral,
       accepted_marketing: true,
-      cio_subscription_preferences: {
-        topics: {
-          topic_4: true,
-        },
-      },
+      'cio_subscription_preferences.topics.topic_4': true,
+      'cio_subscription_preferences.topics.topic_7': true,
+      'cio_subscription_preferences.topics.topic_8': false,
+      'cio_subscription_preferences.topics.topic_9': true,
     });
   });
 
@@ -77,12 +78,11 @@ describe('userCreatedCio', () => {
     await expectSuccessfulTypedBackground(worker, {
       user: { ...base, acceptedMarketing: false },
     } as unknown as PubSubSchema['api.v1.user-created']);
-    expect(
-      mocked(cio.identify).mock.calls[0][1].cio_subscription_preferences,
-    ).toEqual({
-      topics: {
-        topic_4: false,
-      },
+    expect(mocked(cio.identify).mock.calls[0][1]).toMatchObject({
+      'cio_subscription_preferences.topics.topic_4': false,
+      'cio_subscription_preferences.topics.topic_7': true,
+      'cio_subscription_preferences.topics.topic_8': false,
+      'cio_subscription_preferences.topics.topic_9': true,
     });
   });
 
