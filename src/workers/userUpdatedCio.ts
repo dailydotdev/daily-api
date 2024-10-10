@@ -26,7 +26,6 @@ const worker: TypedWorker<'user-updated'> = {
 
     await identifyUser({
       con,
-      log,
       cio,
       user,
     });

@@ -19,7 +19,6 @@ const worker: TypedWorker<'api.v1.user-created'> = {
 
     await identifyUser({
       con,
-      log,
       cio,
       user,
     });

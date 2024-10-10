@@ -28,7 +28,7 @@ const worker: TypedWorker<'api.v1.user-company-approved'> = {
       return;
     }
 
-    await identifyUserCompany(log, cioV2, userCompany, company);
+    await identifyUserCompany({ cio: cioV2, userCompany, company });
   },
 };
 

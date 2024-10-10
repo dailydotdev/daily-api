@@ -13,7 +13,6 @@ import {
   getFirstName,
   getShortGenericInviteLink,
 } from './common';
-import { FastifyBaseLogger } from 'fastify';
 import type { UserCompany } from './entity/UserCompany';
 import type { Company } from './entity/Company';
 import { DataSource } from 'typeorm';
@@ -53,13 +52,15 @@ const OMIT_FIELDS: (keyof ChangeObject<User>)[] = [
   'followNotifications',
 ];
 
-export async function identifyUserStreak(
-  log: FastifyBaseLogger,
-  cio: TrackClient,
+export async function identifyUserStreak({
+  cio,
+  data,
+}: {
+  cio: TrackClient;
   data: ChangeObject<UserStreak> & {
     lastSevenDays: { [key: string]: boolean };
-  },
-): Promise<void> {
+  };
+}): Promise<void> {
   const {
     userId,
     currentStreak,
@@ -81,7 +82,7 @@ export async function identifyUserStreak(
     });
   } catch (err) {
     if (err instanceof CustomerIORequestError && err.statusCode === 400) {
-      log.warn({ err }, 'failed to update user streak in cio');
+      logger.warn({ err }, 'failed to update user streak in cio');
       return;
     }
     throw err;
@@ -90,12 +91,10 @@ export async function identifyUserStreak(
 
 export async function identifyUser({
   con,
-  log,
   cio,
   user,
 }: {
   con: DataSource;
-  log: FastifyBaseLogger;
   cio: TrackClient;
   user: ChangeObject<User>;
 }): Promise<void> {
@@ -106,7 +105,7 @@ export async function identifyUser({
   }
 
   const [genericInviteURL, personalizedDigest] = await Promise.all([
-    getShortGenericInviteLink(log, id),
+    getShortGenericInviteLink(logger, id),
     con.getRepository(UserPersonalizedDigest).findOne({
       select: ['userId'],
       where: {
@@ -136,19 +135,22 @@ export async function identifyUser({
     });
   } catch (err) {
     if (err instanceof CustomerIORequestError && err.statusCode === 400) {
-      log.warn({ err, user }, 'failed to update user in cio');
+      logger.warn({ err, user }, 'failed to update user in cio');
       return;
     }
     throw err;
   }
 }
 
-export async function identifyUserCompany(
-  log: FastifyBaseLogger,
-  cio: TrackClient,
-  userCompany: ChangeObject<UserCompany>,
-  company: Company,
-): Promise<void> {
+export async function identifyUserCompany({
+  cio,
+  userCompany,
+  company,
+}: {
+  cio: TrackClient;
+  userCompany: ChangeObject<UserCompany>;
+  company: Company;
+}): Promise<void> {
   try {
     await cio.request.post(`${cio.trackRoot}/entity`, {
       identifiers: {
@@ -172,7 +174,7 @@ export async function identifyUserCompany(
     });
   } catch (err) {
     if (err instanceof CustomerIORequestError && err.statusCode === 400) {
-      log.warn({ err }, 'failed to update user company in cio');
+      logger.warn({ err }, 'failed to update user company in cio');
       return;
     }
     throw err;
