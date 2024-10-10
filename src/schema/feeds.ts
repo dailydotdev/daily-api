@@ -1624,7 +1624,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         alias,
       ) => {
         const interval = [7, 30, 365].find((num) => num === period) ?? 7;
-        console.log('interval', interval, period);
         builder
           .andWhere(
             `${alias}."createdAt" > now() - interval '${interval} days'`,
