@@ -73,6 +73,8 @@ import {
 import { FeedLocalConfigGenerator } from '../integrations/feed/configs';
 import { counters } from '../telemetry';
 import { popularFeedClient } from '../integrations/feed/generators';
+import { ContentPreferenceFeedKeyword } from '../entity/contentPreference/ContentPreferenceFeedKeyword';
+import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 
 interface GQLTagsCategory {
   id: string;
@@ -1865,6 +1867,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           );
         }
         if (filters?.includeTags?.length) {
+          // TODO follow phase 3 remove when reading from new tables
           await manager
             .createQueryBuilder()
             .insert()
@@ -1877,8 +1880,25 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             )
             .onConflict(`("feedId", "tag") DO UPDATE SET blocked = false`)
             .execute();
+
+          await manager
+            .createQueryBuilder()
+            .insert()
+            .into(ContentPreferenceFeedKeyword)
+            .values(
+              filters.includeTags.map((keyword) => ({
+                userId: ctx.userId,
+                referenceId: keyword,
+                keywordId: keyword,
+                feedId: feedId,
+                status: ContentPreferenceStatus.Follow,
+              })) as ContentPreferenceFeedKeyword[],
+            )
+            .orUpdate(['status'], ['referenceId', 'userId'])
+            .execute();
         }
         if (filters?.blockedTags?.length) {
+          // TODO follow phase 3 remove when reading from new tables
           await manager
             .createQueryBuilder()
             .insert()
@@ -1891,6 +1911,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               })),
             )
             .onConflict(`("feedId", "tag") DO UPDATE SET blocked = true`)
+            .execute();
+
+          await manager
+            .createQueryBuilder()
+            .insert()
+            .into(ContentPreferenceFeedKeyword)
+            .values(
+              filters.blockedTags.map((keyword) => ({
+                userId: ctx.userId,
+                referenceId: keyword,
+                keywordId: keyword,
+                feedId: feedId,
+                status: ContentPreferenceStatus.Blocked,
+              })) as ContentPreferenceFeedKeyword[],
+            )
+            .orUpdate(['status'], ['referenceId', 'userId'])
             .execute();
         }
       });
@@ -1932,15 +1968,29 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             .execute();
         }
         if (filters?.includeTags?.length) {
+          // TODO follow phase 3 remove when reading from new tables
           await manager.getRepository(FeedTag).delete({
             feedId,
             tag: In(filters.includeTags),
           });
+
+          await manager.getRepository(ContentPreferenceFeedKeyword).delete({
+            userId: ctx.userId,
+            referenceId: In(filters.includeTags),
+            feedId,
+          });
         }
         if (filters?.blockedTags?.length) {
+          // TODO follow phase 3 remove when reading from new tables
           await manager.getRepository(FeedTag).delete({
             feedId,
             tag: In(filters.blockedTags),
+          });
+
+          await manager.getRepository(ContentPreferenceFeedKeyword).delete({
+            userId: ctx.userId,
+            referenceId: In(filters.blockedTags),
+            feedId,
           });
         }
       });
