@@ -102,6 +102,7 @@ import { CommentReport } from '../src/entity/CommentReport';
 import { getRestoreStreakCache } from '../src/workers/cdc/primary';
 import { ContentPreferenceUser } from '../src/entity/contentPreference/ContentPreferenceUser';
 import { ContentPreferenceStatus } from '../src/entity/contentPreference/types';
+import { identifyUserPersonalizedDigest } from '../src/cio';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -116,6 +117,11 @@ jest.mock('../src/common/mailing.ts', () => ({
     unknown
   >),
   sendEmail: jest.fn(),
+}));
+
+jest.mock('../src/cio', () => ({
+  ...(jest.requireActual('../src/cio') as Record<string, unknown>),
+  identifyUserPersonalizedDigest: jest.fn(),
 }));
 
 beforeAll(async () => {
@@ -4306,6 +4312,14 @@ describe('mutation subscribePersonalizedDigest', () => {
       preferredDay: DayOfWeek.Monday,
       preferredHour: 9,
     });
+
+    expect(
+      jest.mocked(identifyUserPersonalizedDigest).mock.calls[0][0],
+    ).toEqual({
+      cio: expect.any(Object),
+      userId: '1',
+      subscribed: true,
+    });
   });
 
   it('should subscribe to personal digest for user with settings', async () => {
@@ -4408,6 +4422,14 @@ describe('mutation unsubscribePersonalizedDigest', () => {
         userId: loggedUser,
       });
     expect(personalizedDigest).toBeNull();
+
+    expect(
+      jest.mocked(identifyUserPersonalizedDigest).mock.calls[0][0],
+    ).toEqual({
+      cio: expect.any(Object),
+      userId: '1',
+      subscribed: false,
+    });
   });
 
   it('should not throw error if not subscribed', async () => {

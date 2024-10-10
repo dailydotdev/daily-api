@@ -89,7 +89,7 @@ import { deleteRedisKey, getRedisObject, RedisMagicValues } from '../redis';
 import { generateStorageKey, StorageKey, StorageTopic } from '../config';
 import { FastifyBaseLogger } from 'fastify';
 import { cachePrefillMarketingCta } from '../common/redisCache';
-import { cio } from '../cio';
+import { cio, identifyUserPersonalizedDigest } from '../cio';
 import {
   UserIntegration,
   UserIntegrationSlack,
@@ -1790,7 +1790,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         flags,
       });
 
-      await resubscribeUser(cio, ctx.userId);
+      await Promise.all([
+        resubscribeUser(cio, ctx.userId),
+        identifyUserPersonalizedDigest({
+          userId: ctx.userId,
+          cio,
+          subscribed: true,
+        }),
+      ]);
 
       return personalizedDigest;
     },
@@ -1809,6 +1816,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           type,
         });
       }
+
+      await identifyUserPersonalizedDigest({
+        userId: ctx.userId,
+        cio,
+        subscribed: false,
+      });
 
       return { _: true };
     },
