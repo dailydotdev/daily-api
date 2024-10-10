@@ -929,38 +929,6 @@ query Source($id: ID!) {
       'NOT_FOUND',
     ));
 
-  it('squad should have post moderation disabled', async () => {
-    await con.getRepository(SquadSource).save({
-      id: '12345',
-      name: 'Free For All',
-      handle: 'freeforall',
-      public: true,
-      moderationRequired: false,
-    });
-
-    const res = await client.query(QUERY, { variables: { id: '12345' } });
-    expect(res.errors).toBeFalsy();
-    expect(res.data.source.moderationRequired).toEqual(false);
-  });
-
-  it('squad should have post moderation enabled after update', async () => {
-    const uuid = randomUUID();
-    await con.getRepository(SquadSource).save({
-      id: uuid,
-      name: 'Meaning of Life',
-      handle: 'meaningoflife',
-      public: true,
-      moderationRequired: false,
-    });
-
-    await con
-      .getRepository(SquadSource)
-      .update({ id: uuid }, { moderationRequired: true });
-
-    const squad = await con.getRepository(SquadSource).findOneBy({ id: uuid });
-    expect(squad?.moderationRequired).toEqual(true);
-  });
-
   it('should not return private source when user is not member', async () => {
     loggedUser = '3';
     await con.getRepository(Source).update({ id: 'a' }, { private: true });
@@ -1758,7 +1726,6 @@ describe('mutation createSquad', () => {
     handle: 'squadcreatetest',
     postId: 'p1',
     commentary: 'My comment',
-    moderationRequired: true,
   };
 
   it('should not authorize when not logged in', () =>
@@ -1770,6 +1737,24 @@ describe('mutation createSquad', () => {
       },
       'UNAUTHENTICATED',
     ));
+
+  it('squad should have post moderation enabled on creation', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(Post).save(postsFixture[0]);
+
+    const res = await client.query(MUTATION, {
+      variables: { ...variables, moderationRequired: true },
+    });
+    expect(res.errors).toBeFalsy();
+
+    const newId = res.data.createSquad.id;
+    const newSource = await con
+      .getRepository(SquadSource)
+      .findOneByOrFail({ id: newId });
+
+    expect(newSource.moderationRequired).toEqual(true);
+  });
 
   it('should create squad', async () => {
     loggedUser = '1';
@@ -1789,7 +1774,7 @@ describe('mutation createSquad', () => {
     expect(newSource?.memberInviteRank).toEqual(
       sourceRoleRank[SourceMemberRoles.Member],
     );
-    expect(newSource?.moderationRequired).toEqual(true);
+    expect(newSource?.moderationRequired).toEqual(false);
     const member = await con.getRepository(SourceMember).findOneBy({
       sourceId: newId,
       userId: '1',
@@ -2082,8 +2067,8 @@ describe('mutation createSquad', () => {
 
 describe('mutation editSquad', () => {
   const MUTATION = `
-  mutation EditSquad($sourceId: ID!, $name: String!, $handle: String!, $description: String, $memberPostingRole: String, $memberInviteRole: String, $isPrivate: Boolean, $categoryId: ID) {
-  editSquad(sourceId: $sourceId, name: $name, handle: $handle, description: $description, memberPostingRole: $memberPostingRole, memberInviteRole: $memberInviteRole, isPrivate: $isPrivate, categoryId: $categoryId) {
+  mutation EditSquad($sourceId: ID!, $name: String!, $handle: String!, $description: String, $memberPostingRole: String, $memberInviteRole: String, $isPrivate: Boolean, $categoryId: ID, $moderationRequired: Boolean) {
+  editSquad(sourceId: $sourceId, name: $name, handle: $handle, description: $description, memberPostingRole: $memberPostingRole, memberInviteRole: $memberInviteRole, isPrivate: $isPrivate, categoryId: $categoryId, moderationRequired: $moderationRequired) {
     id
     category { id }
   }
@@ -2109,6 +2094,25 @@ describe('mutation editSquad', () => {
       referralToken: 'rt2',
       role: SourceMemberRoles.Admin,
     });
+  });
+
+  it('squad should have post moderation enabled after update', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        memberPostingRole: SourceMemberRoles.Member,
+        moderationRequired: true,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const squad = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: variables.sourceId });
+    expect(squad?.moderationRequired).toEqual(true);
   });
 
   it('should not authorize when not logged in', () =>
