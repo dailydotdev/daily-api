@@ -54,6 +54,7 @@ import {
   videoPostsFixture,
   vordrPostsFixture,
 } from './fixture/post';
+import { keywordsFixture } from './fixture/keywords';
 import nock from 'nock';
 import { deleteKeysByPattern } from '../src/redis';
 import { DataSource } from 'typeorm';
@@ -64,6 +65,11 @@ import { base64 } from 'graphql-relay/utils/base64';
 import { maxFeedsPerUser, UserVote } from '../src/types';
 import { SubmissionFailErrorMessage } from '../src/errors';
 import { baseFeedConfig } from '../src/integrations/feed';
+import { ContentPreferenceFeedKeyword } from '../src/entity/contentPreference/ContentPreferenceFeedKeyword';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../src/entity/contentPreference/types';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -90,6 +96,7 @@ beforeEach(async () => {
   await saveFixtures(con, ArticlePost, sharedPostsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
   await saveFixtures(con, PostKeyword, postKeywordsFixture);
+  await saveFixtures(con, Keyword, keywordsFixture);
   await deleteKeysByPattern('feeds:*');
 });
 
@@ -177,6 +184,32 @@ const saveFeedFixtures = async (): Promise<void> => {
   await saveFixtures(con, FeedSource, [
     { feedId: '1', sourceId: 'b' },
     { feedId: '1', sourceId: 'c' },
+  ]);
+  await saveFixtures(con, ContentPreferenceFeedKeyword, [
+    {
+      feedId: '1',
+      keywordId: 'golang',
+      referenceId: 'golang',
+      status: ContentPreferenceStatus.Blocked,
+      type: ContentPreferenceType.Keyword,
+      userId: '1',
+    },
+    {
+      feedId: '1',
+      keywordId: 'javascript',
+      referenceId: 'javascript',
+      status: ContentPreferenceStatus.Follow,
+      type: ContentPreferenceType.Keyword,
+      userId: '1',
+    },
+    {
+      feedId: '1',
+      keywordId: 'webdev',
+      referenceId: 'webdev',
+      status: ContentPreferenceStatus.Follow,
+      type: ContentPreferenceType.Keyword,
+      userId: '1',
+    },
   ]);
 };
 
@@ -2062,6 +2095,49 @@ describe('mutation addFiltersToFeed', () => {
         },
       },
     });
+
+    const contentPreferenceTags = await con
+      .getRepository(ContentPreferenceFeedKeyword)
+      .find({
+        where: {
+          userId: '1',
+          feedId: '1',
+        },
+        order: {
+          keywordId: 'ASC',
+        },
+      });
+
+    expect(contentPreferenceTags).toEqual([
+      {
+        createdAt: expect.any(Date),
+        feedId: '1',
+        keywordId: 'golang',
+        referenceId: 'golang',
+        status: ContentPreferenceStatus.Blocked,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+      {
+        createdAt: expect.any(Date),
+        feedId: '1',
+        keywordId: 'javascript',
+        referenceId: 'javascript',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+      {
+        createdAt: expect.any(Date),
+        feedId: '1',
+        keywordId: 'webdev',
+        referenceId: 'webdev',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+    ]);
+
     expect(res.data).toMatchSnapshot();
   });
 
@@ -2232,6 +2308,49 @@ describe('mutation removeFiltersFromFeed', () => {
   it('should remove existing filters', async () => {
     loggedUser = '1';
     await saveFeedFixtures();
+
+    const contentPreferenceTags = await con
+      .getRepository(ContentPreferenceFeedKeyword)
+      .find({
+        where: {
+          userId: '1',
+          feedId: '1',
+        },
+        order: {
+          keywordId: 'ASC',
+        },
+      });
+
+    expect(contentPreferenceTags).toEqual([
+      {
+        createdAt: expect.any(Date),
+        feedId: '1',
+        keywordId: 'golang',
+        referenceId: 'golang',
+        status: ContentPreferenceStatus.Blocked,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+      {
+        createdAt: expect.any(Date),
+        feedId: '1',
+        keywordId: 'javascript',
+        referenceId: 'javascript',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+      {
+        createdAt: expect.any(Date),
+        feedId: '1',
+        keywordId: 'webdev',
+        referenceId: 'webdev',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+    ]);
+
     const res = await client.mutate(MUTATION, {
       variables: {
         filters: {
@@ -2241,6 +2360,21 @@ describe('mutation removeFiltersFromFeed', () => {
         },
       },
     });
+
+    const contentPreferenceTagsAfter = await con
+      .getRepository(ContentPreferenceFeedKeyword)
+      .find({
+        where: {
+          userId: '1',
+          feedId: '1',
+        },
+        order: {
+          keywordId: 'ASC',
+        },
+      });
+
+    expect(contentPreferenceTagsAfter).toEqual([]);
+
     expect(res.data).toMatchSnapshot();
   });
 
