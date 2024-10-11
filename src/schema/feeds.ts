@@ -75,6 +75,7 @@ import { counters } from '../telemetry';
 import { popularFeedClient } from '../integrations/feed/generators';
 import { ContentPreferenceFeedKeyword } from '../entity/contentPreference/ContentPreferenceFeedKeyword';
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
+import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
 
 interface GQLTagsCategory {
   id: string;
@@ -1834,37 +1835,84 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           id: feedId,
         });
 
-        if (filters?.includeSources?.length) {
-          const [query, params] = ctx.con
-            .createQueryBuilder()
-            .select('id', 'sourceId')
-            .addSelect(`'${feedId}'`, 'feedId')
-            .addSelect('FALSE', 'blocked')
-            .from(Source, 'source')
-            .where('source.id IN (:...ids)', { ids: filters.includeSources })
-            .getQueryAndParameters();
-          await manager.query(
-            `insert into feed_source("sourceId", "feedId", "blocked") ${query} on CONFLICT ("sourceId", "feedId")
-            do
-            UPDATE SET BLOCKED = FALSE`,
-            params,
-          );
+        const [includedSources, excludedSources] = await Promise.all([
+          filters.includeSources
+            ? manager.getRepository(Source).find({
+                select: ['id'],
+                where: { id: In(filters.includeSources) },
+              })
+            : ([] as Source[]),
+          filters.excludeSources
+            ? manager.getRepository(Source).find({
+                select: ['id'],
+                where: { id: In(filters.excludeSources) },
+              })
+            : ([] as Source[]),
+        ]);
+
+        if (includedSources.length) {
+          await Promise.all([
+            manager
+              .createQueryBuilder()
+              .insert()
+              .into(FeedSource)
+              .values(
+                includedSources.map((source) => ({
+                  feedId,
+                  sourceId: source.id,
+                  blocked: false,
+                })),
+              )
+              .orUpdate(['blocked'], ['sourceId', 'feedId'])
+              .execute(),
+            manager
+              .createQueryBuilder()
+              .insert()
+              .into(ContentPreferenceSource)
+              .values(
+                includedSources.map((source) => ({
+                  userId: ctx.userId,
+                  referenceId: source.id,
+                  sourceId: source.id,
+                  feedId: feedId,
+                  status: ContentPreferenceStatus.Follow,
+                })) as ContentPreferenceSource[],
+              )
+              .orUpdate(['status'], ['referenceId', 'userId'])
+              .execute(),
+          ]);
         }
-        if (filters?.excludeSources?.length) {
-          const [query, params] = ctx.con
-            .createQueryBuilder()
-            .select('id', 'sourceId')
-            .addSelect(`'${feedId}'`, 'feedId')
-            .addSelect('TRUE', 'blocked')
-            .from(Source, 'source')
-            .where('source.id IN (:...ids)', { ids: filters.excludeSources })
-            .getQueryAndParameters();
-          await manager.query(
-            `insert into feed_source("sourceId", "feedId", "blocked") ${query} on CONFLICT ("sourceId", "feedId")
-            do
-            UPDATE SET BLOCKED = TRUE`,
-            params,
-          );
+        if (excludedSources.length) {
+          await Promise.all([
+            manager
+              .createQueryBuilder()
+              .insert()
+              .into(FeedSource)
+              .values(
+                excludedSources.map((source) => ({
+                  feedId,
+                  sourceId: source.id,
+                  blocked: true,
+                })),
+              )
+              .orUpdate(['blocked'], ['sourceId', 'feedId'])
+              .execute(),
+            manager
+              .createQueryBuilder()
+              .insert()
+              .into(ContentPreferenceSource)
+              .values(
+                excludedSources.map((source) => ({
+                  userId: ctx.userId,
+                  referenceId: source.id,
+                  sourceId: source.id,
+                  feedId: feedId,
+                  status: ContentPreferenceStatus.Blocked,
+                })) as ContentPreferenceSource[],
+              )
+              .orUpdate(['status'], ['referenceId', 'userId'])
+              .execute(),
+          ]);
         }
         if (filters?.includeTags?.length) {
           // TODO follow phase 3 remove when reading from new tables
@@ -1944,28 +1992,42 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .getRepository(Feed)
           .findOneByOrFail({ id: feedId, userId: ctx.userId });
         if (filters?.includeSources?.length) {
-          await manager
-            .getRepository(FeedSource)
-            .createQueryBuilder()
-            .delete()
-            .where('feedId = :feedId AND sourceId IN (:...sourceIds)', {
+          await Promise.all([
+            manager
+              .getRepository(FeedSource)
+              .createQueryBuilder()
+              .delete()
+              .where('feedId = :feedId AND sourceId IN (:...sourceIds)', {
+                feedId,
+                sourceIds: filters.includeSources,
+              })
+              .andWhere('blocked = false')
+              .execute(),
+            manager.getRepository(ContentPreferenceSource).delete({
+              userId: ctx.userId,
+              referenceId: In(filters.includeSources),
               feedId,
-              sourceIds: filters.includeSources,
-            })
-            .andWhere('blocked = false')
-            .execute();
+            }),
+          ]);
         }
         if (filters?.excludeSources?.length) {
-          await manager
-            .getRepository(FeedSource)
-            .createQueryBuilder()
-            .delete()
-            .where('feedId = :feedId AND sourceId IN (:...sourceIds)', {
+          await Promise.all([
+            manager
+              .getRepository(FeedSource)
+              .createQueryBuilder()
+              .delete()
+              .where('feedId = :feedId AND sourceId IN (:...sourceIds)', {
+                feedId,
+                sourceIds: filters.excludeSources,
+              })
+              .andWhere('blocked = true')
+              .execute(),
+            manager.getRepository(ContentPreferenceSource).delete({
+              userId: ctx.userId,
+              referenceId: In(filters.excludeSources),
               feedId,
-              sourceIds: filters.excludeSources,
-            })
-            .andWhere('blocked = true')
-            .execute();
+            }),
+          ]);
         }
         if (filters?.includeTags?.length) {
           // TODO follow phase 3 remove when reading from new tables

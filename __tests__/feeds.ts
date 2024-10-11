@@ -70,6 +70,7 @@ import {
   ContentPreferenceStatus,
   ContentPreferenceType,
 } from '../src/entity/contentPreference/types';
+import { ContentPreferenceSource } from '../src/entity/contentPreference/ContentPreferenceSource';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -211,6 +212,28 @@ const saveFeedFixtures = async (): Promise<void> => {
       referenceId: 'webdev',
       status: ContentPreferenceStatus.Follow,
       type: ContentPreferenceType.Keyword,
+      userId: '1',
+    },
+  ]);
+  await saveFixtures(con, ContentPreferenceSource, [
+    {
+      feedId: '1',
+      flags: {},
+      referenceId: 'a',
+      role: SourceMemberRoles.Member,
+      sourceId: 'a',
+      status: ContentPreferenceStatus.Blocked,
+      type: ContentPreferenceType.Source,
+      userId: '1',
+    },
+    {
+      feedId: '1',
+      flags: {},
+      referenceId: 'b',
+      role: SourceMemberRoles.Member,
+      sourceId: 'b',
+      status: ContentPreferenceStatus.Blocked,
+      type: ContentPreferenceType.Source,
       userId: '1',
     },
   ]);
@@ -2141,6 +2164,43 @@ describe('mutation addFiltersToFeed', () => {
       },
     ]);
 
+    const contentPreferenceSources = await con
+      .getRepository(ContentPreferenceSource)
+      .find({
+        where: {
+          userId: '1',
+          feedId: '1',
+        },
+        order: {
+          sourceId: 'ASC',
+        },
+      });
+
+    expect(contentPreferenceSources).toEqual([
+      {
+        createdAt: expect.any(Date),
+        feedId: '1',
+        flags: {},
+        referenceId: 'a',
+        role: SourceMemberRoles.Member,
+        sourceId: 'a',
+        status: ContentPreferenceStatus.Blocked,
+        type: ContentPreferenceType.Source,
+        userId: '1',
+      },
+      {
+        createdAt: expect.any(Date),
+        feedId: '1',
+        flags: {},
+        referenceId: 'b',
+        role: SourceMemberRoles.Member,
+        sourceId: 'b',
+        status: ContentPreferenceStatus.Blocked,
+        type: ContentPreferenceType.Source,
+        userId: '1',
+      },
+    ]);
+
     expect(res.data).toMatchSnapshot();
   });
 
@@ -2354,6 +2414,43 @@ describe('mutation removeFiltersFromFeed', () => {
       },
     ]);
 
+    const contentPreferenceSources = await con
+      .getRepository(ContentPreferenceSource)
+      .find({
+        where: {
+          userId: '1',
+          feedId: '1',
+        },
+        order: {
+          sourceId: 'ASC',
+        },
+      });
+
+    expect(contentPreferenceSources).toEqual([
+      {
+        createdAt: expect.any(Date),
+        feedId: '1',
+        flags: {},
+        referenceId: 'a',
+        role: SourceMemberRoles.Member,
+        sourceId: 'a',
+        status: ContentPreferenceStatus.Blocked,
+        type: ContentPreferenceType.Source,
+        userId: '1',
+      },
+      {
+        createdAt: expect.any(Date),
+        feedId: '1',
+        flags: {},
+        referenceId: 'b',
+        role: SourceMemberRoles.Member,
+        sourceId: 'b',
+        status: ContentPreferenceStatus.Blocked,
+        type: ContentPreferenceType.Source,
+        userId: '1',
+      },
+    ]);
+
     const res = await client.mutate(MUTATION, {
       variables: {
         filters: {
@@ -2377,6 +2474,20 @@ describe('mutation removeFiltersFromFeed', () => {
       });
 
     expect(contentPreferenceTagsAfter).toEqual([]);
+
+    const contentPreferenceSourcesAfter = await con
+      .getRepository(ContentPreferenceSource)
+      .find({
+        where: {
+          userId: '1',
+          feedId: '1',
+        },
+        order: {
+          sourceId: 'ASC',
+        },
+      });
+
+    expect(contentPreferenceSourcesAfter).toEqual([]);
 
     expect(res.data).toMatchSnapshot();
   });
