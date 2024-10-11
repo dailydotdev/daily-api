@@ -96,7 +96,7 @@ export const notificationTitleMap: Record<
     `The collection "<b>${ctx.post.title}</b>" just got updated with new details`,
   dev_card_unlocked: () => 'DevCard unlocked!',
   post_bookmark_reminder: (ctx: NotificationPostContext) =>
-    `Reading reminder! <b>${ctx.post.title}</b>`,
+    `Reading reminder! <b>${ctx.post.title ? ctx.post.title : ctx.sharedPost?.title ? ctx.sharedPost?.title : undefined}</b>`,
   source_post_added: (
     ctx: NotificationPostContext & NotificationDoneByContext,
   ) => `New post from <b>${ctx.source.name}</b>, check it out now!`,
