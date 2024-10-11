@@ -22,6 +22,8 @@ import {
   ContentPreferenceType,
 } from '../src/entity/contentPreference/types';
 import { NotificationPreferenceUser } from '../src/entity/notifications/NotificationPreferenceUser';
+import { Feed, Keyword } from '../src/entity';
+import { ContentPreferenceFeedKeyword } from '../src/entity/contentPreference/ContentPreferenceFeedKeyword';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -517,6 +519,42 @@ describe('mutation follow', () => {
       'CONFLICT',
     );
   });
+
+  describe('keyword', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, Keyword, [
+        { value: 'keyword-f1', occurrences: 300, status: 'allow' },
+        { value: 'keyword-f2', occurrences: 200, status: 'allow' },
+        { value: 'keyword-f3', occurrences: 100, status: 'allow' },
+      ]);
+
+      await saveFixtures(con, Feed, [{ id: '1-fm', userId: '1-fm' }]);
+    });
+
+    it('should follow', async () => {
+      loggedUser = '1-fm';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: 'keyword-f1',
+          entity: ContentPreferenceType.Keyword,
+          status: ContentPreferenceStatus.Follow,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreference = await con
+        .getRepository(ContentPreferenceFeedKeyword)
+        .findOneBy({
+          userId: '1-fm',
+          referenceId: 'keyword-f1',
+        });
+
+      expect(contentPreference).not.toBeNull();
+      expect(contentPreference!.status).toBe(ContentPreferenceStatus.Follow);
+    });
+  });
 });
 
 describe('mutation unfollow', () => {
@@ -621,6 +659,55 @@ describe('mutation unfollow', () => {
       });
 
     expect(notificationPreferences).toHaveLength(0);
+  });
+
+  describe('keyword', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, Keyword, [
+        { value: 'keyword-uf1', occurrences: 300, status: 'allow' },
+        { value: 'keyword-uf2', occurrences: 200, status: 'allow' },
+        { value: 'keyword-uf3', occurrences: 100, status: 'allow' },
+      ]);
+
+      await saveFixtures(con, Feed, [{ id: '1-um', userId: '1-um' }]);
+
+      await con.getRepository(ContentPreferenceFeedKeyword).save([
+        {
+          userId: '1-um',
+          referenceId: 'keyword-uf1',
+          feedId: '1-um',
+          status: ContentPreferenceStatus.Follow,
+        },
+        {
+          userId: '2-um',
+          referenceId: 'keyword-uf2',
+          feedId: '1-um',
+          status: ContentPreferenceStatus.Follow,
+        },
+      ]);
+    });
+
+    it('should unfollow', async () => {
+      loggedUser = '1-um';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: '2-um',
+          entity: ContentPreferenceType.Keyword,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreference = await con
+        .getRepository(ContentPreferenceFeedKeyword)
+        .findOneBy({
+          userId: '1-um',
+          referenceId: 'keyword-f1',
+        });
+
+      expect(contentPreference).toBeNull();
+    });
   });
 });
 
