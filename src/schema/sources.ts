@@ -1102,7 +1102,7 @@ const getSourceById = async (
   if (!res.length) {
     throw new EntityNotFoundError(Source, 'not found');
   }
-  return { ...res[0] };
+  return res[0];
 };
 
 const addNewSourceMember = async (
