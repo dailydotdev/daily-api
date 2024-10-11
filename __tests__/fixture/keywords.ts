@@ -16,7 +16,6 @@ export const keywordsFixture: DeepPartial<Keyword>[] = [
   },
   { value: 'politics', occurrences: 100, status: 'deny' },
   { value: 'pending' },
-  { value: 'javascript', occurrences: 57, status: 'allow' },
 ];
 
 export const postRecommendedKeywordsFixture = postsFixture.reduce(

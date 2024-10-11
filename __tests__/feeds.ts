@@ -96,7 +96,10 @@ beforeEach(async () => {
   await saveFixtures(con, ArticlePost, sharedPostsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
   await saveFixtures(con, PostKeyword, postKeywordsFixture);
-  await saveFixtures(con, Keyword, keywordsFixture);
+  await saveFixtures(con, Keyword, [
+    ...keywordsFixture,
+    { value: 'javascript', occurrences: 57, status: 'allow' },
+  ]);
   await deleteKeysByPattern('feeds:*');
 });
 
