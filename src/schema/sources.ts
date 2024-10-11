@@ -89,6 +89,8 @@ export interface GQLSource {
   referralUrl?: string;
   flags?: SourceFlagsPublic;
   description?: string;
+  moderationRequired?: boolean;
+  moderationPostCount?: number;
 }
 
 export interface GQLSourceMember {
@@ -236,6 +238,11 @@ export const typeDefs = /* GraphQL */ `
     Enable post moderation for the squad
     """
     moderationRequired: Boolean
+
+    """
+    Count of post waiting for moderation
+    """
+    moderationPostCount: Int
 
     """
     URL for inviting and referring new users
@@ -1095,7 +1102,7 @@ const getSourceById = async (
   if (!res.length) {
     throw new EntityNotFoundError(Source, 'not found');
   }
-  return res[0];
+  return { ...res[0] };
 };
 
 const addNewSourceMember = async (
@@ -1490,7 +1497,28 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<GQLSource> => {
       await ensureSourcePermissions(ctx, id);
-      return getSourceById(ctx, info, id);
+      const source = await getSourceById(ctx, info, id);
+
+      if (!source.moderationRequired || !source.currentMember) {
+        return source;
+      }
+
+      const isModerator = [
+        SourceMemberRoles.Admin,
+        SourceMemberRoles.Moderator,
+      ].some((role) => role === source.currentMember?.role);
+
+      const status = 'pending';
+      const query = isModerator
+        ? { status }
+        : { createdById: ctx.userId, status };
+
+      console.log({ query });
+
+      // todo: add moderation post count query once entity is created
+      const moderationPostCount = isModerator ? 2 : 1;
+
+      return { ...source, moderationPostCount };
     },
     sourceHandleExists: async (
       _,
