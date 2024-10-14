@@ -2,7 +2,7 @@ import { Alerts, ALERTS_DEFAULT, UserActionType } from '../entity';
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, Context } from '../Context';
-import { DataSource } from 'typeorm';
+import { DataSource, QueryRunner } from 'typeorm';
 import { insertOrIgnoreAction } from './actions';
 import { GQLEmptyResponse } from './common';
 
@@ -216,11 +216,11 @@ export const updateAlerts = async (
 };
 
 export const getAlerts = async (
-  con: DataSource,
+  con: DataSource | QueryRunner,
   userId?: string,
 ): Promise<Omit<Alerts, 'flags'>> => {
   const alerts = userId
-    ? await con.getRepository(Alerts).findOneBy({
+    ? await con.manager.getRepository(Alerts).findOneBy({
         userId,
       })
     : undefined;
