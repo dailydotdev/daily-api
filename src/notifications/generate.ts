@@ -39,7 +39,7 @@ const getPostOrSharedPostTitle = (
     return ctx.post.title;
   }
 
-  if (ctx.sharedPost?.title && ctx.sharedPost?.title?.length > 0) {
+  if (ctx.sharedPost?.title?.length > 0) {
     return ctx.sharedPost.title;
   }
 
