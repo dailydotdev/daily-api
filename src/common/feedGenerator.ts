@@ -115,7 +115,10 @@ export const feedToFilters = async (
     { sourceId: SourceMember['sourceId']; hide: boolean }[],
   ] = await Promise.all([
     feedId
-      ? con.getRepository(FeedTag).find({ where: { feedId } })
+      ? con.getRepository(FeedTag).find({
+          where: { feedId },
+          select: ['tag', 'blocked'],
+        })
       : ([] as FeedTag[]),
     feedId
       ? con
