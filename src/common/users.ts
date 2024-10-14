@@ -502,26 +502,24 @@ export const getLastStreakRecoverDate = async (
   con: DataSource,
   userId: string,
 ) => {
-  const lastRecoverAction = await queryReadReplica(con, ({ queryRunner }) =>
-    queryRunner.manager
-      .getRepository(UserStreakAction)
-      .createQueryBuilder()
-      .select(
-        `MAX(date_trunc('day', usa."createdAt"::timestamptz at time zone COALESCE(u.timezone, 'utc'))::date - interval '1 day')`,
-        'createdAt',
-      )
-      .from(UserStreakAction, 'usa')
-      .innerJoin(DbUser, 'u', 'u.id = usa."userId"')
-      .where(`usa."userId" = :userId`, { userId })
-      .andWhere(`usa.type = :type`, { type: UserStreakActionType.Recover })
-      .getRawOne<UserStreakAction>(),
-  );
+  const lastRecoverAction = await con
+    .getRepository(UserStreakAction)
+    .createQueryBuilder()
+    .select(
+      `MAX(date_trunc('day', usa."createdAt"::timestamptz at time zone COALESCE(u.timezone, 'utc'))::date - interval '1 day')`,
+      'createdAt',
+    )
+    .from(UserStreakAction, 'usa')
+    .innerJoin(DbUser, 'u', 'u.id = usa."userId"')
+    .where(`usa."userId" = :userId`, { userId })
+    .andWhere(`usa.type = :type`, { type: UserStreakActionType.Recover })
+    .getRawOne<UserStreakAction>();
 
   return lastRecoverAction?.createdAt;
 };
 
 export const checkAndClearUserStreak = async (
-  con: DataSource,
+  con: DataSource | EntityManager,
   info: GraphQLResolveInfo,
   streak: GQLUserStreakTz,
 ): Promise<boolean> => {
