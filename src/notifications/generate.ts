@@ -32,6 +32,20 @@ import { format } from 'date-fns';
 
 const systemTitle = () => undefined;
 
+const getPostOrSharedPostTitle = (
+  ctx: NotificationPostContext,
+): string | null | undefined => {
+  if (ctx.post?.title?.length) {
+    return ctx.post.title;
+  }
+
+  if (ctx.sharedPost?.title?.length) {
+    return ctx.sharedPost.title;
+  }
+
+  return undefined;
+};
+
 export const notificationTitleMap: Record<
   NotificationType,
   (ctx: never) => string | undefined
@@ -96,7 +110,7 @@ export const notificationTitleMap: Record<
     `The collection "<b>${ctx.post.title}</b>" just got updated with new details`,
   dev_card_unlocked: () => 'DevCard unlocked!',
   post_bookmark_reminder: (ctx: NotificationPostContext) =>
-    `Reading reminder! <b>${ctx.post.title}</b>`,
+    `Reading reminder! <b>${getPostOrSharedPostTitle(ctx)}</b>`,
   source_post_added: (
     ctx: NotificationPostContext & NotificationDoneByContext,
   ) => `New post from <b>${ctx.source.name}</b>, check it out now!`,
