@@ -499,7 +499,7 @@ export const checkUserStreak = (
 };
 
 export const getLastStreakRecoverDate = async (
-  con: DataSource | EntityManager,
+  con: DataSource,
   userId: string,
 ) => {
   const lastRecoverAction = await queryReadReplica(con, ({ queryRunner }) =>
@@ -521,7 +521,7 @@ export const getLastStreakRecoverDate = async (
 };
 
 export const checkAndClearUserStreak = async (
-  con: DataSource | EntityManager,
+  con: DataSource,
   info: GraphQLResolveInfo,
   streak: GQLUserStreakTz,
 ): Promise<boolean> => {
