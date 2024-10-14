@@ -35,7 +35,7 @@ const systemTitle = () => undefined;
 const getPostOrSharedPostTitle = (
   ctx: NotificationPostContext,
 ): string | null | undefined => {
-  if (ctx.post?.title?.length > 0) {
+  if (ctx.post?.title?.length) {
     return ctx.post.title;
   }
 
