@@ -30,6 +30,7 @@ import { mapArrayToOjbect } from './object';
 import { runInSpan } from '../telemetry';
 import { whereVordrFilter } from './vordr';
 import { baseFeedConfig } from '../integrations/feed';
+import { queryReadReplica } from './queryReadReplica';
 
 export const WATERCOOLER_ID = 'fd062672-63b7-4a10-87bd-96dcd10e9613';
 
@@ -115,11 +116,13 @@ export const feedToFilters = async (
     { sourceId: SourceMember['sourceId']; hide: boolean }[],
   ] = await Promise.all([
     feedId
-      ? con.getRepository(FeedTag).find({
-          where: { feedId },
-          select: ['tag', 'blocked'],
+      ? queryReadReplica(con, ({ queryRunner }) => {
+          return queryRunner.manager.getRepository(FeedTag).find({
+            where: { feedId },
+            select: ['tag', 'blocked'],
+          });
         })
-      : ([] as FeedTag[]),
+      : [],
     feedId
       ? con
           .getRepository(Source)
