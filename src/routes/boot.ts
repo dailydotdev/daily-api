@@ -52,7 +52,11 @@ import { Context } from '../Context';
 import { SourceMemberRoles } from '../roles';
 import { getEncryptedFeatures } from '../growthbook';
 import { differenceInMinutes, isSameDay, subDays } from 'date-fns';
-import { runInSpan } from '../telemetry';
+import {
+  runInSpan,
+  SEMATTRS_DAILY_APPS_USER_ID,
+  SEMATTRS_DAILY_STAFF,
+} from '../telemetry';
 import { getUnreadNotificationsCount } from '../notifications/common';
 import { maxFeedsPerUser } from '../types';
 import { queryReadReplica } from '../common/queryReadReplica';
@@ -415,7 +419,9 @@ const loggedInBoot = async ({
   middleware?: BootMiddleware;
   userId: string;
 }): Promise<LoggedInBoot | AnonymousBoot> =>
-  runInSpan('loggedInBoot', async () => {
+  runInSpan('loggedInBoot', async (span) => {
+    span?.setAttribute(SEMATTRS_DAILY_APPS_USER_ID, userId);
+
     const { log } = req;
     const [
       visit,
@@ -448,6 +454,9 @@ const loggedInBoot = async ({
       return handleNonExistentUser(con, req, res, middleware);
     }
     const isTeamMember = exp?.a?.team === 1;
+
+    span?.setAttribute(SEMATTRS_DAILY_STAFF, isTeamMember);
+
     const accessToken = refreshToken
       ? await setAuthCookie(req, res, userId, roles, isTeamMember)
       : req.accessToken;
