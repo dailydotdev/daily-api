@@ -293,7 +293,6 @@ export const getUserReadingTags = (
   con: DataSource,
   { userId, dateRange: { start, end }, limit = 8 }: ReadingDaysArgs,
 ): Promise<TagsReadingStatus[]> => {
-  console.log(userId, start, end, limit);
   return con.query(
     `
       WITH filtered_view AS (
@@ -330,18 +329,18 @@ export const getUserReadingTags = (
       )
       SELECT
         tag,
-        readingdays,
-        tr.readingdays * 1.0 / dd.total_days AS percentage,
+        "readingDays",
+        tr."readingDays" * 1.0 / dd.total_days AS percentage,
         dd.total_days AS total
       FROM (
         SELECT
           tr.tag,
-          tr. "readingDays" AS readingdays
+          tr. "readingDays"
         FROM
           tag_readings tr
         ORDER BY
           tr. "readingDays" DESC
-        LIMIT 5) tr
+        LIMIT $4) tr
         CROSS JOIN distinct_days dd
       LIMIT $4
     `,
@@ -392,8 +391,6 @@ export const getUserReadingRank = async (
       dateRange: { start, end },
     });
   };
-
-  console.log(req.getQueryAndParameters());
 
   const [readingStreakResult, tags] = await Promise.all([
     req.getRawOne<ReadingRankQueryResult>(),
