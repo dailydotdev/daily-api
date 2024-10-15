@@ -293,16 +293,17 @@ export const getUserReadingTags = (
   con: DataSource,
   { userId, dateRange: { start, end }, limit = 8 }: ReadingDaysArgs,
 ): Promise<TagsReadingStatus[]> => {
+  console.log(userId, start, end, limit);
   return con.query(
     `
       WITH filtered_view AS (
         SELECT
-          v.*,
+          v. "postId",
           CAST(v.timestamp AT TIME ZONE COALESCE(u.timezone,
               'UTC') AS DATE) AS day
         FROM
           "view" v
-          JOIN "user" u ON u.id = v."userId"
+          JOIN "user" u ON u.id = v. "userId"
         WHERE
           u.id = $1
           AND v.timestamp >= $2
@@ -320,7 +321,7 @@ export const getUserReadingTags = (
           COUNT(DISTINCT f.day) AS "readingDays"
         FROM
           filtered_view f
-          JOIN post_keyword pk ON f."postId" = pk."postId"
+          JOIN post_keyword pk ON f. "postId" = pk. "postId"
         WHERE
           pk.status = 'allow'
           AND pk.keyword != 'general-programming'
@@ -328,16 +329,21 @@ export const getUserReadingTags = (
           pk.keyword
       )
       SELECT
-        tr.tag,
-        tr."readingDays",
-        tr."readingDays" * 1.0 / dd.total_days AS percentage,
+        tag,
+        readingdays,
+        tr.readingdays * 1.0 / dd.total_days AS percentage,
         dd.total_days AS total
-      FROM
-        tag_readings tr
+      FROM (
+        SELECT
+          tr.tag,
+          tr. "readingDays" AS readingdays
+        FROM
+          tag_readings tr
+        ORDER BY
+          tr. "readingDays" DESC
+        LIMIT 5) tr
         CROSS JOIN distinct_days dd
-      ORDER BY
-        tr."readingDays" DESC
-      LIMIT $4;
+      LIMIT $4
     `,
     [userId, start, end, limit],
   );
@@ -386,6 +392,8 @@ export const getUserReadingRank = async (
       dateRange: { start, end },
     });
   };
+
+  console.log(req.getQueryAndParameters());
 
   const [readingStreakResult, tags] = await Promise.all([
     req.getRawOne<ReadingRankQueryResult>(),

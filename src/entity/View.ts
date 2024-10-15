@@ -1,5 +1,6 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import type { Post } from './posts';
+import type { User } from './user';
 
 @Entity()
 @Index(['userId', 'timestamp'])
@@ -16,7 +17,7 @@ export class View {
   })
   post: Promise<Post>;
 
-  @PrimaryColumn({ type: 'text' })
+  @PrimaryColumn({ length: 36, type: 'varchar' })
   @Index()
   userId: string;
 
