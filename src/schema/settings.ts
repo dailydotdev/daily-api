@@ -10,7 +10,7 @@ import {
 import { isValidHttpUrl, toGQLEnum } from '../common';
 import { ValidationError } from 'apollo-server-errors';
 import { v4 as uuidv4 } from 'uuid';
-import { DataSource } from 'typeorm';
+import { DataSource, QueryRunner } from 'typeorm';
 
 interface GQLSettings {
   userId: string;
@@ -281,11 +281,11 @@ export const typeDefs = /* GraphQL */ `
 type PartialBookmarkSharing = Pick<GQLBookmarksSharing, 'slug'>;
 
 export const getSettings = async (
-  con: DataSource,
+  con: DataSource | QueryRunner,
   userId: string,
 ): Promise<Omit<Settings, 'user'>> => {
   try {
-    const repo = con.getRepository(Settings);
+    const repo = con.manager.getRepository(Settings);
     const settings = await repo.findOneBy({ userId });
     if (!settings) {
       return { ...SETTINGS_DEFAULT, updatedAt: null, userId };
