@@ -6,7 +6,7 @@ export const AppDataSource = new DataSource({
   schema: 'public',
   synchronize: false,
   extra: {
-    max: 20,
+    max: 30,
     idleTimeoutMillis: 120000,
   },
   logging: false,
