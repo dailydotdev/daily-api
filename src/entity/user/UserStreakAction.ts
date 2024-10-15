@@ -1,4 +1,4 @@
-import { Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
+import { Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 import type { User } from './User';
 
 export enum UserStreakActionType {
@@ -6,6 +6,7 @@ export enum UserStreakActionType {
 }
 
 @Entity()
+@Index('IDX_usa_userid_type', ['userId', 'type'])
 export class UserStreakAction {
   @PrimaryColumn({ length: 36 })
   userId: string;
