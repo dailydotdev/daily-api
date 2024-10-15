@@ -421,8 +421,8 @@ const loggedInBoot = async ({
       visit,
       roles,
       extra,
-      [alerts, settings, marketingCta],
-      [user, squads, lastBanner, exp, feeds, unreadNotificationsCount],
+      [alerts, settings, unreadNotificationsCount, marketingCta],
+      [user, squads, lastBanner, exp, feeds],
     ] = await Promise.all([
       visitSection(req, res),
       getRoles(userId),
@@ -431,6 +431,7 @@ const loggedInBoot = async ({
         return Promise.all([
           getAlerts(queryRunner, userId),
           getSettings(queryRunner, userId),
+          getUnreadNotificationsCount(queryRunner, userId),
           getMarketingCta(queryRunner, log, userId),
         ]);
       }),
@@ -441,7 +442,6 @@ const loggedInBoot = async ({
           getAndUpdateLastBannerRedis(queryRunner),
           getExperimentation({ userId, con: queryRunner }),
           getFeeds({ con: queryRunner, userId }),
-          getUnreadNotificationsCount(queryRunner, userId),
         ]);
       }),
     ]);

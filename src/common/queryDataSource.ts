@@ -8,16 +8,7 @@ export const queryDataSource = async <T>(
   }>,
 ): Promise<T> => {
   const queryRunner = con.createQueryRunner(options?.mode || 'master');
-
-  let result: T;
-
-  try {
-    result = await callback({ queryRunner });
-  } catch (error) {
-    throw error;
-  } finally {
-    await queryRunner.release();
-  }
-
+  const result = await callback({ queryRunner });
+  await queryRunner.release();
   return result;
 };
