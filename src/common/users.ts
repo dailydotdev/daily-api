@@ -7,7 +7,7 @@ import {
   UserStreakActionType,
 } from '../entity';
 import { differenceInDays, isSameDay, max, startOfDay } from 'date-fns';
-import { DataSource, EntityManager, In, Not } from 'typeorm';
+import { DataSource, EntityManager, In, Not, QueryRunner } from 'typeorm';
 import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
 import { GraphQLResolveInfo } from 'graphql';
@@ -499,10 +499,10 @@ export const checkUserStreak = (
 };
 
 export const getLastStreakRecoverDate = async (
-  con: DataSource | EntityManager,
+  con: DataSource | QueryRunner,
   userId: string,
 ) => {
-  const lastRecoverAction = await con
+  const lastRecoverAction = await con.manager
     .getRepository(UserStreakAction)
     .createQueryBuilder()
     .select(
@@ -519,7 +519,7 @@ export const getLastStreakRecoverDate = async (
 };
 
 export const checkAndClearUserStreak = async (
-  con: DataSource | EntityManager,
+  con: DataSource | QueryRunner,
   info: GraphQLResolveInfo,
   streak: GQLUserStreakTz,
 ): Promise<boolean> => {
@@ -530,7 +530,7 @@ export const checkAndClearUserStreak = async (
     return false;
   }
 
-  const result = await clearUserStreak(con, [streak.userId]);
+  const result = await clearUserStreak(con.manager, [streak.userId]);
   const clearedSuccess = result > 0;
 
   if (clearedSuccess) {
