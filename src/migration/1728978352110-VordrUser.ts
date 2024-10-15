@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class VordrUser1727578711381 implements MigrationInterface {
-  name = 'VordrUser1727578711381'
+export class VordrUser1728978352110 implements MigrationInterface {
+  name = 'VordrUser1728978352110'
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`CREATE INDEX "IDX_post_flags_vordr" ON post (((flags->'vordr')::boolean))`);
