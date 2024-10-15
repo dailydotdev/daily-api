@@ -105,6 +105,7 @@ import { reportFunctionMap } from '../common/reporting';
 import { format } from 'date-fns';
 import { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
+import { queryReadReplica } from '../common/queryReadReplica';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -1353,11 +1354,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         };
       }
 
-      const hasClearedStreak = await checkAndClearUserStreak(
+      const hasClearedStreak = await queryReadReplica(
         ctx.con,
-        info,
-        streak,
+        ({ queryRunner }) => {
+          return checkAndClearUserStreak(queryRunner, info, streak);
+        },
       );
+
       if (hasClearedStreak) {
         return { ...streak, current: 0 };
       }
