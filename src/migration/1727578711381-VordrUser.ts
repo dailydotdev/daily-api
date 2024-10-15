@@ -11,17 +11,17 @@ RETURNS TRIGGER AS $$
 BEGIN
   IF NEW.flags @> '{"vordr": true}' THEN
     -- If vordr on user is set to true
-    -- Set banned and vordr to true in post table, and set vordr to true in comment table
+    -- Set showOnFeed to false and vordr to true in post table, and set vordr to true in comment table
     UPDATE
       post
     SET
-      "banned" = TRUE,
+      "showOnFeed" = FALSE,
       "flags" = jsonb_set(jsonb_set(flags,
         '{vordr}', 'true', true),         -- set vordr to true
-        '{banned}', 'true', true)         -- set banned to true
+        '{showOnFeed}', 'false', true)    -- set showOnFeed to true
     WHERE
       ("authorId" = NEW.id OR "scoutId" = NEW.id)
-      AND "banned" = FALSE;
+      AND "showOnFeed" = TRUE;
 
     UPDATE
       comment
@@ -31,15 +31,15 @@ BEGIN
       "userId" = NEW.id;
 
   -- If vordr on user is set to false, and vordr on post is true
-  -- Set banned and vordr to false in post table, and set vordr to false in comment table
+  -- Set showOnFeed to true and vordr to false in post table, and set vordr to false in comment table
   ELSIF NEW.flags @> '{"vordr": false}' THEN
     UPDATE
       post
     SET
-      "banned" = FALSE,
+      "showOnFeed" = TRUE,
       "flags" = jsonb_set(jsonb_set(flags,
         '{vordr}', 'false', true),        -- set vordr to false
-        '{banned}', 'false', true)        -- set banned to false
+        '{showOnFeed}', 'true', true)     -- set showOnFeed to true
     WHERE
       ("authorId" = NEW.id OR "scoutId" = NEW.id)
       AND (flags->'vordr')::boolean = true;
