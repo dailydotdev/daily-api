@@ -73,7 +73,7 @@ describe('user', () => {
           url: 'http://pvr3.com',
           canonicalUrl: 'http://pvr3c.com',
           authorId: '1',
-          banned: true,
+          showOnFeed: false,
         },
       ]);
       await saveFixtures(con, Comment, [
@@ -178,7 +178,7 @@ describe('user', () => {
 
         expect(posts.length).toBe(2);
         posts.forEach((post) => {
-          expect(post.banned).toEqual(true);
+          expect(post.showOnFeed).toEqual(false);
           expect(post.flags.vordr).toEqual(true);
         });
       });
@@ -190,7 +190,7 @@ describe('user', () => {
             id: 'pvr3',
           });
 
-        expect(existingPost.banned).toEqual(true);
+        expect(existingPost.showOnFeed).toEqual(false);
         expect(existingPost.flags.vordr).toBeFalsy();
 
         await con
@@ -201,13 +201,13 @@ describe('user', () => {
           id: 'pvr3',
         });
 
-        expect(post.banned).toEqual(true);
+        expect(post.showOnFeed).toEqual(false);
         expect(post.flags.vordr).toBeFalsy();
       });
 
       it('should update all posts the user has made when the vordr flag is set to false', async () => {
         await con.getRepository(ArticlePost).update(['pvr1', 'pvr2'], {
-          banned: true,
+          showOnFeed: false,
           flags: { vordr: true },
         });
 
@@ -227,7 +227,7 @@ describe('user', () => {
 
         expect(posts.length).toBe(2);
         posts.forEach((post) => {
-          expect(post.banned).toEqual(false);
+          expect(post.showOnFeed).toEqual(true);
           expect(post.flags.vordr).toEqual(false);
         });
 
@@ -235,7 +235,7 @@ describe('user', () => {
         expect(
           await con
             .getRepository(ArticlePost)
-            .findBy({ id: 'pvr3', banned: true }),
+            .findBy({ id: 'pvr3', showOnFeed: false }),
         ).toHaveLength(1);
       });
 
@@ -248,7 +248,7 @@ describe('user', () => {
           .getRepository(ArticlePost)
           .update(
             { id: 'pvr2' },
-            { authorId: 'vordr', banned: true, flags: { vordr: true } },
+            { authorId: 'vordr', showOnFeed: false, flags: { vordr: true } },
           );
 
         expect(
@@ -256,16 +256,16 @@ describe('user', () => {
             await con.getRepository(ArticlePost).findOneByOrFail({
               id: 'pvr2',
             })
-          ).banned,
-        ).toEqual(true);
+          ).showOnFeed,
+        ).toEqual(false);
 
         expect(
           (
             await con.getRepository(ArticlePost).findOneByOrFail({
               id: 'pvr3',
             })
-          ).banned,
-        ).toEqual(true);
+          ).showOnFeed,
+        ).toEqual(false);
 
         await con
           .getRepository(User)
@@ -276,16 +276,16 @@ describe('user', () => {
             await con.getRepository(ArticlePost).findOneByOrFail({
               id: 'pvr2',
             })
-          ).banned,
-        ).toEqual(false);
+          ).showOnFeed,
+        ).toEqual(true);
 
         expect(
           (
             await con.getRepository(ArticlePost).findOneByOrFail({
               id: 'pvr3',
             })
-          ).banned,
-        ).toEqual(true);
+          ).showOnFeed,
+        ).toEqual(false);
       });
     });
   });
