@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import createOrGetConnection from '../db';
-import { DataSource, Not } from 'typeorm';
+import { DataSource, Not, QueryRunner } from 'typeorm';
 import { clearAuthentication, dispatchWhoami } from '../kratos';
 import { generateUUID } from '../ids';
 import { generateSessionId, setTrackingId } from '../tracking';
@@ -60,6 +60,7 @@ import {
 import { getUnreadNotificationsCount } from '../notifications/common';
 import { maxFeedsPerUser } from '../types';
 import { queryReadReplica } from '../common/queryReadReplica';
+import { queryDataSource } from '../common/queryDataSource';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -159,55 +160,53 @@ export const excludeProperties = <T, K extends keyof T>(
 };
 
 const getSquads = async (
-  con: DataSource,
+  con: DataSource | QueryRunner,
   userId: string,
 ): Promise<BootSquadSource[]> =>
   runInSpan('getSquads', async () => {
-    return queryReadReplica(con, async ({ queryRunner }) => {
-      const sources = await queryRunner.manager
-        .createQueryBuilder()
-        .select('id')
-        .addSelect('type')
-        .addSelect('name')
-        .addSelect('handle')
-        .addSelect('image')
-        .addSelect('NOT private', 'public')
-        .addSelect('active')
-        .addSelect('role')
-        .addSelect('"memberPostingRank"')
-        .from(SourceMember, 'sm')
-        .innerJoin(
-          SquadSource,
-          's',
-          'sm."sourceId" = s."id" and s."type" = \'squad\'',
-        )
-        .where('sm."userId" = :userId', { userId })
-        .andWhere('sm."role" != :role', { role: SourceMemberRoles.Blocked })
-        .orderBy('LOWER(s.name)', 'ASC')
-        .getRawMany<
-          GQLSource & { role: SourceMemberRoles; memberPostingRank: number }
-        >();
+    const sources = await con.manager
+      .createQueryBuilder()
+      .select('id')
+      .addSelect('type')
+      .addSelect('name')
+      .addSelect('handle')
+      .addSelect('image')
+      .addSelect('NOT private', 'public')
+      .addSelect('active')
+      .addSelect('role')
+      .addSelect('"memberPostingRank"')
+      .from(SourceMember, 'sm')
+      .innerJoin(
+        SquadSource,
+        's',
+        'sm."sourceId" = s."id" and s."type" = \'squad\'',
+      )
+      .where('sm."userId" = :userId', { userId })
+      .andWhere('sm."role" != :role', { role: SourceMemberRoles.Blocked })
+      .orderBy('LOWER(s.name)', 'ASC')
+      .getRawMany<
+        GQLSource & { role: SourceMemberRoles; memberPostingRank: number }
+      >();
 
-      return sources.map((source) => {
-        const { role, memberPostingRank, ...restSource } = source;
+    return sources.map((source) => {
+      const { role, memberPostingRank, ...restSource } = source;
 
-        const permissions = getPermissionsForMember(
-          { role },
-          { memberPostingRank },
-        );
-        // we only send posting permissions from boot to keep the payload small
-        const postingPermissions = permissions.filter(
-          (item) => item === SourcePermissions.Post,
-        );
+      const permissions = getPermissionsForMember(
+        { role },
+        { memberPostingRank },
+      );
+      // we only send posting permissions from boot to keep the payload small
+      const postingPermissions = permissions.filter(
+        (item) => item === SourcePermissions.Post,
+      );
 
-        return {
-          ...restSource,
-          permalink: getSourceLink(source),
-          currentMember: {
-            permissions: postingPermissions,
-          },
-        };
-      });
+      return {
+        ...restSource,
+        permalink: getSourceLink(source),
+        currentMember: {
+          permissions: postingPermissions,
+        },
+      };
     });
   });
 
@@ -215,18 +214,16 @@ const getFeeds = async ({
   con,
   userId,
 }: {
-  con: DataSource;
+  con: DataSource | QueryRunner;
   userId: string;
 }): Promise<Feed[]> => {
-  return queryReadReplica(con, async ({ queryRunner }) =>
-    queryRunner.manager.getRepository(Feed).find({
-      where: {
-        id: Not(userId),
-        userId,
-      },
-      take: maxFeedsPerUser,
-    }),
-  );
+  return con.manager.getRepository(Feed).find({
+    where: {
+      id: Not(userId),
+      userId,
+    },
+    take: maxFeedsPerUser,
+  });
 };
 
 const moderators = [
@@ -279,22 +276,20 @@ const setAuthCookie = async (
 };
 
 const getAndUpdateLastBannerRedis = async (
-  con: DataSource,
+  con: DataSource | QueryRunner,
 ): Promise<string | null> => {
   let bannerFromRedis = await getRedisObject(REDIS_BANNER_KEY);
 
   if (!bannerFromRedis) {
-    const banner = await queryReadReplica(con, async ({ queryRunner }) =>
-      queryRunner.manager.getRepository(Banner).findOne({
-        select: ['timestamp'],
-        where: [],
-        order: {
-          timestamp: {
-            direction: 'DESC',
-          },
+    const banner = await con.manager.getRepository(Banner).findOne({
+      select: ['timestamp'],
+      where: [],
+      order: {
+        timestamp: {
+          direction: 'DESC',
         },
-      }),
-    );
+      },
+    });
 
     if (banner) {
       bannerFromRedis = banner.timestamp.toISOString();
@@ -333,16 +328,14 @@ const getExperimentation = async ({
   con,
 }: {
   userId?: string;
-  con: DataSource;
+  con: DataSource | QueryRunner;
 }): Promise<Experimentation> => {
   if (userId) {
     const [hash, features] = await Promise.all([
       ioRedisPool.execute((client) => client.hgetall(`exp:${userId}`)),
-      queryReadReplica(con, async ({ queryRunner }) =>
-        queryRunner.manager
-          .getRepository(Feature)
-          .find({ where: { userId }, select: ['feature', 'value'] }),
-      ),
+      con.manager
+        .getRepository(Feature)
+        .find({ where: { userId }, select: ['feature', 'value'] }),
     ]);
     const e = Object.keys(hash || {}).map((key) => {
       const [variation] = hash[key].split(':');
@@ -364,45 +357,46 @@ const getExperimentation = async ({
   };
 };
 
-const getUser = (con: DataSource, userId: string): Promise<User | null> =>
-  queryReadReplica(con, async ({ queryRunner }) =>
-    queryRunner.manager.getRepository(User).findOne({
-      where: { id: userId },
-      select: [
-        'id',
-        'username',
-        'name',
-        'email',
-        'image',
-        'company',
-        'title',
-        'infoConfirmed',
-        'notificationEmail',
-        'acceptedMarketing',
-        'reputation',
-        'bio',
-        'twitter',
-        'github',
-        'portfolio',
-        'hashnode',
-        'roadmap',
-        'threads',
-        'codepen',
-        'reddit',
-        'stackoverflow',
-        'youtube',
-        'linkedin',
-        'mastodon',
-        'timezone',
-        'createdAt',
-        'cover',
-        'experienceLevel',
-        'language',
-        'followingEmail',
-        'followNotifications',
-      ],
-    }),
-  );
+const getUser = (
+  con: DataSource | QueryRunner,
+  userId: string,
+): Promise<User | null> =>
+  con.manager.getRepository(User).findOne({
+    where: { id: userId },
+    select: [
+      'id',
+      'username',
+      'name',
+      'email',
+      'image',
+      'company',
+      'title',
+      'infoConfirmed',
+      'notificationEmail',
+      'acceptedMarketing',
+      'reputation',
+      'bio',
+      'twitter',
+      'github',
+      'portfolio',
+      'hashnode',
+      'roadmap',
+      'threads',
+      'codepen',
+      'reddit',
+      'stackoverflow',
+      'youtube',
+      'linkedin',
+      'mastodon',
+      'timezone',
+      'createdAt',
+      'cover',
+      'experienceLevel',
+      'language',
+      'followingEmail',
+      'followNotifications',
+    ],
+  });
 
 const loggedInBoot = async ({
   con,
@@ -425,30 +419,31 @@ const loggedInBoot = async ({
     const { log } = req;
     const [
       visit,
-      user,
       roles,
-      alerts,
-      settings,
-      unreadNotificationsCount,
-      squads,
-      lastBanner,
-      exp,
-      marketingCta,
       extra,
-      feeds,
+      [alerts, settings, unreadNotificationsCount, marketingCta],
+      [user, squads, lastBanner, exp, feeds],
     ] = await Promise.all([
       visitSection(req, res),
-      getUser(con, userId),
       getRoles(userId),
-      getAlerts(con, userId),
-      getSettings(con, userId),
-      getUnreadNotificationsCount(con, userId),
-      getSquads(con, userId),
-      getAndUpdateLastBannerRedis(con),
-      getExperimentation({ userId, con }),
-      getMarketingCta(con, log, userId),
       middleware ? middleware(con, req, res) : {},
-      getFeeds({ con, userId }),
+      queryDataSource(con, ({ queryRunner }) => {
+        return Promise.all([
+          getAlerts(queryRunner, userId),
+          getSettings(queryRunner, userId),
+          getUnreadNotificationsCount(queryRunner, userId),
+          getMarketingCta(queryRunner, log, userId),
+        ]);
+      }),
+      queryReadReplica(con, async ({ queryRunner }) => {
+        return Promise.all([
+          getUser(queryRunner, userId),
+          getSquads(queryRunner, userId),
+          getAndUpdateLastBannerRedis(queryRunner),
+          getExperimentation({ userId, con: queryRunner }),
+          getFeeds({ con: queryRunner, userId }),
+        ]);
+      }),
     ]);
     if (!user) {
       return handleNonExistentUser(con, req, res, middleware);
