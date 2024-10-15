@@ -1357,7 +1357,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const hasClearedStreak = await queryReadReplica(
         ctx.con,
         ({ queryRunner }) => {
-          return checkAndClearUserStreak(queryRunner.connection, info, streak);
+          return checkAndClearUserStreak(queryRunner, info, streak);
         },
       );
 
