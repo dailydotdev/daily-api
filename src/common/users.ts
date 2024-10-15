@@ -297,12 +297,12 @@ export const getUserReadingTags = (
     `
       WITH filtered_view AS (
         SELECT
-          v. "postId",
+          v.*,
           CAST(v.timestamp AT TIME ZONE COALESCE(u.timezone,
               'UTC') AS DATE) AS day
         FROM
           "view" v
-          JOIN "user" u ON u.id = v. "userId"
+          JOIN "user" u ON u.id = v."userId"
         WHERE
           u.id = $1
           AND v.timestamp >= $2
@@ -320,7 +320,7 @@ export const getUserReadingTags = (
           COUNT(DISTINCT f.day) AS "readingDays"
         FROM
           filtered_view f
-          JOIN post_keyword pk ON f. "postId" = pk. "postId"
+          JOIN post_keyword pk ON f."postId" = pk."postId"
         WHERE
           pk.status = 'allow'
           AND pk.keyword != 'general-programming'
@@ -328,21 +328,16 @@ export const getUserReadingTags = (
           pk.keyword
       )
       SELECT
-        tag,
-        "readingDays",
+        tr.tag,
+        tr."readingDays",
         tr."readingDays" * 1.0 / dd.total_days AS percentage,
         dd.total_days AS total
-      FROM (
-        SELECT
-          tr.tag,
-          tr. "readingDays"
-        FROM
-          tag_readings tr
-        ORDER BY
-          tr. "readingDays" DESC
-        LIMIT $4) tr
+      FROM
+        tag_readings tr
         CROSS JOIN distinct_days dd
-      LIMIT $4
+      ORDER BY
+        tr."readingDays" DESC
+      LIMIT $4;
     `,
     [userId, start, end, limit],
   );
