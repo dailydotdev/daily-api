@@ -53,8 +53,8 @@ snapshot.mode: "never"
 slot.name: "clickhouse_sync"
 
 # offset.flush.interval.ms: The number of milliseconds to wait before flushing recent offsets to Kafka. This ensures that offsets are committed within the specified time interval.
-offset.flush.timeout.ms: 120000
-offset.flush.interval.ms: 10000
+offset.flush.timeout.ms: 10000
+offset.flush.interval.ms: 60000
 
 # Maximum size of buffer before its flushed.
 buffer.max.records: 10000
