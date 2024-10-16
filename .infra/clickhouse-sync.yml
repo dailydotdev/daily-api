@@ -123,6 +123,8 @@ schema.history.internal.jdbc.schema.history.table.ddl: |
 # schema.history.internal.schema.history.table.name: The name of the database table where connector schema history is to be stored.
 schema.history.internal.jdbc.schema.history.table.name: "api.replicate_schema_history"
 
+replacingmergetree.delete.column: "is_deleted"
+
 # enable.snapshot.ddl: If set to true, the connector wil parse the DDL statements as part of initial load.
 enable.snapshot.ddl: "true"
 
