@@ -71,7 +71,6 @@ import {
   validateFeedPayload,
 } from '../common/feed';
 import { FeedLocalConfigGenerator } from '../integrations/feed/configs';
-import { counters } from '../telemetry';
 import { popularFeedClient } from '../integrations/feed/generators';
 
 interface GQLTagsCategory {
