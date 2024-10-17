@@ -16,7 +16,7 @@ export class View {
   })
   post: Promise<Post>;
 
-  @PrimaryColumn({ type: 'text' })
+  @PrimaryColumn({ length: 36, type: 'varchar' })
   @Index()
   userId: string;
 
