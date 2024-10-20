@@ -59,7 +59,6 @@ import {
 } from '../telemetry';
 import { getUnreadNotificationsCount } from '../notifications/common';
 import { maxFeedsPerUser } from '../types';
-import { queryReadReplica } from '../common/queryReadReplica';
 import { queryDataSource } from '../common/queryDataSource';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
@@ -421,8 +420,17 @@ const loggedInBoot = async ({
       visit,
       roles,
       extra,
-      [alerts, settings, unreadNotificationsCount, marketingCta],
-      [user, squads, lastBanner, exp, feeds],
+      [
+        alerts,
+        settings,
+        marketingCta,
+        user,
+        squads,
+        lastBanner,
+        exp,
+        feeds,
+        unreadNotificationsCount,
+      ],
     ] = await Promise.all([
       visitSection(req, res),
       getRoles(userId),
@@ -431,17 +439,13 @@ const loggedInBoot = async ({
         return Promise.all([
           getAlerts(queryRunner, userId),
           getSettings(queryRunner, userId),
-          getUnreadNotificationsCount(queryRunner, userId),
           getMarketingCta(queryRunner, log, userId),
-        ]);
-      }),
-      queryReadReplica(con, async ({ queryRunner }) => {
-        return Promise.all([
           getUser(queryRunner, userId),
           getSquads(queryRunner, userId),
           getAndUpdateLastBannerRedis(queryRunner),
           getExperimentation({ userId, con: queryRunner }),
           getFeeds({ con: queryRunner, userId }),
+          getUnreadNotificationsCount(queryRunner, userId),
         ]);
       }),
     ]);

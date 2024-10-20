@@ -357,6 +357,17 @@ describe('query searchPostSuggestions', () => {
     });
   });
 
+  it('should not return search suggestions if post has no title', async () => {
+    await con.getRepository(ArticlePost).update({ id: 'p1' }, { title: null });
+    const res = await client.query(QUERY('p1'));
+    expect(res.data).toEqual({
+      searchPostSuggestions: {
+        query: 'p1',
+        hits: [{ title: 'P2' }],
+      },
+    });
+  });
+
   it('should not return search suggestion if private source', async () => {
     await con.getRepository(Source).update({ id: 'a' }, { private: true });
     const res = await client.query(QUERY('p1'));
