@@ -297,52 +297,47 @@ export const getUserReadingTags = (
     `
       WITH filtered_view AS (
         SELECT
-          v. "postId",
+          v.*,
           CAST(v.timestamp AT TIME ZONE COALESCE(u.timezone,
-              'UTC') AS DATE) AS day
+                                                 'UTC') AS DATE) AS day
         FROM
-          "view" v
-          JOIN "user" u ON u.id = v. "userId"
-        WHERE
-          u.id = $1
-          AND v.timestamp >= $2
-          AND v.timestamp < $3
-      ),
-      distinct_days AS (
-        SELECT
-          COUNT(DISTINCT day) AS total_days
-        FROM
-          filtered_view
-      ),
-      tag_readings AS (
-        SELECT
-          pk.keyword AS tag,
-          COUNT(DISTINCT f.day) AS "readingDays"
-        FROM
-          filtered_view f
-          JOIN post_keyword pk ON f. "postId" = pk. "postId"
-        WHERE
-          pk.status = 'allow'
-          AND pk.keyword != 'general-programming'
-        GROUP BY
-          pk.keyword
-      )
+        "view" v
+        JOIN "user" u ON u.id = v."userId"
+      WHERE
+        u.id = $1
+        AND v.timestamp >= $2
+        AND v.timestamp < $3
+        ),
+        distinct_days AS (
       SELECT
-        tag,
-        "readingDays",
+        COUNT(DISTINCT day) AS total_days
+      FROM
+        filtered_view
+        ),
+        tag_readings AS (
+      SELECT
+        pk.keyword AS tag,
+        COUNT(DISTINCT f.day) AS "readingDays"
+      FROM
+        filtered_view f
+        JOIN post_keyword pk ON f."postId" = pk."postId"
+      WHERE
+        pk.status = 'allow'
+        AND pk.keyword != 'general-programming'
+      GROUP BY
+        pk.keyword
+        )
+      SELECT
+        tr.tag,
+        tr."readingDays",
         tr."readingDays" * 1.0 / dd.total_days AS percentage,
         dd.total_days AS total
-      FROM (
-        SELECT
-          tr.tag,
-          tr. "readingDays"
-        FROM
-          tag_readings tr
-        ORDER BY
-          tr. "readingDays" DESC
-        LIMIT $4) tr
+      FROM
+        tag_readings tr
         CROSS JOIN distinct_days dd
-      LIMIT $4
+      ORDER BY
+        tr."readingDays" DESC
+      LIMIT $4;
     `,
     [userId, start, end, limit],
   );
