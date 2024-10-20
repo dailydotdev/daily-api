@@ -620,7 +620,10 @@ if (!isAdhocEnv) {
     {
       isAdhocEnv: isAdhocEnv,
       namespace: namespace,
-      env: [{ name: 'JDK_JAVA_OPTIONS', value: '-Xmx3840m -Xms1024m' }],
+      env: [
+        { name: 'JDK_JAVA_OPTIONS', value: '-Xmx3840m -Xms1024m' },
+        { name: 'LOGGING_LEVEL', value: 'DEBUG' },
+      ],
       props: {
         path: './clickhouse-sync.yml',
         keys: {
