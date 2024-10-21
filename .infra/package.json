@@ -1,7 +1,7 @@
 {
   "name": "api",
   "devDependencies": {
-    "@types/node": "^18.17.0"
+    "@types/node": "^20"
   },
   "dependencies": {
     "@dailydotdev/pulumi-common": "^1.37.0",
