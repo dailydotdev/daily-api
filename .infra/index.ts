@@ -25,6 +25,7 @@ import {
   Stream,
   ClickHouseSync,
   ClickHouseSyncConfig,
+  NodeLabels,
 } from '@dailydotdev/pulumi-common';
 
 const isAdhocEnv = detectIsAdhocEnv();
@@ -458,6 +459,23 @@ const [apps] = deployApplicationSuite(
         cpu: '100m',
         memory: '800Mi',
       },
+      affinity: isAdhocEnv ? undefined :  {
+        nodeAffinity: {
+          requiredDuringSchedulingIgnoredDuringExecution: {
+            nodeSelectorTerms: [
+              {
+                matchExpressions: [
+                  {
+                    key: NodeLabels.PersistentDisk.key,
+                    operator: 'In',
+                    values: [NodeLabels.PersistentDisk.value],
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      }
     },
     additionalSecrets: [
       {
