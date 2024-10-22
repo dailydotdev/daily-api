@@ -647,8 +647,8 @@ if (!isAdhocEnv) {
       resources: {
         // TODO: adjust resources based on the actual usage
         requests: {
-          cpu: '2',
-          memory: '4096Mi',
+          cpu: '1',
+          memory: '2048Mi',
         },
         limits: {
           // 4GiB
