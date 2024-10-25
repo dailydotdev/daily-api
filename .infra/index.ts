@@ -370,7 +370,7 @@ if (isAdhocEnv) {
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
       spot: {
         enabled: true,
-        weight: 70,
+        weight: 50,
       },
       ...vols,
     },
