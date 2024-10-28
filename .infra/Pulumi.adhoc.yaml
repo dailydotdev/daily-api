@@ -84,6 +84,7 @@ config:
     urlPrefix: http://api.local.com
     vordrIps: ""
     vordrWords: "VordrWillCatchYou,AndVordrWillHaveFun"
+  api:image: api-image:tilt-9b0eb0151b4721ea
   api:k8s:
     namespace: local
   api:temporal:

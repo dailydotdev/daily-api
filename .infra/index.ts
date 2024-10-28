@@ -677,6 +677,7 @@ if (!isAdhocEnv) {
           memory: '4096Mi',
         },
       },
+      toleratesSpot: true,
     },
     { provider: vpcNativeProvider?.provider },
   );
