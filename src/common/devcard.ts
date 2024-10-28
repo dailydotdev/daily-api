@@ -3,7 +3,6 @@ import { ReadingRank, getUserReadingRank, getUserReadingTags } from './users';
 import { Post, Source, View } from '../entity';
 import { User } from '../entity';
 import { ReadingDaysArgs } from './users';
-import { ActiveView } from '../entity/ActiveView';
 import { DataSource } from 'typeorm';
 import { getSourceLink } from './links';
 
@@ -83,7 +82,7 @@ export async function getDevCardDataV1(
   const end = now.toISOString();
   const user = await con.getRepository(User).findOneByOrFail({ id: userId });
   const [articlesRead, tags, sources, rank] = await Promise.all([
-    con.getRepository(ActiveView).countBy({ userId }),
+    con.getRepository(View).countBy({ userId }),
     getMostReadTags(con, { userId, limit: 4, dateRange: { start, end } }),
     getFavoriteSources(con, userId),
     getUserReadingRank(con, userId, user?.timezone, 2),
@@ -119,7 +118,7 @@ export async function getDevCardData(
     ],
   });
   const [articlesRead, tags, sources] = await Promise.all([
-    con.getRepository(ActiveView).countBy({ userId }),
+    con.getRepository(View).countBy({ userId }),
     (
       await getMostReadTags(con, {
         userId,

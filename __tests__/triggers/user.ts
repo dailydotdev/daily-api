@@ -1,4 +1,4 @@
-import { DataSource } from 'typeorm';
+import { DataSource, JsonContains } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { saveFixtures } from '../helpers';
 import { badUsersFixture, usersFixture } from '../fixture/user';
@@ -54,6 +54,26 @@ describe('user', () => {
           shortId: 'pvr1',
           url: 'http://pvr1.com',
           canonicalUrl: 'http://pvr1c.com',
+          authorId: '1',
+          flags: { vordr: false },
+        },
+        {
+          ...postsFixture[1],
+          id: 'pvr2',
+          shortId: 'pvr2',
+          url: 'http://pvr2.com',
+          canonicalUrl: 'http://pvr2c.com',
+          authorId: '1',
+          flags: { vordr: false },
+        },
+        {
+          ...postsFixture[2],
+          id: 'pvr3',
+          shortId: 'pvr3',
+          url: 'http://pvr3.com',
+          canonicalUrl: 'http://pvr3c.com',
+          authorId: '1',
+          showOnFeed: false,
         },
       ]);
       await saveFixtures(con, Comment, [
@@ -95,45 +115,177 @@ describe('user', () => {
       ]);
     });
 
-    it('should update all comments the user has made when the vordr flag is set to true', async () => {
-      expect(
+    describe('on comments', () => {
+      it('should update all comments the user has made when the vordr flag is set to true', async () => {
+        expect(
+          await con
+            .getRepository(Comment)
+            .findBy({ userId: '1', flags: { vordr: true } }),
+        ).toHaveLength(0);
+
         await con
+          .getRepository(User)
+          .update({ id: '1' }, { flags: { vordr: true } });
+
+        const comments = await con
           .getRepository(Comment)
-          .findBy({ userId: '1', flags: { vordr: true } }),
-      ).toHaveLength(0);
+          .findBy({ userId: '1', flags: { vordr: true } });
 
-      await con
-        .getRepository(User)
-        .update({ id: '1' }, { flags: { vordr: true } });
+        expect(comments.length).toBe(2);
+        comments.forEach((comment) => {
+          expect(comment.flags.vordr).toEqual(true);
+        });
+      });
 
-      const comments = await con
-        .getRepository(Comment)
-        .findBy({ userId: '1', flags: { vordr: true } });
+      it('should update all comments the user has made when the vordr flag is set to false', async () => {
+        expect(
+          await con
+            .getRepository(Comment)
+            .findBy({ userId: 'vordr', flags: { vordr: false } }),
+        ).toHaveLength(0);
 
-      expect(comments.length).toBe(2);
-      comments.forEach((comment) => {
-        expect(comment.flags.vordr).toEqual(true);
+        await con
+          .getRepository(User)
+          .update({ id: 'vordr' }, { flags: { vordr: false } });
+
+        const comments = await con
+          .getRepository(Comment)
+          .findBy({ userId: 'vordr', flags: { vordr: false } });
+
+        expect(comments.length).toBe(2);
+        comments.forEach((comment) => {
+          expect(comment.flags.vordr).toEqual(false);
+        });
       });
     });
 
-    it('should update all comments the user has made when the vordr flag is set to false', async () => {
-      expect(
+    describe('on posts', () => {
+      it('should update all posts the user has made when the vordr flag is set to true', async () => {
+        expect(
+          await con.getRepository(ArticlePost).findBy({
+            authorId: '1',
+            flags: JsonContains({ vordr: true }),
+          }),
+        ).toHaveLength(0);
+
         await con
-          .getRepository(Comment)
-          .findBy({ userId: 'vordr', flags: { vordr: false } }),
-      ).toHaveLength(0);
+          .getRepository(User)
+          .update({ id: '1' }, { flags: { vordr: true } });
 
-      await con
-        .getRepository(User)
-        .update({ id: 'vordr' }, { flags: { vordr: false } });
+        const posts = await con
+          .getRepository(ArticlePost)
+          .findBy({ authorId: '1', flags: JsonContains({ vordr: true }) });
 
-      const comments = await con
-        .getRepository(Comment)
-        .findBy({ userId: 'vordr', flags: { vordr: false } });
+        expect(posts.length).toBe(2);
+        posts.forEach((post) => {
+          expect(post.showOnFeed).toEqual(false);
+          expect(post.flags.vordr).toEqual(true);
+        });
+      });
 
-      expect(comments.length).toBe(2);
-      comments.forEach((comment) => {
-        expect(comment.flags.vordr).toEqual(false);
+      it('should not update banned posts the user has made when the vordr flag is set to true', async () => {
+        const existingPost = await con
+          .getRepository(ArticlePost)
+          .findOneByOrFail({
+            id: 'pvr3',
+          });
+
+        expect(existingPost.showOnFeed).toEqual(false);
+        expect(existingPost.flags.vordr).toBeFalsy();
+
+        await con
+          .getRepository(User)
+          .update({ id: '1' }, { flags: { vordr: true } });
+
+        const post = await con.getRepository(ArticlePost).findOneByOrFail({
+          id: 'pvr3',
+        });
+
+        expect(post.showOnFeed).toEqual(false);
+        expect(post.flags.vordr).toBeFalsy();
+      });
+
+      it('should update all posts the user has made when the vordr flag is set to false', async () => {
+        await con.getRepository(ArticlePost).update(['pvr1', 'pvr2'], {
+          showOnFeed: false,
+          flags: { vordr: true },
+        });
+
+        expect(
+          await con.getRepository(ArticlePost).findBy({
+            authorId: '1',
+          }),
+        ).toHaveLength(3);
+
+        await con
+          .getRepository(User)
+          .update({ id: '1' }, { flags: { vordr: false } });
+
+        const posts = await con
+          .getRepository(ArticlePost)
+          .findBy({ authorId: '1', flags: JsonContains({ vordr: false }) });
+
+        expect(posts.length).toBe(2);
+        posts.forEach((post) => {
+          expect(post.showOnFeed).toEqual(true);
+          expect(post.flags.vordr).toEqual(false);
+        });
+
+        // Check that banned but not vordr posts are not updated
+        expect(
+          await con
+            .getRepository(ArticlePost)
+            .findBy({ id: 'pvr3', showOnFeed: false }),
+        ).toHaveLength(1);
+      });
+
+      it('should not update banned posts the user has made when the vordr flag is set to false', async () => {
+        await con
+          .getRepository(ArticlePost)
+          .update({ id: 'pvr3' }, { authorId: 'vordr' });
+
+        await con
+          .getRepository(ArticlePost)
+          .update(
+            { id: 'pvr2' },
+            { authorId: 'vordr', showOnFeed: false, flags: { vordr: true } },
+          );
+
+        expect(
+          (
+            await con.getRepository(ArticlePost).findOneByOrFail({
+              id: 'pvr2',
+            })
+          ).showOnFeed,
+        ).toEqual(false);
+
+        expect(
+          (
+            await con.getRepository(ArticlePost).findOneByOrFail({
+              id: 'pvr3',
+            })
+          ).showOnFeed,
+        ).toEqual(false);
+
+        await con
+          .getRepository(User)
+          .update({ id: 'vordr' }, { flags: { vordr: false } });
+
+        expect(
+          (
+            await con.getRepository(ArticlePost).findOneByOrFail({
+              id: 'pvr2',
+            })
+          ).showOnFeed,
+        ).toEqual(true);
+
+        expect(
+          (
+            await con.getRepository(ArticlePost).findOneByOrFail({
+              id: 'pvr3',
+            })
+          ).showOnFeed,
+        ).toEqual(false);
       });
     });
   });
