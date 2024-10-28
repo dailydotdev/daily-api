@@ -28,6 +28,7 @@ import {
   NotificationV2,
   Post,
   PostType,
+  SharePost,
   Source,
   SourceMember,
   SourceRequest,
@@ -289,6 +290,69 @@ describe('generateNotification', () => {
     );
     expect(actual.notification.title).toEqual(title);
     expect(actual.notification.description).toBeUndefined();
+    expect(actual.notification.uniqueKey).toEqual(remindAt.toString());
+    expect(actual.avatars).toEqual([
+      {
+        image: 'http://image.com/a',
+        name: 'A',
+        referenceId: 'a',
+        targetUrl: 'http://localhost:5002/sources/a',
+        type: 'source',
+      },
+    ]);
+    expect(actual.attachments).toEqual([
+      {
+        image: 'https://daily.dev/image.jpg',
+        referenceId: 'p1',
+        title: 'P1',
+        type: 'post',
+      },
+    ]);
+  });
+
+  it('should generate post_bookmark_reminder notification for shared post', () => {
+    const type = NotificationType.PostBookmarkReminder;
+    const post = {
+      id: 'p1',
+      shortId: 'sp1',
+      title: null,
+      url: null,
+      canonicalUrl: null,
+      image: null,
+      score: 1,
+      sourceId: 'a',
+      createdAt: new Date(),
+      tagsStr: 'javascript,webdev',
+      type: PostType.Share,
+      contentCuration: ['c1', 'c2'],
+    } as Reference<SharePost>;
+    const sharedPost = postsFixture[0] as Reference<Post>;
+    const remindAt = new Date();
+    const bookmark = {
+      userId,
+      postId: post.id,
+      remindAt,
+    } as Reference<Bookmark>;
+    const ctx: NotificationPostContext & NotificationBookmarkContext = {
+      post,
+      sharedPost,
+      bookmark,
+      userIds: [userId],
+      source: sourcesFixture[0] as Reference<Source>,
+    };
+    const title = `Reading reminder! <b>${sharedPost.title}</b>`;
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('p1');
+    expect(actual.notification.referenceType).toEqual('post');
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/posts/p1',
+    );
+    expect(actual.notification.title).toEqual(title);
+    expect(actual.notification.description).toEqual(sharedPost.title);
     expect(actual.notification.uniqueKey).toEqual(remindAt.toString());
     expect(actual.avatars).toEqual([
       {

@@ -150,7 +150,9 @@ describe('GET /integrations/slack/auth/callback', () => {
     ).expect(307);
 
     expect(body).toEqual({});
-    expect(headers.location).toBe('http://localhost:5002/squads/test');
+    const returnUrl = new URL(headers.location);
+    expect(returnUrl.pathname).toBe('/squads/test');
+    expect(returnUrl.searchParams.get('iid')).toBeTruthy();
 
     const integration = await con
       .getRepository(UserIntegration)
@@ -184,7 +186,7 @@ describe('GET /integrations/slack/auth/callback', () => {
   });
 
   it('should update integration if it already exists', async () => {
-    await con.getRepository(UserIntegration).save([
+    const existingIntegration = await con.getRepository(UserIntegration).save([
       {
         userId: '1',
         type: UserIntegrationType.Slack,
@@ -219,7 +221,9 @@ describe('GET /integrations/slack/auth/callback', () => {
     ).expect(307);
 
     expect(body).toEqual({});
-    expect(headers.location).toBe('http://localhost:5002/squads/test');
+    const returnUrl = new URL(headers.location);
+    expect(returnUrl.pathname).toBe('/squads/test');
+    expect(returnUrl.searchParams.get('iid')).toBe(existingIntegration[0].id);
 
     const integration = await con
       .getRepository(UserIntegration)

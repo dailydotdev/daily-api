@@ -24,7 +24,11 @@ const worker: TypedWorker<'user-updated'> = {
       await resubscribeUser(cio, user.id);
     }
 
-    await identifyUser(log, cio, user);
+    await identifyUser({
+      con,
+      cio,
+      user,
+    });
     log.info({ userId: user.id }, 'updated user profile in customerio');
   },
 };

@@ -8,7 +8,7 @@ const days = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 const worker: TypedWorker<'api.v1.user-streak-updated'> = {
   subscription: 'api.user-streak-updated-cio',
-  handler: async (message, con, log) => {
+  handler: async (message, con) => {
     if (!process.env.CIO_SITE_ID) {
       return;
     }
@@ -44,7 +44,10 @@ const worker: TypedWorker<'api.v1.user-streak-updated'> = {
       lastSevenDays,
     };
 
-    await identifyUserStreak(log, cio, userStreakData);
+    await identifyUserStreak({
+      cio,
+      data: userStreakData,
+    });
   },
 };
 

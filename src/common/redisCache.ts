@@ -1,11 +1,11 @@
-import { DataSource, IsNull } from 'typeorm';
+import { DataSource, IsNull, QueryRunner } from 'typeorm';
 import { StorageKey, StorageTopic, generateStorageKey } from '../config';
 import { MarketingCtaStatus, UserMarketingCta } from '../entity';
 import { RedisMagicValues, setRedisObjectWithExpiry } from '../redis';
 import { ONE_WEEK_IN_SECONDS } from './index';
 
 export const cachePrefillMarketingCta = async (
-  con: DataSource,
+  con: DataSource | QueryRunner,
   userId: string,
 ) => {
   const redisKey = generateStorageKey(
@@ -14,17 +14,19 @@ export const cachePrefillMarketingCta = async (
     userId,
   );
 
-  const userMarketingCta = await con.getRepository(UserMarketingCta).findOne({
-    where: {
-      userId,
-      readAt: IsNull(),
-      marketingCta: {
-        status: MarketingCtaStatus.Active,
+  const userMarketingCta = await con.manager
+    .getRepository(UserMarketingCta)
+    .findOne({
+      where: {
+        userId,
+        readAt: IsNull(),
+        marketingCta: {
+          status: MarketingCtaStatus.Active,
+        },
       },
-    },
-    order: { createdAt: 'ASC' },
-    relations: ['marketingCta'],
-  });
+      order: { createdAt: 'ASC' },
+      relations: ['marketingCta'],
+    });
 
   const marketingCta = userMarketingCta?.marketingCta || null;
   const redisValue = userMarketingCta

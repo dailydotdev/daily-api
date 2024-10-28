@@ -612,6 +612,11 @@ export const typeDefs = /* GraphQL */ `
       first: Int
 
       """
+      Number of days since publication
+      """
+      period: Int
+
+      """
       Array of supported post types
       """
       supportedTypes: [String!]
@@ -1600,24 +1605,29 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       {
         removeHiddenPosts: true,
         allowPrivatePosts: false,
-        allowSquadPosts: false,
+        allowSquadPosts: true,
       },
     ),
     mostDiscussedFeed: feedResolver(
       (
         ctx,
         {
+          period,
           source,
           tag,
         }: ConnectionArguments & {
+          period?: number;
           source?: string;
           tag?: string;
         },
         builder,
         alias,
       ) => {
+        const interval = [7, 30, 365].find((num) => num === period) ?? 7;
         builder
-          .andWhere(`${alias}."createdAt" > now() - interval '30 days'`)
+          .andWhere(
+            `${alias}."createdAt" > now() - interval '${interval} days'`,
+          )
           .andWhere(`${alias}."comments" >= 1`)
           .orderBy(`${alias}."comments"`, 'DESC')
           .addOrderBy(`${alias}."createdAt"`, 'DESC');
@@ -1637,7 +1647,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       {
         removeHiddenPosts: true,
         allowPrivatePosts: false,
-        allowSquadPosts: false,
+        allowSquadPosts: true,
       },
     ),
     randomTrendingPosts: randomPostsResolver(

@@ -81,7 +81,7 @@ import {
 } from '../errors';
 import { deleteUser } from '../directive/user';
 import { randomInt } from 'crypto';
-import { ArrayContains, DataSource, In, IsNull } from 'typeorm';
+import { ArrayContains, DataSource, In, IsNull, QueryRunner } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
 import { ContentLanguage, UserVote, UserVoteEntity } from '../types';
 import { markdown } from '../common/markdown';
@@ -89,7 +89,7 @@ import { deleteRedisKey, getRedisObject, RedisMagicValues } from '../redis';
 import { generateStorageKey, StorageKey, StorageTopic } from '../config';
 import { FastifyBaseLogger } from 'fastify';
 import { cachePrefillMarketingCta } from '../common/redisCache';
-import { cio } from '../cio';
+import { cio, identifyUserPersonalizedDigest } from '../cio';
 import {
   UserIntegration,
   UserIntegrationSlack,
@@ -828,6 +828,11 @@ export const typeDefs = /* GraphQL */ `
     userIntegrations: UserIntegrationConnection @auth
 
     """
+    Get user integration by id
+    """
+    userIntegration(id: ID!): UserIntegration @auth
+
+    """
     Get companies for user
     """
     companies: [UserCompany] @auth
@@ -1099,7 +1104,7 @@ const timestampAtTimezone = `"timestamp"::timestamptz ${userTimezone}`;
 const MAX_README_LENGTH = 10_000;
 
 export const getMarketingCta = async (
-  con: DataSource,
+  con: DataSource | QueryRunner,
   log: FastifyBaseLogger,
   userId: string,
 ) => {
@@ -1630,6 +1635,30 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       );
     },
+    userIntegration: async (
+      _,
+      { id }: { id: string },
+      ctx: AuthContext,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLUserIntegration> => {
+      return graphorm.queryOneOrFail<GQLUserIntegration>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder.andWhere(
+            `${builder.alias}."id" = :id`,
+            {
+              id,
+            },
+          );
+          builder.queryBuilder = builder.queryBuilder.andWhere(
+            `${builder.alias}."userId" = :userId`,
+            { userId: ctx.userId },
+          );
+          return builder;
+        },
+      );
+    },
   },
   Mutation: {
     updateUserProfile: async (
@@ -1761,7 +1790,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         flags,
       });
 
-      await resubscribeUser(cio, ctx.userId);
+      await Promise.all([
+        resubscribeUser(cio, ctx.userId),
+        identifyUserPersonalizedDigest({
+          userId: ctx.userId,
+          cio,
+          subscribed: true,
+        }),
+      ]);
 
       return personalizedDigest;
     },
@@ -1780,6 +1816,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           type,
         });
       }
+
+      await identifyUserPersonalizedDigest({
+        userId: ctx.userId,
+        cio,
+        subscribed: false,
+      });
 
       return { _: true };
     },

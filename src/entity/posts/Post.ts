@@ -232,6 +232,7 @@ export class Post {
   @Index('IDX_post_flags_banned', { synchronize: false })
   @Index('IDX_post_flags_deleted', { synchronize: false })
   @Index('IDX_post_flags_promoteToPublic', { synchronize: false })
+  @Index('IDX_post_flags_vordr', { synchronize: false })
   flags: PostFlags;
 
   @Column({ type: 'uuid', nullable: true })

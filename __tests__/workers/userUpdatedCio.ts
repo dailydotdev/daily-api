@@ -2,7 +2,11 @@ import nock from 'nock';
 import worker from '../../src/workers/userUpdatedCio';
 import { ChangeObject } from '../../src/types';
 import { expectSuccessfulTypedBackground } from '../helpers';
-import { User } from '../../src/entity';
+import {
+  User,
+  UserPersonalizedDigest,
+  UserPersonalizedDigestType,
+} from '../../src/entity';
 import {
   getShortGenericInviteLink,
   ghostUser,
@@ -11,6 +15,9 @@ import {
 import { cio } from '../../src/cio';
 import { typedWorkers } from '../../src/workers';
 import mocked = jest.mocked;
+import createOrGetConnection from '../../src/db';
+import { DataSource } from 'typeorm';
+import { usersFixture } from '../fixture/user';
 
 jest.mock('../../src/common', () => ({
   ...jest.requireActual('../../src/common'),
@@ -29,10 +36,16 @@ beforeEach(async () => {
   process.env.CIO_SITE_ID = 'wolololo';
 });
 
+let con: DataSource;
+
+beforeAll(async () => {
+  con = await createOrGetConnection();
+});
+
 describe('userUpdatedCio', () => {
   type ObjectType = Partial<User>;
   const base: ChangeObject<ObjectType> = {
-    id: '1',
+    id: 'uucu1',
     username: 'cio',
     name: 'Customer IO',
     infoConfirmed: true,
@@ -40,7 +53,9 @@ describe('userUpdatedCio', () => {
     updatedAt: 1714577744717000,
     bio: 'bio',
     readme: 'readme',
+    notificationEmail: true,
     acceptedMarketing: true,
+    followingEmail: true,
   };
 
   it('should be registered', () => {
@@ -58,7 +73,7 @@ describe('userUpdatedCio', () => {
       newProfile: base,
       user: base,
     } as unknown as PubSubSchema['user-updated']);
-    expect(cio.identify).toHaveBeenCalledWith('1', {
+    expect(cio.identify).toHaveBeenCalledWith('uucu1', {
       created_at: 1714577744,
       first_name: 'Customer',
       name: 'Customer IO',
@@ -67,6 +82,9 @@ describe('userUpdatedCio', () => {
       referral_link: referral,
       accepted_marketing: true,
       'cio_subscription_preferences.topics.topic_4': true,
+      'cio_subscription_preferences.topics.topic_7': true,
+      'cio_subscription_preferences.topics.topic_8': false,
+      'cio_subscription_preferences.topics.topic_9': true,
     });
   });
 
@@ -76,11 +94,12 @@ describe('userUpdatedCio', () => {
       newProfile: { ...base, acceptedMarketing: false },
       user: base,
     } as unknown as PubSubSchema['user-updated']);
-    expect(
-      mocked(cio.identify).mock.calls[0][1][
-        'cio_subscription_preferences.topics.topic_4'
-      ],
-    ).toEqual(false);
+    expect(mocked(cio.identify).mock.calls[0][1]).toMatchObject({
+      'cio_subscription_preferences.topics.topic_4': false,
+      'cio_subscription_preferences.topics.topic_7': true,
+      'cio_subscription_preferences.topics.topic_8': false,
+      'cio_subscription_preferences.topics.topic_9': true,
+    });
   });
 
   it('should not update customer.io if user is ghost user', async () => {
@@ -99,5 +118,48 @@ describe('userUpdatedCio', () => {
       user: before,
     } as unknown as PubSubSchema['user-updated']);
     expect(cio.identify).toHaveBeenCalledTimes(0);
+  });
+
+  it('should support following email false', async () => {
+    mocked(getShortGenericInviteLink).mockImplementation(async () => '');
+    await expectSuccessfulTypedBackground(worker, {
+      newProfile: { ...base, followingEmail: false },
+      user: base,
+    } as unknown as PubSubSchema['user-updated']);
+    expect(mocked(cio.identify).mock.calls[0][1]).toMatchObject({
+      'cio_subscription_preferences.topics.topic_4': true,
+      'cio_subscription_preferences.topics.topic_7': true,
+      'cio_subscription_preferences.topics.topic_8': false,
+      'cio_subscription_preferences.topics.topic_9': false,
+    });
+  });
+
+  it('should support digest subscription', async () => {
+    mocked(getShortGenericInviteLink).mockImplementation(async () => '');
+
+    await con.getRepository(User).save({
+      ...usersFixture[0],
+      id: 'uucu1',
+      github: 'uucu1',
+      hashnode: 'uucu1',
+      email: 'uucu1@daily.dev',
+      twitter: 'uucu1',
+      username: 'uucu1',
+    });
+    await con.getRepository(UserPersonalizedDigest).findBy({
+      userId: 'uucu1',
+      type: UserPersonalizedDigestType.Digest,
+    });
+
+    await expectSuccessfulTypedBackground(worker, {
+      newProfile: { ...base },
+      user: base,
+    } as unknown as PubSubSchema['user-updated']);
+    expect(mocked(cio.identify).mock.calls[0][1]).toMatchObject({
+      'cio_subscription_preferences.topics.topic_4': true,
+      'cio_subscription_preferences.topics.topic_7': true,
+      'cio_subscription_preferences.topics.topic_8': true,
+      'cio_subscription_preferences.topics.topic_9': true,
+    });
   });
 });

@@ -102,6 +102,7 @@ import { CommentReport } from '../src/entity/CommentReport';
 import { getRestoreStreakCache } from '../src/workers/cdc/primary';
 import { ContentPreferenceUser } from '../src/entity/contentPreference/ContentPreferenceUser';
 import { ContentPreferenceStatus } from '../src/entity/contentPreference/types';
+import { identifyUserPersonalizedDigest } from '../src/cio';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -116,6 +117,11 @@ jest.mock('../src/common/mailing.ts', () => ({
     unknown
   >),
   sendEmail: jest.fn(),
+}));
+
+jest.mock('../src/cio', () => ({
+  ...(jest.requireActual('../src/cio') as Record<string, unknown>),
+  identifyUserPersonalizedDigest: jest.fn(),
 }));
 
 beforeAll(async () => {
@@ -4306,6 +4312,14 @@ describe('mutation subscribePersonalizedDigest', () => {
       preferredDay: DayOfWeek.Monday,
       preferredHour: 9,
     });
+
+    expect(
+      jest.mocked(identifyUserPersonalizedDigest).mock.calls[0][0],
+    ).toEqual({
+      cio: expect.any(Object),
+      userId: '1',
+      subscribed: true,
+    });
   });
 
   it('should subscribe to personal digest for user with settings', async () => {
@@ -4408,6 +4422,14 @@ describe('mutation unsubscribePersonalizedDigest', () => {
         userId: loggedUser,
       });
     expect(personalizedDigest).toBeNull();
+
+    expect(
+      jest.mocked(identifyUserPersonalizedDigest).mock.calls[0][0],
+    ).toEqual({
+      cio: expect.any(Object),
+      userId: '1',
+      subscribed: false,
+    });
   });
 
   it('should not throw error if not subscribed', async () => {
@@ -4890,6 +4912,101 @@ describe('mutation clearUserMarketingCta', () => {
         readAt: IsNull(),
       }),
     ).toBeTruthy();
+  });
+});
+
+describe('query userIntegration', () => {
+  const QUERY = `
+  query UserIntegration($id: ID!) {
+    userIntegration(id: $id) {
+      id
+      type
+      name
+      userId
+    }
+  }
+`;
+
+  it('should require authentication', async () => {
+    await testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { id: '5e061c07-d0ee-4f03-84b1-d53daad4b317' },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should return user integration', async () => {
+    loggedUser = '1';
+    const createdAt = new Date();
+
+    await con.getRepository(UserIntegration).save({
+      id: '5e061c07-d0ee-4f03-84b1-d53daad4b317',
+      userId: '1',
+      type: UserIntegrationType.Slack,
+      createdAt: addSeconds(createdAt, 3),
+      name: 'daily.dev',
+      meta: {
+        appId: 'sapp1',
+        scope: 'channels:read,chat:write,channels:join',
+        teamId: 'st1',
+        teamName: 'daily.dev',
+        tokenType: 'bot',
+        accessToken: await encrypt(
+          'xoxb-token',
+          process.env.SLACK_DB_KEY as string,
+        ),
+        slackUserId: 'su1',
+      },
+    });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        id: '5e061c07-d0ee-4f03-84b1-d53daad4b317',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userIntegration).toMatchObject({
+      id: expect.any(String),
+      type: UserIntegrationType.Slack,
+      name: 'daily.dev',
+      userId: '1',
+    });
+  });
+
+  it('should not return user integration if from different user', async () => {
+    loggedUser = '1';
+    const createdAt = new Date();
+
+    await con.getRepository(UserIntegration).save({
+      id: '5e061c07-d0ee-4f03-84b1-d53daad4b317',
+      userId: '2',
+      type: UserIntegrationType.Slack,
+      createdAt: addSeconds(createdAt, 3),
+      name: 'daily.dev',
+      meta: {
+        appId: 'sapp1',
+        scope: 'channels:read,chat:write,channels:join',
+        teamId: 'st1',
+        teamName: 'daily.dev',
+        tokenType: 'bot',
+        accessToken: await encrypt(
+          'xoxb-token',
+          process.env.SLACK_DB_KEY as string,
+        ),
+        slackUserId: 'su1',
+      },
+    });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        id: '5e061c07-d0ee-4f03-84b1-d53daad4b317',
+      },
+    });
+    expect(res.errors).toBeTruthy();
+    expect(res.errors[0].extensions.code).toEqual('NOT_FOUND');
   });
 });
 

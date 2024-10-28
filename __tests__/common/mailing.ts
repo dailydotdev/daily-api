@@ -1,8 +1,12 @@
 import nock from 'nock';
-import { DataSource, Not } from 'typeorm';
+import { DataSource, In, Not } from 'typeorm';
 import { saveFixtures } from '../helpers';
 import createOrGetConnection from '../../src/db';
-import { User } from '../../src/entity';
+import {
+  User,
+  UserPersonalizedDigest,
+  UserPersonalizedDigestType,
+} from '../../src/entity';
 import { usersFixture } from '../fixture/user';
 import {
   CioUnsubscribeTopic,
@@ -38,6 +42,7 @@ describe('mailing', () => {
                   [`topic_${CioUnsubscribeTopic.Marketing}`]: false,
                   [`topic_${CioUnsubscribeTopic.Digest}`]: true,
                   [`topic_${CioUnsubscribeTopic.Notifications}`]: true,
+                  [`topic_${CioUnsubscribeTopic.Follow}`]: false,
                 },
               }),
             },
@@ -56,9 +61,21 @@ describe('mailing', () => {
         },
       });
 
-      users.forEach((user) => {
+      const digests = await con.getRepository(UserPersonalizedDigest).findBy({
+        userId: In(users.map((user) => user.id)),
+        type: UserPersonalizedDigestType.Digest,
+      });
+
+      expect(digests).toHaveLength(4);
+
+      users.forEach((user, index) => {
         expect(user.acceptedMarketing).toBe(false);
         expect(user.notificationEmail).toBe(true);
+        expect(digests[index]).toMatchObject({
+          userId: user.id,
+          type: UserPersonalizedDigestType.Digest,
+        });
+        expect(user.followingEmail).toBe(false);
       });
     });
   });
