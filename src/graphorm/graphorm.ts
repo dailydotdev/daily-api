@@ -568,10 +568,18 @@ export class GraphORM {
       builder.queryBuilder.setQueryRunner(slaveRunner);
     }
 
-    const res = await builder.queryBuilder.getRawMany();
-    if (slaveRunner) {
-      await slaveRunner.release();
+    let res: any[];
+
+    try {
+      res = await builder.queryBuilder.getRawMany();
+    } catch (error) {
+      throw error;
+    } finally {
+      if (slaveRunner) {
+        await slaveRunner.release();
+      }
     }
+
     return res.map((value) =>
       this.transformType(ctx, value, rootType, fieldsByTypeName),
     );

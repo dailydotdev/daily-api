@@ -6,8 +6,8 @@ export const AppDataSource = new DataSource({
   schema: 'public',
   synchronize: false,
   extra: {
-    max: 20,
-    idleTimeoutMillis: 120000,
+    max: 30,
+    idleTimeoutMillis: 0,
   },
   logging: false,
   entities: ['src/entity/**/*.{js,ts}'],
