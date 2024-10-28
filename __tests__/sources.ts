@@ -1,14 +1,8 @@
-import {
-  disposeGraphQLTesting,
-  GraphQLTestClient,
-  GraphQLTestingState,
-  initializeGraphQLTesting,
-  MockContext,
-  saveFixtures,
-  testMutationError,
-  testMutationErrorCode,
-  testQueryErrorCode,
-} from './helpers';
+import { randomUUID } from 'crypto';
+import { DataSource, In, Not } from 'typeorm';
+import { updateFlagsStatement, WELCOME_POST_TITLE } from '../src/common';
+import { isNullOrUndefined } from '../src/common/object';
+import createOrGetConnection from '../src/db';
 import {
   defaultPublicSourceFlags,
   NotificationPreferenceSource,
@@ -26,21 +20,27 @@ import {
   User,
   WelcomePost,
 } from '../src/entity';
+import { DisallowHandle } from '../src/entity/DisallowHandle';
+import { SourceCategory } from '../src/entity/sources/SourceCategory';
+import { SourceTagView } from '../src/entity/SourceTagView';
+import { SourcePermissionErrorKeys } from '../src/errors';
+import { NotificationType } from '../src/notifications/common';
 import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
-import { DataSource, In, Not } from 'typeorm';
-import { randomUUID } from 'crypto';
-import createOrGetConnection from '../src/db';
-import { usersFixture } from './fixture/user';
+import { SourcePermissions } from '../src/schema/sources';
 import { postKeywordsFixture, postsFixture } from './fixture/post';
 import { createSource, sourcesFixture } from './fixture/source';
-import { SourcePermissions } from '../src/schema/sources';
-import { SourcePermissionErrorKeys } from '../src/errors';
-import { updateFlagsStatement, WELCOME_POST_TITLE } from '../src/common';
-import { DisallowHandle } from '../src/entity/DisallowHandle';
-import { NotificationType } from '../src/notifications/common';
-import { SourceTagView } from '../src/entity/SourceTagView';
-import { isNullOrUndefined } from '../src/common/object';
-import { SourceCategory } from '../src/entity/sources/SourceCategory';
+import { usersFixture } from './fixture/user';
+import {
+  disposeGraphQLTesting,
+  GraphQLTestClient,
+  GraphQLTestingState,
+  initializeGraphQLTesting,
+  MockContext,
+  saveFixtures,
+  testMutationError,
+  testMutationErrorCode,
+  testQueryErrorCode,
+} from './helpers';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -917,6 +917,7 @@ query Source($id: ID!) {
     name
     image
     public
+    moderationRequired
   }
 }
   `;
@@ -1713,8 +1714,8 @@ query RelatedTags($sourceId: ID!) {
 
 describe('mutation createSquad', () => {
   const MUTATION = `
-  mutation CreateSquad($name: String!, $handle: String!, $description: String, $postId: ID!, $commentary: String!, $memberPostingRole: String, $memberInviteRole: String, $categoryId: ID, $isPrivate: Boolean) {
-  createSquad(name: $name, handle: $handle, description: $description, postId: $postId, commentary: $commentary, memberPostingRole: $memberPostingRole, memberInviteRole: $memberInviteRole, categoryId: $categoryId, isPrivate: $isPrivate) {
+  mutation CreateSquad($name: String!, $handle: String!, $description: String, $postId: ID!, $commentary: String!, $memberPostingRole: String, $memberInviteRole: String, $categoryId: ID, $isPrivate: Boolean, $moderationRequired: Boolean) {
+  createSquad(name: $name, handle: $handle, description: $description, postId: $postId, commentary: $commentary, memberPostingRole: $memberPostingRole, memberInviteRole: $memberInviteRole, categoryId: $categoryId, isPrivate: $isPrivate, moderationRequired: $moderationRequired) {
     id
     category { id }
   }
@@ -1737,6 +1738,24 @@ describe('mutation createSquad', () => {
       'UNAUTHENTICATED',
     ));
 
+  it('squad should have post moderation enabled on creation', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(Post).save(postsFixture[0]);
+
+    const res = await client.query(MUTATION, {
+      variables: { ...variables, moderationRequired: true },
+    });
+    expect(res.errors).toBeFalsy();
+
+    const newId = res.data.createSquad.id;
+    const newSource = await con
+      .getRepository(SquadSource)
+      .findOneByOrFail({ id: newId });
+
+    expect(newSource.moderationRequired).toEqual(true);
+  });
+
   it('should create squad', async () => {
     loggedUser = '1';
     await con.getRepository(Post).save(postsFixture[0]);
@@ -1755,6 +1774,7 @@ describe('mutation createSquad', () => {
     expect(newSource?.memberInviteRank).toEqual(
       sourceRoleRank[SourceMemberRoles.Member],
     );
+    expect(newSource?.moderationRequired).toEqual(false);
     const member = await con.getRepository(SourceMember).findOneBy({
       sourceId: newId,
       userId: '1',
@@ -1894,6 +1914,7 @@ describe('mutation createSquad', () => {
     const res = await client.mutate(MUTATION, {
       variables: {
         ...variables,
+        moderationRequired: false,
         memberPostingRole: SourceMemberRoles.Moderator,
       },
     });
@@ -2024,8 +2045,8 @@ describe('mutation createSquad', () => {
 
 describe('mutation editSquad', () => {
   const MUTATION = `
-  mutation EditSquad($sourceId: ID!, $name: String!, $handle: String!, $description: String, $memberPostingRole: String, $memberInviteRole: String, $isPrivate: Boolean, $categoryId: ID) {
-  editSquad(sourceId: $sourceId, name: $name, handle: $handle, description: $description, memberPostingRole: $memberPostingRole, memberInviteRole: $memberInviteRole, isPrivate: $isPrivate, categoryId: $categoryId) {
+  mutation EditSquad($sourceId: ID!, $name: String!, $handle: String!, $description: String, $memberPostingRole: String, $memberInviteRole: String, $isPrivate: Boolean, $categoryId: ID, $moderationRequired: Boolean) {
+  editSquad(sourceId: $sourceId, name: $name, handle: $handle, description: $description, memberPostingRole: $memberPostingRole, memberInviteRole: $memberInviteRole, isPrivate: $isPrivate, categoryId: $categoryId, moderationRequired: $moderationRequired) {
     id
     category { id }
   }
@@ -2051,6 +2072,25 @@ describe('mutation editSquad', () => {
       referralToken: 'rt2',
       role: SourceMemberRoles.Admin,
     });
+  });
+
+  it('squad should have post moderation enabled after update', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        memberPostingRole: SourceMemberRoles.Member,
+        moderationRequired: true,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const squad = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: variables.sourceId });
+    expect(squad?.moderationRequired).toEqual(true);
   });
 
   it('should not authorize when not logged in', () =>

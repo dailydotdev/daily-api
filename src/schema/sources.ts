@@ -233,6 +233,11 @@ export const typeDefs = /* GraphQL */ `
     memberInviteRole: String
 
     """
+    Enable post moderation for the squad
+    """
+    moderationRequired: Boolean
+
+    """
     URL for inviting and referring new users
     """
     referralUrl: String
@@ -617,6 +622,10 @@ export const typeDefs = /* GraphQL */ `
       """
       memberInviteRole: String
       """
+      Enable post moderation for the squad
+      """
+      moderationRequired: Boolean
+      """
       Whether the Squad should be private or not
       """
       isPrivate: Boolean
@@ -658,6 +667,10 @@ export const typeDefs = /* GraphQL */ `
       Role required for members to invite
       """
       memberInviteRole: String
+      """
+      Enable post moderation for the squad
+      """
+      moderationRequired: Boolean
       """
       Whether the Squad should be private or not
       """
@@ -935,6 +948,7 @@ const validateSquadData = async (
   }: Pick<SquadSource, 'handle' | 'name' | 'description' | 'categoryId'> & {
     memberPostingRole?: SourceMemberRoles;
     memberInviteRole?: SourceMemberRoles;
+    moderationRequired?: boolean;
   },
   entityManager: DataSource | EntityManager,
   handleChanged = true,
@@ -1046,6 +1060,7 @@ interface SquadInputArgs {
   image?: FileUpload;
   memberPostingRole?: SourceMemberRoles;
   memberInviteRole?: SourceMemberRoles;
+  moderationRequired?: boolean;
   isPrivate?: boolean;
   categoryId?: string;
 }
@@ -1689,6 +1704,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         description,
         memberPostingRole = SourceMemberRoles.Member,
         memberInviteRole = SourceMemberRoles.Member,
+        moderationRequired,
         isPrivate = true,
         categoryId,
       }: SquadCreateInputArgs,
@@ -1719,6 +1735,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             private: isPrivate,
             memberPostingRank: sourceRoleRank[memberPostingRole],
             memberInviteRank: sourceRoleRank[memberInviteRole],
+            moderationRequired,
           });
 
           if (!isNullOrUndefined(isPrivate) && !isPrivate) {
@@ -1771,6 +1788,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         description,
         memberPostingRole,
         memberInviteRole,
+        moderationRequired,
         isPrivate,
         categoryId,
       }: SquadEditInputArgs,
@@ -1805,6 +1823,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         memberInviteRank: memberInviteRole
           ? sourceRoleRank[memberInviteRole]
           : undefined,
+        moderationRequired,
       };
 
       if (!isNullOrUndefined(isPrivate)) {
