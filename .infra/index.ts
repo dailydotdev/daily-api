@@ -306,6 +306,10 @@ if (isAdhocEnv) {
         { targetPort: 3000, port: 80, name: 'http' },
         { targetPort: 9464, port: 9464, name: 'metrics' },
       ],
+      spot: {
+        enabled: true,
+        weight: 50,
+      },
       ...vols,
     },
     {
@@ -323,8 +327,10 @@ if (isAdhocEnv) {
       livenessProbe,
       metric: { type: 'memory_cpu', cpu: 85 },
       disableLifecycle: true,
-      // ports: [{ containerPort: 9464, name: 'metrics' }],
-      // servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
+      spot: {
+        enabled: true,
+        weight: 70,
+      },
       ...vols,
     },
     {
@@ -345,6 +351,10 @@ if (isAdhocEnv) {
       },
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
+      spot: {
+        enabled: true,
+        weight: 70,
+      },
       ...vols,
     },
     {
@@ -358,6 +368,10 @@ if (isAdhocEnv) {
       metric: { type: 'memory_cpu', cpu: 80, memory: 130 },
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
+      spot: {
+        enabled: true,
+        weight: 50,
+      },
       ...vols,
     },
     {
@@ -407,6 +421,10 @@ if (isAdhocEnv) {
           subapp: 'personalized-digest',
         },
         targetAverageValue: 100_000,
+      },
+      spot: {
+        enabled: true,
+        weight: 70,
       },
       ...vols,
       // ports: [{ containerPort: 9464, name: 'metrics' }],
@@ -485,6 +503,10 @@ const [apps] = deployApplicationSuite(
           limits: cron.limits ?? bgLimits,
           requests: cron.requests ?? bgRequests,
           activeDeadlineSeconds: cron.activeDeadlineSeconds ?? 300,
+          spot: {
+            enabled: true,
+            weight: 70,
+          }
         })),
     isAdhocEnv,
     dependsOn,
