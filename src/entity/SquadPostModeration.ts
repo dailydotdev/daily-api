@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { Post, PostType } from './posts';
 import { Source } from './Source';
+import { User } from './user';
 
 export enum SquadPostModerationStatus {
   Approved = 'approved',
@@ -39,8 +40,20 @@ export class SquadPostModeration {
   @Column({ type: 'text' })
   createdById: string;
 
+  @ManyToOne('User', (user: User) => user.id, {
+    lazy: true,
+    onDelete: 'SET NULL',
+  })
+  createdBy: Promise<User>;
+
   @Column({ type: 'text', nullable: true })
   moderatedById: string | null;
+
+  @ManyToOne('User', (user: User) => user.id, {
+    lazy: true,
+    onDelete: 'SET NULL',
+  })
+  moderatedBy: Promise<User>;
 
   @Column({ type: 'text', nullable: true })
   moderatorMessage: string | null;
@@ -80,4 +93,10 @@ export class SquadPostModeration {
 
   @Column({ type: 'text', nullable: true })
   sharedPostId: string | null;
+
+  @ManyToOne('Post', (post: Post) => post.id, {
+    lazy: true,
+    onDelete: 'SET NULL',
+  })
+  sharedPost: Promise<Post>;
 }
