@@ -945,7 +945,6 @@ const validateSquadData = async (
     memberPostingRole,
     memberInviteRole,
     categoryId,
-    moderationRequired,
   }: Pick<SquadSource, 'handle' | 'name' | 'description' | 'categoryId'> & {
     memberPostingRole?: SourceMemberRoles;
     memberInviteRole?: SourceMemberRoles;
@@ -988,12 +987,6 @@ const validateSquadData = async (
     !sourceRoleRankKeys.includes(memberInviteRole)
   ) {
     throw new ValidationError('Invalid member invite role');
-  }
-
-  if (moderationRequired && memberPostingRole !== SourceMemberRoles.Member) {
-    throw new ValidationError(
-      'Cannot enable post moderation when posts are already set to moderator only',
-    );
   }
 
   return handle;
@@ -1726,7 +1719,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           memberPostingRole,
           memberInviteRole,
           categoryId,
-          moderationRequired,
         },
         ctx.con,
       );
@@ -1816,7 +1808,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           memberPostingRole,
           memberInviteRole,
           categoryId,
-          moderationRequired,
         },
         ctx.con,
         inputHandle !== current.handle,
