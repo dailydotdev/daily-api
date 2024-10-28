@@ -87,11 +87,11 @@ const plugin = async (
     loadAuthKeys();
   }
 
-  fastify.decorateRequest('userId', null);
-  fastify.decorateRequest('premium', null);
-  fastify.decorateRequest('roles', null);
-  fastify.decorateRequest('accessToken', null);
-  fastify.decorateRequest('isTeamMember', null);
+  fastify.decorateRequest('userId');
+  fastify.decorateRequest('premium');
+  fastify.decorateRequest('roles');
+  fastify.decorateRequest('accessToken');
+  fastify.decorateRequest('isTeamMember');
 
   // Machine-to-machine authentication
   fastify.addHook('preHandler', async (req) => {
