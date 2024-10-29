@@ -320,6 +320,7 @@ if (isAdhocEnv) {
         { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
         ...jwtEnv,
       ],
+      args: ['dumb-init', 'node', 'bin/cli', 'websocket'],
       minReplicas: 3,
       maxReplicas: 10,
       limits: wsLimits,
