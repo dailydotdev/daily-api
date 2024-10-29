@@ -4,12 +4,18 @@ import {
   ContentPreferenceType,
 } from '../entity/contentPreference/types';
 import { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
-import { NotificationPreferenceUser } from '../entity/notifications/NotificationPreferenceUser';
 import { NotificationType } from '../notifications/common';
-import { EntityManager, In } from 'typeorm';
+import { EntityManager, EntityTarget, In } from 'typeorm';
 import { ConflictError } from '../errors';
 import { ContentPreferenceFeedKeyword } from '../entity/contentPreference/ContentPreferenceFeedKeyword';
-import { FeedTag } from '../entity';
+import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
+import {
+  FeedSource,
+  FeedTag,
+  NotificationPreference,
+  NotificationPreferenceSource,
+  NotificationPreferenceUser,
+} from '../entity';
 
 type FollowEntity = ({
   ctx,
@@ -35,6 +41,10 @@ const entityToNotificationTypeMap: Record<
 > = {
   [ContentPreferenceType.User]: [NotificationType.UserPostAdded],
   [ContentPreferenceType.Keyword]: [],
+  [ContentPreferenceType.Source]: [
+    NotificationType.SourcePostAdded,
+    NotificationType.SquadPostAdded,
+  ],
 };
 
 export const contentPreferenceNotificationTypes = Object.values(
@@ -46,14 +56,16 @@ const cleanContentNotificationPreference = async ({
   entityManager,
   id,
   notificationTypes,
+  notficationEntity,
 }: {
   ctx: AuthContext;
   entityManager?: EntityManager;
   id: string;
   notificationTypes: NotificationType[];
+  notficationEntity: EntityTarget<NotificationPreference>;
 }) => {
   const notificationRepository = (entityManager ?? ctx.con).getRepository(
-    NotificationPreferenceUser,
+    notficationEntity,
   );
 
   if (!notificationTypes.length) {
@@ -90,6 +102,7 @@ const followUser: FollowEntity = async ({ ctx, id, status }) => {
         entityManager,
         id,
         notificationTypes: entityToNotificationTypeMap.user,
+        notficationEntity: NotificationPreferenceUser,
       });
     }
   });
@@ -110,6 +123,7 @@ const unfollowUser: UnFollowEntity = async ({ ctx, id }) => {
       entityManager,
       id,
       notificationTypes: entityToNotificationTypeMap.user,
+      notficationEntity: NotificationPreferenceUser,
     });
   });
 };
@@ -129,15 +143,6 @@ const followKeyword: FollowEntity = async ({ ctx, id, status }) => {
     });
 
     await repository.save(contentPreference);
-
-    if (status !== ContentPreferenceStatus.Subscribed) {
-      cleanContentNotificationPreference({
-        ctx,
-        entityManager,
-        id,
-        notificationTypes: entityToNotificationTypeMap.keyword,
-      });
-    }
 
     // TODO follow phase 3 remove when backward compatibility is done
     await entityManager.getRepository(FeedTag).save({
@@ -159,17 +164,68 @@ const unfollowKeyword: UnFollowEntity = async ({ ctx, id }) => {
       referenceId: id,
     });
 
-    cleanContentNotificationPreference({
-      ctx,
-      entityManager,
-      id,
-      notificationTypes: entityToNotificationTypeMap.keyword,
-    });
-
     // TODO follow phase 3 remove when backward compatibility is done
     await entityManager.getRepository(FeedTag).delete({
       feedId: ctx.userId,
       tag: id,
+    });
+  });
+};
+
+const followSource: FollowEntity = async ({ ctx, id, status }) => {
+  await ctx.con.transaction(async (entityManager) => {
+    const repository = entityManager.getRepository(ContentPreferenceSource);
+
+    const contentPreference = repository.create({
+      userId: ctx.userId,
+      referenceId: id,
+      sourceId: id,
+      feedId: ctx.userId,
+      status,
+    });
+
+    await repository.save(contentPreference);
+
+    if (status !== ContentPreferenceStatus.Subscribed) {
+      cleanContentNotificationPreference({
+        ctx,
+        entityManager,
+        id,
+        notificationTypes: entityToNotificationTypeMap.source,
+        notficationEntity: NotificationPreferenceSource,
+      });
+    }
+
+    // TODO follow phase 3 remove when backward compatibility is done
+    await entityManager.getRepository(FeedSource).save({
+      feedId: ctx.userId,
+      sourceId: id,
+      blocked: false,
+    });
+  });
+};
+
+const unfollowSource: UnFollowEntity = async ({ ctx, id }) => {
+  await ctx.con.transaction(async (entityManager) => {
+    const repository = entityManager.getRepository(ContentPreferenceSource);
+
+    await repository.delete({
+      userId: ctx.userId,
+      sourceId: id,
+      referenceId: id,
+    });
+
+    cleanContentNotificationPreference({
+      ctx,
+      entityManager,
+      id,
+      notificationTypes: entityToNotificationTypeMap.source,
+      notficationEntity: NotificationPreferenceSource,
+    });
+
+    await entityManager.getRepository(FeedSource).delete({
+      feedId: ctx.userId,
+      sourceId: id,
     });
   });
 };
@@ -190,6 +246,8 @@ export const followEntity = ({
       return followUser({ ctx, id, status });
     case ContentPreferenceType.Keyword:
       return followKeyword({ ctx, id, status });
+    case ContentPreferenceType.Source:
+      return followSource({ ctx, id, status });
     default:
       throw new Error('Entity not supported');
   }
@@ -209,6 +267,8 @@ export const unfollowEntity = ({
       return unfollowUser({ ctx, id });
     case ContentPreferenceType.Keyword:
       return unfollowKeyword({ ctx, id });
+    case ContentPreferenceType.Source:
+      return unfollowSource({ ctx, id });
     default:
       throw new Error('Entity not supported');
   }
