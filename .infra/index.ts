@@ -391,14 +391,6 @@ if (isAdhocEnv) {
       createService: true,
       serviceType: 'ClusterIP',
       disableLifecycle: true,
-      // ports: [
-      //   { containerPort: 3000, name: 'http' },
-      //   { containerPort: 9464, name: 'metrics' },
-      // ],
-      // servicePorts: [
-      //   { targetPort: 3000, port: 80, name: 'http' },
-      //   { targetPort: 9464, port: 9464, name: 'metrics' },
-      // ],
       ...vols,
     },
   ];
@@ -428,8 +420,6 @@ if (isAdhocEnv) {
         weight: 70,
       },
       ...vols,
-      // ports: [{ containerPort: 9464, name: 'metrics' }],
-      // servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
     });
   }
 }
