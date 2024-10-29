@@ -9,6 +9,7 @@ WORKDIR /opt/app
 COPY .npmrc .
 COPY package.json .
 COPY package-lock.json .
+COPY patches patches
 
 RUN npm i --only=prod
 
