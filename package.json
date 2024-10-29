@@ -25,7 +25,8 @@
     "start:background": "npm run cli -- background",
     "pretest": "npm run lint && cross-env NODE_ENV=test npm run db:migrate:reset",
     "test": "jest --testEnvironment=node --runInBand",
-    "typeorm": "typeorm-ts-node-commonjs"
+    "typeorm": "typeorm-ts-node-commonjs",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^1.10.0",
@@ -99,7 +100,7 @@
     "graphql-relay": "^0.10.2",
     "graphql-scalars": "^1.23.0",
     "graphql-subscriptions": "^2.0.0",
-    "graphql-upload": "^15.0.1",
+    "graphql-upload": "^15.0.2",
     "he": "^1.2.0",
     "highlight.js": "^11.10.0",
     "ioredis": "^5.4.1",
@@ -118,6 +119,7 @@
     "node-html-parser": "^6.1.13",
     "opentelemetry-instrumentation-typeorm": "^0.41.0",
     "p-timeout": "4.1.0",
+    "patch-package": "^8.0.0",
     "pg": "^8.13.1",
     "pg-query-stream": "^4.7.1",
     "pino": "^9.5.0",
@@ -168,5 +170,10 @@
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
     "typescript": "5.6.3"
+  },
+  "overrides": {
+    "mercurius-upload": {
+      "fastify-plugin": "^5.0.1"
+    }
   }
 }
