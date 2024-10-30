@@ -694,14 +694,17 @@ export const typeDefs = /* GraphQL */ `
     Unique identifier for the top reader badge
     """
     id: ID
+
     """
     User
     """
     user: User
+
     """
     Date and time when the badge was issued
     """
     issuedAt: DateTime
+
     """
     Keyword
     """
