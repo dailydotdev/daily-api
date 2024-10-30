@@ -29,6 +29,7 @@ import {
   NotificationPreferenceStatus,
   NotificationType,
 } from '../src/notifications/common';
+import { ghostUser } from '../src/common';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -494,7 +495,7 @@ describe('mutation follow', () => {
   it('should not follow yourself', async () => {
     loggedUser = '1-fm';
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       {
         mutation: MUTATION,
@@ -511,12 +512,46 @@ describe('mutation follow', () => {
   it('should not subscribe to yourself', async () => {
     loggedUser = '1-fm';
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       {
         mutation: MUTATION,
         variables: {
           id: '1-fm',
+          entity: ContentPreferenceType.User,
+          status: ContentPreferenceStatus.Subscribed,
+        },
+      },
+      'CONFLICT',
+    );
+  });
+
+  it('should not follow ghost user', async () => {
+    loggedUser = '1-fm';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: ghostUser.id,
+          entity: ContentPreferenceType.User,
+          status: ContentPreferenceStatus.Follow,
+        },
+      },
+      'CONFLICT',
+    );
+  });
+
+  it('should not subscribe to ghost user', async () => {
+    loggedUser = '1-fm';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: ghostUser.id,
           entity: ContentPreferenceType.User,
           status: ContentPreferenceStatus.Subscribed,
         },

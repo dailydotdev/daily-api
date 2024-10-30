@@ -67,6 +67,7 @@ export default async function app(
     logger: loggerConfig,
     disableRequestLogging: true,
     trustProxy: true,
+    useSemicolonDelimiter: true,
   });
 
   app.log.info('loading features');

@@ -1608,7 +1608,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       {
         removeHiddenPosts: true,
         allowPrivatePosts: false,
-        allowSquadPosts: false,
+        allowSquadPosts: true,
       },
     ),
     mostDiscussedFeed: feedResolver(
@@ -1650,7 +1650,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       {
         removeHiddenPosts: true,
         allowPrivatePosts: false,
-        allowSquadPosts: false,
+        allowSquadPosts: true,
       },
     ),
     randomTrendingPosts: randomPostsResolver(

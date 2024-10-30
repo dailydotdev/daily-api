@@ -10,7 +10,7 @@ import {
   NotificationReferenceType,
 } from '../entity';
 import { ValidationError } from 'apollo-server-errors';
-import { DataSource, EntityManager, IsNull } from 'typeorm';
+import { DataSource, EntityManager, IsNull, QueryRunner } from 'typeorm';
 import {
   NotFoundError,
   TypeOrmError,
@@ -226,10 +226,10 @@ export const streamNotificationUsers = (
 };
 
 export const getUnreadNotificationsCount = async (
-  con: DataSource,
+  con: DataSource | QueryRunner,
   userId: string,
 ) =>
-  await con.getRepository(UserNotification).count({
+  await con.manager.getRepository(UserNotification).count({
     where: {
       userId,
       public: true,

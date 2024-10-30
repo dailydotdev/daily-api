@@ -16,6 +16,7 @@ import {
   NotificationPreferenceSource,
   NotificationPreferenceUser,
 } from '../entity';
+import { ghostUser } from './utils';
 
 type FollowEntity = ({
   ctx,
@@ -82,6 +83,10 @@ const cleanContentNotificationPreference = async ({
 const followUser: FollowEntity = async ({ ctx, id, status }) => {
   if (ctx.userId === id) {
     throw new ConflictError('Cannot follow yourself');
+  }
+
+  if (ghostUser.id === id) {
+    throw new ConflictError('Cannot follow this user');
   }
 
   await ctx.con.transaction(async (entityManager) => {

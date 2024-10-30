@@ -21,6 +21,13 @@ async function run(positionals: string[]) {
         host: '0.0.0.0',
       });
       break;
+    case 'websocket':
+      const websocketApp = await api();
+      await websocketApp.listen({
+        port: parseInt(process.env.PORT) || 3000,
+        host: '0.0.0.0',
+      });
+      break;
     case 'background':
       tracer('background').start();
       startMetrics('background');

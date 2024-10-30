@@ -81,7 +81,7 @@ import {
 } from '../errors';
 import { deleteUser } from '../directive/user';
 import { randomInt } from 'crypto';
-import { ArrayContains, DataSource, In, IsNull } from 'typeorm';
+import { ArrayContains, DataSource, In, IsNull, QueryRunner } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
 import { ContentLanguage, UserVote, UserVoteEntity } from '../types';
 import { markdown } from '../common/markdown';
@@ -1104,7 +1104,7 @@ const timestampAtTimezone = `"timestamp"::timestamptz ${userTimezone}`;
 const MAX_README_LENGTH = 10_000;
 
 export const getMarketingCta = async (
-  con: DataSource,
+  con: DataSource | QueryRunner,
   log: FastifyBaseLogger,
   userId: string,
 ) => {

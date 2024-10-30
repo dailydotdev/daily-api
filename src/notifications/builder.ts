@@ -68,6 +68,7 @@ export class NotificationBuilder {
   static new(type: NotificationType, userIds: string[]): NotificationBuilder {
     return new NotificationBuilder(type, userIds);
   }
+
   buildV2(): NotificationBundleV2 {
     return {
       notification: this.notification,
@@ -307,7 +308,12 @@ export class NotificationBuilder {
       newBuilder = newBuilder.avatarSource(source);
     }
     if (post.type === PostType.Share && sharedPost) {
-      const title = post.title?.length ? simplifyComment(post.title) : '';
+      const sharedTitle = sharedPost.title?.length
+        ? simplifyComment(sharedPost.title)
+        : '';
+      const title = post.title?.length
+        ? simplifyComment(post.title)
+        : sharedTitle;
       newBuilder = newBuilder.description(title).attachmentPost(sharedPost);
     } else {
       newBuilder = newBuilder.attachmentPost(post);
