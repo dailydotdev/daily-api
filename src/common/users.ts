@@ -58,6 +58,14 @@ export interface GQLUserCompany {
   email: string;
 }
 
+export interface GQLUserTopReader {
+  id: string;
+  userId: string;
+  issuedAt: Date;
+  keywordValue: string;
+  image: string;
+}
+
 export interface GQLUserStreakTz extends GQLUserStreak {
   timezone: string;
   lastViewAtTz: Date;

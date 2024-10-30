@@ -204,6 +204,13 @@ const obj = new GraphORM({
           parentColumn: 'keywordValue',
         },
       },
+      user: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'userId',
+        },
+      },
     },
   },
   UserStreak: {

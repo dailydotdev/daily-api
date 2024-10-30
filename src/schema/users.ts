@@ -67,6 +67,7 @@ import {
   votePost,
   CioTransactionalMessageTemplateId,
   validateWorkEmailDomain,
+  type GQLUserTopReader,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -694,6 +695,10 @@ export const typeDefs = /* GraphQL */ `
     """
     id: ID
     """
+    User
+    """
+    user: User
+    """
     Date and time when the badge was issued
     """
     issuedAt: DateTime
@@ -860,6 +865,11 @@ export const typeDefs = /* GraphQL */ `
     Get companies for user
     """
     companies: [UserCompany] @auth
+
+    """
+    Get the top reader badge based on badge ID
+    """
+    topReaderBadge(id: ID!): UserTopReader
   }
 
   extend type Mutation {
@@ -1682,6 +1692,29 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return builder;
         },
       );
+    },
+    topReaderBadge: async (
+      _,
+      { id }: { id: string },
+      ctx: AuthContext,
+      info: GraphQLResolveInfo,
+    ) => {
+      const res = await graphorm.query<GQLUserTopReader>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder.andWhere(
+            `${builder.alias}.id = :id`,
+            { id },
+          );
+          return builder;
+        },
+        true,
+      );
+      if (!res[0]) {
+        throw new NotFoundError('top reader badge not found');
+      }
+      return res[0];
     },
   },
   Mutation: {
