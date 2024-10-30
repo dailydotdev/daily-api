@@ -4,7 +4,6 @@ import {
   maxFeedNameLength,
   Ranking,
   updateFlagsStatement,
-  WATERCOOLER_ID,
 } from '../src/common';
 import {
   AdvancedSettings,
@@ -370,7 +369,6 @@ describe('query anonymousFeed', () => {
         fresh_page_size: '4',
         offset: 0,
         user_id: '1',
-        blocked_sources: [WATERCOOLER_ID],
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
@@ -415,7 +413,7 @@ describe('query anonymousFeed', () => {
         fresh_page_size: '4',
         offset: 0,
         blocked_tags: ['python', 'java'],
-        blocked_sources: ['a', 'b', WATERCOOLER_ID],
+        blocked_sources: ['a', 'b'],
         user_id: '1',
       })
       .reply(200, {
@@ -723,7 +721,6 @@ describe('query feed', () => {
         offset: 0,
         fresh_page_size: '4',
         user_id: '1',
-        blocked_sources: [WATERCOOLER_ID],
         ...baseFeedConfig,
         config: {
           providers: {},
@@ -2319,7 +2316,6 @@ describe('function feedToFilters', () => {
     expect(filters.excludeSources).toEqual([
       'excludedSource',
       'settingsCombinationSource',
-      WATERCOOLER_ID,
     ]);
   });
 
@@ -2343,14 +2339,8 @@ describe('function feedToFilters', () => {
     expect(filters.includeTags?.length).toBe(2);
     expect(filters.blockedTags).toEqual(expect.arrayContaining(['golang']));
     expect(filters.blockedTags?.length).toBe(1);
-    expect(filters.excludeSources).toEqual(
-      expect.arrayContaining([
-        'b',
-        'c',
-        'fd062672-63b7-4a10-87bd-96dcd10e9613',
-      ]),
-    );
-    expect(filters.excludeSources?.length).toBe(3);
+    expect(filters.excludeSources).toEqual(expect.arrayContaining(['b', 'c']));
+    expect(filters.excludeSources?.length).toBe(2);
   });
 
   it('should return filters with source memberships', async () => {
@@ -2508,7 +2498,6 @@ describe('query feedPreview', () => {
         fresh_page_size: '7',
         user_id: '1',
         allowed_tags: ['html'],
-        blocked_sources: [WATERCOOLER_ID],
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
@@ -3439,7 +3428,6 @@ describe('query customFeed', () => {
         total_pages: 1,
         fresh_page_size: '4',
         allowed_tags: ['webdev', 'html', 'data'],
-        blocked_sources: [WATERCOOLER_ID],
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
