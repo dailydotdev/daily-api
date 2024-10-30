@@ -114,7 +114,8 @@ const getRawFiltersData = async (
     rawFilterSelect(con, 'feedAdvancedSettings', (qb) =>
       qb
         .select(['"advancedSettingsId"', 'enabled'])
-        .from(FeedAdvancedSettings, 't'),
+        .from(FeedAdvancedSettings, 't')
+        .where('"feedId" = $1'),
     ),
     rawFilterSelect(con, 'tags', (qb) =>
       qb.select(['tag', 'blocked']).from(FeedTag, 't').where('"feedId" = $1'),
