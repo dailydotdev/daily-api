@@ -358,9 +358,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
         const dataWithAdjustedFlags = {
           ...data,
-          flags: updateFlagsStatement<Settings>({
-            ...data.flags,
-          }),
+          flags: updateFlagsStatement<Settings>(data.flags),
         };
 
         if (!settings) {
