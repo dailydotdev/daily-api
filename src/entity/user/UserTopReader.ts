@@ -10,7 +10,7 @@ export class UserTopReader {
   @PrimaryColumn({ type: 'text' })
   userId: string;
 
-  @Column({ type: 'date' })
+  @Column({ type: 'timestamptz' })
   issuedAt: Date;
 
   @Column({ type: 'text' })
