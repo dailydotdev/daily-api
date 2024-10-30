@@ -1583,7 +1583,7 @@ describe('query team members', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.user).toMatchObject({
       name: 'Ido',
-      username: null,
+      username: 'ido',
       image: 'https://daily.dev/ido.jpg',
       isTeamMember: false,
     });
@@ -1600,7 +1600,7 @@ describe('query team members', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.user).toMatchObject({
       name: 'Ido',
-      username: null,
+      username: 'ido',
       image: 'https://daily.dev/ido.jpg',
       isTeamMember: true,
     });
@@ -3516,6 +3516,10 @@ describe('mutation updateUserProfile', () => {
 
   it('should not update if username is empty', async () => {
     loggedUser = '1';
+
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { username: null });
 
     await testMutationErrorCode(
       client,
