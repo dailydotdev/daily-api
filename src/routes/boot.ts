@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import createOrGetConnection from '../db';
 import { DataSource, Not, QueryRunner } from 'typeorm';
+import { DataSource, Not, QueryRunner } from 'typeorm';
 import { clearAuthentication, dispatchWhoami } from '../kratos';
 import { generateUUID } from '../ids';
 import { generateSessionId, setTrackingId } from '../tracking';
@@ -57,9 +58,15 @@ import {
   SEMATTRS_DAILY_APPS_USER_ID,
   SEMATTRS_DAILY_STAFF,
 } from '../telemetry';
+import {
+  runInSpan,
+  SEMATTRS_DAILY_APPS_USER_ID,
+  SEMATTRS_DAILY_STAFF,
+} from '../telemetry';
 import { getUnreadNotificationsCount } from '../notifications/common';
 import { maxFeedsPerUser } from '../types';
 import { queryReadReplica } from '../common/queryReadReplica';
+import { queryDataSource } from '../common/queryDataSource';
 import { queryDataSource } from '../common/queryDataSource';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
@@ -161,6 +168,7 @@ export const excludeProperties = <T, K extends keyof T>(
 
 const getSquads = async (
   con: DataSource | QueryRunner,
+  con: DataSource | QueryRunner,
   userId: string,
 ): Promise<BootSquadSource[]> =>
   runInSpan('getSquads', async () => {
@@ -194,7 +202,17 @@ const getSquads = async (
 
     return sources.map((source) => {
       const { role, memberPostingRank, ...restSource } = source;
+    return sources.map((source) => {
+      const { role, memberPostingRank, ...restSource } = source;
 
+      const permissions = getPermissionsForMember(
+        { role },
+        { memberPostingRank },
+      );
+      // we only send posting permissions from boot to keep the payload small
+      const postingPermissions = permissions.filter(
+        (item) => item === SourcePermissions.Post,
+      );
       const permissions = getPermissionsForMember(
         { role },
         { memberPostingRank },
@@ -220,8 +238,16 @@ const getFeeds = async ({
   userId,
 }: {
   con: DataSource | QueryRunner;
+  con: DataSource | QueryRunner;
   userId: string;
 }): Promise<Feed[]> => {
+  return con.manager.getRepository(Feed).find({
+    where: {
+      id: Not(userId),
+      userId,
+    },
+    take: maxFeedsPerUser,
+  });
   return con.manager.getRepository(Feed).find({
     where: {
       id: Not(userId),
@@ -282,10 +308,20 @@ const setAuthCookie = async (
 
 const getAndUpdateLastBannerRedis = async (
   con: DataSource | QueryRunner,
+  con: DataSource | QueryRunner,
 ): Promise<string | null> => {
   let bannerFromRedis = await getRedisObject(REDIS_BANNER_KEY);
 
   if (!bannerFromRedis) {
+    const banner = await con.manager.getRepository(Banner).findOne({
+      select: ['timestamp'],
+      where: [],
+      order: {
+        timestamp: {
+          direction: 'DESC',
+        },
+      },
+    });
     const banner = await con.manager.getRepository(Banner).findOne({
       select: ['timestamp'],
       where: [],
@@ -334,10 +370,14 @@ const getExperimentation = async ({
 }: {
   userId?: string;
   con: DataSource | QueryRunner;
+  con: DataSource | QueryRunner;
 }): Promise<Experimentation> => {
   if (userId) {
     const [hash, features] = await Promise.all([
       ioRedisPool.execute((client) => client.hgetall(`exp:${userId}`)),
+      con.manager
+        .getRepository(Feature)
+        .find({ where: { userId }, select: ['feature', 'value'] }),
       con.manager
         .getRepository(Feature)
         .find({ where: { userId }, select: ['feature', 'value'] }),
@@ -402,6 +442,46 @@ const getUser = (
       'followNotifications',
     ],
   });
+const getUser = (
+  con: DataSource | QueryRunner,
+  userId: string,
+): Promise<User | null> =>
+  con.manager.getRepository(User).findOne({
+    where: { id: userId },
+    select: [
+      'id',
+      'username',
+      'name',
+      'email',
+      'image',
+      'company',
+      'title',
+      'infoConfirmed',
+      'notificationEmail',
+      'acceptedMarketing',
+      'reputation',
+      'bio',
+      'twitter',
+      'github',
+      'portfolio',
+      'hashnode',
+      'roadmap',
+      'threads',
+      'codepen',
+      'reddit',
+      'stackoverflow',
+      'youtube',
+      'linkedin',
+      'mastodon',
+      'timezone',
+      'createdAt',
+      'cover',
+      'experienceLevel',
+      'language',
+      'followingEmail',
+      'followNotifications',
+    ],
+  });
 
 const loggedInBoot = async ({
   con,
@@ -421,11 +501,16 @@ const loggedInBoot = async ({
   runInSpan('loggedInBoot', async (span) => {
     span?.setAttribute(SEMATTRS_DAILY_APPS_USER_ID, userId);
 
+  runInSpan('loggedInBoot', async (span) => {
+    span?.setAttribute(SEMATTRS_DAILY_APPS_USER_ID, userId);
+
     const { log } = req;
     const [
       visit,
       roles,
       extra,
+      [alerts, settings, marketingCta],
+      [user, squads, lastBanner, exp, feeds, unreadNotificationsCount],
       [alerts, settings, marketingCta],
       [user, squads, lastBanner, exp, feeds, unreadNotificationsCount],
     ] = await Promise.all([
@@ -449,11 +534,31 @@ const loggedInBoot = async ({
           getUnreadNotificationsCount(queryRunner, userId),
         ]);
       }),
+      queryDataSource(con, ({ queryRunner }) => {
+        return Promise.all([
+          getAlerts(queryRunner, userId),
+          getSettings(queryRunner, userId),
+          getMarketingCta(queryRunner, log, userId),
+        ]);
+      }),
+      queryReadReplica(con, async ({ queryRunner }) => {
+        return Promise.all([
+          getUser(queryRunner, userId),
+          getSquads(queryRunner, userId),
+          getAndUpdateLastBannerRedis(queryRunner),
+          getExperimentation({ userId, con: queryRunner }),
+          getFeeds({ con: queryRunner, userId }),
+          getUnreadNotificationsCount(queryRunner, userId),
+        ]);
+      }),
     ]);
     if (!user) {
       return handleNonExistentUser(con, req, res, middleware);
     }
     const isTeamMember = exp?.a?.team === 1;
+
+    span?.setAttribute(SEMATTRS_DAILY_STAFF, isTeamMember);
+
 
     span?.setAttribute(SEMATTRS_DAILY_STAFF, isTeamMember);
 
