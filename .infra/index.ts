@@ -497,7 +497,7 @@ const [apps] = deployApplicationSuite(
           spot: {
             enabled: true,
             weight: 70,
-          },
+          }
         })),
     isAdhocEnv,
     dependsOn,
