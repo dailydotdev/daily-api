@@ -8,7 +8,7 @@ import {
   SETTINGS_DEFAULT,
   SettingsFlagsPublic,
 } from '../entity';
-import { isValidHttpUrl, toGQLEnum } from '../common';
+import { isValidHttpUrl, toGQLEnum, updateFlagsStatement } from '../common';
 import { ValidationError } from 'apollo-server-errors';
 import { v4 as uuidv4 } from 'uuid';
 import { DataSource, QueryRunner } from 'typeorm';
@@ -356,6 +356,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         const repo = manager.getRepository(Settings);
         const settings = await repo.findOneBy({ userId });
 
+        const dataWithAdjustedFlags = {
+          ...data,
+          flags: updateFlagsStatement<Settings>({
+            ...data.flags,
+          }),
+        };
+
         if (!settings) {
           return repo.save({
             ...data,
@@ -363,7 +370,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           });
         }
 
-        return repo.save(repo.merge(settings, data));
+        await repo.update({ userId }, dataWithAdjustedFlags);
+        return {
+          ...settings,
+          ...data,
+          flags: { ...settings.flags, ...data.flags },
+        };
       });
     },
     setBookmarksSharing: async (

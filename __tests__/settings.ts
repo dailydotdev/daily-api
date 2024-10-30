@@ -323,6 +323,38 @@ describe('mutation updateUserSettings', () => {
     });
   });
 
+  it('should update but not remove user settings flags', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(Settings);
+    await repo.save(
+      repo.create({
+        userId: '1',
+        flags: {
+          sidebarCustomFeedsExpanded: false,
+          sidebarOtherExpanded: true,
+        },
+      }),
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: {
+          flags: {
+            sidebarCustomFeedsExpanded: true,
+          },
+        },
+      },
+    });
+
+    expect(res.data.updateUserSettings.flags).toEqual({
+      sidebarCustomFeedsExpanded: true,
+      sidebarOtherExpanded: true,
+      sidebarResourcesExpanded: null,
+      sidebarSquadExpanded: null,
+    });
+  });
+
   it('should update opt out companion settings', async () => {
     loggedUser = '1';
 
