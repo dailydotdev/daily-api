@@ -33,6 +33,9 @@ import {
   validatePost,
   ONE_MINUTE_IN_SECONDS,
   toGQLEnum,
+  CreateSquadPostModeration,
+  CreateSquadPostModerationArgs,
+  createSquadPostModeration,
 } from '../common';
 import {
   ArticlePost,
@@ -58,6 +61,7 @@ import {
   PostRelationType,
   PostRelation,
   deletePost,
+  generateTitleHtml,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -93,6 +97,15 @@ import { reportPost, saveHiddenPost } from '../common/reporting';
 import { PostCodeSnippetLanguage, UserVote } from '../types';
 import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
 
+export interface GQLSquadPostModeration {
+  id: string;
+  title?: string;
+  content?: string;
+  contentHtml?: string;
+  image?: string;
+  sourceId: string;
+  sharedPostId?: string;
+}
 export interface GQLPost {
   id: string;
   type: PostType;
@@ -209,6 +222,48 @@ export type GQLPostCodeSnippet = Pick<
 >;
 
 export const typeDefs = /* GraphQL */ `
+  """
+  Post moderation item
+  """
+  type SquadPostModeration {
+    """
+    Id of the post
+    """
+    id: ID!
+    """
+    The post's title in HTML
+    """
+    titleHtml: String
+    """
+    The post's title
+    """
+    title: String
+    """
+    The post's content in HTML
+    """
+    contentHtml: String
+    """
+    The post's content
+    """
+    content: String
+    """
+    The post's image
+    """
+    image: String
+    """
+    Id of the Squad
+    """
+    sourceId: String
+    """
+    Type of post
+    """
+    type: String
+    """
+    Id of the shared post
+    """
+    sharedPostId: String
+  }
+
   type TocItem {
     """
     Content of the toc item
@@ -647,6 +702,16 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Query {
     """
+    Get post moderation by id
+    """
+    squadPostModeration(
+      """
+      Id of the requested post moderation
+      """
+      id: ID
+    ): SquadPostModeration!
+
+    """
     Get post by id
     """
     post(
@@ -776,6 +841,44 @@ export const typeDefs = /* GraphQL */ `
       """
       tags: [String]
     ): EmptyResponse @auth
+
+    """
+    To create post moderation item
+    """
+    createSquadPostModeration(
+      """
+      Id of the Squad to post to
+      """
+      sourceId: ID!
+      """
+      Html content of the post
+      """
+      contentHtml: String
+      """
+      content of the post
+      """
+      content: String
+      """
+      Html Title of the post
+      """
+      titleHtml: String
+      """
+      title of the post
+      """
+      title: String!
+      """
+      Image of the post
+      """
+      image: Upload
+      """
+      ID of the post to share
+      """
+      sharedPostId: ID
+      """
+      type of the post
+      """
+      type: String!
+    ): SquadPostModeration! @auth
 
     """
     To allow user to create freeform posts
@@ -1520,6 +1623,63 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       return { _: true };
+    },
+    createSquadPostModeration: async (
+      _,
+      {
+        sourceId,
+        image,
+        title,
+        content,
+        type,
+        sharedPostId,
+      }: CreateSquadPostModerationArgs,
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLSquadPostModeration> => {
+      const { con, userId } = ctx;
+      const id = await generateShortId();
+
+      const mentions = await getMentions(con, content, userId, sourceId);
+      const contentHtml = markdown.render(content!, { mentions });
+      const titleHtml = generateTitleHtml(title!, mentions);
+
+      const pendingPost: CreateSquadPostModeration = {
+        id,
+        title,
+        titleHtml,
+        content,
+        contentHtml,
+        sourceId,
+        type,
+        sharedPostId,
+        createdById: userId,
+      };
+
+      await con.transaction(async (manager) => {
+        if (image && process.env.CLOUDINARY_URL) {
+          const upload = await image;
+          const { url: coverImageUrl } = await uploadPostFile(
+            id,
+            upload.createReadStream(),
+            UploadPreset.PostBannerImage,
+          );
+          pendingPost.image = coverImageUrl;
+        }
+        await createSquadPostModeration(manager, ctx, pendingPost);
+      });
+
+      return graphorm.queryOneOrFail<GQLSquadPostModeration>(
+        ctx,
+        info,
+        (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder.where(
+            `"${builder.alias}"."id" = :id`,
+            { id },
+          ),
+        }),
+      );
     },
     createFreeformPost: async (
       source,

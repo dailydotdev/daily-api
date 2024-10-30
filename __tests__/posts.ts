@@ -123,8 +123,8 @@ beforeEach(async () => {
 
 const saveSquadFixtures = async () => {
   await con
-    .getRepository(Source)
-    .update({ id: 'a' }, { type: SourceType.Squad });
+    .getRepository(SquadSource)
+    .update({ id: 'a' }, { type: SourceType.Squad, moderationRequired: true });
   await con
     .getRepository(Post)
     .update(
@@ -3270,6 +3270,52 @@ describe('mutation createFreeformPost', () => {
 
       expect(post.flags.vordr).toEqual(true);
     });
+  });
+});
+
+describe('mutation createSquadPostModeration', () => {
+  const MUTATION = `mutation CreateSquadPostModeration($sourceId: ID! $title: String!, $type: String!, $content: String, $image: Upload, $sharedPostId: ID) {
+    createSquadPostModeration(sourceId: $sourceId, title: $title, type: $type, content: $content, image: $image, sharedPostId: $sharedPostId) {
+      id
+      title
+      content
+      contentHtml
+      type
+      sharedPostId
+    }
+  }`;
+
+  beforeEach(async () => {
+    await saveSquadFixtures();
+  });
+
+  const params = {
+    sourceId: 'a',
+    title: 'My first post',
+    content: 'Hello World',
+  };
+
+  it('Should successfully create a Squad Post Moderation entry of type freeform', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, type: PostType.Freeform },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createSquadPostModeration).toBeTruthy();
+    expect(res.data.createSquadPostModeration.type).toEqual(PostType.Freeform);
+    expect(res.data.createSquadPostModeration.contentHtml).toBeDefined();
+  });
+
+  it('Should successfully create a Squad Post Moderation entry of type Share', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, sharedPostId: 'p1', type: PostType.Share },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createSquadPostModeration).toBeTruthy();
+    expect(res.data.createSquadPostModeration.type).toEqual(PostType.Share);
+    expect(res.data.createSquadPostModeration.contentHtml).toBeDefined();
+    expect(res.data.createSquadPostModeration.sharedPostId).toEqual('p1');
   });
 });
 

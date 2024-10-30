@@ -934,7 +934,11 @@ export const canPostToSquad = (
     return false;
   }
 
-  return sourceRoleRank[sourceMember.role] >= squad.memberPostingRank;
+  const memberRank = sourceRoleRank[sourceMember.role];
+
+  if (memberRank >= sourceRoleRank.moderator) return true;
+
+  return !squad.moderationRequired && memberRank >= squad.memberPostingRank;
 };
 
 const validateSquadData = async (

@@ -6,7 +6,7 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Post, PostType } from './posts';
+import { Post } from './posts';
 import { Source } from './Source';
 import { User } from './user';
 
@@ -30,15 +30,11 @@ export class SquadPostModeration {
   })
   source: Promise<Source>;
 
-  @Column({
-    type: 'enum',
-    enum: SquadPostModerationStatus,
-    default: SquadPostModerationStatus.Pending,
-  })
+  @Column({ type: 'text' })
   status: SquadPostModerationStatus;
 
-  @Column({ type: 'text' })
-  createdById: string;
+  @Column({ type: 'text', nullable: true })
+  createdById: string | null;
 
   @ManyToOne('User', (user: User) => user.id, {
     lazy: true,
@@ -74,16 +70,16 @@ export class SquadPostModeration {
   post: Promise<Post>;
 
   @Column({ type: 'text' })
-  type: PostType.Share | PostType.Freeform | PostType.Article;
+  type: string;
 
   @Column({ type: 'text', nullable: true })
-  title: string | null;
+  title?: string | null;
 
   @Column({ type: 'text', nullable: true })
   titleHtml: string | null;
 
   @Column({ type: 'text', nullable: true })
-  content: string | null;
+  content?: string | null;
 
   @Column({ type: 'text', nullable: true })
   contentHtml: string | null;
@@ -92,7 +88,7 @@ export class SquadPostModeration {
   image: string | null;
 
   @Column({ type: 'text', nullable: true })
-  sharedPostId: string | null;
+  sharedPostId?: string | null;
 
   @ManyToOne('Post', (post: Post) => post.id, {
     lazy: true,

@@ -174,6 +174,7 @@ const getSquads = async (
       .addSelect('NOT private', 'public')
       .addSelect('active')
       .addSelect('role')
+      .addSelect('"moderationRequired"')
       .addSelect('"memberPostingRank"')
       .from(SourceMember, 'sm')
       .innerJoin(
@@ -185,7 +186,10 @@ const getSquads = async (
       .andWhere('sm."role" != :role', { role: SourceMemberRoles.Blocked })
       .orderBy('LOWER(s.name)', 'ASC')
       .getRawMany<
-        GQLSource & { role: SourceMemberRoles; memberPostingRank: number }
+        GQLSource & {
+          role: SourceMemberRoles;
+          memberPostingRank: number;
+        }
       >();
 
     return sources.map((source) => {
@@ -205,6 +209,7 @@ const getSquads = async (
         permalink: getSourceLink(source),
         currentMember: {
           permissions: postingPermissions,
+          role,
         },
       };
     });

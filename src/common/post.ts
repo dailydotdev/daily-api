@@ -5,6 +5,7 @@ import {
   FreeformPost,
   Post,
   PostOrigin,
+  PostType,
   SquadSource,
   User,
   WelcomePost,
@@ -25,6 +26,10 @@ import { logger } from '../logger';
 import { downloadJsonFile } from './googleCloud';
 import type { PostCodeSnippetJsonFile } from '../types';
 import { uniqueifyObjectArray } from './utils';
+import {
+  SquadPostModeration,
+  SquadPostModerationStatus,
+} from '../entity/SquadPostModeration';
 
 export const defaultImage = {
   urls: process.env.DEFAULT_IMAGE_URL?.split?.(',') ?? [],
@@ -173,6 +178,33 @@ export type CreatePost = Pick<
   'title' | 'content' | 'image' | 'contentHtml' | 'authorId' | 'sourceId' | 'id'
 >;
 
+export type CreateSquadPostModeration = Omit<
+  CreatePost,
+  'authorId' | 'content' | 'contentHtml'
+> &
+  Pick<
+    SquadPostModeration,
+    | 'titleHtml'
+    | 'content'
+    | 'contentHtml'
+    | 'type'
+    | 'sharedPostId'
+    | 'createdById'
+  >;
+
+export const createSquadPostModeration = async (
+  con: DataSource | EntityManager,
+  ctx: AuthContext,
+  args: CreateSquadPostModeration,
+) => {
+  const newPost = con.getRepository(SquadPostModeration).create({
+    ...args,
+    status: SquadPostModerationStatus.Pending,
+  });
+  await con.getRepository(SquadPostModeration).save(newPost);
+  return newPost;
+};
+
 export const createFreeformPost = async (
   con: DataSource | EntityManager,
   ctx: AuthContext,
@@ -228,6 +260,14 @@ export interface EditPostArgs
 export interface CreatePostArgs
   extends Pick<EditPostArgs, 'title' | 'content' | 'image'> {
   sourceId: string;
+}
+
+export interface CreateSquadPostModerationArgs
+  extends Pick<EditPostArgs, 'title' | 'image'> {
+  sourceId: string;
+  content?: string;
+  sharedPostId?: string;
+  type: PostType;
 }
 
 const MAX_TITLE_LENGTH = 250;
