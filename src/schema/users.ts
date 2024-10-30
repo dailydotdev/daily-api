@@ -410,6 +410,10 @@ export const typeDefs = /* GraphQL */ `
     Content preference in regards to current user
     """
     contentPreference: ContentPreference
+    """
+    User's top reader badges
+    """
+    topReader: [UserTopReader]
   }
 
   """
@@ -682,6 +686,26 @@ export const typeDefs = /* GraphQL */ `
   type UserIntegrationConnection {
     pageInfo: PageInfo!
     edges: [UserIntegrationEdge!]!
+  }
+
+  type UserTopReader {
+    """
+    Unique identifier for the top reader badge
+    """
+    id: ID
+    """
+    Date and time when the badge was issued
+    """
+    issuedAt: DateTime
+    """
+    Keyword
+    """
+    keyword: Keyword
+
+    """
+    URL to the badge image
+    """
+    image: String
   }
 
   extend type Query {
