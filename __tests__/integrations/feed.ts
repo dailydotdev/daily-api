@@ -39,7 +39,6 @@ import {
   FeedUserStateConfigGenerator,
 } from '../../src/integrations/feed/configs';
 import { ILofnClient } from '../../src/integrations/lofn';
-import { WATERCOOLER_ID } from '../../src/common';
 
 let con: DataSource;
 let ctx: Context;
@@ -525,7 +524,7 @@ describe('FeedLofnConfigGenerator', () => {
         fresh_page_size: '4',
         allowed_tags: expect.arrayContaining(['javascript', 'golang']),
         blocked_tags: expect.arrayContaining(['python', 'java']),
-        blocked_sources: expect.arrayContaining(['a', 'b', WATERCOOLER_ID]),
+        blocked_sources: expect.arrayContaining(['a', 'b']),
         squad_ids: expect.arrayContaining(['a', 'b']),
         allowed_post_types: expect.arrayContaining([
           'article',
