@@ -187,9 +187,7 @@ Object {
 exports[`personalizedDigestEmail worker should generate personalized digest for user in timezone ahead UTC 2`] = `
 Object {
   "allowed_tags": Array [],
-  "blocked_sources": Array [
-    "fd062672-63b7-4a10-87bd-96dcd10e9613",
-  ],
+  "blocked_sources": Array [],
   "blocked_tags": Array [],
   "date_from": Any<String>,
   "date_to": Any<String>,
@@ -300,9 +298,7 @@ Object {
 exports[`personalizedDigestEmail worker should generate personalized digest for user in timezone behind UTC 2`] = `
 Object {
   "allowed_tags": Array [],
-  "blocked_sources": Array [
-    "fd062672-63b7-4a10-87bd-96dcd10e9613",
-  ],
+  "blocked_sources": Array [],
   "blocked_tags": Array [],
   "date_from": Any<String>,
   "date_to": Any<String>,
@@ -413,9 +409,7 @@ Object {
 exports[`personalizedDigestEmail worker should generate personalized digest for user with provided config 2`] = `
 Object {
   "allowed_tags": Array [],
-  "blocked_sources": Array [
-    "fd062672-63b7-4a10-87bd-96dcd10e9613",
-  ],
+  "blocked_sources": Array [],
   "blocked_tags": Array [],
   "date_from": Any<String>,
   "date_to": Any<String>,
@@ -526,9 +520,7 @@ Object {
 exports[`personalizedDigestEmail worker should generate personalized digest for user with subscription 2`] = `
 Object {
   "allowed_tags": Array [],
-  "blocked_sources": Array [
-    "fd062672-63b7-4a10-87bd-96dcd10e9613",
-  ],
+  "blocked_sources": Array [],
   "blocked_tags": Array [],
   "date_from": Any<String>,
   "date_to": Any<String>,
