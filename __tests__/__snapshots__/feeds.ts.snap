@@ -7,9 +7,7 @@ Object {
   ],
   "blockedTags": Array [],
   "excludeSourceTypes": Array [],
-  "excludeSources": Array [
-    "fd062672-63b7-4a10-87bd-96dcd10e9613",
-  ],
+  "excludeSources": Array [],
   "excludeTypes": Array [],
   "includeTags": Array [],
   "sourceIds": Array [],
@@ -23,9 +21,7 @@ Object {
   "excludeSourceTypes": Array [
     "squad",
   ],
-  "excludeSources": Array [
-    "fd062672-63b7-4a10-87bd-96dcd10e9613",
-  ],
+  "excludeSources": Array [],
   "excludeTypes": Array [],
   "includeTags": Array [],
   "sourceIds": Array [],
@@ -37,9 +33,7 @@ Object {
   "blockedContentCuration": Array [],
   "blockedTags": Array [],
   "excludeSourceTypes": Array [],
-  "excludeSources": Array [
-    "fd062672-63b7-4a10-87bd-96dcd10e9613",
-  ],
+  "excludeSources": Array [],
   "excludeTypes": Array [],
   "includeTags": Array [],
   "sourceIds": Array [
