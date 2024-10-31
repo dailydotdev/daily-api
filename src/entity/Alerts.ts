@@ -60,6 +60,9 @@ export class Alerts {
 
   bootPopup?: boolean;
 
+  @Column({ type: 'uuid', nullable: true })
+  topReaderBadge?: string | null;
+
   @OneToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
@@ -83,4 +86,5 @@ export const ALERTS_DEFAULT: Omit<Alerts, 'userId' | 'flags' | 'user'> = {
   lastBootPopup: null,
   bootPopup: false,
   showRecoverStreak: false,
+  topReaderBadge: null,
 };

@@ -14,6 +14,7 @@ interface GQLUpdateAlertsInput extends Partial<GQLAlerts> {
   filter?: boolean;
   myFeed?: string;
   lastBootPopup?: Date;
+  topReaderBadge?: null;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -85,6 +86,11 @@ export const typeDefs = /* GraphQL */ `
     Date of the last time user dismissed or answered the feed survey
     """
     lastFeedSettingsFeedback: DateTime
+
+    """
+    UUID of the last top reader badge for the user
+    """
+    topReaderBadge: String
   }
 
   input UpdateAlertsInput {
@@ -137,6 +143,11 @@ export const typeDefs = /* GraphQL */ `
     Date of the last time user saw a boot popup
     """
     lastBootPopup: DateTime
+
+    """
+    UUID of the last top reader badge for the user
+    """
+    topReaderBadge: String
   }
 
   extend type Mutation {
@@ -194,6 +205,11 @@ export const updateAlerts = async (
 
   if (data.filter === false) {
     await insertOrIgnoreAction(con, userId, UserActionType.MyFeed);
+  }
+
+  // Make sure that top reader badge is nulled out, and not set to some other value
+  if (data?.topReaderBadge && data.topReaderBadge !== null) {
+    data.topReaderBadge = null;
   }
 
   if (!alerts) {
