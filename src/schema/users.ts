@@ -1702,7 +1702,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info: GraphQLResolveInfo,
     ) => {
-      const res = await graphorm.query<GQLUserTopReader>(
+      return graphorm.queryOneOrFail<GQLUserTopReader>(
         ctx,
         info,
         (builder) => {
@@ -1712,12 +1712,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           );
           return builder;
         },
+        'top reader badge',
         true,
       );
-      if (!res[0]) {
-        throw new NotFoundError('top reader badge not found');
-      }
-      return res[0];
     },
   },
   Mutation: {
