@@ -7,6 +7,7 @@ export type NotificationReferenceType =
   | 'source_request'
   | 'squad_request'
   | 'post'
+  | 'post_moderation'
   | 'submission'
   | 'comment'
   | 'source'

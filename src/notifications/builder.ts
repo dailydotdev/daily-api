@@ -33,6 +33,7 @@ import {
 import { NotificationIcon } from './icons';
 import { SourceMemberRoles } from '../roles';
 import { NotificationType } from './common';
+import { SquadPostModeration } from '../entity/SquadPostModeration';
 
 const MAX_COMMENT_LENGTH = 320;
 
@@ -101,6 +102,15 @@ export class NotificationBuilder {
     return this.enrichNotification({
       referenceId: post.id,
       referenceType: 'post',
+    });
+  }
+
+  referencePostModeration(
+    post: Reference<SquadPostModeration>,
+  ): NotificationBuilder {
+    return this.enrichNotification({
+      referenceId: post.id,
+      referenceType: 'post_moderation',
     });
   }
 
@@ -197,6 +207,12 @@ export class NotificationBuilder {
   targetSource(source: Reference<Source>): NotificationBuilder {
     return this.enrichNotification({
       targetUrl: getSourceLink(source),
+    });
+  }
+
+  targetSourceModeration(source: Reference<Source>): NotificationBuilder {
+    return this.enrichNotification({
+      targetUrl: `${getSourceLink(source)}/moderate`,
     });
   }
 

@@ -297,6 +297,18 @@ export const workers: Worker[] = [
     topic: 'api.v1.post-visible',
     subscription: 'api.post-added-user-notification',
   },
+  {
+    topic: 'api.v1.squad-post-moderation-submitted',
+    subscription: 'api.v1.squad-post-moderation-submitted-notification',
+  },
+  {
+    topic: 'api.v1.squad-post-moderation-approved',
+    subscription: 'api.v1.squad-post-moderation-approved-notification',
+  },
+  {
+    topic: 'api.v1.squad-post-moderation-rejected',
+    subscription: 'api.v1.squad-post-moderation-rejected-notification',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
