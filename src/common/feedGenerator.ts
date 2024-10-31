@@ -5,7 +5,13 @@ import {
   SourceType,
   UserPost,
 } from '../entity';
-import { Brackets, DataSource, SelectQueryBuilder } from 'typeorm';
+import {
+  Brackets,
+  DataSource,
+  ObjectLiteral,
+  QueryBuilder,
+  SelectQueryBuilder,
+} from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import { IFieldResolver } from '@graphql-tools/utils';
 import {
@@ -30,7 +36,6 @@ import { mapArrayToOjbect } from './object';
 import { runInSpan } from '../telemetry';
 import { whereVordrFilter } from './vordr';
 import { baseFeedConfig } from '../integrations/feed';
-import { queryReadReplica } from './queryReadReplica';
 
 export const WATERCOOLER_ID = 'fd062672-63b7-4a10-87bd-96dcd10e9613';
 
@@ -73,24 +78,79 @@ export const whereKeyword = (
   return `EXISTS${query}`;
 };
 
-export const getExcludedAdvancedSettings = async (
+const rawFilterSelect = <T extends ObjectLiteral>(
   con: DataSource,
-  feedId?: string,
-): Promise<Partial<AdvancedSettings>[]> => {
-  if (!feedId) {
-    return [];
-  }
+  name: string,
+  func: (qb: QueryBuilder<T>) => QueryBuilder<T>,
+): QueryBuilder<T> =>
+  con.createQueryBuilder().select('jsonb_agg(res)', name).from(func, 'res');
 
-  const [settings, feedAdvancedSettings] = await Promise.all([
-    con.getRepository(AdvancedSettings).find(),
-    con.getRepository(FeedAdvancedSettings).findBy({ feedId }),
-  ]);
+type RawFiltersData = {
+  settings:
+    | Pick<
+        AdvancedSettings,
+        'id' | 'defaultEnabledState' | 'group' | 'options'
+      >[]
+    | null;
+  feedAdvancedSettings:
+    | Pick<FeedAdvancedSettings, 'advancedSettingsId' | 'enabled'>[]
+    | null;
+  tags: Pick<FeedTag, 'tag' | 'blocked'>[] | null;
+  excludeSources: Pick<FeedSource, 'sourceId'>[] | null;
+  memberships: { sourceId: SourceMember['sourceId']; hide: boolean }[] | null;
+};
+
+const getRawFiltersData = async (
+  con: DataSource,
+  feedId: string,
+  userId: string,
+): Promise<RawFiltersData | undefined> => {
+  const selects = [
+    rawFilterSelect(con, 'settings', (qb) =>
+      qb
+        .select(['id', '"defaultEnabledState"', '"group"', 'options'])
+        .from(AdvancedSettings, 't'),
+    ),
+    rawFilterSelect(con, 'feedAdvancedSettings', (qb) =>
+      qb
+        .select(['"advancedSettingsId"', 'enabled'])
+        .from(FeedAdvancedSettings, 't')
+        .where('"feedId" = $1'),
+    ),
+    rawFilterSelect(con, 'tags', (qb) =>
+      qb.select(['tag', 'blocked']).from(FeedTag, 't').where('"feedId" = $1'),
+    ),
+    rawFilterSelect(con, 'excludeSources', (qb) =>
+      qb
+        .select('"sourceId"')
+        .from(FeedSource, 't')
+        .where('"feedId" = $1')
+        .andWhere('blocked = TRUE'),
+    ),
+    rawFilterSelect(con, 'memberships', (qb) =>
+      qb
+        .select('"sourceId"')
+        .addSelect("COALESCE((flags->'hideFeedPosts')::boolean, FALSE)", 'hide')
+        .from(SourceMember, 't')
+        .where('"userId" = $2'),
+    ),
+  ];
+  const query =
+    'select ' + selects.map((select) => `(${select.getQuery()})`).join(', ');
+  const res = await con.query(query, [feedId, userId]);
+  return res[0];
+};
+
+export const getExcludedAdvancedSettings = ({
+  settings,
+  feedAdvancedSettings,
+}: RawFiltersData): Partial<AdvancedSettings>[] => {
   const userSettings = mapArrayToOjbect(
-    feedAdvancedSettings,
+    feedAdvancedSettings || [],
     'advancedSettingsId',
     'enabled',
   );
-  const excludedSettings = settings.filter((adv) => {
+  const excludedSettings = (settings || []).filter((adv) => {
     if (userSettings[adv.id] !== undefined) {
       return userSettings[adv.id] === false;
     }
@@ -104,60 +164,40 @@ export const getExcludedAdvancedSettings = async (
   }));
 };
 
-export const feedToFilters = async (
-  con: DataSource,
-  feedId?: string,
-  userId?: string,
-): Promise<AnonymousFeedFilters> => {
-  const settings = await getExcludedAdvancedSettings(con, feedId);
-  const [tags, excludeSources, memberships]: [
-    FeedTag[],
-    Source[],
-    { sourceId: SourceMember['sourceId']; hide: boolean }[],
-  ] = await Promise.all([
-    feedId
-      ? queryReadReplica(con, ({ queryRunner }) => {
-          return queryRunner.manager.getRepository(FeedTag).find({
-            where: { feedId },
-            select: ['tag', 'blocked'],
-          });
-        })
-      : [],
-    feedId
-      ? con
-          .getRepository(Source)
-          .createQueryBuilder('s')
-          .select('s.id AS "id"')
-          .where((qb) => {
-            const subQuery = qb
-              .subQuery()
-              .select('fs."sourceId"')
-              .from(FeedSource, 'fs')
-              .where('fs."feedId" = :feedId', { feedId })
-              .andWhere('fs.blocked = TRUE')
-              .getQuery();
+const advancedSettingsToFilters = (
+  rawData: RawFiltersData,
+): {
+  excludeTypes: string[];
+  blockedContentCuration: string[];
+  excludeSourceTypes: string[];
+} => {
+  const settings = getExcludedAdvancedSettings(rawData);
+  return settings.reduce<ReturnType<typeof advancedSettingsToFilters>>(
+    (acc, curr) => {
+      if (curr.options?.type) {
+        if (curr.group === 'content_types') {
+          acc.excludeTypes.push(curr.options.type);
+        }
+        if (curr.group === 'source_types') {
+          acc.excludeSourceTypes.push(curr.options.type);
+        }
+        if (curr.group === 'content_curation') {
+          acc.blockedContentCuration.push(curr.options.type);
+        }
+      }
+      return acc;
+    },
+    { excludeTypes: [], blockedContentCuration: [], excludeSourceTypes: [] },
+  );
+};
 
-            return `s.id IN (${subQuery})`;
-          })
-          .execute()
-      : [],
-    feedId && userId
-      ? con
-          .getRepository(SourceMember)
-          .createQueryBuilder('sm')
-          .select('sm."sourceId"')
-          .addSelect(
-            "COALESCE((flags->'hideFeedPosts')::boolean, FALSE)",
-            'hide',
-          )
-          .where('sm."userId" = :userId', { userId })
-          .execute()
-      : [],
-  ]);
-  const tagFilters = tags.reduce<{
-    includeTags: string[];
-    blockedTags: string[];
-  }>(
+const tagsToFilters = ({
+  tags,
+}: RawFiltersData): {
+  includeTags: string[];
+  blockedTags: string[];
+} => {
+  return (tags || []).reduce<ReturnType<typeof tagsToFilters>>(
     (acc, value) => {
       if (value.blocked) {
         acc.blockedTags.push(value.tag);
@@ -168,32 +208,17 @@ export const feedToFilters = async (
     },
     { includeTags: [], blockedTags: [] },
   );
+};
 
-  const { excludeTypes, blockedContentCuration, excludeSourceTypes } =
-    settings.reduce<{
-      excludeTypes: string[];
-      blockedContentCuration: string[];
-      excludeSourceTypes: string[];
-    }>(
-      (acc, curr) => {
-        if (curr.options?.type) {
-          if (curr.group === 'content_types') {
-            acc.excludeTypes.push(curr.options.type);
-          }
-          if (curr.group === 'source_types') {
-            acc.excludeSourceTypes.push(curr.options.type);
-          }
-          if (curr.group === 'content_curation') {
-            acc.blockedContentCuration.push(curr.options.type);
-          }
-        }
-        return acc;
-      },
-      { excludeTypes: [], blockedContentCuration: [], excludeSourceTypes: [] },
-    );
-
+const sourcesToFilters = ({
+  excludeSources,
+  memberships,
+}: RawFiltersData): {
+  excludeSources: string[];
+  sourceIds: string[];
+} => {
   // Split memberships by hide flag
-  const membershipsByHide = memberships.reduce<{
+  const membershipsByHide = (memberships || []).reduce<{
     hide: string[];
     show: string[];
   }>(
@@ -204,20 +229,32 @@ export const feedToFilters = async (
     { hide: [], show: [] },
   );
 
-  // If the user is not a member of the watercooler, hide it
-  if (!membershipsByHide.show.includes(WATERCOOLER_ID)) {
-    membershipsByHide.hide.push(WATERCOOLER_ID);
+  return {
+    excludeSources: (excludeSources || [])
+      .map((s) => s.sourceId)
+      .concat(membershipsByHide.hide),
+    sourceIds: membershipsByHide.show,
+  };
+};
+
+export const feedToFilters = async (
+  con: DataSource,
+  feedId?: string,
+  userId?: string,
+): Promise<AnonymousFeedFilters> => {
+  if (!feedId || !userId) {
+    return {};
+  }
+
+  const rawData = await getRawFiltersData(con, feedId, userId);
+  if (!rawData) {
+    return {};
   }
 
   return {
-    ...tagFilters,
-    excludeTypes,
-    excludeSources: excludeSources
-      .map((sources: Source) => sources.id)
-      .concat(membershipsByHide.hide),
-    sourceIds: membershipsByHide.show,
-    blockedContentCuration,
-    excludeSourceTypes,
+    ...advancedSettingsToFilters(rawData),
+    ...tagsToFilters(rawData),
+    ...sourcesToFilters(rawData),
   };
 };
 
