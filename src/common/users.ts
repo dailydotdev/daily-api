@@ -18,6 +18,8 @@ import { ChangeObject, ContentLanguage } from '../types';
 import { checkRestoreValidity } from './streak';
 import { queryReadReplica } from './queryReadReplica';
 import { logger } from '../logger';
+import type { GQLKeyword } from '../schema/keywords';
+import type { GQLUser } from '../schema/users';
 
 export interface User {
   id: string;
@@ -56,6 +58,14 @@ export interface GQLUserCompany {
   createdAt: Date;
   updatedAt: Date;
   email: string;
+}
+
+export interface GQLUserTopReader {
+  id: string;
+  user: GQLUser;
+  issuedAt: Date;
+  keyword: GQLKeyword;
+  image: string;
 }
 
 export interface GQLUserStreakTz extends GQLUserStreak {
@@ -299,34 +309,34 @@ export const getUserReadingTags = (
         SELECT
           v.*,
           CAST(v.timestamp AT TIME ZONE COALESCE(u.timezone,
-              'UTC') AS DATE) AS day
+                                                 'UTC') AS DATE) AS day
         FROM
-          "view" v
-          JOIN "user" u ON u.id = v."userId"
-        WHERE
-          u.id = $1
-          AND v.timestamp >= $2
-          AND v.timestamp < $3
-      ),
-      distinct_days AS (
-        SELECT
-          COUNT(DISTINCT day) AS total_days
-        FROM
-          filtered_view
-      ),
-      tag_readings AS (
-        SELECT
-          pk.keyword AS tag,
-          COUNT(DISTINCT f.day) AS "readingDays"
-        FROM
-          filtered_view f
-          JOIN post_keyword pk ON f."postId" = pk."postId"
-        WHERE
-          pk.status = 'allow'
-          AND pk.keyword != 'general-programming'
-        GROUP BY
-          pk.keyword
-      )
+        "view" v
+        JOIN "user" u ON u.id = v."userId"
+      WHERE
+        u.id = $1
+        AND v.timestamp >= $2
+        AND v.timestamp < $3
+        ),
+        distinct_days AS (
+      SELECT
+        COUNT(DISTINCT day) AS total_days
+      FROM
+        filtered_view
+        ),
+        tag_readings AS (
+      SELECT
+        pk.keyword AS tag,
+        COUNT(DISTINCT f.day) AS "readingDays"
+      FROM
+        filtered_view f
+        JOIN post_keyword pk ON f."postId" = pk."postId"
+      WHERE
+        pk.status = 'allow'
+        AND pk.keyword != 'general-programming'
+      GROUP BY
+        pk.keyword
+        )
       SELECT
         tr.tag,
         tr."readingDays",

@@ -15,6 +15,7 @@ import type { DevCard } from '../DevCard';
 import type { UserStreak } from './UserStreak';
 import type { UserStreakAction } from './UserStreakAction';
 import type { UserCompany } from '../UserCompany';
+import type { UserTopReader } from './UserTopReader';
 
 export type UserFlags = Partial<{
   vordr: boolean;
@@ -190,6 +191,15 @@ export class User {
     lazy: true,
   })
   userCompanies: Promise<UserCompany[]>;
+
+  @OneToMany(
+    'UserTopReader',
+    (userTopReader: UserTopReader) => userTopReader.user,
+    {
+      lazy: true,
+    },
+  )
+  userTopReaders: Promise<UserTopReader[]>;
 
   @OneToOne('UserStreak', (streak: UserStreak) => streak.user, {
     lazy: true,

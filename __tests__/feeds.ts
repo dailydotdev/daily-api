@@ -4,7 +4,6 @@ import {
   maxFeedNameLength,
   Ranking,
   updateFlagsStatement,
-  WATERCOOLER_ID,
 } from '../src/common';
 import {
   AdvancedSettings,
@@ -54,6 +53,7 @@ import {
   videoPostsFixture,
   vordrPostsFixture,
 } from './fixture/post';
+import { keywordsFixture } from './fixture/keywords';
 import nock from 'nock';
 import { deleteKeysByPattern } from '../src/redis';
 import { DataSource } from 'typeorm';
@@ -64,6 +64,12 @@ import { base64 } from 'graphql-relay/utils/base64';
 import { maxFeedsPerUser, UserVote } from '../src/types';
 import { SubmissionFailErrorMessage } from '../src/errors';
 import { baseFeedConfig } from '../src/integrations/feed';
+import { ContentPreferenceFeedKeyword } from '../src/entity/contentPreference/ContentPreferenceFeedKeyword';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../src/entity/contentPreference/types';
+import { ContentPreferenceSource } from '../src/entity/contentPreference/ContentPreferenceSource';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -90,6 +96,10 @@ beforeEach(async () => {
   await saveFixtures(con, ArticlePost, sharedPostsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
   await saveFixtures(con, PostKeyword, postKeywordsFixture);
+  await saveFixtures(con, Keyword, [
+    ...keywordsFixture,
+    { value: 'javascript', occurrences: 57, status: 'allow' },
+  ]);
   await deleteKeysByPattern('feeds:*');
 });
 
@@ -177,6 +187,54 @@ const saveFeedFixtures = async (): Promise<void> => {
   await saveFixtures(con, FeedSource, [
     { feedId: '1', sourceId: 'b' },
     { feedId: '1', sourceId: 'c' },
+  ]);
+  await saveFixtures(con, ContentPreferenceFeedKeyword, [
+    {
+      feedId: '1',
+      keywordId: 'golang',
+      referenceId: 'golang',
+      status: ContentPreferenceStatus.Blocked,
+      type: ContentPreferenceType.Keyword,
+      userId: '1',
+    },
+    {
+      feedId: '1',
+      keywordId: 'javascript',
+      referenceId: 'javascript',
+      status: ContentPreferenceStatus.Follow,
+      type: ContentPreferenceType.Keyword,
+      userId: '1',
+    },
+    {
+      feedId: '1',
+      keywordId: 'webdev',
+      referenceId: 'webdev',
+      status: ContentPreferenceStatus.Follow,
+      type: ContentPreferenceType.Keyword,
+      userId: '1',
+    },
+  ]);
+  await saveFixtures(con, ContentPreferenceSource, [
+    {
+      feedId: '1',
+      flags: {},
+      referenceId: 'a',
+      role: SourceMemberRoles.Member,
+      sourceId: 'a',
+      status: ContentPreferenceStatus.Blocked,
+      type: ContentPreferenceType.Source,
+      userId: '1',
+    },
+    {
+      feedId: '1',
+      flags: {},
+      referenceId: 'b',
+      role: SourceMemberRoles.Member,
+      sourceId: 'b',
+      status: ContentPreferenceStatus.Blocked,
+      type: ContentPreferenceType.Source,
+      userId: '1',
+    },
   ]);
 };
 
@@ -370,7 +428,6 @@ describe('query anonymousFeed', () => {
         fresh_page_size: '4',
         offset: 0,
         user_id: '1',
-        blocked_sources: [WATERCOOLER_ID],
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
@@ -415,7 +472,7 @@ describe('query anonymousFeed', () => {
         fresh_page_size: '4',
         offset: 0,
         blocked_tags: ['python', 'java'],
-        blocked_sources: ['a', 'b', WATERCOOLER_ID],
+        blocked_sources: ['a', 'b'],
         user_id: '1',
       })
       .reply(200, {
@@ -723,7 +780,6 @@ describe('query feed', () => {
         offset: 0,
         fresh_page_size: '4',
         user_id: '1',
-        blocked_sources: [WATERCOOLER_ID],
         ...baseFeedConfig,
         config: {
           providers: {},
@@ -2062,6 +2118,86 @@ describe('mutation addFiltersToFeed', () => {
         },
       },
     });
+
+    const contentPreferenceTags = await con
+      .getRepository(ContentPreferenceFeedKeyword)
+      .find({
+        where: {
+          userId: '1',
+          feedId: '1',
+        },
+        order: {
+          keywordId: 'ASC',
+        },
+      });
+
+    expect(contentPreferenceTags).toEqual([
+      {
+        createdAt: expect.any(Date),
+        feedId: '1',
+        keywordId: 'golang',
+        referenceId: 'golang',
+        status: ContentPreferenceStatus.Blocked,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+      {
+        createdAt: expect.any(Date),
+        feedId: '1',
+        keywordId: 'javascript',
+        referenceId: 'javascript',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+      {
+        createdAt: expect.any(Date),
+        feedId: '1',
+        keywordId: 'webdev',
+        referenceId: 'webdev',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+    ]);
+
+    const contentPreferenceSources = await con
+      .getRepository(ContentPreferenceSource)
+      .find({
+        where: {
+          userId: '1',
+          feedId: '1',
+        },
+        order: {
+          sourceId: 'ASC',
+        },
+      });
+
+    expect(contentPreferenceSources).toEqual([
+      {
+        createdAt: expect.any(Date),
+        feedId: '1',
+        flags: {},
+        referenceId: 'a',
+        role: SourceMemberRoles.Member,
+        sourceId: 'a',
+        status: ContentPreferenceStatus.Blocked,
+        type: ContentPreferenceType.Source,
+        userId: '1',
+      },
+      {
+        createdAt: expect.any(Date),
+        feedId: '1',
+        flags: {},
+        referenceId: 'b',
+        role: SourceMemberRoles.Member,
+        sourceId: 'b',
+        status: ContentPreferenceStatus.Blocked,
+        type: ContentPreferenceType.Source,
+        userId: '1',
+      },
+    ]);
+
     expect(res.data).toMatchSnapshot();
   });
 
@@ -2232,6 +2368,86 @@ describe('mutation removeFiltersFromFeed', () => {
   it('should remove existing filters', async () => {
     loggedUser = '1';
     await saveFeedFixtures();
+
+    const contentPreferenceTags = await con
+      .getRepository(ContentPreferenceFeedKeyword)
+      .find({
+        where: {
+          userId: '1',
+          feedId: '1',
+        },
+        order: {
+          keywordId: 'ASC',
+        },
+      });
+
+    expect(contentPreferenceTags).toEqual([
+      {
+        createdAt: expect.any(Date),
+        feedId: '1',
+        keywordId: 'golang',
+        referenceId: 'golang',
+        status: ContentPreferenceStatus.Blocked,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+      {
+        createdAt: expect.any(Date),
+        feedId: '1',
+        keywordId: 'javascript',
+        referenceId: 'javascript',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+      {
+        createdAt: expect.any(Date),
+        feedId: '1',
+        keywordId: 'webdev',
+        referenceId: 'webdev',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+    ]);
+
+    const contentPreferenceSources = await con
+      .getRepository(ContentPreferenceSource)
+      .find({
+        where: {
+          userId: '1',
+          feedId: '1',
+        },
+        order: {
+          sourceId: 'ASC',
+        },
+      });
+
+    expect(contentPreferenceSources).toEqual([
+      {
+        createdAt: expect.any(Date),
+        feedId: '1',
+        flags: {},
+        referenceId: 'a',
+        role: SourceMemberRoles.Member,
+        sourceId: 'a',
+        status: ContentPreferenceStatus.Blocked,
+        type: ContentPreferenceType.Source,
+        userId: '1',
+      },
+      {
+        createdAt: expect.any(Date),
+        feedId: '1',
+        flags: {},
+        referenceId: 'b',
+        role: SourceMemberRoles.Member,
+        sourceId: 'b',
+        status: ContentPreferenceStatus.Blocked,
+        type: ContentPreferenceType.Source,
+        userId: '1',
+      },
+    ]);
+
     const res = await client.mutate(MUTATION, {
       variables: {
         filters: {
@@ -2241,6 +2457,35 @@ describe('mutation removeFiltersFromFeed', () => {
         },
       },
     });
+
+    const contentPreferenceTagsAfter = await con
+      .getRepository(ContentPreferenceFeedKeyword)
+      .find({
+        where: {
+          userId: '1',
+          feedId: '1',
+        },
+        order: {
+          keywordId: 'ASC',
+        },
+      });
+
+    expect(contentPreferenceTagsAfter).toEqual([]);
+
+    const contentPreferenceSourcesAfter = await con
+      .getRepository(ContentPreferenceSource)
+      .find({
+        where: {
+          userId: '1',
+          feedId: '1',
+        },
+        order: {
+          sourceId: 'ASC',
+        },
+      });
+
+    expect(contentPreferenceSourcesAfter).toEqual([]);
+
     expect(res.data).toMatchSnapshot();
   });
 
@@ -2319,7 +2564,6 @@ describe('function feedToFilters', () => {
     expect(filters.excludeSources).toEqual([
       'excludedSource',
       'settingsCombinationSource',
-      WATERCOOLER_ID,
     ]);
   });
 
@@ -2343,14 +2587,8 @@ describe('function feedToFilters', () => {
     expect(filters.includeTags?.length).toBe(2);
     expect(filters.blockedTags).toEqual(expect.arrayContaining(['golang']));
     expect(filters.blockedTags?.length).toBe(1);
-    expect(filters.excludeSources).toEqual(
-      expect.arrayContaining([
-        'b',
-        'c',
-        'fd062672-63b7-4a10-87bd-96dcd10e9613',
-      ]),
-    );
-    expect(filters.excludeSources?.length).toBe(3);
+    expect(filters.excludeSources).toEqual(expect.arrayContaining(['b', 'c']));
+    expect(filters.excludeSources?.length).toBe(2);
   });
 
   it('should return filters with source memberships', async () => {
@@ -2508,7 +2746,6 @@ describe('query feedPreview', () => {
         fresh_page_size: '7',
         user_id: '1',
         allowed_tags: ['html'],
-        blocked_sources: [WATERCOOLER_ID],
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
@@ -3439,7 +3676,6 @@ describe('query customFeed', () => {
         total_pages: 1,
         fresh_page_size: '4',
         allowed_tags: ['webdev', 'html', 'data'],
-        blocked_sources: [WATERCOOLER_ID],
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],

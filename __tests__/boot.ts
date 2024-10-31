@@ -216,7 +216,6 @@ describe('anonymous boot', () => {
     expect(res.body).toEqual({
       ...ANONYMOUS_BODY,
       user: {
-        id: null,
         firstVisit: null,
         shouldVerify: false,
       },
@@ -234,7 +233,6 @@ describe('anonymous boot', () => {
     expect(res.body).toEqual({
       ...ANONYMOUS_BODY,
       user: {
-        id: null,
         firstVisit: null,
         referralId: '1',
         referralOrigin: 'knightcampaign',
@@ -795,7 +793,15 @@ describe('boot misc', () => {
       .get(BASE_PATH)
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
-    expect(res.body.settings).toEqual(settings);
+    expect(res.body.settings).toEqual({
+      ...settings,
+      flags: {
+        sidebarCustomFeedsExpanded: true,
+        sidebarOtherExpanded: true,
+        sidebarResourcesExpanded: true,
+        sidebarSquadExpanded: true,
+      },
+    });
   });
 
   it('should return unread notifications count', async () => {

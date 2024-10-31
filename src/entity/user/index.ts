@@ -7,3 +7,4 @@ export * from './UserStreakAction';
 export * from './UserPersonalizedDigest';
 export * from './UserMarketingCta';
 export * from './UserStats';
+export * from './UserTopReader';

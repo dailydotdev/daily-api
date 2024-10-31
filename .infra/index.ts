@@ -306,6 +306,10 @@ if (isAdhocEnv) {
         { targetPort: 3000, port: 80, name: 'http' },
         { targetPort: 9464, port: 9464, name: 'metrics' },
       ],
+      spot: {
+        enabled: true,
+        weight: 50,
+      },
       ...vols,
     },
     {
@@ -316,6 +320,7 @@ if (isAdhocEnv) {
         { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
         ...jwtEnv,
       ],
+      args: ['dumb-init', 'node', 'bin/cli', 'websocket'],
       minReplicas: 3,
       maxReplicas: 10,
       limits: wsLimits,
@@ -323,8 +328,10 @@ if (isAdhocEnv) {
       livenessProbe,
       metric: { type: 'memory_cpu', cpu: 85 },
       disableLifecycle: true,
-      // ports: [{ containerPort: 9464, name: 'metrics' }],
-      // servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
+      spot: {
+        enabled: true,
+        weight: 90,
+      },
       ...vols,
     },
     {
@@ -345,6 +352,10 @@ if (isAdhocEnv) {
       },
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
+      spot: {
+        enabled: true,
+        weight: 70,
+      },
       ...vols,
     },
     {
@@ -358,6 +369,10 @@ if (isAdhocEnv) {
       metric: { type: 'memory_cpu', cpu: 80, memory: 130 },
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
+      spot: {
+        enabled: true,
+        weight: 50,
+      },
       ...vols,
     },
     {
@@ -376,14 +391,6 @@ if (isAdhocEnv) {
       createService: true,
       serviceType: 'ClusterIP',
       disableLifecycle: true,
-      // ports: [
-      //   { containerPort: 3000, name: 'http' },
-      //   { containerPort: 9464, name: 'metrics' },
-      // ],
-      // servicePorts: [
-      //   { targetPort: 3000, port: 80, name: 'http' },
-      //   { targetPort: 9464, port: 9464, name: 'metrics' },
-      // ],
       ...vols,
     },
   ];
@@ -408,9 +415,11 @@ if (isAdhocEnv) {
         },
         targetAverageValue: 100_000,
       },
+      spot: {
+        enabled: true,
+        weight: 70,
+      },
       ...vols,
-      // ports: [{ containerPort: 9464, name: 'metrics' }],
-      // servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
     });
   }
 }
@@ -485,6 +494,10 @@ const [apps] = deployApplicationSuite(
           limits: cron.limits ?? bgLimits,
           requests: cron.requests ?? bgRequests,
           activeDeadlineSeconds: cron.activeDeadlineSeconds ?? 300,
+          spot: {
+            enabled: true,
+            weight: 70,
+          }
         })),
     isAdhocEnv,
     dependsOn,
@@ -642,19 +655,20 @@ if (!isAdhocEnv) {
       },
       image: {
         repository: 'gcr.io/daily-ops/clickhouse-sink-docker',
-        tag: '46ee0a5b89506449be786cd416efb464f9f0390c',
+        tag: '89537c253d5dd17fdaae05220ccc7dfca265f4d7',
       },
       resources: {
         // TODO: adjust resources based on the actual usage
         requests: {
-          cpu: '2',
-          memory: '4096Mi',
+          cpu: '1',
+          memory: '2048Mi',
         },
         limits: {
           // 4GiB
           memory: '4096Mi',
         },
       },
+      toleratesSpot: true,
     },
     { provider: vpcNativeProvider?.provider },
   );

@@ -67,6 +67,7 @@ import {
   votePost,
   CioTransactionalMessageTemplateId,
   validateWorkEmailDomain,
+  type GQLUserTopReader,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -81,7 +82,7 @@ import {
 } from '../errors';
 import { deleteUser } from '../directive/user';
 import { randomInt } from 'crypto';
-import { ArrayContains, DataSource, In, IsNull } from 'typeorm';
+import { ArrayContains, DataSource, In, IsNull, QueryRunner } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
 import { ContentLanguage, UserVote, UserVoteEntity } from '../types';
 import { markdown } from '../common/markdown';
@@ -410,6 +411,10 @@ export const typeDefs = /* GraphQL */ `
     Content preference in regards to current user
     """
     contentPreference: ContentPreference
+    """
+    User's top reader badges
+    """
+    topReader: [UserTopReader]
   }
 
   """
@@ -684,6 +689,33 @@ export const typeDefs = /* GraphQL */ `
     edges: [UserIntegrationEdge!]!
   }
 
+  type UserTopReader {
+    """
+    Unique identifier for the top reader badge
+    """
+    id: ID
+
+    """
+    User
+    """
+    user: User
+
+    """
+    Date and time when the badge was issued
+    """
+    issuedAt: DateTime
+
+    """
+    Keyword
+    """
+    keyword: Keyword
+
+    """
+    URL to the badge image
+    """
+    image: String
+  }
+
   extend type Query {
     """
     Get user based on logged in session
@@ -836,6 +868,11 @@ export const typeDefs = /* GraphQL */ `
     Get companies for user
     """
     companies: [UserCompany] @auth
+
+    """
+    Get the top reader badge based on badge ID
+    """
+    topReaderBadge(id: ID!): UserTopReader
   }
 
   extend type Mutation {
@@ -1104,7 +1141,7 @@ const timestampAtTimezone = `"timestamp"::timestamptz ${userTimezone}`;
 const MAX_README_LENGTH = 10_000;
 
 export const getMarketingCta = async (
-  con: DataSource,
+  con: DataSource | QueryRunner,
   log: FastifyBaseLogger,
   userId: string,
 ) => {
@@ -1657,6 +1694,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           );
           return builder;
         },
+      );
+    },
+    topReaderBadge: async (
+      _,
+      { id }: { id: string },
+      ctx: AuthContext,
+      info: GraphQLResolveInfo,
+    ) => {
+      return graphorm.queryOneOrFail<GQLUserTopReader>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder.andWhere(
+            `${builder.alias}.id = :id`,
+            { id },
+          );
+          return builder;
+        },
+        'top reader badge',
+        true,
       );
     },
   },

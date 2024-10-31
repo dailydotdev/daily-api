@@ -797,7 +797,7 @@ export const typeDefs = /* GraphQL */ `
       title: String!
 
       """
-      Content of the post (max 4000 chars)
+      Content of the post
       """
       content: String
     ): Post!
@@ -822,7 +822,7 @@ export const typeDefs = /* GraphQL */ `
       """
       title: String
       """
-      Content of the post (max 4000 chars)
+      Content of the post
       """
       content: String
     ): Post! @auth

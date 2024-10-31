@@ -2963,11 +2963,11 @@ describe('mutation createFreeformPost', () => {
     );
   });
 
-  it('should return an error if content exceeds 4000 characters', async () => {
+  it('should return an error if content exceeds 10000 characters', async () => {
     loggedUser = '1';
 
-    const content = 'Hello World! Start your squad journey here';
-    const sample = new Array(100).fill(content);
+    const content = 'Hello World! Start your squad journey here'; // 42 chars
+    const sample = new Array(240).fill(content); // 42*240 = 10_080
 
     return testMutationErrorCode(
       client,
@@ -3358,8 +3358,8 @@ describe('mutation editPost', () => {
   it('should return an error if content exceeds 4000 characters', async () => {
     loggedUser = '1';
 
-    const content = 'Hello World! Start your squad journey here';
-    const sample = new Array(100).fill(content);
+    const content = 'Hello World! Start your squad journey here'; // 42 chars
+    const sample = new Array(240).fill(content); // 42*240 = 10_080
 
     return testMutationErrorCode(
       client,
