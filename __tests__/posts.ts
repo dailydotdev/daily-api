@@ -125,7 +125,14 @@ beforeEach(async () => {
     {
       id: '3',
       name: 'Amar',
-      image: 'https://daily.dev/lee.jpg',
+    },
+    {
+      id: '4',
+      name: 'John Doe',
+    },
+    {
+      id: '5',
+      name: 'Joanna Deer',
     },
   ]);
   await deleteKeysByPattern(`${rateLimiterName}:*`);
@@ -134,8 +141,11 @@ beforeEach(async () => {
 
 const saveSquadFixtures = async () => {
   await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
+  await con
     .getRepository(SquadSource)
-    .update({ id: 'a' }, { type: SourceType.Squad, moderationRequired: true });
+    .update({ id: 'm' }, { type: SourceType.Squad, moderationRequired: true });
   await con
     .getRepository(Post)
     .update(
@@ -157,8 +167,20 @@ const saveSquadFixtures = async () => {
     },
     {
       userId: '3',
-      sourceId: 'a',
+      sourceId: 'm',
       role: SourceMemberRoles.Moderator,
+      referralToken: randomUUID(),
+    },
+    {
+      userId: '4',
+      sourceId: 'm',
+      role: SourceMemberRoles.Member,
+      referralToken: randomUUID(),
+    },
+    {
+      userId: '5',
+      sourceId: 'm',
+      role: SourceMemberRoles.Member,
       referralToken: randomUUID(),
     },
   ]);
@@ -3296,8 +3318,8 @@ describe('query SquadPostModeration', () => {
     await con.getRepository(SquadPostModeration).save([
       {
         id: '1',
-        createdById: '1',
-        sourceId: 'a',
+        createdById: '4',
+        sourceId: 'm',
         title: 'My First Moderated Post',
         type: PostType.Freeform,
         status: SquadPostModerationStatus.Pending,
@@ -3305,8 +3327,8 @@ describe('query SquadPostModeration', () => {
       },
       {
         id: '2',
-        sourceId: 'a',
-        createdById: '1',
+        sourceId: 'm',
+        createdById: '4',
         title: 'My Second Moderated Post',
         type: PostType.Share,
         sharedPostId: 'p1',
@@ -3315,8 +3337,8 @@ describe('query SquadPostModeration', () => {
       },
       {
         id: '3',
-        sourceId: 'b',
-        createdById: '1',
+        sourceId: 'm',
+        createdById: '5',
         title: 'My Third Moderated Post',
         type: PostType.Freeform,
         status: SquadPostModerationStatus.Pending,
@@ -3326,14 +3348,14 @@ describe('query SquadPostModeration', () => {
   });
 
   const queryOne = `{
-  squadPostModeration(id: "1", sourceId: "a") {
+  squadPostModeration(id: "1", sourceId: "m") {
     title
     type
   }
 }`;
 
   const queryAllForSource = `{
-  squadPostModerationsBySourceId(sourceId: "a") {
+  squadPostModerationsBySourceId(sourceId: "m") {
     id
     title
     type
@@ -3354,25 +3376,27 @@ describe('query SquadPostModeration', () => {
     });
   });
 
-  it('should return the squadPostModerationsBySourceId', async () => {
+  it('should return all the moderation items from squadPostModerationsBySourceId because user is moderator', async () => {
     loggedUser = '3';
 
     const res = await client.query(queryAllForSource);
     expect(res.errors).toBeUndefined();
-    expect(res.data.squadPostModerationsBySourceId.length).toEqual(2);
+    expect(res.data.squadPostModerationsBySourceId.length).toEqual(3);
   });
 
-  it('should not authorize retrieval of squad post moderations', async () => {
-    loggedUser = '2';
+  it('should return only the users moderation items because user is not moderator', async () => {
+    loggedUser = '5';
 
-    // const res = await client.query(queryAllForSource);
-    await testQueryErrorCode(
-      client,
-      {
-        query: queryAllForSource,
-      },
-      'FORBIDDEN',
-    );
+    const res = await client.query(queryAllForSource);
+    expect(res.errors).toBeUndefined();
+    expect(res.data.squadPostModerationsBySourceId.length).toEqual(1);
+  });
+
+  it('should not return any items because the user is neither a moderator, nor has any pending approvals', async () => {
+    loggedUser = '2';
+    const res = await client.query(queryAllForSource);
+    expect(res.errors).toBeUndefined();
+    expect(res.data.squadPostModerationsBySourceId.length).toEqual(0);
   });
 });
 
@@ -3387,10 +3411,6 @@ describe('mutation createSquadPostModeration', () => {
       sharedPostId
     }
   }`;
-
-  beforeEach(async () => {
-    await saveSquadFixtures();
-  });
 
   const params = {
     sourceId: 'a',
