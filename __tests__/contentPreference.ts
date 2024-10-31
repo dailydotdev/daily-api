@@ -22,6 +22,13 @@ import {
   ContentPreferenceType,
 } from '../src/entity/contentPreference/types';
 import { NotificationPreferenceUser } from '../src/entity/notifications/NotificationPreferenceUser';
+import { Feed, FeedSource, Keyword, Source, SourceType } from '../src/entity';
+import { ContentPreferenceFeedKeyword } from '../src/entity/contentPreference/ContentPreferenceFeedKeyword';
+import { ContentPreferenceSource } from '../src/entity/contentPreference/ContentPreferenceSource';
+import {
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../src/notifications/common';
 import { ghostUser } from '../src/common';
 
 let con: DataSource;
@@ -552,6 +559,122 @@ describe('mutation follow', () => {
       'CONFLICT',
     );
   });
+
+  describe('keyword', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, Keyword, [
+        { value: 'keyword-f1', occurrences: 300, status: 'allow' },
+        { value: 'keyword-f2', occurrences: 200, status: 'allow' },
+        { value: 'keyword-f3', occurrences: 100, status: 'allow' },
+      ]);
+
+      await saveFixtures(con, Feed, [{ id: '1-fm', userId: '1-fm' }]);
+    });
+
+    it('should follow', async () => {
+      loggedUser = '1-fm';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: 'keyword-f1',
+          entity: ContentPreferenceType.Keyword,
+          status: ContentPreferenceStatus.Follow,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreference = await con
+        .getRepository(ContentPreferenceFeedKeyword)
+        .findOneBy({
+          userId: '1-fm',
+          referenceId: 'keyword-f1',
+        });
+
+      expect(contentPreference).not.toBeNull();
+      expect(contentPreference!.status).toBe(ContentPreferenceStatus.Follow);
+    });
+  });
+
+  describe('source', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, Source, [
+        {
+          id: 'a-fm',
+          name: 'A-fm',
+          image: 'http://image.com/a-fm',
+          handle: 'a-fm',
+          type: SourceType.Machine,
+        },
+      ]);
+
+      await saveFixtures(con, Feed, [{ id: '1-fm', userId: '1-fm' }]);
+    });
+
+    it('should follow', async () => {
+      loggedUser = '1-fm';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: 'a-fm',
+          entity: ContentPreferenceType.Source,
+          status: ContentPreferenceStatus.Follow,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreference = await con
+        .getRepository(ContentPreferenceSource)
+        .findOneBy({
+          userId: '1-fm',
+          referenceId: 'a-fm',
+        });
+
+      expect(contentPreference).not.toBeNull();
+      expect(contentPreference!.status).toBe(ContentPreferenceStatus.Follow);
+
+      const feedSource = await con.getRepository(FeedSource).findOneBy({
+        feedId: '1-fm',
+        sourceId: 'a-fm',
+      });
+      expect(feedSource).not.toBeNull();
+      expect(feedSource!.blocked).toBe(false);
+    });
+
+    it('should subscribe', async () => {
+      loggedUser = '1-fm';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: 'a-fm',
+          entity: ContentPreferenceType.Source,
+          status: ContentPreferenceStatus.Subscribed,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreference = await con
+        .getRepository(ContentPreferenceSource)
+        .findOneBy({
+          userId: '1-fm',
+          referenceId: 'a-fm',
+        });
+
+      expect(contentPreference).not.toBeNull();
+      expect(contentPreference?.status).toBe(
+        ContentPreferenceStatus.Subscribed,
+      );
+
+      const feedSource = await con.getRepository(FeedSource).findOneBy({
+        feedId: '1-fm',
+        sourceId: 'a-fm',
+      });
+      expect(feedSource).not.toBeNull();
+      expect(feedSource!.blocked).toBe(false);
+    });
+  });
 });
 
 describe('mutation unfollow', () => {
@@ -656,6 +779,163 @@ describe('mutation unfollow', () => {
       });
 
     expect(notificationPreferences).toHaveLength(0);
+  });
+
+  it('should remove notification preferences', async () => {
+    loggedUser = '1-um';
+
+    await con.getRepository(NotificationPreferenceUser).save([
+      {
+        userId: '1-um',
+        referenceUserId: '2-um',
+        referenceId: '2-um',
+        status: NotificationPreferenceStatus.Subscribed,
+        notificationType: NotificationType.UserPostAdded,
+      },
+    ]);
+
+    const res = await client.query(MUTATION, {
+      variables: {
+        id: '2-um',
+        entity: ContentPreferenceType.User,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceUser)
+      .findOneBy({
+        userId: '1-um',
+        referenceId: '2-um',
+      });
+
+    expect(contentPreference).toBeNull();
+
+    const notificationPreferences = await con
+      .getRepository(NotificationPreferenceUser)
+      .findBy({
+        userId: '1-um',
+        referenceUserId: '2-um',
+      });
+
+    expect(notificationPreferences).toHaveLength(0);
+  });
+
+  describe('keyword', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, Keyword, [
+        { value: 'keyword-uf1', occurrences: 300, status: 'allow' },
+        { value: 'keyword-uf2', occurrences: 200, status: 'allow' },
+        { value: 'keyword-uf3', occurrences: 100, status: 'allow' },
+      ]);
+
+      await saveFixtures(con, Feed, [{ id: '1-um', userId: '1-um' }]);
+
+      await con.getRepository(ContentPreferenceFeedKeyword).save([
+        {
+          userId: '1-um',
+          referenceId: 'keyword-uf1',
+          feedId: '1-um',
+          status: ContentPreferenceStatus.Follow,
+        },
+        {
+          userId: '2-um',
+          referenceId: 'keyword-uf2',
+          feedId: '1-um',
+          status: ContentPreferenceStatus.Follow,
+        },
+      ]);
+    });
+
+    it('should unfollow', async () => {
+      loggedUser = '1-um';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: '2-um',
+          entity: ContentPreferenceType.Keyword,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreference = await con
+        .getRepository(ContentPreferenceFeedKeyword)
+        .findOneBy({
+          userId: '1-um',
+          referenceId: 'keyword-f1',
+        });
+
+      expect(contentPreference).toBeNull();
+
+      const feedSource = await con.getRepository(FeedSource).findOneBy({
+        feedId: '1-fm',
+        sourceId: 'a-fm',
+      });
+      expect(feedSource).toBeNull();
+    });
+  });
+
+  describe('source', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, Source, [
+        {
+          id: 'a-ufm',
+          name: 'A-ufm',
+          image: 'http://image.com/a-ufm',
+          handle: 'a-ufm',
+          type: SourceType.Machine,
+        },
+      ]);
+
+      await saveFixtures(con, Feed, [{ id: '1-um', userId: '1-um' }]);
+
+      await con.getRepository(ContentPreferenceSource).save([
+        {
+          userId: '1-um',
+          referenceId: 'a-ufm',
+          feedId: '1-um',
+          status: ContentPreferenceStatus.Follow,
+        },
+      ]);
+
+      await con.getRepository(FeedSource).save([
+        {
+          feedId: '1-um',
+          sourceId: 'a-ufm',
+          blocked: false,
+        },
+      ]);
+    });
+
+    it('should unfollow', async () => {
+      loggedUser = '1-um';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: 'a-ufm',
+          entity: ContentPreferenceType.Source,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreference = await con
+        .getRepository(ContentPreferenceFeedKeyword)
+        .findOneBy({
+          userId: '1-um',
+          referenceId: 'a-ufm',
+        });
+
+      expect(contentPreference).toBeNull();
+
+      const feedSource = await con.getRepository(FeedSource).findOneBy({
+        feedId: '1-um',
+        sourceId: 'a-ufm',
+      });
+      expect(feedSource).toBeNull();
+    });
   });
 });
 
