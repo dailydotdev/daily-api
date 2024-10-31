@@ -271,7 +271,7 @@ export interface CreateSquadPostModerationArgs
 }
 
 const MAX_TITLE_LENGTH = 250;
-const MAX_CONTENT_LENGTH = 4000;
+const MAX_CONTENT_LENGTH = 10_000;
 
 type ValidatePostArgs = Pick<EditPostArgs, 'title' | 'content'>;
 
@@ -289,7 +289,7 @@ export const validatePost = (
 
   if (content.length > MAX_CONTENT_LENGTH) {
     throw new ValidationError(
-      'Content has a maximum length of 4000 characters',
+      `Content has a maximum length of ${MAX_CONTENT_LENGTH} characters`,
     );
   }
 

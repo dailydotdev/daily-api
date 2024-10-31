@@ -1,6 +1,7 @@
 import {
   Column,
   Entity,
+  Index,
   ManyToOne,
   PrimaryColumn,
   TableInheritance,
@@ -10,6 +11,7 @@ import { ContentPreferenceStatus, ContentPreferenceType } from './types';
 
 @Entity()
 @TableInheritance({ column: { type: 'text', name: 'type' } })
+@Index(['userId', 'status', 'type'])
 export class ContentPreference {
   @PrimaryColumn({ type: 'text' })
   referenceId: string;

@@ -18,6 +18,8 @@ import { ChangeObject, ContentLanguage } from '../types';
 import { checkRestoreValidity } from './streak';
 import { queryReadReplica } from './queryReadReplica';
 import { logger } from '../logger';
+import type { GQLKeyword } from '../schema/keywords';
+import type { GQLUser } from '../schema/users';
 
 export interface User {
   id: string;
@@ -56,6 +58,14 @@ export interface GQLUserCompany {
   createdAt: Date;
   updatedAt: Date;
   email: string;
+}
+
+export interface GQLUserTopReader {
+  id: string;
+  user: GQLUser;
+  issuedAt: Date;
+  keyword: GQLKeyword;
+  image: string;
 }
 
 export interface GQLUserStreakTz extends GQLUserStreak {
