@@ -14,7 +14,6 @@ interface GQLUpdateAlertsInput extends Partial<GQLAlerts> {
   filter?: boolean;
   myFeed?: string;
   lastBootPopup?: Date;
-  topReaderBadge?: null;
 }
 
 export const typeDefs = /* GraphQL */ `
