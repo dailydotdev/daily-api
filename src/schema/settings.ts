@@ -6,11 +6,13 @@ import {
   ChecklistViewState,
   Settings,
   SETTINGS_DEFAULT,
+  SettingsFlagsPublic,
 } from '../entity';
-import { isValidHttpUrl, toGQLEnum } from '../common';
+import { isValidHttpUrl, toGQLEnum, updateFlagsStatement } from '../common';
 import { ValidationError } from 'apollo-server-errors';
 import { v4 as uuidv4 } from 'uuid';
 import { DataSource, QueryRunner } from 'typeorm';
+import { transformSettingFlags } from '../common/flags';
 
 interface GQLSettings {
   userId: string;
@@ -26,6 +28,7 @@ interface GQLSettings {
   autoDismissNotifications: boolean;
   updatedAt: Date;
   optOutReadingStreak: boolean;
+  flags?: SettingsFlagsPublic;
 }
 
 interface GQLBookmarksSharing {
@@ -52,6 +55,20 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(ChecklistViewState, 'ChecklistViewState')}
+
+  type SettingsFlagsPublic {
+    sidebarSquadExpanded: Boolean
+    sidebarCustomFeedsExpanded: Boolean
+    sidebarOtherExpanded: Boolean
+    sidebarResourcesExpanded: Boolean
+  }
+
+  input SettingsFlagsPublicInput {
+    sidebarSquadExpanded: Boolean
+    sidebarCustomFeedsExpanded: Boolean
+    sidebarOtherExpanded: Boolean
+    sidebarResourcesExpanded: Boolean
+  }
 
   """
   User personal preferences
@@ -156,6 +173,11 @@ export const typeDefs = /* GraphQL */ `
     Time of last update
     """
     updatedAt: DateTime!
+
+    """
+    Flags for the settings
+    """
+    flags: SettingsFlagsPublic
   }
 
   type BookmarksSharing {
@@ -254,6 +276,11 @@ export const typeDefs = /* GraphQL */ `
     State of the onboarding checklist
     """
     onboardingChecklistView: ChecklistViewState
+
+    """
+    Flags for the settings
+    """
+    flags: SettingsFlagsPublicInput
   }
 
   extend type Mutation {
@@ -283,14 +310,22 @@ type PartialBookmarkSharing = Pick<GQLBookmarksSharing, 'slug'>;
 export const getSettings = async (
   con: DataSource | QueryRunner,
   userId: string,
-): Promise<Omit<Settings, 'user'>> => {
+): Promise<Settings | Omit<Settings, 'user'>> => {
   try {
     const repo = con.manager.getRepository(Settings);
     const settings = await repo.findOneBy({ userId });
     if (!settings) {
-      return { ...SETTINGS_DEFAULT, updatedAt: null, userId };
+      return {
+        ...SETTINGS_DEFAULT,
+        updatedAt: null,
+        userId,
+      };
     }
-    return settings;
+
+    return {
+      ...settings,
+      flags: transformSettingFlags({ flags: settings.flags }),
+    };
   } catch (err) {
     throw err;
   }
@@ -321,11 +356,24 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         const repo = manager.getRepository(Settings);
         const settings = await repo.findOneBy({ userId });
 
+        const dataWithAdjustedFlags = {
+          ...data,
+          flags: updateFlagsStatement<Settings>(data?.flags || {}),
+        };
+
         if (!settings) {
-          return repo.save({ ...data, userId });
+          return repo.save({
+            ...data,
+            userId,
+          });
         }
 
-        return repo.save(repo.merge(settings, data));
+        await repo.update({ userId }, dataWithAdjustedFlags);
+        return {
+          ...settings,
+          ...data,
+          flags: { ...settings.flags, ...data.flags },
+        };
       });
     },
     setBookmarksSharing: async (
