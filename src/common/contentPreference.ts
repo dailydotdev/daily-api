@@ -17,6 +17,7 @@ import {
   NotificationPreferenceUser,
 } from '../entity';
 import { ghostUser } from './utils';
+import { randomUUID } from 'crypto';
 
 type FollowEntity = ({
   ctx,
@@ -195,9 +196,16 @@ const followSource: FollowEntity = async ({ ctx, id, status }) => {
       sourceId: id,
       feedId: ctx.userId,
       status,
+      referralToken: randomUUID(),
     });
 
-    await repository.save(contentPreference);
+    await repository
+      .createQueryBuilder()
+      .insert()
+      .into(ContentPreferenceSource)
+      .values(contentPreference)
+      .orUpdate(['status'], ['referenceId', 'userId'])
+      .execute();
 
     if (status !== ContentPreferenceStatus.Subscribed) {
       cleanContentNotificationPreference({
@@ -309,9 +317,16 @@ const blockSource: BlockEntity = async ({ ctx, id }) => {
       sourceId: id,
       feedId: ctx.userId,
       status: ContentPreferenceStatus.Blocked,
+      referralToken: randomUUID(),
     });
 
-    await repository.save(contentPreference);
+    await repository
+      .createQueryBuilder()
+      .insert()
+      .into(ContentPreferenceSource)
+      .values(contentPreference)
+      .orUpdate(['status'], ['referenceId', 'userId'])
+      .execute();
 
     cleanContentNotificationPreference({
       ctx,

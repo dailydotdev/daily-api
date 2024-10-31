@@ -1,4 +1,4 @@
-import { ChildEntity, Column, JoinColumn, ManyToOne } from 'typeorm';
+import { ChildEntity, Column, Index, JoinColumn, ManyToOne } from 'typeorm';
 import { ContentPreference } from './ContentPreference';
 import { ContentPreferenceType } from './types';
 import type { Feed } from '../Feed';
@@ -19,6 +19,10 @@ export class ContentPreferenceSource extends ContentPreference {
 
   @Column({ type: 'jsonb', default: {} })
   flags: SourceMemberFlags;
+
+  @Column({ type: 'text' })
+  @Index({ unique: true })
+  referralToken: string;
 
   @ManyToOne('Source', { lazy: true, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'sourceId' })
