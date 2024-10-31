@@ -15,6 +15,7 @@ import {
   pubsub,
 } from './pubsub';
 import { ContentUpdatedMessage } from '@dailydotdev/schema';
+import { SquadPostModeration } from '../entity/SquadPostModeration';
 
 export type PubSubSchema = {
   'pub-request': {
@@ -76,6 +77,15 @@ export type PubSubSchema = {
   };
   'api.v1.user-streak-updated': {
     streak: ChangeObject<UserStreak>;
+  };
+  'api.v1.squad-post-moderation-approved': {
+    post: ChangeObject<SquadPostModeration>;
+  };
+  'api.v1.squad-post-moderation-rejected': {
+    post: ChangeObject<SquadPostModeration>;
+  };
+  'api.v1.squad-post-moderation-submitted': {
+    post: ChangeObject<SquadPostModeration>;
   };
   'api.v1.post-bookmark-reminder': {
     postId: string;
