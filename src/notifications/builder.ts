@@ -14,6 +14,7 @@ import {
   SquadPublicRequest,
   Submission,
   User,
+  type UserTopReader,
 } from '../entity';
 import {
   getDiscussionLink,
@@ -148,6 +149,15 @@ export class NotificationBuilder {
     return this.enrichNotification({
       referenceId: squadRequest.id,
       referenceType: 'squad_request',
+    });
+  }
+
+  referenceUserTopReader(
+    userTopReader: Reference<UserTopReader>,
+  ): NotificationBuilder {
+    return this.enrichNotification({
+      referenceId: userTopReader.id,
+      referenceType: 'user_top_reader',
     });
   }
 
