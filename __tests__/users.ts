@@ -5593,10 +5593,10 @@ describe('contentPreference field', () => {
   });
 });
 
-describe('query userTopReader', () => {
+describe('query topReaderBadgeById', () => {
   const QUERY = `
     query TopReaderBadgeById($id: ID!) {
-      topReaderBadge(id: $id) {
+      topReaderBadgeById(id: $id) {
         id
         issuedAt
         keyword {

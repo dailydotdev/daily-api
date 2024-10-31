@@ -868,7 +868,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get the top reader badge based on badge ID
     """
-    topReaderBadge(id: ID!): UserTopReader
+    topReaderBadgeById(id: ID!): UserTopReader
   }
 
   extend type Mutation {
@@ -1692,7 +1692,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       );
     },
-    topReaderBadge: async (
+    topReaderBadgeById: async (
       _,
       { id }: { id: string },
       ctx: AuthContext,
