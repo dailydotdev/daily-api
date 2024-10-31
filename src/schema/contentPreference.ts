@@ -2,7 +2,7 @@ import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext } from '../Context';
 import { ContentPreference } from '../entity/contentPreference/ContentPreference';
-import { toGQLEnum } from '../common';
+import { MAX_FOLLOWERS_LIMIT, toGQLEnum } from '../common';
 import {
   ContentPreferenceStatus,
   ContentPreferenceType,
@@ -11,6 +11,8 @@ import { followEntity, unfollowEntity } from '../common/contentPreference';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import graphorm from '../graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
+import { In, Not } from 'typeorm';
+import { ConflictError } from '../errors';
 
 export type GQLContentPreference = Pick<
   ContentPreference,
@@ -274,6 +276,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
+      const followersCount = await ctx.con
+        .getRepository(ContentPreference)
+        .countBy({
+          userId: ctx.userId,
+          status: In([
+            ContentPreferenceStatus.Follow,
+            ContentPreferenceStatus.Subscribed,
+          ]),
+          type: Not(ContentPreferenceType.Keyword),
+        });
+
+      if (followersCount >= MAX_FOLLOWERS_LIMIT) {
+        throw new ConflictError('Max followers limit reached');
+      }
+
       await followEntity({ ctx, id, entity, status });
 
       return {
