@@ -249,7 +249,7 @@ export const validatePost = (
 
   if (content.length > MAX_CONTENT_LENGTH) {
     throw new ValidationError(
-      'Content has a maximum length of 10000 characters',
+      `Content has a maximum length of ${MAX_CONTENT_LENGTH} characters`,
     );
   }
 
