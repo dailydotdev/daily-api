@@ -3,6 +3,7 @@ import type { User } from './User';
 import type { Keyword } from '../Keyword';
 
 @Entity()
+@Index('IDX_user_top_reader_userId_issuedAt', { synchronize: false })
 export class UserTopReader {
   @PrimaryColumn({ type: 'uuid', default: () => 'uuid_generate_v4()' })
   @Index('IDX_user_top_reader_id', { unique: true })
