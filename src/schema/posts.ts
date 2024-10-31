@@ -1226,13 +1226,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<GQLSquadPostModeration[]> => {
       const isModerator = await isPrivilegedMember(ctx, sourceId);
-      if (!isModerator) throw new ForbiddenError('Access denied!');
-
+      if (isModerator) {
+        return graphorm.query<GQLSquadPostModeration>(ctx, info, (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder.where(
+            `"${builder.alias}"."sourceId" = :sourceId`,
+            { sourceId },
+          ),
+        }));
+      }
+      const { userId } = ctx;
       return graphorm.query<GQLSquadPostModeration>(ctx, info, (builder) => ({
         ...builder,
         queryBuilder: builder.queryBuilder.where(
-          `"${builder.alias}"."sourceId" = :sourceId`,
-          { sourceId },
+          `"${builder.alias}"."sourceId" = :sourceId AND "${builder.alias}"."createdById" = :userId`,
+          { sourceId, userId },
         ),
       }));
     },
