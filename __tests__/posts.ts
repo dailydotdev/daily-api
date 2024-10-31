@@ -75,6 +75,10 @@ import {
 } from '../src/directive/rateLimit';
 import { badUsersFixture } from './fixture/user';
 import { PostCodeSnippet } from '../src/entity/posts/PostCodeSnippet';
+import {
+  SquadPostModeration,
+  SquadPostModerationStatus,
+} from '../src/entity/SquadPostModeration';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -112,11 +116,18 @@ beforeEach(async () => {
   await con
     .getRepository(User)
     .save({ id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' });
-  await con.getRepository(User).save({
-    id: '2',
-    name: 'Lee',
-    image: 'https://daily.dev/lee.jpg',
-  });
+  await con.getRepository(User).save([
+    {
+      id: '2',
+      name: 'Lee',
+      image: 'https://daily.dev/lee.jpg',
+    },
+    {
+      id: '3',
+      name: 'Amar',
+      image: 'https://daily.dev/lee.jpg',
+    },
+  ]);
   await deleteKeysByPattern(`${rateLimiterName}:*`);
   await deleteKeysByPattern(`${highRateLimiterName}:*`);
 });
@@ -142,6 +153,12 @@ const saveSquadFixtures = async () => {
       userId: '2',
       sourceId: 'a',
       role: SourceMemberRoles.Member,
+      referralToken: randomUUID(),
+    },
+    {
+      userId: '3',
+      sourceId: 'a',
+      role: SourceMemberRoles.Moderator,
       referralToken: randomUUID(),
     },
   ]);
@@ -3273,6 +3290,92 @@ describe('mutation createFreeformPost', () => {
   });
 });
 
+describe('query SquadPostModeration', () => {
+  beforeEach(async () => {
+    await saveSquadFixtures();
+    await con.getRepository(SquadPostModeration).save([
+      {
+        id: '1',
+        createdById: '1',
+        sourceId: 'a',
+        title: 'My First Moderated Post',
+        type: PostType.Freeform,
+        status: SquadPostModerationStatus.Pending,
+        content: 'Hello World',
+      },
+      {
+        id: '2',
+        sourceId: 'a',
+        createdById: '1',
+        title: 'My Second Moderated Post',
+        type: PostType.Share,
+        sharedPostId: 'p1',
+        status: SquadPostModerationStatus.Pending,
+        content: 'Hello World',
+      },
+      {
+        id: '3',
+        sourceId: 'b',
+        createdById: '1',
+        title: 'My Third Moderated Post',
+        type: PostType.Freeform,
+        status: SquadPostModerationStatus.Pending,
+        content: 'Hello World',
+      },
+    ]);
+  });
+
+  const queryOne = `{
+  squadPostModeration(id: "1", sourceId: "a") {
+    title
+    type
+  }
+}`;
+
+  const queryAllForSource = `{
+  squadPostModerationsBySourceId(sourceId: "a") {
+    id
+    title
+    type
+  }
+}`;
+
+  it('should  get the squadPostModeration by id', async () => {
+    loggedUser = '3';
+
+    const res = await client.query(queryOne);
+
+    expect(res.errors).toBeUndefined();
+    expect(res.data).toEqual({
+      squadPostModeration: {
+        title: 'My First Moderated Post',
+        type: 'freeform',
+      },
+    });
+  });
+
+  it('should return the squadPostModerationsBySourceId', async () => {
+    loggedUser = '3';
+
+    const res = await client.query(queryAllForSource);
+    expect(res.errors).toBeUndefined();
+    expect(res.data.squadPostModerationsBySourceId.length).toEqual(2);
+  });
+
+  it('should not authorize retrieval of squad post moderations', async () => {
+    loggedUser = '2';
+
+    // const res = await client.query(queryAllForSource);
+    await testQueryErrorCode(
+      client,
+      {
+        query: queryAllForSource,
+      },
+      'FORBIDDEN',
+    );
+  });
+});
+
 describe('mutation createSquadPostModeration', () => {
   const MUTATION = `mutation CreateSquadPostModeration($sourceId: ID! $title: String!, $type: String!, $content: String, $image: Upload, $sharedPostId: ID) {
     createSquadPostModeration(sourceId: $sourceId, title: $title, type: $type, content: $content, image: $image, sharedPostId: $sharedPostId) {
@@ -3295,7 +3398,7 @@ describe('mutation createSquadPostModeration', () => {
     content: 'Hello World',
   };
 
-  it('Should successfully create a Squad Post Moderation entry of type freeform', async () => {
+  it('should successfully create a squad post moderation entry of type freeform', async () => {
     loggedUser = '1';
     const res = await client.mutate(MUTATION, {
       variables: { ...params, type: PostType.Freeform },
@@ -3306,7 +3409,7 @@ describe('mutation createSquadPostModeration', () => {
     expect(res.data.createSquadPostModeration.contentHtml).toBeDefined();
   });
 
-  it('Should successfully create a Squad Post Moderation entry of type Share', async () => {
+  it('should successfully create a squad post moderation entry of type share', async () => {
     loggedUser = '1';
     const res = await client.mutate(MUTATION, {
       variables: { ...params, sharedPostId: 'p1', type: PostType.Share },

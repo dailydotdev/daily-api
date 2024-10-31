@@ -8,6 +8,7 @@ import { DataSource, MoreThan } from 'typeorm';
 import {
   ensureSourcePermissions,
   GQLSource,
+  isPrivilegedMember,
   SourcePermissions,
   sourceTypesWithMembers,
 } from './sources';
@@ -702,14 +703,28 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Query {
     """
-    Get post moderation by id
+    Get specific squad post moderation item
     """
     squadPostModeration(
       """
       Id of the requested post moderation
       """
-      id: ID
+      id: ID!
+      """
+      Id of the source
+      """
+      sourceId: ID!
     ): SquadPostModeration!
+
+    """
+    Get squad post moderations by source id
+    """
+    squadPostModerationsBySourceId(
+      """
+      Id of the source
+      """
+      sourceId: ID!
+    ): [SquadPostModeration!]!
 
     """
     Get post by id
@@ -1204,6 +1219,44 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   BaseContext
 >({
   Query: {
+    squadPostModerationsBySourceId: async (
+      _,
+      { sourceId }: { sourceId: string },
+      ctx: Context,
+      info,
+    ): Promise<GQLSquadPostModeration[]> => {
+      const isModerator = await isPrivilegedMember(ctx, sourceId);
+      if (!isModerator) throw new ForbiddenError('Access denied!');
+
+      return graphorm.query<GQLSquadPostModeration>(ctx, info, (builder) => ({
+        ...builder,
+        queryBuilder: builder.queryBuilder.where(
+          `"${builder.alias}"."sourceId" = :sourceId`,
+          { sourceId },
+        ),
+      }));
+    },
+    squadPostModeration: async (
+      _,
+      { id, sourceId }: { id: string; sourceId: string },
+      ctx: Context,
+      info,
+    ): Promise<GQLSquadPostModeration> => {
+      const isModerator = await isPrivilegedMember(ctx, sourceId);
+      if (!isModerator) throw new ForbiddenError('Access denied!');
+
+      return graphorm.queryOneOrFail<GQLSquadPostModeration>(
+        ctx,
+        info,
+        (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder.where(
+            `"${builder.alias}"."id" = :id AND ${builder.alias}."sourceId" = :sourceId`,
+            { id, sourceId },
+          ),
+        }),
+      );
+    },
     post: async (
       source,
       { id }: { id: string },
