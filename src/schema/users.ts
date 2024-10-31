@@ -866,6 +866,11 @@ export const typeDefs = /* GraphQL */ `
     companies: [UserCompany] @auth
 
     """
+    Get the latest top reader badges for the user
+    """
+    topReaderBadge(limit: Int): [UserTopReader] @auth
+
+    """
     Get the top reader badge based on badge ID
     """
     topReaderBadgeById(id: ID!): UserTopReader
@@ -1690,6 +1695,29 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           );
           return builder;
         },
+      );
+    },
+    topReaderBadge: async (
+      _,
+      { limit = 5 }: { limit: number },
+      ctx: AuthContext,
+      info: GraphQLResolveInfo,
+    ) => {
+      return graphorm.query<GQLUserTopReader>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .andWhere(`${builder.alias}.userId = :userId`, {
+              userId: ctx.userId,
+            })
+            .orderBy({
+              '"issuedAt"': 'DESC',
+            })
+            .limit(limit);
+          return builder;
+        },
+        true,
       );
     },
     topReaderBadgeById: async (

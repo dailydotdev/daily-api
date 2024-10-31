@@ -11,6 +11,7 @@ import {
   startOfISOWeek,
   subDays,
   subHours,
+  subMonths,
 } from 'date-fns';
 import {
   authorizeRequest,
@@ -73,6 +74,7 @@ import {
   stackoverflowSocialUrlMatch,
   threadsSocialUrlMatch,
   twitterSocialUrlMatch,
+  type GQLUserTopReader,
 } from '../src/common';
 import { DataSource, In, IsNull } from 'typeorm';
 import createOrGetConnection from '../src/db';
@@ -5645,7 +5647,7 @@ describe('query topReaderBadgeById', () => {
     ]);
   });
 
-  it('should return the top reaer badge by id', async () => {
+  it('should return the top reader badge by id', async () => {
     loggedUser = '1';
 
     const res = await client.query(QUERY, {
@@ -5653,17 +5655,17 @@ describe('query topReaderBadgeById', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.topReaderBadge.id).toEqual(
+    expect(res.data.topReaderBadgeById.id).toEqual(
       '09164a3c-5a95-4546-bfb0-04e19bf28f73',
     );
-    expect(res.data.topReaderBadge.issuedAt).toEqual(expect.any(String));
-    expect(res.data.topReaderBadge.keyword).toMatchObject({
+    expect(res.data.topReaderBadgeById.issuedAt).toEqual(expect.any(String));
+    expect(res.data.topReaderBadgeById.keyword).toMatchObject({
       value: 'kw_1',
       flags: {
         title: 'kw_1 title',
       },
     });
-    expect(res.data.topReaderBadge.user).toMatchObject({
+    expect(res.data.topReaderBadgeById.user).toMatchObject({
       id: '1',
       name: 'Ido',
       username: 'ido',
@@ -5671,27 +5673,132 @@ describe('query topReaderBadgeById', () => {
     });
   });
 
-  it('should return the top reaer badge by id when user is not logged in', async () => {
+  it('should return the top reader badge by id when user is not logged in', async () => {
     const res = await client.query(QUERY, {
       variables: { id: '3d8485ea-be95-464a-a89a-f14084e5b939' },
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.topReaderBadge.id).toEqual(
+    expect(res.data.topReaderBadgeById.id).toEqual(
       '3d8485ea-be95-464a-a89a-f14084e5b939',
     );
-    expect(res.data.topReaderBadge.issuedAt).toEqual(expect.any(String));
-    expect(res.data.topReaderBadge.keyword).toMatchObject({
+    expect(res.data.topReaderBadgeById.issuedAt).toEqual(expect.any(String));
+    expect(res.data.topReaderBadgeById.keyword).toMatchObject({
       value: 'kw_2',
       flags: {
         title: 'kw_2 title',
       },
     });
-    expect(res.data.topReaderBadge.user).toMatchObject({
+    expect(res.data.topReaderBadgeById.user).toMatchObject({
       id: '2',
       name: 'Tsahi',
       username: 'tsahi',
       image: 'https://daily.dev/tsahi.jpg',
     });
+  });
+});
+
+describe('query topReaderBadge', () => {
+  const QUERY = `query TopReaderBadge($limit: Int = 5) {
+    topReaderBadge(limit: $limit) {
+      id
+      issuedAt
+      image
+      keyword {
+        value
+        flags {
+          title
+        }
+      }
+    }
+  }`;
+
+  beforeEach(async () => {
+    await saveFixtures(
+      con,
+      Keyword,
+      [1, 2, 3, 4, 5, 6].map((key) => ({
+        value: `kw_${key}`,
+        flags: {
+          title: `kw_${key} title`,
+        },
+      })),
+    );
+    await saveFixtures(con, User, [usersFixture[1]]);
+    await saveFixtures(con, UserTopReader, [
+      {
+        userId: '1',
+        issuedAt: new Date(),
+        keywordValue: 'kw_1',
+        image: 'https://daily.dev/image.jpg',
+      },
+      {
+        userId: '1',
+        issuedAt: subMonths(new Date(), 1),
+        keywordValue: 'kw_2',
+        image: 'https://daily.dev/image.jpg',
+      },
+      {
+        userId: '1',
+        issuedAt: subMonths(new Date(), 2),
+        keywordValue: 'kw_3',
+        image: 'https://daily.dev/image.jpg',
+      },
+      {
+        userId: '1',
+        issuedAt: subMonths(new Date(), 3),
+        keywordValue: 'kw_4',
+        image: 'https://daily.dev/image.jpg',
+      },
+      {
+        userId: '1',
+        issuedAt: subMonths(new Date(), 4),
+        keywordValue: 'kw_5',
+        image: 'https://daily.dev/image.jpg',
+      },
+      {
+        userId: '1',
+        issuedAt: addHours(new Date(), 1),
+        keywordValue: 'kw_6',
+        image: 'https://daily.dev/image.jpg',
+      },
+      {
+        userId: '2',
+        issuedAt: new Date(),
+        keywordValue: 'kw_1',
+        image: 'https://daily.dev/image.jpg',
+      },
+      {
+        userId: '2',
+        issuedAt: subMonths(new Date(), 1),
+        keywordValue: 'kw_3',
+        image: 'https://daily.dev/image.jpg',
+      },
+    ]);
+  });
+
+  it('should return the 5 most recent top reader badges', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY);
+    const topReaderBadge: GQLUserTopReader[] = res.data.topReaderBadge;
+
+    expect(res.errors).toBeFalsy();
+    expect(topReaderBadge.length).toEqual(5);
+    expect(topReaderBadge[0].keyword.value).toEqual('kw_6');
+    expect(topReaderBadge[topReaderBadge.length - 1].keyword.value).toEqual(
+      'kw_4',
+    );
+  });
+
+  it('should limit the return to 1 top reader badge', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: { limit: 1 },
+    });
+    const topReaderBadge: GQLUserTopReader[] = res.data.topReaderBadge;
+
+    expect(res.errors).toBeFalsy();
+    expect(topReaderBadge.length).toEqual(1);
+    expect(topReaderBadge[0].keyword.value).toEqual('kw_6');
   });
 });
