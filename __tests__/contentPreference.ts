@@ -660,6 +660,7 @@ describe('mutation follow', () => {
 
       expect(contentPreference).not.toBeNull();
       expect(contentPreference!.status).toBe(ContentPreferenceStatus.Follow);
+      expect(contentPreference!.referralToken).not.toBeNull();
 
       const feedSource = await con.getRepository(FeedSource).findOneBy({
         feedId: '1-fm',
@@ -700,6 +701,50 @@ describe('mutation follow', () => {
       });
       expect(feedSource).not.toBeNull();
       expect(feedSource!.blocked).toBe(false);
+    });
+
+    it('should not overwrite referralToken if preference already exists', async () => {
+      loggedUser = '1-fm';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: 'a-fm',
+          entity: ContentPreferenceType.Source,
+          status: ContentPreferenceStatus.Follow,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreferenceBefore = await con
+        .getRepository(ContentPreferenceSource)
+        .findOneBy({
+          userId: '1-fm',
+          referenceId: 'a-fm',
+        });
+
+      expect(contentPreferenceBefore).not.toBeNull();
+
+      const res2 = await client.query(MUTATION, {
+        variables: {
+          id: 'a-fm',
+          entity: ContentPreferenceType.Source,
+          status: ContentPreferenceStatus.Subscribed,
+        },
+      });
+
+      expect(res2.errors).toBeFalsy();
+
+      const contentPreferenceAfter = await con
+        .getRepository(ContentPreferenceSource)
+        .findOneBy({
+          userId: '1-fm',
+          referenceId: 'a-fm',
+        });
+
+      expect(contentPreferenceBefore!.referralToken).toBe(
+        contentPreferenceAfter!.referralToken,
+      );
     });
   });
 
@@ -1283,6 +1328,48 @@ describe('mutation block', () => {
       });
       expect(feedSource).not.toBeNull();
       expect(feedSource!.blocked).toBe(true);
+    });
+
+    it('should not overwrite referralToken if preference already exists', async () => {
+      loggedUser = '1-blm';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: 'a-blm',
+          entity: ContentPreferenceType.Source,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreferenceBefore = await con
+        .getRepository(ContentPreferenceSource)
+        .findOneBy({
+          userId: '1-blm',
+          referenceId: 'a-blm',
+        });
+
+      expect(contentPreferenceBefore).not.toBeNull();
+
+      const res2 = await client.query(MUTATION, {
+        variables: {
+          id: 'a-blm',
+          entity: ContentPreferenceType.Source,
+        },
+      });
+
+      expect(res2.errors).toBeFalsy();
+
+      const contentPreferenceAfter = await con
+        .getRepository(ContentPreferenceSource)
+        .findOneBy({
+          userId: '1-blm',
+          referenceId: 'a-blm',
+        });
+
+      expect(contentPreferenceBefore!.referralToken).toBe(
+        contentPreferenceAfter!.referralToken,
+      );
     });
   });
 });
