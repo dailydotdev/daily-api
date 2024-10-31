@@ -48,8 +48,9 @@ const entityToNotificationTypeMap: Record<
   ],
 };
 
+// TODO fix api.new-notification-mail condition to handle all types when follow phase 3 is implemented
 export const contentPreferenceNotificationTypes = Object.values(
-  entityToNotificationTypeMap,
+  entityToNotificationTypeMap.user,
 ).flat();
 
 const cleanContentNotificationPreference = async ({
