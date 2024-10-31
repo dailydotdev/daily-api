@@ -324,7 +324,7 @@ exports[`query user should return user info with name, username, and image 1`] =
 Object {
   "image": "https://daily.dev/ido.jpg",
   "name": "Ido",
-  "username": null,
+  "username": "ido",
 }
 `;
 

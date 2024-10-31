@@ -167,6 +167,16 @@ const obj = new GraphORM({
         },
         transform: nullIfNotLoggedIn,
       },
+      topReader: {
+        relation: {
+          isMany: true,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}."userId" = ${parentAlias}.id`)
+              .orderBy(`${childAlias}."issuedAt"`, 'DESC')
+              .limit(5),
+        },
+      },
     },
   },
   UserCompany: {
@@ -183,6 +193,24 @@ const obj = new GraphORM({
           isMany: false,
           childColumn: 'id',
           parentColumn: 'companyId',
+        },
+      },
+    },
+  },
+  UserTopReader: {
+    fields: {
+      keyword: {
+        relation: {
+          isMany: false,
+          childColumn: 'value',
+          parentColumn: 'keywordValue',
+        },
+      },
+      user: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'userId',
         },
       },
     },
