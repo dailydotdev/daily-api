@@ -36,6 +36,14 @@ type UnFollowEntity = ({
   id: string;
 }) => Promise<void>;
 
+type BlockEntity = ({
+  ctx,
+  id,
+}: {
+  ctx: AuthContext;
+  id: string;
+}) => Promise<void>;
+
 const entityToNotificationTypeMap: Record<
   ContentPreferenceType,
   NotificationType[]
@@ -235,6 +243,93 @@ const unfollowSource: UnFollowEntity = async ({ ctx, id }) => {
   });
 };
 
+const blockUser: BlockEntity = async ({ ctx, id }) => {
+  if (ctx.userId === id) {
+    throw new ConflictError('Cannot block yourself');
+  }
+
+  if (ghostUser.id === id) {
+    throw new ConflictError('Cannot block this user');
+  }
+
+  await ctx.con.transaction(async (entityManager) => {
+    const repository = entityManager.getRepository(ContentPreferenceUser);
+
+    const contentPreference = repository.create({
+      userId: ctx.userId,
+      referenceId: id,
+      referenceUserId: id,
+      status: ContentPreferenceStatus.Blocked,
+    });
+
+    await repository.save(contentPreference);
+
+    cleanContentNotificationPreference({
+      ctx,
+      entityManager,
+      id,
+      notificationTypes: entityToNotificationTypeMap.user,
+      notficationEntity: NotificationPreferenceUser,
+    });
+  });
+};
+
+const blockKeyword: BlockEntity = async ({ ctx, id }) => {
+  await ctx.con.transaction(async (entityManager) => {
+    const repository = entityManager.getRepository(
+      ContentPreferenceFeedKeyword,
+    );
+
+    const contentPreference = repository.create({
+      userId: ctx.userId,
+      referenceId: id,
+      keywordId: id,
+      feedId: ctx.userId,
+      status: ContentPreferenceStatus.Blocked,
+    });
+
+    await repository.save(contentPreference);
+
+    // TODO follow phase 3 remove when backward compatibility is done
+    await entityManager.getRepository(FeedTag).save({
+      feedId: ctx.userId,
+      tag: id,
+      blocked: true,
+    });
+  });
+};
+
+const blockSource: BlockEntity = async ({ ctx, id }) => {
+  await ctx.con.transaction(async (entityManager) => {
+    const repository = entityManager.getRepository(ContentPreferenceSource);
+
+    const contentPreference = repository.create({
+      userId: ctx.userId,
+      referenceId: id,
+      sourceId: id,
+      feedId: ctx.userId,
+      status: ContentPreferenceStatus.Blocked,
+    });
+
+    await repository.save(contentPreference);
+
+    cleanContentNotificationPreference({
+      ctx,
+      entityManager,
+      id,
+      notificationTypes: entityToNotificationTypeMap.source,
+      notficationEntity: NotificationPreferenceSource,
+    });
+
+    // TODO follow phase 3 remove when backward compatibility is done
+    await entityManager.getRepository(FeedSource).save({
+      feedId: ctx.userId,
+      sourceId: id,
+      blocked: true,
+    });
+  });
+};
+
 export const followEntity = ({
   ctx,
   id,
@@ -277,4 +372,38 @@ export const unfollowEntity = ({
     default:
       throw new Error('Entity not supported');
   }
+};
+
+export const blockEntity = async ({
+  ctx,
+  id,
+  entity,
+}: {
+  ctx: AuthContext;
+  id: string;
+  entity: ContentPreferenceType;
+}): Promise<void> => {
+  switch (entity) {
+    case ContentPreferenceType.User:
+      return blockUser({ ctx, id });
+    case ContentPreferenceType.Keyword:
+      return blockKeyword({ ctx, id });
+    case ContentPreferenceType.Source:
+      return blockSource({ ctx, id });
+    default:
+      throw new Error('Entity not supported');
+  }
+};
+
+export const unblockEntity = async ({
+  ctx,
+  id,
+  entity,
+}: {
+  ctx: AuthContext;
+  id: string;
+  entity: ContentPreferenceType;
+}): Promise<void> => {
+  // currently unblock is just like unfollow, eg. remove everything from db
+  return unfollowEntity({ ctx, id, entity });
 };
