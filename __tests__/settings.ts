@@ -70,6 +70,12 @@ describe('query userSettings', () => {
     autoDismissNotifications
     campaignCtaPlacement
     onboardingChecklistView
+    flags {
+        sidebarSquadExpanded
+        sidebarCustomFeedsExpanded
+        sidebarOtherExpanded
+        sidebarResourcesExpanded
+    }
   }
 }`;
 
@@ -87,7 +93,18 @@ describe('query userSettings', () => {
       campaignCtaPlacement: CampaignCtaPlacement.Header,
     });
     const data = await repo.save(settings);
-    const expected = new Object({ ...data, ...compatibilityProps });
+    const expected = new Object({
+      ...data,
+      ...compatibilityProps,
+      ...{
+        flags: {
+          sidebarCustomFeedsExpanded: true,
+          sidebarOtherExpanded: true,
+          sidebarResourcesExpanded: true,
+          sidebarSquadExpanded: true,
+        },
+      },
+    });
     delete expected['updatedAt'];
     delete expected['bookmarkSlug'];
 
@@ -169,6 +186,12 @@ describe('mutation updateUserSettings', () => {
     optOutCompanion
     campaignCtaPlacement
     onboardingChecklistView
+    flags {
+      sidebarCustomFeedsExpanded
+      sidebarOtherExpanded
+      sidebarResourcesExpanded
+      sidebarSquadExpanded
+    }
   }
 }`;
 
@@ -188,6 +211,20 @@ describe('mutation updateUserSettings', () => {
       variables: { data: { theme: 'bright', insaneMode: true } },
     });
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should create user settings flags when does not exist', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { data: { flags: { sidebarCustomFeedsExpanded: false } } },
+    });
+
+    expect(res.data.updateUserSettings.flags).toEqual({
+      sidebarCustomFeedsExpanded: false,
+      sidebarOtherExpanded: null,
+      sidebarResourcesExpanded: null,
+      sidebarSquadExpanded: null,
+    });
   });
 
   it('should not allow invalid user links', async () => {
@@ -251,6 +288,71 @@ describe('mutation updateUserSettings', () => {
       variables: { data: { insaneMode: false } },
     });
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should update user settings flags', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(Settings);
+    await repo.save(
+      repo.create({
+        userId: '1',
+        flags: {
+          sidebarCustomFeedsExpanded: false,
+          sidebarOtherExpanded: true,
+        },
+      }),
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: {
+          flags: {
+            sidebarCustomFeedsExpanded: true,
+            sidebarOtherExpanded: false,
+          },
+        },
+      },
+    });
+
+    expect(res.data.updateUserSettings.flags).toEqual({
+      sidebarCustomFeedsExpanded: true,
+      sidebarOtherExpanded: false,
+      sidebarResourcesExpanded: null,
+      sidebarSquadExpanded: null,
+    });
+  });
+
+  it('should update but not remove user settings flags', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(Settings);
+    await repo.save(
+      repo.create({
+        userId: '1',
+        flags: {
+          sidebarCustomFeedsExpanded: false,
+          sidebarOtherExpanded: true,
+        },
+      }),
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: {
+          flags: {
+            sidebarCustomFeedsExpanded: true,
+          },
+        },
+      },
+    });
+
+    expect(res.data.updateUserSettings.flags).toEqual({
+      sidebarCustomFeedsExpanded: true,
+      sidebarOtherExpanded: true,
+      sidebarResourcesExpanded: null,
+      sidebarSquadExpanded: null,
+    });
   });
 
   it('should update opt out companion settings', async () => {
@@ -411,6 +513,7 @@ describe('dedicated api routes', () => {
       delete expected['updatedAt'];
       delete expected['userId'];
       delete expected['bookmarkSlug'];
+      delete expected['flags'];
 
       loggedUser = '1';
       const res = await authorizeRequest(
