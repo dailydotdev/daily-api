@@ -714,7 +714,7 @@ export const typeDefs = /* GraphQL */ `
       Id of the source
       """
       sourceId: ID!
-    ): SquadPostModeration!
+    ): SquadPostModeration! @auth
 
     """
     Get squad post moderations by source id
@@ -724,7 +724,7 @@ export const typeDefs = /* GraphQL */ `
       Id of the source
       """
       sourceId: ID!
-    ): [SquadPostModeration!]!
+    ): [SquadPostModeration!]! @auth
 
     """
     Get post by id
