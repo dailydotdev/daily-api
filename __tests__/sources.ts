@@ -5,6 +5,7 @@ import { isNullOrUndefined } from '../src/common/object';
 import createOrGetConnection from '../src/db';
 import {
   defaultPublicSourceFlags,
+  Feed,
   NotificationPreferenceSource,
   Post,
   PostKeyword,
@@ -41,6 +42,8 @@ import {
   testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
+import { ContentPreferenceSource } from '../src/entity/contentPreference/ContentPreferenceSource';
+import { ContentPreferenceStatus } from '../src/entity/contentPreference/types';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -113,6 +116,11 @@ beforeEach(async () => {
     sourcesFixture[5],
   ]);
   await saveFixtures(con, User, usersFixture);
+  await saveFixtures(
+    con,
+    Feed,
+    usersFixture.map((user) => ({ userId: user.id, id: user.id })),
+  );
   await con
     .getRepository(Source)
     .update({ id: In(['a', 'b', 'c', 'squad']) }, { type: SourceType.Squad });
@@ -2479,6 +2487,28 @@ describe('mutation updateMemberRole', () => {
       referralToken: randomUUID(),
       createdAt: new Date(2022, 11, 20),
     });
+    await con.getRepository(ContentPreferenceSource).save([
+      {
+        userId: '2',
+        sourceId: 'a',
+        referenceId: 'a',
+        feedId: '1',
+        status: ContentPreferenceStatus.Subscribed,
+        role: SourceMemberRoles.Member,
+        flags: {},
+        referralToken: randomUUID(),
+      },
+      {
+        userId: '3',
+        sourceId: 'a',
+        referenceId: 'a',
+        feedId: '1',
+        status: ContentPreferenceStatus.Subscribed,
+        role: SourceMemberRoles.Member,
+        flags: {},
+        referralToken: randomUUID(),
+      },
+    ]);
   });
 
   it('should not authorize when not logged in', () =>
@@ -2561,6 +2591,11 @@ describe('mutation updateMemberRole', () => {
       .getRepository(SourceMember)
       .findOneBy({ userId: '2', sourceId: 'a' });
     expect(member.role).toEqual(SourceMemberRoles.Moderator);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '2', referenceId: 'a' });
+    expect(contentPreference!.role).toEqual(SourceMemberRoles.Moderator);
   });
 
   it('should allow admin to promote a moderator to an admin', async () => {
@@ -2580,6 +2615,11 @@ describe('mutation updateMemberRole', () => {
       .getRepository(SourceMember)
       .findOneBy({ userId: '2', sourceId: 'a' });
     expect(member.role).toEqual(SourceMemberRoles.Admin);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '2', referenceId: 'a' });
+    expect(contentPreference!.role).toEqual(SourceMemberRoles.Admin);
   });
 
   it('should allow admin to demote an admin to a moderator', async () => {
@@ -2599,6 +2639,11 @@ describe('mutation updateMemberRole', () => {
       .getRepository(SourceMember)
       .findOneBy({ userId: '2', sourceId: 'a' });
     expect(member.role).toEqual(SourceMemberRoles.Moderator);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '2', referenceId: 'a' });
+    expect(contentPreference!.role).toEqual(SourceMemberRoles.Moderator);
   });
 
   it('should allow admin to demote a moderator to a member', async () => {
@@ -2618,6 +2663,11 @@ describe('mutation updateMemberRole', () => {
       .getRepository(SourceMember)
       .findOneBy({ userId: '2', sourceId: 'a' });
     expect(member.role).toEqual(SourceMemberRoles.Member);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '2', referenceId: 'a' });
+    expect(contentPreference!.role).toEqual(SourceMemberRoles.Member);
   });
 
   it('should allow admin to remove and block an admin', async () => {
@@ -2637,6 +2687,11 @@ describe('mutation updateMemberRole', () => {
       .getRepository(SourceMember)
       .findOneBy({ userId: '2', sourceId: 'a' });
     expect(member.role).toEqual(SourceMemberRoles.Blocked);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '2', referenceId: 'a' });
+    expect(contentPreference!.role).toEqual(SourceMemberRoles.Blocked);
   });
 
   it('should allow admin to remove and block a moderator', async () => {
@@ -2656,6 +2711,11 @@ describe('mutation updateMemberRole', () => {
       .getRepository(SourceMember)
       .findOneBy({ userId: '2', sourceId: 'a' });
     expect(member.role).toEqual(SourceMemberRoles.Blocked);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '2', referenceId: 'a' });
+    expect(contentPreference!.role).toEqual(SourceMemberRoles.Blocked);
   });
 
   it('should allow admin to remove and block a member', async () => {
@@ -2672,6 +2732,11 @@ describe('mutation updateMemberRole', () => {
       .getRepository(SourceMember)
       .findOneBy({ userId: '2', sourceId: 'a' });
     expect(member.role).toEqual(SourceMemberRoles.Blocked);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '2', referenceId: 'a' });
+    expect(contentPreference!.role).toEqual(SourceMemberRoles.Blocked);
   });
 
   it('should restrict moderator to remove and block a moderator', async () => {
@@ -2732,6 +2797,11 @@ describe('mutation updateMemberRole', () => {
       .getRepository(SourceMember)
       .findOneBy({ userId: '3', sourceId: 'a' });
     expect(member.role).toEqual(SourceMemberRoles.Blocked);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '3', referenceId: 'a' });
+    expect(contentPreference!.role).toEqual(SourceMemberRoles.Blocked);
   });
 });
 
@@ -2751,6 +2821,16 @@ describe('mutation unblockMember', () => {
       role: SourceMemberRoles.Blocked,
       referralToken: randomUUID(),
       createdAt: new Date(2022, 11, 20),
+    });
+    await con.getRepository(ContentPreferenceSource).save({
+      userId: '3',
+      sourceId: 'a',
+      referenceId: 'a',
+      feedId: '1',
+      status: ContentPreferenceStatus.Blocked,
+      role: SourceMemberRoles.Blocked,
+      flags: {},
+      referralToken: randomUUID(),
     });
   });
 
@@ -2802,6 +2882,11 @@ describe('mutation unblockMember', () => {
       .getRepository(SourceMember)
       .findOneBy({ userId: '3', sourceId: 'a' });
     expect(member).toBeFalsy();
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '3', referenceId: 'a' });
+    expect(contentPreference).toBeNull();
   });
 
   it('should allow admin to unblock a member', async () => {
@@ -2814,6 +2899,11 @@ describe('mutation unblockMember', () => {
       .getRepository(SourceMember)
       .findOneBy({ userId: '3', sourceId: 'a' });
     expect(member).toBeFalsy();
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '3', referenceId: 'a' });
+    expect(contentPreference).toBeNull();
   });
 });
 
@@ -2842,6 +2932,16 @@ describe('mutation leaveSource', () => {
       referralToken: 'rt2',
       role: SourceMemberRoles.Member,
     });
+    await con.getRepository(ContentPreferenceSource).save({
+      userId: '1',
+      referenceId: 's1',
+      sourceId: 's1',
+      feedId: '1',
+      status: ContentPreferenceStatus.Subscribed,
+      role: SourceMemberRoles.Member,
+      flags: {},
+      referralToken: 'rt2',
+    });
   });
 
   it('should not authorize when not logged in', () =>
@@ -2861,6 +2961,12 @@ describe('mutation leaveSource', () => {
     const sourceMembers = await con
       .getRepository(SourceMember)
       .countBy(variables);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '1', referenceId: 's1' });
+    expect(contentPreference).toBeNull();
+
     expect(sourceMembers).toEqual(0);
   });
 
@@ -3016,6 +3122,23 @@ describe('mutation joinSource', () => {
         notificationType: NotificationType.SquadPostAdded,
       });
     expect(preference).toBeFalsy();
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({
+        userId: '1',
+        referenceId: 's1',
+      });
+    expect(contentPreference).toMatchObject({
+      userId: '1',
+      referenceId: 's1',
+      sourceId: 's1',
+      feedId: '1',
+      status: ContentPreferenceStatus.Subscribed,
+      role: SourceMemberRoles.Member,
+      flags: {},
+      referralToken: expect.any(String),
+    });
   });
 
   it('should succeed if an existing member tries to join again', async () => {
@@ -3247,6 +3370,16 @@ describe('mutation hideSourceFeedPosts', () => {
       referralToken: 'rt2',
       role: SourceMemberRoles.Member,
     });
+    await con.getRepository(ContentPreferenceSource).save({
+      userId: '1',
+      referenceId: 's1',
+      sourceId: 's1',
+      feedId: '1',
+      status: ContentPreferenceStatus.Subscribed,
+      role: SourceMemberRoles.Member,
+      flags: {},
+      referralToken: 'rt2',
+    });
   });
 
   it('should not authorize when not logged in', () =>
@@ -3311,6 +3444,11 @@ describe('mutation hideSourceFeedPosts', () => {
       userId: '1',
     });
     expect(sourceMember?.flags.hideFeedPosts).toEqual(true);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '1', referenceId: 's1' });
+    expect(contentPreference!.flags.hideFeedPosts).toEqual(true);
   });
 });
 
@@ -3338,6 +3476,16 @@ describe('mutation showSourceFeedPosts', () => {
       userId: '1',
       referralToken: 'rt2',
       role: SourceMemberRoles.Member,
+    });
+    await con.getRepository(ContentPreferenceSource).save({
+      userId: '1',
+      referenceId: 's1',
+      sourceId: 's1',
+      feedId: '1',
+      status: ContentPreferenceStatus.Subscribed,
+      role: SourceMemberRoles.Member,
+      flags: {},
+      referralToken: 'rt2',
     });
   });
 
@@ -3403,6 +3551,11 @@ describe('mutation showSourceFeedPosts', () => {
       userId: '1',
     });
     expect(sourceMember?.flags.hideFeedPosts).toEqual(false);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '1', referenceId: 's1' });
+    expect(contentPreference!.flags.hideFeedPosts).toEqual(false);
   });
 });
 
@@ -3430,6 +3583,16 @@ describe('mutation collapsePinnedPosts', () => {
       userId: '1',
       referralToken: 'rt2',
       role: SourceMemberRoles.Member,
+    });
+    await con.getRepository(ContentPreferenceSource).save({
+      userId: '1',
+      referenceId: 's1',
+      sourceId: 's1',
+      feedId: '1',
+      status: ContentPreferenceStatus.Subscribed,
+      role: SourceMemberRoles.Member,
+      flags: {},
+      referralToken: 'rt2',
     });
   });
 
@@ -3495,6 +3658,11 @@ describe('mutation collapsePinnedPosts', () => {
       userId: '1',
     });
     expect(sourceMember?.flags.collapsePinnedPosts).toEqual(true);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '1', referenceId: 's1' });
+    expect(contentPreference!.flags.collapsePinnedPosts).toEqual(true);
   });
 });
 
@@ -3522,6 +3690,16 @@ describe('mutation expandPinnedPosts', () => {
       userId: '1',
       referralToken: 'rt2',
       role: SourceMemberRoles.Member,
+    });
+    await con.getRepository(ContentPreferenceSource).save({
+      userId: '1',
+      referenceId: 's1',
+      sourceId: 's1',
+      feedId: '1',
+      status: ContentPreferenceStatus.Subscribed,
+      role: SourceMemberRoles.Member,
+      flags: {},
+      referralToken: 'rt2',
     });
   });
 
@@ -3587,6 +3765,11 @@ describe('mutation expandPinnedPosts', () => {
       userId: '1',
     });
     expect(sourceMember?.flags.collapsePinnedPosts).toEqual(false);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '1', referenceId: 's1' });
+    expect(contentPreference!.flags.collapsePinnedPosts).toEqual(false);
   });
 });
 

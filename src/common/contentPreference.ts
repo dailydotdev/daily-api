@@ -45,7 +45,7 @@ type BlockEntity = ({
   id: string;
 }) => Promise<void>;
 
-const entityToNotificationTypeMap: Record<
+export const entityToNotificationTypeMap: Record<
   ContentPreferenceType,
   NotificationType[]
 > = {
@@ -61,18 +61,20 @@ export const contentPreferenceNotificationTypes = Object.values(
   entityToNotificationTypeMap,
 ).flat();
 
-const cleanContentNotificationPreference = async ({
+export const cleanContentNotificationPreference = async ({
   ctx,
   entityManager,
   id,
   notificationTypes,
   notficationEntity,
+  userId,
 }: {
   ctx: AuthContext;
   entityManager?: EntityManager;
   id: string;
   notificationTypes: NotificationType[];
   notficationEntity: EntityTarget<NotificationPreference>;
+  userId: string;
 }) => {
   const notificationRepository = (entityManager ?? ctx.con).getRepository(
     notficationEntity,
@@ -83,7 +85,7 @@ const cleanContentNotificationPreference = async ({
   }
 
   await notificationRepository.delete({
-    userId: ctx.userId,
+    userId,
     referenceId: id,
     notificationType: In(notificationTypes),
   });
@@ -117,6 +119,7 @@ const followUser: FollowEntity = async ({ ctx, id, status }) => {
         id,
         notificationTypes: entityToNotificationTypeMap.user,
         notficationEntity: NotificationPreferenceUser,
+        userId: ctx.userId,
       });
     }
   });
@@ -138,6 +141,7 @@ const unfollowUser: UnFollowEntity = async ({ ctx, id }) => {
       id,
       notificationTypes: entityToNotificationTypeMap.user,
       notficationEntity: NotificationPreferenceUser,
+      userId: ctx.userId,
     });
   });
 };
@@ -214,6 +218,7 @@ const followSource: FollowEntity = async ({ ctx, id, status }) => {
         id,
         notificationTypes: entityToNotificationTypeMap.source,
         notficationEntity: NotificationPreferenceSource,
+        userId: ctx.userId,
       });
     }
 
@@ -242,6 +247,7 @@ const unfollowSource: UnFollowEntity = async ({ ctx, id }) => {
       id,
       notificationTypes: entityToNotificationTypeMap.source,
       notficationEntity: NotificationPreferenceSource,
+      userId: ctx.userId,
     });
 
     await entityManager.getRepository(FeedSource).delete({
@@ -278,6 +284,7 @@ const blockUser: BlockEntity = async ({ ctx, id }) => {
       id,
       notificationTypes: entityToNotificationTypeMap.user,
       notficationEntity: NotificationPreferenceUser,
+      userId: ctx.userId,
     });
   });
 };
@@ -334,6 +341,7 @@ const blockSource: BlockEntity = async ({ ctx, id }) => {
       id,
       notificationTypes: entityToNotificationTypeMap.source,
       notficationEntity: NotificationPreferenceSource,
+      userId: ctx.userId,
     });
 
     // TODO follow phase 3 remove when backward compatibility is done
