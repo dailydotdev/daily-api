@@ -76,6 +76,7 @@ import { popularFeedClient } from '../integrations/feed/generators';
 import { ContentPreferenceFeedKeyword } from '../entity/contentPreference/ContentPreferenceFeedKeyword';
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
+import { randomUUID } from 'crypto';
 
 interface GQLTagsCategory {
   id: string;
@@ -1876,6 +1877,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                   sourceId: source.id,
                   feedId: feedId,
                   status: ContentPreferenceStatus.Follow,
+                  referralToken: randomUUID(),
                 })) as ContentPreferenceSource[],
               )
               .orUpdate(['status'], ['referenceId', 'userId'])
@@ -1908,6 +1910,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                   sourceId: source.id,
                   feedId: feedId,
                   status: ContentPreferenceStatus.Blocked,
+                  referralToken: randomUUID(),
                 })) as ContentPreferenceSource[],
               )
               .orUpdate(['status'], ['referenceId', 'userId'])

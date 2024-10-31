@@ -224,6 +224,7 @@ const saveFeedFixtures = async (): Promise<void> => {
       status: ContentPreferenceStatus.Blocked,
       type: ContentPreferenceType.Source,
       userId: '1',
+      referralToken: randomUUID(),
     },
     {
       feedId: '1',
@@ -234,6 +235,7 @@ const saveFeedFixtures = async (): Promise<void> => {
       status: ContentPreferenceStatus.Blocked,
       type: ContentPreferenceType.Source,
       userId: '1',
+      referralToken: randomUUID(),
     },
   ]);
 };
@@ -2184,6 +2186,7 @@ describe('mutation addFiltersToFeed', () => {
         status: ContentPreferenceStatus.Blocked,
         type: ContentPreferenceType.Source,
         userId: '1',
+        referralToken: expect.any(String),
       },
       {
         createdAt: expect.any(Date),
@@ -2195,6 +2198,7 @@ describe('mutation addFiltersToFeed', () => {
         status: ContentPreferenceStatus.Blocked,
         type: ContentPreferenceType.Source,
         userId: '1',
+        referralToken: expect.any(String),
       },
     ]);
 
@@ -2434,6 +2438,7 @@ describe('mutation removeFiltersFromFeed', () => {
         status: ContentPreferenceStatus.Blocked,
         type: ContentPreferenceType.Source,
         userId: '1',
+        referralToken: expect.any(String),
       },
       {
         createdAt: expect.any(Date),
@@ -2445,6 +2450,7 @@ describe('mutation removeFiltersFromFeed', () => {
         status: ContentPreferenceStatus.Blocked,
         type: ContentPreferenceType.Source,
         userId: '1',
+        referralToken: expect.any(String),
       },
     ]);
 
