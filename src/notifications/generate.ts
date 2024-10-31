@@ -16,6 +16,7 @@ import {
   NotificationCommenterContext,
   NotificationDoneByContext,
   NotificationPostContext,
+  NotificationPostModerationContext,
   NotificationSourceContext,
   NotificationSourceMemberRoleContext,
   NotificationSourceRequestContext,
@@ -127,12 +128,35 @@ export const notificationTitleMap: Record<
 
     return `New post from <b>${userName}</b>, check it out now!`;
   },
+  squad_post_approved: (ctx: NotificationPostContext) =>
+    `Woohoo! Your post has been approved and is now live in ${ctx.source.name}. Check it out!`,
+  squad_post_rejected: (ctx: NotificationPostModerationContext) =>
+    `Your post in ${ctx.source.name} was not approved for the following reason: ${ctx.post.reason}. Please review the feedback and consider making changes before resubmitting.`,
+  squad_post_submitted: (ctx: NotificationPostModerationContext) =>
+    `${ctx.user.name} just posted in ${ctx.source.name}. This post is waiting for your review before it gets published on the squad.`,
 };
 
 export const generateNotificationMap: Record<
   NotificationType,
   (builder: NotificationBuilder, ctx: never) => NotificationBuilder
 > = {
+  squad_post_approved: (builder, ctx: NotificationPostContext) =>
+    builder
+      .icon(NotificationIcon.Bell)
+      .referencePost(ctx.post)
+      .attachmentPost(ctx.post)
+      .targetPost(ctx.post),
+  squad_post_rejected: (builder, ctx: NotificationPostModerationContext) =>
+    builder
+      .icon(NotificationIcon.Bell)
+      .referencePostModeration(ctx.post)
+      .targetSourceModeration(ctx.source),
+  squad_post_submitted: (builder, ctx: NotificationPostModerationContext) =>
+    builder
+      .icon(NotificationIcon.Timer)
+      .avatarUser(ctx.user)
+      .referencePostModeration(ctx.post)
+      .targetSourceModeration(ctx.source),
   community_picks_failed: (builder, ctx: NotificationSubmissionContext) =>
     builder.systemNotification().referenceSubmission(ctx.submission),
   community_picks_succeeded: (builder, ctx: NotificationPostContext) =>

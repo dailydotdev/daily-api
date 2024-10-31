@@ -95,4 +95,9 @@ export class SquadPostModeration {
     onDelete: 'SET NULL',
   })
   sharedPost: Promise<Post>;
+
+  @Column({ type: 'text', nullable: true })
+  reason?: string;
+  @Column({ type: 'text', nullable: true })
+  comment?: string;
 }
