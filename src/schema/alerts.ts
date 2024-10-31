@@ -88,9 +88,9 @@ export const typeDefs = /* GraphQL */ `
     lastFeedSettingsFeedback: DateTime
 
     """
-    UUID of the last top reader badge for the user
+    Whether to show the top reader badge
     """
-    topReaderBadge: String
+    showTopReader: Boolean
   }
 
   input UpdateAlertsInput {
@@ -145,9 +145,9 @@ export const typeDefs = /* GraphQL */ `
     lastBootPopup: DateTime
 
     """
-    UUID of the last top reader badge for the user
+    Whether to show the top reader badge
     """
-    topReaderBadge: String
+    showTopReader: Boolean
   }
 
   extend type Mutation {
@@ -205,11 +205,6 @@ export const updateAlerts = async (
 
   if (data.filter === false) {
     await insertOrIgnoreAction(con, userId, UserActionType.MyFeed);
-  }
-
-  // Make sure that top reader badge is nulled out, and not set to some other value
-  if (data?.topReaderBadge && data.topReaderBadge !== null) {
-    data.topReaderBadge = null;
   }
 
   if (!alerts) {
