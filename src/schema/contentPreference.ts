@@ -11,7 +11,7 @@ import { followEntity, unfollowEntity } from '../common/contentPreference';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import graphorm from '../graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
-import { In } from 'typeorm';
+import { In, Not } from 'typeorm';
 import { ConflictError } from '../errors';
 
 export type GQLContentPreference = Pick<
@@ -284,6 +284,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             ContentPreferenceStatus.Follow,
             ContentPreferenceStatus.Subscribed,
           ]),
+          type: Not(ContentPreferenceType.Keyword),
         });
 
       if (followersCount >= MAX_FOLLOWERS_LIMIT) {
