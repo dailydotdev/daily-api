@@ -209,7 +209,6 @@ const getSquads = async (
         permalink: getSourceLink(source),
         currentMember: {
           permissions: postingPermissions,
-          role,
         },
       };
     });
