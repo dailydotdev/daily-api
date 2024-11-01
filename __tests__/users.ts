@@ -5705,6 +5705,7 @@ describe('query topReaderBadge', () => {
       id
       issuedAt
       image
+      total
       keyword {
         value
         flags {
@@ -5837,6 +5838,14 @@ describe('query topReaderBadge', () => {
       expect(res.errors).toBeFalsy();
       expect(user.id).toEqual('3');
       expect(user.topReader).toBeNull();
+    });
+
+    it('should return the total number of badges', async () => {
+      loggedUser = '1';
+      const res = await client.query(QUERY);
+      expect(res.errors).toBeFalsy();
+      console.log(res.data.topReaderBadge);
+      expect(res.data.topReaderBadge[0].total).toEqual(6);
     });
   });
 });
