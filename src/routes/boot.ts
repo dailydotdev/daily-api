@@ -199,16 +199,18 @@ const getSquads = async (
         { role },
         { memberPostingRank },
       );
-      // we only send posting permissions from boot to keep the payload small
-      const postingPermissions = permissions.filter(
-        (item) => item === SourcePermissions.Post,
+      // we only send posting and moderation permissions from boot to keep the payload small
+      const essentialPermissions = permissions.filter(
+        (item) =>
+          item === SourcePermissions.Post ||
+          item === SourcePermissions.Moderate,
       );
 
       return {
         ...restSource,
         permalink: getSourceLink(source),
         currentMember: {
-          permissions: postingPermissions,
+          permissions: essentialPermissions,
         },
       };
     });
