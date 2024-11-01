@@ -17,7 +17,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         showRecoverStreak
         lastBootPopup
         lastFeedSettingsFeedback
-        topReaderBadge
+        showTopReader
       }
     }`;
 
