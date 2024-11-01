@@ -27,6 +27,7 @@ import {
   NotificationBundleV2,
   NotificationStreakContext,
   Reference,
+  type NotificationUserTopReaderContext,
 } from './types';
 import { NotificationIcon } from './icons';
 import { SourceMemberRoles } from '../roles';
@@ -274,6 +275,19 @@ export class NotificationBuilder {
       }),
     );
     this.avatars = this.avatars.concat(newAvatars);
+    return this;
+  }
+
+  avatarTopReaderBadge(
+    ctx: NotificationUserTopReaderContext,
+  ): NotificationBuilder {
+    this.avatars.push({
+      type: 'top_reader_badge',
+      name: ctx.keyword.flags.title,
+      targetUrl: '',
+      referenceId: ctx.userTopReader.id,
+      image: pickImageUrl({ createdAt: new Date() }),
+    });
     return this;
   }
 

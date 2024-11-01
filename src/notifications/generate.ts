@@ -147,6 +147,7 @@ export const generateNotificationMap: Record<
         ['topreader', 'true'],
         ['badgeId', ctx.userTopReader.id],
       ])
+      .avatarTopReaderBadge(ctx)
       .uniqueKey(ctx.userIds[0]),
   community_picks_failed: (builder, ctx: NotificationSubmissionContext) =>
     builder.systemNotification().referenceSubmission(ctx.submission),
