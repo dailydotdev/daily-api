@@ -16,6 +16,7 @@ import {
   Feature,
   FeatureType,
   SettingsFlagsPublic,
+  UserTopReader,
 } from '../entity';
 import {
   SourceMemberRoles,
@@ -212,6 +213,14 @@ const obj = new GraphORM({
           childColumn: 'id',
           parentColumn: 'userId',
         },
+      },
+      total: {
+        select: (_, alias, qb) =>
+          qb
+            .select('COUNT(*)')
+            .from(UserTopReader, 'utp')
+            .where(`utp."userId" = ${alias}."userId"`)
+            .groupBy('utp."userId"'),
       },
     },
   },

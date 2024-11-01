@@ -716,6 +716,11 @@ export const typeDefs = /* GraphQL */ `
     URL to the badge image
     """
     image: String
+
+    """
+    Total number of badges
+    """
+    total: Int
   }
 
   extend type Query {
