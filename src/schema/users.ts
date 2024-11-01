@@ -411,10 +411,6 @@ export const typeDefs = /* GraphQL */ `
     Content preference in regards to current user
     """
     contentPreference: ContentPreference
-    """
-    User's top reader badges
-    """
-    topReader: [UserTopReader]
   }
 
   """
@@ -870,9 +866,14 @@ export const typeDefs = /* GraphQL */ `
     companies: [UserCompany] @auth
 
     """
+    Get the latest top reader badges for the user
+    """
+    topReaderBadge(limit: Int): [UserTopReader] @auth
+
+    """
     Get the top reader badge based on badge ID
     """
-    topReaderBadge(id: ID!): UserTopReader
+    topReaderBadgeById(id: ID!): UserTopReader
   }
 
   extend type Mutation {
@@ -1697,6 +1698,29 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       );
     },
     topReaderBadge: async (
+      _,
+      { limit = 5 }: { limit: number },
+      ctx: AuthContext,
+      info: GraphQLResolveInfo,
+    ) => {
+      return graphorm.query<GQLUserTopReader>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .andWhere(`${builder.alias}.userId = :userId`, {
+              userId: ctx.userId,
+            })
+            .orderBy({
+              '"issuedAt"': 'DESC',
+            })
+            .limit(limit);
+          return builder;
+        },
+        true,
+      );
+    },
+    topReaderBadgeById: async (
       _,
       { id }: { id: string },
       ctx: AuthContext,
