@@ -54,6 +54,9 @@ export class SourcePostModeration {
   @Column({ type: 'text', nullable: true })
   moderatorMessage: string | null;
 
+  @Column({ type: 'text', nullable: true })
+  rejectionReason: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
