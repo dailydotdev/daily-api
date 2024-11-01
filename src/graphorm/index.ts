@@ -217,7 +217,7 @@ const obj = new GraphORM({
       total: {
         select: (_, alias, qb) =>
           qb
-            .select('COUNT(*)')
+            .select('COALESCE(COUNT(*), 0)')
             .from(UserTopReader, 'utp')
             .where(`utp."userId" = ${alias}."userId"`)
             .groupBy('utp."userId"'),
