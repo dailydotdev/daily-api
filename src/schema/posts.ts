@@ -34,9 +34,9 @@ import {
   validatePost,
   ONE_MINUTE_IN_SECONDS,
   toGQLEnum,
-  CreateSquadPostModeration,
-  CreateSquadPostModerationArgs,
-  createSquadPostModeration,
+  CreateSourcePostModeration,
+  CreateSourcePostModerationArgs,
+  createSourcePostModeration,
 } from '../common';
 import {
   ArticlePost,
@@ -98,7 +98,7 @@ import { reportPost, saveHiddenPost } from '../common/reporting';
 import { PostCodeSnippetLanguage, UserVote } from '../types';
 import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
 
-export interface GQLSquadPostModeration {
+export interface GQLSourcePostModeration {
   id: string;
   title?: string;
   content?: string;
@@ -226,7 +226,7 @@ export const typeDefs = /* GraphQL */ `
   """
   Post moderation item
   """
-  type SquadPostModeration {
+  type SourcePostModeration {
     """
     Id of the post
     """
@@ -705,7 +705,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get specific squad post moderation item
     """
-    squadPostModeration(
+    sourcePostModeration(
       """
       Id of the requested post moderation
       """
@@ -714,17 +714,17 @@ export const typeDefs = /* GraphQL */ `
       Id of the source
       """
       sourceId: ID!
-    ): SquadPostModeration! @auth
+    ): SourcePostModeration! @auth
 
     """
     Get squad post moderations by source id
     """
-    squadPostModerationsBySourceId(
+    sourcePostModerationsById(
       """
       Id of the source
       """
       sourceId: ID!
-    ): [SquadPostModeration!]! @auth
+    ): [SourcePostModeration!]! @auth
 
     """
     Get post by id
@@ -860,7 +860,7 @@ export const typeDefs = /* GraphQL */ `
     """
     To create post moderation item
     """
-    createSquadPostModeration(
+    createSourcePostModeration(
       """
       Id of the Squad to post to
       """
@@ -893,7 +893,7 @@ export const typeDefs = /* GraphQL */ `
       type of the post
       """
       type: String!
-    ): SquadPostModeration! @auth
+    ): SourcePostModeration! @auth
 
     """
     To allow user to create freeform posts
@@ -1219,24 +1219,28 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   BaseContext
 >({
   Query: {
-    squadPostModerationsBySourceId: async (
+    sourcePostModerationsById: async (
       _,
       { sourceId }: { sourceId: string },
       ctx: Context,
       info,
-    ): Promise<GQLSquadPostModeration[]> => {
+    ): Promise<GQLSourcePostModeration[]> => {
       const isModerator = await isPrivilegedMember(ctx, sourceId);
       if (isModerator) {
-        return graphorm.query<GQLSquadPostModeration>(ctx, info, (builder) => ({
-          ...builder,
-          queryBuilder: builder.queryBuilder.where(
-            `"${builder.alias}"."sourceId" = :sourceId`,
-            { sourceId },
-          ),
-        }));
+        return graphorm.query<GQLSourcePostModeration>(
+          ctx,
+          info,
+          (builder) => ({
+            ...builder,
+            queryBuilder: builder.queryBuilder.where(
+              `"${builder.alias}"."sourceId" = :sourceId`,
+              { sourceId },
+            ),
+          }),
+        );
       }
       const { userId } = ctx;
-      return graphorm.query<GQLSquadPostModeration>(ctx, info, (builder) => ({
+      return graphorm.query<GQLSourcePostModeration>(ctx, info, (builder) => ({
         ...builder,
         queryBuilder: builder.queryBuilder.where(
           `"${builder.alias}"."sourceId" = :sourceId AND "${builder.alias}"."createdById" = :userId`,
@@ -1244,16 +1248,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ),
       }));
     },
-    squadPostModeration: async (
+    sourcePostModeration: async (
       _,
       { id, sourceId }: { id: string; sourceId: string },
       ctx: Context,
       info,
-    ): Promise<GQLSquadPostModeration> => {
+    ): Promise<GQLSourcePostModeration> => {
       const isModerator = await isPrivilegedMember(ctx, sourceId);
       if (!isModerator) throw new ForbiddenError('Access denied!');
 
-      return graphorm.queryOneOrFail<GQLSquadPostModeration>(
+      return graphorm.queryOneOrFail<GQLSourcePostModeration>(
         ctx,
         info,
         (builder) => ({
@@ -1685,7 +1689,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return { _: true };
     },
-    createSquadPostModeration: async (
+    createSourcePostModeration: async (
       _,
       {
         sourceId,
@@ -1694,10 +1698,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         content,
         type,
         sharedPostId,
-      }: CreateSquadPostModerationArgs,
+      }: CreateSourcePostModerationArgs,
       ctx: AuthContext,
       info,
-    ): Promise<GQLSquadPostModeration> => {
+    ): Promise<GQLSourcePostModeration> => {
       const { con, userId } = ctx;
       const id = await generateShortId();
 
@@ -1705,7 +1709,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const contentHtml = markdown.render(content!, { mentions });
       const titleHtml = generateTitleHtml(title!, mentions);
 
-      const pendingPost: CreateSquadPostModeration = {
+      const pendingPost: CreateSourcePostModeration = {
         id,
         title,
         titleHtml,
@@ -1727,10 +1731,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           );
           pendingPost.image = coverImageUrl;
         }
-        await createSquadPostModeration(manager, ctx, pendingPost);
+        await createSourcePostModeration(manager, ctx, pendingPost);
       });
 
-      return graphorm.queryOneOrFail<GQLSquadPostModeration>(
+      return graphorm.queryOneOrFail<GQLSourcePostModeration>(
         ctx,
         info,
         (builder) => ({

@@ -10,14 +10,14 @@ import { Post } from './posts';
 import { Source } from './Source';
 import { User } from './user';
 
-export enum SquadPostModerationStatus {
+export enum SourcePostModerationStatus {
   Approved = 'approved',
   Rejected = 'rejected',
   Pending = 'pending',
 }
 
 @Entity()
-export class SquadPostModeration {
+export class SourcePostModeration {
   @PrimaryColumn({ type: 'text' })
   id: string;
 
@@ -31,14 +31,14 @@ export class SquadPostModeration {
   source: Promise<Source>;
 
   @Column({ type: 'text' })
-  status: SquadPostModerationStatus;
+  status: SourcePostModerationStatus;
 
   @Column({ type: 'text', nullable: true })
   createdById: string | null;
 
   @ManyToOne('User', (user: User) => user.id, {
     lazy: true,
-    onDelete: 'SET NULL',
+    onDelete: 'CASCADE',
   })
   createdBy: Promise<User>;
 
@@ -92,7 +92,7 @@ export class SquadPostModeration {
 
   @ManyToOne('Post', (post: Post) => post.id, {
     lazy: true,
-    onDelete: 'SET NULL',
+    onDelete: 'CASCADE',
   })
   sharedPost: Promise<Post>;
 }
