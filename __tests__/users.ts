@@ -5700,20 +5700,25 @@ describe('query topReaderBadgeById', () => {
 });
 
 describe('query topReaderBadge', () => {
-  const QUERY = `query TopReaderBadge($limit: Int = 5) {
-    topReaderBadge(limit: $limit) {
-      id
-      issuedAt
-      image
-      total
-      keyword {
-        value
-        flags {
-          title
+  const QUERY = /* GraphQL */ `
+    query TopReaderBadge($limit: Int, $userId: ID) {
+      topReaderBadge(limit: $limit, userId: $userId) {
+        id
+        issuedAt
+        image
+        total
+        keyword {
+          value
+          flags {
+            title
+          }
+        }
+        user {
+          id
         }
       }
     }
-  }`;
+  `;
 
   beforeEach(async () => {
     await saveFixtures(
@@ -5847,5 +5852,14 @@ describe('query topReaderBadge', () => {
       console.log(res.data.topReaderBadge);
       expect(res.data.topReaderBadge[0].total).toEqual(6);
     });
+  });
+
+  it('should return top reader badge by userId', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: { userId: '2' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.topReaderBadge[0].user.id).toEqual('2');
   });
 });
