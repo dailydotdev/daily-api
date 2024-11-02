@@ -411,6 +411,11 @@ export const typeDefs = /* GraphQL */ `
     Content preference in regards to current user
     """
     contentPreference: ContentPreference
+
+    """
+    Returns the latest top reader badge for the user
+    """
+    topReader: UserTopReader
   }
 
   """
