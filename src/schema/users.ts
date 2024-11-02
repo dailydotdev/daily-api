@@ -171,6 +171,7 @@ export interface GQLUser {
   readmeHtml?: string;
   experienceLevel?: string | null;
   language?: ContentLanguage | null;
+  topReader?: GQLUserTopReader;
 }
 
 export interface GQLView {

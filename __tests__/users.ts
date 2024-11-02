@@ -106,6 +106,7 @@ import { getRestoreStreakCache } from '../src/workers/cdc/primary';
 import { ContentPreferenceUser } from '../src/entity/contentPreference/ContentPreferenceUser';
 import { ContentPreferenceStatus } from '../src/entity/contentPreference/types';
 import { identifyUserPersonalizedDigest } from '../src/cio';
+import type { GQLUser } from '../src/schema/users';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -5763,6 +5764,7 @@ describe('query topReaderBadge', () => {
         image: 'https://daily.dev/image.jpg',
       },
       {
+        id: 'bb48487e-a778-4f66-ae6c-159438fca86e',
         userId: '2',
         issuedAt: new Date(),
         keywordValue: 'kw_1',
@@ -5800,5 +5802,41 @@ describe('query topReaderBadge', () => {
     expect(res.errors).toBeFalsy();
     expect(topReaderBadge.length).toEqual(1);
     expect(topReaderBadge[0].keyword.value).toEqual('kw_6');
+  });
+
+  describe('topReader field on User', () => {
+    const QUERY = /* GraphQL */ `
+      query User($id: ID!) {
+        user(id: $id) {
+          id
+          topReader {
+            id
+          }
+        }
+      }
+    `;
+    it('should return the top reader badge for the user', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY, { variables: { id: '2' } });
+      const user: GQLUser = res.data.user;
+
+      expect(res.errors).toBeFalsy();
+      expect(user.id).toEqual('2');
+      expect(user.topReader?.id).toEqual(
+        'bb48487e-a778-4f66-ae6c-159438fca86e',
+      );
+    });
+
+    it('should return null if the user has no top reader badge', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY, { variables: { id: '3' } });
+      const user: GQLUser = res.data.user;
+
+      expect(res.errors).toBeFalsy();
+      expect(user.id).toEqual('3');
+      expect(user.topReader).toBeNull();
+    });
   });
 });
