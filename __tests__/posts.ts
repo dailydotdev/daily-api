@@ -3401,14 +3401,15 @@ describe('query sourcePostModeration', () => {
 });
 
 describe('mutation createSourcePostModeration', () => {
-  const MUTATION = `mutation CreateSourcePostModeration($sourceId: ID! $title: String!, $type: String!, $content: String, $image: Upload, $sharedPostId: ID) {
-    createSourcePostModeration(sourceId: $sourceId, title: $title, type: $type, content: $content, image: $image, sharedPostId: $sharedPostId) {
+  const MUTATION = `mutation CreateSourcePostModeration($sourceId: ID! $title: String!, $type: String!, $content: String, $image: Upload, $sharedPostId: ID, $imageUrl: String, $commentary: String) {
+    createSourcePostModeration(sourceId: $sourceId, title: $title, type: $type, content: $content, image: $image, sharedPostId: $sharedPostId, imageUrl: $imageUrl, commentary: $commentary) {
       id
       title
       content
       contentHtml
       type
       sharedPostId
+      titleHtml
     }
   }`;
 
@@ -3439,6 +3440,25 @@ describe('mutation createSourcePostModeration', () => {
     expect(res.data.createSourcePostModeration.type).toEqual(PostType.Share);
     expect(res.data.createSourcePostModeration.contentHtml).toBeDefined();
     expect(res.data.createSourcePostModeration.sharedPostId).toEqual('p1');
+  });
+
+  it('should successfully create a squad post moderation entry of type article', async () => {
+    loggedUser = '4';
+    const externalParams = {
+      sourceId: 'm',
+      title: 'External Link Title',
+      commentary: '<p>This is an awesome link</p>',
+      imageUrl:
+        'https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1',
+      type: PostType.Article,
+    };
+    const res = await client.mutate(MUTATION, {
+      variables: externalParams,
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createSourcePostModeration).toBeTruthy();
+    expect(res.data.createSourcePostModeration.type).toEqual(PostType.Article);
+    expect(res.data.createSourcePostModeration.titleHtml).toBeDefined();
   });
 });
 

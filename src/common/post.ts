@@ -184,13 +184,11 @@ export type CreateSourcePostModeration = Omit<
 > &
   Pick<
     SourcePostModeration,
-    | 'titleHtml'
-    | 'content'
-    | 'contentHtml'
-    | 'type'
-    | 'sharedPostId'
-    | 'createdById'
-  >;
+    'titleHtml' | 'content' | 'type' | 'sharedPostId' | 'createdById'
+  > & {
+    contentHtml?: string;
+    url?: string;
+  };
 
 export const createSourcePostModeration = async (
   con: DataSource | EntityManager,
@@ -264,9 +262,12 @@ export interface CreatePostArgs
 
 export interface CreateSourcePostModerationArgs
   extends Pick<EditPostArgs, 'title' | 'image'> {
+  imageUrl?: string;
   sourceId: string;
+  commentary?: string;
   content?: string;
   sharedPostId?: string;
+  url?: string;
   type: PostType;
 }
 

@@ -79,7 +79,7 @@ export class SourcePostModeration {
   title?: string | null;
 
   @Column({ type: 'text', nullable: true })
-  titleHtml: string | null;
+  titleHtml?: string | null;
 
   @Column({ type: 'text', nullable: true })
   content?: string | null;
@@ -98,4 +98,7 @@ export class SourcePostModeration {
     onDelete: 'CASCADE',
   })
   sharedPost: Promise<Post>;
+
+  @Column({ type: 'text', nullable: true })
+  url?: string | null;
 }

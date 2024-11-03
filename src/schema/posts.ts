@@ -63,6 +63,7 @@ import {
   PostRelation,
   deletePost,
   generateTitleHtml,
+  validateCommentary,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -866,25 +867,25 @@ export const typeDefs = /* GraphQL */ `
       """
       sourceId: ID!
       """
-      Html content of the post
-      """
-      contentHtml: String
-      """
       content of the post
       """
       content: String
       """
-      Html Title of the post
+      Commentary on the post
       """
-      titleHtml: String
+      commentary: String
       """
       title of the post
       """
       title: String!
       """
-      Image of the post
+      Image to upload
       """
       image: Upload
+      """
+      Image URL to use
+      """
+      imageUrl: String
       """
       ID of the post to share
       """
@@ -893,6 +894,10 @@ export const typeDefs = /* GraphQL */ `
       type of the post
       """
       type: String!
+      """
+      Url of the post, if applicable
+      """
+      url: String
     ): SourcePostModeration! @auth
 
     """
@@ -1696,33 +1701,42 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         image,
         title,
         content,
+        commentary,
         type,
+        url,
         sharedPostId,
+        imageUrl,
       }: CreateSourcePostModerationArgs,
       ctx: AuthContext,
       info,
     ): Promise<GQLSourcePostModeration> => {
       const { con, userId } = ctx;
       const id = await generateShortId();
-
       const mentions = await getMentions(con, content, userId, sourceId);
-      const contentHtml = markdown.render(content!, { mentions });
-      const titleHtml = generateTitleHtml(title!, mentions);
 
       const pendingPost: CreateSourcePostModeration = {
         id,
         title,
-        titleHtml,
         content,
-        contentHtml,
         sourceId,
         type,
         sharedPostId,
+        url,
         createdById: userId,
       };
 
+      if (commentary) {
+        await validateCommentary(commentary);
+        pendingPost.titleHtml = generateTitleHtml(commentary, mentions);
+      }
+      if (content) {
+        pendingPost.contentHtml = markdown.render(content, { mentions });
+      }
+
       await con.transaction(async (manager) => {
-        if (image && process.env.CLOUDINARY_URL) {
+        if (imageUrl) {
+          pendingPost.image = imageUrl;
+        } else if (image && process.env.CLOUDINARY_URL) {
           const upload = await image;
           const { url: coverImageUrl } = await uploadPostFile(
             id,
