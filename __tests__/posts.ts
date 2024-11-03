@@ -3162,7 +3162,7 @@ describe('mutation createFreeformPost', () => {
   it('should not allow mention outside of squad as part of the content being a freeform post', async () => {
     loggedUser = '1';
     const content = 'Test @sample';
-    await con.getRepository(User).update({ id: '5' }, { username: 'sample' });
+    await con.getRepository(User).update({ id: '9' }, { username: 'sample' });
     const post = await setupMention({ content });
     const mention = await con
       .getRepository(PostMention)
@@ -4304,7 +4304,7 @@ describe('mutation vote post', () => {
   });
 
   it('should throw not found when cannot find user', () => {
-    loggedUser = '3';
+    loggedUser = '9';
     return testMutationErrorCode(
       client,
       {
@@ -4833,7 +4833,7 @@ describe('mutation dismissPostFeedback', () => {
   });
 
   it('should throw not found when cannot find user', () => {
-    loggedUser = '3';
+    loggedUser = '9';
     return testMutationErrorCode(
       client,
       {
