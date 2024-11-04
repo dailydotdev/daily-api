@@ -1720,7 +1720,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         (builder) => {
           builder.queryBuilder = builder.queryBuilder
             .andWhere(`${builder.alias}.userId = :userId`, {
-              userId: userId,
+              userId,
             })
             .orderBy({
               '"issuedAt"': 'DESC',
