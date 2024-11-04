@@ -62,20 +62,20 @@ export class PostDeletedStatsTrigger1730710262320
     );
     await queryRunner.query(
       `
-        CREATE OR REPLACE TRIGGER increment_squad_views_count
+        CREATE OR REPLACE TRIGGER increment_source_views_count
         AFTER UPDATE ON "post"
         FOR EACH ROW
         WHEN (NEW.views > OLD.views)
-        EXECUTE PROCEDURE increment_squad_views_count()
+        EXECUTE PROCEDURE increment_source_views_count()
       `,
     );
     await queryRunner.query(
       `
-        CREATE TRIGGER update_squad_upvotes_count
+        CREATE TRIGGER update_source_upvotes_count
         AFTER UPDATE ON "post"
         FOR EACH ROW
         WHEN (NEW.upvotes <> OLD.upvotes)
-        EXECUTE PROCEDURE update_squad_upvotes_count()
+        EXECUTE PROCEDURE update_source_upvotes_count()
       `,
     );
   }
