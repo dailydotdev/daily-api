@@ -32,7 +32,9 @@ import createOrGetConnection from '../src/db';
       FROM feed_tag ft
       LEFT JOIN feed f ON f."id" = ft."feedId"
       LIMIT ${limit} OFFSET ${offset}
-      ON CONFLICT ("referenceId", "userId") DO NOTHING
+      ON CONFLICT ("referenceId", "userId") DO UPDATE
+      SET
+        status = EXCLUDED.status
     `);
 
     await manager.query(`SET session_replication_role = DEFAULT;`);
