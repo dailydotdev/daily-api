@@ -2494,9 +2494,10 @@ describe('mutation updateMemberRole', () => {
         referenceId: 'a',
         feedId: '1',
         status: ContentPreferenceStatus.Subscribed,
-        role: SourceMemberRoles.Member,
-        flags: {},
-        referralToken: randomUUID(),
+        flags: {
+          role: SourceMemberRoles.Member,
+          referralToken: randomUUID(),
+        },
       },
       {
         userId: '3',
@@ -2504,9 +2505,10 @@ describe('mutation updateMemberRole', () => {
         referenceId: 'a',
         feedId: '1',
         status: ContentPreferenceStatus.Subscribed,
-        role: SourceMemberRoles.Member,
-        flags: {},
-        referralToken: randomUUID(),
+        flags: {
+          role: SourceMemberRoles.Member,
+          referralToken: randomUUID(),
+        },
       },
     ]);
   });
@@ -2595,7 +2597,7 @@ describe('mutation updateMemberRole', () => {
     const contentPreference = await con
       .getRepository(ContentPreferenceSource)
       .findOneBy({ userId: '2', referenceId: 'a' });
-    expect(contentPreference!.role).toEqual(SourceMemberRoles.Moderator);
+    expect(contentPreference!.flags.role).toEqual(SourceMemberRoles.Moderator);
   });
 
   it('should allow admin to promote a moderator to an admin', async () => {
@@ -2619,7 +2621,7 @@ describe('mutation updateMemberRole', () => {
     const contentPreference = await con
       .getRepository(ContentPreferenceSource)
       .findOneBy({ userId: '2', referenceId: 'a' });
-    expect(contentPreference!.role).toEqual(SourceMemberRoles.Admin);
+    expect(contentPreference!.flags.role).toEqual(SourceMemberRoles.Admin);
   });
 
   it('should allow admin to demote an admin to a moderator', async () => {
@@ -2643,7 +2645,7 @@ describe('mutation updateMemberRole', () => {
     const contentPreference = await con
       .getRepository(ContentPreferenceSource)
       .findOneBy({ userId: '2', referenceId: 'a' });
-    expect(contentPreference!.role).toEqual(SourceMemberRoles.Moderator);
+    expect(contentPreference!.flags.role).toEqual(SourceMemberRoles.Moderator);
   });
 
   it('should allow admin to demote a moderator to a member', async () => {
@@ -2667,7 +2669,7 @@ describe('mutation updateMemberRole', () => {
     const contentPreference = await con
       .getRepository(ContentPreferenceSource)
       .findOneBy({ userId: '2', referenceId: 'a' });
-    expect(contentPreference!.role).toEqual(SourceMemberRoles.Member);
+    expect(contentPreference!.flags.role).toEqual(SourceMemberRoles.Member);
   });
 
   it('should allow admin to remove and block an admin', async () => {
@@ -2691,7 +2693,7 @@ describe('mutation updateMemberRole', () => {
     const contentPreference = await con
       .getRepository(ContentPreferenceSource)
       .findOneBy({ userId: '2', referenceId: 'a' });
-    expect(contentPreference!.role).toEqual(SourceMemberRoles.Blocked);
+    expect(contentPreference!.flags.role).toEqual(SourceMemberRoles.Blocked);
   });
 
   it('should allow admin to remove and block a moderator', async () => {
@@ -2715,7 +2717,7 @@ describe('mutation updateMemberRole', () => {
     const contentPreference = await con
       .getRepository(ContentPreferenceSource)
       .findOneBy({ userId: '2', referenceId: 'a' });
-    expect(contentPreference!.role).toEqual(SourceMemberRoles.Blocked);
+    expect(contentPreference!.flags.role).toEqual(SourceMemberRoles.Blocked);
   });
 
   it('should allow admin to remove and block a member', async () => {
@@ -2736,7 +2738,7 @@ describe('mutation updateMemberRole', () => {
     const contentPreference = await con
       .getRepository(ContentPreferenceSource)
       .findOneBy({ userId: '2', referenceId: 'a' });
-    expect(contentPreference!.role).toEqual(SourceMemberRoles.Blocked);
+    expect(contentPreference!.flags.role).toEqual(SourceMemberRoles.Blocked);
   });
 
   it('should restrict moderator to remove and block a moderator', async () => {
@@ -2801,7 +2803,7 @@ describe('mutation updateMemberRole', () => {
     const contentPreference = await con
       .getRepository(ContentPreferenceSource)
       .findOneBy({ userId: '3', referenceId: 'a' });
-    expect(contentPreference!.role).toEqual(SourceMemberRoles.Blocked);
+    expect(contentPreference!.flags.role).toEqual(SourceMemberRoles.Blocked);
   });
 });
 
@@ -2828,9 +2830,10 @@ describe('mutation unblockMember', () => {
       referenceId: 'a',
       feedId: '1',
       status: ContentPreferenceStatus.Blocked,
-      role: SourceMemberRoles.Blocked,
-      flags: {},
-      referralToken: randomUUID(),
+      flags: {
+        role: SourceMemberRoles.Blocked,
+        referralToken: randomUUID(),
+      },
     });
   });
 
@@ -2938,9 +2941,10 @@ describe('mutation leaveSource', () => {
       sourceId: 's1',
       feedId: '1',
       status: ContentPreferenceStatus.Subscribed,
-      role: SourceMemberRoles.Member,
-      flags: {},
-      referralToken: 'rt2',
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: 'rt2',
+      },
     });
   });
 
@@ -3135,9 +3139,10 @@ describe('mutation joinSource', () => {
       sourceId: 's1',
       feedId: '1',
       status: ContentPreferenceStatus.Subscribed,
-      role: SourceMemberRoles.Member,
-      flags: {},
-      referralToken: expect.any(String),
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: expect.any(String),
+      },
     });
   });
 
@@ -3376,9 +3381,10 @@ describe('mutation hideSourceFeedPosts', () => {
       sourceId: 's1',
       feedId: '1',
       status: ContentPreferenceStatus.Subscribed,
-      role: SourceMemberRoles.Member,
-      flags: {},
-      referralToken: 'rt2',
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: 'rt2',
+      },
     });
   });
 
@@ -3483,9 +3489,10 @@ describe('mutation showSourceFeedPosts', () => {
       sourceId: 's1',
       feedId: '1',
       status: ContentPreferenceStatus.Subscribed,
-      role: SourceMemberRoles.Member,
-      flags: {},
-      referralToken: 'rt2',
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: 'rt2',
+      },
     });
   });
 
@@ -3590,9 +3597,10 @@ describe('mutation collapsePinnedPosts', () => {
       sourceId: 's1',
       feedId: '1',
       status: ContentPreferenceStatus.Subscribed,
-      role: SourceMemberRoles.Member,
-      flags: {},
-      referralToken: 'rt2',
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: 'rt2',
+      },
     });
   });
 
@@ -3697,9 +3705,10 @@ describe('mutation expandPinnedPosts', () => {
       sourceId: 's1',
       feedId: '1',
       status: ContentPreferenceStatus.Subscribed,
-      role: SourceMemberRoles.Member,
-      flags: {},
-      referralToken: 'rt2',
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: 'rt2',
+      },
     });
   });
 

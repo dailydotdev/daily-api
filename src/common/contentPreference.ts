@@ -18,6 +18,7 @@ import {
 } from '../entity';
 import { ghostUser } from './utils';
 import { randomUUID } from 'crypto';
+import { SourceMemberRoles } from '../roles';
 
 type FollowEntity = ({
   ctx,
@@ -200,7 +201,10 @@ const followSource: FollowEntity = async ({ ctx, id, status }) => {
       sourceId: id,
       feedId: ctx.userId,
       status,
-      referralToken: randomUUID(),
+      flags: {
+        referralToken: randomUUID(),
+        role: SourceMemberRoles.Member,
+      },
     });
 
     await repository
@@ -324,7 +328,10 @@ const blockSource: BlockEntity = async ({ ctx, id }) => {
       sourceId: id,
       feedId: ctx.userId,
       status: ContentPreferenceStatus.Blocked,
-      referralToken: randomUUID(),
+      flags: {
+        referralToken: randomUUID(),
+        role: SourceMemberRoles.Member,
+      },
     });
 
     await repository

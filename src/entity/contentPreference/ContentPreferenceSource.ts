@@ -6,6 +6,12 @@ import type { Source } from 'graphql';
 import { SourceMemberRoles } from '../../roles';
 import type { SourceMemberFlags } from '../SourceMember';
 
+export type ContentPreferenceSourceFlags = Partial<{
+  role: SourceMemberRoles;
+  referralToken: string;
+}> &
+  SourceMemberFlags;
+
 @ChildEntity(ContentPreferenceType.Source)
 export class ContentPreferenceSource extends ContentPreference {
   @Column({ type: 'text', default: null })
@@ -14,15 +20,9 @@ export class ContentPreferenceSource extends ContentPreference {
   @Column({ type: 'text', default: null })
   feedId: string;
 
-  @Column({ type: 'text', default: SourceMemberRoles.Member })
-  role: SourceMemberRoles;
-
   @Column({ type: 'jsonb', default: {} })
-  flags: SourceMemberFlags;
-
-  @Column({ type: 'text' })
-  @Index({ unique: true })
-  referralToken: string;
+  @Index('IDX_content_preference_flags_referralToken', { synchronize: false })
+  flags: ContentPreferenceSourceFlags;
 
   @ManyToOne('Source', { lazy: true, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'sourceId' })

@@ -660,7 +660,7 @@ describe('mutation follow', () => {
 
       expect(contentPreference).not.toBeNull();
       expect(contentPreference!.status).toBe(ContentPreferenceStatus.Follow);
-      expect(contentPreference!.referralToken).not.toBeNull();
+      expect(contentPreference!.flags.referralToken).not.toBeNull();
 
       const feedSource = await con.getRepository(FeedSource).findOneBy({
         feedId: '1-fm',
@@ -742,8 +742,8 @@ describe('mutation follow', () => {
           referenceId: 'a-fm',
         });
 
-      expect(contentPreferenceBefore!.referralToken).toBe(
-        contentPreferenceAfter!.referralToken,
+      expect(contentPreferenceBefore!.flags.referralToken).toBe(
+        contentPreferenceAfter!.flags.referralToken,
       );
     });
   });
@@ -1367,8 +1367,8 @@ describe('mutation block', () => {
           referenceId: 'a-blm',
         });
 
-      expect(contentPreferenceBefore!.referralToken).toBe(
-        contentPreferenceAfter!.referralToken,
+      expect(contentPreferenceBefore!.flags.referralToken).toBe(
+        contentPreferenceAfter!.flags.referralToken,
       );
     });
   });

@@ -1115,9 +1115,11 @@ const addNewSourceMember = async (
       sourceId: member.sourceId,
       feedId: member.userId,
       status: ContentPreferenceStatus.Subscribed,
-      role: member.role,
-      flags: member.flags,
-      referralToken,
+      flags: {
+        ...member.flags,
+        role: member.role,
+        referralToken,
+      },
     }),
   );
 };
@@ -1987,8 +1989,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         await entityManager.getRepository(ContentPreferenceSource).update(
           { userId: memberId, referenceId: sourceId },
           {
-            role,
             status: isBlock ? ContentPreferenceStatus.Blocked : undefined,
+            flags: updateFlagsStatement<ContentPreferenceSource>({
+              role,
+            }),
           },
         );
 
