@@ -3355,7 +3355,7 @@ describe('mutation editPost', () => {
     );
   });
 
-  it('should return an error if content exceeds 4000 characters', async () => {
+  it('should return an error if content exceeds 10000 characters', async () => {
     loggedUser = '1';
 
     const content = 'Hello World! Start your squad journey here'; // 42 chars
