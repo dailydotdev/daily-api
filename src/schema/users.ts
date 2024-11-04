@@ -171,6 +171,7 @@ export interface GQLUser {
   readmeHtml?: string;
   experienceLevel?: string | null;
   language?: ContentLanguage | null;
+  topReader?: GQLUserTopReader;
 }
 
 export interface GQLView {
@@ -411,6 +412,11 @@ export const typeDefs = /* GraphQL */ `
     Content preference in regards to current user
     """
     contentPreference: ContentPreference
+
+    """
+    Returns the latest top reader badge for the user
+    """
+    topReader: UserTopReader
   }
 
   """
