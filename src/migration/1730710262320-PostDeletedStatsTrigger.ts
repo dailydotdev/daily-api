@@ -29,7 +29,7 @@ export class PostDeletedStatsTrigger1730710262320
         CREATE TRIGGER update_source_stats_on_delete
         AFTER UPDATE ON "post"
         FOR EACH ROW
-        WHEN (NEW.deleted <> OLD.deleted)
+        WHEN (NEW.deleted <> OLD.deleted AND NEW.deleted IS TRUE)
         EXECUTE PROCEDURE update_source_stats_on_delete();
       `,
     );
