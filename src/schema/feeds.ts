@@ -1459,7 +1459,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       (ctx, args, page, builder, alias) =>
         applyFeedPagingWithPin(ctx, page, builder, alias),
       {
-        removeHiddenPosts: true,
+        removeHiddenPosts: false,
         removeBannedPosts: false,
         removeNonPublicThresholdSquads: false,
         fetchQueryParams: async (
