@@ -167,6 +167,16 @@ const obj = new GraphORM({
         },
         transform: nullIfNotLoggedIn,
       },
+      topReader: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}."userId" = ${parentAlias}.id`)
+              .orderBy(`${childAlias}."issuedAt"`, 'DESC')
+              .limit(1),
+        },
+      },
     },
   },
   UserCompany: {
