@@ -16,7 +16,7 @@ import {
   Feature,
   FeatureType,
   SettingsFlagsPublic,
-  UserTopReader,
+  UserStats,
 } from '../entity';
 import {
   SourceMemberRoles,
@@ -217,10 +217,9 @@ const obj = new GraphORM({
       total: {
         select: (_, alias, qb) =>
           qb
-            .select('COALESCE(COUNT(*), 0)')
-            .from(UserTopReader, 'utp')
-            .where(`utp."userId" = ${alias}."userId"`)
-            .groupBy('utp."userId"'),
+            .select('us."topReaderBadges"')
+            .from(UserStats, 'us')
+            .where(`us."id" = ${alias}."userId"`),
       },
     },
   },
