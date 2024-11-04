@@ -56,7 +56,7 @@
     "@opentelemetry/instrumentation-fastify": "^0.41.0",
     "@opentelemetry/instrumentation-graphql": "^0.44.0",
     "@opentelemetry/instrumentation-grpc": "^0.54.0",
-    "@opentelemetry/instrumentation-http": "^0.54.0",
+    "@opentelemetry/instrumentation-http": "0.53.0",
     "@opentelemetry/instrumentation-ioredis": "^0.44.0",
     "@opentelemetry/instrumentation-pg": "^0.47.0",
     "@opentelemetry/instrumentation-pino": "^0.43.0",

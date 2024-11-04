@@ -15,6 +15,7 @@ import {
   UserPersonalizedDigestSendType,
   Feature,
   FeatureType,
+  SettingsFlagsPublic,
 } from '../entity';
 import {
   SourceMemberRoles,
@@ -34,6 +35,7 @@ import { whereVordrFilter } from '../common/vordr';
 import { UserCompany } from '../entity/UserCompany';
 import { Post } from '../entity/posts/Post';
 import { ContentPreferenceType } from '../entity/contentPreference/types';
+import { transformSettingFlags } from '../common/flags';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -165,6 +167,16 @@ const obj = new GraphORM({
         },
         transform: nullIfNotLoggedIn,
       },
+      topReader: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}."userId" = ${parentAlias}.id`)
+              .orderBy(`${childAlias}."issuedAt"`, 'DESC')
+              .limit(1),
+        },
+      },
     },
   },
   UserCompany: {
@@ -181,6 +193,24 @@ const obj = new GraphORM({
           isMany: false,
           childColumn: 'id',
           parentColumn: 'companyId',
+        },
+      },
+    },
+  },
+  UserTopReader: {
+    fields: {
+      keyword: {
+        relation: {
+          isMany: false,
+          childColumn: 'value',
+          parentColumn: 'keywordValue',
+        },
+      },
+      user: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'userId',
         },
       },
     },
@@ -646,6 +676,16 @@ const obj = new GraphORM({
   ReadingHistory: {
     from: 'ActiveView',
     metadataFrom: 'View',
+  },
+  Settings: {
+    fields: {
+      flags: {
+        jsonType: true,
+        transform: (value: SettingsFlagsPublic): SettingsFlagsPublic => {
+          return transformSettingFlags({ flags: value });
+        },
+      },
+    },
   },
   AdvancedSettings: {
     fields: {
