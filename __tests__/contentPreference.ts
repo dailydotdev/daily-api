@@ -44,6 +44,14 @@ jest.mock('../src/common/mailing.ts', () => ({
   sendEmail: jest.fn(),
 }));
 
+jest.mock('../src/common/constants.ts', () => ({
+  ...(jest.requireActual('../src/common/constants.ts') as Record<
+    string,
+    unknown
+  >),
+  MAX_FOLLOWERS_LIMIT: 10,
+}));
+
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
@@ -88,30 +96,36 @@ describe('query userFollowers', () => {
       }),
     );
 
+    const now = new Date();
+
     await con.getRepository(ContentPreferenceUser).save([
       {
         userId: '2-ufq',
         referenceId: '1-ufq',
         referenceUserId: '1-ufq',
         status: ContentPreferenceStatus.Follow,
+        createdAt: new Date(now.getTime() - 1000),
       },
       {
         userId: '3-ufq',
         referenceId: '1-ufq',
         referenceUserId: '1-ufq',
         status: ContentPreferenceStatus.Subscribed,
+        createdAt: new Date(now.getTime() - 2000),
       },
       {
         userId: '1-ufq',
         referenceId: '2-ufq',
         referenceUserId: '2-ufq',
         status: ContentPreferenceStatus.Follow,
+        createdAt: new Date(now.getTime() - 3000),
       },
       {
         userId: '4-ufq',
         referenceId: '1-ufq',
         referenceUserId: '1-ufq',
         status: ContentPreferenceStatus.Follow,
+        createdAt: new Date(now.getTime() - 4000),
       },
     ]);
   });
@@ -210,30 +224,36 @@ describe('query userFollowing', () => {
       }),
     );
 
+    const now = new Date();
+
     await con.getRepository(ContentPreferenceUser).save([
       {
         userId: '1-ufwq',
         referenceId: '2-ufwq',
         referenceUserId: '2-ufwq',
         status: ContentPreferenceStatus.Follow,
+        createdAt: new Date(now.getTime() - 1000),
       },
       {
         userId: '1-ufwq',
         referenceId: '3-ufwq',
         referenceUserId: '3-ufwq',
         status: ContentPreferenceStatus.Subscribed,
+        createdAt: new Date(now.getTime() - 2000),
       },
       {
         userId: '2-ufwq',
         referenceId: '1-ufwq',
         referenceUserId: '1-ufwq',
         status: ContentPreferenceStatus.Follow,
+        createdAt: new Date(now.getTime() - 3000),
       },
       {
         userId: '1-ufwq',
         referenceId: '4-ufwq',
         referenceUserId: '4-ufwq',
         status: ContentPreferenceStatus.Follow,
+        createdAt: new Date(now.getTime() - 4000),
       },
     ]);
   });
@@ -674,6 +694,60 @@ describe('mutation follow', () => {
       expect(feedSource).not.toBeNull();
       expect(feedSource!.blocked).toBe(false);
     });
+  });
+
+  it('should not follow user if limit is reached', async () => {
+    loggedUser = '1-fm';
+
+    await saveFixtures(
+      con,
+      User,
+      new Array(15).fill(null).map((item, index) => {
+        return {
+          id: `${index}-fml`,
+          username: `${index}-fml`,
+          email: `fml${index}@daily.dev`,
+        };
+      }),
+    );
+
+    await con.getRepository(ContentPreferenceUser).save([
+      ...new Array(5).fill(null).map((item, index) => {
+        const id = index;
+
+        return {
+          userId: '1-fm',
+          referenceId: `${id}-fml`,
+          referenceUserId: `${id}-fml`,
+          status: ContentPreferenceStatus.Follow,
+          type: ContentPreferenceType.User,
+        };
+      }),
+      ...new Array(5).fill(null).map((item, index) => {
+        const id = index + 5;
+
+        return {
+          userId: '1-fm',
+          referenceId: `${id}-fml`,
+          referenceUserId: `${id}-fml`,
+          status: ContentPreferenceStatus.Subscribed,
+          type: ContentPreferenceType.User,
+        };
+      }),
+    ]);
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '2-fm',
+          entity: ContentPreferenceType.User,
+          status: ContentPreferenceStatus.Follow,
+        },
+      },
+      'CONFLICT',
+    );
   });
 });
 

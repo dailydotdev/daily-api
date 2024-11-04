@@ -169,12 +169,12 @@ const obj = new GraphORM({
       },
       topReader: {
         relation: {
-          isMany: true,
+          isMany: false,
           customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
             qb
               .where(`${childAlias}."userId" = ${parentAlias}.id`)
               .orderBy(`${childAlias}."issuedAt"`, 'DESC')
-              .limit(5),
+              .limit(1),
         },
       },
     },

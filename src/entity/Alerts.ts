@@ -60,6 +60,9 @@ export class Alerts {
 
   bootPopup?: boolean;
 
+  @Column({ type: 'bool', default: false })
+  showTopReader?: boolean;
+
   @OneToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
@@ -83,4 +86,5 @@ export const ALERTS_DEFAULT: Omit<Alerts, 'userId' | 'flags' | 'user'> = {
   lastBootPopup: null,
   bootPopup: false,
   showRecoverStreak: false,
+  showTopReader: false,
 };
