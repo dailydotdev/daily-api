@@ -24,6 +24,7 @@ export enum CioUnsubscribeTopic {
 
 export enum CioTransactionalMessageTemplateId {
   VerifyCompany = '51',
+  UserGivenTopReader = '52',
 }
 
 export const cioApi = new APIClient(process.env.CIO_APP_KEY);

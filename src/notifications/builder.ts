@@ -14,8 +14,10 @@ import {
   SquadPublicRequest,
   Submission,
   User,
+  type UserTopReader,
 } from '../entity';
 import {
+  defaultImage,
   getDiscussionLink,
   getSourceLink,
   getUserPermalink,
@@ -26,6 +28,7 @@ import {
   NotificationBundleV2,
   NotificationStreakContext,
   Reference,
+  type NotificationUserTopReaderContext,
 } from './types';
 import { NotificationIcon } from './icons';
 import { SourceMemberRoles } from '../roles';
@@ -151,6 +154,15 @@ export class NotificationBuilder {
     });
   }
 
+  referenceUserTopReader(
+    userTopReader: Reference<UserTopReader>,
+  ): NotificationBuilder {
+    return this.enrichNotification({
+      referenceId: userTopReader.id,
+      referenceType: 'user_top_reader',
+    });
+  }
+
   icon(icon: NotificationIcon): NotificationBuilder {
     return this.enrichNotification({ icon });
   }
@@ -264,6 +276,19 @@ export class NotificationBuilder {
       }),
     );
     this.avatars = this.avatars.concat(newAvatars);
+    return this;
+  }
+
+  avatarTopReaderBadge(
+    ctx: NotificationUserTopReaderContext,
+  ): NotificationBuilder {
+    this.avatars.push({
+      type: 'top_reader_badge',
+      name: ctx.keyword.flags.title,
+      targetUrl: '',
+      referenceId: ctx.userTopReader.id,
+      image: defaultImage.placeholder,
+    });
     return this;
   }
 
