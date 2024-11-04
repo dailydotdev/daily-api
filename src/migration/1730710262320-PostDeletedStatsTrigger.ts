@@ -6,6 +6,24 @@ export class PostDeletedStatsTrigger1730710262320
   name = 'PostDeletedStatsTrigger1730710262320';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `
+        CREATE OR REPLACE TRIGGER increment_source_views_count
+        AFTER UPDATE ON "post"
+        FOR EACH ROW
+        WHEN (NEW.views > OLD.views AND NEW.deleted IS FALSE)
+        EXECUTE PROCEDURE increment_source_views_count()
+      `,
+    );
+    await queryRunner.query(
+      `
+        CREATE OR REPLACE TRIGGER update_source_upvotes_count
+        AFTER UPDATE ON "post"
+        FOR EACH ROW
+        WHEN (NEW.upvotes <> OLD.upvotes AND NEW.deleted IS FALSE)
+        EXECUTE PROCEDURE update_source_upvotes_count()
+      `,
+    );
     await queryRunner.query(`
       CREATE OR REPLACE FUNCTION update_source_stats_on_delete()
       RETURNS TRIGGER AS $$
@@ -41,6 +59,24 @@ export class PostDeletedStatsTrigger1730710262320
     );
     await queryRunner.query(
       'DROP FUNCTION IF EXISTS update_source_stats_on_delete',
+    );
+    await queryRunner.query(
+      `
+        CREATE OR REPLACE TRIGGER increment_squad_views_count
+        AFTER UPDATE ON "post"
+        FOR EACH ROW
+        WHEN (NEW.views > OLD.views)
+        EXECUTE PROCEDURE increment_squad_views_count()
+      `,
+    );
+    await queryRunner.query(
+      `
+        CREATE TRIGGER update_squad_upvotes_count
+        AFTER UPDATE ON "post"
+        FOR EACH ROW
+        WHEN (NEW.upvotes <> OLD.upvotes)
+        EXECUTE PROCEDURE update_squad_upvotes_count()
+      `,
     );
   }
 }

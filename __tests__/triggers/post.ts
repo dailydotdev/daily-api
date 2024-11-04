@@ -75,6 +75,19 @@ describe('trigger increment_source_views_count', () => {
     expect(updatedSource.flags.totalViews).toEqual(1);
   });
 
+  it('should not update source total views when post is deleted', async () => {
+    const repo = con.getRepository(Source);
+    const source = await repo.findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalViews).toEqual(undefined);
+
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { views: 1, deleted: true });
+
+    const updatedSource = await repo.findOneByOrFail({ id: 'a' });
+    expect(updatedSource.flags.totalViews).toEqual(0);
+  });
+
   it('should update squad total views', async () => {
     const repo = con.getRepository(Source);
     await repo.update({ id: 'a' }, { type: SourceType.Squad });
