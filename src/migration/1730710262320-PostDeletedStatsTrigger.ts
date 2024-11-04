@@ -71,7 +71,7 @@ export class PostDeletedStatsTrigger1730710262320
     );
     await queryRunner.query(
       `
-        CREATE TRIGGER update_source_upvotes_count
+        CREATE OR REPLACE TRIGGER update_source_upvotes_count
         AFTER UPDATE ON "post"
         FOR EACH ROW
         WHEN (NEW.upvotes <> OLD.upvotes)
