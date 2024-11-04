@@ -165,3 +165,43 @@ describe('trigger post_stats_updated_at_update_trigger', () => {
     );
   });
 });
+
+describe('trigger update_source_stats_on_delete', () => {
+  it('should update source stats when post is deleted', async () => {
+    const repo = con.getRepository(Source);
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { views: 100, upvotes: 5 });
+
+    const source = await repo.findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalViews).toEqual(100);
+    expect(source.flags.totalUpvotes).toEqual(5);
+    expect(source.flags.totalPosts).toEqual(2);
+
+    await con.getRepository(Post).update({ id: 'p1' }, { deleted: true });
+
+    const updatedSource = await repo.findOneByOrFail({ id: 'a' });
+    expect(updatedSource.flags.totalViews).toEqual(0);
+    expect(updatedSource.flags.totalUpvotes).toEqual(0);
+    expect(updatedSource.flags.totalPosts).toEqual(1);
+  });
+
+  it('should not do anything if deleted was not updated', async () => {
+    const repo = con.getRepository(Source);
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { views: 100, upvotes: 5 });
+
+    const source = await repo.findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalViews).toEqual(100);
+    expect(source.flags.totalUpvotes).toEqual(5);
+    expect(source.flags.totalPosts).toEqual(2);
+
+    await con.getRepository(Post).update({ id: 'p1' }, { title: 'hello' });
+
+    const updatedSource = await repo.findOneByOrFail({ id: 'a' });
+    expect(updatedSource.flags.totalViews).toEqual(100);
+    expect(updatedSource.flags.totalUpvotes).toEqual(5);
+    expect(updatedSource.flags.totalPosts).toEqual(2);
+  });
+});
