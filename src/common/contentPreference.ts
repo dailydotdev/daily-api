@@ -4,8 +4,11 @@ import {
   ContentPreferenceType,
 } from '../entity/contentPreference/types';
 import { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
-import { NotificationType } from '../notifications/common';
-import { EntityManager, EntityTarget, In } from 'typeorm';
+import {
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../notifications/common';
+import { EntityManager, EntityTarget, In, Not } from 'typeorm';
 import { ConflictError } from '../errors';
 import { ContentPreferenceFeedKeyword } from '../entity/contentPreference/ContentPreferenceFeedKeyword';
 import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
@@ -91,6 +94,7 @@ export const cleanContentNotificationPreference = async ({
     userId,
     referenceId: id,
     notificationType: In(notificationTypes),
+    status: Not(NotificationPreferenceStatus.Muted),
   });
 };
 

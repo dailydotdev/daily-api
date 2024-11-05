@@ -948,6 +948,47 @@ describe('mutation unfollow', () => {
     expect(notificationPreferences).toHaveLength(0);
   });
 
+  it('should not remove muted notification preferences', async () => {
+    loggedUser = '1-um';
+
+    await con.getRepository(NotificationPreferenceUser).save([
+      {
+        userId: '1-um',
+        referenceUserId: '2-um',
+        referenceId: '2-um',
+        status: NotificationPreferenceStatus.Muted,
+        notificationType: NotificationType.UserPostAdded,
+      },
+    ]);
+
+    const res = await client.query(MUTATION, {
+      variables: {
+        id: '2-um',
+        entity: ContentPreferenceType.User,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceUser)
+      .findOneBy({
+        userId: '1-um',
+        referenceId: '2-um',
+      });
+
+    expect(contentPreference).toBeNull();
+
+    const notificationPreferences = await con
+      .getRepository(NotificationPreferenceUser)
+      .findBy({
+        userId: '1-um',
+        referenceUserId: '2-um',
+      });
+
+    expect(notificationPreferences).toHaveLength(1);
+  });
+
   describe('keyword', () => {
     beforeEach(async () => {
       await saveFixtures(con, Keyword, [
