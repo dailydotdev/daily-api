@@ -45,6 +45,7 @@ import { toGQLEnum } from '../common/utils';
 import { GraphQLResolveInfo } from 'graphql';
 import {
   SourcePermissionErrorKeys,
+  SourceRequestErrorMessage,
   TypeOrmError,
   TypeORMQueryFailedError,
 } from '../errors';
@@ -815,6 +816,7 @@ export enum SourcePermissions {
   Delete = 'delete',
   Edit = 'edit',
   ConnectSlack = 'connect_slack',
+  ModeratePost = 'moderate_post',
 }
 
 const memberPermissions = [
@@ -833,6 +835,7 @@ const moderatorPermissions = [
   SourcePermissions.MemberUnblock,
   SourcePermissions.ViewBlockedMembers,
   SourcePermissions.WelcomePostEdit,
+  SourcePermissions.ModeratePost,
 ];
 const adminPermissions = [
   ...moderatorPermissions,
@@ -929,13 +932,13 @@ export const isPrivilegedMember = async (
   ctx: Context,
   sourceId: string,
 ): Promise<boolean> => {
-  if (!sourceId) return false;
-  const sourceMember = ctx.userId
-    ? await ctx.con
-        .getRepository(SourceMember)
-        .findOneBy({ sourceId: sourceId, userId: ctx.userId })
-    : null;
-  if (!sourceMember) return false;
+  const sourceMember = await ctx.con
+    .getRepository(SourceMember)
+    .findOneBy({ sourceId: sourceId, userId: ctx.userId });
+
+  if (!sourceMember)
+    throw new ForbiddenError(SourceRequestErrorMessage.ACCESS_DENIED);
+
   return sourceRoleRank[sourceMember.role] >= sourceRoleRank.moderator;
 };
 

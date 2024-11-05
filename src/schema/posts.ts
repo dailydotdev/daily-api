@@ -1229,7 +1229,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: Context,
       info,
     ): Promise<GQLSourcePostModeration> => {
-      await ensureSourcePermissions(ctx, sourceId);
+      await ensureSourcePermissions(
+        ctx,
+        sourceId,
+        SourcePermissions.ModeratePost,
+      );
 
       return graphorm.queryOneOrFail<GQLSourcePostModeration>(
         ctx,

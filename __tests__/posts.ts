@@ -3390,8 +3390,19 @@ describe('query sourcePostModeration', () => {
   }
 }`;
 
-  it('should retrieve post', async () => {
+  it('should not retrieve post because user is not moderator', async () => {
     loggedUser = '4';
+    return testQueryErrorCode(
+      client,
+      {
+        query: queryOne,
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should retrieve post because user is moderator', async () => {
+    loggedUser = '3';
 
     const res = await client.query(queryOne, { variables: { id: 1 } });
     expect(res.errors).toBeUndefined();
@@ -3434,13 +3445,17 @@ describe('query sourcePostModeration', () => {
     expect(res.data.sourcePostModerations.edges.length).toEqual(3);
   });
 
-  it('should not return any items because the user is neither a moderator, nor has any pending approvals', async () => {
+  it('should not have access because user is not member of source', async () => {
     loggedUser = '2';
-    const res = await client.query(queryAllForSource, {
-      variables: { sourceId: 'm' },
-    });
-    expect(res.errors).toBeUndefined();
-    expect(res.data.sourcePostModerations.length).toBeUndefined();
+
+    return testQueryErrorCode(
+      client,
+      {
+        query: queryAllForSource,
+        variables: { sourceId: 'm' },
+      },
+      'FORBIDDEN',
+    );
   });
 });
 
