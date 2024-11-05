@@ -925,6 +925,20 @@ export const canAccessSource = async (
   return hasPermissionCheck(source, member, permission, validateRankAgainst);
 };
 
+export const isPrivilegedMember = async (
+  ctx: Context,
+  sourceId: string,
+): Promise<boolean> => {
+  if (!sourceId) return false;
+  const sourceMember = ctx.userId
+    ? await ctx.con
+        .getRepository(SourceMember)
+        .findOneBy({ sourceId: sourceId, userId: ctx.userId })
+    : null;
+  if (!sourceMember) return false;
+  return sourceRoleRank[sourceMember.role] >= sourceRoleRank.moderator;
+};
+
 export const canPostToSquad = (
   ctx: Context,
   squad: SquadSource,

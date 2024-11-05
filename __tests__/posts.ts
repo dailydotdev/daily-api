@@ -75,6 +75,10 @@ import {
 } from '../src/directive/rateLimit';
 import { badUsersFixture } from './fixture/user';
 import { PostCodeSnippet } from '../src/entity/posts/PostCodeSnippet';
+import {
+  SourcePostModeration,
+  SourcePostModerationStatus,
+} from '../src/entity/SourcePostModeration';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -117,6 +121,25 @@ beforeEach(async () => {
     name: 'Lee',
     image: 'https://daily.dev/lee.jpg',
   });
+  await con.getRepository(User).save([
+    {
+      id: '2',
+      name: 'Lee',
+      image: 'https://daily.dev/lee.jpg',
+    },
+    {
+      id: '3',
+      name: 'Amar',
+    },
+    {
+      id: '4',
+      name: 'John Doe',
+    },
+    {
+      id: '5',
+      name: 'Joanna Deer',
+    },
+  ]);
   await deleteKeysByPattern(`${rateLimiterName}:*`);
   await deleteKeysByPattern(`${highRateLimiterName}:*`);
 });
@@ -125,6 +148,9 @@ const saveSquadFixtures = async () => {
   await con
     .getRepository(Source)
     .update({ id: 'a' }, { type: SourceType.Squad });
+  await con
+    .getRepository(SquadSource)
+    .update({ id: 'm' }, { type: SourceType.Squad, moderationRequired: true });
   await con
     .getRepository(Post)
     .update(
@@ -141,6 +167,24 @@ const saveSquadFixtures = async () => {
     {
       userId: '2',
       sourceId: 'a',
+      role: SourceMemberRoles.Member,
+      referralToken: randomUUID(),
+    },
+    {
+      userId: '3',
+      sourceId: 'm',
+      role: SourceMemberRoles.Moderator,
+      referralToken: randomUUID(),
+    },
+    {
+      userId: '4',
+      sourceId: 'm',
+      role: SourceMemberRoles.Member,
+      referralToken: randomUUID(),
+    },
+    {
+      userId: '5',
+      sourceId: 'm',
       role: SourceMemberRoles.Member,
       referralToken: randomUUID(),
     },
@@ -3123,7 +3167,7 @@ describe('mutation createFreeformPost', () => {
   it('should not allow mention outside of squad as part of the content being a freeform post', async () => {
     loggedUser = '1';
     const content = 'Test @sample';
-    await con.getRepository(User).update({ id: '5' }, { username: 'sample' });
+    await con.getRepository(User).update({ id: '9' }, { username: 'sample' });
     const post = await setupMention({ content });
     const mention = await con
       .getRepository(PostMention)
@@ -3270,6 +3314,133 @@ describe('mutation createFreeformPost', () => {
 
       expect(post.flags.vordr).toEqual(true);
     });
+  });
+});
+
+describe('query sourcePostModeration', () => {
+  beforeEach(async () => {
+    await saveSquadFixtures();
+    await con.getRepository(SourcePostModeration).save([
+      {
+        id: '1',
+        createdById: '4',
+        sourceId: 'm',
+        title: 'My First Moderated Post',
+        type: PostType.Freeform,
+        status: SourcePostModerationStatus.Pending,
+        content: 'Hello World',
+      },
+      {
+        id: '2',
+        sourceId: 'm',
+        createdById: '4',
+        title: 'My Second Moderated Post',
+        type: PostType.Share,
+        sharedPostId: 'p1',
+        status: SourcePostModerationStatus.Pending,
+        content: 'Hello World',
+      },
+      {
+        id: '3',
+        sourceId: 'm',
+        createdById: '5',
+        title: 'My Third Moderated Post',
+        type: PostType.Freeform,
+        status: SourcePostModerationStatus.Pending,
+        content: 'Hello World',
+      },
+      {
+        id: '4',
+        sourceId: 'm',
+        createdById: '5',
+        title: 'Rejected Post',
+        type: PostType.Freeform,
+        status: SourcePostModerationStatus.Rejected,
+        content: 'Hello World',
+      },
+      {
+        id: '5',
+        sourceId: 'm',
+        createdById: '5',
+        title: 'Approved Post',
+        type: PostType.Freeform,
+        status: SourcePostModerationStatus.Approved,
+        content: 'Hello World',
+      },
+    ]);
+  });
+
+  const queryOne = `{
+  sourcePostModeration(id: "1", sourceId: "m") {
+    id
+    title
+    type
+  }
+}`;
+
+  const queryAllForSource = `query sourcePostModerations($sourceId: ID!, $status: [String]) {
+  sourcePostModerations(sourceId: $sourceId, status: $status) {
+    edges {
+      node {
+        id
+        title
+        type
+      }
+    }
+  }
+}`;
+
+  it('should retrieve post', async () => {
+    loggedUser = '4';
+
+    const res = await client.query(queryOne, { variables: { id: 1 } });
+    expect(res.errors).toBeUndefined();
+    expect(res.data).toEqual({
+      sourcePostModeration: {
+        id: '1',
+        title: 'My First Moderated Post',
+        type: 'freeform',
+      },
+    });
+  });
+
+  it('should return all the moderation items from sourcePostModerations because user is moderator', async () => {
+    loggedUser = '3';
+
+    const res = await client.query(queryAllForSource, {
+      variables: { sourceId: 'm' },
+    });
+    expect(res.errors).toBeUndefined();
+    expect(res.data.sourcePostModerations.edges.length).toEqual(5);
+  });
+
+  it('should return only approved and rejected items', async () => {
+    loggedUser = '3';
+
+    const res = await client.query(queryAllForSource, {
+      variables: { sourceId: 'm', status: ['approved', 'rejected'] },
+    });
+    expect(res.errors).toBeUndefined();
+    expect(res.data.sourcePostModerations.edges.length).toEqual(2);
+  });
+
+  it('should return only the users moderation items because user is not moderator', async () => {
+    loggedUser = '5';
+
+    const res = await client.query(queryAllForSource, {
+      variables: { sourceId: 'm' },
+    });
+    expect(res.errors).toBeUndefined();
+    expect(res.data.sourcePostModerations.edges.length).toEqual(3);
+  });
+
+  it('should not return any items because the user is neither a moderator, nor has any pending approvals', async () => {
+    loggedUser = '2';
+    const res = await client.query(queryAllForSource, {
+      variables: { sourceId: 'm' },
+    });
+    expect(res.errors).toBeUndefined();
+    expect(res.data.sourcePostModerations.length).toBeUndefined();
   });
 });
 
@@ -4115,7 +4286,7 @@ describe('mutation vote post', () => {
   });
 
   it('should throw not found when cannot find user', () => {
-    loggedUser = '3';
+    loggedUser = '9';
     return testMutationErrorCode(
       client,
       {
@@ -4644,7 +4815,7 @@ describe('mutation dismissPostFeedback', () => {
   });
 
   it('should throw not found when cannot find user', () => {
-    loggedUser = '3';
+    loggedUser = '9';
     return testMutationErrorCode(
       client,
       {
