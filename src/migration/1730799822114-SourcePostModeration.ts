@@ -1,11 +1,11 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class SourcePostModeration1730750067987 implements MigrationInterface {
-  name = 'SourcePostModeration1730750067987';
+export class SourcePostModeration1730799822114 implements MigrationInterface {
+  name = 'SourcePostModeration1730799822114';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `CREATE TABLE "source_post_moderation" ("id" text NOT NULL, "sourceId" text NOT NULL, "status" text NOT NULL, "createdById" character varying, "moderatedById" character varying, "moderatorMessage" text, "rejectionReason" text, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), "postId" text, "type" text NOT NULL, "title" text, "titleHtml" text, "content" text, "contentHtml" text, "image" text, "sharedPostId" text, "externalLinkUrl" text, CONSTRAINT "PK_5198be0eb3f1ebe81e75ee07865" PRIMARY KEY ("id"))`,
+      `CREATE TABLE "source_post_moderation" ("id" SERIAL NOT NULL, "sourceId" text NOT NULL, "status" text NOT NULL, "createdById" character varying, "moderatedById" character varying, "moderatorMessage" text, "rejectionReason" text, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), "postId" text, "type" text NOT NULL, "title" text, "titleHtml" text, "content" text, "contentHtml" text, "image" text, "sharedPostId" text, "externalLink" text, CONSTRAINT "PK_5198be0eb3f1ebe81e75ee07865" PRIMARY KEY ("id"))`,
     );
     await queryRunner.query(
       `ALTER TABLE "source_post_moderation" ADD CONSTRAINT "FK_532c94738c6b1334e4bc27c41cf" FOREIGN KEY ("sourceId") REFERENCES "source"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,

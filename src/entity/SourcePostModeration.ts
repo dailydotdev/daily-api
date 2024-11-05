@@ -3,10 +3,10 @@ import {
   CreateDateColumn,
   Entity,
   ManyToOne,
-  PrimaryColumn,
+  PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Post } from './posts';
+import { Post, PostType } from './posts';
 import { Source } from './Source';
 import { User } from './user';
 
@@ -18,7 +18,7 @@ export enum SourcePostModerationStatus {
 
 @Entity()
 export class SourcePostModeration {
-  @PrimaryColumn({ type: 'text' })
+  @PrimaryGeneratedColumn()
   id: string;
 
   @Column({ type: 'text' })
@@ -73,7 +73,7 @@ export class SourcePostModeration {
   post: Promise<Post>;
 
   @Column({ type: 'text' })
-  type: string;
+  type: PostType;
 
   @Column({ type: 'text', nullable: true })
   title?: string | null;
@@ -88,7 +88,7 @@ export class SourcePostModeration {
   contentHtml: string | null;
 
   @Column({ type: 'text', nullable: true })
-  image: string | null;
+  image?: string | null;
 
   @Column({ type: 'text', nullable: true })
   sharedPostId?: string | null;
@@ -97,8 +97,8 @@ export class SourcePostModeration {
     lazy: true,
     onDelete: 'CASCADE',
   })
-  sharedPost: Promise<Post>;
+  sharedPost?: Promise<Post>;
 
   @Column({ type: 'text', nullable: true })
-  externalLinkUrl?: string | null;
+  externalLink?: string | null;
 }
