@@ -115,7 +115,6 @@ Object {
         "member_unblock",
         "view_blocked_members",
         "welcome_post_edit",
-        "moderate_post",
         "member_role_update",
         "post_limit",
         "delete",
