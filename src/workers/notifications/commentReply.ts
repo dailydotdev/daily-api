@@ -37,33 +37,29 @@ const worker: NotificationWorker = {
     if (!postCtx) {
       return;
     }
-    const [parent, commenter, mutes] = await Promise.all([
+    const [parent, commenter] = await Promise.all([
       comment.parent,
       comment.user,
-      con.getRepository(NotificationPreferenceComment).findBy({
-        referenceId: comment.id,
-        notificationType: In(commentReplyNotificationTypes),
-      }),
     ]);
-    const threadFollowers = await con
-      .getRepository(Comment)
-      .createQueryBuilder()
-      .select('"userId"')
-      .distinct(true)
-      .where('"parentId" = :parentId', { parentId: parent.id })
-      .andWhere('"userId" not in (:...exclude)', {
-        exclude: [parent.userId, comment.userId],
-      })
-      .getRawMany();
+
+    const mutes = await con
+      .getRepository(NotificationPreferenceComment)
+      .findBy({
+        referenceId: In([comment.id, parent.id]),
+        notificationType: In(commentReplyNotificationTypes),
+      });
+
     const ctx: Omit<NotificationCommenterContext, 'userIds'> = {
       ...postCtx,
       comment,
       commenter,
     };
-    const userIds = threadFollowers.map(({ userId }) => userId);
+    const userIds = [];
     if (comment.userId !== parent.userId) {
       userIds.push(parent.userId);
     }
+
+    console.log('mutes', mutes, userIds);
     const type =
       ctx.source.type === SourceType.Squad
         ? NotificationType.SquadReply

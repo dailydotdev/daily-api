@@ -27,6 +27,7 @@ import {
   postNewCommentNotificationTypes,
   notificationPreferenceMap,
   getUnreadNotificationsCount,
+  commentReplyNotificationTypes,
 } from '../notifications/common';
 import { ValidationError } from 'apollo-server-errors';
 
@@ -419,6 +420,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         comments.forEach(({ id, postId }) => {
           const param = params.find(({ referenceId }) => referenceId === id);
           param!.referenceId = postId;
+        });
+      }
+
+      const newCommentComments = data.filter(({ notificationType }) =>
+        commentReplyNotificationTypes.includes(notificationType),
+      );
+      if (newCommentComments.length) {
+        const commentIds = newCommentComments.map(
+          ({ referenceId }) => referenceId,
+        );
+        const commentComments = await ctx
+          .getRepository(Comment)
+          .find({ select: ['id', 'parentId'], where: { id: In(commentIds) } });
+        commentComments.forEach(({ id, parentId }) => {
+          const param = params.find(({ referenceId }) => referenceId === id);
+          param!.referenceId = parentId || id;
         });
       }
 
