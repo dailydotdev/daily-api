@@ -26,13 +26,14 @@ import createOrGetConnection from '../src/db';
   await con.transaction(async (manager) => {
     await manager.query(`
       INSERT INTO content_preference ("userId", "referenceId", "type", "createdAt", "status", "sourceId", "flags")
-      SELECT sm."userId", sm."sourceId", 'source', NOW(), CASE WHEN sm."role" = 'blocked' THEN 'blocked' ELSE 'subscribed' END, sm."sourceId", jsonb_build_object('role', sm."role", 'referralToken', sm."referralToken")
+      SELECT sm."userId", sm."sourceId", 'source', sm."createdAt", CASE WHEN sm."role" = 'blocked' THEN 'blocked' ELSE 'subscribed' END, sm."sourceId", jsonb_build_object('role', sm."role", 'referralToken', sm."referralToken")
       FROM source_member sm
       LIMIT ${limit} OFFSET ${offset}
       ON CONFLICT ("referenceId", "userId") DO UPDATE
       SET
         status = EXCLUDED.status,
-        flags = content_preference.flags || EXCLUDED.flags
+        flags = content_preference.flags || EXCLUDED.flags,
+        "createdAt" = EXCLUDED."createdAt"
     `);
   });
 
