@@ -1,7 +1,7 @@
 import appFunc from '../src';
 import { FastifyInstance } from 'fastify';
 import { saveFixtures } from './helpers';
-import { Source, User, UserPersonalizedDigest } from '../src/entity';
+import { Feed, Source, User, UserPersonalizedDigest } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import request from 'supertest';
 import { usersFixture } from './fixture/user';
@@ -589,6 +589,38 @@ describe('POST /p/newUser', () => {
       .expect(200);
 
     expect(body).toEqual({ status: 'failed', reason: 'MISSING_FIELDS' });
+  });
+
+  it('should add feed for the new user', async () => {
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: usersFixture[0].username,
+        email: usersFixture[0].email.toUpperCase(),
+        experienceLevel: 'LESS_THAN_1_YEAR',
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
+
+    const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
+    expect(users.length).toEqual(2);
+    expect(users[0].id).toEqual(usersFixture[0].id);
+    expect(users[0].email).toEqual(usersFixture[0].email);
+    expect(users[0].infoConfirmed).toBeTruthy();
+    expect(users[0].createdAt).not.toBeNull();
+
+    const feed = await con
+      .getRepository(Feed)
+      .findOneBy({ id: usersFixture[0].id });
+    expect(feed).not.toBeNull();
+    expect(feed!.id).toEqual(usersFixture[0].id);
+    expect(feed!.userId).toEqual(usersFixture[0].id);
   });
 });
 
