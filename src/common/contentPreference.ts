@@ -55,6 +55,7 @@ export const entityToNotificationTypeMap: Record<
   [ContentPreferenceType.Source]: [
     NotificationType.SourcePostAdded,
     NotificationType.SquadPostAdded,
+    NotificationType.SquadMemberJoined,
   ],
 };
 
