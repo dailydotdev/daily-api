@@ -19,12 +19,14 @@ import {
   SquadPublicRequest,
   Submission,
   User,
+  UserTopReader,
   WelcomePost,
 } from '../entity';
 import {
   addNotificationEmailUtm,
   baseNotificationEmailData,
   basicHtmlStrip,
+  CioTransactionalMessageTemplateId,
   formatMailDate,
   pickImageUrl,
   sendEmail,
@@ -81,6 +83,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   streak_reset_restore: '',
   squad_featured: '56',
   user_post_added: '58',
+  user_given_top_reader: CioTransactionalMessageTemplateId.UserGivenTopReader,
 };
 
 type TemplateData = Record<string, string | number>;
@@ -704,6 +707,18 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       post_title: truncatePostToTweet(post),
       full_name: avatar.name,
       profile_image: avatar.image,
+    };
+  },
+  user_given_top_reader: async (con, user, notification) => {
+    const userTopReader = await con
+      .getRepository(UserTopReader)
+      .findOneByOrFail({
+        userId: user.id,
+        id: notification.referenceId,
+      });
+
+    return {
+      topReader: userTopReader.image,
     };
   },
 };

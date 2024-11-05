@@ -24,6 +24,7 @@ import {
   NotificationSubmissionContext,
   NotificationUpvotersContext,
   NotificationUserContext,
+  type NotificationUserTopReaderContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
@@ -127,12 +128,27 @@ export const notificationTitleMap: Record<
 
     return `New post from <b>${userName}</b>, check it out now!`;
   },
+  user_given_top_reader: (ctx: NotificationUserTopReaderContext) => {
+    const keyword = ctx.keyword.flags.title;
+    return `Great news! You earned the top reader badge in ${keyword}.`;
+  },
 };
 
 export const generateNotificationMap: Record<
   NotificationType,
   (builder: NotificationBuilder, ctx: never) => NotificationBuilder
 > = {
+  user_given_top_reader: (builder, ctx: NotificationUserTopReaderContext) =>
+    builder
+      .icon(NotificationIcon.TopReaderBadge)
+      .referenceUserTopReader(ctx.userTopReader)
+      .targetUrl(notificationsLink)
+      .setTargetUrlParameter([
+        ['topreader', 'true'],
+        ['badgeId', ctx.userTopReader.id],
+      ])
+      .avatarTopReaderBadge(ctx)
+      .uniqueKey(ctx.userIds[0]),
   community_picks_failed: (builder, ctx: NotificationSubmissionContext) =>
     builder.systemNotification().referenceSubmission(ctx.submission),
   community_picks_succeeded: (builder, ctx: NotificationPostContext) =>

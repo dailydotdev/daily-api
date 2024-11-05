@@ -85,6 +85,11 @@ export const typeDefs = /* GraphQL */ `
     Date of the last time user dismissed or answered the feed survey
     """
     lastFeedSettingsFeedback: DateTime
+
+    """
+    Whether to show the top reader badge
+    """
+    showTopReader: Boolean
   }
 
   input UpdateAlertsInput {
@@ -137,6 +142,11 @@ export const typeDefs = /* GraphQL */ `
     Date of the last time user saw a boot popup
     """
     lastBootPopup: DateTime
+
+    """
+    Whether to show the top reader badge
+    """
+    showTopReader: Boolean
   }
 
   extend type Mutation {
