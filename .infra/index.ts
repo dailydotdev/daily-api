@@ -115,7 +115,7 @@ if (isPersonalizedDigestEnabled) {
       app: name,
       subapp: 'personalized-digest',
     }),
-    { dependsOn: [deadLetterTopic] },
+    { dependsOn: [deadLetterTopic.resource] },
   );
 }
 
@@ -497,7 +497,7 @@ const [apps] = deployApplicationSuite(
           spot: {
             enabled: true,
             weight: 70,
-          }
+          },
         })),
     isAdhocEnv,
     dependsOn,

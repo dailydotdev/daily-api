@@ -53,6 +53,7 @@ export enum NotificationType {
   PostBookmarkReminder = 'post_bookmark_reminder',
   StreakResetRestore = 'streak_reset_restore',
   UserPostAdded = 'user_post_added',
+  UserTopReaderBadge = 'user_given_top_reader',
 }
 
 export enum NotificationPreferenceType {
@@ -79,6 +80,7 @@ export const notificationPreferenceMap: Partial<
   [NotificationType.CollectionUpdated]: NotificationPreferenceType.Post,
   [NotificationType.SourcePostAdded]: NotificationPreferenceType.Source,
   [NotificationType.UserPostAdded]: NotificationPreferenceType.User,
+  [NotificationType.UserTopReaderBadge]: NotificationPreferenceType.User,
 };
 
 export const commentReplyNotificationTypes = [

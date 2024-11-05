@@ -2,6 +2,7 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 import { NotificationType } from '../../notifications/common';
 
 export type NotificationReferenceType =
+  | 'user_top_reader'
   | 'streak'
   | 'source_request'
   | 'squad_request'
