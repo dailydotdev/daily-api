@@ -7,7 +7,12 @@ import {
   ContentPreferenceStatus,
   ContentPreferenceType,
 } from '../entity/contentPreference/types';
-import { followEntity, unfollowEntity } from '../common/contentPreference';
+import {
+  blockEntity,
+  followEntity,
+  unblockEntity,
+  unfollowEntity,
+} from '../common/contentPreference';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import graphorm from '../graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -145,6 +150,34 @@ export const typeDefs = /* GraphQL */ `
       id: ID!
       """
       Entity unfollow (user, source..)
+      """
+      entity: ContentPreferenceType!
+    ): EmptyResponse @auth
+
+    """
+    Block entity
+    """
+    block(
+      """
+      Id of the entity
+      """
+      id: ID!
+      """
+      Entity to block (user, source..)
+      """
+      entity: ContentPreferenceType!
+    ): EmptyResponse @auth
+
+    """
+    Unblock entity
+    """
+    unblock(
+      """
+      Id of the entity
+      """
+      id: ID!
+      """
+      Entity to unblock (user, source..)
       """
       entity: ContentPreferenceType!
     ): EmptyResponse @auth
@@ -303,6 +336,28 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await unfollowEntity({ ctx, id, entity });
+
+      return {
+        _: true,
+      };
+    },
+    block: async (
+      _,
+      { id, entity }: { id: string; entity: ContentPreferenceType },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      await blockEntity({ ctx, id, entity });
+
+      return {
+        _: true,
+      };
+    },
+    unblock: async (
+      _,
+      { id, entity }: { id: string; entity: ContentPreferenceType },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      await unblockEntity({ ctx, id, entity });
 
       return {
         _: true,

@@ -217,9 +217,11 @@ const saveFeedFixtures = async (): Promise<void> => {
   await saveFixtures(con, ContentPreferenceSource, [
     {
       feedId: '1',
-      flags: {},
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
       referenceId: 'a',
-      role: SourceMemberRoles.Member,
       sourceId: 'a',
       status: ContentPreferenceStatus.Blocked,
       type: ContentPreferenceType.Source,
@@ -227,9 +229,11 @@ const saveFeedFixtures = async (): Promise<void> => {
     },
     {
       feedId: '1',
-      flags: {},
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
       referenceId: 'b',
-      role: SourceMemberRoles.Member,
       sourceId: 'b',
       status: ContentPreferenceStatus.Blocked,
       type: ContentPreferenceType.Source,
@@ -2177,9 +2181,11 @@ describe('mutation addFiltersToFeed', () => {
       {
         createdAt: expect.any(Date),
         feedId: '1',
-        flags: {},
+        flags: {
+          role: SourceMemberRoles.Member,
+          referralToken: expect.any(String),
+        },
         referenceId: 'a',
-        role: SourceMemberRoles.Member,
         sourceId: 'a',
         status: ContentPreferenceStatus.Blocked,
         type: ContentPreferenceType.Source,
@@ -2188,9 +2194,11 @@ describe('mutation addFiltersToFeed', () => {
       {
         createdAt: expect.any(Date),
         feedId: '1',
-        flags: {},
+        flags: {
+          role: SourceMemberRoles.Member,
+          referralToken: expect.any(String),
+        },
         referenceId: 'b',
-        role: SourceMemberRoles.Member,
         sourceId: 'b',
         status: ContentPreferenceStatus.Blocked,
         type: ContentPreferenceType.Source,
@@ -2427,9 +2435,11 @@ describe('mutation removeFiltersFromFeed', () => {
       {
         createdAt: expect.any(Date),
         feedId: '1',
-        flags: {},
+        flags: {
+          role: SourceMemberRoles.Member,
+          referralToken: expect.any(String),
+        },
         referenceId: 'a',
-        role: SourceMemberRoles.Member,
         sourceId: 'a',
         status: ContentPreferenceStatus.Blocked,
         type: ContentPreferenceType.Source,
@@ -2438,9 +2448,11 @@ describe('mutation removeFiltersFromFeed', () => {
       {
         createdAt: expect.any(Date),
         feedId: '1',
-        flags: {},
+        flags: {
+          role: SourceMemberRoles.Member,
+          referralToken: expect.any(String),
+        },
         referenceId: 'b',
-        role: SourceMemberRoles.Member,
         sourceId: 'b',
         status: ContentPreferenceStatus.Blocked,
         type: ContentPreferenceType.Source,
