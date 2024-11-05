@@ -19,6 +19,7 @@ export class PostKeyword {
   keyword: string;
 
   @Column({ type: 'text', nullable: true })
+  @Index('IDX_post_keyword_status')
   status: string;
 
   @ManyToOne(() => Post, (post) => post.keywords, {
