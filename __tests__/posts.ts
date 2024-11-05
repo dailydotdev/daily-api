@@ -3417,24 +3417,13 @@ describe('query sourcePostModeration', () => {
 
   it('should retrieve moderation item because user is moderator', async () => {
     loggedUser = '3';
-    const uuid = randomUUID();
-    con.getRepository(SourcePostModeration).save({
-      id: uuid,
-      createdById: '4',
-      sourceId: 'm',
-      title: 'Post by squad member',
-      type: PostType.Freeform,
-      status: SourcePostModerationStatus.Pending,
-      content: 'Hello World',
-    });
-
     const res = await client.query(queryOne, {
-      variables: { id: uuid, sourceId: 'm' },
+      variables: { id: firstPostUuid, sourceId: 'm' },
     });
     expect(res.errors).toBeUndefined();
     expect(res.data).toEqual({
       sourcePostModeration: {
-        title: 'Post by squad member',
+        title: 'My First Moderated Post',
         type: 'freeform',
       },
     });
