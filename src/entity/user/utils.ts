@@ -33,6 +33,7 @@ import { validateValidTimeZone } from '../../common/timezone';
 import { nameRegex, validateRegex, ValidateRegex } from '../../common/object';
 import { logger } from '../../logger';
 import { User } from './User';
+import { Feed } from '../Feed';
 
 export type AddUserData = Pick<
   User,
@@ -204,7 +205,24 @@ const safeInsertUser = async (
   iteration = 0,
 ): Promise<AddNewUserResult> => {
   try {
-    await con.getRepository(User).insert(data);
+    await con.transaction(async (entityManager) => {
+      const newUser = await entityManager.getRepository(User).insert(data);
+      const newUserId = newUser.identifiers[0].id;
+      const feedId = newUserId;
+
+      await entityManager.getRepository(Feed).upsert(
+        {
+          userId: newUserId,
+          id: feedId,
+        },
+        {
+          conflictPaths: {
+            id: true,
+          },
+        },
+      );
+    });
+
     req.log.info(`Created profile for user with ID: ${data.id}`);
     return { status: 'ok', userId: data.id as string };
   } catch (originalError) {
