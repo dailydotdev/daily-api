@@ -58,8 +58,6 @@ const worker: NotificationWorker = {
     if (comment.userId !== parent.userId) {
       userIds.push(parent.userId);
     }
-
-    console.log('mutes', mutes, userIds);
     const type =
       ctx.source.type === SourceType.Squad
         ? NotificationType.SquadReply
