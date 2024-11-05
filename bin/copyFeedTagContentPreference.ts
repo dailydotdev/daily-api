@@ -30,7 +30,7 @@ import createOrGetConnection from '../src/db';
       INSERT INTO content_preference ("userId", "referenceId", "type", "createdAt", "status", "keywordId", "feedId")
       SELECT f."userId", ft."tag", 'keyword', NOW(), CASE WHEN ft."blocked" = True THEN 'blocked' ELSE 'follow' END, ft."tag", ft."feedId"
       FROM feed_tag ft
-      LEFT JOIN feed f ON f."id" = ft."feedId"
+      INNER JOIN feed f ON f."id" = ft."feedId"
       LIMIT ${limit} OFFSET ${offset}
       ON CONFLICT ("referenceId", "userId") DO UPDATE
       SET
