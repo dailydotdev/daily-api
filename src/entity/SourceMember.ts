@@ -1,11 +1,7 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
-import { randomBytes } from 'crypto';
 import type { Source } from './Source';
 import type { User } from './user';
-import { promisify } from 'util';
 import { SourceMemberRoles } from '../roles';
-
-const randomBytesAsync = promisify(randomBytes);
 
 export type SourceMemberFlags = Partial<{
   hideFeedPosts: boolean;
@@ -54,7 +50,3 @@ export class SourceMember {
   @Column({ type: 'jsonb', default: {} })
   flags: SourceMemberFlags;
 }
-
-const TOKEN_BYTES = 32;
-export const generateMemberToken = async (): Promise<string> =>
-  (await randomBytesAsync(TOKEN_BYTES)).toString('base64url');
