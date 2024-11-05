@@ -24,8 +24,6 @@ import createOrGetConnection from '../src/db';
   const con = await createOrGetConnection();
 
   await con.transaction(async (manager) => {
-    await manager.query(`SET session_replication_role = replica;`);
-
     await manager.query(`
       INSERT INTO content_preference ("userId", "referenceId", "type", "createdAt", "status", "sourceId", "feedId")
       SELECT f."userId", fs."sourceId", 'source', NOW(), CASE WHEN fs."blocked" = True THEN 'blocked' ELSE 'follow' END, fs."sourceId", fs."feedId"
@@ -36,8 +34,6 @@ import createOrGetConnection from '../src/db';
       SET
         status = EXCLUDED.status
     `);
-
-    await manager.query(`SET session_replication_role = DEFAULT;`);
   });
 
   process.exit();

@@ -24,8 +24,6 @@ import createOrGetConnection from '../src/db';
   const con = await createOrGetConnection();
 
   await con.transaction(async (manager) => {
-    await manager.query(`SET session_replication_role = replica;`);
-
     await manager.query(`
       INSERT INTO content_preference ("userId", "referenceId", "type", "createdAt", "status", "sourceId", "flags")
       SELECT sm."userId", sm."sourceId", 'source', NOW(), CASE WHEN sm."role" = 'blocked' THEN 'blocked' ELSE 'subscribed' END, sm."sourceId", jsonb_build_object('role', sm."role", 'referralToken', sm."referralToken")
@@ -36,8 +34,6 @@ import createOrGetConnection from '../src/db';
         status = EXCLUDED.status,
         flags = content_preference.flags || EXCLUDED.flags
     `);
-
-    await manager.query(`SET session_replication_role = DEFAULT;`);
   });
 
   process.exit();
