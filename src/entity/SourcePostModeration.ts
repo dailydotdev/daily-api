@@ -18,7 +18,7 @@ export enum SourcePostModerationStatus {
 
 @Entity()
 export class SourcePostModeration {
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({ type: 'text' })

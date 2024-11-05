@@ -1229,11 +1229,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: Context,
       info,
     ): Promise<GQLSourcePostModeration> => {
-      await ensureSourcePermissions(
-        ctx,
-        sourceId,
-        SourcePermissions.ModeratePost,
-      );
+      const isModerator = await isPrivilegedMember(ctx, sourceId);
 
       return graphorm.queryOneOrFail<GQLSourcePostModeration>(
         ctx,
@@ -1241,8 +1237,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         (builder) => ({
           ...builder,
           queryBuilder: builder.queryBuilder.where(
-            `"${builder.alias}"."id" = :id AND ${builder.alias}."sourceId" = :sourceId`,
-            { id, sourceId },
+            `"${builder.alias}"."id" = :id AND ${builder.alias}."sourceId" = :sourceId ${
+              !isModerator ? `AND ${builder.alias}."createdById" = :userId` : ''
+            }`,
+            { id, sourceId, ...(isModerator ? {} : { userId: ctx.userId }) },
           ),
         }),
       );

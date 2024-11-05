@@ -3318,11 +3318,12 @@ describe('mutation createFreeformPost', () => {
 });
 
 describe('query sourcePostModeration', () => {
+  const firstPostUuid = randomUUID();
   beforeEach(async () => {
     await saveSquadFixtures();
     await con.getRepository(SourcePostModeration).save([
       {
-        id: '1',
+        id: firstPostUuid,
         createdById: '4',
         sourceId: 'm',
         title: 'My First Moderated Post',
@@ -3331,7 +3332,7 @@ describe('query sourcePostModeration', () => {
         content: 'Hello World',
       },
       {
-        id: '2',
+        id: randomUUID(),
         sourceId: 'm',
         createdById: '4',
         title: 'My Second Moderated Post',
@@ -3341,7 +3342,7 @@ describe('query sourcePostModeration', () => {
         content: 'Hello World',
       },
       {
-        id: '3',
+        id: randomUUID(),
         sourceId: 'm',
         createdById: '5',
         title: 'My Third Moderated Post',
@@ -3350,7 +3351,7 @@ describe('query sourcePostModeration', () => {
         content: 'Hello World',
       },
       {
-        id: '4',
+        id: randomUUID(),
         sourceId: 'm',
         createdById: '5',
         title: 'Rejected Post',
@@ -3359,7 +3360,7 @@ describe('query sourcePostModeration', () => {
         content: 'Hello World',
       },
       {
-        id: '5',
+        id: randomUUID(),
         sourceId: 'm',
         createdById: '5',
         title: 'Approved Post',
@@ -3370,9 +3371,8 @@ describe('query sourcePostModeration', () => {
     ]);
   });
 
-  const queryOne = `{
-  sourcePostModeration(id: "1", sourceId: "m") {
-    id
+  const queryOne = `query sourcePostModeration($id: ID!, $sourceId: ID!) {
+  sourcePostModeration(id: $id, sourceId: $sourceId) {
     title
     type
   }
@@ -3382,7 +3382,6 @@ describe('query sourcePostModeration', () => {
   sourcePostModerations(sourceId: $sourceId, status: $status) {
     edges {
       node {
-        id
         title
         type
       }
@@ -3390,26 +3389,52 @@ describe('query sourcePostModeration', () => {
   }
 }`;
 
-  it('should not retrieve post because user is not moderator', async () => {
-    loggedUser = '4';
+  it('should receive forbidden error because user is not member of squad', async () => {
+    loggedUser = '2';
     return testQueryErrorCode(
       client,
       {
         query: queryOne,
+        variables: { id: '1', sourceId: 'm' },
       },
       'FORBIDDEN',
     );
   });
 
-  it('should retrieve post because user is moderator', async () => {
-    loggedUser = '3';
+  it('should retrieve moderation item because it is made by the user', async () => {
+    loggedUser = '4';
 
-    const res = await client.query(queryOne, { variables: { id: 1 } });
+    const res = await client.query(queryOne, {
+      variables: { id: firstPostUuid, sourceId: 'm' },
+    });
+    expect(res.data).toEqual({
+      sourcePostModeration: {
+        title: 'My First Moderated Post',
+        type: 'freeform',
+      },
+    });
+  });
+
+  it('should retrieve moderation item because user is moderator', async () => {
+    loggedUser = '3';
+    const uuid = randomUUID();
+    con.getRepository(SourcePostModeration).save({
+      id: uuid,
+      createdById: '4',
+      sourceId: 'm',
+      title: 'Post by squad member',
+      type: PostType.Freeform,
+      status: SourcePostModerationStatus.Pending,
+      content: 'Hello World',
+    });
+
+    const res = await client.query(queryOne, {
+      variables: { id: uuid, sourceId: 'm' },
+    });
     expect(res.errors).toBeUndefined();
     expect(res.data).toEqual({
       sourcePostModeration: {
-        id: '1',
-        title: 'My First Moderated Post',
+        title: 'Post by squad member',
         type: 'freeform',
       },
     });
