@@ -78,13 +78,13 @@ export type PubSubSchema = {
   'api.v1.user-streak-updated': {
     streak: ChangeObject<UserStreak>;
   };
-  'api.v1.squad-post-moderation-approved': {
+  'api.v1.source-post-moderation-approved': {
     post: ChangeObject<SquadPostModeration>;
   };
-  'api.v1.squad-post-moderation-rejected': {
+  'api.v1.source-post-moderation-rejected': {
     post: ChangeObject<SquadPostModeration>;
   };
-  'api.v1.squad-post-moderation-submitted': {
+  'api.v1.source-post-moderation-submitted': {
     post: ChangeObject<SquadPostModeration>;
   };
   'api.v1.post-bookmark-reminder': {

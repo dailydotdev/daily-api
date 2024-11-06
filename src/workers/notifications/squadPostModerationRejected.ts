@@ -5,8 +5,8 @@ import { User } from '../../entity';
 import { SquadPostModerationStatus } from '../../entity/SquadPostModeration';
 
 const worker =
-  generateTypedNotificationWorker<'api.v1.squad-post-moderation-submitted'>({
-    subscription: 'api.v1.squad-post-moderation-rejected-notification',
+  generateTypedNotificationWorker<'api.v1.source-post-moderation-submitted'>({
+    subscription: 'api.v1.source-post-moderation-rejected-notification',
     handler: async ({ post }, con) => {
       if (
         !post?.createdById ||
