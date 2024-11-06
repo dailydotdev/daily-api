@@ -39,6 +39,13 @@ import { ghostUser } from '../../common';
         )`,
         'commentUpvotes',
       )
+      .addSelect(
+        `(SELECT COALESCE(COUNT(*), 0)
+          FROM "user_top_reader" utp
+          WHERE utp."userId" = u."id"
+        )`,
+        'topReaderBadges',
+      )
       .from('user', 'u')
       .andWhere('u.infoConfirmed = TRUE')
       .andWhere(`u.id != :ghostId`, { ghostId: ghostUser.id }),
@@ -58,4 +65,7 @@ export class UserStats {
 
   @ViewColumn()
   commentUpvotes: number;
+
+  @ViewColumn()
+  topReaderBadges: number;
 }
