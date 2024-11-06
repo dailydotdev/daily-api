@@ -223,6 +223,9 @@ const obj = new GraphORM({
       },
     },
   },
+  SourcePostModeration: {
+    requiredColumns: ['id'],
+  },
   UserStreak: {
     requiredColumns: ['lastViewAt'],
     fields: {

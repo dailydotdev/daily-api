@@ -45,6 +45,7 @@ import { toGQLEnum } from '../common/utils';
 import { GraphQLResolveInfo } from 'graphql';
 import {
   SourcePermissionErrorKeys,
+  SourceRequestErrorMessage,
   TypeOrmError,
   TypeORMQueryFailedError,
 } from '../errors';
@@ -936,6 +937,20 @@ export const canAccessSource = async (
     : Promise.resolve(undefined));
 
   return hasPermissionCheck(source, member, permission, validateRankAgainst);
+};
+
+export const isPrivilegedMember = async (
+  ctx: Context,
+  sourceId: string,
+): Promise<boolean> => {
+  const sourceMember = await ctx.con
+    .getRepository(SourceMember)
+    .findOneBy({ sourceId: sourceId, userId: ctx.userId });
+
+  if (!sourceMember)
+    throw new ForbiddenError(SourceRequestErrorMessage.ACCESS_DENIED);
+
+  return sourceRoleRank[sourceMember.role] >= sourceRoleRank.moderator;
 };
 
 export const canPostToSquad = (
