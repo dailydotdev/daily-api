@@ -73,6 +73,10 @@ import {
   cleanContentNotificationPreference,
   entityToNotificationTypeMap,
 } from '../common/contentPreference';
+import {
+  SourcePostModeration,
+  SourcePostModerationStatus,
+} from '../entity/SourcePostModeration';
 
 export interface GQLSourceCategory {
   id: string;
@@ -1556,20 +1560,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         return source;
       }
 
-      const isModerator = [
-        SourceMemberRoles.Admin,
-        SourceMemberRoles.Moderator,
-      ].some((role) => role === source.currentMember?.role);
+      const isModerator =
+        sourceRoleRank[source.currentMember.role] >= sourceRoleRank.moderator;
+      const status = SourcePostModerationStatus.Pending;
+      const query: FindOptionsWhere<SourcePostModeration> = {
+        status,
+        sourceId: source.id,
+        ...(!isModerator && { createdById: ctx.userId }),
+      };
 
-      const status = 'pending';
-      const query = isModerator
-        ? { status }
-        : { createdById: ctx.userId, status };
-
-      console.log({ query });
-
-      // todo: add moderation post count query once entity is created
-      const moderationPostCount = isModerator ? 2 : 1;
+      const moderationPostCount = await ctx.con
+        .getRepository(SourcePostModeration)
+        .countBy(query);
 
       return { ...source, moderationPostCount };
     },
