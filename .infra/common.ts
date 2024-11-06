@@ -298,16 +298,16 @@ export const workers: Worker[] = [
     subscription: 'api.post-added-user-notification',
   },
   {
-    topic: 'api.v1.squad-post-moderation-submitted',
-    subscription: 'api.v1.squad-post-moderation-submitted-notification',
+    topic: 'api.v1.source-post-moderation-submitted',
+    subscription: 'api.v1.source-post-moderation-submitted-notification',
   },
   {
-    topic: 'api.v1.squad-post-moderation-approved',
-    subscription: 'api.v1.squad-post-moderation-approved-notification',
+    topic: 'api.v1.source-post-moderation-approved',
+    subscription: 'api.v1.source-post-moderation-approved-notification',
   },
   {
-    topic: 'api.v1.squad-post-moderation-rejected',
-    subscription: 'api.v1.squad-post-moderation-rejected-notification',
+    topic: 'api.v1.source-post-moderation-rejected',
+    subscription: 'api.v1.source-post-moderation-rejected-notification',
   },
 ];
 
