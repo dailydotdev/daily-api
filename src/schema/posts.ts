@@ -1234,15 +1234,25 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return graphorm.queryOneOrFail<GQLSourcePostModeration>(
         ctx,
         info,
-        (builder) => ({
-          ...builder,
-          queryBuilder: builder.queryBuilder.where(
-            `"${builder.alias}"."id" = :id AND ${builder.alias}."sourceId" = :sourceId ${
-              !isModerator ? `AND ${builder.alias}."createdById" = :userId` : ''
-            }`,
-            { id, sourceId, ...(isModerator ? {} : { userId: ctx.userId }) },
-          ),
-        }),
+        (builder) => {
+          const queryBuilder = builder.queryBuilder.where(
+            `"${builder.alias}"."id" = :id AND ${builder.alias}."sourceId" = :sourceId`,
+            { id, sourceId },
+          );
+
+          if (!isModerator) {
+            queryBuilder.andWhere(
+              `"${builder.alias}"."createdById" = :userId`,
+              {
+                userId: ctx.userId,
+              },
+            );
+          }
+          return {
+            ...builder,
+            queryBuilder,
+          };
+        },
       );
     },
     sourcePostModerations: async (
@@ -1282,7 +1292,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               builder.queryBuilder.andWhere(
                 `"${builder.alias}"."status" IN (:...status)`,
                 {
-                  status: args.status,
+                  status: Array.from(new Set(args.status)),
                 },
               );
             }
@@ -1325,7 +1335,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             builder.queryBuilder.andWhere(
               `"${builder.alias}"."status" IN (:...status)`,
               {
-                status: args.status,
+                status: Array.from(new Set(args.status)),
               },
             );
           }

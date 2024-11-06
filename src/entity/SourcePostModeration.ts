@@ -7,8 +7,8 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Post, PostType } from './posts';
-import { Source } from './Source';
-import { User } from './user';
+import type { Source } from './Source';
+import type { User } from './user';
 
 export enum SourcePostModerationStatus {
   Approved = 'approved',
@@ -33,8 +33,8 @@ export class SourcePostModeration {
   @Column({ type: 'text' })
   status: SourcePostModerationStatus;
 
-  @Column({ type: 'text', nullable: true })
-  createdById: string | null;
+  @Column({ type: 'text' })
+  createdById: string;
 
   @ManyToOne('User', (user: User) => user.id, {
     lazy: true,
