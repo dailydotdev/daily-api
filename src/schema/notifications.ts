@@ -402,6 +402,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('parameters must not be empty');
       }
 
+      if (data.length > 100) {
+        throw new ValidationError('parameters must not exceed 100');
+      }
+
       const params = data.reduce((args, value) => {
         const type = notificationPreferenceMap[value.notificationType];
         return [...args, { ...value, type, userId: ctx.userId }];
@@ -419,7 +423,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
         comments.forEach(({ id, postId }) => {
           const param = params.find(({ referenceId }) => referenceId === id);
-          param!.referenceId = postId;
+          if (!param) {
+            return;
+          }
+          param.referenceId = postId;
         });
       }
 
@@ -435,7 +442,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .find({ select: ['id', 'parentId'], where: { id: In(commentIds) } });
         commentComments.forEach(({ id, parentId }) => {
           const param = params.find(({ referenceId }) => referenceId === id);
-          param!.referenceId = parentId || id;
+          if (!param) {
+            return;
+          }
+          param.referenceId = parentId || id;
         });
       }
 
