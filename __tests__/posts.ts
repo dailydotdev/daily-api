@@ -37,7 +37,7 @@ import {
   YouTubePost,
 } from '../src/entity';
 import { Roles, SourceMemberRoles, sourceRoleRank } from '../src/roles';
-import { sourcesFixture } from './fixture/source';
+import { sourcesFixture, squadFixture } from './fixture/source';
 import {
   createPostCodeSnippetsFixture,
   postsFixture,
@@ -113,6 +113,7 @@ beforeEach(async () => {
   await saveFixtures(con, YouTubePost, videoPostsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
   await saveFixtures(con, User, badUsersFixture);
+  await saveFixtures(con, SquadSource, squadFixture);
   await con
     .getRepository(User)
     .save({ id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' });
@@ -148,14 +149,6 @@ const saveSquadFixtures = async () => {
   await con
     .getRepository(Source)
     .update({ id: 'a' }, { type: SourceType.Squad });
-  await con.getRepository(SquadSource).update(
-    { id: 'm' },
-    {
-      type: SourceType.Squad,
-      moderationRequired: true,
-      memberPostingRank: sourceRoleRank[SourceMemberRoles.Member],
-    },
-  );
   await con
     .getRepository(Post)
     .update(

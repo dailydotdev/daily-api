@@ -1,5 +1,11 @@
 import { DeepPartial } from 'typeorm';
-import { MachineSource, Source, SourceType } from '../../src/entity';
+import {
+  MachineSource,
+  Source,
+  SourceType,
+  SquadSource,
+} from '../../src/entity';
+import { SourceMemberRoles, sourceRoleRank } from '../../src/roles';
 
 export const createSource = (
   id: string,
@@ -77,5 +83,20 @@ export const sourcesFixture: DeepPartial<MachineSource>[] = [
     type: SourceType.Squad,
     active: true,
     private: false,
+  },
+];
+
+export const squadFixture: DeepPartial<SquadSource>[] = [
+  {
+    id: 'm',
+    name: 'Moderated Squad',
+    image: 'http//image.com/m',
+    handle: 'moderatedSquad',
+    type: SourceType.Squad,
+    active: true,
+    private: false,
+    moderationRequired: true,
+    memberPostingRank: sourceRoleRank[SourceMemberRoles.Member],
+    memberInviteRank: sourceRoleRank[SourceMemberRoles.Member],
   },
 ];
