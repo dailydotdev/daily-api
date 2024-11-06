@@ -1,4 +1,4 @@
-import { DataSource, ViewColumn, ViewEntity } from 'typeorm';
+import { DataSource, Index, ViewColumn, ViewEntity } from 'typeorm';
 import { ghostUser } from '../../common';
 
 @ViewEntity({
@@ -52,6 +52,7 @@ import { ghostUser } from '../../common';
 })
 export class UserStats {
   @ViewColumn()
+  @Index('IDX_user_stats_id')
   id: string;
 
   @ViewColumn()
