@@ -25,10 +25,10 @@ import createOrGetConnection from '../src/db';
 
   await con.transaction(async (manager) => {
     await manager.query(`
-      INSERT INTO content_preference ("userId", "referenceId", "type", "createdAt", "status", "sourceId", "feedId")
-      SELECT f."userId", fs."sourceId", 'source', NOW(), CASE WHEN fs."blocked" = True THEN 'blocked' ELSE 'follow' END, fs."sourceId", fs."feedId"
+      INSERT INTO content_preference ("userId", "referenceId", "type", "createdAt", "status", "sourceId", "feedId", "flags")
+      SELECT f."userId", fs."sourceId", 'source', NOW(), CASE WHEN fs."blocked" = True THEN 'blocked' ELSE 'follow' END, fs."sourceId", fs."feedId",  jsonb_build_object('role', 'member', 'referralToken', gen_random_uuid())
       FROM feed_source fs
-      INNER JOIN feed f ON f."id" = fs."feedId"
+      INNER JOIN feed f ON f."id" = fs."feedId" AND f."userId" = fs."feedId"
       LIMIT ${limit} OFFSET ${offset}
       ON CONFLICT ("referenceId", "userId") DO UPDATE
       SET
