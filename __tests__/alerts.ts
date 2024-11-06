@@ -60,6 +60,7 @@ describe('query userAlerts', () => {
       showRecoverStreak
       lastBootPopup
       lastFeedSettingsFeedback
+      showTopReader
     }
   }`;
 
