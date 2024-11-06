@@ -1653,17 +1653,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<GQLSourcePostModeration> => {
       const { con, userId } = ctx;
 
-      const sourceMember = await con
-        .getRepository(SourceMember)
-        .findOneBy({ sourceId: sourceId, userId: userId });
+      const sourceMember = await con.getRepository(SourceMember).findOne({
+        where: { sourceId: sourceId, userId: userId },
+        relations: ['source'],
+      });
 
-      if (!sourceMember || !sourceMember?.source) {
+      const source = await sourceMember?.source;
+
+      if (!sourceMember || !source) {
         throw new ForbiddenError('Access denied!');
       }
 
       await canAccessSource(
         ctx,
-        await sourceMember.source,
+        source,
         sourceMember,
         SourcePermissions.Post,
         sourceId,
