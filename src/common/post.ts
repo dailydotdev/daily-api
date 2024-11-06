@@ -5,6 +5,7 @@ import {
   FreeformPost,
   Post,
   PostOrigin,
+  PostType,
   SquadSource,
   User,
   WelcomePost,
@@ -25,6 +26,10 @@ import { logger } from '../logger';
 import { downloadJsonFile } from './googleCloud';
 import type { PostCodeSnippetJsonFile } from '../types';
 import { uniqueifyObjectArray } from './utils';
+import {
+  SourcePostModeration,
+  SourcePostModerationStatus,
+} from '../entity/SourcePostModeration';
 
 export const defaultImage = {
   urls: process.env.DEFAULT_IMAGE_URL?.split?.(',') ?? [],
@@ -173,6 +178,33 @@ export type CreatePost = Pick<
   'title' | 'content' | 'image' | 'contentHtml' | 'authorId' | 'sourceId' | 'id'
 >;
 
+export type CreateSourcePostModeration = Omit<
+  CreatePost,
+  'authorId' | 'content' | 'contentHtml'
+> &
+  Pick<
+    SourcePostModeration,
+    | 'titleHtml'
+    | 'content'
+    | 'contentHtml'
+    | 'type'
+    | 'sharedPostId'
+    | 'createdById'
+  >;
+
+export const createSourcePostModeration = async (
+  con: DataSource | EntityManager,
+  ctx: AuthContext,
+  args: CreateSourcePostModeration,
+) => {
+  const newPost = con.getRepository(SourcePostModeration).create({
+    ...args,
+    status: SourcePostModerationStatus.Pending,
+  });
+  await con.getRepository(SourcePostModeration).save(newPost);
+  return newPost;
+};
+
 export const createFreeformPost = async (
   con: DataSource | EntityManager,
   ctx: AuthContext,
@@ -230,8 +262,16 @@ export interface CreatePostArgs
   sourceId: string;
 }
 
+export interface CreateSourcePostModerationArgs
+  extends Pick<EditPostArgs, 'title' | 'image'> {
+  sourceId: string;
+  content?: string;
+  sharedPostId?: string;
+  type: PostType;
+}
+
 const MAX_TITLE_LENGTH = 250;
-const MAX_CONTENT_LENGTH = 10_000;
+const MAX_CONTENT_LENGTH = 4000;
 
 type ValidatePostArgs = Pick<EditPostArgs, 'title' | 'content'>;
 
@@ -249,7 +289,7 @@ export const validatePost = (
 
   if (content.length > MAX_CONTENT_LENGTH) {
     throw new ValidationError(
-      `Content has a maximum length of ${MAX_CONTENT_LENGTH} characters`,
+      'Content has a maximum length of 4000 characters',
     );
   }
 

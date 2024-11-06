@@ -11,7 +11,7 @@ import {
 import { sourcesFixture, usersFixture } from '../../fixture';
 import { workers } from '../../../src/workers';
 import { invokeNotificationWorker, saveFixtures } from '../../helpers';
-import { SquadPostModerationStatus } from '../../../src/entity/sourcePostModeration';
+import { SourcePostModerationStatus } from '../../../src/entity/SourcePostModeration';
 import { SourceMemberRoles } from '../../../src/roles';
 import { NotificationPostModerationContext } from '../../../src/notifications';
 import { postsFixture } from '../../fixture/post';
@@ -29,7 +29,7 @@ beforeEach(async () => {
   await saveFixtures(con, Post, postsFixture);
 });
 
-describe('squadPostModerationSubmitted', () => {
+describe('SourcePostModerationSubmitted', () => {
   it('should be registered', () => {
     const registeredWorker = workers.find(
       (item) => item.subscription === worker.subscription,
@@ -43,7 +43,7 @@ describe('squadPostModerationSubmitted', () => {
       postId: 'p1',
       sourceId: 'a',
       createdById: '2',
-      status: SquadPostModerationStatus.Rejected,
+      status: SourcePostModerationStatus.Rejected,
     };
 
     const rejected = await invokeNotificationWorker(worker, {
@@ -54,7 +54,7 @@ describe('squadPostModerationSubmitted', () => {
     const postPending = {
       sourceId: 'a',
       createdById: '2',
-      status: SquadPostModerationStatus.Pending,
+      status: SourcePostModerationStatus.Pending,
     };
 
     const pending = await invokeNotificationWorker(worker, {
@@ -68,7 +68,7 @@ describe('squadPostModerationSubmitted', () => {
       postId: 'p1',
       sourceId: 'a',
       createdById: '2',
-      status: SquadPostModerationStatus.Pending,
+      status: SourcePostModerationStatus.Pending,
     };
     await con
       .getRepository(Source)
@@ -94,7 +94,7 @@ describe('squadPostModerationSubmitted', () => {
       postId: 'p1',
       sourceId: 'a',
       createdById: '2',
-      status: SquadPostModerationStatus.Pending,
+      status: SourcePostModerationStatus.Pending,
     };
     await con
       .getRepository(Source)

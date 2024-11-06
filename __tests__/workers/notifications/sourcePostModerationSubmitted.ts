@@ -5,7 +5,7 @@ import { Source, SourceMember, SourceType, User } from '../../../src/entity';
 import { sourcesFixture, usersFixture } from '../../fixture';
 import { workers } from '../../../src/workers';
 import { invokeNotificationWorker, saveFixtures } from '../../helpers';
-import { SquadPostModerationStatus } from '../../../src/entity/sourcePostModeration';
+import { SourcePostModerationStatus } from '../../../src/entity/SourcePostModeration';
 import { SourceMemberRoles } from '../../../src/roles';
 import { NotificationPostModerationContext } from '../../../src/notifications';
 
@@ -21,7 +21,7 @@ beforeEach(async () => {
   await saveFixtures(con, User, usersFixture);
 });
 
-describe('squadPostModerationSubmitted', () => {
+describe('SourcePostModerationSubmitted', () => {
   it('should be registered', () => {
     const registeredWorker = workers.find(
       (item) => item.subscription === worker.subscription,
@@ -33,7 +33,7 @@ describe('squadPostModerationSubmitted', () => {
   it('should not send notification when the status is not pending', async () => {
     const post = {
       sourceId: 'a',
-      status: SquadPostModerationStatus.Approved,
+      status: SourcePostModerationStatus.Approved,
     };
 
     const result = await invokeNotificationWorker(worker, { post });
@@ -45,7 +45,7 @@ describe('squadPostModerationSubmitted', () => {
     const post = {
       sourceId: 'a',
       createdById: '2',
-      status: SquadPostModerationStatus.Pending,
+      status: SourcePostModerationStatus.Pending,
     };
     await con
       .getRepository(Source)
@@ -70,7 +70,7 @@ describe('squadPostModerationSubmitted', () => {
     const post = {
       sourceId: 'a',
       createdById: '2',
-      status: SquadPostModerationStatus.Pending,
+      status: SourcePostModerationStatus.Pending,
     };
     await con
       .getRepository(Source)
@@ -95,7 +95,7 @@ describe('squadPostModerationSubmitted', () => {
     const post = {
       sourceId: 'a',
       createdById: '2',
-      status: SquadPostModerationStatus.Pending,
+      status: SourcePostModerationStatus.Pending,
     };
     await con
       .getRepository(Source)
@@ -130,7 +130,7 @@ describe('squadPostModerationSubmitted', () => {
     const post = {
       sourceId: 'a',
       createdById: '2',
-      status: SquadPostModerationStatus.Pending,
+      status: SourcePostModerationStatus.Pending,
     };
     await con
       .getRepository(Source)
@@ -165,7 +165,7 @@ describe('squadPostModerationSubmitted', () => {
     const post = {
       sourceId: 'a',
       createdById: '2',
-      status: SquadPostModerationStatus.Pending,
+      status: SourcePostModerationStatus.Pending,
     };
     await con
       .getRepository(Source)
