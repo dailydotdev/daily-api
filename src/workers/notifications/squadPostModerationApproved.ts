@@ -2,16 +2,17 @@ import { generateTypedNotificationWorker } from './worker';
 import { NotificationType } from '../../notifications/common';
 import { NotificationPostContext } from '../../notifications';
 import { buildPostContext } from './utils';
+import { SquadPostModerationStatus } from '../../entity/SquadPostModeration';
 
 const worker =
   generateTypedNotificationWorker<'api.v1.source-post-moderation-submitted'>({
     subscription: 'api.v1.source-post-moderation-submitted-notification',
     handler: async ({ post: data }, con) => {
-      if (!data?.postId) {
+      if (data.status !== SquadPostModerationStatus.Pending) {
         return;
       }
 
-      if (!data?.createdById) {
+      if (!data?.postId) {
         return;
       }
 

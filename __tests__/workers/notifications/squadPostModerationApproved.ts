@@ -40,6 +40,7 @@ describe('squadPostModerationSubmitted', () => {
 
   it('should not send notification when status is not approved', async () => {
     const postRejected = {
+      postId: 'p1',
       sourceId: 'a',
       createdById: '2',
       status: SquadPostModerationStatus.Rejected,

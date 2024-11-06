@@ -34,7 +34,7 @@ export class SquadPostModeration {
   status: SquadPostModerationStatus;
 
   @Column({ type: 'text', nullable: true })
-  createdById: string | null;
+  createdById: string;
 
   @ManyToOne('User', (user: User) => user.id, {
     lazy: true,
