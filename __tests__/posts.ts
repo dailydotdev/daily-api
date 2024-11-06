@@ -148,9 +148,14 @@ const saveSquadFixtures = async () => {
   await con
     .getRepository(Source)
     .update({ id: 'a' }, { type: SourceType.Squad });
-  await con
-    .getRepository(SquadSource)
-    .update({ id: 'm' }, { type: SourceType.Squad, moderationRequired: true });
+  await con.getRepository(SquadSource).update(
+    { id: 'm' },
+    {
+      type: SourceType.Squad,
+      moderationRequired: true,
+      memberPostingRank: sourceRoleRank[SourceMemberRoles.Member],
+    },
+  );
   await con
     .getRepository(Post)
     .update(
@@ -3469,6 +3474,94 @@ describe('query sourcePostModeration', () => {
         variables: { sourceId: 'm' },
       },
       'FORBIDDEN',
+    );
+  });
+});
+
+describe('mutation createSourcePostModeration', () => {
+  beforeEach(async () => {
+    await saveSquadFixtures();
+  });
+
+  const MUTATION = `mutation CreateSourcePostModeration($sourceId: ID! $title: String!, $type: String!, $content: String, $image: Upload, $imageUrl: String, $sharedPostId: ID, $commentary: String, $externalLink: String) {
+    createSourcePostModeration(sourceId: $sourceId, title: $title, type: $type, content: $content, image: $image, imageUrl: $imageUrl, sharedPostId: $sharedPostId, commentary: $commentary, externalLink: $externalLink) {
+      id
+      title
+      content
+      contentHtml
+      externalLink
+      type
+      image
+      sharedPostId
+      titleHtml
+    }
+  }`;
+
+  const params = {
+    sourceId: 'm',
+    title: 'My first post',
+    content: 'Hello World',
+  };
+
+  it('should result in error because user is not member of squad', async () => {
+    loggedUser = '2';
+
+    return await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...params, type: PostType.Freeform },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should successfully create a squad post moderation entry of type freeform', async () => {
+    loggedUser = '4';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, type: PostType.Freeform },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createSourcePostModeration).toBeTruthy();
+    expect(res.data.createSourcePostModeration.type).toEqual(PostType.Freeform);
+    expect(res.data.createSourcePostModeration.contentHtml).toBeDefined();
+  });
+
+  it('should successfully create a squad post moderation entry of type share', async () => {
+    loggedUser = '4';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, sharedPostId: 'p1', type: PostType.Share },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createSourcePostModeration).toBeTruthy();
+    expect(res.data.createSourcePostModeration.type).toEqual(PostType.Share);
+    expect(res.data.createSourcePostModeration.contentHtml).toBeDefined();
+    expect(res.data.createSourcePostModeration.sharedPostId).toEqual('p1');
+  });
+
+  it('should successfully create a squad post moderation entry of type article', async () => {
+    loggedUser = '4';
+    const externalParams = {
+      sourceId: 'm',
+      title: 'External Link Title',
+      commentary: 'This is an awesome link',
+      imageUrl:
+        'https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1',
+      type: PostType.Article,
+      externalLink: 'https://www.google.com',
+    };
+    const res = await client.mutate(MUTATION, {
+      variables: externalParams,
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createSourcePostModeration).toBeTruthy();
+    expect(res.data.createSourcePostModeration.type).toEqual(PostType.Article);
+    expect(res.data.createSourcePostModeration.image).toEqual(
+      externalParams.imageUrl,
+    );
+    expect(res.data.createSourcePostModeration.titleHtml).toMatchSnapshot();
+    expect(res.data.createSourcePostModeration.externalLink).toEqual(
+      externalParams.externalLink,
     );
   });
 });

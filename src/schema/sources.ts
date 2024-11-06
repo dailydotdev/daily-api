@@ -822,6 +822,7 @@ export enum SourcePermissions {
   Delete = 'delete',
   Edit = 'edit',
   ConnectSlack = 'connect_slack',
+  ModeratePost = 'moderate_post',
 }
 
 const memberPermissions = [
@@ -840,6 +841,7 @@ const moderatorPermissions = [
   SourcePermissions.MemberUnblock,
   SourcePermissions.ViewBlockedMembers,
   SourcePermissions.WelcomePostEdit,
+  SourcePermissions.ModeratePost,
 ];
 const adminPermissions = [
   ...moderatorPermissions,
@@ -847,6 +849,7 @@ const adminPermissions = [
   SourcePermissions.PostLimit,
   SourcePermissions.Delete,
   SourcePermissions.ConnectSlack,
+  SourcePermissions.ModeratePost,
 ];
 
 export const roleSourcePermissions: Record<
@@ -955,7 +958,11 @@ export const canPostToSquad = (
     return false;
   }
 
-  return sourceRoleRank[sourceMember.role] >= squad.memberPostingRank;
+  const memberRank = sourceRoleRank[sourceMember.role];
+
+  if (memberRank >= sourceRoleRank.moderator) return true;
+
+  return !squad.moderationRequired && memberRank >= squad.memberPostingRank;
 };
 
 const validateSquadData = async (

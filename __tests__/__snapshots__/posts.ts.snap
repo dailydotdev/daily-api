@@ -54,6 +54,8 @@ exports[`mutation createFreeformPost should not allow mention outside of squad a
 "
 `;
 
+exports[`mutation createSourcePostModeration should successfully create a squad post moderation entry of type article 1`] = `"<p>This is an awesome link</p>"`;
+
 exports[`mutation editPost should allow author to update their freeform post 1`] = `
 "<h1>Updated content</h1>
 "
