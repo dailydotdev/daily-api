@@ -133,11 +133,11 @@ export const notificationTitleMap: Record<
     const keyword = ctx.keyword.flags.title;
     return `Great news! You've earned the top reader badge in ${keyword}.`;
   },
-  squad_post_approved: (ctx: NotificationPostContext) =>
+  source_post_approved: (ctx: NotificationPostContext) =>
     `Woohoo! Your post has been approved and is now live in ${ctx.source.name}. Check it out!`,
-  squad_post_rejected: (ctx: NotificationPostModerationContext) =>
-    `Your post in ${ctx.source.name} was not approved for the following reason: ${ctx.post.reason}. Please review the feedback and consider making changes before resubmitting.`,
-  squad_post_submitted: (ctx: NotificationPostModerationContext) =>
+  source_post_rejected: (ctx: NotificationPostModerationContext) =>
+    `Your post in ${ctx.source.name} was not approved for the following reason: ${ctx.post.rejectionReason}. Please review the feedback and consider making changes before resubmitting.`,
+  source_post_submitted: (ctx: NotificationPostModerationContext) =>
     `${ctx.user.name} just posted in ${ctx.source.name}. This post is waiting for your review before it gets published on the squad.`,
 };
 
@@ -156,18 +156,18 @@ export const generateNotificationMap: Record<
       ])
       .avatarTopReaderBadge(ctx)
       .uniqueKey(ctx.userIds[0]),
-  squad_post_approved: (builder, ctx: NotificationPostContext) =>
+  source_post_approved: (builder, ctx: NotificationPostContext) =>
     builder
       .icon(NotificationIcon.Bell)
       .referencePost(ctx.post)
       .attachmentPost(ctx.post)
       .targetPost(ctx.post),
-  squad_post_rejected: (builder, ctx: NotificationPostModerationContext) =>
+  source_post_rejected: (builder, ctx: NotificationPostModerationContext) =>
     builder
       .icon(NotificationIcon.Bell)
       .referencePostModeration(ctx.post)
       .targetSourceModeration(ctx.source),
-  squad_post_submitted: (builder, ctx: NotificationPostModerationContext) =>
+  source_post_submitted: (builder, ctx: NotificationPostModerationContext) =>
     builder
       .icon(NotificationIcon.Timer)
       .avatarUser(ctx.user)

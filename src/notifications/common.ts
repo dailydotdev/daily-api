@@ -48,9 +48,9 @@ export enum NotificationType {
   CollectionUpdated = 'collection_updated',
   DevCardUnlocked = 'dev_card_unlocked',
   SourcePostAdded = 'source_post_added',
-  SquadPostApproved = 'squad_post_approved',
-  SquadPostRejected = 'squad_post_rejected',
-  SquadPostSubmitted = 'squad_post_submitted',
+  SourcePostApproved = 'source_post_approved',
+  SourcePostRejected = 'source_post_rejected',
+  SourcePostSubmitted = 'source_post_submitted',
   SquadPublicApproved = 'squad_public_approved',
   SquadPublicRejected = 'squad_public_rejected',
   SquadPublicSubmitted = 'squad_public_submitted',
@@ -287,7 +287,7 @@ export const postStatusToTypeMap: Record<
   SourcePostModerationStatus,
   NotificationType
 > = {
-  [SourcePostModerationStatus.Approved]: NotificationType.SquadPostApproved,
-  [SourcePostModerationStatus.Rejected]: NotificationType.SquadPostRejected,
-  [SourcePostModerationStatus.Pending]: NotificationType.SquadPostSubmitted,
+  [SourcePostModerationStatus.Approved]: NotificationType.SourcePostApproved,
+  [SourcePostModerationStatus.Rejected]: NotificationType.SourcePostRejected,
+  [SourcePostModerationStatus.Pending]: NotificationType.SourcePostSubmitted,
 };

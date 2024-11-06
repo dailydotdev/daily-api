@@ -22,7 +22,7 @@ const worker =
         userIds: [data.createdById],
       };
 
-      return [{ type: NotificationType.SquadPostApproved, ctx }];
+      return [{ type: NotificationType.SourcePostApproved, ctx }];
     },
   });
 

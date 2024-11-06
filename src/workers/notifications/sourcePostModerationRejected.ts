@@ -21,7 +21,7 @@ const worker =
           userIds: [post.createdById],
         };
 
-        return [{ type: NotificationType.SquadPostRejected, ctx }];
+        return [{ type: NotificationType.SourcePostRejected, ctx }];
       } catch (err) {
         const error = err as TypeORMQueryFailedError;
         if (error?.name !== 'EntityNotFoundError') {

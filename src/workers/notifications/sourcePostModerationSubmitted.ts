@@ -32,7 +32,7 @@ const worker =
           userIds: mods.map((m) => m.userId),
         };
 
-        return [{ type: NotificationType.SquadPostSubmitted, ctx }];
+        return [{ type: NotificationType.SourcePostSubmitted, ctx }];
       } catch (err) {
         const error = err as TypeORMQueryFailedError;
         if (error?.name !== 'EntityNotFoundError') {
