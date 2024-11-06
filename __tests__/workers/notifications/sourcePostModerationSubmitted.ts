@@ -61,7 +61,7 @@ describe('SourcePostModerationSubmitted', () => {
     const ctx = result[0].ctx as NotificationPostModerationContext;
 
     expect(result.length).toEqual(1);
-    expect(result[0].type).toEqual('squad_post_submitted');
+    expect(result[0].type).toEqual('source_post_submitted');
     expect(ctx.post).toEqual(post);
     expect(ctx.userIds).toEqual(['1']);
   });
@@ -86,7 +86,7 @@ describe('SourcePostModerationSubmitted', () => {
     const ctx = result[0].ctx as NotificationPostModerationContext;
 
     expect(result.length).toEqual(1);
-    expect(result[0].type).toEqual('squad_post_submitted');
+    expect(result[0].type).toEqual('source_post_submitted');
     expect(ctx.post).toEqual(post);
     expect(ctx.userIds).toEqual(['1']);
   });
@@ -119,7 +119,7 @@ describe('SourcePostModerationSubmitted', () => {
     const ctx = result[0].ctx as NotificationPostModerationContext;
 
     expect(result.length).toEqual(1);
-    expect(result[0].type).toEqual('squad_post_submitted');
+    expect(result[0].type).toEqual('source_post_submitted');
     expect(ctx.post).toEqual(post);
     expect(ctx.userIds).toEqual(['1']);
     const noMembers = ctx.userIds.every((id) => id !== '3');
@@ -154,7 +154,7 @@ describe('SourcePostModerationSubmitted', () => {
     const ctx = result[0].ctx as NotificationPostModerationContext;
 
     expect(result.length).toEqual(1);
-    expect(result[0].type).toEqual('squad_post_submitted');
+    expect(result[0].type).toEqual('source_post_submitted');
     expect(ctx.post).toEqual(post);
     expect(ctx.userIds).toEqual(['1']);
     const noMembers = ctx.userIds.every((id) => id !== '3');
@@ -189,7 +189,7 @@ describe('SourcePostModerationSubmitted', () => {
     const ctx = result[0].ctx as NotificationPostModerationContext;
 
     expect(result.length).toEqual(1);
-    expect(result[0].type).toEqual('squad_post_submitted');
+    expect(result[0].type).toEqual('source_post_submitted');
     expect(ctx.post).toEqual(post);
     expect(ctx.userIds).toEqual(['1']);
     const noAuthor = ctx.userIds.every((id) => id !== '2');

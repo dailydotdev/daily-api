@@ -84,7 +84,7 @@ describe('SourcePostModerationSubmitted', () => {
     const ctx = result[0].ctx as NotificationPostModerationContext;
 
     expect(result.length).toEqual(1);
-    expect(result[0].type).toEqual('squad_post_approved');
+    expect(result[0].type).toEqual('source_post_approved');
     expect(ctx.post.id).toEqual('p1');
     expect(ctx.userIds).toEqual(['2']);
   });
@@ -124,7 +124,7 @@ describe('SourcePostModerationSubmitted', () => {
     const ctx = result[0].ctx as NotificationPostModerationContext;
 
     expect(result.length).toEqual(1);
-    expect(result[0].type).toEqual('squad_post_approved');
+    expect(result[0].type).toEqual('source_post_approved');
     expect(ctx.post.id).toEqual(post.postId);
     expect(ctx.userIds).toEqual(['2']);
     const ownerOnly = ctx.userIds.every((id) => id === '2');
