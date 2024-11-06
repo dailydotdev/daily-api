@@ -4,8 +4,8 @@ import { NotificationPostContext } from '../../notifications';
 import { buildPostContext } from './utils';
 
 const worker =
-  generateTypedNotificationWorker<'api.v1.squad-post-moderation-submitted'>({
-    subscription: 'api.v1.squad-post-moderation-submitted-notification',
+  generateTypedNotificationWorker<'api.v1.source-post-moderation-submitted'>({
+    subscription: 'api.v1.source-post-moderation-submitted-notification',
     handler: async ({ post: data }, con) => {
       if (!data?.postId) {
         return;
