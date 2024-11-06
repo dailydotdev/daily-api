@@ -1660,7 +1660,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const source = await sourceMember?.source;
 
-      if (!sourceMember || !source) {
+      if (!source) {
         throw new ForbiddenError('Access denied!');
       }
 
