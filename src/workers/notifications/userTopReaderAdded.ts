@@ -12,7 +12,8 @@ const WEBAPP_MAGIC_IMAGE_PREFIX = `/imageGenerator`;
 export const userTopReaderAdded =
   generateTypedNotificationWorker<'api.v1.user-top-reader'>({
     subscription: 'api.user-top-reader-added',
-    handler: async ({ userTopReader: { id, userId, keywordValue } }, con) => {
+    handler: async ({ userTopReader }, con) => {
+      const { id, userId, keywordValue } = userTopReader;
       const topReader = await con.getRepository(UserTopReader).findOneByOrFail({
         id,
         userId,
