@@ -9,6 +9,7 @@ import {
   UserStreak,
   Bookmark,
   Alerts,
+  UserTopReader,
 } from '../../entity';
 import { messageToJson, Worker } from '../worker';
 import {
@@ -971,6 +972,15 @@ const onUserCompanyCompanyChange = async (
   }
 };
 
+const onUserTopReaderChange = async (
+  con: DataSource,
+  data: ChangeMessage<UserTopReader>,
+) => {
+  if (data.payload.op !== 'c') {
+    return;
+  }
+};
+
 const onBookmarkChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -1091,6 +1101,9 @@ const worker: Worker = {
           break;
         case getTableName(con, UserCompany):
           await onUserCompanyCompanyChange(con, logger, data);
+          break;
+        case getTableName(con, UserTopReader):
+          await onUserTopReaderChange(con, data);
           break;
       }
     } catch (err) {
