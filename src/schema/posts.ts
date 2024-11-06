@@ -8,6 +8,7 @@ import { DataSource, MoreThan } from 'typeorm';
 import {
   ensureSourcePermissions,
   GQLSource,
+  isPrivilegedMember,
   SourcePermissions,
   sourceTypesWithMembers,
 } from './sources';
@@ -92,6 +93,20 @@ import { ReportReason } from '../entity/common';
 import { reportPost, saveHiddenPost } from '../common/reporting';
 import { PostCodeSnippetLanguage, UserVote } from '../types';
 import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
+import { SourcePostModerationStatus } from '../entity/SourcePostModeration';
+
+export interface GQLSourcePostModeration {
+  id: string;
+  title?: string;
+  content?: string;
+  contentHtml?: string;
+  image?: string;
+  sourceId: string;
+  sharedPostId?: string;
+  status: SourcePostModerationStatus;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export interface GQLPost {
   id: string;
@@ -157,6 +172,14 @@ export type GQLPostNotification = Pick<
   'id' | 'numUpvotes' | 'numComments'
 >;
 
+const sourcePostModerationPageGenerator =
+  offsetPageGenerator<GQLSourcePostModeration>(15, 50);
+
+type SourcePostModerationArgs = ConnectionArguments & {
+  sourceId: string;
+  status: string[];
+};
+
 export interface GQLPostUpvote {
   createdAt: Date;
   post: GQLPost;
@@ -209,6 +232,52 @@ export type GQLPostCodeSnippet = Pick<
 >;
 
 export const typeDefs = /* GraphQL */ `
+  """
+  Post moderation item
+  """
+  type SourcePostModeration {
+    """
+    Id of the post
+    """
+    id: ID!
+    """
+    The post's title in HTML
+    """
+    titleHtml: String
+    """
+    The post's title
+    """
+    title: String
+    """
+    The post's content in HTML
+    """
+    contentHtml: String
+    """
+    The post's content
+    """
+    content: String
+    """
+    The post's image
+    """
+    image: String
+    """
+    Id of the Squad
+    """
+    sourceId: String
+    """
+    Type of post
+    """
+    type: String
+    """
+    Id of the shared post
+    """
+    sharedPostId: String
+    """
+    external link url
+    """
+    externalLink: String
+  }
+
   type TocItem {
     """
     Content of the toc item
@@ -554,6 +623,24 @@ export const typeDefs = /* GraphQL */ `
     cursor: String!
   }
 
+  type SourcePostModerationConnection {
+    pageInfo: PageInfo!
+    edges: [SourcePostModerationEdge!]!
+    """
+    The original query in case of a search operation
+    """
+    query: String
+  }
+
+  type SourcePostModerationEdge {
+    node: SourcePostModeration!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
   type UpvoteEdge {
     node: UserPost!
 
@@ -646,6 +733,41 @@ export const typeDefs = /* GraphQL */ `
   }
 
   extend type Query {
+    """
+    Get specific squad post moderation item
+    """
+    sourcePostModeration(
+      """
+      Id of the requested post moderation
+      """
+      id: ID!
+      """
+      Id of the source
+      """
+      sourceId: ID!
+    ): SourcePostModeration! @auth
+    """
+    Get squad post moderations by source id
+    """
+    sourcePostModerations(
+      """
+      Id of the source
+      """
+      sourceId: ID!
+      """
+      Status of the moderation
+      """
+      status: [String]
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+    ): SourcePostModerationConnection! @auth
+
     """
     Get post by id
     """
@@ -1101,6 +1223,131 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   BaseContext
 >({
   Query: {
+    sourcePostModeration: async (
+      _,
+      { id, sourceId }: { id: string; sourceId: string },
+      ctx: Context,
+      info,
+    ): Promise<GQLSourcePostModeration> => {
+      const isModerator = await isPrivilegedMember(ctx, sourceId);
+
+      return graphorm.queryOneOrFail<GQLSourcePostModeration>(
+        ctx,
+        info,
+        (builder) => {
+          const queryBuilder = builder.queryBuilder.where(
+            `"${builder.alias}"."id" = :id AND ${builder.alias}."sourceId" = :sourceId`,
+            { id, sourceId },
+          );
+
+          if (!isModerator) {
+            queryBuilder.andWhere(
+              `"${builder.alias}"."createdById" = :userId`,
+              {
+                userId: ctx.userId,
+              },
+            );
+          }
+          return {
+            ...builder,
+            queryBuilder,
+          };
+        },
+      );
+    },
+    sourcePostModerations: async (
+      _,
+      args: SourcePostModerationArgs,
+      ctx: Context,
+      info,
+    ): Promise<ConnectionRelay<GQLSourcePostModeration>> => {
+      const isModerator = await isPrivilegedMember(ctx, args.sourceId);
+      const page = sourcePostModerationPageGenerator.connArgsToPage(args);
+
+      const statuses = Array.from(new Set(args.status));
+
+      if (isModerator) {
+        return graphorm.queryPaginated(
+          ctx,
+          info,
+          (nodeSize) =>
+            sourcePostModerationPageGenerator.hasPreviousPage(page, nodeSize),
+          (nodeSize) =>
+            sourcePostModerationPageGenerator.hasNextPage(page, nodeSize),
+          (node, index) =>
+            sourcePostModerationPageGenerator.nodeToCursor(
+              page,
+              args,
+              node,
+              index,
+            ),
+          (builder) => {
+            builder.queryBuilder
+              .where(`"${builder.alias}"."sourceId" = :sourceId`, {
+                sourceId: args.sourceId,
+              })
+              .orderBy(`${builder.alias}.updatedAt`, 'DESC')
+              .limit(page.limit)
+              .offset(page.offset);
+
+            if (statuses.length) {
+              builder.queryBuilder.andWhere(
+                `"${builder.alias}"."status" IN (:...status)`,
+                {
+                  status: statuses,
+                },
+              );
+            }
+
+            return builder;
+          },
+          undefined,
+          true,
+        );
+      }
+      const { userId } = ctx;
+
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) =>
+          sourcePostModerationPageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) =>
+          sourcePostModerationPageGenerator.hasNextPage(page, nodeSize),
+        (node, index) =>
+          sourcePostModerationPageGenerator.nodeToCursor(
+            page,
+            args,
+            node,
+            index,
+          ),
+        (builder) => {
+          builder.queryBuilder
+            .where(`"${builder.alias}"."sourceId" = :sourceId`, {
+              sourceId: args.sourceId,
+            })
+            .andWhere(`"${builder.alias}"."createdById" = :userId`, {
+              userId,
+            })
+            .orderBy(`${builder.alias}.updatedAt`, 'DESC')
+            .limit(page.limit)
+            .offset(page.offset);
+
+          if (statuses.length) {
+            builder.queryBuilder.andWhere(
+              `"${builder.alias}"."status" IN (:...status)`,
+              {
+                status: statuses,
+              },
+            );
+          }
+
+          return builder;
+        },
+        undefined,
+        true,
+      );
+    },
     post: async (
       source,
       { id }: { id: string },
