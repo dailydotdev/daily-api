@@ -10,6 +10,7 @@ import cors from '@fastify/cors';
 import mercurius, { MercuriusError } from 'mercurius';
 import MercuriusGQLUpload from 'mercurius-upload';
 import MercuriusCache from 'mercurius-cache';
+import proxy from '@fastify/http-proxy';
 import { NoSchemaIntrospectionCustomRule } from 'graphql';
 // import fastifyWebsocket from '@fastify/websocket';
 
@@ -301,6 +302,15 @@ export default async function app(
   }
 
   app.register(compatibility, { prefix: '/v1' });
+  app.register(proxy, {
+    upstream: 'https://www.google.com/s2/favicons',
+    prefix: '/icon',
+    replyOptions: {
+      queryString: (_, reqUrl) => {
+        return reqUrl.replace('/icon?url=', 'domain=').replace('size=', 'sz=');
+      },
+    },
+  });
   app.register(routes, { prefix: '/' });
 
   return app;
