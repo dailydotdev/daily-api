@@ -29,7 +29,7 @@ import { uniqueifyObjectArray } from './utils';
 import {
   SquadPostModeration,
   SquadPostModerationStatus,
-} from '../entity/SquadPostModeration';
+} from '../entity/sourcePostModeration';
 
 export const defaultImage = {
   urls: process.env.DEFAULT_IMAGE_URL?.split?.(',') ?? [],

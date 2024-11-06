@@ -78,7 +78,7 @@ import { PostCodeSnippet } from '../src/entity/posts/PostCodeSnippet';
 import {
   SquadPostModeration,
   SquadPostModerationStatus,
-} from '../src/entity/SquadPostModeration';
+} from '../src/entity/sourcePostModeration';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),

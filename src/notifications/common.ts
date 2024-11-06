@@ -18,7 +18,7 @@ import {
 } from '../errors';
 import { ReadStream } from 'fs';
 import { UserNotification } from '../entity';
-import { SquadPostModerationStatus } from '../entity/SquadPostModeration';
+import { SquadPostModerationStatus } from '../entity/sourcePostModeration';
 
 export enum NotificationType {
   CommunityPicksFailed = 'community_picks_failed',
