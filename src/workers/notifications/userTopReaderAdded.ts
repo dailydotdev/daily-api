@@ -13,9 +13,6 @@ export const userTopReaderAdded =
   generateTypedNotificationWorker<'api.v1.user-top-reader'>({
     subscription: 'api.user-top-reader-added',
     handler: async ({ userTopReader: { id, userId, keywordValue } }, con) => {
-      if (userId !== 'XDCZD-PHG') {
-        return;
-      }
       const topReader = await con.getRepository(UserTopReader).findOneByOrFail({
         id,
         userId,
