@@ -973,12 +973,16 @@ const onUserCompanyCompanyChange = async (
 };
 
 const onUserTopReaderChange = async (
-  con: DataSource,
+  _: DataSource,
+  logger: FastifyBaseLogger,
   data: ChangeMessage<UserTopReader>,
 ) => {
   if (data.payload.op !== 'c') {
     return;
   }
+  await triggerTypedEvent(logger, 'api.v1.user-top-reader', {
+    userTopReader: data.payload.after!,
+  });
 };
 
 const onBookmarkChange = async (
@@ -1103,7 +1107,7 @@ const worker: Worker = {
           await onUserCompanyCompanyChange(con, logger, data);
           break;
         case getTableName(con, UserTopReader):
-          await onUserTopReaderChange(con, data);
+          await onUserTopReaderChange(con, logger, data);
           break;
       }
     } catch (err) {
