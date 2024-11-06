@@ -17,6 +17,8 @@ type TopReaderQueryResult = {
 };
 
 const LIMIT_PER_KEYWORD = 10;
+const MINIMUM_UNIQUE_VIEWERS = 500;
+const TOP_READERS_TO_SELECT = 100;
 // const result = typeCastResult as unknown as TopReaderQueryResult[];
 
 export const calculateTopReaders: Cron = {
@@ -39,7 +41,10 @@ export const calculateTopReaders: Cron = {
         'utf8',
       );
 
-      const result = await con.query<TopReaderQueryResult[]>(sql);
+      const result = await con.query<TopReaderQueryResult[]>(sql, [
+        MINIMUM_UNIQUE_VIEWERS,
+        TOP_READERS_TO_SELECT,
+      ]);
       if (!result.length) {
         logger.error('calculateTopReaders: no results');
         return;

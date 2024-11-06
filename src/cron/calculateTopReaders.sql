@@ -33,7 +33,7 @@ top_keywords AS (
   GROUP BY
     "dv"."keyword"
   HAVING
-    COUNT("dv"."keyword") >= 500
+    COUNT("dv"."keyword") >= $1
     -- Must have at least 500 unique views
   ORDER BY
     "dv"."count" DESC
@@ -68,7 +68,7 @@ FROM
   "ranked_users" "ru"
   INNER JOIN "top_keywords" "tk" ON "tk"."keyword" = "ru"."keyword"
 WHERE
-  "ru"."rank" <= 100
+  "ru"."rank" <= $2
   -- We need to select a higher amount of users here, so that we can process them server side
 ORDER BY
   "tk"."count" DESC,
