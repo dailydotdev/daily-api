@@ -34,9 +34,6 @@ import {
   validatePost,
   ONE_MINUTE_IN_SECONDS,
   toGQLEnum,
-  CreateSourcePostModeration,
-  CreateSourcePostModerationArgs,
-  createSourcePostModeration,
 } from '../common';
 import {
   ArticlePost,
@@ -62,7 +59,6 @@ import {
   PostRelationType,
   PostRelation,
   deletePost,
-  generateTitleHtml,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -97,6 +93,7 @@ import { ReportReason } from '../entity/common';
 import { reportPost, saveHiddenPost } from '../common/reporting';
 import { PostCodeSnippetLanguage, UserVote } from '../types';
 import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
+import { SourcePostModerationStatus } from '../entity/SourcePostModeration';
 
 export interface GQLSourcePostModeration {
   id: string;
@@ -106,7 +103,11 @@ export interface GQLSourcePostModeration {
   image?: string;
   sourceId: string;
   sharedPostId?: string;
+  status: SourcePostModerationStatus;
+  createdAt: Date;
+  updatedAt: Date;
 }
+
 export interface GQLPost {
   id: string;
   type: PostType;
@@ -170,6 +171,14 @@ export type GQLPostNotification = Pick<
   GQLPost,
   'id' | 'numUpvotes' | 'numComments'
 >;
+
+const sourcePostModerationPageGenerator =
+  offsetPageGenerator<GQLSourcePostModeration>(15, 50);
+
+type SourcePostModerationArgs = ConnectionArguments & {
+  sourceId: string;
+  status: string[];
+};
 
 export interface GQLPostUpvote {
   createdAt: Date;
@@ -263,6 +272,10 @@ export const typeDefs = /* GraphQL */ `
     Id of the shared post
     """
     sharedPostId: String
+    """
+    external link url
+    """
+    externalLink: String
   }
 
   type TocItem {
@@ -610,6 +623,24 @@ export const typeDefs = /* GraphQL */ `
     cursor: String!
   }
 
+  type SourcePostModerationConnection {
+    pageInfo: PageInfo!
+    edges: [SourcePostModerationEdge!]!
+    """
+    The original query in case of a search operation
+    """
+    query: String
+  }
+
+  type SourcePostModerationEdge {
+    node: SourcePostModeration!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
   type UpvoteEdge {
     node: UserPost!
 
@@ -705,7 +736,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get specific squad post moderation item
     """
-    SourcePostModeration(
+    sourcePostModeration(
       """
       Id of the requested post moderation
       """
@@ -714,17 +745,28 @@ export const typeDefs = /* GraphQL */ `
       Id of the source
       """
       sourceId: ID!
-    ): SourcePostModeration!
-
+    ): SourcePostModeration! @auth
     """
     Get squad post moderations by source id
     """
-    SourcePostModerationsBySourceId(
+    sourcePostModerations(
       """
       Id of the source
       """
       sourceId: ID!
-    ): [SourcePostModeration!]!
+      """
+      Status of the moderation
+      """
+      status: [String]
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+    ): SourcePostModerationConnection! @auth
 
     """
     Get post by id
@@ -858,44 +900,6 @@ export const typeDefs = /* GraphQL */ `
     ): EmptyResponse @auth
 
     """
-    To create post moderation item
-    """
-    createSourcePostModeration(
-      """
-      Id of the Squad to post to
-      """
-      sourceId: ID!
-      """
-      Html content of the post
-      """
-      contentHtml: String
-      """
-      content of the post
-      """
-      content: String
-      """
-      Html Title of the post
-      """
-      titleHtml: String
-      """
-      title of the post
-      """
-      title: String!
-      """
-      Image of the post
-      """
-      image: Upload
-      """
-      ID of the post to share
-      """
-      sharedPostId: ID
-      """
-      type of the post
-      """
-      type: String!
-    ): SourcePostModeration! @auth
-
-    """
     To allow user to create freeform posts
     """
     createFreeformPost(
@@ -915,7 +919,7 @@ export const typeDefs = /* GraphQL */ `
       title: String!
 
       """
-      Content of the post (max 4000 chars)
+      Content of the post
       """
       content: String
     ): Post!
@@ -940,7 +944,7 @@ export const typeDefs = /* GraphQL */ `
       """
       title: String
       """
-      Content of the post (max 4000 chars)
+      Content of the post
       """
       content: String
     ): Post! @auth
@@ -1219,42 +1223,129 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   BaseContext
 >({
   Query: {
-    SourcePostModerationsBySourceId: async (
-      _,
-      { sourceId }: { sourceId: string },
-      ctx: Context,
-      info,
-    ): Promise<GQLSourcePostModeration[]> => {
-      const isModerator = await isPrivilegedMember(ctx, sourceId);
-      if (!isModerator) throw new ForbiddenError('Access denied!');
-
-      return graphorm.query<GQLSourcePostModeration>(ctx, info, (builder) => ({
-        ...builder,
-        queryBuilder: builder.queryBuilder.where(
-          `"${builder.alias}"."sourceId" = :sourceId`,
-          { sourceId },
-        ),
-      }));
-    },
-    SourcePostModeration: async (
+    sourcePostModeration: async (
       _,
       { id, sourceId }: { id: string; sourceId: string },
       ctx: Context,
       info,
     ): Promise<GQLSourcePostModeration> => {
       const isModerator = await isPrivilegedMember(ctx, sourceId);
-      if (!isModerator) throw new ForbiddenError('Access denied!');
 
       return graphorm.queryOneOrFail<GQLSourcePostModeration>(
         ctx,
         info,
-        (builder) => ({
-          ...builder,
-          queryBuilder: builder.queryBuilder.where(
+        (builder) => {
+          const queryBuilder = builder.queryBuilder.where(
             `"${builder.alias}"."id" = :id AND ${builder.alias}."sourceId" = :sourceId`,
             { id, sourceId },
+          );
+
+          if (!isModerator) {
+            queryBuilder.andWhere(
+              `"${builder.alias}"."createdById" = :userId`,
+              {
+                userId: ctx.userId,
+              },
+            );
+          }
+          return {
+            ...builder,
+            queryBuilder,
+          };
+        },
+      );
+    },
+    sourcePostModerations: async (
+      _,
+      args: SourcePostModerationArgs,
+      ctx: Context,
+      info,
+    ): Promise<ConnectionRelay<GQLSourcePostModeration>> => {
+      const isModerator = await isPrivilegedMember(ctx, args.sourceId);
+      const page = sourcePostModerationPageGenerator.connArgsToPage(args);
+
+      const statuses = Array.from(new Set(args.status));
+
+      if (isModerator) {
+        return graphorm.queryPaginated(
+          ctx,
+          info,
+          (nodeSize) =>
+            sourcePostModerationPageGenerator.hasPreviousPage(page, nodeSize),
+          (nodeSize) =>
+            sourcePostModerationPageGenerator.hasNextPage(page, nodeSize),
+          (node, index) =>
+            sourcePostModerationPageGenerator.nodeToCursor(
+              page,
+              args,
+              node,
+              index,
+            ),
+          (builder) => {
+            builder.queryBuilder
+              .where(`"${builder.alias}"."sourceId" = :sourceId`, {
+                sourceId: args.sourceId,
+              })
+              .orderBy(`${builder.alias}.updatedAt`, 'DESC')
+              .limit(page.limit)
+              .offset(page.offset);
+
+            if (statuses.length) {
+              builder.queryBuilder.andWhere(
+                `"${builder.alias}"."status" IN (:...status)`,
+                {
+                  status: statuses,
+                },
+              );
+            }
+
+            return builder;
+          },
+          undefined,
+          true,
+        );
+      }
+      const { userId } = ctx;
+
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) =>
+          sourcePostModerationPageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) =>
+          sourcePostModerationPageGenerator.hasNextPage(page, nodeSize),
+        (node, index) =>
+          sourcePostModerationPageGenerator.nodeToCursor(
+            page,
+            args,
+            node,
+            index,
           ),
-        }),
+        (builder) => {
+          builder.queryBuilder
+            .where(`"${builder.alias}"."sourceId" = :sourceId`, {
+              sourceId: args.sourceId,
+            })
+            .andWhere(`"${builder.alias}"."createdById" = :userId`, {
+              userId,
+            })
+            .orderBy(`${builder.alias}.updatedAt`, 'DESC')
+            .limit(page.limit)
+            .offset(page.offset);
+
+          if (statuses.length) {
+            builder.queryBuilder.andWhere(
+              `"${builder.alias}"."status" IN (:...status)`,
+              {
+                status: statuses,
+              },
+            );
+          }
+
+          return builder;
+        },
+        undefined,
+        true,
       );
     },
     post: async (
@@ -1676,63 +1767,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       return { _: true };
-    },
-    createSourcePostModeration: async (
-      _,
-      {
-        sourceId,
-        image,
-        title,
-        content,
-        type,
-        sharedPostId,
-      }: CreateSourcePostModerationArgs,
-      ctx: AuthContext,
-      info,
-    ): Promise<GQLSourcePostModeration> => {
-      const { con, userId } = ctx;
-      const id = await generateShortId();
-
-      const mentions = await getMentions(con, content, userId, sourceId);
-      const contentHtml = markdown.render(content!, { mentions });
-      const titleHtml = generateTitleHtml(title!, mentions);
-
-      const pendingPost: CreateSourcePostModeration = {
-        id,
-        title,
-        titleHtml,
-        content,
-        contentHtml,
-        sourceId,
-        type,
-        sharedPostId,
-        createdById: userId,
-      };
-
-      await con.transaction(async (manager) => {
-        if (image && process.env.CLOUDINARY_URL) {
-          const upload = await image;
-          const { url: coverImageUrl } = await uploadPostFile(
-            id,
-            upload.createReadStream(),
-            UploadPreset.PostBannerImage,
-          );
-          pendingPost.image = coverImageUrl;
-        }
-        await createSourcePostModeration(manager, ctx, pendingPost);
-      });
-
-      return graphorm.queryOneOrFail<GQLSourcePostModeration>(
-        ctx,
-        info,
-        (builder) => ({
-          ...builder,
-          queryBuilder: builder.queryBuilder.where(
-            `"${builder.alias}"."id" = :id`,
-            { id },
-          ),
-        }),
-      );
     },
     createFreeformPost: async (
       source,
