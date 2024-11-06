@@ -195,7 +195,7 @@ const obj = new GraphORM({
       current: { select: 'currentStreak' },
     },
   },
-  SquadPostModeration: {
+  SourcePostModeration: {
     requiredColumns: ['id'],
   },
   Post: {

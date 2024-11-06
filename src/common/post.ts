@@ -27,9 +27,9 @@ import { downloadJsonFile } from './googleCloud';
 import type { PostCodeSnippetJsonFile } from '../types';
 import { uniqueifyObjectArray } from './utils';
 import {
-  SquadPostModeration,
-  SquadPostModerationStatus,
-} from '../entity/sourcePostModeration';
+  SourcePostModeration,
+  SourcePostModerationStatus,
+} from '../entity/SourcePostModeration';
 
 export const defaultImage = {
   urls: process.env.DEFAULT_IMAGE_URL?.split?.(',') ?? [],
@@ -178,12 +178,12 @@ export type CreatePost = Pick<
   'title' | 'content' | 'image' | 'contentHtml' | 'authorId' | 'sourceId' | 'id'
 >;
 
-export type CreateSquadPostModeration = Omit<
+export type CreateSourcePostModeration = Omit<
   CreatePost,
   'authorId' | 'content' | 'contentHtml'
 > &
   Pick<
-    SquadPostModeration,
+    SourcePostModeration,
     | 'titleHtml'
     | 'content'
     | 'contentHtml'
@@ -192,16 +192,16 @@ export type CreateSquadPostModeration = Omit<
     | 'createdById'
   >;
 
-export const createSquadPostModeration = async (
+export const createSourcePostModeration = async (
   con: DataSource | EntityManager,
   ctx: AuthContext,
-  args: CreateSquadPostModeration,
+  args: CreateSourcePostModeration,
 ) => {
-  const newPost = con.getRepository(SquadPostModeration).create({
+  const newPost = con.getRepository(SourcePostModeration).create({
     ...args,
-    status: SquadPostModerationStatus.Pending,
+    status: SourcePostModerationStatus.Pending,
   });
-  await con.getRepository(SquadPostModeration).save(newPost);
+  await con.getRepository(SourcePostModeration).save(newPost);
   return newPost;
 };
 
@@ -262,7 +262,7 @@ export interface CreatePostArgs
   sourceId: string;
 }
 
-export interface CreateSquadPostModerationArgs
+export interface CreateSourcePostModerationArgs
   extends Pick<EditPostArgs, 'title' | 'image'> {
   sourceId: string;
   content?: string;

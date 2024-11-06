@@ -76,9 +76,9 @@ import {
 import { badUsersFixture } from './fixture/user';
 import { PostCodeSnippet } from '../src/entity/posts/PostCodeSnippet';
 import {
-  SquadPostModeration,
-  SquadPostModerationStatus,
-} from '../src/entity/sourcePostModeration';
+  SourcePostModeration,
+  SourcePostModerationStatus,
+} from '../src/entity/SourcePostModeration';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -3290,17 +3290,17 @@ describe('mutation createFreeformPost', () => {
   });
 });
 
-describe('query SquadPostModeration', () => {
+describe('query SourcePostModeration', () => {
   beforeEach(async () => {
     await saveSquadFixtures();
-    await con.getRepository(SquadPostModeration).save([
+    await con.getRepository(SourcePostModeration).save([
       {
         id: '1',
         createdById: '1',
         sourceId: 'a',
         title: 'My First Moderated Post',
         type: PostType.Freeform,
-        status: SquadPostModerationStatus.Pending,
+        status: SourcePostModerationStatus.Pending,
         content: 'Hello World',
       },
       {
@@ -3310,7 +3310,7 @@ describe('query SquadPostModeration', () => {
         title: 'My Second Moderated Post',
         type: PostType.Share,
         sharedPostId: 'p1',
-        status: SquadPostModerationStatus.Pending,
+        status: SourcePostModerationStatus.Pending,
         content: 'Hello World',
       },
       {
@@ -3319,47 +3319,47 @@ describe('query SquadPostModeration', () => {
         createdById: '1',
         title: 'My Third Moderated Post',
         type: PostType.Freeform,
-        status: SquadPostModerationStatus.Pending,
+        status: SourcePostModerationStatus.Pending,
         content: 'Hello World',
       },
     ]);
   });
 
   const queryOne = `{
-  squadPostModeration(id: "1", sourceId: "a") {
+  SourcePostModeration(id: "1", sourceId: "a") {
     title
     type
   }
 }`;
 
   const queryAllForSource = `{
-  squadPostModerationsBySourceId(sourceId: "a") {
+  SourcePostModerationsBySourceId(sourceId: "a") {
     id
     title
     type
   }
 }`;
 
-  it('should  get the squadPostModeration by id', async () => {
+  it('should  get the SourcePostModeration by id', async () => {
     loggedUser = '3';
 
     const res = await client.query(queryOne);
 
     expect(res.errors).toBeUndefined();
     expect(res.data).toEqual({
-      squadPostModeration: {
+      SourcePostModeration: {
         title: 'My First Moderated Post',
         type: 'freeform',
       },
     });
   });
 
-  it('should return the squadPostModerationsBySourceId', async () => {
+  it('should return the SourcePostModerationsBySourceId', async () => {
     loggedUser = '3';
 
     const res = await client.query(queryAllForSource);
     expect(res.errors).toBeUndefined();
-    expect(res.data.squadPostModerationsBySourceId.length).toEqual(2);
+    expect(res.data.SourcePostModerationsBySourceId.length).toEqual(2);
   });
 
   it('should not authorize retrieval of squad post moderations', async () => {
@@ -3376,9 +3376,9 @@ describe('query SquadPostModeration', () => {
   });
 });
 
-describe('mutation createSquadPostModeration', () => {
-  const MUTATION = `mutation CreateSquadPostModeration($sourceId: ID! $title: String!, $type: String!, $content: String, $image: Upload, $sharedPostId: ID) {
-    createSquadPostModeration(sourceId: $sourceId, title: $title, type: $type, content: $content, image: $image, sharedPostId: $sharedPostId) {
+describe('mutation createSourcePostModeration', () => {
+  const MUTATION = `mutation CreateSourcePostModeration($sourceId: ID! $title: String!, $type: String!, $content: String, $image: Upload, $sharedPostId: ID) {
+    createSourcePostModeration(sourceId: $sourceId, title: $title, type: $type, content: $content, image: $image, sharedPostId: $sharedPostId) {
       id
       title
       content
@@ -3404,9 +3404,9 @@ describe('mutation createSquadPostModeration', () => {
       variables: { ...params, type: PostType.Freeform },
     });
     expect(res.errors).toBeFalsy();
-    expect(res.data.createSquadPostModeration).toBeTruthy();
-    expect(res.data.createSquadPostModeration.type).toEqual(PostType.Freeform);
-    expect(res.data.createSquadPostModeration.contentHtml).toBeDefined();
+    expect(res.data.createSourcePostModeration).toBeTruthy();
+    expect(res.data.createSourcePostModeration.type).toEqual(PostType.Freeform);
+    expect(res.data.createSourcePostModeration.contentHtml).toBeDefined();
   });
 
   it('should successfully create a squad post moderation entry of type share', async () => {
@@ -3415,10 +3415,10 @@ describe('mutation createSquadPostModeration', () => {
       variables: { ...params, sharedPostId: 'p1', type: PostType.Share },
     });
     expect(res.errors).toBeFalsy();
-    expect(res.data.createSquadPostModeration).toBeTruthy();
-    expect(res.data.createSquadPostModeration.type).toEqual(PostType.Share);
-    expect(res.data.createSquadPostModeration.contentHtml).toBeDefined();
-    expect(res.data.createSquadPostModeration.sharedPostId).toEqual('p1');
+    expect(res.data.createSourcePostModeration).toBeTruthy();
+    expect(res.data.createSourcePostModeration.type).toEqual(PostType.Share);
+    expect(res.data.createSourcePostModeration.contentHtml).toBeDefined();
+    expect(res.data.createSourcePostModeration.sharedPostId).toEqual('p1');
   });
 });
 

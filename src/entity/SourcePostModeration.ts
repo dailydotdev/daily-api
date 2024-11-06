@@ -10,7 +10,7 @@ import { Post } from './posts';
 import { Source } from './Source';
 import { User } from './user';
 
-export enum SquadPostModerationStatus {
+export enum SourcePostModerationStatus {
   Approved = 'approved',
   Rejected = 'rejected',
   Pending = 'pending',
@@ -31,7 +31,7 @@ export class SourcePostModeration {
   source: Promise<Source>;
 
   @Column({ type: 'text' })
-  status: SquadPostModerationStatus;
+  status: SourcePostModerationStatus;
 
   @Column({ type: 'text', nullable: true })
   createdById: string;

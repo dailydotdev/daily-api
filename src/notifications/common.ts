@@ -18,7 +18,7 @@ import {
 } from '../errors';
 import { ReadStream } from 'fs';
 import { UserNotification } from '../entity';
-import { SquadPostModerationStatus } from '../entity/sourcePostModeration';
+import { SourcePostModerationStatus } from '../entity/SourcePostModeration';
 
 export enum NotificationType {
   CommunityPicksFailed = 'community_picks_failed',
@@ -272,10 +272,10 @@ export const generateUserNotificationUniqueKey = ({
 };
 
 export const postStatusToTypeMap: Record<
-  SquadPostModerationStatus,
+  SourcePostModerationStatus,
   NotificationType
 > = {
-  [SquadPostModerationStatus.Approved]: NotificationType.SquadPostApproved,
-  [SquadPostModerationStatus.Rejected]: NotificationType.SquadPostRejected,
-  [SquadPostModerationStatus.Pending]: NotificationType.SquadPostSubmitted,
+  [SourcePostModerationStatus.Approved]: NotificationType.SquadPostApproved,
+  [SourcePostModerationStatus.Rejected]: NotificationType.SquadPostRejected,
+  [SourcePostModerationStatus.Pending]: NotificationType.SquadPostSubmitted,
 };

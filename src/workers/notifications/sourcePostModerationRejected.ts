@@ -1,7 +1,7 @@
 import { generateTypedNotificationWorker } from './worker';
 import { NotificationType } from '../../notifications/common';
 import { NotificationPostModerationContext } from '../../notifications';
-import { SquadPostModerationStatus } from '../../entity/sourcePostModeration';
+import { SourcePostModerationStatus } from '../../entity/SourcePostModeration';
 import { getPostModerationContext } from './utils';
 import { logger } from '../../logger';
 import { TypeORMQueryFailedError } from '../../errors';
@@ -10,7 +10,7 @@ const worker =
   generateTypedNotificationWorker<'api.v1.source-post-moderation-submitted'>({
     subscription: 'api.v1.source-post-moderation-rejected-notification',
     handler: async ({ post }, con) => {
-      if (post.status !== SquadPostModerationStatus.Rejected) {
+      if (post.status !== SourcePostModerationStatus.Rejected) {
         return;
       }
 
