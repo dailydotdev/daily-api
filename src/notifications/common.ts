@@ -143,6 +143,16 @@ const getReferenceId = async (
     return comment?.postId ?? referenceId;
   }
 
+  if (commentReplyNotificationTypes.includes(type)) {
+    const parentComment = await con.getRepository(Comment).findOne({
+      select: ['parentId'],
+      where: { id: referenceId },
+    });
+    if (parentComment?.parentId) {
+      return parentComment.parentId;
+    }
+  }
+
   return referenceId;
 };
 
