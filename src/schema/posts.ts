@@ -1264,6 +1264,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const isModerator = await isPrivilegedMember(ctx, args.sourceId);
       const page = sourcePostModerationPageGenerator.connArgsToPage(args);
 
+      const statuses = Array.from(new Set(args.status));
+
       if (isModerator) {
         return graphorm.queryPaginated(
           ctx,
@@ -1288,11 +1290,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               .limit(page.limit)
               .offset(page.offset);
 
-            if (args.status) {
+            if (statuses.length) {
               builder.queryBuilder.andWhere(
                 `"${builder.alias}"."status" IN (:...status)`,
                 {
-                  status: Array.from(new Set(args.status)),
+                  status: statuses,
                 },
               );
             }
@@ -1331,11 +1333,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             .limit(page.limit)
             .offset(page.offset);
 
-          if (args.status) {
+          if (statuses.length) {
             builder.queryBuilder.andWhere(
               `"${builder.alias}"."status" IN (:...status)`,
               {
-                status: Array.from(new Set(args.status)),
+                status: statuses,
               },
             );
           }
