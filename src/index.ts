@@ -306,9 +306,27 @@ export default async function app(
     upstream: 'https://www.google.com/s2/favicons',
     prefix: '/icon',
     replyOptions: {
-      queryString: (_, reqUrl) => {
-        return reqUrl.replace('/icon?url=', 'domain=').replace('size=', 'sz=');
+      queryString: (search, reqUrl, req) => {
+        const reqSearchParams = new URLSearchParams(
+          req.query as { url: string; size: string },
+        );
+        const proxySearchParams = new URLSearchParams();
+
+        proxySearchParams.set('domain', reqSearchParams.get('url') ?? '');
+        proxySearchParams.set('sz', reqSearchParams.get('size') ?? '');
+
+        return proxySearchParams.toString();
       },
+    },
+    preValidation: async (
+      req: FastifyRequest<{
+        Querystring: { url: string; size: string };
+      }>,
+      res,
+    ) => {
+      if (!req.query.url || !req.query.size) {
+        res.status(400).send({ error: 'url and size are required' });
+      }
     },
   });
   app.register(routes, { prefix: '/' });
