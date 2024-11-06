@@ -24,7 +24,9 @@ export const calculateTopReaders: Cron = {
   handler: async (con) => {
     logger.info('calculateTopReaders');
     // Set issuedAt to be the last day of the previous month
-    const issuedAt = endOfMonth(subMonths(new Date(), 1));
+    const issuedAt = new Date(
+      endOfMonth(subMonths(new Date(), 1)).setHours(0, 0, 0, 0),
+    );
 
     const topReaders: Record<string, string[]> = {};
     const userIds: string[] = [];
