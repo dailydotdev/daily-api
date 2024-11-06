@@ -15,7 +15,7 @@ import {
   pubsub,
 } from './pubsub';
 import { ContentUpdatedMessage } from '@dailydotdev/schema';
-import { SquadPostModeration } from '../entity/SquadPostModeration';
+import { SquadPostModeration } from '../entity/sourcePostModeration';
 
 export type PubSubSchema = {
   'pub-request': {

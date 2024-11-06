@@ -33,7 +33,7 @@ import {
 import { NotificationIcon } from './icons';
 import { SourceMemberRoles } from '../roles';
 import { NotificationType } from './common';
-import { SquadPostModeration } from '../entity/SquadPostModeration';
+import { SquadPostModeration } from '../entity/sourcePostModeration';
 
 const MAX_COMMENT_LENGTH = 320;
 

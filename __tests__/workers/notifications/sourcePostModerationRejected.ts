@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import worker from '../../../src/workers/notifications/squadPostModerationRejected';
+import worker from '../../../src/workers/notifications/sourcePostModerationRejected';
 import createOrGetConnection from '../../../src/db';
 import {
   Post,
@@ -11,7 +11,7 @@ import {
 import { sourcesFixture, usersFixture } from '../../fixture';
 import { workers } from '../../../src/workers';
 import { invokeNotificationWorker, saveFixtures } from '../../helpers';
-import { SquadPostModerationStatus } from '../../../src/entity/SquadPostModeration';
+import { SquadPostModerationStatus } from '../../../src/entity/sourcePostModeration';
 import { SourceMemberRoles } from '../../../src/roles';
 import { NotificationPostModerationContext } from '../../../src/notifications';
 import { postsFixture } from '../../fixture/post';
