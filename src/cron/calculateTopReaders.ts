@@ -6,8 +6,6 @@ import path from 'path';
 import { UserTopReader } from '../entity';
 import { endOfMonth, subMonths } from 'date-fns';
 
-// import typeCastResult from './2024-october.json';
-
 type TopReaderQueryResult = {
   keyword: string;
   keywordRank: number;
@@ -19,7 +17,6 @@ type TopReaderQueryResult = {
 const LIMIT_PER_KEYWORD = 10;
 const MINIMUM_UNIQUE_VIEWERS = 500;
 const TOP_READERS_TO_SELECT = 100;
-// const result = typeCastResult as unknown as TopReaderQueryResult[];
 
 export const calculateTopReaders: Cron = {
   name: 'calculate-top-readers',
