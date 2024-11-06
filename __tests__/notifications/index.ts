@@ -16,12 +16,14 @@ import {
   NotificationUserContext,
   Reference,
   storeNotificationBundleV2,
+  type NotificationUserTopReaderContext,
 } from '../../src/notifications';
 import { postsFixture } from '../fixture/post';
 import {
   Bookmark,
   Comment,
   FreeformPost,
+  Keyword,
   NotificationAttachmentType,
   NotificationAttachmentV2,
   NotificationAvatarV2,
@@ -37,10 +39,12 @@ import {
   User,
   UserNotification,
   UserStreak,
+  UserTopReader,
   WelcomePost,
 } from '../../src/entity';
 import {
   createSquadWelcomePost,
+  defaultImage,
   notificationsLink,
   scoutArticleLink,
   squadsFeaturedPage,
@@ -1287,5 +1291,55 @@ describe('storeNotificationBundle', () => {
       notificationId: In(notificationIds.map((item) => item.id)),
     });
     expect(notifications.length).toEqual(3);
+  });
+
+  it('should generate user_given_top_reader notification', async () => {
+    const topReader = {
+      id: 'cdaac113-0e8b-4189-9a6b-ceea7b21de0e',
+      userId: '1',
+      issuedAt: new Date(),
+      keywordValue: 'kw_1',
+      image: 'https://daily.dev/image.jpg',
+    };
+    const keyword = {
+      value: `kw_1`,
+      flags: {
+        title: `kw_1 title`,
+      },
+    };
+
+    await saveFixtures(con, User, usersFixture);
+    await saveFixtures(con, Keyword, [keyword]);
+    await saveFixtures(con, UserTopReader, [topReader]);
+
+    const type = NotificationType.UserTopReaderBadge;
+    const ctx: NotificationUserTopReaderContext = {
+      userIds: [userId],
+      userTopReader: topReader as Reference<UserTopReader>,
+      keyword: keyword as Reference<Keyword>,
+    };
+
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual(
+      'cdaac113-0e8b-4189-9a6b-ceea7b21de0e',
+    );
+    expect(actual.notification.referenceType).toEqual('user_top_reader');
+    expect(actual.notification.description).toBeFalsy();
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/notifications?topreader=true&badgeId=cdaac113-0e8b-4189-9a6b-ceea7b21de0e',
+    );
+    expect(actual.avatars).toEqual([
+      {
+        image: defaultImage.placeholder,
+        name: 'kw_1 title',
+        referenceId: 'cdaac113-0e8b-4189-9a6b-ceea7b21de0e',
+        targetUrl: '',
+        type: 'top_reader_badge',
+      },
+    ]);
+    expect(actual.attachments!.length).toEqual(0);
   });
 });

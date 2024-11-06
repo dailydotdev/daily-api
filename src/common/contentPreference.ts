@@ -4,8 +4,11 @@ import {
   ContentPreferenceType,
 } from '../entity/contentPreference/types';
 import { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
-import { NotificationType } from '../notifications/common';
-import { EntityManager, EntityTarget, In } from 'typeorm';
+import {
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../notifications/common';
+import { EntityManager, EntityTarget, In, Not } from 'typeorm';
 import { ConflictError } from '../errors';
 import { ContentPreferenceFeedKeyword } from '../entity/contentPreference/ContentPreferenceFeedKeyword';
 import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
@@ -17,6 +20,8 @@ import {
   NotificationPreferenceUser,
 } from '../entity';
 import { ghostUser } from './utils';
+import { randomUUID } from 'crypto';
+import { SourceMemberRoles } from '../roles';
 
 type FollowEntity = ({
   ctx,
@@ -36,7 +41,15 @@ type UnFollowEntity = ({
   id: string;
 }) => Promise<void>;
 
-const entityToNotificationTypeMap: Record<
+type BlockEntity = ({
+  ctx,
+  id,
+}: {
+  ctx: AuthContext;
+  id: string;
+}) => Promise<void>;
+
+export const entityToNotificationTypeMap: Record<
   ContentPreferenceType,
   NotificationType[]
 > = {
@@ -45,6 +58,7 @@ const entityToNotificationTypeMap: Record<
   [ContentPreferenceType.Source]: [
     NotificationType.SourcePostAdded,
     NotificationType.SquadPostAdded,
+    NotificationType.SquadMemberJoined,
   ],
 };
 
@@ -53,18 +67,20 @@ export const contentPreferenceNotificationTypes = Object.values(
   entityToNotificationTypeMap.user,
 ).flat();
 
-const cleanContentNotificationPreference = async ({
+export const cleanContentNotificationPreference = async ({
   ctx,
   entityManager,
   id,
   notificationTypes,
   notficationEntity,
+  userId,
 }: {
   ctx: AuthContext;
   entityManager?: EntityManager;
   id: string;
   notificationTypes: NotificationType[];
   notficationEntity: EntityTarget<NotificationPreference>;
+  userId: string;
 }) => {
   const notificationRepository = (entityManager ?? ctx.con).getRepository(
     notficationEntity,
@@ -75,9 +91,10 @@ const cleanContentNotificationPreference = async ({
   }
 
   await notificationRepository.delete({
-    userId: ctx.userId,
+    userId,
     referenceId: id,
     notificationType: In(notificationTypes),
+    status: Not(NotificationPreferenceStatus.Muted),
   });
 };
 
@@ -109,6 +126,7 @@ const followUser: FollowEntity = async ({ ctx, id, status }) => {
         id,
         notificationTypes: entityToNotificationTypeMap.user,
         notficationEntity: NotificationPreferenceUser,
+        userId: ctx.userId,
       });
     }
   });
@@ -130,6 +148,7 @@ const unfollowUser: UnFollowEntity = async ({ ctx, id }) => {
       id,
       notificationTypes: entityToNotificationTypeMap.user,
       notficationEntity: NotificationPreferenceUser,
+      userId: ctx.userId,
     });
   });
 };
@@ -188,9 +207,19 @@ const followSource: FollowEntity = async ({ ctx, id, status }) => {
       sourceId: id,
       feedId: ctx.userId,
       status,
+      flags: {
+        referralToken: randomUUID(),
+        role: SourceMemberRoles.Member,
+      },
     });
 
-    await repository.save(contentPreference);
+    await repository
+      .createQueryBuilder()
+      .insert()
+      .into(ContentPreferenceSource)
+      .values(contentPreference)
+      .orUpdate(['status'], ['referenceId', 'userId'])
+      .execute();
 
     if (status !== ContentPreferenceStatus.Subscribed) {
       cleanContentNotificationPreference({
@@ -199,6 +228,7 @@ const followSource: FollowEntity = async ({ ctx, id, status }) => {
         id,
         notificationTypes: entityToNotificationTypeMap.source,
         notficationEntity: NotificationPreferenceSource,
+        userId: ctx.userId,
       });
     }
 
@@ -227,11 +257,111 @@ const unfollowSource: UnFollowEntity = async ({ ctx, id }) => {
       id,
       notificationTypes: entityToNotificationTypeMap.source,
       notficationEntity: NotificationPreferenceSource,
+      userId: ctx.userId,
     });
 
     await entityManager.getRepository(FeedSource).delete({
       feedId: ctx.userId,
       sourceId: id,
+    });
+  });
+};
+
+const blockUser: BlockEntity = async ({ ctx, id }) => {
+  if (ctx.userId === id) {
+    throw new ConflictError('Cannot block yourself');
+  }
+
+  if (ghostUser.id === id) {
+    throw new ConflictError('Cannot block this user');
+  }
+
+  await ctx.con.transaction(async (entityManager) => {
+    const repository = entityManager.getRepository(ContentPreferenceUser);
+
+    const contentPreference = repository.create({
+      userId: ctx.userId,
+      referenceId: id,
+      referenceUserId: id,
+      status: ContentPreferenceStatus.Blocked,
+    });
+
+    await repository.save(contentPreference);
+
+    cleanContentNotificationPreference({
+      ctx,
+      entityManager,
+      id,
+      notificationTypes: entityToNotificationTypeMap.user,
+      notficationEntity: NotificationPreferenceUser,
+      userId: ctx.userId,
+    });
+  });
+};
+
+const blockKeyword: BlockEntity = async ({ ctx, id }) => {
+  await ctx.con.transaction(async (entityManager) => {
+    const repository = entityManager.getRepository(
+      ContentPreferenceFeedKeyword,
+    );
+
+    const contentPreference = repository.create({
+      userId: ctx.userId,
+      referenceId: id,
+      keywordId: id,
+      feedId: ctx.userId,
+      status: ContentPreferenceStatus.Blocked,
+    });
+
+    await repository.save(contentPreference);
+
+    // TODO follow phase 3 remove when backward compatibility is done
+    await entityManager.getRepository(FeedTag).save({
+      feedId: ctx.userId,
+      tag: id,
+      blocked: true,
+    });
+  });
+};
+
+const blockSource: BlockEntity = async ({ ctx, id }) => {
+  await ctx.con.transaction(async (entityManager) => {
+    const repository = entityManager.getRepository(ContentPreferenceSource);
+
+    const contentPreference = repository.create({
+      userId: ctx.userId,
+      referenceId: id,
+      sourceId: id,
+      feedId: ctx.userId,
+      status: ContentPreferenceStatus.Blocked,
+      flags: {
+        referralToken: randomUUID(),
+        role: SourceMemberRoles.Member,
+      },
+    });
+
+    await repository
+      .createQueryBuilder()
+      .insert()
+      .into(ContentPreferenceSource)
+      .values(contentPreference)
+      .orUpdate(['status'], ['referenceId', 'userId'])
+      .execute();
+
+    cleanContentNotificationPreference({
+      ctx,
+      entityManager,
+      id,
+      notificationTypes: entityToNotificationTypeMap.source,
+      notficationEntity: NotificationPreferenceSource,
+      userId: ctx.userId,
+    });
+
+    // TODO follow phase 3 remove when backward compatibility is done
+    await entityManager.getRepository(FeedSource).save({
+      feedId: ctx.userId,
+      sourceId: id,
+      blocked: true,
     });
   });
 };
@@ -278,4 +408,38 @@ export const unfollowEntity = ({
     default:
       throw new Error('Entity not supported');
   }
+};
+
+export const blockEntity = async ({
+  ctx,
+  id,
+  entity,
+}: {
+  ctx: AuthContext;
+  id: string;
+  entity: ContentPreferenceType;
+}): Promise<void> => {
+  switch (entity) {
+    case ContentPreferenceType.User:
+      return blockUser({ ctx, id });
+    case ContentPreferenceType.Keyword:
+      return blockKeyword({ ctx, id });
+    case ContentPreferenceType.Source:
+      return blockSource({ ctx, id });
+    default:
+      throw new Error('Entity not supported');
+  }
+};
+
+export const unblockEntity = async ({
+  ctx,
+  id,
+  entity,
+}: {
+  ctx: AuthContext;
+  id: string;
+  entity: ContentPreferenceType;
+}): Promise<void> => {
+  // currently unblock is just like unfollow, eg. remove everything from db
+  return unfollowEntity({ ctx, id, entity });
 };

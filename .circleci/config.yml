@@ -118,12 +118,8 @@ jobs:
           command: npm i
           working_directory: .infra
       - run:
-          name: Pulumi refresh
-          command: pulumi refresh -y --suppress-outputs --stack dailydotdev/prod
-          working_directory: .infra
-      - run:
           name: Pulumi up
-          command: pulumi up -y --suppress-outputs --stack dailydotdev/prod -c tag=$CIRCLE_SHA1
+          command: pulumi up -r -y --suppress-outputs --stack dailydotdev/prod -c tag=$CIRCLE_SHA1
           working_directory: .infra
 workflows:
   build:

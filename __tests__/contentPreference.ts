@@ -22,7 +22,14 @@ import {
   ContentPreferenceType,
 } from '../src/entity/contentPreference/types';
 import { NotificationPreferenceUser } from '../src/entity/notifications/NotificationPreferenceUser';
-import { Feed, FeedSource, Keyword, Source, SourceType } from '../src/entity';
+import {
+  Feed,
+  FeedSource,
+  FeedTag,
+  Keyword,
+  Source,
+  SourceType,
+} from '../src/entity';
 import { ContentPreferenceFeedKeyword } from '../src/entity/contentPreference/ContentPreferenceFeedKeyword';
 import { ContentPreferenceSource } from '../src/entity/contentPreference/ContentPreferenceSource';
 import {
@@ -653,6 +660,7 @@ describe('mutation follow', () => {
 
       expect(contentPreference).not.toBeNull();
       expect(contentPreference!.status).toBe(ContentPreferenceStatus.Follow);
+      expect(contentPreference!.flags.referralToken).not.toBeNull();
 
       const feedSource = await con.getRepository(FeedSource).findOneBy({
         feedId: '1-fm',
@@ -693,6 +701,50 @@ describe('mutation follow', () => {
       });
       expect(feedSource).not.toBeNull();
       expect(feedSource!.blocked).toBe(false);
+    });
+
+    it('should not overwrite referralToken if preference already exists', async () => {
+      loggedUser = '1-fm';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: 'a-fm',
+          entity: ContentPreferenceType.Source,
+          status: ContentPreferenceStatus.Follow,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreferenceBefore = await con
+        .getRepository(ContentPreferenceSource)
+        .findOneBy({
+          userId: '1-fm',
+          referenceId: 'a-fm',
+        });
+
+      expect(contentPreferenceBefore).not.toBeNull();
+
+      const res2 = await client.query(MUTATION, {
+        variables: {
+          id: 'a-fm',
+          entity: ContentPreferenceType.Source,
+          status: ContentPreferenceStatus.Subscribed,
+        },
+      });
+
+      expect(res2.errors).toBeFalsy();
+
+      const contentPreferenceAfter = await con
+        .getRepository(ContentPreferenceSource)
+        .findOneBy({
+          userId: '1-fm',
+          referenceId: 'a-fm',
+        });
+
+      expect(contentPreferenceBefore!.flags.referralToken).toBe(
+        contentPreferenceAfter!.flags.referralToken,
+      );
     });
   });
 
@@ -894,6 +946,47 @@ describe('mutation unfollow', () => {
       });
 
     expect(notificationPreferences).toHaveLength(0);
+  });
+
+  it('should not remove muted notification preferences', async () => {
+    loggedUser = '1-um';
+
+    await con.getRepository(NotificationPreferenceUser).save([
+      {
+        userId: '1-um',
+        referenceUserId: '2-um',
+        referenceId: '2-um',
+        status: NotificationPreferenceStatus.Muted,
+        notificationType: NotificationType.UserPostAdded,
+      },
+    ]);
+
+    const res = await client.query(MUTATION, {
+      variables: {
+        id: '2-um',
+        entity: ContentPreferenceType.User,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceUser)
+      .findOneBy({
+        userId: '1-um',
+        referenceId: '2-um',
+      });
+
+    expect(contentPreference).toBeNull();
+
+    const notificationPreferences = await con
+      .getRepository(NotificationPreferenceUser)
+      .findBy({
+        userId: '1-um',
+        referenceUserId: '2-um',
+      });
+
+    expect(notificationPreferences).toHaveLength(1);
   });
 
   describe('keyword', () => {
@@ -1101,5 +1194,492 @@ describe('query contentPreferenceStatus', () => {
       },
       'UNAUTHENTICATED',
     );
+  });
+});
+
+describe('mutation block', () => {
+  const MUTATION = `mutation Block($id: ID!, $entity: ContentPreferenceType!) {
+    block(id: $id, entity: $entity) {
+      _
+    }
+  }`;
+
+  beforeEach(async () => {
+    await saveFixtures(
+      con,
+      User,
+      usersFixture.map((item) => {
+        return {
+          ...item,
+          id: `${item.id}-blm`,
+          username: `${item.username}-blm`,
+        };
+      }),
+    );
+  });
+
+  it('should block user', async () => {
+    loggedUser = '1-blm';
+
+    const res = await client.query(MUTATION, {
+      variables: {
+        id: '3-blm',
+        entity: ContentPreferenceType.User,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceUser)
+      .findOneBy({
+        userId: '1-blm',
+        referenceId: '3-blm',
+      });
+
+    expect(contentPreference).not.toBeNull();
+    expect(contentPreference!.status).toBe(ContentPreferenceStatus.Blocked);
+
+    const notificationPreferences = await con
+      .getRepository(NotificationPreferenceUser)
+      .findBy({
+        userId: '1-blm',
+        referenceUserId: '3-blm',
+      });
+
+    expect(notificationPreferences).toHaveLength(0);
+  });
+
+  it('should not block yourself', async () => {
+    loggedUser = '1-blm';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '1-blm',
+          entity: ContentPreferenceType.User,
+        },
+      },
+      'CONFLICT',
+    );
+  });
+
+  it('should not block ghost user', async () => {
+    loggedUser = '1-blm';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: ghostUser.id,
+          entity: ContentPreferenceType.User,
+        },
+      },
+      'CONFLICT',
+    );
+  });
+
+  describe('keyword', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, Keyword, [
+        { value: 'keyword-bl1', occurrences: 300, status: 'allow' },
+        { value: 'keyword-bl2', occurrences: 200, status: 'allow' },
+        { value: 'keyword-bl3', occurrences: 100, status: 'allow' },
+      ]);
+
+      await saveFixtures(con, Feed, [{ id: '1-blm', userId: '1-blm' }]);
+    });
+
+    it('should block', async () => {
+      loggedUser = '1-blm';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: 'keyword-bl1',
+          entity: ContentPreferenceType.Keyword,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreference = await con
+        .getRepository(ContentPreferenceFeedKeyword)
+        .findOneBy({
+          userId: '1-blm',
+          referenceId: 'keyword-bl1',
+        });
+
+      expect(contentPreference).not.toBeNull();
+      expect(contentPreference!.status).toBe(ContentPreferenceStatus.Blocked);
+
+      const feedTag = await con.getRepository(FeedTag).findOneBy({
+        feedId: loggedUser,
+        tag: 'keyword-bl1',
+        blocked: true,
+      });
+
+      expect(feedTag).not.toBeNull();
+      expect(feedTag!.blocked).toBe(true);
+    });
+  });
+
+  describe('source', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, Source, [
+        {
+          id: 'a-blm',
+          name: 'A-blm',
+          image: 'http://image.com/a-fm',
+          handle: 'a-blm',
+          type: SourceType.Machine,
+        },
+      ]);
+
+      await saveFixtures(con, Feed, [{ id: '1-blm', userId: '1-blm' }]);
+    });
+
+    it('should block', async () => {
+      loggedUser = '1-blm';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: 'a-blm',
+          entity: ContentPreferenceType.Source,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreference = await con
+        .getRepository(ContentPreferenceSource)
+        .findOneBy({
+          userId: '1-blm',
+          referenceId: 'a-blm',
+        });
+
+      expect(contentPreference).not.toBeNull();
+      expect(contentPreference!.status).toBe(ContentPreferenceStatus.Blocked);
+
+      const feedSource = await con.getRepository(FeedSource).findOneBy({
+        feedId: '1-blm',
+        sourceId: 'a-blm',
+      });
+      expect(feedSource).not.toBeNull();
+      expect(feedSource!.blocked).toBe(true);
+    });
+
+    it('should not overwrite referralToken if preference already exists', async () => {
+      loggedUser = '1-blm';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: 'a-blm',
+          entity: ContentPreferenceType.Source,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreferenceBefore = await con
+        .getRepository(ContentPreferenceSource)
+        .findOneBy({
+          userId: '1-blm',
+          referenceId: 'a-blm',
+        });
+
+      expect(contentPreferenceBefore).not.toBeNull();
+
+      const res2 = await client.query(MUTATION, {
+        variables: {
+          id: 'a-blm',
+          entity: ContentPreferenceType.Source,
+        },
+      });
+
+      expect(res2.errors).toBeFalsy();
+
+      const contentPreferenceAfter = await con
+        .getRepository(ContentPreferenceSource)
+        .findOneBy({
+          userId: '1-blm',
+          referenceId: 'a-blm',
+        });
+
+      expect(contentPreferenceBefore!.flags.referralToken).toBe(
+        contentPreferenceAfter!.flags.referralToken,
+      );
+    });
+  });
+});
+
+describe('mutation unblock', () => {
+  const MUTATION = `mutation Unblock($id: ID!, $entity: ContentPreferenceType!) {
+    unblock(id: $id, entity: $entity) {
+      _
+    }
+  }`;
+
+  beforeEach(async () => {
+    await saveFixtures(
+      con,
+      User,
+      usersFixture.map((item) => {
+        return {
+          ...item,
+          id: `${item.id}-ublm`,
+          username: `${item.username}-ublm`,
+        };
+      }),
+    );
+
+    await con.getRepository(ContentPreferenceUser).save([
+      {
+        userId: '1-ublm',
+        referenceId: '2-ublm',
+        referenceUserId: '2-ublm',
+        status: ContentPreferenceStatus.Blocked,
+      },
+      {
+        userId: '2-ublm',
+        referenceId: '1-ublm',
+        referenceUserId: '1-ublm',
+        status: ContentPreferenceStatus.Blocked,
+      },
+    ]);
+  });
+
+  it('should unblock user', async () => {
+    loggedUser = '1-ublm';
+
+    const res = await client.query(MUTATION, {
+      variables: {
+        id: '2-ublm',
+        entity: ContentPreferenceType.User,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceUser)
+      .findOneBy({
+        userId: '1-ublm',
+        referenceId: '2-ublm',
+      });
+
+    expect(contentPreference).toBeNull();
+
+    const notificationPreferences = await con
+      .getRepository(NotificationPreferenceUser)
+      .findBy({
+        userId: '1-ublm',
+        referenceUserId: '2-ublm',
+      });
+
+    expect(notificationPreferences).toHaveLength(0);
+  });
+
+  it('should do nothing if user is not blocked', async () => {
+    loggedUser = '1-ublm';
+
+    const res = await client.query(MUTATION, {
+      variables: {
+        id: '3-ublm',
+        entity: ContentPreferenceType.User,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceUser)
+      .findOneBy({
+        userId: '1-ublm',
+        referenceId: '3-ublm',
+      });
+
+    expect(contentPreference).toBeNull();
+
+    const notificationPreferences = await con
+      .getRepository(NotificationPreferenceUser)
+      .findBy({
+        userId: '1-ublm',
+        referenceUserId: '3-ublm',
+      });
+
+    expect(notificationPreferences).toHaveLength(0);
+  });
+
+  it('should remove notification preferences', async () => {
+    loggedUser = '1-ublm';
+
+    await con.getRepository(NotificationPreferenceUser).save([
+      {
+        userId: '1-ublm',
+        referenceUserId: '2-ublm',
+        referenceId: '2-ublm',
+        status: NotificationPreferenceStatus.Subscribed,
+        notificationType: NotificationType.UserPostAdded,
+      },
+    ]);
+
+    const res = await client.query(MUTATION, {
+      variables: {
+        id: '2-ublm',
+        entity: ContentPreferenceType.User,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceUser)
+      .findOneBy({
+        userId: '1-ublm',
+        referenceId: '2-ublm',
+      });
+
+    expect(contentPreference).toBeNull();
+
+    const notificationPreferences = await con
+      .getRepository(NotificationPreferenceUser)
+      .findBy({
+        userId: '1-ublm',
+        referenceUserId: '2-ublm',
+      });
+
+    expect(notificationPreferences).toHaveLength(0);
+  });
+
+  describe('keyword', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, Keyword, [
+        { value: 'keyword-ublm1', occurrences: 300, status: 'allow' },
+        { value: 'keyword-ublm2', occurrences: 200, status: 'allow' },
+        { value: 'keyword-ublm3', occurrences: 100, status: 'allow' },
+      ]);
+
+      await saveFixtures(con, Feed, [{ id: '1-ublm', userId: '1-ublm' }]);
+
+      await con.getRepository(ContentPreferenceFeedKeyword).save([
+        {
+          userId: '1-ublm',
+          referenceId: 'keyword-ublm1',
+          feedId: '1-ublm',
+          status: ContentPreferenceStatus.Blocked,
+        },
+        {
+          userId: '2-ublm',
+          referenceId: 'keyword-ublm2',
+          feedId: '1-ublm',
+          status: ContentPreferenceStatus.Blocked,
+        },
+      ]);
+
+      await con.getRepository(FeedTag).save([
+        {
+          feedId: '1-ublm',
+          tag: 'keyword-ublm1',
+          blocked: true,
+        },
+        {
+          feedId: '1-ublm',
+          tag: 'keyword-ublm2',
+          blocked: true,
+        },
+      ]);
+    });
+
+    it('should unblock', async () => {
+      loggedUser = '1-ublm';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: '2-ublm',
+          entity: ContentPreferenceType.Keyword,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreference = await con
+        .getRepository(ContentPreferenceFeedKeyword)
+        .findOneBy({
+          userId: '2-ublm',
+          referenceId: 'keyword-ublm1',
+        });
+
+      expect(contentPreference).toBeNull();
+
+      const feedSource = await con.getRepository(FeedTag).findOneBy({
+        feedId: '2-fm',
+        tag: 'keyword-ublm1',
+      });
+      expect(feedSource).toBeNull();
+    });
+  });
+
+  describe('source', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, Source, [
+        {
+          id: 'a-ublm',
+          name: 'A-ublm',
+          image: 'http://image.com/a-ublm',
+          handle: 'a-ublm',
+          type: SourceType.Machine,
+        },
+      ]);
+
+      await saveFixtures(con, Feed, [{ id: '1-ublm', userId: '1-ublm' }]);
+
+      await con.getRepository(ContentPreferenceSource).save([
+        {
+          userId: '1-ublm',
+          referenceId: 'a-ublm',
+          feedId: '1-ublm',
+          status: ContentPreferenceStatus.Blocked,
+        },
+      ]);
+
+      await con.getRepository(FeedSource).save([
+        {
+          feedId: '1-ublm',
+          sourceId: 'a-ublm',
+          blocked: true,
+        },
+      ]);
+    });
+
+    it('should unblock', async () => {
+      loggedUser = '1-ublm';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: 'a-ublm',
+          entity: ContentPreferenceType.Source,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreference = await con
+        .getRepository(ContentPreferenceFeedKeyword)
+        .findOneBy({
+          userId: '1-ublm',
+          referenceId: 'a-ublm',
+        });
+
+      expect(contentPreference).toBeNull();
+
+      const feedSource = await con.getRepository(FeedSource).findOneBy({
+        feedId: '1-ublm',
+        sourceId: 'a-ublm',
+      });
+      expect(feedSource).toBeNull();
+    });
   });
 });

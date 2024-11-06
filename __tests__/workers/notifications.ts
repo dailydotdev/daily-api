@@ -1656,7 +1656,7 @@ describe('comment reply worker', () => {
       },
     ]);
 
-  it('should add comment reply notification', async () => {
+  it('should add comment reply notification for main user', async () => {
     await prepareComments();
     const worker = await import('../../src/workers/notifications/commentReply');
     const actual = await invokeNotificationWorker(worker.default, {
@@ -1674,15 +1674,15 @@ describe('comment reply worker', () => {
       '4',
     );
 
-    expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '3', '2']);
+    expect(actual[0].ctx.userIds).toIncludeSameMembers(['2']);
   });
 
   it('should add comment reply notification but ignore muted users', async () => {
     await prepareComments();
     await con.getRepository(NotificationPreferenceComment).save({
-      userId: '3',
-      commentId: 'c5',
-      referenceId: 'c5',
+      userId: '2',
+      commentId: 'c1',
+      referenceId: 'c1',
       status: NotificationPreferenceStatus.Muted,
       notificationType: NotificationType.CommentReply,
     });
@@ -1701,7 +1701,7 @@ describe('comment reply worker', () => {
     expect((bundle.ctx as NotificationCommenterContext).commenter.id).toEqual(
       '4',
     );
-    expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '2']);
+    expect(actual[0].ctx.userIds).toEqual([]);
   });
 
   it('should not add comment reply notification to comment author on their reply', async () => {
@@ -2030,10 +2030,10 @@ it('should add squad reply notification', async () => {
   expect((bundle.ctx as NotificationCommenterContext).commenter.id).toEqual(
     '4',
   );
-  expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '3', '2']);
+  expect(actual[0].ctx.userIds).toIncludeSameMembers(['2']);
 });
 
-it('users should get a reply notification if they commented in the same thread', async () => {
+it('users should not get a reply notification if they commented in the same thread', async () => {
   await con
     .getRepository(Source)
     .update({ id: 'a' }, { type: SourceType.Squad });
@@ -2103,8 +2103,7 @@ it('users should get a reply notification if they commented in the same thread',
   expect((bundle2.ctx as NotificationCommenterContext).commenter.id).toEqual(
     '3',
   );
-  expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '4', '2']);
-  expect(actual[0].ctx.userIds).not.toIncludeSameMembers(['3']);
+  expect(actual[0].ctx.userIds).toEqual(['2']);
 });
 
 describe('user post added', () => {

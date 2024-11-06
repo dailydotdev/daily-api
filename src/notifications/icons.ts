@@ -11,4 +11,5 @@ export enum NotificationIcon {
   DevCard = 'DevCard',
   BookmarkReminder = 'BookmarkReminder',
   Streak = 'Streak',
+  TopReaderBadge = 'TopReaderBadge',
 }

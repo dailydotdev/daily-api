@@ -11,6 +11,8 @@ import {
   Submission,
   User,
   UserStreak,
+  type Keyword,
+  type UserTopReader,
 } from '../entity';
 import { ChangeObject } from '../types';
 import { DeepPartial } from 'typeorm';
@@ -88,4 +90,9 @@ export type NotificationCollectionContext = NotificationPostContext & {
 
 export type NotificationUserContext = NotificationBaseContext & {
   user: Reference<User>;
+};
+
+export type NotificationUserTopReaderContext = NotificationBaseContext & {
+  userTopReader: Reference<UserTopReader>;
+  keyword: Reference<Keyword>;
 };
