@@ -318,13 +318,9 @@ export default async function app(
         return proxySearchParams.toString();
       },
     },
-    preValidation: async (
-      req: FastifyRequest<{
-        Querystring: { url: string; size: string };
-      }>,
-      res,
-    ) => {
-      if (!req.query.url || !req.query.size) {
+    preValidation: async (req: FastifyRequest, res) => {
+      const { url, size } = req.query as { url: string; size: string };
+      if (!url || !size) {
         res.status(400).send({ error: 'url and size are required' });
       }
     },
