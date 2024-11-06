@@ -116,6 +116,11 @@ beforeEach(async () => {
   await con
     .getRepository(User)
     .save({ id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' });
+  await con.getRepository(User).save({
+    id: '2',
+    name: 'Lee',
+    image: 'https://daily.dev/lee.jpg',
+  });
   await con.getRepository(User).save([
     {
       id: '2',
@@ -125,7 +130,14 @@ beforeEach(async () => {
     {
       id: '3',
       name: 'Amar',
-      image: 'https://daily.dev/lee.jpg',
+    },
+    {
+      id: '4',
+      name: 'John Doe',
+    },
+    {
+      id: '5',
+      name: 'Joanna Deer',
     },
   ]);
   await deleteKeysByPattern(`${rateLimiterName}:*`);
@@ -134,8 +146,11 @@ beforeEach(async () => {
 
 const saveSquadFixtures = async () => {
   await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
+  await con
     .getRepository(SquadSource)
-    .update({ id: 'a' }, { type: SourceType.Squad, moderationRequired: true });
+    .update({ id: 'm' }, { type: SourceType.Squad, moderationRequired: true });
   await con
     .getRepository(Post)
     .update(
@@ -157,8 +172,20 @@ const saveSquadFixtures = async () => {
     },
     {
       userId: '3',
-      sourceId: 'a',
+      sourceId: 'm',
       role: SourceMemberRoles.Moderator,
+      referralToken: randomUUID(),
+    },
+    {
+      userId: '4',
+      sourceId: 'm',
+      role: SourceMemberRoles.Member,
+      referralToken: randomUUID(),
+    },
+    {
+      userId: '5',
+      sourceId: 'm',
+      role: SourceMemberRoles.Member,
       referralToken: randomUUID(),
     },
   ]);
@@ -2980,11 +3007,11 @@ describe('mutation createFreeformPost', () => {
     );
   });
 
-  it('should return an error if content exceeds 4000 characters', async () => {
+  it('should return an error if content exceeds 10000 characters', async () => {
     loggedUser = '1';
 
-    const content = 'Hello World! Start your squad journey here';
-    const sample = new Array(100).fill(content);
+    const content = 'Hello World! Start your squad journey here'; // 42 chars
+    const sample = new Array(240).fill(content); // 42*240 = 10_080
 
     return testMutationErrorCode(
       client,
@@ -3140,7 +3167,7 @@ describe('mutation createFreeformPost', () => {
   it('should not allow mention outside of squad as part of the content being a freeform post', async () => {
     loggedUser = '1';
     const content = 'Test @sample';
-    await con.getRepository(User).update({ id: '5' }, { username: 'sample' });
+    await con.getRepository(User).update({ id: '9' }, { username: 'sample' });
     const post = await setupMention({ content });
     const mention = await con
       .getRepository(PostMention)
@@ -3290,23 +3317,24 @@ describe('mutation createFreeformPost', () => {
   });
 });
 
-describe('query SourcePostModeration', () => {
+describe('query sourcePostModeration', () => {
+  const firstPostUuid = randomUUID();
   beforeEach(async () => {
     await saveSquadFixtures();
     await con.getRepository(SourcePostModeration).save([
       {
-        id: '1',
-        createdById: '1',
-        sourceId: 'a',
+        id: firstPostUuid,
+        createdById: '4',
+        sourceId: 'm',
         title: 'My First Moderated Post',
         type: PostType.Freeform,
         status: SourcePostModerationStatus.Pending,
         content: 'Hello World',
       },
       {
-        id: '2',
-        sourceId: 'a',
-        createdById: '1',
+        id: randomUUID(),
+        sourceId: 'm',
+        createdById: '4',
         title: 'My Second Moderated Post',
         type: PostType.Share,
         sharedPostId: 'p1',
@@ -3314,111 +3342,134 @@ describe('query SourcePostModeration', () => {
         content: 'Hello World',
       },
       {
-        id: '3',
-        sourceId: 'b',
-        createdById: '1',
+        id: randomUUID(),
+        sourceId: 'm',
+        createdById: '5',
         title: 'My Third Moderated Post',
         type: PostType.Freeform,
         status: SourcePostModerationStatus.Pending,
         content: 'Hello World',
       },
+      {
+        id: randomUUID(),
+        sourceId: 'm',
+        createdById: '5',
+        title: 'Rejected Post',
+        type: PostType.Freeform,
+        status: SourcePostModerationStatus.Rejected,
+        content: 'Hello World',
+      },
+      {
+        id: randomUUID(),
+        sourceId: 'm',
+        createdById: '5',
+        title: 'Approved Post',
+        type: PostType.Freeform,
+        status: SourcePostModerationStatus.Approved,
+        content: 'Hello World',
+      },
     ]);
   });
 
-  const queryOne = `{
-  SourcePostModeration(id: "1", sourceId: "a") {
+  const queryOne = `query sourcePostModeration($id: ID!, $sourceId: ID!) {
+  sourcePostModeration(id: $id, sourceId: $sourceId) {
     title
     type
   }
 }`;
 
-  const queryAllForSource = `{
-  SourcePostModerationsBySourceId(sourceId: "a") {
-    id
-    title
-    type
+  const queryAllForSource = `query sourcePostModerations($sourceId: ID!, $status: [String]) {
+  sourcePostModerations(sourceId: $sourceId, status: $status) {
+    edges {
+      node {
+        title
+        type
+      }
+    }
   }
 }`;
 
-  it('should  get the SourcePostModeration by id', async () => {
-    loggedUser = '3';
+  it('should receive forbidden error because user is not member of squad', async () => {
+    loggedUser = '2';
+    return testQueryErrorCode(
+      client,
+      {
+        query: queryOne,
+        variables: { id: '1', sourceId: 'm' },
+      },
+      'FORBIDDEN',
+    );
+  });
 
-    const res = await client.query(queryOne);
+  it('should retrieve moderation item because it is made by the user', async () => {
+    loggedUser = '4';
 
-    expect(res.errors).toBeUndefined();
+    const res = await client.query(queryOne, {
+      variables: { id: firstPostUuid, sourceId: 'm' },
+    });
     expect(res.data).toEqual({
-      SourcePostModeration: {
+      sourcePostModeration: {
         title: 'My First Moderated Post',
         type: 'freeform',
       },
     });
   });
 
-  it('should return the SourcePostModerationsBySourceId', async () => {
+  it('should retrieve moderation item because user is moderator', async () => {
     loggedUser = '3';
-
-    const res = await client.query(queryAllForSource);
+    const res = await client.query(queryOne, {
+      variables: { id: firstPostUuid, sourceId: 'm' },
+    });
     expect(res.errors).toBeUndefined();
-    expect(res.data.SourcePostModerationsBySourceId.length).toEqual(2);
+    expect(res.data).toEqual({
+      sourcePostModeration: {
+        title: 'My First Moderated Post',
+        type: 'freeform',
+      },
+    });
   });
 
-  it('should not authorize retrieval of squad post moderations', async () => {
+  it('should return all the moderation items from sourcePostModerations because user is moderator', async () => {
+    loggedUser = '3';
+
+    const res = await client.query(queryAllForSource, {
+      variables: { sourceId: 'm' },
+    });
+    expect(res.errors).toBeUndefined();
+    expect(res.data.sourcePostModerations.edges.length).toEqual(5);
+  });
+
+  it('should return only approved and rejected items', async () => {
+    loggedUser = '3';
+
+    const res = await client.query(queryAllForSource, {
+      variables: { sourceId: 'm', status: ['approved', 'rejected'] },
+    });
+    expect(res.errors).toBeUndefined();
+    expect(res.data.sourcePostModerations.edges.length).toEqual(2);
+  });
+
+  it('should return only the users moderation items because user is not moderator', async () => {
+    loggedUser = '5';
+
+    const res = await client.query(queryAllForSource, {
+      variables: { sourceId: 'm' },
+    });
+    expect(res.errors).toBeUndefined();
+    expect(res.data.sourcePostModerations.edges.length).toEqual(3);
+  });
+
+  it('should not have access because user is not member of source', async () => {
     loggedUser = '2';
 
-    // const res = await client.query(queryAllForSource);
-    await testQueryErrorCode(
+    return testQueryErrorCode(
       client,
       {
         query: queryAllForSource,
+        variables: { sourceId: 'm' },
       },
       'FORBIDDEN',
     );
-  });
-});
-
-describe('mutation createSourcePostModeration', () => {
-  const MUTATION = `mutation CreateSourcePostModeration($sourceId: ID! $title: String!, $type: String!, $content: String, $image: Upload, $sharedPostId: ID) {
-    createSourcePostModeration(sourceId: $sourceId, title: $title, type: $type, content: $content, image: $image, sharedPostId: $sharedPostId) {
-      id
-      title
-      content
-      contentHtml
-      type
-      sharedPostId
-    }
-  }`;
-
-  beforeEach(async () => {
-    await saveSquadFixtures();
-  });
-
-  const params = {
-    sourceId: 'a',
-    title: 'My first post',
-    content: 'Hello World',
-  };
-
-  it('should successfully create a squad post moderation entry of type freeform', async () => {
-    loggedUser = '1';
-    const res = await client.mutate(MUTATION, {
-      variables: { ...params, type: PostType.Freeform },
-    });
-    expect(res.errors).toBeFalsy();
-    expect(res.data.createSourcePostModeration).toBeTruthy();
-    expect(res.data.createSourcePostModeration.type).toEqual(PostType.Freeform);
-    expect(res.data.createSourcePostModeration.contentHtml).toBeDefined();
-  });
-
-  it('should successfully create a squad post moderation entry of type share', async () => {
-    loggedUser = '1';
-    const res = await client.mutate(MUTATION, {
-      variables: { ...params, sharedPostId: 'p1', type: PostType.Share },
-    });
-    expect(res.errors).toBeFalsy();
-    expect(res.data.createSourcePostModeration).toBeTruthy();
-    expect(res.data.createSourcePostModeration.type).toEqual(PostType.Share);
-    expect(res.data.createSourcePostModeration.contentHtml).toBeDefined();
-    expect(res.data.createSourcePostModeration.sharedPostId).toEqual('p1');
   });
 });
 
@@ -3504,11 +3555,11 @@ describe('mutation editPost', () => {
     );
   });
 
-  it('should return an error if content exceeds 4000 characters', async () => {
+  it('should return an error if content exceeds 10000 characters', async () => {
     loggedUser = '1';
 
-    const content = 'Hello World! Start your squad journey here';
-    const sample = new Array(100).fill(content);
+    const content = 'Hello World! Start your squad journey here'; // 42 chars
+    const sample = new Array(240).fill(content); // 42*240 = 10_080
 
     return testMutationErrorCode(
       client,
@@ -4264,7 +4315,7 @@ describe('mutation vote post', () => {
   });
 
   it('should throw not found when cannot find user', () => {
-    loggedUser = '3';
+    loggedUser = '9';
     return testMutationErrorCode(
       client,
       {
@@ -4793,7 +4844,7 @@ describe('mutation dismissPostFeedback', () => {
   });
 
   it('should throw not found when cannot find user', () => {
-    loggedUser = '3';
+    loggedUser = '9';
     return testMutationErrorCode(
       client,
       {
