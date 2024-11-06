@@ -716,6 +716,11 @@ export const typeDefs = /* GraphQL */ `
     URL to the badge image
     """
     image: String
+
+    """
+    Total number of badges
+    """
+    total: Int
   }
 
   extend type Query {
@@ -874,7 +879,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get the latest top reader badges for the user
     """
-    topReaderBadge(limit: Int): [UserTopReader] @auth
+    topReaderBadge(limit: Int, userId: ID!): [UserTopReader]
 
     """
     Get the top reader badge based on badge ID
@@ -1705,7 +1710,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     topReaderBadge: async (
       _,
-      { limit = 5 }: { limit: number },
+      { limit = 5, userId }: { limit: number; userId: string },
       ctx: AuthContext,
       info: GraphQLResolveInfo,
     ) => {
@@ -1715,7 +1720,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         (builder) => {
           builder.queryBuilder = builder.queryBuilder
             .andWhere(`${builder.alias}.userId = :userId`, {
-              userId: ctx.userId,
+              userId,
             })
             .orderBy({
               '"issuedAt"': 'DESC',

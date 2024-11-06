@@ -4,7 +4,7 @@ import { ConnectionArguments } from 'graphql-relay';
 import { AuthContext, BaseContext, Context } from '../Context';
 import {
   createSharePost,
-  generateMemberToken,
+  NotificationPreferenceSource,
   Source,
   SourceFeed,
   SourceFlagsPublic,
@@ -67,6 +67,12 @@ import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { traceResolvers } from './trace';
 import { SourceCategory } from '../entity/sources/SourceCategory';
 import { validate } from 'uuid';
+import { ContentPreferenceStatus } from '../entity/contentPreference/types';
+import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
+import {
+  cleanContentNotificationPreference,
+  entityToNotificationTypeMap,
+} from '../common/contentPreference';
 
 export interface GQLSourceCategory {
   id: string;
@@ -1110,10 +1116,27 @@ const addNewSourceMember = async (
   con: DataSource | EntityManager,
   member: Omit<DeepPartial<SourceMember>, 'referralToken'>,
 ): Promise<void> => {
+  const referralToken = randomUUID();
+
   await con.getRepository(SourceMember).insert({
     ...member,
-    referralToken: await generateMemberToken(),
+    referralToken,
   });
+
+  await con.getRepository(ContentPreferenceSource).insert(
+    con.getRepository(ContentPreferenceSource).create({
+      userId: member.userId,
+      referenceId: member.sourceId,
+      sourceId: member.sourceId,
+      feedId: member.userId,
+      status: ContentPreferenceStatus.Subscribed,
+      flags: {
+        ...member.flags,
+        role: member.role,
+        referralToken,
+      },
+    }),
+  );
 };
 
 export const getPermissionsForMember = (
@@ -1169,14 +1192,25 @@ const updateHideFeedPostsFlag = async (
 ): Promise<GQLEmptyResponse> => {
   await ensureSourcePermissions(ctx, sourceId, SourcePermissions.View);
 
-  await ctx.con.getRepository(SourceMember).update(
-    { sourceId, userId: ctx.userId },
-    {
-      flags: updateFlagsStatement<SourceMember>({
-        hideFeedPosts: value,
-      }),
-    },
-  );
+  await ctx.con.transaction(async (entityManager) => {
+    await entityManager.getRepository(SourceMember).update(
+      { sourceId, userId: ctx.userId },
+      {
+        flags: updateFlagsStatement<SourceMember>({
+          hideFeedPosts: value,
+        }),
+      },
+    );
+
+    await entityManager.getRepository(ContentPreferenceSource).update(
+      { referenceId: sourceId, userId: ctx.userId },
+      {
+        flags: updateFlagsStatement<ContentPreferenceSource>({
+          hideFeedPosts: value,
+        }),
+      },
+    );
+  });
 
   return { _: true };
 };
@@ -1188,14 +1222,25 @@ const togglePinnedPosts = async (
 ): Promise<GQLEmptyResponse> => {
   await ensureSourcePermissions(ctx, sourceId, SourcePermissions.View);
 
-  await ctx.con.getRepository(SourceMember).update(
-    { sourceId, userId: ctx.userId },
-    {
-      flags: updateFlagsStatement<SourceMember>({
-        collapsePinnedPosts: value,
-      }),
-    },
-  );
+  await ctx.con.transaction(async (entityManager) => {
+    await entityManager.getRepository(SourceMember).update(
+      { sourceId, userId: ctx.userId },
+      {
+        flags: updateFlagsStatement<SourceMember>({
+          collapsePinnedPosts: value,
+        }),
+      },
+    );
+
+    await entityManager.getRepository(ContentPreferenceSource).update(
+      { referenceId: sourceId, userId: ctx.userId },
+      {
+        flags: updateFlagsStatement<SourceMember>({
+          collapsePinnedPosts: value,
+        }),
+      },
+    );
+  });
 
   return { _: true };
 };
@@ -1902,10 +1947,27 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Leave);
-      await ctx.con.getRepository(SourceMember).delete({
-        sourceId,
-        userId: ctx.userId,
+      await ctx.con.transaction(async (entityManager) => {
+        await entityManager.getRepository(SourceMember).delete({
+          sourceId,
+          userId: ctx.userId,
+        });
+
+        await entityManager.getRepository(ContentPreferenceSource).delete({
+          userId: ctx.userId,
+          referenceId: sourceId,
+        });
+
+        await cleanContentNotificationPreference({
+          ctx,
+          entityManager,
+          id: sourceId,
+          notificationTypes: entityToNotificationTypeMap.source,
+          notficationEntity: NotificationPreferenceSource,
+          userId: ctx.userId,
+        });
       });
+
       return { _: true };
     },
     updateMemberRole: async (
@@ -1932,9 +1994,34 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }
       }
 
-      await ctx.con
-        .getRepository(SourceMember)
-        .update({ sourceId, userId: memberId }, { role });
+      await ctx.con.transaction(async (entityManager) => {
+        await entityManager
+          .getRepository(SourceMember)
+          .update({ sourceId, userId: memberId }, { role });
+
+        const isBlock = role === SourceMemberRoles.Blocked;
+
+        await entityManager.getRepository(ContentPreferenceSource).update(
+          { userId: memberId, referenceId: sourceId },
+          {
+            status: isBlock ? ContentPreferenceStatus.Blocked : undefined,
+            flags: updateFlagsStatement<ContentPreferenceSource>({
+              role,
+            }),
+          },
+        );
+
+        if (isBlock) {
+          await cleanContentNotificationPreference({
+            ctx,
+            entityManager,
+            id: sourceId,
+            notificationTypes: entityToNotificationTypeMap.source,
+            notficationEntity: NotificationPreferenceSource,
+            userId: memberId,
+          });
+        }
+      });
 
       return { _: true };
     },
@@ -1949,9 +2036,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         SourcePermissions.MemberUnblock,
       );
 
-      await ctx.con
-        .getRepository(SourceMember)
-        .delete({ sourceId, userId: memberId });
+      await ctx.con.transaction(async (entityManager) => {
+        await entityManager
+          .getRepository(SourceMember)
+          .delete({ sourceId, userId: memberId });
+
+        await entityManager.getRepository(ContentPreferenceSource).delete({
+          userId: memberId,
+          referenceId: sourceId,
+        });
+      });
 
       return { _: true };
     },
