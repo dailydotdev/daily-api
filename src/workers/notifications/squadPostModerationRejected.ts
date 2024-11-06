@@ -1,30 +1,36 @@
 import { generateTypedNotificationWorker } from './worker';
 import { NotificationType } from '../../notifications/common';
 import { NotificationPostModerationContext } from '../../notifications';
-import { User } from '../../entity';
 import { SquadPostModerationStatus } from '../../entity/SquadPostModeration';
+import { getPostModerationContext } from './utils';
+import { logger } from '../../logger';
+import { TypeORMQueryFailedError } from '../../errors';
 
 const worker =
   generateTypedNotificationWorker<'api.v1.source-post-moderation-submitted'>({
     subscription: 'api.v1.source-post-moderation-rejected-notification',
     handler: async ({ post }, con) => {
-      if (
-        !post?.createdById ||
-        post.status !== SquadPostModerationStatus.Rejected
-      ) {
+      if (post.status !== SquadPostModerationStatus.Rejected) {
         return;
       }
 
-      await con
-        .getRepository(User)
-        .findOneOrFail({ where: { id: post.createdById } });
+      try {
+        const moderationCtx = await getPostModerationContext(con, post);
+        const ctx: NotificationPostModerationContext = {
+          ...moderationCtx,
+          userIds: [post.createdById],
+        };
 
-      const ctx: NotificationPostModerationContext = {
-        post,
-        userIds: [post.createdById],
-      };
-
-      return [{ type: NotificationType.SquadPostRejected, ctx }];
+        return [{ type: NotificationType.SquadPostRejected, ctx }];
+      } catch (err) {
+        const error = err as TypeORMQueryFailedError;
+        if (error?.name !== 'EntityNotFoundError') {
+          logger.error(
+            'failed sending notification for squad post moderation rejected',
+            err,
+          );
+        }
+      }
     },
   });
 
