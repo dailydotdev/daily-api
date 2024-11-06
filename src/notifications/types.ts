@@ -15,7 +15,7 @@ import {
 import { ChangeObject } from '../types';
 import { DeepPartial } from 'typeorm';
 import { SourceMemberRoles } from '../roles';
-import { SquadPostModeration } from '../entity/SquadPostModeration';
+import { SquadPostModeration } from '../entity/sourcePostModeration';
 
 export type Reference<T> = ChangeObject<T> | T;
 

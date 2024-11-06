@@ -23,9 +23,9 @@ import devCardUnlocked from './devCardUnlocked';
 import postBookmarkReminder from './postBookmarkReminder';
 import userStreakResetNotification from './userStreakResetNotification';
 import squadFeaturedUpdated from './squadFeaturedUpdated';
-import squadPostModerationSubmitted from './squadPostModerationSubmitted';
-import squadPostModerationApproved from './squadPostModerationApproved';
-import squadPostModerationRejected from './squadPostModerationRejected';
+import squadPostModerationSubmitted from './sourcePostModerationSubmitted';
+import squadPostModerationApproved from './sourcePostModerationApproved';
+import squadPostModerationRejected from './sourcePostModerationRejected';
 import { postAddedUserNotification } from './postAddedUserNotification';
 
 export function notificationWorkerToWorker(worker: NotificationWorker): Worker {

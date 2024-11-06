@@ -16,7 +16,7 @@ export enum SquadPostModerationStatus {
 }
 
 @Entity()
-export class SquadPostModeration {
+export class SourcePostModeration {
   @PrimaryColumn({ type: 'text' })
   id: string;
 

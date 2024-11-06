@@ -26,7 +26,7 @@ import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
 import { insertOrIgnoreAction } from '../../schema/actions';
 import { ObjectLiteral } from 'typeorm/common/ObjectLiteral';
-import { SquadPostModeration } from '../../entity/SquadPostModeration';
+import { SquadPostModeration } from '../../entity/sourcePostModeration';
 import { ChangeObject } from '../../types';
 
 export const uniquePostOwners = (

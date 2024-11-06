@@ -1,11 +1,11 @@
 import { DataSource } from 'typeorm';
-import worker from '../../../src/workers/notifications/squadPostModerationSubmitted';
+import worker from '../../../src/workers/notifications/sourcePostModerationSubmitted';
 import createOrGetConnection from '../../../src/db';
 import { Source, SourceMember, SourceType, User } from '../../../src/entity';
 import { sourcesFixture, usersFixture } from '../../fixture';
 import { workers } from '../../../src/workers';
 import { invokeNotificationWorker, saveFixtures } from '../../helpers';
-import { SquadPostModerationStatus } from '../../../src/entity/SquadPostModeration';
+import { SquadPostModerationStatus } from '../../../src/entity/sourcePostModeration';
 import { SourceMemberRoles } from '../../../src/roles';
 import { NotificationPostModerationContext } from '../../../src/notifications';
 

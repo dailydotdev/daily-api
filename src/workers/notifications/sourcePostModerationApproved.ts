@@ -2,7 +2,7 @@ import { generateTypedNotificationWorker } from './worker';
 import { NotificationType } from '../../notifications/common';
 import { NotificationPostContext } from '../../notifications';
 import { buildPostContext } from './utils';
-import { SquadPostModerationStatus } from '../../entity/SquadPostModeration';
+import { SquadPostModerationStatus } from '../../entity/sourcePostModeration';
 
 const worker =
   generateTypedNotificationWorker<'api.v1.source-post-moderation-submitted'>({
