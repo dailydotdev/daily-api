@@ -4,7 +4,7 @@ import { In } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
 import { NotificationType } from '../../notifications/common';
 import { NotificationPostModerationContext } from '../../notifications';
-import { SquadPostModerationStatus } from '../../entity/sourcePostModeration';
+import { SourcePostModerationStatus } from '../../entity/SourcePostModeration';
 import { getPostModerationContext } from './utils';
 import { logger } from '../../logger';
 import { TypeORMQueryFailedError } from '../../errors';
@@ -13,7 +13,7 @@ const worker =
   generateTypedNotificationWorker<'api.v1.source-post-moderation-submitted'>({
     subscription: 'api.v1.source-post-moderation-submitted-notification',
     handler: async ({ post }, con) => {
-      if (post.status !== SquadPostModerationStatus.Pending) {
+      if (post.status !== SourcePostModerationStatus.Pending) {
         return;
       }
 

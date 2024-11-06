@@ -30,7 +30,7 @@ import {
 import { NotificationIcon } from './icons';
 import { SourceMemberRoles } from '../roles';
 import { NotificationType } from './common';
-import { SquadPostModeration } from '../entity/sourcePostModeration';
+import { SourcePostModeration } from '../entity/SourcePostModeration';
 
 const MAX_COMMENT_LENGTH = 320;
 
@@ -103,7 +103,7 @@ export class NotificationBuilder {
   }
 
   referencePostModeration(
-    post: Reference<SquadPostModeration>,
+    post: Reference<SourcePostModeration>,
   ): NotificationBuilder {
     return this.enrichNotification({
       referenceId: post.id,

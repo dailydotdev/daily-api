@@ -26,7 +26,7 @@ import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
 import { insertOrIgnoreAction } from '../../schema/actions';
 import { ObjectLiteral } from 'typeorm/common/ObjectLiteral';
-import { SquadPostModeration } from '../../entity/sourcePostModeration';
+import { SourcePostModeration } from '../../entity/SourcePostModeration';
 import { ChangeObject } from '../../types';
 
 export const uniquePostOwners = (
@@ -209,7 +209,7 @@ export const UPVOTE_MILESTONES = Object.keys(UPVOTE_TITLES);
 
 export const getPostModerationContext = async (
   con: DataSource | EntityManager,
-  post: ChangeObject<SquadPostModeration>,
+  post: ChangeObject<SourcePostModeration>,
 ): Promise<Omit<NotificationPostModerationContext, 'userIds'>> => {
   const [user, source] = await Promise.all([
     con.getRepository(User).findOneOrFail({ where: { id: post.createdById } }),
