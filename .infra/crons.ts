@@ -106,4 +106,8 @@ export const crons: Cron[] = [
     schedule: '*/5 * * * *',
     activeDeadlineSeconds: 4 * 60,
   },
+  {
+    name: 'calculate-top-readers',
+    schedule: '0 2 1 * *',
+  }
 ];

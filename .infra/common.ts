@@ -309,6 +309,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.source-post-moderation-rejected',
     subscription: 'api.v1.source-post-moderation-rejected-notification',
   },
+  {
+    topic: 'api.v1.user-top-reader',
+    subscription: 'api.user-top-reader-added',
+  }
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
