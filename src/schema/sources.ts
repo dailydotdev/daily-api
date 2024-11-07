@@ -2116,8 +2116,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       } catch (originalError) {
         const err = originalError as TypeORMQueryFailedError;
 
-        console.log(err);
-
         if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
           throw err;
         }
