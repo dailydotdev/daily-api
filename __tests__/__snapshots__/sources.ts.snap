@@ -120,7 +120,6 @@ Object {
         "post_limit",
         "delete",
         "connect_slack",
-        "moderate_post",
       ],
       "role": "admin",
       "roleRank": 10,

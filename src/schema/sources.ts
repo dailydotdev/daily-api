@@ -849,7 +849,6 @@ const adminPermissions = [
   SourcePermissions.PostLimit,
   SourcePermissions.Delete,
   SourcePermissions.ConnectSlack,
-  SourcePermissions.ModeratePost,
 ];
 
 export const roleSourcePermissions: Record<

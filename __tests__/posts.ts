@@ -141,6 +141,26 @@ beforeEach(async () => {
       name: 'Joanna Deer',
     },
   ]);
+  await con.getRepository(SourceMember).save([
+    {
+      userId: '3',
+      sourceId: 'm',
+      role: SourceMemberRoles.Moderator,
+      referralToken: randomUUID(),
+    },
+    {
+      userId: '4',
+      sourceId: 'm',
+      role: SourceMemberRoles.Member,
+      referralToken: randomUUID(),
+    },
+    {
+      userId: '5',
+      sourceId: 'm',
+      role: SourceMemberRoles.Member,
+      referralToken: randomUUID(),
+    },
+  ]);
   await deleteKeysByPattern(`${rateLimiterName}:*`);
   await deleteKeysByPattern(`${highRateLimiterName}:*`);
 });
@@ -165,24 +185,6 @@ const saveSquadFixtures = async () => {
     {
       userId: '2',
       sourceId: 'a',
-      role: SourceMemberRoles.Member,
-      referralToken: randomUUID(),
-    },
-    {
-      userId: '3',
-      sourceId: 'm',
-      role: SourceMemberRoles.Moderator,
-      referralToken: randomUUID(),
-    },
-    {
-      userId: '4',
-      sourceId: 'm',
-      role: SourceMemberRoles.Member,
-      referralToken: randomUUID(),
-    },
-    {
-      userId: '5',
-      sourceId: 'm',
       role: SourceMemberRoles.Member,
       referralToken: randomUUID(),
     },
@@ -1840,6 +1842,31 @@ describe('mutation sharePost', () => {
     });
   });
 
+  it('should not authorize when moderation is required', async () => {
+    loggedUser = '4';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, sourceId: 'm' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should bypass moderation because user is a moderator', async () => {
+    loggedUser = '3';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, sourceId: 'm' },
+    });
+    expect(res.errors).toBeFalsy();
+    const newId = res.data.sharePost.id;
+    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    expect(post?.authorId).toEqual('3');
+    expect(post?.sharedPostId).toEqual('p1');
+    expect(post?.title).toEqual('My comment');
+  });
+
   it('should not authorize when not logged in', () =>
     testMutationErrorCode(
       client,
@@ -2324,6 +2351,35 @@ describe('mutation submitExternalLink', () => {
       referralToken: 'rt',
       role: SourceMemberRoles.Member,
     });
+  });
+
+  it('should not authorize when moderation is required', async () => {
+    loggedUser = '4';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, sourceId: 'm' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should bypass moderation because user is a moderator', async () => {
+    loggedUser = '3';
+    await con.getRepository(Source).insert({
+      id: UNKNOWN_SOURCE,
+      handle: UNKNOWN_SOURCE,
+      name: UNKNOWN_SOURCE,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, sourceId: 'm' },
+    });
+    expect(res.errors).toBeFalsy();
+    const articlePost = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ url: variables.url });
+    expect(articlePost?.url).toEqual('https://daily.dev');
   });
 
   it('should not authorize when not logged in', () =>
@@ -2969,6 +3025,29 @@ describe('mutation createFreeformPost', () => {
 
   beforeEach(async () => {
     await saveSquadFixtures();
+  });
+
+  it('should not authorize when moderation is required', async () => {
+    loggedUser = '4';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...params, sourceId: 'm' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should bypass moderation because user is a moderator', async () => {
+    loggedUser = '3';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, sourceId: 'm' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createFreeformPost.type).toEqual(PostType.Freeform);
+    expect(res.data.createFreeformPost.author.id).toEqual('3');
+    expect(res.data.createFreeformPost.source.id).toEqual('m');
   });
 
   it('should not authorize when not logged in', () =>
