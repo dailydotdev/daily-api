@@ -1339,7 +1339,7 @@ describe('collection_post notification', () => {
     expect(args.message_data).toMatchObject({
       post_comments: '0',
       post_image:
-        'https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1',
+        'https://media.daily.dev/daily-now/image/upload/f_auto/v1/placeholders/1',
       post_link:
         'http://localhost:5002/posts/cp1?utm_source=notification&utm_medium=email&utm_campaign=collection_updated',
       post_timestamp: 'Jan 05, 2020',
