@@ -324,6 +324,13 @@ export default async function app(
         res.status(400).send({ error: 'url and size are required' });
       }
     },
+    preHandler: async (req, res) => {
+      res.helmet({
+        crossOriginResourcePolicy: {
+          policy: 'cross-origin',
+        },
+      });
+    },
   });
   app.register(routes, { prefix: '/' });
 
