@@ -9,6 +9,8 @@ export class SourceModerationIndexes1730992663679 implements MigrationInterface 
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
+        await queryRunner.query(`DROP INDEX "IDX_532c94738c6b1334e4bc27c41c"`);
+        await queryRunner.query(`DROP INDEX "IDX_852c087ea5d00671312fb71c2a"`);
     }
 
 }
