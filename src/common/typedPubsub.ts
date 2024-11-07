@@ -7,9 +7,10 @@ import type {
   User,
   UserStreak,
   UserCompany,
+  UserTopReader,
 } from '../entity';
 import {
-  EventLogger,
+  type EventLogger,
   NotificationReason,
   publishEvent,
   pubsub,
@@ -105,6 +106,9 @@ export type PubSubSchema = {
   };
   'api.v1.user-company-approved': {
     userCompany: ChangeObject<UserCompany>;
+  };
+  'api.v1.user-top-reader': {
+    userTopReader: ChangeObject<UserTopReader>;
   };
 };
 
