@@ -1116,14 +1116,21 @@ const addNewSourceMember = async (
   con: DataSource | EntityManager,
   member: Omit<DeepPartial<SourceMember>, 'referralToken'>,
 ): Promise<void> => {
-  const referralToken = randomUUID();
+  const contentPreference = await con
+    .getRepository(ContentPreferenceSource)
+    .findOneBy({
+      userId: member.userId,
+      referenceId: member.sourceId,
+    });
+
+  const referralToken = contentPreference?.flags.referralToken || randomUUID();
 
   await con.getRepository(SourceMember).insert({
     ...member,
     referralToken,
   });
 
-  await con.getRepository(ContentPreferenceSource).insert(
+  await con.getRepository(ContentPreferenceSource).upsert(
     con.getRepository(ContentPreferenceSource).create({
       userId: member.userId,
       referenceId: member.sourceId,
@@ -1136,6 +1143,9 @@ const addNewSourceMember = async (
         referralToken,
       },
     }),
+    {
+      conflictPaths: ['userId', 'referenceId'],
+    },
   );
 };
 
@@ -2105,6 +2115,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         });
       } catch (originalError) {
         const err = originalError as TypeORMQueryFailedError;
+
+        console.log(err);
 
         if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
           throw err;
