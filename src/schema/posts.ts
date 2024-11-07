@@ -4,7 +4,7 @@ import {
 } from 'graphql-relay';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
-import { DataSource, MoreThan } from 'typeorm';
+import { DataSource, In, MoreThan } from 'typeorm';
 import {
   ensureSourcePermissions,
   GQLSource,
@@ -15,6 +15,7 @@ import {
 import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import {
+  createFreeformPost,
   CreatePost,
   CreatePostArgs,
   DEFAULT_POST_TITLE,
@@ -25,40 +26,39 @@ import {
   getDiscussionLink,
   isValidHttpUrl,
   notifyView,
+  ONE_MINUTE_IN_SECONDS,
   pickImageUrl,
-  createFreeformPost,
   standardizeURL,
+  toGQLEnum,
   updateFlagsStatement,
   uploadPostFile,
   UploadPreset,
   validatePost,
-  ONE_MINUTE_IN_SECONDS,
-  toGQLEnum,
 } from '../common';
 import {
   ArticlePost,
+  ContentImage,
   createExternalLink,
   createSharePost,
+  deletePost,
   ExternalLink,
   ExternalLinkPreview,
   FreeformPost,
   Post,
   PostFlagsPublic,
   PostMention,
+  PostQuestion,
+  PostRelation,
+  PostRelationType,
   PostType,
   Toc,
+  updateSharePost,
+  User,
   UserActionType,
-  WelcomePost,
-  ContentImage,
-  PostQuestion,
   UserPost,
   UserPostFlagsPublic,
-  updateSharePost,
   View,
-  User,
-  PostRelationType,
-  PostRelation,
-  deletePost,
+  WelcomePost,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -93,7 +93,10 @@ import { ReportReason } from '../entity/common';
 import { reportPost, saveHiddenPost } from '../common/reporting';
 import { PostCodeSnippetLanguage, UserVote } from '../types';
 import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
-import { SourcePostModerationStatus } from '../entity/SourcePostModeration';
+import {
+  SourcePostModeration,
+  SourcePostModerationStatus,
+} from '../entity/SourcePostModeration';
 
 export interface GQLSourcePostModeration {
   id: string;
@@ -172,8 +175,9 @@ export type GQLPostNotification = Pick<
   'id' | 'numUpvotes' | 'numComments'
 >;
 
+const POST_MODERATION_PAGE_SIZE = 15;
 const sourcePostModerationPageGenerator =
-  offsetPageGenerator<GQLSourcePostModeration>(15, 50);
+  offsetPageGenerator<GQLSourcePostModeration>(POST_MODERATION_PAGE_SIZE, 50);
 
 type SourcePostModerationArgs = ConnectionArguments & {
   sourceId: string;
@@ -2090,6 +2094,68 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       return { _: true };
+    },
+    moderateSourcePosts: async (
+      _,
+      {
+        postIds,
+        status,
+      }: {
+        sourceId: string;
+        postIds: string[];
+        status: SourcePostModerationStatus;
+      },
+      ctx: AuthContext,
+    ) => {
+      if (!postIds.length || postIds.length > POST_MODERATION_PAGE_SIZE) {
+        throw new ValidationError('Invalid number of post IDs provided');
+      }
+
+      if (
+        ![
+          SourcePostModerationStatus.Approved,
+          SourcePostModerationStatus.Rejected,
+        ].includes(status)
+      ) {
+        throw new ValidationError('Invalid status provided');
+      }
+
+      const pendingPosts = await ctx.con
+        .getRepository(SourcePostModeration)
+        .find({
+          where: {
+            id: In(postIds),
+            status: SourcePostModerationStatus.Pending,
+          },
+        });
+
+      if (pendingPosts.length !== postIds.length) {
+        throw new ValidationError('Some posts are not pending');
+      }
+
+      const sourceId = pendingPosts[0].sourceId;
+      const allPostsAreFromSameSource = pendingPosts.every(
+        (post) => post.sourceId === sourceId,
+      );
+
+      if (!allPostsAreFromSameSource) {
+        throw new ValidationError('All posts must be from the same source');
+      }
+
+      await ensureSourcePermissions(
+        ctx,
+        sourceId,
+        SourcePermissions.MemberRemove,
+      );
+
+      const moderatedById = ctx.userId;
+
+      return ctx.con
+        .getRepository(SourcePostModeration)
+        .update(
+          { id: In(postIds), status: SourcePostModerationStatus.Pending },
+          { status, moderatedById },
+        );
     },
   },
   Subscription: {
