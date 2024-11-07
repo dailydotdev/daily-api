@@ -1178,6 +1178,9 @@ export const getMarketingCta = async (
   const marketingCta: MarketingCta | null = rawRedisValue
     ? JSON.parse(rawRedisValue)
     : null;
+  if (marketingCta?.flags?.image) {
+    marketingCta.flags.image = mapCloudinaryUrl(marketingCta.flags.image);
+  }
   return marketingCta || cachePrefillMarketingCta(con, userId);
 };
 
@@ -2329,5 +2332,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return userIntegration.type;
       }
     },
+  },
+  UserTopReader: {
+    image: (topReader: GQLUserTopReader): GQLUserTopReader['image'] =>
+      mapCloudinaryUrl(topReader.image),
   },
 });
