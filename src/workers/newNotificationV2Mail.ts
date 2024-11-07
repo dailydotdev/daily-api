@@ -724,10 +724,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
 
     return {
       image: userTopReader.image,
-      issuedAt: new Date(userTopReader.issuedAt).toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'long',
-      }),
+      issuedAt: formatMailDate(userTopReader.issuedAt),
       keyword: keyword.flags.title || keyword.value,
     };
   },
