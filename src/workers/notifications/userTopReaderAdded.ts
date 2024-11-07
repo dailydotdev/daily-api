@@ -14,10 +14,17 @@ export const userTopReaderAdded =
     subscription: 'api.user-top-reader-added',
     handler: async ({ userTopReader }, con) => {
       const { id, userId, keywordValue } = userTopReader;
-      const topReader = await con.getRepository(UserTopReader).findOneByOrFail({
+      const topReader = await con.getRepository(UserTopReader).findOneBy({
         id,
         userId,
       });
+      if (!topReader) {
+        logger.error(
+          { id, userId, keywordValue },
+          'userTopReaderAdded: Top reader not found',
+        );
+        return;
+      }
 
       const keyword = await topReader.keyword;
       if (!keyword) {
