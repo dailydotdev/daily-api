@@ -15,6 +15,7 @@ import updateCurrentStreak from './updateCurrentStreak';
 import syncSubscriptionWithCIO from './syncSubscriptionWithCIO';
 import { updateSourcePublicThreshold } from './updateSourcePublicThreshold';
 import { cleanZombieUserCompany } from './cleanZombieUserCompany';
+import { calculateTopReaders } from './calculateTopReaders';
 
 export const crons: Cron[] = [
   updateViews,
@@ -33,4 +34,5 @@ export const crons: Cron[] = [
   syncSubscriptionWithCIO,
   cleanZombieUserCompany,
   updateSourcePublicThreshold,
+  calculateTopReaders,
 ];
