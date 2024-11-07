@@ -112,6 +112,10 @@ export const calculateTopReaders: Cron = {
             'Inserted rows',
           );
         }
+
+        await manager.query(
+          `REFRESH MATERIALIZED VIEW ${con.getRepository(UserStats).metadata.tableName}`,
+        );
       });
     } catch (error) {
       logger.error({ error }, 'Error during calculation of top readers');
