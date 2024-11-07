@@ -38,6 +38,7 @@ import { randomUUID } from 'crypto';
 import {
   createSquadWelcomePost,
   getSourceLink,
+  mapCloudinaryUrl,
   updateFlagsStatement,
   uploadSquadImage,
 } from '../common';
@@ -1127,14 +1128,21 @@ const addNewSourceMember = async (
   con: DataSource | EntityManager,
   member: Omit<DeepPartial<SourceMember>, 'referralToken'>,
 ): Promise<void> => {
-  const referralToken = randomUUID();
+  const contentPreference = await con
+    .getRepository(ContentPreferenceSource)
+    .findOneBy({
+      userId: member.userId,
+      referenceId: member.sourceId,
+    });
+
+  const referralToken = contentPreference?.flags.referralToken || randomUUID();
 
   await con.getRepository(SourceMember).insert({
     ...member,
     referralToken,
   });
 
-  await con.getRepository(ContentPreferenceSource).insert(
+  await con.getRepository(ContentPreferenceSource).upsert(
     con.getRepository(ContentPreferenceSource).create({
       userId: member.userId,
       referenceId: member.sourceId,
@@ -1147,6 +1155,9 @@ const addNewSourceMember = async (
         referralToken,
       },
     }),
+    {
+      conflictPaths: ['userId', 'referenceId'],
+    },
   );
 };
 
@@ -2173,6 +2184,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   Source: {
+    image: (source: GQLSource): GQLSource['image'] =>
+      mapCloudinaryUrl(source.image),
     permalink: (source: GQLSource): string => getSourceLink(source),
     referralUrl: async (
       source: GQLSource,
