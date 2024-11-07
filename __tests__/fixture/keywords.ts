@@ -43,3 +43,9 @@ export const postRecommendedKeywordsFixture = postsFixture.reduce(
   },
   [] as Keyword[],
 );
+
+export const topReadersKeywordsFixture: Partial<Keyword>[] = [
+  { value: 'utp_k1', status: 'allow' },
+  { value: 'utp_k2', status: 'allow' },
+  { value: 'utp_k3', status: 'allow' },
+];
