@@ -47,69 +47,71 @@ export const calculateTopReaders: Cron = {
         return;
       }
 
-      // We need to separate the users into their respective keywords
-      result.forEach((row) => {
-        const { keyword } = row;
-        if (!keywords[keyword]) {
-          keywords[keyword] = [];
-        }
-        keywords[keyword].push(row);
-      });
+      await con.transaction(async (manager) => {
+        // We need to separate the users into their respective keywords
+        result.forEach((row) => {
+          const { keyword } = row;
+          if (!keywords[keyword]) {
+            keywords[keyword] = [];
+          }
+          keywords[keyword].push(row);
+        });
 
-      // Iterate over the keywords
-      for (const keyword of Object.keys(keywords)) {
-        const topReadersForKeyword = keywords[keyword];
+        // Iterate over the keywords
+        for (const keyword of Object.keys(keywords)) {
+          const topReadersForKeyword = keywords[keyword];
 
-        if (!topReaders[keyword]) {
-          topReaders[keyword] = [];
-        }
-
-        // We reset it to 1 every time we loop through the keywords
-        let counter = 1;
-
-        // Iterate over the top readers for the keyword
-        for (const topReader of topReadersForKeyword) {
-          const { userId } = topReader;
-
-          // We need to exit the loop once we've reached the limit of top readers per keyword
-          if (counter > LIMIT_PER_KEYWORD) {
-            logger.debug({ keyword, counter }, 'limit reached');
-            break; // Break out of the loop and continue to the next keyword
+          if (!topReaders[keyword]) {
+            topReaders[keyword] = [];
           }
 
-          // We need to ensure that we don't assign the same userId to multiple keywords
-          if (userIds.includes(userId)) {
-            logger.debug({ userId, keyword }, 'duplicate userId');
-            continue; // Continue to the next user
-          } else {
-            userIds.push(userId);
+          // We reset it to 1 every time we loop through the keywords
+          let counter = 1;
+
+          // Iterate over the top readers for the keyword
+          for (const topReader of topReadersForKeyword) {
+            const { userId } = topReader;
+
+            // We need to exit the loop once we've reached the limit of top readers per keyword
+            if (counter > LIMIT_PER_KEYWORD) {
+              logger.debug({ keyword, counter }, 'limit reached');
+              break; // Break out of the loop and continue to the next keyword
+            }
+
+            // We need to ensure that we don't assign the same userId to multiple keywords
+            if (userIds.includes(userId)) {
+              logger.debug({ userId, keyword }, 'duplicate userId');
+              continue; // Continue to the next user
+            } else {
+              userIds.push(userId);
+            }
+
+            topReaders[keyword].push(userId);
+            counter++;
+
+            await manager.getRepository(UserTopReader).upsert(
+              {
+                userId,
+                keywordValue: keyword,
+                issuedAt: issuedAt,
+              },
+              {
+                conflictPaths: ['userId', 'issuedAt', 'keywordValue'],
+                skipUpdateIfNoValuesChanged: true,
+              },
+            );
           }
 
-          topReaders[keyword].push(userId);
-          counter++;
-
-          await con.getRepository(UserTopReader).upsert(
+          logger.info(
             {
-              userId,
-              keywordValue: keyword,
-              issuedAt: issuedAt,
+              keyword,
+              topReaders: topReaders[keyword],
+              count: topReaders[keyword].length,
             },
-            {
-              conflictPaths: ['userId', 'issuedAt', 'keywordValue'],
-              skipUpdateIfNoValuesChanged: true,
-            },
+            'Inserted rows',
           );
         }
-
-        logger.info(
-          {
-            keyword,
-            topReaders: topReaders[keyword],
-            count: topReaders[keyword].length,
-          },
-          'Inserted rows',
-        );
-      }
+      });
     } catch (error) {
       logger.error({ error }, 'Error during calculation of top readers');
     }
