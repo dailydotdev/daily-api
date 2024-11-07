@@ -5,6 +5,7 @@ import { readFile } from 'fs/promises';
 import path from 'path';
 import { UserTopReader } from '../entity';
 import { endOfMonth, subMonths } from 'date-fns';
+import { SQL_QUERIES_PATH } from '../config';
 
 type TopReaderQueryResult = {
   keyword: string;
@@ -34,7 +35,7 @@ export const calculateTopReaders: Cron = {
 
     try {
       const sql = await readFile(
-        path.join(__dirname, 'calculateTopReaders.sql'),
+        path.join(SQL_QUERIES_PATH, 'calculateTopReaders.sql'),
         'utf8',
       );
 
