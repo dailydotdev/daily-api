@@ -31,6 +31,7 @@ export enum UploadPreset {
   FreeformImage = 'freeform_image',
   FreeformGif = 'freeform_gif',
   ProfileCover = 'cover',
+  TopReaderBadge = 'top_reader_badge',
 }
 
 interface OptionalProps {
