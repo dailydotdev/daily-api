@@ -56,19 +56,21 @@ export const userTopReaderAdded =
         Readable.from(response.body),
       );
 
-      await con.getRepository(UserTopReader).update(
-        { id },
-        {
-          image: uploadedImage.url,
-        },
-      );
+      await con.transaction(async (manager) => {
+        await manager.getRepository(UserTopReader).update(
+          { id },
+          {
+            image: uploadedImage.url,
+          },
+        );
 
-      await con.getRepository(Alerts).update(
-        { userId },
-        {
-          showTopReader: true,
-        },
-      );
+        await manager.getRepository(Alerts).update(
+          { userId },
+          {
+            showTopReader: true,
+          },
+        );
+      });
 
       return [
         {
