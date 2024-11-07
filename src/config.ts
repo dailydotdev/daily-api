@@ -45,4 +45,4 @@ export const generateStorageKey = (
 
 export const FEED_SURVEY_INTERVAL = 30;
 
-export const WEBAPP_MAGIC_IMAGE_PREFIX = `/imageGenerator`;
+export const WEBAPP_MAGIC_IMAGE_PREFIX = `/image-generator`;
