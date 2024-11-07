@@ -47,6 +47,10 @@ export const calculateTopReaders: Cron = {
         logger.error('calculateTopReaders: no results');
         return;
       }
+      logger.info(
+        { count: result.length },
+        'calculateTopReaders: Fetched results',
+      );
 
       await con.transaction(async (manager) => {
         // We need to separate the users into their respective keywords
@@ -60,6 +64,7 @@ export const calculateTopReaders: Cron = {
 
         // Iterate over the keywords
         for (const keyword of Object.keys(keywords)) {
+          logger.info({ keyword }, 'calculateTopReaders: Processing keyword');
           const topReadersForKeyword = keywords[keyword];
 
           if (!topReaders[keyword]) {
@@ -75,13 +80,19 @@ export const calculateTopReaders: Cron = {
 
             // We need to exit the loop once we've reached the limit of top readers per keyword
             if (counter > LIMIT_PER_KEYWORD) {
-              logger.debug({ keyword, counter }, 'limit reached');
+              logger.debug(
+                { keyword, counter },
+                'calculateTopReaders: limit reached',
+              );
               break; // Break out of the loop and continue to the next keyword
             }
 
             // We need to ensure that we don't assign the same userId to multiple keywords
             if (userIds.has(userId)) {
-              logger.debug({ userId, keyword }, 'duplicate userId');
+              logger.debug(
+                { userId, keyword },
+                'calculateTopReaders: duplicate userId',
+              );
               continue; // Continue to the next user
             } else {
               userIds.set(userId, true);
@@ -109,7 +120,7 @@ export const calculateTopReaders: Cron = {
               topReaders: topReaders[keyword],
               count: topReaders[keyword].length,
             },
-            'Inserted rows',
+            'calculateTopReaders: Inserted rows',
           );
         }
 
