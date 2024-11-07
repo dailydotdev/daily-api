@@ -99,8 +99,6 @@ export const calculateTopReaders: Cron = {
               skipUpdateIfNoValuesChanged: true,
             },
           );
-
-          continue; // Continue to the next user
         }
 
         logger.info(
