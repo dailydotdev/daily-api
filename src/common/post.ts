@@ -357,12 +357,13 @@ export const updateModeratedPost = async (
   }
 
   const postParam = { id: moderated.postId };
-  const repo = con.getRepository(FreeformPost);
+  const repo = con.getRepository(Post);
 
-  await repo.findOneOrFail({ where: postParam });
+  await repo.findOneOrFail({ where: { id: moderated.postId } });
 
   const updatedPost: Partial<FreeformPost> = {
     title: moderated.title,
+    titleHtml: moderated.titleHtml,
   };
 
   if (moderated.content) {

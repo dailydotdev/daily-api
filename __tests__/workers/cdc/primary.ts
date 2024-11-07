@@ -29,6 +29,8 @@ import {
   UserStreakActionType,
   SquadSource,
   UserCompany,
+  SharePost,
+  UNKNOWN_SOURCE,
 } from '../../../src/entity';
 import {
   notifyCommentCommented,
@@ -139,6 +141,10 @@ import {
 } from '../../../src/temporal/notifications/utils';
 import { ReportReason } from '../../../src/entity/common';
 import { SourceReport } from '../../../src/entity/sources/SourceReport';
+import {
+  SourcePostModeration,
+  SourcePostModerationStatus,
+} from '../../../src/entity/SourcePostModeration';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -4571,6 +4577,250 @@ describe('bookmark change', () => {
         remindAt: debeziumTimeToDate(debeziumTime).getTime(),
         userId: '1',
       });
+    });
+  });
+});
+
+describe('source_post_moderation', () => {
+  type ObjectType = ChangeObject<SourcePostModeration>;
+
+  const base: ObjectType = {
+    type: PostType.Freeform,
+    id: generateUUID(),
+    createdById: '1',
+    sourceId: 'a',
+    status: SourcePostModerationStatus.Pending,
+    createdAt: new Date().getTime(),
+    updatedAt: new Date().getTime(),
+  };
+
+  it('should notify mods on create', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: null,
+        op: 'c',
+        table: 'source_post_moderation',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.source-post-moderation-submitted',
+      { post: base },
+    ]);
+  });
+
+  it('should notify author on rejected', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: { ...base, status: SourcePostModerationStatus.Rejected },
+        before: base,
+        op: 'u',
+        table: 'source_post_moderation',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.source-post-moderation-rejected',
+      { post: base },
+    ]);
+  });
+
+  describe('on approved', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, User, usersFixture);
+      await saveFixtures(con, Source, sourcesFixture);
+      await con
+        .getRepository(Source)
+        .update({ id: 'a' }, { type: SourceType.Squad });
+    });
+
+    const mockUpdate = async (
+      props: Partial<ObjectType> = {},
+      beforeProps: Partial<ObjectType> = {},
+    ) => {
+      const after = { ...base, ...props };
+
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: { ...base, ...beforeProps },
+          op: 'u',
+          table: 'source_post_moderation',
+        }),
+      );
+    };
+
+    it('should create freeform post', async () => {
+      const repo = con.getRepository(Post);
+      const before = await repo.find();
+      expect(before.length).toEqual(0);
+      const after = {
+        ...base,
+        status: SourcePostModerationStatus.Approved,
+        title: '# Test',
+        titleHtml: '# Test',
+        content: '## Sample',
+        contentHtml: '## SampleHtml',
+        image: 'http://image',
+      };
+      await mockUpdate(after);
+      const freeform = (await repo.findOneBy({
+        sourceId: 'a',
+      })) as FreeformPost;
+      expect(freeform).toBeTruthy();
+      expect(freeform.type).toEqual(PostType.Freeform);
+      expect(freeform.title).toEqual('# Test');
+      expect(freeform.titleHtml).toEqual('# Test');
+      expect(freeform.content).toEqual('## Sample');
+      expect(freeform.contentHtml).toEqual('## SampleHtml');
+      expect(freeform.image).toEqual('http://image');
+      expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+        'api.v1.source-post-moderation-approved',
+        { post: after },
+      ]);
+    });
+
+    it('should create not create post if status did not change', async () => {
+      const repo = con.getRepository(Post);
+      const before = await repo.find();
+      expect(before.length).toEqual(0);
+      const after = {
+        ...base,
+        status: SourcePostModerationStatus.Approved,
+        title: '# Test',
+        titleHtml: '# Test',
+        content: '## Sample',
+        contentHtml: '## SampleHtml',
+        image: 'http://image',
+      };
+      await mockUpdate(after, { status: SourcePostModerationStatus.Approved });
+      const freeform = (await repo.findOneBy({
+        sourceId: 'a',
+      })) as FreeformPost;
+      expect(freeform).toBeNull();
+    });
+
+    it('should not create share post when share post id is null', async () => {
+      const repo = con.getRepository(Post);
+      const before = await repo.find();
+      expect(before.length).toEqual(0);
+      await mockUpdate({
+        type: PostType.Share,
+        status: SourcePostModerationStatus.Approved,
+        title: '# Test',
+        titleHtml: 'TestHtml',
+        content: 'Sample',
+        contentHtml: 'SampleHtml',
+      });
+      const share = await repo.findOneBy({ sourceId: 'a' });
+      expect(share).toBeNull();
+    });
+
+    it('should create share post', async () => {
+      await saveFixtures(con, Post, [postsFixture[0]]);
+      const repo = con.getRepository(Post);
+      const after = {
+        ...base,
+        type: PostType.Share,
+        status: SourcePostModerationStatus.Approved,
+        title: '# Test',
+        titleHtml: 'TestHtml',
+        sharedPostId: 'p1',
+        sourceId: 'b',
+      };
+      await mockUpdate(after);
+      const share = (await repo.findOneBy({
+        sourceId: 'b',
+      })) as SharePost;
+      expect(share).toBeTruthy();
+      expect(share.type).toEqual(PostType.Share);
+      expect(share.title).toEqual('# Test');
+      expect(share.titleHtml).toEqual('<p># Test</p>');
+      expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+        'api.v1.source-post-moderation-approved',
+        { post: after },
+      ]);
+    });
+
+    it('should not create share post if link is not found', async () => {
+      await con
+        .getRepository(Source)
+        .update({ id: 'b' }, { id: UNKNOWN_SOURCE });
+      const repo = con.getRepository(Post);
+      const before = await repo.find();
+      expect(before.length).toEqual(0);
+      await mockUpdate({
+        sourceId: 'a',
+        type: PostType.Share,
+        status: SourcePostModerationStatus.Approved,
+        title: 'Test',
+        content: '# Sample',
+        contentHtml: '# Sample',
+      });
+      const unknown = await repo.findOneBy({ sourceId: UNKNOWN_SOURCE });
+      expect(unknown).toBeNull();
+      const share = await repo.findOneBy({ sourceId: 'a' });
+      expect(share).toBeNull();
+    });
+
+    it('should create share post from external link', async () => {
+      await con
+        .getRepository(Source)
+        .update({ id: 'b' }, { id: UNKNOWN_SOURCE });
+      const repo = con.getRepository(Post);
+      const before = await repo.find();
+      expect(before.length).toEqual(0);
+      const after = {
+        ...base,
+        sourceId: 'a',
+        type: PostType.Share,
+        status: SourcePostModerationStatus.Approved,
+        title: 'Test',
+        content: '# Sample',
+        contentHtml: '# Sample',
+        externalLink: 'https://daily.dev/blog-post/sauron',
+      };
+      await mockUpdate(after);
+      const unknown = await repo.findOneBy({ sourceId: UNKNOWN_SOURCE });
+      expect(unknown).toBeTruthy();
+      expect(unknown.title).toEqual('Test');
+      const share = (await repo.findOneBy({
+        sourceId: 'a',
+      })) as SharePost;
+      expect(share).toBeTruthy();
+      expect(share.type).toEqual(PostType.Share);
+      expect(share.title).toEqual('# Sample');
+      expect(share.titleHtml).toEqual('<p># Sample</p>');
+      expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+        'api.v1.source-post-moderation-approved',
+        { post: after },
+      ]);
+    });
+
+    it('should update the content of post id is present', async () => {
+      const repo = con.getRepository(Post);
+      await saveFixtures(con, Post, [postsFixture[0]]);
+      const before = await repo.findOneBy({ id: 'p1' });
+      expect(before.title).toEqual('P1');
+      const afterProps = {
+        ...base,
+        sourceId: 'a',
+        type: PostType.Share,
+        status: SourcePostModerationStatus.Approved,
+        title: 'Test',
+        postId: 'p1',
+      };
+      await mockUpdate(afterProps);
+      const after = await repo.findOneBy({ id: 'p1' });
+      expect(after.title).toEqual('Test');
+      expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+        'api.v1.source-post-moderation-approved',
+        { post: afterProps },
+      ]);
     });
   });
 });
