@@ -28,7 +28,7 @@ export const calculateTopReaders: Cron = {
     );
 
     const topReaders: Record<string, string[]> = {};
-    const userIds: string[] = [];
+    const userIds = new Map<string, boolean>();
     const keywords: Record<string, Omit<TopReaderQueryResult, 'keyword'>[]> =
       {};
 
@@ -79,11 +79,11 @@ export const calculateTopReaders: Cron = {
             }
 
             // We need to ensure that we don't assign the same userId to multiple keywords
-            if (userIds.includes(userId)) {
+            if (userIds.has(userId)) {
               logger.debug({ userId, keyword }, 'duplicate userId');
               continue; // Continue to the next user
             } else {
-              userIds.push(userId);
+              userIds.set(userId, true);
             }
 
             topReaders[keyword].push(userId);
