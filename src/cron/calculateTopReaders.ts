@@ -124,10 +124,15 @@ export const calculateTopReaders: Cron = {
           );
         }
 
+        logger.info('calculateTopReaders: Refreshing materialized view');
         await manager.query(
           `REFRESH MATERIALIZED VIEW ${con.getRepository(UserStats).metadata.tableName}`,
         );
       });
+
+      logger.info(
+        'calculateTopReaders: All done. So long and thanks for all the fish!',
+      );
     } catch (error) {
       logger.error({ error }, 'Error during calculation of top readers');
     }
