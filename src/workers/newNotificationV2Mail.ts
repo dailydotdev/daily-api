@@ -717,8 +717,18 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
         id: notification.referenceId,
       });
 
+    const keyword = await userTopReader.keyword;
+    if (!keyword) {
+      throw new Error('Keyword not found');
+    }
+
     return {
-      topReader: userTopReader.image,
+      image: userTopReader.image,
+      issuedAt: new Date(userTopReader.issuedAt).toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'long',
+      }),
+      keyword: keyword.flags.title || keyword.value,
     };
   },
 };
