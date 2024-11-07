@@ -181,7 +181,7 @@ const sourcePostModerationPageGenerator =
 
 type SourcePostModerationArgs = ConnectionArguments & {
   sourceId: string;
-  status: string[];
+  status: SourcePostModerationStatus[];
 };
 
 export interface GQLPostUpvote {
@@ -1138,7 +1138,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Status wanted for the post
       """
-      status: SourcePostModerationStatus
+      status: String
       """
       Source to moderate the post in
       """
