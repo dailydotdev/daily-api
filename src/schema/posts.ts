@@ -1126,6 +1126,32 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): EmptyResponse @auth
+
+    """
+    Approve/Reject pending post moderation
+    """
+    moderateSourcePosts(
+      """
+      List of posts to moderate
+      """
+      postIds: [ID]
+      """
+      Status wanted for the post
+      """
+      status: SourcePostModerationStatus
+      """
+      Source to moderate the post in
+      """
+      sourceId: ID!
+      """
+      Rejection reason for the post
+      """
+      rejectionReason: String
+      """
+      Moderator message for the post
+      """
+      moderatorMessage: String
+    ): [SourcePostModeration]! @auth
   }
 
   extend type Subscription {
@@ -2098,13 +2124,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     moderateSourcePosts: async (
       _,
       {
+        sourceId,
         postIds,
         status,
+        rejectionReason = null,
+        moderatorMessage = null,
       }: {
-        sourceId: string;
         postIds: string[];
-        status: SourcePostModerationStatus;
-      },
+      } & Pick<
+        SourcePostModeration,
+        'sourceId' | 'status' | 'rejectionReason' | 'moderatorMessage'
+      >,
       ctx: AuthContext,
     ) => {
       if (!postIds.length || postIds.length > POST_MODERATION_PAGE_SIZE) {
@@ -2120,11 +2150,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('Invalid status provided');
       }
 
+      await ensureSourcePermissions(
+        ctx,
+        sourceId,
+        SourcePermissions.MemberRemove,
+      );
+
       const pendingPosts = await ctx.con
         .getRepository(SourcePostModeration)
         .find({
           where: {
             id: In(postIds),
+            sourceId,
             status: SourcePostModerationStatus.Pending,
           },
         });
@@ -2133,29 +2170,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('Some posts are not pending');
       }
 
-      const sourceId = pendingPosts[0].sourceId;
-      const allPostsAreFromSameSource = pendingPosts.every(
-        (post) => post.sourceId === sourceId,
-      );
-
-      if (!allPostsAreFromSameSource) {
-        throw new ValidationError('All posts must be from the same source');
-      }
-
-      await ensureSourcePermissions(
-        ctx,
-        sourceId,
-        SourcePermissions.MemberRemove,
-      );
-
       const moderatedById = ctx.userId;
+      const isRejectedWithReason =
+        status === SourcePostModerationStatus.Rejected && !!rejectionReason;
 
-      return ctx.con
-        .getRepository(SourcePostModeration)
-        .update(
-          { id: In(postIds), status: SourcePostModerationStatus.Pending },
-          { status, moderatedById },
-        );
+      return ctx.con.getRepository(SourcePostModeration).update(
+        { id: In(postIds), status: SourcePostModerationStatus.Pending },
+        {
+          status,
+          moderatedById,
+          ...(isRejectedWithReason && { rejectionReason, moderatorMessage }),
+        },
+      );
     },
   },
   Subscription: {
