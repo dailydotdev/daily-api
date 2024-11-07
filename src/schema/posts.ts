@@ -15,7 +15,6 @@ import {
 import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import {
-  createFreeformPost,
   CreatePost,
   CreatePostArgs,
   DEFAULT_POST_TITLE,
@@ -26,39 +25,41 @@ import {
   getDiscussionLink,
   isValidHttpUrl,
   notifyView,
-  ONE_MINUTE_IN_SECONDS,
   pickImageUrl,
+  createFreeformPost,
   standardizeURL,
-  toGQLEnum,
   updateFlagsStatement,
   uploadPostFile,
   UploadPreset,
   validatePost,
+  ONE_MINUTE_IN_SECONDS,
+  toGQLEnum,
+  mapCloudinaryUrl,
 } from '../common';
 import {
   ArticlePost,
-  ContentImage,
   createExternalLink,
   createSharePost,
-  deletePost,
   ExternalLink,
   ExternalLinkPreview,
   FreeformPost,
   Post,
   PostFlagsPublic,
   PostMention,
-  PostQuestion,
-  PostRelation,
-  PostRelationType,
   PostType,
   Toc,
-  updateSharePost,
-  User,
   UserActionType,
+  WelcomePost,
+  ContentImage,
+  PostQuestion,
   UserPost,
   UserPostFlagsPublic,
+  updateSharePost,
   View,
-  WelcomePost,
+  User,
+  PostRelationType,
+  PostRelation,
+  deletePost,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -2205,9 +2206,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   },
   Post: {
     image: (post: GQLPost): string | undefined => {
-      if (nullableImageType.includes(post.type)) return post.image;
+      const image = mapCloudinaryUrl(post.image);
+      if (nullableImageType.includes(post.type)) return image;
 
-      return post.image || pickImageUrl(post);
+      return image || pickImageUrl(post);
     },
     placeholder: (post: GQLPost): string | undefined =>
       post.image ? post.placeholder : defaultImage.placeholder,

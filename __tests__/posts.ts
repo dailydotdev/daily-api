@@ -298,6 +298,44 @@ describe('image fields', () => {
     const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
   });
+
+  it('should use image proxy', async () => {
+    const repo = con.getRepository(ArticlePost);
+    await repo.save({
+      id: 'image',
+      shortId: 'image',
+      title: 'Image',
+      url: 'http://post.com',
+      score: 0,
+      sourceId: 'a',
+      createdAt: new Date(2020, 4, 4, 19, 35),
+      image:
+        'https://daily-now-res.cloudinary.com/image/upload/f_auto,q_auto/v1680721516/e0a51d08219c9267b010b136f9fe29f5',
+    });
+    const res = await client.query(QUERY);
+    expect(res.data.post.image).toEqual(
+      'https://media.daily.dev/image/upload/f_auto,q_auto/v1680721516/e0a51d08219c9267b010b136f9fe29f5',
+    );
+  });
+
+  it('should use image proxy for second variation', async () => {
+    const repo = con.getRepository(ArticlePost);
+    await repo.save({
+      id: 'image',
+      shortId: 'image',
+      title: 'Image',
+      url: 'http://post.com',
+      score: 0,
+      sourceId: 'a',
+      createdAt: new Date(2020, 4, 4, 19, 35),
+      image:
+        'https://res.cloudinary.com/daily-now/image/upload/f_auto,q_auto/v1680721516/e0a51d08219c9267b010b136f9fe29f5',
+    });
+    const res = await client.query(QUERY);
+    expect(res.data.post.image).toEqual(
+      'https://media.daily.dev/image/upload/f_auto,q_auto/v1680721516/e0a51d08219c9267b010b136f9fe29f5',
+    );
+  });
 });
 
 describe('source field', () => {
