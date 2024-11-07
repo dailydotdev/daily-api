@@ -588,6 +588,92 @@ describe('query sources', () => {
   });
 });
 
+describe('query searchSources', () => {
+  const QUERY = `
+  query SearchSources($query: String!) {
+    searchSources(query: $query) {
+      id
+      name
+      image
+    }
+  }`;
+
+  it('should return matching sources', async () => {
+    await con.getRepository(Source).insert([
+      {
+        ...sourcesFixture[0],
+        id: 'search1',
+        handle: 'search_1',
+      },
+      {
+        ...sourcesFixture[1],
+        id: 'search2',
+        handle: 'search_2',
+      },
+    ]);
+    const res = await client.query(QUERY, { variables: { query: 'sea' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.searchSources).toEqual([
+      { id: 'search1', name: 'A', image: 'http://image.com/a' },
+      { id: 'search2', name: 'B', image: 'http://image.com/b' },
+    ]);
+  });
+});
+
+describe('query sourceRecommendationByTags', () => {
+  beforeEach(async () => {
+    await con
+      .getRepository(Post)
+      .save([postsFixture[0], postsFixture[1], postsFixture[4]]);
+    await con.getRepository(PostKeyword).save([
+      postKeywordsFixture[0],
+      postKeywordsFixture[1],
+      postKeywordsFixture[5],
+      postKeywordsFixture[6],
+      {
+        postId: postsFixture[1].id,
+        keyword: 'javascript',
+      },
+    ]);
+    await con.manager.query(`UPDATE post_keyword
+                             SET status = 'allow'`);
+    const materializedViewName =
+      con.getRepository(SourceTagView).metadata.tableName;
+    await con.query(`REFRESH MATERIALIZED VIEW ${materializedViewName}`);
+  });
+
+  const QUERY = `
+  query SourceRecommendationByTags($tags: [String]!) {
+    sourceRecommendationByTags(tags: $tags) {
+      id
+      name
+      image
+    }
+  }`;
+
+  it('should return matching sources', async () => {
+    const res = await client.query(QUERY, {
+      variables: { tags: ['javascript', 'html'] },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.sourceRecommendationByTags).toEqual([
+      { id: 'b', name: 'B', image: 'http://image.com/b' },
+      { id: 'a', name: 'A', image: 'http://image.com/a' },
+    ]);
+  });
+
+  it('should return matching sources excluding private sources', async () => {
+    await con.getRepository(Source).update({ id: 'b' }, { private: true });
+    const res = await client.query(QUERY, {
+      variables: { tags: ['javascript', 'html'] },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.sourceRecommendationByTags).toEqual([
+      { id: 'a', name: 'A', image: 'http://image.com/a' },
+    ]);
+  });
+});
+
 describe('query mostRecentSources', () => {
   const QUERY = `
     query MostRecentSources {
