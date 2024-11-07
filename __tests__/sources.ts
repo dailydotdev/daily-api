@@ -114,6 +114,7 @@ beforeEach(async () => {
     sourcesFixture[0],
     sourcesFixture[1],
     sourcesFixture[5],
+    sourcesFixture[6],
   ]);
   await saveFixtures(con, User, usersFixture);
   await saveFixtures(
@@ -160,11 +161,21 @@ beforeEach(async () => {
       referralToken: randomUUID(),
       createdAt: new Date(2022, 11, 19),
     },
+    {
+      userId: '1',
+      sourceId: 'm',
+      role: SourceMemberRoles.Admin,
+      referralToken: randomUUID(),
+      createdAt: new Date(2022, 11, 19),
+    },
   ]);
 
-  await con
-    .getRepository(SourceMember)
-    .update({ userId: '1' }, { role: SourceMemberRoles.Admin });
+  await con.getRepository(SourceMember).update(
+    {
+      userId: '1',
+    },
+    { role: SourceMemberRoles.Admin },
+  );
   await con
     .getRepository(SourceMember)
     .update({ userId: '2', sourceId: 'b' }, { role: SourceMemberRoles.Admin });
@@ -564,6 +575,7 @@ describe('query sources', () => {
       'a',
       'b',
       'squad',
+      'm',
     ]);
   });
 
@@ -582,6 +594,7 @@ describe('query sources', () => {
     expect(res.data.sources.edges.map(({ node }) => node.id)).toEqual([
       'c',
       'squad',
+      'm',
       'a',
       'b',
     ]);
@@ -1082,6 +1095,50 @@ query Source($id: ID!) {
   });
 });
 
+describe('query source moderation fields', () => {
+  const QUERY = `
+query Source($id: ID!) {
+  source(id: $id) {
+    id
+    name
+    image
+    public
+    moderationRequired
+    moderationPostCount
+    currentMember {
+      role
+      roleRank
+      permissions
+    }
+  }
+}
+  `;
+
+  it('should not return moderationPostCount when moderation is not required', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, { variables: { id: 'squad' } });
+    console.log({ res });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.moderationRequired).toEqual(false);
+    expect(res.data.source.moderationPostCount).toBeFalsy();
+  });
+
+  it('should return moderationPostCount when user is admin', async () => {
+    loggedUser = '1';
+    await con.getRepository(SquadSource).update(
+      { id: 'm' },
+      {
+        private: false,
+        moderationRequired: true,
+      },
+    );
+    const res = await client.query(QUERY, { variables: { id: 'm' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.moderationRequired).toEqual(true);
+    expect(res.data.source.moderationPostCount).toBe(0);
+  });
+});
+
 describe('query sourceHandleExists', () => {
   const QUERY = `
     query SourceHandleExists($handle: String!) {
@@ -1488,10 +1545,10 @@ describe('query mySourceMemberships', () => {
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     expect(res.data.mySourceMemberships).toBeDefined();
-    expect(res.data.mySourceMemberships.edges).toHaveLength(2);
+    expect(res.data.mySourceMemberships.edges).toHaveLength(3);
     expect(
       res.data.mySourceMemberships.edges.map(({ node }) => node.source.id),
-    ).toEqual(['a', 'squad']);
+    ).toEqual(['a', 'squad', 'm']);
   });
 
   it('should not return source memberships if user is blocked', async () => {
@@ -1516,7 +1573,7 @@ describe('query mySourceMemberships', () => {
     const res = await client.query(createQuery(SourceType.Squad));
     expect(res.errors).toBeFalsy();
     expect(res.data.mySourceMemberships).toBeDefined();
-    expect(res.data.mySourceMemberships.edges).toHaveLength(2);
+    expect(res.data.mySourceMemberships.edges).toHaveLength(3);
     expect(
       res.data.mySourceMemberships.edges.map(({ node }) => node.source.id),
     ).toEqual(expect.arrayContaining(['a', 'squad']));

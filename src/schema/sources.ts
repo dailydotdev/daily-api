@@ -1569,9 +1569,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ...(!isModerator && { createdById: ctx.userId }),
       };
 
-      const moderationPostCount = await ctx.con
+      const count = await ctx.con
         .getRepository(SourcePostModeration)
         .countBy(query);
+      const moderationPostCount = count ?? 0;
 
       return { ...source, moderationPostCount };
     },
