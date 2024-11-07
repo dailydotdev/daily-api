@@ -38,6 +38,7 @@ import { randomUUID } from 'crypto';
 import {
   createSquadWelcomePost,
   getSourceLink,
+  mapCloudinaryUrl,
   updateFlagsStatement,
   uploadSquadImage,
 } from '../common';
@@ -2153,6 +2154,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   Source: {
+    image: (source: GQLSource): GQLSource['image'] =>
+      mapCloudinaryUrl(source.image),
     permalink: (source: GQLSource): string => getSourceLink(source),
     referralUrl: async (
       source: GQLSource,
