@@ -107,3 +107,9 @@ export const uploadPostFile = (
   stream: Readable,
   preset: PostPreset,
 ) => uploadFile(name, preset, stream);
+
+export const mapCloudinaryUrl = (url?: string): string | undefined =>
+  url?.replace(
+    /(?:res\.cloudinary\.com\/daily-now|daily-now-res\.cloudinary\.com)/g,
+    'media.daily.dev',
+  );

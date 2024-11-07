@@ -68,6 +68,7 @@ import {
   CioTransactionalMessageTemplateId,
   validateWorkEmailDomain,
   type GQLUserTopReader,
+  mapCloudinaryUrl,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -2310,6 +2311,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   User: {
+    image: (user: GQLUser): GQLUser['image'] => mapCloudinaryUrl(user.image),
+    cover: (user: GQLUser): GQLUser['cover'] => mapCloudinaryUrl(user.cover),
     permalink: getUserPermalink,
   },
   UserIntegration: {
