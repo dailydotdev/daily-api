@@ -1,5 +1,5 @@
 WITH
-views AS MATERIALIZED (
+views AS (
   SELECT
     "v"."postId",
     "v"."userId",
@@ -14,7 +14,7 @@ views AS MATERIALIZED (
     AND "v"."timestamp" <  (date_trunc('month', CURRENT_DATE))
     -- Example 2024-11-01 00:00:00+00
 ),
-distinct_views AS MATERIALIZED (
+distinct_views AS (
   SELECT
     "v"."userId",
     "v"."keyword"
