@@ -44,6 +44,11 @@ import {
 } from './helpers';
 import { ContentPreferenceSource } from '../src/entity/contentPreference/ContentPreferenceSource';
 import { ContentPreferenceStatus } from '../src/entity/contentPreference/types';
+import { generateUUID } from '../src/ids';
+import {
+  SourcePostModeration,
+  SourcePostModerationStatus,
+} from '../src/entity/SourcePostModeration';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -1096,6 +1101,30 @@ query Source($id: ID!) {
 });
 
 describe('query source moderation fields', () => {
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).update(
+      { id: 'm' },
+      {
+        private: false,
+        moderationRequired: true,
+      },
+    );
+    await con.getRepository(SourceMember).save({
+      userId: '2',
+      sourceId: 'm',
+      role: SourceMemberRoles.Member,
+      referralToken: generateUUID(),
+    });
+    await con.getRepository(SourcePostModeration).save({
+      sourceId: 'm',
+      createdById: '2',
+      title: 'Title',
+      content: 'Content',
+      status: SourcePostModerationStatus.Pending,
+      type: PostType.Article,
+    });
+  });
+
   const QUERY = `
 query Source($id: ID!) {
   source(id: $id) {
@@ -1116,8 +1145,8 @@ query Source($id: ID!) {
 
   it('should not return moderationPostCount when moderation is not required', async () => {
     loggedUser = '1';
+    // squad source have moderationRequired set to false
     const res = await client.query(QUERY, { variables: { id: 'squad' } });
-    console.log({ res });
     expect(res.errors).toBeFalsy();
     expect(res.data.source.moderationRequired).toEqual(false);
     expect(res.data.source.moderationPostCount).toBeFalsy();
@@ -1125,16 +1154,40 @@ query Source($id: ID!) {
 
   it('should return moderationPostCount when user is admin', async () => {
     loggedUser = '1';
-    await con.getRepository(SquadSource).update(
-      { id: 'm' },
-      {
-        private: false,
-        moderationRequired: true,
-      },
-    );
     const res = await client.query(QUERY, { variables: { id: 'm' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.source.moderationRequired).toEqual(true);
+    expect(res.data.source.moderationPostCount).toBe(1);
+  });
+
+  it('should return moderationPostCount when user is user', async () => {
+    loggedUser = '2';
+    await con.getRepository(SourcePostModeration).save({
+      sourceId: 'm',
+      createdById: '2',
+      title: 'Title 2',
+      content: 'Content 2',
+      status: SourcePostModerationStatus.Pending,
+      type: PostType.Article,
+    });
+    const res = await client.query(QUERY, { variables: { id: 'm' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.moderationRequired).toEqual(true);
+    expect(res.data.source.moderationPostCount).toBe(2);
+  });
+
+  it('should return only my moderationPostCount', async () => {
+    loggedUser = '3';
+    await con.getRepository(SourceMember).save({
+      userId: '3',
+      sourceId: 'm',
+      role: SourceMemberRoles.Member,
+      referralToken: generateUUID(),
+    });
+    const res = await client.query(QUERY, { variables: { id: 'm' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.moderationRequired).toEqual(true);
+    // this user has no pending posts waiting for moderation
     expect(res.data.source.moderationPostCount).toBe(0);
   });
 });
