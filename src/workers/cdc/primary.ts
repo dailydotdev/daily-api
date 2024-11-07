@@ -739,9 +739,13 @@ const onSourcePostModerationChange = async (
       data.payload.before!.status !== SourcePostModerationStatus.Approved &&
       data.payload.after!.status === SourcePostModerationStatus.Approved
     ) {
-      await processApprovedModeratedPost(con, data.payload.after!);
+      const post = await processApprovedModeratedPost(con, data.payload.after!);
 
-      if (!!data.payload.after?.postId) {
+      if (!post) {
+        return;
+      }
+
+      if (post.id) {
         await triggerTypedEvent(
           logger,
           'api.v1.source-post-moderation-approved',

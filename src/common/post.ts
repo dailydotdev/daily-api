@@ -350,9 +350,10 @@ type ModeratedPostCdc = ChangeObject<SourcePostModeration>;
 export const updateModeratedPost = async (
   con: ConnectionManager,
   moderated: ModeratedPostCdc,
-): Promise<ModeratedPostCdc> => {
+): Promise<ModeratedPostCdc | null> => {
   if (!moderated?.postId) {
-    throw new Error('Moderated post is missing');
+    logger.error('unable to update moderated post', { moderated });
+    return null;
   }
 
   const postParam = { id: moderated.postId };
@@ -393,7 +394,7 @@ export const getExistingPost = async (
 export const processApprovedModeratedPost = async (
   con: ConnectionManager,
   moderated: ModeratedPostCdc,
-): Promise<ModeratedPostCdc> => {
+): Promise<ModeratedPostCdc | null> => {
   if (!moderated) {
     throw new Error('Moderated post is missing');
   }
@@ -460,5 +461,7 @@ export const processApprovedModeratedPost = async (
     return { ...moderated, postId: post.id };
   }
 
-  throw new Error(`unable to process moderated post: ${moderated.id}`);
+  logger.error(`unable to process moderated post: ${moderated.id}`);
+
+  return null;
 };
