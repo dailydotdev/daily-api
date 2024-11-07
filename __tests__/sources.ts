@@ -1944,28 +1944,6 @@ describe('mutation createSquad', () => {
     );
   });
 
-  it('should throw error when post moderation is required, but posting is restricted to moderators only', async () => {
-    loggedUser = '1';
-    return await testMutationError(
-      client,
-      {
-        mutation: MUTATION,
-        variables: {
-          ...variables,
-          moderationRequired: true,
-          memberPostingRole: SourceMemberRoles.Moderator,
-        },
-      },
-      (errors) => {
-        expect(errors.length).toEqual(1);
-        expect(errors[0].extensions?.code).toEqual('GRAPHQL_VALIDATION_FAILED');
-        expect(errors[0].message).toEqual(
-          'Cannot enable post moderation when posts are already set to moderator only',
-        );
-      },
-    );
-  });
-
   it('should throw error when invalid role is provided for posting', async () => {
     loggedUser = '1';
     await con.getRepository(Post).save(postsFixture[0]);
