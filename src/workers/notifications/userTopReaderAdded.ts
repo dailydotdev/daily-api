@@ -5,9 +5,7 @@ import { generateTypedNotificationWorker } from './worker';
 import { uploadFile, UploadPreset } from '../../common';
 import { Readable } from 'stream';
 import { NotificationType } from '../../notifications/common';
-
-// @TODO: remove this when https://github.com/dailydotdev/daily-api/pull/2401 is merged
-const WEBAPP_MAGIC_IMAGE_PREFIX = `/imageGenerator`;
+import { WEBAPP_MAGIC_IMAGE_PREFIX } from '../../config';
 
 export const userTopReaderAdded =
   generateTypedNotificationWorker<'api.v1.user-top-reader'>({
