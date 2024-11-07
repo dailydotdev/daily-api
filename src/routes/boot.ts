@@ -174,6 +174,7 @@ const getSquads = async (
       .addSelect('NOT private', 'public')
       .addSelect('active')
       .addSelect('role')
+      .addSelect('"moderationRequired"')
       .addSelect('"memberPostingRank"')
       .from(SourceMember, 'sm')
       .innerJoin(
