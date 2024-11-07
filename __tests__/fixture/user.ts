@@ -1,6 +1,5 @@
-import type { DeepPartial } from 'typeorm';
-import type { User, UserTopReader } from '../../src/entity';
-import { topReadersKeywordsFixture } from './keywords';
+import { DeepPartial } from 'typeorm';
+import { User } from '../../src/entity';
 
 export const userCreatedDate = '2022-06-28T14:48:47.891Z';
 
@@ -107,26 +106,5 @@ export const badUsersFixture: DeepPartial<User>[] = [
       vordr: false,
       trustScore: 1,
     },
-  },
-];
-
-export const topReadersFixture: Partial<UserTopReader>[] = [
-  {
-    id: 'e6cf6f38-62a8-4c62-ae71-a3ac1c2943b8',
-    userId: usersFixture[0].id,
-    keywordValue: topReadersKeywordsFixture[0].value,
-    issuedAt: new Date(),
-  },
-  {
-    id: '200caed4-ea41-461d-9aa2-6a5ae1ffe44c',
-    userId: usersFixture[1].id,
-    keywordValue: topReadersKeywordsFixture[1].value,
-    issuedAt: new Date(),
-  },
-  {
-    id: '91c7df4b-f2a9-4613-85f6-d96e2a91222e',
-    userId: usersFixture[2].id,
-    keywordValue: topReadersKeywordsFixture[2].value,
-    issuedAt: new Date(),
   },
 ];
