@@ -597,10 +597,10 @@ describe('query sources', () => {
     expect(res.errors).toBeFalsy();
 
     expect(res.data.sources.edges.map(({ node }) => node.id)).toEqual([
-      'c',
       'squad',
       'm',
       'a',
+      'c',
       'b',
     ]);
   });
@@ -1601,7 +1601,7 @@ describe('query mySourceMemberships', () => {
     expect(res.data.mySourceMemberships.edges).toHaveLength(3);
     expect(
       res.data.mySourceMemberships.edges.map(({ node }) => node.source.id),
-    ).toEqual(['a', 'squad', 'm']);
+    ).toEqual(['m', 'a', 'squad']);
   });
 
   it('should not return source memberships if user is blocked', async () => {
