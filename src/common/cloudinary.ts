@@ -110,6 +110,7 @@ export const uploadPostFile = (
 
 export function mapCloudinaryUrl(url: string): string;
 export function mapCloudinaryUrl(url: undefined): undefined;
+export function mapCloudinaryUrl(url?: string): string | undefined;
 export function mapCloudinaryUrl(url?: string): string | undefined {
   return url?.replace(
     /(?:res\.cloudinary\.com\/daily-now|daily-now-res\.cloudinary\.com)/g,
