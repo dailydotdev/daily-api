@@ -3,7 +3,7 @@ import type { Cron } from './cron';
 import { logger } from '../logger';
 import { readFile } from 'fs/promises';
 import path from 'path';
-import { UserTopReader } from '../entity';
+import { UserStats, UserTopReader } from '../entity';
 import { endOfMonth, subMonths } from 'date-fns';
 import { SQL_QUERIES_PATH } from '../config';
 

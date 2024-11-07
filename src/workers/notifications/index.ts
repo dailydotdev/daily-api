@@ -24,7 +24,7 @@ import postBookmarkReminder from './postBookmarkReminder';
 import userStreakResetNotification from './userStreakResetNotification';
 import squadFeaturedUpdated from './squadFeaturedUpdated';
 import { postAddedUserNotification } from './postAddedUserNotification';
-// import { userTopReaderAdded } from './userTopReaderAdded';
+import { userTopReaderAdded } from './userTopReaderAdded';
 
 export function notificationWorkerToWorker(worker: NotificationWorker): Worker {
   return {
@@ -87,7 +87,7 @@ const notificationWorkers: NotificationWorker[] = [
   userStreakResetNotification,
   squadFeaturedUpdated,
   postAddedUserNotification,
-  // userTopReaderAdded,
+  userTopReaderAdded,
 ];
 
 export const workers = [...notificationWorkers.map(notificationWorkerToWorker)];
