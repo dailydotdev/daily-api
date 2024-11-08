@@ -4801,7 +4801,7 @@ describe('source_post_moderation', () => {
       ]);
     });
 
-    it('should update the content of post id is present', async () => {
+    it('should update the content if post id is present', async () => {
       const repo = con.getRepository(Post);
       await saveFixtures(con, Post, [postsFixture[0]]);
       const before = await repo.findOneBy({ id: 'p1' });
