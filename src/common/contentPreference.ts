@@ -216,7 +216,7 @@ const followSource: FollowEntity = async ({ ctx, id, status }) => {
       .insert()
       .into(ContentPreferenceSource)
       .values(contentPreference)
-      .orUpdate(['status'], ['referenceId', 'userId'])
+      .orUpdate(['status'], ['userId', 'referenceId', 'type'])
       .execute();
 
     if (status !== ContentPreferenceStatus.Subscribed) {
@@ -341,7 +341,7 @@ const blockSource: BlockEntity = async ({ ctx, id }) => {
       .insert()
       .into(ContentPreferenceSource)
       .values(contentPreference)
-      .orUpdate(['status'], ['referenceId', 'userId'])
+      .orUpdate(['status'], ['userId', 'referenceId', 'type'])
       .execute();
 
     cleanContentNotificationPreference({
