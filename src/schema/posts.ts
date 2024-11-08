@@ -34,6 +34,7 @@ import {
   validatePost,
   ONE_MINUTE_IN_SECONDS,
   toGQLEnum,
+  mapCloudinaryUrl,
 } from '../common';
 import {
   ArticlePost,
@@ -1644,7 +1645,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         serviceId: imageId,
         url: imageUrl,
       });
-      return imageUrl;
+      return mapCloudinaryUrl(imageUrl);
     },
     deletePost: async (
       _,
@@ -2112,10 +2113,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   Post: {
+    contentHtml: (post: GQLPost): GQLPost['contentHtml'] =>
+      mapCloudinaryUrl(post.contentHtml),
     image: (post: GQLPost): string | undefined => {
-      if (nullableImageType.includes(post.type)) return post.image;
+      const image = mapCloudinaryUrl(post.image);
+      if (nullableImageType.includes(post.type)) return image;
 
-      return post.image || pickImageUrl(post);
+      return image || pickImageUrl(post);
     },
     placeholder: (post: GQLPost): string | undefined =>
       post.image ? post.placeholder : defaultImage.placeholder,
@@ -2133,7 +2137,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   },
   LinkPreview: {
     image: (preview: ExternalLinkPreview) =>
-      preview.image ?? pickImageUrl({ createdAt: new Date() }),
+      mapCloudinaryUrl(preview.image) ??
+      pickImageUrl({ createdAt: new Date() }),
     title: (preview: ExternalLinkPreview) =>
       preview.title?.length ? preview.title : DEFAULT_POST_TITLE,
   },

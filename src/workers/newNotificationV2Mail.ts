@@ -717,8 +717,15 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
         id: notification.referenceId,
       });
 
+    const keyword = await userTopReader.keyword;
+    if (!keyword) {
+      throw new Error('Keyword not found');
+    }
+
     return {
-      topReader: userTopReader.image,
+      image: userTopReader.image,
+      issuedAt: formatMailDate(userTopReader.issuedAt),
+      keyword: keyword.flags.title || keyword.value,
     };
   },
 };

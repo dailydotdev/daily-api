@@ -70,6 +70,8 @@ FROM
 WHERE
   "ru"."rank" <= $2
   -- We need to select a higher amount of users here, so that we can process them server side
+  AND EXISTS(SELECT 1 from "user" "u" where "u"."id" = "ru"."userId")
+  -- We need to make sure that the user still exists
 ORDER BY
   "tk"."count" DESC,
   "ru"."rank" ASC
