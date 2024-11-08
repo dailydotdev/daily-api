@@ -1339,14 +1339,14 @@ describe('collection_post notification', () => {
     expect(args.message_data).toMatchObject({
       post_comments: '0',
       post_image:
-        'https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1',
+        'https://media.daily.dev/image/upload/f_auto/v1/placeholders/1',
       post_link:
         'http://localhost:5002/posts/cp1?utm_source=notification&utm_medium=email&utm_campaign=collection_updated',
       post_timestamp: 'Jan 05, 2020',
       post_title: 'New title',
       post_upvotes: '0',
       source_image:
-        'https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1',
+        'https://media.daily.dev/image/upload/f_auto/v1/placeholders/1',
       source_name: 'A',
       source_timestamp: 'Jan 07, 2020',
       source_title: 'Related post title',
