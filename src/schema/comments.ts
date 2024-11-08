@@ -6,6 +6,7 @@ import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import {
   getDiscussionLink,
+  mapCloudinaryUrl,
   recommendUsersByQuery,
   recommendUsersToMention,
 } from '../common';
@@ -968,6 +969,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   Comment: {
+    contentHtml: (comment: GQLComment): GQLComment['contentHtml'] =>
+      mapCloudinaryUrl(comment.contentHtml),
     permalink: (comment: GQLComment): string =>
       getDiscussionLink(comment.postId, comment.id),
   },

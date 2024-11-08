@@ -1675,7 +1675,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         serviceId: imageId,
         url: imageUrl,
       });
-      return imageUrl;
+      return mapCloudinaryUrl(imageUrl);
     },
     deletePost: async (
       _,
@@ -2213,6 +2213,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   Post: {
+    contentHtml: (post: GQLPost): GQLPost['contentHtml'] =>
+      mapCloudinaryUrl(post.contentHtml),
     image: (post: GQLPost): string | undefined => {
       const image = mapCloudinaryUrl(post.image);
       if (nullableImageType.includes(post.type)) return image;
@@ -2235,7 +2237,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   },
   LinkPreview: {
     image: (preview: ExternalLinkPreview) =>
-      preview.image ?? pickImageUrl({ createdAt: new Date() }),
+      mapCloudinaryUrl(preview.image) ??
+      pickImageUrl({ createdAt: new Date() }),
     title: (preview: ExternalLinkPreview) =>
       preview.title?.length ? preview.title : DEFAULT_POST_TITLE,
   },

@@ -725,7 +725,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     return {
       image: userTopReader.image,
       issuedAt: formatMailDate(userTopReader.issuedAt),
-      keyword: keyword.flags.title || keyword.value,
+      keyword: keyword?.flags?.title || keyword.value,
     };
   },
 };

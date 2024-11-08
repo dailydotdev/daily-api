@@ -74,6 +74,8 @@ import {
   cleanContentNotificationPreference,
   entityToNotificationTypeMap,
 } from '../common/contentPreference';
+import { MIN_SEARCH_QUERY_LENGTH } from './tags';
+import { getSearchLimit } from '../common/search';
 import {
   SourcePostModeration,
   SourcePostModerationStatus,
@@ -396,6 +398,36 @@ export const typeDefs = /* GraphQL */ `
       """
       sortByMembersCount: Boolean
     ): SourceConnection!
+
+    """
+    Get available sources for given query
+    """
+    searchSources(
+      """
+      Search query
+      """
+      query: String!
+
+      """
+      Limit the number of sources returned
+      """
+      limit: Int
+    ): [Source] @cacheControl(maxAge: 600)
+
+    """
+    Get source recommendation based on given tags
+    """
+    sourceRecommendationByTags(
+      """
+      Tags to recommend sources for
+      """
+      tags: [String]!
+
+      """
+      Limit the number of sources returned
+      """
+      limit: Int
+    ): [Source] @cacheControl(maxAge: 600)
 
     """
     Get the most recent sources
@@ -1514,6 +1546,69 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return builder;
         },
         undefined,
+        true,
+      );
+    },
+    searchSources: async (
+      source,
+      { query, limit = 5 }: { query: string; limit: number },
+      ctx: Context,
+      info,
+    ): Promise<GQLSource[]> => {
+      if (query.length < MIN_SEARCH_QUERY_LENGTH) {
+        return [];
+      }
+
+      return await graphorm.query<GQLSource>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .where(`name ILIKE :query OR handle ILIKE :query`, {
+              query: `%${query}%`,
+            })
+            .andWhere({ active: true, private: false })
+            .limit(getSearchLimit({ limit }));
+          return builder;
+        },
+        true,
+      );
+    },
+    sourceRecommendationByTags: async (
+      source,
+      { tags, limit = 10 }: { tags: string[]; limit: number },
+      ctx: Context,
+      info,
+    ): Promise<GQLSource[]> => {
+      const excludedSources = ['unknown', 'community', 'collections'];
+      const rawSources = await ctx.con.getRepository(SourceTagView).find({
+        where: { tag: In(tags), sourceId: Not(In(excludedSources)) },
+        select: ['sourceId'],
+        order: { count: 'DESC' },
+      });
+
+      const filter: FindOptionsWhere<Source> = {
+        active: true,
+        private: false,
+      };
+
+      const rawSourcesIds = rawSources.map(({ sourceId }) => sourceId);
+      const idsStr = rawSources.length
+        ? rawSources.map(({ sourceId }) => `'${sourceId}'`).join(',')
+        : `'nosuchid'`;
+      return graphorm.query(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .andWhere(filter)
+            .andWhere('id IN (:...ids)', {
+              ids: rawSourcesIds,
+            })
+            .orderBy(`array_position(array[${idsStr}], ${builder.alias}.id)`)
+            .limit(getSearchLimit({ limit }));
+          return builder;
+        },
         true,
       );
     },

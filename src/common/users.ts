@@ -304,7 +304,7 @@ export const getUserReadingTags = (
   { userId, dateRange: { start, end }, limit = 8 }: ReadingDaysArgs,
 ): Promise<TagsReadingStatus[]> => {
   return con.query(
-    `
+    `--sql
       WITH filtered_view AS (
         SELECT
           v.*,
