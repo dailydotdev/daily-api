@@ -3,6 +3,7 @@ import fastify, {
   FastifyRequest,
   FastifyInstance,
   FastifyError,
+  FastifyReply,
 } from 'fastify';
 import fastifyRawBody from 'fastify-raw-body';
 import helmet from '@fastify/helmet';
@@ -331,17 +332,26 @@ export default async function app(
       });
     },
   });
-  app.register(proxy, {
+
+  const letterProxy = {
     upstream:
       'https://media.daily.dev/image/upload/s--zchx8x3n--/f_auto,q_auto/v1731056371/webapp/shortcut-placeholder',
-    prefix: 'lettericon',
-    preHandler: async (req, res) => {
+    preHandler: async (req: FastifyRequest, res: FastifyReply) => {
       res.helmet({
         crossOriginResourcePolicy: {
           policy: 'cross-origin',
         },
       });
     },
+  };
+
+  app.register(proxy, {
+    prefix: 'lettericon',
+    ...letterProxy,
+  });
+  app.register(proxy, {
+    prefix: '/lettericon/:word',
+    ...letterProxy,
   });
   app.register(routes, { prefix: '/' });
 
