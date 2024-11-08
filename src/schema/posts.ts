@@ -1693,25 +1693,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         pendingPost.contentHtml = markdown.render(content, { mentions });
       }
 
-      let newPostId: string;
-
-      await con.transaction(async (manager) => {
-        if (imageUrl) {
-          pendingPost.image = imageUrl;
-        } else if (image && process.env.CLOUDINARY_URL) {
-          const upload = await image;
-          const { url: coverImageUrl } = await uploadPostFile(
-            await generateShortId(),
-            upload.createReadStream(),
-            UploadPreset.PostBannerImage,
-          );
-          pendingPost.image = coverImageUrl;
-        }
-        ({ id: newPostId } = await createSourcePostModeration(
-          manager,
-          pendingPost,
-        ));
-      });
+      if (imageUrl) {
+        pendingPost.image = imageUrl;
+      } else if (image && process.env.CLOUDINARY_URL) {
+        const upload = await image;
+        const { url: coverImageUrl } = await uploadPostFile(
+          await generateShortId(),
+          upload.createReadStream(),
+          UploadPreset.PostBannerImage,
+        );
+        pendingPost.image = coverImageUrl;
+      }
+      const moderatedPost = await createSourcePostModeration(con, pendingPost);
 
       return graphorm.queryOneOrFail<GQLSourcePostModeration>(
         ctx,
@@ -1720,7 +1713,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           ...builder,
           queryBuilder: builder.queryBuilder.where(
             `"${builder.alias}"."id" = :id`,
-            { id: newPostId },
+            { id: moderatedPost.id },
           ),
         }),
       );
