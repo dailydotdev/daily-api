@@ -75,7 +75,6 @@ import {
   entityToNotificationTypeMap,
 } from '../common/contentPreference';
 import { MIN_SEARCH_QUERY_LENGTH } from './tags';
-import { categorizedSquads } from '../../bin/categorizedSquads';
 import { getSearchLimit } from '../common/search';
 import {
   SourcePostModeration,
