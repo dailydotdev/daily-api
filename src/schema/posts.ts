@@ -2154,11 +2154,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('Invalid status provided');
       }
 
-      await ensureSourcePermissions(
-        ctx,
-        sourceId,
-        SourcePermissions.MemberRemove,
-      );
+      const isModerator = await isPrivilegedMember(ctx, sourceId);
+
+      if (!isModerator) {
+        throw new ForbiddenError('Access denied!');
+      }
 
       const pendingPosts = await ctx.con
         .getRepository(SourcePostModeration)
