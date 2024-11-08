@@ -331,10 +331,23 @@ export default async function app(
       });
     },
   });
+  const letterIconImage =
+    'https://media.daily.dev/image/upload/s--zchx8x3n--/f_auto,q_auto/v1731056371/webapp/shortcut-placeholder';
+
   app.register(proxy, {
-    upstream:
-      'https://media.daily.dev/image/upload/s--zchx8x3n--/f_auto,q_auto/v1731056371/webapp/shortcut-placeholder',
     prefix: 'lettericon',
+    upstream: letterIconImage,
+    preHandler: async (req, res) => {
+      res.helmet({
+        crossOriginResourcePolicy: {
+          policy: 'cross-origin',
+        },
+      });
+    },
+  });
+  app.register(proxy, {
+    prefix: '/lettericon/:word',
+    upstream: letterIconImage,
     preHandler: async (req, res) => {
       res.helmet({
         crossOriginResourcePolicy: {
