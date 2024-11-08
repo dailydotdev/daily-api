@@ -346,11 +346,11 @@ export default async function app(
   };
 
   app.register(proxy, {
-    prefix: 'lettericon',
+    prefix: 'lettericons',
     ...letterProxy,
   });
   app.register(proxy, {
-    prefix: '/lettericon/:word',
+    prefix: '/lettericons/:word',
     ...letterProxy,
   });
   app.register(routes, { prefix: '/' });
