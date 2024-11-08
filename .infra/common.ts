@@ -299,20 +299,20 @@ export const workers: Worker[] = [
   },
   {
     topic: 'api.v1.source-post-moderation-submitted',
-    subscription: 'api.v1.source-post-moderation-submitted-notification',
+    subscription: 'api.source-post-moderation-submitted-notification',
   },
   {
     topic: 'api.v1.source-post-moderation-approved',
-    subscription: 'api.v1.source-post-moderation-approved-notification',
+    subscription: 'api.source-post-moderation-approved-notification',
   },
   {
     topic: 'api.v1.source-post-moderation-rejected',
-    subscription: 'api.v1.source-post-moderation-rejected-notification',
+    subscription: 'api.source-post-moderation-rejected-notification',
   },
   {
     topic: 'api.v1.user-top-reader',
     subscription: 'api.user-top-reader-added',
-  }
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

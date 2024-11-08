@@ -11,7 +11,7 @@ import { TypeORMQueryFailedError } from '../../errors';
 
 const worker =
   generateTypedNotificationWorker<'api.v1.source-post-moderation-submitted'>({
-    subscription: 'api.v1.source-post-moderation-submitted-notification',
+    subscription: 'api.source-post-moderation-submitted-notification',
     handler: async ({ post }, con) => {
       if (post.status !== SourcePostModerationStatus.Pending) {
         return;

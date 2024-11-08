@@ -7,8 +7,8 @@ import { logger } from '../../logger';
 import { TypeORMQueryFailedError } from '../../errors';
 
 const worker =
-  generateTypedNotificationWorker<'api.v1.source-post-moderation-submitted'>({
-    subscription: 'api.v1.source-post-moderation-rejected-notification',
+  generateTypedNotificationWorker<'api.v1.source-post-moderation-rejected'>({
+    subscription: 'api.source-post-moderation-rejected-notification',
     handler: async ({ post }, con) => {
       if (post.status !== SourcePostModerationStatus.Rejected) {
         return;
