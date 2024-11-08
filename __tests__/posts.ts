@@ -5182,30 +5182,12 @@ describe('Source post moderation approve/reject', () => {
     generateUUID(),
   );
   beforeEach(async () => {
-    await con.getRepository(SquadSource).update(
-      { id: 'm' },
-      {
-        private: false,
-        moderationRequired: true,
-      },
-    );
-    await con.getRepository(SourceMember).save({
-      userId: '2',
-      sourceId: 'm',
-      role: SourceMemberRoles.Member,
-      referralToken: generateUUID(),
-    });
-    await con.getRepository(SourceMember).save({
-      userId: '3',
-      sourceId: 'm',
-      role: SourceMemberRoles.Moderator,
-      referralToken: generateUUID(),
-    });
+    await saveSquadFixtures();
     await con.getRepository(SourcePostModeration).save([
       {
         id: pendingId,
         sourceId: 'm',
-        createdById: '2',
+        createdById: '4',
         title: 'Title',
         content: 'Content',
         status: SourcePostModerationStatus.Pending,
@@ -5214,7 +5196,7 @@ describe('Source post moderation approve/reject', () => {
       {
         id: approvedId,
         sourceId: 'm',
-        createdById: '2',
+        createdById: '4',
         title: 'Title',
         content: 'Content',
         status: SourcePostModerationStatus.Approved,
@@ -5253,7 +5235,7 @@ describe('Source post moderation approve/reject', () => {
     );
   });
   it('should not authorize when not source member', async () => {
-    loggedUser = '1';
+    loggedUser = '1'; // Not a member
     await testMutationErrorCode(
       client,
       {
@@ -5268,7 +5250,7 @@ describe('Source post moderation approve/reject', () => {
     );
   });
   it('should not authorize when not source moderator', async () => {
-    loggedUser = '2';
+    loggedUser = '4'; // Member level
     await testMutationErrorCode(
       client,
       {
