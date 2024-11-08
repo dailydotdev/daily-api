@@ -4684,7 +4684,7 @@ describe('source_post_moderation', () => {
       ]);
     });
 
-    it('should create not create post if status did not change', async () => {
+    it('should not create post if status did not change', async () => {
       const repo = con.getRepository(Post);
       const before = await repo.find();
       expect(before.length).toEqual(0);
