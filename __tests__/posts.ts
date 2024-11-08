@@ -37,7 +37,7 @@ import {
   YouTubePost,
 } from '../src/entity';
 import { Roles, SourceMemberRoles, sourceRoleRank } from '../src/roles';
-import { sourcesFixture, squadFixture } from './fixture/source';
+import { sourcesFixture } from './fixture/source';
 import {
   createPostCodeSnippetsFixture,
   postsFixture,
@@ -113,7 +113,6 @@ beforeEach(async () => {
   await saveFixtures(con, YouTubePost, videoPostsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
   await saveFixtures(con, User, badUsersFixture);
-  await saveFixtures(con, SquadSource, squadFixture);
   await con
     .getRepository(User)
     .save({ id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' });
@@ -141,6 +140,18 @@ beforeEach(async () => {
       name: 'Joanna Deer',
     },
   ]);
+  await con.getRepository(SquadSource).save({
+    id: 'm',
+    name: 'Moderated Squad',
+    image: 'http//image.com/m',
+    handle: 'moderatedSquad',
+    type: SourceType.Squad,
+    active: true,
+    private: false,
+    moderationRequired: true,
+    memberPostingRank: sourceRoleRank[SourceMemberRoles.Member],
+    memberInviteRank: sourceRoleRank[SourceMemberRoles.Member],
+  });
   await con.getRepository(SourceMember).save([
     {
       userId: '3',
@@ -189,7 +200,6 @@ const saveSquadFixtures = async () => {
       referralToken: randomUUID(),
     },
   ]);
-
   await con.getRepository(SourceMember).save(
     badUsersFixture.map((user) => ({
       userId: user.id,
