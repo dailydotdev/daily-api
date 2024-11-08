@@ -1,22 +1,6 @@
-import { ChildEntity, Column, JoinColumn, ManyToOne } from 'typeorm';
-import { ContentPreference } from './ContentPreference';
+import { ChildEntity } from 'typeorm';
 import { ContentPreferenceType } from './types';
-import type { Keyword } from '../Keyword';
-import type { Feed } from '../Feed';
+import { ContentPreferenceKeyword } from './ContentPreferenceKeyword';
 
-@ChildEntity(ContentPreferenceType.Keyword)
-export class ContentPreferenceFeedKeyword extends ContentPreference {
-  @Column({ type: 'text', default: null })
-  keywordId: string;
-
-  @Column({ type: 'text', default: null })
-  feedId: string;
-
-  @ManyToOne('Keyword', { lazy: true, onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'keywordId' })
-  keyword: Promise<Keyword>;
-
-  @ManyToOne('Feed', { lazy: true, onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'feedId' })
-  feed: Promise<Feed>;
-}
+@ChildEntity(ContentPreferenceType.FeedKeyword)
+export class ContentPreferenceFeedKeyword extends ContentPreferenceKeyword {}
