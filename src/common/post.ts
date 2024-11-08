@@ -227,7 +227,7 @@ export const createFreeformPost = async (
 
 export type CreateSourcePostModeration = Omit<
   CreatePost,
-  'authorId' | 'content' | 'contentHtml'
+  'authorId' | 'content' | 'contentHtml' | 'id'
 > &
   Pick<
     SourcePostModeration,
@@ -245,8 +245,7 @@ export const createSourcePostModeration = async (
     ...args,
     status: SourcePostModerationStatus.Pending,
   });
-  await con.getRepository(SourcePostModeration).save(newPost);
-  return newPost;
+  return await con.getRepository(SourcePostModeration).save(newPost);
 };
 
 export interface CreateSourcePostModerationArgs
