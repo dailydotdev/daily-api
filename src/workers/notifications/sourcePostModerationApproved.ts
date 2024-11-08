@@ -5,8 +5,8 @@ import { buildPostContext } from './utils';
 import { SourcePostModerationStatus } from '../../entity/SourcePostModeration';
 
 const worker =
-  generateTypedNotificationWorker<'api.v1.source-post-moderation-submitted'>({
-    subscription: 'api.v1.source-post-moderation-submitted-notification',
+  generateTypedNotificationWorker<'api.v1.source-post-moderation-approved'>({
+    subscription: 'api.source-post-moderation-approved-notification',
     handler: async ({ post: data }, con) => {
       if (data.status !== SourcePostModerationStatus.Pending) {
         return;
