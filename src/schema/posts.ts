@@ -2168,6 +2168,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             sourceId,
             status: SourcePostModerationStatus.Pending,
           },
+          select: ['id'],
         });
 
       if (pendingPosts.length !== postIds.length) {
