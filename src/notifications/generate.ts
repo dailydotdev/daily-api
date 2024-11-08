@@ -130,7 +130,7 @@ export const notificationTitleMap: Record<
   },
   user_given_top_reader: (ctx: NotificationUserTopReaderContext) => {
     const keyword = ctx.keyword.flags.title;
-    return `Great news! You earned the top reader badge in ${keyword}.`;
+    return `Great news! You've earned the top reader badge in ${keyword}.`;
   },
 };
 

@@ -44,6 +44,11 @@ import {
 } from './helpers';
 import { ContentPreferenceSource } from '../src/entity/contentPreference/ContentPreferenceSource';
 import { ContentPreferenceStatus } from '../src/entity/contentPreference/types';
+import { generateUUID } from '../src/ids';
+import {
+  SourcePostModeration,
+  SourcePostModerationStatus,
+} from '../src/entity/SourcePostModeration';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -114,6 +119,7 @@ beforeEach(async () => {
     sourcesFixture[0],
     sourcesFixture[1],
     sourcesFixture[5],
+    sourcesFixture[6],
   ]);
   await saveFixtures(con, User, usersFixture);
   await saveFixtures(
@@ -160,11 +166,21 @@ beforeEach(async () => {
       referralToken: randomUUID(),
       createdAt: new Date(2022, 11, 19),
     },
+    {
+      userId: '1',
+      sourceId: 'm',
+      role: SourceMemberRoles.Admin,
+      referralToken: randomUUID(),
+      createdAt: new Date(2022, 11, 19),
+    },
   ]);
 
-  await con
-    .getRepository(SourceMember)
-    .update({ userId: '1' }, { role: SourceMemberRoles.Admin });
+  await con.getRepository(SourceMember).update(
+    {
+      userId: '1',
+    },
+    { role: SourceMemberRoles.Admin },
+  );
   await con
     .getRepository(SourceMember)
     .update({ userId: '2', sourceId: 'b' }, { role: SourceMemberRoles.Admin });
@@ -564,6 +580,7 @@ describe('query sources', () => {
       'a',
       'b',
       'squad',
+      'm',
     ]);
   });
 
@@ -580,9 +597,10 @@ describe('query sources', () => {
     expect(res.errors).toBeFalsy();
 
     expect(res.data.sources.edges.map(({ node }) => node.id)).toEqual([
-      'c',
       'squad',
+      'm',
       'a',
+      'c',
       'b',
     ]);
   });
@@ -1082,6 +1100,98 @@ query Source($id: ID!) {
   });
 });
 
+describe('query source moderation fields', () => {
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).update(
+      { id: 'm' },
+      {
+        private: false,
+        moderationRequired: true,
+      },
+    );
+    await con.getRepository(SourceMember).save({
+      userId: '2',
+      sourceId: 'm',
+      role: SourceMemberRoles.Member,
+      referralToken: generateUUID(),
+    });
+    await con.getRepository(SourcePostModeration).save({
+      sourceId: 'm',
+      createdById: '2',
+      title: 'Title',
+      content: 'Content',
+      status: SourcePostModerationStatus.Pending,
+      type: PostType.Article,
+    });
+  });
+
+  const QUERY = `
+query Source($id: ID!) {
+  source(id: $id) {
+    id
+    name
+    image
+    public
+    moderationRequired
+    moderationPostCount
+    currentMember {
+      role
+      roleRank
+      permissions
+    }
+  }
+}
+  `;
+
+  it('should not return moderationPostCount when moderation is not required', async () => {
+    loggedUser = '1';
+    // squad source have moderationRequired set to false
+    const res = await client.query(QUERY, { variables: { id: 'squad' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.moderationRequired).toEqual(false);
+    expect(res.data.source.moderationPostCount).toBeFalsy();
+  });
+
+  it('should return moderationPostCount when user is admin', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, { variables: { id: 'm' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.moderationRequired).toEqual(true);
+    expect(res.data.source.moderationPostCount).toBe(1);
+  });
+
+  it('should return moderationPostCount when user is user', async () => {
+    loggedUser = '2';
+    await con.getRepository(SourcePostModeration).save({
+      sourceId: 'm',
+      createdById: '2',
+      title: 'Title 2',
+      content: 'Content 2',
+      status: SourcePostModerationStatus.Pending,
+      type: PostType.Article,
+    });
+    const res = await client.query(QUERY, { variables: { id: 'm' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.moderationRequired).toEqual(true);
+    expect(res.data.source.moderationPostCount).toBe(2);
+  });
+
+  it('should return only my moderationPostCount', async () => {
+    loggedUser = '3';
+    await con.getRepository(SourceMember).save({
+      userId: '3',
+      sourceId: 'm',
+      role: SourceMemberRoles.Member,
+      referralToken: generateUUID(),
+    });
+    const res = await client.query(QUERY, { variables: { id: 'm' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.moderationRequired).toEqual(true);
+    // this user has no pending posts waiting for moderation
+    expect(res.data.source.moderationPostCount).toBe(0);
+  });
+});
+
 describe('query sourceHandleExists', () => {
   const QUERY = `
     query SourceHandleExists($handle: String!) {
@@ -1488,10 +1598,10 @@ describe('query mySourceMemberships', () => {
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     expect(res.data.mySourceMemberships).toBeDefined();
-    expect(res.data.mySourceMemberships.edges).toHaveLength(2);
+    expect(res.data.mySourceMemberships.edges).toHaveLength(3);
     expect(
       res.data.mySourceMemberships.edges.map(({ node }) => node.source.id),
-    ).toEqual(['a', 'squad']);
+    ).toEqual(['m', 'a', 'squad']);
   });
 
   it('should not return source memberships if user is blocked', async () => {
@@ -1516,7 +1626,7 @@ describe('query mySourceMemberships', () => {
     const res = await client.query(createQuery(SourceType.Squad));
     expect(res.errors).toBeFalsy();
     expect(res.data.mySourceMemberships).toBeDefined();
-    expect(res.data.mySourceMemberships.edges).toHaveLength(2);
+    expect(res.data.mySourceMemberships.edges).toHaveLength(3);
     expect(
       res.data.mySourceMemberships.edges.map(({ node }) => node.source.id),
     ).toEqual(expect.arrayContaining(['a', 'squad']));

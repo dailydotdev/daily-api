@@ -38,6 +38,7 @@ import { randomUUID } from 'crypto';
 import {
   createSquadWelcomePost,
   getSourceLink,
+  mapCloudinaryUrl,
   updateFlagsStatement,
   uploadSquadImage,
 } from '../common';
@@ -45,6 +46,7 @@ import { toGQLEnum } from '../common/utils';
 import { GraphQLResolveInfo } from 'graphql';
 import {
   SourcePermissionErrorKeys,
+  SourceRequestErrorMessage,
   TypeOrmError,
   TypeORMQueryFailedError,
 } from '../errors';
@@ -72,6 +74,10 @@ import {
   cleanContentNotificationPreference,
   entityToNotificationTypeMap,
 } from '../common/contentPreference';
+import {
+  SourcePostModeration,
+  SourcePostModerationStatus,
+} from '../entity/SourcePostModeration';
 
 export interface GQLSourceCategory {
   id: string;
@@ -95,6 +101,8 @@ export interface GQLSource {
   referralUrl?: string;
   flags?: SourceFlagsPublic;
   description?: string;
+  moderationRequired?: boolean;
+  moderationPostCount?: number;
 }
 
 export interface GQLSourceMember {
@@ -242,6 +250,11 @@ export const typeDefs = /* GraphQL */ `
     Enable post moderation for the squad
     """
     moderationRequired: Boolean
+
+    """
+    Count of post waiting for moderation
+    """
+    moderationPostCount: Int
 
     """
     URL for inviting and referring new users
@@ -931,6 +944,20 @@ export const canAccessSource = async (
   return hasPermissionCheck(source, member, permission, validateRankAgainst);
 };
 
+export const isPrivilegedMember = async (
+  ctx: Context,
+  sourceId: string,
+): Promise<boolean> => {
+  const sourceMember = await ctx.con
+    .getRepository(SourceMember)
+    .findOneBy({ sourceId: sourceId, userId: ctx.userId });
+
+  if (!sourceMember)
+    throw new ForbiddenError(SourceRequestErrorMessage.ACCESS_DENIED);
+
+  return sourceRoleRank[sourceMember.role] >= sourceRoleRank.moderator;
+};
+
 export const canPostToSquad = (
   ctx: Context,
   squad: SquadSource,
@@ -1101,14 +1128,21 @@ const addNewSourceMember = async (
   con: DataSource | EntityManager,
   member: Omit<DeepPartial<SourceMember>, 'referralToken'>,
 ): Promise<void> => {
-  const referralToken = randomUUID();
+  const contentPreference = await con
+    .getRepository(ContentPreferenceSource)
+    .findOneBy({
+      userId: member.userId,
+      referenceId: member.sourceId,
+    });
+
+  const referralToken = contentPreference?.flags.referralToken || randomUUID();
 
   await con.getRepository(SourceMember).insert({
     ...member,
     referralToken,
   });
 
-  await con.getRepository(ContentPreferenceSource).insert(
+  await con.getRepository(ContentPreferenceSource).upsert(
     con.getRepository(ContentPreferenceSource).create({
       userId: member.userId,
       referenceId: member.sourceId,
@@ -1121,6 +1155,9 @@ const addNewSourceMember = async (
         referralToken,
       },
     }),
+    {
+      conflictPaths: ['userId', 'referenceId'],
+    },
   );
 };
 
@@ -1528,7 +1565,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<GQLSource> => {
       await ensureSourcePermissions(ctx, id);
-      return getSourceById(ctx, info, id);
+      const source = await getSourceById(ctx, info, id);
+
+      if (!source.moderationRequired || !source.currentMember) {
+        return source;
+      }
+
+      const isModerator =
+        sourceRoleRank[source.currentMember.role] >= sourceRoleRank.moderator;
+      const status = SourcePostModerationStatus.Pending;
+      const query: FindOptionsWhere<SourcePostModeration> = {
+        status,
+        sourceId: source.id,
+        ...(!isModerator && { createdById: ctx.userId }),
+      };
+
+      const moderationPostCount = await ctx.con
+        .getRepository(SourcePostModeration)
+        .countBy(query);
+
+      return { ...source, moderationPostCount };
     },
     sourceHandleExists: async (
       _,
@@ -2128,6 +2184,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   Source: {
+    image: (source: GQLSource): GQLSource['image'] =>
+      mapCloudinaryUrl(source.image),
     permalink: (source: GQLSource): string => getSourceLink(source),
     referralUrl: async (
       source: GQLSource,

@@ -16,6 +16,7 @@ import {
   Feature,
   FeatureType,
   SettingsFlagsPublic,
+  UserStats,
 } from '../entity';
 import {
   SourceMemberRoles,
@@ -213,7 +214,17 @@ const obj = new GraphORM({
           parentColumn: 'userId',
         },
       },
+      total: {
+        select: (_, alias, qb) =>
+          qb
+            .select('us."topReaderBadges"')
+            .from(UserStats, 'us')
+            .where(`us."id" = ${alias}."userId"`),
+      },
     },
+  },
+  SourcePostModeration: {
+    requiredColumns: ['id'],
   },
   UserStreak: {
     requiredColumns: ['lastViewAt'],
