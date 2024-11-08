@@ -3,6 +3,7 @@ export enum ContentPreferenceType {
   Keyword = 'keyword',
   FeedKeyword = 'feedKeyword',
   Source = 'source',
+  FeedSource = 'feedSource',
 }
 
 export enum ContentPreferenceStatus {

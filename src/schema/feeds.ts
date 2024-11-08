@@ -79,6 +79,7 @@ import { ContentPreferenceSource } from '../entity/contentPreference/ContentPref
 import { randomUUID } from 'crypto';
 import { SourceMemberRoles } from '../roles';
 import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
+import { ContentPreferenceFeedSource } from '../entity/contentPreference/ContentPreferenceFeedSource';
 
 interface GQLTagsCategory {
   id: string;
@@ -1873,7 +1874,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             manager
               .createQueryBuilder()
               .insert()
-              .into(ContentPreferenceSource)
+              .into(
+                isMyFeed
+                  ? ContentPreferenceSource
+                  : ContentPreferenceFeedSource,
+              )
               .values(
                 includedSources.map((source) => ({
                   userId: ctx.userId,
@@ -1909,7 +1914,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             manager
               .createQueryBuilder()
               .insert()
-              .into(ContentPreferenceSource)
+              .into(
+                isMyFeed
+                  ? ContentPreferenceSource
+                  : ContentPreferenceFeedSource,
+              )
               .values(
                 excludedSources.map((source) => ({
                   userId: ctx.userId,
@@ -2026,11 +2035,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               })
               .andWhere('blocked = false')
               .execute(),
-            manager.getRepository(ContentPreferenceSource).delete({
-              userId: ctx.userId,
-              referenceId: In(filters.includeSources),
-              feedId,
-            }),
+            manager
+              .getRepository(
+                isMyFeed
+                  ? ContentPreferenceSource
+                  : ContentPreferenceFeedSource,
+              )
+              .delete({
+                userId: ctx.userId,
+                referenceId: In(filters.includeSources),
+                feedId,
+              }),
           ]);
         }
         if (filters?.excludeSources?.length) {
@@ -2045,11 +2060,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               })
               .andWhere('blocked = true')
               .execute(),
-            manager.getRepository(ContentPreferenceSource).delete({
-              userId: ctx.userId,
-              referenceId: In(filters.excludeSources),
-              feedId,
-            }),
+            manager
+              .getRepository(
+                isMyFeed
+                  ? ContentPreferenceSource
+                  : ContentPreferenceFeedSource,
+              )
+              .delete({
+                userId: ctx.userId,
+                referenceId: In(filters.excludeSources),
+                feedId,
+              }),
           ]);
         }
         if (filters?.includeTags?.length) {
