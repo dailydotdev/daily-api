@@ -123,12 +123,12 @@ export const calculateTopReaders: Cron = {
             'calculateTopReaders: Inserted rows',
           );
         }
-
-        logger.info('calculateTopReaders: Refreshing materialized view');
-        await manager.query(
-          `REFRESH MATERIALIZED VIEW ${con.getRepository(UserStats).metadata.tableName}`,
-        );
       });
+
+      logger.info('calculateTopReaders: Refreshing materialized view');
+      await con.query(
+        `REFRESH MATERIALIZED VIEW ${con.getRepository(UserStats).metadata.tableName}`,
+      );
 
       logger.info(
         'calculateTopReaders: All done. So long and thanks for all the fish!',
