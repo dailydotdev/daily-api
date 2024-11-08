@@ -66,6 +66,7 @@ import {
   generateTitleHtml,
   validateCommentary,
   SourceMember,
+  SourceType,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -1660,7 +1661,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const source = await sourceMember?.source;
 
-      if (!source) {
+      if (!source || source.type !== SourceType.Squad) {
         throw new ForbiddenError('Access denied!');
       }
 
