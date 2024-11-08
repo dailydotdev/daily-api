@@ -3641,7 +3641,9 @@ describe('mutation createSourcePostModeration', () => {
     expect(res.data.createSourcePostModeration.image).toEqual(
       externalParams.imageUrl,
     );
-    expect(res.data.createSourcePostModeration.titleHtml).toMatchSnapshot();
+    expect(res.data.createSourcePostModeration.titleHtml).toEqual(
+      '<p>This is an awesome link</p>',
+    );
     expect(res.data.createSourcePostModeration.externalLink).toEqual(
       externalParams.externalLink,
     );
