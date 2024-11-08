@@ -210,31 +210,29 @@ export const createFreeformPost = async ({
     },
   });
 
-  if (!ctx) {
-    return con.getRepository(FreeformPost).save(createdPost);
+  if (ctx) {
+    const vordrStatus = await checkWithVordr(
+      {
+        id: createdPost.id,
+        type: VordrFilterType.Post,
+        content: createdPost.content,
+      },
+      { con, userId: ctx.userId, req: ctx.req },
+    );
+
+    if (vordrStatus) {
+      createdPost.banned = true;
+      createdPost.showOnFeed = false;
+
+      createdPost.flags = {
+        ...createdPost.flags,
+        banned: true,
+        showOnFeed: false,
+      };
+    }
+
+    createdPost.flags.vordr = vordrStatus;
   }
-
-  const vordrStatus = await checkWithVordr(
-    {
-      id: createdPost.id,
-      type: VordrFilterType.Post,
-      content: createdPost.content,
-    },
-    { con, userId: ctx.userId, req: ctx.req },
-  );
-
-  if (vordrStatus) {
-    createdPost.banned = true;
-    createdPost.showOnFeed = false;
-
-    createdPost.flags = {
-      ...createdPost.flags,
-      banned: true,
-      showOnFeed: false,
-    };
-  }
-
-  createdPost.flags.vordr = vordrStatus;
 
   return con.getRepository(FreeformPost).save(createdPost);
 };
@@ -466,7 +464,7 @@ export const processApprovedModeratedPost = async (
     return { ...moderated, postId: post.id };
   }
 
-  logger.error(`unable to process moderated post: ${moderated.id}`);
+  logger.error({ moderated }, 'unable to process moderated post');
 
   return null;
 };
