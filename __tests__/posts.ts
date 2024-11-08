@@ -5219,7 +5219,7 @@ describe('Source post moderation approve/reject', () => {
     }
   }`;
 
-  it('should not continue when not logged in', async () => {
+  it('should block guest', async () => {
     loggedUser = '0';
     await testMutationErrorCode(
       client,
