@@ -1135,7 +1135,7 @@ export const typeDefs = /* GraphQL */ `
       """
       List of posts to moderate
       """
-      postIds: [ID]
+      postIds: [ID]!
       """
       Status wanted for the post
       """
@@ -2138,8 +2138,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       >,
       ctx: AuthContext,
     ) => {
-      if (!postIds.length || postIds.length > POST_MODERATION_PAGE_SIZE) {
-        throw new ValidationError('Invalid number of post IDs provided');
+      const ids = Array.from(new Set(postIds));
+      const haveDuplicates = ids.length !== postIds?.length;
+      const tooManyIds = ids.length > POST_MODERATION_PAGE_SIZE;
+      if (!postIds.length || haveDuplicates || tooManyIds) {
+        throw new ValidationError('Invalid array of post IDs provided');
       }
 
       if (
@@ -2175,7 +2178,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const isRejectedWithReason =
         status === SourcePostModerationStatus.Rejected && !!rejectionReason;
 
-      return ctx.con.getRepository(SourcePostModeration).update(
+      await ctx.con.getRepository(SourcePostModeration).update(
         { id: In(postIds), status: SourcePostModerationStatus.Pending },
         {
           status,
@@ -2183,6 +2186,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           ...(isRejectedWithReason && { rejectionReason, moderatorMessage }),
         },
       );
+
+      return await ctx.con.getRepository(SourcePostModeration).findBy({
+        id: In(postIds),
+        status,
+      });
     },
   },
   Subscription: {
