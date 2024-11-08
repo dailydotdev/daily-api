@@ -79,6 +79,8 @@ import {
   SourcePostModeration,
   SourcePostModerationStatus,
 } from '../src/entity/SourcePostModeration';
+import { generateUUID } from '../src/ids';
+import { GQLResponse } from 'mercurius-integration-testing';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -5175,6 +5177,177 @@ describe('query postCodeSnippets', () => {
   });
 });
 
-describe('Source post moderation', () => {
-  beforeEach(async () => {});
+describe('Source post moderation approve/reject', () => {
+  const [pendingId, approvedId] = Array.from({ length: 2 }, () =>
+    generateUUID(),
+  );
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).update(
+      { id: 'm' },
+      {
+        private: false,
+        moderationRequired: true,
+      },
+    );
+    await con.getRepository(SourceMember).save({
+      userId: '2',
+      sourceId: 'm',
+      role: SourceMemberRoles.Member,
+      referralToken: generateUUID(),
+    });
+    await con.getRepository(SourceMember).save({
+      userId: '3',
+      sourceId: 'm',
+      role: SourceMemberRoles.Moderator,
+      referralToken: generateUUID(),
+    });
+    await con.getRepository(SourcePostModeration).save([
+      {
+        id: pendingId,
+        sourceId: 'm',
+        createdById: '2',
+        title: 'Title',
+        content: 'Content',
+        status: SourcePostModerationStatus.Pending,
+        type: PostType.Article,
+      },
+      {
+        id: approvedId,
+        sourceId: 'm',
+        createdById: '2',
+        title: 'Title',
+        content: 'Content',
+        status: SourcePostModerationStatus.Approved,
+        type: PostType.Article,
+        moderatedById: '3',
+      },
+    ]);
+  });
+
+  const MUTATION = `
+  mutation ModerateSourcePost(
+    $postIds: [ID]!,
+    $status: String,
+    $sourceId: ID!,
+    $rejectionReason: String,
+    $moderatorMessage: String
+  ) {
+    moderateSourcePosts(postIds: $postIds, status: $status, sourceId: $sourceId, rejectionReason: $rejectionReason, moderatorMessage: $moderatorMessage) {
+      id
+    }
+  }`;
+
+  it('should not continue when not logged in', async () => {
+    loggedUser = '0';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          postIds: [pendingId],
+          sourceId: 'm',
+          status: SourcePostModerationStatus.Approved,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+  it('should not authorize when not source member', async () => {
+    loggedUser = '1';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          postIds: [pendingId],
+          sourceId: 'm',
+          status: SourcePostModerationStatus.Approved,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+  it('should not authorize when not source moderator', async () => {
+    loggedUser = '2';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          postIds: [pendingId],
+          sourceId: 'm',
+          status: SourcePostModerationStatus.Approved,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+  it('should approve pending posts', async () => {
+    loggedUser = '3'; // Moderator level
+
+    const res: GQLResponse<{
+      moderateSourcePosts: { id: string }[];
+    }> = await client.mutate(MUTATION, {
+      variables: {
+        postIds: [pendingId],
+        sourceId: 'm',
+        status: SourcePostModerationStatus.Approved,
+      },
+    });
+
+    expect(res.data.moderateSourcePosts.length).toEqual(1);
+
+    const post = await con.getRepository(SourcePostModeration).findOneByOrFail({
+      id: pendingId,
+    });
+
+    expect(post.status).toEqual(SourcePostModerationStatus.Approved);
+    expect(post.moderatedById).toEqual('3');
+  });
+  it('should reject pending posts', async () => {
+    loggedUser = '3'; // Moderator level
+
+    const res: GQLResponse<{
+      moderateSourcePosts: { id: string }[];
+    }> = await client.mutate(MUTATION, {
+      variables: {
+        postIds: [pendingId],
+        sourceId: 'm',
+        status: SourcePostModerationStatus.Rejected,
+        rejectionReason: 'Spam',
+        moderatorMessage: 'This is spam',
+      },
+    });
+
+    expect(res.data.moderateSourcePosts.length).toEqual(1);
+
+    const post = await con.getRepository(SourcePostModeration).findOneByOrFail({
+      id: pendingId,
+    });
+
+    expect(post.status).toEqual(SourcePostModerationStatus.Rejected);
+    expect(post.moderatedById).toEqual('3');
+    expect(post.rejectionReason).toEqual('Spam');
+    expect(post.moderatorMessage).toEqual('This is spam');
+  });
+  it('should not continue if one of posts is not pending', async () => {
+    loggedUser = '3'; // Moderator level
+
+    await testMutationError(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          postIds: [pendingId, approvedId],
+          sourceId: 'm',
+          status: SourcePostModerationStatus.Approved,
+        },
+      },
+      (errors) => {
+        expect(errors.length).toEqual(1);
+        expect(errors[0].extensions?.code).toEqual('GRAPHQL_VALIDATION_FAILED');
+        expect(errors[0]?.message).toEqual('Some posts are not pending');
+      },
+    );
+  });
 });
