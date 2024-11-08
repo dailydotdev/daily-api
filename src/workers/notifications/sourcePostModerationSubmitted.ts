@@ -37,8 +37,8 @@ const worker =
         const error = err as TypeORMQueryFailedError;
         if (error?.name !== 'EntityNotFoundError') {
           logger.error(
+            { err, post },
             'failed sending notification for squad post moderation submitted',
-            err,
           );
         }
       }
