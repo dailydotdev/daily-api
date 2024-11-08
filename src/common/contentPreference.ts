@@ -10,7 +10,6 @@ import {
 } from '../notifications/common';
 import { EntityManager, EntityTarget, In, Not } from 'typeorm';
 import { ConflictError } from '../errors';
-import { ContentPreferenceFeedKeyword } from '../entity/contentPreference/ContentPreferenceFeedKeyword';
 import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
 import {
   FeedSource,
@@ -22,6 +21,7 @@ import {
 import { ghostUser } from './utils';
 import { randomUUID } from 'crypto';
 import { SourceMemberRoles } from '../roles';
+import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
 
 type FollowEntity = ({
   ctx,
@@ -55,11 +55,13 @@ export const entityToNotificationTypeMap: Record<
 > = {
   [ContentPreferenceType.User]: [NotificationType.UserPostAdded],
   [ContentPreferenceType.Keyword]: [],
+  [ContentPreferenceType.FeedKeyword]: [],
   [ContentPreferenceType.Source]: [
     NotificationType.SourcePostAdded,
     NotificationType.SquadPostAdded,
     NotificationType.SquadMemberJoined,
   ],
+  [ContentPreferenceType.FeedSource]: [],
 };
 
 // TODO fix api.new-notification-mail condition to handle all types when follow phase 3 is implemented
@@ -155,9 +157,7 @@ const unfollowUser: UnFollowEntity = async ({ ctx, id }) => {
 
 const followKeyword: FollowEntity = async ({ ctx, id, status }) => {
   await ctx.con.transaction(async (entityManager) => {
-    const repository = entityManager.getRepository(
-      ContentPreferenceFeedKeyword,
-    );
+    const repository = entityManager.getRepository(ContentPreferenceKeyword);
 
     const contentPreference = repository.create({
       userId: ctx.userId,
@@ -179,9 +179,7 @@ const followKeyword: FollowEntity = async ({ ctx, id, status }) => {
 
 const unfollowKeyword: UnFollowEntity = async ({ ctx, id }) => {
   await ctx.con.transaction(async (entityManager) => {
-    const repository = entityManager.getRepository(
-      ContentPreferenceFeedKeyword,
-    );
+    const repository = entityManager.getRepository(ContentPreferenceKeyword);
 
     await repository.delete({
       userId: ctx.userId,
@@ -218,7 +216,7 @@ const followSource: FollowEntity = async ({ ctx, id, status }) => {
       .insert()
       .into(ContentPreferenceSource)
       .values(contentPreference)
-      .orUpdate(['status'], ['referenceId', 'userId'])
+      .orUpdate(['status'], ['userId', 'referenceId', 'type'])
       .execute();
 
     if (status !== ContentPreferenceStatus.Subscribed) {
@@ -301,9 +299,7 @@ const blockUser: BlockEntity = async ({ ctx, id }) => {
 
 const blockKeyword: BlockEntity = async ({ ctx, id }) => {
   await ctx.con.transaction(async (entityManager) => {
-    const repository = entityManager.getRepository(
-      ContentPreferenceFeedKeyword,
-    );
+    const repository = entityManager.getRepository(ContentPreferenceKeyword);
 
     const contentPreference = repository.create({
       userId: ctx.userId,
@@ -345,7 +341,7 @@ const blockSource: BlockEntity = async ({ ctx, id }) => {
       .insert()
       .into(ContentPreferenceSource)
       .values(contentPreference)
-      .orUpdate(['status'], ['referenceId', 'userId'])
+      .orUpdate(['status'], ['userId', 'referenceId', 'type'])
       .execute();
 
     cleanContentNotificationPreference({

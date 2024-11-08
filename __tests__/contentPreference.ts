@@ -30,13 +30,13 @@ import {
   Source,
   SourceType,
 } from '../src/entity';
-import { ContentPreferenceFeedKeyword } from '../src/entity/contentPreference/ContentPreferenceFeedKeyword';
 import { ContentPreferenceSource } from '../src/entity/contentPreference/ContentPreferenceSource';
 import {
   NotificationPreferenceStatus,
   NotificationType,
 } from '../src/notifications/common';
 import { ghostUser } from '../src/common';
+import { ContentPreferenceKeyword } from '../src/entity/contentPreference/ContentPreferenceKeyword';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -612,7 +612,7 @@ describe('mutation follow', () => {
       expect(res.errors).toBeFalsy();
 
       const contentPreference = await con
-        .getRepository(ContentPreferenceFeedKeyword)
+        .getRepository(ContentPreferenceKeyword)
         .findOneBy({
           userId: '1-fm',
           referenceId: 'keyword-f1',
@@ -999,7 +999,7 @@ describe('mutation unfollow', () => {
 
       await saveFixtures(con, Feed, [{ id: '1-um', userId: '1-um' }]);
 
-      await con.getRepository(ContentPreferenceFeedKeyword).save([
+      await con.getRepository(ContentPreferenceKeyword).save([
         {
           userId: '1-um',
           referenceId: 'keyword-uf1',
@@ -1028,7 +1028,7 @@ describe('mutation unfollow', () => {
       expect(res.errors).toBeFalsy();
 
       const contentPreference = await con
-        .getRepository(ContentPreferenceFeedKeyword)
+        .getRepository(ContentPreferenceKeyword)
         .findOneBy({
           userId: '1-um',
           referenceId: 'keyword-f1',
@@ -1064,6 +1064,7 @@ describe('mutation unfollow', () => {
           referenceId: 'a-ufm',
           feedId: '1-um',
           status: ContentPreferenceStatus.Follow,
+          sourceId: 'a-ufm',
         },
       ]);
 
@@ -1089,7 +1090,7 @@ describe('mutation unfollow', () => {
       expect(res.errors).toBeFalsy();
 
       const contentPreference = await con
-        .getRepository(ContentPreferenceFeedKeyword)
+        .getRepository(ContentPreferenceSource)
         .findOneBy({
           userId: '1-um',
           referenceId: 'a-ufm',
@@ -1306,7 +1307,7 @@ describe('mutation block', () => {
       expect(res.errors).toBeFalsy();
 
       const contentPreference = await con
-        .getRepository(ContentPreferenceFeedKeyword)
+        .getRepository(ContentPreferenceKeyword)
         .findOneBy({
           userId: '1-blm',
           referenceId: 'keyword-bl1',
@@ -1564,7 +1565,7 @@ describe('mutation unblock', () => {
 
       await saveFixtures(con, Feed, [{ id: '1-ublm', userId: '1-ublm' }]);
 
-      await con.getRepository(ContentPreferenceFeedKeyword).save([
+      await con.getRepository(ContentPreferenceKeyword).save([
         {
           userId: '1-ublm',
           referenceId: 'keyword-ublm1',
@@ -1606,7 +1607,7 @@ describe('mutation unblock', () => {
       expect(res.errors).toBeFalsy();
 
       const contentPreference = await con
-        .getRepository(ContentPreferenceFeedKeyword)
+        .getRepository(ContentPreferenceKeyword)
         .findOneBy({
           userId: '2-ublm',
           referenceId: 'keyword-ublm1',
@@ -1642,6 +1643,7 @@ describe('mutation unblock', () => {
           referenceId: 'a-ublm',
           feedId: '1-ublm',
           status: ContentPreferenceStatus.Blocked,
+          sourceId: 'a-ublm',
         },
       ]);
 
@@ -1667,7 +1669,7 @@ describe('mutation unblock', () => {
       expect(res.errors).toBeFalsy();
 
       const contentPreference = await con
-        .getRepository(ContentPreferenceFeedKeyword)
+        .getRepository(ContentPreferenceSource)
         .findOneBy({
           userId: '1-ublm',
           referenceId: 'a-ublm',

@@ -38,6 +38,7 @@ import { randomUUID } from 'crypto';
 import {
   createSquadWelcomePost,
   getSourceLink,
+  mapCloudinaryUrl,
   updateFlagsStatement,
   uploadSquadImage,
 } from '../common';
@@ -73,6 +74,12 @@ import {
   cleanContentNotificationPreference,
   entityToNotificationTypeMap,
 } from '../common/contentPreference';
+import { MIN_SEARCH_QUERY_LENGTH } from './tags';
+import { getSearchLimit } from '../common/search';
+import {
+  SourcePostModeration,
+  SourcePostModerationStatus,
+} from '../entity/SourcePostModeration';
 
 export interface GQLSourceCategory {
   id: string;
@@ -96,6 +103,8 @@ export interface GQLSource {
   referralUrl?: string;
   flags?: SourceFlagsPublic;
   description?: string;
+  moderationRequired?: boolean;
+  moderationPostCount?: number;
 }
 
 export interface GQLSourceMember {
@@ -245,6 +254,11 @@ export const typeDefs = /* GraphQL */ `
     moderationRequired: Boolean
 
     """
+    Count of post waiting for moderation
+    """
+    moderationPostCount: Int
+
+    """
     URL for inviting and referring new users
     """
     referralUrl: String
@@ -384,6 +398,36 @@ export const typeDefs = /* GraphQL */ `
       """
       sortByMembersCount: Boolean
     ): SourceConnection!
+
+    """
+    Get available sources for given query
+    """
+    searchSources(
+      """
+      Search query
+      """
+      query: String!
+
+      """
+      Limit the number of sources returned
+      """
+      limit: Int
+    ): [Source] @cacheControl(maxAge: 600)
+
+    """
+    Get source recommendation based on given tags
+    """
+    sourceRecommendationByTags(
+      """
+      Tags to recommend sources for
+      """
+      tags: [String]!
+
+      """
+      Limit the number of sources returned
+      """
+      limit: Int
+    ): [Source] @cacheControl(maxAge: 600)
 
     """
     Get the most recent sources
@@ -1116,14 +1160,21 @@ const addNewSourceMember = async (
   con: DataSource | EntityManager,
   member: Omit<DeepPartial<SourceMember>, 'referralToken'>,
 ): Promise<void> => {
-  const referralToken = randomUUID();
+  const contentPreference = await con
+    .getRepository(ContentPreferenceSource)
+    .findOneBy({
+      userId: member.userId,
+      referenceId: member.sourceId,
+    });
+
+  const referralToken = contentPreference?.flags.referralToken || randomUUID();
 
   await con.getRepository(SourceMember).insert({
     ...member,
     referralToken,
   });
 
-  await con.getRepository(ContentPreferenceSource).insert(
+  await con.getRepository(ContentPreferenceSource).upsert(
     con.getRepository(ContentPreferenceSource).create({
       userId: member.userId,
       referenceId: member.sourceId,
@@ -1136,6 +1187,9 @@ const addNewSourceMember = async (
         referralToken,
       },
     }),
+    {
+      conflictPaths: ['userId', 'referenceId', 'type'],
+    },
   );
 };
 
@@ -1495,6 +1549,69 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         true,
       );
     },
+    searchSources: async (
+      source,
+      { query, limit = 5 }: { query: string; limit: number },
+      ctx: Context,
+      info,
+    ): Promise<GQLSource[]> => {
+      if (query.length < MIN_SEARCH_QUERY_LENGTH) {
+        return [];
+      }
+
+      return await graphorm.query<GQLSource>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .where(`name ILIKE :query OR handle ILIKE :query`, {
+              query: `%${query}%`,
+            })
+            .andWhere({ active: true, private: false })
+            .limit(getSearchLimit({ limit }));
+          return builder;
+        },
+        true,
+      );
+    },
+    sourceRecommendationByTags: async (
+      source,
+      { tags, limit = 10 }: { tags: string[]; limit: number },
+      ctx: Context,
+      info,
+    ): Promise<GQLSource[]> => {
+      const excludedSources = ['unknown', 'community', 'collections'];
+      const rawSources = await ctx.con.getRepository(SourceTagView).find({
+        where: { tag: In(tags), sourceId: Not(In(excludedSources)) },
+        select: ['sourceId'],
+        order: { count: 'DESC' },
+      });
+
+      const filter: FindOptionsWhere<Source> = {
+        active: true,
+        private: false,
+      };
+
+      const rawSourcesIds = rawSources.map(({ sourceId }) => sourceId);
+      const idsStr = rawSources.length
+        ? rawSources.map(({ sourceId }) => `'${sourceId}'`).join(',')
+        : `'nosuchid'`;
+      return graphorm.query(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .andWhere(filter)
+            .andWhere('id IN (:...ids)', {
+              ids: rawSourcesIds,
+            })
+            .orderBy(`array_position(array[${idsStr}], ${builder.alias}.id)`)
+            .limit(getSearchLimit({ limit }));
+          return builder;
+        },
+        true,
+      );
+    },
     mostRecentSources: async (
       _,
       args,
@@ -1543,7 +1660,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<GQLSource> => {
       await ensureSourcePermissions(ctx, id);
-      return getSourceById(ctx, info, id);
+      const source = await getSourceById(ctx, info, id);
+
+      if (!source.moderationRequired || !source.currentMember) {
+        return source;
+      }
+
+      const isModerator =
+        sourceRoleRank[source.currentMember.role] >= sourceRoleRank.moderator;
+      const status = SourcePostModerationStatus.Pending;
+      const query: FindOptionsWhere<SourcePostModeration> = {
+        status,
+        sourceId: source.id,
+        ...(!isModerator && { createdById: ctx.userId }),
+      };
+
+      const moderationPostCount = await ctx.con
+        .getRepository(SourcePostModeration)
+        .countBy(query);
+
+      return { ...source, moderationPostCount };
     },
     sourceHandleExists: async (
       _,
@@ -2143,6 +2279,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   Source: {
+    image: (source: GQLSource): GQLSource['image'] =>
+      mapCloudinaryUrl(source.image),
     permalink: (source: GQLSource): string => getSourceLink(source),
     referralUrl: async (
       source: GQLSource,

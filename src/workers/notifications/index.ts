@@ -23,11 +23,11 @@ import devCardUnlocked from './devCardUnlocked';
 import postBookmarkReminder from './postBookmarkReminder';
 import userStreakResetNotification from './userStreakResetNotification';
 import squadFeaturedUpdated from './squadFeaturedUpdated';
-import SourcePostModerationSubmitted from './sourcePostModerationSubmitted';
-import SourcePostModerationApproved from './sourcePostModerationApproved';
-import SourcePostModerationRejected from './sourcePostModerationRejected';
+import sourcePostModerationSubmitted from './sourcePostModerationSubmitted';
+import sourcePostModerationApproved from './sourcePostModerationApproved';
+import sourcePostModerationRejected from './sourcePostModerationRejected';
 import { postAddedUserNotification } from './postAddedUserNotification';
-// import { userTopReaderAdded } from './userTopReaderAdded';
+import { userTopReaderAdded } from './userTopReaderAdded';
 
 export function notificationWorkerToWorker(worker: NotificationWorker): Worker {
   return {
@@ -90,10 +90,10 @@ const notificationWorkers: NotificationWorker[] = [
   userStreakResetNotification,
   squadFeaturedUpdated,
   postAddedUserNotification,
-  SourcePostModerationSubmitted,
-  SourcePostModerationApproved,
-  SourcePostModerationRejected,
-  // userTopReaderAdded,
+  sourcePostModerationSubmitted,
+  sourcePostModerationApproved,
+  sourcePostModerationRejected,
+  userTopReaderAdded,
 ];
 
 export const workers = [...notificationWorkers.map(notificationWorkerToWorker)];

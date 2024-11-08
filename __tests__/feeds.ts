@@ -64,12 +64,12 @@ import { base64 } from 'graphql-relay/utils/base64';
 import { maxFeedsPerUser, UserVote } from '../src/types';
 import { SubmissionFailErrorMessage } from '../src/errors';
 import { baseFeedConfig } from '../src/integrations/feed';
-import { ContentPreferenceFeedKeyword } from '../src/entity/contentPreference/ContentPreferenceFeedKeyword';
 import {
   ContentPreferenceStatus,
   ContentPreferenceType,
 } from '../src/entity/contentPreference/types';
 import { ContentPreferenceSource } from '../src/entity/contentPreference/ContentPreferenceSource';
+import { ContentPreferenceKeyword } from '../src/entity/contentPreference/ContentPreferenceKeyword';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -188,7 +188,7 @@ const saveFeedFixtures = async (): Promise<void> => {
     { feedId: '1', sourceId: 'b' },
     { feedId: '1', sourceId: 'c' },
   ]);
-  await saveFixtures(con, ContentPreferenceFeedKeyword, [
+  await saveFixtures(con, ContentPreferenceKeyword, [
     {
       feedId: '1',
       keywordId: 'golang',
@@ -2124,7 +2124,7 @@ describe('mutation addFiltersToFeed', () => {
     });
 
     const contentPreferenceTags = await con
-      .getRepository(ContentPreferenceFeedKeyword)
+      .getRepository(ContentPreferenceKeyword)
       .find({
         where: {
           userId: '1',
@@ -2378,7 +2378,7 @@ describe('mutation removeFiltersFromFeed', () => {
     await saveFeedFixtures();
 
     const contentPreferenceTags = await con
-      .getRepository(ContentPreferenceFeedKeyword)
+      .getRepository(ContentPreferenceKeyword)
       .find({
         where: {
           userId: '1',
@@ -2471,7 +2471,7 @@ describe('mutation removeFiltersFromFeed', () => {
     });
 
     const contentPreferenceTagsAfter = await con
-      .getRepository(ContentPreferenceFeedKeyword)
+      .getRepository(ContentPreferenceKeyword)
       .find({
         where: {
           userId: '1',
