@@ -26,11 +26,11 @@ import createOrGetConnection from '../src/db';
   await con.transaction(async (manager) => {
     await manager.query(`
       INSERT INTO content_preference ("userId", "referenceId", "type", "createdAt", "status", "keywordId", "feedId")
-      SELECT f."userId", ft."tag", 'keyword', NOW(), CASE WHEN ft."blocked" = True THEN 'blocked' ELSE 'follow' END, ft."tag", ft."feedId"
+      SELECT f."userId", ft."tag", CASE WHEN ft."feedId" = f."userId" THEN 'keyword' ELSE 'feedKeyword' END, NOW(), CASE WHEN ft."blocked" = True THEN 'blocked' ELSE 'follow' END, ft."tag", ft."feedId"
       FROM feed_tag ft
       INNER JOIN feed f ON f."id" = ft."feedId"
       LIMIT ${limit} OFFSET ${offset}
-      ON CONFLICT ("referenceId", "userId") DO UPDATE
+      ON CONFLICT ("referenceId", "userId", "type") DO UPDATE
       SET
         status = EXCLUDED.status
     `);
