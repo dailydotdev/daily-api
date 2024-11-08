@@ -68,6 +68,7 @@ import {
   CioTransactionalMessageTemplateId,
   validateWorkEmailDomain,
   type GQLUserTopReader,
+  mapCloudinaryUrl,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -1177,6 +1178,9 @@ export const getMarketingCta = async (
   const marketingCta: MarketingCta | null = rawRedisValue
     ? JSON.parse(rawRedisValue)
     : null;
+  if (marketingCta?.flags?.image) {
+    marketingCta.flags.image = mapCloudinaryUrl(marketingCta.flags.image);
+  }
   return marketingCta || cachePrefillMarketingCta(con, userId);
 };
 
@@ -2310,6 +2314,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   User: {
+    image: (user: GQLUser): GQLUser['image'] => mapCloudinaryUrl(user.image),
+    cover: (user: GQLUser): GQLUser['cover'] => mapCloudinaryUrl(user.cover),
     permalink: getUserPermalink,
   },
   UserIntegration: {
@@ -2326,5 +2332,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return userIntegration.type;
       }
     },
+  },
+  UserTopReader: {
+    image: (topReader: GQLUserTopReader): GQLUserTopReader['image'] =>
+      mapCloudinaryUrl(topReader.image),
   },
 });

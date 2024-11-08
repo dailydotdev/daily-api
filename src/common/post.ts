@@ -30,13 +30,17 @@ import {
   SourcePostModeration,
   SourcePostModerationStatus,
 } from '../entity/SourcePostModeration';
+import { mapCloudinaryUrl } from './cloudinary';
 
 export const defaultImage = {
-  urls: process.env.DEFAULT_IMAGE_URL?.split?.(',') ?? [],
+  urls:
+    process.env.DEFAULT_IMAGE_URL?.split?.(',').map((x: string) =>
+      mapCloudinaryUrl(x),
+    ) ?? [],
   ratio: parseFloat(process.env.DEFAULT_IMAGE_RATIO),
   placeholder: process.env.DEFAULT_IMAGE_PLACEHOLDER,
   welcomePost:
-    'https://daily-now-res.cloudinary.com/image/upload/f_auto,q_auto/public/welcome_post',
+    'https://media.daily.dev/image/upload/f_auto,q_auto/public/welcome_post',
 };
 
 export const pickImageUrl = (post: {

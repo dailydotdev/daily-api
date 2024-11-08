@@ -42,6 +42,7 @@ import {
   base64,
   getSourceLink,
   submitArticleThreshold,
+  mapCloudinaryUrl,
 } from '../common';
 import { AccessToken, signJwt } from '../auth';
 import { cookies, setCookie, setRawCookie } from '../cookies';
@@ -190,7 +191,7 @@ const getSquads = async (
       >();
 
     return sources.map((source) => {
-      const { role, memberPostingRank, ...restSource } = source;
+      const { role, memberPostingRank, image, ...restSource } = source;
 
       const permissions = getPermissionsForMember(
         { role },
@@ -204,6 +205,7 @@ const getSquads = async (
       );
       return {
         ...restSource,
+        image: mapCloudinaryUrl(image),
         permalink: getSourceLink(source),
         currentMember: {
           permissions: essentialPermissions,
@@ -465,6 +467,8 @@ const loggedInBoot = async ({
           'referralOrigin',
           'profileConfirmed',
           'devcardEligible',
+          'image',
+          'cover',
         ]),
         providers: [null],
         roles,
@@ -472,6 +476,8 @@ const loggedInBoot = async ({
         canSubmitArticle: user.reputation >= submitArticleThreshold,
         isTeamMember,
         language: user.language || undefined,
+        image: mapCloudinaryUrl(user.image),
+        cover: mapCloudinaryUrl(user.cover),
       },
       visit,
       alerts: {

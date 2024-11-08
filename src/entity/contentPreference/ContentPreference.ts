@@ -19,7 +19,7 @@ export class ContentPreference {
   @PrimaryColumn({ type: 'text' })
   userId: string;
 
-  @Column({ type: 'text' })
+  @PrimaryColumn({ type: 'text' })
   type: ContentPreferenceType;
 
   @Column({ default: () => 'now()' })
