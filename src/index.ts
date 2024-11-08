@@ -3,6 +3,7 @@ import fastify, {
   FastifyRequest,
   FastifyInstance,
   FastifyError,
+  FastifyReply,
 } from 'fastify';
 import fastifyRawBody from 'fastify-raw-body';
 import helmet from '@fastify/helmet';
@@ -335,7 +336,7 @@ export default async function app(
   const letterProxy = {
     upstream:
       'https://media.daily.dev/image/upload/s--zchx8x3n--/f_auto,q_auto/v1731056371/webapp/shortcut-placeholder',
-    preHandler: async (req, res) => {
+    preHandler: async (req: FastifyRequest, res: FastifyReply) => {
       res.helmet({
         crossOriginResourcePolicy: {
           policy: 'cross-origin',
