@@ -2138,10 +2138,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       >,
       ctx: AuthContext,
     ) => {
-      const ids = Array.from(new Set(postIds));
-      const haveDuplicates = ids.length !== postIds?.length;
-      const tooManyIds = ids.length > POST_MODERATION_PAGE_SIZE;
-      if (!postIds.length || haveDuplicates || tooManyIds) {
+      const uniquePostIds = Array.from(new Set(postIds));
+      if (
+        !uniquePostIds.length ||
+        uniquePostIds.length > POST_MODERATION_PAGE_SIZE
+      ) {
         throw new ValidationError('Invalid array of post IDs provided');
       }
 
@@ -2164,14 +2165,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .getRepository(SourcePostModeration)
         .find({
           where: {
-            id: In(postIds),
+            id: In(uniquePostIds),
             sourceId,
             status: SourcePostModerationStatus.Pending,
           },
           select: ['id'],
         });
 
-      if (pendingPosts.length !== postIds.length) {
+      if (pendingPosts.length !== uniquePostIds.length) {
         throw new ValidationError('Some posts are not pending');
       }
 
@@ -2180,7 +2181,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         status === SourcePostModerationStatus.Rejected && !!rejectionReason;
 
       await ctx.con.getRepository(SourcePostModeration).update(
-        { id: In(postIds), status: SourcePostModerationStatus.Pending },
+        { id: In(uniquePostIds), status: SourcePostModerationStatus.Pending },
         {
           status,
           moderatedById,
@@ -2189,7 +2190,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       );
 
       return await ctx.con.getRepository(SourcePostModeration).findBy({
-        id: In(postIds),
+        id: In(uniquePostIds),
         status,
       });
     },
