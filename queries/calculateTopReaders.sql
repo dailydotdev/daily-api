@@ -9,6 +9,7 @@ views AS (
     INNER JOIN "public"."post_keyword" "pk" ON "v"."postId" = "pk"."postId"
   WHERE
     "pk"."status" = 'allow'
+    AND "pk"."keyword" NOT IN ('dailydev')
     AND "v"."timestamp" >= (date_trunc('month', CURRENT_DATE) - INTERVAL '1 month')
     -- Example 2024-10-01 00:00:00+00
     AND "v"."timestamp" <  (date_trunc('month', CURRENT_DATE))
