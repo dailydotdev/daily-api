@@ -314,7 +314,6 @@ export default async function app(
 
         proxySearchParams.set('domain', reqSearchParams.get('url') ?? '');
         proxySearchParams.set('sz', reqSearchParams.get('size') ?? '');
-
         return proxySearchParams.toString();
       },
     },
@@ -324,6 +323,18 @@ export default async function app(
         res.status(400).send({ error: 'url and size are required' });
       }
     },
+    preHandler: async (req, res) => {
+      res.helmet({
+        crossOriginResourcePolicy: {
+          policy: 'cross-origin',
+        },
+      });
+    },
+  });
+  app.register(proxy, {
+    upstream:
+      'https://media.daily.dev/image/upload/s--zchx8x3n--/f_auto,q_auto/v1731056371/webapp/shortcut-placeholder',
+    prefix: 'lettericon',
     preHandler: async (req, res) => {
       res.helmet({
         crossOriginResourcePolicy: {
