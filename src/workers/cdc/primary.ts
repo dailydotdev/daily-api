@@ -9,7 +9,7 @@ import {
   UserStreak,
   Bookmark,
   Alerts,
-  // UserTopReader,
+  UserTopReader,
 } from '../../entity';
 import { messageToJson, Worker } from '../worker';
 import {
@@ -1021,18 +1021,18 @@ const onUserCompanyCompanyChange = async (
   }
 };
 
-// const onUserTopReaderChange = async (
-//   _: DataSource,
-//   logger: FastifyBaseLogger,
-//   data: ChangeMessage<UserTopReader>,
-// ) => {
-//   if (data.payload.op !== 'c') {
-//     return;
-//   }
-//   await triggerTypedEvent(logger, 'api.v1.user-top-reader', {
-//     userTopReader: data.payload.after!,
-//   });
-// };
+const onUserTopReaderChange = async (
+  _: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<UserTopReader>,
+) => {
+  if (data.payload.op !== 'c') {
+    return;
+  }
+  await triggerTypedEvent(logger, 'api.v1.user-top-reader', {
+    userTopReader: data.payload.after!,
+  });
+};
 
 const onBookmarkChange = async (
   con: DataSource,
@@ -1158,9 +1158,9 @@ const worker: Worker = {
         case getTableName(con, UserCompany):
           await onUserCompanyCompanyChange(con, logger, data);
           break;
-        // case getTableName(con, UserTopReader):
-        //   await onUserTopReaderChange(con, logger, data);
-        //   break;
+        case getTableName(con, UserTopReader):
+          await onUserTopReaderChange(con, logger, data);
+          break;
       }
     } catch (err) {
       logger.error(

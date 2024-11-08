@@ -9,6 +9,7 @@ views AS (
     INNER JOIN "public"."post_keyword" "pk" ON "v"."postId" = "pk"."postId"
   WHERE
     "pk"."status" = 'allow'
+    AND "pk"."keyword" NOT IN ('dailydev')
     AND "v"."timestamp" >= (date_trunc('month', CURRENT_DATE) - INTERVAL '1 month')
     -- Example 2024-10-01 00:00:00+00
     AND "v"."timestamp" <  (date_trunc('month', CURRENT_DATE))
@@ -70,6 +71,8 @@ FROM
 WHERE
   "ru"."rank" <= $2
   -- We need to select a higher amount of users here, so that we can process them server side
+  AND EXISTS(SELECT 1 from "user" "u" where "u"."id" = "ru"."userId")
+  -- We need to make sure that the user still exists
 ORDER BY
   "tk"."count" DESC,
   "ru"."rank" ASC

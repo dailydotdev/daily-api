@@ -300,7 +300,7 @@ export class NotificationBuilder {
   ): NotificationBuilder {
     this.avatars.push({
       type: 'top_reader_badge',
-      name: ctx.keyword.flags.title,
+      name: ctx.keyword.flags?.title || ctx.keyword.value,
       targetUrl: '',
       referenceId: ctx.userTopReader.id,
       image: defaultImage.placeholder,

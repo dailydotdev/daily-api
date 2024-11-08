@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -17,6 +18,8 @@ export enum SourcePostModerationStatus {
 }
 
 @Entity()
+@Index(['sourceId'])
+@Index(['sourceId', 'createdById'])
 export class SourcePostModeration {
   @PrimaryGeneratedColumn('uuid')
   id: string;
