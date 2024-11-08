@@ -75,6 +75,7 @@ import {
 } from '../common/contentPreference';
 import { MIN_SEARCH_QUERY_LENGTH } from './tags';
 import { categorizedSquads } from '../../bin/categorizedSquads';
+import { getSearchLimit } from '../common/search';
 
 export interface GQLSourceCategory {
   id: string;
@@ -1546,7 +1547,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               query: `%${query}%`,
             })
             .andWhere({ active: true, private: false })
-            .limit(limit);
+            .limit(getSearchLimit({ limit }));
           return builder;
         },
         true,
@@ -1584,7 +1585,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               ids: rawSourcesIds,
             })
             .orderBy(`array_position(array[${idsStr}], ${builder.alias}.id)`)
-            .limit(limit);
+            .limit(getSearchLimit({ limit }));
           return builder;
         },
         true,
