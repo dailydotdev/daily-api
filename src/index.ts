@@ -314,8 +314,7 @@ export default async function app(
 
         proxySearchParams.set('domain', reqSearchParams.get('url') ?? '');
         proxySearchParams.set('sz', reqSearchParams.get('size') ?? '');
-        //app.daily.dev/squads/discover/my
-        https: return proxySearchParams.toString();
+        return proxySearchParams.toString();
       },
     },
     preValidation: async (req: FastifyRequest, res) => {
