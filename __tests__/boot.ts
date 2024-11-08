@@ -108,7 +108,6 @@ const LOGGED_IN_BODY = {
     notificationEmail: true,
     acceptedMarketing: false,
     company: null,
-    cover: null,
     experienceLevel: null,
     followNotifications: true,
     followingEmail: true,
