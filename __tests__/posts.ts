@@ -3659,7 +3659,7 @@ describe('mutation createSourcePostModeration', () => {
     expect(res.data.createSourcePostModeration.sharedPostId).toEqual('p1');
   });
 
-  it('should successfully create a squad post moderation entry of type article', async () => {
+  it('should successfully create a squad post moderation for external link', async () => {
     loggedUser = '4';
     const externalParams = {
       sourceId: 'm',
@@ -3667,7 +3667,7 @@ describe('mutation createSourcePostModeration', () => {
       commentary: 'This is an awesome link',
       imageUrl:
         'https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1',
-      type: PostType.Article,
+      type: PostType.Share,
       externalLink: 'https://www.google.com',
     };
     const res = await client.mutate(MUTATION, {
@@ -3675,7 +3675,7 @@ describe('mutation createSourcePostModeration', () => {
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.createSourcePostModeration).toBeTruthy();
-    expect(res.data.createSourcePostModeration.type).toEqual(PostType.Article);
+    expect(res.data.createSourcePostModeration.type).toEqual(PostType.Share);
     expect(res.data.createSourcePostModeration.image).toEqual(
       externalParams.imageUrl,
     );
