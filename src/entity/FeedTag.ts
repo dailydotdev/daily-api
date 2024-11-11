@@ -1,4 +1,12 @@
-import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  ManyToOne,
+  PrimaryColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import type { Feed } from './Feed';
 
 @Entity()
@@ -12,6 +20,12 @@ export class FeedTag {
 
   @Column({ default: false })
   blocked: boolean;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 
   @ManyToOne('Feed', {
     lazy: true,
