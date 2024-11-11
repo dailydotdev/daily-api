@@ -52,6 +52,7 @@ describe('SourcePostModerationSubmitted', () => {
     expect(rejected).toBeUndefined();
 
     const postPending = {
+      postId: 'p1',
       sourceId: 'a',
       createdById: '2',
       status: SourcePostModerationStatus.Pending,
