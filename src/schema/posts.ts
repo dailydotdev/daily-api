@@ -107,6 +107,7 @@ import {
   SourcePostModeration,
   SourcePostModerationStatus,
 } from '../entity/SourcePostModeration';
+import { logger } from '../logger';
 
 export interface GQLSourcePostModeration {
   id: string;
@@ -186,6 +187,7 @@ export type GQLPostNotification = Pick<
 >;
 
 const POST_MODERATION_PAGE_SIZE = 15;
+const POST_MODERATION_LIMIT_FOR_MUTATION = 50;
 const sourcePostModerationPageGenerator =
   offsetPageGenerator<GQLSourcePostModeration>(POST_MODERATION_PAGE_SIZE, 50);
 
@@ -2303,6 +2305,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const uniquePostIds = Array.from(new Set(postIds));
       if (!uniquePostIds.length) {
         throw new ValidationError('Invalid array of post IDs provided');
+      }
+
+      if (uniquePostIds.length > POST_MODERATION_LIMIT_FOR_MUTATION) {
+        logger.warn(
+          { postCount: uniquePostIds.length, status },
+          'moderation limit reached',
+        );
+        throw new ValidationError(
+          `Maximum of ${POST_MODERATION_LIMIT_FOR_MUTATION} posts can be moderated at once`,
+        );
       }
 
       if (
