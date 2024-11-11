@@ -2,9 +2,9 @@ DO $$
 BEGIN
     UPDATE  source
 
-    SET     "requireModeration" = true
+    SET     "moderationRequired" = true
 
     WHERE   type = 'squad'
-    AND     "requireModeration" != true
+    AND     "moderationRequired" != true
     AND     private IS FALSE;
 END $$;
