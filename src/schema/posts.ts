@@ -6,6 +6,7 @@ import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
 import { DataSource, In, MoreThan } from 'typeorm';
 import {
+  canAccessSource,
   ensureSourcePermissions,
   GQLSource,
   isPrivilegedMember,
@@ -35,6 +36,9 @@ import {
   ONE_MINUTE_IN_SECONDS,
   toGQLEnum,
   getExistingPost,
+  createSourcePostModeration,
+  CreateSourcePostModeration,
+  CreateSourcePostModerationArgs,
   mapCloudinaryUrl,
 } from '../common';
 import {
@@ -61,6 +65,10 @@ import {
   PostRelation,
   deletePost,
   SubmitExternalLinkArgs,
+  generateTitleHtml,
+  validateCommentary,
+  SourceMember,
+  SourceType,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -261,6 +269,10 @@ export const typeDefs = /* GraphQL */ `
     The post's image
     """
     image: String
+    """
+    Url to image if applicable
+    """
+    imageUrl: String
     """
     Id of the Squad
     """
@@ -882,6 +894,48 @@ export const typeDefs = /* GraphQL */ `
   }
 
   extend type Mutation {
+    """
+    To create post moderation item
+    """
+    createSourcePostModeration(
+      """
+      Id of the Squad to post to
+      """
+      sourceId: ID!
+      """
+      content of the post
+      """
+      content: String
+      """
+      Commentary on the post
+      """
+      commentary: String
+      """
+      title of the post
+      """
+      title: String
+      """
+      Image to upload
+      """
+      image: Upload
+      """
+      Image URL to use
+      """
+      imageUrl: String
+      """
+      ID of the post to share
+      """
+      sharedPostId: ID
+      """
+      type of the post
+      """
+      type: String!
+      """
+      External link of the post
+      """
+      externalLink: String
+    ): SourcePostModeration! @auth
+
     """
     Hide a post from all the user feeds
     """
@@ -1633,6 +1687,88 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   Mutation: {
+    createSourcePostModeration: async (
+      _,
+      {
+        sourceId,
+        image,
+        title,
+        content,
+        commentary,
+        type,
+        sharedPostId,
+        imageUrl,
+        externalLink,
+      }: CreateSourcePostModerationArgs,
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLSourcePostModeration> => {
+      const { con, userId } = ctx;
+
+      const sourceMember = await con.getRepository(SourceMember).findOne({
+        where: { sourceId: sourceId, userId: userId },
+        relations: ['source'],
+      });
+
+      const source = await sourceMember?.source;
+
+      if (!source || source.type !== SourceType.Squad) {
+        throw new ForbiddenError('Access denied!');
+      }
+
+      await canAccessSource(
+        ctx,
+        source,
+        sourceMember,
+        SourcePermissions.Post,
+        sourceId,
+      );
+
+      const mentions = await getMentions(con, content, userId, sourceId);
+
+      const pendingPost: CreateSourcePostModeration = {
+        title,
+        content,
+        sourceId,
+        type,
+        sharedPostId,
+        externalLink,
+        createdById: userId,
+      };
+
+      if (commentary) {
+        await validateCommentary(commentary);
+        pendingPost.titleHtml = generateTitleHtml(commentary, mentions);
+      }
+      if (content) {
+        pendingPost.contentHtml = markdown.render(content, { mentions });
+      }
+
+      if (imageUrl) {
+        pendingPost.image = imageUrl;
+      } else if (image && process.env.CLOUDINARY_URL) {
+        const upload = await image;
+        const { url: coverImageUrl } = await uploadPostFile(
+          await generateShortId(),
+          upload.createReadStream(),
+          UploadPreset.PostBannerImage,
+        );
+        pendingPost.image = coverImageUrl;
+      }
+      const moderatedPost = await createSourcePostModeration(con, pendingPost);
+
+      return graphorm.queryOneOrFail<GQLSourcePostModeration>(
+        ctx,
+        info,
+        (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder.where(
+            `"${builder.alias}"."id" = :id`,
+            { id: moderatedPost.id },
+          ),
+        }),
+      );
+    },
     hidePost: async (
       source,
       { id }: { id: string },
