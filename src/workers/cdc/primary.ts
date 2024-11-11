@@ -10,6 +10,7 @@ import {
   Bookmark,
   Alerts,
   UserTopReader,
+  SquadSource,
 } from '../../entity';
 import { messageToJson, Worker } from '../worker';
 import {
@@ -709,6 +710,22 @@ const onSourceChange = async (
         ...data.payload.after!,
         flags: after,
       });
+    }
+
+    const squadAfter = data.payload.after as ChangeObject<SquadSource>;
+    const squadBefore = data.payload.before as ChangeObject<SquadSource>;
+
+    if (
+      squadBefore.moderationRequired !== squadAfter.moderationRequired &&
+      !squadAfter.moderationRequired
+    ) {
+      await con.getRepository(SourcePostModeration).update(
+        {
+          sourceId: squadAfter.id,
+          status: SourcePostModerationStatus.Pending,
+        },
+        { status: SourcePostModerationStatus.Approved },
+      );
     }
   }
 };
