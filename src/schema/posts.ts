@@ -281,6 +281,38 @@ export const typeDefs = /* GraphQL */ `
     external link url
     """
     externalLink: String
+    """
+    Status of the moderation
+    """
+    status: String!
+    """
+    Reason for rejection
+    """
+    rejectionReason: String
+    """
+    Moderator message
+    """
+    moderatorMessage: String
+    """
+    Time the post was created
+    """
+    createdAt: DateTime!
+    """
+    Author of the post
+    """
+    createdBy: User
+    """
+    Author id
+    """
+    createdById: ID
+    """
+    Moderator of the post
+    """
+    moderatedBy: User
+    """
+    Moderator id
+    """
+    moderatedById: ID
   }
 
   type TocItem {
