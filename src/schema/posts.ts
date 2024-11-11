@@ -302,17 +302,9 @@ export const typeDefs = /* GraphQL */ `
     """
     createdBy: User
     """
-    Author id
-    """
-    createdById: ID
-    """
     Moderator of the post
     """
     moderatedBy: User
-    """
-    Moderator id
-    """
-    moderatedById: ID
   }
 
   type TocItem {
