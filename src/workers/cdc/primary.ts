@@ -84,6 +84,7 @@ import {
   DEFAULT_TIMEZONE,
   notifySourceReport,
   DayOfWeek,
+  processApprovedModeratedPost,
 } from '../../common';
 import { ChangeMessage, ChangeObject, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
@@ -118,6 +119,10 @@ import {
 } from '../../entity/common';
 import { utcToZonedTime } from 'date-fns-tz';
 import { SourceReport } from '../../entity/sources/SourceReport';
+import {
+  SourcePostModeration,
+  SourcePostModerationStatus,
+} from '../../entity/SourcePostModeration';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -708,6 +713,50 @@ const onSourceChange = async (
   }
 };
 
+const onSourcePostModerationChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<SourcePostModeration>,
+) => {
+  if (data.payload.op === 'c') {
+    await triggerTypedEvent(logger, 'api.v1.source-post-moderation-submitted', {
+      post: data.payload.after!,
+    });
+  }
+
+  if (data.payload.op === 'u') {
+    if (
+      data.payload.before!.status !== SourcePostModerationStatus.Rejected &&
+      data.payload.after!.status === SourcePostModerationStatus.Rejected
+    ) {
+      await triggerTypedEvent(
+        logger,
+        'api.v1.source-post-moderation-rejected',
+        { post: data.payload.after! },
+      );
+    }
+
+    if (
+      data.payload.before!.status !== SourcePostModerationStatus.Approved &&
+      data.payload.after!.status === SourcePostModerationStatus.Approved
+    ) {
+      const post = await processApprovedModeratedPost(con, data.payload.after!);
+
+      if (!post) {
+        return;
+      }
+
+      if (post.id) {
+        await triggerTypedEvent(
+          logger,
+          'api.v1.source-post-moderation-approved',
+          { post: data.payload.after! },
+        );
+      }
+    }
+  }
+};
+
 const onFeedChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -1027,6 +1076,9 @@ const worker: Worker = {
           break;
         case getTableName(con, Source):
           await onSourceChange(con, logger, data);
+          break;
+        case getTableName(con, SourcePostModeration):
+          await onSourcePostModerationChange(con, logger, data);
           break;
         case getTableName(con, Feed):
           await onFeedChange(con, logger, data);

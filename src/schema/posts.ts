@@ -34,13 +34,13 @@ import {
   validatePost,
   ONE_MINUTE_IN_SECONDS,
   toGQLEnum,
+  getExistingPost,
   mapCloudinaryUrl,
 } from '../common';
 import {
   ArticlePost,
   createExternalLink,
   createSharePost,
-  ExternalLink,
   ExternalLinkPreview,
   FreeformPost,
   Post,
@@ -60,6 +60,7 @@ import {
   PostRelationType,
   PostRelation,
   deletePost,
+  SubmitExternalLinkArgs,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -195,11 +196,6 @@ export interface GQLUserPost {
 
 export interface GQLPostUpvoteArgs extends ConnectionArguments {
   id: string;
-}
-
-export interface SubmitExternalLinkArgs extends ExternalLink {
-  sourceId: string;
-  commentary: string;
 }
 
 export const getPostNotification = async (
@@ -1808,7 +1804,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           params.image = coverImageUrl;
         }
 
-        await createFreeformPost(manager, ctx, params);
+        await createFreeformPost({ con: manager, ctx, args: params });
         await saveMentions(manager, id, userId, mentions, PostMention);
       });
 
@@ -1960,38 +1956,39 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           throw new ValidationError('URL is not valid');
         }
 
-        const existingPost: Pick<
-          ArticlePost,
-          'id' | 'deleted' | 'visible'
-        > | null = await manager
-          .createQueryBuilder(Post, 'post')
-          .select(['post.id', 'post.deleted', 'post.visible'])
-          .where('post.url = :url OR post.canonicalUrl = :url', {
-            url: cleanUrl,
-          })
-          .getOne();
+        const existingPost = await getExistingPost(manager, cleanUrl);
+
         if (existingPost) {
           if (existingPost.deleted) {
             throw new ValidationError(SubmissionFailErrorMessage.POST_DELETED);
           }
 
-          await createSharePost(
-            manager,
+          await createSharePost({
+            con: manager,
             ctx,
-            sourceId,
-            existingPost.id,
-            commentary,
-            existingPost.visible,
-          );
+            args: {
+              sourceId,
+              authorId: ctx.userId,
+              postId: existingPost.id,
+              commentary,
+              visible: existingPost.visible,
+            },
+          });
           return { _: true };
         }
-        await createExternalLink(
-          manager,
+
+        await createExternalLink({
+          con: manager,
           ctx,
-          sourceId,
-          { url, title, image },
-          commentary,
-        );
+          args: {
+            authorId: ctx.userId,
+            sourceId,
+            url: cleanUrl,
+            title,
+            image,
+            commentary,
+          },
+        });
       });
       return { _: true };
     },
@@ -2008,13 +2005,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       await ctx.con.getRepository(Post).findOneByOrFail({ id });
       await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
 
-      const newPost = await createSharePost(
-        ctx.con,
+      const newPost = await createSharePost({
+        con: ctx.con,
         ctx,
-        sourceId,
-        id,
-        commentary,
-      );
+        args: {
+          authorId: ctx.userId,
+          sourceId,
+          postId: id,
+          commentary,
+        },
+      });
+
       return getPostById(ctx, info, newPost.id);
     },
     editSharePost: async (

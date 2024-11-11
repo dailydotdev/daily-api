@@ -18,7 +18,7 @@ export class ArticlePost extends Post {
   canonicalUrl?: string;
 
   @Column({ type: 'text', nullable: true })
-  image?: string;
+  image?: string | null;
 
   @Column({ type: 'float', nullable: true })
   ratio?: number;
