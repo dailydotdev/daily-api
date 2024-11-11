@@ -29,7 +29,10 @@ import { logger } from '../logger';
 import { downloadJsonFile } from './googleCloud';
 import type { ChangeObject, PostCodeSnippetJsonFile } from '../types';
 import { uniqueifyObjectArray } from './utils';
-import { SourcePostModeration } from '../entity/SourcePostModeration';
+import {
+  SourcePostModeration,
+  SourcePostModerationStatus,
+} from '../entity/SourcePostModeration';
 import { mapCloudinaryUrl } from './cloudinary';
 
 export const defaultImage = {
@@ -236,6 +239,40 @@ export const createFreeformPost = async ({
 
   return con.getRepository(FreeformPost).save(createdPost);
 };
+
+export type CreateSourcePostModeration = Omit<
+  CreatePost,
+  'authorId' | 'content' | 'contentHtml' | 'id'
+> &
+  Pick<
+    SourcePostModeration,
+    'titleHtml' | 'content' | 'type' | 'sharedPostId' | 'createdById'
+  > & {
+    contentHtml?: string;
+    externalLink?: string;
+  };
+
+export const createSourcePostModeration = async (
+  con: DataSource | EntityManager,
+  args: CreateSourcePostModeration,
+) => {
+  const newPost = con.getRepository(SourcePostModeration).create({
+    ...args,
+    status: SourcePostModerationStatus.Pending,
+  });
+  return await con.getRepository(SourcePostModeration).save(newPost);
+};
+
+export interface CreateSourcePostModerationArgs
+  extends Pick<EditPostArgs, 'title' | 'image'> {
+  imageUrl?: string;
+  sourceId: string;
+  commentary?: string;
+  content?: string;
+  sharedPostId?: string;
+  externalLink?: string;
+  type: PostType;
+}
 
 export interface EditPostArgs
   extends Pick<GQLPost, 'id' | 'title' | 'content'> {
