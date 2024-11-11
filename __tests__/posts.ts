@@ -2413,6 +2413,18 @@ describe('mutation submitExternalLink', () => {
     );
   });
 
+  it('should not authorize when moderation is required', async () => {
+    loggedUser = '4';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, sourceId: 'm' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
   it('should bypass moderation because user is a moderator', async () => {
     loggedUser = '3';
     await con.getRepository(Source).insert({
@@ -3073,6 +3085,18 @@ describe('mutation createFreeformPost', () => {
 
   beforeEach(async () => {
     await saveSquadFixtures();
+  });
+
+  it('should not authorize when moderation is required', async () => {
+    loggedUser = '4';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...params, sourceId: 'm' },
+      },
+      'FORBIDDEN',
+    );
   });
 
   it('should not authorize when moderation is required', async () => {
