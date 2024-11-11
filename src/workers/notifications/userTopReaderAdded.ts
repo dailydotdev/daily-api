@@ -11,6 +11,10 @@ export const userTopReaderAdded =
   generateTypedNotificationWorker<'api.v1.user-top-reader'>({
     subscription: 'api.user-top-reader-added',
     handler: async ({ userTopReader }, con) => {
+      if (process.env.NODE_ENV === 'development') {
+        return;
+      }
+
       const { id, userId, keywordValue } = userTopReader;
       const topReader = await con.getRepository(UserTopReader).findOneBy({
         id,
