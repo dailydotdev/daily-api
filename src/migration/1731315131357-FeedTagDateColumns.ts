@@ -11,6 +11,10 @@ export class FeedTagDateColumns1731315131357 implements MigrationInterface {
       `ALTER TABLE "feed_tag" ADD "updatedAt" TIMESTAMP NOT NULL DEFAULT now()`,
     );
 
+    await queryRunner.query(
+      `CREATE INDEX "IDX_c04e86377257df2a6a4181421f" ON "feed_tag" ("updatedAt") `,
+    );
+
     await queryRunner.query(`
       CREATE OR REPLACE FUNCTION feed_tag_updated_at_time()
         RETURNS TRIGGER
@@ -33,6 +37,10 @@ export class FeedTagDateColumns1731315131357 implements MigrationInterface {
       'DROP TRIGGER IF EXISTS feed_tag_updated_at_update_trigger ON "feed_tag"',
     );
     await queryRunner.query('DROP FUNCTION IF EXISTS feed_tag_updated_at_time');
+
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_c04e86377257df2a6a4181421f"`,
+    );
 
     await queryRunner.query(`ALTER TABLE "feed_tag" DROP COLUMN "updatedAt"`);
     await queryRunner.query(`ALTER TABLE "feed_tag" DROP COLUMN "createdAt"`);
