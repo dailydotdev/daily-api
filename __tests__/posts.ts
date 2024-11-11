@@ -5178,7 +5178,7 @@ describe('query postCodeSnippets', () => {
 });
 
 describe('Source post moderation approve/reject', () => {
-  const [pendingId, approvedId] = Array.from({ length: 2 }, () =>
+  const [pendingId, rejectedId] = Array.from({ length: 2 }, () =>
     generateUUID(),
   );
   beforeEach(async () => {
@@ -5194,12 +5194,14 @@ describe('Source post moderation approve/reject', () => {
         type: PostType.Article,
       },
       {
-        id: approvedId,
+        id: rejectedId,
         sourceId: 'm',
         createdById: '4',
         title: 'Title',
         content: 'Content',
-        status: SourcePostModerationStatus.Approved,
+        status: SourcePostModerationStatus.Rejected,
+        rejectionReason: 'Spam',
+        moderatorMessage: 'This is spam',
         type: PostType.Article,
         moderatedById: '3',
       },
@@ -5216,6 +5218,7 @@ describe('Source post moderation approve/reject', () => {
   ) {
     moderateSourcePosts(postIds: $postIds, status: $status, sourceId: $sourceId, rejectionReason: $rejectionReason, moderatorMessage: $moderatorMessage) {
       id
+      status
     }
   }`;
 
@@ -5312,24 +5315,23 @@ describe('Source post moderation approve/reject', () => {
     expect(post.rejectionReason).toEqual('Spam');
     expect(post.moderatorMessage).toEqual('This is spam');
   });
-  it('should not continue if one of posts is not pending', async () => {
+  it('should not update already moderated posts', async () => {
     loggedUser = '3'; // Moderator level
 
-    await testMutationError(
-      client,
-      {
-        mutation: MUTATION,
-        variables: {
-          postIds: [pendingId, approvedId],
-          sourceId: 'm',
-          status: SourcePostModerationStatus.Approved,
-        },
+    const res: GQLResponse<{
+      moderateSourcePosts: { id: string; status: SourcePostModerationStatus }[];
+    }> = await client.mutate(MUTATION, {
+      variables: {
+        postIds: [pendingId, rejectedId],
+        sourceId: 'm',
+        status: SourcePostModerationStatus.Approved,
       },
-      (errors) => {
-        expect(errors.length).toEqual(1);
-        expect(errors[0].extensions?.code).toEqual('GRAPHQL_VALIDATION_FAILED');
-        expect(errors[0]?.message).toEqual('Some posts are not pending');
-      },
+    });
+
+    // only one post should be updated, one is already rejected
+    expect(res.data.moderateSourcePosts.length).toEqual(1);
+    expect(res.data.moderateSourcePosts[0].status).toEqual(
+      SourcePostModerationStatus.Approved,
     );
   });
 });

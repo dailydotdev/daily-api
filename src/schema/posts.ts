@@ -2162,12 +2162,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         'sourceId' | 'status' | 'rejectionReason' | 'moderatorMessage'
       >,
       ctx: AuthContext,
+      info,
     ) => {
       const uniquePostIds = Array.from(new Set(postIds));
-      if (
-        !uniquePostIds.length ||
-        uniquePostIds.length > POST_MODERATION_PAGE_SIZE
-      ) {
+      if (!uniquePostIds.length) {
         throw new ValidationError('Invalid array of post IDs provided');
       }
 
@@ -2186,21 +2184,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ForbiddenError('Access denied!');
       }
 
-      const pendingPosts = await ctx.con
-        .getRepository(SourcePostModeration)
-        .find({
-          where: {
-            id: In(uniquePostIds),
-            sourceId,
-            status: SourcePostModerationStatus.Pending,
-          },
-          select: ['id'],
-        });
-
-      if (pendingPosts.length !== uniquePostIds.length) {
-        throw new ValidationError('Some posts are not pending');
-      }
-
       const moderatedById = ctx.userId;
       const isRejectedWithReason =
         status === SourcePostModerationStatus.Rejected && !!rejectionReason;
@@ -2214,10 +2197,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       );
 
-      return await ctx.con.getRepository(SourcePostModeration).findBy({
-        id: In(uniquePostIds),
-        status,
-      });
+      return graphorm.query<GQLSourcePostModeration>(ctx, info, (builder) => ({
+        ...builder,
+        queryBuilder: builder.queryBuilder.where(
+          `"${builder.alias}"."id" IN (:...id) AND "${builder.alias}"."status" = :status`,
+          { id: uniquePostIds, status },
+        ),
+      }));
     },
   },
   Subscription: {
