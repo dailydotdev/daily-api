@@ -69,7 +69,7 @@ describe('SourcePostModerationSubmitted', () => {
       postId: 'p1',
       sourceId: 'a',
       createdById: '2',
-      status: SourcePostModerationStatus.Pending,
+      status: SourcePostModerationStatus.Approved,
     };
     await con
       .getRepository(Source)
@@ -95,7 +95,7 @@ describe('SourcePostModerationSubmitted', () => {
       postId: 'p1',
       sourceId: 'a',
       createdById: '2',
-      status: SourcePostModerationStatus.Pending,
+      status: SourcePostModerationStatus.Approved,
     };
     await con
       .getRepository(Source)
