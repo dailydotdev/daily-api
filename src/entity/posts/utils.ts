@@ -233,7 +233,7 @@ export const addQuestions = async (
   );
 };
 
-const validateCommentary = async (commentary?: string) => {
+export const validateCommentary = async (commentary?: string) => {
   const strippedCommentary = commentary?.trim() || null;
 
   if ((strippedCommentary?.length ?? 0) > MAX_COMMENTARY_LENGTH) {
