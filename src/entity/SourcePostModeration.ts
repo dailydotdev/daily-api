@@ -46,7 +46,7 @@ export class SourcePostModeration {
   createdBy: Promise<User>;
 
   @Column({ type: 'text', nullable: true })
-  moderatedById: string | null;
+  moderatedById?: string | null;
 
   @ManyToOne('User', (user: User) => user.id, {
     lazy: true,
@@ -55,10 +55,10 @@ export class SourcePostModeration {
   moderatedBy: Promise<User>;
 
   @Column({ type: 'text', nullable: true })
-  moderatorMessage: string | null;
+  moderatorMessage?: string | null;
 
   @Column({ type: 'text', nullable: true })
-  rejectionReason: string | null;
+  rejectionReason?: string | null;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -67,7 +67,7 @@ export class SourcePostModeration {
   updatedAt: Date;
 
   @Column({ type: 'text', nullable: true })
-  postId: string | null;
+  postId?: string | null;
 
   @ManyToOne('Post', (post: Post) => post.id, {
     lazy: true,
@@ -88,7 +88,7 @@ export class SourcePostModeration {
   content?: string | null;
 
   @Column({ type: 'text', nullable: true })
-  contentHtml: string | null;
+  contentHtml?: string | null;
 
   @Column({ type: 'text', nullable: true })
   image?: string | null;

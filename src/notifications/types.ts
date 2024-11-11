@@ -17,6 +17,7 @@ import {
 import { ChangeObject } from '../types';
 import { DeepPartial } from 'typeorm';
 import { SourceMemberRoles } from '../roles';
+import { SourcePostModeration } from '../entity/SourcePostModeration';
 
 export type Reference<T> = ChangeObject<T> | T;
 
@@ -35,6 +36,12 @@ export type NotificationSubmissionContext = NotificationBaseContext & {
 export type NotificationSourceContext = NotificationBaseContext & {
   source: Reference<Source>;
 };
+
+export type NotificationPostModerationContext = NotificationUserContext &
+  NotificationBaseContext &
+  NotificationSourceContext & {
+    post: Reference<SourcePostModeration>;
+  };
 
 export type NotificationPostContext<T extends Post = Post> =
   NotificationBaseContext &

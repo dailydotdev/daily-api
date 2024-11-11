@@ -16,6 +16,7 @@ import {
   pubsub,
 } from './pubsub';
 import { ContentUpdatedMessage } from '@dailydotdev/schema';
+import { SourcePostModeration } from '../entity/SourcePostModeration';
 
 export type PubSubSchema = {
   'pub-request': {
@@ -77,6 +78,15 @@ export type PubSubSchema = {
   };
   'api.v1.user-streak-updated': {
     streak: ChangeObject<UserStreak>;
+  };
+  'api.v1.source-post-moderation-approved': {
+    post: ChangeObject<SourcePostModeration>;
+  };
+  'api.v1.source-post-moderation-rejected': {
+    post: ChangeObject<SourcePostModeration>;
+  };
+  'api.v1.source-post-moderation-submitted': {
+    post: ChangeObject<SourcePostModeration>;
   };
   'api.v1.post-bookmark-reminder': {
     postId: string;
