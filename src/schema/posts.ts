@@ -6,6 +6,7 @@ import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
 import { DataSource, MoreThan } from 'typeorm';
 import {
+  canAccessSource,
   ensureSourcePermissions,
   GQLSource,
   isPrivilegedMember,
@@ -34,13 +35,16 @@ import {
   validatePost,
   ONE_MINUTE_IN_SECONDS,
   toGQLEnum,
+  getExistingPost,
+  createSourcePostModeration,
+  CreateSourcePostModeration,
+  CreateSourcePostModerationArgs,
   mapCloudinaryUrl,
 } from '../common';
 import {
   ArticlePost,
   createExternalLink,
   createSharePost,
-  ExternalLink,
   ExternalLinkPreview,
   FreeformPost,
   Post,
@@ -60,6 +64,11 @@ import {
   PostRelationType,
   PostRelation,
   deletePost,
+  SubmitExternalLinkArgs,
+  generateTitleHtml,
+  validateCommentary,
+  SourceMember,
+  SourceType,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -197,11 +206,6 @@ export interface GQLPostUpvoteArgs extends ConnectionArguments {
   id: string;
 }
 
-export interface SubmitExternalLinkArgs extends ExternalLink {
-  sourceId: string;
-  commentary: string;
-}
-
 export const getPostNotification = async (
   con: DataSource,
   postId: string,
@@ -261,6 +265,10 @@ export const typeDefs = /* GraphQL */ `
     The post's image
     """
     image: String
+    """
+    Url to image if applicable
+    """
+    imageUrl: String
     """
     Id of the Squad
     """
@@ -858,6 +866,48 @@ export const typeDefs = /* GraphQL */ `
   }
 
   extend type Mutation {
+    """
+    To create post moderation item
+    """
+    createSourcePostModeration(
+      """
+      Id of the Squad to post to
+      """
+      sourceId: ID!
+      """
+      content of the post
+      """
+      content: String
+      """
+      Commentary on the post
+      """
+      commentary: String
+      """
+      title of the post
+      """
+      title: String
+      """
+      Image to upload
+      """
+      image: Upload
+      """
+      Image URL to use
+      """
+      imageUrl: String
+      """
+      ID of the post to share
+      """
+      sharedPostId: ID
+      """
+      type of the post
+      """
+      type: String!
+      """
+      External link of the post
+      """
+      externalLink: String
+    ): SourcePostModeration! @auth
+
     """
     Hide a post from all the user feeds
     """
@@ -1583,6 +1633,88 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   Mutation: {
+    createSourcePostModeration: async (
+      _,
+      {
+        sourceId,
+        image,
+        title,
+        content,
+        commentary,
+        type,
+        sharedPostId,
+        imageUrl,
+        externalLink,
+      }: CreateSourcePostModerationArgs,
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLSourcePostModeration> => {
+      const { con, userId } = ctx;
+
+      const sourceMember = await con.getRepository(SourceMember).findOne({
+        where: { sourceId: sourceId, userId: userId },
+        relations: ['source'],
+      });
+
+      const source = await sourceMember?.source;
+
+      if (!source || source.type !== SourceType.Squad) {
+        throw new ForbiddenError('Access denied!');
+      }
+
+      await canAccessSource(
+        ctx,
+        source,
+        sourceMember,
+        SourcePermissions.Post,
+        sourceId,
+      );
+
+      const mentions = await getMentions(con, content, userId, sourceId);
+
+      const pendingPost: CreateSourcePostModeration = {
+        title,
+        content,
+        sourceId,
+        type,
+        sharedPostId,
+        externalLink,
+        createdById: userId,
+      };
+
+      if (commentary) {
+        await validateCommentary(commentary);
+        pendingPost.titleHtml = generateTitleHtml(commentary, mentions);
+      }
+      if (content) {
+        pendingPost.contentHtml = markdown.render(content, { mentions });
+      }
+
+      if (imageUrl) {
+        pendingPost.image = imageUrl;
+      } else if (image && process.env.CLOUDINARY_URL) {
+        const upload = await image;
+        const { url: coverImageUrl } = await uploadPostFile(
+          await generateShortId(),
+          upload.createReadStream(),
+          UploadPreset.PostBannerImage,
+        );
+        pendingPost.image = coverImageUrl;
+      }
+      const moderatedPost = await createSourcePostModeration(con, pendingPost);
+
+      return graphorm.queryOneOrFail<GQLSourcePostModeration>(
+        ctx,
+        info,
+        (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder.where(
+            `"${builder.alias}"."id" = :id`,
+            { id: moderatedPost.id },
+          ),
+        }),
+      );
+    },
     hidePost: async (
       source,
       { id }: { id: string },
@@ -1808,7 +1940,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           params.image = coverImageUrl;
         }
 
-        await createFreeformPost(manager, ctx, params);
+        await createFreeformPost({ con: manager, ctx, args: params });
         await saveMentions(manager, id, userId, mentions, PostMention);
       });
 
@@ -1960,38 +2092,39 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           throw new ValidationError('URL is not valid');
         }
 
-        const existingPost: Pick<
-          ArticlePost,
-          'id' | 'deleted' | 'visible'
-        > | null = await manager
-          .createQueryBuilder(Post, 'post')
-          .select(['post.id', 'post.deleted', 'post.visible'])
-          .where('post.url = :url OR post.canonicalUrl = :url', {
-            url: cleanUrl,
-          })
-          .getOne();
+        const existingPost = await getExistingPost(manager, cleanUrl);
+
         if (existingPost) {
           if (existingPost.deleted) {
             throw new ValidationError(SubmissionFailErrorMessage.POST_DELETED);
           }
 
-          await createSharePost(
-            manager,
+          await createSharePost({
+            con: manager,
             ctx,
-            sourceId,
-            existingPost.id,
-            commentary,
-            existingPost.visible,
-          );
+            args: {
+              sourceId,
+              authorId: ctx.userId,
+              postId: existingPost.id,
+              commentary,
+              visible: existingPost.visible,
+            },
+          });
           return { _: true };
         }
-        await createExternalLink(
-          manager,
+
+        await createExternalLink({
+          con: manager,
           ctx,
-          sourceId,
-          { url, title, image },
-          commentary,
-        );
+          args: {
+            authorId: ctx.userId,
+            sourceId,
+            url: cleanUrl,
+            title,
+            image,
+            commentary,
+          },
+        });
       });
       return { _: true };
     },
@@ -2008,13 +2141,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       await ctx.con.getRepository(Post).findOneByOrFail({ id });
       await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
 
-      const newPost = await createSharePost(
-        ctx.con,
+      const newPost = await createSharePost({
+        con: ctx.con,
         ctx,
-        sourceId,
-        id,
-        commentary,
-      );
+        args: {
+          authorId: ctx.userId,
+          sourceId,
+          postId: id,
+          commentary,
+        },
+      });
+
       return getPostById(ctx, info, newPost.id);
     },
     editSharePost: async (

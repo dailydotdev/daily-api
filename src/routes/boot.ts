@@ -175,6 +175,7 @@ const getSquads = async (
       .addSelect('NOT private', 'public')
       .addSelect('active')
       .addSelect('role')
+      .addSelect('"moderationRequired"')
       .addSelect('"memberPostingRank"')
       .from(SourceMember, 'sm')
       .innerJoin(
@@ -196,17 +197,18 @@ const getSquads = async (
         { role },
         { memberPostingRank },
       );
-      // we only send posting permissions from boot to keep the payload small
-      const postingPermissions = permissions.filter(
-        (item) => item === SourcePermissions.Post,
+      // we only send posting and moderation permissions from boot to keep the payload small
+      const essentialPermissions = permissions.filter(
+        (item) =>
+          item === SourcePermissions.Post ||
+          item === SourcePermissions.ModeratePost,
       );
-
       return {
         ...restSource,
         image: mapCloudinaryUrl(image),
         permalink: getSourceLink(source),
         currentMember: {
-          permissions: postingPermissions,
+          permissions: essentialPermissions,
         },
       };
     });

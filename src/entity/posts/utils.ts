@@ -26,6 +26,7 @@ import { PostRelation, PostRelationType } from './PostRelation';
 import { CollectionPost } from './CollectionPost';
 import { checkWithVordr, VordrFilterType } from '../../common/vordr';
 import { AuthContext } from '../../Context';
+import { logger } from '../../logger';
 
 export type PostStats = {
   numPosts: number;
@@ -33,6 +34,8 @@ export type PostStats = {
   numPostUpvotes: number;
   numPostComments: number;
 };
+
+export type ConnectionManager = DataSource | EntityManager;
 
 type StringPostStats = {
   [Property in keyof PostStats]: string;
@@ -230,7 +233,7 @@ export const addQuestions = async (
   );
 };
 
-const validateCommentary = async (commentary?: string) => {
+export const validateCommentary = async (commentary?: string) => {
   const strippedCommentary = commentary?.trim() || null;
 
   if ((strippedCommentary?.length ?? 0) > MAX_COMMENTARY_LENGTH) {
@@ -254,14 +257,31 @@ export interface ExternalLink extends Partial<ExternalLinkPreview> {
   url: string;
 }
 
-export const createExternalLink = async (
-  con: DataSource | EntityManager,
-  ctx: AuthContext,
-  sourceId: string,
-  { url, title, image }: ExternalLink,
-  commentary: string,
-): Promise<void> => {
-  await validateCommentary(commentary);
+export interface SubmitExternalLinkArgs extends ExternalLink {
+  sourceId: string;
+  commentary: string;
+}
+
+interface CreateExternalLinkArgs {
+  con: ConnectionManager;
+  ctx?: AuthContext;
+  args: {
+    title?: string | null;
+    commentary?: string | null;
+    url: string;
+    image?: string | null;
+    authorId: string;
+    sourceId: string;
+  };
+}
+
+export const createExternalLink = async ({
+  con,
+  ctx,
+  args,
+}: CreateExternalLinkArgs): Promise<Post> => {
+  const { title, url, image, authorId, sourceId, commentary } = args;
+  await validateCommentary(commentary!);
   const id = await generateShortId();
   const isVisible = !!title;
 
@@ -285,20 +305,24 @@ export const createExternalLink = async (
         visible: isVisible,
       },
     });
-    await createSharePost(
-      entityManager,
+    const post = await createSharePost({
+      con: entityManager,
       ctx,
-      sourceId,
-      id,
-      commentary,
-      isVisible,
-    );
-    await notifyContentRequested(ctx.log, {
+      args: {
+        authorId,
+        postId: id,
+        sourceId,
+        commentary,
+        visible: isVisible,
+      },
+    });
+    await notifyContentRequested(ctx?.log || logger, {
       id,
       url,
       origin: PostOrigin.Squad,
     });
-    return;
+
+    return post;
   });
 };
 
@@ -308,19 +332,30 @@ export const generateTitleHtml = (
 ): string =>
   `<p>${renderMentions(markdown.utils.escapeHtml(title), mentions)}</p>`;
 
-export const createSharePost = async (
-  con: DataSource | EntityManager,
-  ctx: AuthContext,
-  sourceId: string,
-  postId: string,
-  commentary?: string,
-  visible = true,
-): Promise<SharePost> => {
-  const strippedCommentary = await validateCommentary(commentary);
-  const userId = ctx.userId;
+export interface SharePostArgs {
+  authorId: string;
+  sourceId: string;
+  postId: string;
+  commentary?: string | null;
+  visible?: boolean;
+  title?: string;
+}
+
+interface CreateSharePostArgs {
+  con: ConnectionManager;
+  ctx?: AuthContext;
+  args: SharePostArgs;
+}
+
+export const createSharePost = async ({
+  con,
+  ctx,
+  args: { authorId: userId, sourceId, postId, commentary, visible = true },
+}: CreateSharePostArgs): Promise<SharePost> => {
+  const strippedCommentary = await validateCommentary(commentary!);
 
   try {
-    const mentions = await getMentions(con, commentary, userId, sourceId);
+    const mentions = await getMentions(con, commentary!, userId, sourceId);
     const titleHtml = commentary?.length
       ? generateTitleHtml(commentary, mentions)
       : null;
@@ -351,27 +386,29 @@ export const createSharePost = async (
       },
     } as DeepPartial<SharePost>);
 
-    const vordrStatus = await checkWithVordr(
-      {
-        id: createdPost.id,
-        content: createdPost.title || undefined,
-        type: VordrFilterType.Post,
-      },
-      { con, userId, req: ctx.req },
-    );
+    if (ctx) {
+      const vordrStatus = await checkWithVordr(
+        {
+          id: createdPost.id,
+          content: createdPost.title || undefined,
+          type: VordrFilterType.Post,
+        },
+        { con, userId, req: ctx.req },
+      );
 
-    if (vordrStatus === true) {
-      createdPost.banned = true;
-      createdPost.showOnFeed = false;
+      if (vordrStatus) {
+        createdPost.banned = true;
+        createdPost.showOnFeed = false;
 
-      createdPost.flags = {
-        ...createdPost.flags,
-        banned: true,
-        showOnFeed: false,
-      };
+        createdPost.flags = {
+          ...createdPost.flags,
+          banned: true,
+          showOnFeed: false,
+        };
+      }
+
+      createdPost.flags.vordr = vordrStatus;
     }
-
-    createdPost.flags.vordr = vordrStatus;
 
     const post = await con.getRepository(SharePost).save(createdPost);
 

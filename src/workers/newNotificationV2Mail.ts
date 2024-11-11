@@ -50,6 +50,9 @@ interface Data {
 }
 
 export const notificationToTemplateId: Record<NotificationType, string> = {
+  source_post_approved: '', // TODO: MI-617
+  source_post_submitted: '', // TODO: MI-617
+  source_post_rejected: '', // we won't send an email on rejected ones
   community_picks_failed: '28',
   community_picks_succeeded: '27',
   community_picks_granted: '26',
@@ -96,6 +99,9 @@ type TemplateDataFunc = (
   avatars: NotificationAvatarV2[],
 ) => Promise<TemplateData | null>;
 const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
+  source_post_approved: async () => null, // TODO: MI-617
+  source_post_submitted: async () => null, // TODO: MI-617
+  source_post_rejected: async () => null,
   post_bookmark_reminder: async () => null,
   streak_reset_restore: async () => null,
   community_picks_failed: async (con, user, notification) => {

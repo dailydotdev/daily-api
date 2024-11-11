@@ -866,6 +866,7 @@ export enum SourcePermissions {
   Delete = 'delete',
   Edit = 'edit',
   ConnectSlack = 'connect_slack',
+  ModeratePost = 'moderate_post',
 }
 
 const memberPermissions = [
@@ -884,6 +885,7 @@ const moderatorPermissions = [
   SourcePermissions.MemberUnblock,
   SourcePermissions.ViewBlockedMembers,
   SourcePermissions.WelcomePostEdit,
+  SourcePermissions.ModeratePost,
 ];
 const adminPermissions = [
   ...moderatorPermissions,
@@ -999,7 +1001,15 @@ export const canPostToSquad = (
     return false;
   }
 
-  return sourceRoleRank[sourceMember.role] >= squad.memberPostingRank;
+  const memberRank = sourceRoleRank[sourceMember.role];
+
+  if (
+    memberRank >= sourceRoleRank.moderator &&
+    memberRank >= squad.memberPostingRank
+  )
+    return true;
+
+  return !squad.moderationRequired && memberRank >= squad.memberPostingRank;
 };
 
 const validateSquadData = async (
@@ -1949,7 +1959,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
           if (postId) {
             // Create the first post of the squad
-            await createSharePost(entityManager, ctx, id, postId, commentary);
+            await createSharePost({
+              con: entityManager,
+              ctx,
+              args: {
+                authorId: ctx.userId,
+                postId,
+                commentary,
+                sourceId: id,
+              },
+            });
           }
 
           if (image) {
