@@ -8,7 +8,7 @@ const worker =
   generateTypedNotificationWorker<'api.v1.source-post-moderation-approved'>({
     subscription: 'api.source-post-moderation-approved-notification',
     handler: async ({ post: data }, con) => {
-      if (data.status !== SourcePostModerationStatus.Pending) {
+      if (data.status !== SourcePostModerationStatus.Approved) {
         return;
       }
 
