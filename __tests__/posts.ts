@@ -3627,8 +3627,8 @@ describe('mutation createSourcePostModeration', () => {
     await saveSquadFixtures();
   });
 
-  const MUTATION = `mutation CreateSourcePostModeration($sourceId: ID! $title: String!, $type: String!, $content: String, $image: Upload, $imageUrl: String, $sharedPostId: ID, $commentary: String, $externalLink: String) {
-    createSourcePostModeration(sourceId: $sourceId, title: $title, type: $type, content: $content, image: $image, imageUrl: $imageUrl, sharedPostId: $sharedPostId, commentary: $commentary, externalLink: $externalLink) {
+  const MUTATION = `mutation CreateSourcePostModeration($sourceId: ID! $title: String!, $type: String!, $content: String, $image: Upload, $imageUrl: String, $sharedPostId: ID, $commentary: String, $externalLink: String, $postId: ID) {
+    createSourcePostModeration(sourceId: $sourceId, title: $title, type: $type, content: $content, image: $image, imageUrl: $imageUrl, sharedPostId: $sharedPostId, commentary: $commentary, externalLink: $externalLink, postId: $postId) {
       id
       title
       content
@@ -3638,6 +3638,7 @@ describe('mutation createSourcePostModeration', () => {
       image
       sharedPostId
       titleHtml
+      postId
     }
   }`;
 
@@ -3655,6 +3656,93 @@ describe('mutation createSourcePostModeration', () => {
       {
         mutation: MUTATION,
         variables: { ...params, type: PostType.Freeform },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should create freeform moderation entry for an existing post', async () => {
+    loggedUser = '4';
+    const newPost = con.getRepository(Post).create({
+      ...params,
+      id: 'new',
+      shortId: 'new',
+      type: PostType.Freeform,
+      authorId: '4',
+    });
+    await con.getRepository(Post).save(newPost);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        sourceId: 'm',
+        title: 'My new freeform title',
+        type: PostType.Freeform,
+        content: 'My new freeform content',
+        postId: newPost.id,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createSourcePostModeration.title).toEqual(
+      'My new freeform title',
+    );
+    expect(res.data.createSourcePostModeration.content).toEqual(
+      'My new freeform content',
+    );
+    expect(res.data.createSourcePostModeration.postId).toEqual(newPost.id);
+  });
+
+  it('should create share moderation entry for an existing post', async () => {
+    loggedUser = '4';
+    const newPost = con.getRepository(Post).create({
+      ...params,
+      id: 'new',
+      shortId: 'new',
+      type: PostType.Share,
+      scoutId: '4',
+    });
+    await con.getRepository(Post).save(newPost);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        sourceId: 'm',
+        title: 'My new share title',
+        type: PostType.Share,
+        content: 'My new share content',
+        postId: newPost.id,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createSourcePostModeration.title).toEqual(
+      'My new share title',
+    );
+    expect(res.data.createSourcePostModeration.content).toEqual(
+      'My new share content',
+    );
+    expect(res.data.createSourcePostModeration.postId).toEqual(newPost.id);
+  });
+
+  it("should not be able to create moderation entry for another user's post", async () => {
+    loggedUser = '3';
+    const newPost = con.getRepository(Post).create({
+      ...params,
+      id: 'new',
+      shortId: 'new',
+      type: PostType.Share,
+      scoutId: '4',
+    });
+    await con.getRepository(Post).save(newPost);
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          sourceId: 'm',
+          title: "I'm editing your post!",
+          type: PostType.Share,
+          content: "It's mine now",
+          postId: newPost.id,
+        },
       },
       'FORBIDDEN',
     );

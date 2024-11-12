@@ -116,6 +116,7 @@ export interface GQLSourcePostModeration {
   status: SourcePostModerationStatus;
   createdAt: Date;
   updatedAt: Date;
+  postId?: string;
 }
 
 export interface GQLPost {
@@ -285,6 +286,10 @@ export const typeDefs = /* GraphQL */ `
     external link url
     """
     externalLink: String
+    """
+    ID of the existing post
+    """
+    postId: String
   }
 
   type TocItem {
@@ -906,6 +911,10 @@ export const typeDefs = /* GraphQL */ `
       External link of the post
       """
       externalLink: String
+      """
+      ID of the exisiting post
+      """
+      postId: ID
     ): SourcePostModeration! @auth
 
     """
@@ -1645,6 +1654,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         sharedPostId,
         imageUrl,
         externalLink,
+        postId,
       }: CreateSourcePostModerationArgs,
       ctx: AuthContext,
       info,
@@ -1673,6 +1683,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const mentions = await getMentions(con, content, userId, sourceId);
 
       const pendingPost: CreateSourcePostModeration = {
+        postId,
         title,
         content,
         sourceId,

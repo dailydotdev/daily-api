@@ -13,7 +13,7 @@ import {
   User,
   WelcomePost,
 } from '../entity';
-import { ValidationError } from 'apollo-server-errors';
+import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { isValidHttpUrl, standardizeURL } from './links';
 import { markdown } from './markdown';
 import { generateShortId } from '../ids';
@@ -250,17 +250,32 @@ export type CreateSourcePostModeration = Omit<
   > & {
     contentHtml?: string;
     externalLink?: string;
+    postId?: string;
   };
 
 export const createSourcePostModeration = async (
   con: DataSource | EntityManager,
   args: CreateSourcePostModeration,
 ) => {
-  const newPost = con.getRepository(SourcePostModeration).create({
+  if (args.postId) {
+    const post = await con
+      .getRepository(Post)
+      .findOneByOrFail({ id: args.postId });
+
+    const isUnauthorizedEdit =
+      (post.type === PostType.Freeform && args.createdById !== post.authorId) ||
+      (post.type !== PostType.Freeform && args.createdById !== post.scoutId);
+
+    if (isUnauthorizedEdit) {
+      throw new ForbiddenError('Cannot edit posts created by other users');
+    }
+  }
+
+  const newModerationEntry = con.getRepository(SourcePostModeration).create({
     ...args,
     status: SourcePostModerationStatus.Pending,
   });
-  return await con.getRepository(SourcePostModeration).save(newPost);
+  return await con.getRepository(SourcePostModeration).save(newModerationEntry);
 };
 
 export interface CreateSourcePostModerationArgs
@@ -272,6 +287,7 @@ export interface CreateSourcePostModerationArgs
   sharedPostId?: string;
   externalLink?: string;
   type: PostType;
+  postId?: string;
 }
 
 export interface EditPostArgs
