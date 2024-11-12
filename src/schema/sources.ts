@@ -1603,7 +1603,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           builder.queryBuilder
             .andWhere(filter)
             .andWhere('id IN (:...ids)', {
-              ids: rawSourcesIds,
+              ids: rawSourcesIds.length ? rawSourcesIds : ['nosuchid'],
             })
             .orderBy(`array_position(array[${idsStr}], ${builder.alias}.id)`)
             .limit(getSearchLimit({ limit }));
