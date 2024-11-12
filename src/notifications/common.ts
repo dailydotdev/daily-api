@@ -18,6 +18,7 @@ import {
 } from '../errors';
 import { ReadStream } from 'fs';
 import { UserNotification } from '../entity';
+import { SourcePostModerationStatus } from '../entity/SourcePostModeration';
 
 export enum NotificationType {
   CommunityPicksFailed = 'community_picks_failed',
@@ -47,6 +48,9 @@ export enum NotificationType {
   CollectionUpdated = 'collection_updated',
   DevCardUnlocked = 'dev_card_unlocked',
   SourcePostAdded = 'source_post_added',
+  SourcePostApproved = 'source_post_approved',
+  SourcePostRejected = 'source_post_rejected',
+  SourcePostSubmitted = 'source_post_submitted',
   SquadPublicApproved = 'squad_public_approved',
   SquadPublicRejected = 'squad_public_rejected',
   SquadPublicSubmitted = 'squad_public_submitted',
@@ -277,4 +281,13 @@ export const generateUserNotificationUniqueKey = ({
   }
 
   return [uniqueKey, referenceId, referenceType].filter(Boolean).join(':');
+};
+
+export const postStatusToTypeMap: Record<
+  SourcePostModerationStatus,
+  NotificationType
+> = {
+  [SourcePostModerationStatus.Approved]: NotificationType.SourcePostApproved,
+  [SourcePostModerationStatus.Rejected]: NotificationType.SourcePostRejected,
+  [SourcePostModerationStatus.Pending]: NotificationType.SourcePostSubmitted,
 };

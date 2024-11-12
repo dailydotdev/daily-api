@@ -79,6 +79,8 @@ import {
   SourcePostModeration,
   SourcePostModerationStatus,
 } from '../src/entity/SourcePostModeration';
+import { generateUUID } from '../src/ids';
+import { GQLResponse } from 'mercurius-integration-testing';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -140,36 +142,19 @@ beforeEach(async () => {
       name: 'Joanna Deer',
     },
   ]);
-  await deleteKeysByPattern(`${rateLimiterName}:*`);
-  await deleteKeysByPattern(`${highRateLimiterName}:*`);
-});
-
-const saveSquadFixtures = async () => {
-  await con
-    .getRepository(Source)
-    .update({ id: 'a' }, { type: SourceType.Squad });
-  await con
-    .getRepository(SquadSource)
-    .update({ id: 'm' }, { type: SourceType.Squad, moderationRequired: true });
-  await con
-    .getRepository(Post)
-    .update(
-      { id: 'p1' },
-      { type: PostType.Welcome, title: 'Welcome post', authorId: '1' },
-    );
+  await con.getRepository(SquadSource).save({
+    id: 'm',
+    name: 'Moderated Squad',
+    image: 'http//image.com/m',
+    handle: 'moderatedSquad',
+    type: SourceType.Squad,
+    active: true,
+    private: false,
+    moderationRequired: true,
+    memberPostingRank: sourceRoleRank[SourceMemberRoles.Member],
+    memberInviteRank: sourceRoleRank[SourceMemberRoles.Member],
+  });
   await con.getRepository(SourceMember).save([
-    {
-      userId: '1',
-      sourceId: 'a',
-      role: SourceMemberRoles.Member,
-      referralToken: randomUUID(),
-    },
-    {
-      userId: '2',
-      sourceId: 'a',
-      role: SourceMemberRoles.Member,
-      referralToken: randomUUID(),
-    },
     {
       userId: '3',
       sourceId: 'm',
@@ -189,7 +174,34 @@ const saveSquadFixtures = async () => {
       referralToken: randomUUID(),
     },
   ]);
+  await deleteKeysByPattern(`${rateLimiterName}:*`);
+  await deleteKeysByPattern(`${highRateLimiterName}:*`);
+});
 
+const saveSquadFixtures = async () => {
+  await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
+  await con
+    .getRepository(Post)
+    .update(
+      { id: 'p1' },
+      { type: PostType.Welcome, title: 'Welcome post', authorId: '1' },
+    );
+  await con.getRepository(SourceMember).save([
+    {
+      userId: '1',
+      sourceId: 'a',
+      role: SourceMemberRoles.Member,
+      referralToken: randomUUID(),
+    },
+    {
+      userId: '2',
+      sourceId: 'a',
+      role: SourceMemberRoles.Member,
+      referralToken: randomUUID(),
+    },
+  ]);
   await con.getRepository(SourceMember).save(
     badUsersFixture.map((user) => ({
       userId: user.id,
@@ -1880,6 +1892,31 @@ describe('mutation sharePost', () => {
     });
   });
 
+  it('should not authorize when moderation is required', async () => {
+    loggedUser = '4';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, sourceId: 'm' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should bypass moderation because user is a moderator', async () => {
+    loggedUser = '3';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, sourceId: 'm' },
+    });
+    expect(res.errors).toBeFalsy();
+    const newId = res.data.sharePost.id;
+    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    expect(post?.authorId).toEqual('3');
+    expect(post?.sharedPostId).toEqual('p1');
+    expect(post?.title).toEqual('My comment');
+  });
+
   it('should not authorize when not logged in', () =>
     testMutationErrorCode(
       client,
@@ -2364,6 +2401,47 @@ describe('mutation submitExternalLink', () => {
       referralToken: 'rt',
       role: SourceMemberRoles.Member,
     });
+  });
+
+  it('should not authorize when moderation is required', async () => {
+    loggedUser = '4';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, sourceId: 'm' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should not authorize when moderation is required', async () => {
+    loggedUser = '4';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, sourceId: 'm' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should bypass moderation because user is a moderator', async () => {
+    loggedUser = '3';
+    await con.getRepository(Source).insert({
+      id: UNKNOWN_SOURCE,
+      handle: UNKNOWN_SOURCE,
+      name: UNKNOWN_SOURCE,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, sourceId: 'm' },
+    });
+    expect(res.errors).toBeFalsy();
+    const articlePost = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ url: variables.url });
+    expect(articlePost?.url).toEqual('https://daily.dev');
   });
 
   it('should not authorize when not logged in', () =>
@@ -3011,6 +3089,41 @@ describe('mutation createFreeformPost', () => {
     await saveSquadFixtures();
   });
 
+  it('should not authorize when moderation is required', async () => {
+    loggedUser = '4';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...params, sourceId: 'm' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should not authorize when moderation is required', async () => {
+    loggedUser = '4';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...params, sourceId: 'm' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should bypass moderation because user is a moderator', async () => {
+    loggedUser = '3';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, sourceId: 'm' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createFreeformPost.type).toEqual(PostType.Freeform);
+    expect(res.data.createFreeformPost.author.id).toEqual('3');
+    expect(res.data.createFreeformPost.source.id).toEqual('m');
+  });
+
   it('should not authorize when not logged in', () =>
     testMutationErrorCode(
       client,
@@ -3507,6 +3620,96 @@ describe('query sourcePostModeration', () => {
         variables: { sourceId: 'm' },
       },
       'FORBIDDEN',
+    );
+  });
+});
+
+describe('mutation createSourcePostModeration', () => {
+  beforeEach(async () => {
+    await saveSquadFixtures();
+  });
+
+  const MUTATION = `mutation CreateSourcePostModeration($sourceId: ID! $title: String!, $type: String!, $content: String, $image: Upload, $imageUrl: String, $sharedPostId: ID, $commentary: String, $externalLink: String) {
+    createSourcePostModeration(sourceId: $sourceId, title: $title, type: $type, content: $content, image: $image, imageUrl: $imageUrl, sharedPostId: $sharedPostId, commentary: $commentary, externalLink: $externalLink) {
+      id
+      title
+      content
+      contentHtml
+      externalLink
+      type
+      image
+      sharedPostId
+      titleHtml
+    }
+  }`;
+
+  const params = {
+    sourceId: 'm',
+    title: 'My first post',
+    content: 'Hello World',
+  };
+
+  it('should result in error because user is not member of squad', async () => {
+    loggedUser = '2';
+
+    return await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...params, type: PostType.Freeform },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should successfully create a squad post moderation entry of type freeform', async () => {
+    loggedUser = '4';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, type: PostType.Freeform },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createSourcePostModeration).toBeTruthy();
+    expect(res.data.createSourcePostModeration.type).toEqual(PostType.Freeform);
+    expect(res.data.createSourcePostModeration.contentHtml).toBeDefined();
+  });
+
+  it('should successfully create a squad post moderation entry of type share', async () => {
+    loggedUser = '4';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, sharedPostId: 'p1', type: PostType.Share },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createSourcePostModeration).toBeTruthy();
+    expect(res.data.createSourcePostModeration.type).toEqual(PostType.Share);
+    expect(res.data.createSourcePostModeration.contentHtml).toBeDefined();
+    expect(res.data.createSourcePostModeration.sharedPostId).toEqual('p1');
+  });
+
+  it('should successfully create a squad post moderation for external link', async () => {
+    loggedUser = '4';
+    const externalParams = {
+      sourceId: 'm',
+      title: 'External Link Title',
+      commentary: 'This is an awesome link',
+      imageUrl:
+        'https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1',
+      type: PostType.Share,
+      externalLink: 'https://www.google.com',
+    };
+    const res = await client.mutate(MUTATION, {
+      variables: externalParams,
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createSourcePostModeration).toBeTruthy();
+    expect(res.data.createSourcePostModeration.type).toEqual(PostType.Share);
+    expect(res.data.createSourcePostModeration.image).toEqual(
+      externalParams.imageUrl,
+    );
+    expect(res.data.createSourcePostModeration.titleHtml).toEqual(
+      '<p>This is an awesome link</p>',
+    );
+    expect(res.data.createSourcePostModeration.externalLink).toEqual(
+      externalParams.externalLink,
     );
   });
 });
@@ -5172,5 +5375,164 @@ describe('query postCodeSnippets', () => {
         ],
       },
     });
+  });
+});
+
+describe('Source post moderation approve/reject', () => {
+  const [pendingId, rejectedId] = Array.from({ length: 2 }, () =>
+    generateUUID(),
+  );
+  beforeEach(async () => {
+    await saveSquadFixtures();
+    await con.getRepository(SourcePostModeration).save([
+      {
+        id: pendingId,
+        sourceId: 'm',
+        createdById: '4',
+        title: 'Title',
+        content: 'Content',
+        status: SourcePostModerationStatus.Pending,
+        type: PostType.Article,
+      },
+      {
+        id: rejectedId,
+        sourceId: 'm',
+        createdById: '4',
+        title: 'Title',
+        content: 'Content',
+        status: SourcePostModerationStatus.Rejected,
+        rejectionReason: 'Spam',
+        moderatorMessage: 'This is spam',
+        type: PostType.Article,
+        moderatedById: '3',
+      },
+    ]);
+  });
+
+  const MUTATION = `
+  mutation ModerateSourcePost(
+    $postIds: [ID]!,
+    $status: String,
+    $sourceId: ID!,
+    $rejectionReason: String,
+    $moderatorMessage: String
+  ) {
+    moderateSourcePosts(postIds: $postIds, status: $status, sourceId: $sourceId, rejectionReason: $rejectionReason, moderatorMessage: $moderatorMessage) {
+      id
+      status
+    }
+  }`;
+
+  it('should block guest', async () => {
+    loggedUser = '0';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          postIds: [pendingId],
+          sourceId: 'm',
+          status: SourcePostModerationStatus.Approved,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+  it('should not authorize when not source member', async () => {
+    loggedUser = '1'; // Not a member
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          postIds: [pendingId],
+          sourceId: 'm',
+          status: SourcePostModerationStatus.Approved,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+  it('should not authorize when not source moderator', async () => {
+    loggedUser = '4'; // Member level
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          postIds: [pendingId],
+          sourceId: 'm',
+          status: SourcePostModerationStatus.Approved,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+  it('should approve pending posts', async () => {
+    loggedUser = '3'; // Moderator level
+
+    const res: GQLResponse<{
+      moderateSourcePosts: { id: string }[];
+    }> = await client.mutate(MUTATION, {
+      variables: {
+        postIds: [pendingId],
+        sourceId: 'm',
+        status: SourcePostModerationStatus.Approved,
+      },
+    });
+
+    expect(res.data.moderateSourcePosts.length).toEqual(1);
+
+    const post = await con.getRepository(SourcePostModeration).findOneByOrFail({
+      id: pendingId,
+    });
+
+    expect(post.status).toEqual(SourcePostModerationStatus.Approved);
+    expect(post.moderatedById).toEqual('3');
+  });
+  it('should reject pending posts', async () => {
+    loggedUser = '3'; // Moderator level
+
+    const res: GQLResponse<{
+      moderateSourcePosts: { id: string }[];
+    }> = await client.mutate(MUTATION, {
+      variables: {
+        postIds: [pendingId],
+        sourceId: 'm',
+        status: SourcePostModerationStatus.Rejected,
+        rejectionReason: 'Spam',
+        moderatorMessage: 'This is spam',
+      },
+    });
+
+    expect(res.data.moderateSourcePosts.length).toEqual(1);
+
+    const post = await con.getRepository(SourcePostModeration).findOneByOrFail({
+      id: pendingId,
+    });
+
+    expect(post.status).toEqual(SourcePostModerationStatus.Rejected);
+    expect(post.moderatedById).toEqual('3');
+    expect(post.rejectionReason).toEqual('Spam');
+    expect(post.moderatorMessage).toEqual('This is spam');
+  });
+  it('should not update already moderated posts', async () => {
+    loggedUser = '3'; // Moderator level
+
+    const res: GQLResponse<{
+      moderateSourcePosts: { id: string; status: SourcePostModerationStatus }[];
+    }> = await client.mutate(MUTATION, {
+      variables: {
+        postIds: [pendingId, rejectedId],
+        sourceId: 'm',
+        status: SourcePostModerationStatus.Approved,
+      },
+    });
+
+    // only one post should be updated, one is already rejected
+    expect(res.data.moderateSourcePosts.length).toEqual(1);
+    expect(res.data.moderateSourcePosts[0].status).toEqual(
+      SourcePostModerationStatus.Approved,
+    );
   });
 });

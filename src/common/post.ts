@@ -1,16 +1,20 @@
 import { DataSource, EntityManager, In, Not } from 'typeorm';
 import {
   Comment,
+  ConnectionManager,
+  createExternalLink,
+  createSharePost,
   ExternalLinkPreview,
   FreeformPost,
   Post,
   PostOrigin,
+  PostType,
   SquadSource,
   User,
   WelcomePost,
 } from '../entity';
 import { ValidationError } from 'apollo-server-errors';
-import { isValidHttpUrl } from './links';
+import { isValidHttpUrl, standardizeURL } from './links';
 import { markdown } from './markdown';
 import { generateShortId } from '../ids';
 import { GQLPost } from '../schema/posts';
@@ -23,8 +27,12 @@ import { createHash } from 'node:crypto';
 import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
 import { logger } from '../logger';
 import { downloadJsonFile } from './googleCloud';
-import type { PostCodeSnippetJsonFile } from '../types';
+import type { ChangeObject, PostCodeSnippetJsonFile } from '../types';
 import { uniqueifyObjectArray } from './utils';
+import {
+  SourcePostModeration,
+  SourcePostModerationStatus,
+} from '../entity/SourcePostModeration';
 import { mapCloudinaryUrl } from './cloudinary';
 
 export const defaultImage = {
@@ -177,11 +185,17 @@ export type CreatePost = Pick<
   'title' | 'content' | 'image' | 'contentHtml' | 'authorId' | 'sourceId' | 'id'
 >;
 
-export const createFreeformPost = async (
-  con: DataSource | EntityManager,
-  ctx: AuthContext,
-  args: CreatePost,
-) => {
+interface CreateFreeformPostArgs {
+  con: DataSource | EntityManager;
+  ctx?: AuthContext;
+  args: CreatePost;
+}
+
+export const createFreeformPost = async ({
+  con,
+  args,
+  ctx,
+}: CreateFreeformPostArgs) => {
   const { private: privacy } = await con
     .getRepository(SquadSource)
     .findOneByOrFail({ id: args.sourceId });
@@ -199,30 +213,66 @@ export const createFreeformPost = async (
     },
   });
 
-  const vordrStatus = await checkWithVordr(
-    {
-      id: createdPost.id,
-      type: VordrFilterType.Post,
-      content: createdPost.content,
-    },
-    { con, userId: ctx.userId, req: ctx.req },
-  );
+  if (ctx) {
+    const vordrStatus = await checkWithVordr(
+      {
+        id: createdPost.id,
+        type: VordrFilterType.Post,
+        content: createdPost.content,
+      },
+      { con, userId: ctx.userId, req: ctx.req },
+    );
 
-  if (vordrStatus === true) {
-    createdPost.banned = true;
-    createdPost.showOnFeed = false;
+    if (vordrStatus) {
+      createdPost.banned = true;
+      createdPost.showOnFeed = false;
 
-    createdPost.flags = {
-      ...createdPost.flags,
-      banned: true,
-      showOnFeed: false,
-    };
+      createdPost.flags = {
+        ...createdPost.flags,
+        banned: true,
+        showOnFeed: false,
+      };
+    }
+
+    createdPost.flags.vordr = vordrStatus;
   }
-
-  createdPost.flags.vordr = vordrStatus;
 
   return con.getRepository(FreeformPost).save(createdPost);
 };
+
+export type CreateSourcePostModeration = Omit<
+  CreatePost,
+  'authorId' | 'content' | 'contentHtml' | 'id'
+> &
+  Pick<
+    SourcePostModeration,
+    'titleHtml' | 'content' | 'type' | 'sharedPostId' | 'createdById'
+  > & {
+    contentHtml?: string;
+    externalLink?: string;
+  };
+
+export const createSourcePostModeration = async (
+  con: DataSource | EntityManager,
+  args: CreateSourcePostModeration,
+) => {
+  const newPost = con.getRepository(SourcePostModeration).create({
+    ...args,
+    status: SourcePostModerationStatus.Pending,
+  });
+  return await con.getRepository(SourcePostModeration).save(newPost);
+};
+
+export interface CreateSourcePostModerationArgs
+  extends Pick<EditPostArgs, 'title' | 'image'> {
+  imageUrl?: string;
+  sourceId: string;
+  commentary?: string;
+  content?: string;
+  sharedPostId?: string;
+  externalLink?: string;
+  type: PostType;
+}
 
 export interface EditPostArgs
   extends Pick<GQLPost, 'id' | 'title' | 'content'> {
@@ -332,4 +382,126 @@ export const insertCodeSnippetsFromUrl = async ({
 
     throw err;
   }
+};
+
+type ModeratedPostCdc = ChangeObject<SourcePostModeration>;
+
+export const updateModeratedPost = async (
+  con: ConnectionManager,
+  moderated: ModeratedPostCdc,
+): Promise<ModeratedPostCdc | null> => {
+  if (!moderated?.postId) {
+    logger.error('unable to update moderated post', { moderated });
+    return null;
+  }
+
+  const postParam = { id: moderated.postId };
+  const repo = con.getRepository(Post);
+
+  await repo.findOneOrFail({ select: ['id'], where: postParam });
+
+  const updatedPost: Partial<FreeformPost> = {
+    title: moderated.title,
+    titleHtml: moderated.titleHtml,
+  };
+
+  if (moderated.content) {
+    updatedPost.content = moderated.content;
+    updatedPost.contentHtml = moderated.contentHtml!;
+  }
+
+  if (moderated.image) {
+    updatedPost.image = moderated.image;
+  }
+
+  await repo.update(postParam, updatedPost);
+
+  return moderated;
+};
+
+export const getExistingPost = async (
+  manager: ConnectionManager,
+  cleanUrl: string,
+): Promise<Post | null> =>
+  await manager
+    .createQueryBuilder(Post, 'post')
+    .select(['post.id', 'post.deleted', 'post.visible'])
+    .where('post.url = :url OR post.canonicalUrl = :url', {
+      url: cleanUrl,
+    })
+    .getOne();
+
+export const processApprovedModeratedPost = async (
+  con: ConnectionManager,
+  moderated: ModeratedPostCdc,
+): Promise<ModeratedPostCdc | null> => {
+  if (!moderated) {
+    throw new Error('Moderated post is missing');
+  }
+
+  if (moderated.postId) {
+    return updateModeratedPost(con, moderated);
+  }
+
+  const {
+    title,
+    content,
+    contentHtml,
+    image,
+    createdById,
+    sourceId,
+    titleHtml,
+    externalLink,
+    sharedPostId,
+  } = moderated;
+
+  if (moderated.type === PostType.Freeform) {
+    const id = await generateShortId();
+    const params = {
+      id,
+      title,
+      titleHtml,
+      content,
+      contentHtml,
+      image,
+      sourceId,
+      authorId: createdById,
+    };
+    const post = await createFreeformPost({ con, args: params as CreatePost });
+    return { ...moderated, postId: post.id };
+  }
+
+  if (sharedPostId) {
+    const post = await createSharePost({
+      con,
+      args: {
+        postId: sharedPostId,
+        commentary: title,
+        authorId: createdById,
+        sourceId,
+      },
+    });
+
+    return { ...moderated, postId: post.id };
+  }
+
+  if (externalLink) {
+    const cleanUrl = standardizeURL(externalLink);
+    const post = await createExternalLink({
+      con,
+      args: {
+        title,
+        image,
+        url: cleanUrl,
+        sourceId,
+        authorId: createdById,
+        commentary: content,
+      },
+    });
+    return { ...moderated, postId: post.id };
+  }
+
+  logger.error({ moderated }, 'unable to process moderated post');
+
+  return null;
 };
