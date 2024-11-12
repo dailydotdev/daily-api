@@ -401,6 +401,12 @@ export const typeDefs = /* GraphQL */ `
     Whether the user is a team member
     """
     isTeamMember: Boolean
+
+    """
+    Whether the user is a plus user
+    """
+    isPlus: Boolean
+
     """
     Verified companies for this user
     """

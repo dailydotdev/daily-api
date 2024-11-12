@@ -135,6 +135,11 @@ const obj = new GraphORM({
         },
         transform: (value: number): boolean => value > 0,
       },
+      isPlus: {
+        alias: { field: 'subscriptionFlags', type: 'jsonb' },
+        transform: (subscriptionFlags: UserSubscriptionFlags) =>
+          !!subscriptionFlags?.monthly || !!subscriptionFlags?.yearly || false,
+      },
       companies: {
         relation: {
           isMany: true,
