@@ -503,6 +503,23 @@ export const processApprovedModeratedPost = async (
 
   if (externalLink) {
     const cleanUrl = standardizeURL(externalLink);
+    const existingPost = await getExistingPost(con, cleanUrl);
+
+    if (existingPost) {
+      const post = await createSharePost({
+        con,
+        args: {
+          sourceId,
+          commentary: content,
+          authorId: createdById,
+          postId: existingPost.id,
+          visible: existingPost.visible,
+        },
+      });
+
+      return { ...moderated, postId: post.id };
+    }
+
     const post = await createExternalLink({
       con,
       args: {

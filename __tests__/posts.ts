@@ -3663,6 +3663,32 @@ describe('mutation createSourcePostModeration', () => {
     );
   });
 
+  it('should throw an error if type is welcome', async () => {
+    loggedUser = '4';
+
+    return await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...params, type: PostType.Welcome },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw an error if type is article', async () => {
+    loggedUser = '4';
+
+    return await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...params, type: PostType.Article },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
   it('should create freeform moderation entry for an existing post', async () => {
     loggedUser = '4';
     const newPost = con.getRepository(Post).create({
@@ -3714,12 +3740,6 @@ describe('mutation createSourcePostModeration', () => {
       },
     });
     expect(res.errors).toBeFalsy();
-    expect(res.data.createSourcePostModeration.title).toEqual(
-      'My new share title',
-    );
-    expect(res.data.createSourcePostModeration.content).toEqual(
-      'My new share content',
-    );
     expect(res.data.createSourcePostModeration.postId).toEqual(newPost.id);
   });
 
@@ -3752,24 +3772,44 @@ describe('mutation createSourcePostModeration', () => {
 
   it('should successfully create a squad post moderation entry of type freeform', async () => {
     loggedUser = '4';
+    const commentary = 'commentary';
     const res = await client.mutate(MUTATION, {
-      variables: { ...params, type: PostType.Freeform },
+      variables: { ...params, commentary, type: PostType.Freeform },
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.createSourcePostModeration).toBeTruthy();
     expect(res.data.createSourcePostModeration.type).toEqual(PostType.Freeform);
-    expect(res.data.createSourcePostModeration.contentHtml).toBeDefined();
+    expect(res.data.createSourcePostModeration.title).toEqual('My first post');
+    expect(res.data.createSourcePostModeration.titleHtml).toBeNull();
+    expect(res.data.createSourcePostModeration.content).toEqual('Hello World');
+    expect(res.data.createSourcePostModeration.contentHtml).toEqual(
+      '<p>Hello World</p>',
+    );
+    expect(res.data.createSourcePostModeration.title).not.toEqual(commentary);
+    expect(res.data.createSourcePostModeration.content).not.toEqual(commentary);
   });
 
   it('should successfully create a squad post moderation entry of type share', async () => {
     loggedUser = '4';
     const res = await client.mutate(MUTATION, {
-      variables: { ...params, sharedPostId: 'p1', type: PostType.Share },
+      variables: {
+        ...params,
+        commentary: 'I am sharing a post',
+        sharedPostId: 'p1',
+        type: PostType.Share,
+      },
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.createSourcePostModeration).toBeTruthy();
     expect(res.data.createSourcePostModeration.type).toEqual(PostType.Share);
-    expect(res.data.createSourcePostModeration.contentHtml).toBeDefined();
+    expect(res.data.createSourcePostModeration.title).toEqual(
+      'I am sharing a post',
+    );
+    expect(res.data.createSourcePostModeration.titleHtml).toEqual(
+      '<p>I am sharing a post</p>',
+    );
+    expect(res.data.createSourcePostModeration.content).toBeNull();
+    expect(res.data.createSourcePostModeration.contentHtml).toBeNull();
     expect(res.data.createSourcePostModeration.sharedPostId).toEqual('p1');
   });
 
@@ -3793,7 +3833,14 @@ describe('mutation createSourcePostModeration', () => {
     expect(res.data.createSourcePostModeration.image).toEqual(
       externalParams.imageUrl,
     );
-    expect(res.data.createSourcePostModeration.titleHtml).toEqual(
+    expect(res.data.createSourcePostModeration.title).toEqual(
+      'External Link Title',
+    );
+    expect(res.data.createSourcePostModeration.titleHtml).toBeNull();
+    expect(res.data.createSourcePostModeration.content).toEqual(
+      'This is an awesome link',
+    );
+    expect(res.data.createSourcePostModeration.contentHtml).toEqual(
       '<p>This is an awesome link</p>',
     );
     expect(res.data.createSourcePostModeration.externalLink).toEqual(
