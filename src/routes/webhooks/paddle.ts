@@ -33,7 +33,7 @@ const updateUserSubscription = async ({
   const con = await createOrGetConnection();
   const userId = data.data?.customData?.user_id;
   if (!userId) {
-    logger.error('User ID missing in payload');
+    logger.error({ type: 'paddle' }, 'User ID missing in payload');
     return false;
   }
   const subscriptionType = data.data?.items.reduce((acc, item) => {
@@ -43,7 +43,13 @@ const updateUserSubscription = async ({
     return acc;
   }, null);
   if (!subscriptionType) {
-    logger.error('Subscription type missing in payload');
+    logger.error(
+      {
+        type: 'paddle',
+        data,
+      },
+      'Subscription type missing in payload',
+    );
     return false;
   }
   await con.getRepository(User).update(
@@ -91,13 +97,13 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
                   state: false,
                 });
               default:
-                logger.info(eventData.eventType);
+                logger.info({ type: 'paddle' }, eventData.eventType);
             }
           } else {
-            logger.error('Signature missing in header');
+            logger.error({ type: 'paddle' }, 'Signature missing in header');
           }
         } catch (e) {
-          logger.error('Paddle generic error', e);
+          logger.error({ type: 'paddle', e }, 'Paddle generic error');
         }
         res.send('Processed webhook event');
       },
