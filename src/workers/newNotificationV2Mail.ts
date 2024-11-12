@@ -92,7 +92,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   user_given_top_reader: CioTransactionalMessageTemplateId.UserGivenTopReader,
 };
 
-type TemplateData = Record<string, string | number>;
+type TemplateData = Record<string, unknown>;
 
 type TemplateDataFunc = (
   con: DataSource,
@@ -139,13 +139,13 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
         notification.targetUrl,
         notification.type,
       ),
-      post_image: sharedPost?.image || (post as FreeformPost).image!,
+      post_image: sharedPost?.image || (post as FreeformPost).image,
       post_title:
-        post.type === PostType.Share ? sharedPost?.title || '' : post.title!,
+        post.type === PostType.Share ? sharedPost?.title || '' : post.title,
       commentary:
         post.type === PostType.Share
-          ? post.title!
-          : (post as FreeformPost).content!,
+          ? post.title
+          : (post as FreeformPost).content,
     };
   },
   source_post_submitted: async (con, user, notification) => {
@@ -158,7 +158,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       return null;
     }
 
-    const withSharedPost = !!moderation.sharedPostId;
+    const { sharedPostId } = moderation;
     const [squad, createdBy, sharedPost] = await Promise.all([
       con.getRepository(SquadSource).findOne({
         where: { id: moderation.sourceId },
@@ -168,9 +168,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
         where: { id: user.id },
         select: ['name', 'image', 'reputation'],
       }),
-      moderation.type === PostType.Share && withSharedPost
+      moderation.type === PostType.Share && sharedPostId
         ? con.getRepository(ArticlePost).findOne({
-            where: { id: moderation.sharedPostId! },
+            where: { id: sharedPostId },
             select: ['title', 'image'],
           })
         : Promise.resolve(null),
@@ -187,12 +187,12 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       squad_image: squad.image,
       commenter_reputation: createdBy.reputation.toString(),
       post_link: `${getSourceLink(squad)}/moderate`,
-      post_image: (sharedPost as ArticlePost)?.image || moderation.image!,
-      post_title: sharedPost?.title || moderation.title!,
+      post_image: (sharedPost as ArticlePost)?.image || moderation.image,
+      post_title: sharedPost?.title || moderation.title,
       commentary:
         moderation.type === PostType.Share
-          ? moderation.title!
-          : moderation.content!,
+          ? moderation.title
+          : moderation.content,
     };
   },
   source_post_rejected: async () => null,
