@@ -519,6 +519,40 @@ describe('mutation follow', () => {
     expect(contentPreference?.status).toBe(ContentPreferenceStatus.Subscribed);
   });
 
+  it('should subscribe when already following', async () => {
+    loggedUser = '1-fm';
+
+    const resFollow = await client.query(MUTATION, {
+      variables: {
+        id: '2-fm',
+        entity: ContentPreferenceType.User,
+        status: ContentPreferenceStatus.Follow,
+      },
+    });
+
+    expect(resFollow.errors).toBeFalsy();
+
+    const res = await client.query(MUTATION, {
+      variables: {
+        id: '2-fm',
+        entity: ContentPreferenceType.User,
+        status: ContentPreferenceStatus.Subscribed,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceUser)
+      .findOneBy({
+        userId: '1-fm',
+        referenceId: '2-fm',
+      });
+
+    expect(contentPreference).not.toBeNull();
+    expect(contentPreference?.status).toBe(ContentPreferenceStatus.Subscribed);
+  });
+
   it('should not follow yourself', async () => {
     loggedUser = '1-fm';
 
@@ -621,6 +655,42 @@ describe('mutation follow', () => {
       expect(contentPreference).not.toBeNull();
       expect(contentPreference!.status).toBe(ContentPreferenceStatus.Follow);
     });
+
+    it('should subscribe when already following', async () => {
+      loggedUser = '1-fm';
+
+      const resFollow = await client.query(MUTATION, {
+        variables: {
+          id: 'keyword-f1',
+          entity: ContentPreferenceType.Keyword,
+          status: ContentPreferenceStatus.Follow,
+        },
+      });
+
+      expect(resFollow.errors).toBeFalsy();
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: 'keyword-f1',
+          entity: ContentPreferenceType.Keyword,
+          status: ContentPreferenceStatus.Subscribed,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreference = await con
+        .getRepository(ContentPreferenceKeyword)
+        .findOneBy({
+          userId: '1-fm',
+          referenceId: 'keyword-f1',
+        });
+
+      expect(contentPreference).not.toBeNull();
+      expect(contentPreference?.status).toBe(
+        ContentPreferenceStatus.Subscribed,
+      );
+    });
   });
 
   describe('source', () => {
@@ -701,6 +771,42 @@ describe('mutation follow', () => {
       });
       expect(feedSource).not.toBeNull();
       expect(feedSource!.blocked).toBe(false);
+    });
+
+    it('should subscribe when already following', async () => {
+      loggedUser = '1-fm';
+
+      const resFollow = await client.query(MUTATION, {
+        variables: {
+          id: 'a-fm',
+          entity: ContentPreferenceType.Source,
+          status: ContentPreferenceStatus.Follow,
+        },
+      });
+
+      expect(resFollow.errors).toBeFalsy();
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: 'a-fm',
+          entity: ContentPreferenceType.Source,
+          status: ContentPreferenceStatus.Subscribed,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreference = await con
+        .getRepository(ContentPreferenceSource)
+        .findOneBy({
+          userId: '1-fm',
+          referenceId: 'a-fm',
+        });
+
+      expect(contentPreference).not.toBeNull();
+      expect(contentPreference?.status).toBe(
+        ContentPreferenceStatus.Subscribed,
+      );
     });
 
     it('should not overwrite referralToken if preference already exists', async () => {
