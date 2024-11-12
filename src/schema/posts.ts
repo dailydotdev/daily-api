@@ -288,6 +288,18 @@ export const typeDefs = /* GraphQL */ `
     """
     sharedPostId: String
     """
+    Shared post
+    """
+    sharedPost: Post
+    """
+    Post
+    """
+    post: Post
+    """
+    Post id
+    """
+    postId: String
+    """
     external link url
     """
     externalLink: String
