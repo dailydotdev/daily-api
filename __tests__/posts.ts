@@ -3726,7 +3726,7 @@ describe('mutation createSourcePostModeration', () => {
       id: 'new',
       shortId: 'new',
       type: PostType.Share,
-      scoutId: '4',
+      authorId: '4',
     });
     await con.getRepository(Post).save(newPost);
 

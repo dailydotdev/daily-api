@@ -262,11 +262,7 @@ export const createSourcePostModeration = async (
       .getRepository(Post)
       .findOneByOrFail({ id: args.postId });
 
-    const isUnauthorizedEdit =
-      (post.type === PostType.Freeform && args.createdById !== post.authorId) ||
-      (post.type !== PostType.Freeform && args.createdById !== post.scoutId);
-
-    if (isUnauthorizedEdit) {
+    if (args.createdById !== post.authorId) {
       throw new ForbiddenError('Cannot edit posts created by other users');
     }
   }
