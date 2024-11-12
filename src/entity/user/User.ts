@@ -181,7 +181,6 @@ export class User {
   referral?: Promise<User>;
 
   @Column({ type: 'jsonb', default: {} })
-  @Index('IDX_user_subscription_flags', { synchronize: false })
   subscriptionFlags?: UserSubscriptionFlags;
 
   @OneToMany('Post', (post: Post) => post.author, { lazy: true })
