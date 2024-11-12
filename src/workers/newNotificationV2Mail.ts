@@ -17,6 +17,7 @@ import {
   Source,
   SourceRequest,
   SquadPublicRequest,
+  SquadSource,
   Submission,
   User,
   UserTopReader,
@@ -28,6 +29,7 @@ import {
   basicHtmlStrip,
   CioTransactionalMessageTemplateId,
   formatMailDate,
+  getSourceLink,
   pickImageUrl,
   sendEmail,
   truncatePostToTweet,
@@ -44,14 +46,15 @@ import {
 import { processStreamInBatches } from '../common/streaming';
 import { counters } from '../telemetry';
 import { contentPreferenceNotificationTypes } from '../common/contentPreference';
+import { SourcePostModeration } from '../entity/SourcePostModeration';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
 }
 
 export const notificationToTemplateId: Record<NotificationType, string> = {
-  source_post_approved: '', // TODO: MI-617
-  source_post_submitted: '', // TODO: MI-617
+  source_post_approved: '62',
+  source_post_submitted: '61',
   source_post_rejected: '', // we won't send an email on rejected ones
   community_picks_failed: '28',
   community_picks_succeeded: '27',
@@ -99,8 +102,99 @@ type TemplateDataFunc = (
   avatars: NotificationAvatarV2[],
 ) => Promise<TemplateData | null>;
 const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
-  source_post_approved: async () => null, // TODO: MI-617
-  source_post_submitted: async () => null, // TODO: MI-617
+  source_post_approved: async (con, user, notification) => {
+    const post = await con.getRepository(Post).findOne({
+      where: { id: notification.referenceId },
+    });
+
+    if (!post) {
+      return null;
+    }
+
+    const [squad, createdBy, sharedPost] = await Promise.all([
+      con.getRepository(SquadSource).findOne({
+        where: { id: post.sourceId },
+        select: ['name', 'type', 'handle', 'image'],
+      }),
+      post.author,
+      post.type === PostType.Share
+        ? con.getRepository(ArticlePost).findOne({
+            where: { id: (post as SharePost).sharedPostId },
+            select: ['title', 'image'],
+          })
+        : Promise.resolve(null),
+    ]);
+
+    if (!squad || !createdBy) {
+      return null;
+    }
+
+    return {
+      full_name: createdBy.name,
+      profile_image: createdBy.image,
+      squad_name: squad.name,
+      squad_image: squad.image,
+      commenter_reputation: createdBy.reputation.toString(),
+      post_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
+      post_image: sharedPost?.image || (post as FreeformPost).image!,
+      post_title:
+        post.type === PostType.Share ? sharedPost?.title || '' : post.title!,
+      commentary:
+        post.type === PostType.Share
+          ? post.title!
+          : (post as FreeformPost).content!,
+    };
+  },
+  source_post_submitted: async (con, user, notification) => {
+    const moderation = await con.getRepository(SourcePostModeration).findOne({
+      where: { id: notification.referenceId },
+      select: ['sourceId', 'image', 'title', 'content', 'type', 'sharedPostId'],
+    });
+
+    if (!moderation) {
+      return null;
+    }
+
+    const withSharedPost = !!moderation.sharedPostId;
+    const [squad, createdBy, sharedPost] = await Promise.all([
+      con.getRepository(SquadSource).findOne({
+        where: { id: moderation.sourceId },
+        select: ['type', 'name', 'handle', 'image'],
+      }),
+      con.getRepository(User).findOne({
+        where: { id: user.id },
+        select: ['name', 'image', 'reputation'],
+      }),
+      moderation.type === PostType.Share && withSharedPost
+        ? con.getRepository(ArticlePost).findOne({
+            where: { id: moderation.sharedPostId! },
+            select: ['title', 'image'],
+          })
+        : Promise.resolve(null),
+    ]);
+
+    if (!squad || !createdBy) {
+      return null;
+    }
+
+    return {
+      full_name: createdBy.name,
+      profile_image: createdBy.image,
+      squad_name: squad.name,
+      squad_image: squad.image,
+      commenter_reputation: createdBy.reputation.toString(),
+      post_link: `${getSourceLink(squad)}/moderate`,
+      post_image: (sharedPost as ArticlePost)?.image || moderation.image!,
+      post_title: sharedPost?.title || moderation.title!,
+      commentary:
+        moderation.type === PostType.Share
+          ? moderation.title!
+          : moderation.content!,
+    };
+  },
   source_post_rejected: async () => null,
   post_bookmark_reminder: async () => null,
   streak_reset_restore: async () => null,
