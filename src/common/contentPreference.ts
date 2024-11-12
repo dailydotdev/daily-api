@@ -117,6 +117,7 @@ const followUser: FollowEntity = async ({ ctx, id, status }) => {
       referenceId: id,
       referenceUserId: id,
       status,
+      type: ContentPreferenceType.User,
     });
 
     await repository.save(contentPreference);
@@ -165,6 +166,7 @@ const followKeyword: FollowEntity = async ({ ctx, id, status }) => {
       keywordId: id,
       feedId: ctx.userId,
       status,
+      type: ContentPreferenceType.Keyword,
     });
 
     await repository.save(contentPreference);
@@ -282,6 +284,7 @@ const blockUser: BlockEntity = async ({ ctx, id }) => {
       referenceId: id,
       referenceUserId: id,
       status: ContentPreferenceStatus.Blocked,
+      type: ContentPreferenceType.User,
     });
 
     await repository.save(contentPreference);
@@ -307,6 +310,7 @@ const blockKeyword: BlockEntity = async ({ ctx, id }) => {
       keywordId: id,
       feedId: ctx.userId,
       status: ContentPreferenceStatus.Blocked,
+      type: ContentPreferenceType.Keyword,
     });
 
     await repository.save(contentPreference);
