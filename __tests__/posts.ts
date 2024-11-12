@@ -3629,8 +3629,8 @@ describe('mutation createSourcePostModeration', () => {
     await saveSquadFixtures();
   });
 
-  const MUTATION = `mutation CreateSourcePostModeration($sourceId: ID! $title: String!, $type: String!, $content: String, $image: Upload, $imageUrl: String, $sharedPostId: ID, $commentary: String, $externalLink: String) {
-    createSourcePostModeration(sourceId: $sourceId, title: $title, type: $type, content: $content, image: $image, imageUrl: $imageUrl, sharedPostId: $sharedPostId, commentary: $commentary, externalLink: $externalLink) {
+  const MUTATION = `mutation CreateSourcePostModeration($sourceId: ID! $title: String!, $type: String!, $content: String, $image: Upload, $imageUrl: String, $sharedPostId: ID, $externalLink: String) {
+    createSourcePostModeration(sourceId: $sourceId, title: $title, type: $type, content: $content, image: $image, imageUrl: $imageUrl, sharedPostId: $sharedPostId, externalLink: $externalLink) {
       id
       title
       content
@@ -3690,9 +3690,8 @@ describe('mutation createSourcePostModeration', () => {
 
   it('should successfully create a squad post moderation entry of type freeform', async () => {
     loggedUser = '4';
-    const commentary = 'commentary';
     const res = await client.mutate(MUTATION, {
-      variables: { ...params, commentary, type: PostType.Freeform },
+      variables: { ...params, type: PostType.Freeform },
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.createSourcePostModeration).toBeTruthy();
@@ -3703,8 +3702,6 @@ describe('mutation createSourcePostModeration', () => {
     expect(res.data.createSourcePostModeration.contentHtml).toEqual(
       '<p>Hello World</p>',
     );
-    expect(res.data.createSourcePostModeration.title).not.toEqual(commentary);
-    expect(res.data.createSourcePostModeration.content).not.toEqual(commentary);
   });
 
   it('should successfully create a squad post moderation entry of type share', async () => {
@@ -3712,7 +3709,7 @@ describe('mutation createSourcePostModeration', () => {
     const res = await client.mutate(MUTATION, {
       variables: {
         ...params,
-        commentary: 'I am sharing a post',
+        title: 'I am sharing a post',
         sharedPostId: 'p1',
         type: PostType.Share,
       },
@@ -3736,7 +3733,7 @@ describe('mutation createSourcePostModeration', () => {
     const externalParams = {
       sourceId: 'm',
       title: 'External Link Title',
-      commentary: 'This is an awesome link',
+      content: 'This is an awesome link',
       imageUrl:
         'https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1',
       type: PostType.Share,

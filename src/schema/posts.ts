@@ -6,7 +6,6 @@ import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
 import { DataSource, In, MoreThan } from 'typeorm';
 import {
-  canAccessSource,
   ensureSourcePermissions,
   GQLSource,
   isPrivilegedMember,
@@ -37,9 +36,9 @@ import {
   toGQLEnum,
   getExistingPost,
   createSourcePostModeration,
-  CreateSourcePostModeration,
   CreateSourcePostModerationArgs,
   mapCloudinaryUrl,
+  validateSourcePostModeration,
 } from '../common';
 import {
   ArticlePost,
@@ -65,10 +64,6 @@ import {
   PostRelation,
   deletePost,
   SubmitExternalLinkArgs,
-  generateTitleHtml,
-  validateCommentary,
-  SourceMember,
-  SourceType,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -1747,91 +1742,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   Mutation: {
     createSourcePostModeration: async (
       _,
-      {
-        sourceId,
-        image,
-        title,
-        content,
-        commentary,
-        type,
-        sharedPostId,
-        imageUrl,
-        externalLink,
-      }: CreateSourcePostModerationArgs,
+      props: CreateSourcePostModerationArgs,
       ctx: AuthContext,
       info,
     ): Promise<GQLSourcePostModeration> => {
-      if (![PostType.Share, PostType.Freeform].includes(type)) {
-        throw new ValidationError('Invalid post type!');
-      }
-
-      const { con, userId } = ctx;
-
-      const sourceMember = await con.getRepository(SourceMember).findOne({
-        where: { sourceId: sourceId, userId: userId },
-        relations: ['source'],
-      });
-
-      const source = await sourceMember?.source;
-
-      if (!source || source.type !== SourceType.Squad) {
-        throw new ForbiddenError('Access denied!');
-      }
-
-      await canAccessSource(
-        ctx,
-        source,
-        sourceMember,
-        SourcePermissions.Post,
-        sourceId,
+      const pendingPost = await validateSourcePostModeration(ctx, props);
+      const moderatedPost = await createSourcePostModeration(
+        ctx.con,
+        pendingPost,
       );
-
-      const mentions = await getMentions(con, content, userId, sourceId);
-
-      const pendingPost: CreateSourcePostModeration = {
-        sourceId,
-        type,
-        sharedPostId,
-        externalLink,
-        createdById: userId,
-      };
-
-      const isExternal = !!externalLink;
-
-      if (commentary && type === PostType.Share) {
-        await validateCommentary(commentary);
-        const commentaryHtml = generateTitleHtml(commentary, mentions);
-
-        if (isExternal) {
-          pendingPost.title = title;
-          pendingPost.content = commentary;
-          pendingPost.contentHtml = commentaryHtml;
-        } else {
-          pendingPost.title = commentary;
-          pendingPost.titleHtml = commentaryHtml;
-        }
-      }
-
-      if (content && type === PostType.Freeform) {
-        pendingPost.title = title;
-        pendingPost.content = content;
-        pendingPost.contentHtml = markdown
-          .render(content, { mentions })
-          ?.trim();
-      }
-
-      if (imageUrl) {
-        pendingPost.image = imageUrl;
-      } else if (image && process.env.CLOUDINARY_URL) {
-        const upload = await image;
-        const { url: coverImageUrl } = await uploadPostFile(
-          await generateShortId(),
-          upload.createReadStream(),
-          UploadPreset.PostBannerImage,
-        );
-        pendingPost.image = coverImageUrl;
-      }
-      const moderatedPost = await createSourcePostModeration(con, pendingPost);
 
       return graphorm.queryOneOrFail<GQLSourcePostModeration>(
         ctx,
@@ -2451,14 +2370,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     editSourcePostModeration: async (
       _,
-      post: SourcePostModeration,
+      post: CreateSourcePostModerationArgs & { id: string },
       ctx: AuthContext,
       info,
     ): Promise<SourcePostModeration> => {
       const { id } = post;
-
-      await ensureSourcePermissions(ctx, post.sourceId);
-
       const moderation = await ctx.con
         .getRepository(SourcePostModeration)
         .findOneByOrFail({ id });
@@ -2471,10 +2387,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ForbiddenError('Access denied!');
       }
 
+      const pendingPost = await validateSourcePostModeration(ctx, post);
+
       await ctx.con.getRepository(SourcePostModeration).update(
         { id },
         {
-          ...post,
+          ...pendingPost,
           status: SourcePostModerationStatus.Pending,
         },
       );
