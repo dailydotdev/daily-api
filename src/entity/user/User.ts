@@ -25,6 +25,7 @@ export type UserFlags = Partial<{
 export type UserSubscriptionFlags = Partial<{
   monthly: boolean;
   yearly: boolean;
+  createdAt: Date;
 }>;
 
 @Entity()

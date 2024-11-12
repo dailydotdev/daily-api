@@ -53,6 +53,7 @@ const updateUserSubscription = async ({
     {
       subscriptionFlags: updateSubscriptionFlags({
         [subscriptionType]: state,
+        createdAt: state ? data.data?.startedAt : null,
       }),
     },
   );
