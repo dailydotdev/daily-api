@@ -1705,6 +1705,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLSourcePostModeration> => {
+      if (![PostType.Share, PostType.Freeform].includes(type)) {
+        throw new ValidationError('Invalid post type!');
+      }
+
       const { con, userId } = ctx;
 
       const sourceMember = await con.getRepository(SourceMember).findOne({
@@ -1729,8 +1733,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const mentions = await getMentions(con, content, userId, sourceId);
 
       const pendingPost: CreateSourcePostModeration = {
-        title,
-        content,
         sourceId,
         type,
         sharedPostId,
@@ -1738,12 +1740,28 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         createdById: userId,
       };
 
-      if (commentary) {
+      const isExternal = !!externalLink;
+
+      if (commentary && type === PostType.Share) {
         await validateCommentary(commentary);
-        pendingPost.titleHtml = generateTitleHtml(commentary, mentions);
+        const commentaryHtml = generateTitleHtml(commentary, mentions);
+
+        if (isExternal) {
+          pendingPost.title = title;
+          pendingPost.content = commentary;
+          pendingPost.contentHtml = commentaryHtml;
+        } else {
+          pendingPost.title = commentary;
+          pendingPost.titleHtml = commentaryHtml;
+        }
       }
-      if (content) {
-        pendingPost.contentHtml = markdown.render(content, { mentions });
+
+      if (content && type === PostType.Freeform) {
+        pendingPost.title = title;
+        pendingPost.content = content;
+        pendingPost.contentHtml = markdown
+          .render(content, { mentions })
+          ?.trim();
       }
 
       if (imageUrl) {
