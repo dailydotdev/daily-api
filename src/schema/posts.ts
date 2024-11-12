@@ -297,10 +297,6 @@ export const typeDefs = /* GraphQL */ `
     """
     post: Post
     """
-    Post id
-    """
-    postId: String
-    """
     external link url
     """
     externalLink: String
