@@ -3662,6 +3662,32 @@ describe('mutation createSourcePostModeration', () => {
     );
   });
 
+  it('should throw an error if type is welcome', async () => {
+    loggedUser = '4';
+
+    return await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...params, type: PostType.Welcome },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw an error if type is article', async () => {
+    loggedUser = '4';
+
+    return await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...params, type: PostType.Article },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
   it('should successfully create a squad post moderation entry of type freeform', async () => {
     loggedUser = '4';
     const commentary = 'commentary';

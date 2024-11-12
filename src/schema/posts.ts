@@ -1705,6 +1705,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLSourcePostModeration> => {
+      if (![PostType.Share, PostType.Freeform].includes(type)) {
+        throw new ValidationError('Invalid post type!');
+      }
+
       const { con, userId } = ctx;
 
       const sourceMember = await con.getRepository(SourceMember).findOne({
