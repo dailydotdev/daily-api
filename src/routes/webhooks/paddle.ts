@@ -1,12 +1,62 @@
 import { FastifyInstance } from 'fastify';
-import { Environment, EventName, Paddle } from '@paddle/paddle-node-sdk';
+import {
+  Environment,
+  EventName,
+  Paddle,
+  SubscriptionCanceledEvent,
+  SubscriptionCreatedEvent,
+} from '@paddle/paddle-node-sdk';
 import createOrGetConnection from '../../db';
-import { updateFlagsStatement, updateSubscriptionFlags } from '../../common';
+import { updateSubscriptionFlags } from '../../common';
 import { User } from '../../entity';
+import { logger } from '../../logger';
 
-const paddleInstance = new Paddle('test_4194076987e44d19d7e0c3388d6', {
+const paddleInstance = new Paddle(process.env.PADDLE_API_KEY, {
   environment: Environment.sandbox,
 });
+
+const planTypes = {
+  pri_01jcdp5ef4yhv00p43hr2knrdg: 'monthly',
+  pri_01jcdn6enr5ap3ekkddc6fv6tq: 'yearly',
+};
+
+const updateUserSubscription = async ({
+  data,
+  state,
+}: {
+  data: SubscriptionCreatedEvent | SubscriptionCanceledEvent | undefined;
+  state: boolean;
+}) => {
+  if (!data) {
+    return;
+  }
+  const con = await createOrGetConnection();
+  const userId = data.data?.customData?.user_id;
+  if (!userId) {
+    logger.error('User ID missing in payload');
+    return false;
+  }
+  const subscriptionType = data.data?.items.reduce((acc, item) => {
+    if (planTypes[item.price?.id]) {
+      acc = planTypes[item.price?.id];
+    }
+    return acc;
+  }, null);
+  if (!subscriptionType) {
+    logger.error('Subscription type missing in payload');
+    return false;
+  }
+  await con.getRepository(User).update(
+    {
+      id: data.data?.customData?.user_id,
+    },
+    {
+      subscriptionFlags: updateSubscriptionFlags({
+        [subscriptionType]: state,
+      }),
+    },
+  );
+};
 
 export const paddle = async (fastify: FastifyInstance): Promise<void> => {
   fastify.register(async (fastify: FastifyInstance): Promise<void> => {
@@ -16,47 +66,38 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
       },
       handler: async (req, res) => {
         const signature = (req.headers['paddle-signature'] as string) || '';
-        // req.body should be of type `buffer`, convert to string before passing it to `unmarshal`.
-        // If express returned a JSON, remove any other middleware that might have processed raw request to object
         const rawRequestBody = req.rawBody;
-        // Replace `WEBHOOK_SECRET_KEY` with the secret key in notifications from vendor dashboard
-        const secretKey =
-          process.env['WEBHOOK_SECRET_KEY'] ||
-          'pdl_ntfset_01jcffndcm8v6b3zp5vtr0z5z9_Mnd68UYYsasjyAVgfituphFldYtJaAy3';
+        const secretKey = process.env.PADDLE_WEBHOOK_SECRET || '';
 
         try {
           if (signature && rawRequestBody) {
-            // The `unmarshal` function will validate the integrity of the webhook and return an entity
             const eventData = paddleInstance.webhooks.unmarshal(
               rawRequestBody,
               secretKey,
               signature,
             );
-            const con = await createOrGetConnection();
+
             switch (eventData?.eventType) {
               case EventName.SubscriptionCreated:
-                await con.getRepository(User).update(
-                  {
-                    id: eventData.data.customData?.user_id,
-                  },
-                  {
-                    subscriptionFlags: updateSubscriptionFlags({
-                      monthly: true,
-                    }),
-                  },
-                );
+                await updateUserSubscription({
+                  data: eventData,
+                  state: true,
+                });
                 break;
+              case EventName.SubscriptionCanceled:
+                await updateUserSubscription({
+                  data: eventData,
+                  state: false,
+                });
               default:
-                console.log(eventData.eventType);
+                logger.info(eventData.eventType);
             }
           } else {
-            console.log('Signature missing in header');
+            logger.error('Signature missing in header');
           }
         } catch (e) {
-          // Handle signature mismatch or other runtime errors
-          console.log(e);
+          logger.error('Paddle generic error', e);
         }
-        // Return a response to acknowledge
         res.send('Processed webhook event');
       },
     });

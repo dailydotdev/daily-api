@@ -69,6 +69,8 @@ config:
     otelEnabled: false
     otelExporterOtlpEndpoint: http://otel-collector.local.svc.cluster.local:4318/v1/traces
     otelTracesSampler: always_on
+    paddleApiKey: topsecret
+    paddleWebhookSecret: topsecret
     personalizedDigestSecret: topsecret
     postScraperOrigin: http://post-scraper-one-ai-server
     pubsubEmulatorHost: pubsub:8085
