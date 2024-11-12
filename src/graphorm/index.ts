@@ -39,7 +39,7 @@ import {
   ContentPreferenceType,
 } from '../entity/contentPreference/types';
 import { transformSettingFlags } from '../common/flags';
-import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
+import { ContentPreference } from '../entity/contentPreference/ContentPreference';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -635,13 +635,13 @@ const obj = new GraphORM({
       includeTags: {
         select: (ctx, alias, qb): QueryBuilder =>
           qb
-            .select(`string_agg(tag, ',' order by tag)`)
-            .from(ContentPreferenceKeyword, 'cpk')
+            .select(`string_agg("keywordId", ',' order by "keywordId")`)
+            .from(ContentPreference, 'cpk')
             .where(`cpk."feedId" = "${alias}".id`)
-            .andWhere('cps.type = :contentPreferenceType', {
+            .andWhere('cpk.type = :contentPreferenceType', {
               contentPreferenceType: ContentPreferenceType.Keyword,
             })
-            .andWhere('cps.status != :contentPreferenceStatus', {
+            .andWhere('cpk.status != :contentPreferenceStatus', {
               contentPreferenceStatus: ContentPreferenceStatus.Blocked,
             }),
         transform: (value: string): string[] => value?.split(',') ?? [],
@@ -649,13 +649,13 @@ const obj = new GraphORM({
       blockedTags: {
         select: (ctx, alias, qb): QueryBuilder =>
           qb
-            .select(`string_agg(tag, ',' order by tag)`)
-            .from(ContentPreferenceKeyword, 'cpk')
+            .select(`string_agg("keywordId", ',' order by "keywordId")`)
+            .from(ContentPreference, 'cpk')
             .where(`cpk."feedId" = "${alias}".id`)
-            .andWhere('cps.type = :contentPreferenceType', {
+            .andWhere('cpk.type = :contentPreferenceType', {
               contentPreferenceType: ContentPreferenceType.Keyword,
             })
-            .andWhere('cps.status = :contentPreferenceStatus', {
+            .andWhere('cpk.status = :contentPreferenceStatus', {
               contentPreferenceStatus: ContentPreferenceStatus.Blocked,
             }),
         transform: (value: string): string[] => value?.split(',') ?? [],
