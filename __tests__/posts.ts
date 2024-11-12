@@ -79,6 +79,8 @@ import {
   SourcePostModeration,
   SourcePostModerationStatus,
 } from '../src/entity/SourcePostModeration';
+import { generateUUID } from '../src/ids';
+import { GQLResponse } from 'mercurius-integration-testing';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -5373,5 +5375,164 @@ describe('query postCodeSnippets', () => {
         ],
       },
     });
+  });
+});
+
+describe('Source post moderation approve/reject', () => {
+  const [pendingId, rejectedId] = Array.from({ length: 2 }, () =>
+    generateUUID(),
+  );
+  beforeEach(async () => {
+    await saveSquadFixtures();
+    await con.getRepository(SourcePostModeration).save([
+      {
+        id: pendingId,
+        sourceId: 'm',
+        createdById: '4',
+        title: 'Title',
+        content: 'Content',
+        status: SourcePostModerationStatus.Pending,
+        type: PostType.Article,
+      },
+      {
+        id: rejectedId,
+        sourceId: 'm',
+        createdById: '4',
+        title: 'Title',
+        content: 'Content',
+        status: SourcePostModerationStatus.Rejected,
+        rejectionReason: 'Spam',
+        moderatorMessage: 'This is spam',
+        type: PostType.Article,
+        moderatedById: '3',
+      },
+    ]);
+  });
+
+  const MUTATION = `
+  mutation ModerateSourcePost(
+    $postIds: [ID]!,
+    $status: String,
+    $sourceId: ID!,
+    $rejectionReason: String,
+    $moderatorMessage: String
+  ) {
+    moderateSourcePosts(postIds: $postIds, status: $status, sourceId: $sourceId, rejectionReason: $rejectionReason, moderatorMessage: $moderatorMessage) {
+      id
+      status
+    }
+  }`;
+
+  it('should block guest', async () => {
+    loggedUser = '0';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          postIds: [pendingId],
+          sourceId: 'm',
+          status: SourcePostModerationStatus.Approved,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+  it('should not authorize when not source member', async () => {
+    loggedUser = '1'; // Not a member
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          postIds: [pendingId],
+          sourceId: 'm',
+          status: SourcePostModerationStatus.Approved,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+  it('should not authorize when not source moderator', async () => {
+    loggedUser = '4'; // Member level
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          postIds: [pendingId],
+          sourceId: 'm',
+          status: SourcePostModerationStatus.Approved,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+  it('should approve pending posts', async () => {
+    loggedUser = '3'; // Moderator level
+
+    const res: GQLResponse<{
+      moderateSourcePosts: { id: string }[];
+    }> = await client.mutate(MUTATION, {
+      variables: {
+        postIds: [pendingId],
+        sourceId: 'm',
+        status: SourcePostModerationStatus.Approved,
+      },
+    });
+
+    expect(res.data.moderateSourcePosts.length).toEqual(1);
+
+    const post = await con.getRepository(SourcePostModeration).findOneByOrFail({
+      id: pendingId,
+    });
+
+    expect(post.status).toEqual(SourcePostModerationStatus.Approved);
+    expect(post.moderatedById).toEqual('3');
+  });
+  it('should reject pending posts', async () => {
+    loggedUser = '3'; // Moderator level
+
+    const res: GQLResponse<{
+      moderateSourcePosts: { id: string }[];
+    }> = await client.mutate(MUTATION, {
+      variables: {
+        postIds: [pendingId],
+        sourceId: 'm',
+        status: SourcePostModerationStatus.Rejected,
+        rejectionReason: 'Spam',
+        moderatorMessage: 'This is spam',
+      },
+    });
+
+    expect(res.data.moderateSourcePosts.length).toEqual(1);
+
+    const post = await con.getRepository(SourcePostModeration).findOneByOrFail({
+      id: pendingId,
+    });
+
+    expect(post.status).toEqual(SourcePostModerationStatus.Rejected);
+    expect(post.moderatedById).toEqual('3');
+    expect(post.rejectionReason).toEqual('Spam');
+    expect(post.moderatorMessage).toEqual('This is spam');
+  });
+  it('should not update already moderated posts', async () => {
+    loggedUser = '3'; // Moderator level
+
+    const res: GQLResponse<{
+      moderateSourcePosts: { id: string; status: SourcePostModerationStatus }[];
+    }> = await client.mutate(MUTATION, {
+      variables: {
+        postIds: [pendingId, rejectedId],
+        sourceId: 'm',
+        status: SourcePostModerationStatus.Approved,
+      },
+    });
+
+    // only one post should be updated, one is already rejected
+    expect(res.data.moderateSourcePosts.length).toEqual(1);
+    expect(res.data.moderateSourcePosts[0].status).toEqual(
+      SourcePostModerationStatus.Approved,
+    );
   });
 });
