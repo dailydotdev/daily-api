@@ -11,7 +11,6 @@ import {
   BookmarkList,
   Feed,
   FeedAdvancedSettings,
-  FeedSource,
   FeedTag,
   FreeformPost,
   Keyword,
@@ -184,9 +183,29 @@ const saveFeedFixtures = async (): Promise<void> => {
     { feedId: '1', tag: 'javascript' },
     { feedId: '1', tag: 'golang', blocked: true },
   ]);
-  await saveFixtures(con, FeedSource, [
-    { feedId: '1', sourceId: 'b' },
-    { feedId: '1', sourceId: 'c' },
+  await saveFixtures(con, ContentPreferenceSource, [
+    {
+      feedId: '1',
+      sourceId: 'b',
+      userId: '1',
+      referenceId: 'b',
+      status: ContentPreferenceStatus.Blocked,
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
+    },
+    {
+      feedId: '1',
+      sourceId: 'c',
+      userId: '1',
+      referenceId: 'c',
+      status: ContentPreferenceStatus.Blocked,
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
+    },
   ]);
   await saveFixtures(con, ContentPreferenceKeyword, [
     {
@@ -211,32 +230,6 @@ const saveFeedFixtures = async (): Promise<void> => {
       referenceId: 'webdev',
       status: ContentPreferenceStatus.Follow,
       type: ContentPreferenceType.Keyword,
-      userId: '1',
-    },
-  ]);
-  await saveFixtures(con, ContentPreferenceSource, [
-    {
-      feedId: '1',
-      flags: {
-        role: SourceMemberRoles.Member,
-        referralToken: randomUUID(),
-      },
-      referenceId: 'a',
-      sourceId: 'a',
-      status: ContentPreferenceStatus.Blocked,
-      type: ContentPreferenceType.Source,
-      userId: '1',
-    },
-    {
-      feedId: '1',
-      flags: {
-        role: SourceMemberRoles.Member,
-        referralToken: randomUUID(),
-      },
-      referenceId: 'b',
-      sourceId: 'b',
-      status: ContentPreferenceStatus.Blocked,
-      type: ContentPreferenceType.Source,
       userId: '1',
     },
   ]);
@@ -377,9 +370,21 @@ describe('query anonymousFeed', () => {
   it('should return feed while excluding sources based on advanced settings', async () => {
     await con.getRepository(Post).delete({ id: 'p6' });
     await saveAdvancedSettingsFiltersFixtures();
-    await con.getRepository(FeedSource).save([
-      { feedId: '1', sourceId: 'excludedSource' },
-      { feedId: '1', sourceId: 'settingsCombinationSource' },
+    await con.getRepository(ContentPreferenceSource).save([
+      {
+        feedId: '1',
+        sourceId: 'excludedSource',
+        userId: '1',
+        referenceId: 'excludedSource',
+        status: ContentPreferenceStatus.Blocked,
+      },
+      {
+        feedId: '1',
+        sourceId: 'settingsCombinationSource',
+        userId: '1',
+        referenceId: 'settingsCombinationSource',
+        status: ContentPreferenceStatus.Blocked,
+      },
     ]);
 
     const filters = await feedToFilters(con, '1', '1');
@@ -464,9 +469,21 @@ describe('query anonymousFeed', () => {
       { feedId: '1', tag: 'python', blocked: true },
       { feedId: '1', tag: 'java', blocked: true },
     ]);
-    await con.getRepository(FeedSource).save([
-      { feedId: '1', sourceId: 'a' },
-      { feedId: '1', sourceId: 'b' },
+    await con.getRepository(ContentPreferenceSource).save([
+      {
+        feedId: '1',
+        sourceId: 'a',
+        userId: '1',
+        referenceId: 'a',
+        status: ContentPreferenceStatus.Blocked,
+      },
+      {
+        feedId: '1',
+        sourceId: 'b',
+        userId: '1',
+        referenceId: 'b',
+        status: ContentPreferenceStatus.Blocked,
+      },
     ]);
 
     nock('http://localhost:6000')
@@ -707,7 +724,15 @@ describe('query feed', () => {
     loggedUser = '1';
     await con.getRepository(Post).delete({ id: 'p6' });
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
-    await saveFixtures(con, FeedSource, [{ feedId: '1', sourceId: 'a' }]);
+    await saveFixtures(con, ContentPreferenceSource, [
+      {
+        feedId: '1',
+        sourceId: 'a',
+        userId: '1',
+        referenceId: 'a',
+        status: ContentPreferenceStatus.Blocked,
+      },
+    ]);
 
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
@@ -718,9 +743,21 @@ describe('query feed', () => {
     const repo = con.getRepository(Post);
     await repo.delete({ id: 'p6' });
     await saveAdvancedSettingsFiltersFixtures();
-    await con.getRepository(FeedSource).save([
-      { feedId: '1', sourceId: 'excludedSource' },
-      { feedId: '1', sourceId: 'settingsCombinationSource' },
+    await con.getRepository(ContentPreferenceSource).save([
+      {
+        feedId: '1',
+        sourceId: 'excludedSource',
+        userId: '1',
+        referenceId: 'excludedSource',
+        status: ContentPreferenceStatus.Blocked,
+      },
+      {
+        feedId: '1',
+        sourceId: 'settingsCombinationSource',
+        userId: '1',
+        referenceId: 'settingsCombinationSource',
+        status: ContentPreferenceStatus.Blocked,
+      },
     ]);
     await repo.update({ id: 'p1' }, { score: 2 });
     await repo.update({ id: 'includedPost' }, { score: 1 });
@@ -2525,8 +2562,8 @@ describe('mutation removeFiltersFromFeed', () => {
           role: SourceMemberRoles.Member,
           referralToken: expect.any(String),
         },
-        referenceId: 'a',
-        sourceId: 'a',
+        referenceId: 'b',
+        sourceId: 'b',
         status: ContentPreferenceStatus.Blocked,
         type: ContentPreferenceType.Source,
         userId: '1',
@@ -2538,8 +2575,8 @@ describe('mutation removeFiltersFromFeed', () => {
           role: SourceMemberRoles.Member,
           referralToken: expect.any(String),
         },
-        referenceId: 'b',
-        sourceId: 'b',
+        referenceId: 'c',
+        sourceId: 'c',
         status: ContentPreferenceStatus.Blocked,
         type: ContentPreferenceType.Source,
         userId: '1',
@@ -2582,7 +2619,21 @@ describe('mutation removeFiltersFromFeed', () => {
         },
       });
 
-    expect(contentPreferenceSourcesAfter).toEqual([]);
+    expect(contentPreferenceSourcesAfter).toEqual([
+      {
+        createdAt: expect.any(Date),
+        feedId: '1',
+        flags: {
+          role: SourceMemberRoles.Member,
+          referralToken: expect.any(String),
+        },
+        referenceId: 'c',
+        sourceId: 'c',
+        status: ContentPreferenceStatus.Blocked,
+        type: ContentPreferenceType.Source,
+        userId: '1',
+      },
+    ]);
 
     expect(res.data).toMatchSnapshot();
   });
@@ -2654,9 +2705,21 @@ describe('function feedToFilters', () => {
   it('should return filters having excluded sources based on advanced settings', async () => {
     loggedUser = '1';
     await saveAdvancedSettingsFiltersFixtures();
-    await con.getRepository(FeedSource).save([
-      { feedId: '1', sourceId: 'excludedSource', blocked: true },
-      { feedId: '1', sourceId: 'settingsCombinationSource', blocked: true },
+    await con.getRepository(ContentPreferenceSource).save([
+      {
+        feedId: '1',
+        sourceId: 'excludedSource',
+        userId: '1',
+        status: ContentPreferenceStatus.Blocked,
+        referenceId: 'excludedSource',
+      },
+      {
+        feedId: '1',
+        sourceId: 'settingsCombinationSource',
+        userId: '1',
+        status: ContentPreferenceStatus.Blocked,
+        referenceId: 'settingsCombinationSource',
+      },
     ]);
     const filters = await feedToFilters(con, '1', '1');
     expect(filters.excludeSources).toEqual([

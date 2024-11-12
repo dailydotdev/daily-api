@@ -33,6 +33,7 @@ import {
   ContentPreferenceStatus,
   ContentPreferenceType,
 } from '../entity/contentPreference/types';
+import { ContentPreference } from '../entity/contentPreference/ContentPreference';
 
 export const WATERCOOLER_ID = 'fd062672-63b7-4a10-87bd-96dcd10e9613';
 
@@ -120,15 +121,11 @@ const getRawFiltersData = async (
     rawFilterSelect(con, 'excludeSources', (qb) =>
       qb
         .select('"sourceId"')
-        .from(ContentPreferenceSource, 't')
+        .from(ContentPreference, 't')
         .where('"feedId" = $1')
-        .andWhere('type = :contentPreferenceType', {
-          contentPreferenceType: ContentPreferenceType.Source,
-        })
+        .andWhere(`type = '${ContentPreferenceType.Source}'`)
         .andWhere('"userId" = $2')
-        .andWhere('status = :contentPreferenceStatus', {
-          contentPreferenceStatus: ContentPreferenceStatus.Blocked,
-        }),
+        .andWhere(`status = '${ContentPreferenceStatus.Blocked}'`),
     ),
     rawFilterSelect(con, 'memberships', (qb) =>
       qb

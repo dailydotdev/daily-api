@@ -18,7 +18,6 @@ import {
   AdvancedSettings,
   Feed,
   FeedAdvancedSettings,
-  FeedSource,
   FeedTag,
   PostType,
   postTypes,
@@ -39,6 +38,8 @@ import {
   FeedUserStateConfigGenerator,
 } from '../../src/integrations/feed/configs';
 import { ILofnClient } from '../../src/integrations/lofn';
+import { ContentPreferenceSource } from '../../src/entity/contentPreference/ContentPreferenceSource';
+import { ContentPreferenceStatus } from '../../src/entity/contentPreference/types';
 
 let con: DataSource;
 let ctx: Context;
@@ -145,9 +146,21 @@ describe('FeedPreferencesConfigGenerator', () => {
       { feedId: '1', tag: 'python', blocked: true },
       { feedId: '1', tag: 'java', blocked: true },
     ]);
-    await con.getRepository(FeedSource).save([
-      { feedId: '1', sourceId: 'a' },
-      { feedId: '1', sourceId: 'b' },
+    await con.getRepository(ContentPreferenceSource).save([
+      {
+        feedId: '1',
+        sourceId: 'a',
+        userId: '1',
+        status: ContentPreferenceStatus.Blocked,
+        referenceId: 'a',
+      },
+      {
+        feedId: '1',
+        sourceId: 'b',
+        userId: '1',
+        status: ContentPreferenceStatus.Blocked,
+        referenceId: 'b',
+      },
     ]);
     await con.getRepository(SourceMember).save([
       {
@@ -434,9 +447,21 @@ describe('FeedLofnConfigGenerator', () => {
       { feedId: '1', tag: 'python', blocked: true },
       { feedId: '1', tag: 'java', blocked: true },
     ]);
-    await con.getRepository(FeedSource).save([
-      { feedId: '1', sourceId: 'a' },
-      { feedId: '1', sourceId: 'b' },
+    await con.getRepository(ContentPreferenceSource).save([
+      {
+        feedId: '1',
+        sourceId: 'a',
+        userId: '1',
+        status: ContentPreferenceStatus.Blocked,
+        referenceId: 'a',
+      },
+      {
+        feedId: '1',
+        sourceId: 'b',
+        userId: '1',
+        status: ContentPreferenceStatus.Blocked,
+        referenceId: 'b',
+      },
     ]);
     await con.getRepository(SourceMember).save([
       {
