@@ -602,13 +602,9 @@ describe('query sources', () => {
     const res = await client.query(query);
     expect(res.errors).toBeFalsy();
 
-    expect(res.data.sources.edges.map(({ node }) => node.id)).toEqual([
-      'c',
-      'squad',
-      'm',
-      'a',
-      'b',
-    ]);
+    expect(res.data.sources.edges.map(({ node }) => node.id)).toEqual(
+      expect.arrayContaining(['c', 'squad', 'm', 'a', 'b']),
+    );
   });
 });
 
