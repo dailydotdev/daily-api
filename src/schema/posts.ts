@@ -1229,6 +1229,62 @@ export const typeDefs = /* GraphQL */ `
       """
       moderatorMessage: String
     ): [SourcePostModeration]! @auth
+
+    """
+    Delete a post moderation item
+    """
+    deleteSourcePostModeration(
+      """
+      Id of the post moderation
+      """
+      postId: ID!
+    ): EmptyResponse @auth
+
+    """
+    Edit post moderation item
+    """
+    editSourcePostModeration(
+      """
+      Id of the post moderation
+      """
+      id: ID!
+      """
+      Id of the Squad to post to
+      """
+      sourceId: ID!
+      """
+      content of the post
+      """
+      content: String
+      """
+      Commentary on the post
+      """
+      commentary: String
+      """
+      title of the post
+      """
+      title: String
+      """
+      Image to upload
+      """
+      image: Upload
+      """
+      Image URL to use
+      """
+      imageUrl: String
+      """
+      ID of the post to share
+      """
+      sharedPostId: ID
+      """
+      type of the post
+      """
+      type: String!
+      """
+      External link of the post
+      """
+      externalLink: String
+    ): SourcePostModeration! @auth
   }
 
   extend type Subscription {
@@ -2352,6 +2408,70 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           { id: uniquePostIds, status },
         ),
       }));
+    },
+    deleteSourcePostModeration: async (
+      _,
+      { postId }: { postId: string },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const moderation = await ctx.con
+        .getRepository(SourcePostModeration)
+        .findOneByOrFail({ id: postId });
+
+      await ensureSourcePermissions(ctx, moderation.sourceId);
+
+      const isModerator = await isPrivilegedMember(ctx, moderation.sourceId);
+      const isAuthor = moderation.createdById === ctx.userId;
+
+      if (!isModerator && !isAuthor) {
+        throw new ForbiddenError('Access denied!');
+      }
+
+      await ctx.con.getRepository(SourcePostModeration).delete({ id: postId });
+
+      return { _: true };
+    },
+    editSourcePostModeration: async (
+      _,
+      post: SourcePostModeration,
+      ctx: AuthContext,
+      info,
+    ): Promise<SourcePostModeration> => {
+      const { id } = post;
+
+      await ensureSourcePermissions(ctx, post.sourceId);
+
+      const moderation = await ctx.con
+        .getRepository(SourcePostModeration)
+        .findOneByOrFail({ id });
+
+      const isAuthor = moderation.createdById === ctx.userId;
+      const isApproved =
+        moderation.status === SourcePostModerationStatus.Approved;
+
+      if (!isAuthor || isApproved) {
+        throw new ForbiddenError('Access denied!');
+      }
+
+      await ctx.con.getRepository(SourcePostModeration).update(
+        { id },
+        {
+          ...post,
+          status: SourcePostModerationStatus.Pending,
+        },
+      );
+
+      return graphorm.queryOneOrFail<SourcePostModeration>(
+        ctx,
+        info,
+        (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder.where(
+            `"${builder.alias}"."id" = :id AND "${builder.alias}"."status" = :status`,
+            { id, status: SourcePostModerationStatus.Pending },
+          ),
+        }),
+      );
     },
   },
   Subscription: {

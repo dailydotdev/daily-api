@@ -5536,3 +5536,209 @@ describe('Source post moderation approve/reject', () => {
     );
   });
 });
+
+describe('Source post moderation edit/delete', () => {
+  const [pendingId, rejectedId] = Array.from({ length: 2 }, () =>
+    generateUUID(),
+  );
+
+  beforeEach(async () => {
+    await saveSquadFixtures();
+    await con.getRepository(SourcePostModeration).save([
+      {
+        id: pendingId,
+        sourceId: 'm',
+        createdById: '4',
+        title: 'Title',
+        content: 'Content',
+        status: SourcePostModerationStatus.Pending,
+        type: PostType.Article,
+      },
+      {
+        id: rejectedId,
+        sourceId: 'm',
+        createdById: '4',
+        title: 'Title',
+        content: 'Content',
+        status: SourcePostModerationStatus.Rejected,
+        rejectionReason: 'Spam',
+        moderatorMessage: 'This is spam',
+        type: PostType.Article,
+        moderatedById: '3',
+      },
+    ]);
+  });
+
+  const DELETE_MUTATION = `
+  mutation DeleteSourcePostModeration($postId: ID!) {
+    deleteSourcePostModeration(postId: $postId){
+      _
+    }
+  }`;
+
+  const EDIT_MUTATION = `
+  mutation EditSourcePostModeration($id: ID!, $sourceId: ID!, $title: String, $content: String, $type: String!) {
+    editSourcePostModeration(id: $id, sourceId: $sourceId, title: $title, content: $content, type: $type) {
+      id
+      title
+      content
+      status
+    }
+  }`;
+
+  describe('delete', () => {
+    it('should block guest', async () => {
+      loggedUser = '0';
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: DELETE_MUTATION,
+          variables: {
+            postId: pendingId,
+          },
+        },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should not authorize when not source member', async () => {
+      loggedUser = '1'; // Not a member
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: DELETE_MUTATION,
+          variables: {
+            postId: pendingId,
+          },
+        },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should not authorize when not author nor moderator', async () => {
+      loggedUser = '5'; // Member level
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: DELETE_MUTATION,
+          variables: {
+            postId: pendingId,
+          },
+        },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should delete pending post', async () => {
+      loggedUser = '4'; // Member level
+
+      const res = await client.mutate(DELETE_MUTATION, {
+        variables: {
+          postId: pendingId,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+      const post = await con.getRepository(SourcePostModeration).findOneBy({
+        id: pendingId,
+      });
+      expect(post).toBeNull();
+    });
+  });
+
+  describe('edit', () => {
+    it('should block guest', async () => {
+      loggedUser = '0';
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: EDIT_MUTATION,
+          variables: {
+            id: pendingId,
+            title: 'New Title',
+            type: PostType.Article,
+            sourceId: 'm',
+          },
+        },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should not authorize when not source member', async () => {
+      loggedUser = '1'; // Not a member
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: EDIT_MUTATION,
+          variables: {
+            id: pendingId,
+            title: 'New Title',
+            type: PostType.Article,
+            sourceId: 'm',
+          },
+        },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should not authorize when not author', async () => {
+      loggedUser = '3'; // Moderator level
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: EDIT_MUTATION,
+          variables: {
+            id: pendingId,
+            title: 'New Title',
+            type: PostType.Article,
+            sourceId: 'm',
+          },
+        },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should edit pending post', async () => {
+      loggedUser = '4'; // Member level
+
+      const res = await client.mutate(EDIT_MUTATION, {
+        variables: {
+          id: pendingId,
+          title: 'New Title',
+          content: 'New Content',
+          type: PostType.Article,
+          sourceId: 'm',
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const post = res.data.editSourcePostModeration;
+      expect(post.title).toEqual('New Title');
+      expect(post.content).toEqual('New Content');
+    });
+
+    it('should edit rejected post and set as pending', async () => {
+      loggedUser = '4'; // Member level
+
+      const res: GQLResponse<{
+        editSourcePostModeration: SourcePostModeration;
+      }> = await client.mutate(EDIT_MUTATION, {
+        variables: {
+          id: rejectedId,
+          title: 'New Title',
+          content: 'New Content',
+          type: PostType.Article,
+          sourceId: 'm',
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+      const post = res.data.editSourcePostModeration;
+      expect(post.title).toEqual('New Title');
+      expect(post.content).toEqual('New Content');
+      expect(post.status).toEqual(SourcePostModerationStatus.Pending);
+    });
+  });
+});
