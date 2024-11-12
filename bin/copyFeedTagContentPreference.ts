@@ -30,9 +30,7 @@ import createOrGetConnection from '../src/db';
       FROM feed_tag ft
       INNER JOIN feed f ON f."id" = ft."feedId"
       LIMIT ${limit} OFFSET ${offset}
-      ON CONFLICT ("referenceId", "userId", "type") DO UPDATE
-      SET
-        status = EXCLUDED.status
+      ON CONFLICT ("referenceId", "userId", "type") DO NOTHING
     `);
   });
 
