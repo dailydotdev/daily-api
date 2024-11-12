@@ -256,17 +256,28 @@ export type CreateSourcePostModeration = Omit<
   > & {
     contentHtml?: string;
     externalLink?: string | null;
+    postId?: string;
   };
 
 export const createSourcePostModeration = async (
   con: DataSource | EntityManager,
   args: CreateSourcePostModeration,
 ) => {
-  const newPost = con.getRepository(SourcePostModeration).create({
+  if (args.postId) {
+    const post = await con
+      .getRepository(Post)
+      .findOneByOrFail({ id: args.postId });
+
+    if (args.createdById !== post.authorId) {
+      throw new ForbiddenError('Cannot edit posts created by other users');
+    }
+  }
+
+  const newModerationEntry = con.getRepository(SourcePostModeration).create({
     ...args,
     status: SourcePostModerationStatus.Pending,
   });
-  return await con.getRepository(SourcePostModeration).save(newPost);
+  return await con.getRepository(SourcePostModeration).save(newModerationEntry);
 };
 
 export interface CreateSourcePostModerationArgs
@@ -277,6 +288,7 @@ export interface CreateSourcePostModerationArgs
   sharedPostId?: string | null;
   externalLink?: string | null;
   type: PostType;
+  postId?: string;
 }
 
 export interface EditPostArgs

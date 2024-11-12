@@ -115,6 +115,7 @@ export interface GQLSourcePostModeration {
   status: SourcePostModerationStatus;
   createdAt: Date;
   updatedAt: Date;
+  postId?: string;
 }
 
 export interface GQLPost {
@@ -291,13 +292,13 @@ export const typeDefs = /* GraphQL */ `
     """
     post: Post
     """
-    Post id
-    """
-    postId: String
-    """
     external link url
     """
     externalLink: String
+    """
+    ID of the existing post
+    """
+    postId: String
     """
     Status of the moderation
     """
@@ -943,6 +944,10 @@ export const typeDefs = /* GraphQL */ `
       External link of the post
       """
       externalLink: String
+      """
+      ID of the exisiting post
+      """
+      postId: ID
     ): SourcePostModeration! @auth
 
     """
