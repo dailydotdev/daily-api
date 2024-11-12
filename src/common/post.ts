@@ -543,6 +543,7 @@ export const processApprovedModeratedPost = async (
 export const validateSourcePostModeration = async (
   ctx: AuthContext,
   {
+    postId,
     title,
     content,
     sourceId,
@@ -580,6 +581,7 @@ export const validateSourcePostModeration = async (
 
   const pendingPost: CreateSourcePostModeration = {
     title: validateCommentary(title),
+    postId,
     sourceId,
     type,
     sharedPostId,
