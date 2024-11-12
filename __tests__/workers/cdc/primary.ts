@@ -4837,6 +4837,9 @@ describe('source_post_moderation', () => {
         'api.v1.source-post-moderation-approved',
         { post: after },
       ]);
+
+      const list = await con.getRepository(Post).find();
+      expect(list.length).toEqual(2); // to ensure nothing new was created other than the share post
     });
 
     it('should update the content if post id is present', async () => {
