@@ -4,7 +4,7 @@ import {
 } from 'graphql-relay';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
-import { DataSource, MoreThan } from 'typeorm';
+import { DataSource, In, MoreThan } from 'typeorm';
 import {
   canAccessSource,
   ensureSourcePermissions,
@@ -103,7 +103,11 @@ import { ReportReason } from '../entity/common';
 import { reportPost, saveHiddenPost } from '../common/reporting';
 import { PostCodeSnippetLanguage, UserVote } from '../types';
 import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
-import { SourcePostModerationStatus } from '../entity/SourcePostModeration';
+import {
+  SourcePostModeration,
+  SourcePostModerationStatus,
+} from '../entity/SourcePostModeration';
+import { logger } from '../logger';
 
 export interface GQLSourcePostModeration {
   id: string;
@@ -182,12 +186,14 @@ export type GQLPostNotification = Pick<
   'id' | 'numUpvotes' | 'numComments'
 >;
 
+const POST_MODERATION_PAGE_SIZE = 15;
+const POST_MODERATION_LIMIT_FOR_MUTATION = 50;
 const sourcePostModerationPageGenerator =
-  offsetPageGenerator<GQLSourcePostModeration>(15, 50);
+  offsetPageGenerator<GQLSourcePostModeration>(POST_MODERATION_PAGE_SIZE, 50);
 
 type SourcePostModerationArgs = ConnectionArguments & {
   sourceId: string;
-  status: string[];
+  status: SourcePostModerationStatus[];
 };
 
 export interface GQLPostUpvote {
@@ -285,6 +291,30 @@ export const typeDefs = /* GraphQL */ `
     external link url
     """
     externalLink: String
+    """
+    Status of the moderation
+    """
+    status: String!
+    """
+    Reason for rejection
+    """
+    rejectionReason: String
+    """
+    Moderator message
+    """
+    moderatorMessage: String
+    """
+    Time the post was created
+    """
+    createdAt: DateTime!
+    """
+    Author of the post
+    """
+    createdBy: User
+    """
+    Moderator of the post
+    """
+    moderatedBy: User
   }
 
   type TocItem {
@@ -1173,6 +1203,32 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): EmptyResponse @auth
+
+    """
+    Approve/Reject pending post moderation
+    """
+    moderateSourcePosts(
+      """
+      List of posts to moderate
+      """
+      postIds: [ID]!
+      """
+      Status wanted for the post
+      """
+      status: String
+      """
+      Source to moderate the post in
+      """
+      sourceId: ID!
+      """
+      Rejection reason for the post
+      """
+      rejectionReason: String
+      """
+      Moderator message for the post
+      """
+      moderatorMessage: String
+    ): [SourcePostModeration]! @auth
   }
 
   extend type Subscription {
@@ -2242,6 +2298,74 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       return { _: true };
+    },
+    moderateSourcePosts: async (
+      _,
+      {
+        sourceId,
+        postIds,
+        status,
+        rejectionReason = null,
+        moderatorMessage = null,
+      }: {
+        postIds: string[];
+      } & Pick<
+        SourcePostModeration,
+        'sourceId' | 'status' | 'rejectionReason' | 'moderatorMessage'
+      >,
+      ctx: AuthContext,
+      info,
+    ) => {
+      const uniquePostIds = Array.from(new Set(postIds));
+      if (!uniquePostIds.length) {
+        throw new ValidationError('Invalid array of post IDs provided');
+      }
+
+      if (uniquePostIds.length > POST_MODERATION_LIMIT_FOR_MUTATION) {
+        logger.warn(
+          { postCount: uniquePostIds.length, status },
+          'moderation limit reached',
+        );
+        throw new ValidationError(
+          `Maximum of ${POST_MODERATION_LIMIT_FOR_MUTATION} posts can be moderated at once`,
+        );
+      }
+
+      if (
+        ![
+          SourcePostModerationStatus.Approved,
+          SourcePostModerationStatus.Rejected,
+        ].includes(status)
+      ) {
+        throw new ValidationError('Invalid status provided');
+      }
+
+      const isModerator = await isPrivilegedMember(ctx, sourceId);
+
+      if (!isModerator) {
+        throw new ForbiddenError('Access denied!');
+      }
+
+      const moderatedById = ctx.userId;
+      const isRejectedWithReason =
+        status === SourcePostModerationStatus.Rejected && !!rejectionReason;
+
+      await ctx.con.getRepository(SourcePostModeration).update(
+        { id: In(uniquePostIds), status: SourcePostModerationStatus.Pending },
+        {
+          status,
+          moderatedById,
+          ...(isRejectedWithReason && { rejectionReason, moderatorMessage }),
+        },
+      );
+
+      return graphorm.query<GQLSourcePostModeration>(ctx, info, (builder) => ({
+        ...builder,
+        queryBuilder: builder.queryBuilder.where(
+          `"${builder.alias}"."id" IN (:...id) AND "${builder.alias}"."status" = :status`,
+          { id: uniquePostIds, status },
+        ),
+      }));
     },
   },
   Subscription: {
