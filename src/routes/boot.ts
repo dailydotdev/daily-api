@@ -399,6 +399,7 @@ const getUser = (
       'language',
       'followingEmail',
       'followNotifications',
+      'subscriptionFlags',
     ],
   });
 
@@ -469,12 +470,17 @@ const loggedInBoot = async ({
           'devcardEligible',
           'image',
           'cover',
+          'subscriptionFlags',
         ]),
         providers: [null],
         roles,
         permalink: `${process.env.COMMENTS_PREFIX}/${user.username || user.id}`,
         canSubmitArticle: user.reputation >= submitArticleThreshold,
         isTeamMember,
+        isPlus:
+          user.subscriptionFlags?.monthly ||
+          user.subscriptionFlags?.yearly ||
+          false,
         language: user.language || undefined,
         image: mapCloudinaryUrl(user.image),
         cover: mapCloudinaryUrl(user.cover),

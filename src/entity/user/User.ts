@@ -22,6 +22,11 @@ export type UserFlags = Partial<{
   trustScore: number;
 }>;
 
+export type UserSubscriptionFlags = Partial<{
+  monthly: boolean;
+  yearly: boolean;
+}>;
+
 @Entity()
 @Index('IDX_user_lowerusername_username', { synchronize: false })
 @Index('IDX_user_lowertwitter', { synchronize: false })
@@ -158,7 +163,6 @@ export class User {
   experienceLevel: string | null;
 
   @Column({ type: 'jsonb', default: {} })
-  @Index('IDX_user_flags_vordr', { synchronize: false })
   flags: UserFlags;
 
   @Column({ type: 'text', nullable: true })
@@ -175,6 +179,10 @@ export class User {
     onDelete: 'SET NULL',
   })
   referral?: Promise<User>;
+
+  @Column({ type: 'jsonb', default: {} })
+  @Index('IDX_user_subscription_flags', { synchronize: false })
+  subscriptionFlags?: UserSubscriptionFlags;
 
   @OneToMany('Post', (post: Post) => post.author, { lazy: true })
   posts: Promise<Post[]>;

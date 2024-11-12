@@ -17,6 +17,7 @@ import {
   FeatureType,
   SettingsFlagsPublic,
   UserStats,
+  UserSubscriptionFlags,
 } from '../entity';
 import {
   SourceMemberRoles,
