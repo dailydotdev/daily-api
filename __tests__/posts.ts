@@ -5636,7 +5636,7 @@ describe('Source post moderation edit/delete', () => {
     }
   }`;
 
-  describe('delete', () => {
+  describe('deleteSourcePostModeration', () => {
     it('should block guest', async () => {
       loggedUser = '0';
 
@@ -5697,7 +5697,7 @@ describe('Source post moderation edit/delete', () => {
     });
   });
 
-  describe('edit', () => {
+  describe('editSourcePostModeration', () => {
     it('should block guest', async () => {
       loggedUser = '0';
       await testMutationErrorCode(
@@ -5707,7 +5707,7 @@ describe('Source post moderation edit/delete', () => {
           variables: {
             id: pendingId,
             title: 'New Title',
-            type: PostType.Article,
+            type: PostType.Freeform,
             sourceId: 'm',
           },
         },
@@ -5724,7 +5724,7 @@ describe('Source post moderation edit/delete', () => {
           variables: {
             id: pendingId,
             title: 'New Title',
-            type: PostType.Article,
+            type: PostType.Freeform,
             sourceId: 'm',
           },
         },
@@ -5741,7 +5741,7 @@ describe('Source post moderation edit/delete', () => {
           variables: {
             id: pendingId,
             title: 'New Title',
-            type: PostType.Article,
+            type: PostType.Freeform,
             sourceId: 'm',
           },
         },
@@ -5757,7 +5757,7 @@ describe('Source post moderation edit/delete', () => {
           id: pendingId,
           title: 'New Title',
           content: 'New Content',
-          type: PostType.Article,
+          type: PostType.Freeform,
           sourceId: 'm',
         },
       });
@@ -5779,7 +5779,7 @@ describe('Source post moderation edit/delete', () => {
           id: rejectedId,
           title: 'New Title',
           content: 'New Content',
-          type: PostType.Article,
+          type: PostType.Freeform,
           sourceId: 'm',
         },
       });
