@@ -2,7 +2,6 @@ import { getPermissionsForMember } from './../schema/sources';
 import { GraphORM, GraphORMField, QueryBuilder } from './graphorm';
 import {
   Bookmark,
-  FeedSource,
   FeedTag,
   Source,
   SourceMember,
@@ -35,8 +34,12 @@ import { I18nRecord, UserVote } from '../types';
 import { whereVordrFilter } from '../common/vordr';
 import { UserCompany } from '../entity/UserCompany';
 import { Post } from '../entity/posts/Post';
-import { ContentPreferenceType } from '../entity/contentPreference/types';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../entity/contentPreference/types';
 import { transformSettingFlags } from '../common/flags';
+import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -653,12 +656,17 @@ const obj = new GraphORM({
           customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
             qb
               .innerJoin(
-                FeedSource,
-                'fs',
-                `"${childAlias}"."id" = fs."sourceId"`,
+                ContentPreferenceSource,
+                'cps',
+                `"${childAlias}"."id" = cps."referenceId"`,
               )
-              .where(`fs."feedId" = "${parentAlias}".id`)
-              .andWhere(`fs."blocked" = false`)
+              .where(`cps."feedId" = "${parentAlias}".id`)
+              .andWhere('cps.type = :contentPreferenceType', {
+                contentPreferenceType: ContentPreferenceType.Source,
+              })
+              .andWhere('cps.status != :contentPreferenceStatus', {
+                contentPreferenceStatus: ContentPreferenceStatus.Blocked,
+              })
               .orderBy(`"${childAlias}".name`),
         },
       },
@@ -668,12 +676,17 @@ const obj = new GraphORM({
           customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
             qb
               .innerJoin(
-                FeedSource,
-                'fs',
-                `"${childAlias}"."id" = fs."sourceId"`,
+                ContentPreferenceSource,
+                'cps',
+                `"${childAlias}"."id" = cps."referenceId"`,
               )
-              .where(`fs."feedId" = "${parentAlias}".id`)
-              .andWhere(`fs."blocked" = true`)
+              .where(`cps."feedId" = "${parentAlias}".id`)
+              .andWhere('cps.type = :contentPreferenceType', {
+                contentPreferenceType: ContentPreferenceType.Source,
+              })
+              .andWhere('cps.status = :contentPreferenceStatus', {
+                contentPreferenceStatus: ContentPreferenceStatus.Blocked,
+              })
               .orderBy(`"${childAlias}".name`),
         },
       },

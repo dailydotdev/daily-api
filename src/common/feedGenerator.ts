@@ -14,15 +14,7 @@ import {
 } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import { IFieldResolver } from '@graphql-tools/utils';
-import {
-  Bookmark,
-  FeedTag,
-  Post,
-  View,
-  FeedSource,
-  PostKeyword,
-  Source,
-} from '../entity';
+import { Bookmark, FeedTag, Post, View, PostKeyword, Source } from '../entity';
 import { GQLPost } from '../schema/posts';
 import { Context } from '../Context';
 import {
@@ -36,6 +28,11 @@ import { mapArrayToOjbect } from './object';
 import { runInSpan } from '../telemetry';
 import { whereVordrFilter } from './vordr';
 import { baseFeedConfig } from '../integrations/feed';
+import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../entity/contentPreference/types';
 
 export const WATERCOOLER_ID = 'fd062672-63b7-4a10-87bd-96dcd10e9613';
 
@@ -96,7 +93,7 @@ type RawFiltersData = {
     | Pick<FeedAdvancedSettings, 'advancedSettingsId' | 'enabled'>[]
     | null;
   tags: Pick<FeedTag, 'tag' | 'blocked'>[] | null;
-  excludeSources: Pick<FeedSource, 'sourceId'>[] | null;
+  excludeSources: Pick<ContentPreferenceSource, 'sourceId'>[] | null;
   memberships: { sourceId: SourceMember['sourceId']; hide: boolean }[] | null;
 };
 
@@ -123,9 +120,15 @@ const getRawFiltersData = async (
     rawFilterSelect(con, 'excludeSources', (qb) =>
       qb
         .select('"sourceId"')
-        .from(FeedSource, 't')
+        .from(ContentPreferenceSource, 't')
         .where('"feedId" = $1')
-        .andWhere('blocked = TRUE'),
+        .andWhere('type = :contentPreferenceType', {
+          contentPreferenceType: ContentPreferenceType.Source,
+        })
+        .andWhere('"userId" = $2')
+        .andWhere('status = :contentPreferenceStatus', {
+          contentPreferenceStatus: ContentPreferenceStatus.Blocked,
+        }),
     ),
     rawFilterSelect(con, 'memberships', (qb) =>
       qb
