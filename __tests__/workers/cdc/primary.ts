@@ -4801,6 +4801,44 @@ describe('source_post_moderation', () => {
       ]);
     });
 
+    it('should create share post from external link which is now available internally', async () => {
+      await con
+        .getRepository(Source)
+        .update({ id: 'b' }, { id: UNKNOWN_SOURCE });
+      const repo = con.getRepository(Post);
+      await repo.save([
+        {
+          ...postsFixture[0],
+          sourceId: 'c',
+          url: 'https://daily.dev/blog-post/sauron',
+        },
+      ]);
+      const before = await repo.find();
+      expect(before.length).toEqual(1);
+      const after = {
+        ...base,
+        sourceId: 'a',
+        type: PostType.Share,
+        status: SourcePostModerationStatus.Approved,
+        title: 'Test',
+        content: '# Sample',
+        contentHtml: '# Sample',
+        externalLink: 'https://daily.dev/blog-post/sauron',
+      };
+      await mockUpdate(after);
+      const share = (await repo.findOneBy({
+        sourceId: 'a',
+      })) as SharePost;
+      expect(share).toBeTruthy();
+      expect(share.type).toEqual(PostType.Share);
+      expect(share.title).toEqual('# Sample');
+      expect(share.titleHtml).toEqual('<p># Sample</p>');
+      expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+        'api.v1.source-post-moderation-approved',
+        { post: after },
+      ]);
+    });
+
     it('should update the content if post id is present', async () => {
       const repo = con.getRepository(Post);
       await saveFixtures(con, Post, [postsFixture[0]]);
