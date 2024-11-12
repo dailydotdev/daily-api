@@ -5,6 +5,10 @@ export class ContentPreferencePKFml1731423979883 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
+      `ALTER TABLE "content_preference" ALTER COLUMN "feedId" SET NOT NULL`,
+    );
+
+    await queryRunner.query(
       `ALTER TABLE "content_preference" DROP CONSTRAINT "PK_846a533ad3da996c916074b773a"`,
     );
 
@@ -20,6 +24,10 @@ export class ContentPreferencePKFml1731423979883 implements MigrationInterface {
 
     await queryRunner.query(
       `ALTER TABLE "content_preference" ADD CONSTRAINT "PK_846a533ad3da996c916074b773a" PRIMARY KEY ("referenceId", "userId", "type")`,
+    );
+
+    await queryRunner.query(
+      `ALTER TABLE "content_preference" ALTER COLUMN "feedId" DROP NOT NULL`,
     );
   }
 }

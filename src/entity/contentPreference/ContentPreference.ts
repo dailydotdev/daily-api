@@ -24,7 +24,7 @@ export class ContentPreference {
   @PrimaryColumn({ type: 'text' })
   type: ContentPreferenceType;
 
-  @PrimaryColumn({ type: 'text', default: null })
+  @PrimaryColumn({ type: 'text' })
   feedId: string;
 
   @Column({ default: () => 'now()' })

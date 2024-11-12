@@ -130,48 +130,51 @@ beforeEach(async () => {
   await con
     .getRepository(Source)
     .update({ id: In(['a', 'b', 'c', 'squad']) }, { type: SourceType.Squad });
+
+  const now = new Date(2022, 11, 19);
+
   await con.getRepository(SourceMember).save([
     {
       userId: '1',
       sourceId: 'a',
       role: SourceMemberRoles.Member,
       referralToken: 'rt',
-      createdAt: new Date(2022, 11, 19),
+      createdAt: new Date(now.getTime() + 0),
     },
     {
       userId: '2',
       sourceId: 'a',
       role: SourceMemberRoles.Member,
       referralToken: randomUUID(),
-      createdAt: new Date(2022, 11, 20),
+      createdAt: new Date(now.getTime() + 1000),
     },
     {
       userId: '2',
       sourceId: 'b',
       role: SourceMemberRoles.Member,
       referralToken: randomUUID(),
-      createdAt: new Date(2022, 11, 19),
+      createdAt: new Date(now.getTime() + 2000),
     },
     {
       userId: '3',
       sourceId: 'b',
       role: SourceMemberRoles.Member,
       referralToken: randomUUID(),
-      createdAt: new Date(2022, 11, 20),
+      createdAt: new Date(now.getTime() + 3000),
     },
     {
       userId: '1',
       sourceId: 'squad',
       role: SourceMemberRoles.Member,
       referralToken: randomUUID(),
-      createdAt: new Date(2022, 11, 19),
+      createdAt: new Date(now.getTime() + 4000),
     },
     {
       userId: '1',
       sourceId: 'm',
       role: SourceMemberRoles.Admin,
       referralToken: randomUUID(),
-      createdAt: new Date(2022, 11, 19),
+      createdAt: new Date(now.getTime() + 5000),
     },
   ]);
 
@@ -544,12 +547,15 @@ describe('query sources', () => {
 
   const saveMembers = (sourceId: string, users: string[]) => {
     const repo = con.getRepository(SourceMember);
-    const members = users.map((userId) =>
+    const now = new Date();
+
+    const members = users.map((userId, index) =>
       repo.create({
         userId,
         sourceId,
         referralToken: randomUUID(),
         role: SourceMemberRoles.Member,
+        createdAt: new Date(now.getTime() + 1000 * index),
       }),
     );
 
@@ -597,10 +603,10 @@ describe('query sources', () => {
     expect(res.errors).toBeFalsy();
 
     expect(res.data.sources.edges.map(({ node }) => node.id)).toEqual([
+      'c',
       'squad',
       'm',
       'a',
-      'c',
       'b',
     ]);
   });
@@ -1687,7 +1693,7 @@ describe('query mySourceMemberships', () => {
     expect(res.data.mySourceMemberships.edges).toHaveLength(3);
     expect(
       res.data.mySourceMemberships.edges.map(({ node }) => node.source.id),
-    ).toEqual(['m', 'a', 'squad']);
+    ).toEqual(['m', 'squad', 'a']);
   });
 
   it('should not return source memberships if user is blocked', async () => {
@@ -3473,34 +3479,37 @@ query Source($id: ID!) {
       .getRepository(Source)
       .save([createSource('c', 'C', 'http://c.com')]);
     await saveFixtures(con, User, usersFixture);
+
+    const now = new Date(2022, 11, 19);
+
     await con.getRepository(SourceMember).save([
       {
         userId: '1',
         sourceId: 'c',
         role: SourceMemberRoles.Admin,
         referralToken: randomUUID(),
-        createdAt: new Date(2022, 11, 19),
+        createdAt: new Date(now.getTime() + 0),
       },
       {
         userId: '2',
         sourceId: 'c',
         role: SourceMemberRoles.Moderator,
         referralToken: randomUUID(),
-        createdAt: new Date(2022, 11, 20),
+        createdAt: new Date(now.getTime() + 1000),
       },
       {
         userId: '3',
         sourceId: 'c',
         role: SourceMemberRoles.Moderator,
         referralToken: randomUUID(),
-        createdAt: new Date(2022, 11, 19),
+        createdAt: new Date(now.getTime() + 2000),
       },
       {
         userId: '4',
         sourceId: 'c',
         role: SourceMemberRoles.Member,
         referralToken: randomUUID(),
-        createdAt: new Date(2022, 11, 20),
+        createdAt: new Date(now.getTime() + 3000),
       },
     ]);
   });

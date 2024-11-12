@@ -1198,7 +1198,7 @@ const addNewSourceMember = async (
       },
     }),
     {
-      conflictPaths: ['userId', 'referenceId', 'type'],
+      conflictPaths: ['referenceId', 'userId', 'type', 'feedId'],
     },
   );
 };

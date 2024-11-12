@@ -1892,7 +1892,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                   },
                 })) as ContentPreferenceSource[],
               )
-              .orUpdate(['status'], ['userId', 'referenceId', 'type'])
+              .orUpdate(['status'], ['referenceId', 'userId', 'type', 'feedId'])
               .execute(),
           ]);
         }
@@ -1932,7 +1932,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                   },
                 })) as ContentPreferenceSource[],
               )
-              .orUpdate(['status'], ['userId', 'referenceId', 'type'])
+              .orUpdate(['status'], ['referenceId', 'userId', 'type', 'feedId'])
               .execute(),
           ]);
         }
@@ -1968,7 +1968,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 status: ContentPreferenceStatus.Follow,
               })) as ContentPreferenceKeyword[],
             )
-            .orUpdate(['status'], ['userId', 'referenceId', 'type'])
+            .orUpdate(['status'], ['referenceId', 'userId', 'type', 'feedId'])
             .execute();
         }
         if (filters?.blockedTags?.length) {
@@ -2004,7 +2004,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 status: ContentPreferenceStatus.Blocked,
               })) as ContentPreferenceKeyword[],
             )
-            .orUpdate(['status'], ['userId', 'referenceId', 'type'])
+            .orUpdate(['status'], ['referenceId', 'userId', 'type', 'feedId'])
             .execute();
         }
       });
