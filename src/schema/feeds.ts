@@ -34,7 +34,7 @@ import {
   tagFeedBuilder,
   whereKeyword,
 } from '../common';
-import { In, SelectQueryBuilder } from 'typeorm';
+import { In, Not, SelectQueryBuilder } from 'typeorm';
 import { ensureSourcePermissions, GQLSource } from './sources';
 import {
   CursorPage,
@@ -2019,6 +2019,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               userId: ctx.userId,
               referenceId: In(filters.includeSources),
               feedId,
+              status: Not(ContentPreferenceStatus.Blocked),
             }),
           ]);
         }
@@ -2038,6 +2039,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               userId: ctx.userId,
               referenceId: In(filters.excludeSources),
               feedId,
+              status: ContentPreferenceStatus.Blocked,
             }),
           ]);
         }
