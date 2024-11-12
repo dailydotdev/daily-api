@@ -478,8 +478,8 @@ const loggedInBoot = async ({
         canSubmitArticle: user.reputation >= submitArticleThreshold,
         isTeamMember,
         isPlus:
-          user.subscriptionFlags?.monthly ||
-          user.subscriptionFlags?.yearly ||
+          !!user.subscriptionFlags?.monthly ||
+          !!user.subscriptionFlags?.yearly ||
           false,
         language: user.language || undefined,
         image: mapCloudinaryUrl(user.image),
