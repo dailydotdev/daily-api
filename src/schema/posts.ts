@@ -1763,6 +1763,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLSourcePostModeration> => {
+      await ensureSourcePermissions(
+        ctx,
+        props.sourceId,
+        SourcePermissions.Post,
+      );
+
       const pendingPost = await validateSourcePostModeration(ctx, props);
       const moderatedPost = await createSourcePostModeration(
         ctx.con,
