@@ -3629,8 +3629,8 @@ describe('mutation createSourcePostModeration', () => {
     await saveSquadFixtures();
   });
 
-  const MUTATION = `mutation CreateSourcePostModeration($sourceId: ID! $title: String!, $type: String!, $content: String, $image: Upload, $imageUrl: String, $sharedPostId: ID, $commentary: String, $externalLink: String) {
-    createSourcePostModeration(sourceId: $sourceId, title: $title, type: $type, content: $content, image: $image, imageUrl: $imageUrl, sharedPostId: $sharedPostId, commentary: $commentary, externalLink: $externalLink) {
+  const MUTATION = `mutation CreateSourcePostModeration($sourceId: ID! $title: String!, $type: String!, $content: String, $image: Upload, $imageUrl: String, $sharedPostId: ID, $commentary: String, $externalLink: String, $postId: ID) {
+    createSourcePostModeration(sourceId: $sourceId, title: $title, type: $type, content: $content, image: $image, imageUrl: $imageUrl, sharedPostId: $sharedPostId, commentary: $commentary, externalLink: $externalLink, postId: $postId) {
       id
       title
       content
@@ -3640,6 +3640,7 @@ describe('mutation createSourcePostModeration', () => {
       image
       sharedPostId
       titleHtml
+      postId
     }
   }`;
 
@@ -3662,26 +3663,153 @@ describe('mutation createSourcePostModeration', () => {
     );
   });
 
+  it('should throw an error if type is welcome', async () => {
+    loggedUser = '4';
+
+    return await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...params, type: PostType.Welcome },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw an error if type is article', async () => {
+    loggedUser = '4';
+
+    return await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...params, type: PostType.Article },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should create freeform moderation entry for an existing post', async () => {
+    loggedUser = '4';
+    const newPost = con.getRepository(Post).create({
+      ...params,
+      id: 'new',
+      shortId: 'new',
+      type: PostType.Freeform,
+      authorId: '4',
+    });
+    await con.getRepository(Post).save(newPost);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        sourceId: 'm',
+        title: 'My new freeform title',
+        type: PostType.Freeform,
+        content: 'My new freeform content',
+        postId: newPost.id,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createSourcePostModeration.title).toEqual(
+      'My new freeform title',
+    );
+    expect(res.data.createSourcePostModeration.content).toEqual(
+      'My new freeform content',
+    );
+    expect(res.data.createSourcePostModeration.postId).toEqual(newPost.id);
+  });
+
+  it('should create share moderation entry for an existing post', async () => {
+    loggedUser = '4';
+    const newPost = con.getRepository(Post).create({
+      ...params,
+      id: 'new',
+      shortId: 'new',
+      type: PostType.Share,
+      authorId: '4',
+    });
+    await con.getRepository(Post).save(newPost);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        sourceId: 'm',
+        title: 'My new share title',
+        type: PostType.Share,
+        content: 'My new share content',
+        postId: newPost.id,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createSourcePostModeration.postId).toEqual(newPost.id);
+  });
+
+  it("should not be able to create moderation entry for another user's post", async () => {
+    loggedUser = '3';
+    const newPost = con.getRepository(Post).create({
+      ...params,
+      id: 'new',
+      shortId: 'new',
+      type: PostType.Share,
+      scoutId: '4',
+    });
+    await con.getRepository(Post).save(newPost);
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          sourceId: 'm',
+          title: "I'm editing your post!",
+          type: PostType.Share,
+          content: "It's mine now",
+          postId: newPost.id,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
   it('should successfully create a squad post moderation entry of type freeform', async () => {
     loggedUser = '4';
+    const commentary = 'commentary';
     const res = await client.mutate(MUTATION, {
-      variables: { ...params, type: PostType.Freeform },
+      variables: { ...params, commentary, type: PostType.Freeform },
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.createSourcePostModeration).toBeTruthy();
     expect(res.data.createSourcePostModeration.type).toEqual(PostType.Freeform);
-    expect(res.data.createSourcePostModeration.contentHtml).toBeDefined();
+    expect(res.data.createSourcePostModeration.title).toEqual('My first post');
+    expect(res.data.createSourcePostModeration.titleHtml).toBeNull();
+    expect(res.data.createSourcePostModeration.content).toEqual('Hello World');
+    expect(res.data.createSourcePostModeration.contentHtml).toEqual(
+      '<p>Hello World</p>',
+    );
+    expect(res.data.createSourcePostModeration.title).not.toEqual(commentary);
+    expect(res.data.createSourcePostModeration.content).not.toEqual(commentary);
   });
 
   it('should successfully create a squad post moderation entry of type share', async () => {
     loggedUser = '4';
     const res = await client.mutate(MUTATION, {
-      variables: { ...params, sharedPostId: 'p1', type: PostType.Share },
+      variables: {
+        ...params,
+        commentary: 'I am sharing a post',
+        sharedPostId: 'p1',
+        type: PostType.Share,
+      },
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.createSourcePostModeration).toBeTruthy();
     expect(res.data.createSourcePostModeration.type).toEqual(PostType.Share);
-    expect(res.data.createSourcePostModeration.contentHtml).toBeDefined();
+    expect(res.data.createSourcePostModeration.title).toEqual(
+      'I am sharing a post',
+    );
+    expect(res.data.createSourcePostModeration.titleHtml).toEqual(
+      '<p>I am sharing a post</p>',
+    );
+    expect(res.data.createSourcePostModeration.content).toBeNull();
+    expect(res.data.createSourcePostModeration.contentHtml).toBeNull();
     expect(res.data.createSourcePostModeration.sharedPostId).toEqual('p1');
   });
 
@@ -3705,7 +3833,14 @@ describe('mutation createSourcePostModeration', () => {
     expect(res.data.createSourcePostModeration.image).toEqual(
       externalParams.imageUrl,
     );
-    expect(res.data.createSourcePostModeration.titleHtml).toEqual(
+    expect(res.data.createSourcePostModeration.title).toEqual(
+      'External Link Title',
+    );
+    expect(res.data.createSourcePostModeration.titleHtml).toBeNull();
+    expect(res.data.createSourcePostModeration.content).toEqual(
+      'This is an awesome link',
+    );
+    expect(res.data.createSourcePostModeration.contentHtml).toEqual(
       '<p>This is an awesome link</p>',
     );
     expect(res.data.createSourcePostModeration.externalLink).toEqual(
