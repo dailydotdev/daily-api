@@ -114,6 +114,7 @@ const followUser: FollowEntity = async ({ ctx, id, status }) => {
 
     const contentPreference = repository.create({
       userId: ctx.userId,
+      feedId: ctx.userId,
       referenceId: id,
       referenceUserId: id,
       status,
@@ -141,7 +142,7 @@ const unfollowUser: UnFollowEntity = async ({ ctx, id }) => {
 
     await repository.delete({
       userId: ctx.userId,
-      referenceUserId: id,
+      feedId: ctx.userId,
       referenceId: id,
     });
 
@@ -185,7 +186,7 @@ const unfollowKeyword: UnFollowEntity = async ({ ctx, id }) => {
 
     await repository.delete({
       userId: ctx.userId,
-      keywordId: id,
+      feedId: ctx.userId,
       referenceId: id,
     });
 
@@ -247,7 +248,7 @@ const unfollowSource: UnFollowEntity = async ({ ctx, id }) => {
 
     await repository.delete({
       userId: ctx.userId,
-      sourceId: id,
+      feedId: ctx.userId,
       referenceId: id,
     });
 
@@ -281,6 +282,7 @@ const blockUser: BlockEntity = async ({ ctx, id }) => {
 
     const contentPreference = repository.create({
       userId: ctx.userId,
+      feedId: ctx.userId,
       referenceId: id,
       referenceUserId: id,
       status: ContentPreferenceStatus.Blocked,

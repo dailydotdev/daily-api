@@ -103,11 +103,21 @@ describe('query userFollowers', () => {
       }),
     );
 
+    await saveFixtures(
+      con,
+      Feed,
+      usersFixture.map((item) => ({
+        id: `${item.id}-ufq`,
+        userId: `${item.id}-ufq`,
+      })),
+    );
+
     const now = new Date();
 
     await con.getRepository(ContentPreferenceUser).save([
       {
         userId: '2-ufq',
+        feedId: '2-ufq',
         referenceId: '1-ufq',
         referenceUserId: '1-ufq',
         status: ContentPreferenceStatus.Follow,
@@ -115,6 +125,7 @@ describe('query userFollowers', () => {
       },
       {
         userId: '3-ufq',
+        feedId: '3-ufq',
         referenceId: '1-ufq',
         referenceUserId: '1-ufq',
         status: ContentPreferenceStatus.Subscribed,
@@ -122,6 +133,7 @@ describe('query userFollowers', () => {
       },
       {
         userId: '1-ufq',
+        feedId: '1-ufq',
         referenceId: '2-ufq',
         referenceUserId: '2-ufq',
         status: ContentPreferenceStatus.Follow,
@@ -129,6 +141,7 @@ describe('query userFollowers', () => {
       },
       {
         userId: '4-ufq',
+        feedId: '4-ufq',
         referenceId: '1-ufq',
         referenceUserId: '1-ufq',
         status: ContentPreferenceStatus.Follow,
@@ -231,11 +244,21 @@ describe('query userFollowing', () => {
       }),
     );
 
+    await saveFixtures(
+      con,
+      Feed,
+      usersFixture.map((item) => ({
+        id: `${item.id}-ufwq`,
+        userId: `${item.id}-ufwq`,
+      })),
+    );
+
     const now = new Date();
 
     await con.getRepository(ContentPreferenceUser).save([
       {
         userId: '1-ufwq',
+        feedId: '1-ufwq',
         referenceId: '2-ufwq',
         referenceUserId: '2-ufwq',
         status: ContentPreferenceStatus.Follow,
@@ -243,6 +266,7 @@ describe('query userFollowing', () => {
       },
       {
         userId: '1-ufwq',
+        feedId: '1-ufwq',
         referenceId: '3-ufwq',
         referenceUserId: '3-ufwq',
         status: ContentPreferenceStatus.Subscribed,
@@ -250,6 +274,7 @@ describe('query userFollowing', () => {
       },
       {
         userId: '2-ufwq',
+        feedId: '2-ufwq',
         referenceId: '1-ufwq',
         referenceUserId: '1-ufwq',
         status: ContentPreferenceStatus.Follow,
@@ -257,6 +282,7 @@ describe('query userFollowing', () => {
       },
       {
         userId: '1-ufwq',
+        feedId: '1-ufwq',
         referenceId: '4-ufwq',
         referenceUserId: '4-ufwq',
         status: ContentPreferenceStatus.Follow,
@@ -352,21 +378,33 @@ describe('query ContentPreferenceStatus', () => {
       }),
     );
 
+    await saveFixtures(
+      con,
+      Feed,
+      usersFixture.map((item) => ({
+        id: `${item.id}-cpsq`,
+        userId: `${item.id}-cpsq`,
+      })),
+    );
+
     await con.getRepository(ContentPreferenceUser).save([
       {
         userId: '1-cpsq',
+        feedId: '1-cpsq',
         referenceId: '2-cpsq',
         referenceUserId: '2-cpsq',
         status: ContentPreferenceStatus.Follow,
       },
       {
         userId: '1-cpsq',
+        feedId: '1-cpsq',
         referenceId: '3-cpsq',
         referenceUserId: '3-cpsq',
         status: ContentPreferenceStatus.Subscribed,
       },
       {
         userId: '2-cpsq',
+        feedId: '2-cpsq',
         referenceId: '1-cpsq',
         referenceUserId: '1-cpsq',
         status: ContentPreferenceStatus.Follow,
@@ -459,6 +497,15 @@ describe('mutation follow', () => {
           username: `${item.username}-fm`,
         };
       }),
+    );
+
+    await saveFixtures(
+      con,
+      Feed,
+      usersFixture.map((item) => ({
+        id: `${item.id}-fm`,
+        userId: `${item.id}-fm`,
+      })),
     );
   });
 
@@ -875,6 +922,7 @@ describe('mutation follow', () => {
 
         return {
           userId: '1-fm',
+          feedId: '1-fm',
           referenceId: `${id}-fml`,
           referenceUserId: `${id}-fml`,
           status: ContentPreferenceStatus.Follow,
@@ -886,6 +934,7 @@ describe('mutation follow', () => {
 
         return {
           userId: '1-fm',
+          feedId: '1-fm',
           referenceId: `${id}-fml`,
           referenceUserId: `${id}-fml`,
           status: ContentPreferenceStatus.Subscribed,
@@ -929,21 +978,33 @@ describe('mutation unfollow', () => {
       }),
     );
 
+    await saveFixtures(
+      con,
+      Feed,
+      usersFixture.map((item) => ({
+        id: `${item.id}-um`,
+        userId: `${item.id}-um`,
+      })),
+    );
+
     await con.getRepository(ContentPreferenceUser).save([
       {
         userId: '1-um',
+        feedId: '1-um',
         referenceId: '2-um',
         referenceUserId: '2-um',
         status: ContentPreferenceStatus.Follow,
       },
       {
         userId: '1-um',
+        feedId: '1-um',
         referenceId: '3-um',
         referenceUserId: '3-um',
         status: ContentPreferenceStatus.Subscribed,
       },
       {
         userId: '2-um',
+        feedId: '2-um',
         referenceId: '1-um',
         referenceUserId: '1-um',
         status: ContentPreferenceStatus.Follow,
@@ -1237,15 +1298,26 @@ describe('query contentPreferenceStatus', () => {
       }),
     );
 
-    await con.getRepository(ContentPreferenceUser).save([
+    await saveFixtures(
+      con,
+      Feed,
+      usersFixture.map((item) => ({
+        id: `${item.id}-cps`,
+        userId: `${item.id}-cps`,
+      })),
+    );
+
+    await await con.getRepository(ContentPreferenceUser).save([
       {
         userId: '1-cps',
+        feedId: '1-cps',
         status: ContentPreferenceStatus.Follow,
         referenceId: '2-cps',
         referenceUserId: '2-cps',
       },
       {
         userId: '1-cps',
+        feedId: '1-cps',
         status: ContentPreferenceStatus.Follow,
         referenceId: '3-cps',
         referenceUserId: '3-cps',
@@ -1322,6 +1394,15 @@ describe('mutation block', () => {
           username: `${item.username}-blm`,
         };
       }),
+    );
+
+    await saveFixtures(
+      con,
+      Feed,
+      usersFixture.map((item) => ({
+        id: `${item.id}-blm`,
+        userId: `${item.id}-blm`,
+      })),
     );
   });
 
@@ -1542,15 +1623,26 @@ describe('mutation unblock', () => {
       }),
     );
 
+    await saveFixtures(
+      con,
+      Feed,
+      usersFixture.map((item) => ({
+        id: `${item.id}-ublm`,
+        userId: `${item.id}-ublm`,
+      })),
+    );
+
     await con.getRepository(ContentPreferenceUser).save([
       {
         userId: '1-ublm',
+        feedId: '1-ublm',
         referenceId: '2-ublm',
         referenceUserId: '2-ublm',
         status: ContentPreferenceStatus.Blocked,
       },
       {
         userId: '2-ublm',
+        feedId: '2-ublm',
         referenceId: '1-ublm',
         referenceUserId: '1-ublm',
         status: ContentPreferenceStatus.Blocked,
