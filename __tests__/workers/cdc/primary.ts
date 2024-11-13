@@ -2109,6 +2109,70 @@ describe('source', () => {
     );
     expect(notifySquadFeaturedUpdated).not.toHaveBeenCalled();
   });
+
+  it('should approve all pending posts when switching `moderationRequired` to false', async () => {
+    // update everything
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, User, usersFixture);
+    await con
+      .getRepository(Source)
+      .update({ type: SourceType.Machine }, { type: SourceType.Squad });
+    await con
+      .getRepository(SquadSource)
+      .update({}, { moderationRequired: true });
+    await con.getRepository(SourcePostModeration).save([
+      {
+        sourceId: 'a',
+        type: PostType.Share,
+        createdById: '1',
+        status: SourcePostModerationStatus.Pending,
+      },
+      {
+        sourceId: 'a',
+        type: PostType.Share,
+        createdById: '2',
+        status: SourcePostModerationStatus.Pending,
+      },
+      {
+        sourceId: 'a',
+        type: PostType.Share,
+        createdById: '3',
+        status: SourcePostModerationStatus.Approved,
+      },
+      {
+        sourceId: 'a',
+        type: PostType.Share,
+        createdById: '4',
+        status: SourcePostModerationStatus.Rejected,
+      },
+    ]);
+
+    const after = { ...base, moderationRequired: false };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: { ...base, moderationRequired: true },
+        op: 'u',
+        table: 'source',
+      }),
+    );
+
+    const pendingPosts = await con
+      .getRepository(SourcePostModeration)
+      .findBy({ sourceId: 'a', status: SourcePostModerationStatus.Pending });
+    expect(pendingPosts.length).toBe(0);
+
+    const approvedPosts = await con
+      .getRepository(SourcePostModeration)
+      .findBy({ sourceId: 'a', status: SourcePostModerationStatus.Approved });
+    expect(approvedPosts.length).toBe(3); // 2 pending + 1 already approved
+
+    const rejectedPosts = await con
+      .getRepository(SourcePostModeration)
+      .findBy({ sourceId: 'a', status: SourcePostModerationStatus.Rejected });
+    expect(rejectedPosts.length).toBe(1);
+  });
 });
 
 describe('content image', () => {
@@ -4799,6 +4863,47 @@ describe('source_post_moderation', () => {
         'api.v1.source-post-moderation-approved',
         { post: after },
       ]);
+    });
+
+    it('should create share post from external link which is now available internally', async () => {
+      await con
+        .getRepository(Source)
+        .update({ id: 'b' }, { id: UNKNOWN_SOURCE });
+      const repo = con.getRepository(Post);
+      await repo.save([
+        {
+          ...postsFixture[0],
+          sourceId: 'c',
+          url: 'https://daily.dev/blog-post/sauron',
+        },
+      ]);
+      const before = await repo.find();
+      expect(before.length).toEqual(1);
+      const after = {
+        ...base,
+        sourceId: 'a',
+        type: PostType.Share,
+        status: SourcePostModerationStatus.Approved,
+        title: 'Test',
+        content: '# Sample',
+        contentHtml: '# Sample',
+        externalLink: 'https://daily.dev/blog-post/sauron',
+      };
+      await mockUpdate(after);
+      const share = (await repo.findOneBy({
+        sourceId: 'a',
+      })) as SharePost;
+      expect(share).toBeTruthy();
+      expect(share.type).toEqual(PostType.Share);
+      expect(share.title).toEqual('# Sample');
+      expect(share.titleHtml).toEqual('<p># Sample</p>');
+      expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+        'api.v1.source-post-moderation-approved',
+        { post: after },
+      ]);
+
+      const list = await con.getRepository(Post).find();
+      expect(list.length).toEqual(2); // to ensure nothing new was created other than the share post
     });
 
     it('should update the content if post id is present', async () => {
