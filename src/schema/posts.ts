@@ -2388,7 +2388,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       await ensureSourcePermissions(
         ctx,
         moderation.sourceId,
-        SourcePermissions.Post,
+        SourcePermissions.PostRequest,
       );
 
       const isAuthor = moderation.createdById === ctx.userId;
