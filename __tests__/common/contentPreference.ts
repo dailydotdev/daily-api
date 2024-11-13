@@ -19,6 +19,7 @@ import {
   NotificationType,
 } from '../../src/notifications/common';
 import { ConflictError } from '../../src/errors';
+import { Feed } from '../../src/entity/Feed';
 
 let con: DataSource;
 
@@ -39,6 +40,14 @@ describe('followEntity', () => {
             username: `${item.username}-cfe`,
           };
         }),
+      );
+      await saveFixtures(
+        con,
+        Feed,
+        usersFixture.map((item) => ({
+          id: `${item.id}-cfe`,
+          userId: `${item.id}-cfe`,
+        })),
       );
     });
 
@@ -122,12 +131,21 @@ describe('followEntity', () => {
           };
         }),
       );
+      await saveFixtures(
+        con,
+        Feed,
+        usersFixture.map((item) => ({
+          id: `${item.id}-cfe`,
+          userId: `${item.id}-cfe`,
+        })),
+      );
     });
 
     it('should unfollow user', async () => {
       await saveFixtures(con, ContentPreferenceUser, [
         {
           userId: '1-cfe',
+          feedId: '1-cfe',
           referenceUserId: '2-cfe',
           referenceId: '2-cfe',
           status: ContentPreferenceStatus.Follow,
