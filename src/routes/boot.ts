@@ -43,7 +43,6 @@ import {
   getSourceLink,
   submitArticleThreshold,
   mapCloudinaryUrl,
-  transformDate,
 } from '../common';
 import { AccessToken, signJwt } from '../auth';
 import { cookies, setCookie, setRawCookie } from '../cookies';
@@ -480,7 +479,6 @@ const loggedInBoot = async ({
         canSubmitArticle: user.reputation >= submitArticleThreshold,
         isTeamMember,
         isPlus: isPlusMember(user.subscriptionFlags?.cycle),
-        plusMemberSince: transformDate(user.subscriptionFlags?.createdAt),
         language: user.language || undefined,
         image: mapCloudinaryUrl(user.image),
         cover: mapCloudinaryUrl(user.cover),
