@@ -5676,6 +5676,14 @@ describe('Source post moderation edit/delete', () => {
 
   beforeEach(async () => {
     await saveSquadFixtures();
+    await con.getRepository(SourceMember).save([
+      {
+        sourceId: 'm',
+        userId: '4',
+        role: SourceMemberRoles.Member,
+        referralToken: 'r4',
+      },
+    ]);
     await con.getRepository(SourcePostModeration).save([
       {
         id: pendingId,
@@ -5684,7 +5692,7 @@ describe('Source post moderation edit/delete', () => {
         title: 'Title',
         content: 'Content',
         status: SourcePostModerationStatus.Pending,
-        type: PostType.Article,
+        type: PostType.Share,
       },
       {
         id: rejectedId,
@@ -5695,7 +5703,7 @@ describe('Source post moderation edit/delete', () => {
         status: SourcePostModerationStatus.Rejected,
         rejectionReason: 'Spam',
         moderatorMessage: 'This is spam',
-        type: PostType.Article,
+        type: PostType.Share,
         moderatedById: '3',
       },
     ]);

@@ -1728,7 +1728,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const post = await ctx.con
         .getRepository(Post)
         .findOneByOrFail([{ id: args.id }, { slug: args.id }]);
-      await ensureSourcePermissions(ctx, post.sourceId);
+      await ensureSourcePermissions(
+        ctx,
+        post.sourceId,
+        SourcePermissions.PostRequest,
+      );
 
       const page = postCodeSnippetPageGenerator.connArgsToPage(args);
 
@@ -1766,7 +1770,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       await ensureSourcePermissions(
         ctx,
         props.sourceId,
-        SourcePermissions.Post,
+        SourcePermissions.PostRequest,
       );
 
       const pendingPost = await validateSourcePostModeration(ctx, props);
@@ -2405,12 +2409,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<SourcePostModeration> => {
       const { id } = post;
 
-      await ensureSourcePermissions(ctx, post.sourceId, SourcePermissions.Post);
+      await ensureSourcePermissions(
+        ctx,
+        post.sourceId,
+        SourcePermissions.PostRequest,
+      );
 
       const moderation = await ctx.con
         .getRepository(SourcePostModeration)
         .findOneOrFail({
-          where: { id: post.id },
+          where: { id },
           select: ['createdById', 'status'],
         });
 

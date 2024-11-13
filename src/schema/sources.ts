@@ -855,6 +855,7 @@ export enum SourcePermissions {
   ViewBlockedMembers = 'view_blocked_members',
   WelcomePostEdit = 'welcome_post_edit',
   Post = 'post',
+  PostRequest = 'post_request',
   PostPin = 'post_pin',
   PostLimit = 'post_limit',
   PostDelete = 'post_delete',
@@ -872,6 +873,7 @@ export enum SourcePermissions {
 const memberPermissions = [
   SourcePermissions.View,
   SourcePermissions.Post,
+  SourcePermissions.PostRequest,
   SourcePermissions.Leave,
   SourcePermissions.Invite,
 ];
@@ -992,10 +994,13 @@ export const isPrivilegedMember = async (
   return sourceRoleRank[sourceMember.role] >= sourceRoleRank.moderator;
 };
 
+type PostPermissions = SourcePermissions.Post | SourcePermissions.PostRequest;
+
 export const canPostToSquad = (
   ctx: Context,
   squad: SquadSource,
   sourceMember: SourceMember | null,
+  permission: PostPermissions = SourcePermissions.Post,
 ): boolean => {
   if (!sourceMember) {
     return false;
@@ -1003,13 +1008,13 @@ export const canPostToSquad = (
 
   const memberRank = sourceRoleRank[sourceMember.role];
 
-  if (
-    memberRank >= sourceRoleRank.moderator &&
-    memberRank >= squad.memberPostingRank
-  )
-    return true;
+  if (squad.moderationRequired) {
+    if (memberRank === sourceRoleRank.member) {
+      return permission === SourcePermissions.PostRequest;
+    }
+  }
 
-  return !squad.moderationRequired && memberRank >= squad.memberPostingRank;
+  return memberRank >= squad.memberPostingRank;
 };
 
 const validateSquadData = async (
@@ -1067,6 +1072,8 @@ const validateSquadData = async (
   return handle;
 };
 
+const postPermissions = [SourcePermissions.Post, SourcePermissions.PostRequest];
+
 export const ensureSourcePermissions = async (
   ctx: Context,
   sourceId: string | undefined,
@@ -1097,8 +1104,13 @@ export const ensureSourcePermissions = async (
 
     if (
       source.type === SourceType.Squad &&
-      permission === SourcePermissions.Post &&
-      !canPostToSquad(ctx, source as SquadSource, sourceMember)
+      postPermissions.includes(permission) &&
+      !canPostToSquad(
+        ctx,
+        source as SquadSource,
+        sourceMember,
+        permission as PostPermissions,
+      )
     ) {
       throw new ForbiddenError('Posting not allowed!');
     }
