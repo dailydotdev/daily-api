@@ -83,6 +83,11 @@ config:
     otelEnabled: true
     otelExporterOtlpEndpoint: http://opentelemetry-collector.opentelemetry.svc.cluster.local:4318/v1/traces
     otelTracesSampler: parentbased_always_on
+    paddleApiKey:
+      secure: AAABAGr18L3064taf8MyYateCjX7TzBXY+mCBNoerpTSC3lF+aEyQusx93fbTon+SsYvI/EziEzyoPWcujb7sJe4TDrGaVkWCP6yqQ8w7D3ojg==
+    paddleEnvironment: production
+    paddleWebhookSecret:
+      secure: AAABAMlKmiJ3FUQOJKHlOEbgpKnYDi6z62jEVcWDLdvhWuqRAah/dUZrgF9aISC86B56vR9M0wbp2/C7gJVy5if2n+O25cz6VJtJpSvgkSkfua6kDHX1qzNe1ewqxYh6VOBz1zLH
     personalizedDigestFeed: http://feed-digest-server.feed/api/personalised
     personalizedDigestSecret:
       secure: AAABAN1TYaqznVMVbKDZtYEnLGB0VIzXDrpcmB6rBsImneobrDOS12T4XwbVvnexdZt1NBCnZRBwH4AL7OgpZkj/2UgT8Lzj0o7TdVSBeIeVDzKa/V6jlvJ4AskEC9rg
