@@ -2309,6 +2309,92 @@ describe('mutation addFiltersToFeed', () => {
       'NOT_FOUND',
     );
   });
+
+  it('should save filters to multiple custom feeds when feedId is provided', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, Feed, [
+      { id: 'cf2', userId: '1' },
+      {
+        id: 'cf3',
+        userId: '1',
+      },
+      {
+        id: 'cf4',
+        userId: '1',
+      },
+    ]);
+    await saveFixtures(con, AdvancedSettings, advancedSettings);
+    // my feed filters
+    await client.mutate(MUTATION, {
+      variables: {
+        filters: {
+          includeTags: ['webdev'],
+          excludeSources: [],
+          blockedTags: [],
+        },
+      },
+    });
+
+    await client.mutate(MUTATION, {
+      variables: {
+        feedId: 'cf2',
+        filters: {
+          includeTags: ['webdev'],
+        },
+      },
+    });
+
+    await client.mutate(MUTATION, {
+      variables: {
+        feedId: 'cf3',
+        filters: {
+          includeTags: ['webdev'],
+        },
+      },
+    });
+
+    const contentPreferences = await con
+      .getRepository(ContentPreferenceKeyword)
+      .find({
+        where: {
+          userId: '1',
+        },
+        order: {
+          createdAt: 'ASC',
+        },
+      });
+
+    expect(contentPreferences.length).toEqual(3);
+    expect(contentPreferences).toEqual([
+      {
+        userId: '1',
+        feedId: '1',
+        keywordId: 'webdev',
+        referenceId: 'webdev',
+        type: ContentPreferenceType.Keyword,
+        status: ContentPreferenceStatus.Follow,
+        createdAt: expect.any(Date),
+      },
+      {
+        userId: '1',
+        feedId: 'cf2',
+        keywordId: 'webdev',
+        referenceId: 'webdev',
+        type: ContentPreferenceType.Keyword,
+        status: ContentPreferenceStatus.Follow,
+        createdAt: expect.any(Date),
+      },
+      {
+        userId: '1',
+        feedId: 'cf3',
+        keywordId: 'webdev',
+        referenceId: 'webdev',
+        type: ContentPreferenceType.Keyword,
+        status: ContentPreferenceStatus.Follow,
+        createdAt: expect.any(Date),
+      },
+    ]);
+  });
 });
 
 describe('mutation removeFiltersFromFeed', () => {

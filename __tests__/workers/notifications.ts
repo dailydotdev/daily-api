@@ -2,6 +2,7 @@ import { invokeNotificationWorker, saveFixtures } from '../helpers';
 import {
   Bookmark,
   Comment,
+  Feed,
   MachineSource,
   NotificationPreferenceComment,
   NotificationPreferencePost,
@@ -2107,6 +2108,17 @@ it('users should not get a reply notification if they commented in the same thre
 });
 
 describe('user post added', () => {
+  beforeEach(async () => {
+    await saveFixtures(
+      con,
+      Feed,
+      usersFixture.map((item) => ({
+        id: item.id,
+        userId: item.id,
+      })),
+    );
+  });
+
   it('should add notification for author', async () => {
     const { postAddedUserNotification: worker } = await import(
       '../../src/workers/notifications/postAddedUserNotification'
@@ -2115,12 +2127,14 @@ describe('user post added', () => {
     await con.getRepository(ContentPreferenceUser).save([
       {
         userId: '2',
+        feedId: '2',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Subscribed,
       },
       {
         userId: '3',
+        feedId: '3',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Subscribed,
@@ -2146,12 +2160,14 @@ describe('user post added', () => {
     await con.getRepository(ContentPreferenceUser).save([
       {
         userId: '2',
+        feedId: '2',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Subscribed,
       },
       {
         userId: '3',
+        feedId: '3',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Subscribed,
@@ -2177,12 +2193,14 @@ describe('user post added', () => {
     await con.getRepository(ContentPreferenceUser).save([
       {
         userId: '2',
+        feedId: '2',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Subscribed,
       },
       {
         userId: '3',
+        feedId: '3',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Follow,
@@ -2216,12 +2234,14 @@ describe('user post added', () => {
     await con.getRepository(ContentPreferenceUser).save([
       {
         userId: '2',
+        feedId: '2',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Subscribed,
       },
       {
         userId: '3',
+        feedId: '3',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Subscribed,
@@ -2241,12 +2261,14 @@ describe('user post added', () => {
     await con.getRepository(ContentPreferenceUser).save([
       {
         userId: '2',
+        feedId: '2',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Subscribed,
       },
       {
         userId: '3',
+        feedId: '3',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Subscribed,
@@ -2255,6 +2277,7 @@ describe('user post added', () => {
     await con.getRepository(NotificationPreferenceUser).save([
       {
         userId: '2',
+        feedId: '2',
         referenceId: '1',
         referenceUserId: '1',
         notificationType: NotificationType.UserPostAdded,
@@ -2277,18 +2300,21 @@ describe('user post added', () => {
     await con.getRepository(ContentPreferenceUser).save([
       {
         userId: '2',
+        feedId: '2',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Subscribed,
       },
       {
         userId: '3',
+        feedId: '3',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Subscribed,
       },
       {
         userId: '4',
+        feedId: '4',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Subscribed,
@@ -2297,6 +2323,7 @@ describe('user post added', () => {
     await con.getRepository(NotificationPreferenceUser).save([
       {
         userId: '2',
+        feedId: '2',
         referenceId: '1',
         referenceUserId: '1',
         notificationType: NotificationType.UserPostAdded,
@@ -2306,6 +2333,7 @@ describe('user post added', () => {
     await con.getRepository(NotificationPreferenceSource).save([
       {
         userId: '3',
+        feedId: '3',
         referenceId: 'b',
         sourceId: 'b',
         notificationType: NotificationType.SourcePostAdded,
@@ -2313,6 +2341,7 @@ describe('user post added', () => {
       },
       {
         userId: '3',
+        feedId: '3',
         referenceId: 'a',
         sourceId: 'a',
         notificationType: NotificationType.SourcePostAdded,
@@ -2320,6 +2349,7 @@ describe('user post added', () => {
       },
       {
         userId: '4',
+        feedId: '4',
         referenceId: 'a',
         sourceId: 'a',
         notificationType: NotificationType.SourcePostAdded,

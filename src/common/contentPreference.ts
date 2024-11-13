@@ -55,13 +55,11 @@ export const entityToNotificationTypeMap: Record<
 > = {
   [ContentPreferenceType.User]: [NotificationType.UserPostAdded],
   [ContentPreferenceType.Keyword]: [],
-  [ContentPreferenceType.FeedKeyword]: [],
   [ContentPreferenceType.Source]: [
     NotificationType.SourcePostAdded,
     NotificationType.SquadPostAdded,
     NotificationType.SquadMemberJoined,
   ],
-  [ContentPreferenceType.FeedSource]: [],
 };
 
 // TODO fix api.new-notification-mail condition to handle all types when follow phase 3 is implemented
@@ -114,6 +112,7 @@ const followUser: FollowEntity = async ({ ctx, id, status }) => {
 
     const contentPreference = repository.create({
       userId: ctx.userId,
+      feedId: ctx.userId,
       referenceId: id,
       referenceUserId: id,
       status,
@@ -141,7 +140,7 @@ const unfollowUser: UnFollowEntity = async ({ ctx, id }) => {
 
     await repository.delete({
       userId: ctx.userId,
-      referenceUserId: id,
+      feedId: ctx.userId,
       referenceId: id,
     });
 
@@ -185,7 +184,7 @@ const unfollowKeyword: UnFollowEntity = async ({ ctx, id }) => {
 
     await repository.delete({
       userId: ctx.userId,
-      keywordId: id,
+      feedId: ctx.userId,
       referenceId: id,
     });
 
@@ -218,7 +217,7 @@ const followSource: FollowEntity = async ({ ctx, id, status }) => {
       .insert()
       .into(ContentPreferenceSource)
       .values(contentPreference)
-      .orUpdate(['status'], ['userId', 'referenceId', 'type'])
+      .orUpdate(['status'], ['referenceId', 'userId', 'type', 'feedId'])
       .execute();
 
     if (status !== ContentPreferenceStatus.Subscribed) {
@@ -247,7 +246,7 @@ const unfollowSource: UnFollowEntity = async ({ ctx, id }) => {
 
     await repository.delete({
       userId: ctx.userId,
-      sourceId: id,
+      feedId: ctx.userId,
       referenceId: id,
     });
 
@@ -281,6 +280,7 @@ const blockUser: BlockEntity = async ({ ctx, id }) => {
 
     const contentPreference = repository.create({
       userId: ctx.userId,
+      feedId: ctx.userId,
       referenceId: id,
       referenceUserId: id,
       status: ContentPreferenceStatus.Blocked,
@@ -345,7 +345,7 @@ const blockSource: BlockEntity = async ({ ctx, id }) => {
       .insert()
       .into(ContentPreferenceSource)
       .values(contentPreference)
-      .orUpdate(['status'], ['userId', 'referenceId', 'type'])
+      .orUpdate(['status'], ['referenceId', 'userId', 'type', 'feedId'])
       .execute();
 
     cleanContentNotificationPreference({
