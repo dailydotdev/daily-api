@@ -34,6 +34,7 @@ import {
   Feature,
   FeatureType,
   FeatureValue,
+  Feed,
   MarketingCta,
   Post,
   PostReport,
@@ -406,28 +407,40 @@ describe('query userStats', () => {
         };
       }),
     );
+    await saveFixtures(
+      con,
+      Feed,
+      usersFixture.map((item) => ({
+        id: `${item.id}-usf`,
+        userId: `${item.id}-usf`,
+      })),
+    );
 
     await con.getRepository(ContentPreferenceUser).save([
       {
         userId: '1-usf',
+        feedId: '1-usf',
         referenceId: '2-usf',
         referenceUserId: '2-usf',
         status: ContentPreferenceStatus.Follow,
       },
       {
         userId: '1-usf',
+        feedId: '1-usf',
         referenceId: '3-usf',
         referenceUserId: '3-usf',
         status: ContentPreferenceStatus.Follow,
       },
       {
         userId: '2-usf',
+        feedId: '2-usf',
         referenceId: '1-usf',
         referenceUserId: '1-usf',
         status: ContentPreferenceStatus.Follow,
       },
       {
         userId: '1-usf',
+        feedId: '1-usf',
         referenceId: '4-usf',
         referenceUserId: '4-usf',
         status: ContentPreferenceStatus.Follow,
@@ -5533,15 +5546,26 @@ describe('contentPreference field', () => {
       }),
     );
 
+    await saveFixtures(
+      con,
+      Feed,
+      usersFixture.map((item) => ({
+        id: `${item.id}-cpf`,
+        userId: `${item.id}-cpf`,
+      })),
+    );
+
     await con.getRepository(ContentPreferenceUser).save([
       {
         userId: '1-cpf',
+        feedId: '1-cpf',
         status: ContentPreferenceStatus.Follow,
         referenceId: '2-cpf',
         referenceUserId: '2-cpf',
       },
       {
         userId: '1-cpf',
+        feedId: '1-cpf',
         status: ContentPreferenceStatus.Follow,
         referenceId: '3-cpf',
         referenceUserId: '3-cpf',

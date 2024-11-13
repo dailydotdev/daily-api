@@ -2,12 +2,14 @@ import {
   Column,
   Entity,
   Index,
+  JoinColumn,
   ManyToOne,
   PrimaryColumn,
   TableInheritance,
 } from 'typeorm';
 import type { User } from '../user/User';
 import { ContentPreferenceStatus, ContentPreferenceType } from './types';
+import type { Feed } from '../Feed';
 
 @Entity()
 @TableInheritance({ column: { type: 'text', name: 'type' } })
@@ -22,6 +24,9 @@ export class ContentPreference {
   @PrimaryColumn({ type: 'text' })
   type: ContentPreferenceType;
 
+  @PrimaryColumn({ type: 'text' })
+  feedId: string;
+
   @Column({ default: () => 'now()' })
   createdAt: Date;
 
@@ -33,4 +38,8 @@ export class ContentPreference {
     onDelete: 'CASCADE',
   })
   user: Promise<User>;
+
+  @ManyToOne('Feed', { lazy: true, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'feedId' })
+  feed: Promise<Feed>;
 }

@@ -55,13 +55,11 @@ export const entityToNotificationTypeMap: Record<
 > = {
   [ContentPreferenceType.User]: [NotificationType.UserPostAdded],
   [ContentPreferenceType.Keyword]: [],
-  [ContentPreferenceType.FeedKeyword]: [],
   [ContentPreferenceType.Source]: [
     NotificationType.SourcePostAdded,
     NotificationType.SquadPostAdded,
     NotificationType.SquadMemberJoined,
   ],
-  [ContentPreferenceType.FeedSource]: [],
 };
 
 // TODO fix api.new-notification-mail condition to handle all types when follow phase 3 is implemented
@@ -219,7 +217,7 @@ const followSource: FollowEntity = async ({ ctx, id, status }) => {
       .insert()
       .into(ContentPreferenceSource)
       .values(contentPreference)
-      .orUpdate(['status'], ['userId', 'referenceId', 'type'])
+      .orUpdate(['status'], ['referenceId', 'userId', 'type', 'feedId'])
       .execute();
 
     if (status !== ContentPreferenceStatus.Subscribed) {
@@ -347,7 +345,7 @@ const blockSource: BlockEntity = async ({ ctx, id }) => {
       .insert()
       .into(ContentPreferenceSource)
       .values(contentPreference)
-      .orUpdate(['status'], ['userId', 'referenceId', 'type'])
+      .orUpdate(['status'], ['referenceId', 'userId', 'type', 'feedId'])
       .execute();
 
     cleanContentNotificationPreference({
