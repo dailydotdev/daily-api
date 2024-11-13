@@ -10,8 +10,6 @@ import {
   Post,
   PostOrigin,
   PostType,
-  SourceMember,
-  SourceType,
   SquadSource,
   User,
   validateCommentary,
@@ -38,7 +36,6 @@ import {
   SourcePostModerationStatus,
 } from '../entity/SourcePostModeration';
 import { mapCloudinaryUrl, uploadPostFile, UploadPreset } from './cloudinary';
-import { canAccessSource, SourcePermissions } from '../schema/sources';
 import { getMentions } from '../schema/comments';
 
 export const defaultImage = {
@@ -559,26 +556,6 @@ export const validateSourcePostModeration = async (
   }
 
   const { con, userId } = ctx;
-
-  const sourceMember = await con.getRepository(SourceMember).findOne({
-    where: { sourceId: sourceId, userId: userId },
-    relations: ['source'],
-  });
-
-  const source = await sourceMember?.source;
-
-  if (!source || source.type !== SourceType.Squad) {
-    throw new ForbiddenError('Access denied!');
-  }
-
-  await canAccessSource(
-    ctx,
-    source,
-    sourceMember,
-    SourcePermissions.Post,
-    sourceId,
-  );
-
   const pendingPost: CreateSourcePostModeration = {
     title: validateCommentary(title),
     postId,

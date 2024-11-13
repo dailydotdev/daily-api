@@ -2398,9 +2398,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<SourcePostModeration> => {
       const { id } = post;
+
+      await ensureSourcePermissions(ctx, post.sourceId, SourcePermissions.Post);
+
       const moderation = await ctx.con
         .getRepository(SourcePostModeration)
-        .findOneByOrFail({ id });
+        .findOneOrFail({
+          where: { id: post.id },
+          select: ['createdById', 'status'],
+        });
 
       const isAuthor = moderation.createdById === ctx.userId;
       const isApproved =
