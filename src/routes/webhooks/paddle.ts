@@ -26,18 +26,21 @@ const updateUserSubscription = async ({
   if (!data) {
     return;
   }
+
+  const customData = data.data?.customData as { user_id: string };
+
   const con = await createOrGetConnection();
-  const userId = data.data?.customData?.user_id;
+  const userId = customData?.user_id;
   if (!userId) {
     logger.error({ type: 'paddle' }, 'User ID missing in payload');
     return false;
   }
   const subscriptionType = data.data?.items.reduce((acc, item) => {
-    if (planTypes[item.price?.id]) {
-      acc = planTypes[item.price?.id];
+    if (item.price?.id && planTypes[item.price.id]) {
+      acc = planTypes[item.price.id];
     }
     return acc;
-  }, null);
+  }, '');
   if (!subscriptionType) {
     logger.error(
       {
@@ -50,7 +53,7 @@ const updateUserSubscription = async ({
   }
   await con.getRepository(User).update(
     {
-      id: data.data?.customData?.user_id,
+      id: userId,
     },
     {
       subscriptionFlags: updateSubscriptionFlags({
@@ -70,7 +73,7 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
       },
       handler: async (req, res) => {
         const signature = (req.headers['paddle-signature'] as string) || '';
-        const rawRequestBody = req.rawBody;
+        const rawRequestBody = req.rawBody?.toString();
         const secretKey = process.env.PADDLE_WEBHOOK_SECRET || '';
 
         try {
@@ -94,7 +97,7 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
                   state: false,
                 });
               default:
-                logger.info({ type: 'paddle' }, eventData.eventType);
+                logger.info({ type: 'paddle' }, eventData?.eventType);
             }
           } else {
             logger.error({ type: 'paddle' }, 'Signature missing in header');
