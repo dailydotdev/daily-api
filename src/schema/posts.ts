@@ -1728,11 +1728,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const post = await ctx.con
         .getRepository(Post)
         .findOneByOrFail([{ id: args.id }, { slug: args.id }]);
-      await ensureSourcePermissions(
-        ctx,
-        post.sourceId,
-        SourcePermissions.PostRequest,
-      );
+      await ensureSourcePermissions(ctx, post.sourceId);
 
       const page = postCodeSnippetPageGenerator.connArgsToPage(args);
 
