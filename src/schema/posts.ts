@@ -2370,14 +2370,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<GQLEmptyResponse> => {
       const moderation = await ctx.con
         .getRepository(SourcePostModeration)
-        .findOneByOrFail({ id: postId });
+        .findOneOrFail({
+          where: { id: postId },
+          select: ['createdById', 'sourceId'],
+        });
 
-      await ensureSourcePermissions(ctx, moderation.sourceId);
+      await ensureSourcePermissions(
+        ctx,
+        moderation.sourceId,
+        SourcePermissions.Post,
+      );
 
-      const isModerator = await isPrivilegedMember(ctx, moderation.sourceId);
       const isAuthor = moderation.createdById === ctx.userId;
 
-      if (!isModerator && !isAuthor) {
+      if (!isAuthor) {
         throw new ForbiddenError('Access denied!');
       }
 
@@ -2400,8 +2406,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const isApproved =
         moderation.status === SourcePostModerationStatus.Approved;
 
-      if (!isAuthor || isApproved) {
+      if (!isAuthor) {
         throw new ForbiddenError('Access denied!');
+      }
+
+      if (isApproved) {
+        throw new ValidationError('Cannot edit an approved post');
       }
 
       const pendingPost = await validateSourcePostModeration(ctx, post);
