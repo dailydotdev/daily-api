@@ -5,6 +5,7 @@ import { User } from '../entity';
 import { ReadingDaysArgs } from './users';
 import { DataSource } from 'typeorm';
 import { getSourceLink } from './links';
+import { isPlusMember } from '../paddle';
 
 export interface MostReadTag {
   value: string;
@@ -140,10 +141,7 @@ export async function getDevCardData(
     getFavoriteSources(con, userId),
   ]);
 
-  const isPlus =
-    !!user.subscriptionFlags?.monthly ||
-    !!user.subscriptionFlags?.yearly ||
-    false;
+  const isPlus = isPlusMember(user.subscriptionFlags?.cycle);
 
   delete user.subscriptionFlags;
 

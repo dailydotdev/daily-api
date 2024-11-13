@@ -61,6 +61,7 @@ declare global {
       API_CONFIG_FEATURE_KEY: string;
       PADDLE_API_KEY: string;
       PADDLE_WEBHOOK_SECRET: string;
+      PADDLE_ENVIRONMENT: string;
     }
   }
 }

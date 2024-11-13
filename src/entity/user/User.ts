@@ -16,6 +16,7 @@ import type { UserStreak } from './UserStreak';
 import type { UserStreakAction } from './UserStreakAction';
 import type { UserCompany } from '../UserCompany';
 import type { UserTopReader } from './UserTopReader';
+import type { SubscriptionCycles } from '../../paddle';
 
 export type UserFlags = Partial<{
   vordr: boolean;
@@ -23,9 +24,9 @@ export type UserFlags = Partial<{
 }>;
 
 export type UserSubscriptionFlags = Partial<{
-  monthly: boolean;
-  yearly: boolean;
+  cycle: SubscriptionCycles;
   createdAt: Date;
+  subscriptionId: string;
 }>;
 
 @Entity()

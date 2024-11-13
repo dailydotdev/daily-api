@@ -10,15 +10,11 @@ import createOrGetConnection from '../../db';
 import { updateSubscriptionFlags } from '../../common';
 import { User } from '../../entity';
 import { logger } from '../../logger';
+import { planTypes } from '../../paddle';
 
 const paddleInstance = new Paddle(process.env.PADDLE_API_KEY, {
-  environment: Environment.sandbox,
+  environment: process.env.PADDLE_ENVIRONMENT as Environment,
 });
-
-const planTypes = {
-  pri_01jcdp5ef4yhv00p43hr2knrdg: 'monthly',
-  pri_01jcdn6enr5ap3ekkddc6fv6tq: 'yearly',
-};
 
 const updateUserSubscription = async ({
   data,
@@ -58,8 +54,9 @@ const updateUserSubscription = async ({
     },
     {
       subscriptionFlags: updateSubscriptionFlags({
-        [subscriptionType]: state,
+        cycle: state ? subscriptionType : null,
         createdAt: state ? data.data?.startedAt : null,
+        subscriptionId: state ? data.data?.id : null,
       }),
     },
   );
