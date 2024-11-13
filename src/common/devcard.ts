@@ -59,7 +59,17 @@ const getFavoriteSources = async (
 };
 
 export interface DevCardData {
-  user: User;
+  user: Pick<
+    User,
+    | 'id'
+    | 'name'
+    | 'image'
+    | 'username'
+    | 'bio'
+    | 'createdAt'
+    | 'reputation'
+    | 'cover'
+  > & { isPlus?: boolean };
   articlesRead: number;
   tags: string[];
   sources: DevCardSource[];
@@ -115,6 +125,7 @@ export async function getDevCardData(
       'createdAt',
       'reputation',
       'cover',
+      'subscriptionFlags',
     ],
   });
   const [articlesRead, tags, sources] = await Promise.all([
@@ -129,8 +140,18 @@ export async function getDevCardData(
     getFavoriteSources(con, userId),
   ]);
 
+  const isPlus =
+    !!user.subscriptionFlags?.monthly ||
+    !!user.subscriptionFlags?.yearly ||
+    false;
+
+  delete user.subscriptionFlags;
+
   return {
-    user,
+    user: {
+      ...user,
+      isPlus,
+    },
     articlesRead,
     tags,
     sources,
