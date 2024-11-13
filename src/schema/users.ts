@@ -408,6 +408,11 @@ export const typeDefs = /* GraphQL */ `
     isPlus: Boolean
 
     """
+    From when the user is a plus member
+    """
+    plusMemberSince: DateTime
+
+    """
     Verified companies for this user
     """
     companies: [Company]

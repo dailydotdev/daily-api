@@ -38,7 +38,7 @@ import { UserCompany } from '../entity/UserCompany';
 import { Post } from '../entity/posts/Post';
 import { ContentPreferenceType } from '../entity/contentPreference/types';
 import { transformSettingFlags } from '../common/flags';
-import { isPlusMember } from '../paddle';
+import { isPlusMember, plusMemberSince } from '../paddle';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -140,6 +140,11 @@ const obj = new GraphORM({
         alias: { field: 'subscriptionFlags', type: 'jsonb' },
         transform: (subscriptionFlags: UserSubscriptionFlags) =>
           isPlusMember(subscriptionFlags?.cycle),
+      },
+      plusMemberSince: {
+        alias: { field: 'subscriptionFlags', type: 'jsonb' },
+        transform: (subscriptionFlags: UserSubscriptionFlags) =>
+          plusMemberSince(subscriptionFlags?.createdAt),
       },
       companies: {
         relation: {

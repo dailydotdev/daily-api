@@ -62,7 +62,7 @@ import { getUnreadNotificationsCount } from '../notifications/common';
 import { maxFeedsPerUser } from '../types';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { queryDataSource } from '../common/queryDataSource';
-import { isPlusMember } from '../paddle';
+import { isPlusMember, plusMemberSince } from '../paddle';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -479,6 +479,7 @@ const loggedInBoot = async ({
         canSubmitArticle: user.reputation >= submitArticleThreshold,
         isTeamMember,
         isPlus: isPlusMember(user.subscriptionFlags?.cycle),
+        plusMemberSince: plusMemberSince(user.subscriptionFlags?.createdAt),
         language: user.language || undefined,
         image: mapCloudinaryUrl(user.image),
         cover: mapCloudinaryUrl(user.cover),
