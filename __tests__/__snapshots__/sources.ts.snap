@@ -105,6 +105,7 @@ Object {
       "permissions": Array [
         "view",
         "post",
+        "post_request",
         "leave",
         "invite",
         "comment_delete",
@@ -136,6 +137,7 @@ Object {
       "permissions": Array [
         "view",
         "post",
+        "post_request",
         "leave",
         "invite",
       ],
