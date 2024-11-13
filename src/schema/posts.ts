@@ -2403,14 +2403,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<SourcePostModeration> => {
-      const { id } = post;
-
       await ensureSourcePermissions(
         ctx,
         post.sourceId,
         SourcePermissions.PostRequest,
       );
 
+      const { id } = post;
       const moderation = await ctx.con
         .getRepository(SourcePostModeration)
         .findOneOrFail({

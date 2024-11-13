@@ -5734,9 +5734,7 @@ describe('Source post moderation edit/delete', () => {
         client,
         {
           mutation: DELETE_MUTATION,
-          variables: {
-            postId: pendingId,
-          },
+          variables: { postId: pendingId },
         },
         'FORBIDDEN',
       );
@@ -5748,9 +5746,7 @@ describe('Source post moderation edit/delete', () => {
         client,
         {
           mutation: DELETE_MUTATION,
-          variables: {
-            postId: pendingId,
-          },
+          variables: { postId: pendingId },
         },
         'FORBIDDEN',
       );
@@ -5762,9 +5758,7 @@ describe('Source post moderation edit/delete', () => {
         client,
         {
           mutation: DELETE_MUTATION,
-          variables: {
-            postId: pendingId,
-          },
+          variables: { postId: pendingId },
         },
         'FORBIDDEN',
       );
@@ -5774,9 +5768,7 @@ describe('Source post moderation edit/delete', () => {
       loggedUser = '4'; // Member level
 
       const res = await client.mutate(DELETE_MUTATION, {
-        variables: {
-          postId: pendingId,
-        },
+        variables: { postId: pendingId },
       });
 
       expect(res.errors).toBeFalsy();
