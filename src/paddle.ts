@@ -8,9 +8,6 @@ export enum SubscriptionCycles {
 export const isPlusMember = (cycle: SubscriptionCycles | undefined): boolean =>
   !!cycle?.length || false;
 
-export const plusMemberSince = (createdAt?: Date | string): Date | null =>
-  !!createdAt ? new Date(createdAt) : null;
-
 export const planTypes = remoteConfig.vars.pricingIds || {
   pri_01jcdp5ef4yhv00p43hr2knrdg: SubscriptionCycles.Monthly,
   pri_01jcdn6enr5ap3ekkddc6fv6tq: SubscriptionCycles.Yearly,

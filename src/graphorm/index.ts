@@ -28,7 +28,7 @@ import {
 
 import { Context } from '../Context';
 import { GQLBookmarkList } from '../schema/bookmarks';
-import { base64, domainOnly } from '../common';
+import { base64, domainOnly, transformDate } from '../common';
 import { GQLComment } from '../schema/comments';
 import { GQLUserPost } from '../schema/posts';
 import { UserComment } from '../entity/user/UserComment';
@@ -38,7 +38,7 @@ import { UserCompany } from '../entity/UserCompany';
 import { Post } from '../entity/posts/Post';
 import { ContentPreferenceType } from '../entity/contentPreference/types';
 import { transformSettingFlags } from '../common/flags';
-import { isPlusMember, plusMemberSince } from '../paddle';
+import { isPlusMember } from '../paddle';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -58,9 +58,6 @@ const existsByUserAndPost =
 
 const nullIfNotLoggedIn = <T>(value: T, ctx: Context): T | null =>
   ctx.userId ? value : null;
-
-const transformDate = (value: string | Date): Date | undefined =>
-  value ? new Date(value) : undefined;
 
 const nullIfNotSameUser = <T>(
   value: T,
@@ -144,7 +141,7 @@ const obj = new GraphORM({
       plusMemberSince: {
         alias: { field: 'subscriptionFlags', type: 'jsonb' },
         transform: (subscriptionFlags: UserSubscriptionFlags) =>
-          plusMemberSince(subscriptionFlags?.createdAt),
+          transformDate(subscriptionFlags?.createdAt),
       },
       companies: {
         relation: {
