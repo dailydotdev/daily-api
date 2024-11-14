@@ -14,7 +14,7 @@ import {
 } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import { IFieldResolver } from '@graphql-tools/utils';
-import { Bookmark, FeedTag, Post, View, PostKeyword, Source } from '../entity';
+import { Bookmark, Post, View, PostKeyword, Source } from '../entity';
 import { GQLPost } from '../schema/posts';
 import { Context } from '../Context';
 import {
@@ -29,6 +29,7 @@ import { runInSpan } from '../telemetry';
 import { whereVordrFilter } from './vordr';
 import { baseFeedConfig } from '../integrations/feed';
 import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
+import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
 import {
   ContentPreferenceStatus,
   ContentPreferenceType,
@@ -93,7 +94,7 @@ type RawFiltersData = {
   feedAdvancedSettings:
     | Pick<FeedAdvancedSettings, 'advancedSettingsId' | 'enabled'>[]
     | null;
-  tags: Pick<FeedTag, 'tag' | 'blocked'>[] | null;
+  tags: Pick<ContentPreferenceKeyword, 'keywordId' | 'status'>[] | null;
   excludeSources: Pick<ContentPreferenceSource, 'sourceId'>[] | null;
   memberships: { sourceId: SourceMember['sourceId']; hide: boolean }[] | null;
 };
@@ -116,7 +117,12 @@ const getRawFiltersData = async (
         .where('"feedId" = $1'),
     ),
     rawFilterSelect(con, 'tags', (qb) =>
-      qb.select(['tag', 'blocked']).from(FeedTag, 't').where('"feedId" = $1'),
+      qb
+        .select(['"keywordId"', 'status'])
+        .from(ContentPreference, 't')
+        .where('"feedId" = $1')
+        .andWhere(`type = '${ContentPreferenceType.Keyword}'`)
+        .andWhere('"userId" = $2'),
     ),
     rawFilterSelect(con, 'excludeSources', (qb) =>
       qb
@@ -199,10 +205,10 @@ const tagsToFilters = ({
 } => {
   return (tags || []).reduce<ReturnType<typeof tagsToFilters>>(
     (acc, value) => {
-      if (value.blocked) {
-        acc.blockedTags.push(value.tag);
+      if (value.status === ContentPreferenceStatus.Blocked) {
+        acc.blockedTags.push(value.keywordId);
       } else {
-        acc.includeTags.push(value.tag);
+        acc.includeTags.push(value.keywordId);
       }
       return acc;
     },

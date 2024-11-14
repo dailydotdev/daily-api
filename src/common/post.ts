@@ -6,11 +6,13 @@ import {
   createSharePost,
   ExternalLinkPreview,
   FreeformPost,
+  generateTitleHtml,
   Post,
   PostOrigin,
   PostType,
   SquadSource,
   User,
+  validateCommentary,
   WelcomePost,
 } from '../entity';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
@@ -33,7 +35,8 @@ import {
   SourcePostModeration,
   SourcePostModerationStatus,
 } from '../entity/SourcePostModeration';
-import { mapCloudinaryUrl } from './cloudinary';
+import { mapCloudinaryUrl, uploadPostFile, UploadPreset } from './cloudinary';
+import { getMentions } from '../schema/comments';
 
 export const defaultImage = {
   urls:
@@ -249,7 +252,7 @@ export type CreateSourcePostModeration = Omit<
     'titleHtml' | 'content' | 'type' | 'sharedPostId' | 'createdById'
   > & {
     contentHtml?: string;
-    externalLink?: string;
+    externalLink?: string | null;
     postId?: string;
   };
 
@@ -276,12 +279,11 @@ export const createSourcePostModeration = async (
 
 export interface CreateSourcePostModerationArgs
   extends Pick<EditPostArgs, 'title' | 'image'> {
+  content?: string | null;
   imageUrl?: string;
   sourceId: string;
-  commentary?: string;
-  content?: string;
-  sharedPostId?: string;
-  externalLink?: string;
+  sharedPostId?: string | null;
+  externalLink?: string | null;
   type: PostType;
   postId?: string;
 }
@@ -533,4 +535,68 @@ export const processApprovedModeratedPost = async (
   logger.error({ moderated }, 'unable to process moderated post');
 
   return null;
+};
+
+export const validateSourcePostModeration = async (
+  ctx: AuthContext,
+  {
+    postId,
+    title,
+    content,
+    sourceId,
+    image,
+    type,
+    sharedPostId,
+    imageUrl,
+    externalLink,
+  }: CreateSourcePostModerationArgs,
+): Promise<CreateSourcePostModeration> => {
+  if (![PostType.Share, PostType.Freeform].includes(type)) {
+    throw new ValidationError('Invalid post type!');
+  }
+
+  const { con, userId } = ctx;
+  const pendingPost: CreateSourcePostModeration = {
+    title: validateCommentary(title),
+    postId,
+    sourceId,
+    type,
+    sharedPostId,
+    externalLink,
+    createdById: userId,
+  };
+
+  const mentions = await getMentions(con, content, userId, sourceId);
+
+  if (type === PostType.Share) {
+    if (!!externalLink) {
+      const cleanContent = validateCommentary(content);
+
+      if (cleanContent) {
+        pendingPost.content = cleanContent;
+        pendingPost.contentHtml = generateTitleHtml(cleanContent, mentions);
+      }
+    } else if (pendingPost.title) {
+      pendingPost.titleHtml = generateTitleHtml(pendingPost.title, mentions);
+    }
+  }
+
+  if (content && type === PostType.Freeform) {
+    pendingPost.content = content;
+    pendingPost.contentHtml = markdown.render(content, { mentions })?.trim();
+  }
+
+  if (imageUrl) {
+    pendingPost.image = imageUrl;
+  } else if (image && process.env.CLOUDINARY_URL) {
+    const upload = await image;
+    const { url: coverImageUrl } = await uploadPostFile(
+      await generateShortId(),
+      upload.createReadStream(),
+      UploadPreset.PostBannerImage,
+    );
+    pendingPost.image = coverImageUrl;
+  }
+
+  return pendingPost;
 };

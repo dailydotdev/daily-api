@@ -12,6 +12,7 @@ import {
   Feed,
   FeedAdvancedSettings,
   FeedTag,
+  FeedSource,
   FreeformPost,
   Keyword,
   MachineSource,
@@ -98,6 +99,10 @@ beforeEach(async () => {
   await saveFixtures(con, Keyword, [
     ...keywordsFixture,
     { value: 'javascript', occurrences: 57, status: 'allow' },
+    { value: 'html', status: 'allow' },
+    { value: 'python', status: 'allow' },
+    { value: 'java', status: 'allow' },
+    { value: 'data', status: 'allow' },
   ]);
   await deleteKeysByPattern('feeds:*');
 });
@@ -210,9 +215,9 @@ const saveFeedFixtures = async (): Promise<void> => {
   await saveFixtures(con, ContentPreferenceKeyword, [
     {
       feedId: '1',
-      keywordId: 'golang',
-      referenceId: 'golang',
-      status: ContentPreferenceStatus.Blocked,
+      keywordId: 'html',
+      referenceId: 'html',
+      status: ContentPreferenceStatus.Follow,
       type: ContentPreferenceType.Keyword,
       userId: '1',
     },
@@ -226,10 +231,40 @@ const saveFeedFixtures = async (): Promise<void> => {
     },
     {
       feedId: '1',
-      keywordId: 'webdev',
-      referenceId: 'webdev',
-      status: ContentPreferenceStatus.Follow,
+      keywordId: 'golang',
+      referenceId: 'golang',
+      status: ContentPreferenceStatus.Blocked,
       type: ContentPreferenceType.Keyword,
+      userId: '1',
+    },
+  ]);
+  await saveFixtures(con, FeedSource, [
+    { feedId: '1', sourceId: 'b' },
+    { feedId: '1', sourceId: 'c' },
+  ]);
+  await saveFixtures(con, ContentPreferenceSource, [
+    {
+      feedId: '1',
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
+      referenceId: 'a',
+      sourceId: 'a',
+      status: ContentPreferenceStatus.Blocked,
+      type: ContentPreferenceType.Source,
+      userId: '1',
+    },
+    {
+      feedId: '1',
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
+      referenceId: 'b',
+      sourceId: 'b',
+      status: ContentPreferenceStatus.Blocked,
+      type: ContentPreferenceType.Source,
       userId: '1',
     },
   ]);
@@ -463,11 +498,39 @@ describe('query anonymousFeed', () => {
   it('should return anonymous feed v2 and include blocked filters', async () => {
     loggedUser = '1';
     await con.getRepository(Feed).save({ id: '1', userId: '1' });
-    await con.getRepository(FeedTag).save([
-      { feedId: '1', tag: 'javascript' },
-      { feedId: '1', tag: 'golang' },
-      { feedId: '1', tag: 'python', blocked: true },
-      { feedId: '1', tag: 'java', blocked: true },
+    await con.getRepository(ContentPreferenceKeyword).save([
+      {
+        feedId: '1',
+        keywordId: 'javascript',
+        referenceId: 'javascript',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+      {
+        feedId: '1',
+        keywordId: 'golang',
+        referenceId: 'golang',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+      {
+        feedId: '1',
+        keywordId: 'python',
+        referenceId: 'python',
+        status: ContentPreferenceStatus.Blocked,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+      {
+        feedId: '1',
+        keywordId: 'java',
+        referenceId: 'java',
+        status: ContentPreferenceStatus.Blocked,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
     ]);
     await con.getRepository(ContentPreferenceSource).save([
       {
@@ -690,7 +753,16 @@ describe('query feed', () => {
   it('should return preconfigured feed with tags filters only', async () => {
     loggedUser = '1';
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
-    await saveFixtures(con, FeedTag, [{ feedId: '1', tag: 'html' }]);
+    await saveFixtures(con, ContentPreferenceKeyword, [
+      {
+        feedId: '1',
+        keywordId: 'html',
+        referenceId: 'html',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+    ]);
 
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
@@ -700,8 +772,15 @@ describe('query feed', () => {
     loggedUser = '1';
     await con.getRepository(Post).delete({ id: 'p6' });
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
-    await saveFixtures(con, FeedTag, [
-      { feedId: '1', tag: 'html', blocked: true },
+    await saveFixtures(con, ContentPreferenceKeyword, [
+      {
+        feedId: '1',
+        keywordId: 'html',
+        referenceId: 'html',
+        status: ContentPreferenceStatus.Blocked,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
     ]);
 
     const res = await client.query(QUERY, { variables });
@@ -711,9 +790,23 @@ describe('query feed', () => {
   it('should return preconfigured feed with tags and blocked tags filters', async () => {
     loggedUser = '1';
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
-    await saveFixtures(con, FeedTag, [
-      { feedId: '1', tag: 'javascript' },
-      { feedId: '1', tag: 'webdev', blocked: true },
+    await saveFixtures(con, ContentPreferenceKeyword, [
+      {
+        feedId: '1',
+        keywordId: 'javascript',
+        referenceId: 'javascript',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+      {
+        feedId: '1',
+        keywordId: 'webdev',
+        referenceId: 'webdev',
+        status: ContentPreferenceStatus.Blocked,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
     ]);
 
     const res = await client.query(QUERY, { variables });
@@ -2525,8 +2618,8 @@ describe('mutation removeFiltersFromFeed', () => {
       {
         createdAt: expect.any(Date),
         feedId: '1',
-        keywordId: 'javascript',
-        referenceId: 'javascript',
+        keywordId: 'html',
+        referenceId: 'html',
         status: ContentPreferenceStatus.Follow,
         type: ContentPreferenceType.Keyword,
         userId: '1',
@@ -2534,8 +2627,8 @@ describe('mutation removeFiltersFromFeed', () => {
       {
         createdAt: expect.any(Date),
         feedId: '1',
-        keywordId: 'webdev',
-        referenceId: 'webdev',
+        keywordId: 'javascript',
+        referenceId: 'javascript',
         status: ContentPreferenceStatus.Follow,
         type: ContentPreferenceType.Keyword,
         userId: '1',
@@ -2605,7 +2698,17 @@ describe('mutation removeFiltersFromFeed', () => {
         },
       });
 
-    expect(contentPreferenceTagsAfter).toEqual([]);
+    expect(contentPreferenceTagsAfter).toEqual([
+      {
+        createdAt: expect.any(Date),
+        feedId: '1',
+        keywordId: 'html',
+        referenceId: 'html',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+    ]);
 
     const contentPreferenceSourcesAfter = await con
       .getRepository(ContentPreferenceSource)
@@ -2897,7 +3000,16 @@ describe('query feedPreview', () => {
     loggedUser = '1';
 
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
-    await saveFixtures(con, FeedTag, [{ feedId: '1', tag: 'html' }]);
+    await saveFixtures(con, ContentPreferenceKeyword, [
+      {
+        feedId: '1',
+        keywordId: 'html',
+        referenceId: 'html',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+    ]);
     nock('http://localhost:6000')
       .post('/feed.json', {
         feed_config_name: 'onboarding',
@@ -3725,10 +3837,31 @@ describe('query customFeed', () => {
         },
       },
     ]);
-    await con.getRepository(FeedTag).save([
-      { feedId: 'cf1', tag: 'webdev' },
-      { feedId: 'cf1', tag: 'html' },
-      { feedId: 'cf1', tag: 'data' },
+    await con.getRepository(ContentPreferenceKeyword).save([
+      {
+        feedId: 'cf1',
+        keywordId: 'webdev',
+        referenceId: 'webdev',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+      {
+        feedId: 'cf1',
+        keywordId: 'html',
+        referenceId: 'html',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+      {
+        feedId: 'cf1',
+        keywordId: 'data',
+        referenceId: 'data',
+        status: ContentPreferenceStatus.Follow,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
     ]);
   });
 
@@ -3808,9 +3941,16 @@ describe('query customFeed', () => {
 
   it('should not return posts with blocked tags', async () => {
     loggedUser = '1';
-    await con
-      .getRepository(FeedTag)
-      .save([{ feedId: 'cf1', tag: 'webdev', blocked: true }]);
+    await con.getRepository(ContentPreferenceKeyword).save([
+      {
+        feedId: 'cf1',
+        keywordId: 'webdev',
+        referenceId: 'webdev',
+        status: ContentPreferenceStatus.Blocked,
+        type: ContentPreferenceType.Keyword,
+        userId: '1',
+      },
+    ]);
 
     const res = await client.query(QUERY, {
       variables: {

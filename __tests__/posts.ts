@@ -3629,8 +3629,8 @@ describe('mutation createSourcePostModeration', () => {
     await saveSquadFixtures();
   });
 
-  const MUTATION = `mutation CreateSourcePostModeration($sourceId: ID! $title: String!, $type: String!, $content: String, $image: Upload, $imageUrl: String, $sharedPostId: ID, $commentary: String, $externalLink: String, $postId: ID) {
-    createSourcePostModeration(sourceId: $sourceId, title: $title, type: $type, content: $content, image: $image, imageUrl: $imageUrl, sharedPostId: $sharedPostId, commentary: $commentary, externalLink: $externalLink, postId: $postId) {
+  const MUTATION = `mutation CreateSourcePostModeration($sourceId: ID! $title: String!, $type: String!, $content: String, $image: Upload, $imageUrl: String, $sharedPostId: ID, $externalLink: String, $postId: ID) {
+    createSourcePostModeration(sourceId: $sourceId, title: $title, type: $type, content: $content, image: $image, imageUrl: $imageUrl, sharedPostId: $sharedPostId, externalLink: $externalLink, postId: $postId) {
       id
       title
       content
@@ -3772,9 +3772,8 @@ describe('mutation createSourcePostModeration', () => {
 
   it('should successfully create a squad post moderation entry of type freeform', async () => {
     loggedUser = '4';
-    const commentary = 'commentary';
     const res = await client.mutate(MUTATION, {
-      variables: { ...params, commentary, type: PostType.Freeform },
+      variables: { ...params, type: PostType.Freeform },
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.createSourcePostModeration).toBeTruthy();
@@ -3785,8 +3784,6 @@ describe('mutation createSourcePostModeration', () => {
     expect(res.data.createSourcePostModeration.contentHtml).toEqual(
       '<p>Hello World</p>',
     );
-    expect(res.data.createSourcePostModeration.title).not.toEqual(commentary);
-    expect(res.data.createSourcePostModeration.content).not.toEqual(commentary);
   });
 
   it('should successfully create a squad post moderation entry of type share', async () => {
@@ -3794,7 +3791,7 @@ describe('mutation createSourcePostModeration', () => {
     const res = await client.mutate(MUTATION, {
       variables: {
         ...params,
-        commentary: 'I am sharing a post',
+        title: 'I am sharing a post',
         sharedPostId: 'p1',
         type: PostType.Share,
       },
@@ -3818,7 +3815,7 @@ describe('mutation createSourcePostModeration', () => {
     const externalParams = {
       sourceId: 'm',
       title: 'External Link Title',
-      commentary: 'This is an awesome link',
+      content: 'This is an awesome link',
       imageUrl:
         'https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1',
       type: PostType.Share,
@@ -5669,5 +5666,211 @@ describe('Source post moderation approve/reject', () => {
     expect(res.data.moderateSourcePosts[0].status).toEqual(
       SourcePostModerationStatus.Approved,
     );
+  });
+});
+
+describe('Source post moderation edit/delete', () => {
+  const [pendingId, rejectedId] = Array.from({ length: 2 }, () =>
+    generateUUID(),
+  );
+
+  beforeEach(async () => {
+    await saveSquadFixtures();
+    await con.getRepository(SourceMember).save([
+      {
+        sourceId: 'm',
+        userId: '4',
+        role: SourceMemberRoles.Member,
+        referralToken: 'r4',
+      },
+    ]);
+    await con.getRepository(SourcePostModeration).save([
+      {
+        id: pendingId,
+        sourceId: 'm',
+        createdById: '4',
+        title: 'Title',
+        content: 'Content',
+        status: SourcePostModerationStatus.Pending,
+        type: PostType.Share,
+      },
+      {
+        id: rejectedId,
+        sourceId: 'm',
+        createdById: '4',
+        title: 'Title',
+        content: 'Content',
+        status: SourcePostModerationStatus.Rejected,
+        rejectionReason: 'Spam',
+        moderatorMessage: 'This is spam',
+        type: PostType.Share,
+        moderatedById: '3',
+      },
+    ]);
+  });
+
+  const DELETE_MUTATION = `
+  mutation DeleteSourcePostModeration($postId: ID!) {
+    deleteSourcePostModeration(postId: $postId){
+      _
+    }
+  }`;
+
+  const EDIT_MUTATION = `
+  mutation EditSourcePostModeration($id: ID!, $sourceId: ID!, $title: String, $content: String, $type: String!) {
+    editSourcePostModeration(id: $id, sourceId: $sourceId, title: $title, content: $content, type: $type) {
+      id
+      title
+      content
+      status
+    }
+  }`;
+
+  describe('deleteSourcePostModeration', () => {
+    it('should block guest', async () => {
+      loggedUser = '0';
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: DELETE_MUTATION,
+          variables: { postId: pendingId },
+        },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should not authorize when not source member', async () => {
+      loggedUser = '1'; // Not a member
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: DELETE_MUTATION,
+          variables: { postId: pendingId },
+        },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should not authorize when not author nor moderator', async () => {
+      loggedUser = '5'; // Member level
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: DELETE_MUTATION,
+          variables: { postId: pendingId },
+        },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should delete pending post', async () => {
+      loggedUser = '4'; // Member level
+
+      const res = await client.mutate(DELETE_MUTATION, {
+        variables: { postId: pendingId },
+      });
+
+      expect(res.errors).toBeFalsy();
+      const post = await con.getRepository(SourcePostModeration).findOneBy({
+        id: pendingId,
+      });
+      expect(post).toBeNull();
+    });
+  });
+
+  describe('editSourcePostModeration', () => {
+    it('should block guest', async () => {
+      loggedUser = '0';
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: EDIT_MUTATION,
+          variables: {
+            id: pendingId,
+            title: 'New Title',
+            type: PostType.Freeform,
+            sourceId: 'm',
+          },
+        },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should not authorize when not source member', async () => {
+      loggedUser = '1'; // Not a member
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: EDIT_MUTATION,
+          variables: {
+            id: pendingId,
+            title: 'New Title',
+            type: PostType.Freeform,
+            sourceId: 'm',
+          },
+        },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should not authorize when not author', async () => {
+      loggedUser = '3'; // Moderator level
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: EDIT_MUTATION,
+          variables: {
+            id: pendingId,
+            title: 'New Title',
+            type: PostType.Freeform,
+            sourceId: 'm',
+          },
+        },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should edit pending post', async () => {
+      loggedUser = '4'; // Member level
+
+      const res = await client.mutate(EDIT_MUTATION, {
+        variables: {
+          id: pendingId,
+          title: 'New Title',
+          content: 'New Content',
+          type: PostType.Freeform,
+          sourceId: 'm',
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const post = res.data.editSourcePostModeration;
+      expect(post.title).toEqual('New Title');
+      expect(post.content).toEqual('New Content');
+    });
+
+    it('should edit rejected post and set as pending', async () => {
+      loggedUser = '4'; // Member level
+
+      const res: GQLResponse<{
+        editSourcePostModeration: SourcePostModeration;
+      }> = await client.mutate(EDIT_MUTATION, {
+        variables: {
+          id: rejectedId,
+          title: 'New Title',
+          content: 'New Content',
+          type: PostType.Freeform,
+          sourceId: 'm',
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+      const post = res.data.editSourcePostModeration;
+      expect(post.title).toEqual('New Title');
+      expect(post.content).toEqual('New Content');
+      expect(post.status).toEqual(SourcePostModerationStatus.Pending);
+    });
   });
 });
