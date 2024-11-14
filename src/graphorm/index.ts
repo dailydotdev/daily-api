@@ -16,6 +16,7 @@ import {
   FeatureType,
   SettingsFlagsPublic,
   UserStats,
+  UserSubscriptionFlags,
 } from '../entity';
 import {
   SourceMemberRoles,
@@ -26,7 +27,7 @@ import {
 
 import { Context } from '../Context';
 import { GQLBookmarkList } from '../schema/bookmarks';
-import { base64, domainOnly } from '../common';
+import { base64, domainOnly, transformDate } from '../common';
 import { GQLComment } from '../schema/comments';
 import { GQLUserPost } from '../schema/posts';
 import { UserComment } from '../entity/user/UserComment';
@@ -40,6 +41,7 @@ import {
 } from '../entity/contentPreference/types';
 import { transformSettingFlags } from '../common/flags';
 import { ContentPreference } from '../entity/contentPreference/ContentPreference';
+import { isPlusMember } from '../paddle';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -59,9 +61,6 @@ const existsByUserAndPost =
 
 const nullIfNotLoggedIn = <T>(value: T, ctx: Context): T | null =>
   ctx.userId ? value : null;
-
-const transformDate = (value: string | Date): Date | undefined =>
-  value ? new Date(value) : undefined;
 
 const nullIfNotSameUser = <T>(
   value: T,
@@ -136,6 +135,16 @@ const obj = new GraphORM({
           return `EXISTS${query.getQuery()}`;
         },
         transform: (value: number): boolean => value > 0,
+      },
+      isPlus: {
+        alias: { field: 'subscriptionFlags', type: 'jsonb' },
+        transform: (subscriptionFlags: UserSubscriptionFlags) =>
+          isPlusMember(subscriptionFlags?.cycle),
+      },
+      plusMemberSince: {
+        alias: { field: 'subscriptionFlags', type: 'jsonb' },
+        transform: (subscriptionFlags: UserSubscriptionFlags) =>
+          transformDate(subscriptionFlags?.createdAt),
       },
       companies: {
         relation: {

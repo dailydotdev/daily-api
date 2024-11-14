@@ -32,3 +32,6 @@ export const getSecondsTimestamp = (ms: number | Date): number => {
 
   return Math.floor(msValue / 1000);
 };
+
+export const transformDate = (value?: string | Date): Date | undefined =>
+  value ? new Date(value) : undefined;
