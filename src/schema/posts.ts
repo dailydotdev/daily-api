@@ -776,6 +776,10 @@ export const typeDefs = /* GraphQL */ `
       Id of the requested post moderation
       """
       id: ID!
+      """
+      Id of the source
+      """
+      sourceId: ID!
     ): SourcePostModeration! @auth
     """
     Get squad post moderations by source id
@@ -1384,18 +1388,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   Query: {
     sourcePostModeration: async (
       _,
-      { id }: { id: string },
+      { id, sourceId }: { id: string; sourceId: string },
       ctx: Context,
       info,
     ): Promise<GQLSourcePostModeration> => {
-      const moderation = await ctx.con
-        .getRepository(SourcePostModeration)
-        .findOneOrFail({
-          where: { id },
-          select: ['sourceId'],
-        });
-
-      const isModerator = await isPrivilegedMember(ctx, moderation.sourceId);
+      const isModerator = await isPrivilegedMember(ctx, sourceId);
 
       return graphorm.queryOneOrFail<GQLSourcePostModeration>(
         ctx,
