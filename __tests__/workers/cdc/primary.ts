@@ -4744,7 +4744,7 @@ describe('source_post_moderation', () => {
       expect(freeform.image).toEqual('http://image');
       expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
         'api.v1.source-post-moderation-approved',
-        { post: after },
+        { post: { ...after, postId: freeform.id } },
       ]);
     });
 
@@ -4806,7 +4806,7 @@ describe('source_post_moderation', () => {
       expect(share.titleHtml).toEqual('<p># Test</p>');
       expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
         'api.v1.source-post-moderation-approved',
-        { post: after },
+        { post: { ...after, postId: share.id } },
       ]);
     });
 
@@ -4861,7 +4861,7 @@ describe('source_post_moderation', () => {
       expect(share.titleHtml).toEqual('<p># Sample</p>');
       expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
         'api.v1.source-post-moderation-approved',
-        { post: after },
+        { post: { ...after, postId: share.id } },
       ]);
     });
 
@@ -4899,7 +4899,7 @@ describe('source_post_moderation', () => {
       expect(share.titleHtml).toEqual('<p># Sample</p>');
       expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
         'api.v1.source-post-moderation-approved',
-        { post: after },
+        { post: { ...after, postId: share.id } },
       ]);
 
       const list = await con.getRepository(Post).find();
@@ -4924,7 +4924,7 @@ describe('source_post_moderation', () => {
       expect(after.title).toEqual('Test');
       expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
         'api.v1.source-post-moderation-approved',
-        { post: afterProps },
+        { post: { ...afterProps, postId: after.id } },
       ]);
     });
   });

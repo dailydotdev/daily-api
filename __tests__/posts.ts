@@ -3522,8 +3522,8 @@ describe('query sourcePostModeration', () => {
     ]);
   });
 
-  const queryOne = `query sourcePostModeration($id: ID!, $sourceId: ID!) {
-  sourcePostModeration(id: $id, sourceId: $sourceId) {
+  const queryOne = `query sourcePostModeration($id: ID!) {
+  sourcePostModeration(id: $id) {
     title
     type
   }
@@ -3546,7 +3546,7 @@ describe('query sourcePostModeration', () => {
       client,
       {
         query: queryOne,
-        variables: { id: '1', sourceId: 'm' },
+        variables: { id: firstPostUuid },
       },
       'FORBIDDEN',
     );
@@ -3556,7 +3556,7 @@ describe('query sourcePostModeration', () => {
     loggedUser = '4';
 
     const res = await client.query(queryOne, {
-      variables: { id: firstPostUuid, sourceId: 'm' },
+      variables: { id: firstPostUuid },
     });
     expect(res.data).toEqual({
       sourcePostModeration: {
@@ -3569,7 +3569,7 @@ describe('query sourcePostModeration', () => {
   it('should retrieve moderation item because user is moderator', async () => {
     loggedUser = '3';
     const res = await client.query(queryOne, {
-      variables: { id: firstPostUuid, sourceId: 'm' },
+      variables: { id: firstPostUuid },
     });
     expect(res.errors).toBeUndefined();
     expect(res.data).toEqual({
@@ -3638,9 +3638,10 @@ describe('mutation createSourcePostModeration', () => {
       externalLink
       type
       image
-      sharedPostId
       titleHtml
-      postId
+      sharedPost {
+        id
+      }
       post {
         id
       }
@@ -3722,9 +3723,8 @@ describe('mutation createSourcePostModeration', () => {
     expect(res.data.createSourcePostModeration.content).toEqual(
       'My new freeform content',
     );
-    expect(res.data.createSourcePostModeration.postId).toEqual(newPost.id);
+    expect(res.data.createSourcePostModeration.post.id).toEqual(newPost.id);
     expect(res.data.createSourcePostModeration.source).toBeDefined();
-    expect(res.data.createSourcePostModeration.post).toBeDefined();
   });
 
   it('should create share moderation entry for an existing post', async () => {
@@ -3748,9 +3748,8 @@ describe('mutation createSourcePostModeration', () => {
       },
     });
     expect(res.errors).toBeFalsy();
-    expect(res.data.createSourcePostModeration.postId).toEqual(newPost.id);
+    expect(res.data.createSourcePostModeration.post.id).toEqual(newPost.id);
     expect(res.data.createSourcePostModeration.source).toBeDefined();
-    expect(res.data.createSourcePostModeration.post).toBeDefined();
   });
 
   it("should not be able to create moderation entry for another user's post", async () => {
@@ -3818,7 +3817,7 @@ describe('mutation createSourcePostModeration', () => {
     );
     expect(res.data.createSourcePostModeration.content).toBeNull();
     expect(res.data.createSourcePostModeration.contentHtml).toBeNull();
-    expect(res.data.createSourcePostModeration.sharedPostId).toEqual('p1');
+    expect(res.data.createSourcePostModeration.sharedPost.id).toEqual('p1');
     expect(res.data.createSourcePostModeration.post).toBeNull();
   });
 
