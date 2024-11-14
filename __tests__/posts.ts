@@ -3638,9 +3638,7 @@ describe('mutation createSourcePostModeration', () => {
       externalLink
       type
       image
-      sharedPostId
       titleHtml
-      postId
     }
   }`;
 
