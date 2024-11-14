@@ -2,8 +2,6 @@ import { getPermissionsForMember } from './../schema/sources';
 import { GraphORM, GraphORMField, QueryBuilder } from './graphorm';
 import {
   Bookmark,
-  FeedSource,
-  FeedTag,
   Source,
   SourceMember,
   User,
@@ -36,8 +34,13 @@ import { I18nRecord, UserVote } from '../types';
 import { whereVordrFilter } from '../common/vordr';
 import { UserCompany } from '../entity/UserCompany';
 import { Post } from '../entity/posts/Post';
-import { ContentPreferenceType } from '../entity/contentPreference/types';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../entity/contentPreference/types';
 import { transformSettingFlags } from '../common/flags';
+import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
+import { ContentPreference } from '../entity/contentPreference/ContentPreference';
 import { isPlusMember } from '../paddle';
 
 const existsByUserAndPost =
@@ -641,19 +644,29 @@ const obj = new GraphORM({
       includeTags: {
         select: (ctx, alias, qb): QueryBuilder =>
           qb
-            .select(`string_agg(tag, ',' order by tag)`)
-            .from(FeedTag, 'ft')
-            .where(`ft."feedId" = "${alias}".id`)
-            .andWhere('ft.blocked = false'),
+            .select(`string_agg("keywordId", ',' order by "keywordId")`)
+            .from(ContentPreference, 'cpk')
+            .where(`cpk."feedId" = "${alias}".id`)
+            .andWhere('cpk.type = :contentPreferenceType', {
+              contentPreferenceType: ContentPreferenceType.Keyword,
+            })
+            .andWhere('cpk.status != :contentPreferenceStatus', {
+              contentPreferenceStatus: ContentPreferenceStatus.Blocked,
+            }),
         transform: (value: string): string[] => value?.split(',') ?? [],
       },
       blockedTags: {
         select: (ctx, alias, qb): QueryBuilder =>
           qb
-            .select(`string_agg(tag, ',' order by tag)`)
-            .from(FeedTag, 'ft')
-            .where(`ft."feedId" = "${alias}".id`)
-            .andWhere('ft.blocked = true'),
+            .select(`string_agg("keywordId", ',' order by "keywordId")`)
+            .from(ContentPreference, 'cpk')
+            .where(`cpk."feedId" = "${alias}".id`)
+            .andWhere('cpk.type = :contentPreferenceType', {
+              contentPreferenceType: ContentPreferenceType.Keyword,
+            })
+            .andWhere('cpk.status = :contentPreferenceStatus', {
+              contentPreferenceStatus: ContentPreferenceStatus.Blocked,
+            }),
         transform: (value: string): string[] => value?.split(',') ?? [],
       },
       includeSources: {
@@ -662,12 +675,17 @@ const obj = new GraphORM({
           customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
             qb
               .innerJoin(
-                FeedSource,
-                'fs',
-                `"${childAlias}"."id" = fs."sourceId"`,
+                ContentPreferenceSource,
+                'cps',
+                `"${childAlias}"."id" = cps."referenceId"`,
               )
-              .where(`fs."feedId" = "${parentAlias}".id`)
-              .andWhere(`fs."blocked" = false`)
+              .where(`cps."feedId" = "${parentAlias}".id`)
+              .andWhere('cps.type = :contentPreferenceSourceType', {
+                contentPreferenceSourceType: ContentPreferenceType.Source,
+              })
+              .andWhere('cps.status != :contentPreferenceSourceStatus', {
+                contentPreferenceSourceStatus: ContentPreferenceStatus.Blocked,
+              })
               .orderBy(`"${childAlias}".name`),
         },
       },
@@ -677,12 +695,17 @@ const obj = new GraphORM({
           customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
             qb
               .innerJoin(
-                FeedSource,
-                'fs',
-                `"${childAlias}"."id" = fs."sourceId"`,
+                ContentPreferenceSource,
+                'cps',
+                `"${childAlias}"."id" = cps."referenceId"`,
               )
-              .where(`fs."feedId" = "${parentAlias}".id`)
-              .andWhere(`fs."blocked" = true`)
+              .where(`cps."feedId" = "${parentAlias}".id`)
+              .andWhere('cps.type = :contentPreferenceSourceType', {
+                contentPreferenceSourceType: ContentPreferenceType.Source,
+              })
+              .andWhere('cps.status = :contentPreferenceSourceStatus', {
+                contentPreferenceSourceStatus: ContentPreferenceStatus.Blocked,
+              })
               .orderBy(`"${childAlias}".name`),
         },
       },
