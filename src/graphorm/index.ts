@@ -680,11 +680,11 @@ const obj = new GraphORM({
                 `"${childAlias}"."id" = cps."referenceId"`,
               )
               .where(`cps."feedId" = "${parentAlias}".id`)
-              .andWhere('cps.type = :contentPreferenceType', {
-                contentPreferenceType: ContentPreferenceType.Source,
+              .andWhere('cps.type = :contentPreferenceSourceType', {
+                contentPreferenceSourceType: ContentPreferenceType.Source,
               })
-              .andWhere('cps.status != :contentPreferenceStatus', {
-                contentPreferenceStatus: ContentPreferenceStatus.Blocked,
+              .andWhere('cps.status != :contentPreferenceSourceStatus', {
+                contentPreferenceSourceStatus: ContentPreferenceStatus.Blocked,
               })
               .orderBy(`"${childAlias}".name`),
         },
@@ -700,11 +700,11 @@ const obj = new GraphORM({
                 `"${childAlias}"."id" = cps."referenceId"`,
               )
               .where(`cps."feedId" = "${parentAlias}".id`)
-              .andWhere('cps.type = :contentPreferenceType', {
-                contentPreferenceType: ContentPreferenceType.Source,
+              .andWhere('cps.type = :contentPreferenceSourceType', {
+                contentPreferenceSourceType: ContentPreferenceType.Source,
               })
-              .andWhere('cps.status = :contentPreferenceStatus', {
-                contentPreferenceStatus: ContentPreferenceStatus.Blocked,
+              .andWhere('cps.status = :contentPreferenceSourceStatus', {
+                contentPreferenceSourceStatus: ContentPreferenceStatus.Blocked,
               })
               .orderBy(`"${childAlias}".name`),
         },
