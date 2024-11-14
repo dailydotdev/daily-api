@@ -275,10 +275,6 @@ export const typeDefs = /* GraphQL */ `
     """
     source: Source
     """
-    Source
-    """
-    source: Source!
-    """
     Type of post
     """
     type: String
