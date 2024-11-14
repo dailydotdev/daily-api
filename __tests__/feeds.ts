@@ -11,7 +11,6 @@ import {
   BookmarkList,
   Feed,
   FeedAdvancedSettings,
-  FeedTag,
   FreeformPost,
   Keyword,
   MachineSource,
@@ -182,11 +181,6 @@ const saveFeedFixtures = async (): Promise<void> => {
     { feedId: '1', advancedSettingsId: 7, enabled: true },
   ]);
   await saveFixtures(con, Category, categories);
-  await saveFixtures(con, FeedTag, [
-    { feedId: '1', tag: 'html' },
-    { feedId: '1', tag: 'javascript' },
-    { feedId: '1', tag: 'golang', blocked: true },
-  ]);
   await saveFixtures(con, ContentPreferenceSource, [
     {
       feedId: '1',
