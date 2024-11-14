@@ -16,10 +16,17 @@ import type { UserStreak } from './UserStreak';
 import type { UserStreakAction } from './UserStreakAction';
 import type { UserCompany } from '../UserCompany';
 import type { UserTopReader } from './UserTopReader';
+import type { SubscriptionCycles } from '../../paddle';
 
 export type UserFlags = Partial<{
   vordr: boolean;
   trustScore: number;
+}>;
+
+export type UserSubscriptionFlags = Partial<{
+  cycle: SubscriptionCycles;
+  createdAt: Date;
+  subscriptionId: string;
 }>;
 
 @Entity()
@@ -158,7 +165,6 @@ export class User {
   experienceLevel: string | null;
 
   @Column({ type: 'jsonb', default: {} })
-  @Index('IDX_user_flags_vordr', { synchronize: false })
   flags: UserFlags;
 
   @Column({ type: 'text', nullable: true })
@@ -175,6 +181,9 @@ export class User {
     onDelete: 'SET NULL',
   })
   referral?: Promise<User>;
+
+  @Column({ type: 'jsonb', default: {} })
+  subscriptionFlags?: UserSubscriptionFlags;
 
   @OneToMany('Post', (post: Post) => post.author, { lazy: true })
   posts: Promise<Post[]>;
