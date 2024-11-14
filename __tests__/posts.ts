@@ -3641,6 +3641,12 @@ describe('mutation createSourcePostModeration', () => {
       sharedPostId
       titleHtml
       postId
+      post {
+        id
+      }
+      source {
+        permalink
+      }
     }
   }`;
 
@@ -3717,6 +3723,8 @@ describe('mutation createSourcePostModeration', () => {
       'My new freeform content',
     );
     expect(res.data.createSourcePostModeration.postId).toEqual(newPost.id);
+    expect(res.data.createSourcePostModeration.source).toBeDefined();
+    expect(res.data.createSourcePostModeration.post).toBeDefined();
   });
 
   it('should create share moderation entry for an existing post', async () => {
@@ -3741,6 +3749,8 @@ describe('mutation createSourcePostModeration', () => {
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.createSourcePostModeration.postId).toEqual(newPost.id);
+    expect(res.data.createSourcePostModeration.source).toBeDefined();
+    expect(res.data.createSourcePostModeration.post).toBeDefined();
   });
 
   it("should not be able to create moderation entry for another user's post", async () => {
