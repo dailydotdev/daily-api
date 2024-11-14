@@ -25,7 +25,7 @@ schema.include.list: "public"
 plugin.name: "pgoutput"
 
 # table.include.list: An optional list of regular expressions that match fully-qualified table identifiers for tables to be monitored;
-table.include.list: "public.post,public.source,public.keyword,public.feed_tag,public.user"
+table.include.list: "public.post,public.source,public.keyword,public.feed_tag,public.user,public.content_preference"
 
 column.exclude.list: "public\\.user\\.(email|name)"
 
@@ -60,7 +60,7 @@ offset.flush.interval.ms: 60000
 buffer.max.records: 10000
 
 # Flush timeout(in milliseconds) if max records is not reached.
-buffer.flush.time.ms: 30000
+buffer.flush.time.ms: 15000
 
 thread.pool.size: 5
 
@@ -70,6 +70,9 @@ max.batch.size: 32000
 #snapshot.fetch.size: 1024
 metrics.enable: "false"
 cli.port: 7052
+
+# let's try something scary
+single.threaded: "true"
 
 # connector.class: The Java class for the connector. This must be set to io.debezium.connector.postgresql.PostgresConnector.
 connector.class: "io.debezium.connector.postgresql.PostgresConnector"
