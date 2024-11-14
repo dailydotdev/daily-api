@@ -3794,6 +3794,7 @@ describe('mutation createSourcePostModeration', () => {
     expect(res.data.createSourcePostModeration.contentHtml).toEqual(
       '<p>Hello World</p>',
     );
+    expect(res.data.createSourcePostModeration.post).toBeNull();
   });
 
   it('should successfully create a squad post moderation entry of type share', async () => {
@@ -3818,6 +3819,7 @@ describe('mutation createSourcePostModeration', () => {
     expect(res.data.createSourcePostModeration.content).toBeNull();
     expect(res.data.createSourcePostModeration.contentHtml).toBeNull();
     expect(res.data.createSourcePostModeration.sharedPostId).toEqual('p1');
+    expect(res.data.createSourcePostModeration.post).toBeNull();
   });
 
   it('should successfully create a squad post moderation for external link', async () => {
@@ -3853,6 +3855,7 @@ describe('mutation createSourcePostModeration', () => {
     expect(res.data.createSourcePostModeration.externalLink).toEqual(
       externalParams.externalLink,
     );
+    expect(res.data.createSourcePostModeration.post).toBeNull();
   });
 });
 
