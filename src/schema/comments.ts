@@ -443,7 +443,7 @@ export interface MentionedUser {
 
 export const getMentions = async (
   con: DataSource | EntityManager,
-  content: string | undefined,
+  content: string | undefined | null,
   userId: string,
   sourceId?: string,
 ): Promise<MentionedUser[]> => {

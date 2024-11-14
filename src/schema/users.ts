@@ -1285,7 +1285,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             ]),
           }),
           ctx.con.getRepository(ContentPreferenceUser).countBy({
-            referenceUserId: id,
+            referenceId: id,
             status: In([
               ContentPreferenceStatus.Follow,
               ContentPreferenceStatus.Subscribed,
