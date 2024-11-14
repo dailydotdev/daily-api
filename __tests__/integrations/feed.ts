@@ -18,8 +18,7 @@ import {
   AdvancedSettings,
   Feed,
   FeedAdvancedSettings,
-  FeedSource,
-  FeedTag,
+  Keyword,
   PostType,
   postTypes,
   Source,
@@ -39,6 +38,9 @@ import {
   FeedUserStateConfigGenerator,
 } from '../../src/integrations/feed/configs';
 import { ILofnClient } from '../../src/integrations/lofn';
+import { ContentPreferenceSource } from '../../src/entity/contentPreference/ContentPreferenceSource';
+import { ContentPreferenceKeyword } from '../../src/entity/contentPreference/ContentPreferenceKeyword';
+import { ContentPreferenceStatus } from '../../src/entity/contentPreference/types';
 
 let con: DataSource;
 let ctx: Context;
@@ -138,16 +140,70 @@ describe('FeedClient', () => {
 describe('FeedPreferencesConfigGenerator', () => {
   beforeEach(async () => {
     await saveFixtures(con, Source, sourcesFixture);
-    await con.getRepository(Feed).save({ id: '1', userId: 'u1' });
-    await con.getRepository(FeedTag).save([
-      { feedId: '1', tag: 'javascript' },
-      { feedId: '1', tag: 'golang' },
-      { feedId: '1', tag: 'python', blocked: true },
-      { feedId: '1', tag: 'java', blocked: true },
+    await saveFixtures(con, Keyword, [
+      {
+        value: 'javascript',
+        status: 'allow',
+      },
+      {
+        value: 'golang',
+        status: 'allow',
+      },
+      {
+        value: 'python',
+        status: 'allow',
+      },
+      {
+        value: 'java',
+        status: 'allow',
+      },
     ]);
-    await con.getRepository(FeedSource).save([
-      { feedId: '1', sourceId: 'a' },
-      { feedId: '1', sourceId: 'b' },
+    await con.getRepository(Feed).save({ id: '1', userId: 'u1' });
+    await con.getRepository(ContentPreferenceKeyword).save([
+      {
+        feedId: '1',
+        keywordId: 'javascript',
+        userId: '1',
+        referenceId: 'javascript',
+        status: ContentPreferenceStatus.Follow,
+      },
+      {
+        feedId: '1',
+        keywordId: 'golang',
+        userId: '1',
+        referenceId: 'golang',
+        status: ContentPreferenceStatus.Follow,
+      },
+      {
+        feedId: '1',
+        keywordId: 'python',
+        userId: '1',
+        referenceId: 'python',
+        status: ContentPreferenceStatus.Blocked,
+      },
+      {
+        feedId: '1',
+        keywordId: 'java',
+        userId: '1',
+        referenceId: 'java',
+        status: ContentPreferenceStatus.Blocked,
+      },
+    ]);
+    await con.getRepository(ContentPreferenceSource).save([
+      {
+        feedId: '1',
+        sourceId: 'a',
+        userId: '1',
+        status: ContentPreferenceStatus.Blocked,
+        referenceId: 'a',
+      },
+      {
+        feedId: '1',
+        sourceId: 'b',
+        userId: '1',
+        status: ContentPreferenceStatus.Blocked,
+        referenceId: 'b',
+      },
     ]);
     await con.getRepository(SourceMember).save([
       {
@@ -324,11 +380,35 @@ describe('FeedPreferencesConfigGenerator', () => {
       },
     );
     await con.getRepository(Feed).save({ id: 'cf1', userId: 'u1' });
-    await con.getRepository(FeedTag).save([
-      { feedId: 'cf1', tag: 'javascript' },
-      { feedId: 'cf1', tag: 'golang' },
-      { feedId: 'cf1', tag: 'python' },
-      { feedId: 'cf1', tag: 'java' },
+    await con.getRepository(ContentPreferenceKeyword).save([
+      {
+        feedId: 'cf1',
+        keywordId: 'javascript',
+        userId: '1',
+        referenceId: 'javascript',
+        status: ContentPreferenceStatus.Follow,
+      },
+      {
+        feedId: 'cf1',
+        keywordId: 'golang',
+        userId: '1',
+        referenceId: 'golang',
+        status: ContentPreferenceStatus.Follow,
+      },
+      {
+        feedId: 'cf1',
+        keywordId: 'python',
+        userId: '1',
+        referenceId: 'python',
+        status: ContentPreferenceStatus.Follow,
+      },
+      {
+        feedId: 'cf1',
+        keywordId: 'java',
+        userId: '1',
+        referenceId: 'java',
+        status: ContentPreferenceStatus.Follow,
+      },
     ]);
 
     const actual = await generator.generate(ctx, {
@@ -428,15 +508,69 @@ describe('FeedLofnConfigGenerator', () => {
   beforeEach(async () => {
     await saveFixtures(con, Source, sourcesFixture);
     await con.getRepository(Feed).save({ id: '1', userId: 'u1' });
-    await con.getRepository(FeedTag).save([
-      { feedId: '1', tag: 'javascript' },
-      { feedId: '1', tag: 'golang' },
-      { feedId: '1', tag: 'python', blocked: true },
-      { feedId: '1', tag: 'java', blocked: true },
+    await saveFixtures(con, Keyword, [
+      {
+        value: 'javascript',
+        status: 'allow',
+      },
+      {
+        value: 'golang',
+        status: 'allow',
+      },
+      {
+        value: 'python',
+        status: 'allow',
+      },
+      {
+        value: 'java',
+        status: 'allow',
+      },
     ]);
-    await con.getRepository(FeedSource).save([
-      { feedId: '1', sourceId: 'a' },
-      { feedId: '1', sourceId: 'b' },
+    await con.getRepository(ContentPreferenceKeyword).save([
+      {
+        feedId: '1',
+        keywordId: 'javascript',
+        userId: '1',
+        referenceId: 'javascript',
+        status: ContentPreferenceStatus.Follow,
+      },
+      {
+        feedId: '1',
+        keywordId: 'golang',
+        userId: '1',
+        referenceId: 'golang',
+        status: ContentPreferenceStatus.Follow,
+      },
+      {
+        feedId: '1',
+        keywordId: 'python',
+        userId: '1',
+        referenceId: 'python',
+        status: ContentPreferenceStatus.Blocked,
+      },
+      {
+        feedId: '1',
+        keywordId: 'java',
+        userId: '1',
+        referenceId: 'java',
+        status: ContentPreferenceStatus.Blocked,
+      },
+    ]);
+    await con.getRepository(ContentPreferenceSource).save([
+      {
+        feedId: '1',
+        sourceId: 'a',
+        userId: '1',
+        status: ContentPreferenceStatus.Blocked,
+        referenceId: 'a',
+      },
+      {
+        feedId: '1',
+        sourceId: 'b',
+        userId: '1',
+        status: ContentPreferenceStatus.Blocked,
+        referenceId: 'b',
+      },
     ]);
     await con.getRepository(SourceMember).save([
       {
