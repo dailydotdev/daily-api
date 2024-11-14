@@ -87,18 +87,6 @@ const bookmarksFixture = [
   },
 ];
 
-// const saveFeedFixtures = async (): Promise<void> => {
-//   await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
-//   await saveFixtures(con, FeedTag, [
-//     { feedId: '1', tag: 'html' },
-//     { feedId: '1', tag: 'javascript' },
-//   ]);
-//   await saveFixtures(con, FeedSource, [
-//     { feedId: '1', sourceId: 'b' },
-//     { feedId: '1', sourceId: 'c' },
-//   ]);
-// };
-
 beforeAll(async () => {
   con = await createOrGetConnection();
   app = await appFunc();
