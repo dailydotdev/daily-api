@@ -116,7 +116,7 @@ export interface GQLSourcePostModeration {
   status: SourcePostModerationStatus;
   createdAt: Date;
   updatedAt: Date;
-  source: Source;
+  source?: Source;
   post?: Post;
   postId?: string;
 }
