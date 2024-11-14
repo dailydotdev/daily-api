@@ -14,13 +14,13 @@ export class ContentPreferencesReadIndexes1731520135216 implements MigrationInte
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
-      await queryRunner.query(`DROP INDEX "idx_content_preferences_referenceid_type_status"`);
+      await queryRunner.query(`DROP INDEX IF EXISTS "idx_content_preferences_referenceid_type_status"`);
 
-      await queryRunner.query(`DROP INDEX "idx_content_preferences_userid_referenceid_type"`);
+      await queryRunner.query(`DROP INDEX IF EXISTS "idx_content_preferences_userid_referenceid_type"`);
 
-      await queryRunner.query(`DROP INDEX "idx_content_preferences_feedid_type_status"`);
+      await queryRunner.query(`DROP INDEX IF EXISTS "idx_content_preferences_feedid_type_status"`);
 
-      await queryRunner.query(`DROP INDEX "idx_content_preferences_feedid_type_userid_status"`);
+      await queryRunner.query(`DROP INDEX IF EXISTS "idx_content_preferences_feedid_type_userid_status"`);
     }
 
 }
