@@ -12,7 +12,6 @@ import {
   Feed,
   FeedAdvancedSettings,
   FeedTag,
-  FeedSource,
   FreeformPost,
   Keyword,
   MachineSource,
@@ -235,36 +234,6 @@ const saveFeedFixtures = async (): Promise<void> => {
       referenceId: 'golang',
       status: ContentPreferenceStatus.Blocked,
       type: ContentPreferenceType.Keyword,
-      userId: '1',
-    },
-  ]);
-  await saveFixtures(con, FeedSource, [
-    { feedId: '1', sourceId: 'b' },
-    { feedId: '1', sourceId: 'c' },
-  ]);
-  await saveFixtures(con, ContentPreferenceSource, [
-    {
-      feedId: '1',
-      flags: {
-        role: SourceMemberRoles.Member,
-        referralToken: randomUUID(),
-      },
-      referenceId: 'a',
-      sourceId: 'a',
-      status: ContentPreferenceStatus.Blocked,
-      type: ContentPreferenceType.Source,
-      userId: '1',
-    },
-    {
-      feedId: '1',
-      flags: {
-        role: SourceMemberRoles.Member,
-        referralToken: randomUUID(),
-      },
-      referenceId: 'b',
-      sourceId: 'b',
-      status: ContentPreferenceStatus.Blocked,
-      type: ContentPreferenceType.Source,
       userId: '1',
     },
   ]);
