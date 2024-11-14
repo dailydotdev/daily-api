@@ -3522,8 +3522,8 @@ describe('query sourcePostModeration', () => {
     ]);
   });
 
-  const queryOne = `query sourcePostModeration($id: ID!, $sourceId: ID!) {
-  sourcePostModeration(id: $id, sourceId: $sourceId) {
+  const queryOne = `query sourcePostModeration($id: ID!) {
+  sourcePostModeration(id: $id) {
     title
     type
   }
@@ -3546,7 +3546,7 @@ describe('query sourcePostModeration', () => {
       client,
       {
         query: queryOne,
-        variables: { id: '1', sourceId: 'm' },
+        variables: { id: firstPostUuid },
       },
       'FORBIDDEN',
     );
@@ -3556,7 +3556,7 @@ describe('query sourcePostModeration', () => {
     loggedUser = '4';
 
     const res = await client.query(queryOne, {
-      variables: { id: firstPostUuid, sourceId: 'm' },
+      variables: { id: firstPostUuid },
     });
     expect(res.data).toEqual({
       sourcePostModeration: {
@@ -3569,7 +3569,7 @@ describe('query sourcePostModeration', () => {
   it('should retrieve moderation item because user is moderator', async () => {
     loggedUser = '3';
     const res = await client.query(queryOne, {
-      variables: { id: firstPostUuid, sourceId: 'm' },
+      variables: { id: firstPostUuid },
     });
     expect(res.errors).toBeUndefined();
     expect(res.data).toEqual({
