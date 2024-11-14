@@ -10,7 +10,7 @@ import createOrGetConnection from '../../db';
 import { updateSubscriptionFlags } from '../../common';
 import { User } from '../../entity';
 import { logger } from '../../logger';
-import { planTypes } from '../../paddle';
+import { planTypes } from '../../remoteConfig';
 
 const paddleInstance = new Paddle(process.env.PADDLE_API_KEY, {
   environment: process.env.PADDLE_ENVIRONMENT as Environment,
