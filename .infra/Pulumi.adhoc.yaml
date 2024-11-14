@@ -54,7 +54,6 @@ config:
     enablePubsub: true
     gcloudProject: local
     heimdallOrigin: http://heimdall-api
-    ignoredWorkEmailDomains: "igored.com,ignored.org"
     jwtAudience: Daily Staging
     jwtIssuer: Daily API Staging
     jwtSecret: '|r+.2!!!.Qf_-|63*%.D'
@@ -69,6 +68,9 @@ config:
     otelEnabled: false
     otelExporterOtlpEndpoint: http://otel-collector.local.svc.cluster.local:4318/v1/traces
     otelTracesSampler: always_on
+    paddleApiKey: topsecret
+    paddleEnvironment: sandbox
+    paddleWebhookSecret: topsecret
     personalizedDigestSecret: topsecret
     postScraperOrigin: http://post-scraper-one-ai-server
     pubsubEmulatorHost: pubsub:8085
@@ -82,8 +84,6 @@ config:
     typeormUsername: postgres
     tz: UTC
     urlPrefix: http://api.local.com
-    vordrIps: ""
-    vordrWords: "VordrWillCatchYou,AndVordrWillHaveFun"
   api:k8s:
     namespace: local
   api:temporal:

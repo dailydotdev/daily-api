@@ -1,12 +1,14 @@
 import { GrowthBook } from '@growthbook/growthbook';
 import { logger } from './logger';
 import { isProd } from './common/utils';
+import type { SubscriptionCycles } from './paddle';
 
 type RemoteConfigValue = {
   inc: number;
   vordrWords: string[];
   vordrIps: string[];
   ignoredWorkEmailDomains: string[];
+  pricingIds: Record<string, SubscriptionCycles>;
 };
 
 class RemoteConfig {
@@ -58,3 +60,5 @@ class RemoteConfig {
 }
 
 export const remoteConfig = new RemoteConfig();
+
+export const planTypes = remoteConfig.vars.pricingIds || {};
