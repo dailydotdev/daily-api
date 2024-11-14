@@ -60,3 +60,5 @@ class RemoteConfig {
 }
 
 export const remoteConfig = new RemoteConfig();
+
+export const planTypes = remoteConfig.vars.pricingIds || {};
