@@ -14,6 +14,28 @@ import type { Feed } from '../Feed';
 @Entity()
 @TableInheritance({ column: { type: 'text', name: 'type' } })
 @Index(['userId', 'status', 'type'])
+@Index('idx_content_preferences_referenceid_type_status', [
+  'referenceId',
+  'type',
+  'status',
+])
+@Index('idx_content_preferences_userid_referenceid_type', [
+  'userId',
+  'referenceId',
+  'type',
+])
+@Index([
+  'idx_content_preferences_feedid_type_status',
+  'feedId',
+  'type',
+  'status',
+])
+@Index('idx_content_preferences_feedid_type_userid_status', [
+  'feedId',
+  'type',
+  'userId',
+  'status',
+])
 export class ContentPreference {
   @PrimaryColumn({ type: 'text' })
   referenceId: string;
