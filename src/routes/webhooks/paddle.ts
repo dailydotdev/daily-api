@@ -36,8 +36,8 @@ const updateUserSubscription = async ({
     return false;
   }
   const subscriptionType = data.data?.items.reduce((acc, item) => {
-    if (item.price?.id && planTypes[item.price.id]) {
-      acc = planTypes[item.price.id];
+    if (item.price?.id && planTypes()[item.price.id]) {
+      acc = planTypes()[item.price.id];
     }
     return acc;
   }, '');
