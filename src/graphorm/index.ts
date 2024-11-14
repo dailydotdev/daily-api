@@ -3,7 +3,6 @@ import { GraphORM, GraphORMField, QueryBuilder } from './graphorm';
 import {
   Bookmark,
   FeedSource,
-  FeedTag,
   Source,
   SourceMember,
   User,
@@ -36,8 +35,12 @@ import { I18nRecord, UserVote } from '../types';
 import { whereVordrFilter } from '../common/vordr';
 import { UserCompany } from '../entity/UserCompany';
 import { Post } from '../entity/posts/Post';
-import { ContentPreferenceType } from '../entity/contentPreference/types';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../entity/contentPreference/types';
 import { transformSettingFlags } from '../common/flags';
+import { ContentPreference } from '../entity/contentPreference/ContentPreference';
 import { isPlusMember } from '../paddle';
 
 const existsByUserAndPost =
@@ -641,19 +644,29 @@ const obj = new GraphORM({
       includeTags: {
         select: (ctx, alias, qb): QueryBuilder =>
           qb
-            .select(`string_agg(tag, ',' order by tag)`)
-            .from(FeedTag, 'ft')
-            .where(`ft."feedId" = "${alias}".id`)
-            .andWhere('ft.blocked = false'),
+            .select(`string_agg("keywordId", ',' order by "keywordId")`)
+            .from(ContentPreference, 'cpk')
+            .where(`cpk."feedId" = "${alias}".id`)
+            .andWhere('cpk.type = :contentPreferenceType', {
+              contentPreferenceType: ContentPreferenceType.Keyword,
+            })
+            .andWhere('cpk.status != :contentPreferenceStatus', {
+              contentPreferenceStatus: ContentPreferenceStatus.Blocked,
+            }),
         transform: (value: string): string[] => value?.split(',') ?? [],
       },
       blockedTags: {
         select: (ctx, alias, qb): QueryBuilder =>
           qb
-            .select(`string_agg(tag, ',' order by tag)`)
-            .from(FeedTag, 'ft')
-            .where(`ft."feedId" = "${alias}".id`)
-            .andWhere('ft.blocked = true'),
+            .select(`string_agg("keywordId", ',' order by "keywordId")`)
+            .from(ContentPreference, 'cpk')
+            .where(`cpk."feedId" = "${alias}".id`)
+            .andWhere('cpk.type = :contentPreferenceType', {
+              contentPreferenceType: ContentPreferenceType.Keyword,
+            })
+            .andWhere('cpk.status = :contentPreferenceStatus', {
+              contentPreferenceStatus: ContentPreferenceStatus.Blocked,
+            }),
         transform: (value: string): string[] => value?.split(',') ?? [],
       },
       includeSources: {
