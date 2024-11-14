@@ -268,21 +268,13 @@ export const typeDefs = /* GraphQL */ `
     """
     image: String
     """
-    Url to image if applicable
+    Related source this is posted to
     """
-    imageUrl: String
-    """
-    Id of the Squad
-    """
-    sourceId: String
+    source: Source
     """
     Type of post
     """
     type: String
-    """
-    Id of the shared post
-    """
-    sharedPostId: String
     """
     Shared post
     """
@@ -295,10 +287,6 @@ export const typeDefs = /* GraphQL */ `
     external link url
     """
     externalLink: String
-    """
-    ID of the existing post
-    """
-    postId: String
     """
     Status of the moderation
     """
@@ -788,10 +776,6 @@ export const typeDefs = /* GraphQL */ `
       Id of the requested post moderation
       """
       id: ID!
-      """
-      Id of the source
-      """
-      sourceId: ID!
     ): SourcePostModeration! @auth
     """
     Get squad post moderations by source id
@@ -1400,19 +1384,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   Query: {
     sourcePostModeration: async (
       _,
-      { id, sourceId }: { id: string; sourceId: string },
+      { id }: { id: string },
       ctx: Context,
       info,
     ): Promise<GQLSourcePostModeration> => {
-      const isModerator = await isPrivilegedMember(ctx, sourceId);
+      const moderation = await ctx.con
+        .getRepository(SourcePostModeration)
+        .findOneOrFail({
+          where: { id },
+          select: ['sourceId'],
+        });
+
+      const isModerator = await isPrivilegedMember(ctx, moderation.sourceId);
 
       return graphorm.queryOneOrFail<GQLSourcePostModeration>(
         ctx,
         info,
         (builder) => {
           const queryBuilder = builder.queryBuilder.where(
-            `"${builder.alias}"."id" = :id AND ${builder.alias}."sourceId" = :sourceId`,
-            { id, sourceId },
+            `"${builder.alias}"."id" = :id`,
+            { id },
           );
 
           if (!isModerator) {
