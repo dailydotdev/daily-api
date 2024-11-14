@@ -1,7 +1,7 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { BaseContext } from '../Context';
-import { planTypes } from '../paddle';
+import { planTypes } from '../remoteConfig';
 
 type PricingId = {
   value: string;
