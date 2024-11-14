@@ -763,11 +763,11 @@ const onSourcePostModerationChange = async (
         return;
       }
 
-      if (post.id) {
+      if (post.postId) {
         await triggerTypedEvent(
           logger,
           'api.v1.source-post-moderation-approved',
-          { post: data.payload.after! },
+          { post },
         );
       }
     }
