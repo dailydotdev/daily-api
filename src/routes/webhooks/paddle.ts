@@ -36,8 +36,9 @@ const updateUserSubscription = async ({
     return false;
   }
   const subscriptionType = data.data?.items.reduce((acc, item) => {
-    if (item.price?.id && remoteConfig.vars?.pricingIds?.[item.price.id]) {
-      acc = remoteConfig.vars.pricingIds?.[item.price.id] ?? '';
+    const pricingIds = remoteConfig.vars?.pricingIds || [];
+    if (item.price?.id && pricingIds[item.price.id]) {
+      acc = pricingIds[item.price.id];
     }
     return acc;
   }, '');
