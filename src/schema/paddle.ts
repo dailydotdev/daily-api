@@ -32,7 +32,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   Query: {
     pricingIds: (): PricingId => {
       return {
-        value: JSON.stringify(remoteConfig.vars?.pricingIds),
+        value: JSON.stringify(remoteConfig.vars?.pricingIds || {}),
       };
     },
   },
