@@ -103,6 +103,7 @@ import {
   SourcePostModerationStatus,
 } from '../entity/SourcePostModeration';
 import { logger } from '../logger';
+import { Source } from '@dailydotdev/schema';
 
 export interface GQLSourcePostModeration {
   id: string;
@@ -115,6 +116,8 @@ export interface GQLSourcePostModeration {
   status: SourcePostModerationStatus;
   createdAt: Date;
   updatedAt: Date;
+  source: Source;
+  post?: Post;
   postId?: string;
 }
 
@@ -275,6 +278,10 @@ export const typeDefs = /* GraphQL */ `
     Id of the Squad
     """
     sourceId: String
+    """
+    Source
+    """
+    source: Source!
     """
     Type of post
     """

@@ -3641,6 +3641,12 @@ describe('mutation createSourcePostModeration', () => {
       sharedPostId
       titleHtml
       postId
+      post {
+        id
+      }
+      source {
+        permalink
+      }
     }
   }`;
 
@@ -3717,6 +3723,8 @@ describe('mutation createSourcePostModeration', () => {
       'My new freeform content',
     );
     expect(res.data.createSourcePostModeration.postId).toEqual(newPost.id);
+    expect(res.data.createSourcePostModeration.source).toBeDefined();
+    expect(res.data.createSourcePostModeration.post).toBeDefined();
   });
 
   it('should create share moderation entry for an existing post', async () => {
@@ -3741,6 +3749,8 @@ describe('mutation createSourcePostModeration', () => {
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.createSourcePostModeration.postId).toEqual(newPost.id);
+    expect(res.data.createSourcePostModeration.source).toBeDefined();
+    expect(res.data.createSourcePostModeration.post).toBeDefined();
   });
 
   it("should not be able to create moderation entry for another user's post", async () => {
@@ -3784,6 +3794,7 @@ describe('mutation createSourcePostModeration', () => {
     expect(res.data.createSourcePostModeration.contentHtml).toEqual(
       '<p>Hello World</p>',
     );
+    expect(res.data.createSourcePostModeration.post).toBeNull();
   });
 
   it('should successfully create a squad post moderation entry of type share', async () => {
@@ -3808,6 +3819,7 @@ describe('mutation createSourcePostModeration', () => {
     expect(res.data.createSourcePostModeration.content).toBeNull();
     expect(res.data.createSourcePostModeration.contentHtml).toBeNull();
     expect(res.data.createSourcePostModeration.sharedPostId).toEqual('p1');
+    expect(res.data.createSourcePostModeration.post).toBeNull();
   });
 
   it('should successfully create a squad post moderation for external link', async () => {
@@ -3843,6 +3855,7 @@ describe('mutation createSourcePostModeration', () => {
     expect(res.data.createSourcePostModeration.externalLink).toEqual(
       externalParams.externalLink,
     );
+    expect(res.data.createSourcePostModeration.post).toBeNull();
   });
 });
 
