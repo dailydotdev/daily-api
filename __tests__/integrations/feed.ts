@@ -18,7 +18,6 @@ import {
   AdvancedSettings,
   Feed,
   FeedAdvancedSettings,
-  FeedSource,
   Keyword,
   PostType,
   postTypes,
@@ -39,6 +38,7 @@ import {
   FeedUserStateConfigGenerator,
 } from '../../src/integrations/feed/configs';
 import { ILofnClient } from '../../src/integrations/lofn';
+import { ContentPreferenceSource } from '../../src/entity/contentPreference/ContentPreferenceSource';
 import { ContentPreferenceKeyword } from '../../src/entity/contentPreference/ContentPreferenceKeyword';
 import { ContentPreferenceStatus } from '../../src/entity/contentPreference/types';
 
@@ -189,9 +189,21 @@ describe('FeedPreferencesConfigGenerator', () => {
         status: ContentPreferenceStatus.Blocked,
       },
     ]);
-    await con.getRepository(FeedSource).save([
-      { feedId: '1', sourceId: 'a' },
-      { feedId: '1', sourceId: 'b' },
+    await con.getRepository(ContentPreferenceSource).save([
+      {
+        feedId: '1',
+        sourceId: 'a',
+        userId: '1',
+        status: ContentPreferenceStatus.Blocked,
+        referenceId: 'a',
+      },
+      {
+        feedId: '1',
+        sourceId: 'b',
+        userId: '1',
+        status: ContentPreferenceStatus.Blocked,
+        referenceId: 'b',
+      },
     ]);
     await con.getRepository(SourceMember).save([
       {
@@ -544,9 +556,21 @@ describe('FeedLofnConfigGenerator', () => {
         status: ContentPreferenceStatus.Blocked,
       },
     ]);
-    await con.getRepository(FeedSource).save([
-      { feedId: '1', sourceId: 'a' },
-      { feedId: '1', sourceId: 'b' },
+    await con.getRepository(ContentPreferenceSource).save([
+      {
+        feedId: '1',
+        sourceId: 'a',
+        userId: '1',
+        status: ContentPreferenceStatus.Blocked,
+        referenceId: 'a',
+      },
+      {
+        feedId: '1',
+        sourceId: 'b',
+        userId: '1',
+        status: ContentPreferenceStatus.Blocked,
+        referenceId: 'b',
+      },
     ]);
     await con.getRepository(SourceMember).save([
       {
