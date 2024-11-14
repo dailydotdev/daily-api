@@ -306,10 +306,6 @@ if (isAdhocEnv) {
         { targetPort: 3000, port: 80, name: 'http' },
         { targetPort: 9464, port: 9464, name: 'metrics' },
       ],
-      spot: {
-        enabled: true,
-        weight: 50,
-      },
       ...vols,
     },
     {
@@ -328,10 +324,7 @@ if (isAdhocEnv) {
       livenessProbe,
       metric: { type: 'memory_cpu', cpu: 85 },
       disableLifecycle: true,
-      spot: {
-        enabled: true,
-        weight: 99,
-      },
+      spot: { enabled: true },
       ...vols,
     },
     {
@@ -352,10 +345,7 @@ if (isAdhocEnv) {
       },
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
-      spot: {
-        enabled: true,
-        weight: 70,
-      },
+      spot: { enabled: true },
       ...vols,
     },
     {
@@ -369,10 +359,7 @@ if (isAdhocEnv) {
       metric: { type: 'memory_cpu', cpu: 80, memory: 130 },
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
-      spot: {
-        enabled: true,
-        weight: 50,
-      },
+      spot: { enabled: true },
       ...vols,
     },
     {
