@@ -1,7 +1,7 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { BaseContext } from '../Context';
-import { planTypes } from '../remoteConfig';
+import { remoteConfig } from '../remoteConfig';
 
 type PricingId = {
   value: string;
@@ -32,7 +32,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   Query: {
     pricingIds: (): PricingId => {
       return {
-        value: JSON.stringify(planTypes()),
+        value: JSON.stringify(remoteConfig.vars?.pricingIds),
       };
     },
   },
