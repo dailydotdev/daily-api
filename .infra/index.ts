@@ -330,7 +330,7 @@ if (isAdhocEnv) {
       disableLifecycle: true,
       spot: {
         enabled: true,
-        weight: 100,
+        weight: 99,
       },
       ...vols,
     },
