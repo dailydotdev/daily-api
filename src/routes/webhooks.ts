@@ -6,6 +6,7 @@ import { In } from 'typeorm';
 import { sendAnalyticsEvent } from '../integrations/analytics';
 import { customerio } from './webhooks/customerio';
 import { counters } from '../telemetry';
+import { paddle } from './webhooks/paddle';
 
 type SendgridEvent = {
   email: string;
@@ -113,4 +114,5 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   });
 
   fastify.register(customerio, { prefix: '/customerio' });
+  fastify.register(paddle, { prefix: '/paddle' });
 }

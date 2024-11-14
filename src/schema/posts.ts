@@ -6,7 +6,6 @@ import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
 import { DataSource, In, MoreThan } from 'typeorm';
 import {
-  canAccessSource,
   ensureSourcePermissions,
   GQLSource,
   isPrivilegedMember,
@@ -37,9 +36,9 @@ import {
   toGQLEnum,
   getExistingPost,
   createSourcePostModeration,
-  CreateSourcePostModeration,
   CreateSourcePostModerationArgs,
   mapCloudinaryUrl,
+  validateSourcePostModeration,
 } from '../common';
 import {
   ArticlePost,
@@ -65,10 +64,6 @@ import {
   PostRelation,
   deletePost,
   SubmitExternalLinkArgs,
-  generateTitleHtml,
-  validateCommentary,
-  SourceMember,
-  SourceType,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -1246,6 +1241,62 @@ export const typeDefs = /* GraphQL */ `
       """
       moderatorMessage: String
     ): [SourcePostModeration]! @auth
+
+    """
+    Delete a post moderation item
+    """
+    deleteSourcePostModeration(
+      """
+      Id of the post moderation
+      """
+      postId: ID!
+    ): EmptyResponse @auth
+
+    """
+    Edit post moderation item
+    """
+    editSourcePostModeration(
+      """
+      Id of the post moderation
+      """
+      id: ID!
+      """
+      Id of the Squad to post to
+      """
+      sourceId: ID!
+      """
+      content of the post
+      """
+      content: String
+      """
+      Commentary on the post
+      """
+      commentary: String
+      """
+      title of the post
+      """
+      title: String
+      """
+      Image to upload
+      """
+      image: Upload
+      """
+      Image URL to use
+      """
+      imageUrl: String
+      """
+      ID of the post to share
+      """
+      sharedPostId: ID
+      """
+      type of the post
+      """
+      type: String!
+      """
+      External link of the post
+      """
+      externalLink: String
+    ): SourcePostModeration! @auth
   }
 
   extend type Subscription {
@@ -1708,93 +1759,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   Mutation: {
     createSourcePostModeration: async (
       _,
-      {
-        sourceId,
-        image,
-        title,
-        content,
-        commentary,
-        type,
-        sharedPostId,
-        imageUrl,
-        externalLink,
-        postId,
-      }: CreateSourcePostModerationArgs,
+      props: CreateSourcePostModerationArgs,
       ctx: AuthContext,
       info,
     ): Promise<GQLSourcePostModeration> => {
-      if (![PostType.Share, PostType.Freeform].includes(type)) {
-        throw new ValidationError('Invalid post type!');
-      }
-
-      const { con, userId } = ctx;
-
-      const sourceMember = await con.getRepository(SourceMember).findOne({
-        where: { sourceId: sourceId, userId: userId },
-        relations: ['source'],
-      });
-
-      const source = await sourceMember?.source;
-
-      if (!source || source.type !== SourceType.Squad) {
-        throw new ForbiddenError('Access denied!');
-      }
-
-      await canAccessSource(
+      await ensureSourcePermissions(
         ctx,
-        source,
-        sourceMember,
-        SourcePermissions.Post,
-        sourceId,
+        props.sourceId,
+        SourcePermissions.PostRequest,
       );
 
-      const mentions = await getMentions(con, content, userId, sourceId);
-
-      const pendingPost: CreateSourcePostModeration = {
-        postId,
-        sourceId,
-        type,
-        sharedPostId,
-        externalLink,
-        createdById: userId,
-      };
-
-      const isExternal = !!externalLink;
-
-      if (commentary && type === PostType.Share) {
-        await validateCommentary(commentary);
-        const commentaryHtml = generateTitleHtml(commentary, mentions);
-
-        if (isExternal) {
-          pendingPost.title = title;
-          pendingPost.content = commentary;
-          pendingPost.contentHtml = commentaryHtml;
-        } else {
-          pendingPost.title = commentary;
-          pendingPost.titleHtml = commentaryHtml;
-        }
-      }
-
-      if (content && type === PostType.Freeform) {
-        pendingPost.title = title;
-        pendingPost.content = content;
-        pendingPost.contentHtml = markdown
-          .render(content, { mentions })
-          ?.trim();
-      }
-
-      if (imageUrl) {
-        pendingPost.image = imageUrl;
-      } else if (image && process.env.CLOUDINARY_URL) {
-        const upload = await image;
-        const { url: coverImageUrl } = await uploadPostFile(
-          await generateShortId(),
-          upload.createReadStream(),
-          UploadPreset.PostBannerImage,
-        );
-        pendingPost.image = coverImageUrl;
-      }
-      const moderatedPost = await createSourcePostModeration(con, pendingPost);
+      const pendingPost = await validateSourcePostModeration(ctx, props);
+      const moderatedPost = await createSourcePostModeration(
+        ctx.con,
+        pendingPost,
+      );
 
       return graphorm.queryOneOrFail<GQLSourcePostModeration>(
         ctx,
@@ -2389,6 +2368,88 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           { id: uniquePostIds, status },
         ),
       }));
+    },
+    deleteSourcePostModeration: async (
+      _,
+      { postId }: { postId: string },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const moderation = await ctx.con
+        .getRepository(SourcePostModeration)
+        .findOneOrFail({
+          where: { id: postId },
+          select: ['createdById', 'sourceId'],
+        });
+
+      await ensureSourcePermissions(
+        ctx,
+        moderation.sourceId,
+        SourcePermissions.PostRequest,
+      );
+
+      const isAuthor = moderation.createdById === ctx.userId;
+
+      if (!isAuthor) {
+        throw new ForbiddenError('Access denied!');
+      }
+
+      await ctx.con.getRepository(SourcePostModeration).delete({ id: postId });
+
+      return { _: true };
+    },
+    editSourcePostModeration: async (
+      _,
+      post: CreateSourcePostModerationArgs & { id: string },
+      ctx: AuthContext,
+      info,
+    ): Promise<SourcePostModeration> => {
+      await ensureSourcePermissions(
+        ctx,
+        post.sourceId,
+        SourcePermissions.PostRequest,
+      );
+
+      const { id } = post;
+      const moderation = await ctx.con
+        .getRepository(SourcePostModeration)
+        .findOneOrFail({
+          where: { id },
+          select: ['createdById', 'status'],
+        });
+
+      const isAuthor = moderation.createdById === ctx.userId;
+      const isApproved =
+        moderation.status === SourcePostModerationStatus.Approved;
+
+      if (!isAuthor) {
+        throw new ForbiddenError('Access denied!');
+      }
+
+      if (isApproved) {
+        throw new ValidationError('Cannot edit an approved post');
+      }
+
+      const pendingPost = await validateSourcePostModeration(ctx, post);
+
+      await ctx.con.getRepository(SourcePostModeration).update(
+        { id },
+        {
+          ...pendingPost,
+          status: SourcePostModerationStatus.Pending,
+        },
+      );
+
+      return graphorm.queryOneOrFail<SourcePostModeration>(
+        ctx,
+        info,
+        (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder.where(
+            `"${builder.alias}"."id" = :id AND "${builder.alias}"."status" = :status`,
+            { id, status: SourcePostModerationStatus.Pending },
+          ),
+        }),
+      );
     },
   },
   Subscription: {
