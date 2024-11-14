@@ -24,8 +24,7 @@ import type { Feed } from '../Feed';
   'referenceId',
   'type',
 ])
-@Index([
-  'idx_content_preferences_feedid_type_status',
+@Index('idx_content_preferences_feedid_type_status', [
   'feedId',
   'type',
   'status',
