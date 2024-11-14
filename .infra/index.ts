@@ -345,6 +345,7 @@ if (isAdhocEnv) {
       },
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
+      spot: { enabled: true },
       ...vols,
     },
     {
@@ -358,6 +359,7 @@ if (isAdhocEnv) {
       metric: { type: 'memory_cpu', cpu: 80, memory: 130 },
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
+      spot: { enabled: true },
       ...vols,
     },
     {
@@ -399,6 +401,10 @@ if (isAdhocEnv) {
           subapp: 'personalized-digest',
         },
         targetAverageValue: 100_000,
+      },
+      spot: {
+        enabled: true,
+        weight: 70,
       },
       ...vols,
     });
