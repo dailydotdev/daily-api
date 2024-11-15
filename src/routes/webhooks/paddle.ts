@@ -11,6 +11,10 @@ import { updateSubscriptionFlags } from '../../common';
 import { User } from '../../entity';
 import { logger } from '../../logger';
 import { remoteConfig } from '../../remoteConfig';
+import {
+  AnalyticsEventName,
+  sendAnalyticsEvent,
+} from '../../integrations/analytics';
 
 const paddleInstance = new Paddle(process.env.PADDLE_API_KEY, {
   environment: process.env.PADDLE_ENVIRONMENT as Environment,
@@ -66,6 +70,22 @@ const updateUserSubscription = async ({
   );
 };
 
+const logPaddleAnalyticsEvent = async (
+  data: SubscriptionCreatedEvent | SubscriptionCanceledEvent | undefined,
+) => {
+  if (!data) {
+    return;
+  }
+
+  await sendAnalyticsEvent([
+    {
+      event_name: AnalyticsEventName.CancelSubscription,
+      event_timestamp: new Date(),
+      user_id: 'eventData?.userId',
+    },
+  ]);
+};
+
 export const paddle = async (fastify: FastifyInstance): Promise<void> => {
   fastify.register(async (fastify: FastifyInstance): Promise<void> => {
     fastify.post('/', {
@@ -97,6 +117,8 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
                   data: eventData,
                   state: false,
                 });
+              case EventName.SubscriptionCanceled:
+                await logPaddleAnalyticsEvent(eventData);
               default:
                 logger.info({ type: 'paddle' }, eventData?.eventType);
             }
