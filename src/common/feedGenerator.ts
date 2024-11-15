@@ -1,7 +1,6 @@
 import {
   AdvancedSettings,
   FeedAdvancedSettings,
-  SourceMember,
   SourceType,
   UserPost,
 } from '../entity';
@@ -96,7 +95,9 @@ type RawFiltersData = {
     | null;
   tags: Pick<ContentPreferenceKeyword, 'keywordId' | 'status'>[] | null;
   excludeSources: Pick<ContentPreferenceSource, 'sourceId'>[] | null;
-  memberships: { sourceId: SourceMember['sourceId']; hide: boolean }[] | null;
+  memberships:
+    | { sourceId: ContentPreferenceSource['sourceId']; hide: boolean }[]
+    | null;
 };
 
 const getRawFiltersData = async (
@@ -136,9 +137,18 @@ const getRawFiltersData = async (
     rawFilterSelect(con, 'memberships', (qb) =>
       qb
         .select('"sourceId"')
-        .addSelect("COALESCE((flags->'hideFeedPosts')::boolean, FALSE)", 'hide')
-        .from(SourceMember, 't')
-        .where('"userId" = $2'),
+        .addSelect(
+          "COALESCE((t.flags->'hideFeedPosts')::boolean, FALSE)",
+          'hide',
+        )
+        .from(ContentPreference, 't')
+        .innerJoin(
+          Source,
+          'source',
+          `t."sourceId" = source.id AND source.type = '${SourceType.Squad}'`,
+        )
+        .where(`t.type = '${ContentPreferenceType.Source}'`)
+        .andWhere('"userId" = $2'),
     ),
   ];
   const query =

@@ -2,8 +2,7 @@ import { NotificationType } from '../../notifications/common';
 import { generateTypedNotificationWorker } from './worker';
 import { NotificationSourceContext } from '../../notifications';
 import { SourceMemberRoles } from '../../roles';
-import { SourceMember } from '../../entity';
-import { In } from 'typeorm';
+import { ContentPreferenceSource } from '../../entity/contentPreference/ContentPreferenceSource';
 
 const toNotify = [SourceMemberRoles.Admin, SourceMemberRoles.Moderator];
 
@@ -15,10 +14,13 @@ const worker = generateTypedNotificationWorker<'api.v1.squad-featured-updated'>(
         return undefined;
       }
 
-      const users = await con.getRepository(SourceMember).findBy({
-        sourceId: squad.id,
-        role: In(toNotify),
-      });
+      const users = await con
+        .getRepository(ContentPreferenceSource)
+        .createQueryBuilder()
+        .select('"userId"')
+        .where('"referenceId" = :sourceId', { sourceId: squad.id })
+        .andWhere(`flags->>'role' IN (:...roles)`, { roles: toNotify })
+        .getMany();
 
       if (!users.length) {
         return undefined;

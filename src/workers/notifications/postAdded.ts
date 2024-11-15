@@ -21,7 +21,6 @@ import {
 import { NotificationHandlerReturn, NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
 import { buildPostContext, getSubscribedMembers } from './utils';
-import { In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
 import { insertOrIgnoreAction } from '../../schema/actions';
 
@@ -82,16 +81,20 @@ const worker: NotificationWorker = {
           con,
           NotificationType.SquadPostAdded,
           source.id,
-          {
-            sourceId: source.id,
-            userId: Not(
-              In([
-                post.authorId,
-                ...mentions.flatMap(({ mentionedUserId }) => mentionedUserId),
-              ]),
-            ),
-            role: Not(SourceMemberRoles.Blocked),
-          },
+          (qb) =>
+            qb
+              .where(`${qb.alias}."userId" NOT IN (:...users)`, {
+                users: [
+                  post.authorId,
+                  ...mentions.flatMap(({ mentionedUserId }) => mentionedUserId),
+                ],
+              })
+              .andWhere(`${qb.alias}."referenceId" = :sourceId`, {
+                sourceId: source.id,
+              })
+              .andWhere(` ${qb.alias}.flags->>'role' != :role`, {
+                role: SourceMemberRoles.Blocked,
+              }),
         );
         if (members.length) {
           notifs.push({

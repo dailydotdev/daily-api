@@ -913,18 +913,22 @@ const requireGreaterAccessPrivilege: Partial<
   [SourcePermissions.MemberRemove]: true,
 };
 
-type BaseSourceMember = Pick<SourceMember, 'role'>;
+type BaseSourceMember = Pick<ContentPreferenceSource, 'flags'>;
 
 export const hasGreaterAccessCheck = (
   loggedUser: BaseSourceMember,
   member: BaseSourceMember,
 ) => {
-  if (loggedUser.role === SourceMemberRoles.Admin) {
+  const loggedUserRole = loggedUser.flags.role || SourceMemberRoles.Member;
+
+  if (loggedUserRole === SourceMemberRoles.Admin) {
     return;
   }
 
-  const memberRank = sourceRoleRank[member.role];
-  const loggedUserRank = sourceRoleRank[loggedUser.role];
+  const memberRole = member.flags.role || SourceMemberRoles.Member;
+
+  const memberRank = sourceRoleRank[memberRole];
+  const loggedUserRank = sourceRoleRank[loggedUserRole];
   const hasGreaterAccess = loggedUserRank > memberRank;
 
   if (!hasGreaterAccess) {
@@ -942,7 +946,8 @@ const hasPermissionCheck = (
     hasGreaterAccessCheck(member, validateRankAgainst);
   }
 
-  const rolePermissions = roleSourcePermissions[member.role];
+  const rolePermissions =
+    roleSourcePermissions[member.flags.role || SourceMemberRoles.Member];
 
   return rolePermissions?.includes?.(permission);
 };
@@ -952,13 +957,13 @@ export const sourceTypesWithMembers = ['squad'];
 export const canAccessSource = async (
   ctx: Context,
   source: Source,
-  member: SourceMember | null,
+  member: ContentPreferenceSource | null,
   permission: SourcePermissions,
   validateRankAgainstId?: string,
 ): Promise<boolean> => {
   if (permission === SourcePermissions.View && !source.private) {
     if (sourceTypesWithMembers.includes(source.type)) {
-      const isMemberBlocked = member?.role === SourceMemberRoles.Blocked;
+      const isMemberBlocked = member?.flags.role === SourceMemberRoles.Blocked;
       const canAccess = !isMemberBlocked;
 
       return canAccess;
@@ -972,9 +977,12 @@ export const canAccessSource = async (
   }
 
   const sourceId = source.id;
-  const repo = ctx.getRepository(SourceMember);
+  const repo = ctx.getRepository(ContentPreferenceSource);
   const validateRankAgainst = await (requireGreaterAccessPrivilege[permission]
-    ? repo.findOneByOrFail({ sourceId, userId: validateRankAgainstId })
+    ? repo.findOneByOrFail({
+        referenceId: sourceId,
+        userId: validateRankAgainstId,
+      })
     : Promise.resolve(undefined));
 
   return hasPermissionCheck(source, member, permission, validateRankAgainst);
@@ -985,13 +993,16 @@ export const isPrivilegedMember = async (
   sourceId: string,
 ): Promise<boolean> => {
   const sourceMember = await ctx.con
-    .getRepository(SourceMember)
-    .findOneBy({ sourceId: sourceId, userId: ctx.userId });
+    .getRepository(ContentPreferenceSource)
+    .findOneBy({ referenceId: sourceId, userId: ctx.userId });
 
   if (!sourceMember)
     throw new ForbiddenError(SourceRequestErrorMessage.ACCESS_DENIED);
 
-  return sourceRoleRank[sourceMember.role] >= sourceRoleRank.moderator;
+  return (
+    sourceRoleRank[sourceMember.flags.role || SourceMemberRoles.Member] >=
+    sourceRoleRank.moderator
+  );
 };
 
 type PostPermissions = SourcePermissions.Post | SourcePermissions.PostRequest;
@@ -999,14 +1010,15 @@ type PostPermissions = SourcePermissions.Post | SourcePermissions.PostRequest;
 export const canPostToSquad = (
   ctx: Context,
   squad: SquadSource,
-  sourceMember: SourceMember | null,
+  sourceMember: ContentPreferenceSource | null,
   permission: PostPermissions = SourcePermissions.Post,
 ): boolean => {
   if (!sourceMember) {
     return false;
   }
 
-  const memberRank = sourceRoleRank[sourceMember.role];
+  const memberRank =
+    sourceRoleRank[sourceMember.flags.role || SourceMemberRoles.Member];
 
   if (squad.moderationRequired) {
     if (memberRank === sourceRoleRank.member) {
@@ -1086,8 +1098,8 @@ export const ensureSourcePermissions = async (
       .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
     const sourceMember = ctx.userId
       ? await ctx.con
-          .getRepository(SourceMember)
-          .findOneBy({ sourceId: source.id, userId: ctx.userId })
+          .getRepository(ContentPreferenceSource)
+          .findOneBy({ referenceId: source.id, userId: ctx.userId })
       : null;
 
     const canAccess = await canAccessSource(
@@ -1216,13 +1228,15 @@ const addNewSourceMember = async (
 };
 
 export const getPermissionsForMember = (
-  member: Pick<SourceMember, 'role'>,
+  member: Pick<ContentPreferenceSource, 'flags'>,
   source: Partial<Pick<SquadSource, 'memberPostingRank' | 'memberInviteRank'>>,
 ): SourcePermissions[] => {
+  const memberRole = member.flags.role || SourceMemberRoles.Member;
+
   const permissions =
-    roleSourcePermissions[member.role] ?? roleSourcePermissions.member;
+    roleSourcePermissions[memberRole] ?? roleSourcePermissions.member;
   const memberRank =
-    sourceRoleRank[member.role] ?? sourceRoleRank[SourceMemberRoles.Member];
+    sourceRoleRank[memberRole] ?? sourceRoleRank[SourceMemberRoles.Member];
   const permissionsToRemove: SourcePermissions[] = [];
 
   if (source.memberPostingRank && memberRank < source.memberPostingRank) {
@@ -1744,7 +1758,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return paginateSourceMembers(
         (queryBuilder, alias) => {
           queryBuilder = queryBuilder.andWhere(
-            `${alias}."sourceId" = :source`,
+            `${alias}."referenceId" = :source`,
             {
               source: sourceId,
             },
@@ -1774,9 +1788,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           }
 
           if (role) {
-            queryBuilder = queryBuilder.andWhere(`${alias}.role = :role`, {
-              role,
-            });
+            queryBuilder = queryBuilder.andWhere(
+              `${alias}.flags->>'role' = :role`,
+              {
+                role,
+              },
+            );
           } else if (
             typeof graphorm.mappings?.SourceMember.fields?.roleRank.select ===
             'string'
@@ -1822,7 +1839,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
           if (type) {
             queryBuilder = queryBuilder
-              .innerJoin(Source, 's', `${alias}."sourceId" = s.id`)
+              .innerJoin(Source, 's', `${alias}."referenceId" = s.id`)
               .andWhere(`s."type" = :type`, {
                 type,
               });
@@ -1862,7 +1879,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
           return queryBuilder
             .addOrderBy(`${alias}."createdAt"`, 'DESC')
-            .innerJoin(Source, 's', `${alias}."sourceId" = s.id`)
+            .innerJoin(Source, 's', `${alias}."referenceId" = s.id`)
             .andWhere('s.private = false');
         },
         args,
@@ -1881,14 +1898,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         info,
         (builder) => {
           builder.queryBuilder = builder.queryBuilder
-            .andWhere({ referralToken: token })
+            .andWhere(`flags->>'referralToken' = :token`, { token })
             .limit(1);
           return builder;
         },
         true,
       );
       if (!res.length) {
-        throw new EntityNotFoundError(SourceMember, 'not found');
+        throw new EntityNotFoundError(ContentPreferenceSource, 'not found');
       }
       return res[0];
     },
@@ -2239,8 +2256,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }
 
         const member = await ctx.con
-          .getRepository(SourceMember)
-          .findOneBy({ referralToken: token });
+          .getRepository(ContentPreferenceSource)
+          .createQueryBuilder()
+          .where(`flags->>'referralToken' = :token`, { token })
+          .getOne();
 
         if (!member) {
           throw new ForbiddenError(
@@ -2249,7 +2268,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }
 
         const memberRank =
-          sourceRoleRank[member.role] ??
+          sourceRoleRank[member.flags.role || SourceMemberRoles.Member] ??
           sourceRoleRank[SourceMemberRoles.Member];
         const squadSource = source as SquadSource;
 

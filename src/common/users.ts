@@ -8,7 +8,7 @@ import {
 } from '../entity';
 import { differenceInDays, isSameDay, max, startOfDay } from 'date-fns';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
-import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
+import { CommentMention, Comment, View, Source } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
 import { GraphQLResolveInfo } from 'graphql';
 import { utcToZonedTime } from 'date-fns-tz';
@@ -20,6 +20,7 @@ import { queryReadReplica } from './queryReadReplica';
 import { logger } from '../logger';
 import type { GQLKeyword } from '../schema/keywords';
 import type { GQLUser } from '../schema/users';
+import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
 
 export interface User {
   id: string;
@@ -163,8 +164,12 @@ export const getRecentMentionsIds = async (
 
   if (sourceId) {
     queryBuilder = queryBuilder
-      .innerJoin(SourceMember, 'sm', 'sm."userId" = cm."mentionedUserId"')
-      .andWhere('sm."sourceId" = :sourceId', { sourceId });
+      .innerJoin(
+        ContentPreferenceSource,
+        'cps',
+        'cps."userId" = cm."mentionedUserId"',
+      )
+      .andWhere('cps."referenceId" = :sourceId', { sourceId });
   }
 
   if (query) {
@@ -205,8 +210,8 @@ export const getUserIdsByNameOrUsername = async (
 
   if (sourceId) {
     queryBuilder = queryBuilder
-      .innerJoin(SourceMember, 'sm', 'id = sm."userId"')
-      .andWhere('sm."sourceId" = :sourceId', { sourceId });
+      .innerJoin(ContentPreferenceSource, 'cps', 'id = cps."userId"')
+      .andWhere('cps."referenceId" = :sourceId', { sourceId });
   }
 
   if (excludeIds?.length) {

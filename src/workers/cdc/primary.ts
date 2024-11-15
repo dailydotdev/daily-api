@@ -11,6 +11,7 @@ import {
   Alerts,
   UserTopReader,
   SquadSource,
+  SourceType,
 } from '../../entity';
 import { messageToJson, Worker } from '../worker';
 import {
@@ -20,7 +21,6 @@ import {
   Post,
   Settings,
   SourceFeed,
-  SourceMember,
   SourceRequest,
   Submission,
   SubmissionStatus,
@@ -124,6 +124,8 @@ import {
   SourcePostModeration,
   SourcePostModerationStatus,
 } from '../../entity/SourcePostModeration';
+import { ContentPreferenceSource } from '../../entity/contentPreference/ContentPreferenceSource';
+import { ContentPreference } from '../../entity/contentPreference/ContentPreference';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -835,16 +837,30 @@ const onUserStateChange = async (
 const onSourceMemberChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
-  data: ChangeMessage<SourceMember>,
+  data: ChangeMessage<ContentPreferenceSource>,
 ) => {
+  const sourceId =
+    data.payload.after!.sourceId || data.payload.before!.sourceId;
+
+  const source = await con.getRepository(Source).findOne({
+    select: ['id'],
+    where: {
+      id: sourceId,
+    },
+  });
+
+  if (source?.type !== SourceType.Squad) {
+    return;
+  }
+
   if (data.payload.op === 'c') {
     await notifyMemberJoinedSource(logger, data.payload.after!);
   }
   if (data.payload.op === 'u') {
-    if (data.payload.before!.role !== data.payload.after!.role) {
+    if (data.payload.before!.flags.role !== data.payload.after!.flags.role) {
       await notifySourceMemberRoleChanged(
         logger,
-        data.payload.before!.role,
+        data.payload.before!.flags.role!,
         data.payload.after!,
       );
     }
@@ -1148,7 +1164,7 @@ const worker: Worker = {
         case getTableName(con, UserState):
           await onUserStateChange(con, logger, data);
           break;
-        case getTableName(con, SourceMember):
+        case getTableName(con, ContentPreference):
           await onSourceMemberChange(con, logger, data);
           break;
         case getTableName(con, Feature):

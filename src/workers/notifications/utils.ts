@@ -7,7 +7,6 @@ import {
   PostType,
   SharePost,
   Source,
-  SourceMember,
   SourceType,
   User,
   UserActionType,
@@ -22,12 +21,13 @@ import {
   NotificationPreferenceStatus,
   NotificationType,
 } from '../../notifications/common';
-import { DataSource, EntityManager, In, Not } from 'typeorm';
+import { DataSource, EntityManager, In, SelectQueryBuilder } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
 import { insertOrIgnoreAction } from '../../schema/actions';
 import { ObjectLiteral } from 'typeorm/common/ObjectLiteral';
 import { SourcePostModeration } from '../../entity/SourcePostModeration';
 import { ChangeObject } from '../../types';
+import { ContentPreferenceSource } from '../../entity/contentPreference/ContentPreferenceSource';
 
 export const uniquePostOwners = (
   post: Pick<Post, 'scoutId' | 'authorId'>,
@@ -37,13 +37,19 @@ export const uniquePostOwners = (
     (userId) => userId && !ignoreIds.includes(userId),
   ) as string[];
 
+type GetSubscribedMembersWhereBuilder = (
+  qb: SelectQueryBuilder<ContentPreferenceSource>,
+) => string;
+
 export const getSubscribedMembers = (
   con: DataSource,
   type: NotificationType,
   referenceId: string,
-  where: ObjectLiteral,
+  where: ObjectLiteral | GetSubscribedMembersWhereBuilder,
 ) => {
-  const builder = con.getRepository(SourceMember).createQueryBuilder('sm');
+  const builder = con
+    .getRepository(ContentPreferenceSource)
+    .createQueryBuilder('cps');
   const memberQuery = builder.select('"userId"').where(where);
   const muteQuery = builder
     .subQuery()
@@ -59,7 +65,7 @@ export const getSubscribedMembers = (
 
   return memberQuery
     .andWhere(`EXISTS(${muteQuery.getQuery()}) IS FALSE`)
-    .getRawMany<SourceMember>();
+    .getRawMany<ContentPreferenceSource>();
 };
 
 export const buildPostContext = async (
@@ -151,11 +157,18 @@ export async function articleNewCommentHandler(
       : NotificationType.ArticleNewComment;
 
   if (source.type === SourceType.Squad) {
-    const members = await getSubscribedMembers(con, type, post.id, {
-      userId: In(users),
-      sourceId: source.id,
-      role: Not(SourceMemberRoles.Blocked),
-    });
+    const members = await getSubscribedMembers(con, type, post.id, (qb) =>
+      qb
+        .where(`${qb.alias}."userId" IN (:...users)`, {
+          users,
+        })
+        .andWhere(`${qb.alias}."referenceId" = :sourceId`, {
+          sourceId: source.id,
+        })
+        .andWhere(` ${qb.alias}.flags->>'role' != :role`, {
+          role: SourceMemberRoles.Blocked,
+        }),
+    );
 
     if (!members.length) {
       return;
