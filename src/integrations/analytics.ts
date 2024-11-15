@@ -15,6 +15,10 @@ export type AnalyticsEvent = {
 
 export enum AnalyticsEventName {
   ConfirmAddingWorkspace = 'confirm adding workspace',
+  // Plus
+  ChangeBillingCycle = 'change billing cycle',
+  CancelSubscription = 'cancel subscription',
+  ReceivePayment = 'receive payment',
 }
 
 export async function sendAnalyticsEvent<T extends AnalyticsEvent>(
