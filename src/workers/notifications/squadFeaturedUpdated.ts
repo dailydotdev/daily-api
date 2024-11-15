@@ -20,7 +20,7 @@ const worker = generateTypedNotificationWorker<'api.v1.squad-featured-updated'>(
         .select('"userId"')
         .where('"referenceId" = :sourceId', { sourceId: squad.id })
         .andWhere(`flags->>'role' IN (:...roles)`, { roles: toNotify })
-        .getMany();
+        .getRawMany<Pick<ContentPreferenceSource, 'userId'>>();
 
       if (!users.length) {
         return undefined;

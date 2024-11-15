@@ -26,7 +26,7 @@ const worker =
           .andWhere(`flags->>'role' IN (:...roles)`, {
             roles: [SourceMemberRoles.Admin, SourceMemberRoles.Moderator],
           })
-          .getMany();
+          .getRawMany<Pick<ContentPreferenceSource, 'userId'>>();
 
         const ctx: NotificationPostModerationContext = {
           ...moderationCtx,

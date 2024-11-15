@@ -62,15 +62,16 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
         );
 
         if (source.private && source.type === SourceType.Squad) {
-          const admin: Pick<ContentPreferenceSource, 'flags'> | null = await con
+          const admin = await con
             .getRepository(ContentPreferenceSource)
             .createQueryBuilder()
+            .addSelect('flags')
             .where('"referenceId" = :sourceId', { sourceId: source.id })
             .andWhere(`flags->>'role' = :role`, {
               role: SourceMemberRoles.Admin,
             })
             .orderBy('"createdAt"', 'ASC')
-            .getOne();
+            .getRawOne<Pick<ContentPreferenceSource, 'flags'>>();
 
           if (admin?.flags.referralToken) {
             postLink = addPrivateSourceJoinParams({

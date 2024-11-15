@@ -27,7 +27,7 @@ const worker: Worker = {
       .where('"referenceId" = :sourceId', { sourceId: source.id })
       .andWhere(`flags->>'role' = :role`, { role: SourceMemberRoles.Admin })
       .orderBy('"createdAt"', 'ASC')
-      .getOne();
+      .getRawOne<Pick<ContentPreferenceSource, 'userId'>>();
 
     if (!owner) {
       return;

@@ -355,14 +355,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 .getRepository(ContentPreferenceSource)
                 .createQueryBuilder()
                 .select('flags')
-                .where('"sourceId" = :sourceId', {
+                .where('"referenceId" = :sourceId', {
                   sourceId: args.sourceId,
                 })
                 .andWhere(`flags->>'role' = :role`, {
                   role: SourceMemberRoles.Admin,
                 })
                 .orderBy('"createdAt"', 'ASC')
-                .getOne()
+                .getRawOne<Pick<ContentPreferenceSource, 'flags'>>()
             : null,
         ]);
       const user = await slackIntegration.user;

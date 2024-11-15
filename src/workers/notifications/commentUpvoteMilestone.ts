@@ -61,7 +61,7 @@ const worker: NotificationWorker = {
         .andWhere(`flags->>'role' != :role`, {
           role: SourceMemberRoles.Blocked,
         })
-        .getOne();
+        .getRawOne<Pick<ContentPreferenceSource, 'userId'>>();
 
       if (!member) {
         return;
