@@ -99,6 +99,33 @@ describe('updateCurrentStreak cron', () => {
       expect(streak.currentStreak).toBe(1);
     });
 
+    it('should not reset streak if user has recovered date of today with timezone considered', async () => {
+      jest.useFakeTimers({ doNotFake }).setSystemTime(new Date('2024-11-07')); // Thursday
+      /*
+      Day today is Wednesday
+      1. Last read was Monday
+      2. User did not read anything on Tuesday
+      3. Wednesday arrived and resets the streak to 0
+      4. User recovers the streak on Wednesday
+      5. When the cron job runs, streak should stay at 1
+    */
+      await con
+        .getRepository(User)
+        .update({ id: '1' }, { timezone: 'Europe/Athens' });
+      await con.getRepository(UserStreakAction).save([
+        {
+          userId: '1',
+          createdAt: new Date('2024-11-07'),
+          type: UserStreakActionType.Recover,
+        },
+      ]);
+      await expectSuccessfulCron(cron);
+      const streak = await con
+        .getRepository(UserStreak)
+        .findOneBy({ userId: '1' });
+      expect(streak.currentStreak).toBe(1);
+    });
+
     it('should reset streak if a day had passed after restoring the streak', async () => {
       jest.useFakeTimers({ doNotFake }).setSystemTime(new Date('2024-06-27')); // Thursday
       /*
