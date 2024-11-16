@@ -102,13 +102,15 @@ describe('updateCurrentStreak cron', () => {
     it('should not reset streak if user has recovered date of today with timezone considered', async () => {
       jest.useFakeTimers({ doNotFake }).setSystemTime(new Date('2024-11-07')); // Thursday
       /*
-      Day today is Wednesday
-      1. Last read was Monday
-      2. User did not read anything on Tuesday
-      3. Wednesday arrived and resets the streak to 0
-      4. User recovers the streak on Wednesday
-      5. When the cron job runs, streak should stay at 1
-    */
+        1. Day today is Thursday
+        2. Last read was Monday
+        3. User did not read anything on Tuesday
+        4. Wednesday arrived and resets the streak to 0
+        5. User recovers the streak on Wednesday
+        6. Thursday arrived and the streak got reset since there was still no read
+        7. User recovers the streak on Thursday
+        8. Running the cron on the same day should not reset the streak
+       */
       await con
         .getRepository(User)
         .update({ id: '1' }, { timezone: 'Europe/Athens' });
