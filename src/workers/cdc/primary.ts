@@ -842,12 +842,14 @@ const onSourceMemberChange = async (
   const sourceId =
     data.payload.after!.sourceId || data.payload.before!.sourceId;
 
-  const source = await con.getRepository(Source).findOne({
-    select: ['id'],
-    where: {
+  const source = await con
+    .getRepository(Source)
+    .createQueryBuilder()
+    .select('type')
+    .where({
       id: sourceId,
-    },
-  });
+    })
+    .getRawOne<Pick<Source, 'type'>>();
 
   if (source?.type !== SourceType.Squad) {
     return;

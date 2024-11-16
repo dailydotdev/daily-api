@@ -22,6 +22,7 @@ import { postsFixture } from '../fixture/post';
 import {
   Bookmark,
   Comment,
+  Feed,
   FreeformPost,
   Keyword,
   NotificationAttachmentType,
@@ -32,7 +33,6 @@ import {
   PostType,
   SharePost,
   Source,
-  SourceMember,
   SourceRequest,
   SourceType,
   SquadSource,
@@ -57,6 +57,8 @@ import { SourceMemberRoles } from '../../src/roles';
 import { NotificationType } from '../../src/notifications/common';
 import { format } from 'date-fns';
 import { saveFixtures } from '../helpers';
+import { ContentPreferenceStatus } from '../../src/entity/contentPreference/types';
+import { ContentPreferenceSource } from '../../src/entity/contentPreference/ContentPreferenceSource';
 
 const userId = '1';
 const commentFixture: Reference<Comment> = {
@@ -848,11 +850,21 @@ describe('generateNotification', () => {
       .update({ id: 'a' }, { type: SourceType.Squad });
     const source = await con.getRepository(Source).findOneBy({ id: 'a' });
     await con.getRepository(User).save(usersFixture);
-    await con.getRepository(SourceMember).save({
+    await saveFixtures(
+      con,
+      Feed,
+      usersFixture.map((item) => ({ id: item.id, userId: item.id })),
+    );
+    await con.getRepository(ContentPreferenceSource).save({
       sourceId: 'a',
+      referenceId: 'a',
       userId: '1',
-      role: SourceMemberRoles.Admin,
-      referralToken: 'random',
+      flags: {
+        role: SourceMemberRoles.Admin,
+        referralToken: 'random',
+      },
+      status: ContentPreferenceStatus.Subscribed,
+      feedId: '1',
     });
     const post = await createSquadWelcomePost(con, source as SquadSource, '1');
     await con

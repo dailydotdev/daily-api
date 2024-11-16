@@ -95,7 +95,6 @@ import {
   Settings,
   Source,
   SourceFeed,
-  SourceMember,
   SourceRequest,
   Submission,
   SubmissionStatus,
@@ -145,6 +144,8 @@ import {
   SourcePostModeration,
   SourcePostModerationStatus,
 } from '../../../src/entity/SourcePostModeration';
+import { ContentPreferenceSource } from '../../../src/entity/contentPreference/ContentPreferenceSource';
+import { ContentPreferenceStatus } from '../../../src/entity/contentPreference/types';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -1961,13 +1962,29 @@ describe('submission', () => {
 });
 
 describe('source member', () => {
-  type ObjectType = Partial<SourceMember>;
+  type ObjectType = Partial<ContentPreferenceSource>;
   const base: ChangeObject<ObjectType> = {
+    sourceId: 'a-cdcsm',
+    referenceId: 'a-cdcsm',
     userId: '1',
-    sourceId: 'a',
-    referralToken: 'rt',
-    role: SourceMemberRoles.Member,
+    flags: {
+      role: SourceMemberRoles.Member,
+      referralToken: 'rt',
+    },
+    status: ContentPreferenceStatus.Subscribed,
+    feedId: '1',
   };
+
+  beforeEach(async () => {
+    await saveFixtures(con, Source, [
+      {
+        ...sourcesFixture[0],
+        id: `${sourcesFixture[0].id}-cdcsm`,
+        handle: `${sourcesFixture[0].handle}-cdcsm`,
+        type: SourceType.Squad,
+      },
+    ]);
+  });
 
   it('should notify on new source member', async () => {
     await expectSuccessfulBackground(
@@ -1976,7 +1993,7 @@ describe('source member', () => {
         after: base,
         before: null,
         op: 'c',
-        table: 'source_member',
+        table: 'content_preference',
       }),
     );
     expect(notifyMemberJoinedSource).toHaveBeenCalledTimes(1);
@@ -1988,7 +2005,10 @@ describe('source member', () => {
   it('should notify when role changed', async () => {
     const after: ChangeObject<ObjectType> = {
       ...base,
-      role: SourceMemberRoles.Admin,
+      flags: {
+        ...base.flags,
+        role: SourceMemberRoles.Admin,
+      },
     };
     await saveFixtures(con, User, [defaultUser]);
     await expectSuccessfulBackground(
@@ -1997,13 +2017,13 @@ describe('source member', () => {
         after,
         before: base,
         op: 'u',
-        table: 'source_member',
+        table: 'content_preference',
       }),
     );
     expect(notifySourceMemberRoleChanged).toHaveBeenCalledTimes(1);
     expect(
       jest.mocked(notifySourceMemberRoleChanged).mock.calls[0].slice(1),
-    ).toEqual([base.role, after]);
+    ).toEqual([base.flags!.role, after]);
   });
 
   it("should not notify if role doesn't change", async () => {
