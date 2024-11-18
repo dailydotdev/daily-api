@@ -8,7 +8,7 @@ import {
   NotificationPreferenceStatus,
   NotificationType,
 } from '../notifications/common';
-import { EntityManager, EntityTarget, In, Not } from 'typeorm';
+import { DataSource, EntityManager, EntityTarget, In, Not } from 'typeorm';
 import { ConflictError } from '../errors';
 import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
 import {
@@ -75,8 +75,8 @@ export const cleanContentNotificationPreference = async ({
   notficationEntity,
   userId,
 }: {
-  ctx: AuthContext;
-  entityManager?: EntityManager;
+  ctx?: AuthContext;
+  entityManager?: DataSource | EntityManager;
   id: string;
   notificationTypes: NotificationType[];
   notficationEntity: EntityTarget<NotificationPreference>;

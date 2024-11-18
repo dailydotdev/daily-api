@@ -1215,6 +1215,37 @@ export const addNewSourceMember = async (
   );
 };
 
+export const removeSourceMember = async ({
+  con,
+  userId,
+  sourceId,
+}: {
+  con: DataSource | EntityManager;
+  userId: string;
+  sourceId: string;
+}): Promise<void> => {
+  await con.transaction(async (entityManager) => {
+    await entityManager.getRepository(SourceMember).delete({
+      sourceId,
+      userId,
+    });
+
+    await entityManager.getRepository(ContentPreferenceSource).delete({
+      userId: userId,
+      referenceId: sourceId,
+    });
+
+    await cleanContentNotificationPreference({
+      entityManager: con,
+      id: sourceId,
+      notificationTypes: entityToNotificationTypeMap.source,
+      notficationEntity: NotificationPreferenceSource,
+      userId,
+    });
+  });
+  return;
+};
+
 export const getPermissionsForMember = (
   member: Pick<SourceMember, 'role'>,
   source: Partial<Pick<SquadSource, 'memberPostingRank' | 'memberInviteRank'>>,
@@ -2114,27 +2145,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Leave);
-      await ctx.con.transaction(async (entityManager) => {
-        await entityManager.getRepository(SourceMember).delete({
-          sourceId,
-          userId: ctx.userId,
-        });
-
-        await entityManager.getRepository(ContentPreferenceSource).delete({
-          userId: ctx.userId,
-          referenceId: sourceId,
-        });
-
-        await cleanContentNotificationPreference({
-          ctx,
-          entityManager,
-          id: sourceId,
-          notificationTypes: entityToNotificationTypeMap.source,
-          notficationEntity: NotificationPreferenceSource,
-          userId: ctx.userId,
-        });
+      await removeSourceMember({
+        con: ctx.con,
+        userId: ctx.userId,
+        sourceId,
       });
-
       return { _: true };
     },
     updateMemberRole: async (

@@ -10,6 +10,7 @@ import createOrGetConnection from '../../src/db';
 import { DataSource } from 'typeorm';
 import { usersFixture } from '../fixture/user';
 import { SourceMemberRoles } from '../../src/roles';
+import { randomUUID } from 'crypto';
 
 const PLUS_MEMBER_SQUAD_ID = '05862288-bace-4723-9218-d30fab6ae96d';
 
@@ -74,7 +75,7 @@ describe('userUpdatedPlusSubscription', () => {
   it('should add user to squad', async () => {
     const newBase = {
       ...base,
-      subscriptionFlags: JSON.stringify({ cycle: 'month' }),
+      subscriptionFlags: JSON.stringify({ subscriptionId: '1234' }),
     };
     await expectSuccessfulTypedBackground(worker, {
       newProfile: newBase,
@@ -131,12 +132,35 @@ describe('userUpdatedPlusSubscription', () => {
   it('should not add user if flags the same', async () => {
     const before: ChangeObject<ObjectType> = {
       ...base,
-      flags: '{cycle: "month"}',
+      flags: '{subscriptionId: "1234"}',
     };
     await expectSuccessfulTypedBackground(worker, {
       newProfile: before,
       user: before,
     } as unknown as PubSubSchema['user-updated']);
+    const sourceMember = await con.getRepository('SourceMember').findOneBy({
+      sourceId: PLUS_MEMBER_SQUAD_ID,
+      userId: base.id,
+    });
+    expect(sourceMember).toEqual(null);
+  });
+
+  it('should remove user from squad', async () => {
+    await con.getRepository('SourceMember').save({
+      sourceId: PLUS_MEMBER_SQUAD_ID,
+      userId: base.id,
+      role: SourceMemberRoles.Member,
+      referralToken: new randomUUID(),
+    });
+    const oldBase = {
+      ...base,
+      subscriptionFlags: JSON.stringify({ subscriptionId: '1234' }),
+    };
+    await expectSuccessfulTypedBackground(worker, {
+      newProfile: base,
+      user: oldBase,
+    } as unknown as PubSubSchema['user-updated']);
+
     const sourceMember = await con.getRepository('SourceMember').findOneBy({
       sourceId: PLUS_MEMBER_SQUAD_ID,
       userId: base.id,
