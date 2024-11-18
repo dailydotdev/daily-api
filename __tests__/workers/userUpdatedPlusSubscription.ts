@@ -4,7 +4,6 @@ import { ChangeObject } from '../../src/types';
 import { expectSuccessfulTypedBackground, saveFixtures } from '../helpers';
 import { User, Source, Feed } from '../../src/entity';
 import { ghostUser, PubSubSchema } from '../../src/common';
-import { cio } from '../../src/cio';
 import { typedWorkers } from '../../src/workers';
 import createOrGetConnection from '../../src/db';
 import { DataSource } from 'typeorm';
