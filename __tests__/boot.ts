@@ -83,6 +83,7 @@ const BASE_BODY = {
     visitId: expect.any(String),
   },
   exp: { f: 'enc', e: [], a: {} },
+  geo: { ip: expect.any(String) },
 };
 
 const LOGGED_IN_BODY = {
