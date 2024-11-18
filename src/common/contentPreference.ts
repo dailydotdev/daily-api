@@ -89,11 +89,11 @@ export const cleanContentNotificationPreference = async ({
     );
     return;
   }
-  const notificationRepository = (entityManager ?? ctx?.con).getRepository(
+  const notificationRepository = (entityManager ?? ctx?.con)?.getRepository(
     notficationEntity,
   );
 
-  if (!notificationTypes.length) {
+  if (!notificationRepository || !notificationTypes.length) {
     return;
   }
 
