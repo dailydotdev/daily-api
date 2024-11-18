@@ -128,16 +128,16 @@ import {
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
 ): boolean =>
-  freeform.payload.after!.title!.length +
-    freeform.payload.after!.content.length >=
+  (freeform.payload.after!.title!.length || 0) +
+    (freeform.payload.after!.content?.length || 0) >=
   FREEFORM_POST_MINIMUM_CONTENT_LENGTH;
 
 const isFreeformPostChangeLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
 ): boolean =>
   Math.abs(
-    freeform.payload.before!.content.length -
-      freeform.payload.after!.content.length,
+    (freeform.payload.before!.content?.length || 0) -
+      (freeform.payload.after!.content?.length || 0),
   ) >= FREEFORM_POST_MINIMUM_CHANGE_LENGTH;
 
 const isCollectionUpdated = (
