@@ -5,16 +5,43 @@ import {
   Paddle,
   SubscriptionCanceledEvent,
   SubscriptionCreatedEvent,
+  SubscriptionItemNotification,
+  SubscriptionUpdatedEvent,
+  TransactionCompletedEvent,
+  TransactionItemNotification,
 } from '@paddle/paddle-node-sdk';
 import createOrGetConnection from '../../db';
 import { updateSubscriptionFlags } from '../../common';
 import { User } from '../../entity';
 import { logger } from '../../logger';
 import { remoteConfig } from '../../remoteConfig';
+import {
+  AnalyticsEventName,
+  sendAnalyticsEvent,
+} from '../../integrations/analytics';
+import { JsonContains } from 'typeorm';
 
 const paddleInstance = new Paddle(process.env.PADDLE_API_KEY, {
   environment: process.env.PADDLE_ENVIRONMENT as Environment,
 });
+
+const extractSubscriptionType = (
+  items:
+    | SubscriptionItemNotification[]
+    | TransactionItemNotification[]
+    | undefined,
+): string => {
+  if (!items) {
+    return '';
+  }
+  return items.reduce((acc, item) => {
+    const pricingIds = remoteConfig.vars?.pricingIds;
+    if (item.price?.id && pricingIds?.[item.price.id]) {
+      acc = pricingIds?.[item.price.id] || '';
+    }
+    return acc;
+  }, '');
+};
 
 const updateUserSubscription = async ({
   data,
@@ -35,13 +62,9 @@ const updateUserSubscription = async ({
     logger.error({ type: 'paddle' }, 'User ID missing in payload');
     return false;
   }
-  const subscriptionType = data.data?.items.reduce((acc, item) => {
-    const pricingIds = remoteConfig.vars?.pricingIds;
-    if (item.price?.id && pricingIds?.[item.price.id]) {
-      acc = pricingIds?.[item.price.id] || '';
-    }
-    return acc;
-  }, '');
+
+  const subscriptionType = extractSubscriptionType(data.data?.items);
+
   if (!subscriptionType) {
     logger.error(
       {
@@ -64,6 +87,83 @@ const updateUserSubscription = async ({
       }),
     },
   );
+};
+
+const getUserId = async ({
+  subscriptionId,
+  userId,
+}: {
+  subscriptionId?: false | string | null;
+  userId?: string | undefined;
+}): Promise<string> => {
+  if (userId) {
+    return userId;
+  }
+
+  const con = await createOrGetConnection();
+  const user = await con.getRepository(User).findOne({
+    where: { subscriptionFlags: JsonContains({ subscriptionId }) },
+    select: ['id'],
+  });
+
+  if (!user) {
+    logger.error({ type: 'paddle', subscriptionId, userId }, 'User not found');
+    return '';
+  }
+
+  return user.id;
+};
+
+const logPaddleAnalyticsEvent = async (
+  data:
+    | SubscriptionUpdatedEvent
+    | SubscriptionCanceledEvent
+    | TransactionCompletedEvent
+    | undefined,
+  eventName: AnalyticsEventName,
+) => {
+  if (!data) {
+    return;
+  }
+
+  const customData = data.data?.customData as { user_id: string };
+  const cycle = extractSubscriptionType(data.data?.items);
+  const cost = data.data?.items?.[0]?.price?.unitPrice?.amount;
+  const currency = data.data?.items?.[0]?.price?.unitPrice?.currencyCode;
+  const userId = await getUserId({
+    userId: customData?.user_id,
+    subscriptionId: 'subscriptionId' in data.data && data.data.subscriptionId,
+  });
+  if (!userId) {
+    return;
+  }
+
+  const payment =
+    'payments' in data.data &&
+    data.data?.payments?.reduce((acc, item) => {
+      if (item.status === 'captured') {
+        acc = item?.methodDetails?.type || '';
+      }
+      return acc;
+    }, '');
+
+  const extra = {
+    cycle,
+    cost,
+    currency,
+    payment,
+  };
+
+  await sendAnalyticsEvent([
+    {
+      event_name: eventName,
+      event_timestamp: new Date(data.occurredAt),
+      event_id: data?.eventId,
+      app_platform: 'api',
+      user_id: userId,
+      extra: JSON.stringify(extra),
+    },
+  ]);
 };
 
 export const paddle = async (fastify: FastifyInstance): Promise<void> => {
@@ -97,6 +197,23 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
                   data: eventData,
                   state: false,
                 });
+                await logPaddleAnalyticsEvent(
+                  eventData,
+                  AnalyticsEventName.CancelSubscription,
+                );
+                break;
+              case EventName.SubscriptionUpdated:
+                await logPaddleAnalyticsEvent(
+                  eventData,
+                  AnalyticsEventName.ChangeBillingCycle,
+                );
+                break;
+              case EventName.TransactionCompleted:
+                await logPaddleAnalyticsEvent(
+                  eventData,
+                  AnalyticsEventName.ReceivePayment,
+                );
+                break;
               default:
                 logger.info({ type: 'paddle' }, eventData?.eventType);
             }
