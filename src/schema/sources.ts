@@ -1178,7 +1178,7 @@ const getSourceById = async (
   return res[0];
 };
 
-const addNewSourceMember = async (
+export const addNewSourceMember = async (
   con: DataSource | EntityManager,
   member: Omit<DeepPartial<SourceMember>, 'referralToken'>,
 ): Promise<void> => {
