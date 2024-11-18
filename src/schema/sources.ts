@@ -1772,6 +1772,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               graphorm.mappings.SourceMember.fields?.roleRank.select,
               'DESC',
             );
+          } else if (
+            typeof graphorm.mappings!.SourceMember!.fields!.roleRank.select ===
+            'function'
+          ) {
+            queryBuilder = queryBuilder.addOrderBy(
+              graphorm.mappings!.SourceMember!.fields!.roleRank.select(
+                ctx,
+                alias,
+                queryBuilder,
+              ) as string,
+              'DESC',
+            );
           }
 
           queryBuilder = queryBuilder.addOrderBy(
@@ -1801,6 +1813,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             queryBuilder = queryBuilder.andWhere(
               `${graphorm.mappings.SourceMember.fields.roleRank.select} >= 0`,
             );
+          } else if (
+            typeof graphorm.mappings!.SourceMember!.fields!.roleRank.select ===
+            'function'
+          ) {
+            queryBuilder = queryBuilder.andWhere(
+              `${graphorm.mappings!.SourceMember!.fields!.roleRank.select(ctx, alias, queryBuilder)} >= 0`,
+            );
           }
           return queryBuilder;
         },
@@ -1829,6 +1848,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           ) {
             queryBuilder = queryBuilder.andWhere(
               `${graphorm.mappings.SourceMember.fields.roleRank.select} >= 0`,
+            );
+          } else if (
+            typeof graphorm.mappings!.SourceMember!.fields!.roleRank.select ===
+            'function'
+          ) {
+            queryBuilder = queryBuilder.andWhere(
+              `${graphorm.mappings!.SourceMember!.fields!.roleRank.select(ctx, alias, queryBuilder)} >= 0`,
             );
           }
 

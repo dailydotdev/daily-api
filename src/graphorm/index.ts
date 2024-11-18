@@ -538,20 +538,24 @@ const obj = new GraphORM({
       },
       roleRank: {
         rawSelect: true,
-        select: `
+        select: (ctx, alias) => {
+          return `
             (CASE
               ${sourceRoleRankKeys
                 .map(
                   (role) =>
-                    `WHEN flags->>'role' = '${role}' THEN ${sourceRoleRank[role as keyof typeof sourceRoleRank]}`,
+                    `WHEN ${alias}.flags->>'role' = '${role}' THEN ${sourceRoleRank[role as keyof typeof sourceRoleRank]}`,
                 )
                 .join(' ')}
             ELSE 0 END)
-          `,
+          `;
+        },
       },
       referralToken: {
         rawSelect: true,
-        select: `flags->>'referralToken'`,
+        select: (ctx, alias) => {
+          return `${alias}.flags->>'referralToken'`;
+        },
         transform: (value: string, ctx: Context, parent) => {
           const member = parent as ContentPreferenceSource;
 
@@ -560,7 +564,9 @@ const obj = new GraphORM({
       },
       role: {
         rawSelect: true,
-        select: `COALESCE(flags->>'role', '${SourceMemberRoles.Member}')`,
+        select: (ctx, alias) => {
+          return `COALESCE(${alias}.flags->>'role', '${SourceMemberRoles.Member}')`;
+        },
       },
       flags: {
         jsonType: true,
