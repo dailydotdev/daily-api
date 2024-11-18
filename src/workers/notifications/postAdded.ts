@@ -83,7 +83,7 @@ const worker: NotificationWorker = {
           source.id,
           (qb) =>
             qb
-              .where(`${qb.alias}."userId" NOT IN (:...users)`, {
+              .andWhere(`${qb.alias}."userId" NOT IN (:...users)`, {
                 users: [
                   post.authorId,
                   ...mentions.flatMap(({ mentionedUserId }) => mentionedUserId),

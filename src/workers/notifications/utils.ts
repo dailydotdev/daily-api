@@ -24,7 +24,6 @@ import {
 import { DataSource, EntityManager, In, SelectQueryBuilder } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
 import { insertOrIgnoreAction } from '../../schema/actions';
-import { ObjectLiteral } from 'typeorm/common/ObjectLiteral';
 import { SourcePostModeration } from '../../entity/SourcePostModeration';
 import { ChangeObject } from '../../types';
 import { ContentPreferenceSource } from '../../entity/contentPreference/ContentPreferenceSource';
@@ -39,18 +38,18 @@ export const uniquePostOwners = (
 
 type GetSubscribedMembersWhereBuilder = (
   qb: SelectQueryBuilder<ContentPreferenceSource>,
-) => string;
+) => SelectQueryBuilder<ContentPreferenceSource>;
 
 export const getSubscribedMembers = (
   con: DataSource,
   type: NotificationType,
   referenceId: string,
-  where: ObjectLiteral | GetSubscribedMembersWhereBuilder,
+  where: GetSubscribedMembersWhereBuilder,
 ) => {
   const builder = con
     .getRepository(ContentPreferenceSource)
     .createQueryBuilder('cps');
-  const memberQuery = builder.select('"userId"').where(where);
+  const memberQuery = where(builder.select('"userId"'));
   const muteQuery = builder
     .subQuery()
     .select('np."userId"')
@@ -159,7 +158,7 @@ export async function articleNewCommentHandler(
   if (source.type === SourceType.Squad) {
     const members = await getSubscribedMembers(con, type, post.id, (qb) =>
       qb
-        .where(`${qb.alias}."userId" IN (:...users)`, {
+        .andWhere(`${qb.alias}."userId" IN (:...users)`, {
           users,
         })
         .andWhere(`${qb.alias}."referenceId" = :sourceId`, {

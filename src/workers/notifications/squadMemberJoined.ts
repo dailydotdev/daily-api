@@ -29,7 +29,7 @@ const worker: NotificationWorker = {
       member.sourceId,
       (qb) =>
         qb
-          .where(`${qb.alias}."userId" NOT IN (:...users)`, {
+          .andWhere(`${qb.alias}."userId" NOT IN (:...users)`, {
             users: [member.userId],
           })
           .andWhere(`${qb.alias}."referenceId" = :sourceId`, {
