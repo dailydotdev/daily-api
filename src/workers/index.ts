@@ -53,6 +53,7 @@ import { vordrPostCommentPrevented } from './vordrPostCommentPrevented';
 import { vordrPostPrevented } from './vordrPostPrevented';
 import { postAddedSlackChannelSendWorker } from './postAddedSlackChannelSend';
 import userCompanyApprovedCio from './userCompanyApprovedCio';
+import userUpdatedPlusSubscription from './userUpdatedPlusSubscription';
 
 export { Worker } from './worker';
 
@@ -109,6 +110,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   vordrPostPrevented,
   postAddedSlackChannelSendWorker,
   userCompanyApprovedCio,
+  userUpdatedPlusSubscription,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

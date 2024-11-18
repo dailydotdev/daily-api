@@ -8,7 +8,7 @@ import {
   NotificationPreferenceStatus,
   NotificationType,
 } from '../notifications/common';
-import { EntityManager, EntityTarget, In, Not } from 'typeorm';
+import { DataSource, EntityManager, EntityTarget, In, Not } from 'typeorm';
 import { ConflictError } from '../errors';
 import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
 import {
@@ -22,6 +22,7 @@ import { ghostUser } from './utils';
 import { randomUUID } from 'crypto';
 import { SourceMemberRoles } from '../roles';
 import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
+import { logger } from '../logger';
 
 type FollowEntity = ({
   ctx,
@@ -75,18 +76,24 @@ export const cleanContentNotificationPreference = async ({
   notficationEntity,
   userId,
 }: {
-  ctx: AuthContext;
-  entityManager?: EntityManager;
+  ctx?: AuthContext;
+  entityManager?: DataSource | EntityManager;
   id: string;
   notificationTypes: NotificationType[];
   notficationEntity: EntityTarget<NotificationPreference>;
   userId: string;
 }) => {
-  const notificationRepository = (entityManager ?? ctx.con).getRepository(
+  if (!entityManager && !ctx) {
+    logger.error(
+      'cleanContentNotificationPreference: ctx and entityManager are both undefined',
+    );
+    return;
+  }
+  const notificationRepository = (entityManager ?? ctx?.con)?.getRepository(
     notficationEntity,
   );
 
-  if (!notificationTypes.length) {
+  if (!notificationRepository || !notificationTypes.length) {
     return;
   }
 
