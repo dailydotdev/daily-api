@@ -77,6 +77,11 @@ export type Experimentation = {
   a: Record<string, unknown>;
 };
 
+export type Geo = {
+  region?: string;
+  ip?: string;
+};
+
 interface ComputedAlerts {
   shouldShowFeedFeedback: boolean;
 }
@@ -95,6 +100,7 @@ export type BaseBoot = {
   notifications: { unreadNotificationsCount: number };
   squads: BootSquadSource[];
   exp?: Experimentation;
+  geo: Geo;
 };
 
 export type BootUserReferral = Partial<{
@@ -129,6 +135,13 @@ type BootMiddleware = (
   req: FastifyRequest,
   res: FastifyReply,
 ) => Promise<Record<string, unknown>>;
+
+const geoSection = (req: FastifyRequest): BaseBoot['geo'] => {
+  return {
+    region: req.headers['x-client-region'] as string,
+    ip: req.ip,
+  };
+};
 
 const visitSection = async (
   req: FastifyRequest,
@@ -514,6 +527,7 @@ const loggedInBoot = async ({
       exp,
       marketingCta,
       feeds,
+      geo: geoSection(req),
       ...extra,
     };
   });
@@ -567,6 +581,7 @@ const anonymousBoot = async (
     notifications: { unreadNotificationsCount: 0 },
     squads: [],
     exp,
+    geo: geoSection(req),
     ...extra,
   };
 };
