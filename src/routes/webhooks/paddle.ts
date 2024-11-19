@@ -190,7 +190,7 @@ const logPaddleAnalyticsEvent = async (
   ]);
 };
 
-const concatText = (a: string, b: string) => [a, b].filter(Boolean).join(`\n`)
+const concatText = (a: string, b: string) => [a, b].filter(Boolean).join(`\n`);
 const notifyNewPaddleTransaction = async ({
   data,
 }: TransactionCompletedEvent) => {
