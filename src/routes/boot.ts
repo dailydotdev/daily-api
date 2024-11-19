@@ -474,6 +474,11 @@ const loggedInBoot = async ({
       return handleNonExistentUser(con, req, res, middleware);
     }
     const isTeamMember = exp?.a?.team === 1;
+    const isPlus = isPlusMember(user.subscriptionFlags?.cycle);
+
+    if (isPlus) {
+      exp.a.plus = 1;
+    }
 
     span?.setAttribute(SEMATTRS_DAILY_STAFF, isTeamMember);
 
@@ -497,7 +502,7 @@ const loggedInBoot = async ({
         permalink: `${process.env.COMMENTS_PREFIX}/${user.username || user.id}`,
         canSubmitArticle: user.reputation >= submitArticleThreshold,
         isTeamMember,
-        isPlus: isPlusMember(user.subscriptionFlags?.cycle),
+        isPlus,
         language: user.language || undefined,
         image: mapCloudinaryUrl(user.image),
         cover: mapCloudinaryUrl(user.cover),
