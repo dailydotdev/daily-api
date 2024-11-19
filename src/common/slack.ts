@@ -19,6 +19,9 @@ export const webhooks = Object.freeze({
   vordr: process.env.SLACK_VORDR_WEBHOOK
     ? new IncomingWebhook(process.env.SLACK_VORDR_WEBHOOK)
     : nullWebhook,
+  transactions: process.env.SLACK_TRANSACTIONS_WEBHOOK
+    ? new IncomingWebhook(process.env.SLACK_TRANSACTIONS_WEBHOOK)
+    : nullWebhook,
 });
 
 export const notifyNewComment = async (
