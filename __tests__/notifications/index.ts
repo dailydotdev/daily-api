@@ -1296,6 +1296,13 @@ describe('storeNotificationBundle', () => {
     );
     expect(actual.avatars).toEqual([
       {
+        image: 'http://image.com/a',
+        name: 'A',
+        referenceId: 'a',
+        targetUrl: 'http://localhost:5002/squads/a',
+        type: 'source',
+      },
+      {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
         referenceId: '2',
