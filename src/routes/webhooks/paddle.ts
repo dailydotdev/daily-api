@@ -175,8 +175,12 @@ const notifyNewPaddleTransaction = async ({
     subscriptionId: 'subscriptionId' in data && data.subscriptionId,
   });
 
-  const total = data?.details?.totals?.total || '0';
-  const currencyCode = data?.currencyCode || 'USD';
+  const total = data?.items?.[0]?.price?.unitPrice?.amount || '0';
+  const currencyCode =
+    data?.items?.[0]?.price?.unitPrice?.currencyCode || 'USD';
+
+  const localTotal = data?.details?.totals?.total || '0';
+  const localCurrencyCode = data?.currencyCode || 'USD';
 
   await webhooks.transactions.send({
     blocks: [
@@ -251,6 +255,30 @@ const notifyNewPaddleTransaction = async ({
           {
             type: 'mrkdwn',
             text: currencyCode,
+          },
+        ],
+      },
+      {
+        type: 'section',
+        fields: [
+          {
+            type: 'mrkdwn',
+            text: `*Cost (local):*`,
+          },
+          {
+            type: 'mrkdwn',
+            text: `*Currency (local):*`,
+          },
+          {
+            type: 'mrkdwn',
+            text: new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: localCurrencyCode,
+            }).format((parseFloat(localTotal) || 0) / 100),
+          },
+          {
+            type: 'mrkdwn',
+            text: localCurrencyCode,
           },
         ],
       },
