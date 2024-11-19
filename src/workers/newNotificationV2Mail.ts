@@ -176,7 +176,12 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     }
 
     const { sharedPostId } = moderation;
-    const [squad, createdBy, sharedPost, moderator] = await Promise.all([
+    const [squad, createdBy, sharedPost, moderator]: [
+      Pick<SquadSource, 'type' | 'name' | 'handle' | 'image'> | null,
+      Pick<User, 'name' | 'reputation' | 'image'> | null,
+      Pick<ArticlePost, 'title' | 'image'> | null,
+      Pick<User, 'name' | 'reputation' | 'image'> | null,
+    ] = await Promise.all([
       con.getRepository(SquadSource).findOne({
         where: { id: moderation.sourceId },
         select: ['type', 'name', 'handle', 'image'],
