@@ -131,7 +131,7 @@ const planChanged = async (data: SubscriptionUpdatedEvent) => {
   });
 
   return (
-    (flags?.subscriptionFlags?.cycle as string) ===
+    (flags?.subscriptionFlags?.cycle as string) !==
     extractSubscriptionType(data.data?.items)
   );
 };
@@ -225,7 +225,8 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
                 );
                 break;
               case EventName.SubscriptionUpdated:
-                if (!(await planChanged(eventData))) {
+                const didPlanChange = await planChanged(eventData);
+                if (didPlanChange) {
                   await updateUserSubscription({
                     data: eventData,
                     state: true,
