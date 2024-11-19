@@ -130,8 +130,9 @@ const logPaddleAnalyticsEvent = async (
   const cycle = extractSubscriptionType(data.data?.items);
   const cost = data.data?.items?.[0]?.price?.unitPrice?.amount;
   const currency = data.data?.items?.[0]?.price?.unitPrice?.currencyCode;
-  const localCost = data.data?.details?.totals?.total || '0';
-  const localCurrency = data.data?.currencyCode || 'USD';
+  const localCost = (data as TransactionCompletedEvent).data?.details?.totals
+    ?.total;
+  const localCurrency = data.data?.currencyCode;
   const userId = await getUserId({
     userId: customData?.user_id,
     subscriptionId: 'subscriptionId' in data.data && data.data.subscriptionId,
