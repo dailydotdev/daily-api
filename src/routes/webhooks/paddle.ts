@@ -97,7 +97,7 @@ const getUserId = async ({
   subscriptionId,
   userId,
 }: {
-  subscriptionId?: false | string | null;
+  subscriptionId?: false | string | null | unknown;
   userId?: string | undefined;
 }): Promise<string> => {
   if (userId) {
