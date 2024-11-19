@@ -97,7 +97,7 @@ const getUserId = async ({
   subscriptionId,
   userId,
 }: {
-  subscriptionId?: false | string | null | unknown;
+  subscriptionId?: false | string | null;
   userId?: string | undefined;
 }): Promise<string> => {
   if (userId) {
@@ -122,7 +122,7 @@ const planChanged = async (data: SubscriptionUpdatedEvent) => {
   const customData = data.data?.customData as { user_id: string };
   const userId = await getUserId({
     userId: customData?.user_id,
-    subscriptionId: 'subscriptionId' in data.data && data.data.subscriptionId,
+    subscriptionId: data.data && data.data.id,
   });
   const con = await createOrGetConnection();
   const flags = await con.getRepository(User).findOne({
@@ -154,7 +154,9 @@ const logPaddleAnalyticsEvent = async (
   const currency = data.data?.items?.[0]?.price?.unitPrice?.currencyCode;
   const userId = await getUserId({
     userId: customData?.user_id,
-    subscriptionId: 'subscriptionId' in data.data && data.data.subscriptionId,
+    subscriptionId:
+      ('subscriptionId' in data.data && data.data.subscriptionId) ||
+      data.data.id,
   });
   if (!userId) {
     return;
