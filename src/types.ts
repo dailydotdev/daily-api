@@ -62,6 +62,10 @@ declare global {
       PADDLE_API_KEY: string;
       PADDLE_WEBHOOK_SECRET: string;
       PADDLE_ENVIRONMENT: string;
+      SLACK_WEBHOOK: string;
+      SLACK_COMMENTS_WEBHOOK: string;
+      SLACK_VORDR_WEBHOOK: string;
+      SLACK_TRANSACTIONS_WEBHOOK: string;
     }
   }
 }
