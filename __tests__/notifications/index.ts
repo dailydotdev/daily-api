@@ -7,6 +7,7 @@ import {
   NotificationCommenterContext,
   NotificationDoneByContext,
   NotificationPostContext,
+  NotificationPostModerationContext,
   NotificationSourceContext,
   NotificationSourceMemberRoleContext,
   NotificationSourceRequestContext,
@@ -57,6 +58,10 @@ import { SourceMemberRoles } from '../../src/roles';
 import { NotificationType } from '../../src/notifications/common';
 import { format } from 'date-fns';
 import { saveFixtures } from '../helpers';
+import {
+  SourcePostModeration,
+  SourcePostModerationStatus,
+} from '../../src/entity/SourcePostModeration';
 
 const userId = '1';
 const commentFixture: Reference<Comment> = {
@@ -1239,6 +1244,151 @@ describe('storeNotificationBundle', () => {
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
+      },
+    ]);
+    expect(actual.attachments!.length).toEqual(1);
+    expect(actual.attachments).toEqual([
+      {
+        image: 'https://daily.dev/image.jpg',
+
+        referenceId: 'p1',
+        title: 'P1',
+        type: 'post',
+      },
+    ]);
+  });
+
+  it('should generate source_post_submitted notification', async () => {
+    const [, ...fixtures] = usersFixture;
+    await con.getRepository(Source).save(sourcesFixture);
+    await con.getRepository(Post).save(postsFixture);
+    await con.getRepository(User).save(fixtures);
+    const post = await con.getRepository(SourcePostModeration).save({
+      type: PostType.Share,
+      postId: 'p1',
+      sourceId: 'a',
+      createdById: '2',
+      status: SourcePostModerationStatus.Pending,
+    });
+    const type = NotificationType.SourcePostSubmitted;
+    const ctx: NotificationPostModerationContext = {
+      post,
+      userIds: [userId],
+      source: {
+        ...sourcesFixture[0],
+        type: SourceType.Squad,
+      } as Reference<Source>,
+      user: usersFixture[1] as Reference<User>,
+    };
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['1']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual(post.id);
+    expect(actual.notification.referenceType).toEqual('post_moderation');
+    expect(actual.notification.title).toEqual(
+      'Tsahi just posted in A. This post is waiting for your review before it gets published on the squad.',
+    );
+    expect(actual.notification.description).toBeFalsy();
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/squads/a/moderate',
+    );
+    expect(actual.avatars).toEqual([
+      {
+        image: 'https://daily.dev/tsahi.jpg',
+        name: 'Tsahi',
+        referenceId: '2',
+        targetUrl: 'http://localhost:5002/tsahidaily',
+        type: 'user',
+      },
+    ]);
+    expect(actual.attachments!.length).toEqual(0);
+  });
+
+  it('should generate source_post_rejected notification', async () => {
+    const [, ...fixtures] = usersFixture;
+    await con.getRepository(Source).save(sourcesFixture);
+    await con.getRepository(Post).save(postsFixture);
+    await con.getRepository(User).save(fixtures);
+    const post = await con.getRepository(SourcePostModeration).save({
+      type: PostType.Share,
+      postId: 'p1',
+      sourceId: 'a',
+      createdById: '2',
+      status: SourcePostModerationStatus.Rejected,
+    });
+    const type = NotificationType.SourcePostRejected;
+    const ctx: NotificationPostModerationContext = {
+      post,
+      userIds: ['2'],
+      source: {
+        ...sourcesFixture[0],
+        type: SourceType.Squad,
+      } as Reference<Source>,
+      user: usersFixture[1] as Reference<User>,
+    };
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['2']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual(post.id);
+    expect(actual.notification.referenceType).toEqual('post_moderation');
+    expect(actual.notification.title).toEqual(
+      'Your post in A was not approved for the following reason: null. Please review the feedback and consider making changes before resubmitting.',
+    );
+    expect(actual.notification.description).toBeFalsy();
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/squads/a/moderate',
+    );
+    expect(actual.avatars).toEqual([
+      {
+        image: 'http://image.com/a',
+        name: 'A',
+        referenceId: 'a',
+        targetUrl: 'http://localhost:5002/squads/a',
+        type: 'source',
+      },
+    ]);
+    expect(actual.attachments!.length).toEqual(0);
+  });
+
+  it('should generate source_post_approved notification', async () => {
+    const [, ...fixtures] = usersFixture;
+    await con.getRepository(Source).save(sourcesFixture);
+    await con.getRepository(Post).save(postsFixture);
+    await con.getRepository(User).save(fixtures);
+    const type = NotificationType.SourcePostApproved;
+    const ctx: NotificationPostContext = {
+      post: postsFixture[0] as Reference<Post>,
+      userIds: ['2'],
+      source: {
+        ...sourcesFixture[0],
+        type: SourceType.Squad,
+      } as Reference<Source>,
+    };
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['2']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('p1');
+    expect(actual.notification.referenceType).toEqual('post');
+    expect(actual.notification.title).toEqual(
+      'Woohoo! Your post has been approved and is now live in A. Check it out!',
+    );
+    expect(actual.notification.description).toBeFalsy();
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/posts/p1',
+    );
+    expect(actual.avatars).toEqual([
+      {
+        image: 'http://image.com/a',
+        name: 'A',
+        referenceId: 'a',
+        targetUrl: 'http://localhost:5002/squads/a',
+        type: 'source',
       },
     ]);
     expect(actual.attachments!.length).toEqual(1);
