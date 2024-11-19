@@ -47,7 +47,11 @@ const updateUserSubscription = async ({
   data,
   state,
 }: {
-  data: SubscriptionCreatedEvent | SubscriptionCanceledEvent | undefined;
+  data:
+    | SubscriptionCreatedEvent
+    | SubscriptionCanceledEvent
+    | SubscriptionUpdatedEvent
+    | undefined;
   state: boolean;
 }) => {
   if (!data) {
@@ -114,6 +118,24 @@ const getUserId = async ({
   return user.id;
 };
 
+const planChanged = async (data: SubscriptionUpdatedEvent) => {
+  const customData = data.data?.customData as { user_id: string };
+  const userId = await getUserId({
+    userId: customData?.user_id,
+    subscriptionId: data.data?.id,
+  });
+  const con = await createOrGetConnection();
+  const flags = await con.getRepository(User).findOne({
+    where: { id: userId },
+    select: ['subscriptionFlags'],
+  });
+
+  return (
+    (flags?.subscriptionFlags?.cycle as string) !==
+    extractSubscriptionType(data.data?.items)
+  );
+};
+
 const logPaddleAnalyticsEvent = async (
   data:
     | SubscriptionUpdatedEvent
@@ -132,7 +154,9 @@ const logPaddleAnalyticsEvent = async (
   const currency = data.data?.items?.[0]?.price?.unitPrice?.currencyCode;
   const userId = await getUserId({
     userId: customData?.user_id,
-    subscriptionId: 'subscriptionId' in data.data && data.data.subscriptionId,
+    subscriptionId:
+      ('subscriptionId' in data.data && data.data.subscriptionId) ||
+      data.data.id,
   });
   if (!userId) {
     return;
@@ -314,10 +338,17 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
                 ]);
                 break;
               case EventName.SubscriptionUpdated:
-                await logPaddleAnalyticsEvent(
-                  eventData,
-                  AnalyticsEventName.ChangeBillingCycle,
-                );
+                const didPlanChange = await planChanged(eventData);
+                if (didPlanChange) {
+                  await updateUserSubscription({
+                    data: eventData,
+                    state: true,
+                  });
+                  await logPaddleAnalyticsEvent(
+                    eventData,
+                    AnalyticsEventName.ChangeBillingCycle,
+                  );
+                }
                 break;
               case EventName.TransactionCompleted:
                 Promise.all([
