@@ -246,7 +246,7 @@ const notifyNewPaddleTransaction = async ({
             text: new Intl.NumberFormat('en-US', {
               style: 'currency',
               currency: currencyCode,
-            }).format(parseFloat(total) || 0),
+            }).format((parseFloat(total) || 0) / 100),
           },
           {
             type: 'mrkdwn',
