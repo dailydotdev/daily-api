@@ -149,7 +149,16 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     };
   },
   source_post_submitted: async (con, user, notification) => {
-    const moderation = await con.getRepository(SourcePostModeration).findOne({
+    const moderation: Pick<
+      SourcePostModeration,
+      | 'createdById'
+      | 'sourceId'
+      | 'image'
+      | 'title'
+      | 'content'
+      | 'type'
+      | 'sharedPostId'
+    > | null = await con.getRepository(SourcePostModeration).findOne({
       where: { id: notification.referenceId },
       select: [
         'createdById',
