@@ -535,7 +535,7 @@ const loggedInBoot = async ({
         ...exp,
         a: {
           ...exp.a,
-          plus: isPlus ? 1 : undefined
+          plus: isPlus ? 1 : undefined,
         },
       },
       marketingCta,
