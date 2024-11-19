@@ -175,6 +175,8 @@ const notifyNewPaddleTransaction = async ({
     subscriptionId: 'subscriptionId' in data && data.subscriptionId,
   });
 
+  const productId = data?.items?.[0].price?.productId;
+
   const total = data?.items?.[0]?.price?.unitPrice?.amount || '0';
   const currencyCode =
     data?.items?.[0]?.price?.unitPrice?.currencyCode || 'USD';
@@ -226,7 +228,7 @@ const notifyNewPaddleTransaction = async ({
           },
           {
             type: 'mrkdwn',
-            text: extractSubscriptionType(data?.items),
+            text: `<https://vendors.paddle.com/products-v2/${productId}|${extractSubscriptionType(data?.items)}>`,
           },
           {
             type: 'mrkdwn',
