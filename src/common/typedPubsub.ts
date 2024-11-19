@@ -88,6 +88,9 @@ export type PubSubSchema = {
   'api.v1.source-post-moderation-submitted': {
     post: ChangeObject<SourcePostModeration>;
   };
+  'api.v1.source-post-moderation-deleted': {
+    post: ChangeObject<SourcePostModeration>;
+  };
   'api.v1.post-bookmark-reminder': {
     postId: string;
     userId: string;
