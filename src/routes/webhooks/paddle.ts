@@ -166,6 +166,7 @@ const logPaddleAnalyticsEvent = async (
   ]);
 };
 
+const concatText = (a: string, b: string) => `${a}\n${b}`;
 const notifyNewPaddleTransaction = async ({
   data,
 }: TransactionCompletedEvent) => {
@@ -199,19 +200,17 @@ const notifyNewPaddleTransaction = async ({
         fields: [
           {
             type: 'mrkdwn',
-            text: `*Transaction ID:*`,
+            text: concatText(
+              '*Transaction ID:*',
+              `<https://vendors.paddle.com/transactions-v2/${data.id}|${data.id}>`,
+            ),
           },
           {
             type: 'mrkdwn',
-            text: `*Customer ID:*`,
-          },
-          {
-            type: 'mrkdwn',
-            text: `<https://vendors.paddle.com/transactions-v2/${data.id}|${data.id}>`,
-          },
-          {
-            type: 'mrkdwn',
-            text: `<https://vendors.paddle.com/customers-v2/${data.id}|${data.customerId}>`,
+            text: concatText(
+              '*Customer ID:*',
+              `<https://vendors.paddle.com/customers-v2/${data.id}|${data.customerId}>`,
+            ),
           },
         ],
       },
@@ -220,19 +219,17 @@ const notifyNewPaddleTransaction = async ({
         fields: [
           {
             type: 'mrkdwn',
-            text: `*Type:*`,
+            text: concatText(
+              '*Type:*',
+              `<https://vendors.paddle.com/products-v2/${productId}|${extractSubscriptionType(data?.items)}>`,
+            ),
           },
           {
             type: 'mrkdwn',
-            text: `*Purchased by:*`,
-          },
-          {
-            type: 'mrkdwn',
-            text: `<https://vendors.paddle.com/products-v2/${productId}|${extractSubscriptionType(data?.items)}>`,
-          },
-          {
-            type: 'mrkdwn',
-            text: `<https://app.daily.dev/${userId}|${userId}>`,
+            text: concatText(
+              '*Purchased by:*',
+              `<https://app.daily.dev/${userId}|${userId}>`,
+            ),
           },
         ],
       },
@@ -241,22 +238,17 @@ const notifyNewPaddleTransaction = async ({
         fields: [
           {
             type: 'mrkdwn',
-            text: `*Cost:*`,
+            text: concatText(
+              '*Cost:*',
+              new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: currencyCode,
+              }).format((parseFloat(total) || 0) / 100),
+            ),
           },
           {
             type: 'mrkdwn',
-            text: `*Currency:*`,
-          },
-          {
-            type: 'mrkdwn',
-            text: new Intl.NumberFormat('en-US', {
-              style: 'currency',
-              currency: currencyCode,
-            }).format((parseFloat(total) || 0) / 100),
-          },
-          {
-            type: 'mrkdwn',
-            text: currencyCode,
+            text: concatText('*Currency:*', currencyCode),
           },
         ],
       },
@@ -265,22 +257,17 @@ const notifyNewPaddleTransaction = async ({
         fields: [
           {
             type: 'mrkdwn',
-            text: `*Cost (local):*`,
+            text: concatText(
+              '*Cost (local):*',
+              new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: localCurrencyCode,
+              }).format((parseFloat(localTotal) || 0) / 100),
+            ),
           },
           {
             type: 'mrkdwn',
-            text: `*Currency (local):*`,
-          },
-          {
-            type: 'mrkdwn',
-            text: new Intl.NumberFormat('en-US', {
-              style: 'currency',
-              currency: localCurrencyCode,
-            }).format((parseFloat(localTotal) || 0) / 100),
-          },
-          {
-            type: 'mrkdwn',
-            text: localCurrencyCode,
+            text: concatText('*Currency (local):*', localCurrencyCode),
           },
         ],
       },
