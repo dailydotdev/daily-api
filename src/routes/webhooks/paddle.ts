@@ -209,7 +209,7 @@ const notifyNewPaddleTransaction = async ({
             type: 'mrkdwn',
             text: concatText(
               '*Customer ID:*',
-              `<https://vendors.paddle.com/customers-v2/${data.id}|${data.customerId}>`,
+              `<https://vendors.paddle.com/customers-v2/${data.customerId}|${data.customerId}>`,
             ),
           },
         ],
