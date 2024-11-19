@@ -1770,6 +1770,7 @@ describe('source_post_submitted notification', () => {
     await con
       .getRepository(Source)
       .update({ id: 'a' }, { type: SourceType.Squad });
+    await con.getRepository(User).update({ id: '1' }, { reputation: 100 });
     const post = await con.getRepository(SourcePostModeration).save({
       sourceId: 'a',
       createdById: '1',
@@ -1803,9 +1804,10 @@ describe('source_post_submitted notification', () => {
       .calls[0][0] as SendEmailRequestWithTemplate;
     expect(args.message_data).toEqual({
       full_name: 'Tsahi',
-      profile_image: 'https://daily.dev/tsahi.jpg',
+      profile_image: 'https://daily.dev/ido.jpg',
       squad_name: 'A',
-      commenter_reputation: '10',
+      creator_name: 'Ido',
+      creator_reputation: '100',
       squad_image: 'http://image.com/a',
       post_link: `http://localhost:5002/squads/a/moderate`,
       post_image: 'https://daily.dev/image.jpg',
@@ -1820,6 +1822,7 @@ describe('source_post_submitted notification', () => {
     await con
       .getRepository(Source)
       .update({ id: 'a' }, { type: SourceType.Squad });
+    await con.getRepository(User).update({ id: '1' }, { reputation: 100 });
     const post = await con.getRepository(SourcePostModeration).save({
       sourceId: 'a',
       createdById: '1',
@@ -1852,9 +1855,10 @@ describe('source_post_submitted notification', () => {
       .calls[0][0] as SendEmailRequestWithTemplate;
     expect(args.message_data).toEqual({
       full_name: 'Tsahi',
-      profile_image: 'https://daily.dev/tsahi.jpg',
+      profile_image: 'https://daily.dev/ido.jpg',
       squad_name: 'A',
-      commenter_reputation: '10',
+      creator_name: 'Ido',
+      creator_reputation: '100',
       squad_image: 'http://image.com/a',
       post_link: `http://localhost:5002/squads/a/moderate`,
       post_image: null,
