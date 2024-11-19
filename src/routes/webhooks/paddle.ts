@@ -152,10 +152,10 @@ const logPaddleAnalyticsEvent = async (
 
   const extra = {
     cycle,
-    cost,
+    cost: cost ? parseInt(cost) / 100 : undefined,
     currency,
     payment,
-    localCost,
+    localCost: localCost ? parseInt(localCost) / 100 : undefined,
     localCurrency,
   };
 
