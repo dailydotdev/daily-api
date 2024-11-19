@@ -122,7 +122,7 @@ const planChanged = async (data: SubscriptionUpdatedEvent) => {
   const customData = data.data?.customData as { user_id: string };
   const userId = await getUserId({
     userId: customData?.user_id,
-    subscriptionId: data.data && data.data.id,
+    subscriptionId: data.data?.id,
   });
   const con = await createOrGetConnection();
   const flags = await con.getRepository(User).findOne({
