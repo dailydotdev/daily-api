@@ -302,14 +302,16 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
                 });
                 break;
               case EventName.SubscriptionCanceled:
-                await updateUserSubscription({
-                  data: eventData,
-                  state: false,
-                });
-                await logPaddleAnalyticsEvent(
-                  eventData,
-                  AnalyticsEventName.CancelSubscription,
-                );
+                Promise.all([
+                  updateUserSubscription({
+                    data: eventData,
+                    state: false,
+                  }),
+                  logPaddleAnalyticsEvent(
+                    eventData,
+                    AnalyticsEventName.CancelSubscription,
+                  ),
+                ]);
                 break;
               case EventName.SubscriptionUpdated:
                 await logPaddleAnalyticsEvent(
@@ -318,11 +320,13 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
                 );
                 break;
               case EventName.TransactionCompleted:
-                await logPaddleAnalyticsEvent(
-                  eventData,
-                  AnalyticsEventName.ReceivePayment,
-                );
-                await notifyNewPaddleTransaction(eventData);
+                Promise.all([
+                  logPaddleAnalyticsEvent(
+                    eventData,
+                    AnalyticsEventName.ReceivePayment,
+                  ),
+                  notifyNewPaddleTransaction(eventData),
+                ]);
                 break;
               default:
                 logger.info({ type: 'paddle' }, eventData?.eventType);
