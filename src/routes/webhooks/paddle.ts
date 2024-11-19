@@ -1,17 +1,17 @@
 import { FastifyInstance } from 'fastify';
 import {
-  Environment,
   EventName,
   Paddle,
-  SubscriptionCanceledEvent,
-  SubscriptionCreatedEvent,
-  SubscriptionItemNotification,
-  SubscriptionUpdatedEvent,
-  TransactionCompletedEvent,
-  TransactionItemNotification,
+  type Environment,
+  type SubscriptionCanceledEvent,
+  type SubscriptionCreatedEvent,
+  type SubscriptionItemNotification,
+  type SubscriptionUpdatedEvent,
+  type TransactionCompletedEvent,
+  type TransactionItemNotification,
 } from '@paddle/paddle-node-sdk';
 import createOrGetConnection from '../../db';
-import { updateSubscriptionFlags } from '../../common';
+import { updateSubscriptionFlags, webhooks } from '../../common';
 import { User } from '../../entity';
 import { logger } from '../../logger';
 import { remoteConfig } from '../../remoteConfig';
@@ -166,6 +166,98 @@ const logPaddleAnalyticsEvent = async (
   ]);
 };
 
+const notifyNewPaddleTransaction = async ({
+  data,
+}: TransactionCompletedEvent) => {
+  const customData = data?.customData as { user_id: string };
+  const userId = await getUserId({
+    userId: customData?.user_id,
+    subscriptionId: 'subscriptionId' in data && data.subscriptionId,
+  });
+
+  const total = data?.details?.totals?.total || '0';
+  const currencyCode = data?.currencyCode || 'USD';
+
+  await webhooks.transactions.send({
+    blocks: [
+      {
+        type: 'header',
+        text: {
+          type: 'plain_text',
+          text: 'New Plus subscriber :moneybag:',
+          emoji: true,
+        },
+      },
+      {
+        type: 'section',
+        fields: [
+          {
+            type: 'mrkdwn',
+            text: `*Transaction ID:*`,
+          },
+          {
+            type: 'mrkdwn',
+            text: `*Customer ID:*`,
+          },
+          {
+            type: 'mrkdwn',
+            text: `<https://vendors.paddle.com/transactions-v2/${data.id}|${data.id}>`,
+          },
+          {
+            type: 'mrkdwn',
+            text: `<https://vendors.paddle.com/customers-v2/${data.id}|${data.customerId}>`,
+          },
+        ],
+      },
+      {
+        type: 'section',
+        fields: [
+          {
+            type: 'mrkdwn',
+            text: `*Type:*`,
+          },
+          {
+            type: 'mrkdwn',
+            text: `*Purchased by:*`,
+          },
+          {
+            type: 'mrkdwn',
+            text: extractSubscriptionType(data?.items),
+          },
+          {
+            type: 'mrkdwn',
+            text: `<https://app.daily.dev/${userId}|${userId}>`,
+          },
+        ],
+      },
+      {
+        type: 'section',
+        fields: [
+          {
+            type: 'mrkdwn',
+            text: `*Cost:*`,
+          },
+          {
+            type: 'mrkdwn',
+            text: `*Currency:*`,
+          },
+          {
+            type: 'mrkdwn',
+            text: new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: currencyCode,
+            }).format(parseFloat(total) || 0),
+          },
+          {
+            type: 'mrkdwn',
+            text: currencyCode,
+          },
+        ],
+      },
+    ],
+  });
+};
+
 export const paddle = async (fastify: FastifyInstance): Promise<void> => {
   fastify.register(async (fastify: FastifyInstance): Promise<void> => {
     fastify.post('/', {
@@ -213,6 +305,7 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
                   eventData,
                   AnalyticsEventName.ReceivePayment,
                 );
+                await notifyNewPaddleTransaction(eventData);
                 break;
               default:
                 logger.info({ type: 'paddle' }, eventData?.eventType);
