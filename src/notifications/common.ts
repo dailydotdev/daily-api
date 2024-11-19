@@ -289,7 +289,7 @@ export const cleanupSourcePostModerationNotifications = async (
   con: ConnectionManager,
   post: ChangeObject<SourcePostModeration>,
 ) => {
-  if (!post.id) {
+  if (!post?.id) {
     return;
   }
 
