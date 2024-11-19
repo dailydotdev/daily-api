@@ -476,6 +476,10 @@ const loggedInBoot = async ({
     const isTeamMember = exp?.a?.team === 1;
     const isPlus = isPlusMember(user.subscriptionFlags?.cycle);
 
+    if (isPlus) {
+      exp.a.plus = 1;
+    }
+
     span?.setAttribute(SEMATTRS_DAILY_STAFF, isTeamMember);
 
     const accessToken = refreshToken
@@ -531,13 +535,7 @@ const loggedInBoot = async ({
       notifications: { unreadNotificationsCount },
       squads,
       accessToken,
-      exp: {
-        ...exp,
-        a: {
-          ...exp.a,
-          plus: isPlus ? 1 : undefined,
-        },
-      },
+      exp,
       marketingCta,
       feeds,
       geo,
