@@ -68,12 +68,14 @@ export const uploadFile = (
         const successResult = callResult as cloudinary.UploadApiResponse;
 
         return resolve({
-          url: cloudinary.v2.url(successResult.public_id, {
-            version: successResult.version,
-            secure: true,
-            fetch_format: 'auto',
-            sign_url: true,
-          }),
+          url: mapCloudinaryUrl(
+            cloudinary.v2.url(successResult.public_id, {
+              version: successResult.version,
+              secure: true,
+              fetch_format: 'auto',
+              sign_url: true,
+            }),
+          ),
           id: successResult.public_id,
         });
       },

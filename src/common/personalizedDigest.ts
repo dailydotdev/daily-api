@@ -25,6 +25,7 @@ import { GarmrService } from '../integrations/garmr';
 import { baseFeedConfig } from '../integrations/feed';
 import { FeedConfigName } from '../integrations/feed';
 import { isPlusMember } from '../paddle';
+import { mapCloudinaryUrl } from './cloudinary';
 
 type TemplatePostData = Pick<
   ArticlePost,
@@ -88,7 +89,7 @@ const getPostsTemplateData = ({
 
     return {
       post_title: post.title,
-      post_image: post.image || pickImageUrl(post),
+      post_image: mapCloudinaryUrl(post.image || pickImageUrl(post)),
       post_link: addNotificationUtm(
         getDiscussionLink(post.id),
         'email',
@@ -103,7 +104,7 @@ const getPostsTemplateData = ({
       post_read_time: post.readTime,
       post_views: post.views || 0,
       source_name: post.sourceName,
-      source_image: post.sourceImage,
+      source_image: mapCloudinaryUrl(post.sourceImage),
       type: 'post',
     };
   });

@@ -30,6 +30,7 @@ import {
   CioTransactionalMessageTemplateId,
   formatMailDate,
   getSourceLink,
+  mapCloudinaryUrl,
   pickImageUrl,
   sendEmail,
   truncatePostToTweet,
@@ -859,8 +860,11 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
 
 const formatTemplateDate = <T extends TemplateData>(data: T): T => {
   return Object.keys(data).reduce((acc, key) => {
-    if (typeof data[key] === 'number') {
-      return { ...acc, [key]: (data[key] as number).toLocaleString() };
+    switch (typeof data[key]) {
+      case 'number':
+        return { ...acc, [key]: (data[key] as number).toLocaleString() };
+      case 'string':
+        return { ...acc, [key]: mapCloudinaryUrl(data[key]) };
     }
     return acc;
   }, data);
