@@ -42,6 +42,7 @@ export interface GQLUserStreak {
   total?: number;
   current: number;
   lastViewAt?: Date;
+  lastViewAtTz?: Date;
   userId: string;
   weekStart: DayOfWeek;
 }
