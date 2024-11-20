@@ -1,17 +1,17 @@
 import { FastifyInstance } from 'fastify';
 import {
-  Environment,
   EventName,
   Paddle,
-  SubscriptionCanceledEvent,
-  SubscriptionCreatedEvent,
-  SubscriptionItemNotification,
-  SubscriptionUpdatedEvent,
-  TransactionCompletedEvent,
-  TransactionItemNotification,
+  type Environment,
+  type SubscriptionCanceledEvent,
+  type SubscriptionCreatedEvent,
+  type SubscriptionItemNotification,
+  type SubscriptionUpdatedEvent,
+  type TransactionCompletedEvent,
+  type TransactionItemNotification,
 } from '@paddle/paddle-node-sdk';
 import createOrGetConnection from '../../db';
-import { updateSubscriptionFlags } from '../../common';
+import { updateSubscriptionFlags, webhooks } from '../../common';
 import { User } from '../../entity';
 import { logger } from '../../logger';
 import { remoteConfig } from '../../remoteConfig';
@@ -47,7 +47,11 @@ const updateUserSubscription = async ({
   data,
   state,
 }: {
-  data: SubscriptionCreatedEvent | SubscriptionCanceledEvent | undefined;
+  data:
+    | SubscriptionCreatedEvent
+    | SubscriptionCanceledEvent
+    | SubscriptionUpdatedEvent
+    | undefined;
   state: boolean;
 }) => {
   if (!data) {
@@ -114,6 +118,24 @@ const getUserId = async ({
   return user.id;
 };
 
+const planChanged = async (data: SubscriptionUpdatedEvent) => {
+  const customData = data.data?.customData as { user_id: string };
+  const userId = await getUserId({
+    userId: customData?.user_id,
+    subscriptionId: data.data?.id,
+  });
+  const con = await createOrGetConnection();
+  const flags = await con.getRepository(User).findOne({
+    where: { id: userId },
+    select: ['subscriptionFlags'],
+  });
+
+  return (
+    (flags?.subscriptionFlags?.cycle as string) !==
+    extractSubscriptionType(data.data?.items)
+  );
+};
+
 const logPaddleAnalyticsEvent = async (
   data:
     | SubscriptionUpdatedEvent
@@ -130,9 +152,14 @@ const logPaddleAnalyticsEvent = async (
   const cycle = extractSubscriptionType(data.data?.items);
   const cost = data.data?.items?.[0]?.price?.unitPrice?.amount;
   const currency = data.data?.items?.[0]?.price?.unitPrice?.currencyCode;
+  const localCost = (data as TransactionCompletedEvent).data?.details?.totals
+    ?.total;
+  const localCurrency = data.data?.currencyCode;
   const userId = await getUserId({
     userId: customData?.user_id,
-    subscriptionId: 'subscriptionId' in data.data && data.data.subscriptionId,
+    subscriptionId:
+      ('subscriptionId' in data.data && data.data.subscriptionId) ||
+      data.data.id,
   });
   if (!userId) {
     return;
@@ -149,9 +176,11 @@ const logPaddleAnalyticsEvent = async (
 
   const extra = {
     cycle,
-    cost,
+    cost: cost ? parseInt(cost) / 100 : undefined,
     currency,
     payment,
+    localCost: localCost ? parseInt(localCost) / 100 : undefined,
+    localCurrency,
   };
 
   await sendAnalyticsEvent([
@@ -164,6 +193,115 @@ const logPaddleAnalyticsEvent = async (
       extra: JSON.stringify(extra),
     },
   ]);
+};
+
+const concatText = (a: string, b: string) => [a, b].filter(Boolean).join(`\n`);
+const notifyNewPaddleTransaction = async ({
+  data,
+}: TransactionCompletedEvent) => {
+  const customData = data?.customData as { user_id: string };
+  const userId = await getUserId({
+    userId: customData?.user_id,
+    subscriptionId: 'subscriptionId' in data && data.subscriptionId,
+  });
+
+  const productId = data?.items?.[0].price?.productId;
+
+  const total = data?.items?.[0]?.price?.unitPrice?.amount || '0';
+  const currencyCode =
+    data?.items?.[0]?.price?.unitPrice?.currencyCode || 'USD';
+
+  const localTotal = data?.details?.totals?.total || '0';
+  const localCurrencyCode = data?.currencyCode || 'USD';
+
+  await webhooks.transactions.send({
+    blocks: [
+      {
+        type: 'header',
+        text: {
+          type: 'plain_text',
+          text: 'New Plus subscriber :moneybag:',
+          emoji: true,
+        },
+      },
+      {
+        type: 'section',
+        fields: [
+          {
+            type: 'mrkdwn',
+            text: concatText(
+              '*Transaction ID:*',
+              `<https://vendors.paddle.com/transactions-v2/${data.id}|${data.id}>`,
+            ),
+          },
+          {
+            type: 'mrkdwn',
+            text: concatText(
+              '*Customer ID:*',
+              `<https://vendors.paddle.com/customers-v2/${data.customerId}|${data.customerId}>`,
+            ),
+          },
+        ],
+      },
+      {
+        type: 'section',
+        fields: [
+          {
+            type: 'mrkdwn',
+            text: concatText(
+              '*Type:*',
+              `<https://vendors.paddle.com/products-v2/${productId}|${extractSubscriptionType(data?.items)}>`,
+            ),
+          },
+          {
+            type: 'mrkdwn',
+            text: concatText(
+              '*Purchased by:*',
+              `<https://app.daily.dev/${userId}|${userId}>`,
+            ),
+          },
+        ],
+      },
+      {
+        type: 'section',
+        fields: [
+          {
+            type: 'mrkdwn',
+            text: concatText(
+              '*Cost:*',
+              new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: currencyCode,
+              }).format((parseFloat(total) || 0) / 100),
+            ),
+          },
+          {
+            type: 'mrkdwn',
+            text: concatText('*Currency:*', currencyCode),
+          },
+        ],
+      },
+      {
+        type: 'section',
+        fields: [
+          {
+            type: 'mrkdwn',
+            text: concatText(
+              '*Cost (local):*',
+              new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: localCurrencyCode,
+              }).format((parseFloat(localTotal) || 0) / 100),
+            ),
+          },
+          {
+            type: 'mrkdwn',
+            text: concatText('*Currency (local):*', localCurrencyCode),
+          },
+        ],
+      },
+    ],
+  });
 };
 
 export const paddle = async (fastify: FastifyInstance): Promise<void> => {
@@ -193,26 +331,38 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
                 });
                 break;
               case EventName.SubscriptionCanceled:
-                await updateUserSubscription({
-                  data: eventData,
-                  state: false,
-                });
-                await logPaddleAnalyticsEvent(
-                  eventData,
-                  AnalyticsEventName.CancelSubscription,
-                );
+                Promise.all([
+                  updateUserSubscription({
+                    data: eventData,
+                    state: false,
+                  }),
+                  logPaddleAnalyticsEvent(
+                    eventData,
+                    AnalyticsEventName.CancelSubscription,
+                  ),
+                ]);
                 break;
               case EventName.SubscriptionUpdated:
-                await logPaddleAnalyticsEvent(
-                  eventData,
-                  AnalyticsEventName.ChangeBillingCycle,
-                );
+                const didPlanChange = await planChanged(eventData);
+                if (didPlanChange) {
+                  await updateUserSubscription({
+                    data: eventData,
+                    state: true,
+                  });
+                  await logPaddleAnalyticsEvent(
+                    eventData,
+                    AnalyticsEventName.ChangeBillingCycle,
+                  );
+                }
                 break;
               case EventName.TransactionCompleted:
-                await logPaddleAnalyticsEvent(
-                  eventData,
-                  AnalyticsEventName.ReceivePayment,
-                );
+                Promise.all([
+                  logPaddleAnalyticsEvent(
+                    eventData,
+                    AnalyticsEventName.ReceivePayment,
+                  ),
+                  notifyNewPaddleTransaction(eventData),
+                ]);
                 break;
               default:
                 logger.info({ type: 'paddle' }, eventData?.eventType);
