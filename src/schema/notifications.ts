@@ -12,6 +12,8 @@ import {
   Comment,
   UserNotification,
   NotificationV2,
+  NotificationAvatarV2,
+  NotificationAttachmentV2,
 } from '../entity';
 import { ConnectionArguments } from 'graphql-relay';
 import { In, IsNull } from 'typeorm';
@@ -30,6 +32,7 @@ import {
   commentReplyNotificationTypes,
 } from '../notifications/common';
 import { ValidationError } from 'apollo-server-errors';
+import { mapCloudinaryUrl } from '../common';
 
 interface GQLBanner {
   timestamp: Date;
@@ -555,5 +558,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         })();
       },
     },
+  },
+  NotificationAvatar: {
+    image: (source: NotificationAvatarV2) => mapCloudinaryUrl(source.image),
+  },
+  NotificationAttachment: {
+    image: (source: NotificationAttachmentV2) => mapCloudinaryUrl(source.image),
   },
 });
