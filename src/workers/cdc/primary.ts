@@ -124,6 +124,7 @@ import {
   SourcePostModeration,
   SourcePostModerationStatus,
 } from '../../entity/SourcePostModeration';
+import { cleanupSourcePostModerationNotifications } from '../../notifications/common';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -741,15 +742,21 @@ const onSourcePostModerationChange = async (
     });
   }
 
+  if (data.payload.op === 'd') {
+    await cleanupSourcePostModerationNotifications(con, data.payload.before!);
+  }
+
   if (data.payload.op === 'u') {
     if (
       data.payload.before!.status !== SourcePostModerationStatus.Rejected &&
       data.payload.after!.status === SourcePostModerationStatus.Rejected
     ) {
+      const post = data.payload.after!;
+      await cleanupSourcePostModerationNotifications(con, post);
       await triggerTypedEvent(
         logger,
         'api.v1.source-post-moderation-rejected',
-        { post: data.payload.after! },
+        { post },
       );
     }
 
@@ -764,6 +771,7 @@ const onSourcePostModerationChange = async (
       }
 
       if (post.postId) {
+        await cleanupSourcePostModerationNotifications(con, post);
         await triggerTypedEvent(
           logger,
           'api.v1.source-post-moderation-approved',
