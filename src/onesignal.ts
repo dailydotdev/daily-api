@@ -1,6 +1,6 @@
 import * as OneSignal from '@onesignal/node-onesignal';
 import { NotificationV2, NotificationAvatarV2 } from './entity';
-import { addNotificationUtm, basicHtmlStrip } from './common';
+import { addNotificationUtm, basicHtmlStrip, mapCloudinaryUrl } from './common';
 
 const appId = process.env.ONESIGNAL_APP_ID;
 const apiKey = process.env.ONESIGNAL_API_KEY;
@@ -11,9 +11,9 @@ const configuration = OneSignal.createConfiguration({
 
 const client = new OneSignal.DefaultApi(configuration);
 const chromeWebBadge =
-  'https://daily-now-res.cloudinary.com/image/upload/v1672745846/public/dailydev.png';
+  'https://media.daily.dev/image/upload/v1672745846/public/dailydev.png';
 const chromeWebIcon =
-  'https://daily-now-res.cloudinary.com/image/upload/s--9vc188bS--/f_auto/v1712221649/1_smcxpz';
+  'https://media.daily.dev/image/upload/s--9vc188bS--/f_auto/v1712221649/1_smcxpz';
 
 export async function sendPushNotification(
   userIds: string[],
@@ -36,7 +36,7 @@ export async function sendPushNotification(
   push.data = { notificationId: id };
   push.chrome_web_badge = chromeWebBadge;
   if (avatar) {
-    push.chrome_web_icon = avatar.image;
+    push.chrome_web_icon = mapCloudinaryUrl(avatar.image);
   }
   await client.createNotification(push);
 }
