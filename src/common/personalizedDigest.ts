@@ -136,8 +136,11 @@ const getEmailVariation = async ({
     posts: postsData,
     feature,
   });
-  if (posts.length >= 2 && !isPlusMember(user.subscriptionFlags?.cycle)) {
-    posts.splice(2, 0, {
+  if (
+    posts.length >= feature.adIndex &&
+    !isPlusMember(user.subscriptionFlags?.cycle)
+  ) {
+    posts.splice(feature.adIndex, 0, {
       type: 'ad_image',
       link: `https://email.buysellads.net/?k=CW7DE23N&c=${user.id}`,
       image: `https://email.buysellads.net/?k=CW7DE23N&i=${user.id}`,
