@@ -16,13 +16,16 @@ const cron: Cron = {
       await con.transaction(async (entityManager): Promise<void> => {
         const usersPastStreakTime = await entityManager
           .createQueryBuilder()
-          .select(
-            `us.*, (date_trunc('day', us."lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date) AS "lastViewAtTz", u.timezone`,
+          .select(`us.*`)
+          .addSelect(
+            `date_trunc('day', us."lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date`,
+            'lastViewAtTz',
           )
+          .addSelect('u.timezone', 'timezone')
           .addSelect('us.currentStreak', 'current')
           .addSelect('u."weekStart"', 'weekStart')
           .addSelect(
-            `(date_trunc('day', usa."lastRecoverAt" at time zone COALESCE(u.timezone, 'utc'))::date) - interval '1 day'`,
+            `(date_trunc('day', usa."lastRecoverAt"::timestamptz at time zone COALESCE(u.timezone, 'utc'))::date) - interval '1 day'`,
             'lastRecoverAt',
           )
           .from(UserStreak, 'us')
@@ -47,7 +50,7 @@ const cron: Cron = {
             (
               usa."lastRecoverAt" IS NULL OR
               (
-                (date_trunc('day', usa."lastRecoverAt" at time zone COALESCE(u.timezone, 'utc'))::date)
+                (date_trunc('day', usa."lastRecoverAt"::timestamptz at time zone COALESCE(u.timezone, 'utc'))::date)
                   <
                 (date_trunc('day', now() at time zone COALESCE(u.timezone, 'utc'))::date)
               )
