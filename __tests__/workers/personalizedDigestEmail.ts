@@ -28,6 +28,7 @@ import {
   sendReadingReminderPush,
   sendStreakReminderPush,
 } from '../../src/onesignal';
+import { SubscriptionCycles } from '../../src/paddle';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -657,6 +658,38 @@ describe('personalizedDigestEmail worker', () => {
       date_from: expect.any(String),
       date_to: expect.any(String),
     });
+  });
+
+  it('should generate personalized digest without an ad for plus members', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    expect(personalizedDigest).toBeTruthy();
+
+    await con
+      .getRepository(User)
+      .update(
+        { id: '1' },
+        { subscriptionFlags: { cycle: SubscriptionCycles.Yearly } },
+      );
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const emailData = (sendEmail as jest.Mock).mock.calls[0][0];
+    expect(
+      emailData.message_data.posts.find(
+        (x: { type: string }) => x.type !== 'post',
+      ),
+    ).toBeFalsy();
+    expect(nockScope.isDone()).toBe(true);
   });
 
   it('should support reading reminder', async () => {

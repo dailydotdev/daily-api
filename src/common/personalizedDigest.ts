@@ -24,6 +24,7 @@ import { DayOfWeek } from './date';
 import { GarmrService } from '../integrations/garmr';
 import { baseFeedConfig } from '../integrations/feed';
 import { FeedConfigName } from '../integrations/feed';
+import { isPlusMember } from '../paddle';
 
 type TemplatePostData = Pick<
   ArticlePost,
@@ -103,13 +104,14 @@ const getPostsTemplateData = ({
       post_views: post.views || 0,
       source_name: post.sourceName,
       source_image: post.sourceImage,
+      type: 'post',
     };
   });
 };
 
 const getEmailVariation = async ({
   personalizedDigest,
-  posts,
+  posts: postsData,
   user,
   feature,
   currentDate,
@@ -129,10 +131,22 @@ const getEmailVariation = async ({
   const dayName = dayEntry ? dayEntry[0] : undefined;
   const userName = user.name?.trim().split(' ')[0] || user.username;
   const userStreak = await user.streak;
+
+  const posts: Record<string, unknown>[] = getPostsTemplateData({
+    posts: postsData,
+    feature,
+  });
+  if (posts.length >= 2 && !isPlusMember(user.subscriptionFlags?.cycle)) {
+    posts.splice(2, 0, {
+      type: 'ad_image',
+      link: `https://email.buysellads.net/?k=CW7DE23N&c=${user.id}`,
+      image: `https://email.buysellads.net/?k=CW7DE23N&i=${user.id}`,
+    });
+  }
   const data = {
     day_name: dayName,
     first_name: userName,
-    posts: getPostsTemplateData({ posts, feature }),
+    posts,
     date: format(currentDate, 'MMM d, yyyy'),
     user: {
       username: user.username,
