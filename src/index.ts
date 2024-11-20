@@ -307,6 +307,7 @@ export default async function app(
   app.register(proxy, {
     upstream: 'https://www.google.com/s2/favicons',
     prefix: '/icon',
+    logLevel: 'warn',
     replyOptions: {
       queryString: (search, reqUrl, req) => {
         const reqSearchParams = new URLSearchParams(
