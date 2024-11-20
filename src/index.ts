@@ -4,6 +4,7 @@ import fastify, {
   FastifyInstance,
   FastifyError,
   FastifyReply,
+  type FastifyRegisterOptions,
 } from 'fastify';
 import fastifyRawBody from 'fastify-raw-body';
 import helmet from '@fastify/helmet';
@@ -11,7 +12,7 @@ import cors from '@fastify/cors';
 import mercurius, { MercuriusError } from 'mercurius';
 import MercuriusGQLUpload from 'mercurius-upload';
 import MercuriusCache from 'mercurius-cache';
-import proxy from '@fastify/http-proxy';
+import proxy, { type FastifyHttpProxyOptions } from '@fastify/http-proxy';
 import { NoSchemaIntrospectionCustomRule } from 'graphql';
 // import fastifyWebsocket from '@fastify/websocket';
 
@@ -306,6 +307,7 @@ export default async function app(
   app.register(proxy, {
     upstream: 'https://www.google.com/s2/favicons',
     prefix: '/icon',
+    logLevel: 'warn',
     replyOptions: {
       queryString: (search, reqUrl, req) => {
         const reqSearchParams = new URLSearchParams(
@@ -333,7 +335,7 @@ export default async function app(
     },
   });
 
-  const letterProxy = {
+  const letterProxy: FastifyRegisterOptions<FastifyHttpProxyOptions> = {
     upstream:
       'https://media.daily.dev/image/upload/s--zchx8x3n--/f_auto,q_auto/v1731056371/webapp/shortcut-placeholder',
     preHandler: async (req: FastifyRequest, res: FastifyReply) => {
@@ -343,6 +345,7 @@ export default async function app(
         },
       });
     },
+    logLevel: 'warn',
   };
 
   app.register(proxy, {
