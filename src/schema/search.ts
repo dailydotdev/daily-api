@@ -420,7 +420,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .select(`id, name as title, handle as subtitle, image`)
         .where(`private = false`)
         .andWhere(
-          `(source.type != '${SourceType.Squad}' OR (source.flags->>'publicThreshold')::boolean IS TRUE)`,
+          `(type != '${SourceType.Squad}' OR (flags->>'publicThreshold')::boolean IS TRUE)`,
         )
         .andWhere(
           new Brackets((qb) => {
