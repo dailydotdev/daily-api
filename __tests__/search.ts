@@ -13,14 +13,7 @@ import nock from 'nock';
 import { GraphQLTestClient } from './helpers';
 import { magniOrigin, SearchResultFeedback } from '../src/integrations';
 import { meiliIndex, meiliOrigin } from '../src/integrations/meilisearch';
-import {
-  ArticlePost,
-  Keyword,
-  Post,
-  Source,
-  User,
-  UserPost,
-} from '../src/entity';
+import { ArticlePost, Keyword, Source, User, UserPost } from '../src/entity';
 import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
 import { usersFixture } from './fixture/user';
