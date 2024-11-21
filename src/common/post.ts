@@ -17,7 +17,7 @@ import {
 } from '../entity';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { isValidHttpUrl, standardizeURL } from './links';
-import { markdown } from './markdown';
+import { findMarkdownTag, markdown } from './markdown';
 import { generateShortId } from '../ids';
 import { GQLPost } from '../schema/posts';
 // @ts-expect-error - no types
@@ -599,4 +599,25 @@ export const validateSourcePostModeration = async (
   }
 
   return pendingPost;
+};
+
+export const findPostImageFromContent = ({
+  post,
+}: {
+  post: Pick<FreeformPost, 'content'>;
+}): string | undefined => {
+  if (!post.content) {
+    return undefined;
+  }
+
+  const contentMarkdown = markdown.parse(post.content, {});
+
+  const imgTag = findMarkdownTag({
+    tokens: contentMarkdown,
+    tag: 'img',
+    depth: 0,
+    maxDepth: 1,
+  });
+
+  return imgTag?.attrGet('src') || undefined;
 };

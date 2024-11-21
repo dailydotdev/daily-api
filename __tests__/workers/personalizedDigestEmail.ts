@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import {
   Post,
+  PostType,
   Settings,
   Source,
   User,
@@ -867,6 +868,129 @@ describe('personalizedDigestEmail worker', () => {
           })
         )?.lastSendDate,
       ).toBeNull();
+    });
+
+    it('should generate posts with title and image for shared post', async () => {
+      const mockedPosts = [
+        {
+          id: 'fp1',
+          shortId: 'fp1',
+          score: 1,
+          sourceId: 'a',
+          createdAt: new Date(),
+          tagsStr: 'javascript,webdev',
+          type: PostType.Share,
+          sharedPostId: postsFixture[0].id,
+        },
+      ];
+      await saveFixtures(con, Post, mockedPosts);
+
+      nock.cleanAll();
+
+      nockScope = nock('http://localhost:6000')
+        .post('/feed.json', (body) => {
+          nockBody = body;
+
+          return true;
+        })
+        .reply(200, {
+          data: mockedPosts.map((post) => ({ post_id: post.id })),
+          rows: mockedPosts.length,
+        });
+
+      const personalizedDigest = await con
+        .getRepository(UserPersonalizedDigest)
+        .findOneBy({
+          userId: '1',
+        });
+
+      expect(personalizedDigest).toBeTruthy();
+      expect(personalizedDigest!.lastSendDate).toBeNull();
+
+      await expectSuccessfulBackground(worker, {
+        personalizedDigest,
+        ...getDates(personalizedDigest!, Date.now()),
+        emailBatchId: 'test-email-batch-id',
+      });
+
+      expect(sendEmail).toHaveBeenCalledTimes(1);
+      const emailData = (sendEmail as jest.Mock).mock.calls[0][0];
+      expect(emailData).toMatchObject({
+        message_data: {
+          posts: [
+            {
+              post_image: 'https://daily.dev/image.jpg',
+              post_title: 'P1',
+            },
+          ],
+        },
+      });
+
+      expect(nockScope.isDone()).toBe(true);
+    });
+
+    it('should generate posts with image for freeform post', async () => {
+      const mockedPosts = [
+        {
+          id: 'fp1',
+          shortId: 'fp1',
+          title: 'FP1',
+          url: 'http://fp1.com',
+          canonicalUrl: 'http://fp1c.com',
+          score: 1,
+          sourceId: 'a',
+          createdAt: new Date(),
+          tagsStr: 'javascript,webdev',
+          type: PostType.Freeform,
+          content: `Freeform content\\n![alt](https://daily.dev/image.jpg)`,
+          contentHtml:
+            '<p>Freeform content</p><img src="https://daily.dev/image.jpg" alt="alt">',
+        },
+      ];
+      await saveFixtures(con, Post, mockedPosts);
+
+      nock.cleanAll();
+
+      nockScope = nock('http://localhost:6000')
+        .post('/feed.json', (body) => {
+          nockBody = body;
+
+          return true;
+        })
+        .reply(200, {
+          data: mockedPosts.map((post) => ({ post_id: post.id })),
+          rows: mockedPosts.length,
+        });
+
+      const personalizedDigest = await con
+        .getRepository(UserPersonalizedDigest)
+        .findOneBy({
+          userId: '1',
+        });
+
+      expect(personalizedDigest).toBeTruthy();
+      expect(personalizedDigest!.lastSendDate).toBeNull();
+
+      await expectSuccessfulBackground(worker, {
+        personalizedDigest,
+        ...getDates(personalizedDigest!, Date.now()),
+        emailBatchId: 'test-email-batch-id',
+      });
+
+      expect(sendEmail).toHaveBeenCalledTimes(1);
+      const emailData = (sendEmail as jest.Mock).mock.calls[0][0];
+      expect(emailData).toMatchObject({
+        message_data: {
+          posts: [
+            {
+              post_image: 'https://daily.dev/image.jpg',
+              post_title: 'FP1',
+            },
+          ],
+        },
+      });
+
+      expect(nockScope.isDone()).toBe(true);
     });
   });
 });

@@ -159,3 +159,40 @@ export const checkHasMention = (content: string, username: string) => {
     return words.some((word) => word === `@${username}`);
   });
 };
+
+export const findMarkdownTag = ({
+  tokens,
+  tag,
+  depth = 0,
+  maxDepth = 2,
+}: {
+  tokens: Token[];
+  tag: string;
+  depth?: number;
+  maxDepth?: number;
+}): Token | undefined => {
+  if (depth > maxDepth) {
+    return undefined;
+  }
+
+  for (let i = tokens.length - 1; i >= 0; i -= 1) {
+    const token = tokens[i];
+
+    if (token.tag === tag) {
+      return token;
+    }
+
+    if (token.children?.length) {
+      const nestedToken = findMarkdownTag({
+        tokens: token.children,
+        tag,
+        depth: depth + 1,
+        maxDepth,
+      });
+
+      if (nestedToken) {
+        return nestedToken;
+      }
+    }
+  }
+};

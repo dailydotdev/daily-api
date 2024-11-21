@@ -1,18 +1,20 @@
 import {
   ArticlePost,
   Post,
+  PostType,
   Source,
   User,
   UserPersonalizedDigest,
   UserPersonalizedDigestSendType,
   UserStreak,
+  type FreeformPost,
 } from '../entity';
 import { format, isSameDay, nextDay, previousDay } from 'date-fns';
 import { PersonalizedDigestFeatureConfig } from '../growthbook';
 import { feedToFilters, fixedIdsFeedBuilder } from './feedGenerator';
 import { FeedClient } from '../integrations/feed/clients';
 import { addNotificationUtm, baseNotificationEmailData } from './mailing';
-import { pickImageUrl } from './post';
+import { findPostImageFromContent, pickImageUrl } from './post';
 import { getDiscussionLink } from './links';
 import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
@@ -41,6 +43,9 @@ type TemplatePostData = Pick<
 > & {
   sourceName: Source['name'];
   sourceImage: Source['image'];
+  sharedPostImage: ArticlePost['image'];
+  sharedPostTitle: ArticlePost['title'];
+  content: FreeformPost['content'];
 };
 
 export const personalizedDigestDateFormat = 'yyyy-MM-dd HH:mm:ss';
@@ -88,8 +93,13 @@ const getPostsTemplateData = ({
     const summary = post.summary || '';
 
     return {
-      post_title: post.title,
-      post_image: mapCloudinaryUrl(post.image || pickImageUrl(post)),
+      post_title: post.title || post.sharedPostTitle,
+      post_image: mapCloudinaryUrl(
+        post.image ||
+          post.sharedPostImage ||
+          findPostImageFromContent({ post }) ||
+          pickImageUrl(post),
+      ),
       post_link: addNotificationUtm(
         getDiscussionLink(post.id),
         'email',
@@ -265,11 +275,22 @@ export const getPersonalizedDigestEmailPayload = async ({
           'p.comments',
           'p."readTime"',
           'p.views',
+          'p.content',
           's.name as "sourceName"',
           's.image as "sourceImage"',
+          'sp.title as "sharedPostTitle"',
+          'sp.image as "sharedPostImage"',
         ].join(', '),
       )
-      .leftJoin(Source, 's', 'p."sourceId" = s.id'),
+      .leftJoin(Source, 's', 'p."sourceId" = s.id')
+      .leftJoin(
+        ArticlePost,
+        'sp',
+        'sp.id = p."sharedPostId" AND p.type = :shareType',
+        {
+          shareType: PostType.Share,
+        },
+      ),
     'p',
   ).execute();
 
