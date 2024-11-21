@@ -443,7 +443,7 @@ export const workerSubscribe = (
     logger: FastifyLoggerInstance,
     pubsub: PubSub,
   ) => Promise<void>,
-  maxMessages = 100,
+  maxMessages = 10,
 ): void => {
   logger.info(`subscribing to ${subscription}`);
   const sub = pubsub.subscription(subscription, {
