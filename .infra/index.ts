@@ -121,7 +121,7 @@ if (isPersonalizedDigestEnabled) {
 
 const memory = 640;
 const apiRequests: pulumi.Input<{ cpu: string; memory: string }> = {
-  cpu: '800m',
+  cpu: '600m',
   memory: '400Mi',
 };
 const apiLimits: pulumi.Input<{ memory: string }> = {
@@ -144,7 +144,7 @@ const bgRequests: pulumi.Input<{ cpu: string; memory: string }> = {
 
 const temporalLimits: pulumi.Input<{ memory: string }> = { memory: '256Mi' };
 const temporalRequests: pulumi.Input<{ cpu: string; memory: string }> = {
-  cpu: '200m',
+  cpu: '50m',
   memory: '150Mi',
 };
 
@@ -394,7 +394,7 @@ if (isAdhocEnv) {
       maxReplicas: 2,
       limits: { memory: '1Gi' },
       requests: {
-        cpu: '1',
+        cpu: '200m',
         memory: '512Mi',
       },
       metric: {
