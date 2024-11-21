@@ -419,12 +419,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .createQueryBuilder()
         .select(`id, name as title, handle as subtitle, image`)
         .where(`private = false`)
-        .andWhere(`name ILIKE :query`, {
-          query: `%${query}%`,
-        })
-        .orWhere(`handle ILIKE :query`, {
-          query: `%${query}%`,
-        })
+        .andWhere(
+          new Brackets((qb) => {
+            return qb
+              .where(`name ILIKE :query`, {
+                query: `%${query}%`,
+              })
+              .orWhere(`handle ILIKE :query`, {
+                query: `%${query}%`,
+              });
+          }),
+        )
         .limit(getSearchLimit({ limit }));
       const hits = await searchQuery.getRawMany();
 
