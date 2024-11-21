@@ -422,6 +422,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .andWhere(`name ILIKE :query`, {
           query: `%${query}%`,
         })
+        .orWhere(`handle ILIKE :query`, {
+          query: `%${query}%`,
+        })
         .limit(getSearchLimit({ limit }));
       const hits = await searchQuery.getRawMany();
 
