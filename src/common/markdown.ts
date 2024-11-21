@@ -175,7 +175,7 @@ export const findMarkdownTag = ({
     return undefined;
   }
 
-  for (let i = tokens.length - 1; i >= 0; i -= 1) {
+  for (let i = 0; i < tokens.length; i += 1) {
     const token = tokens[i];
 
     if (token.tag === tag) {

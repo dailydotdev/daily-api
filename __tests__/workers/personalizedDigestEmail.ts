@@ -942,7 +942,7 @@ describe('personalizedDigestEmail worker', () => {
           createdAt: new Date(),
           tagsStr: 'javascript,webdev',
           type: PostType.Freeform,
-          content: `Freeform content\\n![alt](https://daily.dev/image.jpg)`,
+          content: `Freeform content\\n![alt](https://daily.dev/image.jpg)![alt](https://daily.dev/image2.jpg)`,
           contentHtml:
             '<p>Freeform content</p><img src="https://daily.dev/image.jpg" alt="alt">',
         },
