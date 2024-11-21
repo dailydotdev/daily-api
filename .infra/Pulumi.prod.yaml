@@ -28,7 +28,7 @@ config:
       secure: AAABALdzzBMEk2sKYDjFrWsbsdYJDOvfDfmnOmaj6lvRkds8E6SYw1RNgQ/hpCky9W8BeJXFzu2b0W6jD30KkA==
     analyticsUrl: http://analytics-api
     apiConfigFeatureKey: api-config
-    cdcWorkerMaxMessages: 10
+    cdcWorkerMaxMessages: 1
     cioApiKey:
       secure: AAABAKsjQ79BKL/Msk8ERCFq7TeKGQ6NnzRcQrOoUzQ7hFEDNdq4uxOcG3w5M5aODolHDw==
     cioAppKey:
