@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 
 const ads = [
   {
+    tagLine: 'Ready to take your app to the next level?',
     description:
       'Increase your dev team productivity by using feature-rich JavaScript UI widgets',
     image:
@@ -13,8 +14,10 @@ const ads = [
     id: 'daily_ad1',
     placeholder: '',
     ratio: 2,
+    backgroundColor: '#fff',
   },
   {
+    tagLine: 'Ready to take your app to the next level?',
     description:
       'Instantly find bottlenecks, slow SQL queries and request calls',
     image:
@@ -25,8 +28,10 @@ const ads = [
     providerId: 'ethical',
     pixel: [],
     referralLink: 'https://daily.dev',
+    backgroundColor: '#fff',
   },
   {
+    tagLine: 'Ready to take your app to the next level?',
     description:
       'Let us know what you think of the daily.dev extension on the chrome store!',
     image:
@@ -38,8 +43,10 @@ const ads = [
     id: 'cs1_glass',
     placeholder: '',
     ratio: 2,
+    backgroundColor: '#fff',
   },
   {
+    tagLine: 'Ready to take your app to the next level?',
     description:
       'Add passwordless login to your app in minutes. Passkeys, 2FA, Social Logins, & more. Start for free.',
     image:
@@ -50,11 +57,16 @@ const ads = [
     providerId: 'carbon',
     pixel: [],
     referralLink: 'https://daily.dev',
+    backgroundColor: '#fff',
   },
 ];
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/v1/a', (req, res) => {
+    return res.status(200).send([ads[Math.floor(Math.random() * ads.length)]]);
+  });
+
+  fastify.get('/v1/a/post', (req, res) => {
     return res.status(200).send([ads[Math.floor(Math.random() * ads.length)]]);
   });
 }
