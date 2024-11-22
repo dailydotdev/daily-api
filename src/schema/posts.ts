@@ -2342,6 +2342,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ForbiddenError('Access denied!');
       }
 
+      if (status === SourcePostModerationStatus.Rejected && !rejectionReason) {
+        throw new ValidationError('Rejection reason is required');
+      }
+
+      if (
+        status === SourcePostModerationStatus.Rejected &&
+        rejectionReason?.toLowerCase()?.includes('other') &&
+        !moderatorMessage
+      ) {
+        throw new ValidationError('Moderator message is required');
+      }
+
       const moderatedById = ctx.userId;
       const isRejectedWithReason =
         status === SourcePostModerationStatus.Rejected && !!rejectionReason;
