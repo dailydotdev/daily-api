@@ -9,6 +9,7 @@ type RemoteConfigValue = {
   vordrIps: string[];
   ignoredWorkEmailDomains: string[];
   pricingIds: Record<string, SubscriptionCycles>;
+  origins: string[];
 };
 
 class RemoteConfig {
