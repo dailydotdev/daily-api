@@ -77,6 +77,7 @@ import {
   threadsSocialUrlMatch,
   twitterSocialUrlMatch,
   type GQLUserTopReader,
+  UploadPreset,
 } from '../src/common';
 import { DataSource, In, IsNull } from 'typeorm';
 import createOrGetConnection from '../src/db';
@@ -996,6 +997,68 @@ describe('streak recover query', () => {
     expect(data.streakRecover.canRecover).toBeTruthy();
     expect(data.streakRecover.oldStreakLength).toBe(oldLength);
     expect(data.streakRecover.cost).toBe(25);
+  });
+});
+
+describe('clearImage mutation', () => {
+  const MUTATION = `
+    mutation ClearUserImage($preset: UploadPreset!) {
+      clearImage(preset: $preset) {
+        _
+      }
+    }
+  `;
+
+  it('should not allow unauthenticated users', async () =>
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { preset: UploadPreset.ProfileCover } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw an error when type is not found', async () => {
+    loggedUser = '1';
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { preset: UploadPreset.FreeformGif } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it("should clear user's avatar", async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { image: 'test', cover: 'cover' });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { preset: UploadPreset.Avatar },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const user = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(user.image).toBeNull();
+    expect(user.cover).not.toBeNull();
+  });
+
+  it("should clear user's cover", async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { image: 'test', cover: 'cover' });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { preset: UploadPreset.Avatar },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const user = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(user.image).toBeNull();
+    expect(user.cover).not.toBeNull();
   });
 });
 

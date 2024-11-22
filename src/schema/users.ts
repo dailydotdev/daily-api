@@ -69,6 +69,8 @@ import {
   validateWorkEmailDomain,
   type GQLUserTopReader,
   mapCloudinaryUrl,
+  UploadPreset,
+  clearFile,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -147,7 +149,7 @@ interface GQLUserParameters {
 export interface GQLUser {
   id: string;
   name: string;
-  image?: string;
+  image?: string | null;
   infoConfirmed: boolean;
   createdAt: Date;
   username?: string;
@@ -167,7 +169,7 @@ export interface GQLUser {
   reputation?: number;
   notificationEmail?: boolean;
   timezone?: string;
-  cover?: string;
+  cover?: string | null;
   readme?: string;
   readmeHtml?: string;
   experienceLevel?: string | null;
@@ -900,7 +902,14 @@ export const typeDefs = /* GraphQL */ `
     topReaderBadgeById(id: ID!): UserTopReader
   }
 
+  ${toGQLEnum(UploadPreset, 'UploadPreset')}
+
   extend type Mutation {
+    """
+    Clear users image based on type
+    """
+    clearImage(preset: UploadPreset): EmptyResponse @auth
+
     """
     Update user profile information
     """
@@ -1770,6 +1779,31 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   Mutation: {
+    clearImage: async (
+      _,
+      { preset }: { preset: UploadPreset },
+      { con, userId }: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      switch (preset) {
+        case UploadPreset.ProfileCover:
+          await con.getRepository(User).update(userId, {
+            cover: null,
+          });
+          await clearFile(userId, preset);
+          break;
+        case UploadPreset.Avatar:
+          await con.getRepository(User).update(userId, {
+            image: null,
+          });
+          await clearFile(userId, preset);
+          break;
+        default:
+          throw new ValidationError('Invalid image type');
+      }
+
+      return { _: true };
+    },
+    // add mutation to clear images
     updateUserProfile: async (
       _,
       { data, upload }: GQLUserParameters,
