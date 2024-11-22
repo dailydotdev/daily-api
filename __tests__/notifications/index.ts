@@ -1324,6 +1324,8 @@ describe('storeNotificationBundle', () => {
       sourceId: 'a',
       createdById: '2',
       status: SourcePostModerationStatus.Rejected,
+      rejectionReason: 'Other',
+      moderatorMessage: 'Lacks value.',
     });
     const type = NotificationType.SourcePostRejected;
     const ctx: NotificationPostModerationContext = {
@@ -1343,9 +1345,9 @@ describe('storeNotificationBundle', () => {
     expect(actual.notification.referenceId).toEqual(post.id);
     expect(actual.notification.referenceType).toEqual('post_moderation');
     expect(actual.notification.title).toEqual(
-      'Your post in A was not approved for the following reason: null. Please review the feedback and consider making changes before resubmitting.',
+      'Your post in A was not approved for the following reason: Other. Please review the feedback and consider making changes before resubmitting.',
     );
-    expect(actual.notification.description).toBeFalsy();
+    expect(actual.notification.description).toEqual('Lacks value.');
     expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/squads/a/moderate',
     );

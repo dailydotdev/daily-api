@@ -168,6 +168,7 @@ export const generateNotificationMap: Record<
       .icon(NotificationIcon.Bell)
       .referencePostModeration(ctx.post)
       .targetSourceModeration(ctx.source)
+      .description(ctx.post.moderatorMessage ?? '')
       .avatarSource(ctx.source),
   source_post_submitted: (builder, ctx: NotificationPostModerationContext) =>
     builder
