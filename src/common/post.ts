@@ -216,14 +216,14 @@ export const createFreeformPost = async ({
     },
   });
 
-  if (ctx) {
+  if (args.authorId) {
     const vordrStatus = await checkWithVordr(
       {
         id: createdPost.id,
         type: VordrFilterType.Post,
         content: createdPost.content,
       },
-      { con, userId: ctx.userId, req: ctx.req },
+      { con, userId: args.authorId, req: ctx?.req },
     );
 
     if (vordrStatus) {
