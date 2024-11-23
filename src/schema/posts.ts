@@ -2347,10 +2347,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           throw new ValidationError('Rejection reason is required');
         }
 
-        if (
-          rejectionReason?.toLowerCase() === 'other' &&
-          !moderatorMessage
-        ) {
+        if (rejectionReason?.toLowerCase() === 'other' && !moderatorMessage) {
           throw new ValidationError('Moderator message is required');
         }
       }
