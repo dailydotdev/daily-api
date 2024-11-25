@@ -17,9 +17,17 @@ export const updateSourcePublicThreshold: Cron = {
           "image" IS NOT NULL AND
           "image" != '${SQUAD_IMAGE_PLACEHOLDER}' AND
           "description" IS NOT NULL AND
-          (flags->>'totalMembers')::int >= 3 AND
-          (flags->>'totalPosts')::int >= 3 AND
-          (flags->>'publicThreshold')::boolean IS NOT TRUE
+          (flags->>'publicThreshold')::boolean IS NOT TRUE AND
+          (flags->>'vordr')::boolean IS NOT TRUE AND
+          (
+          ((flags->>'totalMembers')::int >= 3 AND (flags->>'totalPosts')::int >= 3) OR
+          exists (select 1
+            from "content_preference" cp
+            join "user" u on cp."userId" = u.id
+            where cp."referenceId" = "source".id and cp.type = 'source'
+                and cp.flags->>'role' = 'admin' and u.reputation >= 250
+                and (u.flags->>'vordr')::boolean IS NOT TRUE
+          ))
       `,
       )
       .execute();
