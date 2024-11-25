@@ -34,6 +34,7 @@ export interface SourceFlagsPublic {
 
 export interface SourceFlagsPrivate {
   publicThreshold: boolean;
+  vordr?: boolean;
 }
 
 export const defaultPublicSourceFlags: SourceFlagsPublic = {
