@@ -31,6 +31,7 @@ import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
 import { NotificationType } from './common';
 import { format } from 'date-fns';
+import { rejectReason } from '../entity/SourcePostModeration';
 
 const systemTitle = () => undefined;
 
@@ -136,7 +137,7 @@ export const notificationTitleMap: Record<
   source_post_approved: (ctx: NotificationPostContext) =>
     `Woohoo! Your post has been approved and is now live in ${ctx.source.name}. Check it out!`,
   source_post_rejected: (ctx: NotificationPostModerationContext) =>
-    `Your post in ${ctx.source.name} was not approved for the following reason: ${ctx.post.rejectionReason}. Please review the feedback and consider making changes before resubmitting.`,
+    `Your post in ${ctx.source.name} was not approved for the following reason: ${rejectReason[ctx.post.rejectionReason!]}. Please review the feedback and consider making changes before resubmitting.`,
   source_post_submitted: (ctx: NotificationPostModerationContext) =>
     `${ctx.user.name} just posted in ${ctx.source.name}. This post is waiting for your review before it gets published on the squad.`,
 };
