@@ -341,7 +341,7 @@ export class NotificationBuilder {
   objectPost(
     post: Reference<Post>,
     source: Reference<Source>,
-    sharedPost?: Reference<Post>,
+    sharedPost?: Reference<Post> | null,
     addSquadAvatar = true,
   ) {
     let newBuilder = this.referencePost(post).targetPost(post);
