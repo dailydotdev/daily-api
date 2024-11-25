@@ -105,6 +105,10 @@ type PostPreset =
   | UploadPreset.FreeformGif;
 
 export const clearFile = (referenceId: string, preset: UploadPreset) => {
+  if (!process.env.CLOUDINARY_URL) {
+    return Promise.resolve();
+  }
+
   const id = `${preset}_${referenceId}`;
 
   return cloudinary.v2.uploader.destroy(id);
