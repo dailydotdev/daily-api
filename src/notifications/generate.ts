@@ -164,10 +164,7 @@ export const generateNotificationMap: Record<
   source_post_approved: (builder, ctx: NotificationPostContext) =>
     builder
       .icon(NotificationIcon.Bell)
-      .referencePost(ctx.post)
-      .attachmentPost(ctx.post)
-      .targetPost(ctx.post)
-      .avatarSource(ctx.source),
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost),
   source_post_rejected: (builder, ctx: NotificationPostModerationContext) =>
     builder
       .icon(NotificationIcon.Bell)
