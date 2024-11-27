@@ -1822,6 +1822,34 @@ describe('mutation unblock', () => {
         },
       ]);
     });
+
+    it('should unblock', async () => {
+      loggedUser = '1-ublm';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: '2-ublm',
+          entity: ContentPreferenceType.Keyword,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreference = await con
+        .getRepository(ContentPreferenceKeyword)
+        .findOneBy({
+          userId: '2-ublm',
+          referenceId: 'keyword-ublm1',
+        });
+
+      expect(contentPreference).toBeNull();
+
+      const feedSource = await con.getRepository(FeedTag).findOneBy({
+        feedId: '2-fm',
+        tag: 'keyword-ublm1',
+      });
+      expect(feedSource).toBeNull();
+    });
   });
 
   describe('word', () => {
