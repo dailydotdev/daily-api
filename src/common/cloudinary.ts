@@ -1,6 +1,5 @@
 import cloudinary from 'cloudinary';
 import { Readable } from 'stream';
-import { type ConnectionManager, User } from '../entity';
 
 export const uploadLogo = (name: string, stream: Readable): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -118,29 +117,6 @@ export const clearFile = ({ referenceId, preset }: ClearFileProps) => {
   const id = `${preset}_${referenceId}`;
 
   return cloudinary.v2.uploader.destroy(id);
-};
-
-interface ClearImagePreset {
-  con: ConnectionManager;
-  preset: UploadPreset;
-  userId: string;
-}
-
-export const clearImagePreset = async ({
-  con,
-  preset,
-  userId,
-}: ClearImagePreset) => {
-  switch (preset) {
-    case UploadPreset.ProfileCover:
-      await con.getRepository(User).update({ id: userId }, { cover: null });
-      await clearFile({ referenceId: userId, preset });
-      break;
-    case UploadPreset.Avatar:
-      await con.getRepository(User).update({ id: userId }, { image: null });
-      await clearFile({ referenceId: userId, preset });
-      break;
-  }
 };
 
 export const uploadPostFile = (

@@ -29,6 +29,7 @@ import {
   getAuthorPostStats,
   Alerts,
   reputationReasonAmount,
+  ConnectionManager,
 } from '../entity';
 import {
   AuthenticationError,
@@ -70,7 +71,7 @@ import {
   type GQLUserTopReader,
   mapCloudinaryUrl,
   UploadPreset,
-  clearImagePreset,
+  clearFile,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -1246,6 +1247,29 @@ const getUserCompanies = async (
     },
     true,
   );
+};
+
+interface ClearImagePreset {
+  con: ConnectionManager;
+  preset: UploadPreset;
+  userId: string;
+}
+
+export const clearImagePreset = async ({
+  con,
+  preset,
+  userId,
+}: ClearImagePreset) => {
+  switch (preset) {
+    case UploadPreset.ProfileCover:
+      await con.getRepository(User).update({ id: userId }, { cover: null });
+      await clearFile({ referenceId: userId, preset });
+      break;
+    case UploadPreset.Avatar:
+      await con.getRepository(User).update({ id: userId }, { image: null });
+      await clearFile({ referenceId: userId, preset });
+      break;
+  }
 };
 
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
