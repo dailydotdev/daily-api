@@ -1786,15 +1786,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<GQLEmptyResponse> => {
       switch (preset) {
         case UploadPreset.ProfileCover:
-          await con.getRepository(User).update(userId, {
-            cover: null,
-          });
+          await con.getRepository(User).update({ id: userId }, { cover: null });
           await clearFile(userId, preset);
           break;
         case UploadPreset.Avatar:
-          await con.getRepository(User).update(userId, {
-            image: null,
-          });
+          await con.getRepository(User).update(
+            { id: userId },
+            {
+              image: null,
+            },
+          );
           await clearFile(userId, preset);
           break;
         default:
