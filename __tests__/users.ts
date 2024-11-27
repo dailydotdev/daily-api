@@ -1002,8 +1002,8 @@ describe('streak recover query', () => {
 
 describe('clearImage mutation', () => {
   const MUTATION = `
-    mutation ClearUserImage($preset: UploadPreset!) {
-      clearImage(preset: $preset) {
+    mutation ClearUserImage($presets: [UploadPreset]!) {
+      clearImage(presets: $presets) {
         _
       }
     }
@@ -1012,18 +1012,12 @@ describe('clearImage mutation', () => {
   it('should not allow unauthenticated users', async () =>
     await testMutationErrorCode(
       client,
-      { mutation: MUTATION, variables: { preset: UploadPreset.ProfileCover } },
+      {
+        mutation: MUTATION,
+        variables: { presets: [UploadPreset.ProfileCover] },
+      },
       'UNAUTHENTICATED',
     ));
-
-  it('should throw an error when type is not found', async () => {
-    loggedUser = '1';
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { preset: UploadPreset.FreeformGif } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
 
   it("should clear user's avatar", async () => {
     loggedUser = '1';
@@ -1033,7 +1027,7 @@ describe('clearImage mutation', () => {
       .update({ id: loggedUser }, { image: 'test', cover: 'cover' });
 
     const res = await client.mutate(MUTATION, {
-      variables: { preset: UploadPreset.Avatar },
+      variables: { presets: [UploadPreset.Avatar] },
     });
 
     expect(res.errors).toBeFalsy();
@@ -1051,14 +1045,14 @@ describe('clearImage mutation', () => {
       .update({ id: loggedUser }, { image: 'test', cover: 'cover' });
 
     const res = await client.mutate(MUTATION, {
-      variables: { preset: UploadPreset.Avatar },
+      variables: { presets: [UploadPreset.ProfileCover] },
     });
 
     expect(res.errors).toBeFalsy();
 
     const user = await con.getRepository(User).findOneBy({ id: loggedUser });
-    expect(user.image).toBeNull();
-    expect(user.cover).not.toBeNull();
+    expect(user.image).not.toBeNull();
+    expect(user.cover).toBeNull();
   });
 });
 

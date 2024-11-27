@@ -70,7 +70,7 @@ import {
   type GQLUserTopReader,
   mapCloudinaryUrl,
   UploadPreset,
-  clearFile,
+  clearImagePreset,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -908,7 +908,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Clear users image based on type
     """
-    clearImage(preset: UploadPreset): EmptyResponse @auth
+    clearImage(presets: [UploadPreset]): EmptyResponse @auth
 
     """
     Update user profile information
@@ -1781,26 +1781,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   Mutation: {
     clearImage: async (
       _,
-      { preset }: { preset: UploadPreset },
+      { presets }: { presets: UploadPreset[] },
       { con, userId }: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      switch (preset) {
-        case UploadPreset.ProfileCover:
-          await con.getRepository(User).update({ id: userId }, { cover: null });
-          await clearFile(userId, preset);
-          break;
-        case UploadPreset.Avatar:
-          await con.getRepository(User).update(
-            { id: userId },
-            {
-              image: null,
-            },
-          );
-          await clearFile(userId, preset);
-          break;
-        default:
-          throw new ValidationError('Invalid image type');
+      if (!presets || presets.length === 0) {
+        return { _: true };
       }
+
+      await con.transaction(async (manager) => {
+        await Promise.all(
+          presets.map((preset) =>
+            clearImagePreset({ con: manager, preset, userId }),
+          ),
+        );
+      });
 
       return { _: true };
     },
