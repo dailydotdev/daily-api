@@ -106,7 +106,7 @@ type PostPreset =
 
 export const clearFile = (referenceId: string, preset: UploadPreset) => {
   if (!process.env.CLOUDINARY_URL) {
-    return Promise.resolve();
+    return
   }
 
   const id = `${preset}_${referenceId}`;
