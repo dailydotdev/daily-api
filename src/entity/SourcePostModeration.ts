@@ -17,6 +17,34 @@ export enum SourcePostModerationStatus {
   Pending = 'pending',
 }
 
+export enum PostModerationReason {
+  OffTopic = 'OFF_TOPIC',
+  Violation = 'VIOLATION',
+  Promotional = 'PROMOTIONAL',
+  Duplicate = 'DUPLICATE',
+  LowQuality = 'LOW_QUALITY',
+  NSFW = 'NSFW',
+  Spam = 'SPAM',
+  Misinformation = 'MISINFORMATION',
+  Copyright = 'COPYRIGHT',
+  Other = 'OTHER',
+}
+
+export const rejectReason: Record<PostModerationReason, string> = {
+  [PostModerationReason.OffTopic]: 'Off-topic post unrelated to the Squad',
+  [PostModerationReason.Violation]: 'Violates the Squad’s code of conduct',
+  [PostModerationReason.Promotional]: 'Too promotional without adding value',
+  [PostModerationReason.Duplicate]:
+    'Duplicate or similar content already posted',
+  [PostModerationReason.LowQuality]: 'Lacks quality or clarity',
+  [PostModerationReason.NSFW]: 'Inappropriate, NSFW or offensive post',
+  [PostModerationReason.Spam]: 'Post is spam or scam',
+  [PostModerationReason.Misinformation]:
+    'Contains misleading or false information',
+  [PostModerationReason.Copyright]: 'Copyright or privacy violation',
+  [PostModerationReason.Other]: 'Other',
+};
+
 @Entity()
 @Index(['sourceId'])
 @Index(['sourceId', 'createdById'])
@@ -58,7 +86,7 @@ export class SourcePostModeration {
   moderatorMessage?: string | null;
 
   @Column({ type: 'text', nullable: true })
-  rejectionReason?: string | null;
+  rejectionReason?: PostModerationReason | null;
 
   @CreateDateColumn()
   createdAt: Date;

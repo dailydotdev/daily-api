@@ -35,6 +35,7 @@ import { runInRootSpan } from './telemetry';
 import { loggerConfig } from './logger';
 import { getTemporalClient } from './temporal/client';
 import { BrokenCircuitError } from 'cockatiel';
+import { remoteConfig } from './remoteConfig';
 
 type Mutable<Type> = {
   -readonly [Key in keyof Type]: Type[Key];
@@ -94,8 +95,27 @@ export default async function app(
   process.on('SIGTERM', gracefulShutdown);
 
   app.register(helmet);
+
+  const originRegex = /^(?:https:\/\/)?(?:[\w-]+\.)*daily\.dev$/;
+
   app.register(cors, {
-    origin: isProd ? /^(?:https:\/\/)?(?:[\w-]+\.)*daily\.dev$/ : true,
+    origin: async (origin?: string) => {
+      if (!isProd) {
+        return true;
+      }
+
+      const originString = origin as string;
+
+      if (remoteConfig.vars.origins?.includes(originString)) {
+        return true;
+      }
+
+      if (originRegex.test(originString)) {
+        return true;
+      }
+
+      return [false];
+    },
     credentials: true,
     cacheControl: 86400,
     maxAge: 86400,

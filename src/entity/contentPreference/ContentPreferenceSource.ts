@@ -14,6 +14,7 @@ export type ContentPreferenceSourceFlags = Partial<{
 @ChildEntity(ContentPreferenceType.Source)
 export class ContentPreferenceSource extends ContentPreference {
   @Column({ type: 'text', default: null })
+  @Index('IDX_content_preference_source_id')
   sourceId: string;
 
   @Column({ type: 'jsonb', default: {} })

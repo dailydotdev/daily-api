@@ -2337,23 +2337,34 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       const isModerator = await isPrivilegedMember(ctx, sourceId);
+      const update: Partial<SourcePostModeration> = {
+        status,
+        moderatedById: ctx.userId,
+      };
 
       if (!isModerator) {
         throw new ForbiddenError('Access denied!');
       }
 
-      const moderatedById = ctx.userId;
-      const isRejectedWithReason =
-        status === SourcePostModerationStatus.Rejected && !!rejectionReason;
+      if (status === SourcePostModerationStatus.Rejected) {
+        if (!rejectionReason) {
+          throw new ValidationError('Rejection reason is required');
+        }
 
-      await ctx.con.getRepository(SourcePostModeration).update(
-        { id: In(uniquePostIds), status: SourcePostModerationStatus.Pending },
-        {
-          status,
-          moderatedById,
-          ...(isRejectedWithReason && { rejectionReason, moderatorMessage }),
-        },
-      );
+        if (rejectionReason?.toLowerCase() === 'other' && !moderatorMessage) {
+          throw new ValidationError('Moderator message is required');
+        }
+
+        update.rejectionReason = rejectionReason;
+        update.moderatorMessage = moderatorMessage;
+      }
+
+      await ctx.con
+        .getRepository(SourcePostModeration)
+        .update(
+          { id: In(uniquePostIds), status: SourcePostModerationStatus.Pending },
+          update,
+        );
 
       return graphorm.query<GQLSourcePostModeration>(ctx, info, (builder) => ({
         ...builder,
