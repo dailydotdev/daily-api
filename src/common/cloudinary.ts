@@ -1,6 +1,6 @@
 import cloudinary from 'cloudinary';
 import { Readable } from 'stream';
-import { ConnectionManager, User } from '../entity';
+import { type ConnectionManager, User } from '../entity';
 
 export const uploadLogo = (name: string, stream: Readable): Promise<string> =>
   new Promise((resolve, reject) => {
