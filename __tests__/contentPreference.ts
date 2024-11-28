@@ -37,6 +37,7 @@ import {
 } from '../src/notifications/common';
 import { ghostUser } from '../src/common';
 import { ContentPreferenceKeyword } from '../src/entity/contentPreference/ContentPreferenceKeyword';
+import { ContentPreferenceWord } from '../src/entity/contentPreference/ContentPreferenceWord';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -1514,6 +1515,36 @@ describe('mutation block', () => {
     });
   });
 
+  describe('word', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, Feed, [{ id: '1-blm', userId: '1-blm' }]);
+    });
+
+    it('should block', async () => {
+      loggedUser = '1-blm';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: 'word-bl1',
+          entity: ContentPreferenceType.Word,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreference = await con
+        .getRepository(ContentPreferenceWord)
+        .findOneBy({
+          userId: '1-blm',
+          referenceId: 'word-bl1',
+        });
+
+      expect(contentPreference).not.toBeNull();
+      expect(contentPreference!.type).toEqual(ContentPreferenceType.Word);
+      expect(contentPreference!.status).toBe(ContentPreferenceStatus.Blocked);
+    });
+  });
+
   describe('source', () => {
     beforeEach(async () => {
       await saveFixtures(con, Source, [
@@ -1818,6 +1849,48 @@ describe('mutation unblock', () => {
         tag: 'keyword-ublm1',
       });
       expect(feedSource).toBeNull();
+    });
+  });
+
+  describe('word', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, Feed, [{ id: '1-ublm', userId: '1-ublm' }]);
+      await con.getRepository(ContentPreferenceWord).save([
+        {
+          userId: '1-ublm',
+          referenceId: 'word-ublm1',
+          feedId: '1-ublm',
+          status: ContentPreferenceStatus.Blocked,
+        },
+        {
+          userId: '2-ublm',
+          referenceId: 'word-ublm2',
+          feedId: '1-ublm',
+          status: ContentPreferenceStatus.Blocked,
+        },
+      ]);
+    });
+
+    it('should unblock', async () => {
+      loggedUser = '1-ublm';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: '2-ublm',
+          entity: ContentPreferenceType.Word,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreference = await con
+        .getRepository(ContentPreferenceWord)
+        .findOneBy({
+          userId: '2-ublm',
+          referenceId: 'word-ublm1',
+        });
+
+      expect(contentPreference).toBeNull();
     });
   });
 

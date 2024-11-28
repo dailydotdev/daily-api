@@ -4,6 +4,7 @@ import fastify, {
   FastifyInstance,
   FastifyError,
   FastifyReply,
+  type FastifyRegisterOptions,
 } from 'fastify';
 import fastifyRawBody from 'fastify-raw-body';
 import helmet from '@fastify/helmet';
@@ -11,7 +12,7 @@ import cors from '@fastify/cors';
 import mercurius, { MercuriusError } from 'mercurius';
 import MercuriusGQLUpload from 'mercurius-upload';
 import MercuriusCache from 'mercurius-cache';
-import proxy from '@fastify/http-proxy';
+import proxy, { type FastifyHttpProxyOptions } from '@fastify/http-proxy';
 import { NoSchemaIntrospectionCustomRule } from 'graphql';
 // import fastifyWebsocket from '@fastify/websocket';
 
@@ -34,6 +35,7 @@ import { runInRootSpan } from './telemetry';
 import { loggerConfig } from './logger';
 import { getTemporalClient } from './temporal/client';
 import { BrokenCircuitError } from 'cockatiel';
+import { remoteConfig } from './remoteConfig';
 
 type Mutable<Type> = {
   -readonly [Key in keyof Type]: Type[Key];
@@ -93,8 +95,27 @@ export default async function app(
   process.on('SIGTERM', gracefulShutdown);
 
   app.register(helmet);
+
+  const originRegex = /^(?:https:\/\/)?(?:[\w-]+\.)*daily\.dev$/;
+
   app.register(cors, {
-    origin: isProd ? /^(?:https:\/\/)?(?:[\w-]+\.)*daily\.dev$/ : true,
+    origin: async (origin?: string) => {
+      if (!isProd) {
+        return true;
+      }
+
+      const originString = origin as string;
+
+      if (remoteConfig.vars.origins?.includes(originString)) {
+        return true;
+      }
+
+      if (originRegex.test(originString)) {
+        return true;
+      }
+
+      return [false];
+    },
     credentials: true,
     cacheControl: 86400,
     maxAge: 86400,
@@ -306,6 +327,7 @@ export default async function app(
   app.register(proxy, {
     upstream: 'https://www.google.com/s2/favicons',
     prefix: '/icon',
+    logLevel: 'warn',
     replyOptions: {
       queryString: (search, reqUrl, req) => {
         const reqSearchParams = new URLSearchParams(
@@ -333,7 +355,7 @@ export default async function app(
     },
   });
 
-  const letterProxy = {
+  const letterProxy: FastifyRegisterOptions<FastifyHttpProxyOptions> = {
     upstream:
       'https://media.daily.dev/image/upload/s--zchx8x3n--/f_auto,q_auto/v1731056371/webapp/shortcut-placeholder',
     preHandler: async (req: FastifyRequest, res: FastifyReply) => {
@@ -343,6 +365,7 @@ export default async function app(
         },
       });
     },
+    logLevel: 'warn',
   };
 
   app.register(proxy, {

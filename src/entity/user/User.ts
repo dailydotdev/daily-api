@@ -49,10 +49,10 @@ export class User {
   email: string;
 
   @Column({ type: 'text', nullable: true })
-  image: string;
+  image?: string | null;
 
   @Column({ type: 'text', nullable: true })
-  cover?: string;
+  cover?: string | null;
 
   @Column({ type: 'text', nullable: true })
   company?: string;

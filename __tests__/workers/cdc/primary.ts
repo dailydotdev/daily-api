@@ -31,6 +31,8 @@ import {
   UserCompany,
   SharePost,
   UNKNOWN_SOURCE,
+  NotificationV2,
+  UserNotification,
 } from '../../../src/entity';
 import {
   notifyCommentCommented,
@@ -146,6 +148,7 @@ import {
 } from '../../../src/entity/SourcePostModeration';
 import { ContentPreferenceSource } from '../../../src/entity/contentPreference/ContentPreferenceSource';
 import { ContentPreferenceStatus } from '../../../src/entity/contentPreference/types';
+import { NotificationType } from '../../../src/notifications/common';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -4712,6 +4715,84 @@ describe('source_post_moderation', () => {
     ]);
   });
 
+  it('should clear all relevant notifications about the submission after rejection', async () => {
+    await con.getRepository(NotificationV2).save([
+      {
+        referenceId: base.id,
+        referenceType: 'post_moderation',
+        targetUrl: 'https//a.b.c',
+        type: NotificationType.SourcePostSubmitted,
+        icon: 'Timer',
+        title: 'Test',
+      },
+      {
+        targetUrl: 'https//a.b.c',
+        type: NotificationType.SourcePostApproved,
+        icon: 'Timer',
+        title: 'Test',
+      },
+    ]);
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: { ...base, status: SourcePostModerationStatus.Rejected },
+        before: base,
+        op: 'u',
+        table: 'source_post_moderation',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.source-post-moderation-rejected',
+      { post: { ...base, status: SourcePostModerationStatus.Rejected } },
+    ]);
+    const submitted = await con
+      .getRepository(NotificationV2)
+      .findOneBy({ type: NotificationType.SourcePostSubmitted });
+    expect(submitted).toBeNull();
+  });
+
+  it('should clear all relevant notifications about the submission on delete', async () => {
+    await con.getRepository(User).save(usersFixture[0]);
+    const [submission] = await con.getRepository(NotificationV2).save([
+      {
+        referenceId: base.id,
+        referenceType: 'post_moderation',
+        targetUrl: 'https//a.b.c',
+        type: NotificationType.SourcePostSubmitted,
+        icon: 'Timer',
+        title: 'Test',
+      },
+      {
+        targetUrl: 'https//a.b.c',
+        type: NotificationType.SourcePostApproved,
+        icon: 'Timer',
+        title: 'Test',
+      },
+    ]);
+    await con.getRepository(UserNotification).save([
+      {
+        userId: '1',
+        notificationId: submission.id,
+      },
+    ]);
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: null,
+        before: base,
+        op: 'd',
+        table: 'source_post_moderation',
+      }),
+    );
+    const submitted = await con
+      .getRepository(NotificationV2)
+      .findOneBy({ type: NotificationType.SourcePostSubmitted });
+    expect(submitted).toBeNull();
+    const notifications = await con.getRepository(UserNotification).find();
+    expect(notifications.length).toEqual(0);
+  });
+
   describe('on approved', () => {
     beforeEach(async () => {
       await saveFixtures(con, User, usersFixture);
@@ -4766,6 +4847,46 @@ describe('source_post_moderation', () => {
         'api.v1.source-post-moderation-approved',
         { post: { ...after, postId: freeform.id } },
       ]);
+    });
+
+    it('should clear all relevant notifications about the submission', async () => {
+      await con.getRepository(NotificationV2).save([
+        {
+          referenceId: base.id,
+          referenceType: 'post_moderation',
+          targetUrl: 'https//a.b.c',
+          type: NotificationType.SourcePostSubmitted,
+          icon: 'Timer',
+          title: 'Test',
+        },
+        {
+          targetUrl: 'https//a.b.c',
+          type: NotificationType.SourcePostApproved,
+          icon: 'Timer',
+          title: 'Test',
+        },
+      ]);
+      const repo = con.getRepository(Post);
+      const before = await repo.find();
+      expect(before.length).toEqual(0);
+      const after = {
+        ...base,
+        status: SourcePostModerationStatus.Approved,
+        title: '# Test',
+        titleHtml: '# Test',
+        content: '## Sample',
+        contentHtml: '## SampleHtml',
+        image: 'http://image',
+      };
+      await mockUpdate(after);
+      const freeform = (await repo.findOneBy({
+        sourceId: 'a',
+      })) as FreeformPost;
+      expect(freeform).toBeTruthy();
+      const submitted = await con
+        .getRepository(NotificationV2)
+        .findOneBy({ type: NotificationType.SourcePostSubmitted });
+      expect(submitted).toBeNull();
     });
 
     it('should not create post if status did not change', async () => {

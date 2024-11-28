@@ -23,9 +23,9 @@ import devCardUnlocked from './devCardUnlocked';
 import postBookmarkReminder from './postBookmarkReminder';
 import userStreakResetNotification from './userStreakResetNotification';
 import squadFeaturedUpdated from './squadFeaturedUpdated';
-import sourcePostModerationSubmitted from './sourcePostModerationSubmitted';
-import sourcePostModerationApproved from './sourcePostModerationApproved';
-import sourcePostModerationRejected from './sourcePostModerationRejected';
+import sourcePostModerationSubmittedNotification from './sourcePostModerationSubmittedNotification';
+import sourcePostModerationApprovedNotification from './sourcePostModerationApprovedNotification';
+import sourcePostModerationRejectedNotification from './sourcePostModerationRejectedNotification';
 import { postAddedUserNotification } from './postAddedUserNotification';
 import { userTopReaderAdded } from './userTopReaderAdded';
 
@@ -90,9 +90,9 @@ const notificationWorkers: NotificationWorker[] = [
   userStreakResetNotification,
   squadFeaturedUpdated,
   postAddedUserNotification,
-  sourcePostModerationSubmitted,
-  sourcePostModerationApproved,
-  sourcePostModerationRejected,
+  sourcePostModerationSubmittedNotification,
+  sourcePostModerationApprovedNotification,
+  sourcePostModerationRejectedNotification,
   userTopReaderAdded,
 ];
 

@@ -8,6 +8,7 @@ import {
   NotificationAvatarV2,
   NotificationV2,
   NotificationReferenceType,
+  ConnectionManager,
 } from '../entity';
 import { ValidationError } from 'apollo-server-errors';
 import { DataSource, EntityManager, IsNull, QueryRunner } from 'typeorm';
@@ -18,7 +19,8 @@ import {
 } from '../errors';
 import { ReadStream } from 'fs';
 import { UserNotification } from '../entity';
-import { SourcePostModerationStatus } from '../entity/SourcePostModeration';
+import { SourcePostModeration } from '../entity/SourcePostModeration';
+import { ChangeObject } from '../types';
 
 export enum NotificationType {
   CommunityPicksFailed = 'community_picks_failed',
@@ -283,11 +285,17 @@ export const generateUserNotificationUniqueKey = ({
   return [uniqueKey, referenceId, referenceType].filter(Boolean).join(':');
 };
 
-export const postStatusToTypeMap: Record<
-  SourcePostModerationStatus,
-  NotificationType
-> = {
-  [SourcePostModerationStatus.Approved]: NotificationType.SourcePostApproved,
-  [SourcePostModerationStatus.Rejected]: NotificationType.SourcePostRejected,
-  [SourcePostModerationStatus.Pending]: NotificationType.SourcePostSubmitted,
+export const cleanupSourcePostModerationNotifications = async (
+  con: ConnectionManager,
+  post: ChangeObject<SourcePostModeration>,
+) => {
+  if (!post?.id) {
+    return;
+  }
+
+  await con.getRepository(NotificationV2).delete({
+    referenceId: post.id,
+    referenceType: 'post_moderation',
+    type: NotificationType.SourcePostSubmitted,
+  });
 };

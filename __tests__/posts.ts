@@ -5773,6 +5773,7 @@ describe('Source post moderation approve/reject', () => {
       'FORBIDDEN',
     );
   });
+
   it('should not authorize when not source member', async () => {
     loggedUser = '1'; // Not a member
     await testMutationErrorCode(
@@ -5788,6 +5789,7 @@ describe('Source post moderation approve/reject', () => {
       'FORBIDDEN',
     );
   });
+
   it('should not authorize when not source moderator', async () => {
     loggedUser = '4'; // Member level
     await testMutationErrorCode(
@@ -5803,6 +5805,7 @@ describe('Source post moderation approve/reject', () => {
       'FORBIDDEN',
     );
   });
+
   it('should approve pending posts', async () => {
     loggedUser = '3'; // Moderator level
 
@@ -5825,6 +5828,7 @@ describe('Source post moderation approve/reject', () => {
     expect(post.status).toEqual(SourcePostModerationStatus.Approved);
     expect(post.moderatedById).toEqual('3');
   });
+
   it('should reject pending posts', async () => {
     loggedUser = '3'; // Moderator level
 
@@ -5851,6 +5855,43 @@ describe('Source post moderation approve/reject', () => {
     expect(post.rejectionReason).toEqual('Spam');
     expect(post.moderatorMessage).toEqual('This is spam');
   });
+
+  it('should not reject pending posts without reason', async () => {
+    loggedUser = '3'; // Moderator level
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          postIds: [pendingId],
+          sourceId: 'm',
+          status: SourcePostModerationStatus.Rejected,
+          moderatorMessage: 'This is spam',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not reject pending posts when reason is `other` and message is empty', async () => {
+    loggedUser = '3'; // Moderator level
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          postIds: [pendingId],
+          sourceId: 'm',
+          status: SourcePostModerationStatus.Rejected,
+          rejectionReason: 'Other',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
   it('should not update already moderated posts', async () => {
     loggedUser = '3'; // Moderator level
 

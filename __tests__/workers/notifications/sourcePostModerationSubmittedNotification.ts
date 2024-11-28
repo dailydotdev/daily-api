@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import worker from '../../../src/workers/notifications/sourcePostModerationSubmitted';
+import worker from '../../../src/workers/notifications/sourcePostModerationSubmittedNotification';
 import createOrGetConnection from '../../../src/db';
 import { Feed, Source, SourceType, User } from '../../../src/entity';
 import { sourcesFixture, usersFixture } from '../../fixture';

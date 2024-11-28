@@ -488,9 +488,12 @@ describe('query searchSourceSuggestions', () => {
 
   it('should return search suggestions', async () => {
     await con.getRepository(Source).update({ id: 'a' }, { name: 'Java news' });
-    await con
-      .getRepository(Source)
-      .update({ id: 'b' }, { name: 'JavaScript news' });
+    await con.getRepository(Source).update(
+      { id: 'b' },
+      {
+        name: 'JavaScript news',
+      },
+    );
     const res = await client.query(QUERY('java'));
     expect(res.errors).toBeFalsy();
     expect(res.data.searchSourceSuggestions).toBeTruthy();
@@ -536,6 +539,37 @@ describe('query searchSourceSuggestions', () => {
         title: 'JavaScript news',
         subtitle: 'b',
         image: 'http://image.com/b',
+      },
+    ]);
+  });
+  it('should only return public threshold sources', async () => {
+    await con.getRepository(Source).update(
+      { id: 'squad' },
+      {
+        private: false,
+        flags: updateFlagsStatement<Source>({ publicThreshold: true }),
+      },
+    );
+    await con.getRepository(Source).update(
+      { id: 'm' },
+      {
+        private: false,
+      },
+    );
+    const res = await client.query(QUERY('squad'));
+    expect(res.errors).toBeFalsy();
+    expect(res.data.searchSourceSuggestions).toBeTruthy();
+
+    const result = res.data.searchSourceSuggestions;
+
+    expect(result.query).toBe('squad');
+    expect(result.hits).toHaveLength(1);
+    expect(result.hits).toMatchObject([
+      {
+        id: 'squad',
+        image: 'http//image.com/s',
+        subtitle: 'squad',
+        title: 'Squad',
       },
     ]);
   });

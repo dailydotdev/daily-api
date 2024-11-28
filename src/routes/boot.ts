@@ -83,7 +83,6 @@ export type Experimentation = {
 
 export type Geo = {
   region?: string;
-  ip?: string;
 };
 
 interface ComputedAlerts {
@@ -143,7 +142,6 @@ type BootMiddleware = (
 const geoSection = (req: FastifyRequest): BaseBoot['geo'] => {
   return {
     region: req.headers['x-client-region'] as string,
-    ip: req.ip,
   };
 };
 
@@ -356,9 +354,11 @@ export function getReferralFromCookie({
 const getExperimentation = async ({
   userId,
   con,
+  region,
 }: {
   userId?: string;
   con: DataSource | QueryRunner;
+  region?: string;
 }): Promise<Experimentation> => {
   if (userId) {
     const [hash, features] = await Promise.all([
@@ -371,13 +371,17 @@ const getExperimentation = async ({
       const [variation] = hash[key].split(':');
       return base64(`${key}:${variation}`);
     });
+    const a: Experimentation['a'] = features.reduce(
+      (acc, { feature, value }) => ({ [feature]: value, ...acc }),
+      {},
+    );
+    if (region) {
+      a.region = region;
+    }
     return {
       f: getEncryptedFeatures(),
       e,
-      a: features.reduce(
-        (acc, { feature, value }) => ({ [feature]: value, ...acc }),
-        {},
-      ),
+      a,
     };
   }
   return {
@@ -447,6 +451,8 @@ const loggedInBoot = async ({
   runInSpan('loggedInBoot', async (span) => {
     span?.setAttribute(SEMATTRS_DAILY_APPS_USER_ID, userId);
 
+    const geo = geoSection(req);
+
     const { log } = req;
     const [
       visit,
@@ -470,7 +476,7 @@ const loggedInBoot = async ({
           getUser(queryRunner, userId),
           getSquads(queryRunner, userId),
           getAndUpdateLastBannerRedis(queryRunner),
-          getExperimentation({ userId, con: queryRunner }),
+          getExperimentation({ userId, con: queryRunner, ...geo }),
           getFeeds({ con: queryRunner, userId }),
           getUnreadNotificationsCount(queryRunner, userId),
         ]);
@@ -480,6 +486,11 @@ const loggedInBoot = async ({
       return handleNonExistentUser(con, req, res, middleware);
     }
     const isTeamMember = exp?.a?.team === 1;
+    const isPlus = isPlusMember(user.subscriptionFlags?.cycle);
+
+    if (isPlus) {
+      exp.a.plus = 1;
+    }
 
     span?.setAttribute(SEMATTRS_DAILY_STAFF, isTeamMember);
 
@@ -503,7 +514,7 @@ const loggedInBoot = async ({
         permalink: `${process.env.COMMENTS_PREFIX}/${user.username || user.id}`,
         canSubmitArticle: user.reputation >= submitArticleThreshold,
         isTeamMember,
-        isPlus: isPlusMember(user.subscriptionFlags?.cycle),
+        isPlus,
         language: user.language || undefined,
         image: mapCloudinaryUrl(user.image),
         cover: mapCloudinaryUrl(user.cover),
@@ -539,7 +550,7 @@ const loggedInBoot = async ({
       exp,
       marketingCta,
       feeds,
-      geo: geoSection(req),
+      geo,
       ...extra,
     };
   });
@@ -568,11 +579,13 @@ const anonymousBoot = async (
   shouldVerify = false,
   email?: string,
 ): Promise<AnonymousBoot> => {
+  const geo = geoSection(req);
+
   const [visit, extra, firstVisit, exp] = await Promise.all([
     visitSection(req, res),
     middleware ? middleware(con, req, res) : {},
     getAnonymousFirstVisit(req.trackingId),
-    getExperimentation({ userId: req.trackingId, con }),
+    getExperimentation({ userId: req.trackingId, con, ...geo }),
   ]);
 
   return {
@@ -593,7 +606,7 @@ const anonymousBoot = async (
     notifications: { unreadNotificationsCount: 0 },
     squads: [],
     exp,
-    geo: geoSection(req),
+    geo,
     ...extra,
   };
 };

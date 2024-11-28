@@ -29,6 +29,7 @@ import {
   getAuthorPostStats,
   Alerts,
   reputationReasonAmount,
+  ConnectionManager,
 } from '../entity';
 import {
   AuthenticationError,
@@ -69,6 +70,8 @@ import {
   validateWorkEmailDomain,
   type GQLUserTopReader,
   mapCloudinaryUrl,
+  UploadPreset,
+  clearFile,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -147,7 +150,7 @@ interface GQLUserParameters {
 export interface GQLUser {
   id: string;
   name: string;
-  image?: string;
+  image?: string | null;
   infoConfirmed: boolean;
   createdAt: Date;
   username?: string;
@@ -167,7 +170,7 @@ export interface GQLUser {
   reputation?: number;
   notificationEmail?: boolean;
   timezone?: string;
-  cover?: string;
+  cover?: string | null;
   readme?: string;
   readmeHtml?: string;
   experienceLevel?: string | null;
@@ -669,6 +672,7 @@ export const typeDefs = /* GraphQL */ `
     total: Int
     current: Int
     lastViewAt: DateTime
+    lastViewAtTz: DateTime
     weekStart: Int
   }
 
@@ -899,7 +903,14 @@ export const typeDefs = /* GraphQL */ `
     topReaderBadgeById(id: ID!): UserTopReader
   }
 
+  ${toGQLEnum(UploadPreset, 'UploadPreset')}
+
   extend type Mutation {
+    """
+    Clear users image based on type
+    """
+    clearImage(presets: [UploadPreset]): EmptyResponse @auth
+
     """
     Update user profile information
     """
@@ -1204,7 +1215,8 @@ const getUserStreakQuery = async (
     ...builder,
     queryBuilder: builder.queryBuilder
       .addSelect(
-        `(date_trunc('day', "${builder.alias}"."lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date) AS "lastViewAtTz"`,
+        `(date_trunc('day', "${builder.alias}"."lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date)`,
+        'lastViewAtTz',
       )
       .addSelect('u.id', 'userId')
       .addSelect('u.timezone', 'timezone')
@@ -1235,6 +1247,29 @@ const getUserCompanies = async (
     },
     true,
   );
+};
+
+interface ClearImagePreset {
+  con: ConnectionManager;
+  preset: UploadPreset;
+  userId: string;
+}
+
+export const clearImagePreset = async ({
+  con,
+  preset,
+  userId,
+}: ClearImagePreset) => {
+  switch (preset) {
+    case UploadPreset.ProfileCover:
+      await con.getRepository(User).update({ id: userId }, { cover: null });
+      await clearFile({ referenceId: userId, preset });
+      break;
+    case UploadPreset.Avatar:
+      await con.getRepository(User).update({ id: userId }, { image: null });
+      await clearFile({ referenceId: userId, preset });
+      break;
+  }
 };
 
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
@@ -1768,6 +1803,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   Mutation: {
+    clearImage: async (
+      _,
+      { presets }: { presets: UploadPreset[] },
+      { con, userId }: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      if (!presets || presets.length === 0) {
+        return { _: true };
+      }
+
+      await con.transaction(async (manager) => {
+        await Promise.all(
+          presets.map((preset) =>
+            clearImagePreset({ con: manager, preset, userId }),
+          ),
+        );
+      });
+
+      return { _: true };
+    },
+    // add mutation to clear images
     updateUserProfile: async (
       _,
       { data, upload }: GQLUserParameters,

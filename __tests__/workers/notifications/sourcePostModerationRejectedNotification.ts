@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import worker from '../../../src/workers/notifications/sourcePostModerationApproved';
+import worker from '../../../src/workers/notifications/sourcePostModerationRejectedNotification';
 import createOrGetConnection from '../../../src/db';
 import { Feed, Post, Source, SourceType, User } from '../../../src/entity';
 import { sourcesFixture, usersFixture } from '../../fixture';
@@ -39,21 +39,19 @@ describe('SourcePostModerationSubmitted', () => {
     expect(registeredWorker).toBeDefined();
   });
 
-  it('should not send notification when status is not approved', async () => {
-    const postRejected = {
-      postId: 'p1',
+  it('should not send notification when status is not rejected', async () => {
+    const postApproved = {
       sourceId: 'a',
       createdById: '2',
-      status: SourcePostModerationStatus.Rejected,
+      status: SourcePostModerationStatus.Approved,
     };
 
-    const rejected = await invokeNotificationWorker(worker, {
-      post: postRejected,
+    const approved = await invokeNotificationWorker(worker, {
+      post: postApproved,
     });
-    expect(rejected).toBeUndefined();
+    expect(approved).toBeUndefined();
 
     const postPending = {
-      postId: 'p1',
       sourceId: 'a',
       createdById: '2',
       status: SourcePostModerationStatus.Pending,
@@ -67,10 +65,9 @@ describe('SourcePostModerationSubmitted', () => {
 
   it('should send notification to author only', async () => {
     const post = {
-      postId: 'p1',
       sourceId: 'a',
       createdById: '2',
-      status: SourcePostModerationStatus.Approved,
+      status: SourcePostModerationStatus.Rejected,
     };
     await con
       .getRepository(Source)
@@ -91,17 +88,15 @@ describe('SourcePostModerationSubmitted', () => {
     const ctx = result[0].ctx as NotificationPostModerationContext;
 
     expect(result.length).toEqual(1);
-    expect(result[0].type).toEqual('source_post_approved');
-    expect(ctx.post.id).toEqual('p1');
+    expect(result[0].type).toEqual('source_post_rejected');
     expect(ctx.userIds).toEqual(['2']);
   });
 
   it('should not send notification other members', async () => {
     const post = {
-      postId: 'p1',
       sourceId: 'a',
       createdById: '2',
-      status: SourcePostModerationStatus.Approved,
+      status: SourcePostModerationStatus.Rejected,
     };
     await con
       .getRepository(Source)
@@ -146,8 +141,7 @@ describe('SourcePostModerationSubmitted', () => {
     const ctx = result[0].ctx as NotificationPostModerationContext;
 
     expect(result.length).toEqual(1);
-    expect(result[0].type).toEqual('source_post_approved');
-    expect(ctx.post.id).toEqual(post.postId);
+    expect(result[0].type).toEqual('source_post_rejected');
     expect(ctx.userIds).toEqual(['2']);
     const ownerOnly = ctx.userIds.every((id) => id === '2');
     expect(ownerOnly).toBeTruthy();

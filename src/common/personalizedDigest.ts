@@ -1,18 +1,20 @@
 import {
   ArticlePost,
   Post,
+  PostType,
   Source,
   User,
   UserPersonalizedDigest,
   UserPersonalizedDigestSendType,
   UserStreak,
+  type FreeformPost,
 } from '../entity';
 import { format, isSameDay, nextDay, previousDay } from 'date-fns';
 import { PersonalizedDigestFeatureConfig } from '../growthbook';
 import { feedToFilters, fixedIdsFeedBuilder } from './feedGenerator';
 import { FeedClient } from '../integrations/feed/clients';
 import { addNotificationUtm, baseNotificationEmailData } from './mailing';
-import { pickImageUrl } from './post';
+import { findPostImageFromContent, pickImageUrl } from './post';
 import { getDiscussionLink } from './links';
 import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
@@ -24,6 +26,8 @@ import { DayOfWeek } from './date';
 import { GarmrService } from '../integrations/garmr';
 import { baseFeedConfig } from '../integrations/feed';
 import { FeedConfigName } from '../integrations/feed';
+import { isPlusMember } from '../paddle';
+import { mapCloudinaryUrl } from './cloudinary';
 
 type TemplatePostData = Pick<
   ArticlePost,
@@ -39,6 +43,9 @@ type TemplatePostData = Pick<
 > & {
   sourceName: Source['name'];
   sourceImage: Source['image'];
+  sharedPostImage: ArticlePost['image'];
+  sharedPostTitle: ArticlePost['title'];
+  content: FreeformPost['content'];
 };
 
 export const personalizedDigestDateFormat = 'yyyy-MM-dd HH:mm:ss';
@@ -86,8 +93,13 @@ const getPostsTemplateData = ({
     const summary = post.summary || '';
 
     return {
-      post_title: post.title,
-      post_image: post.image || pickImageUrl(post),
+      post_title: post.title || post.sharedPostTitle,
+      post_image: mapCloudinaryUrl(
+        post.image ||
+          post.sharedPostImage ||
+          findPostImageFromContent({ post }) ||
+          pickImageUrl(post),
+      ),
       post_link: addNotificationUtm(
         getDiscussionLink(post.id),
         'email',
@@ -102,14 +114,15 @@ const getPostsTemplateData = ({
       post_read_time: post.readTime,
       post_views: post.views || 0,
       source_name: post.sourceName,
-      source_image: post.sourceImage,
+      source_image: mapCloudinaryUrl(post.sourceImage),
+      type: 'post',
     };
   });
 };
 
 const getEmailVariation = async ({
   personalizedDigest,
-  posts,
+  posts: postsData,
   user,
   feature,
   currentDate,
@@ -129,10 +142,25 @@ const getEmailVariation = async ({
   const dayName = dayEntry ? dayEntry[0] : undefined;
   const userName = user.name?.trim().split(' ')[0] || user.username;
   const userStreak = await user.streak;
+
+  const posts: Record<string, unknown>[] = getPostsTemplateData({
+    posts: postsData,
+    feature,
+  });
+  if (
+    posts.length >= feature.adIndex &&
+    !isPlusMember(user.subscriptionFlags?.cycle)
+  ) {
+    posts.splice(feature.adIndex, 0, {
+      type: 'ad_image',
+      link: `https://email.buysellads.net/?k=CW7DE23N&c=${user.id}`,
+      image: `https://email.buysellads.net/?k=CW7DE23N&i=${user.id}`,
+    });
+  }
   const data = {
     day_name: dayName,
     first_name: userName,
-    posts: getPostsTemplateData({ posts, feature }),
+    posts,
     date: format(currentDate, 'MMM d, yyyy'),
     user: {
       username: user.username,
@@ -247,11 +275,22 @@ export const getPersonalizedDigestEmailPayload = async ({
           'p.comments',
           'p."readTime"',
           'p.views',
+          'p.content',
           's.name as "sourceName"',
           's.image as "sourceImage"',
+          'sp.title as "sharedPostTitle"',
+          'sp.image as "sharedPostImage"',
         ].join(', '),
       )
-      .leftJoin(Source, 's', 'p."sourceId" = s.id'),
+      .leftJoin(Source, 's', 'p."sourceId" = s.id')
+      .leftJoin(
+        ArticlePost,
+        'sp',
+        'sp.id = p."sharedPostId" AND p.type = :shareType',
+        {
+          shareType: PostType.Share,
+        },
+      ),
     'p',
   ).execute();
 

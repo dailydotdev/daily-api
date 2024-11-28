@@ -30,6 +30,7 @@ import {
   CioTransactionalMessageTemplateId,
   formatMailDate,
   getSourceLink,
+  mapCloudinaryUrl,
   pickImageUrl,
   sendEmail,
   truncatePostToTweet,
@@ -149,9 +150,26 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     };
   },
   source_post_submitted: async (con, user, notification) => {
-    const moderation = await con.getRepository(SourcePostModeration).findOne({
+    const moderation: Pick<
+      SourcePostModeration,
+      | 'createdById'
+      | 'sourceId'
+      | 'image'
+      | 'title'
+      | 'content'
+      | 'type'
+      | 'sharedPostId'
+    > | null = await con.getRepository(SourcePostModeration).findOne({
       where: { id: notification.referenceId },
-      select: ['sourceId', 'image', 'title', 'content', 'type', 'sharedPostId'],
+      select: [
+        'createdById',
+        'sourceId',
+        'image',
+        'title',
+        'content',
+        'type',
+        'sharedPostId',
+      ],
     });
 
     if (!moderation) {
@@ -159,13 +177,18 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     }
 
     const { sharedPostId } = moderation;
-    const [squad, createdBy, sharedPost] = await Promise.all([
+    const [squad, createdBy, sharedPost, moderator]: [
+      Pick<SquadSource, 'type' | 'name' | 'handle' | 'image'> | null,
+      Pick<User, 'name' | 'reputation' | 'image'> | null,
+      Pick<ArticlePost, 'title' | 'image'> | null,
+      Pick<User, 'name' | 'reputation' | 'image'> | null,
+    ] = await Promise.all([
       con.getRepository(SquadSource).findOne({
         where: { id: moderation.sourceId },
         select: ['type', 'name', 'handle', 'image'],
       }),
       con.getRepository(User).findOne({
-        where: { id: user.id },
+        where: { id: moderation.createdById },
         select: ['name', 'image', 'reputation'],
       }),
       moderation.type === PostType.Share && sharedPostId
@@ -174,18 +197,23 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
             select: ['title', 'image'],
           })
         : Promise.resolve(null),
+      con.getRepository(User).findOne({
+        where: { id: user.id },
+        select: ['name', 'image', 'reputation'],
+      }),
     ]);
 
-    if (!squad || !createdBy) {
+    if (!squad || !createdBy || !moderator) {
       return null;
     }
 
     return {
-      full_name: createdBy.name,
+      full_name: moderator.name,
       profile_image: createdBy.image,
       squad_name: squad.name,
       squad_image: squad.image,
-      commenter_reputation: createdBy.reputation.toString(),
+      creator_name: createdBy.name,
+      creator_reputation: createdBy.reputation.toString(),
       post_link: `${getSourceLink(squad)}/moderate`,
       post_image: (sharedPost as ArticlePost)?.image || moderation.image,
       post_title: sharedPost?.title || moderation.title,
@@ -832,8 +860,11 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
 
 const formatTemplateDate = <T extends TemplateData>(data: T): T => {
   return Object.keys(data).reduce((acc, key) => {
-    if (typeof data[key] === 'number') {
-      return { ...acc, [key]: (data[key] as number).toLocaleString() };
+    switch (typeof data[key]) {
+      case 'number':
+        return { ...acc, [key]: (data[key] as number).toLocaleString() };
+      case 'string':
+        return { ...acc, [key]: mapCloudinaryUrl(data[key]) };
     }
     return acc;
   }, data);

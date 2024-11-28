@@ -109,6 +109,7 @@ const digestFeatureBaseConfig = {
   maxPosts: 5,
   longTextLimit: 150,
   newUserSendType: UserPersonalizedDigestSendType.weekly,
+  adIndex: 2,
 };
 
 export type PersonalizedDigestFeatureConfig = typeof digestFeatureBaseConfig;

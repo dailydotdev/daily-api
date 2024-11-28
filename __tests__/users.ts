@@ -76,6 +76,7 @@ import {
   threadsSocialUrlMatch,
   twitterSocialUrlMatch,
   type GQLUserTopReader,
+  UploadPreset,
 } from '../src/common';
 import { DataSource, In, IsNull } from 'typeorm';
 import createOrGetConnection from '../src/db';
@@ -996,6 +997,62 @@ describe('streak recover query', () => {
     expect(data.streakRecover.canRecover).toBeTruthy();
     expect(data.streakRecover.oldStreakLength).toBe(oldLength);
     expect(data.streakRecover.cost).toBe(25);
+  });
+});
+
+describe('clearImage mutation', () => {
+  const MUTATION = `
+    mutation ClearUserImage($presets: [UploadPreset]!) {
+      clearImage(presets: $presets) {
+        _
+      }
+    }
+  `;
+
+  it('should not allow unauthenticated users', async () =>
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { presets: [UploadPreset.ProfileCover] },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it("should clear user's avatar", async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { image: 'test', cover: 'cover' });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { presets: [UploadPreset.Avatar] },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const user = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(user.image).toBeNull();
+    expect(user.cover).not.toBeNull();
+  });
+
+  it("should clear user's cover", async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { image: 'test', cover: 'cover' });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { presets: [UploadPreset.ProfileCover] },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const user = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(user.image).not.toBeNull();
+    expect(user.cover).toBeNull();
   });
 });
 

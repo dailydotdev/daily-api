@@ -26,7 +26,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  image: string;
+  image?: string | null;
   infoConfirmed: boolean;
   premium?: boolean;
   reputation: number;
@@ -43,6 +43,7 @@ export interface GQLUserStreak {
   total?: number;
   current: number;
   lastViewAt?: Date;
+  lastViewAtTz?: Date;
   userId: string;
   weekStart: DayOfWeek;
 }

@@ -34,6 +34,7 @@ import { NotificationIcon } from './icons';
 import { SourceMemberRoles } from '../roles';
 import { NotificationType } from './common';
 import { SourcePostModeration } from '../entity/SourcePostModeration';
+import { fallbackImages } from '../config';
 
 const MAX_COMMENT_LENGTH = 320;
 
@@ -273,7 +274,7 @@ export class NotificationBuilder {
     this.avatars.push({
       type: 'user',
       referenceId: user.id,
-      image: user.image,
+      image: user.image ?? fallbackImages.avatar,
       name: user.name || user.username,
       targetUrl: getUserPermalink(user),
     });
@@ -286,7 +287,7 @@ export class NotificationBuilder {
       (user): DeepPartial<NotificationAvatarV2> => ({
         type: 'user',
         referenceId: user.id,
-        image: user.image,
+        image: user.image ?? fallbackImages.avatar,
         name: user.name,
         targetUrl: getUserPermalink(user),
       }),
@@ -341,7 +342,7 @@ export class NotificationBuilder {
   objectPost(
     post: Reference<Post>,
     source: Reference<Source>,
-    sharedPost?: Reference<Post>,
+    sharedPost?: Reference<Post> | null,
     addSquadAvatar = true,
   ) {
     let newBuilder = this.referencePost(post).targetPost(post);

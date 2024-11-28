@@ -126,20 +126,21 @@ import {
 } from '../../entity/SourcePostModeration';
 import { ContentPreferenceSource } from '../../entity/contentPreference/ContentPreferenceSource';
 import { ContentPreference } from '../../entity/contentPreference/ContentPreference';
+import { cleanupSourcePostModerationNotifications } from '../../notifications/common';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
 ): boolean =>
-  freeform.payload.after!.title!.length +
-    freeform.payload.after!.content.length >=
+  (freeform.payload.after!.title!.length || 0) +
+    (freeform.payload.after!.content?.length || 0) >=
   FREEFORM_POST_MINIMUM_CONTENT_LENGTH;
 
 const isFreeformPostChangeLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
 ): boolean =>
   Math.abs(
-    freeform.payload.before!.content.length -
-      freeform.payload.after!.content.length,
+    (freeform.payload.before!.content?.length || 0) -
+      (freeform.payload.after!.content?.length || 0),
   ) >= FREEFORM_POST_MINIMUM_CHANGE_LENGTH;
 
 const isCollectionUpdated = (
@@ -743,15 +744,21 @@ const onSourcePostModerationChange = async (
     });
   }
 
+  if (data.payload.op === 'd') {
+    await cleanupSourcePostModerationNotifications(con, data.payload.before!);
+  }
+
   if (data.payload.op === 'u') {
     if (
       data.payload.before!.status !== SourcePostModerationStatus.Rejected &&
       data.payload.after!.status === SourcePostModerationStatus.Rejected
     ) {
+      const post = data.payload.after!;
+      await cleanupSourcePostModerationNotifications(con, post);
       await triggerTypedEvent(
         logger,
         'api.v1.source-post-moderation-rejected',
-        { post: data.payload.after! },
+        { post },
       );
     }
 
@@ -766,6 +773,7 @@ const onSourcePostModerationChange = async (
       }
 
       if (post.postId) {
+        await cleanupSourcePostModerationNotifications(con, post);
         await triggerTypedEvent(
           logger,
           'api.v1.source-post-moderation-approved',
