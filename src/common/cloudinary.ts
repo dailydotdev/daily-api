@@ -104,6 +104,21 @@ type PostPreset =
   | UploadPreset.FreeformImage
   | UploadPreset.FreeformGif;
 
+interface ClearFileProps {
+  referenceId: string;
+  preset: UploadPreset;
+}
+
+export const clearFile = ({ referenceId, preset }: ClearFileProps) => {
+  if (!process.env.CLOUDINARY_URL) {
+    return;
+  }
+
+  const id = `${preset}_${referenceId}`;
+
+  return cloudinary.v2.uploader.destroy(id);
+};
+
 export const uploadPostFile = (
   name: string,
   stream: Readable,
@@ -112,8 +127,8 @@ export const uploadPostFile = (
 
 export function mapCloudinaryUrl(url: string): string;
 export function mapCloudinaryUrl(url: undefined): undefined;
-export function mapCloudinaryUrl(url?: string): string | undefined;
-export function mapCloudinaryUrl(url?: string): string | undefined {
+export function mapCloudinaryUrl(url?: string | null): string | undefined;
+export function mapCloudinaryUrl(url?: string | null): string | undefined {
   return url?.replace(
     /(?:res\.cloudinary\.com\/daily-now|daily-now-res\.cloudinary\.com)/g,
     'media.daily.dev',

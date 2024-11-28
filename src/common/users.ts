@@ -25,7 +25,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  image: string;
+  image?: string | null;
   infoConfirmed: boolean;
   premium?: boolean;
   reputation: number;
