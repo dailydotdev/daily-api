@@ -1855,7 +1855,7 @@ describe('mutation unblock', () => {
   describe('word', () => {
     beforeEach(async () => {
       await saveFixtures(con, Feed, [{ id: '1-ublm', userId: '1-ublm' }]);
-      await con.getRepository(ContentPreferenceKeyword).save([
+      await con.getRepository(ContentPreferenceWord).save([
         {
           userId: '1-ublm',
           referenceId: 'word-ublm1',
