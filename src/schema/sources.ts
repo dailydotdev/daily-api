@@ -1788,12 +1788,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       await ensureSourcePermissions(ctx, sourceId, permission);
       return paginateSourceMembers(
         (queryBuilder, alias) => {
-          queryBuilder = queryBuilder.andWhere(
-            `${alias}."referenceId" = :source`,
-            {
+          queryBuilder = queryBuilder
+            .andWhere(`${alias}."referenceId" = :source`, {
               source: sourceId,
-            },
-          );
+            })
+            .andWhere(`${alias}.status != :memberContentPreferenceStatus`, {
+              memberContentPreferenceStatus: ContentPreferenceStatus.Blocked,
+            });
 
           if (
             typeof graphorm.mappings?.SourceMember.fields?.roleRank.select ===
@@ -1869,9 +1870,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return paginateSourceMembers(
         (queryBuilder, alias) => {
-          queryBuilder = queryBuilder.andWhere(`${alias}."userId" = :userId`, {
-            userId: ctx.userId,
-          });
+          queryBuilder = queryBuilder
+            .andWhere(`${alias}."userId" = :userId`, {
+              userId: ctx.userId,
+            })
+            .andWhere(`${alias}.status != :memberContentPreferenceStatus`, {
+              memberContentPreferenceStatus: ContentPreferenceStatus.Blocked,
+            });
 
           if (
             typeof graphorm.mappings?.SourceMember.fields?.roleRank.select ===
@@ -1916,9 +1921,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<Connection<GQLSourceMember>> => {
       return paginateSourceMembers(
         (queryBuilder, alias) => {
-          queryBuilder = queryBuilder.andWhere(`${alias}."userId" = :userId`, {
-            userId,
-          });
+          queryBuilder = queryBuilder
+            .andWhere(`${alias}."userId" = :userId`, {
+              userId,
+            })
+            .andWhere(`${alias}.status != :memberContentPreferenceStatus`, {
+              memberContentPreferenceStatus: ContentPreferenceStatus.Blocked,
+            });
 
           if (
             typeof graphorm.mappings?.SourceMember.fields?.roleRank.select ===

@@ -52,6 +52,7 @@ import { reportComment } from '../common/reporting';
 import { ReportReason } from '../entity/common';
 import { toGQLEnum } from '../common/utils';
 import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
+import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 
 export interface GQLComment {
   id: string;
@@ -481,7 +482,12 @@ export const getMentions = async (
   return repo
     .createQueryBuilder('u')
     .select('u.id, u.username')
-    .innerJoin(ContentPreferenceSource, 'cps', 'u.id = cps."userId"')
+    .innerJoin(
+      ContentPreferenceSource,
+      'cps',
+      'u.id = cps."userId" AND cps.status != :status',
+      { status: ContentPreferenceStatus.Blocked },
+    )
     .where('cps."referenceId" = :sourceId', { sourceId })
     .andWhere('u.username IN (:...usernames)', { usernames: result })
     .andWhere('u.id != :id', { id: userId })

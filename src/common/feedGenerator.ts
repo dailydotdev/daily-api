@@ -148,6 +148,7 @@ const getRawFiltersData = async (
           `t."sourceId" = source.id AND source.type = '${SourceType.Squad}'`,
         )
         .where(`t.type = '${ContentPreferenceType.Source}'`)
+        .andWhere(`t.status != '${ContentPreferenceStatus.Blocked}'`)
         .andWhere('"userId" = $2'),
     ),
   ];

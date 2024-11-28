@@ -127,6 +127,10 @@ import {
 import { ContentPreferenceSource } from '../../entity/contentPreference/ContentPreferenceSource';
 import { ContentPreference } from '../../entity/contentPreference/ContentPreference';
 import { cleanupSourcePostModerationNotifications } from '../../notifications/common';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../../entity/contentPreference/types';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -847,32 +851,38 @@ const onSourceMemberChange = async (
   logger: FastifyBaseLogger,
   data: ChangeMessage<ContentPreferenceSource>,
 ) => {
-  const sourceId =
-    data.payload.after!.sourceId || data.payload.before!.sourceId;
+  const contentPreferenceType = data.payload.after!.type;
 
-  const source = await con
-    .getRepository(Source)
-    .createQueryBuilder()
-    .select('type')
-    .where({
-      id: sourceId,
-    })
-    .getRawOne<Pick<Source, 'type'>>();
+  if (contentPreferenceType === ContentPreferenceType.Source) {
+    const sourceId = data.payload.after!.sourceId;
 
-  if (source?.type !== SourceType.Squad) {
-    return;
-  }
+    const source = await con
+      .getRepository(Source)
+      .createQueryBuilder()
+      .select('type')
+      .where({
+        id: sourceId,
+      })
+      .getRawOne<Pick<Source, 'type'>>();
 
-  if (data.payload.op === 'c') {
-    await notifyMemberJoinedSource(logger, data.payload.after!);
-  }
-  if (data.payload.op === 'u') {
-    if (data.payload.before!.flags.role !== data.payload.after!.flags.role) {
-      await notifySourceMemberRoleChanged(
-        logger,
-        data.payload.before!.flags.role!,
-        data.payload.after!,
-      );
+    if (source?.type !== SourceType.Squad) {
+      return;
+    }
+
+    const isMemberBlockingSource =
+      data.payload.after?.status === ContentPreferenceStatus.Blocked;
+
+    if (data.payload.op === 'c' && !isMemberBlockingSource) {
+      await notifyMemberJoinedSource(logger, data.payload.after!);
+    }
+    if (data.payload.op === 'u') {
+      if (data.payload.before!.flags.role !== data.payload.after!.flags.role) {
+        await notifySourceMemberRoleChanged(
+          logger,
+          data.payload.before!.flags.role!,
+          data.payload.after!,
+        );
+      }
     }
   }
 };

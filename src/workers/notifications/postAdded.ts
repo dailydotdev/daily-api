@@ -23,6 +23,7 @@ import { ChangeObject } from '../../types';
 import { buildPostContext, getSubscribedMembers } from './utils';
 import { SourceMemberRoles } from '../../roles';
 import { insertOrIgnoreAction } from '../../schema/actions';
+import { ContentPreferenceStatus } from '../../entity/contentPreference/types';
 
 interface Data {
   post: ChangeObject<Post>;
@@ -91,6 +92,9 @@ const worker: NotificationWorker = {
               })
               .andWhere(`${qb.alias}."referenceId" = :sourceId`, {
                 sourceId: source.id,
+              })
+              .andWhere(`status != :status`, {
+                status: ContentPreferenceStatus.Blocked,
               })
               .andWhere(` ${qb.alias}.flags->>'role' != :role`, {
                 role: SourceMemberRoles.Blocked,

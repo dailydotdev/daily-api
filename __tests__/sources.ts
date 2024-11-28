@@ -1672,6 +1672,18 @@ describe('query sourceMembers', () => {
     expect(res.data).toMatchSnapshot();
   });
 
+  it('should return source members of source without members that blocked squad', async () => {
+    await con.getRepository(ContentPreferenceSource).update(
+      { userId: '2' },
+      {
+        status: ContentPreferenceStatus.Blocked,
+      },
+    );
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+
   it('should return source members without blocked members and based on query', async () => {
     const res = await client.query(QUERY, {
       variables: { id: 'a', query: 'i' },

@@ -3,6 +3,7 @@ import { generateTypedNotificationWorker } from './worker';
 import { NotificationSourceContext } from '../../notifications';
 import { SourceMemberRoles } from '../../roles';
 import { ContentPreferenceSource } from '../../entity/contentPreference/ContentPreferenceSource';
+import { ContentPreferenceStatus } from '../../entity/contentPreference/types';
 
 const toNotify = [SourceMemberRoles.Admin, SourceMemberRoles.Moderator];
 
@@ -20,6 +21,9 @@ const worker = generateTypedNotificationWorker<'api.v1.squad-featured-updated'>(
         .select('"userId"')
         .where('"referenceId" = :sourceId', { sourceId: squad.id })
         .andWhere(`flags->>'role' IN (:...roles)`, { roles: toNotify })
+        .andWhere(`status != :status`, {
+          status: ContentPreferenceStatus.Blocked,
+        })
         .getRawMany<Pick<ContentPreferenceSource, 'userId'>>();
 
       if (!users.length) {

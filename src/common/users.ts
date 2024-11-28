@@ -21,6 +21,7 @@ import { logger } from '../logger';
 import type { GQLKeyword } from '../schema/keywords';
 import type { GQLUser } from '../schema/users';
 import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
+import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 
 export interface User {
   id: string;
@@ -170,7 +171,10 @@ export const getRecentMentionsIds = async (
         'cps',
         'cps."userId" = cm."mentionedUserId"',
       )
-      .andWhere('cps."referenceId" = :sourceId', { sourceId });
+      .andWhere('cps."referenceId" = :sourceId', { sourceId })
+      .andWhere(`cps.status != :status`, {
+        status: ContentPreferenceStatus.Blocked,
+      });
   }
 
   if (query) {
@@ -212,7 +216,10 @@ export const getUserIdsByNameOrUsername = async (
   if (sourceId) {
     queryBuilder = queryBuilder
       .innerJoin(ContentPreferenceSource, 'cps', 'id = cps."userId"')
-      .andWhere('cps."referenceId" = :sourceId', { sourceId });
+      .andWhere('cps."referenceId" = :sourceId', { sourceId })
+      .andWhere(`cps.status != :status`, {
+        status: ContentPreferenceStatus.Blocked,
+      });
   }
 
   if (excludeIds?.length) {

@@ -147,7 +147,10 @@ import {
   SourcePostModerationStatus,
 } from '../../../src/entity/SourcePostModeration';
 import { ContentPreferenceSource } from '../../../src/entity/contentPreference/ContentPreferenceSource';
-import { ContentPreferenceStatus } from '../../../src/entity/contentPreference/types';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../../../src/entity/contentPreference/types';
 import { NotificationType } from '../../../src/notifications/common';
 
 jest.mock('../../../src/common', () => ({
@@ -1976,6 +1979,7 @@ describe('source member', () => {
     },
     status: ContentPreferenceStatus.Subscribed,
     feedId: '1',
+    type: ContentPreferenceType.Source,
   };
 
   beforeEach(async () => {
@@ -2003,6 +2007,22 @@ describe('source member', () => {
     expect(
       jest.mocked(notifyMemberJoinedSource).mock.calls[0].slice(1),
     ).toEqual([base]);
+  });
+
+  it('should not notify on new source member if status is blocked', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: {
+          ...base,
+          status: ContentPreferenceStatus.Blocked,
+        },
+        before: null,
+        op: 'c',
+        table: 'content_preference',
+      }),
+    );
+    expect(notifyMemberJoinedSource).toHaveBeenCalledTimes(0);
   });
 
   it('should notify when role changed', async () => {

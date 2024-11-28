@@ -478,7 +478,7 @@ const obj = new GraphORM({
           customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
             qb
               .where(`${childAlias}."userId" = :userId`, { userId: ctx.userId })
-              .andWhere(`${childAlias}."sourceId" = "${parentAlias}".id`),
+              .andWhere(`${childAlias}."referenceId" = "${parentAlias}".id`),
         },
       },
       privilegedMembers: {
@@ -518,7 +518,7 @@ const obj = new GraphORM({
           const query = qb
             .select('array["memberPostingRank", "memberInviteRank"]')
             .from(Source, 'postingSquad')
-            .where(`postingSquad.id = ${alias}."sourceId"`);
+            .where(`postingSquad.id = ${alias}."referenceId"`);
           return `${query.getQuery()}`;
         },
         transform: (value: [number, number], ctx: Context, parent) => {

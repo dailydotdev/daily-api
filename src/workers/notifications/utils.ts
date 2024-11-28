@@ -27,6 +27,7 @@ import { insertOrIgnoreAction } from '../../schema/actions';
 import { SourcePostModeration } from '../../entity/SourcePostModeration';
 import { ChangeObject } from '../../types';
 import { ContentPreferenceSource } from '../../entity/contentPreference/ContentPreferenceSource';
+import { ContentPreferenceStatus } from '../../entity/contentPreference/types';
 
 export const uniquePostOwners = (
   post: Pick<Post, 'scoutId' | 'authorId'>,
@@ -163,6 +164,9 @@ export async function articleNewCommentHandler(
         })
         .andWhere(`${qb.alias}."referenceId" = :sourceId`, {
           sourceId: source.id,
+        })
+        .andWhere(`status != :status`, {
+          status: ContentPreferenceStatus.Blocked,
         })
         .andWhere(` ${qb.alias}.flags->>'role' != :role`, {
           role: SourceMemberRoles.Blocked,

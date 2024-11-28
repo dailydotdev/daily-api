@@ -67,6 +67,7 @@ import {
   ContentPreferenceSource,
   ContentPreferenceSourceFlags,
 } from '../entity/contentPreference/ContentPreferenceSource';
+import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -205,6 +206,9 @@ const getSquads = async (
       .where('cps."userId" = :userId', { userId })
       .andWhere(`cps.flags->>'role' != :role`, {
         role: SourceMemberRoles.Blocked,
+      })
+      .andWhere(`cps.status != :status`, {
+        status: ContentPreferenceStatus.Blocked,
       })
       .orderBy('LOWER(s.name)', 'ASC')
       .getRawMany<
