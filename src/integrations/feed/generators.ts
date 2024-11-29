@@ -84,6 +84,7 @@ const opts = {
   includeSourceMemberships: true,
   includePostTypes: true,
   includeContentCuration: true,
+  includeBlockedWords: true,
 };
 
 export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
@@ -97,6 +98,7 @@ export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
           includeBlockedSources: true,
           includeBlockedTags: true,
           includeContentCuration: true,
+          includeBlockedWords: true,
         },
       ),
       'popular',

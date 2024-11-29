@@ -41,6 +41,7 @@ import { ILofnClient } from '../../src/integrations/lofn';
 import { ContentPreferenceSource } from '../../src/entity/contentPreference/ContentPreferenceSource';
 import { ContentPreferenceKeyword } from '../../src/entity/contentPreference/ContentPreferenceKeyword';
 import { ContentPreferenceStatus } from '../../src/entity/contentPreference/types';
+import { ContentPreferenceWord } from '../../src/entity/contentPreference/ContentPreferenceWord';
 
 let con: DataSource;
 let ctx: Context;
@@ -189,6 +190,20 @@ describe('FeedPreferencesConfigGenerator', () => {
         status: ContentPreferenceStatus.Blocked,
       },
     ]);
+    await con.getRepository(ContentPreferenceWord).save([
+      {
+        feedId: '1',
+        userId: '1',
+        referenceId: 'word-abc',
+        status: ContentPreferenceStatus.Blocked,
+      },
+      {
+        feedId: '1',
+        userId: '1',
+        referenceId: 'word-def',
+        status: ContentPreferenceStatus.Blocked,
+      },
+    ]);
     await con.getRepository(ContentPreferenceSource).save([
       {
         feedId: '1',
@@ -257,6 +272,7 @@ describe('FeedPreferencesConfigGenerator', () => {
         includeBlockedTags: true,
         includeAllowedTags: true,
         includePostTypes: true,
+        includeBlockedWords: true,
       },
     );
 
@@ -270,6 +286,7 @@ describe('FeedPreferencesConfigGenerator', () => {
         allowed_tags: expect.arrayContaining(['javascript', 'golang']),
         blocked_sources: expect.arrayContaining(['a', 'b']),
         blocked_tags: expect.arrayContaining(['python', 'java']),
+        blocked_title_words: expect.arrayContaining(['word-abc', 'word-def']),
         allowed_post_types: postTypes.filter(
           (x) => x !== PostType.VideoYouTube,
         ),
@@ -556,6 +573,20 @@ describe('FeedLofnConfigGenerator', () => {
         status: ContentPreferenceStatus.Blocked,
       },
     ]);
+    await con.getRepository(ContentPreferenceWord).save([
+      {
+        feedId: '1',
+        userId: '1',
+        referenceId: 'word-abc',
+        status: ContentPreferenceStatus.Blocked,
+      },
+      {
+        feedId: '1',
+        userId: '1',
+        referenceId: 'word-def',
+        status: ContentPreferenceStatus.Blocked,
+      },
+    ]);
     await con.getRepository(ContentPreferenceSource).save([
       {
         feedId: '1',
@@ -633,6 +664,7 @@ describe('FeedLofnConfigGenerator', () => {
         includeBlockedSources: true,
         includeSourceMemberships: true,
         includePostTypes: true,
+        includeBlockedWords: true,
         feed_version: '30',
       },
     );
@@ -658,6 +690,7 @@ describe('FeedLofnConfigGenerator', () => {
         fresh_page_size: '4',
         allowed_tags: expect.arrayContaining(['javascript', 'golang']),
         blocked_tags: expect.arrayContaining(['python', 'java']),
+        blocked_title_words: expect.arrayContaining(['word-abc', 'word-def']),
         blocked_sources: expect.arrayContaining(['a', 'b']),
         squad_ids: expect.arrayContaining(['a', 'b']),
         allowed_post_types: expect.arrayContaining([

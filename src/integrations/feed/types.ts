@@ -49,6 +49,7 @@ export type FeedConfig = {
   blocked_sources?: string[];
   allowed_post_types?: string[];
   allowed_content_curations?: string[];
+  blocked_title_words?: string[];
   squad_ids?: string[];
   providers?: Record<string, FeedProvider>;
   source_types?: ('machine' | 'squad')[];
