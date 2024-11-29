@@ -6,6 +6,7 @@ Object {
     "listicle",
   ],
   "blockedTags": Array [],
+  "blockedWords": Array [],
   "excludeSourceTypes": Array [],
   "excludeSources": Array [],
   "excludeTypes": Array [],
@@ -18,6 +19,7 @@ exports[`function feedToFilters should return filters with blocked source types 
 Object {
   "blockedContentCuration": Array [],
   "blockedTags": Array [],
+  "blockedWords": Array [],
   "excludeSourceTypes": Array [
     "squad",
   ],
@@ -32,6 +34,7 @@ exports[`function feedToFilters should return filters with source memberships 1`
 Object {
   "blockedContentCuration": Array [],
   "blockedTags": Array [],
+  "blockedWords": Array [],
   "excludeSourceTypes": Array [],
   "excludeSources": Array [],
   "excludeTypes": Array [],

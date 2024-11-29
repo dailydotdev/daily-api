@@ -191,6 +191,11 @@ export const typeDefs = /* GraphQL */ `
     Post must be from certain type of source
     """
     excludeSourceTypes: [String!]
+
+    """
+    Post must not include these words in their title
+    """
+    blockedWords: [String!]
   }
 
   type FeedFlagsPublic {

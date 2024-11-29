@@ -68,6 +68,7 @@ import {
 } from '../src/entity/contentPreference/types';
 import { ContentPreferenceSource } from '../src/entity/contentPreference/ContentPreferenceSource';
 import { ContentPreferenceKeyword } from '../src/entity/contentPreference/ContentPreferenceKeyword';
+import { ContentPreferenceWord } from '../src/entity/contentPreference/ContentPreferenceWord';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -2876,6 +2877,28 @@ describe('function feedToFilters', () => {
       enabled: false,
     });
     expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
+  });
+
+  it('should return filters with blocked words', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, User, [usersFixture[0]]);
+    await con.getRepository(Feed).save({ id: '1', userId: '1' });
+    await con.getRepository(ContentPreferenceWord).save([
+      {
+        userId: '1',
+        feedId: '1',
+        referenceId: 'word-abc',
+        status: ContentPreferenceStatus.Blocked,
+      },
+      {
+        userId: '1',
+        feedId: '1',
+        referenceId: 'word-def',
+        status: ContentPreferenceStatus.Blocked,
+      },
+    ]);
+    const filters = await feedToFilters(con, '1', '1');
+    expect(filters.blockedWords).toEqual(['word-abc', 'word-def']);
   });
 
   it('should not return source in sourceIds if member set hideFeedPosts to true', async () => {
