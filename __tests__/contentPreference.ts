@@ -1671,6 +1671,62 @@ describe('mutation block', () => {
         expect(['word-bl1', 'word-bl2', 'word-bl3']).toContain(cp.referenceId);
       });
     });
+
+    it('should block multiple words', async () => {
+      loggedUser = '1-blm';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: 'word-bl1,   word-bl2,  word-bl3   ,',
+          entity: ContentPreferenceType.Word,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreferences = await con
+        .getRepository(ContentPreferenceWord)
+        .findBy({
+          type: ContentPreferenceType.Word,
+        });
+
+      expect(contentPreferences).not.toBeNull();
+      expect(contentPreferences.length).toBe(3);
+
+      contentPreferences.forEach((cp) => {
+        expect(cp.status).toBe(ContentPreferenceStatus.Blocked);
+        expect(cp.type).toEqual(ContentPreferenceType.Word);
+        expect(['word-bl1', 'word-bl2', 'word-bl3']).toContain(cp.referenceId);
+      });
+    });
+
+    it('should block multiple words and store lowercased', async () => {
+      loggedUser = '1-blm';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: 'wOrD-bL1,   Word-bL2,  word-BL3   ,',
+          entity: ContentPreferenceType.Word,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreferences = await con
+        .getRepository(ContentPreferenceWord)
+        .findBy({
+          type: ContentPreferenceType.Word,
+        });
+
+      expect(contentPreferences).not.toBeNull();
+      expect(contentPreferences.length).toBe(3);
+
+      contentPreferences.forEach((cp) => {
+        expect(cp.status).toBe(ContentPreferenceStatus.Blocked);
+        expect(cp.type).toEqual(ContentPreferenceType.Word);
+        expect(['word-bl1', 'word-bl2', 'word-bl3']).toContain(cp.referenceId);
+      });
+    });
   });
 
   describe('source', () => {

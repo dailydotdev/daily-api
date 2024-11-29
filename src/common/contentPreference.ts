@@ -353,7 +353,7 @@ const blockWord: BlockEntity = async ({ ctx, id }) => {
   const ids = uniqueifyArray(
     id
       .split(',')
-      .map((item) => item.trim())
+      .map((item) => item.trim().toLowerCase())
       .filter(Boolean),
   );
 
