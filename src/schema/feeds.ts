@@ -1181,9 +1181,6 @@ const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
     {
       fetchQueryParams: async (ctx, args) => {
         const feedId = args.feedId || ctx.userId;
-        const filters = await feedToFilters(ctx.con, feedId, ctx.userId);
-        console.log('filters', filters);
-        return filters;
         return feedToFilters(ctx.con, feedId, ctx.userId);
       },
       allowPrivatePosts: false,

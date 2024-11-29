@@ -38,7 +38,6 @@ import {
 import { ghostUser } from '../src/common';
 import { ContentPreferenceKeyword } from '../src/entity/contentPreference/ContentPreferenceKeyword';
 import { ContentPreferenceWord } from '../src/entity/contentPreference/ContentPreferenceWord';
-import { isFibonacci } from '../src/common/fibonacci';
 
 let con: DataSource;
 let state: GraphQLTestingState;

@@ -32,8 +32,6 @@ export class LofnClient implements ILofnClient, IGarmrClient {
 
   fetchConfig(payload: LofnFeedConfigPayload): Promise<LofnFeedConfigResponse> {
     return this.garmr.execute(() => {
-      console.log('config', payload);
-
       return fetchParse(`${this.url}/config`, {
         ...this.fetchOptions,
         method: 'POST',

@@ -46,7 +46,6 @@ export class FeedClient implements IFeedClient, IGarmrClient {
     extraMetadata?: GenericMetadata,
   ): Promise<FeedResponse> {
     const res = await this.garmr.execute(() => {
-      console.log('config', config);
       return fetchParse<RawFeedServiceResponse>(this.url, {
         ...this.fetchOptions,
         method: 'POST',
