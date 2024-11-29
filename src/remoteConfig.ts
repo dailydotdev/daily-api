@@ -1,7 +1,7 @@
 import { GrowthBook } from '@growthbook/growthbook';
 import { logger } from './logger';
 import { isProd } from './common/utils';
-import { SubscriptionCycles } from './paddle';
+import type { SubscriptionCycles } from './paddle';
 
 type RemoteConfigValue = {
   inc: number;
@@ -38,9 +38,7 @@ class RemoteConfig {
 
   get vars(): Partial<RemoteConfigValue> {
     if (!process.env.GROWTHBOOK_API_CONFIG_CLIENT_KEY) {
-      return {
-        pricingIds: {},
-      };
+      return {};
     }
 
     if (!this.gb) {
