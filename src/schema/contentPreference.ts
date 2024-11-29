@@ -141,7 +141,7 @@ export const typeDefs = /* GraphQL */ `
       Paginate first
       """
       first: Int
-    ): ContentPreferenceConnection
+    ): ContentPreferenceConnection @auth
   }
 
   extend type Mutation {
