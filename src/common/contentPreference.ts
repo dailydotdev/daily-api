@@ -18,7 +18,7 @@ import {
   NotificationPreferenceSource,
   NotificationPreferenceUser,
 } from '../entity';
-import { ghostUser } from './utils';
+import { ghostUser, uniqueifyArray } from './utils';
 import { randomUUID } from 'crypto';
 import { SourceMemberRoles } from '../roles';
 import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
@@ -343,17 +343,39 @@ const blockKeyword: BlockEntity = async ({ ctx, id }) => {
   });
 };
 
+/**
+ * Block word
+ * Accepts either a single word or a comma separated list of words
+ * @param ctx
+ * @param id
+ */
 const blockWord: BlockEntity = async ({ ctx, id }) => {
-  const repository = ctx.getRepository(ContentPreferenceWord);
-  const contentPreference = repository.create({
-    userId: ctx.userId,
-    referenceId: id,
-    feedId: ctx.userId,
-    status: ContentPreferenceStatus.Blocked,
-    type: ContentPreferenceType.Word,
-  });
+  const ids = uniqueifyArray(
+    id
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean),
+  );
 
-  await repository.save(contentPreference);
+  if (ids.length > 50) {
+    throw new Error('Cannot block more than 50 words at a time');
+  }
+
+  await ctx.con
+    .createQueryBuilder()
+    .insert()
+    .into(ContentPreferenceWord)
+    .values(
+      ids.map((id) => ({
+        userId: ctx.userId,
+        referenceId: id,
+        feedId: ctx.userId,
+        status: ContentPreferenceStatus.Blocked,
+        type: ContentPreferenceType.Word,
+      })) as ContentPreferenceWord[],
+    )
+    .orUpdate(['status'], ['referenceId', 'userId', 'type', 'feedId'])
+    .execute();
 };
 
 const blockSource: BlockEntity = async ({ ctx, id }) => {

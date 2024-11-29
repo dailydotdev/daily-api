@@ -133,6 +133,15 @@ const getRawFiltersData = async (
         .andWhere('"userId" = $2')
         .andWhere(`status = '${ContentPreferenceStatus.Blocked}'`),
     ),
+    rawFilterSelect(con, 'words', (qb) =>
+      qb
+        .select(['"referenceId"'])
+        .from(ContentPreference, 'w')
+        .where('"feedId" = $1')
+        .andWhere(`type = '${ContentPreferenceType.Word}'`)
+        .andWhere(`status = '${ContentPreferenceStatus.Blocked}'`)
+        .andWhere('"userId" = $2'),
+    ),
     rawFilterSelect(con, 'memberships', (qb) =>
       qb
         .select('"sourceId"')
@@ -194,6 +203,20 @@ const advancedSettingsToFilters = (
       return acc;
     },
     { excludeTypes: [], blockedContentCuration: [], excludeSourceTypes: [] },
+  );
+};
+
+const wordsToFilters = ({
+  words,
+}: RawFiltersData): {
+  blockedWords: string[];
+} => {
+  return (words || []).reduce<ReturnType<typeof wordsToFilters>>(
+    (acc, value) => {
+      acc.blockedWords.push(value.referenceId);
+      return acc;
+    },
+    { blockedWords: [] },
   );
 };
 
@@ -261,6 +284,7 @@ export const feedToFilters = async (
     ...advancedSettingsToFilters(rawData),
     ...tagsToFilters(rawData),
     ...sourcesToFilters(rawData),
+    ...wordsToFilters(rawData),
   };
 };
 
@@ -533,6 +557,7 @@ export interface AnonymousFeedFilters {
   blockedTags?: string[];
   sourceIds?: string[];
   blockedContentCuration?: string[];
+  blockedWords?: string[];
   excludeSourceTypes?: string[];
 }
 

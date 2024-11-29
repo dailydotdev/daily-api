@@ -120,6 +120,28 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): ContentPreferenceConnection!
+
+    """
+    What user blocked
+    """
+    userBlocked(
+      """
+      Id of user
+      """
+      userId: ID!
+      """
+      Entity to list (user, source..)
+      """
+      entity: ContentPreferenceType!
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+    ): ContentPreferenceConnection
   }
 
   extend type Mutation {
@@ -281,6 +303,47 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             })
             .andWhere(`${builder.alias}."type" = :type`, {
               type: args.entity,
+            })
+            .limit(page.limit)
+            .offset(page.offset)
+            .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
+
+          return builder;
+        },
+        undefined,
+        true,
+      );
+    },
+    userBlocked: async (
+      _,
+      args: {
+        userId: string;
+        entity: ContentPreferenceType;
+      } & ConnectionArguments,
+      ctx: AuthContext,
+      info,
+    ): Promise<Connection<GQLContentPreference>> => {
+      const page = contentPreferencePageGenerator.connArgsToPage(args);
+
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) =>
+          contentPreferencePageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) =>
+          contentPreferencePageGenerator.hasNextPage(page, nodeSize),
+        (node, index) =>
+          contentPreferencePageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .where(`${builder.alias}."userId" = :userId`, {
+              userId: args.userId,
+            })
+            .andWhere(`${builder.alias}."type" = :type`, {
+              type: args.entity,
+            })
+            .andWhere(`${builder.alias}."status" = :status`, {
+              status: ContentPreferenceStatus.Blocked,
             })
             .limit(page.limit)
             .offset(page.offset)

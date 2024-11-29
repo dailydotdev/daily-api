@@ -19,6 +19,7 @@ type Options = {
   includeSourceMemberships?: boolean;
   includePostTypes?: boolean;
   includeContentCuration?: boolean;
+  includeBlockedWords?: boolean;
   feedId?: string;
 };
 
@@ -105,6 +106,9 @@ const addFiltersToConfig = ({
     baseConfig.allowed_content_curations = AllowedContentCurationTypes.filter(
       (type) => !filters.blockedContentCuration!.includes(type),
     );
+  }
+  if (filters.blockedWords?.length && opts.includeBlockedWords) {
+    baseConfig.blocked_title_words = filters.blockedWords;
   }
 
   return baseConfig;
