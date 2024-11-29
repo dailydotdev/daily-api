@@ -35,6 +35,7 @@ import {
   ContentPreferenceType,
 } from '../entity/contentPreference/types';
 import { ContentPreference } from '../entity/contentPreference/ContentPreference';
+import { ContentPreferenceWord } from '../entity/contentPreference/ContentPreferenceWord';
 
 export const WATERCOOLER_ID = 'fd062672-63b7-4a10-87bd-96dcd10e9613';
 
@@ -95,6 +96,7 @@ type RawFiltersData = {
     | Pick<FeedAdvancedSettings, 'advancedSettingsId' | 'enabled'>[]
     | null;
   tags: Pick<ContentPreferenceKeyword, 'keywordId' | 'status'>[] | null;
+  words: Pick<ContentPreferenceWord, 'referenceId'>[] | null;
   excludeSources: Pick<ContentPreferenceSource, 'sourceId'>[] | null;
   memberships: { sourceId: SourceMember['sourceId']; hide: boolean }[] | null;
 };
