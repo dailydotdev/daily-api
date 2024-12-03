@@ -12,7 +12,7 @@ import { runInSpan } from '../../telemetry';
 import { ILofnClient } from '../lofn';
 import { Context } from '../../Context';
 
-type Options = {
+export type Options = {
   includeAllowedTags?: boolean;
   includeBlockedTags?: boolean;
   includeBlockedSources?: boolean;
@@ -20,6 +20,8 @@ type Options = {
   includePostTypes?: boolean;
   includeContentCuration?: boolean;
   includeBlockedWords?: boolean;
+  includeFollowedSources?: boolean;
+  includeFollowedUsers?: boolean;
   feedId?: string;
 };
 
@@ -109,6 +111,12 @@ const addFiltersToConfig = ({
   }
   if (filters.blockedWords?.length && opts.includeBlockedWords) {
     baseConfig.blocked_title_words = filters.blockedWords;
+  }
+  if (filters.followingSources?.length && opts.includeFollowedSources) {
+    baseConfig.followed_sources = filters.followingSources;
+  }
+  if (filters.followingUsers?.length && opts.includeFollowedUsers) {
+    baseConfig.followed_user_ids = filters.followingUsers;
   }
 
   return baseConfig;

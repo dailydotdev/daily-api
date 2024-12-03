@@ -42,6 +42,7 @@ import { ContentPreferenceSource } from '../../src/entity/contentPreference/Cont
 import { ContentPreferenceKeyword } from '../../src/entity/contentPreference/ContentPreferenceKeyword';
 import { ContentPreferenceStatus } from '../../src/entity/contentPreference/types';
 import { ContentPreferenceWord } from '../../src/entity/contentPreference/ContentPreferenceWord';
+import { ContentPreferenceUser } from '../../src/entity/contentPreference/ContentPreferenceUser';
 
 let con: DataSource;
 let ctx: Context;
@@ -207,6 +208,42 @@ describe('FeedPreferencesConfigGenerator', () => {
     await con.getRepository(ContentPreferenceSource).save([
       {
         feedId: '1',
+        sourceId: 'c',
+        userId: '1',
+        status: ContentPreferenceStatus.Follow,
+        referenceId: 'c',
+      },
+      {
+        feedId: '1',
+        sourceId: 'p',
+        userId: '1',
+        status: ContentPreferenceStatus.Subscribed,
+        referenceId: 'd',
+      },
+    ]);
+    await con.getRepository(ContentPreferenceUser).save([
+      {
+        feedId: '1',
+        userId: '1',
+        status: ContentPreferenceStatus.Follow,
+        referenceId: '2',
+      },
+      {
+        feedId: '1',
+        userId: '1',
+        status: ContentPreferenceStatus.Subscribed,
+        referenceId: '3',
+      },
+      {
+        feedId: '1',
+        userId: '1',
+        status: ContentPreferenceStatus.Blocked,
+        referenceId: '4',
+      },
+    ]);
+    await con.getRepository(ContentPreferenceSource).save([
+      {
+        feedId: '1',
         sourceId: 'a',
         userId: '1',
         status: ContentPreferenceStatus.Blocked,
@@ -273,6 +310,8 @@ describe('FeedPreferencesConfigGenerator', () => {
         includeAllowedTags: true,
         includePostTypes: true,
         includeBlockedWords: true,
+        includeFollowedUsers: true,
+        includeFollowedSources: true,
       },
     );
 
@@ -287,6 +326,8 @@ describe('FeedPreferencesConfigGenerator', () => {
         blocked_sources: expect.arrayContaining(['a', 'b']),
         blocked_tags: expect.arrayContaining(['python', 'java']),
         blocked_title_words: expect.arrayContaining(['word-abc', 'word-def']),
+        followed_sources: expect.arrayContaining(['c', 'p']),
+        followed_user_ids: expect.arrayContaining(['2', '3']),
         allowed_post_types: postTypes.filter(
           (x) => x !== PostType.VideoYouTube,
         ),

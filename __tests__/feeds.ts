@@ -69,6 +69,7 @@ import {
 import { ContentPreferenceSource } from '../src/entity/contentPreference/ContentPreferenceSource';
 import { ContentPreferenceKeyword } from '../src/entity/contentPreference/ContentPreferenceKeyword';
 import { ContentPreferenceWord } from '../src/entity/contentPreference/ContentPreferenceWord';
+import { ContentPreferenceUser } from '../src/entity/contentPreference/ContentPreferenceUser';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -2793,6 +2794,67 @@ describe('function feedToFilters', () => {
       'excludedSource',
       'settingsCombinationSource',
     ]);
+  });
+
+  it('should return filters having following sources based on content preference', async () => {
+    loggedUser = '1';
+    await saveAdvancedSettingsFiltersFixtures();
+    await con.getRepository(ContentPreferenceSource).save([
+      {
+        feedId: '1',
+        sourceId: 'excludedSource',
+        userId: '1',
+        status: ContentPreferenceStatus.Follow,
+        referenceId: 'excludedSource',
+      },
+      {
+        feedId: '1',
+        sourceId: 'settingsCombinationSource',
+        userId: '1',
+        status: ContentPreferenceStatus.Subscribed,
+        referenceId: 'settingsCombinationSource',
+      },
+      {
+        feedId: '1',
+        sourceId: 'experimentIncludedSource',
+        userId: '1',
+        status: ContentPreferenceStatus.Blocked,
+        referenceId: 'experimentIncludedSource',
+      },
+    ]);
+    const filters = await feedToFilters(con, '1', '1');
+    expect(filters.excludeSources).toEqual(['experimentIncludedSource']);
+    expect(filters.followingSources).toEqual([
+      'excludedSource',
+      'settingsCombinationSource',
+    ]);
+  });
+
+  it('should return filters having following users based on content preference', async () => {
+    loggedUser = '1';
+    await saveAdvancedSettingsFiltersFixtures();
+    await con.getRepository(ContentPreferenceUser).save([
+      {
+        feedId: '1',
+        userId: '1',
+        status: ContentPreferenceStatus.Follow,
+        referenceId: '2',
+      },
+      {
+        feedId: '1',
+        userId: '1',
+        status: ContentPreferenceStatus.Subscribed,
+        referenceId: '3',
+      },
+      {
+        feedId: '1',
+        userId: '1',
+        status: ContentPreferenceStatus.Blocked,
+        referenceId: '4',
+      },
+    ]);
+    const filters = await feedToFilters(con, '1', '1');
+    expect(filters.followingUsers).toEqual(['2', '3']);
   });
 
   it('should return filters having excluded content types based on advanced settings', async () => {

@@ -196,6 +196,16 @@ export const typeDefs = /* GraphQL */ `
     Post must not include these words in their title
     """
     blockedWords: [String!]
+
+    """
+    Include posts from these sources
+    """
+    followingSources: [ID!]
+
+    """
+    Include posts from these users
+    """
+    followingUsers: [ID!]
   }
 
   type FeedFlagsPublic {
@@ -375,6 +385,21 @@ export const typeDefs = /* GraphQL */ `
       Array of supported post types
       """
       supportedTypes: [String!]
+    ): PostConnection! @auth
+
+    """
+    Get user following feed
+    """
+    followingFeed(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
     ): PostConnection! @auth
 
     """
@@ -1308,6 +1333,27 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         );
       }
       return feedResolverV1(source, args, ctx, info);
+    },
+    followingFeed: async (source, args: FeedArgs, ctx: Context, info) => {
+      return feedResolverCursor(
+        source,
+        {
+          ...(args as FeedArgs),
+          generator: versionToFeedGenerator('f1', {
+            includeBlockedTags: true,
+            includeAllowedTags: false,
+            includeBlockedSources: true,
+            includeSourceMemberships: false,
+            includePostTypes: true,
+            includeContentCuration: true,
+            includeBlockedWords: true,
+            includeFollowedSources: true,
+            includeFollowedUsers: true,
+          }),
+        },
+        ctx,
+        info,
+      );
     },
     customFeed: async (
       source,
