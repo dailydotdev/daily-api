@@ -272,7 +272,10 @@ const sourcesToFilters = ({
   sourceIds: string[];
   followingSources: string[];
 } => {
-  const { blocked, following } = (sources || []).reduce(
+  const { blocked, following } = (sources || []).reduce<{
+    blocked: string[];
+    following: string[];
+  }>(
     (acc, value) => {
       if (value.status === ContentPreferenceStatus.Blocked) {
         acc.blocked.push(value.sourceId);
@@ -297,9 +300,7 @@ const sourcesToFilters = ({
   );
 
   return {
-    excludeSources: (blocked || [])
-      .map((s) => s)
-      .concat(membershipsByHide.hide),
+    excludeSources: blocked.map((s) => s).concat(membershipsByHide.hide),
     sourceIds: membershipsByHide.show,
     followingSources: following,
   };

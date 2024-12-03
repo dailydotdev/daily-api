@@ -124,14 +124,11 @@ export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
     ),
   });
 
-export const versionToFeedGenerator = (
-  version: number | FeedVersion,
-  inputOpts?: Options,
-): FeedGenerator => {
+export const versionToFeedGenerator = (version: number): FeedGenerator => {
   return new FeedGenerator(
     feedClient,
     new FeedLofnConfigGenerator(baseFeedConfig, lofnClient, {
-      ...(inputOpts ?? opts),
+      ...opts,
       feed_version: version.toString() as FeedVersion,
     }),
   );

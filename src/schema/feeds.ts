@@ -48,12 +48,14 @@ import { GQLPost } from './posts';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import graphorm from '../graphorm';
 import {
+  baseFeedConfig,
   feedClient,
   FeedConfigName,
   FeedGenerator,
   feedGenerators,
   FeedPreferencesConfigGenerator,
   FeedResponse,
+  FeedVersion,
   SimpleFeedConfigGenerator,
   versionToFeedGenerator,
 } from '../integrations/feed';
@@ -70,9 +72,12 @@ import {
   getFeedByIdentifiersOrFail,
   validateFeedPayload,
 } from '../common/feed';
-import { FeedLocalConfigGenerator } from '../integrations/feed/configs';
+import {
+  FeedLocalConfigGenerator,
+  FeedLofnConfigGenerator,
+} from '../integrations/feed/configs';
 import { counters } from '../telemetry';
-import { popularFeedClient } from '../integrations/feed/generators';
+import { lofnClient, popularFeedClient } from '../integrations/feed/generators';
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
 import { randomUUID } from 'crypto';
@@ -1339,17 +1344,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         source,
         {
           ...(args as FeedArgs),
-          generator: versionToFeedGenerator('f1', {
-            includeBlockedTags: true,
-            includeAllowedTags: false,
-            includeBlockedSources: true,
-            includeSourceMemberships: false,
-            includePostTypes: true,
-            includeContentCuration: true,
-            includeBlockedWords: true,
-            includeFollowedSources: true,
-            includeFollowedUsers: true,
-          }),
+          generator: new FeedGenerator(
+            feedClient,
+            new FeedLofnConfigGenerator(baseFeedConfig, lofnClient, {
+              includeBlockedTags: true,
+              includeAllowedTags: false,
+              includeBlockedSources: true,
+              includeSourceMemberships: false,
+              includePostTypes: true,
+              includeContentCuration: true,
+              includeBlockedWords: true,
+              includeFollowedSources: true,
+              includeFollowedUsers: true,
+              feed_version: 'f1',
+            }),
+          ),
         },
         ctx,
         info,
