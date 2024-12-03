@@ -1455,6 +1455,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               .where(`"${builder.alias}"."sourceId" = :sourceId`, {
                 sourceId: args.sourceId,
               })
+              .andWhere(
+                `"${builder.alias}"."flags"->>'vordr')::boolean IS NOT TRUE`,
+              )
               .orderBy(`${builder.alias}.updatedAt`, 'DESC')
               .limit(page.limit)
               .offset(page.offset);
