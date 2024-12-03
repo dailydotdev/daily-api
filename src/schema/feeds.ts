@@ -55,7 +55,6 @@ import {
   feedGenerators,
   FeedPreferencesConfigGenerator,
   FeedResponse,
-  FeedVersion,
   SimpleFeedConfigGenerator,
   versionToFeedGenerator,
 } from '../integrations/feed';
