@@ -48,6 +48,7 @@ import { GQLPost } from './posts';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import graphorm from '../graphorm';
 import {
+  baseFeedConfig,
   feedClient,
   FeedConfigName,
   FeedGenerator,
@@ -70,9 +71,12 @@ import {
   getFeedByIdentifiersOrFail,
   validateFeedPayload,
 } from '../common/feed';
-import { FeedLocalConfigGenerator } from '../integrations/feed/configs';
+import {
+  FeedLocalConfigGenerator,
+  FeedLofnConfigGenerator,
+} from '../integrations/feed/configs';
 import { counters } from '../telemetry';
-import { popularFeedClient } from '../integrations/feed/generators';
+import { lofnClient, popularFeedClient } from '../integrations/feed/generators';
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
 import { randomUUID } from 'crypto';
@@ -196,6 +200,16 @@ export const typeDefs = /* GraphQL */ `
     Post must not include these words in their title
     """
     blockedWords: [String!]
+
+    """
+    Include posts from these sources
+    """
+    followingSources: [ID!]
+
+    """
+    Include posts from these users
+    """
+    followingUsers: [ID!]
   }
 
   type FeedFlagsPublic {
@@ -375,6 +389,21 @@ export const typeDefs = /* GraphQL */ `
       Array of supported post types
       """
       supportedTypes: [String!]
+    ): PostConnection! @auth
+
+    """
+    Get user following feed
+    """
+    followingFeed(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
     ): PostConnection! @auth
 
     """
@@ -1308,6 +1337,31 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         );
       }
       return feedResolverV1(source, args, ctx, info);
+    },
+    followingFeed: async (source, args: FeedArgs, ctx: Context, info) => {
+      return feedResolverCursor(
+        source,
+        {
+          ...(args as FeedArgs),
+          generator: new FeedGenerator(
+            feedClient,
+            new FeedLofnConfigGenerator(baseFeedConfig, lofnClient, {
+              includeBlockedTags: true,
+              includeAllowedTags: false,
+              includeBlockedSources: true,
+              includeSourceMemberships: false,
+              includePostTypes: true,
+              includeContentCuration: true,
+              includeBlockedWords: true,
+              includeFollowedSources: true,
+              includeFollowedUsers: true,
+              feed_version: 'f1',
+            }),
+          ),
+        },
+        ctx,
+        info,
+      );
     },
     customFeed: async (
       source,
