@@ -24,6 +24,7 @@ export type SettingsFlags = Partial<{
   sidebarCustomFeedsExpanded: boolean;
   sidebarOtherExpanded: boolean;
   sidebarResourcesExpanded: boolean;
+  sidebarBookmarksExpanded: boolean;
 }>;
 
 export type SettingsFlagsPublic = Pick<
@@ -32,6 +33,7 @@ export type SettingsFlagsPublic = Pick<
   | 'sidebarCustomFeedsExpanded'
   | 'sidebarOtherExpanded'
   | 'sidebarResourcesExpanded'
+  | 'sidebarBookmarksExpanded'
 >;
 
 @Entity()
@@ -126,5 +128,6 @@ export const SETTINGS_DEFAULT = {
     sidebarCustomFeedsExpanded: true,
     sidebarOtherExpanded: true,
     sidebarResourcesExpanded: true,
+    sidebarBookmarksExpanded: true,
   },
 };
