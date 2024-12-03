@@ -3533,6 +3533,7 @@ describe('query sourcePostModeration', () => {
   sourcePostModerations(sourceId: $sourceId, status: $status) {
     edges {
       node {
+        id
         title
         type
       }
@@ -3588,6 +3589,25 @@ describe('query sourcePostModeration', () => {
     });
     expect(res.errors).toBeUndefined();
     expect(res.data.sourcePostModerations.edges.length).toEqual(5);
+  });
+
+  it('should filter out vordred submissions for moderators', async () => {
+    loggedUser = '3';
+    await con
+      .getRepository(SourcePostModeration)
+      .update(
+        { id: firstPostUuid },
+        { flags: updateFlagsStatement<SourcePostModeration>({ vordr: true }) },
+      );
+    const res = await client.query(queryAllForSource, {
+      variables: { sourceId: 'm' },
+    });
+    expect(res.errors).toBeUndefined();
+    expect(res.data.sourcePostModerations.edges.length).toEqual(4);
+    const vordred = res.data.sourcePostModerations.edges.find(
+      (edge) => edge.node.id === firstPostUuid,
+    );
+    expect(vordred).toBeFalsy();
   });
 
   it('should return only approved and rejected items', async () => {
@@ -3855,6 +3875,64 @@ describe('mutation createSourcePostModeration', () => {
       externalParams.externalLink,
     );
     expect(res.data.createSourcePostModeration.post).toBeNull();
+  });
+
+  describe('vordr', () => {
+    it('should set the correct vordr flags if the submission is from a good user', async () => {
+      loggedUser = '4';
+      const externalParams = {
+        sourceId: 'm',
+        title: 'External Link Title',
+        content: 'This is an awesome link',
+        imageUrl:
+          'https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1',
+        type: PostType.Share,
+        externalLink: 'https://www.google.com',
+      };
+      const res = await client.mutate(MUTATION, {
+        variables: externalParams,
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createSourcePostModeration).toBeTruthy();
+
+      const { id } = res.data.createSourcePostModeration;
+      const moderation = await con
+        .getRepository(SourcePostModeration)
+        .findOneByOrFail({ id });
+      expect(moderation.status).toEqual(SourcePostModerationStatus.Pending);
+      expect(moderation.flags.vordr).toEqual(false);
+    });
+
+    it('should set the correct vordr flags if the submission is from a bad user', async () => {
+      await con.getRepository(SourceMember).save({
+        userId: 'vordr',
+        sourceId: 'm',
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      });
+      loggedUser = 'vordr';
+      const externalParams = {
+        sourceId: 'm',
+        title: 'External Link Title',
+        content: 'This is an awesome link',
+        imageUrl:
+          'https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1',
+        type: PostType.Share,
+        externalLink: 'https://www.google.com',
+      };
+      const res = await client.mutate(MUTATION, {
+        variables: externalParams,
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createSourcePostModeration).toBeTruthy();
+
+      const { id } = res.data.createSourcePostModeration;
+      const moderation = await con
+        .getRepository(SourcePostModeration)
+        .findOneByOrFail({ id });
+      expect(moderation.status).toEqual(SourcePostModerationStatus.Pending);
+      expect(moderation.flags.vordr).toEqual(true);
+    });
   });
 });
 

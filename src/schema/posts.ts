@@ -1456,7 +1456,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 sourceId: args.sourceId,
               })
               .andWhere(
-                `"${builder.alias}"."flags"->>'vordr')::boolean IS NOT TRUE`,
+                `("${builder.alias}"."flags"->>'vordr')::boolean IS NOT TRUE`,
               )
               .orderBy(`${builder.alias}.updatedAt`, 'DESC')
               .limit(page.limit)
