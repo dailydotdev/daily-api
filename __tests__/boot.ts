@@ -801,6 +801,7 @@ describe('boot misc', () => {
         sidebarOtherExpanded: true,
         sidebarResourcesExpanded: true,
         sidebarSquadExpanded: true,
+        sidebarBookmarksExpanded: true,
       },
     });
   });

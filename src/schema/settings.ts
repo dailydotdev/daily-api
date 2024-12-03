@@ -61,6 +61,7 @@ export const typeDefs = /* GraphQL */ `
     sidebarCustomFeedsExpanded: Boolean
     sidebarOtherExpanded: Boolean
     sidebarResourcesExpanded: Boolean
+    sidebarBookmarksExpanded: Boolean
   }
 
   input SettingsFlagsPublicInput {
@@ -68,6 +69,7 @@ export const typeDefs = /* GraphQL */ `
     sidebarCustomFeedsExpanded: Boolean
     sidebarOtherExpanded: Boolean
     sidebarResourcesExpanded: Boolean
+    sidebarBookmarksExpanded: Boolean
   }
 
   """
