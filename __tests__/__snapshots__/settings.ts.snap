@@ -9,6 +9,7 @@ Object {
     "customLinks": null,
     "enableCardAnimations": true,
     "flags": Object {
+      "clickbaitShieldEnabled": null,
       "sidebarBookmarksExpanded": null,
       "sidebarCustomFeedsExpanded": null,
       "sidebarOtherExpanded": null,
@@ -41,6 +42,7 @@ Object {
     "customLinks": null,
     "enableCardAnimations": true,
     "flags": Object {
+      "clickbaitShieldEnabled": null,
       "sidebarBookmarksExpanded": null,
       "sidebarCustomFeedsExpanded": null,
       "sidebarOtherExpanded": null,
@@ -75,6 +77,7 @@ Object {
     ],
     "enableCardAnimations": true,
     "flags": Object {
+      "clickbaitShieldEnabled": null,
       "sidebarBookmarksExpanded": null,
       "sidebarCustomFeedsExpanded": null,
       "sidebarOtherExpanded": null,
@@ -109,6 +112,7 @@ Object {
     ],
     "enableCardAnimations": true,
     "flags": Object {
+      "clickbaitShieldEnabled": null,
       "sidebarBookmarksExpanded": null,
       "sidebarCustomFeedsExpanded": null,
       "sidebarOtherExpanded": null,
@@ -141,6 +145,7 @@ Object {
   "customLinks": null,
   "enableCardAnimations": true,
   "flags": Object {
+    "clickbaitShieldEnabled": true,
     "sidebarBookmarksExpanded": true,
     "sidebarCustomFeedsExpanded": true,
     "sidebarOtherExpanded": true,

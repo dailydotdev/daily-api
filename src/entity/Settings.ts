@@ -25,6 +25,7 @@ export type SettingsFlags = Partial<{
   sidebarOtherExpanded: boolean;
   sidebarResourcesExpanded: boolean;
   sidebarBookmarksExpanded: boolean;
+  clickbaitShieldEnabled: boolean;
 }>;
 
 export type SettingsFlagsPublic = Pick<
@@ -34,6 +35,7 @@ export type SettingsFlagsPublic = Pick<
   | 'sidebarOtherExpanded'
   | 'sidebarResourcesExpanded'
   | 'sidebarBookmarksExpanded'
+  | 'clickbaitShieldEnabled'
 >;
 
 @Entity()
@@ -129,5 +131,6 @@ export const SETTINGS_DEFAULT = {
     sidebarOtherExpanded: true,
     sidebarResourcesExpanded: true,
     sidebarBookmarksExpanded: true,
+    clickbaitShieldEnabled: true,
   },
 };
