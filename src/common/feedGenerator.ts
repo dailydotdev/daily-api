@@ -318,7 +318,6 @@ export enum Ranking {
 export interface FeedOptions {
   ranking: Ranking;
   supportedTypes?: string[];
-  refresh?: boolean;
   feedId?: string;
 }
 
