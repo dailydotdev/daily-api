@@ -256,10 +256,17 @@ export type CreateSourcePostModeration = Omit<
     postId?: string;
   };
 
-export const createSourcePostModeration = async (
-  con: DataSource | EntityManager,
-  args: CreateSourcePostModeration,
-) => {
+interface CreateSourcePostModerationProps {
+  con: DataSource | EntityManager;
+  ctx: AuthContext;
+  args: CreateSourcePostModeration;
+}
+
+export const createSourcePostModeration = async ({
+  con,
+  ctx,
+  args,
+}: CreateSourcePostModerationProps) => {
   if (args.postId) {
     const post = await con
       .getRepository(Post)
@@ -274,6 +281,20 @@ export const createSourcePostModeration = async (
     ...args,
     status: SourcePostModerationStatus.Pending,
   });
+
+  const content = `${args.title} ${args.content}`.trim();
+
+  newModerationEntry.flags = {
+    vordr: await checkWithVordr(
+      {
+        id: newModerationEntry.id,
+        type: VordrFilterType.PostModeration,
+        content,
+      },
+      { con, userId: ctx.userId, req: ctx.req },
+    ),
+  };
+
   return await con.getRepository(SourcePostModeration).save(newModerationEntry);
 };
 

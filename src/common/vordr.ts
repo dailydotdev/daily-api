@@ -24,6 +24,7 @@ export const validateVordrWords = (content?: string): boolean => {
 export enum VordrFilterType {
   Comment = 'comment',
   Post = 'post',
+  PostModeration = 'post_moderation',
   Submission = 'submission',
 }
 
