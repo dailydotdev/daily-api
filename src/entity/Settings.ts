@@ -128,5 +128,6 @@ export const SETTINGS_DEFAULT = {
     sidebarCustomFeedsExpanded: true,
     sidebarOtherExpanded: true,
     sidebarResourcesExpanded: true,
+    sidebarBookmarksExpanded: true,
   },
 };
