@@ -627,16 +627,16 @@ export const findPostImageFromContent = ({
 };
 
 export const getPostTranslatedTitle = (
-  post: Pick<Post, 'title' | 'contentMeta'>,
+  post: Partial<Pick<Post, 'title' | 'contentMeta'>>,
   contentLanguage: ContentLanguage,
 ) =>
   post.contentMeta?.translate_title?.translations?.[contentLanguage] ||
   post.title;
 
 export const getPostSmartTitle = (
-  post: Pick<Post, 'contentMeta'>,
-  contentLanguage: ContentLanguage,
+  post: Partial<Pick<Post, 'title' | 'contentMeta'>>,
+  contentLanguage?: ContentLanguage,
 ) =>
   post.contentMeta?.alt_title?.translations?.[
     contentLanguage ?? ContentLanguage.English
-  ];
+  ] || post.title;
