@@ -64,6 +64,10 @@ import {
   PostRelation,
   deletePost,
   SubmitExternalLinkArgs,
+  UserAction,
+  Settings,
+  getPostTranslatedTitle,
+  getPostSmartTitle,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -104,6 +108,8 @@ import {
 } from '../entity/SourcePostModeration';
 import { logger } from '../logger';
 import { Source } from '@dailydotdev/schema';
+import { isUserPlusMember } from '../paddle';
+import { queryReadReplica } from '../common/queryReadReplica';
 
 export interface GQLSourcePostModeration {
   id: string;
@@ -736,6 +742,10 @@ export const typeDefs = /* GraphQL */ `
     query: String
   }
 
+  type PostSmartTitle {
+    title: String
+  }
+
   """
   Enum of the possible reasons to report a post
   """
@@ -888,6 +898,12 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): PostCodeSnippetConnection!
+
+    """
+    Gets the Smart Title or the original title of a post,
+    based on the settings of the user
+    """
+    fetchSmartTitle(id: ID!): PostSmartTitle @auth
   }
 
   extend type Mutation {
@@ -1748,6 +1764,55 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         undefined,
         true,
       );
+    },
+    fetchSmartTitle: async (_, { id }: { id: string }, ctx: Context) => {
+      const post: Pick<Post, 'title' | 'contentMeta'> = await queryReadReplica(
+        ctx.con,
+        ({ queryRunner }) =>
+          queryRunner.manager.getRepository(Post).findOneOrFail({
+            where: { id },
+            select: ['title', 'contentMeta'],
+          }),
+      );
+      const isPlus = await isUserPlusMember(ctx.con, ctx.userId);
+      if (!isPlus) {
+        const hasUsedFreeTrial = await ctx.con
+          .getRepository(UserAction)
+          .findOneBy({
+            userId: ctx.userId,
+            type: UserActionType.FetchedSmartTitle,
+          });
+
+        if (hasUsedFreeTrial) {
+          throw new ForbiddenError(
+            'Free trial has been used! Please upgrade to Plus to continue using this feature.',
+          );
+        } else {
+          await ctx.con.getRepository(UserAction).save({
+            userId: ctx.userId,
+            type: UserActionType.FetchedSmartTitle,
+          });
+        }
+      }
+
+      const {
+        flags: { clickbaitShieldEnabled },
+      } = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(Settings).findOneOrFail({
+          where: { userId: ctx.userId },
+          select: ['flags'],
+        }),
+      );
+
+      if (clickbaitShieldEnabled ?? true) {
+        return {
+          title: getPostTranslatedTitle(post, ctx.contentLanguage),
+        };
+      }
+
+      return {
+        title: getPostSmartTitle(post, ctx.contentLanguage),
+      };
     },
   },
   Mutation: {

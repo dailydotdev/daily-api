@@ -13,6 +13,7 @@ import { PostKeyword } from '../PostKeyword';
 import { User } from '../user';
 import { PostRelation } from './PostRelation';
 import type { PostCodeSnippet } from './PostCodeSnippet';
+import type { I18nRecord } from '../../types';
 
 export enum PostType {
   Article = 'article',
@@ -48,6 +49,18 @@ export type PostFlagsPublic = Pick<PostFlags, 'private' | 'promoteToPublic'>;
 
 export type PostContentQuality = Partial<{
   is_ai_probability: number;
+}>;
+
+export type PostContentMeta = Partial<{
+  alt_title: {
+    provider: string;
+    translations: I18nRecord;
+  };
+  translate_title: {
+    provider: string;
+    translations: I18nRecord;
+  };
+  [key: string]: unknown;
 }>;
 
 @Entity()
@@ -259,7 +272,7 @@ export class Post {
   slug: string;
 
   @Column({ type: 'jsonb', default: {} })
-  contentMeta: object;
+  contentMeta: PostContentMeta;
 
   @Column({ type: 'jsonb', default: {} })
   contentQuality: PostContentQuality;

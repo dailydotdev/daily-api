@@ -27,6 +27,7 @@ import { CollectionPost } from './CollectionPost';
 import { checkWithVordr, VordrFilterType } from '../../common/vordr';
 import { AuthContext } from '../../Context';
 import { logger } from '../../logger';
+import { ContentLanguage } from '../../types';
 
 export type PostStats = {
   numPosts: number;
@@ -605,3 +606,18 @@ export const normalizeCollectionPostSources = async ({
 export const getPostVisible = ({ post }: { post: Pick<Post, 'title'> }) => {
   return !!post?.title?.length;
 };
+
+export const getPostTranslatedTitle = (
+  post: Pick<Post, 'title' | 'contentMeta'>,
+  contentLanguage: ContentLanguage,
+) =>
+  post.contentMeta?.translate_title?.translations?.[contentLanguage] ||
+  post.title;
+
+export const getPostSmartTitle = (
+  post: Pick<Post, 'contentMeta'>,
+  contentLanguage: ContentLanguage,
+) =>
+  post.contentMeta?.alt_title?.translations?.[
+    contentLanguage ?? ContentLanguage.English
+  ];
