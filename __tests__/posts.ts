@@ -1068,6 +1068,51 @@ describe('query post', () => {
       'FORBIDDEN',
     );
   });
+
+  describe('clickbaitTitleDetected', () => {
+    const LOCAL_QUERY = /* GraphQL */ `
+      query Post($id: ID!) {
+        post(id: $id) {
+          clickbaitTitleDetected
+        }
+      }
+    `;
+
+    it('should return true if clickbait title probability is above threshold', async () => {
+      await con.getRepository(ArticlePost).update('p1', {
+        contentQuality: { is_clickbait_probability: 1 },
+      });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.clickbaitTitleDetected).toEqual(true);
+    });
+
+    it('should return false if clickbait title probability is below threshold', async () => {
+      await con.getRepository(ArticlePost).update('p1', {
+        contentQuality: { is_clickbait_probability: 0.2 },
+      });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.clickbaitTitleDetected).toEqual(false);
+    });
+
+    it('should return false if contentQuality is undefined', async () => {
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.clickbaitTitleDetected).toEqual(false);
+    });
+  });
 });
 
 describe('query postByUrl', () => {
