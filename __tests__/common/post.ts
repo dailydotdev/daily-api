@@ -121,4 +121,20 @@ describe('getPostSmartTitle', () => {
     const result = getPostSmartTitle(post, ContentLanguage.German);
     expect(result).toBe('Default Title');
   });
+
+  it('should return the translated title if no alt title translations are available', () => {
+    const post = {
+      title: 'Default Title',
+      contentMeta: {
+        translate_title: {
+          translations: {
+            [ContentLanguage.German]: 'Übersetzter Titel',
+          },
+        },
+      },
+    };
+
+    const result = getPostSmartTitle(post, ContentLanguage.German);
+    expect(result).toBe('Übersetzter Titel');
+  });
 });
