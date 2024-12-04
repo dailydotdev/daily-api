@@ -29,7 +29,11 @@ import { createHash } from 'node:crypto';
 import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
 import { logger } from '../logger';
 import { downloadJsonFile } from './googleCloud';
-import type { ChangeObject, PostCodeSnippetJsonFile } from '../types';
+import {
+  ContentLanguage,
+  type ChangeObject,
+  type PostCodeSnippetJsonFile,
+} from '../types';
 import { uniqueifyObjectArray } from './utils';
 import {
   SourcePostModeration,
@@ -621,3 +625,18 @@ export const findPostImageFromContent = ({
 
   return imgTag?.attrGet('src') || undefined;
 };
+
+export const getPostTranslatedTitle = (
+  post: Pick<Post, 'title' | 'contentMeta'>,
+  contentLanguage: ContentLanguage,
+) =>
+  post.contentMeta?.translate_title?.translations?.[contentLanguage] ||
+  post.title;
+
+export const getPostSmartTitle = (
+  post: Pick<Post, 'contentMeta'>,
+  contentLanguage: ContentLanguage,
+) =>
+  post.contentMeta?.alt_title?.translations?.[
+    contentLanguage ?? ContentLanguage.English
+  ];

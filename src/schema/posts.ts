@@ -39,6 +39,8 @@ import {
   CreateSourcePostModerationArgs,
   mapCloudinaryUrl,
   validateSourcePostModeration,
+  getPostTranslatedTitle,
+  getPostSmartTitle,
 } from '../common';
 import {
   ArticlePost,
@@ -66,8 +68,6 @@ import {
   SubmitExternalLinkArgs,
   UserAction,
   Settings,
-  getPostTranslatedTitle,
-  getPostSmartTitle,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
