@@ -18,7 +18,7 @@ import {
   ArticlePost,
   User,
 } from '../src/entity';
-import { sourcesFixture, usersFixture } from './fixture';
+import { sourcesFixture, usersFixture, plusUsersFixture } from './fixture';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
@@ -57,13 +57,12 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  loggedUser = null;
-  premiumUser = false;
+  loggedUser = '';
 
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
-  await saveFixtures(con, User, usersFixture);
+  await saveFixtures(con, User, [...usersFixture, ...plusUsersFixture]);
 });
 
 afterAll(() => disposeGraphQLTesting(state));

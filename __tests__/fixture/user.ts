@@ -56,6 +56,9 @@ export const usersFixture: DeepPartial<User>[] = [
     username: 'lee',
     infoConfirmed: true,
   },
+];
+
+export const plusUsersFixture: DeepPartial<User>[] = [
   {
     id: '5',
     name: 'Plus user',
