@@ -79,6 +79,7 @@ declare module 'fastify' {
     service?: boolean;
     accessToken?: AccessToken;
     isTeamMember?: boolean;
+    isPlus?: boolean;
 
     // Used for tracking
     trackingId?: string;
