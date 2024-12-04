@@ -404,6 +404,11 @@ export const typeDefs = /* GraphQL */ `
       Paginate first
       """
       first: Int
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
     ): PostConnection! @auth
 
     """
