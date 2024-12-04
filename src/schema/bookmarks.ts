@@ -25,6 +25,7 @@ import { Connection } from 'graphql-relay';
 import { isPlusMember } from '../paddle';
 import { ForbiddenError } from 'apollo-server-errors';
 import { logger } from '../logger';
+import { BookmarkListCountLimit } from '../types';
 
 interface GQLAddBookmarkInput {
   postIds: string[];
@@ -355,7 +356,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         select: ['subscriptionFlags'],
       });
       const isPlus = isPlusMember(user.subscriptionFlags?.cycle);
-      const maxFoldersCount = isPlus ? 50 : 1;
+      const maxFoldersCount = isPlus
+        ? BookmarkListCountLimit.Plus
+        : BookmarkListCountLimit.Free;
       const userFoldersCount = await ctx.con
         .getRepository(BookmarkList)
         .countBy({ userId: ctx.userId });

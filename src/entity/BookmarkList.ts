@@ -9,7 +9,7 @@ import {
   OneToMany,
 } from 'typeorm';
 import type { User } from './user';
-import { Bookmark } from './Bookmark';
+import type { Bookmark } from './Bookmark';
 
 @Entity()
 export class BookmarkList {
@@ -30,7 +30,7 @@ export class BookmarkList {
   name: string;
 
   @Column({ type: 'text', nullable: true })
-  icon: string;
+  icon?: string | null;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -38,7 +38,7 @@ export class BookmarkList {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @OneToMany(() => Bookmark, (bookmark) => bookmark.listId, {
+  @OneToMany('Bookmark', 'listId', {
     lazy: true,
   })
   bookmarks: Promise<Bookmark[]>;
