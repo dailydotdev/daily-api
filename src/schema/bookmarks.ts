@@ -354,13 +354,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         select: ['subscriptionFlags'],
       });
       const isPlus = isPlusMember(user.subscriptionFlags?.cycle);
-      const maxListCount = isPlus ? 50 : 1;
-      const userBookmarkListCount = await ctx.con
+      const maxFoldersCount = isPlus ? 50 : 1;
+      const userFoldersCount = await ctx.con
         .getRepository(BookmarkList)
         .countBy({ userId: ctx.userId });
 
-      if (!isPlus && userBookmarkListCount >= maxListCount) {
-        throw new ForbiddenError('You have reached the maximum list count');
+      if (userFoldersCount >= maxFoldersCount) {
+        throw new ForbiddenError(
+          `You have reached the maximum list count (${maxFoldersCount})`,
+        );
       }
 
       return ctx.con.getRepository(BookmarkList).save({
@@ -428,6 +430,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     bookmarkLists: (_, __, ctx: AuthContext): Promise<GQLBookmarkList[]> =>
       ctx.con.getRepository(BookmarkList).find({
         where: { userId: ctx.userId },
+        order: { createdAt: 'ASC' },
       }),
     searchBookmarksSuggestions: async (
       source,
