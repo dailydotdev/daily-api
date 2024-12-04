@@ -72,81 +72,69 @@ describe('getPostTranslatedTitle', () => {
 });
 
 describe('getPostSmartTitle', () => {
-  it('should return the alt title if it exists', () => {
+  it('should return the alt title for the specified content language', () => {
     const post = {
       contentMeta: {
         alt_title: {
           translations: {
-            [ContentLanguage.Spanish]: 'Título Inteligente',
+            [ContentLanguage.Spanish]: 'Título en Español',
           },
         },
       },
+      title: 'Default Title',
     };
 
     const result = getPostSmartTitle(post, ContentLanguage.Spanish);
-    expect(result).toBe('Título Inteligente');
+    expect(result).toBe('Título en Español');
   });
 
-  it('should return undefined if the alt title translation does not exist', () => {
+  it('should return the English alt title if specified content language is not available', () => {
     const post = {
       contentMeta: {
         alt_title: {
           translations: {
-            [ContentLanguage.Spanish]: 'Título Inteligente',
+            [ContentLanguage.English]: 'Title in English',
           },
         },
       },
-    };
-
-    const result = getPostSmartTitle(post, ContentLanguage.German);
-    expect(result).toBeUndefined();
-  });
-
-  it('should return undefined if alt_title is undefined', () => {
-    const post = {
-      contentMeta: {
-        alt_title: undefined,
-      },
+      title: 'Default Title',
     };
 
     const result = getPostSmartTitle(post, ContentLanguage.Spanish);
-    expect(result).toBeUndefined();
+    expect(result).toBe('Title in English');
   });
 
-  it('should return undefined if alt title translations is undefined', () => {
+  it('should return the default title if no alt title translations are available', () => {
     const post = {
-      contentMeta: {
-        alt_title: {
-          translations: undefined,
-        },
-      },
+      title: 'Default Title',
     };
 
-    const result = getPostSmartTitle(post, ContentLanguage.Spanish);
-    expect(result).toBeUndefined();
+    const result = getPostSmartTitle(post);
+    expect(result).toBe('Default Title');
   });
 
-  it('should return undefined if contentMeta is undefined', () => {
-    const post = {
-      contentMeta: undefined,
-    };
-
-    const result = getPostSmartTitle(post, ContentLanguage.Spanish);
-    expect(result).toBeUndefined();
-  });
-
-  it('should return the English alt title translation if contentLanguage is undefined', () => {
+  it('should return the English alt translated title if no content language is specified', () => {
     const post = {
       contentMeta: {
         alt_title: {
           translations: {
-            [ContentLanguage.English]: 'Smart Title',
+            [ContentLanguage.English]: 'Title in English',
           },
         },
       },
+      title: 'Default Title',
     };
 
-    const result = getPostSmartTitle(post, undefined);
-    expect(result).toBe('Smart Title');
+    const result = getPostSmartTitle(post);
+    expect(result).toBe('Title in English');
+  });
+
+  it('should return the default title if contentMeta is not defined', () => {
+    const post = {
+      title: 'Default Title',
+    };
+
+    const result = getPostSmartTitle(post);
+    expect(result).toBe('Default Title');
   });
 });

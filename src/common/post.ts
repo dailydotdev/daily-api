@@ -639,4 +639,6 @@ export const getPostSmartTitle = (
 ) =>
   post.contentMeta?.alt_title?.translations?.[
     contentLanguage ?? ContentLanguage.English
-  ] || post.title;
+  ] ||
+  post.contentMeta?.alt_title?.translations?.[ContentLanguage.English] ||
+  post.title;
