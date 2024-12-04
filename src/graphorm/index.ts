@@ -281,7 +281,7 @@ const obj = new GraphORM({
           const threshold =
             remoteConfig.vars.clickbaitTitleProbabilityThreshold || 1;
 
-          return probability >= threshold;
+          return probability > threshold;
         },
       },
       read: {
