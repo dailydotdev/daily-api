@@ -109,24 +109,8 @@ describe('getPostSmartTitle', () => {
       title: 'Default Title',
     };
 
-    const result = getPostSmartTitle(post);
+    const result = getPostSmartTitle(post, ContentLanguage.German);
     expect(result).toBe('Default Title');
-  });
-
-  it('should return the English alt translated title if no content language is specified', () => {
-    const post = {
-      contentMeta: {
-        alt_title: {
-          translations: {
-            [ContentLanguage.English]: 'Title in English',
-          },
-        },
-      },
-      title: 'Default Title',
-    };
-
-    const result = getPostSmartTitle(post);
-    expect(result).toBe('Title in English');
   });
 
   it('should return the default title if contentMeta is not defined', () => {
@@ -134,7 +118,7 @@ describe('getPostSmartTitle', () => {
       title: 'Default Title',
     };
 
-    const result = getPostSmartTitle(post);
+    const result = getPostSmartTitle(post, ContentLanguage.German);
     expect(result).toBe('Default Title');
   });
 });
