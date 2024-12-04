@@ -38,9 +38,8 @@ export class BookmarkList {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @OneToMany('Bookmark', 'list', {
+  @OneToMany(() => Bookmark, (bookmark) => bookmark.listId, {
     lazy: true,
-    onDelete: 'CASCADE',
   })
   bookmarks: Promise<Bookmark[]>;
 }
