@@ -4678,6 +4678,37 @@ describe('source_post_moderation', () => {
     ]);
   });
 
+  it('should notify mods on create if vordr is false', async () => {
+    const after = { ...base, flags: { vordr: false } };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'source_post_moderation',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.source-post-moderation-submitted',
+      { post: after },
+    ]);
+  });
+
+  it('should not notify mods on create if submission was vordred', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: { ...base, flags: { vordr: true } },
+        before: null,
+        op: 'c',
+        table: 'source_post_moderation',
+      }),
+    );
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
+  });
+
   it('should notify author on rejected', async () => {
     await expectSuccessfulBackground(
       worker,
