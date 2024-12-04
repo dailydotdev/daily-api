@@ -22,9 +22,16 @@ import {
 import { SelectQueryBuilder } from 'typeorm';
 import { GQLPost } from './posts';
 import { Connection } from 'graphql-relay';
+import graphorm from '../graphorm';
 
 interface GQLAddBookmarkInput {
   postIds: string[];
+}
+
+export interface GQLBookmark {
+  createdAt: Date;
+  remindAt: Date;
+  list: GQLBookmarkList;
 }
 
 export interface GQLBookmarkList {
@@ -46,6 +53,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type Bookmark {
+    list: BookmarkList
     createdAt: DateTime
     remindAt: DateTime
   }
@@ -84,7 +92,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Add new bookmarks
     """
-    addBookmarks(data: AddBookmarkInput!): EmptyResponse! @auth
+    addBookmarks(data: AddBookmarkInput!): [Bookmark]! @auth
 
     """
     Add or move bookmark to list
@@ -277,19 +285,36 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       source,
       { data }: { data: GQLAddBookmarkInput },
       ctx: AuthContext,
-    ): Promise<GQLEmptyResponse> => {
+      info,
+    ): Promise<GQLBookmark[]> => {
+      const lastAddedBookmark = await ctx.con.getRepository(Bookmark).findOne({
+        where: { userId: ctx.userId },
+        select: ['listId'],
+      });
+      const lastUsedListId = lastAddedBookmark?.listId ?? null;
+
       const [query, params] = ctx.con
         .createQueryBuilder()
         .select('id', 'postId')
         .addSelect(`'${ctx.userId}'`, 'userId')
+        .addSelect(`:listId`, 'listId')
         .from(Post, 'post')
         .where('post.id IN (:...postIds)', { postIds: data.postIds })
+        .setParameter('listId', lastUsedListId)
         .getQueryAndParameters();
+
       await ctx.con.query(
-        `insert into bookmark("postId", "userId") ${query} on conflict do nothing`,
+        `insert into bookmark("postId", "userId", "listId") ${query} on conflict do nothing`,
         params,
       );
-      return { _: true };
+
+      return await graphorm.query<GQLBookmark>(ctx, info, (builder) => ({
+        ...builder,
+        queryBuilder: builder.queryBuilder.where(
+          `"${builder.alias}"."postId" IN (:...postIds)`,
+          { postIds: data.postIds },
+        ),
+      }));
     },
     addBookmarkToList: async (
       source,

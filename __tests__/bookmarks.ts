@@ -23,6 +23,7 @@ import { postsFixture, postTagsFixture } from './fixture/post';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
+import { GQLBookmark } from '../src/schema/bookmarks';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -72,10 +73,13 @@ afterAll(() => disposeGraphQLTesting(state));
 describe('mutation addBookmarks', () => {
   const MUTATION = `
   mutation AddBookmarks($data: AddBookmarkInput!) {
-  addBookmarks(data: $data) {
-    _
-  }
-}`;
+    addBookmarks(data: $data) {
+      list {
+        id
+        name
+      }
+    }
+  }`;
 
   it('should not authorize when not logged in', () =>
     testMutationErrorCode(
@@ -89,14 +93,54 @@ describe('mutation addBookmarks', () => {
 
   it('should add new bookmarks', async () => {
     loggedUser = '1';
-    const res = await client.mutate(MUTATION, {
+    const res = await client.mutate<
+      {
+        addBookmarks: GQLBookmark[];
+      },
+      {
+        data: { postIds: string[] };
+      }
+    >(MUTATION, {
       variables: { data: { postIds: ['p1', 'p3'] } },
     });
     expect(res.errors).toBeFalsy();
+    expect(res.data.addBookmarks).toHaveLength(2);
+
     const actual = await con
       .getRepository(Bookmark)
       .find({ where: { userId: loggedUser }, select: ['postId', 'userId'] });
     expect(actual).toMatchSnapshot();
+
+    const bookmarks = await con.getRepository(Bookmark).find();
+    expect(bookmarks.length).toEqual(2);
+    const [bookmark] = bookmarks;
+    expect(bookmark?.listId).toBeNull();
+  });
+
+  it('should add new bookmarks to the last used list if any', async () => {
+    loggedUser = '1';
+
+    const { id: listId } = await con.getRepository(BookmarkList).save({
+      userId: loggedUser,
+      name: 'list',
+    });
+    await con.getRepository(Bookmark).save({
+      userId: loggedUser,
+      postId: 'p1',
+      listId: listId,
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { data: { postIds: ['p2'] } },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.addBookmarks).toHaveLength(1);
+    expect(res.data.addBookmarks[0].list.id).toEqual(listId);
+
+    const actual = await con
+      .getRepository(Bookmark)
+      .findOneBy({ postId: 'p2', userId: loggedUser });
+    expect(actual?.listId).toEqual(listId);
   });
 
   it('should ignore conflicts', async () => {
