@@ -260,7 +260,7 @@ const obj = new GraphORM({
         .andWhere(`"${alias}"."deleted" = false`)
         .andWhere(`"${alias}"."visible" = true`);
 
-      if (ctx.isPlus) {
+      if (ctx.userId && ctx.isPlus) {
         qb = qb
           .innerJoin(Settings, 's', 's."userId" = :userId', {
             userId: ctx.userId,
