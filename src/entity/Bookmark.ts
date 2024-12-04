@@ -25,7 +25,7 @@ export class Bookmark {
   })
   post: Promise<Post>;
 
-  @ManyToOne(() => BookmarkList, (list) => list.bookmarks, {
+  @ManyToOne(() => BookmarkList, {
     lazy: true,
     onDelete: 'CASCADE',
   })
