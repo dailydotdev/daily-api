@@ -1795,16 +1795,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }
       }
 
-      const {
-        flags: { clickbaitShieldEnabled },
-      } = await queryReadReplica(ctx.con, ({ queryRunner }) =>
-        queryRunner.manager.getRepository(Settings).findOneOrFail({
+      const settings = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(Settings).findOne({
           where: { userId: ctx.userId },
           select: ['flags'],
         }),
       );
 
-      if (clickbaitShieldEnabled ?? true) {
+      if (settings?.flags?.clickbaitShieldEnabled ?? true) {
         return {
           title: getPostTranslatedTitle(post, ctx.contentLanguage),
         };
