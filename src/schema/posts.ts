@@ -191,6 +191,10 @@ export type GQLPostNotification = Pick<
   'id' | 'numUpvotes' | 'numComments'
 >;
 
+export type GQLPostSmartTitle = {
+  title: string;
+};
+
 const POST_MODERATION_PAGE_SIZE = 15;
 const POST_MODERATION_LIMIT_FOR_MUTATION = 50;
 const sourcePostModerationPageGenerator =
@@ -1765,7 +1769,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         true,
       );
     },
-    fetchSmartTitle: async (_, { id }: { id: string }, ctx: Context) => {
+    fetchSmartTitle: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLPostSmartTitle> => {
       const post: Pick<Post, 'title' | 'contentMeta'> = await queryReadReplica(
         ctx.con,
         ({ queryRunner }) =>
