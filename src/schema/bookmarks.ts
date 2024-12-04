@@ -24,6 +24,7 @@ import { GQLPost } from './posts';
 import { Connection } from 'graphql-relay';
 import { isPlusMember } from '../paddle';
 import { ForbiddenError } from 'apollo-server-errors';
+import { logger } from '../logger';
 
 interface GQLAddBookmarkInput {
   postIds: string[];
@@ -360,6 +361,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .countBy({ userId: ctx.userId });
 
       if (userFoldersCount >= maxFoldersCount) {
+        if (isPlus) {
+          logger.warn(
+            { listCount: userFoldersCount, userId: ctx.userId },
+            'bookmark folders limit reached',
+          );
+        }
+
         throw new ForbiddenError(
           `You have reached the maximum list count (${maxFoldersCount})`,
         );
