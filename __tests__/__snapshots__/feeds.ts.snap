@@ -10,6 +10,8 @@ Object {
   "excludeSourceTypes": Array [],
   "excludeSources": Array [],
   "excludeTypes": Array [],
+  "followingSources": Array [],
+  "followingUsers": Array [],
   "includeTags": Array [],
   "sourceIds": Array [],
 }
@@ -25,6 +27,8 @@ Object {
   ],
   "excludeSources": Array [],
   "excludeTypes": Array [],
+  "followingSources": Array [],
+  "followingUsers": Array [],
   "includeTags": Array [],
   "sourceIds": Array [],
 }
@@ -38,6 +42,8 @@ Object {
   "excludeSourceTypes": Array [],
   "excludeSources": Array [],
   "excludeTypes": Array [],
+  "followingSources": Array [],
+  "followingUsers": Array [],
   "includeTags": Array [],
   "sourceIds": Array [
     "a",
