@@ -6,6 +6,8 @@ export const transformSettingFlags = ({ flags }: Pick<Settings, 'flags'>) => {
     sidebarCustomFeedsExpanded: flags?.sidebarCustomFeedsExpanded ?? true,
     sidebarOtherExpanded: flags?.sidebarOtherExpanded ?? true,
     sidebarResourcesExpanded: flags?.sidebarResourcesExpanded ?? true,
+    sidebarBookmarksExpanded: flags?.sidebarBookmarksExpanded ?? true,
+    clickbaitShieldEnabled: flags?.clickbaitShieldEnabled ?? true,
     ...flags,
   };
 };

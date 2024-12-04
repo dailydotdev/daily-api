@@ -18,11 +18,12 @@ import {
   NotificationPreferenceSource,
   NotificationPreferenceUser,
 } from '../entity';
-import { ghostUser } from './utils';
+import { ghostUser, uniqueifyArray } from './utils';
 import { randomUUID } from 'crypto';
 import { SourceMemberRoles } from '../roles';
 import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
 import { logger } from '../logger';
+import { ContentPreferenceWord } from '../entity/contentPreference/ContentPreferenceWord';
 
 type FollowEntity = ({
   ctx,
@@ -61,6 +62,7 @@ export const entityToNotificationTypeMap: Record<
     NotificationType.SquadPostAdded,
     NotificationType.SquadMemberJoined,
   ],
+  [ContentPreferenceType.Word]: [],
 };
 
 // TODO fix api.new-notification-mail condition to handle all types when follow phase 3 is implemented
@@ -203,6 +205,16 @@ const unfollowKeyword: UnFollowEntity = async ({ ctx, id }) => {
   });
 };
 
+const unfollowWord: UnFollowEntity = async ({ ctx, id }) => {
+  const repository = ctx.getRepository(ContentPreferenceWord);
+
+  await repository.delete({
+    userId: ctx.userId,
+    feedId: ctx.userId,
+    referenceId: id,
+  });
+};
+
 const followSource: FollowEntity = async ({ ctx, id, status }) => {
   await ctx.con.transaction(async (entityManager) => {
     const repository = entityManager.getRepository(ContentPreferenceSource);
@@ -331,6 +343,42 @@ const blockKeyword: BlockEntity = async ({ ctx, id }) => {
   });
 };
 
+/**
+ * Block word
+ * Accepts either a single word or a comma separated list of words
+ * @param ctx
+ * @param id
+ */
+const blockWord: BlockEntity = async ({ ctx, id }) => {
+  const ids = uniqueifyArray(
+    id
+      .toLowerCase()
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean),
+  );
+
+  if (ids.length > 50) {
+    throw new Error('Cannot block more than 50 words at a time');
+  }
+
+  await ctx.con
+    .createQueryBuilder()
+    .insert()
+    .into(ContentPreferenceWord)
+    .values(
+      ids.map((id) => ({
+        userId: ctx.userId,
+        referenceId: id,
+        feedId: ctx.userId,
+        status: ContentPreferenceStatus.Blocked,
+        type: ContentPreferenceType.Word,
+      })) as ContentPreferenceWord[],
+    )
+    .orUpdate(['status'], ['referenceId', 'userId', 'type', 'feedId'])
+    .execute();
+};
+
 const blockSource: BlockEntity = async ({ ctx, id }) => {
   await ctx.con.transaction(async (entityManager) => {
     const repository = entityManager.getRepository(ContentPreferenceSource);
@@ -412,6 +460,8 @@ export const unfollowEntity = ({
       return unfollowKeyword({ ctx, id });
     case ContentPreferenceType.Source:
       return unfollowSource({ ctx, id });
+    case ContentPreferenceType.Word:
+      return unfollowWord({ ctx, id });
     default:
       throw new Error('Entity not supported');
   }
@@ -433,6 +483,8 @@ export const blockEntity = async ({
       return blockKeyword({ ctx, id });
     case ContentPreferenceType.Source:
       return blockSource({ ctx, id });
+    case ContentPreferenceType.Word:
+      return blockWord({ ctx, id });
     default:
       throw new Error('Entity not supported');
   }

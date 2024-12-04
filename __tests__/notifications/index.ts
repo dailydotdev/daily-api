@@ -59,6 +59,7 @@ import { NotificationType } from '../../src/notifications/common';
 import { format } from 'date-fns';
 import { saveFixtures } from '../helpers';
 import {
+  PostModerationReason,
   SourcePostModeration,
   SourcePostModerationStatus,
 } from '../../src/entity/SourcePostModeration';
@@ -1324,7 +1325,7 @@ describe('storeNotificationBundle', () => {
       sourceId: 'a',
       createdById: '2',
       status: SourcePostModerationStatus.Rejected,
-      rejectionReason: 'Other',
+      rejectionReason: PostModerationReason.Other,
       moderatorMessage: 'Lacks value.',
     });
     const type = NotificationType.SourcePostRejected;

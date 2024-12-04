@@ -37,6 +37,7 @@ import {
 } from '../src/notifications/common';
 import { ghostUser } from '../src/common';
 import { ContentPreferenceKeyword } from '../src/entity/contentPreference/ContentPreferenceKeyword';
+import { ContentPreferenceWord } from '../src/entity/contentPreference/ContentPreferenceWord';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -74,6 +75,106 @@ beforeEach(async () => {
 });
 
 afterAll(() => disposeGraphQLTesting(state));
+
+describe('query userBlocked', () => {
+  const QUERY = `query UserBlocked($id: ID!, $entity: ContentPreferenceType!) {
+    userBlocked(userId: $id, entity: $entity) {
+      edges {
+        node {
+          referenceId
+          status
+        }
+      }
+    }
+  }`;
+
+  beforeEach(async () => {
+    await saveFixtures(
+      con,
+      User,
+      usersFixture.map((item) => {
+        return {
+          ...item,
+          id: `${item.id}-uwb`,
+          username: `${item.username}-uwb`,
+        };
+      }),
+    );
+
+    await saveFixtures(
+      con,
+      Feed,
+      usersFixture.map((item) => ({
+        id: `${item.id}-uwb`,
+        userId: `${item.id}-uwb`,
+      })),
+    );
+
+    const now = new Date();
+
+    await con.getRepository(ContentPreferenceWord).save([
+      {
+        userId: '1-uwb',
+        feedId: '1-uwb',
+        referenceId: 'word-1-uwb',
+        status: ContentPreferenceStatus.Blocked,
+        createdAt: new Date(now.getTime() - 1000),
+      },
+      {
+        userId: '1-uwb',
+        feedId: '1-uwb',
+        referenceId: 'word-2-uwb',
+        status: ContentPreferenceStatus.Blocked,
+        createdAt: new Date(now.getTime() - 2000),
+      },
+    ]);
+  });
+
+  it('should require authentication', async () => {
+    await testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: {
+          id: '1-uwb',
+          entity: ContentPreferenceType.Word,
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should return list of blocked words', async () => {
+    loggedUser = '1-uwb';
+    const res = await client.query(QUERY, {
+      variables: {
+        id: '1-uwb',
+        entity: ContentPreferenceType.Word,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data).toEqual({
+      userBlocked: {
+        edges: [
+          {
+            node: {
+              referenceId: 'word-1-uwb',
+              status: 'blocked',
+            },
+          },
+          {
+            node: {
+              referenceId: 'word-2-uwb',
+              status: 'blocked',
+            },
+          },
+        ],
+      },
+    });
+  });
+});
 
 describe('query userFollowers', () => {
   const QUERY = `query UserFollowers($id: ID!, $entity: ContentPreferenceType!) {
@@ -1514,6 +1615,120 @@ describe('mutation block', () => {
     });
   });
 
+  describe('word', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, Feed, [{ id: '1-blm', userId: '1-blm' }]);
+    });
+
+    it('should block', async () => {
+      loggedUser = '1-blm';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: 'word-bl1',
+          entity: ContentPreferenceType.Word,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreference = await con
+        .getRepository(ContentPreferenceWord)
+        .findOneBy({
+          userId: '1-blm',
+          referenceId: 'word-bl1',
+        });
+
+      expect(contentPreference).not.toBeNull();
+      expect(contentPreference!.type).toEqual(ContentPreferenceType.Word);
+      expect(contentPreference!.status).toBe(ContentPreferenceStatus.Blocked);
+    });
+
+    it('should block multiple words', async () => {
+      loggedUser = '1-blm';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: 'word-bl1,   word-bl2,  word-bl3   ,',
+          entity: ContentPreferenceType.Word,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreferences = await con
+        .getRepository(ContentPreferenceWord)
+        .findBy({
+          type: ContentPreferenceType.Word,
+        });
+
+      expect(contentPreferences).not.toBeNull();
+      expect(contentPreferences.length).toBe(3);
+
+      contentPreferences.forEach((cp) => {
+        expect(cp.status).toBe(ContentPreferenceStatus.Blocked);
+        expect(cp.type).toEqual(ContentPreferenceType.Word);
+        expect(['word-bl1', 'word-bl2', 'word-bl3']).toContain(cp.referenceId);
+      });
+    });
+
+    it('should block multiple words', async () => {
+      loggedUser = '1-blm';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: 'word-bl1,   word-bl2,  word-bl3   ,',
+          entity: ContentPreferenceType.Word,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreferences = await con
+        .getRepository(ContentPreferenceWord)
+        .findBy({
+          type: ContentPreferenceType.Word,
+        });
+
+      expect(contentPreferences).not.toBeNull();
+      expect(contentPreferences.length).toBe(3);
+
+      contentPreferences.forEach((cp) => {
+        expect(cp.status).toBe(ContentPreferenceStatus.Blocked);
+        expect(cp.type).toEqual(ContentPreferenceType.Word);
+        expect(['word-bl1', 'word-bl2', 'word-bl3']).toContain(cp.referenceId);
+      });
+    });
+
+    it('should block multiple words and store lowercased', async () => {
+      loggedUser = '1-blm';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: 'wOrD-bL1,   Word-bL2,  word-BL3   ,',
+          entity: ContentPreferenceType.Word,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreferences = await con
+        .getRepository(ContentPreferenceWord)
+        .findBy({
+          type: ContentPreferenceType.Word,
+        });
+
+      expect(contentPreferences).not.toBeNull();
+      expect(contentPreferences.length).toBe(3);
+
+      contentPreferences.forEach((cp) => {
+        expect(cp.status).toBe(ContentPreferenceStatus.Blocked);
+        expect(cp.type).toEqual(ContentPreferenceType.Word);
+        expect(['word-bl1', 'word-bl2', 'word-bl3']).toContain(cp.referenceId);
+      });
+    });
+  });
+
   describe('source', () => {
     beforeEach(async () => {
       await saveFixtures(con, Source, [
@@ -1818,6 +2033,48 @@ describe('mutation unblock', () => {
         tag: 'keyword-ublm1',
       });
       expect(feedSource).toBeNull();
+    });
+  });
+
+  describe('word', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, Feed, [{ id: '1-ublm', userId: '1-ublm' }]);
+      await con.getRepository(ContentPreferenceWord).save([
+        {
+          userId: '1-ublm',
+          referenceId: 'word-ublm1',
+          feedId: '1-ublm',
+          status: ContentPreferenceStatus.Blocked,
+        },
+        {
+          userId: '2-ublm',
+          referenceId: 'word-ublm2',
+          feedId: '1-ublm',
+          status: ContentPreferenceStatus.Blocked,
+        },
+      ]);
+    });
+
+    it('should unblock', async () => {
+      loggedUser = '1-ublm';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: '2-ublm',
+          entity: ContentPreferenceType.Word,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreference = await con
+        .getRepository(ContentPreferenceWord)
+        .findOneBy({
+          userId: '2-ublm',
+          referenceId: 'word-ublm1',
+        });
+
+      expect(contentPreference).toBeNull();
     });
   });
 

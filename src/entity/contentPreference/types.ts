@@ -2,6 +2,7 @@ export enum ContentPreferenceType {
   User = 'user',
   Keyword = 'keyword',
   Source = 'source',
+  Word = 'word',
 }
 
 export enum ContentPreferenceStatus {

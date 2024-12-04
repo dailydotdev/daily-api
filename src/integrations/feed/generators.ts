@@ -12,6 +12,7 @@ import { FeedClient } from './clients';
 import {
   FeedLofnConfigGenerator,
   FeedPreferencesConfigGenerator,
+  Options,
   SimpleFeedConfigGenerator,
 } from './configs';
 import { SnotraClient } from '../snotra';
@@ -77,13 +78,14 @@ export const popularFeedClient = new FeedClient(process.env.POPULAR_FEED, {
   garmr: garmFeedService,
 });
 
-const opts = {
+const opts: Options = {
   includeBlockedTags: true,
   includeAllowedTags: true,
   includeBlockedSources: true,
   includeSourceMemberships: true,
   includePostTypes: true,
   includeContentCuration: true,
+  includeBlockedWords: true,
 };
 
 export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
@@ -97,6 +99,7 @@ export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
           includeBlockedSources: true,
           includeBlockedTags: true,
           includeContentCuration: true,
+          includeBlockedWords: true,
         },
       ),
       'popular',

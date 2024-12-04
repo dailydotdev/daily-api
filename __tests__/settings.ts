@@ -75,6 +75,8 @@ describe('query userSettings', () => {
         sidebarCustomFeedsExpanded
         sidebarOtherExpanded
         sidebarResourcesExpanded
+        sidebarBookmarksExpanded
+        clickbaitShieldEnabled
     }
   }
 }`;
@@ -102,6 +104,8 @@ describe('query userSettings', () => {
           sidebarOtherExpanded: true,
           sidebarResourcesExpanded: true,
           sidebarSquadExpanded: true,
+          sidebarBookmarksExpanded: true,
+          clickbaitShieldEnabled: true,
         },
       },
     });
@@ -191,6 +195,8 @@ describe('mutation updateUserSettings', () => {
       sidebarOtherExpanded
       sidebarResourcesExpanded
       sidebarSquadExpanded
+      sidebarBookmarksExpanded
+      clickbaitShieldEnabled
     }
   }
 }`;
@@ -224,6 +230,8 @@ describe('mutation updateUserSettings', () => {
       sidebarOtherExpanded: null,
       sidebarResourcesExpanded: null,
       sidebarSquadExpanded: null,
+      sidebarBookmarksExpanded: null,
+      clickbaitShieldEnabled: null,
     });
   });
 
@@ -320,6 +328,8 @@ describe('mutation updateUserSettings', () => {
       sidebarOtherExpanded: false,
       sidebarResourcesExpanded: null,
       sidebarSquadExpanded: null,
+      sidebarBookmarksExpanded: null,
+      clickbaitShieldEnabled: null,
     });
   });
 
@@ -352,6 +362,8 @@ describe('mutation updateUserSettings', () => {
       sidebarOtherExpanded: true,
       sidebarResourcesExpanded: null,
       sidebarSquadExpanded: null,
+      sidebarBookmarksExpanded: null,
+      clickbaitShieldEnabled: null,
     });
   });
 

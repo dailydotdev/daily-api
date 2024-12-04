@@ -35,6 +35,8 @@ import {
   ContentPreferenceType,
 } from '../entity/contentPreference/types';
 import { ContentPreference } from '../entity/contentPreference/ContentPreference';
+import { ContentPreferenceWord } from '../entity/contentPreference/ContentPreferenceWord';
+import { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
 
 export const WATERCOOLER_ID = 'fd062672-63b7-4a10-87bd-96dcd10e9613';
 
@@ -95,7 +97,9 @@ type RawFiltersData = {
     | Pick<FeedAdvancedSettings, 'advancedSettingsId' | 'enabled'>[]
     | null;
   tags: Pick<ContentPreferenceKeyword, 'keywordId' | 'status'>[] | null;
-  excludeSources: Pick<ContentPreferenceSource, 'sourceId'>[] | null;
+  words: Pick<ContentPreferenceWord, 'referenceId'>[] | null;
+  users: Pick<ContentPreferenceUser, 'referenceId'>[] | null;
+  sources: Pick<ContentPreferenceSource, 'sourceId' | 'status'>[] | null;
   memberships: { sourceId: SourceMember['sourceId']; hide: boolean }[] | null;
 };
 
@@ -124,14 +128,30 @@ const getRawFiltersData = async (
         .andWhere(`type = '${ContentPreferenceType.Keyword}'`)
         .andWhere('"userId" = $2'),
     ),
-    rawFilterSelect(con, 'excludeSources', (qb) =>
+    rawFilterSelect(con, 'users', (qb) =>
       qb
-        .select('"sourceId"')
+        .select('"referenceId"')
+        .from(ContentPreference, 'u')
+        .andWhere('"userId" = $2')
+        .andWhere(`type = '${ContentPreferenceType.User}'`)
+        .andWhere(`status != '${ContentPreferenceStatus.Blocked}'`),
+    ),
+    rawFilterSelect(con, 'sources', (qb) =>
+      qb
+        .select(['"sourceId"', 'status'])
         .from(ContentPreference, 't')
         .where('"feedId" = $1')
         .andWhere(`type = '${ContentPreferenceType.Source}'`)
-        .andWhere('"userId" = $2')
-        .andWhere(`status = '${ContentPreferenceStatus.Blocked}'`),
+        .andWhere('"userId" = $2'),
+    ),
+    rawFilterSelect(con, 'words', (qb) =>
+      qb
+        .select(['"referenceId"'])
+        .from(ContentPreference, 'w')
+        .where('"feedId" = $1')
+        .andWhere(`type = '${ContentPreferenceType.Word}'`)
+        .andWhere(`status = '${ContentPreferenceStatus.Blocked}'`)
+        .andWhere('"userId" = $2'),
     ),
     rawFilterSelect(con, 'memberships', (qb) =>
       qb
@@ -197,6 +217,34 @@ const advancedSettingsToFilters = (
   );
 };
 
+const wordsToFilters = ({
+  words,
+}: RawFiltersData): {
+  blockedWords: string[];
+} => {
+  return (words || []).reduce<ReturnType<typeof wordsToFilters>>(
+    (acc, value) => {
+      acc.blockedWords.push(value.referenceId);
+      return acc;
+    },
+    { blockedWords: [] },
+  );
+};
+
+const usersToFilters = ({
+  users,
+}: RawFiltersData): {
+  followingUsers: string[];
+} => {
+  return (users || []).reduce<ReturnType<typeof usersToFilters>>(
+    (acc, value) => {
+      acc.followingUsers.push(value.referenceId);
+      return acc;
+    },
+    { followingUsers: [] },
+  );
+};
+
 const tagsToFilters = ({
   tags,
 }: RawFiltersData): {
@@ -217,12 +265,28 @@ const tagsToFilters = ({
 };
 
 const sourcesToFilters = ({
-  excludeSources,
+  sources,
   memberships,
 }: RawFiltersData): {
   excludeSources: string[];
   sourceIds: string[];
+  followingSources: string[];
 } => {
+  const { blocked, following } = (sources || []).reduce<{
+    blocked: string[];
+    following: string[];
+  }>(
+    (acc, value) => {
+      if (value.status === ContentPreferenceStatus.Blocked) {
+        acc.blocked.push(value.sourceId);
+      } else {
+        acc.following.push(value.sourceId);
+      }
+      return acc;
+    },
+    { blocked: [], following: [] },
+  );
+
   // Split memberships by hide flag
   const membershipsByHide = (memberships || []).reduce<{
     hide: string[];
@@ -236,10 +300,9 @@ const sourcesToFilters = ({
   );
 
   return {
-    excludeSources: (excludeSources || [])
-      .map((s) => s.sourceId)
-      .concat(membershipsByHide.hide),
+    excludeSources: blocked.map((s) => s).concat(membershipsByHide.hide),
     sourceIds: membershipsByHide.show,
+    followingSources: following,
   };
 };
 
@@ -261,6 +324,8 @@ export const feedToFilters = async (
     ...advancedSettingsToFilters(rawData),
     ...tagsToFilters(rawData),
     ...sourcesToFilters(rawData),
+    ...wordsToFilters(rawData),
+    ...usersToFilters(rawData),
   };
 };
 
@@ -533,7 +598,10 @@ export interface AnonymousFeedFilters {
   blockedTags?: string[];
   sourceIds?: string[];
   blockedContentCuration?: string[];
+  blockedWords?: string[];
   excludeSourceTypes?: string[];
+  followingUsers?: string[];
+  followingSources?: string[];
 }
 
 export const anonymousFeedBuilder = (
