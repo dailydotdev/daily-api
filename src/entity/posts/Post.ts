@@ -6,6 +6,7 @@ import {
   OneToMany,
   PrimaryColumn,
   TableInheritance,
+  type DeepPartial,
 } from 'typeorm';
 import { Source, UNKNOWN_SOURCE } from '../Source';
 import { PostTag } from '../PostTag';
@@ -51,7 +52,7 @@ export type PostContentQuality = Partial<{
   is_ai_probability: number;
 }>;
 
-export type PostContentMeta = Partial<{
+export type PostContentMeta = DeepPartial<{
   alt_title: {
     provider: string;
     translations: I18nRecord;
@@ -60,7 +61,6 @@ export type PostContentMeta = Partial<{
     provider: string;
     translations: I18nRecord;
   };
-  [key: string]: unknown;
 }>;
 
 @Entity()
