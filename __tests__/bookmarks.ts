@@ -377,13 +377,13 @@ describe('mutation renameBookmarkList', () => {
   });
 });
 
-describe('mutation addBookmarkToList', () => {
+describe('mutation moveBookmark', () => {
   const MUTATION = (id: string, listId?: string): string => `
-  mutation AddBookmarkToList {
-  addBookmarkToList(id: "${id}"${listId ? `, listId: "${listId}"` : ''}) {
-    _
-  }
-}`;
+  mutation moveBookmark {
+    moveBookmark(id: "${id}"${listId ? `, listId: "${listId}"` : ''}) {
+      _
+    }
+  }`;
 
   it('should not authorize when not logged in', () =>
     testMutationErrorCode(
@@ -392,34 +392,22 @@ describe('mutation addBookmarkToList', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should not authorize when not premium user', () => {
+  it('should not authorize if list is not owned by the user', async () => {
     loggedUser = '1';
+    const list = await con
+      .getRepository(BookmarkList)
+      .save({ userId: '2', name: 'list' });
+    const bookmark = await con
+      .getRepository(Bookmark)
+      .save({ postId: 'p1', userId: '2' });
     return testMutationErrorCode(
       client,
-      { mutation: MUTATION('p1', 'list') },
-      'FORBIDDEN',
+      { mutation: MUTATION(bookmark.postId, list.id) },
+      'NOT_FOUND',
     );
   });
 
-  it('should add new bookmark to list', async () => {
-    loggedUser = '1';
-    premiumUser = true;
-    const list = await con
-      .getRepository(BookmarkList)
-      .save({ userId: loggedUser, name: 'list' });
-    const res = await client.mutate(MUTATION('p1', list.id));
-    expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(Bookmark).find({
-      where: { userId: loggedUser },
-      select: ['postId', 'userId', 'listId'],
-    });
-    expect(actual.length).toEqual(1);
-    expect(actual[0].postId).toEqual('p1');
-    expect(actual[0].userId).toEqual('1');
-    expect(actual[0].listId).toEqual(list.id);
-  });
-
-  it('should update exsiting bookmark', async () => {
+  it('should update existing bookmark', async () => {
     loggedUser = '1';
     premiumUser = true;
     const list = await con

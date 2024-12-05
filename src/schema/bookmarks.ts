@@ -97,7 +97,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Add or move bookmark to list
     """
-    addBookmarkToList(id: ID!, listId: ID): EmptyResponse! @auth(premium: true)
+    moveBookmark(id: ID!, listId: ID): EmptyResponse! @auth
 
     """
     Remove an existing bookmark
@@ -316,8 +316,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ),
       }));
     },
-    addBookmarkToList: async (
-      source,
+    moveBookmark: async (
+      _,
       { id, listId }: { id: string; listId?: string },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
@@ -326,16 +326,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .getRepository(BookmarkList)
           .findOneByOrFail({ userId: ctx.userId, id: listId });
       }
-      await ctx.con
-        .getRepository(Bookmark)
-        .createQueryBuilder()
-        .insert()
-        .into(Bookmark)
-        .values([{ userId: ctx.userId, postId: id, listId }])
-        .onConflict(
-          `("postId", "userId") DO UPDATE SET "listId" = EXCLUDED."listId"`,
-        )
-        .execute();
+      await ctx.con.getRepository(Bookmark).update(
+        {
+          postId: id,
+          userId: ctx.userId,
+        },
+        { listId: listId ?? null },
+      );
+
       return { _: true };
     },
     removeBookmark: async (
