@@ -16,7 +16,7 @@ export class SourcePostModerationFlagsVordr1733244072344
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `DROP INDEX "IDX_source_post_moderation_flags_vordr"`,
+      `DROP INDEX IF EXISTS "IDX_source_post_moderation_flags_vordr"`,
     );
     await queryRunner.query(
       `ALTER TABLE "source_post_moderation" DROP COLUMN "flags"`,
