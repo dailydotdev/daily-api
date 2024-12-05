@@ -1769,7 +1769,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const pendingPost = await validateSourcePostModeration(ctx, props);
       const moderatedPost = await createSourcePostModeration({
         ctx,
-        con: ctx.con,
         args: pendingPost,
       });
 
