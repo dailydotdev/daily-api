@@ -1811,6 +1811,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           userId: ctx.userId,
           type: UserActionType.FetchedSmartTitle,
         });
+
+        // We always want to return the smart title for non-plus users who have not used the free trial, as it is part of the try before you buy experience
+        return {
+          title: getPostSmartTitle(post, ctx.contentLanguage),
+        };
       }
 
       const settings = await queryReadReplica(ctx.con, ({ queryRunner }) =>
