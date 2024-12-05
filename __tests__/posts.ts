@@ -1080,7 +1080,7 @@ describe('query post', () => {
 
     it('should return true if clickbait title probability is above threshold', async () => {
       await con.getRepository(ArticlePost).update('p1', {
-        contentQuality: { is_clickbait_probability: 2 }, // Use 2 as it's above the fallback threshold
+        contentQuality: { is_clickbait_probability: 1.99 }, // Use 1.99 as it's above the fallback threshold
       });
 
       const res = await client.query(LOCAL_QUERY, {
