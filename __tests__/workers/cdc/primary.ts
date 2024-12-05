@@ -120,7 +120,7 @@ import createOrGetConnection from '../../../src/db';
 import { TypeOrmError } from '../../../src/errors';
 import { SourceMemberRoles } from '../../../src/roles';
 import { CommentReport } from '../../../src/entity/CommentReport';
-import { usersFixture } from '../../fixture/user';
+import { badUsersFixture, usersFixture } from '../../fixture/user';
 import { DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD } from '../../../src/workers/notifications/devCardUnlocked';
 import { UserComment } from '../../../src/entity/user/UserComment';
 import {
@@ -4829,6 +4829,40 @@ describe('source_post_moderation', () => {
       ]);
     });
 
+    it('should create banned freeform post if author is vordred', async () => {
+      await saveFixtures(con, User, badUsersFixture);
+      const repo = con.getRepository(Post);
+      const before = await repo.find();
+      expect(before.length).toEqual(0);
+      const after = {
+        ...base,
+        createdById: 'vordr',
+        status: SourcePostModerationStatus.Approved,
+        title: '# Test',
+        titleHtml: '# Test',
+        content: '## Sample',
+        contentHtml: '## SampleHtml',
+        image: 'http://image',
+      };
+      await mockUpdate(after);
+      const freeform = (await repo.findOneBy({
+        sourceId: 'a',
+      })) as FreeformPost;
+      expect(freeform).toBeTruthy();
+      expect(freeform.type).toEqual(PostType.Freeform);
+      expect(freeform.title).toEqual('# Test');
+      expect(freeform.titleHtml).toEqual('# Test');
+      expect(freeform.content).toEqual('## Sample');
+      expect(freeform.contentHtml).toEqual('## SampleHtml');
+      expect(freeform.image).toEqual('http://image');
+      expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+        'api.v1.source-post-moderation-approved',
+        { post: { ...after, postId: freeform.id } },
+      ]);
+      expect(freeform.banned).toBeTruthy();
+      expect(freeform.flags.vordr).toBeTruthy();
+    });
+
     it('should clear all relevant notifications about the submission', async () => {
       await con.getRepository(NotificationV2).save([
         {
@@ -4929,6 +4963,36 @@ describe('source_post_moderation', () => {
         'api.v1.source-post-moderation-approved',
         { post: { ...after, postId: share.id } },
       ]);
+    });
+
+    it('should not create share post when user is vordred', async () => {
+      await saveFixtures(con, User, badUsersFixture);
+      await saveFixtures(con, Post, [postsFixture[0]]);
+      const repo = con.getRepository(Post);
+      const after = {
+        ...base,
+        createdById: 'vordr',
+        type: PostType.Share,
+        status: SourcePostModerationStatus.Approved,
+        title: '# Test',
+        titleHtml: 'TestHtml',
+        sharedPostId: 'p1',
+        sourceId: 'b',
+      };
+      await mockUpdate(after);
+      const share = (await repo.findOneBy({
+        sourceId: 'b',
+      })) as SharePost;
+      expect(share).toBeTruthy();
+      expect(share.type).toEqual(PostType.Share);
+      expect(share.title).toEqual('# Test');
+      expect(share.titleHtml).toEqual('<p># Test</p>');
+      expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+        'api.v1.source-post-moderation-approved',
+        { post: { ...after, postId: share.id } },
+      ]);
+      expect(share.banned).toBeTruthy();
+      expect(share.flags.vordr).toBeTruthy();
     });
 
     it('should not create share post if link is not found', async () => {

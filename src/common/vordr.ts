@@ -36,14 +36,14 @@ type CheckWithVordrInput = {
 type CheckWithVordrContext = {
   userId: string;
   con: DataSource | EntityManager;
-  req: Pick<FastifyRequest, 'ip'>;
+  req?: Pick<FastifyRequest, 'ip'>;
 };
 
 export const checkWithVordr = async (
   { id, type, content }: CheckWithVordrInput,
   { userId, con, req }: CheckWithVordrContext,
 ): Promise<boolean> => {
-  if (validateVordrIPs(req.ip)) {
+  if (req && validateVordrIPs(req.ip)) {
     logger.info(
       { id, type, userId, ip: req.ip },
       `Prevented ${type} because IP is in Vordr subnet`,
