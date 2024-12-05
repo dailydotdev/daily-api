@@ -1795,12 +1795,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           throw new ForbiddenError(
             'Free trial has been used! Please upgrade to Plus to continue using this feature.',
           );
-        } else {
-          await ctx.con.getRepository(UserAction).save({
-            userId: ctx.userId,
-            type: UserActionType.FetchedSmartTitle,
-          });
         }
+
+        await ctx.con.getRepository(UserAction).save({
+          userId: ctx.userId,
+          type: UserActionType.FetchedSmartTitle,
+        });
       }
 
       const settings = await queryReadReplica(ctx.con, ({ queryRunner }) =>
