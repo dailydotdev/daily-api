@@ -176,8 +176,10 @@ export function isNumber(value: string | number): boolean {
   return !isNaN(Number(value.toString()));
 }
 
+const emojiMatch = /^(\p{Emoji_Presentation})$/gu
+
 export const isOneEmoji = (text: string): boolean => {
-  return /^(\p{Emoji_Presentation})$/gu.test(text);
+  return emojiMatch.test(text);
 };
 
 export const validateWorkEmailDomain = (domain: string): boolean => {
