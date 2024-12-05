@@ -386,29 +386,27 @@ export const createSharePost = async ({
       },
     } as DeepPartial<SharePost>);
 
-    if (ctx) {
-      const vordrStatus = await checkWithVordr(
-        {
-          id: createdPost.id,
-          content: createdPost.title || undefined,
-          type: VordrFilterType.Post,
-        },
-        { con, userId, req: ctx.req },
-      );
+    const vordrStatus = await checkWithVordr(
+      {
+        id: createdPost.id,
+        content: createdPost.title || undefined,
+        type: VordrFilterType.Post,
+      },
+      { con, userId, req: ctx?.req },
+    );
 
-      if (vordrStatus) {
-        createdPost.banned = true;
-        createdPost.showOnFeed = false;
+    if (vordrStatus) {
+      createdPost.banned = true;
+      createdPost.showOnFeed = false;
 
-        createdPost.flags = {
-          ...createdPost.flags,
-          banned: true,
-          showOnFeed: false,
-        };
-      }
-
-      createdPost.flags.vordr = vordrStatus;
+      createdPost.flags = {
+        ...createdPost.flags,
+        banned: true,
+        showOnFeed: false,
+      };
     }
+
+    createdPost.flags.vordr = vordrStatus;
 
     const post = await con.getRepository(SharePost).save(createdPost);
 
