@@ -209,6 +209,38 @@ describe('mutation createBookmarkList', () => {
     expect(actual[0].userId).toEqual(loggedUser);
   });
 
+  it('should throw error if name is empty', async () => {
+    loggedUser = '1';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION(''),
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+      'Invalid icon or name',
+    );
+  });
+
+  it('should throw error if icon is not a single emoji', async () => {
+    loggedUser = '1';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION('list', 'icon'),
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+      'Invalid icon or name',
+    );
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION('list', '😂💯'),
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+      'Invalid icon or name',
+    );
+  });
+
   it('should create a new list with icon', async () => {
     loggedUser = '1';
     const request = {

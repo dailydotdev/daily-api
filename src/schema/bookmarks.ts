@@ -23,7 +23,7 @@ import { SelectQueryBuilder } from 'typeorm';
 import { GQLPost } from './posts';
 import { Connection } from 'graphql-relay';
 import { isPlusMember } from '../paddle';
-import { ForbiddenError } from 'apollo-server-errors';
+import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { logger } from '../logger';
 import { BookmarkListCountLimit } from '../types';
 
@@ -351,6 +351,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { name, icon }: Record<'name' | 'icon', string>,
       ctx: AuthContext,
     ): Promise<GQLBookmarkList> => {
+      const onlyOneEmoji = /^(\p{Emoji_Presentation})$/gu;
+      const isValidIcon = !icon || onlyOneEmoji.test(icon);
+      if (!isValidIcon || !name.length) {
+        throw new ValidationError('Invalid icon or name');
+      }
+
       const user = await ctx.con.getRepository(User).findOneOrFail({
         where: { id: ctx.userId },
         select: ['subscriptionFlags'],
