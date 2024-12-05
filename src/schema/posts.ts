@@ -108,7 +108,6 @@ import {
 } from '../entity/SourcePostModeration';
 import { logger } from '../logger';
 import { Source } from '@dailydotdev/schema';
-import { isUserPlusMember } from '../paddle';
 import { queryReadReplica } from '../common/queryReadReplica';
 
 export interface GQLSourcePostModeration {
@@ -1782,8 +1781,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             select: ['title', 'contentMeta'],
           }),
       );
-      const isPlus = await isUserPlusMember(ctx.con, ctx.userId);
-      if (!isPlus) {
+
+      if (!ctx.isPlus) {
         const hasUsedFreeTrial = await ctx.con
           .getRepository(UserAction)
           .findOneBy({
