@@ -44,7 +44,7 @@ export class MockContext extends Context {
 
   constructor(
     con: DataSource,
-    userId: string = null,
+    userId: string | null = null,
     premium = false,
     roles = [],
     req?: FastifyRequest,

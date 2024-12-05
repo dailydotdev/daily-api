@@ -522,17 +522,6 @@ describe('bookmarkList field', () => {
     expect(res.data.post.bookmarkList).toEqual(null);
   });
 
-  it('should return null when user is not premium', async () => {
-    loggedUser = '1';
-    await con.getRepository(Bookmark).save({
-      postId: 'p1',
-      userId: loggedUser,
-      listId: list.id,
-    });
-    const res = await client.query(QUERY);
-    expect(res.data.post.bookmarkList).toEqual(null);
-  });
-
   it('should return null when bookmark does not belong to a list', async () => {
     loggedUser = '1';
     premiumUser = true;
@@ -546,7 +535,6 @@ describe('bookmarkList field', () => {
 
   it('should return the bookmark list', async () => {
     loggedUser = '1';
-    premiumUser = true;
     await con.getRepository(Bookmark).save({
       postId: 'p1',
       userId: loggedUser,
