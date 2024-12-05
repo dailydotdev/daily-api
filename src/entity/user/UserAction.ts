@@ -10,6 +10,7 @@ export enum UserActionType {
   SquadInvite = 'squad_invite',
   MyFeed = 'my_feed',
   EditWelcomePost = 'edit_welcome_post',
+  FetchedSmartTitle = 'fetched_smart_title',
 }
 
 @Entity()
