@@ -1769,6 +1769,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         true,
       );
     },
+    /**
+     * Fetches the original title if clickbait shield is enabled,
+     * and the smart title if clickbait shield is disabled.
+     *
+     * This is so that we an query the opposite title based on the user's settings.
+     */
     fetchSmartTitle: async (
       _,
       { id }: { id: string },
@@ -1810,12 +1816,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }),
       );
 
+      // If the user has clickbait shield enabled, return the original title
       if (settings?.flags?.clickbaitShieldEnabled ?? true) {
         return {
           title: getPostTranslatedTitle(post, ctx.contentLanguage),
         };
       }
 
+      // If the user has clickbait shield disabled, return the smart title
       return {
         title: getPostSmartTitle(post, ctx.contentLanguage),
       };
