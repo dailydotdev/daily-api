@@ -126,7 +126,7 @@ const plugin = async (
             req.premium = payload.premium;
             req.roles = payload.roles;
             req.isTeamMember = payload.isTeamMember;
-            req.isPlus = payload.isPlus;
+            req.isPlus = !!payload.isPlus;
             req.accessToken = {
               token: validValue,
               expiresIn: new Date(payload.exp * 1000),
