@@ -1068,6 +1068,64 @@ describe('query post', () => {
       'FORBIDDEN',
     );
   });
+
+  describe('clickbaitTitleDetected', () => {
+    const LOCAL_QUERY = /* GraphQL */ `
+      query Post($id: ID!) {
+        post(id: $id) {
+          clickbaitTitleDetected
+        }
+      }
+    `;
+
+    it('should return true if clickbait title probability (string) is above threshold', async () => {
+      await con.getRepository(ArticlePost).update('p1', {
+        contentQuality: { is_clickbait_probability: '1.99' }, // Use 1.99 as it's above the fallback threshold
+      });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.clickbaitTitleDetected).toEqual(true);
+    });
+
+    it('should return true if clickbait title probability (float) is above threshold', async () => {
+      await con.getRepository(ArticlePost).update('p1', {
+        contentQuality: { is_clickbait_probability: 1.98 }, // Use 1.99 as it's above the fallback threshold
+      });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.clickbaitTitleDetected).toEqual(true);
+    });
+
+    it('should return false if clickbait title probability is below threshold', async () => {
+      await con.getRepository(ArticlePost).update('p1', {
+        contentQuality: { is_clickbait_probability: 0.2 },
+      });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.clickbaitTitleDetected).toEqual(false);
+    });
+
+    it('should return false if contentQuality is undefined', async () => {
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.clickbaitTitleDetected).toEqual(false);
+    });
+  });
 });
 
 describe('query postByUrl', () => {
