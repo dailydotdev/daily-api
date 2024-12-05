@@ -1,11 +1,11 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { ConnectionArguments } from 'graphql-relay';
+import { Connection, ConnectionArguments } from 'graphql-relay';
 import {
+  getSearchQuery,
   GQLEmptyResponse,
+  offsetPageGenerator,
   Page,
   PageGenerator,
-  offsetPageGenerator,
-  getSearchQuery,
   processSearchQuery,
 } from './common';
 import { traceResolvers } from './trace';
@@ -21,11 +21,11 @@ import {
 } from '../common';
 import { SelectQueryBuilder } from 'typeorm';
 import { GQLPost } from './posts';
-import { Connection } from 'graphql-relay';
 import { isPlusMember } from '../paddle';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { logger } from '../logger';
 import { BookmarkListCountLimit } from '../types';
+import graphorm from '../graphorm';
 
 interface GQLAddBookmarkInput {
   postIds: string[];
@@ -444,11 +444,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         removeNonPublicThresholdSquads: false,
       },
     ),
-    bookmarkLists: (_, __, ctx: AuthContext): Promise<GQLBookmarkList[]> =>
-      ctx.con.getRepository(BookmarkList).find({
-        where: { userId: ctx.userId },
-        order: { createdAt: 'ASC' },
-      }),
+    bookmarkLists: async (
+      _,
+      __,
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLBookmarkList[]> =>
+      graphorm.query<GQLBookmarkList>(ctx, info, (builder) => ({
+        ...builder,
+        queryBuilder: builder.queryBuilder.where(
+          `"${builder.alias}"."userId" = :userId`,
+          {
+            userId: ctx.userId,
+          },
+        ),
+      })),
     searchBookmarksSuggestions: async (
       source,
       { query }: { query: string },
