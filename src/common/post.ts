@@ -257,16 +257,16 @@ export type CreateSourcePostModeration = Omit<
   };
 
 interface CreateSourcePostModerationProps {
-  con: DataSource | EntityManager;
   ctx: AuthContext;
   args: CreateSourcePostModeration;
 }
 
 export const createSourcePostModeration = async ({
-  con,
   ctx,
   args,
 }: CreateSourcePostModerationProps) => {
+  const { con } = ctx;
+
   if (args.postId) {
     const post = await con
       .getRepository(Post)
