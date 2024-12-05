@@ -10,6 +10,7 @@ type RemoteConfigValue = {
   ignoredWorkEmailDomains: string[];
   pricingIds: Record<string, SubscriptionCycles>;
   origins: string[];
+  clickbaitTitleProbabilityThreshold: number;
 };
 
 class RemoteConfig {

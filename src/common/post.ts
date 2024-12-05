@@ -29,7 +29,12 @@ import { createHash } from 'node:crypto';
 import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
 import { logger } from '../logger';
 import { downloadJsonFile } from './googleCloud';
-import type { ChangeObject, PostCodeSnippetJsonFile } from '../types';
+import {
+  ContentLanguage,
+  type ChangeObject,
+  type I18nRecord,
+  type PostCodeSnippetJsonFile,
+} from '../types';
 import { uniqueifyObjectArray } from './utils';
 import {
   SourcePostModeration,
@@ -216,14 +221,14 @@ export const createFreeformPost = async ({
     },
   });
 
-  if (ctx) {
+  if (args.authorId) {
     const vordrStatus = await checkWithVordr(
       {
         id: createdPost.id,
         type: VordrFilterType.Post,
         content: createdPost.content,
       },
-      { con, userId: ctx.userId, req: ctx.req },
+      { con, userId: args.authorId, req: ctx?.req },
     );
 
     if (vordrStatus) {
@@ -642,3 +647,32 @@ export const findPostImageFromContent = ({
 
   return imgTag?.attrGet('src') || undefined;
 };
+
+type PostContentMeta = {
+  alt_title: {
+    translations: I18nRecord;
+  };
+  translate_title: {
+    translations: I18nRecord;
+  };
+};
+
+export const getPostTranslatedTitle = (
+  post: Partial<Pick<Post, 'title' | 'contentMeta'>>,
+  contentLanguage: ContentLanguage,
+) =>
+  (post.contentMeta as PostContentMeta)?.translate_title?.translations?.[
+    contentLanguage
+  ] || (post.title as string);
+
+export const getPostSmartTitle = (
+  post: Partial<Pick<Post, 'title' | 'contentMeta'>>,
+  contentLanguage: ContentLanguage,
+) =>
+  (post.contentMeta as PostContentMeta)?.alt_title?.translations?.[
+    contentLanguage
+  ] ||
+  (post.contentMeta as PostContentMeta)?.alt_title?.translations?.[
+    ContentLanguage.English
+  ] ||
+  getPostTranslatedTitle(post, contentLanguage);

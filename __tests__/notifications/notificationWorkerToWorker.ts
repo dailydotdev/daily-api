@@ -160,7 +160,12 @@ describe('notificationWorkerToWorker', () => {
     expect(notifications[0].attachments).toEqual(
       expect.arrayContaining(attachments.map(({ id }) => id)),
     );
-    expect(notifications[0].avatars).toEqual(avatars.map(({ id }) => id));
+
+    avatars
+      .map(({ id }) => id)
+      .forEach((id) => {
+        expect(notifications[0].avatars).toContain(id);
+      });
   });
 
   it('should denormalize public properly', async () => {

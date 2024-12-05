@@ -1,4 +1,4 @@
-import { getPermissionsForMember } from './../schema/sources';
+import { getPermissionsForMember } from '../schema/sources';
 import { GraphORM, GraphORMField, QueryBuilder } from './graphorm';
 import {
   Bookmark,
@@ -25,15 +25,13 @@ import {
 } from '../roles';
 
 import { Context } from '../Context';
-import { GQLBookmarkList } from '../schema/bookmarks';
 import { base64, domainOnly, transformDate } from '../common';
 import { GQLComment } from '../schema/comments';
 import { GQLUserPost } from '../schema/posts';
 import { UserComment } from '../entity/user/UserComment';
 import { I18nRecord, UserVote } from '../types';
 import { whereVordrFilter } from '../common/vordr';
-import { UserCompany } from '../entity/UserCompany';
-import { Post } from '../entity/posts/Post';
+import { UserCompany, Post } from '../entity';
 import {
   ContentPreferenceStatus,
   ContentPreferenceType,
@@ -42,6 +40,7 @@ import { transformSettingFlags } from '../common/flags';
 import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
 import { ContentPreference } from '../entity/contentPreference/ContentPreference';
 import { isPlusMember } from '../paddle';
+import { remoteConfig } from '../remoteConfig';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -272,6 +271,17 @@ const obj = new GraphORM({
         select: 'tagsStr',
         transform: (value: string): string[] => value?.split(',') ?? [],
       },
+      clickbaitTitleDetected: {
+        rawSelect: true,
+        select: `"contentQuality"->'is_clickbait_probability'`,
+        transform: (value: string): boolean => {
+          const probability = parseFloat(value || '0');
+          const threshold =
+            remoteConfig.vars.clickbaitTitleProbabilityThreshold || 1;
+
+          return probability > threshold;
+        },
+      },
       read: {
         select: existsByUserAndPost('View'),
         transform: nullIfNotLoggedIn,
@@ -335,8 +345,6 @@ const obj = new GraphORM({
               .where(`bookmark."postId" = ${parentAlias}.id`)
               .andWhere('bookmark."userId" = :userId', { userId: ctx.userId }),
         },
-        transform: (value, ctx): GQLBookmarkList | null =>
-          ctx.premium ? value : null,
       },
       numUpvotes: {
         select: 'upvotes',
