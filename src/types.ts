@@ -153,6 +153,11 @@ export enum UserVoteEntity {
 
 export const maxFeedsPerUser = 10;
 
+export enum BookmarkListCountLimit {
+  Free = 1,
+  Plus = 50,
+}
+
 export type SlackAuthResponse = {
   ok: boolean;
   app_id: string;

@@ -18,11 +18,10 @@ import {
   ArticlePost,
   User,
 } from '../src/entity';
-import { sourcesFixture } from './fixture/source';
+import { sourcesFixture, usersFixture, plusUsersFixture } from './fixture';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
-import { usersFixture } from './fixture/user';
 import { GQLBookmark } from '../src/schema/bookmarks';
 
 let con: DataSource;
@@ -59,13 +58,12 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  loggedUser = null;
-  premiumUser = false;
+  loggedUser = '';
 
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
-  await saveFixtures(con, User, usersFixture);
+  await saveFixtures(con, User, [...usersFixture, ...plusUsersFixture]);
 });
 
 afterAll(() => disposeGraphQLTesting(state));
@@ -227,10 +225,10 @@ describe('mutation removeBookmark', () => {
 });
 
 describe('mutation createBookmarkList', () => {
-  const MUTATION = (name: string): string => `
+  const MUTATION = (name: string, icon?: string): string => `
   mutation CreateBookmarkList {
-  createBookmarkList(name: "${name}") {
-    id, name
+  createBookmarkList(name: "${name}", ${icon ? `icon: "${icon}"` : ''}) {
+    id, name, icon
   }
 }`;
 
@@ -243,20 +241,8 @@ describe('mutation createBookmarkList', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should not authorize when not premium user', () => {
-    loggedUser = '1';
-    return testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION('list'),
-      },
-      'FORBIDDEN',
-    );
-  });
-
   it('should create a new list', async () => {
     loggedUser = '1';
-    premiumUser = true;
     const res = await client.mutate(MUTATION('list'));
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(BookmarkList).find();
@@ -265,6 +251,82 @@ describe('mutation createBookmarkList', () => {
     expect(res.data.createBookmarkList.name).toEqual(actual[0].name);
     expect(actual[0].name).toEqual('list');
     expect(actual[0].userId).toEqual(loggedUser);
+  });
+
+  it('should throw error if name is empty', async () => {
+    loggedUser = '1';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION(''),
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+      'Invalid icon or name',
+    );
+  });
+
+  it('should throw error if icon is not a single emoji', async () => {
+    loggedUser = '1';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION('list', 'icon'),
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+      'Invalid icon or name',
+    );
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION('list', '😂💯'),
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+      'Invalid icon or name',
+    );
+  });
+
+  it('should create a new list with icon', async () => {
+    loggedUser = '1';
+    const request = {
+      name: 'list',
+      icon: '😀',
+    };
+    const res = await client.mutate(MUTATION('list', '😀'));
+    expect(res.errors).toBeFalsy();
+    const folders = await con.getRepository(BookmarkList).find();
+    expect(folders.length).toEqual(1);
+    const folder = folders[0];
+    const { id, name, icon, userId } = folder;
+    expect(res.data.createBookmarkList.id).toEqual(id);
+    expect(res.data.createBookmarkList.name).toEqual(name);
+    expect(res.data.createBookmarkList.icon).toEqual(icon);
+    expect(name).toEqual(request.name);
+    expect(icon).toEqual(request.icon);
+    expect(userId).toEqual(loggedUser);
+  });
+
+  it('should not create a new list if already have one and user is not plus', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(BookmarkList);
+    await repo.save({ userId: loggedUser, name: 'list' });
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION('list2'),
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should create a new list if already have one and user is plus', async () => {
+    loggedUser = '5'; // Plus member
+    const repo = con.getRepository(BookmarkList);
+    await repo.save({ userId: loggedUser, name: 'list' });
+    const res = await client.mutate(MUTATION('list2'));
+    expect(res.errors).toBeFalsy();
+    const folders = await repo.find();
+    expect(folders.length).toEqual(2);
+    expect(res.data.createBookmarkList.name).toEqual('list2');
   });
 });
 
@@ -285,31 +347,28 @@ describe('mutation removeBookmarkList', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should not authorize when not premium user', () => {
-    loggedUser = '1';
-    return testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION('123'),
-      },
-      'FORBIDDEN',
-    );
-  });
-
   it('should remove an existing list', async () => {
     loggedUser = '1';
-    premiumUser = true;
     const repo = con.getRepository(BookmarkList);
     const list = await repo.save({ userId: loggedUser, name: 'list' });
+
+    await con.getRepository(Bookmark).save([
+      { postId: 'p1', userId: loggedUser, listId: list.id },
+      { postId: 'p2', userId: loggedUser, listId: list.id },
+    ]);
+
     const res = await client.mutate(MUTATION(list.id));
     expect(res.errors).toBeFalsy();
     const actual = await repo.find();
     expect(actual.length).toEqual(0);
+
+    // check for cascade delete
+    const bookmarks = await con.getRepository(Bookmark).find();
+    expect(bookmarks.length).toEqual(0);
   });
 
   it("should not remove someone else's list", async () => {
     loggedUser = '1';
-    premiumUser = true;
     const repo = con.getRepository(BookmarkList);
     const list = await repo.save({ userId: '2', name: 'list' });
     const res = await client.mutate(MUTATION(list.id));
@@ -319,13 +378,13 @@ describe('mutation removeBookmarkList', () => {
   });
 });
 
-describe('mutation renameBookmarkList', () => {
-  const MUTATION = (id: string, name: string): string => `
-  mutation RenameBookmarkList {
-  renameBookmarkList(id: "${id}", name: "${name}") {
-    id, name
-  }
-}`;
+describe('mutation updateBookmarkList', () => {
+  const MUTATION = (id: string, name: string, icon?: string): string => `
+    mutation UpdateBookmarkList {
+      updateBookmarkList(id: "${id}", name: "${name}", ${icon ? `icon: "${icon}"` : ''}) {
+        id, name, icon
+      }
+    }`;
 
   it('should not authorize when not logged in', () =>
     testMutationErrorCode(
@@ -336,35 +395,8 @@ describe('mutation renameBookmarkList', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should not authorize when not premium user', () => {
-    loggedUser = '1';
-    return testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION('123', 'list'),
-      },
-      'FORBIDDEN',
-    );
-  });
-
-  it('should rename an existing list', async () => {
-    loggedUser = '1';
-    premiumUser = true;
-    const repo = con.getRepository(BookmarkList);
-    const list = await repo.save({ userId: loggedUser, name: 'list' });
-    const res = await client.mutate(MUTATION(list.id, 'new'));
-    expect(res.errors).toBeFalsy();
-    const actual = await repo.find();
-    expect(actual.length).toEqual(1);
-    expect(res.data.renameBookmarkList.id).toEqual(actual[0].id);
-    expect(res.data.renameBookmarkList.name).toEqual(actual[0].name);
-    expect(actual[0].name).toEqual('new');
-    expect(actual[0].userId).toEqual(loggedUser);
-  });
-
   it("should not rename someone else's list", async () => {
     loggedUser = '1';
-    premiumUser = true;
     const repo = con.getRepository(BookmarkList);
     const list = await repo.save({ userId: '2', name: 'list' });
     return testMutationErrorCode(
@@ -374,6 +406,54 @@ describe('mutation renameBookmarkList', () => {
       },
       'NOT_FOUND',
     );
+  });
+
+  it('should update an existing list name', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(BookmarkList);
+    const list = await repo.save({
+      userId: loggedUser,
+      name: 'list',
+      icon: '😀',
+    });
+
+    const res = await client.mutate(MUTATION(list.id, 'new'));
+    expect(res.errors).toBeFalsy();
+    const updateResult = res.data.updateBookmarkList;
+
+    const folders = await repo.find();
+    expect(folders.length).toEqual(1);
+
+    const [folder] = folders;
+    expect(updateResult.id).toEqual(folder.id);
+    expect(updateResult.name).toEqual(folder.name);
+    expect(folder.name).toEqual('new');
+    expect(folder.userId).toEqual(loggedUser);
+    expect(folder.icon).toEqual('😀'); // not changed
+  });
+
+  it('should update an existing list icon', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(BookmarkList);
+    const list = await repo.save({
+      userId: loggedUser,
+      name: 'list',
+      icon: '😀',
+    });
+
+    const res = await client.mutate(MUTATION(list.id, 'new', '👀'));
+    expect(res.errors).toBeFalsy();
+    const updateResult = res.data.updateBookmarkList;
+
+    const folders = await repo.find();
+    expect(folders.length).toEqual(1);
+
+    const [folder] = folders;
+    expect(updateResult.id).toEqual(folder.id);
+    expect(updateResult.name).toEqual(folder.name);
+    expect(folder.name).toEqual('new');
+    expect(folder.userId).toEqual(loggedUser);
+    expect(folder.icon).toEqual('👀'); // not changed
   });
 });
 
@@ -539,7 +619,7 @@ describe('query bookmarks', () => {
 describe('query bookmarksLists', () => {
   const QUERY = `{
     bookmarkLists {
-      id, name
+      id, name, icon
     }
   }`;
 
@@ -552,26 +632,18 @@ describe('query bookmarksLists', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should not authorize when not logged in', () => {
-    loggedUser = '1';
-    return testQueryErrorCode(
-      client,
-      {
-        query: QUERY,
-      },
-      'FORBIDDEN',
-    );
-  });
-
   it('should return bookmark lists', async () => {
     loggedUser = '1';
-    premiumUser = true;
-    const list = await con
+    await con
       .getRepository(BookmarkList)
-      .save({ userId: loggedUser, name: 'list' });
+      .save({ userId: loggedUser, name: 'list', icon: '😀' });
+
     const res = await client.query(QUERY);
-    delete list.userId;
-    expect(res.data.bookmarkLists).toEqual([list]);
+    expect(res.errors).toBeFalsy();
+    const folders = res.data.bookmarkLists;
+    expect(folders).toHaveLength(1);
+    expect(folders[0].name).toEqual('list');
+    expect(folders[0].icon).toEqual('😀');
   });
 });
 
