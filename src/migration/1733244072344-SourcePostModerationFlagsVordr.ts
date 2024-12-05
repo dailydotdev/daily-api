@@ -10,7 +10,7 @@ export class SourcePostModerationFlagsVordr1733244072344
       `ALTER TABLE "source_post_moderation" ADD "flags" jsonb NOT NULL DEFAULT '{}'`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_source_post_moderation_flags_vordr" ON post USING HASH (((flags->'vordr')::boolean))`,
+      `CREATE INDEX IF NOT EXISTS "IDX_source_post_moderation_flags_vordr" ON post USING HASH (((flags->'vordr')::boolean))`,
     );
   }
 
