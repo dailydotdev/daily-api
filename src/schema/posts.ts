@@ -651,6 +651,11 @@ export const typeDefs = /* GraphQL */ `
     Slug for the post
     """
     slug: String
+
+    """
+    Whether the post title is detected as clickbait
+    """
+    clickbaitTitleDetected: Boolean
   }
 
   type PostConnection {

@@ -48,6 +48,7 @@ export type PostFlagsPublic = Pick<PostFlags, 'private' | 'promoteToPublic'>;
 
 export type PostContentQuality = Partial<{
   is_ai_probability: number;
+  is_clickbait_probability: number;
 }>;
 
 @Entity()
