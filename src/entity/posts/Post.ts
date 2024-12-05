@@ -6,7 +6,6 @@ import {
   OneToMany,
   PrimaryColumn,
   TableInheritance,
-  type DeepPartial,
 } from 'typeorm';
 import { Source, UNKNOWN_SOURCE } from '../Source';
 import { PostTag } from '../PostTag';
@@ -14,7 +13,6 @@ import { PostKeyword } from '../PostKeyword';
 import { User } from '../user';
 import { PostRelation } from './PostRelation';
 import type { PostCodeSnippet } from './PostCodeSnippet';
-import type { I18nRecord } from '../../types';
 
 export enum PostType {
   Article = 'article',
@@ -50,17 +48,7 @@ export type PostFlagsPublic = Pick<PostFlags, 'private' | 'promoteToPublic'>;
 
 export type PostContentQuality = Partial<{
   is_ai_probability: number;
-}>;
-
-export type PostContentMeta = DeepPartial<{
-  alt_title: {
-    provider: string;
-    translations: I18nRecord;
-  };
-  translate_title: {
-    provider: string;
-    translations: I18nRecord;
-  };
+  is_clickbait_probability: number;
 }>;
 
 @Entity()
@@ -272,7 +260,7 @@ export class Post {
   slug: string;
 
   @Column({ type: 'jsonb', default: {} })
-  contentMeta: PostContentMeta;
+  contentMeta: object;
 
   @Column({ type: 'jsonb', default: {} })
   contentQuality: PostContentQuality;

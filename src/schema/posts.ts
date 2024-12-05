@@ -650,6 +650,11 @@ export const typeDefs = /* GraphQL */ `
     Slug for the post
     """
     slug: String
+
+    """
+    Whether the post title is detected as clickbait
+    """
+    clickbaitTitleDetected: Boolean
   }
 
   type PostConnection {
@@ -1768,6 +1773,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         true,
       );
     },
+    /**
+     * Fetches the original title if clickbait shield is enabled,
+     * and the smart title if clickbait shield is disabled.
+     *
+     * This is so that we an query the opposite title based on the user's settings.
+     */
     fetchSmartTitle: async (
       _,
       { id }: { id: string },
@@ -1794,12 +1805,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           throw new ForbiddenError(
             'Free trial has been used! Please upgrade to Plus to continue using this feature.',
           );
-        } else {
-          await ctx.con.getRepository(UserAction).save({
-            userId: ctx.userId,
-            type: UserActionType.FetchedSmartTitle,
-          });
         }
+
+        await ctx.con.getRepository(UserAction).save({
+          userId: ctx.userId,
+          type: UserActionType.FetchedSmartTitle,
+        });
       }
 
       const settings = await queryReadReplica(ctx.con, ({ queryRunner }) =>
@@ -1809,12 +1820,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }),
       );
 
+      // If the user has clickbait shield enabled, return the original title
       if (settings?.flags?.clickbaitShieldEnabled ?? true) {
         return {
           title: getPostTranslatedTitle(post, ctx.contentLanguage),
         };
       }
 
+      // If the user has clickbait shield disabled, return the smart title
       return {
         title: getPostSmartTitle(post, ctx.contentLanguage),
       };

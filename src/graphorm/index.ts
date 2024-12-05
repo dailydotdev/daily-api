@@ -43,6 +43,7 @@ import { transformSettingFlags } from '../common/flags';
 import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
 import { ContentPreference } from '../entity/contentPreference/ContentPreference';
 import { isPlusMember } from '../paddle';
+import { remoteConfig } from '../remoteConfig';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -298,6 +299,17 @@ const obj = new GraphORM({
       tags: {
         select: 'tagsStr',
         transform: (value: string): string[] => value?.split(',') ?? [],
+      },
+      clickbaitTitleDetected: {
+        rawSelect: true,
+        select: `"contentQuality"->'is_clickbait_probability'`,
+        transform: (value: string): boolean => {
+          const probability = parseFloat(value || '0');
+          const threshold =
+            remoteConfig.vars.clickbaitTitleProbabilityThreshold || 1;
+
+          return probability > threshold;
+        },
       },
       read: {
         select: existsByUserAndPost('View'),

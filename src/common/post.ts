@@ -32,6 +32,7 @@ import { downloadJsonFile } from './googleCloud';
 import {
   ContentLanguage,
   type ChangeObject,
+  type I18nRecord,
   type PostCodeSnippetJsonFile,
 } from '../types';
 import { uniqueifyObjectArray } from './utils';
@@ -626,17 +627,31 @@ export const findPostImageFromContent = ({
   return imgTag?.attrGet('src') || undefined;
 };
 
+type PostContentMeta = {
+  alt_title: {
+    translations: I18nRecord;
+  };
+  translate_title: {
+    translations: I18nRecord;
+  };
+};
+
 export const getPostTranslatedTitle = (
   post: Partial<Pick<Post, 'title' | 'contentMeta'>>,
   contentLanguage: ContentLanguage,
 ) =>
-  post.contentMeta?.translate_title?.translations?.[contentLanguage] ||
-  (post.title as string);
+  (post.contentMeta as PostContentMeta)?.translate_title?.translations?.[
+    contentLanguage
+  ] || (post.title as string);
 
 export const getPostSmartTitle = (
   post: Partial<Pick<Post, 'title' | 'contentMeta'>>,
   contentLanguage: ContentLanguage,
 ) =>
-  post.contentMeta?.alt_title?.translations?.[contentLanguage] ||
-  post.contentMeta?.alt_title?.translations?.[ContentLanguage.English] ||
+  (post.contentMeta as PostContentMeta)?.alt_title?.translations?.[
+    contentLanguage
+  ] ||
+  (post.contentMeta as PostContentMeta)?.alt_title?.translations?.[
+    ContentLanguage.English
+  ] ||
   getPostTranslatedTitle(post, contentLanguage);
