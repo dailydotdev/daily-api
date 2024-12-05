@@ -278,12 +278,14 @@ const setAuthCookie = async (
   userId: string,
   roles: string[],
   isTeamMember: boolean,
+  isPlus: boolean,
 ): Promise<AccessToken> => {
   const accessToken = await signJwt(
     {
       userId,
       roles,
       isTeamMember,
+      isPlus,
     },
     15 * 60 * 1000,
   );
@@ -483,7 +485,7 @@ const loggedInBoot = async ({
     span?.setAttribute(SEMATTRS_DAILY_STAFF, isTeamMember);
 
     const accessToken = refreshToken
-      ? await setAuthCookie(req, res, userId, roles, isTeamMember)
+      ? await setAuthCookie(req, res, userId, roles, isTeamMember, isPlus)
       : req.accessToken;
     return {
       user: {

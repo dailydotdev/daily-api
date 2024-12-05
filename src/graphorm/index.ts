@@ -16,6 +16,7 @@ import {
   SettingsFlagsPublic,
   UserStats,
   UserSubscriptionFlags,
+  Settings,
 } from '../entity';
 import {
   SourceMemberRoles,
@@ -29,7 +30,7 @@ import { base64, domainOnly, transformDate } from '../common';
 import { GQLComment } from '../schema/comments';
 import { GQLUserPost } from '../schema/posts';
 import { UserComment } from '../entity/user/UserComment';
-import { I18nRecord, UserVote } from '../types';
+import { ContentLanguage, type I18nRecord, UserVote } from '../types';
 import { whereVordrFilter } from '../common/vordr';
 import { UserCompany, Post } from '../entity';
 import {
@@ -71,20 +72,27 @@ const nullIfNotSameUser = <T>(
   return ctx.userId === user.id ? value : null;
 };
 
-const createI18nField = ({
-  field,
-  fieldAs,
-}: {
-  field: string;
-  fieldAs: string;
-}): GraphORMField => {
+const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
   return {
     select: field,
     transform: (value: string, ctx: Context, parent): string => {
-      const i18nParent = parent as {
-        [key: string]: I18nRecord;
+      const typedParent = parent as {
+        ['i18nTitle']: I18nRecord;
+        ['smartTitle']: I18nRecord;
+        clickbaitShieldEnabled?: boolean;
+        [key: string]: unknown;
       };
-      const i18nValue = i18nParent[fieldAs]?.[ctx.contentLanguage];
+
+      const i18nValue = typedParent.i18nTitle?.[ctx.contentLanguage];
+      const altValue =
+        typedParent.smartTitle?.[ctx.contentLanguage] ||
+        typedParent.smartTitle?.[ContentLanguage.English];
+      const clickbaitShieldEnabled =
+        typedParent?.clickbaitShieldEnabled ?? true;
+
+      if (ctx.isPlus && altValue && clickbaitShieldEnabled) {
+        return altValue;
+      }
 
       if (i18nValue) {
         return i18nValue;
@@ -246,10 +254,24 @@ const obj = new GraphORM({
     },
   },
   Post: {
-    additionalQuery: (ctx, alias, qb) =>
-      qb
+    additionalQuery: (ctx, alias, qb) => {
+      qb = qb
         .andWhere(`"${alias}"."deleted" = false`)
-        .andWhere(`"${alias}"."visible" = true`),
+        .andWhere(`"${alias}"."visible" = true`);
+
+      if (ctx.userId && ctx.isPlus) {
+        qb = qb
+          .innerJoin(Settings, 's', 's."userId" = :userId', {
+            userId: ctx.userId,
+          })
+          .addSelect(
+            `"s"."flags"->'clickbaitShieldEnabled'`,
+            'clickbaitShieldEnabled',
+          );
+      }
+
+      return qb;
+    },
     requiredColumns: [
       'id',
       'shortId',
@@ -263,6 +285,11 @@ const obj = new GraphORM({
       {
         column: `"contentMeta"->'translate_title'->'translations'`,
         columnAs: 'i18nTitle',
+        isJson: true,
+      },
+      {
+        column: `"contentMeta"->'alt_title'->'translations'`,
+        columnAs: 'smartTitle',
         isJson: true,
       },
     ],
@@ -420,9 +447,8 @@ const obj = new GraphORM({
         alias: { field: 'url', type: 'string' },
         transform: (value: string): string => domainOnly(value),
       },
-      title: createI18nField({
+      title: createSmartTitleField({
         field: 'title',
-        fieldAs: 'i18nTitle',
       }),
     },
   },
