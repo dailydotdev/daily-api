@@ -17,6 +17,7 @@ import {
   FeedArgs,
   feedResolver,
   getCursorFromAfter,
+  isOneEmoji,
   Ranking,
 } from '../common';
 import { SelectQueryBuilder } from 'typeorm';
@@ -351,8 +352,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { name, icon }: Record<'name' | 'icon', string>,
       ctx: AuthContext,
     ): Promise<GQLBookmarkList> => {
-      const onlyOneEmoji = /^(\p{Emoji_Presentation})$/gu;
-      const isValidIcon = !icon || onlyOneEmoji.test(icon);
+      const isValidIcon = !icon || isOneEmoji(icon);
       if (!isValidIcon || !name.length) {
         throw new ValidationError('Invalid icon or name');
       }
@@ -450,15 +450,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLBookmarkList[]> =>
-      graphorm.query<GQLBookmarkList>(ctx, info, (builder) => ({
-        ...builder,
-        queryBuilder: builder.queryBuilder.where(
-          `"${builder.alias}"."userId" = :userId`,
-          {
-            userId: ctx.userId,
-          },
-        ),
-      })),
+      graphorm.query<GQLBookmarkList>(
+        ctx,
+        info,
+        (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder.where(
+            `"${builder.alias}"."userId" = :userId`,
+            {
+              userId: ctx.userId,
+            },
+          ),
+        }),
+        true,
+      ),
     searchBookmarksSuggestions: async (
       source,
       { query }: { query: string },

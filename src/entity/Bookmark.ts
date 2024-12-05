@@ -1,5 +1,5 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
-import { BookmarkList } from './BookmarkList';
+import type { BookmarkList } from './BookmarkList';
 import type { Post } from './posts';
 import type { User } from './user';
 
