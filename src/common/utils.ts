@@ -176,7 +176,7 @@ export function isNumber(value: string | number): boolean {
   return !isNaN(Number(value.toString()));
 }
 
-const emojiMatch = /^(\p{Emoji_Presentation})$/gu
+const emojiMatch = /^(\p{Emoji_Presentation})$/gu;
 
 export const isOneEmoji = (text: string): boolean => {
   return emojiMatch.test(text);
