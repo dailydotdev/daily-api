@@ -24,6 +24,7 @@ import {
   PostReport,
   PostTag,
   PostType,
+  Settings,
   SharePost,
   Source,
   SourceMember,
@@ -31,6 +32,8 @@ import {
   SquadSource,
   UNKNOWN_SOURCE,
   User,
+  UserAction,
+  UserActionType,
   UserPost,
   View,
   WelcomePost,
@@ -81,6 +84,8 @@ import {
 } from '../src/entity/SourcePostModeration';
 import { generateUUID } from '../src/ids';
 import { GQLResponse } from 'mercurius-integration-testing';
+import type { GQLPostSmartTitle } from '../src/schema/posts';
+import { SubscriptionCycles } from '../src/paddle';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -5970,6 +5975,171 @@ describe('Source post moderation edit/delete', () => {
       expect(post.title).toEqual('New Title');
       expect(post.content).toEqual('New Content');
       expect(post.status).toEqual(SourcePostModerationStatus.Pending);
+    });
+  });
+});
+
+describe('query fetchSmartTitle', () => {
+  const QUERY = /* GraphQL */ `
+    query FetchSmartTitle($id: ID!) {
+      fetchSmartTitle(id: $id) {
+        title
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        contentMeta: {
+          alt_title: {
+            translations: {
+              en: 'Alt Title',
+              de: 'Alt Title DE',
+            },
+          },
+          translate_title: {
+            translations: {
+              de: 'Title DE',
+            },
+          },
+        },
+      },
+    );
+    await con
+      .getRepository(User)
+      .update(
+        { id: '1' },
+        { subscriptionFlags: { cycle: SubscriptionCycles.Yearly } },
+      );
+  });
+
+  it('should throw error when user is not logged in', async () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: 'p1' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return the original title when clickbait shield is enabled', async () => {
+    loggedUser = '1';
+
+    const res = await client.query<
+      { fetchSmartTitle: GQLPostSmartTitle },
+      { id: string }
+    >(QUERY, {
+      variables: { id: 'p1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.fetchSmartTitle.title).toEqual('P1');
+  });
+
+  it('should return the original title when clickbait shield is enabled and language is set', async () => {
+    loggedUser = '1';
+    const res = await client.query<
+      { fetchSmartTitle: GQLPostSmartTitle },
+      { id: string }
+    >(QUERY, {
+      variables: { id: 'p1' },
+      headers: { 'content-language': 'de' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.fetchSmartTitle.title).toEqual('Title DE');
+  });
+
+  it('should return the smart title when clickbait shield is disabled', async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(Settings)
+      .save({ userId: loggedUser, flags: { clickbaitShieldEnabled: false } });
+
+    const res = await client.query<
+      { fetchSmartTitle: GQLPostSmartTitle },
+      { id: string }
+    >(QUERY, {
+      variables: { id: 'p1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.fetchSmartTitle.title).toEqual('Alt Title');
+  });
+
+  it('should return the smart title when clickbait shield is disabled and language is set', async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(Settings)
+      .save({ userId: loggedUser, flags: { clickbaitShieldEnabled: false } });
+
+    const res = await client.query<
+      { fetchSmartTitle: GQLPostSmartTitle },
+      { id: string }
+    >(QUERY, {
+      variables: { id: 'p1' },
+      headers: { 'content-language': 'de' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.fetchSmartTitle.title).toEqual('Alt Title DE');
+  });
+
+  describe('free user', () => {
+    it('should be able to get the smart title', async () => {
+      loggedUser = '2';
+      const res = await client.query<
+        { fetchSmartTitle: GQLPostSmartTitle },
+        { id: string }
+      >(QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.fetchSmartTitle.title).toEqual('P1');
+    });
+
+    it('should not be able to get the smart title twice', async () => {
+      loggedUser = '2';
+      const res = await client.query<
+        { fetchSmartTitle: GQLPostSmartTitle },
+        { id: string }
+      >(QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.fetchSmartTitle.title).toEqual('P1');
+
+      const res2 = await client.query<
+        { fetchSmartTitle: GQLPostSmartTitle },
+        { id: string }
+      >(QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res2.errors?.length || 0).toEqual(1);
+      expect(res2.errors[0].extensions?.code).toEqual('FORBIDDEN');
+    });
+
+    it('should not be able to get the smart title if they have used free trial', async () => {
+      loggedUser = '2';
+      await con.getRepository(UserAction).save({
+        userId: loggedUser,
+        type: UserActionType.FetchedSmartTitle,
+      });
+
+      const res = await client.query<
+        { fetchSmartTitle: GQLPostSmartTitle },
+        { id: string }
+      >(QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors?.length || 0).toEqual(1);
+      expect(res.errors[0].extensions?.code).toEqual('FORBIDDEN');
     });
   });
 });
