@@ -22,7 +22,7 @@ import {
 } from '../common';
 import { SelectQueryBuilder } from 'typeorm';
 import { GQLPost } from './posts';
-import { isPlusMember } from '../paddle';
+import { isPlusMember, isUserPlusMember } from '../paddle';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { logger } from '../logger';
 import { BookmarkListCountLimit } from '../types';
@@ -71,6 +71,7 @@ export const typeDefs = /* GraphQL */ `
   type Bookmark {
     createdAt: DateTime
     remindAt: DateTime
+    list: BookmarkList
   }
 
   type SearchBookmarksSuggestion {
@@ -233,6 +234,7 @@ interface BookmarksArgs extends ConnectionArguments {
   now: Date;
   unreadOnly: boolean;
   listId: string;
+  isPlus?: boolean;
   supportedTypes?: string[];
   ranking: Ranking;
 }
@@ -285,7 +287,7 @@ const searchResolver = feedResolver(
     { query, unreadOnly, listId }: BookmarksArgs & { query: string },
     builder,
     alias,
-  ) => bookmarksFeedBuilder(ctx, unreadOnly, listId, builder, alias, query),
+  ) => bookmarksFeedBuilder({ ctx, unreadOnly, listId, builder, alias, query }),
   offsetPageGenerator(30, 50),
   (ctx, args, page, builder) => builder.limit(page.limit).offset(page.offset),
   { removeHiddenPosts: true, removeBannedPosts: false },
@@ -433,17 +435,29 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   Query: {
-    bookmarksFeed: feedResolver(
-      (ctx, { unreadOnly, listId }: BookmarksArgs, builder, alias) =>
-        bookmarksFeedBuilder(ctx, unreadOnly, listId, builder, alias),
-      bookmarkPageGenerator,
-      applyBookmarkPaging,
-      {
-        removeHiddenPosts: false,
-        removeBannedPosts: false,
-        removeNonPublicThresholdSquads: false,
-      },
-    ),
+    bookmarksFeed: async (source, args, context: AuthContext, info) => {
+      const isPlus = await isUserPlusMember(context.con, context.userId);
+      const resolver = await feedResolver(
+        (ctx, { unreadOnly, listId }: BookmarksArgs, builder, alias) =>
+          bookmarksFeedBuilder({
+            ctx,
+            unreadOnly,
+            listId,
+            builder,
+            alias,
+            isPlus,
+          }),
+        bookmarkPageGenerator,
+        applyBookmarkPaging,
+        {
+          removeHiddenPosts: false,
+          removeBannedPosts: false,
+          removeNonPublicThresholdSquads: false,
+        },
+      );
+
+      return resolver(source, args, context, info);
+    },
     bookmarkLists: async (
       _,
       __,

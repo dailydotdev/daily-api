@@ -1,5 +1,6 @@
 import {
   AdvancedSettings,
+  BookmarkList,
   FeedAdvancedSettings,
   SourceMember,
   SourceType,
@@ -654,14 +655,45 @@ export const configuredFeedBuilder = (
   return newBuilder;
 };
 
-export const bookmarksFeedBuilder = (
-  ctx: Context,
-  unreadOnly: boolean,
-  listId: string | null,
-  builder: SelectQueryBuilder<Post>,
-  alias: string,
-  query?: string | null,
-): SelectQueryBuilder<Post> => {
+interface BookmarksFeedBuilderProps {
+  ctx: Context;
+  unreadOnly: boolean;
+  listId?: string | null;
+  builder: SelectQueryBuilder<Post>;
+  alias: string;
+  query?: string | null;
+  isPlus?: boolean;
+}
+
+interface GetFirstFolderSubQuery {
+  builder: SelectQueryBuilder<Post>;
+  userId: string;
+  alias?: string;
+}
+
+const getFirstFolderSubQuery = ({
+  builder,
+  userId,
+  alias = 'bl',
+}: GetFirstFolderSubQuery) =>
+  builder
+    .subQuery()
+    .select(`"${alias}".id`)
+    .from(BookmarkList, alias)
+    .where(`"${alias}"."userId" = '${userId}'`)
+    .orderBy(`"${alias}"."createdAt"`, 'ASC')
+    .limit(1)
+    .getQueryAndParameters();
+
+export const bookmarksFeedBuilder = ({
+  ctx,
+  unreadOnly,
+  listId,
+  builder,
+  alias,
+  query,
+  isPlus = false,
+}: BookmarksFeedBuilderProps): SelectQueryBuilder<Post> => {
   let newBuilder = builder
     .addSelect('bookmark.createdAt', 'bookmarkedAt')
     .innerJoin(
@@ -670,14 +702,40 @@ export const bookmarksFeedBuilder = (
       `bookmark."postId" = ${alias}.id AND bookmark."userId" = :userId`,
       { userId: ctx.userId },
     );
+
   if (unreadOnly) {
     newBuilder = newBuilder.andWhere((subBuilder) =>
       whereUnread(ctx.userId, subBuilder, alias),
     );
   }
-  if (listId && ctx.premium) {
+
+  const [firstFolderSubQuery, params] = getFirstFolderSubQuery({
+    builder: newBuilder,
+    userId: ctx.userId!,
+  });
+
+  if (listId) {
     newBuilder = newBuilder.andWhere('bookmark.listId = :listId', { listId });
+
+    if (!isPlus) {
+      // Check if the list id is the first folder.
+      // This is when the user unsubscribed and trying to access locked folders.
+      newBuilder = newBuilder.andWhere(
+        `bookmark."listId" = (${firstFolderSubQuery})`,
+        params,
+      );
+    }
+  } else {
+    if (!isPlus) {
+      // Get everything except the first folder
+      // This returns the bookmarked posts from the locked folders but as part of Quick Saves
+      newBuilder = newBuilder.andWhere(
+        `(bookmark."listId" IS NULL OR bookmark."listId" IS DISTINCT FROM (${firstFolderSubQuery}))`,
+        params,
+      );
+    }
   }
+
   if (query) {
     newBuilder = newBuilder.andWhere(
       `${alias}.tsv @@ (${getSearchQuery(':query')})`,
@@ -686,6 +744,7 @@ export const bookmarksFeedBuilder = (
       },
     );
   }
+
   return newBuilder;
 };
 
