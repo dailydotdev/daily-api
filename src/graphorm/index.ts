@@ -83,9 +83,8 @@ const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
     select: field,
     transform: async (value: string, ctx: Context, parent) => {
       const typedParent = parent as {
-        ['i18nTitle']: I18nRecord;
-        ['smartTitle']: I18nRecord;
-        clickbaitShieldEnabled?: boolean;
+        i18nTitle: I18nRecord;
+        smartTitle: I18nRecord;
         clickbaitProbability?: string;
         [key: string]: unknown;
       };
