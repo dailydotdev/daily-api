@@ -98,18 +98,31 @@ let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
 let premiumUser = false;
+let isTeamMember = false;
+let isPlus = false;
 let roles: Roles[] = [];
 
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    (req) => new MockContext(con, loggedUser, premiumUser, roles, req),
+    (req) =>
+      new MockContext(
+        con,
+        loggedUser,
+        premiumUser,
+        roles,
+        req,
+        isTeamMember,
+        isPlus,
+      ),
   );
   client = state.client;
 });
 
 beforeEach(async () => {
   loggedUser = null;
+  isTeamMember = false;
+  isPlus = false;
   premiumUser = false;
   roles = [];
   jest.clearAllMocks();
@@ -6102,6 +6115,7 @@ describe('query fetchSmartTitle', () => {
 
   it('should return the original title when clickbait shield is enabled', async () => {
     loggedUser = '1';
+    isPlus = true;
 
     const res = await client.query<
       { fetchSmartTitle: GQLPostSmartTitle },
@@ -6116,6 +6130,7 @@ describe('query fetchSmartTitle', () => {
 
   it('should return the original title when clickbait shield is enabled and language is set', async () => {
     loggedUser = '1';
+    isPlus = true;
     const res = await client.query<
       { fetchSmartTitle: GQLPostSmartTitle },
       { id: string }
@@ -6130,6 +6145,7 @@ describe('query fetchSmartTitle', () => {
 
   it('should return the smart title when clickbait shield is disabled', async () => {
     loggedUser = '1';
+    isPlus = true;
 
     await con
       .getRepository(Settings)
@@ -6146,8 +6162,38 @@ describe('query fetchSmartTitle', () => {
     expect(res.data.fetchSmartTitle.title).toEqual('Alt Title');
   });
 
+  it('should return the smart title muliple times when clickbait shield is disabled', async () => {
+    loggedUser = '1';
+    isPlus = true;
+
+    await con
+      .getRepository(Settings)
+      .save({ userId: loggedUser, flags: { clickbaitShieldEnabled: false } });
+
+    const res = await client.query<
+      { fetchSmartTitle: GQLPostSmartTitle },
+      { id: string }
+    >(QUERY, {
+      variables: { id: 'p1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.fetchSmartTitle.title).toEqual('Alt Title');
+
+    const res2 = await client.query<
+      { fetchSmartTitle: GQLPostSmartTitle },
+      { id: string }
+    >(QUERY, {
+      variables: { id: 'p1' },
+    });
+
+    expect(res2.errors).toBeFalsy();
+    expect(res2.data.fetchSmartTitle.title).toEqual('Alt Title');
+  });
+
   it('should return the smart title when clickbait shield is disabled and language is set', async () => {
     loggedUser = '1';
+    isPlus = true;
 
     await con
       .getRepository(Settings)
@@ -6166,7 +6212,7 @@ describe('query fetchSmartTitle', () => {
   });
 
   describe('free user', () => {
-    it('should be able to get the smart title', async () => {
+    it('should be able to get the smart title for trial', async () => {
       loggedUser = '2';
       const res = await client.query<
         { fetchSmartTitle: GQLPostSmartTitle },
@@ -6176,7 +6222,7 @@ describe('query fetchSmartTitle', () => {
       });
 
       expect(res.errors).toBeFalsy();
-      expect(res.data.fetchSmartTitle.title).toEqual('P1');
+      expect(res.data.fetchSmartTitle.title).toEqual('Alt Title');
     });
 
     it('should not be able to get the smart title twice', async () => {
@@ -6189,7 +6235,7 @@ describe('query fetchSmartTitle', () => {
       });
 
       expect(res.errors).toBeFalsy();
-      expect(res.data.fetchSmartTitle.title).toEqual('P1');
+      expect(res.data.fetchSmartTitle.title).toEqual('Alt Title');
 
       const res2 = await client.query<
         { fetchSmartTitle: GQLPostSmartTitle },
