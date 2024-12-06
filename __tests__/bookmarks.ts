@@ -17,6 +17,7 @@ import {
   BookmarkList,
   ArticlePost,
   User,
+  Settings,
 } from '../src/entity';
 import { sourcesFixture, usersFixture, plusUsersFixture } from './fixture';
 import { postsFixture, postTagsFixture } from './fixture/post';
@@ -567,12 +568,28 @@ describe('query bookmarks', () => {
   });
 
   describe('plus user', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
+      loggedUser = '5';
       isPlus = true;
+      await con.getRepository(Settings).save({ userId: loggedUser });
+    });
+
+    it('should return bookmarks without list id only as plus user', async () => {
+      await saveBookmarkFixtures();
+      const list = await con
+        .getRepository(BookmarkList)
+        .save({ userId: loggedUser, name: 'Test' });
+      await con
+        .getRepository(Bookmark)
+        .update({ userId: loggedUser, postId: 'p3' }, { listId: list.id });
+      const res = await client.query(QUERY(false, null, now, 2));
+      const isInsideFolder = res.data.bookmarksFeed.edges.every(
+        ({ node }) => !node.bookmark.list,
+      );
+      expect(isInsideFolder).toBeTruthy();
     });
 
     it('should return bookmarks by list id as plus user', async () => {
-      loggedUser = '5';
       await saveBookmarkFixtures();
       const list = await con
         .getRepository(BookmarkList)
@@ -589,7 +606,6 @@ describe('query bookmarks', () => {
     });
 
     it('should return bookmarks by list id as plus user with two lists', async () => {
-      loggedUser = '5';
       await saveBookmarkFixtures();
       await con.getRepository(BookmarkList).save({
         userId: loggedUser,
