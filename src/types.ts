@@ -154,6 +154,8 @@ export enum UserVoteEntity {
 
 export const maxFeedsPerUser = 10;
 
+export const maxBookmarksPerMutation = 10;
+
 export enum BookmarkListCountLimit {
   Free = 1,
   Plus = 50,

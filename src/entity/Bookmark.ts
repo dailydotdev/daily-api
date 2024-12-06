@@ -14,7 +14,7 @@ export class Bookmark {
   userId: string;
 
   @Column({ type: 'uuid', nullable: true })
-  listId: string;
+  listId: string | null;
 
   @Column({ type: 'timestamp', nullable: true })
   remindAt: Date;
