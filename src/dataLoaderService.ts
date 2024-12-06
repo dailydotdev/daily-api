@@ -1,7 +1,7 @@
 import DataLoader, { BatchLoadFn } from 'dataloader';
 import { Context } from './Context';
 import { getShortUrl } from './common';
-import { SourceMember } from './entity';
+import { Settings, SourceMember } from './entity';
 import { GQLSource } from './schema/sources';
 
 export const defaultCacheKeyFn = <K extends object | string>(key: K) => {
@@ -51,6 +51,15 @@ export class DataLoaderService {
     }
 
     return this.loaders[type] as DataLoader<K, V>;
+  }
+
+  get userSettings() {
+    return this.getLoader<{ userId: string }, Settings>({
+      type: 'userSettings',
+      loadFn: async ({ userId }) =>
+        this.ctx.con.getRepository(Settings).findOneBy({ userId }),
+      cacheKeyFn: ({ userId }) => defaultCacheKeyFn({ userId }),
+    });
   }
 
   get shortUrl() {
