@@ -136,6 +136,9 @@ Object {
     "edges": Array [
       Object {
         "node": Object {
+          "bookmark": Object {
+            "list": null,
+          },
           "id": "p3",
           "source": Object {
             "id": "c",
@@ -148,6 +151,9 @@ Object {
       },
       Object {
         "node": Object {
+          "bookmark": Object {
+            "list": null,
+          },
           "id": "p1",
           "source": Object {
             "id": "a",
