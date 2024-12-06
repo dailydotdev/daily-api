@@ -66,6 +66,10 @@ export class Context {
     return this.req.span;
   }
 
+  get isPlus(): boolean {
+    return !!this.req.isPlus;
+  }
+
   getRepository<Entity extends ObjectLiteral>(
     target: ObjectType<Entity> | EntitySchema<Entity> | string,
   ): Repository<Entity> {
