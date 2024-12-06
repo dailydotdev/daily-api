@@ -234,7 +234,6 @@ interface BookmarksArgs extends ConnectionArguments {
   now: Date;
   unreadOnly: boolean;
   listId: string;
-  isPlus?: boolean;
   supportedTypes?: string[];
   ranking: Ranking;
 }
