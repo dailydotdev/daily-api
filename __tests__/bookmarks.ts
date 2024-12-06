@@ -534,54 +534,6 @@ describe('query bookmarks', () => {
   }
 }`;
 
-  const QUERYY = (
-    unreadOnly?: boolean,
-    listId?: string,
-    now = new Date(),
-    first = 10,
-  ): string => `{
-  query BookmarksFeed($now: DateTime!, $first: Int!, $unreadOnly: Boolean, $listId: ID) {
-    bookmarksFeed(now: $now, first: $first, unreadOnly: $unreadOnly, listId: $listId) {
-      pageInfo {
-        endCursor
-        hasNextPage
-      }
-      edges {
-        node {
-          id
-          source {
-            id
-            name
-            image
-            public
-          }
-          tags
-        }
-      }
-    }
-  }
-  bookmarksFeed(now: "${now.toISOString()}", first: ${first}${
-    unreadOnly ? ', unreadOnly: true' : ''
-  }${listId ? `, listId: "${listId}"` : ''}) {
-    pageInfo {
-      endCursor
-      hasNextPage
-    }
-    edges {
-      node {
-        id
-        source {
-          id
-          name
-          image
-          public
-        }
-        tags
-      }
-    }
-  }
-}`;
-
   it('should not authorize when not logged in', () =>
     testQueryErrorCode(
       client,
