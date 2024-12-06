@@ -723,7 +723,7 @@ export const bookmarksFeedBuilder = ({
         params,
       );
     }
-  } else {
+  } else if (!query) {
     if (!ctx.isPlus) {
       // Get everything except the first folder
       // This returns the bookmarked posts from the locked folders but as part of Quick Saves
