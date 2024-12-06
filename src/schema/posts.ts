@@ -1783,60 +1783,58 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       _,
       { id }: { id: string },
       ctx: Context,
-    ): Promise<GQLPostSmartTitle> => {
-      const post: Pick<Post, 'title' | 'contentMeta'> = await queryReadReplica(
-        ctx.con,
-        ({ queryRunner }) =>
-          queryRunner.manager.getRepository(Post).findOneOrFail({
+    ): Promise<GQLPostSmartTitle> =>
+      queryReadReplica(ctx.con, async ({ queryRunner }) => {
+        const post: Pick<Post, 'title' | 'contentMeta'> =
+          await queryRunner.manager.getRepository(Post).findOneOrFail({
             where: { id },
             select: ['title', 'contentMeta'],
-          }),
-      );
+          });
 
-      if (!ctx.isPlus) {
-        const hasUsedFreeTrial = await ctx.con
-          .getRepository(UserAction)
-          .findOneBy({
+        if (!ctx.isPlus) {
+          const hasUsedFreeTrial = await ctx.con
+            .getRepository(UserAction)
+            .findOneBy({
+              userId: ctx.userId,
+              type: UserActionType.FetchedSmartTitle,
+            });
+
+          if (hasUsedFreeTrial) {
+            throw new ForbiddenError(
+              'Free trial has been used! Please upgrade to Plus to continue using this feature.',
+            );
+          }
+
+          await ctx.con.getRepository(UserAction).save({
             userId: ctx.userId,
             type: UserActionType.FetchedSmartTitle,
           });
 
-        if (hasUsedFreeTrial) {
-          throw new ForbiddenError(
-            'Free trial has been used! Please upgrade to Plus to continue using this feature.',
-          );
+          // We always want to return the smart title for non-plus users who have not used the free trial, as it is part of the try before you buy experience
+          return {
+            title: getPostSmartTitle(post, ctx.contentLanguage),
+          };
         }
 
-        await ctx.con.getRepository(UserAction).save({
-          userId: ctx.userId,
-          type: UserActionType.FetchedSmartTitle,
-        });
+        const settings = await queryRunner.manager
+          .getRepository(Settings)
+          .findOne({
+            where: { userId: ctx.userId },
+            select: ['flags'],
+          });
 
-        // We always want to return the smart title for non-plus users who have not used the free trial, as it is part of the try before you buy experience
+        // If the user has clickbait shield enabled, return the original title
+        if (settings?.flags?.clickbaitShieldEnabled ?? true) {
+          return {
+            title: getPostTranslatedTitle(post, ctx.contentLanguage),
+          };
+        }
+
+        // If the user has clickbait shield disabled, return the smart title
         return {
           title: getPostSmartTitle(post, ctx.contentLanguage),
         };
-      }
-
-      const settings = await queryReadReplica(ctx.con, ({ queryRunner }) =>
-        queryRunner.manager.getRepository(Settings).findOne({
-          where: { userId: ctx.userId },
-          select: ['flags'],
-        }),
-      );
-
-      // If the user has clickbait shield enabled, return the original title
-      if (settings?.flags?.clickbaitShieldEnabled ?? true) {
-        return {
-          title: getPostTranslatedTitle(post, ctx.contentLanguage),
-        };
-      }
-
-      // If the user has clickbait shield disabled, return the smart title
-      return {
-        title: getPostSmartTitle(post, ctx.contentLanguage),
-      };
-    },
+      }),
   },
   Mutation: {
     createSourcePostModeration: async (
