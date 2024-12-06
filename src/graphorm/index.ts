@@ -75,7 +75,6 @@ const nullIfNotSameUser = <T>(
 const checkIfTitleIsClickbait = (value?: string): boolean => {
   const clickbaitProbability = parseFloat(value || '0');
   const threshold = remoteConfig.vars.clickbaitTitleProbabilityThreshold || 1;
-  console.log('clickbaitProbability', clickbaitProbability);
 
   return clickbaitProbability > threshold;
 };
