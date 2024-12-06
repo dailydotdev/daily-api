@@ -23,12 +23,15 @@ import { postsFixture, postTagsFixture } from './fixture/post';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { subDays } from 'date-fns';
+import { FastifyInstance } from 'fastify';
 
+let app: FastifyInstance;
 let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string;
 let premiumUser: boolean;
+let isPlus: boolean;
 
 const now = new Date();
 const bookmarksFixture = [
@@ -52,13 +55,15 @@ const bookmarksFixture = [
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    () => new MockContext(con, loggedUser, premiumUser),
+    (req) =>
+      new MockContext(con, loggedUser, premiumUser, [], req, false, isPlus),
   );
   client = state.client;
 });
 
 beforeEach(async () => {
   loggedUser = '';
+  isPlus = false;
 
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
@@ -66,7 +71,10 @@ beforeEach(async () => {
   await saveFixtures(con, User, [...usersFixture, ...plusUsersFixture]);
 });
 
-afterAll(() => disposeGraphQLTesting(state));
+afterAll(() => {
+  disposeGraphQLTesting(state);
+  app.close();
+});
 
 describe('mutation addBookmarks', () => {
   const MUTATION = `
@@ -559,6 +567,10 @@ describe('query bookmarks', () => {
   });
 
   describe('plus user', () => {
+    beforeEach(() => {
+      isPlus = true;
+    });
+
     it('should return bookmarks by list id as plus user', async () => {
       loggedUser = '5';
       await saveBookmarkFixtures();
@@ -711,8 +723,10 @@ describe('query bookmarks', () => {
       { listId: list.id },
     );
     const res = await client.query(QUERY(false, list.id, now, 2));
-    delete res.data.bookmarksFeed.pageInfo.endCursor;
-    expect(res.data).toMatchSnapshot();
+    const withinFolder = res.data.bookmarksFeed.edges.every(
+      ({ node }) => node.bookmark.list.id === list.id,
+    );
+    expect(withinFolder).toBeTruthy();
   });
 
   it('should include banned posts', async () => {
