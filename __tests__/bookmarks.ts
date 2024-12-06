@@ -583,10 +583,11 @@ describe('query bookmarks', () => {
         .getRepository(Bookmark)
         .update({ userId: loggedUser, postId: 'p3' }, { listId: list.id });
       const res = await client.query(QUERY(false, null, now, 2));
-      const isInsideFolder = res.data.bookmarksFeed.edges.every(
+      expect(res.data.bookmarksFeed.edges.length).toBeGreaterThan(0);
+      const isOutsideFolder = res.data.bookmarksFeed.edges.every(
         ({ node }) => !node.bookmark.list,
       );
-      expect(isInsideFolder).toBeTruthy();
+      expect(isOutsideFolder).toBeTruthy();
     });
 
     it('should return bookmarks by list id as plus user', async () => {

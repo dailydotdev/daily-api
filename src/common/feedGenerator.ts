@@ -712,8 +712,12 @@ export const bookmarksFeedBuilder = ({
     userId: ctx.userId!,
   });
 
-  if (ctx.isPlus || listId) {
-    newBuilder = newBuilder.andWhere('bookmark.listId = :listId', { listId });
+  if (ctx.isPlus) {
+    if (listId) {
+      newBuilder = newBuilder.andWhere('bookmark.listId = :listId', { listId });
+    } else {
+      newBuilder = newBuilder.andWhere('bookmark.listId IS NULL');
+    }
   }
 
   if (!ctx.isPlus) {
