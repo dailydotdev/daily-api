@@ -20,12 +20,12 @@ import {
   isOneEmoji,
   Ranking,
 } from '../common';
-import { SelectQueryBuilder } from 'typeorm';
+import { In, SelectQueryBuilder } from 'typeorm';
 import { GQLPost } from './posts';
 import { isPlusMember } from '../paddle';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { logger } from '../logger';
-import { BookmarkListCountLimit } from '../types';
+import { BookmarkListCountLimit, maxBookmarksPerMutation } from '../types';
 import graphorm from '../graphorm';
 
 interface GQLAddBookmarkInput {
@@ -316,20 +316,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
       const lastUsedListId = lastAddedBookmark?.listId ?? null;
 
-      const [query, params] = ctx.con
-        .createQueryBuilder()
-        .select('id', 'postId')
-        .addSelect(`'${ctx.userId}'`, 'userId')
-        .addSelect(`:listId`, 'listId')
-        .from(Post, 'post')
-        .where('post.id IN (:...postIds)', { postIds: data.postIds })
-        .setParameter('listId', lastUsedListId)
-        .getQueryAndParameters();
+      if (data.postIds.length > maxBookmarksPerMutation) {
+        throw new ValidationError(
+          `Exceeded the maximum bookmarks per mutation (${maxBookmarksPerMutation})`,
+        );
+      }
 
-      await ctx.con.query(
-        `insert into bookmark("postId", "userId", "listId") ${query} on conflict do nothing`,
-        params,
-      );
+      await ctx.con.transaction(async (manager) => {
+        const posts = await manager.getRepository(Post).findBy({
+          id: In(data.postIds),
+        });
+
+        await ctx.con.getRepository(Bookmark).upsert(
+          posts.map((post) => ({
+            postId: post.id,
+            userId: ctx.userId,
+            listId: lastUsedListId,
+          })),
+          ['postId', 'userId'],
+        );
+      });
 
       return await graphorm.query<GQLBookmark>(ctx, info, (builder) => ({
         ...builder,
