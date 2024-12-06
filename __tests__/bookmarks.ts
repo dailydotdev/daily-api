@@ -24,9 +24,7 @@ import { postsFixture, postTagsFixture } from './fixture/post';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { subDays } from 'date-fns';
-import { FastifyInstance } from 'fastify';
 
-let app: FastifyInstance;
 let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
@@ -72,10 +70,7 @@ beforeEach(async () => {
   await saveFixtures(con, User, [...usersFixture, ...plusUsersFixture]);
 });
 
-afterAll(() => {
-  disposeGraphQLTesting(state);
-  app.close();
-});
+afterAll(() => disposeGraphQLTesting(state));
 
 describe('mutation addBookmarks', () => {
   const MUTATION = `
