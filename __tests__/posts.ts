@@ -1087,6 +1087,7 @@ describe('query post', () => {
     it('should return true if clickbait title probability (string) is above threshold', async () => {
       await con.getRepository(ArticlePost).update('p1', {
         contentQuality: { is_clickbait_probability: '1.99' }, // Use 1.99 as it's above the fallback threshold
+        contentMeta: { alt_title: { translations: { en: 'Clickbait title' } } },
       });
 
       const res = await client.query(LOCAL_QUERY, {
@@ -1099,7 +1100,8 @@ describe('query post', () => {
 
     it('should return true if clickbait title probability (float) is above threshold', async () => {
       await con.getRepository(ArticlePost).update('p1', {
-        contentQuality: { is_clickbait_probability: 1.98 }, // Use 1.99 as it's above the fallback threshold
+        contentQuality: { is_clickbait_probability: 1.98 }, // Use 1.98 as it's above the fallback threshold
+        contentMeta: { alt_title: { translations: { en: 'Clickbait title' } } },
       });
 
       const res = await client.query(LOCAL_QUERY, {
@@ -1108,6 +1110,19 @@ describe('query post', () => {
 
       expect(res.errors).toBeFalsy();
       expect(res.data.post.clickbaitTitleDetected).toEqual(true);
+    });
+
+    it('should return false if clickbait title probability (float) is above threshold but no alt title exists', async () => {
+      await con.getRepository(ArticlePost).update('p1', {
+        contentQuality: { is_clickbait_probability: 1.98 }, // Use 1.98 as it's above the fallback threshold
+      });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.clickbaitTitleDetected).toEqual(false);
     });
 
     it('should return false if clickbait title probability is below threshold', async () => {

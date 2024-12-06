@@ -665,14 +665,20 @@ export const getPostTranslatedTitle = (
     contentLanguage
   ] || (post.title as string);
 
+export const getSmartTitle = (
+  contentLanguage: ContentLanguage,
+  translations?: I18nRecord,
+): string | undefined => {
+  return (
+    translations?.[contentLanguage] ?? translations?.[ContentLanguage.English]
+  );
+};
+
 export const getPostSmartTitle = (
   post: Partial<Pick<Post, 'title' | 'contentMeta'>>,
   contentLanguage: ContentLanguage,
 ) =>
-  (post.contentMeta as PostContentMeta)?.alt_title?.translations?.[
-    contentLanguage
-  ] ||
-  (post.contentMeta as PostContentMeta)?.alt_title?.translations?.[
-    ContentLanguage.English
-  ] ||
-  getPostTranslatedTitle(post, contentLanguage);
+  getSmartTitle(
+    contentLanguage,
+    (post.contentMeta as PostContentMeta)?.alt_title?.translations,
+  ) || getPostTranslatedTitle(post, contentLanguage);
