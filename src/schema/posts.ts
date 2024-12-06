@@ -1479,6 +1479,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               .where(`"${builder.alias}"."sourceId" = :sourceId`, {
                 sourceId: args.sourceId,
               })
+              .andWhere(
+                `("${builder.alias}"."flags"->>'vordr')::boolean IS NOT TRUE`,
+              )
               .orderBy(`${builder.alias}.updatedAt`, 'DESC')
               .limit(page.limit)
               .offset(page.offset);
@@ -1852,10 +1855,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       );
 
       const pendingPost = await validateSourcePostModeration(ctx, props);
-      const moderatedPost = await createSourcePostModeration(
-        ctx.con,
-        pendingPost,
-      );
+      const moderatedPost = await createSourcePostModeration({
+        ctx,
+        args: pendingPost,
+      });
 
       return graphorm.queryOneOrFail<GQLSourcePostModeration>(
         ctx,
