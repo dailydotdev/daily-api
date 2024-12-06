@@ -75,6 +75,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type Bookmark {
+    postId: ID!
     list: BookmarkList
     createdAt: DateTime
     remindAt: DateTime
