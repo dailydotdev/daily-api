@@ -72,6 +72,13 @@ const nullIfNotSameUser = <T>(
   return ctx.userId === user.id ? value : null;
 };
 
+const checkIfTitleIsClickbait = (value?: string): boolean => {
+  const clickbaitProbability = parseFloat(value || '0');
+  const threshold = remoteConfig.vars.clickbaitTitleProbabilityThreshold || 1;
+
+  return clickbaitProbability > threshold;
+};
+
 const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
   return {
     select: field,
@@ -80,6 +87,7 @@ const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
         ['i18nTitle']: I18nRecord;
         ['smartTitle']: I18nRecord;
         clickbaitShieldEnabled?: boolean;
+        clickbaitProbability?: string;
         [key: string]: unknown;
       };
 
@@ -90,7 +98,16 @@ const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
       const clickbaitShieldEnabled =
         typedParent?.clickbaitShieldEnabled ?? true;
 
-      if (ctx.isPlus && altValue && clickbaitShieldEnabled) {
+      const clickbaitTitleDetected = checkIfTitleIsClickbait(
+        typedParent.clickbaitProbability,
+      );
+
+      if (
+        ctx.isPlus &&
+        altValue &&
+        clickbaitShieldEnabled &&
+        clickbaitTitleDetected
+      ) {
         return altValue;
       }
 
@@ -292,6 +309,11 @@ const obj = new GraphORM({
         columnAs: 'smartTitle',
         isJson: true,
       },
+      {
+        column: `"contentQuality"->'is_clickbait_probability'`,
+        columnAs: 'clickbaitProbability',
+        isJson: true,
+      },
     ],
     fields: {
       tags: {
@@ -299,14 +321,11 @@ const obj = new GraphORM({
         transform: (value: string): string[] => value?.split(',') ?? [],
       },
       clickbaitTitleDetected: {
-        rawSelect: true,
-        select: `"contentQuality"->'is_clickbait_probability'`,
-        transform: (value: string): boolean => {
-          const probability = parseFloat(value || '0');
-          const threshold =
-            remoteConfig.vars.clickbaitTitleProbabilityThreshold || 1;
-
-          return probability > threshold;
+        transform: (_, __, parent): boolean => {
+          const typedParent = parent as {
+            clickbaitProbability: string;
+          };
+          return checkIfTitleIsClickbait(typedParent.clickbaitProbability);
         },
       },
       read: {
