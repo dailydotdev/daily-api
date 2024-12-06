@@ -22,7 +22,7 @@ import {
 } from '../common';
 import { SelectQueryBuilder } from 'typeorm';
 import { GQLPost } from './posts';
-import { isPlusMember, isUserPlusMember } from '../paddle';
+import { isPlusMember } from '../paddle';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { logger } from '../logger';
 import { BookmarkListCountLimit } from '../types';
@@ -435,29 +435,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   Query: {
-    bookmarksFeed: async (source, args, context: AuthContext, info) => {
-      const isPlus = await isUserPlusMember(context.con, context.userId);
-      const resolver = await feedResolver(
-        (ctx, { unreadOnly, listId }: BookmarksArgs, builder, alias) =>
-          bookmarksFeedBuilder({
-            ctx,
-            unreadOnly,
-            listId,
-            builder,
-            alias,
-            isPlus,
-          }),
-        bookmarkPageGenerator,
-        applyBookmarkPaging,
-        {
-          removeHiddenPosts: false,
-          removeBannedPosts: false,
-          removeNonPublicThresholdSquads: false,
-        },
-      );
-
-      return resolver(source, args, context, info);
-    },
+    bookmarksFeed: feedResolver(
+      (ctx, { unreadOnly, listId }: BookmarksArgs, builder, alias) =>
+        bookmarksFeedBuilder({
+          ctx,
+          unreadOnly,
+          listId,
+          builder,
+          alias,
+        }),
+      bookmarkPageGenerator,
+      applyBookmarkPaging,
+      {
+        removeHiddenPosts: false,
+        removeBannedPosts: false,
+        removeNonPublicThresholdSquads: false,
+      },
+    ),
     bookmarkLists: async (
       _,
       __,

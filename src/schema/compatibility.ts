@@ -1,5 +1,5 @@
 import { IFieldResolver, IResolvers } from '@graphql-tools/utils';
-import { AuthContext, BaseContext, Context } from '../Context';
+import { BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import { GQLPost } from './posts';
 import {
@@ -15,7 +15,6 @@ import {
 import { SelectQueryBuilder } from 'typeorm';
 import { Post } from '../entity';
 import graphorm from '../graphorm';
-import { isUserPlusMember } from '../paddle';
 
 export const typeDefs = /* GraphQL */ `
   type Publication {
@@ -215,25 +214,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }
       },
     ),
-    bookmarks: async (
-      source: unknown,
-      params: CompatFeedArgs<CompatFeedInput>,
-      context: AuthContext,
-      info,
-    ) => {
-      const isPlus = await isUserPlusMember(context.con, context.userId);
-      const resolver = compatFeedResolver((ctx, args, opts, builder, alias) =>
-        bookmarksFeedBuilder({
-          ctx,
-          unreadOnly: false,
-          builder: builder.orderBy('bookmark.createdAt', 'DESC'),
-          alias,
-          isPlus,
-        }),
-      );
-
-      return resolver(source, params, context, info);
-    },
+    bookmarks: compatFeedResolver((ctx, args, opts, builder, alias) =>
+      bookmarksFeedBuilder({
+        ctx,
+        unreadOnly: false,
+        builder: builder.orderBy('bookmark.createdAt', 'DESC'),
+        alias,
+      }),
+    ),
     postsByTag: compatFeedResolver(
       (
         ctx,

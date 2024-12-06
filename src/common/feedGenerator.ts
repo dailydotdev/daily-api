@@ -662,7 +662,6 @@ interface BookmarksFeedBuilderProps {
   builder: SelectQueryBuilder<Post>;
   alias: string;
   query?: string | null;
-  isPlus?: boolean;
 }
 
 interface GetFirstFolderSubQuery {
@@ -692,7 +691,6 @@ export const bookmarksFeedBuilder = ({
   builder,
   alias,
   query,
-  isPlus = false,
 }: BookmarksFeedBuilderProps): SelectQueryBuilder<Post> => {
   let newBuilder = builder
     .addSelect('bookmark.createdAt', 'bookmarkedAt')
@@ -717,7 +715,7 @@ export const bookmarksFeedBuilder = ({
   if (listId) {
     newBuilder = newBuilder.andWhere('bookmark.listId = :listId', { listId });
 
-    if (!isPlus) {
+    if (!ctx.isPlus) {
       // Check if the list id is the first folder.
       // This is when the user unsubscribed and trying to access locked folders.
       newBuilder = newBuilder.andWhere(
@@ -726,7 +724,7 @@ export const bookmarksFeedBuilder = ({
       );
     }
   } else {
-    if (!isPlus) {
+    if (!ctx.isPlus) {
       // Get everything except the first folder
       // This returns the bookmarked posts from the locked folders but as part of Quick Saves
       newBuilder = newBuilder.andWhere(
