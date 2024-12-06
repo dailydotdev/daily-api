@@ -71,6 +71,7 @@ export const typeDefs = /* GraphQL */ `
   type Bookmark {
     createdAt: DateTime
     remindAt: DateTime
+    list: BookmarkList
   }
 
   type SearchBookmarksSuggestion {
@@ -285,7 +286,7 @@ const searchResolver = feedResolver(
     { query, unreadOnly, listId }: BookmarksArgs & { query: string },
     builder,
     alias,
-  ) => bookmarksFeedBuilder(ctx, unreadOnly, listId, builder, alias, query),
+  ) => bookmarksFeedBuilder({ ctx, unreadOnly, listId, builder, alias, query }),
   offsetPageGenerator(30, 50),
   (ctx, args, page, builder) => builder.limit(page.limit).offset(page.offset),
   { removeHiddenPosts: true, removeBannedPosts: false },
@@ -435,7 +436,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   Query: {
     bookmarksFeed: feedResolver(
       (ctx, { unreadOnly, listId }: BookmarksArgs, builder, alias) =>
-        bookmarksFeedBuilder(ctx, unreadOnly, listId, builder, alias),
+        bookmarksFeedBuilder({
+          ctx,
+          unreadOnly,
+          listId,
+          builder,
+          alias,
+        }),
       bookmarkPageGenerator,
       applyBookmarkPaging,
       {

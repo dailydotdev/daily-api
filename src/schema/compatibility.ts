@@ -215,13 +215,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       },
     ),
     bookmarks: compatFeedResolver((ctx, args, opts, builder, alias) =>
-      bookmarksFeedBuilder(
+      bookmarksFeedBuilder({
         ctx,
-        false,
-        null,
-        builder.orderBy('bookmark.createdAt', 'DESC'),
+        unreadOnly: false,
+        builder: builder.orderBy('bookmark.createdAt', 'DESC'),
         alias,
-      ),
+      }),
     ),
     postsByTag: compatFeedResolver(
       (
