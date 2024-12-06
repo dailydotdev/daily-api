@@ -5,6 +5,7 @@ import { generateStorageKey, StorageKey, StorageTopic } from '../../config';
 import { getRedisObject } from '../../redis';
 import { isNumber } from '../../common';
 import { Settings } from '../../entity';
+import { queryReadReplica } from '../../common/queryReadReplica';
 
 const worker = generateTypedNotificationWorker<'api.v1.user-streak-updated'>({
   subscription: 'api.user-streak-reset-notification',
@@ -17,9 +18,11 @@ const worker = generateTypedNotificationWorker<'api.v1.user-streak-updated'>({
     );
 
     const [settings, lastStreak] = await Promise.all([
-      con
-        .getRepository(Settings)
-        .findOne({ where: { userId }, select: ['optOutReadingStreak'] }),
+      queryReadReplica(con, ({ queryRunner }) => {
+        return queryRunner.manager
+          .getRepository(Settings)
+          .findOne({ where: { userId }, select: ['optOutReadingStreak'] });
+      }),
       getRedisObject(key),
     ]);
 

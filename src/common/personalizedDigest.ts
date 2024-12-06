@@ -28,6 +28,7 @@ import { baseFeedConfig } from '../integrations/feed';
 import { FeedConfigName } from '../integrations/feed';
 import { isPlusMember } from '../paddle';
 import { mapCloudinaryUrl } from './cloudinary';
+import { queryReadReplica } from './queryReadReplica';
 
 type TemplatePostData = Pick<
   ArticlePost,
@@ -231,11 +232,13 @@ export const getPersonalizedDigestEmailPayload = async ({
   previousSendDate: Date;
   feature: PersonalizedDigestFeatureConfig;
 }): Promise<SendEmailRequestWithTemplate | undefined> => {
-  const feedConfig = await feedToFilters(
-    con,
-    personalizedDigest.userId,
-    personalizedDigest.userId,
-  );
+  const feedConfig = await await queryReadReplica(con, ({ queryRunner }) => {
+    return feedToFilters(
+      queryRunner.manager,
+      personalizedDigest.userId,
+      personalizedDigest.userId,
+    );
+  });
 
   const feedConfigPayload = {
     user_id: personalizedDigest.userId,
@@ -259,40 +262,45 @@ export const getPersonalizedDigestEmailPayload = async ({
     feedConfigPayload,
   );
 
-  const posts: TemplatePostData[] = await fixedIdsFeedBuilder(
-    {},
-    feedResponse.data.map(([postId]) => postId),
-    con
-      .createQueryBuilder(Post, 'p')
-      .select(
-        [
-          'p.id',
-          'p.title',
-          'p.image',
-          'p."createdAt"',
-          'p.summary',
-          'p.upvotes',
-          'p.comments',
-          'p."readTime"',
-          'p.views',
-          'p.content',
-          's.name as "sourceName"',
-          's.image as "sourceImage"',
-          'sp.title as "sharedPostTitle"',
-          'sp.image as "sharedPostImage"',
-        ].join(', '),
-      )
-      .leftJoin(Source, 's', 'p."sourceId" = s.id')
-      .leftJoin(
-        ArticlePost,
-        'sp',
-        'sp.id = p."sharedPostId" AND p.type = :shareType',
-        {
-          shareType: PostType.Share,
-        },
-      ),
-    'p',
-  ).execute();
+  const posts: TemplatePostData[] = await queryReadReplica(
+    con,
+    async ({ queryRunner }) => {
+      return fixedIdsFeedBuilder(
+        {},
+        feedResponse.data.map(([postId]) => postId),
+        queryRunner.manager
+          .createQueryBuilder(Post, 'p')
+          .select(
+            [
+              'p.id',
+              'p.title',
+              'p.image',
+              'p."createdAt"',
+              'p.summary',
+              'p.upvotes',
+              'p.comments',
+              'p."readTime"',
+              'p.views',
+              'p.content',
+              's.name as "sourceName"',
+              's.image as "sourceImage"',
+              'sp.title as "sharedPostTitle"',
+              'sp.image as "sharedPostImage"',
+            ].join(', '),
+          )
+          .leftJoin(Source, 's', 'p."sourceId" = s.id')
+          .leftJoin(
+            ArticlePost,
+            'sp',
+            'sp.id = p."sharedPostId" AND p.type = :shareType',
+            {
+              shareType: PostType.Share,
+            },
+          ),
+        'p',
+      ).execute();
+    },
+  );
 
   if (posts.length === 0) {
     logger.warn(
