@@ -649,7 +649,7 @@ export const getSmartTitle = (
   translations?: I18nRecord,
 ): string | undefined => {
   return (
-    translations?.[contentLanguage!] ?? translations?.[ContentLanguage.English]
+    translations?.[contentLanguage] ?? translations?.[ContentLanguage.English]
   );
 };
 
