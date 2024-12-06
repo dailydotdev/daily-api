@@ -232,7 +232,7 @@ export const getPersonalizedDigestEmailPayload = async ({
   previousSendDate: Date;
   feature: PersonalizedDigestFeatureConfig;
 }): Promise<SendEmailRequestWithTemplate | undefined> => {
-  const feedConfig = await await queryReadReplica(con, ({ queryRunner }) => {
+  const feedConfig = await queryReadReplica(con, ({ queryRunner }) => {
     return feedToFilters(
       queryRunner.manager,
       personalizedDigest.userId,
