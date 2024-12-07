@@ -11,6 +11,7 @@ import {
   SquadPublicRequest,
   SquadPublicRequestStatus,
 } from '../../entity';
+import { queryReadReplica } from '../../common/queryReadReplica';
 
 interface Data {
   request: ChangeObject<SquadPublicRequest>;
@@ -33,7 +34,11 @@ const worker: NotificationWorker = {
       sourceId,
       messageId: message.messageId,
     };
-    const source = await con.getRepository(Source).findOneBy({ id: sourceId });
+    const source = await queryReadReplica(con, ({ queryRunner }) => {
+      return queryRunner.manager
+        .getRepository(Source)
+        .findOneBy({ id: sourceId });
+    });
 
     if (!source) {
       logger.info(logDetails, 'source does not exist');

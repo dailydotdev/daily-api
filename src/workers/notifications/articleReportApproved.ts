@@ -4,6 +4,7 @@ import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
 import { buildPostContext } from './utils';
 import { NotificationType } from '../../notifications/common';
+import { queryReadReplica } from '../../common/queryReadReplica';
 
 interface Data {
   post: ChangeObject<Post>;
@@ -17,9 +18,13 @@ const worker: NotificationWorker = {
     if (!ctx) {
       return;
     }
-    const reports = await con
-      .getRepository(PostReport)
-      .findBy({ postId: ctx.post.id });
+
+    const reports = await queryReadReplica(con, ({ queryRunner }) => {
+      return queryRunner.manager
+        .getRepository(PostReport)
+        .findBy({ postId: ctx.post.id });
+    });
+
     const users = [...new Set(reports.map(({ userId }) => userId))];
     if (!users.length) {
       return;

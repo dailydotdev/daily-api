@@ -3,6 +3,7 @@ import { TypedWorker } from './worker';
 import { addNewSourceMember, removeSourceMember } from '../schema/sources';
 import { SourceMemberRoles } from '../roles';
 import { SourceMember, User } from '../entity';
+import { queryReadReplica } from '../common/queryReadReplica';
 
 const PLUS_MEMBER_SQUAD_ID = '05862288-bace-4723-9218-d30fab6ae96d';
 const worker: TypedWorker<'user-updated'> = {
@@ -37,11 +38,13 @@ const worker: TypedWorker<'user-updated'> = {
       log.info({ userId: user.id }, 'removed user from plus member squad');
     } else {
       // Started being plus member add them
-      const check = await con.getRepository(SourceMember).findOne({
-        where: {
-          userId: user.id,
-          sourceId: PLUS_MEMBER_SQUAD_ID,
-        },
+      const check = await queryReadReplica(con, ({ queryRunner }) => {
+        return queryRunner.manager.getRepository(SourceMember).findOne({
+          where: {
+            userId: user.id,
+            sourceId: PLUS_MEMBER_SQUAD_ID,
+          },
+        });
       });
       if (check) {
         log.info({ userId: user.id }, 'user was already in plus member squad');

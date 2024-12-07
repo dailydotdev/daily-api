@@ -63,7 +63,7 @@ export const getSubscribedMembers = (
 };
 
 export const buildPostContext = async (
-  con: DataSource,
+  con: DataSource | EntityManager,
   postId: string,
 ): Promise<Omit<NotificationPostContext, 'userIds'> | null> => {
   const post = await con
