@@ -1,5 +1,5 @@
 import { IFieldResolver, IResolvers } from '@graphql-tools/utils';
-import { BaseContext, Context } from '../Context';
+import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import { GQLPost } from './posts';
 import {
@@ -15,6 +15,7 @@ import {
 import { SelectQueryBuilder } from 'typeorm';
 import { Post } from '../entity';
 import graphorm from '../graphorm';
+import { getFirstFolderId } from '../common/bookmarks';
 
 export const typeDefs = /* GraphQL */ `
   type Publication {
@@ -214,14 +215,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }
       },
     ),
-    bookmarks: compatFeedResolver((ctx, args, opts, builder, alias) =>
-      bookmarksFeedBuilder({
-        ctx,
-        unreadOnly: false,
-        builder: builder.orderBy('bookmark.createdAt', 'DESC'),
-        alias,
-      }),
-    ),
+    bookmarks: async (source, args, context: AuthContext, info) => {
+      const firstFolderId = await getFirstFolderId(context);
+      const resolver = compatFeedResolver((ctx, args, opts, builder, alias) =>
+        bookmarksFeedBuilder({
+          ctx,
+          unreadOnly: false,
+          builder: builder.orderBy('bookmark.createdAt', 'DESC'),
+          alias,
+          firstFolderId,
+        }),
+      );
+
+      return resolver(source, args, context, info);
+    },
     postsByTag: compatFeedResolver(
       (
         ctx,

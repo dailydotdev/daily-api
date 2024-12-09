@@ -1,6 +1,5 @@
 import {
   AdvancedSettings,
-  BookmarkList,
   FeedAdvancedSettings,
   SourceMember,
   SourceType,
@@ -660,35 +659,17 @@ interface BookmarksFeedBuilderProps {
   ctx: Context;
   unreadOnly: boolean;
   listId?: string | null;
+  firstFolderId?: string | null;
   builder: SelectQueryBuilder<Post>;
   alias: string;
   query?: string | null;
 }
 
-interface GetFirstFolderSubQuery {
-  builder: SelectQueryBuilder<Post>;
-  userId: string;
-  alias?: string;
-}
-
-const getFirstFolderSubQuery = ({
-  builder,
-  userId,
-  alias = 'bl',
-}: GetFirstFolderSubQuery) =>
-  builder
-    .subQuery()
-    .select(`"${alias}".id`)
-    .from(BookmarkList, alias)
-    .where(`"${alias}"."userId" = '${userId}'`)
-    .orderBy(`"${alias}"."createdAt"`, 'ASC')
-    .limit(1)
-    .getQueryAndParameters();
-
 export const bookmarksFeedBuilder = ({
   ctx,
   unreadOnly,
   listId,
+  firstFolderId,
   builder,
   alias,
   query,
@@ -708,11 +689,6 @@ export const bookmarksFeedBuilder = ({
     );
   }
 
-  const [firstFolderSubQuery, params] = getFirstFolderSubQuery({
-    builder: newBuilder,
-    userId: ctx.userId!,
-  });
-
   if (ctx.isPlus) {
     if (listId) {
       newBuilder = newBuilder.andWhere('bookmark.listId = :listId', { listId });
@@ -725,16 +701,15 @@ export const bookmarksFeedBuilder = ({
     if (listId) {
       // Check if the list id is the first folder.
       // This is when the user unsubscribed and trying to access locked folders.
-      newBuilder = newBuilder.andWhere(
-        `bookmark."listId" = (${firstFolderSubQuery})`,
-        params,
-      );
+      newBuilder = newBuilder.andWhere(`bookmark."listId" = :firstFolderId`, {
+        firstFolderId,
+      });
     } else {
       // Get everything except the first folder
       // This returns the bookmarked posts from the locked folders but as part of Quick Saves
       newBuilder = newBuilder.andWhere(
-        `(bookmark."listId" IS NULL OR bookmark."listId" IS DISTINCT FROM (${firstFolderSubQuery}))`,
-        params,
+        `(bookmark."listId" IS NULL OR bookmark."listId" IS DISTINCT FROM :firstFolderId)`,
+        { firstFolderId },
       );
     }
   }

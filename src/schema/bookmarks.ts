@@ -27,6 +27,7 @@ import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { logger } from '../logger';
 import { BookmarkListCountLimit, maxBookmarksPerMutation } from '../types';
 import graphorm from '../graphorm';
+import { getFirstFolderId } from '../common/bookmarks';
 
 interface GQLAddBookmarkInput {
   postIds: string[];
@@ -79,7 +80,6 @@ export const typeDefs = /* GraphQL */ `
     list: BookmarkList
     createdAt: DateTime
     remindAt: DateTime
-    list: BookmarkList
 
     """
     For backward compatibility with EmptyResponse
@@ -468,23 +468,29 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   Query: {
-    bookmarksFeed: feedResolver(
-      (ctx, { unreadOnly, listId }: BookmarksArgs, builder, alias) =>
-        bookmarksFeedBuilder({
-          ctx,
-          unreadOnly,
-          listId,
-          builder,
-          alias,
-        }),
-      bookmarkPageGenerator,
-      applyBookmarkPaging,
-      {
-        removeHiddenPosts: false,
-        removeBannedPosts: false,
-        removeNonPublicThresholdSquads: false,
-      },
-    ),
+    bookmarksFeed: async (source, args, ctx: AuthContext, info) => {
+      const firstFolderId = await getFirstFolderId(ctx);
+      const resolver = feedResolver(
+        (ctx, { unreadOnly, listId }: BookmarksArgs, builder, alias) =>
+          bookmarksFeedBuilder({
+            ctx,
+            unreadOnly,
+            listId,
+            builder,
+            alias,
+            firstFolderId,
+          }),
+        bookmarkPageGenerator,
+        applyBookmarkPaging,
+        {
+          removeHiddenPosts: false,
+          removeBannedPosts: false,
+          removeNonPublicThresholdSquads: false,
+        },
+      );
+
+      return resolver(source, args, ctx, info);
+    },
     bookmarkLists: async (
       _,
       __,
