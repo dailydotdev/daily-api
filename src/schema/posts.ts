@@ -2233,8 +2233,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           select: ['contentQuality'],
         });
 
-      const is_clickbait_probability =
-        contentQuality.is_clickbait_probability || 0.0;
+      const is_clickbait_probability = parseFloat(
+        (contentQuality.is_clickbait_probability as unknown as string) || '0.0',
+      );
       const clickbaitTitleProbabilityThreshold =
         remoteConfig.vars.clickbaitTitleProbabilityThreshold || 1.0;
 
