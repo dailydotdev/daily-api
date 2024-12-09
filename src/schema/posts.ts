@@ -100,7 +100,11 @@ import { generateStorageKey, StorageTopic } from '../config';
 import { subDays } from 'date-fns';
 import { ReportReason } from '../entity/common';
 import { reportPost, saveHiddenPost } from '../common/reporting';
-import { PostCodeSnippetLanguage, UserVote } from '../types';
+import {
+  MANUAL_CLICKBAIT_VALUE,
+  PostCodeSnippetLanguage,
+  UserVote,
+} from '../types';
 import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
 import {
   SourcePostModeration,
@@ -2238,8 +2242,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       // so it will be easy to identify if the value was changed by a user.
       const newProbability =
         is_clickbait_probability > clickbaitTitleProbabilityThreshold
-          ? is_clickbait_probability - 10.0
-          : is_clickbait_probability + 10.0;
+          ? is_clickbait_probability - MANUAL_CLICKBAIT_VALUE
+          : is_clickbait_probability + MANUAL_CLICKBAIT_VALUE;
 
       await ctx.con.getRepository(Post).update(
         { id },
