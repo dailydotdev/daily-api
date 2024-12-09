@@ -2246,11 +2246,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           ? is_clickbait_probability - MANUAL_CLICKBAIT_VALUE
           : is_clickbait_probability + MANUAL_CLICKBAIT_VALUE;
 
+      const isManual = newProbability > 1.0 || newProbability < 0.0;
+
       await ctx.con.getRepository(Post).update(
         { id },
         {
           contentQuality: {
             is_clickbait_probability: newProbability,
+            manual_clickbait_probability: isManual,
           },
         },
       );

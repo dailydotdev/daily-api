@@ -1310,6 +1310,7 @@ describe('on post update', () => {
       yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
       contentQuality: {
         is_ai_probability: 0.52,
+        is_clickbait_probability: 0.42,
       },
     });
 
@@ -1320,6 +1321,7 @@ describe('on post update', () => {
       post_id: postId,
       content_quality: {
         is_ai_probability: 0.72,
+        is_clickbait_probability: 0.62,
       },
     });
 
@@ -1330,6 +1332,42 @@ describe('on post update', () => {
     expect(existingPost).not.toBeNull();
     expect(updatedPost?.contentQuality).toMatchObject({
       is_ai_probability: 0.72,
+      is_clickbait_probability: 0.62,
+    });
+  });
+
+  it('should not replace is_clickbait_probability if manual_clickbait_probability is set', async () => {
+    const postId = 'p1';
+
+    const existingPost = await con.getRepository(ArticlePost).save({
+      id: postId,
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      contentQuality: {
+        is_ai_probability: 0.52,
+        is_clickbait_probability: 0.42,
+        manual_clickbait_probability: true,
+      },
+    });
+
+    expect(existingPost).not.toBeNull();
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      post_id: postId,
+      content_quality: {
+        is_ai_probability: 0.72,
+        is_clickbait_probability: 0.62,
+      },
+    });
+
+    const updatedPost = await con.getRepository(ArticlePost).findOneBy({
+      id: postId,
+    });
+
+    expect(existingPost).not.toBeNull();
+    expect(updatedPost?.contentQuality).toMatchObject({
+      is_ai_probability: 0.72,
+      is_clickbait_probability: 0.42,
     });
   });
 
