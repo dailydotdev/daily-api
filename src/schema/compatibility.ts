@@ -221,6 +221,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         bookmarksFeedBuilder({
           ctx,
           unreadOnly: false,
+          reminderOnly: false,
           builder: builder.orderBy('bookmark.createdAt', 'DESC'),
           alias,
           firstFolderId,
