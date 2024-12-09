@@ -5,6 +5,7 @@ import { ChangeObject } from '../../types';
 import { Source, SourceMember } from '../../entity';
 import { SourceMemberRoles } from '../../roles';
 import { NotificationType } from '../../notifications/common';
+import { queryReadReplica } from '../../common/queryReadReplica';
 
 interface Data {
   previousRole: SourceMemberRoles;
@@ -40,9 +41,11 @@ const worker: NotificationWorker = {
     const { previousRole, sourceMember: member }: Data = messageToJson(message);
     const logDetails = { member, messageId: message.messageId };
 
-    const source = await con
-      .getRepository(Source)
-      .findOneBy({ id: member.sourceId });
+    const source = await queryReadReplica(con, ({ queryRunner }) => {
+      return queryRunner.manager
+        .getRepository(Source)
+        .findOneBy({ id: member.sourceId });
+    });
 
     if (!source) {
       logger.info(logDetails, 'source does not exist');
