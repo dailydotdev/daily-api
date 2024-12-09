@@ -58,6 +58,10 @@ Object {
     "edges": Array [
       Object {
         "node": Object {
+          "bookmark": Object {
+            "list": null,
+            "remindAt": null,
+          },
           "id": "p3",
           "source": Object {
             "id": "c",
@@ -70,6 +74,10 @@ Object {
       },
       Object {
         "node": Object {
+          "bookmark": Object {
+            "list": null,
+            "remindAt": null,
+          },
           "id": "p1",
           "source": Object {
             "id": "a",
@@ -91,51 +99,16 @@ Object {
 }
 `;
 
-exports[`query bookmarks should return bookmarks from list 1`] = `
-Object {
-  "bookmarksFeed": Object {
-    "edges": Array [
-      Object {
-        "node": Object {
-          "id": "p3",
-          "source": Object {
-            "id": "c",
-            "image": "http://image.com/c",
-            "name": "C",
-            "public": true,
-          },
-          "tags": Array [],
-        },
-      },
-      Object {
-        "node": Object {
-          "id": "p5",
-          "source": Object {
-            "id": "b",
-            "image": "http://image.com/b",
-            "name": "B",
-            "public": true,
-          },
-          "tags": Array [
-            "html",
-            "javascript",
-          ],
-        },
-      },
-    ],
-    "pageInfo": Object {
-      "hasNextPage": true,
-    },
-  },
-}
-`;
-
 exports[`query bookmarks should return bookmarks ordered by time 1`] = `
 Object {
   "bookmarksFeed": Object {
     "edges": Array [
       Object {
         "node": Object {
+          "bookmark": Object {
+            "list": null,
+            "remindAt": null,
+          },
           "id": "p3",
           "source": Object {
             "id": "c",
@@ -148,6 +121,10 @@ Object {
       },
       Object {
         "node": Object {
+          "bookmark": Object {
+            "list": null,
+            "remindAt": null,
+          },
           "id": "p1",
           "source": Object {
             "id": "a",
@@ -175,6 +152,10 @@ Object {
     "edges": Array [
       Object {
         "node": Object {
+          "bookmark": Object {
+            "list": null,
+            "remindAt": null,
+          },
           "id": "p1",
           "source": Object {
             "id": "a",
@@ -190,6 +171,10 @@ Object {
       },
       Object {
         "node": Object {
+          "bookmark": Object {
+            "list": null,
+            "remindAt": null,
+          },
           "id": "p5",
           "source": Object {
             "id": "b",

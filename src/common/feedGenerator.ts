@@ -655,14 +655,27 @@ export const configuredFeedBuilder = (
   return newBuilder;
 };
 
-export const bookmarksFeedBuilder = (
-  ctx: Context,
-  unreadOnly: boolean,
-  listId: string | null,
-  builder: SelectQueryBuilder<Post>,
-  alias: string,
-  query?: string | null,
-): SelectQueryBuilder<Post> => {
+interface BookmarksFeedBuilderProps {
+  ctx: Context;
+  unreadOnly: boolean;
+  reminderOnly: boolean;
+  listId?: string | null;
+  firstFolderId?: string | null;
+  builder: SelectQueryBuilder<Post>;
+  alias: string;
+  query?: string | null;
+}
+
+export const bookmarksFeedBuilder = ({
+  ctx,
+  unreadOnly,
+  reminderOnly,
+  listId,
+  firstFolderId,
+  builder,
+  alias,
+  query,
+}: BookmarksFeedBuilderProps): SelectQueryBuilder<Post> => {
   let newBuilder = builder
     .addSelect('bookmark.createdAt', 'bookmarkedAt')
     .innerJoin(
@@ -671,14 +684,39 @@ export const bookmarksFeedBuilder = (
       `bookmark."postId" = ${alias}.id AND bookmark."userId" = :userId`,
       { userId: ctx.userId },
     );
+
   if (unreadOnly) {
     newBuilder = newBuilder.andWhere((subBuilder) =>
       whereUnread(ctx.userId, subBuilder, alias),
     );
   }
-  if (listId && ctx.premium) {
-    newBuilder = newBuilder.andWhere('bookmark.listId = :listId', { listId });
+
+  if (reminderOnly) {
+    newBuilder = newBuilder.andWhere(`bookmark.remindAt IS NOT NULL`);
   }
+
+  if (listId) {
+    newBuilder = newBuilder.andWhere(`bookmark."listId" = :listId`, { listId });
+
+    if (!ctx.isPlus) {
+      // unsubscribed accessing locked folders
+      newBuilder = newBuilder.andWhere(`bookmark."listId" = :firstFolderId`, {
+        firstFolderId,
+      });
+    }
+  } else {
+    if (ctx.isPlus) {
+      newBuilder = newBuilder.andWhere('bookmark.listId IS NULL');
+    } else {
+      // Get everything except the first folder
+      // This returns the bookmarked posts from the locked folders but as part of Quick Saves
+      newBuilder = newBuilder.andWhere(
+        `(bookmark."listId" IS NULL OR bookmark."listId" IS DISTINCT FROM :firstFolderId)`,
+        { firstFolderId },
+      );
+    }
+  }
+
   if (query) {
     newBuilder = newBuilder.andWhere(
       `${alias}.tsv @@ (${getSearchQuery(':query')})`,
@@ -687,6 +725,7 @@ export const bookmarksFeedBuilder = (
       },
     );
   }
+
   return newBuilder;
 };
 
