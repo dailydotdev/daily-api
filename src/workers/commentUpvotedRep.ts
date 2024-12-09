@@ -2,7 +2,7 @@ import {
   ReputationEvent,
   ReputationReason,
   ReputationType,
-  REPUTATION_THRESHOLD,
+  canGrantReputation,
 } from './../entity/ReputationEvent';
 import { TypedWorker } from './worker';
 import { Comment, User } from '../entity';
@@ -33,10 +33,7 @@ const worker: TypedWorker<'comment-upvoted'> = {
           return;
         }
 
-        if (
-          comment.userId === grantBy.id ||
-          grantBy.reputation < REPUTATION_THRESHOLD
-        ) {
+        if (comment.userId === grantBy.id || !canGrantReputation(grantBy)) {
           return;
         }
 

@@ -2,7 +2,7 @@ import {
   ReputationEvent,
   ReputationReason,
   ReputationType,
-  REPUTATION_THRESHOLD,
+  canGrantReputation,
 } from './../entity/ReputationEvent';
 import { TypedWorker } from './worker';
 import { Post, User } from '../entity';
@@ -25,22 +25,7 @@ const worker: TypedWorker<'post-upvoted'> = {
           .getRepository(User)
           .findOneBy({ id: data.userId });
 
-        if (!grantBy) {
-          logger.info(logDetails, 'grantBy user does not exist');
-
-          return;
-        }
-
-        if (grantBy.reputation < REPUTATION_THRESHOLD) {
-          logger.info(
-            logDetails,
-            `upvoter's reputation doesn't meet the threshold to grant reputation`,
-          );
-          return;
-        }
-
-        if (grantBy.flags.vordr) {
-          logger.info(logDetails, `vordr has prevented upvote`);
+        if (!grantBy || !canGrantReputation(grantBy)) {
           return;
         }
 

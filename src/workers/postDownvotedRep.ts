@@ -2,9 +2,9 @@ import {
   ReputationEvent,
   ReputationReason,
   ReputationType,
-  REPUTATION_THRESHOLD,
   Post,
   User,
+  canGrantReputation,
 } from '../entity';
 import { TypedWorker } from './worker';
 
@@ -26,22 +26,7 @@ const worker: TypedWorker<'api.v1.post-downvoted'> = {
           .getRepository(User)
           .findOneBy({ id: data.userId });
 
-        if (!grantBy) {
-          logger.info(logDetails, 'grantBy user does not exist');
-
-          return;
-        }
-
-        if (grantBy.reputation < REPUTATION_THRESHOLD) {
-          logger.info(
-            logDetails,
-            `downvoter's reputation doesn't meet the threshold to grant reputation`,
-          );
-          return;
-        }
-
-        if (grantBy.flags.vordr) {
-          logger.info(logDetails, `vordr has prevented downvote`);
+        if (!grantBy || !canGrantReputation(grantBy)) {
           return;
         }
 
