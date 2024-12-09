@@ -472,6 +472,17 @@ const updatePost = async ({
     }
   });
 
+  if (
+    databasePost.contentQuality?.manual_clickbait_probability &&
+    data.contentQuality?.is_clickbait_probability &&
+    databasePost.contentQuality?.is_clickbait_probability
+  ) {
+    data.contentQuality.manual_clickbait_probability =
+      databasePost.contentQuality.manual_clickbait_probability;
+    data.contentQuality.is_clickbait_probability =
+      databasePost.contentQuality.is_clickbait_probability;
+  }
+
   if (allowedFieldsMapping[content_type]) {
     const allowedFields = [
       'id',

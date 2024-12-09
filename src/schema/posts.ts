@@ -100,7 +100,11 @@ import { generateStorageKey, StorageTopic } from '../config';
 import { subDays } from 'date-fns';
 import { ReportReason } from '../entity/common';
 import { reportPost, saveHiddenPost } from '../common/reporting';
-import { PostCodeSnippetLanguage, UserVote } from '../types';
+import {
+  MANUAL_CLICKBAIT_VALUE,
+  PostCodeSnippetLanguage,
+  UserVote,
+} from '../types';
 import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
 import {
   SourcePostModeration,
@@ -109,6 +113,7 @@ import {
 import { logger } from '../logger';
 import { Source } from '@dailydotdev/schema';
 import { queryReadReplica } from '../common/queryReadReplica';
+import { remoteConfig } from '../remoteConfig';
 
 export interface GQLSourcePostModeration {
   id: string;
@@ -1132,6 +1137,11 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID
     ): EmptyResponse @auth(requires: [MODERATOR])
+
+    """
+    Toggles post's title between clickbait and non-clickbait
+    """
+    clickbaitPost(id: ID!): EmptyResponse @auth(requires: [MODERATOR])
 
     """
     Fetch external link's title and image preview
@@ -2214,6 +2224,39 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         );
       }
       return { _: true };
+    },
+    clickbaitPost: async (_, { id }: { id: string }, ctx: AuthContext) => {
+      const { contentQuality }: Pick<Post, 'contentQuality'> = await ctx.con
+        .getRepository(Post)
+        .findOneOrFail({
+          where: { id },
+          select: ['contentQuality'],
+        });
+
+      const is_clickbait_probability = parseFloat(
+        (contentQuality.is_clickbait_probability as unknown as string) || '0.0',
+      );
+      const clickbaitTitleProbabilityThreshold =
+        remoteConfig.vars.clickbaitTitleProbabilityThreshold || 1.0;
+
+      // We +/- 10 as it is a number that is above the natural range from Yggdrasil,
+      // so it will be easy to identify if the value was changed by a user.
+      const newProbability =
+        is_clickbait_probability > clickbaitTitleProbabilityThreshold
+          ? is_clickbait_probability - MANUAL_CLICKBAIT_VALUE
+          : is_clickbait_probability + MANUAL_CLICKBAIT_VALUE;
+
+      const isManual = newProbability > 1.0 || newProbability < 0.0;
+
+      await ctx.con.getRepository(Post).update(
+        { id },
+        {
+          contentQuality: {
+            is_clickbait_probability: newProbability,
+            manual_clickbait_probability: isManual,
+          },
+        },
+      );
     },
     checkLinkPreview: async (
       _,
