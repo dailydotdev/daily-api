@@ -79,6 +79,11 @@ export const typeDefs = /* GraphQL */ `
     list: BookmarkList
     createdAt: DateTime
     remindAt: DateTime
+
+    """
+    For backward compatibility with EmptyResponse
+    """
+    _: Boolean
   }
 
   type SearchBookmarksSuggestion {
