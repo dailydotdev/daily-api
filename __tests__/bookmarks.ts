@@ -179,6 +179,43 @@ describe('mutation addBookmarks', () => {
       .find({ where: { userId: loggedUser }, select: ['postId', 'userId'] });
     expect(actual).toMatchSnapshot();
   });
+
+  it('should support EmptyResponse', async () => {
+    const MUTATION_EMPTY_RESPONSE = `
+    mutation AddBookmarks($data: AddBookmarkInput!) {
+      addBookmarks(data: $data) {
+        _
+      }
+    }`;
+
+    loggedUser = '1';
+    const res = await client.mutate<
+      {
+        addBookmarks: GQLBookmark[];
+      },
+      {
+        data: { postIds: string[] };
+      }
+    >(MUTATION_EMPTY_RESPONSE, {
+      variables: { data: { postIds: ['p1', 'p3'] } },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.addBookmarks).toMatchObject([{ _: null }, { _: null }]);
+
+    const actual = await con
+      .getRepository(Bookmark)
+      .find({ where: { userId: loggedUser }, select: ['postId', 'userId'] });
+    expect(actual).toMatchObject([
+      {
+        postId: 'p1',
+        userId: '1',
+      },
+      {
+        postId: 'p3',
+        userId: '1',
+      },
+    ]);
+  });
 });
 
 describe('mutation removeBookmark', () => {
