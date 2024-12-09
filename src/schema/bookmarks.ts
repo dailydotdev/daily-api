@@ -20,16 +20,22 @@ import {
   isOneEmoji,
   Ranking,
 } from '../common';
-import { SelectQueryBuilder } from 'typeorm';
+import { In, SelectQueryBuilder } from 'typeorm';
 import { GQLPost } from './posts';
 import { isPlusMember } from '../paddle';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { logger } from '../logger';
-import { BookmarkListCountLimit } from '../types';
+import { BookmarkListCountLimit, maxBookmarksPerMutation } from '../types';
 import graphorm from '../graphorm';
 
 interface GQLAddBookmarkInput {
   postIds: string[];
+}
+
+export interface GQLBookmark {
+  createdAt: Date;
+  remindAt: Date;
+  list: GQLBookmarkList;
 }
 
 export interface GQLBookmarkList {
@@ -69,6 +75,8 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type Bookmark {
+    postId: ID!
+    list: BookmarkList
     createdAt: DateTime
     remindAt: DateTime
   }
@@ -107,12 +115,12 @@ export const typeDefs = /* GraphQL */ `
     """
     Add new bookmarks
     """
-    addBookmarks(data: AddBookmarkInput!): EmptyResponse! @auth
+    addBookmarks(data: AddBookmarkInput!): [Bookmark]! @auth
 
     """
     Add or move bookmark to list
     """
-    addBookmarkToList(id: ID!, listId: ID): EmptyResponse! @auth(premium: true)
+    moveBookmark(id: ID!, listId: ID): EmptyResponse! @auth
 
     """
     Remove an existing bookmark
@@ -300,22 +308,45 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       source,
       { data }: { data: GQLAddBookmarkInput },
       ctx: AuthContext,
-    ): Promise<GQLEmptyResponse> => {
-      const [query, params] = ctx.con
-        .createQueryBuilder()
-        .select('id', 'postId')
-        .addSelect(`'${ctx.userId}'`, 'userId')
-        .from(Post, 'post')
-        .where('post.id IN (:...postIds)', { postIds: data.postIds })
-        .getQueryAndParameters();
-      await ctx.con.query(
-        `insert into bookmark("postId", "userId") ${query} on conflict do nothing`,
-        params,
-      );
-      return { _: true };
+      info,
+    ): Promise<GQLBookmark[]> => {
+      const lastAddedBookmark = await ctx.con.getRepository(Bookmark).findOne({
+        where: { userId: ctx.userId },
+        select: ['listId'],
+      });
+      const lastUsedListId = lastAddedBookmark?.listId ?? null;
+
+      if (data.postIds.length > maxBookmarksPerMutation) {
+        throw new ValidationError(
+          `Exceeded the maximum bookmarks per mutation (${maxBookmarksPerMutation})`,
+        );
+      }
+
+      await ctx.con.transaction(async (manager) => {
+        const posts = await manager.getRepository(Post).findBy({
+          id: In(data.postIds),
+        });
+
+        await ctx.con.getRepository(Bookmark).upsert(
+          posts.map((post) => ({
+            postId: post.id,
+            userId: ctx.userId,
+            listId: lastUsedListId,
+          })),
+          ['postId', 'userId'],
+        );
+      });
+
+      return await graphorm.query<GQLBookmark>(ctx, info, (builder) => ({
+        ...builder,
+        queryBuilder: builder.queryBuilder.where(
+          `"${builder.alias}"."postId" IN (:...postIds)`,
+          { postIds: data.postIds },
+        ),
+      }));
     },
-    addBookmarkToList: async (
-      source,
+    moveBookmark: async (
+      _,
       { id, listId }: { id: string; listId?: string },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
@@ -324,16 +355,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .getRepository(BookmarkList)
           .findOneByOrFail({ userId: ctx.userId, id: listId });
       }
-      await ctx.con
-        .getRepository(Bookmark)
-        .createQueryBuilder()
-        .insert()
-        .into(Bookmark)
-        .values([{ userId: ctx.userId, postId: id, listId }])
-        .onConflict(
-          `("postId", "userId") DO UPDATE SET "listId" = EXCLUDED."listId"`,
-        )
-        .execute();
+      await ctx.con.getRepository(Bookmark).update(
+        {
+          postId: id,
+          userId: ctx.userId,
+        },
+        { listId: listId ?? null },
+      );
+
       return { _: true };
     },
     removeBookmark: async (
