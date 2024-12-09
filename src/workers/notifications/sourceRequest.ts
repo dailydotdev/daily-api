@@ -5,6 +5,7 @@ import { NotificationType } from '../../notifications/common';
 import { NotificationWorker } from './worker';
 import { NotificationReason } from '../../common';
 import { ChangeObject } from '../../types';
+import { queryReadReplica } from '../../common/queryReadReplica';
 
 type Data = {
   reason: NotificationReason;
@@ -21,9 +22,11 @@ const worker: NotificationWorker = {
     };
     switch (data.reason) {
       case NotificationReason.Publish: {
-        const source = await con
-          .getRepository(Source)
-          .findOneBy({ id: data.sourceRequest.sourceId });
+        const source = await queryReadReplica(con, ({ queryRunner }) => {
+          return queryRunner.manager
+            .getRepository(Source)
+            .findOneBy({ id: data.sourceRequest.sourceId });
+        });
         return [
           { type: NotificationType.SourceApproved, ctx: { ...ctx, source } },
         ];
