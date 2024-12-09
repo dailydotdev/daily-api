@@ -674,19 +674,19 @@ describe('query bookmarks', () => {
       await saveBookmarkFixtures();
       await con.getRepository(BookmarkList).save({
         userId: loggedUser,
-        name: 'Second',
+        name: 'First',
         createdAt: subDays(new Date(), 1),
       });
-      const list = await con
+      const second = await con
         .getRepository(BookmarkList)
-        .save({ userId: loggedUser, name: 'Test' });
+        .save({ userId: loggedUser, name: 'Second' });
       await con
         .getRepository(Bookmark)
-        .update({ userId: loggedUser, postId: 'p3' }, { listId: list.id });
-      const res = await client.query(QUERY(false, list.id, now, 2));
+        .update({ userId: loggedUser, postId: 'p3' }, { listId: second.id });
+      const res = await client.query(QUERY(false, second.id, now, 2));
       expect(res.data.bookmarksFeed.edges).toHaveLength(1);
       const isInsideFolder = res.data.bookmarksFeed.edges.every(
-        ({ node }) => node.bookmark.list.id === list.id,
+        ({ node }) => node.bookmark.list.id === second.id,
       );
       expect(isInsideFolder).toBeTruthy();
     });
