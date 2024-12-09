@@ -1834,7 +1834,7 @@ describe('mutation clickbaitPost', () => {
 
     const post2 = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
     expect(post2.contentQuality.is_clickbait_probability).toEqual(0.0);
-  }
+  });
 });
 
 describe('mutation reportPost', () => {
