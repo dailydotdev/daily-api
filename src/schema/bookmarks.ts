@@ -181,6 +181,11 @@ export const typeDefs = /* GraphQL */ `
       listId: ID
 
       """
+      Filter bookmarks with reminders only
+      """
+      reminderOnly: Boolean
+
+      """
       Array of supported post types
       """
       supportedTypes: [String!]
@@ -247,6 +252,7 @@ interface BookmarksArgs extends ConnectionArguments {
   now: Date;
   unreadOnly: boolean;
   listId: string;
+  reminderOnly: boolean;
   supportedTypes?: string[];
   ranking: Ranking;
 }
@@ -296,10 +302,24 @@ const applyBookmarkPaging = (
 const searchResolver = feedResolver(
   (
     ctx,
-    { query, unreadOnly, listId }: BookmarksArgs & { query: string },
+    {
+      query,
+      unreadOnly,
+      reminderOnly,
+      listId,
+    }: BookmarksArgs & { query: string },
     builder,
     alias,
-  ) => bookmarksFeedBuilder({ ctx, unreadOnly, listId, builder, alias, query }),
+  ) =>
+    bookmarksFeedBuilder({
+      ctx,
+      unreadOnly,
+      reminderOnly,
+      listId,
+      builder,
+      alias,
+      query,
+    }),
   offsetPageGenerator(30, 50),
   (ctx, args, page, builder) => builder.limit(page.limit).offset(page.offset),
   { removeHiddenPosts: true, removeBannedPosts: false },
@@ -471,10 +491,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     bookmarksFeed: async (source, args, ctx: AuthContext, info) => {
       const firstFolderId = await getFirstFolderId(ctx);
       const resolver = feedResolver(
-        (ctx, { unreadOnly, listId }: BookmarksArgs, builder, alias) =>
+        (
+          ctx,
+          { unreadOnly, reminderOnly, listId }: BookmarksArgs,
+          builder,
+          alias,
+        ) =>
           bookmarksFeedBuilder({
             ctx,
             unreadOnly,
+            reminderOnly,
             listId,
             builder,
             alias,

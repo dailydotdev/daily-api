@@ -658,6 +658,7 @@ export const configuredFeedBuilder = (
 interface BookmarksFeedBuilderProps {
   ctx: Context;
   unreadOnly: boolean;
+  reminderOnly: boolean;
   listId?: string | null;
   firstFolderId?: string | null;
   builder: SelectQueryBuilder<Post>;
@@ -668,6 +669,7 @@ interface BookmarksFeedBuilderProps {
 export const bookmarksFeedBuilder = ({
   ctx,
   unreadOnly,
+  reminderOnly,
   listId,
   firstFolderId,
   builder,
@@ -687,6 +689,10 @@ export const bookmarksFeedBuilder = ({
     newBuilder = newBuilder.andWhere((subBuilder) =>
       whereUnread(ctx.userId, subBuilder, alias),
     );
+  }
+
+  if (reminderOnly) {
+    newBuilder = newBuilder.andWhere(`bookmark.remindAt IS NOT NULL`);
   }
 
   if (listId) {
