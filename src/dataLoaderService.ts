@@ -56,8 +56,13 @@ export class DataLoaderService {
   get userSettings() {
     return this.getLoader<{ userId: string }, Settings>({
       type: 'userSettings',
-      loadFn: async ({ userId }) =>
-        this.ctx.con.getRepository(Settings).findOneBy({ userId }),
+      loadFn: async ({ userId }) => {
+        if (!userId) {
+          return null;
+        }
+
+        return this.ctx.con.getRepository(Settings).findOneBy({ userId });
+      },
       cacheKeyFn: ({ userId }) => defaultCacheKeyFn({ userId }),
     });
   }
