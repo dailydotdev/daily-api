@@ -5,6 +5,7 @@ import { SourcePostModerationStatus } from '../../entity/SourcePostModeration';
 import { getPostModerationContext } from './utils';
 import { logger } from '../../logger';
 import { TypeORMQueryFailedError } from '../../errors';
+import { queryReadReplica } from '../../common/queryReadReplica';
 
 const worker =
   generateTypedNotificationWorker<'api.v1.source-post-moderation-rejected'>({
@@ -15,7 +16,9 @@ const worker =
       }
 
       try {
-        const moderationCtx = await getPostModerationContext(con, post);
+        const moderationCtx = await queryReadReplica(con, ({ queryRunner }) => {
+          return getPostModerationContext(queryRunner.manager, post);
+        });
         const ctx: NotificationPostModerationContext = {
           ...moderationCtx,
           userIds: [post.createdById],

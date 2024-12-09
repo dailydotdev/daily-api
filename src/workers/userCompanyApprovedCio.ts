@@ -1,6 +1,7 @@
 import { TypedWorker } from './worker';
 import { Company } from '../entity/Company';
 import { cioV2, identifyUserCompany } from '../cio';
+import { queryReadReplica } from '../common/queryReadReplica';
 
 const worker: TypedWorker<'api.v1.user-company-approved'> = {
   subscription: 'api.user-company-approved-cio',
@@ -13,13 +14,18 @@ const worker: TypedWorker<'api.v1.user-company-approved'> = {
       data: { userCompany },
     } = message;
 
-    if (!userCompany.companyId) {
+    const { companyId } = userCompany;
+
+    if (!companyId) {
       return;
     }
 
-    const company = await con
-      .getRepository(Company)
-      .findOneBy({ id: userCompany.companyId });
+    const company = await queryReadReplica(con, async ({ queryRunner }) => {
+      return queryRunner.manager
+        .getRepository(Company)
+        .findOneBy({ id: companyId });
+    });
+
     if (!company) {
       log.warn(
         { userCompany },

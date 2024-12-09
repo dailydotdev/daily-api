@@ -50,7 +50,7 @@ export class Comment {
   featured: boolean;
 
   @Column({ type: 'jsonb', default: {} })
-  @Index('IDX_user_flags_vordr', { synchronize: false })
+  @Index('IDX_comment_flags_vordr', { synchronize: false })
   flags: CommentFlags;
 
   @ManyToOne('Post', {
