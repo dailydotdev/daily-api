@@ -689,21 +689,13 @@ export const bookmarksFeedBuilder = ({
     );
   }
 
-  if (ctx.isPlus) {
-    if (listId) {
-      newBuilder = newBuilder.andWhere('bookmark.listId = :listId', { listId });
-    } else {
+  if (listId) {
+    newBuilder = newBuilder.andWhere(`bookmark."listId" = :listId`, {
+      listId: ctx.isPlus ? listId : firstFolderId, // unsubscribed accessing locked folders
+    });
+  } else {
+    if (ctx.isPlus) {
       newBuilder = newBuilder.andWhere('bookmark.listId IS NULL');
-    }
-  }
-
-  if (!ctx.isPlus) {
-    if (listId) {
-      // Check if the list id is the first folder.
-      // This is when the user unsubscribed and trying to access locked folders.
-      newBuilder = newBuilder.andWhere(`bookmark."listId" = :firstFolderId`, {
-        firstFolderId,
-      });
     } else {
       // Get everything except the first folder
       // This returns the bookmarked posts from the locked folders but as part of Quick Saves
