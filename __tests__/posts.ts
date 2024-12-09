@@ -1746,6 +1746,97 @@ describe('mutation banPost', () => {
   });
 });
 
+describe('mutation clickbaitPost', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation ClickbaitPost($id: ID!) {
+      clickbaitPost(id: $id) {
+        _
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should not authorize when not moderator', () => {
+    loggedUser = '1';
+    roles = [];
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should mark the post as clickbait when it does not have clickbait probability', async () => {
+    loggedUser = '1';
+    roles = [Roles.Moderator];
+
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post.contentQuality.is_clickbait_probability).toEqual(10.0);
+  });
+
+  it('should mark the post as clickbait when it is below threshold', async () => {
+    await con
+      .getRepository(ArticlePost)
+      .update('p1', { contentQuality: { is_clickbait_probability: 0.9 } });
+
+    loggedUser = '1';
+    roles = [Roles.Moderator];
+
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post.contentQuality.is_clickbait_probability).toEqual(10.9);
+  });
+
+  it('should mark the post as not-clickbait when it is above threshold', async () => {
+    await con
+      .getRepository(ArticlePost)
+      .update('p1', { contentQuality: { is_clickbait_probability: 1.1 } });
+
+    loggedUser = '1';
+    roles = [Roles.Moderator];
+
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post.contentQuality.is_clickbait_probability).toEqual(-8.9);
+  });
+
+  it('should revert the clickbait status when it is already marked as clickbait', async () => {
+    loggedUser = '1';
+    roles = [Roles.Moderator];
+
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post.contentQuality.is_clickbait_probability).toEqual(10.0);
+
+    const res2 = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res2.errors).toBeFalsy();
+
+    const post2 = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post2.contentQuality.is_clickbait_probability).toEqual(0.0);
+  }
+});
+
 describe('mutation reportPost', () => {
   const MUTATION = `
   mutation ReportPost($id: ID!, $reason: ReportReason, $comment: String, $tags: [String]) {
