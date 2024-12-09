@@ -45,6 +45,10 @@ export const rejectReason: Record<PostModerationReason, string> = {
   [PostModerationReason.Other]: 'Other',
 };
 
+export type SourcePostModerationFlags = Partial<{
+  vordr: boolean;
+}>;
+
 @Entity()
 @Index(['sourceId'])
 @Index(['sourceId', 'createdById'])
@@ -132,4 +136,8 @@ export class SourcePostModeration {
 
   @Column({ type: 'text', nullable: true })
   externalLink?: string | null;
+
+  @Column({ type: 'jsonb', default: {} })
+  @Index('IDX_source_post_moderation_flags_vordr', { synchronize: false })
+  flags: SourcePostModerationFlags;
 }
