@@ -16,7 +16,6 @@ import {
   SettingsFlagsPublic,
   UserStats,
   UserSubscriptionFlags,
-  Settings,
 } from '../entity';
 import {
   SourceMemberRoles,
@@ -26,11 +25,11 @@ import {
 } from '../roles';
 
 import { Context } from '../Context';
-import { base64, domainOnly, transformDate } from '../common';
+import { base64, domainOnly, getSmartTitle, transformDate } from '../common';
 import { GQLComment } from '../schema/comments';
 import { GQLUserPost } from '../schema/posts';
 import { UserComment } from '../entity/user/UserComment';
-import { ContentLanguage, type I18nRecord, UserVote } from '../types';
+import { type I18nRecord, UserVote } from '../types';
 import { whereVordrFilter } from '../common/vordr';
 import { UserCompany, Post } from '../entity';
 import {
@@ -82,21 +81,25 @@ const checkIfTitleIsClickbait = (value?: string): boolean => {
 const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
   return {
     select: field,
-    transform: (value: string, ctx: Context, parent): string => {
+    transform: async (value: string, ctx: Context, parent) => {
       const typedParent = parent as {
-        ['i18nTitle']: I18nRecord;
-        ['smartTitle']: I18nRecord;
-        clickbaitShieldEnabled?: boolean;
+        i18nTitle: I18nRecord;
+        smartTitle: I18nRecord;
         clickbaitProbability?: string;
         [key: string]: unknown;
       };
 
+      const settings = await ctx.dataLoader.userSettings.load({
+        userId: ctx.userId!,
+      });
+
       const i18nValue = typedParent.i18nTitle?.[ctx.contentLanguage];
-      const altValue =
-        typedParent.smartTitle?.[ctx.contentLanguage] ||
-        typedParent.smartTitle?.[ContentLanguage.English];
+      const altValue = getSmartTitle(
+        ctx.contentLanguage,
+        typedParent.smartTitle,
+      );
       const clickbaitShieldEnabled =
-        typedParent?.clickbaitShieldEnabled ?? true;
+        settings?.flags?.clickbaitShieldEnabled ?? true;
 
       const clickbaitTitleDetected = checkIfTitleIsClickbait(
         typedParent.clickbaitProbability,
@@ -271,24 +274,10 @@ const obj = new GraphORM({
     },
   },
   Post: {
-    additionalQuery: (ctx, alias, qb) => {
-      qb = qb
+    additionalQuery: (ctx, alias, qb) =>
+      qb
         .andWhere(`"${alias}"."deleted" = false`)
-        .andWhere(`"${alias}"."visible" = true`);
-
-      if (ctx.userId && ctx.isPlus) {
-        qb = qb
-          .innerJoin(Settings, 's', 's."userId" = :userId', {
-            userId: ctx.userId,
-          })
-          .addSelect(
-            `"s"."flags"->'clickbaitShieldEnabled'`,
-            'clickbaitShieldEnabled',
-          );
-      }
-
-      return qb;
-    },
+        .andWhere(`"${alias}"."visible" = true`),
     requiredColumns: [
       'id',
       'shortId',
@@ -321,11 +310,20 @@ const obj = new GraphORM({
         transform: (value: string): string[] => value?.split(',') ?? [],
       },
       clickbaitTitleDetected: {
-        transform: (_, __, parent): boolean => {
+        transform: (_, ctx: Context, parent): boolean => {
           const typedParent = parent as {
             clickbaitProbability: string;
+            smartTitle: I18nRecord;
           };
-          return checkIfTitleIsClickbait(typedParent.clickbaitProbability);
+          const altValue = getSmartTitle(
+            ctx.contentLanguage,
+            typedParent.smartTitle,
+          );
+
+          return (
+            !!altValue &&
+            checkIfTitleIsClickbait(typedParent.clickbaitProbability)
+          );
         },
       },
       read: {

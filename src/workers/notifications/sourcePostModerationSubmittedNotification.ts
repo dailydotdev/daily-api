@@ -8,6 +8,7 @@ import { SourcePostModerationStatus } from '../../entity/SourcePostModeration';
 import { getPostModerationContext } from './utils';
 import { logger } from '../../logger';
 import { TypeORMQueryFailedError } from '../../errors';
+import { queryReadReplica } from '../../common/queryReadReplica';
 
 const worker =
   generateTypedNotificationWorker<'api.v1.source-post-moderation-submitted'>({
@@ -18,13 +19,17 @@ const worker =
       }
 
       try {
-        const moderationCtx = await getPostModerationContext(con, post);
-        const mods = await con.getRepository(SourceMember).find({
-          select: ['userId'],
-          where: {
-            sourceId: post.sourceId,
-            role: In([SourceMemberRoles.Admin, SourceMemberRoles.Moderator]),
-          },
+        const moderationCtx = await queryReadReplica(con, ({ queryRunner }) => {
+          return getPostModerationContext(queryRunner.manager, post);
+        });
+        const mods = await queryReadReplica(con, ({ queryRunner }) => {
+          return queryRunner.manager.getRepository(SourceMember).find({
+            select: ['userId'],
+            where: {
+              sourceId: post.sourceId,
+              role: In([SourceMemberRoles.Admin, SourceMemberRoles.Moderator]),
+            },
+          });
         });
 
         const ctx: NotificationPostModerationContext = {

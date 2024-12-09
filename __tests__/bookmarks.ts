@@ -24,6 +24,7 @@ import { postsFixture, postTagsFixture } from './fixture/post';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { subDays } from 'date-fns';
+import { GQLBookmark } from '../src/schema/bookmarks';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -75,10 +76,13 @@ afterAll(() => disposeGraphQLTesting(state));
 describe('mutation addBookmarks', () => {
   const MUTATION = `
   mutation AddBookmarks($data: AddBookmarkInput!) {
-  addBookmarks(data: $data) {
-    _
-  }
-}`;
+    addBookmarks(data: $data) {
+      list {
+        id
+        name
+      }
+    }
+  }`;
 
   it('should not authorize when not logged in', () =>
     testMutationErrorCode(
@@ -92,14 +96,54 @@ describe('mutation addBookmarks', () => {
 
   it('should add new bookmarks', async () => {
     loggedUser = '1';
-    const res = await client.mutate(MUTATION, {
+    const res = await client.mutate<
+      {
+        addBookmarks: GQLBookmark[];
+      },
+      {
+        data: { postIds: string[] };
+      }
+    >(MUTATION, {
       variables: { data: { postIds: ['p1', 'p3'] } },
     });
     expect(res.errors).toBeFalsy();
+    expect(res.data.addBookmarks).toHaveLength(2);
+
     const actual = await con
       .getRepository(Bookmark)
       .find({ where: { userId: loggedUser }, select: ['postId', 'userId'] });
     expect(actual).toMatchSnapshot();
+
+    const bookmarks = await con.getRepository(Bookmark).find();
+    expect(bookmarks.length).toEqual(2);
+    const [bookmark] = bookmarks;
+    expect(bookmark?.listId).toBeNull();
+  });
+
+  it('should add new bookmarks to the last used list if any', async () => {
+    loggedUser = '1';
+
+    const { id: listId } = await con.getRepository(BookmarkList).save({
+      userId: loggedUser,
+      name: 'list',
+    });
+    await con.getRepository(Bookmark).save({
+      userId: loggedUser,
+      postId: 'p1',
+      listId: listId,
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { data: { postIds: ['p2'] } },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.addBookmarks).toHaveLength(1);
+    expect(res.data.addBookmarks[0].list.id).toEqual(listId);
+
+    const actual = await con
+      .getRepository(Bookmark)
+      .findOneBy({ postId: 'p2', userId: loggedUser });
+    expect(actual?.listId).toEqual(listId);
   });
 
   it('should ignore conflicts', async () => {
@@ -139,6 +183,43 @@ describe('mutation addBookmarks', () => {
       .getRepository(Bookmark)
       .find({ where: { userId: loggedUser }, select: ['postId', 'userId'] });
     expect(actual).toMatchSnapshot();
+  });
+
+  it('should support EmptyResponse', async () => {
+    const MUTATION_EMPTY_RESPONSE = `
+    mutation AddBookmarks($data: AddBookmarkInput!) {
+      addBookmarks(data: $data) {
+        _
+      }
+    }`;
+
+    loggedUser = '1';
+    const res = await client.mutate<
+      {
+        addBookmarks: GQLBookmark[];
+      },
+      {
+        data: { postIds: string[] };
+      }
+    >(MUTATION_EMPTY_RESPONSE, {
+      variables: { data: { postIds: ['p1', 'p3'] } },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.addBookmarks).toMatchObject([{ _: null }, { _: null }]);
+
+    const actual = await con
+      .getRepository(Bookmark)
+      .find({ where: { userId: loggedUser }, select: ['postId', 'userId'] });
+    expect(actual).toMatchObject([
+      {
+        postId: 'p1',
+        userId: '1',
+      },
+      {
+        postId: 'p3',
+        userId: '1',
+      },
+    ]);
   });
 });
 
@@ -418,13 +499,13 @@ describe('mutation updateBookmarkList', () => {
   });
 });
 
-describe('mutation addBookmarkToList', () => {
+describe('mutation moveBookmark', () => {
   const MUTATION = (id: string, listId?: string): string => `
-  mutation AddBookmarkToList {
-  addBookmarkToList(id: "${id}"${listId ? `, listId: "${listId}"` : ''}) {
-    _
-  }
-}`;
+  mutation moveBookmark {
+    moveBookmark(id: "${id}"${listId ? `, listId: "${listId}"` : ''}) {
+      _
+    }
+  }`;
 
   it('should not authorize when not logged in', () =>
     testMutationErrorCode(
@@ -433,34 +514,22 @@ describe('mutation addBookmarkToList', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should not authorize when not premium user', () => {
+  it('should not authorize if list is not owned by the user', async () => {
     loggedUser = '1';
+    const list = await con
+      .getRepository(BookmarkList)
+      .save({ userId: '2', name: 'list' });
+    const bookmark = await con
+      .getRepository(Bookmark)
+      .save({ postId: 'p1', userId: '2' });
     return testMutationErrorCode(
       client,
-      { mutation: MUTATION('p1', 'list') },
-      'FORBIDDEN',
+      { mutation: MUTATION(bookmark.postId, list.id) },
+      'NOT_FOUND',
     );
   });
 
-  it('should add new bookmark to list', async () => {
-    loggedUser = '1';
-    premiumUser = true;
-    const list = await con
-      .getRepository(BookmarkList)
-      .save({ userId: loggedUser, name: 'list' });
-    const res = await client.mutate(MUTATION('p1', list.id));
-    expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(Bookmark).find({
-      where: { userId: loggedUser },
-      select: ['postId', 'userId', 'listId'],
-    });
-    expect(actual.length).toEqual(1);
-    expect(actual[0].postId).toEqual('p1');
-    expect(actual[0].userId).toEqual('1');
-    expect(actual[0].listId).toEqual(list.id);
-  });
-
-  it('should update exsiting bookmark', async () => {
+  it('should update existing bookmark', async () => {
     loggedUser = '1';
     premiumUser = true;
     const list = await con

@@ -12,6 +12,7 @@ import {
   ObjectLiteral,
   QueryBuilder,
   SelectQueryBuilder,
+  type EntityManager,
 } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import { IFieldResolver } from '@graphql-tools/utils';
@@ -81,7 +82,7 @@ export const whereKeyword = (
 };
 
 const rawFilterSelect = <T extends ObjectLiteral>(
-  con: DataSource,
+  con: DataSource | EntityManager,
   name: string,
   func: (qb: QueryBuilder<T>) => QueryBuilder<T>,
 ): QueryBuilder<T> =>
@@ -105,7 +106,7 @@ type RawFiltersData = {
 };
 
 const getRawFiltersData = async (
-  con: DataSource,
+  con: DataSource | EntityManager,
   feedId: string,
   userId: string,
 ): Promise<RawFiltersData | undefined> => {
@@ -308,7 +309,7 @@ const sourcesToFilters = ({
 };
 
 export const feedToFilters = async (
-  con: DataSource,
+  con: DataSource | EntityManager,
   feedId?: string,
   userId?: string,
 ): Promise<AnonymousFeedFilters> => {
