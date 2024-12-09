@@ -1134,6 +1134,11 @@ export const typeDefs = /* GraphQL */ `
     ): EmptyResponse @auth(requires: [MODERATOR])
 
     """
+    Toggles post's title between clickbait and non-clickbait
+    """
+    clickbaitPost(id: ID!): EmptyResponse @auth(requires: [MODERATOR])
+
+    """
     Fetch external link's title and image preview
     """
     checkLinkPreview(
@@ -2214,6 +2219,35 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         );
       }
       return { _: true };
+    },
+    clickbaitPost: async (_, { id }: { id: string }, ctx: AuthContext) => {
+      const { contentQuality }: Pick<Post, 'contentQuality'> = await ctx.con
+        .getRepository(Post)
+        .findOneOrFail({
+          where: { id },
+          select: ['contentQuality'],
+        });
+
+      const is_clickbait_probability =
+        contentQuality.is_clickbait_probability || 0.0;
+      const clickbaitTitleProbabilityThreshold =
+        remoteConfig.vars.clickbaitTitleProbabilityThreshold || 1.0;
+
+      // We +/- 10 as it is a number that is above the natural range from Yggdrasil,
+      // so it will be easy to identify if the value was changed by a user.
+      const newProbability =
+        is_clickbait_probability > clickbaitTitleProbabilityThreshold
+          ? is_clickbait_probability - 10.0
+          : is_clickbait_probability + 10.0;
+
+      await ctx.con.getRepository(Post).update(
+        { id },
+        {
+          contentQuality: {
+            is_clickbait_probability: newProbability,
+          },
+        },
+      );
     },
     checkLinkPreview: async (
       _,
