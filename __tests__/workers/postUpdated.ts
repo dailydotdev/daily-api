@@ -1368,6 +1368,7 @@ describe('on post update', () => {
     expect(updatedPost?.contentQuality).toMatchObject({
       is_ai_probability: 0.72,
       is_clickbait_probability: 0.42,
+      manual_clickbait_probability: true,
     });
   });
 
