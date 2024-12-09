@@ -696,9 +696,14 @@ export const bookmarksFeedBuilder = ({
   }
 
   if (listId) {
-    newBuilder = newBuilder.andWhere(`bookmark."listId" = :listId`, {
-      listId: ctx.isPlus ? listId : firstFolderId, // unsubscribed accessing locked folders
-    });
+    newBuilder = newBuilder.andWhere(`bookmark."listId" = :listId`, { listId });
+
+    if (!ctx.isPlus) {
+      // unsubscribed accessing locked folders
+      newBuilder = newBuilder.andWhere(`bookmark."listId" = :firstFolderId`, {
+        firstFolderId,
+      });
+    }
   } else {
     if (ctx.isPlus) {
       newBuilder = newBuilder.andWhere('bookmark.listId IS NULL');

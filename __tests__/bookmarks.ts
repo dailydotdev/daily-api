@@ -725,11 +725,14 @@ describe('query bookmarks', () => {
     it('should not return bookmarks within the list if param is the second folder (unsubscribed)', async () => {
       loggedUser = '1';
       await saveBookmarkFixtures();
-      await con.getRepository(BookmarkList).save({
+      const first = await con.getRepository(BookmarkList).save({
         userId: loggedUser,
         name: 'First',
         createdAt: subDays(new Date(), 1),
       });
+      await con
+        .getRepository(Bookmark)
+        .update({ userId: loggedUser, postId: 'p1' }, { listId: first.id });
       const second = await con
         .getRepository(BookmarkList)
         .save({ userId: loggedUser, name: 'Second' });
