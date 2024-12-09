@@ -261,10 +261,17 @@ export type CreateSourcePostModeration = Omit<
     postId?: string;
   };
 
-export const createSourcePostModeration = async (
-  con: DataSource | EntityManager,
-  args: CreateSourcePostModeration,
-) => {
+interface CreateSourcePostModerationProps {
+  ctx: AuthContext;
+  args: CreateSourcePostModeration;
+}
+
+export const createSourcePostModeration = async ({
+  ctx,
+  args,
+}: CreateSourcePostModerationProps) => {
+  const { con } = ctx;
+
   if (args.postId) {
     const post = await con
       .getRepository(Post)
@@ -279,6 +286,20 @@ export const createSourcePostModeration = async (
     ...args,
     status: SourcePostModerationStatus.Pending,
   });
+
+  const content = `${args.title} ${args.content}`.trim();
+
+  newModerationEntry.flags = {
+    vordr: await checkWithVordr(
+      {
+        id: newModerationEntry.id,
+        type: VordrFilterType.PostModeration,
+        content,
+      },
+      { con, userId: ctx.userId, req: ctx.req },
+    ),
+  };
+
   return await con.getRepository(SourcePostModeration).save(newModerationEntry);
 };
 
@@ -644,14 +665,20 @@ export const getPostTranslatedTitle = (
     contentLanguage
   ] || (post.title as string);
 
+export const getSmartTitle = (
+  contentLanguage: ContentLanguage,
+  translations?: I18nRecord,
+): string | undefined => {
+  return (
+    translations?.[contentLanguage] ?? translations?.[ContentLanguage.English]
+  );
+};
+
 export const getPostSmartTitle = (
   post: Partial<Pick<Post, 'title' | 'contentMeta'>>,
   contentLanguage: ContentLanguage,
 ) =>
-  (post.contentMeta as PostContentMeta)?.alt_title?.translations?.[
-    contentLanguage
-  ] ||
-  (post.contentMeta as PostContentMeta)?.alt_title?.translations?.[
-    ContentLanguage.English
-  ] ||
-  getPostTranslatedTitle(post, contentLanguage);
+  getSmartTitle(
+    contentLanguage,
+    (post.contentMeta as PostContentMeta)?.alt_title?.translations,
+  ) || getPostTranslatedTitle(post, contentLanguage);

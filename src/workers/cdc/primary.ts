@@ -736,7 +736,7 @@ const onSourcePostModerationChange = async (
   logger: FastifyBaseLogger,
   data: ChangeMessage<SourcePostModeration>,
 ) => {
-  if (data.payload.op === 'c') {
+  if (data.payload.op === 'c' && !data.payload.after!.flags?.vordr) {
     await triggerTypedEvent(logger, 'api.v1.source-post-moderation-submitted', {
       post: data.payload.after!,
     });
