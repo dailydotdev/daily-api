@@ -109,6 +109,7 @@ import {
 import { logger } from '../logger';
 import { Source } from '@dailydotdev/schema';
 import { queryReadReplica } from '../common/queryReadReplica';
+import { remoteConfig } from '../remoteConfig';
 
 export interface GQLSourcePostModeration {
   id: string;
