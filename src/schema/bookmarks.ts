@@ -27,6 +27,7 @@ import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { logger } from '../logger';
 import { BookmarkListCountLimit, maxBookmarksPerMutation } from '../types';
 import graphorm from '../graphorm';
+import { getFirstFolderId } from '../common/bookmarks';
 
 interface GQLAddBookmarkInput {
   postIds: string[];
@@ -180,6 +181,11 @@ export const typeDefs = /* GraphQL */ `
       listId: ID
 
       """
+      Filter bookmarks with reminders only
+      """
+      reminderOnly: Boolean
+
+      """
       Array of supported post types
       """
       supportedTypes: [String!]
@@ -246,6 +252,7 @@ interface BookmarksArgs extends ConnectionArguments {
   now: Date;
   unreadOnly: boolean;
   listId: string;
+  reminderOnly: boolean;
   supportedTypes?: string[];
   ranking: Ranking;
 }
@@ -295,10 +302,24 @@ const applyBookmarkPaging = (
 const searchResolver = feedResolver(
   (
     ctx,
-    { query, unreadOnly, listId }: BookmarksArgs & { query: string },
+    {
+      query,
+      unreadOnly,
+      reminderOnly,
+      listId,
+    }: BookmarksArgs & { query: string },
     builder,
     alias,
-  ) => bookmarksFeedBuilder(ctx, unreadOnly, listId, builder, alias, query),
+  ) =>
+    bookmarksFeedBuilder({
+      ctx,
+      unreadOnly,
+      reminderOnly,
+      listId,
+      builder,
+      alias,
+      query,
+    }),
   offsetPageGenerator(30, 50),
   (ctx, args, page, builder) => builder.limit(page.limit).offset(page.offset),
   { removeHiddenPosts: true, removeBannedPosts: false },
@@ -467,17 +488,35 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   Query: {
-    bookmarksFeed: feedResolver(
-      (ctx, { unreadOnly, listId }: BookmarksArgs, builder, alias) =>
-        bookmarksFeedBuilder(ctx, unreadOnly, listId, builder, alias),
-      bookmarkPageGenerator,
-      applyBookmarkPaging,
-      {
-        removeHiddenPosts: false,
-        removeBannedPosts: false,
-        removeNonPublicThresholdSquads: false,
-      },
-    ),
+    bookmarksFeed: async (source, args, ctx: AuthContext, info) => {
+      const firstFolderId = await getFirstFolderId(ctx);
+      const resolver = feedResolver(
+        (
+          ctx,
+          { unreadOnly, reminderOnly, listId }: BookmarksArgs,
+          builder,
+          alias,
+        ) =>
+          bookmarksFeedBuilder({
+            ctx,
+            unreadOnly,
+            reminderOnly,
+            listId,
+            builder,
+            alias,
+            firstFolderId,
+          }),
+        bookmarkPageGenerator,
+        applyBookmarkPaging,
+        {
+          removeHiddenPosts: false,
+          removeBannedPosts: false,
+          removeNonPublicThresholdSquads: false,
+        },
+      );
+
+      return resolver(source, args, ctx, info);
+    },
     bookmarkLists: async (
       _,
       __,
