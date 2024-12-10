@@ -18,6 +18,7 @@ import {
 } from '../entity';
 import { ghostUser } from '../common';
 import { cancelSubscription } from '../common/paddle';
+import { logger } from '../logger';
 
 export const deleteUser = async (
   con: DataSource,
@@ -35,6 +36,14 @@ export const deleteUser = async (
         await cancelSubscription({
           subscriptionId: user.subscriptionFlags.subscriptionId,
         });
+        logger.info(
+          {
+            type: 'paddle',
+            userId,
+            subscriptionId: user.subscriptionFlags.subscriptionId,
+          },
+          'Subscription cancelled user deletion',
+        );
       }
       await entityManager.getRepository(View).delete({ userId });
       await entityManager.getRepository(Alerts).delete({ userId });

@@ -12,18 +12,11 @@ export const paddleInstance = new Paddle(process.env.PADDLE_API_KEY, {
 type CancelSubscriptionProps = {
   subscriptionId: string;
 };
-export const cancelSubscription = ({
+export const cancelSubscription = async ({
   subscriptionId,
-}: CancelSubscriptionProps): Promise<Subscription> | undefined => {
-  logger.info(
-    {
-      type: 'paddle',
-      subscriptionId,
-    },
-    'Subscription cancelled user deletion',
-  );
+}: CancelSubscriptionProps): Promise<Subscription | undefined> => {
   try {
-    return paddleInstance.subscriptions.cancel(subscriptionId, {
+    return await paddleInstance.subscriptions.cancel(subscriptionId, {
       effectiveFrom: null,
     });
   } catch (e) {
