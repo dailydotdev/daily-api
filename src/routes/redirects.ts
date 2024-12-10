@@ -79,9 +79,13 @@ const redirectToStore =
       return redirectToAndroid({ req, res });
     }
 
+    // If mobile, tablet or any non desktop device, redirect to webapp
+    if (!!ua.device.type || ua.device.vendor?.toLowerCase() === 'apple') {
+      return res.redirect(`https://app.daily.dev${url.search}`);
+    }
+
     if (browser?.includes('firefox') || browser?.includes('mozilla')) {
       // Redirect to webapp since FF downgraded us
-      return res.redirect(`https://app.daily.dev${url.search}`);
       // return res.redirect(
       //   `https://addons.mozilla.org/en-US/firefox/addon/daily/${url.search}`,
       // );
