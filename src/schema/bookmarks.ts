@@ -197,6 +197,11 @@ export const typeDefs = /* GraphQL */ `
     bookmarkLists: [BookmarkList!]! @auth
 
     """
+    Get bookmark list by id
+    """
+    bookmarkList(id: ID!): BookmarkList! @auth
+
+    """
     Get suggestions for search bookmarks query
     """
     searchBookmarksSuggestions(
@@ -516,6 +521,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       );
 
       return resolver(source, args, ctx, info);
+    },
+    bookmarkList: async (
+      _,
+      { id }: { id: string },
+      ctx: AuthContext,
+    ): Promise<GQLBookmarkList> => {
+      return ctx.con.getRepository(BookmarkList).findOneByOrFail({
+        id,
+        userId: ctx.userId,
+      });
     },
     bookmarkLists: async (
       _,

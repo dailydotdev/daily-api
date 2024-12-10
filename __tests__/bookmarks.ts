@@ -25,6 +25,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { subDays } from 'date-fns';
 import { GQLBookmark } from '../src/schema/bookmarks';
+import { randomUUID } from 'crypto';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -838,6 +839,42 @@ describe('query bookmarks', () => {
     const res = await client.query(QUERY, { variables: { first: 2, now } });
     delete res.data.bookmarksFeed.pageInfo.endCursor;
     expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query bookmarkList', () => {
+  const QUERY = `
+    query BookmarkList($id: ID!) {
+      bookmarkList(id: $id) {
+        id
+        name
+        icon
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
+
+  it('should return bookmark list', async () => {
+    loggedUser = '1';
+    const list = await con.getRepository(BookmarkList).save({
+      userId: loggedUser,
+      name: 'list',
+      icon: '😀',
+    });
+    const res = await client.query(QUERY, { variables: { id: list.id } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.bookmarkList).toMatchSnapshot();
+  });
+
+  it('should throw not_found when folder was not found', async () => {
+    loggedUser = '1';
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: randomUUID() } },
+      'NOT_FOUND',
+    );
   });
 });
 
