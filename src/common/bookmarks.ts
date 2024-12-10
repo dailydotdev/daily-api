@@ -3,7 +3,7 @@ import { BookmarkList } from '../entity';
 
 export const getFirstFolderId = async (
   ctx: AuthContext,
-): Promise<string | null | undefined> => {
+): Promise<string | undefined> => {
   const firstFolder = await ctx.con.getRepository(BookmarkList).findOne({
     select: ['id'],
     where: { userId: ctx.userId },
