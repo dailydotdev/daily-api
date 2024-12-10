@@ -226,19 +226,8 @@ export class FeedLofnConfigGenerator implements FeedConfigGenerator {
           this.feedPreferencesConfigGenerator.generate(ctx, opts),
         ]);
 
-        const configWithoutPagination = lofnConfig.config as Omit<
-          typeof lofnConfig.config,
-          'page_size' | 'total_pages'
-        > & {
-          page_size?: number;
-          total_pages?: number;
-        };
-
-        delete configWithoutPagination.page_size;
-        delete configWithoutPagination.total_pages;
-
         const config = {
-          config: configWithoutPagination,
+          config: lofnConfig.config,
           ...lofnConfig.extra,
           ...preferencesConfig.config,
         };
