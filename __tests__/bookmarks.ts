@@ -876,6 +876,20 @@ describe('query bookmarkList', () => {
       'NOT_FOUND',
     );
   });
+
+  it('should throw not_found if user is not the owner of the folder', async () => {
+    loggedUser = '1';
+    const list = await con.getRepository(BookmarkList).save({
+      userId: '2',
+      name: 'list',
+      icon: '😀',
+    });
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: list.id } },
+      'NOT_FOUND',
+    );
+  });
 });
 
 describe('query bookmarksLists', () => {
