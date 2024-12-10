@@ -17,6 +17,7 @@ import {
   View,
 } from '../entity';
 import { ghostUser } from '../common';
+import { cancelSubscription } from '../common/paddle';
 
 export const deleteUser = async (
   con: DataSource,
@@ -26,6 +27,15 @@ export const deleteUser = async (
 ) => {
   try {
     await con.transaction(async (entityManager): Promise<void> => {
+      const user = await entityManager.getRepository(User).findOne({
+        select: ['subscriptionFlags'],
+        where: { id: userId },
+      });
+      if (user?.subscriptionFlags?.subscriptionId) {
+        await cancelSubscription({
+          subscriptionId: user.subscriptionFlags.subscriptionId,
+        });
+      }
       await entityManager.getRepository(View).delete({ userId });
       await entityManager.getRepository(Alerts).delete({ userId });
       await entityManager.getRepository(BookmarkList).delete({ userId });
