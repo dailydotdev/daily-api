@@ -83,6 +83,7 @@ const BASE_BODY = {
     visitId: expect.any(String),
   },
   exp: { f: 'enc', e: [], a: {} },
+  geo: {},
 };
 
 const LOGGED_IN_BODY = {
@@ -108,7 +109,6 @@ const LOGGED_IN_BODY = {
     notificationEmail: true,
     acceptedMarketing: false,
     company: null,
-    cover: null,
     experienceLevel: null,
     followNotifications: true,
     followingEmail: true,
@@ -122,6 +122,7 @@ const LOGGED_IN_BODY = {
     linkedin: null,
     mastodon: null,
     language: undefined,
+    isPlus: false,
   },
   marketingCta: null,
   feeds: [],
@@ -216,7 +217,6 @@ describe('anonymous boot', () => {
     expect(res.body).toEqual({
       ...ANONYMOUS_BODY,
       user: {
-        id: null,
         firstVisit: null,
         shouldVerify: false,
       },
@@ -234,7 +234,6 @@ describe('anonymous boot', () => {
     expect(res.body).toEqual({
       ...ANONYMOUS_BODY,
       user: {
-        id: null,
         firstVisit: null,
         referralId: '1',
         referralOrigin: 'knightcampaign',
@@ -795,7 +794,17 @@ describe('boot misc', () => {
       .get(BASE_PATH)
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
-    expect(res.body.settings).toEqual(settings);
+    expect(res.body.settings).toEqual({
+      ...settings,
+      flags: {
+        sidebarCustomFeedsExpanded: true,
+        sidebarOtherExpanded: true,
+        sidebarResourcesExpanded: true,
+        sidebarSquadExpanded: true,
+        sidebarBookmarksExpanded: true,
+        clickbaitShieldEnabled: true,
+      },
+    });
   });
 
   it('should return unread notifications count', async () => {
@@ -912,6 +921,7 @@ describe('boot misc', () => {
         handle: 's1',
         id: 's1',
         image: SQUAD_IMAGE_PLACEHOLDER,
+        moderationRequired: false,
         name: 'Squad',
         permalink: 'http://localhost:5002/squads/s1',
         public: true,
@@ -925,6 +935,7 @@ describe('boot misc', () => {
         handle: 's2',
         id: 's2',
         image: SQUAD_IMAGE_PLACEHOLDER,
+        moderationRequired: false,
         name: 'Squad 2',
         permalink: 'http://localhost:5002/squads/s2',
         public: false,
@@ -938,6 +949,7 @@ describe('boot misc', () => {
         handle: 's5',
         id: 's5',
         image: SQUAD_IMAGE_PLACEHOLDER,
+        moderationRequired: false,
         name: 'Squad 5',
         permalink: 'http://localhost:5002/squads/s5',
         public: false,
@@ -1000,6 +1012,7 @@ describe('boot misc', () => {
         handle: 's1',
         id: 's1',
         image: SQUAD_IMAGE_PLACEHOLDER,
+        moderationRequired: false,
         name: 'Squad',
         permalink: 'http://localhost:5002/squads/s1',
         public: true,

@@ -4,7 +4,7 @@ import { ConnectionArguments } from 'graphql-relay';
 import { AuthContext, BaseContext, Context } from '../Context';
 import {
   createSharePost,
-  generateMemberToken,
+  NotificationPreferenceSource,
   Source,
   SourceFeed,
   SourceFlagsPublic,
@@ -38,6 +38,7 @@ import { randomUUID } from 'crypto';
 import {
   createSquadWelcomePost,
   getSourceLink,
+  mapCloudinaryUrl,
   updateFlagsStatement,
   uploadSquadImage,
 } from '../common';
@@ -45,6 +46,7 @@ import { toGQLEnum } from '../common/utils';
 import { GraphQLResolveInfo } from 'graphql';
 import {
   SourcePermissionErrorKeys,
+  SourceRequestErrorMessage,
   TypeOrmError,
   TypeORMQueryFailedError,
 } from '../errors';
@@ -66,6 +68,18 @@ import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { traceResolvers } from './trace';
 import { SourceCategory } from '../entity/sources/SourceCategory';
 import { validate } from 'uuid';
+import { ContentPreferenceStatus } from '../entity/contentPreference/types';
+import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
+import {
+  cleanContentNotificationPreference,
+  entityToNotificationTypeMap,
+} from '../common/contentPreference';
+import { MIN_SEARCH_QUERY_LENGTH } from './tags';
+import { getSearchLimit } from '../common/search';
+import {
+  SourcePostModeration,
+  SourcePostModerationStatus,
+} from '../entity/SourcePostModeration';
 
 export interface GQLSourceCategory {
   id: string;
@@ -89,6 +103,8 @@ export interface GQLSource {
   referralUrl?: string;
   flags?: SourceFlagsPublic;
   description?: string;
+  moderationRequired?: boolean;
+  moderationPostCount?: number;
 }
 
 export interface GQLSourceMember {
@@ -233,6 +249,16 @@ export const typeDefs = /* GraphQL */ `
     memberInviteRole: String
 
     """
+    Enable post moderation for the squad
+    """
+    moderationRequired: Boolean
+
+    """
+    Count of post waiting for moderation
+    """
+    moderationPostCount: Int
+
+    """
     URL for inviting and referring new users
     """
     referralUrl: String
@@ -372,6 +398,36 @@ export const typeDefs = /* GraphQL */ `
       """
       sortByMembersCount: Boolean
     ): SourceConnection!
+
+    """
+    Get available sources for given query
+    """
+    searchSources(
+      """
+      Search query
+      """
+      query: String!
+
+      """
+      Limit the number of sources returned
+      """
+      limit: Int
+    ): [Source] @cacheControl(maxAge: 600)
+
+    """
+    Get source recommendation based on given tags
+    """
+    sourceRecommendationByTags(
+      """
+      Tags to recommend sources for
+      """
+      tags: [String]!
+
+      """
+      Limit the number of sources returned
+      """
+      limit: Int
+    ): [Source] @cacheControl(maxAge: 600)
 
     """
     Get the most recent sources
@@ -617,6 +673,10 @@ export const typeDefs = /* GraphQL */ `
       """
       memberInviteRole: String
       """
+      Enable post moderation for the squad
+      """
+      moderationRequired: Boolean
+      """
       Whether the Squad should be private or not
       """
       isPrivate: Boolean
@@ -658,6 +718,10 @@ export const typeDefs = /* GraphQL */ `
       Role required for members to invite
       """
       memberInviteRole: String
+      """
+      Enable post moderation for the squad
+      """
+      moderationRequired: Boolean
       """
       Whether the Squad should be private or not
       """
@@ -791,6 +855,7 @@ export enum SourcePermissions {
   ViewBlockedMembers = 'view_blocked_members',
   WelcomePostEdit = 'welcome_post_edit',
   Post = 'post',
+  PostRequest = 'post_request',
   PostPin = 'post_pin',
   PostLimit = 'post_limit',
   PostDelete = 'post_delete',
@@ -802,11 +867,13 @@ export enum SourcePermissions {
   Delete = 'delete',
   Edit = 'edit',
   ConnectSlack = 'connect_slack',
+  ModeratePost = 'moderate_post',
 }
 
 const memberPermissions = [
   SourcePermissions.View,
   SourcePermissions.Post,
+  SourcePermissions.PostRequest,
   SourcePermissions.Leave,
   SourcePermissions.Invite,
 ];
@@ -820,6 +887,7 @@ const moderatorPermissions = [
   SourcePermissions.MemberUnblock,
   SourcePermissions.ViewBlockedMembers,
   SourcePermissions.WelcomePostEdit,
+  SourcePermissions.ModeratePost,
 ];
 const adminPermissions = [
   ...moderatorPermissions,
@@ -912,16 +980,41 @@ export const canAccessSource = async (
   return hasPermissionCheck(source, member, permission, validateRankAgainst);
 };
 
+export const isPrivilegedMember = async (
+  ctx: Context,
+  sourceId: string,
+): Promise<boolean> => {
+  const sourceMember = await ctx.con
+    .getRepository(SourceMember)
+    .findOneBy({ sourceId: sourceId, userId: ctx.userId });
+
+  if (!sourceMember)
+    throw new ForbiddenError(SourceRequestErrorMessage.ACCESS_DENIED);
+
+  return sourceRoleRank[sourceMember.role] >= sourceRoleRank.moderator;
+};
+
+type PostPermissions = SourcePermissions.Post | SourcePermissions.PostRequest;
+
 export const canPostToSquad = (
   ctx: Context,
   squad: SquadSource,
   sourceMember: SourceMember | null,
+  permission: PostPermissions = SourcePermissions.Post,
 ): boolean => {
   if (!sourceMember) {
     return false;
   }
 
-  return sourceRoleRank[sourceMember.role] >= squad.memberPostingRank;
+  const memberRank = sourceRoleRank[sourceMember.role];
+
+  if (squad.moderationRequired) {
+    if (memberRank === sourceRoleRank.member) {
+      return permission === SourcePermissions.PostRequest;
+    }
+  }
+
+  return memberRank >= squad.memberPostingRank;
 };
 
 const validateSquadData = async (
@@ -935,6 +1028,7 @@ const validateSquadData = async (
   }: Pick<SquadSource, 'handle' | 'name' | 'description' | 'categoryId'> & {
     memberPostingRole?: SourceMemberRoles;
     memberInviteRole?: SourceMemberRoles;
+    moderationRequired?: boolean;
   },
   entityManager: DataSource | EntityManager,
   handleChanged = true,
@@ -978,6 +1072,8 @@ const validateSquadData = async (
   return handle;
 };
 
+const postPermissions = [SourcePermissions.Post, SourcePermissions.PostRequest];
+
 export const ensureSourcePermissions = async (
   ctx: Context,
   sourceId: string | undefined,
@@ -1008,8 +1104,13 @@ export const ensureSourcePermissions = async (
 
     if (
       source.type === SourceType.Squad &&
-      permission === SourcePermissions.Post &&
-      !canPostToSquad(ctx, source as SquadSource, sourceMember)
+      postPermissions.includes(permission) &&
+      !canPostToSquad(
+        ctx,
+        source as SquadSource,
+        sourceMember,
+        permission as PostPermissions,
+      )
     ) {
       throw new ForbiddenError('Posting not allowed!');
     }
@@ -1046,6 +1147,7 @@ interface SquadInputArgs {
   image?: FileUpload;
   memberPostingRole?: SourceMemberRoles;
   memberInviteRole?: SourceMemberRoles;
+  moderationRequired?: boolean;
   isPrivate?: boolean;
   categoryId?: string;
 }
@@ -1076,14 +1178,72 @@ const getSourceById = async (
   return res[0];
 };
 
-const addNewSourceMember = async (
+export const addNewSourceMember = async (
   con: DataSource | EntityManager,
   member: Omit<DeepPartial<SourceMember>, 'referralToken'>,
 ): Promise<void> => {
+  const contentPreference = await con
+    .getRepository(ContentPreferenceSource)
+    .findOneBy({
+      userId: member.userId,
+      referenceId: member.sourceId,
+    });
+
+  const referralToken = contentPreference?.flags.referralToken || randomUUID();
+
   await con.getRepository(SourceMember).insert({
     ...member,
-    referralToken: await generateMemberToken(),
+    referralToken,
   });
+
+  await con.getRepository(ContentPreferenceSource).upsert(
+    con.getRepository(ContentPreferenceSource).create({
+      userId: member.userId,
+      referenceId: member.sourceId,
+      sourceId: member.sourceId,
+      feedId: member.userId,
+      status: ContentPreferenceStatus.Subscribed,
+      flags: {
+        ...member.flags,
+        role: member.role,
+        referralToken,
+      },
+    }),
+    {
+      conflictPaths: ['referenceId', 'userId', 'type', 'feedId'],
+    },
+  );
+};
+
+export const removeSourceMember = async ({
+  con,
+  userId,
+  sourceId,
+}: {
+  con: DataSource | EntityManager;
+  userId: string;
+  sourceId: string;
+}): Promise<void> => {
+  await con.transaction(async (entityManager) => {
+    await entityManager.getRepository(SourceMember).delete({
+      sourceId,
+      userId,
+    });
+
+    await entityManager.getRepository(ContentPreferenceSource).delete({
+      userId: userId,
+      referenceId: sourceId,
+    });
+
+    await cleanContentNotificationPreference({
+      entityManager: con,
+      id: sourceId,
+      notificationTypes: entityToNotificationTypeMap.source,
+      notficationEntity: NotificationPreferenceSource,
+      userId,
+    });
+  });
+  return;
 };
 
 export const getPermissionsForMember = (
@@ -1139,14 +1299,25 @@ const updateHideFeedPostsFlag = async (
 ): Promise<GQLEmptyResponse> => {
   await ensureSourcePermissions(ctx, sourceId, SourcePermissions.View);
 
-  await ctx.con.getRepository(SourceMember).update(
-    { sourceId, userId: ctx.userId },
-    {
-      flags: updateFlagsStatement<SourceMember>({
-        hideFeedPosts: value,
-      }),
-    },
-  );
+  await ctx.con.transaction(async (entityManager) => {
+    await entityManager.getRepository(SourceMember).update(
+      { sourceId, userId: ctx.userId },
+      {
+        flags: updateFlagsStatement<SourceMember>({
+          hideFeedPosts: value,
+        }),
+      },
+    );
+
+    await entityManager.getRepository(ContentPreferenceSource).update(
+      { referenceId: sourceId, userId: ctx.userId },
+      {
+        flags: updateFlagsStatement<ContentPreferenceSource>({
+          hideFeedPosts: value,
+        }),
+      },
+    );
+  });
 
   return { _: true };
 };
@@ -1158,14 +1329,25 @@ const togglePinnedPosts = async (
 ): Promise<GQLEmptyResponse> => {
   await ensureSourcePermissions(ctx, sourceId, SourcePermissions.View);
 
-  await ctx.con.getRepository(SourceMember).update(
-    { sourceId, userId: ctx.userId },
-    {
-      flags: updateFlagsStatement<SourceMember>({
-        collapsePinnedPosts: value,
-      }),
-    },
-  );
+  await ctx.con.transaction(async (entityManager) => {
+    await entityManager.getRepository(SourceMember).update(
+      { sourceId, userId: ctx.userId },
+      {
+        flags: updateFlagsStatement<SourceMember>({
+          collapsePinnedPosts: value,
+        }),
+      },
+    );
+
+    await entityManager.getRepository(ContentPreferenceSource).update(
+      { referenceId: sourceId, userId: ctx.userId },
+      {
+        flags: updateFlagsStatement<SourceMember>({
+          collapsePinnedPosts: value,
+        }),
+      },
+    );
+  });
 
   return { _: true };
 };
@@ -1420,6 +1602,69 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         true,
       );
     },
+    searchSources: async (
+      source,
+      { query, limit = 5 }: { query: string; limit: number },
+      ctx: Context,
+      info,
+    ): Promise<GQLSource[]> => {
+      if (query.length < MIN_SEARCH_QUERY_LENGTH) {
+        return [];
+      }
+
+      return await graphorm.query<GQLSource>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .where(`name ILIKE :query OR handle ILIKE :query`, {
+              query: `%${query}%`,
+            })
+            .andWhere({ active: true, private: false })
+            .limit(getSearchLimit({ limit }));
+          return builder;
+        },
+        true,
+      );
+    },
+    sourceRecommendationByTags: async (
+      source,
+      { tags, limit = 10 }: { tags: string[]; limit: number },
+      ctx: Context,
+      info,
+    ): Promise<GQLSource[]> => {
+      const excludedSources = ['unknown', 'community', 'collections'];
+      const rawSources = await ctx.con.getRepository(SourceTagView).find({
+        where: { tag: In(tags), sourceId: Not(In(excludedSources)) },
+        select: ['sourceId'],
+        order: { count: 'DESC' },
+      });
+
+      const filter: FindOptionsWhere<Source> = {
+        active: true,
+        private: false,
+      };
+
+      const rawSourcesIds = rawSources.map(({ sourceId }) => sourceId);
+      const idsStr = rawSources.length
+        ? rawSources.map(({ sourceId }) => `'${sourceId}'`).join(',')
+        : `'nosuchid'`;
+      return graphorm.query(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .andWhere(filter)
+            .andWhere('id IN (:...ids)', {
+              ids: rawSourcesIds,
+            })
+            .orderBy(`array_position(array[${idsStr}], ${builder.alias}.id)`)
+            .limit(getSearchLimit({ limit }));
+          return builder;
+        },
+        true,
+      );
+    },
     mostRecentSources: async (
       _,
       args,
@@ -1468,7 +1713,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<GQLSource> => {
       await ensureSourcePermissions(ctx, id);
-      return getSourceById(ctx, info, id);
+      const source = await getSourceById(ctx, info, id);
+
+      if (!source.moderationRequired || !source.currentMember) {
+        return source;
+      }
+
+      const isModerator =
+        sourceRoleRank[source.currentMember.role] >= sourceRoleRank.moderator;
+      const status = SourcePostModerationStatus.Pending;
+      const query: FindOptionsWhere<SourcePostModeration> = {
+        status,
+        sourceId: source.id,
+        ...(!isModerator && { createdById: ctx.userId }),
+      };
+
+      const moderationPostCount = await ctx.con
+        .getRepository(SourcePostModeration)
+        .countBy(query);
+
+      return { ...source, moderationPostCount };
     },
     sourceHandleExists: async (
       _,
@@ -1689,6 +1953,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         description,
         memberPostingRole = SourceMemberRoles.Member,
         memberInviteRole = SourceMemberRoles.Member,
+        moderationRequired,
         isPrivate = true,
         categoryId,
       }: SquadCreateInputArgs,
@@ -1719,6 +1984,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             private: isPrivate,
             memberPostingRank: sourceRoleRank[memberPostingRole],
             memberInviteRank: sourceRoleRank[memberInviteRole],
+            moderationRequired,
           });
 
           if (!isNullOrUndefined(isPrivate) && !isPrivate) {
@@ -1736,7 +2002,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
           if (postId) {
             // Create the first post of the squad
-            await createSharePost(entityManager, ctx, id, postId, commentary);
+            await createSharePost({
+              con: entityManager,
+              ctx,
+              args: {
+                authorId: ctx.userId,
+                postId,
+                commentary,
+                sourceId: id,
+              },
+            });
           }
 
           if (image) {
@@ -1771,6 +2046,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         description,
         memberPostingRole,
         memberInviteRole,
+        moderationRequired,
         isPrivate,
         categoryId,
       }: SquadEditInputArgs,
@@ -1805,6 +2081,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         memberInviteRank: memberInviteRole
           ? sourceRoleRank[memberInviteRole]
           : undefined,
+        moderationRequired,
       };
 
       if (!isNullOrUndefined(isPrivate)) {
@@ -1868,9 +2145,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Leave);
-      await ctx.con.getRepository(SourceMember).delete({
-        sourceId,
+      await removeSourceMember({
+        con: ctx.con,
         userId: ctx.userId,
+        sourceId,
       });
       return { _: true };
     },
@@ -1898,9 +2176,34 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }
       }
 
-      await ctx.con
-        .getRepository(SourceMember)
-        .update({ sourceId, userId: memberId }, { role });
+      await ctx.con.transaction(async (entityManager) => {
+        await entityManager
+          .getRepository(SourceMember)
+          .update({ sourceId, userId: memberId }, { role });
+
+        const isBlock = role === SourceMemberRoles.Blocked;
+
+        await entityManager.getRepository(ContentPreferenceSource).update(
+          { userId: memberId, referenceId: sourceId },
+          {
+            status: isBlock ? ContentPreferenceStatus.Blocked : undefined,
+            flags: updateFlagsStatement<ContentPreferenceSource>({
+              role,
+            }),
+          },
+        );
+
+        if (isBlock) {
+          await cleanContentNotificationPreference({
+            ctx,
+            entityManager,
+            id: sourceId,
+            notificationTypes: entityToNotificationTypeMap.source,
+            notficationEntity: NotificationPreferenceSource,
+            userId: memberId,
+          });
+        }
+      });
 
       return { _: true };
     },
@@ -1915,9 +2218,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         SourcePermissions.MemberUnblock,
       );
 
-      await ctx.con
-        .getRepository(SourceMember)
-        .delete({ sourceId, userId: memberId });
+      await ctx.con.transaction(async (entityManager) => {
+        await entityManager
+          .getRepository(SourceMember)
+          .delete({ sourceId, userId: memberId });
+
+        await entityManager.getRepository(ContentPreferenceSource).delete({
+          userId: memberId,
+          referenceId: sourceId,
+        });
+      });
 
       return { _: true };
     },
@@ -2015,6 +2325,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   Source: {
+    image: (source: GQLSource): GQLSource['image'] =>
+      mapCloudinaryUrl(source.image),
     permalink: (source: GQLSource): string => getSourceLink(source),
     referralUrl: async (
       source: GQLSource,

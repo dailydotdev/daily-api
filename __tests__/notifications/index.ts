@@ -7,6 +7,7 @@ import {
   NotificationCommenterContext,
   NotificationDoneByContext,
   NotificationPostContext,
+  NotificationPostModerationContext,
   NotificationSourceContext,
   NotificationSourceMemberRoleContext,
   NotificationSourceRequestContext,
@@ -16,12 +17,14 @@ import {
   NotificationUserContext,
   Reference,
   storeNotificationBundleV2,
+  type NotificationUserTopReaderContext,
 } from '../../src/notifications';
 import { postsFixture } from '../fixture/post';
 import {
   Bookmark,
   Comment,
   FreeformPost,
+  Keyword,
   NotificationAttachmentType,
   NotificationAttachmentV2,
   NotificationAvatarV2,
@@ -37,10 +40,12 @@ import {
   User,
   UserNotification,
   UserStreak,
+  UserTopReader,
   WelcomePost,
 } from '../../src/entity';
 import {
   createSquadWelcomePost,
+  defaultImage,
   notificationsLink,
   scoutArticleLink,
   squadsFeaturedPage,
@@ -53,6 +58,11 @@ import { SourceMemberRoles } from '../../src/roles';
 import { NotificationType } from '../../src/notifications/common';
 import { format } from 'date-fns';
 import { saveFixtures } from '../helpers';
+import {
+  PostModerationReason,
+  SourcePostModeration,
+  SourcePostModerationStatus,
+} from '../../src/entity/SourcePostModeration';
 
 const userId = '1';
 const commentFixture: Reference<Comment> = {
@@ -1249,6 +1259,160 @@ describe('storeNotificationBundle', () => {
     ]);
   });
 
+  it('should generate source_post_submitted notification', async () => {
+    const [, ...fixtures] = usersFixture;
+    await con.getRepository(Source).save(sourcesFixture);
+    await con.getRepository(Post).save(postsFixture);
+    await con.getRepository(User).save(fixtures);
+    const post = await con.getRepository(SourcePostModeration).save({
+      type: PostType.Share,
+      postId: 'p1',
+      sourceId: 'a',
+      createdById: '2',
+      status: SourcePostModerationStatus.Pending,
+    });
+    const type = NotificationType.SourcePostSubmitted;
+    const ctx: NotificationPostModerationContext = {
+      post,
+      userIds: [userId],
+      source: {
+        ...sourcesFixture[0],
+        type: SourceType.Squad,
+      } as Reference<Source>,
+      user: usersFixture[1] as Reference<User>,
+    };
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['1']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual(post.id);
+    expect(actual.notification.referenceType).toEqual('post_moderation');
+    expect(actual.notification.title).toEqual(
+      'Tsahi just posted in A. This post is waiting for your review before it gets published on the squad.',
+    );
+    expect(actual.notification.description).toBeFalsy();
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/squads/a/moderate',
+    );
+    expect(actual.avatars).toEqual([
+      {
+        image: 'http://image.com/a',
+        name: 'A',
+        referenceId: 'a',
+        targetUrl: 'http://localhost:5002/squads/a',
+        type: 'source',
+      },
+      {
+        image: 'https://daily.dev/tsahi.jpg',
+        name: 'Tsahi',
+        referenceId: '2',
+        targetUrl: 'http://localhost:5002/tsahidaily',
+        type: 'user',
+      },
+    ]);
+    expect(actual.attachments!.length).toEqual(0);
+  });
+
+  it('should generate source_post_rejected notification', async () => {
+    const [, ...fixtures] = usersFixture;
+    await con.getRepository(Source).save(sourcesFixture);
+    await con.getRepository(Post).save(postsFixture);
+    await con.getRepository(User).save(fixtures);
+    const post = await con.getRepository(SourcePostModeration).save({
+      type: PostType.Share,
+      postId: 'p1',
+      sourceId: 'a',
+      createdById: '2',
+      status: SourcePostModerationStatus.Rejected,
+      rejectionReason: PostModerationReason.Other,
+      moderatorMessage: 'Lacks value.',
+    });
+    const type = NotificationType.SourcePostRejected;
+    const ctx: NotificationPostModerationContext = {
+      post,
+      userIds: ['2'],
+      source: {
+        ...sourcesFixture[0],
+        type: SourceType.Squad,
+      } as Reference<Source>,
+      user: usersFixture[1] as Reference<User>,
+    };
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['2']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual(post.id);
+    expect(actual.notification.referenceType).toEqual('post_moderation');
+    expect(actual.notification.title).toEqual(
+      'Your post in A was not approved for the following reason: Other. Please review the feedback and consider making changes before resubmitting.',
+    );
+    expect(actual.notification.description).toEqual('Lacks value.');
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/squads/a/moderate',
+    );
+    expect(actual.avatars).toEqual([
+      {
+        image: 'http://image.com/a',
+        name: 'A',
+        referenceId: 'a',
+        targetUrl: 'http://localhost:5002/squads/a',
+        type: 'source',
+      },
+    ]);
+    expect(actual.attachments!.length).toEqual(0);
+  });
+
+  it('should generate source_post_approved notification', async () => {
+    const [, ...fixtures] = usersFixture;
+    await con.getRepository(Source).save(sourcesFixture);
+    await con.getRepository(Post).save(postsFixture);
+    await con.getRepository(User).save(fixtures);
+    const type = NotificationType.SourcePostApproved;
+    const ctx: NotificationPostContext = {
+      post: postsFixture[0] as Reference<Post>,
+      userIds: ['2'],
+      source: {
+        ...sourcesFixture[0],
+        type: SourceType.Squad,
+      } as Reference<Source>,
+    };
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['2']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('p1');
+    expect(actual.notification.referenceType).toEqual('post');
+    expect(actual.notification.title).toEqual(
+      'Woohoo! Your post has been approved and is now live in A. Check it out!',
+    );
+    expect(actual.notification.description).toBeFalsy();
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/posts/p1',
+    );
+    expect(actual.avatars).toEqual([
+      {
+        image: 'http://image.com/a',
+        name: 'A',
+        referenceId: 'a',
+        targetUrl: 'http://localhost:5002/squads/a',
+        type: 'source',
+      },
+    ]);
+    expect(actual.attachments!.length).toEqual(1);
+    expect(actual.attachments).toEqual([
+      {
+        image: 'https://daily.dev/image.jpg',
+
+        referenceId: 'p1',
+        title: 'P1',
+        type: 'post',
+      },
+    ]);
+  });
+
   it('should not generate duplicate post added notifications', async () => {
     await saveFixtures(con, User, usersFixture);
 
@@ -1287,5 +1451,55 @@ describe('storeNotificationBundle', () => {
       notificationId: In(notificationIds.map((item) => item.id)),
     });
     expect(notifications.length).toEqual(3);
+  });
+
+  it('should generate user_given_top_reader notification', async () => {
+    const topReader = {
+      id: 'cdaac113-0e8b-4189-9a6b-ceea7b21de0e',
+      userId: '1',
+      issuedAt: new Date(),
+      keywordValue: 'kw_1',
+      image: 'https://daily.dev/image.jpg',
+    };
+    const keyword = {
+      value: `kw_1`,
+      flags: {
+        title: `kw_1 title`,
+      },
+    };
+
+    await saveFixtures(con, User, usersFixture);
+    await saveFixtures(con, Keyword, [keyword]);
+    await saveFixtures(con, UserTopReader, [topReader]);
+
+    const type = NotificationType.UserTopReaderBadge;
+    const ctx: NotificationUserTopReaderContext = {
+      userIds: [userId],
+      userTopReader: topReader as Reference<UserTopReader>,
+      keyword: keyword as Reference<Keyword>,
+    };
+
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual(
+      'cdaac113-0e8b-4189-9a6b-ceea7b21de0e',
+    );
+    expect(actual.notification.referenceType).toEqual('user_top_reader');
+    expect(actual.notification.description).toBeFalsy();
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/notifications?topreader=true&badgeId=cdaac113-0e8b-4189-9a6b-ceea7b21de0e',
+    );
+    expect(actual.avatars).toEqual([
+      {
+        image: defaultImage.placeholder,
+        name: 'kw_1 title',
+        referenceId: 'cdaac113-0e8b-4189-9a6b-ceea7b21de0e',
+        targetUrl: '',
+        type: 'top_reader_badge',
+      },
+    ]);
+    expect(actual.attachments!.length).toEqual(0);
   });
 });

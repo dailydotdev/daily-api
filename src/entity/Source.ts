@@ -17,7 +17,7 @@ import type { SourceCategory } from './sources/SourceCategory';
 export const COMMUNITY_PICKS_SOURCE = 'community';
 
 export const SQUAD_IMAGE_PLACEHOLDER =
-  'https://daily-now-res.cloudinary.com/image/upload/s--LrHsyt2T--/f_auto/v1692632054/squad_placeholder_sfwkmj';
+  'https://media.daily.dev/image/upload/s--LrHsyt2T--/f_auto/v1692632054/squad_placeholder_sfwkmj';
 
 export enum SourceType {
   Machine = 'machine',
@@ -34,6 +34,7 @@ export interface SourceFlagsPublic {
 
 export interface SourceFlagsPrivate {
   publicThreshold: boolean;
+  vordr?: boolean;
 }
 
 export const defaultPublicSourceFlags: SourceFlagsPublic = {
@@ -165,4 +166,7 @@ export class SquadSource extends Source {
 
   @Column({ default: 0 })
   memberInviteRank: number;
+
+  @Column({ default: false })
+  moderationRequired: boolean;
 }

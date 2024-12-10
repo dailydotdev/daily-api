@@ -61,6 +61,7 @@ const start = async (): Promise<void> => {
   await importEntity(con, 'Keyword', { conflictPaths: ['value'] });
   await importEntity(con, 'PostKeyword');
   await importEntity(con, 'User');
+  await importEntity(con, 'UserTopReader');
   await importEntity(con, 'MarketingCta');
   await importEntity(con, 'SourceMember');
   // Manually have to reset these as insert has a issue with `type` columns

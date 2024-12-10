@@ -24,6 +24,7 @@ import {
   PostReport,
   PostTag,
   PostType,
+  Settings,
   SharePost,
   Source,
   SourceMember,
@@ -31,6 +32,8 @@ import {
   SquadSource,
   UNKNOWN_SOURCE,
   User,
+  UserAction,
+  UserActionType,
   UserPost,
   View,
   WelcomePost,
@@ -75,6 +78,14 @@ import {
 } from '../src/directive/rateLimit';
 import { badUsersFixture } from './fixture/user';
 import { PostCodeSnippet } from '../src/entity/posts/PostCodeSnippet';
+import {
+  SourcePostModeration,
+  SourcePostModerationStatus,
+} from '../src/entity/SourcePostModeration';
+import { generateUUID } from '../src/ids';
+import { GQLResponse } from 'mercurius-integration-testing';
+import type { GQLPostSmartTitle } from '../src/schema/posts';
+import { SubscriptionCycles } from '../src/paddle';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -87,18 +98,31 @@ let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
 let premiumUser = false;
+let isTeamMember = false;
+let isPlus = false;
 let roles: Roles[] = [];
 
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    (req) => new MockContext(con, loggedUser, premiumUser, roles, req),
+    (req) =>
+      new MockContext(
+        con,
+        loggedUser,
+        premiumUser,
+        roles,
+        req,
+        isTeamMember,
+        isPlus,
+      ),
   );
   client = state.client;
 });
 
 beforeEach(async () => {
   loggedUser = null;
+  isTeamMember = false;
+  isPlus = false;
   premiumUser = false;
   roles = [];
   jest.clearAllMocks();
@@ -117,6 +141,57 @@ beforeEach(async () => {
     name: 'Lee',
     image: 'https://daily.dev/lee.jpg',
   });
+  await con.getRepository(User).save([
+    {
+      id: '2',
+      name: 'Lee',
+      image: 'https://daily.dev/lee.jpg',
+    },
+    {
+      id: '3',
+      name: 'Amar',
+    },
+    {
+      id: '4',
+      name: 'John Doe',
+    },
+    {
+      id: '5',
+      name: 'Joanna Deer',
+    },
+  ]);
+  await con.getRepository(SquadSource).save({
+    id: 'm',
+    name: 'Moderated Squad',
+    image: 'http//image.com/m',
+    handle: 'moderatedSquad',
+    type: SourceType.Squad,
+    active: true,
+    private: false,
+    moderationRequired: true,
+    memberPostingRank: sourceRoleRank[SourceMemberRoles.Member],
+    memberInviteRank: sourceRoleRank[SourceMemberRoles.Member],
+  });
+  await con.getRepository(SourceMember).save([
+    {
+      userId: '3',
+      sourceId: 'm',
+      role: SourceMemberRoles.Moderator,
+      referralToken: randomUUID(),
+    },
+    {
+      userId: '4',
+      sourceId: 'm',
+      role: SourceMemberRoles.Member,
+      referralToken: randomUUID(),
+    },
+    {
+      userId: '5',
+      sourceId: 'm',
+      role: SourceMemberRoles.Member,
+      referralToken: randomUUID(),
+    },
+  ]);
   await deleteKeysByPattern(`${rateLimiterName}:*`);
   await deleteKeysByPattern(`${highRateLimiterName}:*`);
 });
@@ -145,7 +220,6 @@ const saveSquadFixtures = async () => {
       referralToken: randomUUID(),
     },
   ]);
-
   await con.getRepository(SourceMember).save(
     badUsersFixture.map((user) => ({
       userId: user.id,
@@ -253,6 +327,44 @@ describe('image fields', () => {
     });
     const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should use image proxy', async () => {
+    const repo = con.getRepository(ArticlePost);
+    await repo.save({
+      id: 'image',
+      shortId: 'image',
+      title: 'Image',
+      url: 'http://post.com',
+      score: 0,
+      sourceId: 'a',
+      createdAt: new Date(2020, 4, 4, 19, 35),
+      image:
+        'https://daily-now-res.cloudinary.com/image/upload/f_auto,q_auto/v1680721516/e0a51d08219c9267b010b136f9fe29f5',
+    });
+    const res = await client.query(QUERY);
+    expect(res.data.post.image).toEqual(
+      'https://media.daily.dev/image/upload/f_auto,q_auto/v1680721516/e0a51d08219c9267b010b136f9fe29f5',
+    );
+  });
+
+  it('should use image proxy for second variation', async () => {
+    const repo = con.getRepository(ArticlePost);
+    await repo.save({
+      id: 'image',
+      shortId: 'image',
+      title: 'Image',
+      url: 'http://post.com',
+      score: 0,
+      sourceId: 'a',
+      createdAt: new Date(2020, 4, 4, 19, 35),
+      image:
+        'https://res.cloudinary.com/daily-now/image/upload/f_auto,q_auto/v1680721516/e0a51d08219c9267b010b136f9fe29f5',
+    });
+    const res = await client.query(QUERY);
+    expect(res.data.post.image).toEqual(
+      'https://media.daily.dev/image/upload/f_auto,q_auto/v1680721516/e0a51d08219c9267b010b136f9fe29f5',
+    );
   });
 });
 
@@ -410,17 +522,6 @@ describe('bookmarkList field', () => {
     expect(res.data.post.bookmarkList).toEqual(null);
   });
 
-  it('should return null when user is not premium', async () => {
-    loggedUser = '1';
-    await con.getRepository(Bookmark).save({
-      postId: 'p1',
-      userId: loggedUser,
-      listId: list.id,
-    });
-    const res = await client.query(QUERY);
-    expect(res.data.post.bookmarkList).toEqual(null);
-  });
-
   it('should return null when bookmark does not belong to a list', async () => {
     loggedUser = '1';
     premiumUser = true;
@@ -434,7 +535,6 @@ describe('bookmarkList field', () => {
 
   it('should return the bookmark list', async () => {
     loggedUser = '1';
-    premiumUser = true;
     await con.getRepository(Bookmark).save({
       postId: 'p1',
       userId: loggedUser,
@@ -973,6 +1073,79 @@ describe('query post', () => {
       },
       'FORBIDDEN',
     );
+  });
+
+  describe('clickbaitTitleDetected', () => {
+    const LOCAL_QUERY = /* GraphQL */ `
+      query Post($id: ID!) {
+        post(id: $id) {
+          clickbaitTitleDetected
+        }
+      }
+    `;
+
+    it('should return true if clickbait title probability (string) is above threshold', async () => {
+      await con.getRepository(ArticlePost).update('p1', {
+        contentQuality: { is_clickbait_probability: '1.99' }, // Use 1.99 as it's above the fallback threshold
+        contentMeta: { alt_title: { translations: { en: 'Clickbait title' } } },
+      });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.clickbaitTitleDetected).toEqual(true);
+    });
+
+    it('should return true if clickbait title probability (float) is above threshold', async () => {
+      await con.getRepository(ArticlePost).update('p1', {
+        contentQuality: { is_clickbait_probability: 1.98 }, // Use 1.98 as it's above the fallback threshold
+        contentMeta: { alt_title: { translations: { en: 'Clickbait title' } } },
+      });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.clickbaitTitleDetected).toEqual(true);
+    });
+
+    it('should return false if clickbait title probability (float) is above threshold but no alt title exists', async () => {
+      await con.getRepository(ArticlePost).update('p1', {
+        contentQuality: { is_clickbait_probability: 1.98 }, // Use 1.98 as it's above the fallback threshold
+      });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.clickbaitTitleDetected).toEqual(false);
+    });
+
+    it('should return false if clickbait title probability is below threshold', async () => {
+      await con.getRepository(ArticlePost).update('p1', {
+        contentQuality: { is_clickbait_probability: 0.2 },
+      });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.clickbaitTitleDetected).toEqual(false);
+    });
+
+    it('should return false if contentQuality is undefined', async () => {
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.clickbaitTitleDetected).toEqual(false);
+    });
   });
 });
 
@@ -1798,6 +1971,31 @@ describe('mutation sharePost', () => {
     });
   });
 
+  it('should not authorize when moderation is required', async () => {
+    loggedUser = '4';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, sourceId: 'm' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should bypass moderation because user is a moderator', async () => {
+    loggedUser = '3';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, sourceId: 'm' },
+    });
+    expect(res.errors).toBeFalsy();
+    const newId = res.data.sharePost.id;
+    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    expect(post?.authorId).toEqual('3');
+    expect(post?.sharedPostId).toEqual('p1');
+    expect(post?.title).toEqual('My comment');
+  });
+
   it('should not authorize when not logged in', () =>
     testMutationErrorCode(
       client,
@@ -2282,6 +2480,47 @@ describe('mutation submitExternalLink', () => {
       referralToken: 'rt',
       role: SourceMemberRoles.Member,
     });
+  });
+
+  it('should not authorize when moderation is required', async () => {
+    loggedUser = '4';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, sourceId: 'm' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should not authorize when moderation is required', async () => {
+    loggedUser = '4';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, sourceId: 'm' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should bypass moderation because user is a moderator', async () => {
+    loggedUser = '3';
+    await con.getRepository(Source).insert({
+      id: UNKNOWN_SOURCE,
+      handle: UNKNOWN_SOURCE,
+      name: UNKNOWN_SOURCE,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, sourceId: 'm' },
+    });
+    expect(res.errors).toBeFalsy();
+    const articlePost = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ url: variables.url });
+    expect(articlePost?.url).toEqual('https://daily.dev');
   });
 
   it('should not authorize when not logged in', () =>
@@ -2929,6 +3168,41 @@ describe('mutation createFreeformPost', () => {
     await saveSquadFixtures();
   });
 
+  it('should not authorize when moderation is required', async () => {
+    loggedUser = '4';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...params, sourceId: 'm' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should not authorize when moderation is required', async () => {
+    loggedUser = '4';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...params, sourceId: 'm' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should bypass moderation because user is a moderator', async () => {
+    loggedUser = '3';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, sourceId: 'm' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createFreeformPost.type).toEqual(PostType.Freeform);
+    expect(res.data.createFreeformPost.author.id).toEqual('3');
+    expect(res.data.createFreeformPost.source.id).toEqual('m');
+  });
+
   it('should not authorize when not logged in', () =>
     testMutationErrorCode(
       client,
@@ -2963,11 +3237,11 @@ describe('mutation createFreeformPost', () => {
     );
   });
 
-  it('should return an error if content exceeds 4000 characters', async () => {
+  it('should return an error if content exceeds 10000 characters', async () => {
     loggedUser = '1';
 
-    const content = 'Hello World! Start your squad journey here';
-    const sample = new Array(100).fill(content);
+    const content = 'Hello World! Start your squad journey here'; // 42 chars
+    const sample = new Array(240).fill(content); // 42*240 = 10_080
 
     return testMutationErrorCode(
       client,
@@ -3123,7 +3397,7 @@ describe('mutation createFreeformPost', () => {
   it('should not allow mention outside of squad as part of the content being a freeform post', async () => {
     loggedUser = '1';
     const content = 'Test @sample';
-    await con.getRepository(User).update({ id: '5' }, { username: 'sample' });
+    await con.getRepository(User).update({ id: '9' }, { username: 'sample' });
     const post = await setupMention({ content });
     const mention = await con
       .getRepository(PostMention)
@@ -3273,6 +3547,474 @@ describe('mutation createFreeformPost', () => {
   });
 });
 
+describe('query sourcePostModeration', () => {
+  const firstPostUuid = randomUUID();
+  beforeEach(async () => {
+    await saveSquadFixtures();
+    await con.getRepository(SourcePostModeration).save([
+      {
+        id: firstPostUuid,
+        createdById: '4',
+        sourceId: 'm',
+        title: 'My First Moderated Post',
+        type: PostType.Freeform,
+        status: SourcePostModerationStatus.Pending,
+        content: 'Hello World',
+      },
+      {
+        id: randomUUID(),
+        sourceId: 'm',
+        createdById: '4',
+        title: 'My Second Moderated Post',
+        type: PostType.Share,
+        sharedPostId: 'p1',
+        status: SourcePostModerationStatus.Pending,
+        content: 'Hello World',
+      },
+      {
+        id: randomUUID(),
+        sourceId: 'm',
+        createdById: '5',
+        title: 'My Third Moderated Post',
+        type: PostType.Freeform,
+        status: SourcePostModerationStatus.Pending,
+        content: 'Hello World',
+      },
+      {
+        id: randomUUID(),
+        sourceId: 'm',
+        createdById: '5',
+        title: 'Rejected Post',
+        type: PostType.Freeform,
+        status: SourcePostModerationStatus.Rejected,
+        content: 'Hello World',
+      },
+      {
+        id: randomUUID(),
+        sourceId: 'm',
+        createdById: '5',
+        title: 'Approved Post',
+        type: PostType.Freeform,
+        status: SourcePostModerationStatus.Approved,
+        content: 'Hello World',
+      },
+    ]);
+  });
+
+  const queryOne = `query sourcePostModeration($id: ID!) {
+  sourcePostModeration(id: $id) {
+    title
+    type
+  }
+}`;
+
+  const queryAllForSource = `query sourcePostModerations($sourceId: ID!, $status: [String]) {
+  sourcePostModerations(sourceId: $sourceId, status: $status) {
+    edges {
+      node {
+        id
+        title
+        type
+      }
+    }
+  }
+}`;
+
+  it('should receive forbidden error because user is not member of squad', async () => {
+    loggedUser = '2';
+    return testQueryErrorCode(
+      client,
+      {
+        query: queryOne,
+        variables: { id: firstPostUuid },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should retrieve moderation item because it is made by the user', async () => {
+    loggedUser = '4';
+
+    const res = await client.query(queryOne, {
+      variables: { id: firstPostUuid },
+    });
+    expect(res.data).toEqual({
+      sourcePostModeration: {
+        title: 'My First Moderated Post',
+        type: 'freeform',
+      },
+    });
+  });
+
+  it('should retrieve moderation item because user is moderator', async () => {
+    loggedUser = '3';
+    const res = await client.query(queryOne, {
+      variables: { id: firstPostUuid },
+    });
+    expect(res.errors).toBeUndefined();
+    expect(res.data).toEqual({
+      sourcePostModeration: {
+        title: 'My First Moderated Post',
+        type: 'freeform',
+      },
+    });
+  });
+
+  it('should return all the moderation items from sourcePostModerations because user is moderator', async () => {
+    loggedUser = '3';
+
+    const res = await client.query(queryAllForSource, {
+      variables: { sourceId: 'm' },
+    });
+    expect(res.errors).toBeUndefined();
+    expect(res.data.sourcePostModerations.edges.length).toEqual(5);
+  });
+
+  it('should filter out vordred submissions for moderators', async () => {
+    loggedUser = '3';
+    await con
+      .getRepository(SourcePostModeration)
+      .update(
+        { id: firstPostUuid },
+        { flags: updateFlagsStatement<SourcePostModeration>({ vordr: true }) },
+      );
+    const res = await client.query(queryAllForSource, {
+      variables: { sourceId: 'm' },
+    });
+    expect(res.errors).toBeUndefined();
+    expect(res.data.sourcePostModerations.edges.length).toEqual(4);
+    const vordred = res.data.sourcePostModerations.edges.find(
+      (edge) => edge.node.id === firstPostUuid,
+    );
+    expect(vordred).toBeFalsy();
+  });
+
+  it('should return only approved and rejected items', async () => {
+    loggedUser = '3';
+
+    const res = await client.query(queryAllForSource, {
+      variables: { sourceId: 'm', status: ['approved', 'rejected'] },
+    });
+    expect(res.errors).toBeUndefined();
+    expect(res.data.sourcePostModerations.edges.length).toEqual(2);
+  });
+
+  it('should return only the users moderation items because user is not moderator', async () => {
+    loggedUser = '5';
+
+    const res = await client.query(queryAllForSource, {
+      variables: { sourceId: 'm' },
+    });
+    expect(res.errors).toBeUndefined();
+    expect(res.data.sourcePostModerations.edges.length).toEqual(3);
+  });
+
+  it('should not have access because user is not member of source', async () => {
+    loggedUser = '2';
+
+    return testQueryErrorCode(
+      client,
+      {
+        query: queryAllForSource,
+        variables: { sourceId: 'm' },
+      },
+      'FORBIDDEN',
+    );
+  });
+});
+
+describe('mutation createSourcePostModeration', () => {
+  beforeEach(async () => {
+    await saveSquadFixtures();
+  });
+
+  const MUTATION = `mutation CreateSourcePostModeration($sourceId: ID! $title: String!, $type: String!, $content: String, $image: Upload, $imageUrl: String, $sharedPostId: ID, $externalLink: String, $postId: ID) {
+    createSourcePostModeration(sourceId: $sourceId, title: $title, type: $type, content: $content, image: $image, imageUrl: $imageUrl, sharedPostId: $sharedPostId, externalLink: $externalLink, postId: $postId) {
+      id
+      title
+      content
+      contentHtml
+      externalLink
+      type
+      image
+      titleHtml
+      sharedPost {
+        id
+      }
+      post {
+        id
+      }
+      source {
+        permalink
+      }
+    }
+  }`;
+
+  const params = {
+    sourceId: 'm',
+    title: 'My first post',
+    content: 'Hello World',
+  };
+
+  it('should result in error because user is not member of squad', async () => {
+    loggedUser = '2';
+
+    return await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...params, type: PostType.Freeform },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw an error if type is welcome', async () => {
+    loggedUser = '4';
+
+    return await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...params, type: PostType.Welcome },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw an error if type is article', async () => {
+    loggedUser = '4';
+
+    return await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...params, type: PostType.Article },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should create freeform moderation entry for an existing post', async () => {
+    loggedUser = '4';
+    const newPost = con.getRepository(Post).create({
+      ...params,
+      id: 'new',
+      shortId: 'new',
+      type: PostType.Freeform,
+      authorId: '4',
+    });
+    await con.getRepository(Post).save(newPost);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        sourceId: 'm',
+        title: 'My new freeform title',
+        type: PostType.Freeform,
+        content: 'My new freeform content',
+        postId: newPost.id,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createSourcePostModeration.title).toEqual(
+      'My new freeform title',
+    );
+    expect(res.data.createSourcePostModeration.content).toEqual(
+      'My new freeform content',
+    );
+    expect(res.data.createSourcePostModeration.post.id).toEqual(newPost.id);
+    expect(res.data.createSourcePostModeration.source).toBeDefined();
+  });
+
+  it('should create share moderation entry for an existing post', async () => {
+    loggedUser = '4';
+    const newPost = con.getRepository(Post).create({
+      ...params,
+      id: 'new',
+      shortId: 'new',
+      type: PostType.Share,
+      authorId: '4',
+    });
+    await con.getRepository(Post).save(newPost);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        sourceId: 'm',
+        title: 'My new share title',
+        type: PostType.Share,
+        content: 'My new share content',
+        postId: newPost.id,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createSourcePostModeration.post.id).toEqual(newPost.id);
+    expect(res.data.createSourcePostModeration.source).toBeDefined();
+  });
+
+  it("should not be able to create moderation entry for another user's post", async () => {
+    loggedUser = '3';
+    const newPost = con.getRepository(Post).create({
+      ...params,
+      id: 'new',
+      shortId: 'new',
+      type: PostType.Share,
+      scoutId: '4',
+    });
+    await con.getRepository(Post).save(newPost);
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          sourceId: 'm',
+          title: "I'm editing your post!",
+          type: PostType.Share,
+          content: "It's mine now",
+          postId: newPost.id,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should successfully create a squad post moderation entry of type freeform', async () => {
+    loggedUser = '4';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, type: PostType.Freeform },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createSourcePostModeration).toBeTruthy();
+    expect(res.data.createSourcePostModeration.type).toEqual(PostType.Freeform);
+    expect(res.data.createSourcePostModeration.title).toEqual('My first post');
+    expect(res.data.createSourcePostModeration.titleHtml).toBeNull();
+    expect(res.data.createSourcePostModeration.content).toEqual('Hello World');
+    expect(res.data.createSourcePostModeration.contentHtml).toEqual(
+      '<p>Hello World</p>',
+    );
+    expect(res.data.createSourcePostModeration.post).toBeNull();
+  });
+
+  it('should successfully create a squad post moderation entry of type share', async () => {
+    loggedUser = '4';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...params,
+        title: 'I am sharing a post',
+        sharedPostId: 'p1',
+        type: PostType.Share,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createSourcePostModeration).toBeTruthy();
+    expect(res.data.createSourcePostModeration.type).toEqual(PostType.Share);
+    expect(res.data.createSourcePostModeration.title).toEqual(
+      'I am sharing a post',
+    );
+    expect(res.data.createSourcePostModeration.titleHtml).toEqual(
+      '<p>I am sharing a post</p>',
+    );
+    expect(res.data.createSourcePostModeration.content).toBeNull();
+    expect(res.data.createSourcePostModeration.contentHtml).toBeNull();
+    expect(res.data.createSourcePostModeration.sharedPost.id).toEqual('p1');
+    expect(res.data.createSourcePostModeration.post).toBeNull();
+  });
+
+  it('should successfully create a squad post moderation for external link', async () => {
+    loggedUser = '4';
+    const externalParams = {
+      sourceId: 'm',
+      title: 'External Link Title',
+      content: 'This is an awesome link',
+      imageUrl:
+        'https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1',
+      type: PostType.Share,
+      externalLink: 'https://www.google.com',
+    };
+    const res = await client.mutate(MUTATION, {
+      variables: externalParams,
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createSourcePostModeration).toBeTruthy();
+    expect(res.data.createSourcePostModeration.type).toEqual(PostType.Share);
+    expect(res.data.createSourcePostModeration.image).toEqual(
+      externalParams.imageUrl,
+    );
+    expect(res.data.createSourcePostModeration.title).toEqual(
+      'External Link Title',
+    );
+    expect(res.data.createSourcePostModeration.titleHtml).toBeNull();
+    expect(res.data.createSourcePostModeration.content).toEqual(
+      'This is an awesome link',
+    );
+    expect(res.data.createSourcePostModeration.contentHtml).toEqual(
+      '<p>This is an awesome link</p>',
+    );
+    expect(res.data.createSourcePostModeration.externalLink).toEqual(
+      externalParams.externalLink,
+    );
+    expect(res.data.createSourcePostModeration.post).toBeNull();
+  });
+
+  describe('vordr', () => {
+    it('should set the correct vordr flags if the submission is from a good user', async () => {
+      loggedUser = '4';
+      const externalParams = {
+        sourceId: 'm',
+        title: 'External Link Title',
+        content: 'This is an awesome link',
+        imageUrl:
+          'https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1',
+        type: PostType.Share,
+        externalLink: 'https://www.google.com',
+      };
+      const res = await client.mutate(MUTATION, {
+        variables: externalParams,
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createSourcePostModeration).toBeTruthy();
+
+      const { id } = res.data.createSourcePostModeration;
+      const moderation = await con
+        .getRepository(SourcePostModeration)
+        .findOneByOrFail({ id });
+      expect(moderation.status).toEqual(SourcePostModerationStatus.Pending);
+      expect(moderation.flags.vordr).toEqual(false);
+    });
+
+    it('should set the correct vordr flags if the submission is from a bad user', async () => {
+      await con.getRepository(SourceMember).save({
+        userId: 'vordr',
+        sourceId: 'm',
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      });
+      loggedUser = 'vordr';
+      const externalParams = {
+        sourceId: 'm',
+        title: 'External Link Title',
+        content: 'This is an awesome link',
+        imageUrl:
+          'https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1',
+        type: PostType.Share,
+        externalLink: 'https://www.google.com',
+      };
+      const res = await client.mutate(MUTATION, {
+        variables: externalParams,
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createSourcePostModeration).toBeTruthy();
+
+      const { id } = res.data.createSourcePostModeration;
+      const moderation = await con
+        .getRepository(SourcePostModeration)
+        .findOneByOrFail({ id });
+      expect(moderation.status).toEqual(SourcePostModerationStatus.Pending);
+      expect(moderation.flags.vordr).toEqual(true);
+    });
+  });
+});
+
 describe('mutation editPost', () => {
   const MUTATION = `
     mutation EditPost($id: ID!, $title: String, $content: String, $image: Upload) {
@@ -3355,11 +4097,11 @@ describe('mutation editPost', () => {
     );
   });
 
-  it('should return an error if content exceeds 4000 characters', async () => {
+  it('should return an error if content exceeds 10000 characters', async () => {
     loggedUser = '1';
 
-    const content = 'Hello World! Start your squad journey here';
-    const sample = new Array(100).fill(content);
+    const content = 'Hello World! Start your squad journey here'; // 42 chars
+    const sample = new Array(240).fill(content); // 42*240 = 10_080
 
     return testMutationErrorCode(
       client,
@@ -4115,7 +4857,7 @@ describe('mutation vote post', () => {
   });
 
   it('should throw not found when cannot find user', () => {
-    loggedUser = '3';
+    loggedUser = '9';
     return testMutationErrorCode(
       client,
       {
@@ -4644,7 +5386,7 @@ describe('mutation dismissPostFeedback', () => {
   });
 
   it('should throw not found when cannot find user', () => {
-    loggedUser = '3';
+    loggedUser = '9';
     return testMutationErrorCode(
       client,
       {
@@ -4933,6 +5675,610 @@ describe('query postCodeSnippets', () => {
           },
         ],
       },
+    });
+  });
+});
+
+describe('Source post moderation approve/reject', () => {
+  const [pendingId, rejectedId] = Array.from({ length: 2 }, () =>
+    generateUUID(),
+  );
+  beforeEach(async () => {
+    await saveSquadFixtures();
+    await con.getRepository(SourcePostModeration).save([
+      {
+        id: pendingId,
+        sourceId: 'm',
+        createdById: '4',
+        title: 'Title',
+        content: 'Content',
+        status: SourcePostModerationStatus.Pending,
+        type: PostType.Article,
+      },
+      {
+        id: rejectedId,
+        sourceId: 'm',
+        createdById: '4',
+        title: 'Title',
+        content: 'Content',
+        status: SourcePostModerationStatus.Rejected,
+        rejectionReason: 'Spam',
+        moderatorMessage: 'This is spam',
+        type: PostType.Article,
+        moderatedById: '3',
+      },
+    ]);
+  });
+
+  const MUTATION = `
+  mutation ModerateSourcePost(
+    $postIds: [ID]!,
+    $status: String,
+    $sourceId: ID!,
+    $rejectionReason: String,
+    $moderatorMessage: String
+  ) {
+    moderateSourcePosts(postIds: $postIds, status: $status, sourceId: $sourceId, rejectionReason: $rejectionReason, moderatorMessage: $moderatorMessage) {
+      id
+      status
+    }
+  }`;
+
+  it('should block guest', async () => {
+    loggedUser = '0';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          postIds: [pendingId],
+          sourceId: 'm',
+          status: SourcePostModerationStatus.Approved,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should not authorize when not source member', async () => {
+    loggedUser = '1'; // Not a member
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          postIds: [pendingId],
+          sourceId: 'm',
+          status: SourcePostModerationStatus.Approved,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should not authorize when not source moderator', async () => {
+    loggedUser = '4'; // Member level
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          postIds: [pendingId],
+          sourceId: 'm',
+          status: SourcePostModerationStatus.Approved,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should approve pending posts', async () => {
+    loggedUser = '3'; // Moderator level
+
+    const res: GQLResponse<{
+      moderateSourcePosts: { id: string }[];
+    }> = await client.mutate(MUTATION, {
+      variables: {
+        postIds: [pendingId],
+        sourceId: 'm',
+        status: SourcePostModerationStatus.Approved,
+      },
+    });
+
+    expect(res.data.moderateSourcePosts.length).toEqual(1);
+
+    const post = await con.getRepository(SourcePostModeration).findOneByOrFail({
+      id: pendingId,
+    });
+
+    expect(post.status).toEqual(SourcePostModerationStatus.Approved);
+    expect(post.moderatedById).toEqual('3');
+  });
+
+  it('should reject pending posts', async () => {
+    loggedUser = '3'; // Moderator level
+
+    const res: GQLResponse<{
+      moderateSourcePosts: { id: string }[];
+    }> = await client.mutate(MUTATION, {
+      variables: {
+        postIds: [pendingId],
+        sourceId: 'm',
+        status: SourcePostModerationStatus.Rejected,
+        rejectionReason: 'Spam',
+        moderatorMessage: 'This is spam',
+      },
+    });
+
+    expect(res.data.moderateSourcePosts.length).toEqual(1);
+
+    const post = await con.getRepository(SourcePostModeration).findOneByOrFail({
+      id: pendingId,
+    });
+
+    expect(post.status).toEqual(SourcePostModerationStatus.Rejected);
+    expect(post.moderatedById).toEqual('3');
+    expect(post.rejectionReason).toEqual('Spam');
+    expect(post.moderatorMessage).toEqual('This is spam');
+  });
+
+  it('should not reject pending posts without reason', async () => {
+    loggedUser = '3'; // Moderator level
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          postIds: [pendingId],
+          sourceId: 'm',
+          status: SourcePostModerationStatus.Rejected,
+          moderatorMessage: 'This is spam',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not reject pending posts when reason is `other` and message is empty', async () => {
+    loggedUser = '3'; // Moderator level
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          postIds: [pendingId],
+          sourceId: 'm',
+          status: SourcePostModerationStatus.Rejected,
+          rejectionReason: 'Other',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not update already moderated posts', async () => {
+    loggedUser = '3'; // Moderator level
+
+    const res: GQLResponse<{
+      moderateSourcePosts: { id: string; status: SourcePostModerationStatus }[];
+    }> = await client.mutate(MUTATION, {
+      variables: {
+        postIds: [pendingId, rejectedId],
+        sourceId: 'm',
+        status: SourcePostModerationStatus.Approved,
+      },
+    });
+
+    // only one post should be updated, one is already rejected
+    expect(res.data.moderateSourcePosts.length).toEqual(1);
+    expect(res.data.moderateSourcePosts[0].status).toEqual(
+      SourcePostModerationStatus.Approved,
+    );
+  });
+});
+
+describe('Source post moderation edit/delete', () => {
+  const [pendingId, rejectedId] = Array.from({ length: 2 }, () =>
+    generateUUID(),
+  );
+
+  beforeEach(async () => {
+    await saveSquadFixtures();
+    await con.getRepository(SourceMember).save([
+      {
+        sourceId: 'm',
+        userId: '4',
+        role: SourceMemberRoles.Member,
+        referralToken: 'r4',
+      },
+    ]);
+    await con.getRepository(SourcePostModeration).save([
+      {
+        id: pendingId,
+        sourceId: 'm',
+        createdById: '4',
+        title: 'Title',
+        content: 'Content',
+        status: SourcePostModerationStatus.Pending,
+        type: PostType.Share,
+      },
+      {
+        id: rejectedId,
+        sourceId: 'm',
+        createdById: '4',
+        title: 'Title',
+        content: 'Content',
+        status: SourcePostModerationStatus.Rejected,
+        rejectionReason: 'Spam',
+        moderatorMessage: 'This is spam',
+        type: PostType.Share,
+        moderatedById: '3',
+      },
+    ]);
+  });
+
+  const DELETE_MUTATION = `
+  mutation DeleteSourcePostModeration($postId: ID!) {
+    deleteSourcePostModeration(postId: $postId){
+      _
+    }
+  }`;
+
+  const EDIT_MUTATION = `
+  mutation EditSourcePostModeration($id: ID!, $sourceId: ID!, $title: String, $content: String, $type: String!) {
+    editSourcePostModeration(id: $id, sourceId: $sourceId, title: $title, content: $content, type: $type) {
+      id
+      title
+      content
+      status
+    }
+  }`;
+
+  describe('deleteSourcePostModeration', () => {
+    it('should block guest', async () => {
+      loggedUser = '0';
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: DELETE_MUTATION,
+          variables: { postId: pendingId },
+        },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should not authorize when not source member', async () => {
+      loggedUser = '1'; // Not a member
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: DELETE_MUTATION,
+          variables: { postId: pendingId },
+        },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should not authorize when not author nor moderator', async () => {
+      loggedUser = '5'; // Member level
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: DELETE_MUTATION,
+          variables: { postId: pendingId },
+        },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should delete pending post', async () => {
+      loggedUser = '4'; // Member level
+
+      const res = await client.mutate(DELETE_MUTATION, {
+        variables: { postId: pendingId },
+      });
+
+      expect(res.errors).toBeFalsy();
+      const post = await con.getRepository(SourcePostModeration).findOneBy({
+        id: pendingId,
+      });
+      expect(post).toBeNull();
+    });
+  });
+
+  describe('editSourcePostModeration', () => {
+    it('should block guest', async () => {
+      loggedUser = '0';
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: EDIT_MUTATION,
+          variables: {
+            id: pendingId,
+            title: 'New Title',
+            type: PostType.Freeform,
+            sourceId: 'm',
+          },
+        },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should not authorize when not source member', async () => {
+      loggedUser = '1'; // Not a member
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: EDIT_MUTATION,
+          variables: {
+            id: pendingId,
+            title: 'New Title',
+            type: PostType.Freeform,
+            sourceId: 'm',
+          },
+        },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should not authorize when not author', async () => {
+      loggedUser = '3'; // Moderator level
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: EDIT_MUTATION,
+          variables: {
+            id: pendingId,
+            title: 'New Title',
+            type: PostType.Freeform,
+            sourceId: 'm',
+          },
+        },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should edit pending post', async () => {
+      loggedUser = '4'; // Member level
+
+      const res = await client.mutate(EDIT_MUTATION, {
+        variables: {
+          id: pendingId,
+          title: 'New Title',
+          content: 'New Content',
+          type: PostType.Freeform,
+          sourceId: 'm',
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const post = res.data.editSourcePostModeration;
+      expect(post.title).toEqual('New Title');
+      expect(post.content).toEqual('New Content');
+    });
+
+    it('should edit rejected post and set as pending', async () => {
+      loggedUser = '4'; // Member level
+
+      const res: GQLResponse<{
+        editSourcePostModeration: SourcePostModeration;
+      }> = await client.mutate(EDIT_MUTATION, {
+        variables: {
+          id: rejectedId,
+          title: 'New Title',
+          content: 'New Content',
+          type: PostType.Freeform,
+          sourceId: 'm',
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+      const post = res.data.editSourcePostModeration;
+      expect(post.title).toEqual('New Title');
+      expect(post.content).toEqual('New Content');
+      expect(post.status).toEqual(SourcePostModerationStatus.Pending);
+    });
+  });
+});
+
+describe('query fetchSmartTitle', () => {
+  const QUERY = /* GraphQL */ `
+    query FetchSmartTitle($id: ID!) {
+      fetchSmartTitle(id: $id) {
+        title
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        contentMeta: {
+          alt_title: {
+            translations: {
+              en: 'Alt Title',
+              de: 'Alt Title DE',
+            },
+          },
+          translate_title: {
+            translations: {
+              de: 'Title DE',
+            },
+          },
+        },
+      },
+    );
+    await con
+      .getRepository(User)
+      .update(
+        { id: '1' },
+        { subscriptionFlags: { cycle: SubscriptionCycles.Yearly } },
+      );
+  });
+
+  it('should throw error when user is not logged in', async () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: 'p1' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return the original title when clickbait shield is enabled', async () => {
+    loggedUser = '1';
+    isPlus = true;
+
+    const res = await client.query<
+      { fetchSmartTitle: GQLPostSmartTitle },
+      { id: string }
+    >(QUERY, {
+      variables: { id: 'p1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.fetchSmartTitle.title).toEqual('P1');
+  });
+
+  it('should return the original title when clickbait shield is enabled and language is set', async () => {
+    loggedUser = '1';
+    isPlus = true;
+    const res = await client.query<
+      { fetchSmartTitle: GQLPostSmartTitle },
+      { id: string }
+    >(QUERY, {
+      variables: { id: 'p1' },
+      headers: { 'content-language': 'de' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.fetchSmartTitle.title).toEqual('Title DE');
+  });
+
+  it('should return the smart title when clickbait shield is disabled', async () => {
+    loggedUser = '1';
+    isPlus = true;
+
+    await con
+      .getRepository(Settings)
+      .save({ userId: loggedUser, flags: { clickbaitShieldEnabled: false } });
+
+    const res = await client.query<
+      { fetchSmartTitle: GQLPostSmartTitle },
+      { id: string }
+    >(QUERY, {
+      variables: { id: 'p1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.fetchSmartTitle.title).toEqual('Alt Title');
+  });
+
+  it('should return the smart title muliple times when clickbait shield is disabled', async () => {
+    loggedUser = '1';
+    isPlus = true;
+
+    await con
+      .getRepository(Settings)
+      .save({ userId: loggedUser, flags: { clickbaitShieldEnabled: false } });
+
+    const res = await client.query<
+      { fetchSmartTitle: GQLPostSmartTitle },
+      { id: string }
+    >(QUERY, {
+      variables: { id: 'p1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.fetchSmartTitle.title).toEqual('Alt Title');
+
+    const res2 = await client.query<
+      { fetchSmartTitle: GQLPostSmartTitle },
+      { id: string }
+    >(QUERY, {
+      variables: { id: 'p1' },
+    });
+
+    expect(res2.errors).toBeFalsy();
+    expect(res2.data.fetchSmartTitle.title).toEqual('Alt Title');
+  });
+
+  it('should return the smart title when clickbait shield is disabled and language is set', async () => {
+    loggedUser = '1';
+    isPlus = true;
+
+    await con
+      .getRepository(Settings)
+      .save({ userId: loggedUser, flags: { clickbaitShieldEnabled: false } });
+
+    const res = await client.query<
+      { fetchSmartTitle: GQLPostSmartTitle },
+      { id: string }
+    >(QUERY, {
+      variables: { id: 'p1' },
+      headers: { 'content-language': 'de' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.fetchSmartTitle.title).toEqual('Alt Title DE');
+  });
+
+  describe('free user', () => {
+    it('should be able to get the smart title for trial', async () => {
+      loggedUser = '2';
+      const res = await client.query<
+        { fetchSmartTitle: GQLPostSmartTitle },
+        { id: string }
+      >(QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.fetchSmartTitle.title).toEqual('Alt Title');
+    });
+
+    it('should not be able to get the smart title twice', async () => {
+      loggedUser = '2';
+      const res = await client.query<
+        { fetchSmartTitle: GQLPostSmartTitle },
+        { id: string }
+      >(QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.fetchSmartTitle.title).toEqual('Alt Title');
+
+      const res2 = await client.query<
+        { fetchSmartTitle: GQLPostSmartTitle },
+        { id: string }
+      >(QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res2.errors?.length || 0).toEqual(1);
+      expect(res2.errors[0].extensions?.code).toEqual('FORBIDDEN');
+    });
+
+    it('should not be able to get the smart title if they have used free trial', async () => {
+      loggedUser = '2';
+      await con.getRepository(UserAction).save({
+        userId: loggedUser,
+        type: UserActionType.FetchedSmartTitle,
+      });
+
+      const res = await client.query<
+        { fetchSmartTitle: GQLPostSmartTitle },
+        { id: string }
+      >(QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors?.length || 0).toEqual(1);
+      expect(res.errors[0].extensions?.code).toEqual('FORBIDDEN');
     });
   });
 });

@@ -3,9 +3,9 @@ import { ReadingRank, getUserReadingRank, getUserReadingTags } from './users';
 import { Post, Source, View } from '../entity';
 import { User } from '../entity';
 import { ReadingDaysArgs } from './users';
-import { ActiveView } from '../entity/ActiveView';
 import { DataSource } from 'typeorm';
 import { getSourceLink } from './links';
+import { isPlusMember } from '../paddle';
 
 export interface MostReadTag {
   value: string;
@@ -60,7 +60,17 @@ const getFavoriteSources = async (
 };
 
 export interface DevCardData {
-  user: User;
+  user: Pick<
+    User,
+    | 'id'
+    | 'name'
+    | 'image'
+    | 'username'
+    | 'bio'
+    | 'createdAt'
+    | 'reputation'
+    | 'cover'
+  > & { isPlus?: boolean };
   articlesRead: number;
   tags: string[];
   sources: DevCardSource[];
@@ -83,7 +93,7 @@ export async function getDevCardDataV1(
   const end = now.toISOString();
   const user = await con.getRepository(User).findOneByOrFail({ id: userId });
   const [articlesRead, tags, sources, rank] = await Promise.all([
-    con.getRepository(ActiveView).countBy({ userId }),
+    con.getRepository(View).countBy({ userId }),
     getMostReadTags(con, { userId, limit: 4, dateRange: { start, end } }),
     getFavoriteSources(con, userId),
     getUserReadingRank(con, userId, user?.timezone, 2),
@@ -116,10 +126,11 @@ export async function getDevCardData(
       'createdAt',
       'reputation',
       'cover',
+      'subscriptionFlags',
     ],
   });
   const [articlesRead, tags, sources] = await Promise.all([
-    con.getRepository(ActiveView).countBy({ userId }),
+    con.getRepository(View).countBy({ userId }),
     (
       await getMostReadTags(con, {
         userId,
@@ -130,8 +141,15 @@ export async function getDevCardData(
     getFavoriteSources(con, userId),
   ]);
 
+  const isPlus = isPlusMember(user.subscriptionFlags?.cycle);
+
+  delete user.subscriptionFlags;
+
   return {
-    user,
+    user: {
+      ...user,
+      isPlus,
+    },
     articlesRead,
     tags,
     sources,

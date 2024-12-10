@@ -31,6 +31,7 @@ export enum UploadPreset {
   FreeformImage = 'freeform_image',
   FreeformGif = 'freeform_gif',
   ProfileCover = 'cover',
+  TopReaderBadge = 'top_reader_badge',
 }
 
 interface OptionalProps {
@@ -67,12 +68,14 @@ export const uploadFile = (
         const successResult = callResult as cloudinary.UploadApiResponse;
 
         return resolve({
-          url: cloudinary.v2.url(successResult.public_id, {
-            version: successResult.version,
-            secure: true,
-            fetch_format: 'auto',
-            sign_url: true,
-          }),
+          url: mapCloudinaryUrl(
+            cloudinary.v2.url(successResult.public_id, {
+              version: successResult.version,
+              secure: true,
+              fetch_format: 'auto',
+              sign_url: true,
+            }),
+          ),
           id: successResult.public_id,
         });
       },
@@ -101,8 +104,33 @@ type PostPreset =
   | UploadPreset.FreeformImage
   | UploadPreset.FreeformGif;
 
+interface ClearFileProps {
+  referenceId: string;
+  preset: UploadPreset;
+}
+
+export const clearFile = ({ referenceId, preset }: ClearFileProps) => {
+  if (!process.env.CLOUDINARY_URL) {
+    return;
+  }
+
+  const id = `${preset}_${referenceId}`;
+
+  return cloudinary.v2.uploader.destroy(id);
+};
+
 export const uploadPostFile = (
   name: string,
   stream: Readable,
   preset: PostPreset,
 ) => uploadFile(name, preset, stream);
+
+export function mapCloudinaryUrl(url: string): string;
+export function mapCloudinaryUrl(url: undefined): undefined;
+export function mapCloudinaryUrl(url?: string | null): string | undefined;
+export function mapCloudinaryUrl(url?: string | null): string | undefined {
+  return url?.replace(
+    /(?:res\.cloudinary\.com\/daily-now|daily-now-res\.cloudinary\.com)/g,
+    'media.daily.dev',
+  );
+}

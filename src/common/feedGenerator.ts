@@ -5,18 +5,17 @@ import {
   SourceType,
   UserPost,
 } from '../entity';
-import { Brackets, DataSource, SelectQueryBuilder } from 'typeorm';
+import {
+  Brackets,
+  DataSource,
+  ObjectLiteral,
+  QueryBuilder,
+  SelectQueryBuilder,
+  type EntityManager,
+} from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import { IFieldResolver } from '@graphql-tools/utils';
-import {
-  Bookmark,
-  FeedTag,
-  Post,
-  View,
-  FeedSource,
-  PostKeyword,
-  Source,
-} from '../entity';
+import { Bookmark, Post, View, PostKeyword, Source } from '../entity';
 import { GQLPost } from '../schema/posts';
 import { Context } from '../Context';
 import {
@@ -30,7 +29,15 @@ import { mapArrayToOjbect } from './object';
 import { runInSpan } from '../telemetry';
 import { whereVordrFilter } from './vordr';
 import { baseFeedConfig } from '../integrations/feed';
-import { queryReadReplica } from './queryReadReplica';
+import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
+import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../entity/contentPreference/types';
+import { ContentPreference } from '../entity/contentPreference/ContentPreference';
+import { ContentPreferenceWord } from '../entity/contentPreference/ContentPreferenceWord';
+import { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
 
 export const WATERCOOLER_ID = 'fd062672-63b7-4a10-87bd-96dcd10e9613';
 
@@ -73,24 +80,104 @@ export const whereKeyword = (
   return `EXISTS${query}`;
 };
 
-export const getExcludedAdvancedSettings = async (
-  con: DataSource,
-  feedId?: string,
-): Promise<Partial<AdvancedSettings>[]> => {
-  if (!feedId) {
-    return [];
-  }
+const rawFilterSelect = <T extends ObjectLiteral>(
+  con: DataSource | EntityManager,
+  name: string,
+  func: (qb: QueryBuilder<T>) => QueryBuilder<T>,
+): QueryBuilder<T> =>
+  con.createQueryBuilder().select('jsonb_agg(res)', name).from(func, 'res');
 
-  const [settings, feedAdvancedSettings] = await Promise.all([
-    con.getRepository(AdvancedSettings).find(),
-    con.getRepository(FeedAdvancedSettings).findBy({ feedId }),
-  ]);
+type RawFiltersData = {
+  settings:
+    | Pick<
+        AdvancedSettings,
+        'id' | 'defaultEnabledState' | 'group' | 'options'
+      >[]
+    | null;
+  feedAdvancedSettings:
+    | Pick<FeedAdvancedSettings, 'advancedSettingsId' | 'enabled'>[]
+    | null;
+  tags: Pick<ContentPreferenceKeyword, 'keywordId' | 'status'>[] | null;
+  words: Pick<ContentPreferenceWord, 'referenceId'>[] | null;
+  users: Pick<ContentPreferenceUser, 'referenceId'>[] | null;
+  sources: Pick<ContentPreferenceSource, 'sourceId' | 'status'>[] | null;
+  memberships: { sourceId: SourceMember['sourceId']; hide: boolean }[] | null;
+};
+
+const getRawFiltersData = async (
+  con: DataSource | EntityManager,
+  feedId: string,
+  userId: string,
+): Promise<RawFiltersData | undefined> => {
+  const selects = [
+    rawFilterSelect(con, 'settings', (qb) =>
+      qb
+        .select(['id', '"defaultEnabledState"', '"group"', 'options'])
+        .from(AdvancedSettings, 't'),
+    ),
+    rawFilterSelect(con, 'feedAdvancedSettings', (qb) =>
+      qb
+        .select(['"advancedSettingsId"', 'enabled'])
+        .from(FeedAdvancedSettings, 't')
+        .where('"feedId" = $1'),
+    ),
+    rawFilterSelect(con, 'tags', (qb) =>
+      qb
+        .select(['"keywordId"', 'status'])
+        .from(ContentPreference, 't')
+        .where('"feedId" = $1')
+        .andWhere(`type = '${ContentPreferenceType.Keyword}'`)
+        .andWhere('"userId" = $2'),
+    ),
+    rawFilterSelect(con, 'users', (qb) =>
+      qb
+        .select('"referenceId"')
+        .from(ContentPreference, 'u')
+        .andWhere('"userId" = $2')
+        .andWhere(`type = '${ContentPreferenceType.User}'`)
+        .andWhere(`status != '${ContentPreferenceStatus.Blocked}'`),
+    ),
+    rawFilterSelect(con, 'sources', (qb) =>
+      qb
+        .select(['"sourceId"', 'status'])
+        .from(ContentPreference, 't')
+        .where('"feedId" = $1')
+        .andWhere(`type = '${ContentPreferenceType.Source}'`)
+        .andWhere('"userId" = $2'),
+    ),
+    rawFilterSelect(con, 'words', (qb) =>
+      qb
+        .select(['"referenceId"'])
+        .from(ContentPreference, 'w')
+        .where('"feedId" = $1')
+        .andWhere(`type = '${ContentPreferenceType.Word}'`)
+        .andWhere(`status = '${ContentPreferenceStatus.Blocked}'`)
+        .andWhere('"userId" = $2'),
+    ),
+    rawFilterSelect(con, 'memberships', (qb) =>
+      qb
+        .select('"sourceId"')
+        .addSelect("COALESCE((flags->'hideFeedPosts')::boolean, FALSE)", 'hide')
+        .from(SourceMember, 't')
+        .where('"userId" = $2'),
+    ),
+  ];
+  const query =
+    'select ' + selects.map((select) => `(${select.getQuery()})`).join(', ');
+  const res = await con.query(query, [feedId, userId]);
+  return res[0];
+};
+
+export const getExcludedAdvancedSettings = ({
+  settings,
+  feedAdvancedSettings,
+}: RawFiltersData): Partial<AdvancedSettings>[] => {
   const userSettings = mapArrayToOjbect(
-    feedAdvancedSettings,
+    feedAdvancedSettings || [],
     'advancedSettingsId',
     'enabled',
   );
-  const excludedSettings = settings.filter((adv) => {
+  const excludedSettings = (settings || []).filter((adv) => {
     if (userSettings[adv.id] !== undefined) {
       return userSettings[adv.id] === false;
     }
@@ -104,96 +191,105 @@ export const getExcludedAdvancedSettings = async (
   }));
 };
 
-export const feedToFilters = async (
-  con: DataSource,
-  feedId?: string,
-  userId?: string,
-): Promise<AnonymousFeedFilters> => {
-  const settings = await getExcludedAdvancedSettings(con, feedId);
-  const [tags, excludeSources, memberships]: [
-    FeedTag[],
-    Source[],
-    { sourceId: SourceMember['sourceId']; hide: boolean }[],
-  ] = await Promise.all([
-    feedId
-      ? queryReadReplica(con, ({ queryRunner }) => {
-          return queryRunner.manager.getRepository(FeedTag).find({
-            where: { feedId },
-            select: ['tag', 'blocked'],
-          });
-        })
-      : [],
-    feedId
-      ? con
-          .getRepository(Source)
-          .createQueryBuilder('s')
-          .select('s.id AS "id"')
-          .where((qb) => {
-            const subQuery = qb
-              .subQuery()
-              .select('fs."sourceId"')
-              .from(FeedSource, 'fs')
-              .where('fs."feedId" = :feedId', { feedId })
-              .andWhere('fs.blocked = TRUE')
-              .getQuery();
+const advancedSettingsToFilters = (
+  rawData: RawFiltersData,
+): {
+  excludeTypes: string[];
+  blockedContentCuration: string[];
+  excludeSourceTypes: string[];
+} => {
+  const settings = getExcludedAdvancedSettings(rawData);
+  return settings.reduce<ReturnType<typeof advancedSettingsToFilters>>(
+    (acc, curr) => {
+      if (curr.options?.type) {
+        if (curr.group === 'content_types') {
+          acc.excludeTypes.push(curr.options.type);
+        }
+        if (curr.group === 'source_types') {
+          acc.excludeSourceTypes.push(curr.options.type);
+        }
+        if (curr.group === 'content_curation') {
+          acc.blockedContentCuration.push(curr.options.type);
+        }
+      }
+      return acc;
+    },
+    { excludeTypes: [], blockedContentCuration: [], excludeSourceTypes: [] },
+  );
+};
 
-            return `s.id IN (${subQuery})`;
-          })
-          .execute()
-      : [],
-    feedId && userId
-      ? con
-          .getRepository(SourceMember)
-          .createQueryBuilder('sm')
-          .select('sm."sourceId"')
-          .addSelect(
-            "COALESCE((flags->'hideFeedPosts')::boolean, FALSE)",
-            'hide',
-          )
-          .where('sm."userId" = :userId', { userId })
-          .execute()
-      : [],
-  ]);
-  const tagFilters = tags.reduce<{
-    includeTags: string[];
-    blockedTags: string[];
-  }>(
+const wordsToFilters = ({
+  words,
+}: RawFiltersData): {
+  blockedWords: string[];
+} => {
+  return (words || []).reduce<ReturnType<typeof wordsToFilters>>(
     (acc, value) => {
-      if (value.blocked) {
-        acc.blockedTags.push(value.tag);
+      acc.blockedWords.push(value.referenceId);
+      return acc;
+    },
+    { blockedWords: [] },
+  );
+};
+
+const usersToFilters = ({
+  users,
+}: RawFiltersData): {
+  followingUsers: string[];
+} => {
+  return (users || []).reduce<ReturnType<typeof usersToFilters>>(
+    (acc, value) => {
+      acc.followingUsers.push(value.referenceId);
+      return acc;
+    },
+    { followingUsers: [] },
+  );
+};
+
+const tagsToFilters = ({
+  tags,
+}: RawFiltersData): {
+  includeTags: string[];
+  blockedTags: string[];
+} => {
+  return (tags || []).reduce<ReturnType<typeof tagsToFilters>>(
+    (acc, value) => {
+      if (value.status === ContentPreferenceStatus.Blocked) {
+        acc.blockedTags.push(value.keywordId);
       } else {
-        acc.includeTags.push(value.tag);
+        acc.includeTags.push(value.keywordId);
       }
       return acc;
     },
     { includeTags: [], blockedTags: [] },
   );
+};
 
-  const { excludeTypes, blockedContentCuration, excludeSourceTypes } =
-    settings.reduce<{
-      excludeTypes: string[];
-      blockedContentCuration: string[];
-      excludeSourceTypes: string[];
-    }>(
-      (acc, curr) => {
-        if (curr.options?.type) {
-          if (curr.group === 'content_types') {
-            acc.excludeTypes.push(curr.options.type);
-          }
-          if (curr.group === 'source_types') {
-            acc.excludeSourceTypes.push(curr.options.type);
-          }
-          if (curr.group === 'content_curation') {
-            acc.blockedContentCuration.push(curr.options.type);
-          }
-        }
-        return acc;
-      },
-      { excludeTypes: [], blockedContentCuration: [], excludeSourceTypes: [] },
-    );
+const sourcesToFilters = ({
+  sources,
+  memberships,
+}: RawFiltersData): {
+  excludeSources: string[];
+  sourceIds: string[];
+  followingSources: string[];
+} => {
+  const { blocked, following } = (sources || []).reduce<{
+    blocked: string[];
+    following: string[];
+  }>(
+    (acc, value) => {
+      if (value.status === ContentPreferenceStatus.Blocked) {
+        acc.blocked.push(value.sourceId);
+      } else {
+        acc.following.push(value.sourceId);
+      }
+      return acc;
+    },
+    { blocked: [], following: [] },
+  );
 
   // Split memberships by hide flag
-  const membershipsByHide = memberships.reduce<{
+  const membershipsByHide = (memberships || []).reduce<{
     hide: string[];
     show: string[];
   }>(
@@ -204,20 +300,33 @@ export const feedToFilters = async (
     { hide: [], show: [] },
   );
 
-  // If the user is not a member of the watercooler, hide it
-  if (!membershipsByHide.show.includes(WATERCOOLER_ID)) {
-    membershipsByHide.hide.push(WATERCOOLER_ID);
+  return {
+    excludeSources: blocked.map((s) => s).concat(membershipsByHide.hide),
+    sourceIds: membershipsByHide.show,
+    followingSources: following,
+  };
+};
+
+export const feedToFilters = async (
+  con: DataSource | EntityManager,
+  feedId?: string,
+  userId?: string,
+): Promise<AnonymousFeedFilters> => {
+  if (!feedId || !userId) {
+    return {};
+  }
+
+  const rawData = await getRawFiltersData(con, feedId, userId);
+  if (!rawData) {
+    return {};
   }
 
   return {
-    ...tagFilters,
-    excludeTypes,
-    excludeSources: excludeSources
-      .map((sources: Source) => sources.id)
-      .concat(membershipsByHide.hide),
-    sourceIds: membershipsByHide.show,
-    blockedContentCuration,
-    excludeSourceTypes,
+    ...advancedSettingsToFilters(rawData),
+    ...tagsToFilters(rawData),
+    ...sourcesToFilters(rawData),
+    ...wordsToFilters(rawData),
+    ...usersToFilters(rawData),
   };
 };
 
@@ -489,7 +598,10 @@ export interface AnonymousFeedFilters {
   blockedTags?: string[];
   sourceIds?: string[];
   blockedContentCuration?: string[];
+  blockedWords?: string[];
   excludeSourceTypes?: string[];
+  followingUsers?: string[];
+  followingSources?: string[];
 }
 
 export const anonymousFeedBuilder = (

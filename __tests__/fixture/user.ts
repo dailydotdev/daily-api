@@ -1,5 +1,6 @@
 import { DeepPartial } from 'typeorm';
 import { User } from '../../src/entity';
+import { SubscriptionCycles } from '../../src/paddle';
 
 export const userCreatedDate = '2022-06-28T14:48:47.891Z';
 
@@ -54,6 +55,18 @@ export const usersFixture: DeepPartial<User>[] = [
     twitter: null,
     username: 'lee',
     infoConfirmed: true,
+  },
+];
+
+export const plusUsersFixture: DeepPartial<User>[] = [
+  {
+    id: '5',
+    name: 'Plus user',
+    image: 'https://daily.dev/lee.jpg',
+    createdAt: new Date(userCreatedDate),
+    username: 'plusmember',
+    infoConfirmed: true,
+    subscriptionFlags: { cycle: SubscriptionCycles.Yearly },
   },
 ];
 

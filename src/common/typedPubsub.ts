@@ -7,14 +7,16 @@ import type {
   User,
   UserStreak,
   UserCompany,
+  UserTopReader,
 } from '../entity';
 import {
-  EventLogger,
+  type EventLogger,
   NotificationReason,
   publishEvent,
   pubsub,
 } from './pubsub';
 import { ContentUpdatedMessage } from '@dailydotdev/schema';
+import { SourcePostModeration } from '../entity/SourcePostModeration';
 
 export type PubSubSchema = {
   'pub-request': {
@@ -77,6 +79,15 @@ export type PubSubSchema = {
   'api.v1.user-streak-updated': {
     streak: ChangeObject<UserStreak>;
   };
+  'api.v1.source-post-moderation-approved': {
+    post: ChangeObject<SourcePostModeration>;
+  };
+  'api.v1.source-post-moderation-rejected': {
+    post: ChangeObject<SourcePostModeration>;
+  };
+  'api.v1.source-post-moderation-submitted': {
+    post: ChangeObject<SourcePostModeration>;
+  };
   'api.v1.post-bookmark-reminder': {
     postId: string;
     userId: string;
@@ -95,6 +106,9 @@ export type PubSubSchema = {
   };
   'api.v1.user-company-approved': {
     userCompany: ChangeObject<UserCompany>;
+  };
+  'api.v1.user-top-reader': {
+    userTopReader: ChangeObject<UserTopReader>;
   };
 };
 

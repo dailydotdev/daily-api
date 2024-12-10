@@ -8,6 +8,7 @@ import {
   NotificationAvatarV2,
   NotificationV2,
   NotificationReferenceType,
+  ConnectionManager,
 } from '../entity';
 import { ValidationError } from 'apollo-server-errors';
 import { DataSource, EntityManager, IsNull, QueryRunner } from 'typeorm';
@@ -18,6 +19,8 @@ import {
 } from '../errors';
 import { ReadStream } from 'fs';
 import { UserNotification } from '../entity';
+import { SourcePostModeration } from '../entity/SourcePostModeration';
+import { ChangeObject } from '../types';
 
 export enum NotificationType {
   CommunityPicksFailed = 'community_picks_failed',
@@ -47,12 +50,16 @@ export enum NotificationType {
   CollectionUpdated = 'collection_updated',
   DevCardUnlocked = 'dev_card_unlocked',
   SourcePostAdded = 'source_post_added',
+  SourcePostApproved = 'source_post_approved',
+  SourcePostRejected = 'source_post_rejected',
+  SourcePostSubmitted = 'source_post_submitted',
   SquadPublicApproved = 'squad_public_approved',
   SquadPublicRejected = 'squad_public_rejected',
   SquadPublicSubmitted = 'squad_public_submitted',
   PostBookmarkReminder = 'post_bookmark_reminder',
   StreakResetRestore = 'streak_reset_restore',
   UserPostAdded = 'user_post_added',
+  UserTopReaderBadge = 'user_given_top_reader',
 }
 
 export enum NotificationPreferenceType {
@@ -79,6 +86,7 @@ export const notificationPreferenceMap: Partial<
   [NotificationType.CollectionUpdated]: NotificationPreferenceType.Post,
   [NotificationType.SourcePostAdded]: NotificationPreferenceType.Source,
   [NotificationType.UserPostAdded]: NotificationPreferenceType.User,
+  [NotificationType.UserTopReaderBadge]: NotificationPreferenceType.User,
 };
 
 export const commentReplyNotificationTypes = [
@@ -139,6 +147,16 @@ const getReferenceId = async (
       .findOneBy({ id: referenceId });
 
     return comment?.postId ?? referenceId;
+  }
+
+  if (commentReplyNotificationTypes.includes(type)) {
+    const parentComment = await con.getRepository(Comment).findOne({
+      select: ['parentId'],
+      where: { id: referenceId },
+    });
+    if (parentComment?.parentId) {
+      return parentComment.parentId;
+    }
   }
 
   return referenceId;
@@ -265,4 +283,19 @@ export const generateUserNotificationUniqueKey = ({
   }
 
   return [uniqueKey, referenceId, referenceType].filter(Boolean).join(':');
+};
+
+export const cleanupSourcePostModerationNotifications = async (
+  con: ConnectionManager,
+  post: ChangeObject<SourcePostModeration>,
+) => {
+  if (!post?.id) {
+    return;
+  }
+
+  await con.getRepository(NotificationV2).delete({
+    referenceId: post.id,
+    referenceType: 'post_moderation',
+    type: NotificationType.SourcePostSubmitted,
+  });
 };

@@ -1,16 +1,11 @@
-import {
-  disposeGraphQLTesting,
-  GraphQLTestClient,
-  GraphQLTestingState,
-  initializeGraphQLTesting,
-  MockContext,
-  saveFixtures,
-  testMutationError,
-  testMutationErrorCode,
-  testQueryErrorCode,
-} from './helpers';
+import { randomUUID } from 'crypto';
+import { DataSource, In, Not } from 'typeorm';
+import { updateFlagsStatement, WELCOME_POST_TITLE } from '../src/common';
+import { isNullOrUndefined } from '../src/common/object';
+import createOrGetConnection from '../src/db';
 import {
   defaultPublicSourceFlags,
+  Feed,
   NotificationPreferenceSource,
   Post,
   PostKeyword,
@@ -26,21 +21,34 @@ import {
   User,
   WelcomePost,
 } from '../src/entity';
+import { DisallowHandle } from '../src/entity/DisallowHandle';
+import { SourceCategory } from '../src/entity/sources/SourceCategory';
+import { SourceTagView } from '../src/entity/SourceTagView';
+import { SourcePermissionErrorKeys } from '../src/errors';
+import { NotificationType } from '../src/notifications/common';
 import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
-import { DataSource, In, Not } from 'typeorm';
-import { randomUUID } from 'crypto';
-import createOrGetConnection from '../src/db';
-import { usersFixture } from './fixture/user';
+import { SourcePermissions } from '../src/schema/sources';
 import { postKeywordsFixture, postsFixture } from './fixture/post';
 import { createSource, sourcesFixture } from './fixture/source';
-import { SourcePermissions } from '../src/schema/sources';
-import { SourcePermissionErrorKeys } from '../src/errors';
-import { updateFlagsStatement, WELCOME_POST_TITLE } from '../src/common';
-import { DisallowHandle } from '../src/entity/DisallowHandle';
-import { NotificationType } from '../src/notifications/common';
-import { SourceTagView } from '../src/entity/SourceTagView';
-import { isNullOrUndefined } from '../src/common/object';
-import { SourceCategory } from '../src/entity/sources/SourceCategory';
+import { usersFixture } from './fixture/user';
+import {
+  disposeGraphQLTesting,
+  GraphQLTestClient,
+  GraphQLTestingState,
+  initializeGraphQLTesting,
+  MockContext,
+  saveFixtures,
+  testMutationError,
+  testMutationErrorCode,
+  testQueryErrorCode,
+} from './helpers';
+import { ContentPreferenceSource } from '../src/entity/contentPreference/ContentPreferenceSource';
+import { ContentPreferenceStatus } from '../src/entity/contentPreference/types';
+import { generateUUID } from '../src/ids';
+import {
+  SourcePostModeration,
+  SourcePostModerationStatus,
+} from '../src/entity/SourcePostModeration';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -111,52 +119,71 @@ beforeEach(async () => {
     sourcesFixture[0],
     sourcesFixture[1],
     sourcesFixture[5],
+    sourcesFixture[6],
   ]);
   await saveFixtures(con, User, usersFixture);
+  await saveFixtures(
+    con,
+    Feed,
+    usersFixture.map((user) => ({ userId: user.id, id: user.id })),
+  );
   await con
     .getRepository(Source)
     .update({ id: In(['a', 'b', 'c', 'squad']) }, { type: SourceType.Squad });
+
+  const now = new Date(2022, 11, 19);
+
   await con.getRepository(SourceMember).save([
     {
       userId: '1',
       sourceId: 'a',
       role: SourceMemberRoles.Member,
       referralToken: 'rt',
-      createdAt: new Date(2022, 11, 19),
+      createdAt: new Date(now.getTime() + 0),
     },
     {
       userId: '2',
       sourceId: 'a',
       role: SourceMemberRoles.Member,
       referralToken: randomUUID(),
-      createdAt: new Date(2022, 11, 20),
+      createdAt: new Date(now.getTime() + 1000),
     },
     {
       userId: '2',
       sourceId: 'b',
       role: SourceMemberRoles.Member,
       referralToken: randomUUID(),
-      createdAt: new Date(2022, 11, 19),
+      createdAt: new Date(now.getTime() + 2000),
     },
     {
       userId: '3',
       sourceId: 'b',
       role: SourceMemberRoles.Member,
       referralToken: randomUUID(),
-      createdAt: new Date(2022, 11, 20),
+      createdAt: new Date(now.getTime() + 3000),
     },
     {
       userId: '1',
       sourceId: 'squad',
       role: SourceMemberRoles.Member,
       referralToken: randomUUID(),
-      createdAt: new Date(2022, 11, 19),
+      createdAt: new Date(now.getTime() + 4000),
+    },
+    {
+      userId: '1',
+      sourceId: 'm',
+      role: SourceMemberRoles.Admin,
+      referralToken: randomUUID(),
+      createdAt: new Date(now.getTime() + 5000),
     },
   ]);
 
-  await con
-    .getRepository(SourceMember)
-    .update({ userId: '1' }, { role: SourceMemberRoles.Admin });
+  await con.getRepository(SourceMember).update(
+    {
+      userId: '1',
+    },
+    { role: SourceMemberRoles.Admin },
+  );
   await con
     .getRepository(SourceMember)
     .update({ userId: '2', sourceId: 'b' }, { role: SourceMemberRoles.Admin });
@@ -520,12 +547,15 @@ describe('query sources', () => {
 
   const saveMembers = (sourceId: string, users: string[]) => {
     const repo = con.getRepository(SourceMember);
-    const members = users.map((userId) =>
+    const now = new Date();
+
+    const members = users.map((userId, index) =>
       repo.create({
         userId,
         sourceId,
         referralToken: randomUUID(),
         role: SourceMemberRoles.Member,
+        createdAt: new Date(now.getTime() + 1000 * index),
       }),
     );
 
@@ -556,6 +586,7 @@ describe('query sources', () => {
       'a',
       'b',
       'squad',
+      'm',
     ]);
   });
 
@@ -571,11 +602,94 @@ describe('query sources', () => {
     const res = await client.query(query);
     expect(res.errors).toBeFalsy();
 
-    expect(res.data.sources.edges.map(({ node }) => node.id)).toEqual([
-      'c',
-      'squad',
-      'a',
-      'b',
+    expect(res.data.sources.edges.map(({ node }) => node.id)).toEqual(
+      expect.arrayContaining(['c', 'squad', 'm', 'a', 'b']),
+    );
+  });
+});
+
+describe('query searchSources', () => {
+  const QUERY = `
+  query SearchSources($query: String!) {
+    searchSources(query: $query) {
+      id
+      name
+      image
+    }
+  }`;
+
+  it('should return matching sources', async () => {
+    await con.getRepository(Source).insert([
+      {
+        ...sourcesFixture[0],
+        id: 'search1',
+        handle: 'search_1',
+      },
+      {
+        ...sourcesFixture[1],
+        id: 'search2',
+        handle: 'search_2',
+      },
+    ]);
+    const res = await client.query(QUERY, { variables: { query: 'sea' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.searchSources).toEqual([
+      { id: 'search1', name: 'A', image: 'http://image.com/a' },
+      { id: 'search2', name: 'B', image: 'http://image.com/b' },
+    ]);
+  });
+});
+
+describe('query sourceRecommendationByTags', () => {
+  beforeEach(async () => {
+    await con
+      .getRepository(Post)
+      .save([postsFixture[0], postsFixture[1], postsFixture[4]]);
+    await con.getRepository(PostKeyword).save([
+      postKeywordsFixture[0],
+      postKeywordsFixture[1],
+      postKeywordsFixture[5],
+      postKeywordsFixture[6],
+      {
+        postId: postsFixture[1].id,
+        keyword: 'javascript',
+      },
+    ]);
+    await con.manager.query(`UPDATE post_keyword
+                             SET status = 'allow'`);
+    const materializedViewName =
+      con.getRepository(SourceTagView).metadata.tableName;
+    await con.query(`REFRESH MATERIALIZED VIEW ${materializedViewName}`);
+  });
+
+  const QUERY = `
+  query SourceRecommendationByTags($tags: [String]!) {
+    sourceRecommendationByTags(tags: $tags) {
+      id
+      name
+      image
+    }
+  }`;
+
+  it('should return matching sources', async () => {
+    const res = await client.query(QUERY, {
+      variables: { tags: ['javascript', 'html'] },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.sourceRecommendationByTags).toEqual([
+      { id: 'b', name: 'B', image: 'http://image.com/b' },
+      { id: 'a', name: 'A', image: 'http://image.com/a' },
+    ]);
+  });
+
+  it('should return matching sources excluding private sources', async () => {
+    await con.getRepository(Source).update({ id: 'b' }, { private: true });
+    const res = await client.query(QUERY, {
+      variables: { tags: ['javascript', 'html'] },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.sourceRecommendationByTags).toEqual([
+      { id: 'a', name: 'A', image: 'http://image.com/a' },
     ]);
   });
 });
@@ -917,6 +1031,7 @@ query Source($id: ID!) {
     name
     image
     public
+    moderationRequired
   }
 }
   `;
@@ -1070,6 +1185,98 @@ query Source($id: ID!) {
       },
       'FORBIDDEN',
     );
+  });
+});
+
+describe('query source moderation fields', () => {
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).update(
+      { id: 'm' },
+      {
+        private: false,
+        moderationRequired: true,
+      },
+    );
+    await con.getRepository(SourceMember).save({
+      userId: '2',
+      sourceId: 'm',
+      role: SourceMemberRoles.Member,
+      referralToken: generateUUID(),
+    });
+    await con.getRepository(SourcePostModeration).save({
+      sourceId: 'm',
+      createdById: '2',
+      title: 'Title',
+      content: 'Content',
+      status: SourcePostModerationStatus.Pending,
+      type: PostType.Article,
+    });
+  });
+
+  const QUERY = `
+query Source($id: ID!) {
+  source(id: $id) {
+    id
+    name
+    image
+    public
+    moderationRequired
+    moderationPostCount
+    currentMember {
+      role
+      roleRank
+      permissions
+    }
+  }
+}
+  `;
+
+  it('should not return moderationPostCount when moderation is not required', async () => {
+    loggedUser = '1';
+    // squad source have moderationRequired set to false
+    const res = await client.query(QUERY, { variables: { id: 'squad' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.moderationRequired).toEqual(false);
+    expect(res.data.source.moderationPostCount).toBeFalsy();
+  });
+
+  it('should return moderationPostCount when user is admin', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, { variables: { id: 'm' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.moderationRequired).toEqual(true);
+    expect(res.data.source.moderationPostCount).toBe(1);
+  });
+
+  it('should return moderationPostCount when user is user', async () => {
+    loggedUser = '2';
+    await con.getRepository(SourcePostModeration).save({
+      sourceId: 'm',
+      createdById: '2',
+      title: 'Title 2',
+      content: 'Content 2',
+      status: SourcePostModerationStatus.Pending,
+      type: PostType.Article,
+    });
+    const res = await client.query(QUERY, { variables: { id: 'm' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.moderationRequired).toEqual(true);
+    expect(res.data.source.moderationPostCount).toBe(2);
+  });
+
+  it('should return only my moderationPostCount', async () => {
+    loggedUser = '3';
+    await con.getRepository(SourceMember).save({
+      userId: '3',
+      sourceId: 'm',
+      role: SourceMemberRoles.Member,
+      referralToken: generateUUID(),
+    });
+    const res = await client.query(QUERY, { variables: { id: 'm' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.moderationRequired).toEqual(true);
+    // this user has no pending posts waiting for moderation
+    expect(res.data.source.moderationPostCount).toBe(0);
   });
 });
 
@@ -1479,10 +1686,10 @@ describe('query mySourceMemberships', () => {
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     expect(res.data.mySourceMemberships).toBeDefined();
-    expect(res.data.mySourceMemberships.edges).toHaveLength(2);
+    expect(res.data.mySourceMemberships.edges).toHaveLength(3);
     expect(
       res.data.mySourceMemberships.edges.map(({ node }) => node.source.id),
-    ).toEqual(['a', 'squad']);
+    ).toEqual(['m', 'squad', 'a']);
   });
 
   it('should not return source memberships if user is blocked', async () => {
@@ -1507,7 +1714,7 @@ describe('query mySourceMemberships', () => {
     const res = await client.query(createQuery(SourceType.Squad));
     expect(res.errors).toBeFalsy();
     expect(res.data.mySourceMemberships).toBeDefined();
-    expect(res.data.mySourceMemberships.edges).toHaveLength(2);
+    expect(res.data.mySourceMemberships.edges).toHaveLength(3);
     expect(
       res.data.mySourceMemberships.edges.map(({ node }) => node.source.id),
     ).toEqual(expect.arrayContaining(['a', 'squad']));
@@ -1713,8 +1920,8 @@ query RelatedTags($sourceId: ID!) {
 
 describe('mutation createSquad', () => {
   const MUTATION = `
-  mutation CreateSquad($name: String!, $handle: String!, $description: String, $postId: ID!, $commentary: String!, $memberPostingRole: String, $memberInviteRole: String, $categoryId: ID, $isPrivate: Boolean) {
-  createSquad(name: $name, handle: $handle, description: $description, postId: $postId, commentary: $commentary, memberPostingRole: $memberPostingRole, memberInviteRole: $memberInviteRole, categoryId: $categoryId, isPrivate: $isPrivate) {
+  mutation CreateSquad($name: String!, $handle: String!, $description: String, $postId: ID!, $commentary: String!, $memberPostingRole: String, $memberInviteRole: String, $categoryId: ID, $isPrivate: Boolean, $moderationRequired: Boolean) {
+  createSquad(name: $name, handle: $handle, description: $description, postId: $postId, commentary: $commentary, memberPostingRole: $memberPostingRole, memberInviteRole: $memberInviteRole, categoryId: $categoryId, isPrivate: $isPrivate, moderationRequired: $moderationRequired) {
     id
     category { id }
   }
@@ -1737,6 +1944,24 @@ describe('mutation createSquad', () => {
       'UNAUTHENTICATED',
     ));
 
+  it('squad should have post moderation enabled on creation', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(Post).save(postsFixture[0]);
+
+    const res = await client.query(MUTATION, {
+      variables: { ...variables, moderationRequired: true },
+    });
+    expect(res.errors).toBeFalsy();
+
+    const newId = res.data.createSquad.id;
+    const newSource = await con
+      .getRepository(SquadSource)
+      .findOneByOrFail({ id: newId });
+
+    expect(newSource.moderationRequired).toEqual(true);
+  });
+
   it('should create squad', async () => {
     loggedUser = '1';
     await con.getRepository(Post).save(postsFixture[0]);
@@ -1755,6 +1980,7 @@ describe('mutation createSquad', () => {
     expect(newSource?.memberInviteRank).toEqual(
       sourceRoleRank[SourceMemberRoles.Member],
     );
+    expect(newSource?.moderationRequired).toEqual(false);
     const member = await con.getRepository(SourceMember).findOneBy({
       sourceId: newId,
       userId: '1',
@@ -1894,6 +2120,7 @@ describe('mutation createSquad', () => {
     const res = await client.mutate(MUTATION, {
       variables: {
         ...variables,
+        moderationRequired: false,
         memberPostingRole: SourceMemberRoles.Moderator,
       },
     });
@@ -2024,8 +2251,8 @@ describe('mutation createSquad', () => {
 
 describe('mutation editSquad', () => {
   const MUTATION = `
-  mutation EditSquad($sourceId: ID!, $name: String!, $handle: String!, $description: String, $memberPostingRole: String, $memberInviteRole: String, $isPrivate: Boolean, $categoryId: ID) {
-  editSquad(sourceId: $sourceId, name: $name, handle: $handle, description: $description, memberPostingRole: $memberPostingRole, memberInviteRole: $memberInviteRole, isPrivate: $isPrivate, categoryId: $categoryId) {
+  mutation EditSquad($sourceId: ID!, $name: String!, $handle: String!, $description: String, $memberPostingRole: String, $memberInviteRole: String, $isPrivate: Boolean, $categoryId: ID, $moderationRequired: Boolean) {
+  editSquad(sourceId: $sourceId, name: $name, handle: $handle, description: $description, memberPostingRole: $memberPostingRole, memberInviteRole: $memberInviteRole, isPrivate: $isPrivate, categoryId: $categoryId, moderationRequired: $moderationRequired) {
     id
     category { id }
   }
@@ -2051,6 +2278,25 @@ describe('mutation editSquad', () => {
       referralToken: 'rt2',
       role: SourceMemberRoles.Admin,
     });
+  });
+
+  it('squad should have post moderation enabled after update', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        memberPostingRole: SourceMemberRoles.Member,
+        moderationRequired: true,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const squad = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: variables.sourceId });
+    expect(squad?.moderationRequired).toEqual(true);
   });
 
   it('should not authorize when not logged in', () =>
@@ -2439,6 +2685,30 @@ describe('mutation updateMemberRole', () => {
       referralToken: randomUUID(),
       createdAt: new Date(2022, 11, 20),
     });
+    await con.getRepository(ContentPreferenceSource).save([
+      {
+        userId: '2',
+        sourceId: 'a',
+        referenceId: 'a',
+        feedId: '1',
+        status: ContentPreferenceStatus.Subscribed,
+        flags: {
+          role: SourceMemberRoles.Member,
+          referralToken: randomUUID(),
+        },
+      },
+      {
+        userId: '3',
+        sourceId: 'a',
+        referenceId: 'a',
+        feedId: '1',
+        status: ContentPreferenceStatus.Subscribed,
+        flags: {
+          role: SourceMemberRoles.Member,
+          referralToken: randomUUID(),
+        },
+      },
+    ]);
   });
 
   it('should not authorize when not logged in', () =>
@@ -2521,6 +2791,11 @@ describe('mutation updateMemberRole', () => {
       .getRepository(SourceMember)
       .findOneBy({ userId: '2', sourceId: 'a' });
     expect(member.role).toEqual(SourceMemberRoles.Moderator);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '2', referenceId: 'a' });
+    expect(contentPreference!.flags.role).toEqual(SourceMemberRoles.Moderator);
   });
 
   it('should allow admin to promote a moderator to an admin', async () => {
@@ -2540,6 +2815,11 @@ describe('mutation updateMemberRole', () => {
       .getRepository(SourceMember)
       .findOneBy({ userId: '2', sourceId: 'a' });
     expect(member.role).toEqual(SourceMemberRoles.Admin);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '2', referenceId: 'a' });
+    expect(contentPreference!.flags.role).toEqual(SourceMemberRoles.Admin);
   });
 
   it('should allow admin to demote an admin to a moderator', async () => {
@@ -2559,6 +2839,11 @@ describe('mutation updateMemberRole', () => {
       .getRepository(SourceMember)
       .findOneBy({ userId: '2', sourceId: 'a' });
     expect(member.role).toEqual(SourceMemberRoles.Moderator);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '2', referenceId: 'a' });
+    expect(contentPreference!.flags.role).toEqual(SourceMemberRoles.Moderator);
   });
 
   it('should allow admin to demote a moderator to a member', async () => {
@@ -2578,6 +2863,11 @@ describe('mutation updateMemberRole', () => {
       .getRepository(SourceMember)
       .findOneBy({ userId: '2', sourceId: 'a' });
     expect(member.role).toEqual(SourceMemberRoles.Member);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '2', referenceId: 'a' });
+    expect(contentPreference!.flags.role).toEqual(SourceMemberRoles.Member);
   });
 
   it('should allow admin to remove and block an admin', async () => {
@@ -2597,6 +2887,11 @@ describe('mutation updateMemberRole', () => {
       .getRepository(SourceMember)
       .findOneBy({ userId: '2', sourceId: 'a' });
     expect(member.role).toEqual(SourceMemberRoles.Blocked);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '2', referenceId: 'a' });
+    expect(contentPreference!.flags.role).toEqual(SourceMemberRoles.Blocked);
   });
 
   it('should allow admin to remove and block a moderator', async () => {
@@ -2616,6 +2911,11 @@ describe('mutation updateMemberRole', () => {
       .getRepository(SourceMember)
       .findOneBy({ userId: '2', sourceId: 'a' });
     expect(member.role).toEqual(SourceMemberRoles.Blocked);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '2', referenceId: 'a' });
+    expect(contentPreference!.flags.role).toEqual(SourceMemberRoles.Blocked);
   });
 
   it('should allow admin to remove and block a member', async () => {
@@ -2632,6 +2932,11 @@ describe('mutation updateMemberRole', () => {
       .getRepository(SourceMember)
       .findOneBy({ userId: '2', sourceId: 'a' });
     expect(member.role).toEqual(SourceMemberRoles.Blocked);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '2', referenceId: 'a' });
+    expect(contentPreference!.flags.role).toEqual(SourceMemberRoles.Blocked);
   });
 
   it('should restrict moderator to remove and block a moderator', async () => {
@@ -2692,6 +2997,11 @@ describe('mutation updateMemberRole', () => {
       .getRepository(SourceMember)
       .findOneBy({ userId: '3', sourceId: 'a' });
     expect(member.role).toEqual(SourceMemberRoles.Blocked);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '3', referenceId: 'a' });
+    expect(contentPreference!.flags.role).toEqual(SourceMemberRoles.Blocked);
   });
 });
 
@@ -2711,6 +3021,17 @@ describe('mutation unblockMember', () => {
       role: SourceMemberRoles.Blocked,
       referralToken: randomUUID(),
       createdAt: new Date(2022, 11, 20),
+    });
+    await con.getRepository(ContentPreferenceSource).save({
+      userId: '3',
+      sourceId: 'a',
+      referenceId: 'a',
+      feedId: '1',
+      status: ContentPreferenceStatus.Blocked,
+      flags: {
+        role: SourceMemberRoles.Blocked,
+        referralToken: randomUUID(),
+      },
     });
   });
 
@@ -2762,6 +3083,11 @@ describe('mutation unblockMember', () => {
       .getRepository(SourceMember)
       .findOneBy({ userId: '3', sourceId: 'a' });
     expect(member).toBeFalsy();
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '3', referenceId: 'a' });
+    expect(contentPreference).toBeNull();
   });
 
   it('should allow admin to unblock a member', async () => {
@@ -2774,6 +3100,11 @@ describe('mutation unblockMember', () => {
       .getRepository(SourceMember)
       .findOneBy({ userId: '3', sourceId: 'a' });
     expect(member).toBeFalsy();
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '3', referenceId: 'a' });
+    expect(contentPreference).toBeNull();
   });
 });
 
@@ -2802,6 +3133,17 @@ describe('mutation leaveSource', () => {
       referralToken: 'rt2',
       role: SourceMemberRoles.Member,
     });
+    await con.getRepository(ContentPreferenceSource).save({
+      userId: '1',
+      referenceId: 's1',
+      sourceId: 's1',
+      feedId: '1',
+      status: ContentPreferenceStatus.Subscribed,
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: 'rt2',
+      },
+    });
   });
 
   it('should not authorize when not logged in', () =>
@@ -2821,6 +3163,12 @@ describe('mutation leaveSource', () => {
     const sourceMembers = await con
       .getRepository(SourceMember)
       .countBy(variables);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '1', referenceId: 's1' });
+    expect(contentPreference).toBeNull();
+
     expect(sourceMembers).toEqual(0);
   });
 
@@ -2976,6 +3324,24 @@ describe('mutation joinSource', () => {
         notificationType: NotificationType.SquadPostAdded,
       });
     expect(preference).toBeFalsy();
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({
+        userId: '1',
+        referenceId: 's1',
+      });
+    expect(contentPreference).toMatchObject({
+      userId: '1',
+      referenceId: 's1',
+      sourceId: 's1',
+      feedId: '1',
+      status: ContentPreferenceStatus.Subscribed,
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: expect.any(String),
+      },
+    });
   });
 
   it('should succeed if an existing member tries to join again', async () => {
@@ -3109,34 +3475,37 @@ query Source($id: ID!) {
       .getRepository(Source)
       .save([createSource('c', 'C', 'http://c.com')]);
     await saveFixtures(con, User, usersFixture);
+
+    const now = new Date(2022, 11, 19);
+
     await con.getRepository(SourceMember).save([
       {
         userId: '1',
         sourceId: 'c',
         role: SourceMemberRoles.Admin,
         referralToken: randomUUID(),
-        createdAt: new Date(2022, 11, 19),
+        createdAt: new Date(now.getTime() + 0),
       },
       {
         userId: '2',
         sourceId: 'c',
         role: SourceMemberRoles.Moderator,
         referralToken: randomUUID(),
-        createdAt: new Date(2022, 11, 20),
+        createdAt: new Date(now.getTime() + 1000),
       },
       {
         userId: '3',
         sourceId: 'c',
         role: SourceMemberRoles.Moderator,
         referralToken: randomUUID(),
-        createdAt: new Date(2022, 11, 19),
+        createdAt: new Date(now.getTime() + 2000),
       },
       {
         userId: '4',
         sourceId: 'c',
         role: SourceMemberRoles.Member,
         referralToken: randomUUID(),
-        createdAt: new Date(2022, 11, 20),
+        createdAt: new Date(now.getTime() + 3000),
       },
     ]);
   });
@@ -3207,6 +3576,17 @@ describe('mutation hideSourceFeedPosts', () => {
       referralToken: 'rt2',
       role: SourceMemberRoles.Member,
     });
+    await con.getRepository(ContentPreferenceSource).save({
+      userId: '1',
+      referenceId: 's1',
+      sourceId: 's1',
+      feedId: '1',
+      status: ContentPreferenceStatus.Subscribed,
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: 'rt2',
+      },
+    });
   });
 
   it('should not authorize when not logged in', () =>
@@ -3271,6 +3651,11 @@ describe('mutation hideSourceFeedPosts', () => {
       userId: '1',
     });
     expect(sourceMember?.flags.hideFeedPosts).toEqual(true);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '1', referenceId: 's1' });
+    expect(contentPreference!.flags.hideFeedPosts).toEqual(true);
   });
 });
 
@@ -3298,6 +3683,17 @@ describe('mutation showSourceFeedPosts', () => {
       userId: '1',
       referralToken: 'rt2',
       role: SourceMemberRoles.Member,
+    });
+    await con.getRepository(ContentPreferenceSource).save({
+      userId: '1',
+      referenceId: 's1',
+      sourceId: 's1',
+      feedId: '1',
+      status: ContentPreferenceStatus.Subscribed,
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: 'rt2',
+      },
     });
   });
 
@@ -3363,6 +3759,11 @@ describe('mutation showSourceFeedPosts', () => {
       userId: '1',
     });
     expect(sourceMember?.flags.hideFeedPosts).toEqual(false);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '1', referenceId: 's1' });
+    expect(contentPreference!.flags.hideFeedPosts).toEqual(false);
   });
 });
 
@@ -3390,6 +3791,17 @@ describe('mutation collapsePinnedPosts', () => {
       userId: '1',
       referralToken: 'rt2',
       role: SourceMemberRoles.Member,
+    });
+    await con.getRepository(ContentPreferenceSource).save({
+      userId: '1',
+      referenceId: 's1',
+      sourceId: 's1',
+      feedId: '1',
+      status: ContentPreferenceStatus.Subscribed,
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: 'rt2',
+      },
     });
   });
 
@@ -3455,6 +3867,11 @@ describe('mutation collapsePinnedPosts', () => {
       userId: '1',
     });
     expect(sourceMember?.flags.collapsePinnedPosts).toEqual(true);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '1', referenceId: 's1' });
+    expect(contentPreference!.flags.collapsePinnedPosts).toEqual(true);
   });
 });
 
@@ -3482,6 +3899,17 @@ describe('mutation expandPinnedPosts', () => {
       userId: '1',
       referralToken: 'rt2',
       role: SourceMemberRoles.Member,
+    });
+    await con.getRepository(ContentPreferenceSource).save({
+      userId: '1',
+      referenceId: 's1',
+      sourceId: 's1',
+      feedId: '1',
+      status: ContentPreferenceStatus.Subscribed,
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: 'rt2',
+      },
     });
   });
 
@@ -3547,6 +3975,11 @@ describe('mutation expandPinnedPosts', () => {
       userId: '1',
     });
     expect(sourceMember?.flags.collapsePinnedPosts).toEqual(false);
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceSource)
+      .findOneBy({ userId: '1', referenceId: 's1' });
+    expect(contentPreference!.flags.collapsePinnedPosts).toEqual(false);
   });
 });
 

@@ -2,6 +2,7 @@ import { invokeNotificationWorker, saveFixtures } from '../helpers';
 import {
   Bookmark,
   Comment,
+  Feed,
   MachineSource,
   NotificationPreferenceComment,
   NotificationPreferencePost,
@@ -1656,7 +1657,7 @@ describe('comment reply worker', () => {
       },
     ]);
 
-  it('should add comment reply notification', async () => {
+  it('should add comment reply notification for main user', async () => {
     await prepareComments();
     const worker = await import('../../src/workers/notifications/commentReply');
     const actual = await invokeNotificationWorker(worker.default, {
@@ -1674,15 +1675,15 @@ describe('comment reply worker', () => {
       '4',
     );
 
-    expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '3', '2']);
+    expect(actual[0].ctx.userIds).toIncludeSameMembers(['2']);
   });
 
   it('should add comment reply notification but ignore muted users', async () => {
     await prepareComments();
     await con.getRepository(NotificationPreferenceComment).save({
-      userId: '3',
-      commentId: 'c5',
-      referenceId: 'c5',
+      userId: '2',
+      commentId: 'c1',
+      referenceId: 'c1',
       status: NotificationPreferenceStatus.Muted,
       notificationType: NotificationType.CommentReply,
     });
@@ -1701,7 +1702,7 @@ describe('comment reply worker', () => {
     expect((bundle.ctx as NotificationCommenterContext).commenter.id).toEqual(
       '4',
     );
-    expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '2']);
+    expect(actual[0].ctx.userIds).toEqual([]);
   });
 
   it('should not add comment reply notification to comment author on their reply', async () => {
@@ -2030,10 +2031,10 @@ it('should add squad reply notification', async () => {
   expect((bundle.ctx as NotificationCommenterContext).commenter.id).toEqual(
     '4',
   );
-  expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '3', '2']);
+  expect(actual[0].ctx.userIds).toIncludeSameMembers(['2']);
 });
 
-it('users should get a reply notification if they commented in the same thread', async () => {
+it('users should not get a reply notification if they commented in the same thread', async () => {
   await con
     .getRepository(Source)
     .update({ id: 'a' }, { type: SourceType.Squad });
@@ -2103,11 +2104,21 @@ it('users should get a reply notification if they commented in the same thread',
   expect((bundle2.ctx as NotificationCommenterContext).commenter.id).toEqual(
     '3',
   );
-  expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '4', '2']);
-  expect(actual[0].ctx.userIds).not.toIncludeSameMembers(['3']);
+  expect(actual[0].ctx.userIds).toEqual(['2']);
 });
 
 describe('user post added', () => {
+  beforeEach(async () => {
+    await saveFixtures(
+      con,
+      Feed,
+      usersFixture.map((item) => ({
+        id: item.id,
+        userId: item.id,
+      })),
+    );
+  });
+
   it('should add notification for author', async () => {
     const { postAddedUserNotification: worker } = await import(
       '../../src/workers/notifications/postAddedUserNotification'
@@ -2116,12 +2127,14 @@ describe('user post added', () => {
     await con.getRepository(ContentPreferenceUser).save([
       {
         userId: '2',
+        feedId: '2',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Subscribed,
       },
       {
         userId: '3',
+        feedId: '3',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Subscribed,
@@ -2147,12 +2160,14 @@ describe('user post added', () => {
     await con.getRepository(ContentPreferenceUser).save([
       {
         userId: '2',
+        feedId: '2',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Subscribed,
       },
       {
         userId: '3',
+        feedId: '3',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Subscribed,
@@ -2178,12 +2193,14 @@ describe('user post added', () => {
     await con.getRepository(ContentPreferenceUser).save([
       {
         userId: '2',
+        feedId: '2',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Subscribed,
       },
       {
         userId: '3',
+        feedId: '3',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Follow,
@@ -2217,12 +2234,14 @@ describe('user post added', () => {
     await con.getRepository(ContentPreferenceUser).save([
       {
         userId: '2',
+        feedId: '2',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Subscribed,
       },
       {
         userId: '3',
+        feedId: '3',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Subscribed,
@@ -2242,12 +2261,14 @@ describe('user post added', () => {
     await con.getRepository(ContentPreferenceUser).save([
       {
         userId: '2',
+        feedId: '2',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Subscribed,
       },
       {
         userId: '3',
+        feedId: '3',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Subscribed,
@@ -2256,6 +2277,7 @@ describe('user post added', () => {
     await con.getRepository(NotificationPreferenceUser).save([
       {
         userId: '2',
+        feedId: '2',
         referenceId: '1',
         referenceUserId: '1',
         notificationType: NotificationType.UserPostAdded,
@@ -2278,18 +2300,21 @@ describe('user post added', () => {
     await con.getRepository(ContentPreferenceUser).save([
       {
         userId: '2',
+        feedId: '2',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Subscribed,
       },
       {
         userId: '3',
+        feedId: '3',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Subscribed,
       },
       {
         userId: '4',
+        feedId: '4',
         referenceId: '1',
         referenceUserId: '1',
         status: ContentPreferenceStatus.Subscribed,
@@ -2298,6 +2323,7 @@ describe('user post added', () => {
     await con.getRepository(NotificationPreferenceUser).save([
       {
         userId: '2',
+        feedId: '2',
         referenceId: '1',
         referenceUserId: '1',
         notificationType: NotificationType.UserPostAdded,
@@ -2307,6 +2333,7 @@ describe('user post added', () => {
     await con.getRepository(NotificationPreferenceSource).save([
       {
         userId: '3',
+        feedId: '3',
         referenceId: 'b',
         sourceId: 'b',
         notificationType: NotificationType.SourcePostAdded,
@@ -2314,6 +2341,7 @@ describe('user post added', () => {
       },
       {
         userId: '3',
+        feedId: '3',
         referenceId: 'a',
         sourceId: 'a',
         notificationType: NotificationType.SourcePostAdded,
@@ -2321,6 +2349,7 @@ describe('user post added', () => {
       },
       {
         userId: '4',
+        feedId: '4',
         referenceId: 'a',
         sourceId: 'a',
         notificationType: NotificationType.SourcePostAdded,

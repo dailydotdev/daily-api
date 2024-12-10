@@ -59,6 +59,13 @@ declare global {
       SUBMIT_ARTICLE_THRESHOLD: string;
       SLACK_SIGNING_SECRET: string;
       API_CONFIG_FEATURE_KEY: string;
+      PADDLE_API_KEY: string;
+      PADDLE_WEBHOOK_SECRET: string;
+      PADDLE_ENVIRONMENT: string;
+      SLACK_WEBHOOK: string;
+      SLACK_COMMENTS_WEBHOOK: string;
+      SLACK_VORDR_WEBHOOK: string;
+      SLACK_TRANSACTIONS_WEBHOOK: string;
     }
   }
 }
@@ -72,6 +79,7 @@ declare module 'fastify' {
     service?: boolean;
     accessToken?: AccessToken;
     isTeamMember?: boolean;
+    isPlus: boolean;
 
     // Used for tracking
     trackingId?: string;
@@ -145,6 +153,13 @@ export enum UserVoteEntity {
 }
 
 export const maxFeedsPerUser = 10;
+
+export const maxBookmarksPerMutation = 10;
+
+export enum BookmarkListCountLimit {
+  Free = 1,
+  Plus = 50,
+}
 
 export type SlackAuthResponse = {
   ok: boolean;

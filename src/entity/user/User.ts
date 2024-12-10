@@ -15,10 +15,18 @@ import type { DevCard } from '../DevCard';
 import type { UserStreak } from './UserStreak';
 import type { UserStreakAction } from './UserStreakAction';
 import type { UserCompany } from '../UserCompany';
+import type { UserTopReader } from './UserTopReader';
+import type { SubscriptionCycles } from '../../paddle';
 
 export type UserFlags = Partial<{
   vordr: boolean;
   trustScore: number;
+}>;
+
+export type UserSubscriptionFlags = Partial<{
+  cycle: SubscriptionCycles;
+  createdAt: Date;
+  subscriptionId: string;
 }>;
 
 @Entity()
@@ -28,6 +36,7 @@ export type UserFlags = Partial<{
 @Index('IDX_user_gin_username', { synchronize: false })
 @Index('IDX_user_gin_name', { synchronize: false })
 @Index('IDX_user_reputation', { synchronize: false })
+@Index('IDX_user_subflags_subscriptionid', { synchronize: false })
 export class User {
   @PrimaryColumn({ length: 36 })
   id: string;
@@ -40,10 +49,10 @@ export class User {
   email: string;
 
   @Column({ type: 'text', nullable: true })
-  image: string;
+  image?: string | null;
 
   @Column({ type: 'text', nullable: true })
-  cover?: string;
+  cover?: string | null;
 
   @Column({ type: 'text', nullable: true })
   company?: string;
@@ -157,7 +166,6 @@ export class User {
   experienceLevel: string | null;
 
   @Column({ type: 'jsonb', default: {} })
-  @Index('IDX_user_flags_vordr', { synchronize: false })
   flags: UserFlags;
 
   @Column({ type: 'text', nullable: true })
@@ -175,6 +183,9 @@ export class User {
   })
   referral?: Promise<User>;
 
+  @Column({ type: 'jsonb', default: {} })
+  subscriptionFlags?: UserSubscriptionFlags;
+
   @OneToMany('Post', (post: Post) => post.author, { lazy: true })
   posts: Promise<Post[]>;
 
@@ -190,6 +201,15 @@ export class User {
     lazy: true,
   })
   userCompanies: Promise<UserCompany[]>;
+
+  @OneToMany(
+    'UserTopReader',
+    (userTopReader: UserTopReader) => userTopReader.user,
+    {
+      lazy: true,
+    },
+  )
+  userTopReaders: Promise<UserTopReader[]>;
 
   @OneToOne('UserStreak', (streak: UserStreak) => streak.user, {
     lazy: true,

@@ -115,13 +115,13 @@ if (isPersonalizedDigestEnabled) {
       app: name,
       subapp: 'personalized-digest',
     }),
-    { dependsOn: [deadLetterTopic] },
+    { dependsOn: [deadLetterTopic.resource] },
   );
 }
 
 const memory = 640;
 const apiRequests: pulumi.Input<{ cpu: string; memory: string }> = {
-  cpu: '800m',
+  cpu: '600m',
   memory: '400Mi',
 };
 const apiLimits: pulumi.Input<{ memory: string }> = {
@@ -144,7 +144,7 @@ const bgRequests: pulumi.Input<{ cpu: string; memory: string }> = {
 
 const temporalLimits: pulumi.Input<{ memory: string }> = { memory: '256Mi' };
 const temporalRequests: pulumi.Input<{ cpu: string; memory: string }> = {
-  cpu: '200m',
+  cpu: '50m',
   memory: '150Mi',
 };
 
@@ -306,6 +306,9 @@ if (isAdhocEnv) {
         { targetPort: 3000, port: 80, name: 'http' },
         { targetPort: 9464, port: 9464, name: 'metrics' },
       ],
+      backendConfig: {
+        customRequestHeaders: ['X-Client-Region:{client_region}'],
+      },
       ...vols,
     },
     {
@@ -316,6 +319,7 @@ if (isAdhocEnv) {
         { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
         ...jwtEnv,
       ],
+      args: ['dumb-init', 'node', 'bin/cli', 'websocket'],
       minReplicas: 3,
       maxReplicas: 10,
       limits: wsLimits,
@@ -323,8 +327,7 @@ if (isAdhocEnv) {
       livenessProbe,
       metric: { type: 'memory_cpu', cpu: 85 },
       disableLifecycle: true,
-      // ports: [{ containerPort: 9464, name: 'metrics' }],
-      // servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
+      spot: { enabled: true },
       ...vols,
     },
     {
@@ -345,6 +348,7 @@ if (isAdhocEnv) {
       },
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
+      spot: { enabled: true },
       ...vols,
     },
     {
@@ -358,6 +362,7 @@ if (isAdhocEnv) {
       metric: { type: 'memory_cpu', cpu: 80, memory: 130 },
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
+      spot: { enabled: true },
       ...vols,
     },
     {
@@ -376,14 +381,6 @@ if (isAdhocEnv) {
       createService: true,
       serviceType: 'ClusterIP',
       disableLifecycle: true,
-      // ports: [
-      //   { containerPort: 3000, name: 'http' },
-      //   { containerPort: 9464, name: 'metrics' },
-      // ],
-      // servicePorts: [
-      //   { targetPort: 3000, port: 80, name: 'http' },
-      //   { targetPort: 9464, port: 9464, name: 'metrics' },
-      // ],
       ...vols,
     },
   ];
@@ -397,7 +394,7 @@ if (isAdhocEnv) {
       maxReplicas: 2,
       limits: { memory: '1Gi' },
       requests: {
-        cpu: '1',
+        cpu: '200m',
         memory: '512Mi',
       },
       metric: {
@@ -408,9 +405,11 @@ if (isAdhocEnv) {
         },
         targetAverageValue: 100_000,
       },
+      spot: {
+        enabled: true,
+        weight: 70,
+      },
       ...vols,
-      // ports: [{ containerPort: 9464, name: 'metrics' }],
-      // servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
     });
   }
 }
@@ -485,6 +484,10 @@ const [apps] = deployApplicationSuite(
           limits: cron.limits ?? bgLimits,
           requests: cron.requests ?? bgRequests,
           activeDeadlineSeconds: cron.activeDeadlineSeconds ?? 300,
+          spot: {
+            enabled: true,
+            weight: 70,
+          },
         })),
     isAdhocEnv,
     dependsOn,
@@ -642,19 +645,20 @@ if (!isAdhocEnv) {
       },
       image: {
         repository: 'gcr.io/daily-ops/clickhouse-sink-docker',
-        tag: '89537c253d5dd17fdaae05220ccc7dfca265f4d7',
+        tag: '74f13a789ffb053e695794ffa1d74ac652622a7b',
       },
       resources: {
         // TODO: adjust resources based on the actual usage
         requests: {
-          cpu: '2',
-          memory: '4096Mi',
+          cpu: '1',
+          memory: '2048Mi',
         },
         limits: {
           // 4GiB
           memory: '4096Mi',
         },
       },
+      toleratesSpot: true,
     },
     { provider: vpcNativeProvider?.provider },
   );

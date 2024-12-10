@@ -4,10 +4,11 @@ import {
 } from 'graphql-relay';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
-import { DataSource, MoreThan } from 'typeorm';
+import { DataSource, In, MoreThan } from 'typeorm';
 import {
   ensureSourcePermissions,
   GQLSource,
+  isPrivilegedMember,
   SourcePermissions,
   sourceTypesWithMembers,
 } from './sources';
@@ -33,12 +34,18 @@ import {
   validatePost,
   ONE_MINUTE_IN_SECONDS,
   toGQLEnum,
+  getExistingPost,
+  createSourcePostModeration,
+  CreateSourcePostModerationArgs,
+  mapCloudinaryUrl,
+  validateSourcePostModeration,
+  getPostTranslatedTitle,
+  getPostSmartTitle,
 } from '../common';
 import {
   ArticlePost,
   createExternalLink,
   createSharePost,
-  ExternalLink,
   ExternalLinkPreview,
   FreeformPost,
   Post,
@@ -58,6 +65,9 @@ import {
   PostRelationType,
   PostRelation,
   deletePost,
+  SubmitExternalLinkArgs,
+  UserAction,
+  Settings,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -92,6 +102,29 @@ import { ReportReason } from '../entity/common';
 import { reportPost, saveHiddenPost } from '../common/reporting';
 import { PostCodeSnippetLanguage, UserVote } from '../types';
 import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
+import {
+  SourcePostModeration,
+  SourcePostModerationStatus,
+} from '../entity/SourcePostModeration';
+import { logger } from '../logger';
+import { Source } from '@dailydotdev/schema';
+import { queryReadReplica } from '../common/queryReadReplica';
+
+export interface GQLSourcePostModeration {
+  id: string;
+  title?: string;
+  content?: string;
+  contentHtml?: string;
+  image?: string;
+  sourceId: string;
+  sharedPostId?: string;
+  status: SourcePostModerationStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  source: Source;
+  post?: Post;
+  postId?: string;
+}
 
 export interface GQLPost {
   id: string;
@@ -157,6 +190,20 @@ export type GQLPostNotification = Pick<
   'id' | 'numUpvotes' | 'numComments'
 >;
 
+export type GQLPostSmartTitle = {
+  title: string;
+};
+
+const POST_MODERATION_PAGE_SIZE = 15;
+const POST_MODERATION_LIMIT_FOR_MUTATION = 50;
+const sourcePostModerationPageGenerator =
+  offsetPageGenerator<GQLSourcePostModeration>(POST_MODERATION_PAGE_SIZE, 50);
+
+type SourcePostModerationArgs = ConnectionArguments & {
+  sourceId: string;
+  status: SourcePostModerationStatus[];
+};
+
 export interface GQLPostUpvote {
   createdAt: Date;
   post: GQLPost;
@@ -171,11 +218,6 @@ export interface GQLUserPost {
 
 export interface GQLPostUpvoteArgs extends ConnectionArguments {
   id: string;
-}
-
-export interface SubmitExternalLinkArgs extends ExternalLink {
-  sourceId: string;
-  commentary: string;
 }
 
 export const getPostNotification = async (
@@ -209,6 +251,80 @@ export type GQLPostCodeSnippet = Pick<
 >;
 
 export const typeDefs = /* GraphQL */ `
+  """
+  Post moderation item
+  """
+  type SourcePostModeration {
+    """
+    Id of the post
+    """
+    id: ID!
+    """
+    The post's title in HTML
+    """
+    titleHtml: String
+    """
+    The post's title
+    """
+    title: String
+    """
+    The post's content in HTML
+    """
+    contentHtml: String
+    """
+    The post's content
+    """
+    content: String
+    """
+    The post's image
+    """
+    image: String
+    """
+    Related source this is posted to
+    """
+    source: Source
+    """
+    Type of post
+    """
+    type: String
+    """
+    Shared post
+    """
+    sharedPost: Post
+    """
+    Post
+    """
+    post: Post
+    """
+    external link url
+    """
+    externalLink: String
+    """
+    Status of the moderation
+    """
+    status: String!
+    """
+    Reason for rejection
+    """
+    rejectionReason: String
+    """
+    Moderator message
+    """
+    moderatorMessage: String
+    """
+    Time the post was created
+    """
+    createdAt: DateTime!
+    """
+    Author of the post
+    """
+    createdBy: User
+    """
+    Moderator of the post
+    """
+    moderatedBy: User
+  }
+
   type TocItem {
     """
     Content of the toc item
@@ -534,6 +650,11 @@ export const typeDefs = /* GraphQL */ `
     Slug for the post
     """
     slug: String
+
+    """
+    Whether the post title is detected as clickbait
+    """
+    clickbaitTitleDetected: Boolean
   }
 
   type PostConnection {
@@ -547,6 +668,24 @@ export const typeDefs = /* GraphQL */ `
 
   type PostEdge {
     node: Post!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type SourcePostModerationConnection {
+    pageInfo: PageInfo!
+    edges: [SourcePostModerationEdge!]!
+    """
+    The original query in case of a search operation
+    """
+    query: String
+  }
+
+  type SourcePostModerationEdge {
+    node: SourcePostModeration!
 
     """
     Used in \`before\` and \`after\` args
@@ -611,6 +750,10 @@ export const typeDefs = /* GraphQL */ `
     query: String
   }
 
+  type PostSmartTitle {
+    title: String
+  }
+
   """
   Enum of the possible reasons to report a post
   """
@@ -646,6 +789,37 @@ export const typeDefs = /* GraphQL */ `
   }
 
   extend type Query {
+    """
+    Get specific squad post moderation item
+    """
+    sourcePostModeration(
+      """
+      Id of the requested post moderation
+      """
+      id: ID!
+    ): SourcePostModeration! @auth
+    """
+    Get squad post moderations by source id
+    """
+    sourcePostModerations(
+      """
+      Id of the source
+      """
+      sourceId: ID!
+      """
+      Status of the moderation
+      """
+      status: [String]
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+    ): SourcePostModerationConnection! @auth
+
     """
     Get post by id
     """
@@ -732,9 +906,61 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): PostCodeSnippetConnection!
+
+    """
+    Gets the Smart Title or the original title of a post,
+    based on the settings of the user
+    """
+    fetchSmartTitle(id: ID!): PostSmartTitle @auth
   }
 
   extend type Mutation {
+    """
+    To create post moderation item
+    """
+    createSourcePostModeration(
+      """
+      Id of the Squad to post to
+      """
+      sourceId: ID!
+      """
+      content of the post
+      """
+      content: String
+      """
+      Commentary on the post
+      """
+      commentary: String
+      """
+      title of the post
+      """
+      title: String
+      """
+      Image to upload
+      """
+      image: Upload
+      """
+      Image URL to use
+      """
+      imageUrl: String
+      """
+      ID of the post to share
+      """
+      sharedPostId: ID
+      """
+      type of the post
+      """
+      type: String!
+      """
+      External link of the post
+      """
+      externalLink: String
+      """
+      ID of the exisiting post
+      """
+      postId: ID
+    ): SourcePostModeration! @auth
+
     """
     Hide a post from all the user feeds
     """
@@ -797,7 +1023,7 @@ export const typeDefs = /* GraphQL */ `
       title: String!
 
       """
-      Content of the post (max 4000 chars)
+      Content of the post
       """
       content: String
     ): Post!
@@ -822,7 +1048,7 @@ export const typeDefs = /* GraphQL */ `
       """
       title: String
       """
-      Content of the post (max 4000 chars)
+      Content of the post
       """
       content: String
     ): Post! @auth
@@ -1000,6 +1226,88 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): EmptyResponse @auth
+
+    """
+    Approve/Reject pending post moderation
+    """
+    moderateSourcePosts(
+      """
+      List of posts to moderate
+      """
+      postIds: [ID]!
+      """
+      Status wanted for the post
+      """
+      status: String
+      """
+      Source to moderate the post in
+      """
+      sourceId: ID!
+      """
+      Rejection reason for the post
+      """
+      rejectionReason: String
+      """
+      Moderator message for the post
+      """
+      moderatorMessage: String
+    ): [SourcePostModeration]! @auth
+
+    """
+    Delete a post moderation item
+    """
+    deleteSourcePostModeration(
+      """
+      Id of the post moderation
+      """
+      postId: ID!
+    ): EmptyResponse @auth
+
+    """
+    Edit post moderation item
+    """
+    editSourcePostModeration(
+      """
+      Id of the post moderation
+      """
+      id: ID!
+      """
+      Id of the Squad to post to
+      """
+      sourceId: ID!
+      """
+      content of the post
+      """
+      content: String
+      """
+      Commentary on the post
+      """
+      commentary: String
+      """
+      title of the post
+      """
+      title: String
+      """
+      Image to upload
+      """
+      image: Upload
+      """
+      Image URL to use
+      """
+      imageUrl: String
+      """
+      ID of the post to share
+      """
+      sharedPostId: ID
+      """
+      type of the post
+      """
+      type: String!
+      """
+      External link of the post
+      """
+      externalLink: String
+    ): SourcePostModeration! @auth
   }
 
   extend type Subscription {
@@ -1101,6 +1409,141 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   BaseContext
 >({
   Query: {
+    sourcePostModeration: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+      info,
+    ): Promise<GQLSourcePostModeration> => {
+      const moderation = await ctx.con
+        .getRepository(SourcePostModeration)
+        .findOneOrFail({
+          where: { id },
+          select: ['sourceId'],
+        });
+
+      const isModerator = await isPrivilegedMember(ctx, moderation.sourceId);
+
+      return graphorm.queryOneOrFail<GQLSourcePostModeration>(
+        ctx,
+        info,
+        (builder) => {
+          const queryBuilder = builder.queryBuilder.where(
+            `"${builder.alias}"."id" = :id`,
+            { id },
+          );
+
+          if (!isModerator) {
+            queryBuilder.andWhere(
+              `"${builder.alias}"."createdById" = :userId`,
+              {
+                userId: ctx.userId,
+              },
+            );
+          }
+          return {
+            ...builder,
+            queryBuilder,
+          };
+        },
+      );
+    },
+    sourcePostModerations: async (
+      _,
+      args: SourcePostModerationArgs,
+      ctx: Context,
+      info,
+    ): Promise<ConnectionRelay<GQLSourcePostModeration>> => {
+      const isModerator = await isPrivilegedMember(ctx, args.sourceId);
+      const page = sourcePostModerationPageGenerator.connArgsToPage(args);
+
+      const statuses = Array.from(new Set(args.status));
+
+      if (isModerator) {
+        return graphorm.queryPaginated(
+          ctx,
+          info,
+          (nodeSize) =>
+            sourcePostModerationPageGenerator.hasPreviousPage(page, nodeSize),
+          (nodeSize) =>
+            sourcePostModerationPageGenerator.hasNextPage(page, nodeSize),
+          (node, index) =>
+            sourcePostModerationPageGenerator.nodeToCursor(
+              page,
+              args,
+              node,
+              index,
+            ),
+          (builder) => {
+            builder.queryBuilder
+              .where(`"${builder.alias}"."sourceId" = :sourceId`, {
+                sourceId: args.sourceId,
+              })
+              .andWhere(
+                `("${builder.alias}"."flags"->>'vordr')::boolean IS NOT TRUE`,
+              )
+              .orderBy(`${builder.alias}.updatedAt`, 'DESC')
+              .limit(page.limit)
+              .offset(page.offset);
+
+            if (statuses.length) {
+              builder.queryBuilder.andWhere(
+                `"${builder.alias}"."status" IN (:...status)`,
+                {
+                  status: statuses,
+                },
+              );
+            }
+
+            return builder;
+          },
+          undefined,
+          true,
+        );
+      }
+      const { userId } = ctx;
+
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) =>
+          sourcePostModerationPageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) =>
+          sourcePostModerationPageGenerator.hasNextPage(page, nodeSize),
+        (node, index) =>
+          sourcePostModerationPageGenerator.nodeToCursor(
+            page,
+            args,
+            node,
+            index,
+          ),
+        (builder) => {
+          builder.queryBuilder
+            .where(`"${builder.alias}"."sourceId" = :sourceId`, {
+              sourceId: args.sourceId,
+            })
+            .andWhere(`"${builder.alias}"."createdById" = :userId`, {
+              userId,
+            })
+            .orderBy(`${builder.alias}.updatedAt`, 'DESC')
+            .limit(page.limit)
+            .offset(page.offset);
+
+          if (statuses.length) {
+            builder.queryBuilder.andWhere(
+              `"${builder.alias}"."status" IN (:...status)`,
+              {
+                status: statuses,
+              },
+            );
+          }
+
+          return builder;
+        },
+        undefined,
+        true,
+      );
+    },
     post: async (
       source,
       { id }: { id: string },
@@ -1333,8 +1776,100 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         true,
       );
     },
+    /**
+     * Fetches the original title if clickbait shield is enabled,
+     * and the smart title if clickbait shield is disabled.
+     *
+     * This is so that we an query the opposite title based on the user's settings.
+     */
+    fetchSmartTitle: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLPostSmartTitle> =>
+      queryReadReplica(ctx.con, async ({ queryRunner }) => {
+        const post: Pick<Post, 'title' | 'contentMeta'> =
+          await queryRunner.manager.getRepository(Post).findOneOrFail({
+            where: { id },
+            select: ['title', 'contentMeta'],
+          });
+
+        if (!ctx.isPlus) {
+          const hasUsedFreeTrial = await ctx.con
+            .getRepository(UserAction)
+            .findOneBy({
+              userId: ctx.userId,
+              type: UserActionType.FetchedSmartTitle,
+            });
+
+          if (hasUsedFreeTrial) {
+            throw new ForbiddenError(
+              'Free trial has been used! Please upgrade to Plus to continue using this feature.',
+            );
+          }
+
+          await ctx.con.getRepository(UserAction).save({
+            userId: ctx.userId,
+            type: UserActionType.FetchedSmartTitle,
+          });
+
+          // We always want to return the smart title for non-plus users who have not used the free trial, as it is part of the try before you buy experience
+          return {
+            title: getPostSmartTitle(post, ctx.contentLanguage),
+          };
+        }
+
+        const settings = await queryRunner.manager
+          .getRepository(Settings)
+          .findOne({
+            where: { userId: ctx.userId },
+            select: ['flags'],
+          });
+
+        // If the user has clickbait shield enabled, return the original title
+        if (settings?.flags?.clickbaitShieldEnabled ?? true) {
+          return {
+            title: getPostTranslatedTitle(post, ctx.contentLanguage),
+          };
+        }
+
+        // If the user has clickbait shield disabled, return the smart title
+        return {
+          title: getPostSmartTitle(post, ctx.contentLanguage),
+        };
+      }),
   },
   Mutation: {
+    createSourcePostModeration: async (
+      _,
+      props: CreateSourcePostModerationArgs,
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLSourcePostModeration> => {
+      await ensureSourcePermissions(
+        ctx,
+        props.sourceId,
+        SourcePermissions.PostRequest,
+      );
+
+      const pendingPost = await validateSourcePostModeration(ctx, props);
+      const moderatedPost = await createSourcePostModeration({
+        ctx,
+        args: pendingPost,
+      });
+
+      return graphorm.queryOneOrFail<GQLSourcePostModeration>(
+        ctx,
+        info,
+        (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder.where(
+            `"${builder.alias}"."id" = :id`,
+            { id: moderatedPost.id },
+          ),
+        }),
+      );
+    },
     hidePost: async (
       source,
       { id }: { id: string },
@@ -1397,7 +1932,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         serviceId: imageId,
         url: imageUrl,
       });
-      return imageUrl;
+      return mapCloudinaryUrl(imageUrl);
     },
     deletePost: async (
       _,
@@ -1560,7 +2095,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           params.image = coverImageUrl;
         }
 
-        await createFreeformPost(manager, ctx, params);
+        await createFreeformPost({ con: manager, ctx, args: params });
         await saveMentions(manager, id, userId, mentions, PostMention);
       });
 
@@ -1712,38 +2247,39 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           throw new ValidationError('URL is not valid');
         }
 
-        const existingPost: Pick<
-          ArticlePost,
-          'id' | 'deleted' | 'visible'
-        > | null = await manager
-          .createQueryBuilder(Post, 'post')
-          .select(['post.id', 'post.deleted', 'post.visible'])
-          .where('post.url = :url OR post.canonicalUrl = :url', {
-            url: cleanUrl,
-          })
-          .getOne();
+        const existingPost = await getExistingPost(manager, cleanUrl);
+
         if (existingPost) {
           if (existingPost.deleted) {
             throw new ValidationError(SubmissionFailErrorMessage.POST_DELETED);
           }
 
-          await createSharePost(
-            manager,
+          await createSharePost({
+            con: manager,
             ctx,
-            sourceId,
-            existingPost.id,
-            commentary,
-            existingPost.visible,
-          );
+            args: {
+              sourceId,
+              authorId: ctx.userId,
+              postId: existingPost.id,
+              commentary,
+              visible: existingPost.visible,
+            },
+          });
           return { _: true };
         }
-        await createExternalLink(
-          manager,
+
+        await createExternalLink({
+          con: manager,
           ctx,
-          sourceId,
-          { url, title, image },
-          commentary,
-        );
+          args: {
+            authorId: ctx.userId,
+            sourceId,
+            url: cleanUrl,
+            title,
+            image,
+            commentary,
+          },
+        });
       });
       return { _: true };
     },
@@ -1760,13 +2296,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       await ctx.con.getRepository(Post).findOneByOrFail({ id });
       await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
 
-      const newPost = await createSharePost(
-        ctx.con,
+      const newPost = await createSharePost({
+        con: ctx.con,
         ctx,
-        sourceId,
-        id,
-        commentary,
-      );
+        args: {
+          authorId: ctx.userId,
+          sourceId,
+          postId: id,
+          commentary,
+        },
+      });
+
       return getPostById(ctx, info, newPost.id);
     },
     editSharePost: async (
@@ -1844,6 +2384,167 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return { _: true };
     },
+    moderateSourcePosts: async (
+      _,
+      {
+        sourceId,
+        postIds,
+        status,
+        rejectionReason = null,
+        moderatorMessage = null,
+      }: {
+        postIds: string[];
+      } & Pick<
+        SourcePostModeration,
+        'sourceId' | 'status' | 'rejectionReason' | 'moderatorMessage'
+      >,
+      ctx: AuthContext,
+      info,
+    ) => {
+      const uniquePostIds = Array.from(new Set(postIds));
+      if (!uniquePostIds.length) {
+        throw new ValidationError('Invalid array of post IDs provided');
+      }
+
+      if (uniquePostIds.length > POST_MODERATION_LIMIT_FOR_MUTATION) {
+        logger.warn(
+          { postCount: uniquePostIds.length, status },
+          'moderation limit reached',
+        );
+        throw new ValidationError(
+          `Maximum of ${POST_MODERATION_LIMIT_FOR_MUTATION} posts can be moderated at once`,
+        );
+      }
+
+      if (
+        ![
+          SourcePostModerationStatus.Approved,
+          SourcePostModerationStatus.Rejected,
+        ].includes(status)
+      ) {
+        throw new ValidationError('Invalid status provided');
+      }
+
+      const isModerator = await isPrivilegedMember(ctx, sourceId);
+      const update: Partial<SourcePostModeration> = {
+        status,
+        moderatedById: ctx.userId,
+      };
+
+      if (!isModerator) {
+        throw new ForbiddenError('Access denied!');
+      }
+
+      if (status === SourcePostModerationStatus.Rejected) {
+        if (!rejectionReason) {
+          throw new ValidationError('Rejection reason is required');
+        }
+
+        if (rejectionReason?.toLowerCase() === 'other' && !moderatorMessage) {
+          throw new ValidationError('Moderator message is required');
+        }
+
+        update.rejectionReason = rejectionReason;
+        update.moderatorMessage = moderatorMessage;
+      }
+
+      await ctx.con
+        .getRepository(SourcePostModeration)
+        .update(
+          { id: In(uniquePostIds), status: SourcePostModerationStatus.Pending },
+          update,
+        );
+
+      return graphorm.query<GQLSourcePostModeration>(ctx, info, (builder) => ({
+        ...builder,
+        queryBuilder: builder.queryBuilder.where(
+          `"${builder.alias}"."id" IN (:...id) AND "${builder.alias}"."status" = :status`,
+          { id: uniquePostIds, status },
+        ),
+      }));
+    },
+    deleteSourcePostModeration: async (
+      _,
+      { postId }: { postId: string },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const moderation = await ctx.con
+        .getRepository(SourcePostModeration)
+        .findOneOrFail({
+          where: { id: postId },
+          select: ['createdById', 'sourceId'],
+        });
+
+      await ensureSourcePermissions(
+        ctx,
+        moderation.sourceId,
+        SourcePermissions.PostRequest,
+      );
+
+      const isAuthor = moderation.createdById === ctx.userId;
+
+      if (!isAuthor) {
+        throw new ForbiddenError('Access denied!');
+      }
+
+      await ctx.con.getRepository(SourcePostModeration).delete({ id: postId });
+
+      return { _: true };
+    },
+    editSourcePostModeration: async (
+      _,
+      post: CreateSourcePostModerationArgs & { id: string },
+      ctx: AuthContext,
+      info,
+    ): Promise<SourcePostModeration> => {
+      await ensureSourcePermissions(
+        ctx,
+        post.sourceId,
+        SourcePermissions.PostRequest,
+      );
+
+      const { id } = post;
+      const moderation = await ctx.con
+        .getRepository(SourcePostModeration)
+        .findOneOrFail({
+          where: { id },
+          select: ['createdById', 'status'],
+        });
+
+      const isAuthor = moderation.createdById === ctx.userId;
+      const isApproved =
+        moderation.status === SourcePostModerationStatus.Approved;
+
+      if (!isAuthor) {
+        throw new ForbiddenError('Access denied!');
+      }
+
+      if (isApproved) {
+        throw new ValidationError('Cannot edit an approved post');
+      }
+
+      const pendingPost = await validateSourcePostModeration(ctx, post);
+
+      await ctx.con.getRepository(SourcePostModeration).update(
+        { id },
+        {
+          ...pendingPost,
+          status: SourcePostModerationStatus.Pending,
+        },
+      );
+
+      return graphorm.queryOneOrFail<SourcePostModeration>(
+        ctx,
+        info,
+        (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder.where(
+            `"${builder.alias}"."id" = :id AND "${builder.alias}"."status" = :status`,
+            { id, status: SourcePostModerationStatus.Pending },
+          ),
+        }),
+      );
+    },
   },
   Subscription: {
     postsEngaged: {
@@ -1865,10 +2566,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   Post: {
+    contentHtml: (post: GQLPost): GQLPost['contentHtml'] =>
+      mapCloudinaryUrl(post.contentHtml),
     image: (post: GQLPost): string | undefined => {
-      if (nullableImageType.includes(post.type)) return post.image;
+      const image = mapCloudinaryUrl(post.image);
+      if (nullableImageType.includes(post.type)) return image;
 
-      return post.image || pickImageUrl(post);
+      return image || pickImageUrl(post);
     },
     placeholder: (post: GQLPost): string | undefined =>
       post.image ? post.placeholder : defaultImage.placeholder,
@@ -1886,7 +2590,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   },
   LinkPreview: {
     image: (preview: ExternalLinkPreview) =>
-      preview.image ?? pickImageUrl({ createdAt: new Date() }),
+      mapCloudinaryUrl(preview.image) ??
+      pickImageUrl({ createdAt: new Date() }),
     title: (preview: ExternalLinkPreview) =>
       preview.title?.length ? preview.title : DEFAULT_POST_TITLE,
   },

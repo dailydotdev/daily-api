@@ -42,6 +42,7 @@ import {
   base64,
   getSourceLink,
   submitArticleThreshold,
+  mapCloudinaryUrl,
 } from '../common';
 import { AccessToken, signJwt } from '../auth';
 import { cookies, setCookie, setRawCookie } from '../cookies';
@@ -61,6 +62,7 @@ import { getUnreadNotificationsCount } from '../notifications/common';
 import { maxFeedsPerUser } from '../types';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { queryDataSource } from '../common/queryDataSource';
+import { isPlusMember } from '../paddle';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -73,6 +75,10 @@ export type Experimentation = {
   f: string;
   e: string[];
   a: Record<string, unknown>;
+};
+
+export type Geo = {
+  region?: string;
 };
 
 interface ComputedAlerts {
@@ -93,6 +99,7 @@ export type BaseBoot = {
   notifications: { unreadNotificationsCount: number };
   squads: BootSquadSource[];
   exp?: Experimentation;
+  geo: Geo;
 };
 
 export type BootUserReferral = Partial<{
@@ -127,6 +134,12 @@ type BootMiddleware = (
   req: FastifyRequest,
   res: FastifyReply,
 ) => Promise<Record<string, unknown>>;
+
+const geoSection = (req: FastifyRequest): BaseBoot['geo'] => {
+  return {
+    region: req.headers['x-client-region'] as string,
+  };
+};
 
 const visitSection = async (
   req: FastifyRequest,
@@ -174,6 +187,7 @@ const getSquads = async (
       .addSelect('NOT private', 'public')
       .addSelect('active')
       .addSelect('role')
+      .addSelect('"moderationRequired"')
       .addSelect('"memberPostingRank"')
       .from(SourceMember, 'sm')
       .innerJoin(
@@ -189,22 +203,24 @@ const getSquads = async (
       >();
 
     return sources.map((source) => {
-      const { role, memberPostingRank, ...restSource } = source;
+      const { role, memberPostingRank, image, ...restSource } = source;
 
       const permissions = getPermissionsForMember(
         { role },
         { memberPostingRank },
       );
-      // we only send posting permissions from boot to keep the payload small
-      const postingPermissions = permissions.filter(
-        (item) => item === SourcePermissions.Post,
+      // we only send posting and moderation permissions from boot to keep the payload small
+      const essentialPermissions = permissions.filter(
+        (item) =>
+          item === SourcePermissions.Post ||
+          item === SourcePermissions.ModeratePost,
       );
-
       return {
         ...restSource,
+        image: mapCloudinaryUrl(image),
         permalink: getSourceLink(source),
         currentMember: {
-          permissions: postingPermissions,
+          permissions: essentialPermissions,
         },
       };
     });
@@ -262,12 +278,14 @@ const setAuthCookie = async (
   userId: string,
   roles: string[],
   isTeamMember: boolean,
+  isPlus: boolean,
 ): Promise<AccessToken> => {
   const accessToken = await signJwt(
     {
       userId,
       roles,
       isTeamMember,
+      isPlus,
     },
     15 * 60 * 1000,
   );
@@ -326,9 +344,11 @@ export function getReferralFromCookie({
 const getExperimentation = async ({
   userId,
   con,
+  region,
 }: {
   userId?: string;
   con: DataSource | QueryRunner;
+  region?: string;
 }): Promise<Experimentation> => {
   if (userId) {
     const [hash, features] = await Promise.all([
@@ -341,13 +361,17 @@ const getExperimentation = async ({
       const [variation] = hash[key].split(':');
       return base64(`${key}:${variation}`);
     });
+    const a: Experimentation['a'] = features.reduce(
+      (acc, { feature, value }) => ({ [feature]: value, ...acc }),
+      {},
+    );
+    if (region) {
+      a.region = region;
+    }
     return {
       f: getEncryptedFeatures(),
       e,
-      a: features.reduce(
-        (acc, { feature, value }) => ({ [feature]: value, ...acc }),
-        {},
-      ),
+      a,
     };
   }
   return {
@@ -395,6 +419,7 @@ const getUser = (
       'language',
       'followingEmail',
       'followNotifications',
+      'subscriptionFlags',
     ],
   });
 
@@ -415,6 +440,8 @@ const loggedInBoot = async ({
 }): Promise<LoggedInBoot | AnonymousBoot> =>
   runInSpan('loggedInBoot', async (span) => {
     span?.setAttribute(SEMATTRS_DAILY_APPS_USER_ID, userId);
+
+    const geo = geoSection(req);
 
     const { log } = req;
     const [
@@ -439,7 +466,7 @@ const loggedInBoot = async ({
           getUser(queryRunner, userId),
           getSquads(queryRunner, userId),
           getAndUpdateLastBannerRedis(queryRunner),
-          getExperimentation({ userId, con: queryRunner }),
+          getExperimentation({ userId, con: queryRunner, ...geo }),
           getFeeds({ con: queryRunner, userId }),
           getUnreadNotificationsCount(queryRunner, userId),
         ]);
@@ -449,11 +476,16 @@ const loggedInBoot = async ({
       return handleNonExistentUser(con, req, res, middleware);
     }
     const isTeamMember = exp?.a?.team === 1;
+    const isPlus = isPlusMember(user.subscriptionFlags?.cycle);
+
+    if (isPlus) {
+      exp.a.plus = 1;
+    }
 
     span?.setAttribute(SEMATTRS_DAILY_STAFF, isTeamMember);
 
     const accessToken = refreshToken
-      ? await setAuthCookie(req, res, userId, roles, isTeamMember)
+      ? await setAuthCookie(req, res, userId, roles, isTeamMember, isPlus)
       : req.accessToken;
     return {
       user: {
@@ -463,13 +495,19 @@ const loggedInBoot = async ({
           'referralOrigin',
           'profileConfirmed',
           'devcardEligible',
+          'image',
+          'cover',
+          'subscriptionFlags',
         ]),
         providers: [null],
         roles,
         permalink: `${process.env.COMMENTS_PREFIX}/${user.username || user.id}`,
         canSubmitArticle: user.reputation >= submitArticleThreshold,
         isTeamMember,
+        isPlus,
         language: user.language || undefined,
+        image: mapCloudinaryUrl(user.image),
+        cover: mapCloudinaryUrl(user.cover),
       },
       visit,
       alerts: {
@@ -502,6 +540,7 @@ const loggedInBoot = async ({
       exp,
       marketingCta,
       feeds,
+      geo,
       ...extra,
     };
   });
@@ -530,11 +569,13 @@ const anonymousBoot = async (
   shouldVerify = false,
   email?: string,
 ): Promise<AnonymousBoot> => {
+  const geo = geoSection(req);
+
   const [visit, extra, firstVisit, exp] = await Promise.all([
     visitSection(req, res),
     middleware ? middleware(con, req, res) : {},
     getAnonymousFirstVisit(req.trackingId),
-    getExperimentation({ userId: req.trackingId, con }),
+    getExperimentation({ userId: req.trackingId, con, ...geo }),
   ]);
 
   return {
@@ -555,6 +596,7 @@ const anonymousBoot = async (
     notifications: { unreadNotificationsCount: 0 },
     squads: [],
     exp,
+    geo,
     ...extra,
   };
 };

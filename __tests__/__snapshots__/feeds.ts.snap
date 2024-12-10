@@ -6,11 +6,12 @@ Object {
     "listicle",
   ],
   "blockedTags": Array [],
+  "blockedWords": Array [],
   "excludeSourceTypes": Array [],
-  "excludeSources": Array [
-    "fd062672-63b7-4a10-87bd-96dcd10e9613",
-  ],
+  "excludeSources": Array [],
   "excludeTypes": Array [],
+  "followingSources": Array [],
+  "followingUsers": Array [],
   "includeTags": Array [],
   "sourceIds": Array [],
 }
@@ -20,13 +21,14 @@ exports[`function feedToFilters should return filters with blocked source types 
 Object {
   "blockedContentCuration": Array [],
   "blockedTags": Array [],
+  "blockedWords": Array [],
   "excludeSourceTypes": Array [
     "squad",
   ],
-  "excludeSources": Array [
-    "fd062672-63b7-4a10-87bd-96dcd10e9613",
-  ],
+  "excludeSources": Array [],
   "excludeTypes": Array [],
+  "followingSources": Array [],
+  "followingUsers": Array [],
   "includeTags": Array [],
   "sourceIds": Array [],
 }
@@ -36,11 +38,12 @@ exports[`function feedToFilters should return filters with source memberships 1`
 Object {
   "blockedContentCuration": Array [],
   "blockedTags": Array [],
+  "blockedWords": Array [],
   "excludeSourceTypes": Array [],
-  "excludeSources": Array [
-    "fd062672-63b7-4a10-87bd-96dcd10e9613",
-  ],
+  "excludeSources": Array [],
   "excludeTypes": Array [],
+  "followingSources": Array [],
+  "followingUsers": Array [],
   "includeTags": Array [],
   "sourceIds": Array [
     "a",

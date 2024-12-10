@@ -6,6 +6,7 @@ import { retryFetch } from '../integrations/retry';
 import { getDevCardDataV1 } from '../common/devcard';
 import { generateDevCard } from '../templates/devcard';
 import { TypeORMQueryFailedError } from '../errors';
+import { fallbackImages, WEBAPP_MAGIC_IMAGE_PREFIX } from '../config';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get<{ Params: { id: string } }>(
@@ -25,7 +26,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           await getDevCardDataV1(devCard.userId, con);
         const svgString = generateDevCard({
           username: user.username!,
-          profileImage: user.image,
+          profileImage: user.image ?? fallbackImages.avatar,
           articlesRead,
           tags,
           sourcesLogos,
@@ -112,7 +113,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             .send(svgString);
         }
 
-        const url = new URL(`/devcards/${userId}`, process.env.COMMENTS_PREFIX);
+        const url = new URL(
+          `${WEBAPP_MAGIC_IMAGE_PREFIX}/devcards/${userId}`,
+          process.env.COMMENTS_PREFIX,
+        );
         url.searchParams.set('type', type);
         const response = await retryFetch(
           `${process.env.SCRAPER_URL}/screenshot`,

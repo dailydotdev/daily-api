@@ -42,6 +42,12 @@ export const REPUTATION_THRESHOLD = parseInt(
   process.env.REPUTATION_THRESHOLD || '250',
 );
 
+export const canGrantReputation = (
+  grantBy: Pick<User, 'reputation' | 'flags'>,
+): boolean => {
+  return grantBy.reputation >= REPUTATION_THRESHOLD && !grantBy.flags?.vordr;
+};
+
 @Entity()
 export class ReputationEvent {
   @PrimaryColumn({ length: 36, default: '' })

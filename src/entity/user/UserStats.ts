@@ -1,4 +1,4 @@
-import { DataSource, ViewColumn, ViewEntity } from 'typeorm';
+import { DataSource, Index, ViewColumn, ViewEntity } from 'typeorm';
 import { ghostUser } from '../../common';
 
 @ViewEntity({
@@ -39,12 +39,20 @@ import { ghostUser } from '../../common';
         )`,
         'commentUpvotes',
       )
+      .addSelect(
+        `(SELECT COALESCE(COUNT(*), 0)
+          FROM "user_top_reader" utp
+          WHERE utp."userId" = u."id"
+        )`,
+        'topReaderBadges',
+      )
       .from('user', 'u')
       .andWhere('u.infoConfirmed = TRUE')
       .andWhere(`u.id != :ghostId`, { ghostId: ghostUser.id }),
 })
 export class UserStats {
   @ViewColumn()
+  @Index('IDX_user_stats_id')
   id: string;
 
   @ViewColumn()
@@ -58,4 +66,7 @@ export class UserStats {
 
   @ViewColumn()
   commentUpvotes: number;
+
+  @ViewColumn()
+  topReaderBadges: number;
 }

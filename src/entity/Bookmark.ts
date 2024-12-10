@@ -1,5 +1,5 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
-import { BookmarkList } from './BookmarkList';
+import type { BookmarkList } from './BookmarkList';
 import type { Post } from './posts';
 import type { User } from './user';
 
@@ -14,7 +14,7 @@ export class Bookmark {
   userId: string;
 
   @Column({ type: 'uuid', nullable: true })
-  listId: string;
+  listId: string | null;
 
   @Column({ type: 'timestamp', nullable: true })
   remindAt: Date;
@@ -25,9 +25,9 @@ export class Bookmark {
   })
   post: Promise<Post>;
 
-  @ManyToOne(() => BookmarkList, {
+  @ManyToOne('BookmarkList', {
     lazy: true,
-    onDelete: 'SET NULL',
+    onDelete: 'CASCADE',
   })
   list: Promise<BookmarkList>;
 

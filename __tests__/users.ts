@@ -11,6 +11,7 @@ import {
   startOfISOWeek,
   subDays,
   subHours,
+  subMonths,
 } from 'date-fns';
 import {
   authorizeRequest,
@@ -33,6 +34,7 @@ import {
   Feature,
   FeatureType,
   FeatureValue,
+  Feed,
   MarketingCta,
   Post,
   PostReport,
@@ -48,9 +50,11 @@ import {
   UserPersonalizedDigestSendType,
   UserPersonalizedDigestType,
   UserPost,
+  UserStats,
   UserStreak,
   UserStreakAction,
   UserStreakActionType,
+  UserTopReader,
   View,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
@@ -72,6 +76,8 @@ import {
   stackoverflowSocialUrlMatch,
   threadsSocialUrlMatch,
   twitterSocialUrlMatch,
+  type GQLUserTopReader,
+  UploadPreset,
 } from '../src/common';
 import { DataSource, In, IsNull } from 'typeorm';
 import createOrGetConnection from '../src/db';
@@ -103,6 +109,7 @@ import { getRestoreStreakCache } from '../src/workers/cdc/primary';
 import { ContentPreferenceUser } from '../src/entity/contentPreference/ContentPreferenceUser';
 import { ContentPreferenceStatus } from '../src/entity/contentPreference/types';
 import { identifyUserPersonalizedDigest } from '../src/cio';
+import type { GQLUser } from '../src/schema/users';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -144,6 +151,7 @@ beforeEach(async () => {
     {
       id: '1',
       name: 'Ido',
+      username: 'ido',
       image: 'https://daily.dev/ido.jpg',
       timezone: 'utc',
       createdAt: new Date(),
@@ -151,6 +159,7 @@ beforeEach(async () => {
     {
       id: '2',
       name: 'Tsahi',
+      username: 'tsahi',
       image: 'https://daily.dev/tsahi.jpg',
       timezone: userTimezone,
     },
@@ -399,28 +408,40 @@ describe('query userStats', () => {
         };
       }),
     );
+    await saveFixtures(
+      con,
+      Feed,
+      usersFixture.map((item) => ({
+        id: `${item.id}-usf`,
+        userId: `${item.id}-usf`,
+      })),
+    );
 
     await con.getRepository(ContentPreferenceUser).save([
       {
         userId: '1-usf',
+        feedId: '1-usf',
         referenceId: '2-usf',
         referenceUserId: '2-usf',
         status: ContentPreferenceStatus.Follow,
       },
       {
         userId: '1-usf',
+        feedId: '1-usf',
         referenceId: '3-usf',
         referenceUserId: '3-usf',
         status: ContentPreferenceStatus.Follow,
       },
       {
         userId: '2-usf',
+        feedId: '2-usf',
         referenceId: '1-usf',
         referenceUserId: '1-usf',
         status: ContentPreferenceStatus.Follow,
       },
       {
         userId: '1-usf',
+        feedId: '1-usf',
         referenceId: '4-usf',
         referenceUserId: '4-usf',
         status: ContentPreferenceStatus.Follow,
@@ -976,6 +997,62 @@ describe('streak recover query', () => {
     expect(data.streakRecover.canRecover).toBeTruthy();
     expect(data.streakRecover.oldStreakLength).toBe(oldLength);
     expect(data.streakRecover.cost).toBe(25);
+  });
+});
+
+describe('clearImage mutation', () => {
+  const MUTATION = `
+    mutation ClearUserImage($presets: [UploadPreset]!) {
+      clearImage(presets: $presets) {
+        _
+      }
+    }
+  `;
+
+  it('should not allow unauthenticated users', async () =>
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { presets: [UploadPreset.ProfileCover] },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it("should clear user's avatar", async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { image: 'test', cover: 'cover' });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { presets: [UploadPreset.Avatar] },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const user = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(user.image).toBeNull();
+    expect(user.cover).not.toBeNull();
+  });
+
+  it("should clear user's cover", async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { image: 'test', cover: 'cover' });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { presets: [UploadPreset.ProfileCover] },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const user = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(user.image).not.toBeNull();
+    expect(user.cover).toBeNull();
   });
 });
 
@@ -1580,7 +1657,7 @@ describe('query team members', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.user).toMatchObject({
       name: 'Ido',
-      username: null,
+      username: 'ido',
       image: 'https://daily.dev/ido.jpg',
       isTeamMember: false,
     });
@@ -1597,7 +1674,7 @@ describe('query team members', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.user).toMatchObject({
       name: 'Ido',
-      username: null,
+      username: 'ido',
       image: 'https://daily.dev/ido.jpg',
       isTeamMember: true,
     });
@@ -3513,6 +3590,10 @@ describe('mutation updateUserProfile', () => {
 
   it('should not update if username is empty', async () => {
     loggedUser = '1';
+
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { username: null });
 
     await testMutationErrorCode(
       client,
@@ -5522,15 +5603,26 @@ describe('contentPreference field', () => {
       }),
     );
 
+    await saveFixtures(
+      con,
+      Feed,
+      usersFixture.map((item) => ({
+        id: `${item.id}-cpf`,
+        userId: `${item.id}-cpf`,
+      })),
+    );
+
     await con.getRepository(ContentPreferenceUser).save([
       {
         userId: '1-cpf',
+        feedId: '1-cpf',
         status: ContentPreferenceStatus.Follow,
         referenceId: '2-cpf',
         referenceUserId: '2-cpf',
       },
       {
         userId: '1-cpf',
+        feedId: '1-cpf',
         status: ContentPreferenceStatus.Follow,
         referenceId: '3-cpf',
         referenceUserId: '3-cpf',
@@ -5583,5 +5675,287 @@ describe('contentPreference field', () => {
     expect(res.errors).toBeFalsy();
 
     expect(res.data.user.contentPreference).toBeNull();
+  });
+});
+
+describe('query topReaderBadgeById', () => {
+  const QUERY = `
+    query TopReaderBadgeById($id: ID!) {
+      topReaderBadgeById(id: $id) {
+        id
+        issuedAt
+        keyword {
+          value
+          flags {
+            title
+          }
+        }
+        user {
+          id
+          name
+          username
+          image
+        }
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    // await saveFixtures(con, User, usersFixture);
+    await saveFixtures(
+      con,
+      Keyword,
+      [1, 2, 3, 4, 5, 6].map((key) => ({
+        value: `kw_${key}`,
+        flags: {
+          title: `kw_${key} title`,
+        },
+      })),
+    );
+    await saveFixtures(con, UserTopReader, [
+      {
+        id: '09164a3c-5a95-4546-bfb0-04e19bf28f73',
+        userId: '1',
+        issuedAt: new Date(),
+        keywordValue: 'kw_1',
+        image: 'https://daily.dev/image.jpg',
+      },
+      {
+        id: '3d8485ea-be95-464a-a89a-f14084e5b939',
+        userId: '2',
+        issuedAt: new Date(),
+        keywordValue: 'kw_2',
+        image: 'https://daily.dev/image.jpg',
+      },
+    ]);
+  });
+
+  it('should return the top reader badge by id', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { id: '09164a3c-5a95-4546-bfb0-04e19bf28f73' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.topReaderBadgeById.id).toEqual(
+      '09164a3c-5a95-4546-bfb0-04e19bf28f73',
+    );
+    expect(res.data.topReaderBadgeById.issuedAt).toEqual(expect.any(String));
+    expect(res.data.topReaderBadgeById.keyword).toMatchObject({
+      value: 'kw_1',
+      flags: {
+        title: 'kw_1 title',
+      },
+    });
+    expect(res.data.topReaderBadgeById.user).toMatchObject({
+      id: '1',
+      name: 'Ido',
+      username: 'ido',
+      image: 'https://daily.dev/ido.jpg',
+    });
+  });
+
+  it('should return the top reader badge by id when user is not logged in', async () => {
+    const res = await client.query(QUERY, {
+      variables: { id: '3d8485ea-be95-464a-a89a-f14084e5b939' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.topReaderBadgeById.id).toEqual(
+      '3d8485ea-be95-464a-a89a-f14084e5b939',
+    );
+    expect(res.data.topReaderBadgeById.issuedAt).toEqual(expect.any(String));
+    expect(res.data.topReaderBadgeById.keyword).toMatchObject({
+      value: 'kw_2',
+      flags: {
+        title: 'kw_2 title',
+      },
+    });
+    expect(res.data.topReaderBadgeById.user).toMatchObject({
+      id: '2',
+      name: 'Tsahi',
+      username: 'tsahi',
+      image: 'https://daily.dev/tsahi.jpg',
+    });
+  });
+});
+
+describe('query topReaderBadge', () => {
+  const QUERY = /* GraphQL */ `
+    query TopReaderBadge($limit: Int, $userId: ID!) {
+      topReaderBadge(limit: $limit, userId: $userId) {
+        id
+        issuedAt
+        image
+        total
+        keyword {
+          value
+          flags {
+            title
+          }
+        }
+        user {
+          id
+        }
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await saveFixtures(
+      con,
+      Keyword,
+      [1, 2, 3, 4, 5, 6].map((key) => ({
+        value: `kw_${key}`,
+        flags: {
+          title: `kw_${key} title`,
+        },
+      })),
+    );
+    await saveFixtures(
+      con,
+      User,
+      [usersFixture[0], usersFixture[1]].map((user) => ({
+        ...user,
+        infoConfirmed: true,
+      })),
+    );
+    await saveFixtures(con, UserTopReader, [
+      {
+        userId: '1',
+        issuedAt: new Date(),
+        keywordValue: 'kw_1',
+        image: 'https://daily.dev/image.jpg',
+      },
+      {
+        userId: '1',
+        issuedAt: subMonths(new Date(), 1),
+        keywordValue: 'kw_2',
+        image: 'https://daily.dev/image.jpg',
+      },
+      {
+        userId: '1',
+        issuedAt: subMonths(new Date(), 2),
+        keywordValue: 'kw_3',
+        image: 'https://daily.dev/image.jpg',
+      },
+      {
+        userId: '1',
+        issuedAt: subMonths(new Date(), 3),
+        keywordValue: 'kw_4',
+        image: 'https://daily.dev/image.jpg',
+      },
+      {
+        userId: '1',
+        issuedAt: subMonths(new Date(), 4),
+        keywordValue: 'kw_5',
+        image: 'https://daily.dev/image.jpg',
+      },
+      {
+        userId: '1',
+        issuedAt: addHours(new Date(), 1),
+        keywordValue: 'kw_6',
+        image: 'https://daily.dev/image.jpg',
+      },
+      {
+        id: 'bb48487e-a778-4f66-ae6c-159438fca86e',
+        userId: '2',
+        issuedAt: new Date(),
+        keywordValue: 'kw_1',
+        image: 'https://daily.dev/image.jpg',
+      },
+      {
+        userId: '2',
+        issuedAt: subMonths(new Date(), 1),
+        keywordValue: 'kw_3',
+        image: 'https://daily.dev/image.jpg',
+      },
+    ]);
+
+    await con.query(
+      `REFRESH MATERIALIZED VIEW ${con.getRepository(UserStats).metadata.tableName}`,
+    );
+  });
+
+  it('should return the 5 most recent top reader badges', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: { userId: loggedUser },
+    });
+    const topReaderBadge: GQLUserTopReader[] = res.data.topReaderBadge;
+
+    expect(res.errors).toBeFalsy();
+    expect(topReaderBadge.length).toEqual(5);
+    expect(topReaderBadge[0].keyword.value).toEqual('kw_6');
+    expect(topReaderBadge[topReaderBadge.length - 1].keyword.value).toEqual(
+      'kw_4',
+    );
+  });
+
+  it('should limit the return to 1 top reader badge', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: { limit: 1, userId: loggedUser },
+    });
+    const topReaderBadge: GQLUserTopReader[] = res.data.topReaderBadge;
+
+    expect(res.errors).toBeFalsy();
+    expect(topReaderBadge.length).toEqual(1);
+    expect(topReaderBadge[0].keyword.value).toEqual('kw_6');
+  });
+
+  it('should return top reader badge by userId', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: { userId: '2' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.topReaderBadge[0].user.id).toEqual('2');
+  });
+
+  it('should return the total number of badges', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: { userId: loggedUser },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.topReaderBadge[0].total).toEqual(6);
+  });
+
+  describe('topReader field on User', () => {
+    const QUERY = /* GraphQL */ `
+      query User($id: ID!) {
+        user(id: $id) {
+          id
+          topReader {
+            id
+          }
+        }
+      }
+    `;
+    it('should return the top reader badge for the user', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY, { variables: { id: '2' } });
+      const user: GQLUser = res.data.user;
+
+      expect(res.errors).toBeFalsy();
+      expect(user.id).toEqual('2');
+      expect(user.topReader?.id).toEqual(
+        'bb48487e-a778-4f66-ae6c-159438fca86e',
+      );
+    });
+
+    it('should return null if the user has no top reader badge', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY, { variables: { id: '3' } });
+      const user: GQLUser = res.data.user;
+
+      expect(res.errors).toBeFalsy();
+      expect(user.id).toEqual('3');
+      expect(user.topReader).toBeNull();
+    });
   });
 });

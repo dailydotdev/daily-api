@@ -3,6 +3,8 @@ import fastify, {
   FastifyRequest,
   FastifyInstance,
   FastifyError,
+  FastifyReply,
+  type FastifyRegisterOptions,
 } from 'fastify';
 import fastifyRawBody from 'fastify-raw-body';
 import helmet from '@fastify/helmet';
@@ -10,6 +12,7 @@ import cors from '@fastify/cors';
 import mercurius, { MercuriusError } from 'mercurius';
 import MercuriusGQLUpload from 'mercurius-upload';
 import MercuriusCache from 'mercurius-cache';
+import proxy, { type FastifyHttpProxyOptions } from '@fastify/http-proxy';
 import { NoSchemaIntrospectionCustomRule } from 'graphql';
 // import fastifyWebsocket from '@fastify/websocket';
 
@@ -32,6 +35,7 @@ import { runInRootSpan } from './telemetry';
 import { loggerConfig } from './logger';
 import { getTemporalClient } from './temporal/client';
 import { BrokenCircuitError } from 'cockatiel';
+import { remoteConfig } from './remoteConfig';
 
 type Mutable<Type> = {
   -readonly [Key in keyof Type]: Type[Key];
@@ -67,6 +71,7 @@ export default async function app(
     logger: loggerConfig,
     disableRequestLogging: true,
     trustProxy: true,
+    useSemicolonDelimiter: true,
   });
 
   app.log.info('loading features');
@@ -90,8 +95,27 @@ export default async function app(
   process.on('SIGTERM', gracefulShutdown);
 
   app.register(helmet);
+
+  const originRegex = /^(?:https:\/\/)?(?:[\w-]+\.)*daily\.dev$/;
+
   app.register(cors, {
-    origin: isProd ? /^(?:https:\/\/)?(?:[\w-]+\.)*daily\.dev$/ : true,
+    origin: async (origin?: string) => {
+      if (!isProd) {
+        return true;
+      }
+
+      const originString = origin as string;
+
+      if (remoteConfig.vars.origins?.includes(originString)) {
+        return true;
+      }
+
+      if (originRegex.test(originString)) {
+        return true;
+      }
+
+      return [false];
+    },
     credentials: true,
     cacheControl: 86400,
     maxAge: 86400,
@@ -300,6 +324,58 @@ export default async function app(
   }
 
   app.register(compatibility, { prefix: '/v1' });
+  app.register(proxy, {
+    upstream: 'https://www.google.com/s2/favicons',
+    prefix: '/icon',
+    logLevel: 'warn',
+    replyOptions: {
+      queryString: (search, reqUrl, req) => {
+        const reqSearchParams = new URLSearchParams(
+          req.query as { url: string; size: string },
+        );
+        const proxySearchParams = new URLSearchParams();
+
+        proxySearchParams.set('domain', reqSearchParams.get('url') ?? '');
+        proxySearchParams.set('sz', reqSearchParams.get('size') ?? '');
+        return proxySearchParams.toString();
+      },
+    },
+    preValidation: async (req: FastifyRequest, res) => {
+      const { url, size } = req.query as { url: string; size: string };
+      if (!url || !size) {
+        res.status(400).send({ error: 'url and size are required' });
+      }
+    },
+    preHandler: async (req, res) => {
+      res.helmet({
+        crossOriginResourcePolicy: {
+          policy: 'cross-origin',
+        },
+      });
+    },
+  });
+
+  const letterProxy: FastifyRegisterOptions<FastifyHttpProxyOptions> = {
+    upstream:
+      'https://media.daily.dev/image/upload/s--zchx8x3n--/f_auto,q_auto/v1731056371/webapp/shortcut-placeholder',
+    preHandler: async (req: FastifyRequest, res: FastifyReply) => {
+      res.helmet({
+        crossOriginResourcePolicy: {
+          policy: 'cross-origin',
+        },
+      });
+    },
+    logLevel: 'warn',
+  };
+
+  app.register(proxy, {
+    prefix: 'lettericons',
+    ...letterProxy,
+  });
+  app.register(proxy, {
+    prefix: '/lettericons/:word',
+    ...letterProxy,
+  });
   app.register(routes, { prefix: '/' });
 
   return app;

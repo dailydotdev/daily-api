@@ -1,5 +1,13 @@
 process.env.TZ = 'UTC';
 
+process.env.NODE_OPTIONS = [
+  process.env.NODE_OPTIONS,
+  // https://jestjs.io/docs/ecmascript-modules
+  `--experimental-vm-modules`,
+]
+  .filter(Boolean)
+  .join(' ');
+
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',

@@ -6,23 +6,28 @@ import {
   Post,
   PostType,
   SharePost,
+  Source,
   SourceMember,
   SourceType,
+  User,
   UserActionType,
 } from '../../entity';
 import {
   NotificationCommenterContext,
   NotificationPostContext,
+  NotificationPostModerationContext,
 } from '../../notifications';
 import {
   notificationPreferenceMap,
   NotificationPreferenceStatus,
   NotificationType,
 } from '../../notifications/common';
-import { DataSource, In, Not } from 'typeorm';
+import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
 import { insertOrIgnoreAction } from '../../schema/actions';
 import { ObjectLiteral } from 'typeorm/common/ObjectLiteral';
+import { SourcePostModeration } from '../../entity/SourcePostModeration';
+import { ChangeObject } from '../../types';
 
 export const uniquePostOwners = (
   post: Pick<Post, 'scoutId' | 'authorId'>,
@@ -58,7 +63,7 @@ export const getSubscribedMembers = (
 };
 
 export const buildPostContext = async (
-  con: DataSource,
+  con: DataSource | EntityManager,
   postId: string,
 ): Promise<Omit<NotificationPostContext, 'userIds'> | null> => {
   const post = await con
@@ -201,3 +206,15 @@ export const UPVOTE_TITLES = {
   10000: `We're speechless! You <span class="text-theme-color-avocado">earned 10,000 upvotes 🙉</span>`,
 };
 export const UPVOTE_MILESTONES = Object.keys(UPVOTE_TITLES);
+
+export const getPostModerationContext = async (
+  con: DataSource | EntityManager,
+  post: ChangeObject<SourcePostModeration>,
+): Promise<Omit<NotificationPostModerationContext, 'userIds'>> => {
+  const [user, source] = await Promise.all([
+    con.getRepository(User).findOneOrFail({ where: { id: post.createdById } }),
+    con.getRepository(Source).findOneOrFail({ where: { id: post.sourceId } }),
+  ]);
+
+  return { post, user, source };
+};

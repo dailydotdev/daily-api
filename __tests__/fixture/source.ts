@@ -69,4 +69,13 @@ export const sourcesFixture: DeepPartial<MachineSource>[] = [
     active: true,
     private: true,
   },
+  {
+    id: 'm',
+    name: 'Moderated Squad',
+    image: 'http//image.com/m',
+    handle: 'moderatedSquad',
+    type: SourceType.Squad,
+    active: true,
+    private: false,
+  },
 ];

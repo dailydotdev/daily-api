@@ -19,6 +19,25 @@ export enum ChecklistViewState {
   Hidden = 'hidden',
 }
 
+export type SettingsFlags = Partial<{
+  sidebarSquadExpanded: boolean;
+  sidebarCustomFeedsExpanded: boolean;
+  sidebarOtherExpanded: boolean;
+  sidebarResourcesExpanded: boolean;
+  sidebarBookmarksExpanded: boolean;
+  clickbaitShieldEnabled: boolean;
+}>;
+
+export type SettingsFlagsPublic = Pick<
+  SettingsFlags,
+  | 'sidebarSquadExpanded'
+  | 'sidebarCustomFeedsExpanded'
+  | 'sidebarOtherExpanded'
+  | 'sidebarResourcesExpanded'
+  | 'sidebarBookmarksExpanded'
+  | 'clickbaitShieldEnabled'
+>;
+
 @Entity()
 export class Settings {
   @PrimaryColumn({ type: 'text' })
@@ -79,6 +98,9 @@ export class Settings {
   @UpdateDateColumn()
   updatedAt: Date | null;
 
+  @Column({ type: 'jsonb', default: {} })
+  flags: SettingsFlags = {};
+
   @OneToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
@@ -103,4 +125,12 @@ export const SETTINGS_DEFAULT = {
   sortingEnabled: false,
   campaignCtaPlacement: CampaignCtaPlacement.Header,
   onboardingChecklistView: ChecklistViewState.Hidden,
+  flags: {
+    sidebarSquadExpanded: true,
+    sidebarCustomFeedsExpanded: true,
+    sidebarOtherExpanded: true,
+    sidebarResourcesExpanded: true,
+    sidebarBookmarksExpanded: true,
+    clickbaitShieldEnabled: true,
+  },
 };

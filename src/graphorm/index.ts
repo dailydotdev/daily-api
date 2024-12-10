@@ -1,9 +1,7 @@
-import { getPermissionsForMember } from './../schema/sources';
+import { getPermissionsForMember } from '../schema/sources';
 import { GraphORM, GraphORMField, QueryBuilder } from './graphorm';
 import {
   Bookmark,
-  FeedSource,
-  FeedTag,
   Source,
   SourceMember,
   User,
@@ -15,6 +13,9 @@ import {
   UserPersonalizedDigestSendType,
   Feature,
   FeatureType,
+  SettingsFlagsPublic,
+  UserStats,
+  UserSubscriptionFlags,
 } from '../entity';
 import {
   SourceMemberRoles,
@@ -24,16 +25,22 @@ import {
 } from '../roles';
 
 import { Context } from '../Context';
-import { GQLBookmarkList } from '../schema/bookmarks';
-import { base64, domainOnly } from '../common';
+import { base64, domainOnly, getSmartTitle, transformDate } from '../common';
 import { GQLComment } from '../schema/comments';
 import { GQLUserPost } from '../schema/posts';
 import { UserComment } from '../entity/user/UserComment';
-import { I18nRecord, UserVote } from '../types';
+import { type I18nRecord, UserVote } from '../types';
 import { whereVordrFilter } from '../common/vordr';
-import { UserCompany } from '../entity/UserCompany';
-import { Post } from '../entity/posts/Post';
-import { ContentPreferenceType } from '../entity/contentPreference/types';
+import { UserCompany, Post } from '../entity';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../entity/contentPreference/types';
+import { transformSettingFlags } from '../common/flags';
+import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
+import { ContentPreference } from '../entity/contentPreference/ContentPreference';
+import { isPlusMember } from '../paddle';
+import { remoteConfig } from '../remoteConfig';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -54,9 +61,6 @@ const existsByUserAndPost =
 const nullIfNotLoggedIn = <T>(value: T, ctx: Context): T | null =>
   ctx.userId ? value : null;
 
-const transformDate = (value: string | Date): Date | undefined =>
-  value ? new Date(value) : undefined;
-
 const nullIfNotSameUser = <T>(
   value: T,
   ctx: Context,
@@ -67,20 +71,48 @@ const nullIfNotSameUser = <T>(
   return ctx.userId === user.id ? value : null;
 };
 
-const createI18nField = ({
-  field,
-  fieldAs,
-}: {
-  field: string;
-  fieldAs: string;
-}): GraphORMField => {
+const checkIfTitleIsClickbait = (value?: string): boolean => {
+  const clickbaitProbability = parseFloat(value || '0');
+  const threshold = remoteConfig.vars.clickbaitTitleProbabilityThreshold || 1;
+
+  return clickbaitProbability > threshold;
+};
+
+const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
   return {
     select: field,
-    transform: (value: string, ctx: Context, parent): string => {
-      const i18nParent = parent as {
-        [key: string]: I18nRecord;
+    transform: async (value: string, ctx: Context, parent) => {
+      const typedParent = parent as {
+        i18nTitle: I18nRecord;
+        smartTitle: I18nRecord;
+        clickbaitProbability?: string;
+        [key: string]: unknown;
       };
-      const i18nValue = i18nParent[fieldAs]?.[ctx.contentLanguage];
+
+      const settings = await ctx.dataLoader.userSettings.load({
+        userId: ctx.userId!,
+      });
+
+      const i18nValue = typedParent.i18nTitle?.[ctx.contentLanguage];
+      const altValue = getSmartTitle(
+        ctx.contentLanguage,
+        typedParent.smartTitle,
+      );
+      const clickbaitShieldEnabled =
+        settings?.flags?.clickbaitShieldEnabled ?? true;
+
+      const clickbaitTitleDetected = checkIfTitleIsClickbait(
+        typedParent.clickbaitProbability,
+      );
+
+      if (
+        ctx.isPlus &&
+        altValue &&
+        clickbaitShieldEnabled &&
+        clickbaitTitleDetected
+      ) {
+        return altValue;
+      }
 
       if (i18nValue) {
         return i18nValue;
@@ -131,6 +163,16 @@ const obj = new GraphORM({
         },
         transform: (value: number): boolean => value > 0,
       },
+      isPlus: {
+        alias: { field: 'subscriptionFlags', type: 'jsonb' },
+        transform: (subscriptionFlags: UserSubscriptionFlags) =>
+          isPlusMember(subscriptionFlags?.cycle),
+      },
+      plusMemberSince: {
+        alias: { field: 'subscriptionFlags', type: 'jsonb' },
+        transform: (subscriptionFlags: UserSubscriptionFlags) =>
+          transformDate(subscriptionFlags?.createdAt),
+      },
       companies: {
         relation: {
           isMany: true,
@@ -165,6 +207,16 @@ const obj = new GraphORM({
         },
         transform: nullIfNotLoggedIn,
       },
+      topReader: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}."userId" = ${parentAlias}.id`)
+              .orderBy(`${childAlias}."issuedAt"`, 'DESC')
+              .limit(1),
+        },
+      },
     },
   },
   UserCompany: {
@@ -184,6 +236,34 @@ const obj = new GraphORM({
         },
       },
     },
+  },
+  UserTopReader: {
+    fields: {
+      keyword: {
+        relation: {
+          isMany: false,
+          childColumn: 'value',
+          parentColumn: 'keywordValue',
+        },
+      },
+      user: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'userId',
+        },
+      },
+      total: {
+        select: (_, alias, qb) =>
+          qb
+            .select('us."topReaderBadges"')
+            .from(UserStats, 'us')
+            .where(`us."id" = ${alias}."userId"`),
+      },
+    },
+  },
+  SourcePostModeration: {
+    requiredColumns: ['id'],
   },
   UserStreak: {
     requiredColumns: ['lastViewAt'],
@@ -213,11 +293,38 @@ const obj = new GraphORM({
         columnAs: 'i18nTitle',
         isJson: true,
       },
+      {
+        column: `"contentMeta"->'alt_title'->'translations'`,
+        columnAs: 'smartTitle',
+        isJson: true,
+      },
+      {
+        column: `"contentQuality"->'is_clickbait_probability'`,
+        columnAs: 'clickbaitProbability',
+        isJson: true,
+      },
     ],
     fields: {
       tags: {
         select: 'tagsStr',
         transform: (value: string): string[] => value?.split(',') ?? [],
+      },
+      clickbaitTitleDetected: {
+        transform: (_, ctx: Context, parent): boolean => {
+          const typedParent = parent as {
+            clickbaitProbability: string;
+            smartTitle: I18nRecord;
+          };
+          const altValue = getSmartTitle(
+            ctx.contentLanguage,
+            typedParent.smartTitle,
+          );
+
+          return (
+            !!altValue &&
+            checkIfTitleIsClickbait(typedParent.clickbaitProbability)
+          );
+        },
       },
       read: {
         select: existsByUserAndPost('View'),
@@ -282,8 +389,6 @@ const obj = new GraphORM({
               .where(`bookmark."postId" = ${parentAlias}.id`)
               .andWhere('bookmark."userId" = :userId', { userId: ctx.userId }),
         },
-        transform: (value, ctx): GQLBookmarkList | null =>
-          ctx.premium ? value : null,
       },
       numUpvotes: {
         select: 'upvotes',
@@ -359,9 +464,8 @@ const obj = new GraphORM({
         alias: { field: 'url', type: 'string' },
         transform: (value: string): string => domainOnly(value),
       },
-      title: createI18nField({
+      title: createSmartTitleField({
         field: 'title',
-        fieldAs: 'i18nTitle',
       }),
     },
   },
@@ -591,19 +695,29 @@ const obj = new GraphORM({
       includeTags: {
         select: (ctx, alias, qb): QueryBuilder =>
           qb
-            .select(`string_agg(tag, ',' order by tag)`)
-            .from(FeedTag, 'ft')
-            .where(`ft."feedId" = "${alias}".id`)
-            .andWhere('ft.blocked = false'),
+            .select(`string_agg("keywordId", ',' order by "keywordId")`)
+            .from(ContentPreference, 'cpk')
+            .where(`cpk."feedId" = "${alias}".id`)
+            .andWhere('cpk.type = :contentPreferenceType', {
+              contentPreferenceType: ContentPreferenceType.Keyword,
+            })
+            .andWhere('cpk.status != :contentPreferenceStatus', {
+              contentPreferenceStatus: ContentPreferenceStatus.Blocked,
+            }),
         transform: (value: string): string[] => value?.split(',') ?? [],
       },
       blockedTags: {
         select: (ctx, alias, qb): QueryBuilder =>
           qb
-            .select(`string_agg(tag, ',' order by tag)`)
-            .from(FeedTag, 'ft')
-            .where(`ft."feedId" = "${alias}".id`)
-            .andWhere('ft.blocked = true'),
+            .select(`string_agg("keywordId", ',' order by "keywordId")`)
+            .from(ContentPreference, 'cpk')
+            .where(`cpk."feedId" = "${alias}".id`)
+            .andWhere('cpk.type = :contentPreferenceType', {
+              contentPreferenceType: ContentPreferenceType.Keyword,
+            })
+            .andWhere('cpk.status = :contentPreferenceStatus', {
+              contentPreferenceStatus: ContentPreferenceStatus.Blocked,
+            }),
         transform: (value: string): string[] => value?.split(',') ?? [],
       },
       includeSources: {
@@ -612,12 +726,17 @@ const obj = new GraphORM({
           customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
             qb
               .innerJoin(
-                FeedSource,
-                'fs',
-                `"${childAlias}"."id" = fs."sourceId"`,
+                ContentPreferenceSource,
+                'cps',
+                `"${childAlias}"."id" = cps."referenceId"`,
               )
-              .where(`fs."feedId" = "${parentAlias}".id`)
-              .andWhere(`fs."blocked" = false`)
+              .where(`cps."feedId" = "${parentAlias}".id`)
+              .andWhere('cps.type = :contentPreferenceSourceType', {
+                contentPreferenceSourceType: ContentPreferenceType.Source,
+              })
+              .andWhere('cps.status != :contentPreferenceSourceStatus', {
+                contentPreferenceSourceStatus: ContentPreferenceStatus.Blocked,
+              })
               .orderBy(`"${childAlias}".name`),
         },
       },
@@ -627,12 +746,17 @@ const obj = new GraphORM({
           customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
             qb
               .innerJoin(
-                FeedSource,
-                'fs',
-                `"${childAlias}"."id" = fs."sourceId"`,
+                ContentPreferenceSource,
+                'cps',
+                `"${childAlias}"."id" = cps."referenceId"`,
               )
-              .where(`fs."feedId" = "${parentAlias}".id`)
-              .andWhere(`fs."blocked" = true`)
+              .where(`cps."feedId" = "${parentAlias}".id`)
+              .andWhere('cps.type = :contentPreferenceSourceType', {
+                contentPreferenceSourceType: ContentPreferenceType.Source,
+              })
+              .andWhere('cps.status = :contentPreferenceSourceStatus', {
+                contentPreferenceSourceStatus: ContentPreferenceStatus.Blocked,
+              })
               .orderBy(`"${childAlias}".name`),
         },
       },
@@ -646,6 +770,16 @@ const obj = new GraphORM({
   ReadingHistory: {
     from: 'ActiveView',
     metadataFrom: 'View',
+  },
+  Settings: {
+    fields: {
+      flags: {
+        jsonType: true,
+        transform: (value: SettingsFlagsPublic): SettingsFlagsPublic => {
+          return transformSettingFlags({ flags: value });
+        },
+      },
+    },
   },
   AdvancedSettings: {
     fields: {

@@ -21,6 +21,7 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/a",
         "source_name": "A",
+        "type": "post",
       },
       Object {
         "post_comments": 5,
@@ -33,6 +34,12 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/b",
         "source_name": "B",
+        "type": "post",
+      },
+      Object {
+        "image": "https://email.buysellads.net/?k=CW7DE23N&i=1",
+        "link": "https://email.buysellads.net/?k=CW7DE23N&c=1",
+        "type": "ad_image",
       },
       Object {
         "post_comments": 5,
@@ -45,6 +52,7 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/c",
         "source_name": "C",
+        "type": "post",
       },
       Object {
         "post_comments": 5,
@@ -57,6 +65,7 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/a",
         "source_name": "A",
+        "type": "post",
       },
       Object {
         "post_comments": 5,
@@ -69,6 +78,7 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/b",
         "source_name": "B",
+        "type": "post",
       },
     ],
     "preview": "Here are several posts you might like. Each post was carefully selected based on topics you love reading about. Let's get to it!",
@@ -113,6 +123,7 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/a",
         "source_name": "A",
+        "type": "post",
       },
       Object {
         "post_comments": 5,
@@ -125,6 +136,12 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/b",
         "source_name": "B",
+        "type": "post",
+      },
+      Object {
+        "image": "https://email.buysellads.net/?k=CW7DE23N&i=1",
+        "link": "https://email.buysellads.net/?k=CW7DE23N&c=1",
+        "type": "ad_image",
       },
       Object {
         "post_comments": 5,
@@ -137,6 +154,7 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/c",
         "source_name": "C",
+        "type": "post",
       },
       Object {
         "post_comments": 5,
@@ -149,6 +167,7 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/a",
         "source_name": "A",
+        "type": "post",
       },
       Object {
         "post_comments": 5,
@@ -161,6 +180,7 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/b",
         "source_name": "B",
+        "type": "post",
       },
     ],
     "preview": "Here are several posts you might like. Each post was carefully selected based on topics you love reading about. Let's get to it!",
@@ -187,9 +207,7 @@ Object {
 exports[`personalizedDigestEmail worker should generate personalized digest for user in timezone ahead UTC 2`] = `
 Object {
   "allowed_tags": Array [],
-  "blocked_sources": Array [
-    "fd062672-63b7-4a10-87bd-96dcd10e9613",
-  ],
+  "blocked_sources": Array [],
   "blocked_tags": Array [],
   "date_from": Any<String>,
   "date_to": Any<String>,
@@ -226,6 +244,7 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/a",
         "source_name": "A",
+        "type": "post",
       },
       Object {
         "post_comments": 5,
@@ -238,6 +257,12 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/b",
         "source_name": "B",
+        "type": "post",
+      },
+      Object {
+        "image": "https://email.buysellads.net/?k=CW7DE23N&i=1",
+        "link": "https://email.buysellads.net/?k=CW7DE23N&c=1",
+        "type": "ad_image",
       },
       Object {
         "post_comments": 5,
@@ -250,6 +275,7 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/c",
         "source_name": "C",
+        "type": "post",
       },
       Object {
         "post_comments": 5,
@@ -262,6 +288,7 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/a",
         "source_name": "A",
+        "type": "post",
       },
       Object {
         "post_comments": 5,
@@ -274,6 +301,7 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/b",
         "source_name": "B",
+        "type": "post",
       },
     ],
     "preview": "Here are several posts you might like. Each post was carefully selected based on topics you love reading about. Let's get to it!",
@@ -300,9 +328,7 @@ Object {
 exports[`personalizedDigestEmail worker should generate personalized digest for user in timezone behind UTC 2`] = `
 Object {
   "allowed_tags": Array [],
-  "blocked_sources": Array [
-    "fd062672-63b7-4a10-87bd-96dcd10e9613",
-  ],
+  "blocked_sources": Array [],
   "blocked_tags": Array [],
   "date_from": Any<String>,
   "date_to": Any<String>,
@@ -339,6 +365,7 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/a",
         "source_name": "A",
+        "type": "post",
       },
       Object {
         "post_comments": 5,
@@ -351,6 +378,12 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/b",
         "source_name": "B",
+        "type": "post",
+      },
+      Object {
+        "image": "https://email.buysellads.net/?k=CW7DE23N&i=1",
+        "link": "https://email.buysellads.net/?k=CW7DE23N&c=1",
+        "type": "ad_image",
       },
       Object {
         "post_comments": 5,
@@ -363,6 +396,7 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/c",
         "source_name": "C",
+        "type": "post",
       },
       Object {
         "post_comments": 5,
@@ -375,6 +409,7 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/a",
         "source_name": "A",
+        "type": "post",
       },
       Object {
         "post_comments": 5,
@@ -387,6 +422,7 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/b",
         "source_name": "B",
+        "type": "post",
       },
     ],
     "preview": "Here are several posts you might like. Each post was carefully selected based on topics you love reading about. Let's get to it!",
@@ -413,9 +449,7 @@ Object {
 exports[`personalizedDigestEmail worker should generate personalized digest for user with provided config 2`] = `
 Object {
   "allowed_tags": Array [],
-  "blocked_sources": Array [
-    "fd062672-63b7-4a10-87bd-96dcd10e9613",
-  ],
+  "blocked_sources": Array [],
   "blocked_tags": Array [],
   "date_from": Any<String>,
   "date_to": Any<String>,
@@ -452,6 +486,7 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/a",
         "source_name": "A",
+        "type": "post",
       },
       Object {
         "post_comments": 5,
@@ -464,6 +499,12 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/b",
         "source_name": "B",
+        "type": "post",
+      },
+      Object {
+        "image": "https://email.buysellads.net/?k=CW7DE23N&i=1",
+        "link": "https://email.buysellads.net/?k=CW7DE23N&c=1",
+        "type": "ad_image",
       },
       Object {
         "post_comments": 5,
@@ -476,6 +517,7 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/c",
         "source_name": "C",
+        "type": "post",
       },
       Object {
         "post_comments": 5,
@@ -488,6 +530,7 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/a",
         "source_name": "A",
+        "type": "post",
       },
       Object {
         "post_comments": 5,
@@ -500,6 +543,7 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/b",
         "source_name": "B",
+        "type": "post",
       },
     ],
     "preview": "Here are several posts you might like. Each post was carefully selected based on topics you love reading about. Let's get to it!",
@@ -526,9 +570,7 @@ Object {
 exports[`personalizedDigestEmail worker should generate personalized digest for user with subscription 2`] = `
 Object {
   "allowed_tags": Array [],
-  "blocked_sources": Array [
-    "fd062672-63b7-4a10-87bd-96dcd10e9613",
-  ],
+  "blocked_sources": Array [],
   "blocked_tags": Array [],
   "date_from": Any<String>,
   "date_to": Any<String>,
@@ -565,6 +607,7 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/a",
         "source_name": "A",
+        "type": "post",
       },
       Object {
         "post_comments": 5,
@@ -577,6 +620,12 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/b",
         "source_name": "B",
+        "type": "post",
+      },
+      Object {
+        "image": "https://email.buysellads.net/?k=CW7DE23N&i=1",
+        "link": "https://email.buysellads.net/?k=CW7DE23N&c=1",
+        "type": "ad_image",
       },
       Object {
         "post_comments": 5,
@@ -589,6 +638,7 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/c",
         "source_name": "C",
+        "type": "post",
       },
       Object {
         "post_comments": 5,
@@ -601,6 +651,7 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/a",
         "source_name": "A",
+        "type": "post",
       },
       Object {
         "post_comments": 5,
@@ -613,6 +664,7 @@ Object {
         "post_views": 200,
         "source_image": "http://image.com/b",
         "source_name": "B",
+        "type": "post",
       },
     ],
     "preview": "Here are several posts you might like. Each post was carefully selected based on topics you love reading about. Let's get to it!",

@@ -16,9 +16,11 @@ import {
   CollectionPost,
   Comment,
   FreeformPost,
+  Post,
   PostOrigin,
   PostRelation,
   PostRelationType,
+  PostType,
   SharePost,
   Source,
   SourceRequest,
@@ -40,6 +42,7 @@ import {
   NotificationCommenterContext,
   NotificationDoneByContext,
   NotificationPostContext,
+  NotificationPostModerationContext,
   NotificationSourceContext,
   NotificationSourceMemberRoleContext,
   NotificationSourceRequestContext,
@@ -53,8 +56,16 @@ import { postsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture/source';
 import { SourceMemberRoles } from '../../src/roles';
 import { NotificationType } from '../../src/notifications/common';
-import { buildPostContext } from '../../src/workers/notifications/utils';
+import {
+  buildPostContext,
+  getPostModerationContext,
+} from '../../src/workers/notifications/utils';
 import { SendEmailRequestWithTemplate } from 'customerio-node/dist/lib/api/requests';
+import {
+  SourcePostModeration,
+  SourcePostModerationStatus,
+} from '../../src/entity/SourcePostModeration';
+import { ChangeObject } from '../../src/types';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -1339,14 +1350,14 @@ describe('collection_post notification', () => {
     expect(args.message_data).toMatchObject({
       post_comments: '0',
       post_image:
-        'https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1',
+        'https://media.daily.dev/image/upload/f_auto/v1/placeholders/1',
       post_link:
         'http://localhost:5002/posts/cp1?utm_source=notification&utm_medium=email&utm_campaign=collection_updated',
       post_timestamp: 'Jan 05, 2020',
       post_title: 'New title',
       post_upvotes: '0',
       source_image:
-        'https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1',
+        'https://media.daily.dev/image/upload/f_auto/v1/placeholders/1',
       source_name: 'A',
       source_timestamp: 'Jan 07, 2020',
       source_title: 'Related post title',
@@ -1642,5 +1653,218 @@ describe('user_post_added notification', () => {
     expect(args.transactional_message_id).toEqual(
       notificationToTemplateId[NotificationType.UserPostAdded],
     );
+  });
+});
+
+describe('source_post_approved notification', () => {
+  it('should send email of type shared post', async () => {
+    await con.getRepository(Post).save(postsFixture);
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { authorId: '1', type: PostType.Share });
+    await con
+      .getRepository(SharePost)
+      .update({ id: 'p1' }, { sharedPostId: 'p2' });
+    await con
+      .getRepository(ArticlePost)
+      .update({ id: 'p2' }, { image: 'https://daily.dev/p2.jpg' });
+    const postCtx = await buildPostContext(con, 'p1');
+    const ctx: NotificationPostContext = {
+      ...postCtx,
+      userIds: ['1'],
+    };
+    await con.getRepository(SourcePostModeration).save({
+      sourceId: 'a',
+      type: PostType.Share,
+      createdById: '1',
+      sharedPostId: 'p2',
+      status: SourcePostModerationStatus.Approved,
+    });
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.SourcePostApproved,
+      ctx,
+    );
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data).toEqual({
+      full_name: 'Ido',
+      profile_image: 'https://daily.dev/ido.jpg',
+      squad_name: 'A',
+      commenter_reputation: '10',
+      squad_image: 'http://image.com/a',
+      post_link: `http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=source_post_approved`,
+      post_image: 'https://daily.dev/p2.jpg',
+      post_title: 'P2',
+      commentary: 'P1',
+    });
+    expect(args.transactional_message_id).toEqual('62');
+  });
+
+  it('should send email of type freeform post', async () => {
+    await con.getRepository(Post).save(postsFixture);
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { authorId: '1', type: PostType.Freeform });
+    await con
+      .getRepository(FreeformPost)
+      .update({ id: 'p1' }, { content: 'Sample content' });
+    const postCtx = await buildPostContext(con, 'p1');
+    const ctx: NotificationPostContext = {
+      ...postCtx,
+      userIds: ['1'],
+    };
+    await con.getRepository(SourcePostModeration).save({
+      sourceId: 'a',
+      type: PostType.Share,
+      createdById: '1',
+      sharedPostId: 'p2',
+      status: SourcePostModerationStatus.Approved,
+    });
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.SourcePostApproved,
+      ctx,
+    );
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data).toEqual({
+      full_name: 'Ido',
+      profile_image: 'https://daily.dev/ido.jpg',
+      squad_name: 'A',
+      commenter_reputation: '10',
+      squad_image: 'http://image.com/a',
+      post_link: `http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=source_post_approved`,
+      post_image: 'https://daily.dev/image.jpg',
+      post_title: 'P1',
+      commentary: 'Sample content',
+    });
+    expect(args.transactional_message_id).toEqual('62');
+  });
+});
+
+describe('source_post_submitted notification', () => {
+  it('should send email of type share post', async () => {
+    await con.getRepository(Post).save(postsFixture);
+    await con.getRepository(Post).update({ id: 'p2' }, { title: 'P2' });
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    await con.getRepository(User).update({ id: '1' }, { reputation: 100 });
+    const post = await con.getRepository(SourcePostModeration).save({
+      sourceId: 'a',
+      createdById: '1',
+      status: SourcePostModerationStatus.Pending,
+      type: PostType.Share,
+      sharedPostId: 'p2',
+      title: 'Shared post',
+      content: 'Content shared',
+    });
+    const moderationCtx = await getPostModerationContext(
+      con,
+      post as unknown as ChangeObject<SourcePostModeration>,
+    );
+    const ctx: NotificationPostModerationContext = {
+      ...moderationCtx,
+      userIds: ['2'],
+    };
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.SourcePostSubmitted,
+      ctx,
+    );
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '2',
+      },
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data).toEqual({
+      full_name: 'Tsahi',
+      profile_image: 'https://daily.dev/ido.jpg',
+      squad_name: 'A',
+      creator_name: 'Ido',
+      creator_reputation: '100',
+      squad_image: 'http://image.com/a',
+      post_link: `http://localhost:5002/squads/a/moderate`,
+      post_image: 'https://daily.dev/image.jpg',
+      post_title: 'P2',
+      commentary: 'Shared post',
+    });
+    expect(args.transactional_message_id).toEqual('61');
+  });
+
+  it('should send email of type freeform post', async () => {
+    await con.getRepository(Post).save(postsFixture);
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    await con.getRepository(User).update({ id: '1' }, { reputation: 100 });
+    const post = await con.getRepository(SourcePostModeration).save({
+      sourceId: 'a',
+      createdById: '1',
+      title: 'Sample',
+      content: 'Content',
+      status: SourcePostModerationStatus.Pending,
+      type: PostType.Freeform,
+    });
+    const moderationCtx = await getPostModerationContext(
+      con,
+      post as unknown as ChangeObject<SourcePostModeration>,
+    );
+    const ctx: NotificationPostModerationContext = {
+      ...moderationCtx,
+      userIds: ['2'],
+    };
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.SourcePostSubmitted,
+      ctx,
+    );
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '2',
+      },
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data).toEqual({
+      full_name: 'Tsahi',
+      profile_image: 'https://daily.dev/ido.jpg',
+      squad_name: 'A',
+      creator_name: 'Ido',
+      creator_reputation: '100',
+      squad_image: 'http://image.com/a',
+      post_link: `http://localhost:5002/squads/a/moderate`,
+      post_image: null,
+      post_title: 'Sample',
+      commentary: 'Content',
+    });
+    expect(args.transactional_message_id).toEqual('61');
   });
 });

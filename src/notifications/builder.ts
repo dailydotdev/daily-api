@@ -14,8 +14,10 @@ import {
   SquadPublicRequest,
   Submission,
   User,
+  type UserTopReader,
 } from '../entity';
 import {
+  defaultImage,
   getDiscussionLink,
   getSourceLink,
   getUserPermalink,
@@ -26,10 +28,13 @@ import {
   NotificationBundleV2,
   NotificationStreakContext,
   Reference,
+  type NotificationUserTopReaderContext,
 } from './types';
 import { NotificationIcon } from './icons';
 import { SourceMemberRoles } from '../roles';
 import { NotificationType } from './common';
+import { SourcePostModeration } from '../entity/SourcePostModeration';
+import { fallbackImages } from '../config';
 
 const MAX_COMMENT_LENGTH = 320;
 
@@ -101,6 +106,15 @@ export class NotificationBuilder {
     });
   }
 
+  referencePostModeration(
+    post: Reference<SourcePostModeration>,
+  ): NotificationBuilder {
+    return this.enrichNotification({
+      referenceId: post.id,
+      referenceType: 'post_moderation',
+    });
+  }
+
   referenceSource(source: Reference<Source>): NotificationBuilder {
     return this.enrichNotification({
       referenceId: source.id,
@@ -151,6 +165,15 @@ export class NotificationBuilder {
     });
   }
 
+  referenceUserTopReader(
+    userTopReader: Reference<UserTopReader>,
+  ): NotificationBuilder {
+    return this.enrichNotification({
+      referenceId: userTopReader.id,
+      referenceType: 'user_top_reader',
+    });
+  }
+
   icon(icon: NotificationIcon): NotificationBuilder {
     return this.enrichNotification({ icon });
   }
@@ -185,6 +208,12 @@ export class NotificationBuilder {
   targetSource(source: Reference<Source>): NotificationBuilder {
     return this.enrichNotification({
       targetUrl: getSourceLink(source),
+    });
+  }
+
+  targetSourceModeration(source: Reference<Source>): NotificationBuilder {
+    return this.enrichNotification({
+      targetUrl: `${getSourceLink(source)}/moderate`,
     });
   }
 
@@ -245,7 +274,7 @@ export class NotificationBuilder {
     this.avatars.push({
       type: 'user',
       referenceId: user.id,
-      image: user.image,
+      image: user.image ?? fallbackImages.avatar,
       name: user.name || user.username,
       targetUrl: getUserPermalink(user),
     });
@@ -258,12 +287,25 @@ export class NotificationBuilder {
       (user): DeepPartial<NotificationAvatarV2> => ({
         type: 'user',
         referenceId: user.id,
-        image: user.image,
+        image: user.image ?? fallbackImages.avatar,
         name: user.name,
         targetUrl: getUserPermalink(user),
       }),
     );
     this.avatars = this.avatars.concat(newAvatars);
+    return this;
+  }
+
+  avatarTopReaderBadge(
+    ctx: NotificationUserTopReaderContext,
+  ): NotificationBuilder {
+    this.avatars.push({
+      type: 'top_reader_badge',
+      name: ctx.keyword.flags?.title || ctx.keyword.value,
+      targetUrl: '',
+      referenceId: ctx.userTopReader.id,
+      image: defaultImage.placeholder,
+    });
     return this;
   }
 
@@ -300,7 +342,7 @@ export class NotificationBuilder {
   objectPost(
     post: Reference<Post>,
     source: Reference<Source>,
-    sharedPost?: Reference<Post>,
+    sharedPost?: Reference<Post> | null,
     addSquadAvatar = true,
   ) {
     let newBuilder = this.referencePost(post).targetPost(post);

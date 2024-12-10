@@ -1,35 +1,49 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { ConnectionArguments } from 'graphql-relay';
+import { Connection, ConnectionArguments } from 'graphql-relay';
 import {
+  getSearchQuery,
   GQLEmptyResponse,
+  offsetPageGenerator,
   Page,
   PageGenerator,
-  offsetPageGenerator,
-  getSearchQuery,
   processSearchQuery,
 } from './common';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, Context } from '../Context';
-import { Bookmark, BookmarkList, Post } from '../entity';
+import { Bookmark, BookmarkList, Post, User } from '../entity';
 import {
   base64,
   bookmarksFeedBuilder,
   FeedArgs,
   feedResolver,
   getCursorFromAfter,
+  isOneEmoji,
   Ranking,
 } from '../common';
-import { SelectQueryBuilder } from 'typeorm';
+import { In, SelectQueryBuilder } from 'typeorm';
 import { GQLPost } from './posts';
-import { Connection } from 'graphql-relay';
+import { isPlusMember } from '../paddle';
+import { ForbiddenError, ValidationError } from 'apollo-server-errors';
+import { logger } from '../logger';
+import { BookmarkListCountLimit, maxBookmarksPerMutation } from '../types';
+import graphorm from '../graphorm';
 
 interface GQLAddBookmarkInput {
   postIds: string[];
 }
 
+export interface GQLBookmark {
+  createdAt: Date;
+  remindAt: Date;
+  list: GQLBookmarkList;
+}
+
 export interface GQLBookmarkList {
   id: string;
   name: string;
+  icon?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -43,11 +57,33 @@ export const typeDefs = /* GraphQL */ `
     Name of the list
     """
     name: String!
+
+    """
+    Icon of the list
+    """
+    icon: String
+
+    """
+    Date the list was created
+    """
+    createdAt: DateTime!
+
+    """
+    Date the list was last updated
+    """
+    updatedAt: DateTime!
   }
 
   type Bookmark {
+    postId: ID!
+    list: BookmarkList
     createdAt: DateTime
     remindAt: DateTime
+
+    """
+    For backward compatibility with EmptyResponse
+    """
+    _: Boolean
   }
 
   type SearchBookmarksSuggestion {
@@ -84,12 +120,12 @@ export const typeDefs = /* GraphQL */ `
     """
     Add new bookmarks
     """
-    addBookmarks(data: AddBookmarkInput!): EmptyResponse! @auth
+    addBookmarks(data: AddBookmarkInput!): [Bookmark]! @auth
 
     """
     Add or move bookmark to list
     """
-    addBookmarkToList(id: ID!, listId: ID): EmptyResponse! @auth(premium: true)
+    moveBookmark(id: ID!, listId: ID): EmptyResponse! @auth
 
     """
     Remove an existing bookmark
@@ -99,18 +135,18 @@ export const typeDefs = /* GraphQL */ `
     """
     Create a new bookmark list
     """
-    createBookmarkList(name: String!): BookmarkList! @auth(premium: true)
+    createBookmarkList(name: String!, icon: String): BookmarkList! @auth
 
     """
     Remove an existing bookmark list
     """
-    removeBookmarkList(id: ID!): EmptyResponse! @auth(premium: true)
+    removeBookmarkList(id: ID!): EmptyResponse! @auth
 
     """
     Rename an existing bookmark list
     """
-    renameBookmarkList(id: ID!, name: String!): BookmarkList!
-      @auth(premium: true)
+    updateBookmarkList(id: ID!, name: String!, icon: String): BookmarkList!
+      @auth
   }
 
   type Query {
@@ -152,7 +188,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get all the bookmark lists of the user
     """
-    bookmarkLists: [BookmarkList!]! @auth(premium: true)
+    bookmarkLists: [BookmarkList!]! @auth
 
     """
     Get suggestions for search bookmarks query
@@ -277,22 +313,45 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       source,
       { data }: { data: GQLAddBookmarkInput },
       ctx: AuthContext,
-    ): Promise<GQLEmptyResponse> => {
-      const [query, params] = ctx.con
-        .createQueryBuilder()
-        .select('id', 'postId')
-        .addSelect(`'${ctx.userId}'`, 'userId')
-        .from(Post, 'post')
-        .where('post.id IN (:...postIds)', { postIds: data.postIds })
-        .getQueryAndParameters();
-      await ctx.con.query(
-        `insert into bookmark("postId", "userId") ${query} on conflict do nothing`,
-        params,
-      );
-      return { _: true };
+      info,
+    ): Promise<GQLBookmark[]> => {
+      const lastAddedBookmark = await ctx.con.getRepository(Bookmark).findOne({
+        where: { userId: ctx.userId },
+        select: ['listId'],
+      });
+      const lastUsedListId = lastAddedBookmark?.listId ?? null;
+
+      if (data.postIds.length > maxBookmarksPerMutation) {
+        throw new ValidationError(
+          `Exceeded the maximum bookmarks per mutation (${maxBookmarksPerMutation})`,
+        );
+      }
+
+      await ctx.con.transaction(async (manager) => {
+        const posts = await manager.getRepository(Post).findBy({
+          id: In(data.postIds),
+        });
+
+        await ctx.con.getRepository(Bookmark).upsert(
+          posts.map((post) => ({
+            postId: post.id,
+            userId: ctx.userId,
+            listId: lastUsedListId,
+          })),
+          ['postId', 'userId'],
+        );
+      });
+
+      return await graphorm.query<GQLBookmark>(ctx, info, (builder) => ({
+        ...builder,
+        queryBuilder: builder.queryBuilder.where(
+          `"${builder.alias}"."postId" IN (:...postIds)`,
+          { postIds: data.postIds },
+        ),
+      }));
     },
-    addBookmarkToList: async (
-      source,
+    moveBookmark: async (
+      _,
       { id, listId }: { id: string; listId?: string },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
@@ -301,16 +360,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .getRepository(BookmarkList)
           .findOneByOrFail({ userId: ctx.userId, id: listId });
       }
-      await ctx.con
-        .getRepository(Bookmark)
-        .createQueryBuilder()
-        .insert()
-        .into(Bookmark)
-        .values([{ userId: ctx.userId, postId: id, listId }])
-        .onConflict(
-          `("postId", "userId") DO UPDATE SET "listId" = EXCLUDED."listId"`,
-        )
-        .execute();
+      await ctx.con.getRepository(Bookmark).update(
+        {
+          postId: id,
+          userId: ctx.userId,
+        },
+        { listId: listId ?? null },
+      );
+
       return { _: true };
     },
     removeBookmark: async (
@@ -325,16 +382,48 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return { _: true };
     },
     createBookmarkList: async (
-      source,
-      { name }: { name: string },
+      _,
+      { name, icon }: Record<'name' | 'icon', string>,
       ctx: AuthContext,
-    ): Promise<GQLBookmarkList> =>
-      ctx.con.getRepository(BookmarkList).save({
+    ): Promise<GQLBookmarkList> => {
+      const isValidIcon = !icon || isOneEmoji(icon);
+      if (!isValidIcon || !name.length) {
+        throw new ValidationError('Invalid icon or name');
+      }
+
+      const user = await ctx.con.getRepository(User).findOneOrFail({
+        where: { id: ctx.userId },
+        select: ['subscriptionFlags'],
+      });
+      const isPlus = isPlusMember(user.subscriptionFlags?.cycle);
+      const maxFoldersCount = isPlus
+        ? BookmarkListCountLimit.Plus
+        : BookmarkListCountLimit.Free;
+      const userFoldersCount = await ctx.con
+        .getRepository(BookmarkList)
+        .countBy({ userId: ctx.userId });
+
+      if (userFoldersCount >= maxFoldersCount) {
+        if (isPlus) {
+          logger.warn(
+            { listCount: userFoldersCount, userId: ctx.userId },
+            'bookmark folders limit reached',
+          );
+        }
+
+        throw new ForbiddenError(
+          `You have reached the maximum list count (${maxFoldersCount})`,
+        );
+      }
+
+      return ctx.con.getRepository(BookmarkList).save({
         name,
+        icon,
         userId: ctx.userId,
-      }),
+      });
+    },
     removeBookmarkList: async (
-      source,
+      _,
       { id }: { id: string },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
@@ -344,15 +433,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
       return { _: true };
     },
-    renameBookmarkList: async (
-      source,
-      { id, name }: { id: string; name: string },
+    updateBookmarkList: async (
+      _,
+      { id, name, icon }: Record<'id' | 'name' | 'icon', string>,
       ctx: AuthContext,
     ): Promise<GQLBookmarkList> => {
       const repo = ctx.con.getRepository(BookmarkList);
-      const list = await repo.findOneByOrFail({ userId: ctx.userId, id });
-      list.name = name;
-      return repo.save(list);
+      await repo.findOneByOrFail({ userId: ctx.userId, id });
+      return await repo.save({
+        userId: ctx.userId,
+        id,
+        icon,
+        name,
+      });
     },
     setBookmarkReminder: async (
       source,
@@ -385,19 +478,25 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         removeNonPublicThresholdSquads: false,
       },
     ),
-    bookmarkLists: (
-      source,
-      args,
+    bookmarkLists: async (
+      _,
+      __,
       ctx: AuthContext,
       info,
     ): Promise<GQLBookmarkList[]> =>
-      ctx.loader.loadMany<BookmarkList>(
-        BookmarkList,
-        { userId: ctx.userId },
+      graphorm.query<GQLBookmarkList>(
+        ctx,
         info,
-        {
-          order: { name: 'ASC' },
-        },
+        (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder.where(
+            `"${builder.alias}"."userId" = :userId`,
+            {
+              userId: ctx.userId,
+            },
+          ),
+        }),
+        true,
       ),
     searchBookmarksSuggestions: async (
       source,

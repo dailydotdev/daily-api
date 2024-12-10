@@ -16,6 +16,7 @@ interface GetTimezonedIsoWeekProps {
   date: Date;
   timezone: string;
 }
+
 export const getTimezonedStartOfISOWeek = ({
   date,
   timezone,
@@ -36,6 +37,15 @@ export const updateFlagsStatement = <Entity extends { flags: object }>(
   return () => `flags || '${JSON.stringify(update)}'`;
 };
 
+export const updateSubscriptionFlags = <
+  Entity extends {
+    subscriptionFlags: object;
+  },
+>(
+  update: Partial<Entity['subscriptionFlags']>,
+): (() => string) => {
+  return () => `subscriptionFlags || '${JSON.stringify(update)}'`;
+};
 /**
  * Remove special characters from a string
  * Only allows alphanumeric, -, _, # and . characters
@@ -165,6 +175,12 @@ export function isNumber(value: string | number): boolean {
 
   return !isNaN(Number(value.toString()));
 }
+
+const emojiMatch = /^(\p{Emoji_Presentation})$/gu;
+
+export const isOneEmoji = (text: string): boolean => {
+  return emojiMatch.test(text);
+};
 
 export const validateWorkEmailDomain = (domain: string): boolean => {
   const lowerCaseDomain = domain.toLowerCase();

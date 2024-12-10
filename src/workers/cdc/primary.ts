@@ -9,6 +9,8 @@ import {
   UserStreak,
   Bookmark,
   Alerts,
+  UserTopReader,
+  SquadSource,
 } from '../../entity';
 import { messageToJson, Worker } from '../worker';
 import {
@@ -83,6 +85,7 @@ import {
   DEFAULT_TIMEZONE,
   notifySourceReport,
   DayOfWeek,
+  processApprovedModeratedPost,
 } from '../../common';
 import { ChangeMessage, ChangeObject, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
@@ -117,20 +120,25 @@ import {
 } from '../../entity/common';
 import { utcToZonedTime } from 'date-fns-tz';
 import { SourceReport } from '../../entity/sources/SourceReport';
+import {
+  SourcePostModeration,
+  SourcePostModerationStatus,
+} from '../../entity/SourcePostModeration';
+import { cleanupSourcePostModerationNotifications } from '../../notifications/common';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
 ): boolean =>
-  freeform.payload.after!.title!.length +
-    freeform.payload.after!.content.length >=
+  (freeform.payload.after!.title!.length || 0) +
+    (freeform.payload.after!.content?.length || 0) >=
   FREEFORM_POST_MINIMUM_CONTENT_LENGTH;
 
 const isFreeformPostChangeLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
 ): boolean =>
   Math.abs(
-    freeform.payload.before!.content.length -
-      freeform.payload.after!.content.length,
+    (freeform.payload.before!.content?.length || 0) -
+      (freeform.payload.after!.content?.length || 0),
   ) >= FREEFORM_POST_MINIMUM_CHANGE_LENGTH;
 
 const isCollectionUpdated = (
@@ -704,6 +712,73 @@ const onSourceChange = async (
         flags: after,
       });
     }
+
+    const squadAfter = data.payload.after as ChangeObject<SquadSource>;
+    const squadBefore = data.payload.before as ChangeObject<SquadSource>;
+
+    if (
+      squadBefore.moderationRequired !== squadAfter.moderationRequired &&
+      !squadAfter.moderationRequired
+    ) {
+      await con.getRepository(SourcePostModeration).update(
+        {
+          sourceId: squadAfter.id,
+          status: SourcePostModerationStatus.Pending,
+        },
+        { status: SourcePostModerationStatus.Approved },
+      );
+    }
+  }
+};
+
+const onSourcePostModerationChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<SourcePostModeration>,
+) => {
+  if (data.payload.op === 'c' && !data.payload.after!.flags?.vordr) {
+    await triggerTypedEvent(logger, 'api.v1.source-post-moderation-submitted', {
+      post: data.payload.after!,
+    });
+  }
+
+  if (data.payload.op === 'd') {
+    await cleanupSourcePostModerationNotifications(con, data.payload.before!);
+  }
+
+  if (data.payload.op === 'u') {
+    if (
+      data.payload.before!.status !== SourcePostModerationStatus.Rejected &&
+      data.payload.after!.status === SourcePostModerationStatus.Rejected
+    ) {
+      const post = data.payload.after!;
+      await cleanupSourcePostModerationNotifications(con, post);
+      await triggerTypedEvent(
+        logger,
+        'api.v1.source-post-moderation-rejected',
+        { post },
+      );
+    }
+
+    if (
+      data.payload.before!.status !== SourcePostModerationStatus.Approved &&
+      data.payload.after!.status === SourcePostModerationStatus.Approved
+    ) {
+      const post = await processApprovedModeratedPost(con, data.payload.after!);
+
+      if (!post) {
+        return;
+      }
+
+      if (post.postId) {
+        await cleanupSourcePostModerationNotifications(con, post);
+        await triggerTypedEvent(
+          logger,
+          'api.v1.source-post-moderation-approved',
+          { post },
+        );
+      }
+    }
   }
 };
 
@@ -971,6 +1046,19 @@ const onUserCompanyCompanyChange = async (
   }
 };
 
+const onUserTopReaderChange = async (
+  _: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<UserTopReader>,
+) => {
+  if (data.payload.op !== 'c') {
+    return;
+  }
+  await triggerTypedEvent(logger, 'api.v1.user-top-reader', {
+    userTopReader: data.payload.after!,
+  });
+};
+
 const onBookmarkChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -1013,6 +1101,9 @@ const worker: Worker = {
           break;
         case getTableName(con, Source):
           await onSourceChange(con, logger, data);
+          break;
+        case getTableName(con, SourcePostModeration):
+          await onSourcePostModerationChange(con, logger, data);
           break;
         case getTableName(con, Feed):
           await onFeedChange(con, logger, data);
@@ -1091,6 +1182,9 @@ const worker: Worker = {
           break;
         case getTableName(con, UserCompany):
           await onUserCompanyCompanyChange(con, logger, data);
+          break;
+        case getTableName(con, UserTopReader):
+          await onUserTopReaderChange(con, logger, data);
           break;
       }
     } catch (err) {

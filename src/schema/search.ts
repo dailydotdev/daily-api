@@ -22,7 +22,7 @@ import {
 } from '../common';
 import { GQLPost } from './posts';
 import { MeiliPagination, searchMeili } from '../integrations/meilisearch';
-import { Keyword, Post, Source, UserPost } from '../entity';
+import { Keyword, Post, Source, SourceType, UserPost } from '../entity';
 import {
   SearchSuggestionArgs,
   defaultSearchLimit,
@@ -419,9 +419,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .createQueryBuilder()
         .select(`id, name as title, handle as subtitle, image`)
         .where(`private = false`)
-        .andWhere(`name ILIKE :query`, {
-          query: `%${query}%`,
-        })
+        .andWhere(
+          `(type != '${SourceType.Squad}' OR (flags->>'publicThreshold')::boolean IS TRUE)`,
+        )
+        .andWhere(
+          new Brackets((qb) => {
+            return qb
+              .where(`name ILIKE :query`, {
+                query: `%${query}%`,
+              })
+              .orWhere(`handle ILIKE :query`, {
+                query: `%${query}%`,
+              });
+          }),
+        )
         .limit(getSearchLimit({ limit }));
       const hits = await searchQuery.getRawMany();
 

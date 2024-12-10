@@ -29,6 +29,7 @@ import {
   getAuthorPostStats,
   Alerts,
   reputationReasonAmount,
+  ConnectionManager,
 } from '../entity';
 import {
   AuthenticationError,
@@ -67,6 +68,10 @@ import {
   votePost,
   CioTransactionalMessageTemplateId,
   validateWorkEmailDomain,
+  type GQLUserTopReader,
+  mapCloudinaryUrl,
+  UploadPreset,
+  clearFile,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -145,7 +150,7 @@ interface GQLUserParameters {
 export interface GQLUser {
   id: string;
   name: string;
-  image?: string;
+  image?: string | null;
   infoConfirmed: boolean;
   createdAt: Date;
   username?: string;
@@ -165,11 +170,12 @@ export interface GQLUser {
   reputation?: number;
   notificationEmail?: boolean;
   timezone?: string;
-  cover?: string;
+  cover?: string | null;
   readme?: string;
   readmeHtml?: string;
   experienceLevel?: string | null;
   language?: ContentLanguage | null;
+  topReader?: GQLUserTopReader;
 }
 
 export interface GQLView {
@@ -398,6 +404,17 @@ export const typeDefs = /* GraphQL */ `
     Whether the user is a team member
     """
     isTeamMember: Boolean
+
+    """
+    Whether the user is a plus user
+    """
+    isPlus: Boolean
+
+    """
+    From when the user is a plus member
+    """
+    plusMemberSince: DateTime
+
     """
     Verified companies for this user
     """
@@ -410,6 +427,11 @@ export const typeDefs = /* GraphQL */ `
     Content preference in regards to current user
     """
     contentPreference: ContentPreference
+
+    """
+    Returns the latest top reader badge for the user
+    """
+    topReader: UserTopReader
   }
 
   """
@@ -650,6 +672,7 @@ export const typeDefs = /* GraphQL */ `
     total: Int
     current: Int
     lastViewAt: DateTime
+    lastViewAtTz: DateTime
     weekStart: Int
   }
 
@@ -682,6 +705,38 @@ export const typeDefs = /* GraphQL */ `
   type UserIntegrationConnection {
     pageInfo: PageInfo!
     edges: [UserIntegrationEdge!]!
+  }
+
+  type UserTopReader {
+    """
+    Unique identifier for the top reader badge
+    """
+    id: ID
+
+    """
+    User
+    """
+    user: User
+
+    """
+    Date and time when the badge was issued
+    """
+    issuedAt: DateTime
+
+    """
+    Keyword
+    """
+    keyword: Keyword
+
+    """
+    URL to the badge image
+    """
+    image: String
+
+    """
+    Total number of badges
+    """
+    total: Int
   }
 
   extend type Query {
@@ -836,9 +891,26 @@ export const typeDefs = /* GraphQL */ `
     Get companies for user
     """
     companies: [UserCompany] @auth
+
+    """
+    Get the latest top reader badges for the user
+    """
+    topReaderBadge(limit: Int, userId: ID!): [UserTopReader]
+
+    """
+    Get the top reader badge based on badge ID
+    """
+    topReaderBadgeById(id: ID!): UserTopReader
   }
 
+  ${toGQLEnum(UploadPreset, 'UploadPreset')}
+
   extend type Mutation {
+    """
+    Clear users image based on type
+    """
+    clearImage(presets: [UploadPreset]): EmptyResponse @auth
+
     """
     Update user profile information
     """
@@ -1128,6 +1200,9 @@ export const getMarketingCta = async (
   const marketingCta: MarketingCta | null = rawRedisValue
     ? JSON.parse(rawRedisValue)
     : null;
+  if (marketingCta?.flags?.image) {
+    marketingCta.flags.image = mapCloudinaryUrl(marketingCta.flags.image);
+  }
   return marketingCta || cachePrefillMarketingCta(con, userId);
 };
 
@@ -1140,7 +1215,8 @@ const getUserStreakQuery = async (
     ...builder,
     queryBuilder: builder.queryBuilder
       .addSelect(
-        `(date_trunc('day', "${builder.alias}"."lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date) AS "lastViewAtTz"`,
+        `(date_trunc('day', "${builder.alias}"."lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date)`,
+        'lastViewAtTz',
       )
       .addSelect('u.id', 'userId')
       .addSelect('u.timezone', 'timezone')
@@ -1171,6 +1247,29 @@ const getUserCompanies = async (
     },
     true,
   );
+};
+
+interface ClearImagePreset {
+  con: ConnectionManager;
+  preset: UploadPreset;
+  userId: string;
+}
+
+export const clearImagePreset = async ({
+  con,
+  preset,
+  userId,
+}: ClearImagePreset) => {
+  switch (preset) {
+    case UploadPreset.ProfileCover:
+      await con.getRepository(User).update({ id: userId }, { cover: null });
+      await clearFile({ referenceId: userId, preset });
+      break;
+    case UploadPreset.Avatar:
+      await con.getRepository(User).update({ id: userId }, { image: null });
+      await clearFile({ referenceId: userId, preset });
+      break;
+  }
 };
 
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
@@ -1221,7 +1320,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             ]),
           }),
           ctx.con.getRepository(ContentPreferenceUser).countBy({
-            referenceUserId: id,
+            referenceId: id,
             status: In([
               ContentPreferenceStatus.Follow,
               ContentPreferenceStatus.Subscribed,
@@ -1659,8 +1758,71 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       );
     },
+    topReaderBadge: async (
+      _,
+      { limit = 5, userId }: { limit: number; userId: string },
+      ctx: AuthContext,
+      info: GraphQLResolveInfo,
+    ) => {
+      return graphorm.query<GQLUserTopReader>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .andWhere(`${builder.alias}.userId = :userId`, {
+              userId,
+            })
+            .orderBy({
+              '"issuedAt"': 'DESC',
+            })
+            .limit(limit);
+          return builder;
+        },
+        true,
+      );
+    },
+    topReaderBadgeById: async (
+      _,
+      { id }: { id: string },
+      ctx: AuthContext,
+      info: GraphQLResolveInfo,
+    ) => {
+      return graphorm.queryOneOrFail<GQLUserTopReader>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder.andWhere(
+            `${builder.alias}.id = :id`,
+            { id },
+          );
+          return builder;
+        },
+        'top reader badge',
+        true,
+      );
+    },
   },
   Mutation: {
+    clearImage: async (
+      _,
+      { presets }: { presets: UploadPreset[] },
+      { con, userId }: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      if (!presets || presets.length === 0) {
+        return { _: true };
+      }
+
+      await con.transaction(async (manager) => {
+        await Promise.all(
+          presets.map((preset) =>
+            clearImagePreset({ con: manager, preset, userId }),
+          ),
+        );
+      });
+
+      return { _: true };
+    },
+    // add mutation to clear images
     updateUserProfile: async (
       _,
       { data, upload }: GQLUserParameters,
@@ -2218,6 +2380,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   User: {
+    image: (user: GQLUser): GQLUser['image'] => mapCloudinaryUrl(user.image),
+    cover: (user: GQLUser): GQLUser['cover'] => mapCloudinaryUrl(user.cover),
     permalink: getUserPermalink,
   },
   UserIntegration: {
@@ -2234,5 +2398,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return userIntegration.type;
       }
     },
+  },
+  UserTopReader: {
+    image: (topReader: GQLUserTopReader): GQLUserTopReader['image'] =>
+      mapCloudinaryUrl(topReader.image),
   },
 });

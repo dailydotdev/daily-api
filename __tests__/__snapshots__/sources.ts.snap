@@ -105,6 +105,7 @@ Object {
       "permissions": Array [
         "view",
         "post",
+        "post_request",
         "leave",
         "invite",
         "comment_delete",
@@ -115,6 +116,7 @@ Object {
         "member_unblock",
         "view_blocked_members",
         "welcome_post_edit",
+        "moderate_post",
         "member_role_update",
         "post_limit",
         "delete",
@@ -135,6 +137,7 @@ Object {
       "permissions": Array [
         "view",
         "post",
+        "post_request",
         "leave",
         "invite",
       ],
@@ -169,6 +172,7 @@ Object {
   "source": Object {
     "id": "a",
     "image": "http://image.com/a",
+    "moderationRequired": false,
     "name": "A",
     "public": true,
   },

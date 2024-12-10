@@ -16,6 +16,7 @@ import {
   NotificationCommenterContext,
   NotificationDoneByContext,
   NotificationPostContext,
+  NotificationPostModerationContext,
   NotificationSourceContext,
   NotificationSourceMemberRoleContext,
   NotificationSourceRequestContext,
@@ -24,11 +25,13 @@ import {
   NotificationSubmissionContext,
   NotificationUpvotersContext,
   NotificationUserContext,
+  type NotificationUserTopReaderContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
 import { NotificationType } from './common';
 import { format } from 'date-fns';
+import { rejectReason } from '../entity/SourcePostModeration';
 
 const systemTitle = () => undefined;
 
@@ -127,12 +130,55 @@ export const notificationTitleMap: Record<
 
     return `New post from <b>${userName}</b>, check it out now!`;
   },
+  user_given_top_reader: (ctx: NotificationUserTopReaderContext) => {
+    const keyword = ctx.keyword.flags?.title || ctx.keyword.value;
+    return `Great news! You've earned the top reader badge in ${keyword}.`;
+  },
+  source_post_approved: (ctx: NotificationPostContext) =>
+    `Woohoo! Your post has been approved and is now live in ${ctx.source.name}. Check it out!`,
+  source_post_rejected: (ctx: NotificationPostModerationContext) => {
+    const reason = ctx.post.rejectionReason
+      ? rejectReason[ctx.post.rejectionReason]
+      : rejectReason.OTHER;
+    return `Your post in ${ctx.source.name} was not approved for the following reason: ${reason}. Please review the feedback and consider making changes before resubmitting.`;
+  },
+  source_post_submitted: (ctx: NotificationPostModerationContext) =>
+    `${ctx.user.name} just posted in ${ctx.source.name}. This post is waiting for your review before it gets published on the squad.`,
 };
 
 export const generateNotificationMap: Record<
   NotificationType,
   (builder: NotificationBuilder, ctx: never) => NotificationBuilder
 > = {
+  user_given_top_reader: (builder, ctx: NotificationUserTopReaderContext) =>
+    builder
+      .icon(NotificationIcon.TopReaderBadge)
+      .referenceUserTopReader(ctx.userTopReader)
+      .targetUrl(notificationsLink)
+      .setTargetUrlParameter([
+        ['topreader', 'true'],
+        ['badgeId', ctx.userTopReader.id],
+      ])
+      .avatarTopReaderBadge(ctx)
+      .uniqueKey(ctx.userIds[0]),
+  source_post_approved: (builder, ctx: NotificationPostContext) =>
+    builder
+      .icon(NotificationIcon.Bell)
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost),
+  source_post_rejected: (builder, ctx: NotificationPostModerationContext) =>
+    builder
+      .icon(NotificationIcon.Bell)
+      .referencePostModeration(ctx.post)
+      .targetSourceModeration(ctx.source)
+      .description(ctx.post.moderatorMessage ?? '')
+      .avatarSource(ctx.source),
+  source_post_submitted: (builder, ctx: NotificationPostModerationContext) =>
+    builder
+      .icon(NotificationIcon.Timer)
+      .avatarSource(ctx.source)
+      .avatarUser(ctx.user)
+      .referencePostModeration(ctx.post)
+      .targetSourceModeration(ctx.source),
   community_picks_failed: (builder, ctx: NotificationSubmissionContext) =>
     builder.systemNotification().referenceSubmission(ctx.submission),
   community_picks_succeeded: (builder, ctx: NotificationPostContext) =>

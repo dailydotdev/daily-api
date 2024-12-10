@@ -28,6 +28,10 @@ export const workers: Worker[] = [
     subscription: 'api.user-updated-cio',
   },
   {
+    topic: 'user-updated',
+    subscription: 'api.user-updated-plus-subscribed',
+  },
+  {
     topic: 'user-deleted',
     subscription: 'api.user-deleted-cio',
   },
@@ -296,6 +300,22 @@ export const workers: Worker[] = [
   {
     topic: 'api.v1.post-visible',
     subscription: 'api.post-added-user-notification',
+  },
+  {
+    topic: 'api.v1.source-post-moderation-submitted',
+    subscription: 'api.source-post-moderation-submitted-notification',
+  },
+  {
+    topic: 'api.v1.source-post-moderation-approved',
+    subscription: 'api.source-post-moderation-approved-notification',
+  },
+  {
+    topic: 'api.v1.source-post-moderation-rejected',
+    subscription: 'api.source-post-moderation-rejected-notification',
+  },
+  {
+    topic: 'api.v1.user-top-reader',
+    subscription: 'api.user-top-reader-added',
   },
 ];
 

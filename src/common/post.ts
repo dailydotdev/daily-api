@@ -1,17 +1,23 @@
 import { DataSource, EntityManager, In, Not } from 'typeorm';
 import {
   Comment,
+  ConnectionManager,
+  createExternalLink,
+  createSharePost,
   ExternalLinkPreview,
   FreeformPost,
+  generateTitleHtml,
   Post,
   PostOrigin,
+  PostType,
   SquadSource,
   User,
+  validateCommentary,
   WelcomePost,
 } from '../entity';
-import { ValidationError } from 'apollo-server-errors';
-import { isValidHttpUrl } from './links';
-import { markdown } from './markdown';
+import { ForbiddenError, ValidationError } from 'apollo-server-errors';
+import { isValidHttpUrl, standardizeURL } from './links';
+import { findMarkdownTag, markdown } from './markdown';
 import { generateShortId } from '../ids';
 import { GQLPost } from '../schema/posts';
 // @ts-expect-error - no types
@@ -23,15 +29,29 @@ import { createHash } from 'node:crypto';
 import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
 import { logger } from '../logger';
 import { downloadJsonFile } from './googleCloud';
-import type { PostCodeSnippetJsonFile } from '../types';
+import {
+  ContentLanguage,
+  type ChangeObject,
+  type I18nRecord,
+  type PostCodeSnippetJsonFile,
+} from '../types';
 import { uniqueifyObjectArray } from './utils';
+import {
+  SourcePostModeration,
+  SourcePostModerationStatus,
+} from '../entity/SourcePostModeration';
+import { mapCloudinaryUrl, uploadPostFile, UploadPreset } from './cloudinary';
+import { getMentions } from '../schema/comments';
 
 export const defaultImage = {
-  urls: process.env.DEFAULT_IMAGE_URL?.split?.(',') ?? [],
+  urls:
+    process.env.DEFAULT_IMAGE_URL?.split?.(',').map((x: string) =>
+      mapCloudinaryUrl(x),
+    ) ?? [],
   ratio: parseFloat(process.env.DEFAULT_IMAGE_RATIO),
   placeholder: process.env.DEFAULT_IMAGE_PLACEHOLDER,
   welcomePost:
-    'https://daily-now-res.cloudinary.com/image/upload/f_auto,q_auto/public/welcome_post',
+    'https://media.daily.dev/image/upload/f_auto,q_auto/public/welcome_post',
 };
 
 export const pickImageUrl = (post: {
@@ -173,11 +193,17 @@ export type CreatePost = Pick<
   'title' | 'content' | 'image' | 'contentHtml' | 'authorId' | 'sourceId' | 'id'
 >;
 
-export const createFreeformPost = async (
-  con: DataSource | EntityManager,
-  ctx: AuthContext,
-  args: CreatePost,
-) => {
+interface CreateFreeformPostArgs {
+  con: DataSource | EntityManager;
+  ctx?: AuthContext;
+  args: CreatePost;
+}
+
+export const createFreeformPost = async ({
+  con,
+  args,
+  ctx,
+}: CreateFreeformPostArgs) => {
   const { private: privacy } = await con
     .getRepository(SquadSource)
     .findOneByOrFail({ id: args.sourceId });
@@ -195,30 +221,98 @@ export const createFreeformPost = async (
     },
   });
 
-  const vordrStatus = await checkWithVordr(
-    {
-      id: createdPost.id,
-      type: VordrFilterType.Post,
-      content: createdPost.content,
-    },
-    { con, userId: ctx.userId, req: ctx.req },
-  );
+  if (args.authorId) {
+    const vordrStatus = await checkWithVordr(
+      {
+        id: createdPost.id,
+        type: VordrFilterType.Post,
+        content: createdPost.content,
+      },
+      { con, userId: args.authorId, req: ctx?.req },
+    );
 
-  if (vordrStatus === true) {
-    createdPost.banned = true;
-    createdPost.showOnFeed = false;
+    if (vordrStatus) {
+      createdPost.banned = true;
+      createdPost.showOnFeed = false;
 
-    createdPost.flags = {
-      ...createdPost.flags,
-      banned: true,
-      showOnFeed: false,
-    };
+      createdPost.flags = {
+        ...createdPost.flags,
+        banned: true,
+        showOnFeed: false,
+      };
+    }
+
+    createdPost.flags.vordr = vordrStatus;
   }
-
-  createdPost.flags.vordr = vordrStatus;
 
   return con.getRepository(FreeformPost).save(createdPost);
 };
+
+export type CreateSourcePostModeration = Omit<
+  CreatePost,
+  'authorId' | 'content' | 'contentHtml' | 'id'
+> &
+  Pick<
+    SourcePostModeration,
+    'titleHtml' | 'content' | 'type' | 'sharedPostId' | 'createdById'
+  > & {
+    contentHtml?: string;
+    externalLink?: string | null;
+    postId?: string;
+  };
+
+interface CreateSourcePostModerationProps {
+  ctx: AuthContext;
+  args: CreateSourcePostModeration;
+}
+
+export const createSourcePostModeration = async ({
+  ctx,
+  args,
+}: CreateSourcePostModerationProps) => {
+  const { con } = ctx;
+
+  if (args.postId) {
+    const post = await con
+      .getRepository(Post)
+      .findOneByOrFail({ id: args.postId });
+
+    if (args.createdById !== post.authorId) {
+      throw new ForbiddenError('Cannot edit posts created by other users');
+    }
+  }
+
+  const newModerationEntry = con.getRepository(SourcePostModeration).create({
+    ...args,
+    status: SourcePostModerationStatus.Pending,
+  });
+
+  const content = `${args.title} ${args.content}`.trim();
+
+  newModerationEntry.flags = {
+    vordr: await checkWithVordr(
+      {
+        id: newModerationEntry.id,
+        type: VordrFilterType.PostModeration,
+        content,
+      },
+      { con, userId: ctx.userId, req: ctx.req },
+    ),
+  };
+
+  return await con.getRepository(SourcePostModeration).save(newModerationEntry);
+};
+
+export interface CreateSourcePostModerationArgs
+  extends Pick<EditPostArgs, 'title' | 'image'> {
+  content?: string | null;
+  imageUrl?: string;
+  sourceId: string;
+  sharedPostId?: string | null;
+  externalLink?: string | null;
+  type: PostType;
+  postId?: string;
+}
 
 export interface EditPostArgs
   extends Pick<GQLPost, 'id' | 'title' | 'content'> {
@@ -231,7 +325,7 @@ export interface CreatePostArgs
 }
 
 const MAX_TITLE_LENGTH = 250;
-const MAX_CONTENT_LENGTH = 4000;
+const MAX_CONTENT_LENGTH = 10_000;
 
 type ValidatePostArgs = Pick<EditPostArgs, 'title' | 'content'>;
 
@@ -249,7 +343,7 @@ export const validatePost = (
 
   if (content.length > MAX_CONTENT_LENGTH) {
     throw new ValidationError(
-      'Content has a maximum length of 4000 characters',
+      `Content has a maximum length of ${MAX_CONTENT_LENGTH} characters`,
     );
   }
 
@@ -329,3 +423,262 @@ export const insertCodeSnippetsFromUrl = async ({
     throw err;
   }
 };
+
+type ModeratedPostCdc = ChangeObject<SourcePostModeration>;
+
+export const updateModeratedPost = async (
+  con: ConnectionManager,
+  moderated: ModeratedPostCdc,
+): Promise<ModeratedPostCdc | null> => {
+  if (!moderated?.postId) {
+    logger.error('unable to update moderated post', { moderated });
+    return null;
+  }
+
+  const postParam = { id: moderated.postId };
+  const repo = con.getRepository(Post);
+
+  await repo.findOneOrFail({ select: ['id'], where: postParam });
+
+  const updatedPost: Partial<FreeformPost> = {
+    title: moderated.title,
+    titleHtml: moderated.titleHtml,
+  };
+
+  if (moderated.content) {
+    updatedPost.content = moderated.content;
+    updatedPost.contentHtml = moderated.contentHtml!;
+  }
+
+  if (moderated.image) {
+    updatedPost.image = moderated.image;
+  }
+
+  await repo.update(postParam, updatedPost);
+
+  return moderated;
+};
+
+export const getExistingPost = async (
+  manager: ConnectionManager,
+  cleanUrl: string,
+): Promise<Post | null> =>
+  await manager
+    .createQueryBuilder(Post, 'post')
+    .select(['post.id', 'post.deleted', 'post.visible'])
+    .where('post.url = :url OR post.canonicalUrl = :url', {
+      url: cleanUrl,
+    })
+    .getOne();
+
+export const processApprovedModeratedPost = async (
+  con: ConnectionManager,
+  moderated: ModeratedPostCdc,
+): Promise<ModeratedPostCdc | null> => {
+  if (!moderated) {
+    throw new Error('Moderated post is missing');
+  }
+
+  if (moderated.postId) {
+    return updateModeratedPost(con, moderated);
+  }
+
+  const {
+    title,
+    content,
+    contentHtml,
+    image,
+    createdById,
+    sourceId,
+    titleHtml,
+    externalLink,
+    sharedPostId,
+  } = moderated;
+
+  if (moderated.type === PostType.Freeform) {
+    const id = await generateShortId();
+    const params = {
+      id,
+      title,
+      titleHtml,
+      content,
+      contentHtml,
+      image,
+      sourceId,
+      authorId: createdById,
+    };
+    const post = await createFreeformPost({ con, args: params as CreatePost });
+    return { ...moderated, postId: post.id };
+  }
+
+  if (sharedPostId) {
+    const post = await createSharePost({
+      con,
+      args: {
+        postId: sharedPostId,
+        commentary: title,
+        authorId: createdById,
+        sourceId,
+      },
+    });
+
+    return { ...moderated, postId: post.id };
+  }
+
+  if (externalLink) {
+    const cleanUrl = standardizeURL(externalLink);
+    const existingPost = await getExistingPost(con, cleanUrl);
+
+    if (existingPost) {
+      const post = await createSharePost({
+        con,
+        args: {
+          sourceId,
+          commentary: content,
+          authorId: createdById,
+          postId: existingPost.id,
+          visible: existingPost.visible,
+        },
+      });
+
+      return { ...moderated, postId: post.id };
+    }
+
+    const post = await createExternalLink({
+      con,
+      args: {
+        title,
+        image,
+        url: cleanUrl,
+        sourceId,
+        authorId: createdById,
+        commentary: content,
+      },
+    });
+    return { ...moderated, postId: post.id };
+  }
+
+  logger.error({ moderated }, 'unable to process moderated post');
+
+  return null;
+};
+
+export const validateSourcePostModeration = async (
+  ctx: AuthContext,
+  {
+    postId,
+    title,
+    content,
+    sourceId,
+    image,
+    type,
+    sharedPostId,
+    imageUrl,
+    externalLink,
+  }: CreateSourcePostModerationArgs,
+): Promise<CreateSourcePostModeration> => {
+  if (![PostType.Share, PostType.Freeform].includes(type)) {
+    throw new ValidationError('Invalid post type!');
+  }
+
+  const { con, userId } = ctx;
+  const pendingPost: CreateSourcePostModeration = {
+    title: validateCommentary(title),
+    postId,
+    sourceId,
+    type,
+    sharedPostId,
+    externalLink,
+    createdById: userId,
+  };
+
+  const mentions = await getMentions(con, content, userId, sourceId);
+
+  if (type === PostType.Share) {
+    if (!!externalLink) {
+      const cleanContent = validateCommentary(content);
+
+      if (cleanContent) {
+        pendingPost.content = cleanContent;
+        pendingPost.contentHtml = generateTitleHtml(cleanContent, mentions);
+      }
+    } else if (pendingPost.title) {
+      pendingPost.titleHtml = generateTitleHtml(pendingPost.title, mentions);
+    }
+  }
+
+  if (content && type === PostType.Freeform) {
+    pendingPost.content = content;
+    pendingPost.contentHtml = markdown.render(content, { mentions })?.trim();
+  }
+
+  if (imageUrl) {
+    pendingPost.image = imageUrl;
+  } else if (image && process.env.CLOUDINARY_URL) {
+    const upload = await image;
+    const { url: coverImageUrl } = await uploadPostFile(
+      await generateShortId(),
+      upload.createReadStream(),
+      UploadPreset.PostBannerImage,
+    );
+    pendingPost.image = coverImageUrl;
+  }
+
+  return pendingPost;
+};
+
+export const findPostImageFromContent = ({
+  post,
+}: {
+  post: Pick<FreeformPost, 'content'>;
+}): string | undefined => {
+  if (!post.content) {
+    return undefined;
+  }
+
+  const contentMarkdown = markdown.parse(post.content, {});
+
+  const imgTag = findMarkdownTag({
+    tokens: contentMarkdown,
+    tag: 'img',
+    depth: 0,
+    maxDepth: 1,
+  });
+
+  return imgTag?.attrGet('src') || undefined;
+};
+
+type PostContentMeta = {
+  alt_title: {
+    translations: I18nRecord;
+  };
+  translate_title: {
+    translations: I18nRecord;
+  };
+};
+
+export const getPostTranslatedTitle = (
+  post: Partial<Pick<Post, 'title' | 'contentMeta'>>,
+  contentLanguage: ContentLanguage,
+) =>
+  (post.contentMeta as PostContentMeta)?.translate_title?.translations?.[
+    contentLanguage
+  ] || (post.title as string);
+
+export const getSmartTitle = (
+  contentLanguage: ContentLanguage,
+  translations?: I18nRecord,
+): string | undefined => {
+  return (
+    translations?.[contentLanguage] ?? translations?.[ContentLanguage.English]
+  );
+};
+
+export const getPostSmartTitle = (
+  post: Partial<Pick<Post, 'title' | 'contentMeta'>>,
+  contentLanguage: ContentLanguage,
+) =>
+  getSmartTitle(
+    contentLanguage,
+    (post.contentMeta as PostContentMeta)?.alt_title?.translations,
+  ) || getPostTranslatedTitle(post, contentLanguage);

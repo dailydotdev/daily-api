@@ -17,15 +17,20 @@ import {
   Source,
   SourceRequest,
   SquadPublicRequest,
+  SquadSource,
   Submission,
   User,
+  UserTopReader,
   WelcomePost,
 } from '../entity';
 import {
   addNotificationEmailUtm,
   baseNotificationEmailData,
   basicHtmlStrip,
+  CioTransactionalMessageTemplateId,
   formatMailDate,
+  getSourceLink,
+  mapCloudinaryUrl,
   pickImageUrl,
   sendEmail,
   truncatePostToTweet,
@@ -42,12 +47,16 @@ import {
 import { processStreamInBatches } from '../common/streaming';
 import { counters } from '../telemetry';
 import { contentPreferenceNotificationTypes } from '../common/contentPreference';
+import { SourcePostModeration } from '../entity/SourcePostModeration';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
 }
 
 export const notificationToTemplateId: Record<NotificationType, string> = {
+  source_post_approved: '62',
+  source_post_submitted: '61',
+  source_post_rejected: '', // we won't send an email on rejected ones
   community_picks_failed: '28',
   community_picks_succeeded: '27',
   community_picks_granted: '26',
@@ -81,9 +90,10 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   streak_reset_restore: '',
   squad_featured: '56',
   user_post_added: '58',
+  user_given_top_reader: CioTransactionalMessageTemplateId.UserGivenTopReader,
 };
 
-type TemplateData = Record<string, string | number>;
+type TemplateData = Record<string, unknown>;
 
 type TemplateDataFunc = (
   con: DataSource,
@@ -93,6 +103,127 @@ type TemplateDataFunc = (
   avatars: NotificationAvatarV2[],
 ) => Promise<TemplateData | null>;
 const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
+  source_post_approved: async (con, user, notification) => {
+    const post = await con.getRepository(Post).findOne({
+      where: { id: notification.referenceId },
+    });
+
+    if (!post) {
+      return null;
+    }
+
+    const [squad, createdBy, sharedPost] = await Promise.all([
+      con.getRepository(SquadSource).findOne({
+        where: { id: post.sourceId },
+        select: ['name', 'type', 'handle', 'image'],
+      }),
+      post.author,
+      post.type === PostType.Share
+        ? con.getRepository(ArticlePost).findOne({
+            where: { id: (post as SharePost).sharedPostId },
+            select: ['title', 'image'],
+          })
+        : Promise.resolve(null),
+    ]);
+
+    if (!squad || !createdBy) {
+      return null;
+    }
+
+    return {
+      full_name: createdBy.name,
+      profile_image: createdBy.image,
+      squad_name: squad.name,
+      squad_image: squad.image,
+      commenter_reputation: createdBy.reputation.toString(),
+      post_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
+      post_image: sharedPost?.image || (post as FreeformPost).image,
+      post_title:
+        post.type === PostType.Share ? sharedPost?.title || '' : post.title,
+      commentary:
+        post.type === PostType.Share
+          ? post.title
+          : (post as FreeformPost).content,
+    };
+  },
+  source_post_submitted: async (con, user, notification) => {
+    const moderation: Pick<
+      SourcePostModeration,
+      | 'createdById'
+      | 'sourceId'
+      | 'image'
+      | 'title'
+      | 'content'
+      | 'type'
+      | 'sharedPostId'
+    > | null = await con.getRepository(SourcePostModeration).findOne({
+      where: { id: notification.referenceId },
+      select: [
+        'createdById',
+        'sourceId',
+        'image',
+        'title',
+        'content',
+        'type',
+        'sharedPostId',
+      ],
+    });
+
+    if (!moderation) {
+      return null;
+    }
+
+    const { sharedPostId } = moderation;
+    const [squad, createdBy, sharedPost, moderator]: [
+      Pick<SquadSource, 'type' | 'name' | 'handle' | 'image'> | null,
+      Pick<User, 'name' | 'reputation' | 'image'> | null,
+      Pick<ArticlePost, 'title' | 'image'> | null,
+      Pick<User, 'name' | 'reputation' | 'image'> | null,
+    ] = await Promise.all([
+      con.getRepository(SquadSource).findOne({
+        where: { id: moderation.sourceId },
+        select: ['type', 'name', 'handle', 'image'],
+      }),
+      con.getRepository(User).findOne({
+        where: { id: moderation.createdById },
+        select: ['name', 'image', 'reputation'],
+      }),
+      moderation.type === PostType.Share && sharedPostId
+        ? con.getRepository(ArticlePost).findOne({
+            where: { id: sharedPostId },
+            select: ['title', 'image'],
+          })
+        : Promise.resolve(null),
+      con.getRepository(User).findOne({
+        where: { id: user.id },
+        select: ['name', 'image', 'reputation'],
+      }),
+    ]);
+
+    if (!squad || !createdBy || !moderator) {
+      return null;
+    }
+
+    return {
+      full_name: moderator.name,
+      profile_image: createdBy.image,
+      squad_name: squad.name,
+      squad_image: squad.image,
+      creator_name: createdBy.name,
+      creator_reputation: createdBy.reputation.toString(),
+      post_link: `${getSourceLink(squad)}/moderate`,
+      post_image: (sharedPost as ArticlePost)?.image || moderation.image,
+      post_title: sharedPost?.title || moderation.title,
+      commentary:
+        moderation.type === PostType.Share
+          ? moderation.title
+          : moderation.content,
+    };
+  },
+  source_post_rejected: async () => null,
   post_bookmark_reminder: async () => null,
   streak_reset_restore: async () => null,
   community_picks_failed: async (con, user, notification) => {
@@ -706,12 +837,34 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       profile_image: avatar.image,
     };
   },
+  user_given_top_reader: async (con, user, notification) => {
+    const userTopReader = await con
+      .getRepository(UserTopReader)
+      .findOneByOrFail({
+        userId: user.id,
+        id: notification.referenceId,
+      });
+
+    const keyword = await userTopReader.keyword;
+    if (!keyword) {
+      throw new Error('Keyword not found');
+    }
+
+    return {
+      image: userTopReader.image,
+      issuedAt: formatMailDate(userTopReader.issuedAt),
+      keyword: keyword?.flags?.title || keyword.value,
+    };
+  },
 };
 
 const formatTemplateDate = <T extends TemplateData>(data: T): T => {
   return Object.keys(data).reduce((acc, key) => {
-    if (typeof data[key] === 'number') {
-      return { ...acc, [key]: (data[key] as number).toLocaleString() };
+    switch (typeof data[key]) {
+      case 'number':
+        return { ...acc, [key]: (data[key] as number).toLocaleString() };
+      case 'string':
+        return { ...acc, [key]: mapCloudinaryUrl(data[key]) };
     }
     return acc;
   }, data);
