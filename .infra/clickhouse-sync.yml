@@ -104,10 +104,10 @@ offset.storage.jdbc.offset.table.ddl: |
       `_version` UInt64 MATERIALIZED toUnixTimestamp64Nano(now64(9))
   )
   ENGINE = ReplacingMergeTree(_version)
-  ORDER BY id
+  ORDER BY offset_key
   SETTINGS index_granularity = 8198
 #offset.storage.jdbc.offset.table.delete: "delete from %s where 1=1"
-offset.storage.jdbc.offset.table.delete: "select 1"
+offset.storage.jdbc.offset.table.delete: "select * from %s"
 schema.history.internal: "io.debezium.storage.jdbc.history.JdbcSchemaHistory"
 schema.history.internal.jdbc.url: "jdbc:clickhouse:%clickhouse_host%:%clickhouse_port%/api"
 schema.history.internal.jdbc.user: "%clickhouse_user%"
