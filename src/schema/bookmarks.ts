@@ -17,7 +17,7 @@ import {
   FeedArgs,
   feedResolver,
   getCursorFromAfter,
-  isOneEmoji,
+  isOneValidEmoji,
   Ranking,
 } from '../common';
 import { In, SelectQueryBuilder } from 'typeorm';
@@ -407,7 +407,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { name, icon }: Record<'name' | 'icon', string>,
       ctx: AuthContext,
     ): Promise<GQLBookmarkList> => {
-      const isValidIcon = !icon || isOneEmoji(icon);
+      const isValidIcon = !icon || isOneValidEmoji(icon);
       if (!isValidIcon || !name.length) {
         throw new ValidationError('Invalid icon or name');
       }

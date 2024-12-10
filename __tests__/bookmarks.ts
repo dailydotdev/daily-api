@@ -25,6 +25,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { subDays } from 'date-fns';
 import { GQLBookmark } from '../src/schema/bookmarks';
+import { VALID_FOLDER_EMOJIS } from '../src/common';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -327,25 +328,24 @@ describe('mutation createBookmarkList', () => {
     );
   });
 
-  it('should create a new list with icon', async () => {
-    loggedUser = '1';
-    const request = {
-      name: 'list',
-      icon: '😀',
-    };
-    const res = await client.mutate(MUTATION('list', '😀'));
-    expect(res.errors).toBeFalsy();
-    const folders = await con.getRepository(BookmarkList).find();
-    expect(folders.length).toEqual(1);
-    const folder = folders[0];
-    const { id, name, icon, userId } = folder;
-    expect(res.data.createBookmarkList.id).toEqual(id);
-    expect(res.data.createBookmarkList.name).toEqual(name);
-    expect(res.data.createBookmarkList.icon).toEqual(icon);
-    expect(name).toEqual(request.name);
-    expect(icon).toEqual(request.icon);
-    expect(userId).toEqual(loggedUser);
-  });
+  test.each(VALID_FOLDER_EMOJIS)(
+    'should create a new list with icon %s',
+    async (iconToTest: string) => {
+      loggedUser = '1';
+      const res = await client.mutate(MUTATION('list', iconToTest));
+      expect(res.errors).toBeFalsy();
+      const folders = await con.getRepository(BookmarkList).find();
+      expect(folders.length).toEqual(1);
+      const folder = folders[0];
+      const { id, name, icon, userId } = folder;
+      expect(res.data.createBookmarkList.id).toEqual(id);
+      expect(res.data.createBookmarkList.name).toEqual(name);
+      expect(res.data.createBookmarkList.icon).toEqual(icon);
+      expect(name).toEqual('list');
+      expect(icon).toEqual(iconToTest);
+      expect(userId).toEqual(loggedUser);
+    },
+  );
 
   it('should not create a new list if already have one and user is not plus', async () => {
     loggedUser = '1';
