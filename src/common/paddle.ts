@@ -24,6 +24,7 @@ export const cancelSubscription = async ({
       {
         type: 'paddle',
         subscriptionId,
+        error: e.message,
       },
       'Subscription cancellation failed',
     );

@@ -8,7 +8,7 @@ export type GenericMetadata = {
 
 export type LofnFeedConfigResponse = {
   user_id: string;
-  config: FeedConfig;
+  config: Omit<FeedConfig, 'page_size' | 'total_pages'>;
   tyr_metadata?: GenericMetadata;
   extra?: GenericMetadata;
 };
