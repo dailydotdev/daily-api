@@ -854,7 +854,11 @@ describe('query bookmarkList', () => {
   `;
 
   it('should not authorize when not logged in', () =>
-    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: randomUUID() } },
+      'UNAUTHENTICATED',
+    ));
 
   it('should return bookmark list', async () => {
     loggedUser = '1';
