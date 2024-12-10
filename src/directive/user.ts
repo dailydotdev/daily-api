@@ -27,24 +27,24 @@ export const deleteUser = async (
   messageId?: string,
 ) => {
   try {
-    await con.transaction(async (entityManager): Promise<void> => {
-      const user = await entityManager.getRepository(User).findOne({
-        select: ['subscriptionFlags'],
-        where: { id: userId },
+    const user = await con.getRepository(User).findOne({
+      select: ['subscriptionFlags'],
+      where: { id: userId },
+    });
+    if (user?.subscriptionFlags?.subscriptionId) {
+      await cancelSubscription({
+        subscriptionId: user.subscriptionFlags.subscriptionId,
       });
-      if (user?.subscriptionFlags?.subscriptionId) {
-        await cancelSubscription({
+      logger.info(
+        {
+          type: 'paddle',
+          userId,
           subscriptionId: user.subscriptionFlags.subscriptionId,
-        });
-        logger.info(
-          {
-            type: 'paddle',
-            userId,
-            subscriptionId: user.subscriptionFlags.subscriptionId,
-          },
-          'Subscription cancelled user deletion',
-        );
-      }
+        },
+        'Subscription cancelled user deletion',
+      );
+    }
+    await con.transaction(async (entityManager): Promise<void> => {
       await entityManager.getRepository(View).delete({ userId });
       await entityManager.getRepository(Alerts).delete({ userId });
       await entityManager.getRepository(BookmarkList).delete({ userId });
