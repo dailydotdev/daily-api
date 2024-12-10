@@ -1,8 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import {
   EventName,
-  Paddle,
-  type Environment,
   type SubscriptionCanceledEvent,
   type SubscriptionCreatedEvent,
   type SubscriptionItemNotification,
@@ -20,10 +18,7 @@ import {
   sendAnalyticsEvent,
 } from '../../integrations/analytics';
 import { JsonContains } from 'typeorm';
-
-const paddleInstance = new Paddle(process.env.PADDLE_API_KEY, {
-  environment: process.env.PADDLE_ENVIRONMENT as Environment,
-});
+import { paddleInstance } from '../../common/paddle';
 
 const extractSubscriptionType = (
   items:
