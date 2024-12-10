@@ -865,7 +865,11 @@ describe('query bookmarkList', () => {
     });
     const res = await client.query(QUERY, { variables: { id: list.id } });
     expect(res.errors).toBeFalsy();
-    expect(res.data.bookmarkList).toMatchSnapshot();
+    expect(res.data.bookmarkList).toEqual({
+      id: list.id,
+      name: 'list',
+      icon: '😀',
+    });
   });
 
   it('should throw not_found when folder was not found', async () => {
