@@ -14,7 +14,7 @@ type CancelSubscriptionProps = {
 };
 export const cancelSubscription = ({
   subscriptionId,
-}: CancelSubscriptionProps): Promise<Subscription> => {
+}: CancelSubscriptionProps): Promise<Subscription> | undefined => {
   logger.info(
     {
       type: 'paddle',
