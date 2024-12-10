@@ -28,6 +28,7 @@ import { logger } from '../logger';
 import { BookmarkListCountLimit, maxBookmarksPerMutation } from '../types';
 import graphorm from '../graphorm';
 import { getFirstFolderId } from '../common/bookmarks';
+import { queryReadReplica } from '../common/queryReadReplica';
 
 interface GQLAddBookmarkInput {
   postIds: string[];
@@ -526,12 +527,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       _,
       { id }: { id: string },
       ctx: AuthContext,
-    ): Promise<GQLBookmarkList> => {
-      return ctx.con.getRepository(BookmarkList).findOneByOrFail({
-        id,
-        userId: ctx.userId,
-      });
-    },
+    ): Promise<GQLBookmarkList> =>
+      queryReadReplica(ctx.con, async ({ queryRunner }) =>
+        queryRunner.manager.getRepository(BookmarkList).findOneByOrFail({
+          id,
+          userId: ctx.userId,
+        }),
+      ),
     bookmarkLists: async (
       _,
       __,
