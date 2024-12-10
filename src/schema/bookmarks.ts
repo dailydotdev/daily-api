@@ -28,6 +28,7 @@ import { logger } from '../logger';
 import { BookmarkListCountLimit, maxBookmarksPerMutation } from '../types';
 import graphorm from '../graphorm';
 import { getFirstFolderId } from '../common/bookmarks';
+import { queryReadReplica } from '../common/queryReadReplica';
 
 interface GQLAddBookmarkInput {
   postIds: string[];
@@ -195,6 +196,11 @@ export const typeDefs = /* GraphQL */ `
     Get all the bookmark lists of the user
     """
     bookmarkLists: [BookmarkList!]! @auth
+
+    """
+    Get bookmark list by id
+    """
+    bookmarkList(id: ID!): BookmarkList! @auth
 
     """
     Get suggestions for search bookmarks query
@@ -517,6 +523,24 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return resolver(source, args, ctx, info);
     },
+    bookmarkList: async (
+      _,
+      { id }: { id: string },
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLBookmarkList> =>
+      queryReadReplica(ctx.con, async () =>
+        graphorm.queryOneOrFail<GQLBookmarkList>(ctx, info, (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder.where(
+            `"${builder.alias}"."id" = :id AND "${builder.alias}"."userId" = :userId`,
+            {
+              id,
+              userId: ctx.userId,
+            },
+          ),
+        })),
+      ),
     bookmarkLists: async (
       _,
       __,
