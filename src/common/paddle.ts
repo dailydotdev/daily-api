@@ -28,5 +28,6 @@ export const cancelSubscription = async ({
       },
       'Subscription cancellation failed',
     );
+    throw e;
   }
 };
