@@ -18,7 +18,6 @@ import {
 } from '../entity';
 import { ghostUser } from '../common';
 import { cancelSubscription } from '../common/paddle';
-import { logger } from '../logger';
 
 export const deleteUser = async (
   con: DataSource,
