@@ -336,11 +336,6 @@ export const typeDefs = /* GraphQL */ `
       unreadOnly: Boolean = false
 
       """
-      Force refresh the feed
-      """
-      refresh: Boolean = false
-
-      """
       Version of the feed algorithm
       """
       version: Int = 1
@@ -955,7 +950,6 @@ interface AnonymousFeedArgs extends FeedArgs {
 interface ConfiguredFeedArgs extends FeedArgs {
   unreadOnly: boolean;
   version: number;
-  refresh?: boolean;
 }
 
 interface SourceFeedArgs extends FeedArgs {
@@ -1253,7 +1247,6 @@ const feedResolverCursor = feedResolver<
         offset: 0,
         cursor: page.cursor,
         allowed_post_types: args.supportedTypes,
-        ...(args?.refresh && { refresh: true }),
       }),
     warnOnPartialFirstPage: true,
     // Feed service should take care of this
@@ -1327,10 +1320,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     feed: (source, args: ConfiguredFeedArgs, ctx: Context, info) => {
       if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
-        if (args?.refresh) {
-          counters?.api?.forceRefresh?.add(1);
-        }
-
         return feedResolverCursor(
           source,
           {
