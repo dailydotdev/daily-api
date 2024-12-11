@@ -473,14 +473,11 @@ const updatePost = async ({
   });
 
   if (
-    databasePost.contentQuality?.manual_clickbait_probability &&
-    data.contentQuality?.is_clickbait_probability &&
-    databasePost.contentQuality?.is_clickbait_probability
+    data.contentQuality &&
+    databasePost.contentQuality?.manual_clickbait_probability !== null
   ) {
     data.contentQuality.manual_clickbait_probability =
       databasePost.contentQuality.manual_clickbait_probability;
-    data.contentQuality.is_clickbait_probability =
-      databasePost.contentQuality.is_clickbait_probability;
   }
 
   if (allowedFieldsMapping[content_type]) {

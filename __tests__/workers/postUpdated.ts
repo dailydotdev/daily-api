@@ -1336,7 +1336,7 @@ describe('on post update', () => {
     });
   });
 
-  it('should not replace is_clickbait_probability if manual_clickbait_probability is set', async () => {
+  it('should not replace manual_clickbait_probability if manual_clickbait_probability is set', async () => {
     const postId = 'p1';
 
     const existingPost = await con.getRepository(ArticlePost).save({
@@ -1345,7 +1345,7 @@ describe('on post update', () => {
       contentQuality: {
         is_ai_probability: 0.52,
         is_clickbait_probability: 0.42,
-        manual_clickbait_probability: true,
+        manual_clickbait_probability: 1,
       },
     });
 
@@ -1367,8 +1367,8 @@ describe('on post update', () => {
     expect(existingPost).not.toBeNull();
     expect(updatedPost?.contentQuality).toMatchObject({
       is_ai_probability: 0.72,
-      is_clickbait_probability: 0.42,
-      manual_clickbait_probability: true,
+      is_clickbait_probability: 0.62,
+      manual_clickbait_probability: 1,
     });
   });
 
