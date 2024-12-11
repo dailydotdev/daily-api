@@ -218,5 +218,3 @@ export enum PostCodeSnippetLanguage {
 export type PostCodeSnippetJsonFile = {
   snippets: string[];
 };
-
-export const MANUAL_CLICKBAIT_VALUE = 10.0;

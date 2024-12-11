@@ -100,11 +100,7 @@ import { generateStorageKey, StorageTopic } from '../config';
 import { subDays } from 'date-fns';
 import { ReportReason } from '../entity/common';
 import { reportPost, saveHiddenPost } from '../common/reporting';
-import {
-  MANUAL_CLICKBAIT_VALUE,
-  PostCodeSnippetLanguage,
-  UserVote,
-} from '../types';
+import { PostCodeSnippetLanguage, UserVote } from '../types';
 import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
 import {
   SourcePostModeration,
@@ -2233,28 +2229,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           select: ['contentQuality'],
         });
 
-      const is_clickbait_probability = parseFloat(
+      const clickbaitProbability = parseFloat(
         (contentQuality.is_clickbait_probability as unknown as string) || '0.0',
       );
       const clickbaitTitleProbabilityThreshold =
         remoteConfig.vars.clickbaitTitleProbabilityThreshold || 1.0;
 
-      // We +/- 10 as it is a number that is above the natural range from Yggdrasil,
-      // so it will be easy to identify if the value was changed by a user.
-      const newProbability =
-        is_clickbait_probability > clickbaitTitleProbabilityThreshold
-          ? is_clickbait_probability - MANUAL_CLICKBAIT_VALUE
-          : is_clickbait_probability + MANUAL_CLICKBAIT_VALUE;
-
-      const isManual = newProbability > 1.0 || newProbability < 0.0;
+      if ('manual_clickbait_probability' in contentQuality) {
+        delete contentQuality.manual_clickbait_probability;
+      } else {
+        contentQuality.manual_clickbait_probability =
+          clickbaitProbability > clickbaitTitleProbabilityThreshold ? 0 : 1;
+      }
 
       await ctx.con.getRepository(Post).update(
         { id },
         {
-          contentQuality: {
-            is_clickbait_probability: newProbability,
-            manual_clickbait_probability: isManual,
-          },
+          contentQuality,
         },
       );
     },
