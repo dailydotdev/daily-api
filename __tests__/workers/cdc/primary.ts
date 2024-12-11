@@ -4659,6 +4659,7 @@ describe('source_post_moderation', () => {
     status: SourcePostModerationStatus.Pending,
     createdAt: new Date().getTime(),
     updatedAt: new Date().getTime(),
+    flags: '{}',
   };
 
   it('should notify mods on create', async () => {
@@ -4679,7 +4680,7 @@ describe('source_post_moderation', () => {
   });
 
   it('should notify mods on create if vordr is false', async () => {
-    const after = { ...base, flags: { vordr: false } };
+    const after = { ...base, flags: JSON.stringify({ vordr: false }) };
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<ObjectType>({
@@ -4700,7 +4701,7 @@ describe('source_post_moderation', () => {
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<ObjectType>({
-        after: { ...base, flags: { vordr: true } },
+        after: { ...base, flags: JSON.stringify({ vordr: true }) },
         before: null,
         op: 'c',
         table: 'source_post_moderation',
