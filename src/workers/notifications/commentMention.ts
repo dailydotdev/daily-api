@@ -1,9 +1,18 @@
 import { messageToJson } from '../worker';
-import { Comment, CommentMention } from '../../entity';
-import { NotificationType } from '../../notifications/common';
+import {
+  Comment,
+  CommentMention,
+  NotificationPreferenceComment,
+} from '../../entity';
+import {
+  commentReplyNotificationTypes,
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../../notifications/common';
 import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
 import { buildPostContext } from './utils';
+import { In } from 'typeorm';
 
 export interface Data {
   commentMention: ChangeObject<CommentMention>;
@@ -18,10 +27,7 @@ const worker: NotificationWorker = {
       where: { id: data.commentMention.commentId },
       relations: ['user'],
     });
-    if (!comment) {
-      return;
-    }
-    if (comment.flags?.vordr) {
+    if (!comment || comment.flags?.vordr) {
       return;
     }
     const postCtx = await buildPostContext(con, comment.postId);
@@ -32,18 +38,20 @@ const worker: NotificationWorker = {
     if (authors.has(data.commentMention.mentionedUserId)) {
       return;
     }
-    const threadFollower = await repo
-      .createQueryBuilder()
-      .where({
-        id: comment.parentId,
+    const [parenterCommenter, mute] = await Promise.all([
+      comment.parentId &&
+        repo.findOneBy({
+          id: comment.parentId,
+          userId: data.commentMention.mentionedUserId,
+        }),
+      con.getRepository(NotificationPreferenceComment).findOneBy({
+        referenceId: In([comment.id, comment.parentId ?? '']),
+        notificationType: In(commentReplyNotificationTypes),
         userId: data.commentMention.mentionedUserId,
-      })
-      .orWhere({
-        userId: data.commentMention.mentionedUserId,
-        parentId: comment.parentId,
-      })
-      .getRawOne();
-    if (threadFollower) {
+        status: NotificationPreferenceStatus.Muted,
+      }),
+    ]);
+    if (parenterCommenter || mute) {
       return;
     }
     const commenter = await comment.user;
