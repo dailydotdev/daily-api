@@ -109,6 +109,7 @@ import {
 import { logger } from '../logger';
 import { Source } from '@dailydotdev/schema';
 import { queryReadReplica } from '../common/queryReadReplica';
+import { remoteConfig } from '../remoteConfig';
 
 export interface GQLSourcePostModeration {
   id: string;
@@ -1132,6 +1133,11 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID
     ): EmptyResponse @auth(requires: [MODERATOR])
+
+    """
+    Toggles post's title between clickbait and non-clickbait
+    """
+    clickbaitPost(id: ID!): EmptyResponse @auth(requires: [MODERATOR])
 
     """
     Fetch external link's title and image preview
@@ -2214,6 +2220,34 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         );
       }
       return { _: true };
+    },
+    clickbaitPost: async (_, { id }: { id: string }, ctx: AuthContext) => {
+      const { contentQuality }: Pick<Post, 'contentQuality'> = await ctx.con
+        .getRepository(Post)
+        .findOneOrFail({
+          where: { id },
+          select: ['contentQuality'],
+        });
+
+      const clickbaitProbability = parseFloat(
+        (contentQuality.is_clickbait_probability as unknown as string) || '0.0',
+      );
+      const clickbaitTitleProbabilityThreshold =
+        remoteConfig.vars.clickbaitTitleProbabilityThreshold || 1.0;
+
+      if ('manual_clickbait_probability' in contentQuality) {
+        delete contentQuality.manual_clickbait_probability;
+      } else {
+        contentQuality.manual_clickbait_probability =
+          clickbaitProbability > clickbaitTitleProbabilityThreshold ? 0 : 1;
+      }
+
+      await ctx.con.getRepository(Post).update(
+        { id },
+        {
+          contentQuality,
+        },
+      );
     },
     checkLinkPreview: async (
       _,
