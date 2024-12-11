@@ -1746,6 +1746,99 @@ describe('mutation banPost', () => {
   });
 });
 
+describe('mutation clickbaitPost', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation ClickbaitPost($id: ID!) {
+      clickbaitPost(id: $id) {
+        _
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should not authorize when not moderator', () => {
+    loggedUser = '1';
+    roles = [];
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should mark the post as clickbait when it does not have clickbait probability', async () => {
+    loggedUser = '1';
+    roles = [Roles.Moderator];
+
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post.contentQuality.manual_clickbait_probability).toEqual(1);
+  });
+
+  it('should mark the post as clickbait when it is below threshold', async () => {
+    await con
+      .getRepository(ArticlePost)
+      .update('p1', { contentQuality: { is_clickbait_probability: 0.9 } });
+
+    loggedUser = '1';
+    roles = [Roles.Moderator];
+
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post.contentQuality.is_clickbait_probability).toEqual(0.9);
+    expect(post.contentQuality.manual_clickbait_probability).toEqual(1);
+  });
+
+  it('should mark the post as not-clickbait when it is above threshold', async () => {
+    await con
+      .getRepository(ArticlePost)
+      .update('p1', { contentQuality: { is_clickbait_probability: 1.1 } });
+
+    loggedUser = '1';
+    roles = [Roles.Moderator];
+
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post.contentQuality.is_clickbait_probability).toEqual(1.1);
+    expect(post.contentQuality.manual_clickbait_probability).toEqual(0);
+  });
+
+  it('should revert the clickbait status when it is already marked as clickbait', async () => {
+    loggedUser = '1';
+    roles = [Roles.Moderator];
+
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post.contentQuality.manual_clickbait_probability).toEqual(1.0);
+
+    const res2 = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res2.errors).toBeFalsy();
+
+    const post2 = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post2.contentQuality.manual_clickbait_probability).toBeUndefined();
+  });
+});
+
 describe('mutation reportPost', () => {
   const MUTATION = `
   mutation ReportPost($id: ID!, $reason: ReportReason, $comment: String, $tags: [String]) {
@@ -5603,6 +5696,260 @@ describe('posts title field', () => {
 
     expect(res.data.post).toEqual({
       title: 'P1 Portugal Brazil',
+    });
+  });
+
+  describe('clickbait shield title', () => {
+    beforeEach(async () => {
+      await con.getRepository(Settings).save({
+        userId: '1',
+        flags: {
+          clickbaitShieldEnabled: false,
+        },
+      });
+    });
+
+    it('should return original title if free user but post has smart title', async () => {
+      loggedUser = '1';
+      await con.getRepository(Settings).update(
+        { userId: '1' },
+        {
+          flags: {
+            clickbaitShieldEnabled: true,
+          },
+        },
+      );
+      await con.getRepository(Post).update(
+        { id: 'p1' },
+        {
+          contentQuality: { is_clickbait_probability: 1.98 },
+          contentMeta: {
+            alt_title: { translations: { en: 'Clickbait title' } },
+          },
+        },
+      );
+
+      const res = await client.query(QUERY);
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post).toEqual({
+        title: 'P1',
+      });
+    });
+
+    it('should return smart title if user has enabled clickbait shield', async () => {
+      loggedUser = '1';
+      isPlus = true;
+      await con.getRepository(Settings).update(
+        { userId: '1' },
+        {
+          flags: {
+            clickbaitShieldEnabled: true,
+          },
+        },
+      );
+      await con.getRepository(Post).update(
+        { id: 'p1' },
+        {
+          contentQuality: { is_clickbait_probability: 1.98 },
+          contentMeta: {
+            alt_title: { translations: { en: 'Clickbait title' } },
+          },
+        },
+      );
+
+      const res = await client.query(QUERY);
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post).toEqual({
+        title: 'Clickbait title',
+      });
+    });
+
+    it('should return original title if user has enabled clickbait shield but post is not clickbait', async () => {
+      loggedUser = '1';
+      isPlus = true;
+      await con.getRepository(Settings).update(
+        { userId: '1' },
+        {
+          flags: {
+            clickbaitShieldEnabled: true,
+          },
+        },
+      );
+      await con.getRepository(Post).update(
+        { id: 'p1' },
+        {
+          contentQuality: { is_clickbait_probability: 0 },
+          contentMeta: {
+            alt_title: { translations: { en: 'Clickbait title' } },
+          },
+        },
+      );
+
+      const res = await client.query(QUERY);
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post).toEqual({
+        title: 'P1',
+      });
+    });
+
+    it('should return original title if user has disabled clickbait shield', async () => {
+      loggedUser = '1';
+      isPlus = true;
+      await con.getRepository(Settings).update(
+        { userId: '1' },
+        {
+          flags: {
+            clickbaitShieldEnabled: false,
+          },
+        },
+      );
+      await con.getRepository(Post).update(
+        { id: 'p1' },
+        {
+          contentQuality: { is_clickbait_probability: 1.98 },
+          contentMeta: {
+            alt_title: { translations: { en: 'Clickbait title' } },
+          },
+        },
+      );
+
+      const res = await client.query(QUERY);
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post).toEqual({
+        title: 'P1',
+      });
+    });
+
+    it('should return i18n smart title', async () => {
+      loggedUser = '1';
+      isPlus = true;
+      await con.getRepository(Settings).update(
+        { userId: '1' },
+        {
+          flags: {
+            clickbaitShieldEnabled: true,
+          },
+        },
+      );
+      await con.getRepository(Post).update(
+        { id: 'p1' },
+        {
+          contentQuality: { is_clickbait_probability: 1.98 },
+          contentMeta: {
+            alt_title: {
+              translations: { en: 'Clickbait title', de: 'Clickbait title DE' },
+            },
+          },
+        },
+      );
+
+      const res = await client.query(QUERY, {
+        headers: {
+          'content-language': 'de',
+        },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post).toEqual({
+        title: 'Clickbait title DE',
+      });
+    });
+
+    it('should return english smart title when i18n smart title does not exist', async () => {
+      loggedUser = '1';
+      isPlus = true;
+      await con.getRepository(Settings).update(
+        { userId: '1' },
+        {
+          flags: {
+            clickbaitShieldEnabled: true,
+          },
+        },
+      );
+      await con.getRepository(Post).update(
+        { id: 'p1' },
+        {
+          contentQuality: { is_clickbait_probability: 1.98 },
+          contentMeta: {
+            alt_title: {
+              translations: { en: 'Clickbait title EN' },
+            },
+          },
+        },
+      );
+
+      const res = await client.query(QUERY, {
+        headers: {
+          'content-language': 'de',
+        },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post).toEqual({
+        title: 'Clickbait title EN',
+      });
+    });
+
+    it('should return i18n title when smart title does not exist', async () => {
+      loggedUser = '1';
+      isPlus = true;
+      await con.getRepository(Settings).update(
+        { userId: '1' },
+        {
+          flags: {
+            clickbaitShieldEnabled: true,
+          },
+        },
+      );
+      await con.getRepository(Post).update(
+        { id: 'p1' },
+        {
+          contentQuality: { is_clickbait_probability: 1.98 },
+          contentMeta: {
+            translate_title: {
+              translations: { en: 'Title EN', de: 'Title DE' },
+            },
+          },
+        },
+      );
+
+      const res = await client.query(QUERY, {
+        headers: {
+          'content-language': 'de',
+        },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post).toEqual({
+        title: 'Title DE',
+      });
+    });
+
+    it('should return original title when smart title and i18n title does not exist', async () => {
+      loggedUser = '1';
+      isPlus = true;
+      await con.getRepository(Settings).update(
+        { userId: '1' },
+        {
+          flags: {
+            clickbaitShieldEnabled: true,
+          },
+        },
+      );
+      await con.getRepository(Post).update(
+        { id: 'p1' },
+        {
+          contentQuality: { is_clickbait_probability: 1.98 },
+          contentMeta: {},
+        },
+      );
+
+      const res = await client.query(QUERY, {
+        headers: {
+          'content-language': 'de',
+        },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post).toEqual({
+        title: 'P1',
+      });
     });
   });
 });

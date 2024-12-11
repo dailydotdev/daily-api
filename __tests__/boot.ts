@@ -440,6 +440,54 @@ describe('logged in boot', () => {
     });
   });
 
+  it('should not re-issue JWT token when isPlus in payload is same as user', async () => {
+    const accessToken = await signJwt(
+      {
+        userId: '1',
+        roles: [],
+        isPlus: false,
+      },
+      15 * 60 * 1000,
+    );
+    const key = app.signCookie(accessToken.token);
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', `${cookies.auth.key}=${key};`)
+      .expect(200);
+
+    (res.get('set-cookie') as unknown as string[]).forEach((cookie) => {
+      // cookies.auth.key should not be in cookie
+      expect(cookie).not.toEqual(expect.stringContaining(cookies.auth.key));
+    });
+  });
+
+  it('should re-issue JWT token when isPlus in payload is different from user', async () => {
+    const accessToken = await signJwt(
+      {
+        userId: '1',
+        roles: [],
+        isPlus: true,
+      },
+      15 * 60 * 1000,
+    );
+    const key = app.signCookie(accessToken.token);
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', `${cookies.auth.key}=${key};`)
+      .expect(200);
+
+    (res.get('set-cookie') as unknown as string[]).forEach((cookie) => {
+      if (cookie.startsWith(`${cookies.auth.key}=`)) {
+        const jwt = app.unsignCookie(
+          cookie.slice(`${cookies.auth.key}=`.length),
+        );
+        expect(jwt).not.toEqual(key);
+      }
+    });
+  });
+
   it('should set team member to true if user is a team member', async () => {
     await con.getRepository(Feature).save({
       feature: FeatureType.Team,
