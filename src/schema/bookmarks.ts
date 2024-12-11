@@ -17,7 +17,7 @@ import {
   FeedArgs,
   feedResolver,
   getCursorFromAfter,
-  isOneEmoji,
+  isOneValidEmoji,
   Ranking,
 } from '../common';
 import { In, SelectQueryBuilder } from 'typeorm';
@@ -27,6 +27,7 @@ import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { logger } from '../logger';
 import { BookmarkListCountLimit, maxBookmarksPerMutation } from '../types';
 import graphorm from '../graphorm';
+import { getFirstFolderId } from '../common/bookmarks';
 
 interface GQLAddBookmarkInput {
   postIds: string[];
@@ -180,6 +181,11 @@ export const typeDefs = /* GraphQL */ `
       listId: ID
 
       """
+      Filter bookmarks with reminders only
+      """
+      reminderOnly: Boolean
+
+      """
       Array of supported post types
       """
       supportedTypes: [String!]
@@ -189,6 +195,11 @@ export const typeDefs = /* GraphQL */ `
     Get all the bookmark lists of the user
     """
     bookmarkLists: [BookmarkList!]! @auth
+
+    """
+    Get bookmark list by id
+    """
+    bookmarkList(id: ID!): BookmarkList! @auth
 
     """
     Get suggestions for search bookmarks query
@@ -246,6 +257,7 @@ interface BookmarksArgs extends ConnectionArguments {
   now: Date;
   unreadOnly: boolean;
   listId: string;
+  reminderOnly: boolean;
   supportedTypes?: string[];
   ranking: Ranking;
 }
@@ -295,10 +307,24 @@ const applyBookmarkPaging = (
 const searchResolver = feedResolver(
   (
     ctx,
-    { query, unreadOnly, listId }: BookmarksArgs & { query: string },
+    {
+      query,
+      unreadOnly,
+      reminderOnly,
+      listId,
+    }: BookmarksArgs & { query: string },
     builder,
     alias,
-  ) => bookmarksFeedBuilder(ctx, unreadOnly, listId, builder, alias, query),
+  ) =>
+    bookmarksFeedBuilder({
+      ctx,
+      unreadOnly,
+      reminderOnly,
+      listId,
+      builder,
+      alias,
+      query,
+    }),
   offsetPageGenerator(30, 50),
   (ctx, args, page, builder) => builder.limit(page.limit).offset(page.offset),
   { removeHiddenPosts: true, removeBannedPosts: false },
@@ -386,7 +412,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { name, icon }: Record<'name' | 'icon', string>,
       ctx: AuthContext,
     ): Promise<GQLBookmarkList> => {
-      const isValidIcon = !icon || isOneEmoji(icon);
+      const isValidIcon = !icon || isOneValidEmoji(icon);
       if (!isValidIcon || !name.length) {
         throw new ValidationError('Invalid icon or name');
       }
@@ -467,17 +493,57 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   Query: {
-    bookmarksFeed: feedResolver(
-      (ctx, { unreadOnly, listId }: BookmarksArgs, builder, alias) =>
-        bookmarksFeedBuilder(ctx, unreadOnly, listId, builder, alias),
-      bookmarkPageGenerator,
-      applyBookmarkPaging,
-      {
-        removeHiddenPosts: false,
-        removeBannedPosts: false,
-        removeNonPublicThresholdSquads: false,
-      },
-    ),
+    bookmarksFeed: async (source, args, ctx: AuthContext, info) => {
+      const firstFolderId = await getFirstFolderId(ctx);
+      const resolver = feedResolver(
+        (
+          ctx,
+          { unreadOnly, reminderOnly, listId }: BookmarksArgs,
+          builder,
+          alias,
+        ) =>
+          bookmarksFeedBuilder({
+            ctx,
+            unreadOnly,
+            reminderOnly,
+            listId,
+            builder,
+            alias,
+            firstFolderId,
+          }),
+        bookmarkPageGenerator,
+        applyBookmarkPaging,
+        {
+          removeHiddenPosts: false,
+          removeBannedPosts: false,
+          removeNonPublicThresholdSquads: false,
+        },
+      );
+
+      return resolver(source, args, ctx, info);
+    },
+    bookmarkList: async (
+      _,
+      { id }: { id: string },
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLBookmarkList> =>
+      graphorm.queryOneOrFail<GQLBookmarkList>(
+        ctx,
+        info,
+        (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder.where(
+            `"${builder.alias}"."id" = :id AND "${builder.alias}"."userId" = :userId`,
+            {
+              id,
+              userId: ctx.userId,
+            },
+          ),
+        }),
+        undefined,
+        true,
+      ),
     bookmarkLists: async (
       _,
       __,

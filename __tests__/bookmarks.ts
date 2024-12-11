@@ -17,18 +17,23 @@ import {
   BookmarkList,
   ArticlePost,
   User,
+  Settings,
 } from '../src/entity';
 import { sourcesFixture, usersFixture, plusUsersFixture } from './fixture';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
+import { subDays } from 'date-fns';
 import { GQLBookmark } from '../src/schema/bookmarks';
+import { VALID_FOLDER_EMOJIS } from '../src/common';
+import { randomUUID } from 'crypto';
 
 let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string;
 let premiumUser: boolean;
+let isPlus: boolean;
 
 const now = new Date();
 const bookmarksFixture = [
@@ -52,13 +57,15 @@ const bookmarksFixture = [
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    () => new MockContext(con, loggedUser, premiumUser),
+    (req) =>
+      new MockContext(con, loggedUser, premiumUser, [], req, false, isPlus),
   );
   client = state.client;
 });
 
 beforeEach(async () => {
   loggedUser = '';
+  isPlus = false;
 
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
@@ -322,25 +329,24 @@ describe('mutation createBookmarkList', () => {
     );
   });
 
-  it('should create a new list with icon', async () => {
-    loggedUser = '1';
-    const request = {
-      name: 'list',
-      icon: '😀',
-    };
-    const res = await client.mutate(MUTATION('list', '😀'));
-    expect(res.errors).toBeFalsy();
-    const folders = await con.getRepository(BookmarkList).find();
-    expect(folders.length).toEqual(1);
-    const folder = folders[0];
-    const { id, name, icon, userId } = folder;
-    expect(res.data.createBookmarkList.id).toEqual(id);
-    expect(res.data.createBookmarkList.name).toEqual(name);
-    expect(res.data.createBookmarkList.icon).toEqual(icon);
-    expect(name).toEqual(request.name);
-    expect(icon).toEqual(request.icon);
-    expect(userId).toEqual(loggedUser);
-  });
+  test.each(VALID_FOLDER_EMOJIS)(
+    'should create a new list with icon %s',
+    async (iconToTest: string) => {
+      loggedUser = '1';
+      const res = await client.mutate(MUTATION('list', iconToTest));
+      expect(res.errors).toBeFalsy();
+      const folders = await con.getRepository(BookmarkList).find();
+      expect(folders.length).toEqual(1);
+      const folder = folders[0];
+      const { id, name, icon, userId } = folder;
+      expect(res.data.createBookmarkList.id).toEqual(id);
+      expect(res.data.createBookmarkList.name).toEqual(name);
+      expect(res.data.createBookmarkList.icon).toEqual(icon);
+      expect(name).toEqual('list');
+      expect(icon).toEqual(iconToTest);
+      expect(userId).toEqual(loggedUser);
+    },
+  );
 
   it('should not create a new list if already have one and user is not plus', async () => {
     loggedUser = '1';
@@ -568,56 +574,235 @@ describe('mutation moveBookmark', () => {
 });
 
 describe('query bookmarks', () => {
-  const QUERY = (
-    unreadOnly?: boolean,
-    listId?: string,
-    now = new Date(),
-    first = 10,
-  ): string => `{
-  bookmarksFeed(now: "${now.toISOString()}", first: ${first}${
-    unreadOnly ? ', unreadOnly: true' : ''
-  }${listId ? `, listId: "${listId}"` : ''}) {
-    pageInfo {
-      endCursor
-      hasNextPage
-    }
-    edges {
-      node {
-        id
-        source {
-          id
-          name
-          image
-          public
+  const QUERY = `
+    query BookmarksFeed($first: Int, $now: DateTime, $listId: ID, $reminderOnly: Boolean, $unreadOnly: Boolean) {
+      bookmarksFeed(first: $first, now: $now, listId: $listId, reminderOnly: $reminderOnly, unreadOnly: $unreadOnly) {
+        pageInfo {
+          endCursor
+          hasNextPage
         }
-        tags
+        edges {
+          node {
+            id
+            bookmark {
+              remindAt
+              list {
+                id
+                name
+              }
+            }
+            source {
+              id
+              name
+              image
+              public
+            }
+            tags
+          }
+        }
       }
     }
-  }
-}`;
+  `;
 
   it('should not authorize when not logged in', () =>
-    testQueryErrorCode(
-      client,
-      {
-        query: QUERY(),
-      },
-      'UNAUTHENTICATED',
-    ));
+    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
+
+  const saveBookmarkFixtures = (userId = loggedUser) =>
+    saveFixtures(
+      con,
+      Bookmark,
+      bookmarksFixture.map((b) => ({ ...b, userId })),
+    );
 
   it('should return bookmarks ordered by time', async () => {
     loggedUser = '1';
     await saveFixtures(con, Bookmark, bookmarksFixture);
-    const res = await client.query(QUERY(false, null, now, 2));
+    const res = await client.query(QUERY, { variables: { first: 2, now } });
     delete res.data.bookmarksFeed.pageInfo.endCursor;
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return bookmarks filtered with reminder only', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, Bookmark, bookmarksFixture);
+    await con
+      .getRepository(Bookmark)
+      .update({ userId: '1', postId: 'p1' }, { remindAt: new Date() });
+    const res = await client.query(QUERY, {
+      variables: { first: 2, now, reminderOnly: true },
+    });
+    expect(res.data.bookmarksFeed.edges.length).toBeGreaterThan(0);
+    const isReminderOnly = res.data.bookmarksFeed.edges.every(
+      ({ node }) => node.bookmark.remindAt,
+    );
+    expect(isReminderOnly).toBeTruthy();
+  });
+
+  describe('plus user', () => {
+    beforeEach(async () => {
+      loggedUser = '5';
+      isPlus = true;
+      await con.getRepository(Settings).save({ userId: loggedUser });
+    });
+
+    it('should return bookmarks without list id only as plus user', async () => {
+      await saveBookmarkFixtures();
+      const list = await con
+        .getRepository(BookmarkList)
+        .save({ userId: loggedUser, name: 'Test' });
+      await con
+        .getRepository(Bookmark)
+        .update({ userId: loggedUser, postId: 'p3' }, { listId: list.id });
+      const res = await client.query(QUERY, { variables: { first: 2, now } });
+      expect(res.data.bookmarksFeed.edges.length).toBeGreaterThan(0);
+      const isOutsideFolder = res.data.bookmarksFeed.edges.every(
+        ({ node }) => !node.bookmark.list,
+      );
+      expect(isOutsideFolder).toBeTruthy();
+    });
+
+    it('should return bookmarks by list id as plus user', async () => {
+      await saveBookmarkFixtures();
+      const list = await con
+        .getRepository(BookmarkList)
+        .save({ userId: loggedUser, name: 'Test' });
+      await con
+        .getRepository(Bookmark)
+        .update({ userId: loggedUser, postId: 'p3' }, { listId: list.id });
+      const res = await client.query(QUERY, {
+        variables: { listId: list.id, now, first: 2 },
+      });
+      expect(res.data.bookmarksFeed.edges).toHaveLength(1);
+      const isInsideFolder = res.data.bookmarksFeed.edges.every(
+        ({ node }) => node.bookmark.list.id === list.id,
+      );
+      expect(isInsideFolder).toBeTruthy();
+    });
+
+    it('should return bookmarks by list id as plus user with two lists', async () => {
+      await saveBookmarkFixtures();
+      await con.getRepository(BookmarkList).save({
+        userId: loggedUser,
+        name: 'First',
+        createdAt: subDays(new Date(), 1),
+      });
+      const second = await con
+        .getRepository(BookmarkList)
+        .save({ userId: loggedUser, name: 'Second' });
+      await con
+        .getRepository(Bookmark)
+        .update({ userId: loggedUser, postId: 'p3' }, { listId: second.id });
+      const res = await client.query(QUERY, {
+        variables: { listId: second.id, now, first: 2 },
+      });
+      expect(res.data.bookmarksFeed.edges).toHaveLength(1);
+      const isInsideFolder = res.data.bookmarksFeed.edges.every(
+        ({ node }) => node.bookmark.list.id === second.id,
+      );
+      expect(isInsideFolder).toBeTruthy();
+    });
+  });
+
+  describe('non-plus user', () => {
+    it('should return bookmarks within the list', async () => {
+      loggedUser = '1';
+      await saveBookmarkFixtures();
+      const list = await con
+        .getRepository(BookmarkList)
+        .save({ userId: loggedUser, name: 'Test' });
+      await con
+        .getRepository(Bookmark)
+        .update({ userId: loggedUser, postId: 'p3' }, { listId: list.id });
+      const res = await client.query(QUERY, {
+        variables: { listId: list.id, now, first: 2 },
+      });
+      expect(res.data.bookmarksFeed.edges).toHaveLength(1);
+      const isInsideFolder = res.data.bookmarksFeed.edges.every(
+        ({ node }) => node.bookmark.list.id === list.id,
+      );
+      expect(isInsideFolder).toBeTruthy();
+    });
+
+    it('should not return bookmarks within the list if param is the second folder (unsubscribed)', async () => {
+      loggedUser = '1';
+      await saveBookmarkFixtures();
+      const first = await con.getRepository(BookmarkList).save({
+        userId: loggedUser,
+        name: 'First',
+        createdAt: subDays(new Date(), 1),
+      });
+      await con
+        .getRepository(Bookmark)
+        .update({ userId: loggedUser, postId: 'p1' }, { listId: first.id });
+      const second = await con
+        .getRepository(BookmarkList)
+        .save({ userId: loggedUser, name: 'Second' });
+      await con
+        .getRepository(Bookmark)
+        .update({ userId: loggedUser, postId: 'p3' }, { listId: second.id });
+      const res = await client.query(QUERY, {
+        variables: { listId: second.id, now, first: 2 },
+      });
+      expect(res.data.bookmarksFeed.edges).toHaveLength(0);
+    });
+
+    it('should return all bookmarks outside the first folder', async () => {
+      loggedUser = '1';
+      await saveBookmarkFixtures();
+      const list = await con
+        .getRepository(BookmarkList)
+        .save({ userId: loggedUser, name: 'Test' });
+      await con
+        .getRepository(Bookmark)
+        .update({ userId: loggedUser, postId: 'p3' }, { listId: list.id });
+      const res = await client.query(QUERY, { variables: { now, first: 2 } }); // null list id param
+      const isOutsideFolder = res.data.bookmarksFeed.edges.every(
+        ({ node }) => node.bookmark.list?.id !== list.id,
+      );
+      expect(isOutsideFolder).toBeTruthy();
+    });
+
+    it('should return all bookmarks outside the first folder but includes every other folder', async () => {
+      loggedUser = '1';
+      await saveBookmarkFixtures();
+      const first = await con.getRepository(BookmarkList).save({
+        userId: loggedUser,
+        name: 'First',
+        createdAt: subDays(new Date(), 1),
+      });
+      const second = await con.getRepository(BookmarkList).save({
+        userId: loggedUser,
+        name: 'First',
+      });
+      await con
+        .getRepository(Bookmark)
+        .update({ userId: loggedUser, postId: 'p3' }, { listId: first.id });
+      await con
+        .getRepository(Bookmark)
+        .update({ userId: loggedUser, postId: 'p1' }, { listId: second.id });
+      const res = await client.query(QUERY, { variables: { now, first: 2 } }); // null list id param
+      const isOutsideFirstFolder = res.data.bookmarksFeed.edges.every(
+        ({ node }) => node.bookmark.list?.id !== first.id,
+      );
+      expect(isOutsideFirstFolder).toBeTruthy();
+      const isInsideSecondFolder = res.data.bookmarksFeed.edges.some(
+        ({ node }) => node.bookmark.list?.id === second.id,
+      );
+      expect(isInsideSecondFolder).toBeTruthy();
+      const fromNoFolder = res.data.bookmarksFeed.edges.some(
+        ({ node }) => !node.bookmark.list,
+      );
+      expect(fromNoFolder).toBeTruthy();
+    });
   });
 
   it('should return unread bookmarks only', async () => {
     loggedUser = '1';
     await saveFixtures(con, Bookmark, bookmarksFixture);
     await con.getRepository(View).save([{ userId: '1', postId: 'p3' }]);
-    const res = await client.query(QUERY(true, null, now, 2));
+    const res = await client.query(QUERY, {
+      variables: { first: 2, now, unreadOnly: true },
+    });
     delete res.data.bookmarksFeed.pageInfo.endCursor;
     expect(res.data).toMatchSnapshot();
   });
@@ -638,18 +823,80 @@ describe('query bookmarks', () => {
       { postId: bookmarksFixture[2].postId },
       { listId: list.id },
     );
-    const res = await client.query(QUERY(false, list.id, now, 2));
-    delete res.data.bookmarksFeed.pageInfo.endCursor;
-    expect(res.data).toMatchSnapshot();
+    const res = await client.query(QUERY, {
+      variables: { listId: list.id, now, first: 2 },
+    });
+    const withinFolder = res.data.bookmarksFeed.edges.every(
+      ({ node }) => node.bookmark.list.id === list.id,
+    );
+    expect(withinFolder).toBeTruthy();
   });
 
   it('should include banned posts', async () => {
     loggedUser = '1';
     await saveFixtures(con, Bookmark, bookmarksFixture);
     await con.getRepository(Post).update({ id: 'p3' }, { banned: true });
-    const res = await client.query(QUERY(false, null, now, 2));
+    const res = await client.query(QUERY, { variables: { first: 2, now } });
     delete res.data.bookmarksFeed.pageInfo.endCursor;
     expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query bookmarkList', () => {
+  const QUERY = `
+    query BookmarkList($id: ID!) {
+      bookmarkList(id: $id) {
+        id
+        name
+        icon
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: randomUUID() } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return bookmark list', async () => {
+    loggedUser = '1';
+    const list = await con.getRepository(BookmarkList).save({
+      userId: loggedUser,
+      name: 'list',
+      icon: '😀',
+    });
+    const res = await client.query(QUERY, { variables: { id: list.id } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.bookmarkList).toEqual({
+      id: list.id,
+      name: 'list',
+      icon: '😀',
+    });
+  });
+
+  it('should throw not_found when folder was not found', async () => {
+    loggedUser = '1';
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: randomUUID() } },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should throw not_found if user is not the owner of the folder', async () => {
+    loggedUser = '1';
+    const list = await con.getRepository(BookmarkList).save({
+      userId: '2',
+      name: 'list',
+      icon: '😀',
+    });
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: list.id } },
+      'NOT_FOUND',
+    );
   });
 });
 

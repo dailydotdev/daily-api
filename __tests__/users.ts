@@ -78,6 +78,7 @@ import {
   twitterSocialUrlMatch,
   type GQLUserTopReader,
   UploadPreset,
+  updateSubscriptionFlags,
 } from '../src/common';
 import { DataSource, In, IsNull } from 'typeorm';
 import createOrGetConnection from '../src/db';
@@ -110,6 +111,7 @@ import { ContentPreferenceUser } from '../src/entity/contentPreference/ContentPr
 import { ContentPreferenceStatus } from '../src/entity/contentPreference/types';
 import { identifyUserPersonalizedDigest } from '../src/cio';
 import type { GQLUser } from '../src/schema/users';
+import { cancelSubscription } from '../src/common/paddle';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -117,6 +119,11 @@ let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
 const userTimezone = 'Pacific/Midway';
+
+jest.mock('../src/common/paddle.ts', () => ({
+  ...(jest.requireActual('../src/common/paddle.ts') as Record<string, unknown>),
+  cancelSubscription: jest.fn(),
+}));
 
 jest.mock('../src/common/mailing.ts', () => ({
   ...(jest.requireActual('../src/common/mailing.ts') as Record<
@@ -3953,6 +3960,10 @@ describe('mutation deleteUser', () => {
     }
   `;
 
+  beforeEach(async () => {
+    await con.getRepository(User).save([ghostUser]);
+  });
+
   it('should not authorize when not logged in', async () =>
     await testMutationErrorCode(
       client,
@@ -3962,8 +3973,6 @@ describe('mutation deleteUser', () => {
 
   it('should delete user from database', async () => {
     loggedUser = '1';
-
-    await con.getRepository(User).save([ghostUser]);
 
     await client.mutate(MUTATION);
 
@@ -3977,8 +3986,6 @@ describe('mutation deleteUser', () => {
   it('should delete author ID from post', async () => {
     loggedUser = '1';
 
-    await con.getRepository(User).save([ghostUser]);
-
     await client.mutate(MUTATION);
 
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
@@ -3988,12 +3995,27 @@ describe('mutation deleteUser', () => {
   it('should delete scout ID from post', async () => {
     loggedUser = '1';
 
-    await con.getRepository(User).save([ghostUser]);
-
     await client.mutate(MUTATION);
 
     const post = await con.getRepository(Post).findOneBy({ id: 'p6' });
     expect(post.authorId).toEqual(null);
+  });
+
+  it('should cancel paddle subscription for user', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(User).update(
+      { id: '1' },
+      {
+        subscriptionFlags: updateSubscriptionFlags({ subscriptionId: '123' }),
+      },
+    );
+
+    await client.mutate(MUTATION);
+
+    expect(cancelSubscription).toBeCalledWith({ subscriptionId: '123' });
+    const userOne = await con.getRepository(User).findOneBy({ id: '1' });
+    expect(userOne).toEqual(null);
   });
 });
 

@@ -25,7 +25,7 @@ const worker: TypedWorker<'post-upvoted'> = {
           .getRepository(User)
           .findOneBy({ id: data.userId });
 
-        if (!grantBy || !canGrantReputation(grantBy)) {
+        if (!grantBy || !(await canGrantReputation(transaction, grantBy))) {
           return;
         }
 

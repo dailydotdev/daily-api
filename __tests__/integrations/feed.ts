@@ -685,8 +685,6 @@ describe('FeedLofnConfigGenerator', () => {
     const mockedValue = {
       user_id: '1',
       config: {
-        page_size: 20,
-        total_pages: 10,
         providers: {},
       },
       tyr_metadata: {
@@ -756,8 +754,6 @@ describe('FeedLofnConfigGenerator', () => {
     const mockedValue = {
       user_id: '1',
       config: {
-        page_size: 20,
-        total_pages: 10,
         providers: {},
       },
       tyr_metadata: {

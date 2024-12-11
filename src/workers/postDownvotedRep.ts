@@ -26,7 +26,7 @@ const worker: TypedWorker<'api.v1.post-downvoted'> = {
           .getRepository(User)
           .findOneBy({ id: data.userId });
 
-        if (!grantBy || !canGrantReputation(grantBy)) {
+        if (!grantBy || !(await canGrantReputation(transaction, grantBy))) {
           return;
         }
 
