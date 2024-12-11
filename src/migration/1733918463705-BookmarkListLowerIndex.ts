@@ -5,10 +5,10 @@ export class BookmarkListLowerIndex1733918463705 implements MigrationInterface {
 
     public async up(queryRunner: QueryRunner): Promise<void> {
       await queryRunner.query(
-        `CREATE INDEX "bookmark_list_idx_lowername_userId" ON "bookmark_list" ((lower(name)),"userId")`,
+        `CREATE INDEX "bookmark_list_idx_lowername_asc" ON "bookmark_list" (LOWER(name) ASC)`,
       );
     }
     public async down(queryRunner: QueryRunner): Promise<void> {
-      await queryRunner.query(`DROP INDEX "bookmark_list_idx_lowername_userId"`);
+      await queryRunner.query(`DROP INDEX "bookmark_list_idx_lowername_asc"`);
     }
 }
