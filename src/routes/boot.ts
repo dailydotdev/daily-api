@@ -484,9 +484,10 @@ const loggedInBoot = async ({
 
     span?.setAttribute(SEMATTRS_DAILY_STAFF, isTeamMember);
 
-    const accessToken = refreshToken
-      ? await setAuthCookie(req, res, userId, roles, isTeamMember, isPlus)
-      : req.accessToken;
+    const accessToken =
+      refreshToken || isPlus !== req.isPlus
+        ? await setAuthCookie(req, res, userId, roles, isTeamMember, isPlus)
+        : req.accessToken;
     return {
       user: {
         ...excludeProperties(user, [
