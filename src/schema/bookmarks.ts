@@ -556,12 +556,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         info,
         (builder) => ({
           ...builder,
-          queryBuilder: builder.queryBuilder.where(
-            `"${builder.alias}"."userId" = :userId`,
-            {
+          queryBuilder: builder.queryBuilder
+            .where(`"${builder.alias}"."userId" = :userId`, {
               userId: ctx.userId,
-            },
-          ),
+            })
+            .addOrderBy(`LOWER("${builder.alias}"."name")`, 'ASC'),
         }),
         true,
       ),

@@ -1248,6 +1248,21 @@ query Source($id: ID!) {
     expect(res.data.source.moderationPostCount).toBe(1);
   });
 
+  it('should return moderationPostCount when user is admin and filters vordred posts', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourcePostModeration).save({
+      sourceId: 'm',
+      createdById: '2',
+      status: SourcePostModerationStatus.Pending,
+      type: PostType.Share,
+      flags: { vordr: true },
+    });
+    const res = await client.query(QUERY, { variables: { id: 'm' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.moderationRequired).toEqual(true);
+    expect(res.data.source.moderationPostCount).toBe(1);
+  });
+
   it('should return moderationPostCount when user is user', async () => {
     loggedUser = '2';
     await con.getRepository(SourcePostModeration).save({
