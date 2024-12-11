@@ -80,7 +80,7 @@ const redirectToStore =
     }
 
     // If mobile, tablet or any non desktop device, redirect to webapp
-    if (!!ua.device.type || ua.device.vendor?.toLowerCase() === 'apple') {
+    if (!!ua.device.type || browser?.includes('safari')) {
       return res.redirect(`https://app.daily.dev${url.search}`);
     }
 
