@@ -1786,7 +1786,7 @@ describe('mutation clickbaitPost', () => {
     expect(res.errors).toBeFalsy();
 
     const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
-    expect(post.contentQuality.is_clickbait_probability).toEqual(10.0);
+    expect(post.contentQuality.manual_clickbait_probability).toEqual(1);
   });
 
   it('should mark the post as clickbait when it is below threshold', async () => {
@@ -1801,7 +1801,8 @@ describe('mutation clickbaitPost', () => {
     expect(res.errors).toBeFalsy();
 
     const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
-    expect(post.contentQuality.is_clickbait_probability).toEqual(10.9);
+    expect(post.contentQuality.is_clickbait_probability).toEqual(0.9);
+    expect(post.contentQuality.manual_clickbait_probability).toEqual(1);
   });
 
   it('should mark the post as not-clickbait when it is above threshold', async () => {
@@ -1816,7 +1817,8 @@ describe('mutation clickbaitPost', () => {
     expect(res.errors).toBeFalsy();
 
     const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
-    expect(post.contentQuality.is_clickbait_probability).toEqual(-8.9);
+    expect(post.contentQuality.is_clickbait_probability).toEqual(1.1);
+    expect(post.contentQuality.manual_clickbait_probability).toEqual(0);
   });
 
   it('should revert the clickbait status when it is already marked as clickbait', async () => {
@@ -1827,13 +1829,13 @@ describe('mutation clickbaitPost', () => {
     expect(res.errors).toBeFalsy();
 
     const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
-    expect(post.contentQuality.is_clickbait_probability).toEqual(10.0);
+    expect(post.contentQuality.manual_clickbait_probability).toEqual(1.0);
 
     const res2 = await client.mutate(MUTATION, { variables: { id: 'p1' } });
     expect(res2.errors).toBeFalsy();
 
     const post2 = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
-    expect(post2.contentQuality.is_clickbait_probability).toEqual(0.0);
+    expect(post2.contentQuality.manual_clickbait_probability).toBeUndefined();
   });
 });
 
