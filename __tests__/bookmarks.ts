@@ -929,6 +929,23 @@ describe('query bookmarksLists', () => {
     expect(folders[0].name).toEqual('list');
     expect(folders[0].icon).toEqual('😀');
   });
+
+  it('should return bookmark list sorted by name', async () => {
+    loggedUser = '1';
+    await con.getRepository(BookmarkList).save([
+      { userId: loggedUser, name: 'Best selection' },
+      { userId: loggedUser, name: 'zig articles' },
+      { userId: loggedUser, name: 'another folder' },
+    ]);
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    const folderNames = res.data.bookmarkLists.map((f: BookmarkList) => f.name);
+    expect(folderNames).toEqual([
+      'another folder',
+      'Best selection',
+      'zig articles',
+    ]);
+  });
 });
 
 describe('query searchBookmarksSuggestions', () => {
