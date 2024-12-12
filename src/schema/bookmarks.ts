@@ -341,12 +341,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLBookmark[]> => {
-      const lastAddedBookmark = await ctx.con.getRepository(Bookmark).findOne({
-        where: { userId: ctx.userId },
-        order: { updatedAt: 'DESC' },
-        select: ['listId'],
-      });
-      const lastUsedListId = lastAddedBookmark?.listId ?? null;
+      const lastUsedListId = ctx.isPlus
+        ? ((
+            await ctx.con.getRepository(Bookmark).findOne({
+              where: { userId: ctx.userId },
+              order: { updatedAt: 'DESC' },
+              select: ['listId'],
+            })
+          )?.listId ?? null)
+        : null;
 
       if (data.postIds.length > maxBookmarksPerMutation) {
         throw new ValidationError(
@@ -382,6 +385,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { id, listId }: { id: string; listId?: string },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
+      if (!ctx.isPlus) {
+        throw new ForbiddenError(
+          'You need to be a Plus member to use this feature',
+        );
+      }
+
       if (listId) {
         await ctx.con
           .getRepository(BookmarkList)
@@ -417,13 +426,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       if (!isValidIcon || !name.length) {
         throw new ValidationError('Invalid icon or name');
       }
-
-      const user = await ctx.con.getRepository(User).findOneOrFail({
-        where: { id: ctx.userId },
-        select: ['subscriptionFlags'],
-      });
-      const isPlus = isPlusMember(user.subscriptionFlags?.cycle);
-      const maxFoldersCount = isPlus
+      const maxFoldersCount = ctx.isPlus
         ? BookmarkListCountLimit.Plus
         : BookmarkListCountLimit.Free;
       const userFoldersCount = await ctx.con
@@ -431,7 +434,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .countBy({ userId: ctx.userId });
 
       if (userFoldersCount >= maxFoldersCount) {
-        if (isPlus) {
+        if (ctx.isPlus) {
           logger.warn(
             { listCount: userFoldersCount, userId: ctx.userId },
             'bookmark folders limit reached',
@@ -465,6 +468,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { id, name, icon }: Record<'id' | 'name' | 'icon', string>,
       ctx: AuthContext,
     ): Promise<GQLBookmarkList> => {
+      if (!ctx.isPlus) {
+        throw new ForbiddenError(
+          'You need to be a Plus member to use this feature',
+        );
+      }
+
       const repo = ctx.con.getRepository(BookmarkList);
       await repo.findOneByOrFail({ userId: ctx.userId, id });
       return await repo.save({
@@ -528,8 +537,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { id }: { id: string },
       ctx: AuthContext,
       info,
-    ): Promise<GQLBookmarkList> =>
-      graphorm.queryOneOrFail<GQLBookmarkList>(
+    ): Promise<GQLBookmarkList> => {
+      if (!ctx.isPlus) {
+        throw new ForbiddenError(
+          'You need to be a Plus member to use this feature',
+        );
+      }
+      return graphorm.queryOneOrFail<GQLBookmarkList>(
         ctx,
         info,
         (builder) => ({
@@ -544,14 +558,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }),
         undefined,
         true,
-      ),
+      );
+    },
     bookmarkLists: async (
       _,
       __,
       ctx: AuthContext,
       info,
-    ): Promise<GQLBookmarkList[]> =>
-      graphorm.query<GQLBookmarkList>(
+    ): Promise<GQLBookmarkList[]> => {
+      if (!ctx.isPlus) {
+        return [];
+      }
+
+      return graphorm.query<GQLBookmarkList>(
         ctx,
         info,
         (builder) => ({
@@ -563,7 +582,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             .addOrderBy(`LOWER("${builder.alias}"."name")`, 'ASC'),
         }),
         true,
-      ),
+      );
+    },
     searchBookmarksSuggestions: async (
       source,
       { query }: { query: string },

@@ -691,40 +691,27 @@ export const bookmarksFeedBuilder = ({
     );
   }
 
-  if (reminderOnly) {
-    newBuilder = newBuilder.andWhere(`bookmark.remindAt IS NOT NULL`);
-  }
-
-  if (listId) {
-    newBuilder = newBuilder.andWhere(`bookmark."listId" = :listId`, { listId });
-
-    if (!ctx.isPlus) {
-      // unsubscribed accessing locked folders
-      newBuilder = newBuilder.andWhere(`bookmark."listId" = :firstFolderId`, {
-        firstFolderId,
-      });
-    }
-  } else {
-    if (ctx.isPlus) {
-      newBuilder = newBuilder.andWhere('bookmark.listId IS NULL');
-    } else {
-      // Get everything except the first folder
-      // This returns the bookmarked posts from the locked folders but as part of Quick Saves
-      newBuilder = newBuilder.andWhere(
-        `(bookmark."listId" IS NULL OR bookmark."listId" IS DISTINCT FROM :firstFolderId)`,
-        { firstFolderId },
-      );
-    }
-  }
-
   if (query) {
-    newBuilder = newBuilder.andWhere(
+    return newBuilder.andWhere(
       `${alias}.tsv @@ (${getSearchQuery(':query')})`,
       {
         query: processSearchQuery(query),
       },
     );
   }
+
+  if (reminderOnly) {
+    return newBuilder.andWhere(`bookmark.remindAt IS NOT NULL`);
+  }
+
+  if (!ctx.isPlus) {
+    // non-plus user don't have the ability to create/search in folders
+    return newBuilder;
+  }
+
+  newBuilder = listId
+    ? newBuilder.andWhere(`bookmark."listId" = :listId`, { listId })
+    : newBuilder.andWhere('bookmark.listId IS NULL');
 
   return newBuilder;
 };
