@@ -997,7 +997,7 @@ describe('query bookmarksLists', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should always return empty list is not plus', async () => {
+  it('should always return empty list if not plus', async () => {
     loggedUser = '1';
     isPlus = false;
     await con
