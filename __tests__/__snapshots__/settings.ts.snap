@@ -135,35 +135,3 @@ Object {
   },
 }
 `;
-
-exports[`query userSettings should create default settings if not exist 1`] = `
-Object {
-  "appInsaneMode": true,
-  "autoDismissNotifications": true,
-  "campaignCtaPlacement": "header",
-  "companionExpanded": false,
-  "customLinks": null,
-  "enableCardAnimations": true,
-  "flags": Object {
-    "clickbaitShieldEnabled": true,
-    "sidebarBookmarksExpanded": true,
-    "sidebarCustomFeedsExpanded": true,
-    "sidebarOtherExpanded": true,
-    "sidebarResourcesExpanded": true,
-    "sidebarSquadExpanded": true,
-  },
-  "insaneMode": false,
-  "onboardingChecklistView": "hidden",
-  "openNewTab": true,
-  "optOutCompanion": false,
-  "optOutReadingStreak": false,
-  "optOutWeeklyGoal": false,
-  "showOnlyUnreadPosts": false,
-  "showTopSites": true,
-  "sidebarExpanded": false,
-  "sortingEnabled": false,
-  "spaciness": "eco",
-  "theme": "darcula",
-  "userId": "1",
-}
-`;
