@@ -660,7 +660,6 @@ interface BookmarksFeedBuilderProps {
   unreadOnly: boolean;
   reminderOnly: boolean;
   listId?: string | null;
-  firstFolderId?: string | null;
   builder: SelectQueryBuilder<Post>;
   alias: string;
   query?: string | null;
@@ -671,7 +670,6 @@ export const bookmarksFeedBuilder = ({
   unreadOnly,
   reminderOnly,
   listId,
-  firstFolderId,
   builder,
   alias,
   query,

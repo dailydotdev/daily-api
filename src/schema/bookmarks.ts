@@ -10,7 +10,7 @@ import {
 } from './common';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, Context } from '../Context';
-import { Bookmark, BookmarkList, Post, User } from '../entity';
+import { Bookmark, BookmarkList, Post } from '../entity';
 import {
   base64,
   bookmarksFeedBuilder,
@@ -22,12 +22,10 @@ import {
 } from '../common';
 import { In, SelectQueryBuilder } from 'typeorm';
 import { GQLPost } from './posts';
-import { isPlusMember } from '../paddle';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { logger } from '../logger';
 import { BookmarkListCountLimit, maxBookmarksPerMutation } from '../types';
 import graphorm from '../graphorm';
-import { getFirstFolderId } from '../common/bookmarks';
 
 interface GQLAddBookmarkInput {
   postIds: string[];
@@ -341,15 +339,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLBookmark[]> => {
-      const lastUsedListId = ctx.isPlus
-        ? ((
-            await ctx.con.getRepository(Bookmark).findOne({
-              where: { userId: ctx.userId },
-              order: { updatedAt: 'DESC' },
-              select: ['listId'],
-            })
-          )?.listId ?? null)
-        : null;
+      let lastUsedListId = null;
+      if (ctx.isPlus) {
+        const lastAddedBookmark = await ctx.con
+          .getRepository(Bookmark)
+          .findOne({
+            where: { userId: ctx.userId },
+            order: { updatedAt: 'DESC' },
+            select: ['listId'],
+          });
+        lastUsedListId = lastAddedBookmark?.listId ?? null;
+      }
 
       if (data.postIds.length > maxBookmarksPerMutation) {
         throw new ValidationError(
@@ -504,7 +504,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   },
   Query: {
     bookmarksFeed: async (source, args, ctx: AuthContext, info) => {
-      const firstFolderId = await getFirstFolderId(ctx);
       const resolver = feedResolver(
         (
           ctx,
@@ -519,7 +518,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             listId,
             builder,
             alias,
-            firstFolderId,
           }),
         bookmarkPageGenerator,
         applyBookmarkPaging,
