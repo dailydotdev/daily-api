@@ -300,11 +300,6 @@ export const typeDefs = /* GraphQL */ `
   }
 
   extend type Query {
-    """
-    Get the user settings
-    """
-    userSettings: Settings! @auth
-
     bookmarksSharing: BookmarksSharing @auth
   }
 `;
@@ -407,13 +402,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   Query: {
-    userSettings: (
-      _,
-      __,
-      { con, userId }: AuthContext,
-    ): ReturnType<typeof getSettings> => {
-      return getSettings(con, userId);
-    },
     bookmarksSharing: async (
       _,
       __,
