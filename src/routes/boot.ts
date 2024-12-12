@@ -420,6 +420,7 @@ const getUser = (
       'followingEmail',
       'followNotifications',
       'subscriptionFlags',
+      'defaultFeedId',
     ],
   });
 

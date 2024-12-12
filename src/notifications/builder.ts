@@ -2,6 +2,7 @@ import { DeepPartial } from 'typeorm';
 import {
   ArticlePost,
   Comment,
+  KeywordFlags,
   NotificationAttachmentType,
   NotificationAttachmentV2,
   NotificationAvatarV2,
@@ -301,7 +302,7 @@ export class NotificationBuilder {
   ): NotificationBuilder {
     this.avatars.push({
       type: 'top_reader_badge',
-      name: ctx.keyword.flags?.title || ctx.keyword.value,
+      name: (ctx.keyword.flags as KeywordFlags)?.title || ctx.keyword.value,
       targetUrl: '',
       referenceId: ctx.userTopReader.id,
       image: defaultImage.placeholder,
