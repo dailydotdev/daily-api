@@ -146,6 +146,46 @@ describe('mutation addBookmarks', () => {
     expect(actual?.listId).toEqual(listId);
   });
 
+  it('should add new bookmarks to the last updated bookmark list', async () => {
+    loggedUser = '1';
+    const list1 = await con.getRepository(BookmarkList).save({
+      userId: loggedUser,
+      name: 'list1',
+    });
+    const list2 = await con.getRepository(BookmarkList).save({
+      userId: loggedUser,
+      name: 'list2',
+    });
+    await con.getRepository(Bookmark).save([
+      {
+        userId: loggedUser,
+        postId: 'p1',
+        listId: list1.id,
+        createdAt: new Date(now.getTime() - 1000),
+        updatedAt: new Date(now.getTime() - 300),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p2',
+        listId: list2.id,
+        createdAt: new Date(now.getTime() - 500),
+        updatedAt: new Date(now.getTime() - 500),
+      },
+    ]);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { data: { postIds: ['p3'] } },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.addBookmarks).toHaveLength(1);
+    expect(res.data.addBookmarks[0].list.id).toEqual(list1.id);
+
+    const actual = await con
+      .getRepository(Bookmark)
+      .findOneBy({ postId: 'p3', userId: loggedUser });
+    expect(actual?.listId).toEqual(list1.id);
+  });
+
   it('should ignore conflicts', async () => {
     loggedUser = '1';
     const repo = con.getRepository(Bookmark);
