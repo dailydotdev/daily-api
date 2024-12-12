@@ -1,4 +1,4 @@
-import { PostType, FreeformPost } from '../entity';
+import { PostType, FreeformPost, KeywordFlags } from '../entity';
 import { NotificationBuilder } from './builder';
 import { NotificationIcon } from './icons';
 import {
@@ -131,7 +131,8 @@ export const notificationTitleMap: Record<
     return `New post from <b>${userName}</b>, check it out now!`;
   },
   user_given_top_reader: (ctx: NotificationUserTopReaderContext) => {
-    const keyword = ctx.keyword.flags?.title || ctx.keyword.value;
+    const keyword =
+      (ctx.keyword.flags as KeywordFlags)?.title || ctx.keyword.value;
     return `Great news! You've earned the top reader badge in ${keyword}.`;
   },
   source_post_approved: (ctx: NotificationPostContext) =>
