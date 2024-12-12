@@ -123,6 +123,7 @@ const LOGGED_IN_BODY = {
     mastodon: null,
     language: undefined,
     isPlus: false,
+    defaultFeedId: null,
   },
   marketingCta: null,
   feeds: [],
@@ -500,6 +501,24 @@ describe('logged in boot', () => {
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
     expect(res.body.user.isTeamMember).toEqual(true);
+  });
+
+  it('should return default feed id if set', async () => {
+    await con.getRepository(Feed).save({
+      id: '1',
+      name: 'My Feed',
+      userId: '1',
+    });
+    await con.getRepository(User).save({
+      ...usersFixture[0],
+      defaultFeedId: '1',
+    });
+    mockLoggedIn();
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+    expect(res.body.user.defaultFeedId).toEqual('1');
   });
 });
 
