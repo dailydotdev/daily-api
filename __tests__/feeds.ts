@@ -1107,7 +1107,7 @@ describe('query feedByIds', () => {
   it('should return feed by ids for team member', async () => {
     loggedUser = '1';
     state = await initializeGraphQLTesting(
-      (req) => new MockContext(con, loggedUser, false, [], req, true),
+      (req) => new MockContext(con, loggedUser, [], req, true),
     );
 
     const res = await state.client.query(QUERY, {

@@ -31,20 +31,18 @@
 // let state: GraphQLTestingState;
 // let client: GraphQLTestClient;
 // let loggedUser: string | null = null;
-// let premiumUser = false;
 // let roles: Roles[] = [];
 //
 // beforeAll(async () => {
 //   con = await createOrGetConnection();
 //   state = await initializeGraphQLTesting(
-//     () => new MockContext(con, loggedUser, premiumUser, roles),
+//     () => new MockContext(con, loggedUser, roles),
 //   );
 //   client = state.client;
 // });
 //
 // beforeEach(async () => {
 //   loggedUser = null;
-//   premiumUser = false;
 //   roles = [];
 //   jest.clearAllMocks();
 //

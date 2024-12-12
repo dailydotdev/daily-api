@@ -226,7 +226,7 @@ describe('mutation submitArticle', () => {
   it('should not invalidate if the user has reached limit but is team member', async () => {
     loggedUser = '1';
     state = await initializeGraphQLTesting(
-      (req) => new MockContext(con, loggedUser, false, [], req, true),
+      (req) => new MockContext(con, loggedUser, [], req, true),
     );
     const request = 'https://abc.com/article';
     const repo = con.getRepository(Submission);

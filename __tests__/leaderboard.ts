@@ -30,7 +30,7 @@ let loggedUser: string | null = null;
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    () => new MockContext(con, loggedUser, false, []),
+    () => new MockContext(con, loggedUser, []),
   );
   client = state.client;
 });
