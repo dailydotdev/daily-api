@@ -3,6 +3,7 @@ import {
   Column,
   Entity,
   Index,
+  JoinColumn,
   ManyToOne,
   OneToMany,
   OneToOne,
@@ -17,6 +18,7 @@ import type { UserStreakAction } from './UserStreakAction';
 import type { UserCompany } from '../UserCompany';
 import type { UserTopReader } from './UserTopReader';
 import type { SubscriptionCycles } from '../../paddle';
+import { Feed } from '../Feed';
 
 export type UserFlags = Partial<{
   vordr: boolean;
@@ -177,6 +179,9 @@ export class User {
   @Column({ type: 'boolean', default: true })
   followNotifications: boolean;
 
+  @Column({ type: 'text', nullable: true })
+  defaultFeedId?: string | null;
+
   @ManyToOne(() => User, {
     lazy: true,
     onDelete: 'SET NULL',
@@ -201,6 +206,13 @@ export class User {
     lazy: true,
   })
   userCompanies: Promise<UserCompany[]>;
+
+  @OneToOne('Feed', {
+    lazy: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'defaultFeedId' })
+  defaultFeed?: Promise<Feed>;
 
   @OneToMany(
     'UserTopReader',
