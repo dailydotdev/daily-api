@@ -701,6 +701,40 @@ describe('query bookmarks', () => {
       );
       expect(isInsideFolder).toBeTruthy();
     });
+
+    it('should return bookmarks from all lists if reminderOnly', async () => {
+      loggedUser = '1';
+      await saveFixtures(con, Bookmark, bookmarksFixture);
+      await con
+        .getRepository(Bookmark)
+        .update({ userId: '1', postId: 'p1' }, { remindAt: new Date() });
+      const list = await con.getRepository(BookmarkList).save({
+        userId: loggedUser,
+        name: 'Test',
+      });
+      await con.getRepository(Bookmark).update(
+        { userId: '1', postId: 'p3' },
+        {
+          listId: list.id,
+          remindAt: new Date(),
+        },
+      );
+      const res = await client.query(QUERY, {
+        variables: { first: 10, reminderOnly: true },
+      });
+      expect(res.data.bookmarksFeed.edges.length).toBeGreaterThan(0);
+      const { isReminderOnly, listIds } = res.data.bookmarksFeed.edges.reduce(
+        (acc, { node }) => {
+          acc.isReminderOnly = acc.isReminderOnly && !!node.bookmark.remindAt;
+          acc.listIds.add(node.bookmark.list?.id ?? null);
+          return acc;
+        },
+        { isReminderOnly: true, listIds: new Set<string>() },
+      );
+      expect(isReminderOnly).toBeTruthy();
+      expect(listIds.has(null)).toBeTruthy();
+      expect(listIds.has(list.id)).toBeTruthy();
+    });
   });
 
   describe('non-plus user', () => {
