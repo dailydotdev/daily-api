@@ -7,6 +7,7 @@ import {
 import { NotificationCommenterContext } from '../../notifications';
 import {
   commentReplyNotificationTypes,
+  NotificationPreferenceStatus,
   NotificationType,
 } from '../../notifications/common';
 import { NotificationWorker } from './worker';
@@ -27,10 +28,7 @@ const worker: NotificationWorker = {
       where: { id: data.childCommentId },
       relations: ['parent', 'user'],
     });
-    if (!comment) {
-      return;
-    }
-    if (comment.flags?.vordr) {
+    if (!comment || comment.flags?.vordr) {
       return;
     }
     const postCtx = await buildPostContext(con, comment.postId);
@@ -47,6 +45,7 @@ const worker: NotificationWorker = {
       .findBy({
         referenceId: In([comment.id, parent.id]),
         notificationType: In(commentReplyNotificationTypes),
+        status: NotificationPreferenceStatus.Muted,
       });
 
     const ctx: Omit<NotificationCommenterContext, 'userIds'> = {
