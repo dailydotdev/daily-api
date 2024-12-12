@@ -154,10 +154,6 @@ describe('GET /rss/b/:slug', () => {
 //     return request(app.server).get(path(list.id)).expect(403);
 //   });
 //
-//   it('should fail when user is not premium', () => {
-//     mockUser(false);
-//     return request(app.server).get(path(list.id)).expect(403);
-//   });
 //
 //   it('should fail when list does not exist', () => {
 //     mockUser();
@@ -189,10 +185,6 @@ describe('GET /rss/b/:slug', () => {
 //     return request(app.server).get(path).expect(403);
 //   });
 //
-//   it('should fail when user is not premium', () => {
-//     mockUser(false);
-//     return request(app.server).get(path).expect(403);
-//   });
 //
 //   it('should fail when feed does not exist', () => {
 //     mockUser();

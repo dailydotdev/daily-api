@@ -35,7 +35,6 @@ import { logger } from '../src/logger';
 export class MockContext extends Context {
   mockSpan: MockProxy<opentelemetry.Span> & opentelemetry.Span;
   mockUserId: string | null;
-  mockPremium: boolean;
   mockRoles: Roles[];
   mockIsTeamMember: boolean;
   mockIsPlus: boolean;
@@ -45,7 +44,6 @@ export class MockContext extends Context {
   constructor(
     con: DataSource,
     userId: string | null = null,
-    premium = false,
     roles = [],
     req?: FastifyRequest,
     isTeamMember = false,
@@ -57,7 +55,6 @@ export class MockContext extends Context {
       mock<opentelemetry.Span>(),
     );
     this.mockUserId = userId;
-    this.mockPremium = premium;
     this.mockRoles = roles;
     this.mockIsTeamMember = isTeamMember;
     this.mockIsPlus = isPlus;
@@ -78,10 +75,6 @@ export class MockContext extends Context {
 
   get trackingId(): string | null {
     return this.mockUserId;
-  }
-
-  get premium(): boolean | null {
-    return this.mockPremium;
   }
 
   get isTeamMember(): boolean {

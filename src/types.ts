@@ -74,7 +74,6 @@ declare module 'fastify' {
   interface FastifyRequest {
     // Used for auth
     userId?: string;
-    premium?: boolean;
     roles?: Roles[];
     service?: boolean;
     accessToken?: AccessToken;
