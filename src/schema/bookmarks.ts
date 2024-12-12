@@ -343,7 +343,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<GQLBookmark[]> => {
       const lastAddedBookmark = await ctx.con.getRepository(Bookmark).findOne({
         where: { userId: ctx.userId },
-        order: { updatedAt: 'DESC', createdAt: 'DESC' },
+        order: { updatedAt: 'DESC' },
         select: ['listId'],
       });
       const lastUsedListId = lastAddedBookmark?.listId ?? null;
