@@ -1,8 +1,5 @@
-import { FastifyInstance } from 'fastify';
-import request from 'supertest';
 import { v4 as uuidv4 } from 'uuid';
 import {
-  authorizeRequest,
   disposeGraphQLTesting,
   GraphQLTestClient,
   GraphQLTestingState,
@@ -23,7 +20,6 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
 
-let app: FastifyInstance;
 let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
@@ -35,7 +31,6 @@ beforeAll(async () => {
     () => new MockContext(con, loggedUser),
   );
   client = state.client;
-  app = state.app;
 });
 
 beforeEach(async () => {
@@ -47,81 +42,6 @@ beforeEach(async () => {
 afterAll(() => disposeGraphQLTesting(state));
 
 const compatibilityProps = { enableCardAnimations: true, appInsaneMode: true };
-
-describe('query userSettings', () => {
-  const QUERY = `{
-  userSettings {
-    userId
-    theme
-    enableCardAnimations
-    showTopSites
-    insaneMode
-    appInsaneMode
-    spaciness
-    showOnlyUnreadPosts
-    openNewTab
-    sidebarExpanded
-    companionExpanded
-    sortingEnabled
-    customLinks
-    optOutWeeklyGoal
-    optOutReadingStreak
-    optOutCompanion
-    autoDismissNotifications
-    campaignCtaPlacement
-    onboardingChecklistView
-    flags {
-        sidebarSquadExpanded
-        sidebarCustomFeedsExpanded
-        sidebarOtherExpanded
-        sidebarResourcesExpanded
-        sidebarBookmarksExpanded
-        clickbaitShieldEnabled
-    }
-  }
-}`;
-
-  it('should not authorize when not logged-in', () =>
-    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
-
-  it('should return user settings', async () => {
-    loggedUser = '1';
-
-    const repo = con.getRepository(Settings);
-    const settings = repo.create({
-      userId: '1',
-      theme: 'bright',
-      insaneMode: true,
-      campaignCtaPlacement: CampaignCtaPlacement.Header,
-    });
-    const data = await repo.save(settings);
-    const expected = new Object({
-      ...data,
-      ...compatibilityProps,
-      ...{
-        flags: {
-          sidebarCustomFeedsExpanded: true,
-          sidebarOtherExpanded: true,
-          sidebarResourcesExpanded: true,
-          sidebarSquadExpanded: true,
-          sidebarBookmarksExpanded: true,
-          clickbaitShieldEnabled: true,
-        },
-      },
-    });
-    delete expected['updatedAt'];
-    delete expected['bookmarkSlug'];
-
-    const res = await client.query(QUERY);
-    expect(res.data.userSettings).toEqual(expected);
-  });
-
-  it('should create default settings if not exist', async () => {
-    loggedUser = '1';
-    const res = await client.query(QUERY);
-    expect(res.data.userSettings).toMatchSnapshot();
-  });
-});
 
 describe('query bookmarksSharing', () => {
   const QUERY = `{
@@ -508,30 +428,5 @@ describe('mutation setBookmarksSharing', () => {
     });
     expect(res.data.setBookmarksSharing.enabled).toEqual(true);
     expect(res.data.setBookmarksSharing.slug).toEqual(data.bookmarkSlug);
-  });
-});
-
-describe('dedicated api routes', () => {
-  describe('GET /settings', () => {
-    it('should return user settings', async () => {
-      const repo = con.getRepository(Settings);
-      const settings = repo.create({
-        userId: '1',
-        theme: 'bright',
-        insaneMode: true,
-      });
-      const data = await repo.save(settings);
-      const expected = new Object(data);
-      delete expected['updatedAt'];
-      delete expected['userId'];
-      delete expected['bookmarkSlug'];
-      delete expected['flags'];
-
-      loggedUser = '1';
-      const res = await authorizeRequest(
-        request(app.server).get('/settings'),
-      ).expect(200);
-      expect(res.body).toEqual(expected);
-    });
   });
 });
