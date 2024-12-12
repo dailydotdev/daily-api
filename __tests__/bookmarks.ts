@@ -32,7 +32,6 @@ let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string;
-let premiumUser: boolean;
 let isPlus: boolean;
 
 const now = new Date();
@@ -57,8 +56,7 @@ const bookmarksFixture = [
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    (req) =>
-      new MockContext(con, loggedUser, premiumUser, [], req, false, isPlus),
+    (req) => new MockContext(con, loggedUser, [], req, false, isPlus),
   );
   client = state.client;
 });
@@ -572,7 +570,6 @@ describe('mutation moveBookmark', () => {
 
   it('should update existing bookmark', async () => {
     loggedUser = '1';
-    premiumUser = true;
     const list = await con
       .getRepository(BookmarkList)
       .save({ userId: loggedUser, name: 'list' });
@@ -592,7 +589,6 @@ describe('mutation moveBookmark', () => {
 
   it('should set list id to null', async () => {
     loggedUser = '1';
-    premiumUser = true;
     const list = await con
       .getRepository(BookmarkList)
       .save({ userId: loggedUser, name: 'list' });
@@ -849,7 +845,6 @@ describe('query bookmarks', () => {
 
   it('should return bookmarks from list', async () => {
     loggedUser = '1';
-    premiumUser = true;
     const list = await con
       .getRepository(BookmarkList)
       .save({ userId: loggedUser, name: 'list' });
