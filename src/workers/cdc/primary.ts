@@ -737,19 +737,13 @@ const onSourcePostModerationChange = async (
   data: ChangeMessage<SourcePostModeration>,
 ) => {
   if (data.payload.op === 'c' && data.payload.after) {
-    try {
-      const flags = JSON.parse(data.payload.after.flags || '{}');
+    const flags = JSON.parse(data.payload.after.flags || '{}');
 
-      if (!flags?.vordr)
-        await triggerTypedEvent(
-          logger,
-          'api.v1.source-post-moderation-submitted',
-          { post: data.payload.after },
-        );
-    } catch (err) {
-      logger.error(
+    if (!flags?.vordr) {
+      await triggerTypedEvent(
+        logger,
+        'api.v1.source-post-moderation-submitted',
         { post: data.payload.after },
-        'Error parsing flags for source post submission',
       );
     }
   }
