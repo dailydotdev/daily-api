@@ -140,6 +140,7 @@ export interface GQLUpdateUserInput {
   language?: ContentLanguage;
   followingEmail?: boolean;
   followNotifications?: boolean;
+  defaultFeedId?: string;
 }
 
 interface GQLUserParameters {
@@ -550,6 +551,10 @@ export const typeDefs = /* GraphQL */ `
     Whether the user wants to receives following push notifications
     """
     followNotifications: Boolean
+    """
+    Default feed id for the user
+    """
+    defaultFeedId: String
   }
 
   type TagsReadingStatus {
