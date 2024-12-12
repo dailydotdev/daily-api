@@ -18,7 +18,7 @@ import type { UserStreakAction } from './UserStreakAction';
 import type { UserCompany } from '../UserCompany';
 import type { UserTopReader } from './UserTopReader';
 import type { SubscriptionCycles } from '../../paddle';
-import { Feed } from '../Feed';
+import type { Feed } from '../Feed';
 
 export type UserFlags = Partial<{
   vordr: boolean;
