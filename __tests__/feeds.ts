@@ -3528,6 +3528,7 @@ describe('mutation createFeed', () => {
       variables: {
         name: 'Cool feed',
         orderBy: 'upvotes',
+        icon: '🐙',
       },
     });
 
@@ -3538,6 +3539,7 @@ describe('mutation createFeed', () => {
         flags: {
           name: 'Cool feed',
           orderBy: 'upvotes',
+          icon: '🐙',
         },
       },
     });
@@ -3546,8 +3548,23 @@ describe('mutation createFeed', () => {
     ).toMatchObject({
       id: expect.any(String),
       userId: '1',
-      flags: { name: 'Cool feed', orderBy: 'upvotes' },
+      flags: { name: 'Cool feed', orderBy: 'upvotes', icon: '🐙' },
     });
+  });
+
+  it('should throw error when feed is created with invalid icon', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          name: 'Cool feed',
+          icon: '😈',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
   });
 
   it('should not create a new feed when name is missing', async () => {
@@ -3723,6 +3740,7 @@ describe('mutation updateFeed', () => {
         feedId: 'cf1',
         name: 'PHP feed',
         disableEngagementFilter: true,
+        icon: '🐍',
       },
     });
 
@@ -3733,6 +3751,7 @@ describe('mutation updateFeed', () => {
         flags: {
           name: 'PHP feed',
           disableEngagementFilter: true,
+          icon: '🐍',
         },
       },
     });
@@ -3741,8 +3760,23 @@ describe('mutation updateFeed', () => {
     ).toMatchObject({
       id: 'cf1',
       userId: '1',
-      flags: { name: 'PHP feed', disableEngagementFilter: true },
+      flags: { name: 'PHP feed', disableEngagementFilter: true, icon: '🐍' },
     });
+  });
+
+  it('should throw error when feed is updated with invalid icon', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          name: 'Cool feed',
+          icon: '💼',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
   });
 
   it('should not update the feed when feedId is missing', async () => {
