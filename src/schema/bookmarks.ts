@@ -26,6 +26,7 @@ import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { logger } from '../logger';
 import { BookmarkListCountLimit, maxBookmarksPerMutation } from '../types';
 import graphorm from '../graphorm';
+import { BookmarkErrorMessage } from '../errors';
 
 interface GQLAddBookmarkInput {
   postIds: string[];
@@ -352,9 +353,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       if (data.postIds.length > maxBookmarksPerMutation) {
-        throw new ValidationError(
-          `Exceeded the maximum bookmarks per mutation (${maxBookmarksPerMutation})`,
-        );
+        throw new ValidationError(BookmarkErrorMessage.EXCEEDS_MUTATION_LIMIT);
       }
 
       await ctx.con.transaction(async (manager) => {
@@ -386,9 +385,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       if (!ctx.isPlus) {
-        throw new ForbiddenError(
-          'You need to be a Plus member to use this feature',
-        );
+        throw new ForbiddenError(BookmarkErrorMessage.USER_NOT_PLUS);
       }
 
       if (listId) {
@@ -424,7 +421,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<GQLBookmarkList> => {
       const isValidIcon = !icon || isOneValidEmoji(icon);
       if (!isValidIcon || !name.length) {
-        throw new ValidationError('Invalid icon or name');
+        throw new ValidationError(BookmarkErrorMessage.INVALID_ICON_OR_NAME);
       }
       const maxFoldersCount = ctx.isPlus
         ? BookmarkListCountLimit.Plus
@@ -442,7 +439,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }
 
         throw new ForbiddenError(
-          `You have reached the maximum list count (${maxFoldersCount})`,
+          ctx.isPlus
+            ? BookmarkErrorMessage.FOLDER_PLUS_LIMIT_REACHED
+            : BookmarkErrorMessage.FOLDER_FREE_LIMIT_REACHED,
         );
       }
 
@@ -469,9 +468,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
     ): Promise<GQLBookmarkList> => {
       if (!ctx.isPlus) {
-        throw new ForbiddenError(
-          'You need to be a Plus member to use this feature',
-        );
+        throw new ForbiddenError(BookmarkErrorMessage.USER_NOT_PLUS);
       }
 
       const repo = ctx.con.getRepository(BookmarkList);
@@ -537,9 +534,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<GQLBookmarkList> => {
       if (!ctx.isPlus) {
-        throw new ForbiddenError(
-          'You need to be a Plus member to use this feature',
-        );
+        throw new ForbiddenError(BookmarkErrorMessage.USER_NOT_PLUS);
       }
       return graphorm.queryOneOrFail<GQLBookmarkList>(
         ctx,
