@@ -30,7 +30,7 @@ import {
 } from '../src/entity';
 import { SourceMemberRoles } from '../src/roles';
 import { Category } from '../src/entity/Category';
-import { FastifyInstance, FastifyRequest } from 'fastify';
+import { FastifyInstance } from 'fastify';
 import {
   feedFields,
   GraphQLTestClient,
