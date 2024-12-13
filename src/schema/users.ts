@@ -30,6 +30,7 @@ import {
   Alerts,
   reputationReasonAmount,
   ConnectionManager,
+  FeedType,
 } from '../entity';
 import {
   AuthenticationError,
@@ -1323,6 +1324,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               ContentPreferenceStatus.Follow,
               ContentPreferenceStatus.Subscribed,
             ]),
+            feed: {
+              type: FeedType.Main,
+            },
           }),
           ctx.con.getRepository(ContentPreferenceUser).countBy({
             referenceId: id,
@@ -1330,6 +1334,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               ContentPreferenceStatus.Follow,
               ContentPreferenceStatus.Subscribed,
             ]),
+            feed: {
+              type: FeedType.Main,
+            },
           }),
         ]);
       return {
