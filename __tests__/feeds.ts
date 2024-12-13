@@ -3476,17 +3476,39 @@ describe('query getFeed', () => {
 });
 
 describe('mutation createFeed', () => {
-  const MUTATION = `
-  mutation CreateFeed($name: String!) {
-    createFeed(name: $name) {
-      id
-      userId
-      flags {
-        name
+  const MUTATION = /* GraphQL */ `
+    mutation CreateFeed(
+      $name: String!
+      $orderBy: FeedOrderBy
+      $minDayRange: Int
+      $icon: String
+      $minUpvotes: Int
+      $minViews: Int
+      $disableEngagementFilter: Boolean
+    ) {
+      createFeed(
+        name: $name
+        orderBy: $orderBy
+        minDayRange: $minDayRange
+        icon: $icon
+        minUpvotes: $minUpvotes
+        minViews: $minViews
+        disableEngagementFilter: $disableEngagementFilter
+      ) {
+        id
+        userId
+        flags {
+          name
+          orderBy
+          minDayRange
+          icon
+          minUpvotes
+          minViews
+          disableEngagementFilter
+        }
       }
     }
-  }
-`;
+  `;
 
   it('should not authorize when not logged-in', () =>
     testMutationErrorCode(
@@ -3505,6 +3527,7 @@ describe('mutation createFeed', () => {
     const res = await client.mutate(MUTATION, {
       variables: {
         name: 'Cool feed',
+        orderBy: 'upvotes',
       },
     });
 
@@ -3514,6 +3537,7 @@ describe('mutation createFeed', () => {
         userId: '1',
         flags: {
           name: 'Cool feed',
+          orderBy: 'upvotes',
         },
       },
     });
@@ -3522,7 +3546,7 @@ describe('mutation createFeed', () => {
     ).toMatchObject({
       id: expect.any(String),
       userId: '1',
-      flags: { name: 'Cool feed' },
+      flags: { name: 'Cool feed', orderBy: 'upvotes' },
     });
   });
 
@@ -3620,17 +3644,41 @@ describe('mutation createFeed', () => {
 });
 
 describe('mutation updateFeed', () => {
-  const MUTATION = `
-  mutation UpdateFeed($feedId: ID!, $name: String!) {
-    updateFeed(feedId: $feedId, name: $name) {
-      id
-      userId
-      flags {
-        name
+  const MUTATION = /* GraphQL */ `
+    mutation UpdateFeed(
+      $feedId: ID!
+      $name: String!
+      $orderBy: FeedOrderBy
+      $minDayRange: Int
+      $icon: String
+      $minUpvotes: Int
+      $minViews: Int
+      $disableEngagementFilter: Boolean
+    ) {
+      updateFeed(
+        feedId: $feedId
+        name: $name
+        orderBy: $orderBy
+        minDayRange: $minDayRange
+        icon: $icon
+        minUpvotes: $minUpvotes
+        minViews: $minViews
+        disableEngagementFilter: $disableEngagementFilter
+      ) {
+        id
+        userId
+        flags {
+          name
+          orderBy
+          minDayRange
+          icon
+          minUpvotes
+          minViews
+          disableEngagementFilter
+        }
       }
     }
-  }
-`;
+  `;
 
   beforeEach(async () => {
     await saveFixtures(con, Feed, [
@@ -3674,6 +3722,7 @@ describe('mutation updateFeed', () => {
       variables: {
         feedId: 'cf1',
         name: 'PHP feed',
+        disableEngagementFilter: true,
       },
     });
 
@@ -3683,6 +3732,7 @@ describe('mutation updateFeed', () => {
         userId: '1',
         flags: {
           name: 'PHP feed',
+          disableEngagementFilter: true,
         },
       },
     });
@@ -3691,7 +3741,7 @@ describe('mutation updateFeed', () => {
     ).toMatchObject({
       id: 'cf1',
       userId: '1',
-      flags: { name: 'PHP feed' },
+      flags: { name: 'PHP feed', disableEngagementFilter: true },
     });
   });
 
