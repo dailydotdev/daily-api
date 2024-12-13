@@ -2268,10 +2268,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     updateFeed: async (
       _,
-      { feedId, name }: { feedId: string } & FeedFlagsPublic,
+      { feedId, ...flags }: { feedId: string } & FeedFlagsPublic,
       ctx: AuthContext,
     ): Promise<GQLFeed> => {
-      validateFeedPayload({ name });
+      validateFeedPayload({ name: flags.name });
 
       const feedRepo = ctx.con.getRepository(Feed);
       const feed = await getFeedByIdentifiersOrFail({
@@ -2284,7 +2284,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         id: feed.id,
         userId: feed.userId,
         flags: {
-          name,
+          ...feed.flags,
+          ...flags,
         },
       });
 
