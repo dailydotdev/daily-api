@@ -506,11 +506,13 @@ export const unblockEntity = async ({
   ctx,
   id,
   entity,
+  feedId,
 }: {
   ctx: AuthContext;
   id: string;
   entity: ContentPreferenceType;
+  feedId: string;
 }): Promise<void> => {
   // currently unblock is just like unfollow, eg. remove everything from db
-  return unfollowEntity({ ctx, id, entity });
+  return unfollowEntity({ ctx, id, entity, feedId });
 };
