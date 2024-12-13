@@ -7,7 +7,10 @@ export type FeedFlags = Partial<{
 
 export type FeedFlagsPublic = Pick<FeedFlags, 'name'>;
 
-export type FeedType = 'main' | 'custom';
+export enum FeedType {
+  Main = 'main',
+  Custom = 'custom',
+}
 
 @Entity()
 @Index('IDX_feed_id_user_id', ['id', 'userId'], { unique: true })

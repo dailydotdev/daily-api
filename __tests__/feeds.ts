@@ -3267,6 +3267,30 @@ describe('slug field', () => {
   });
 });
 
+describe('type field', () => {
+  it('should set the type to main when feed ID matches user ID', async () => {
+    await con.getRepository(Feed).save({
+      id: '1',
+      userId: '1',
+    });
+
+    const feed = await con.getRepository(Feed).findOneByOrFail({ id: '1' });
+    expect(feed.type).toEqual('main');
+  });
+
+  it('should set the type to custom when feed ID does not match user ID', async () => {
+    await con.getRepository(Feed).save({
+      id: 'something-else',
+      userId: '1',
+    });
+
+    const feed = await con
+      .getRepository(Feed)
+      .findOneByOrFail({ id: 'something-else' });
+    expect(feed.type).toEqual('custom');
+  });
+});
+
 describe('query feedList', () => {
   const QUERY = `{
     feedList {
