@@ -161,7 +161,7 @@ export const typeDefs = /* GraphQL */ `
       Follow status
       """
       status: FollowStatus!
-    ): EmptyResponse @auth
+    ): EmptyResponse @feedPlus
     """
     Unfollow entity
     """
@@ -174,7 +174,7 @@ export const typeDefs = /* GraphQL */ `
       Entity unfollow (user, source..)
       """
       entity: ContentPreferenceType!
-    ): EmptyResponse @auth
+    ): EmptyResponse @feedPlus
 
     """
     Block entity
@@ -188,7 +188,7 @@ export const typeDefs = /* GraphQL */ `
       Entity to block (user, source..)
       """
       entity: ContentPreferenceType!
-    ): EmptyResponse @auth
+    ): EmptyResponse @feedPlus
 
     """
     Unblock entity
@@ -202,7 +202,7 @@ export const typeDefs = /* GraphQL */ `
       Entity to unblock (user, source..)
       """
       entity: ContentPreferenceType!
-    ): EmptyResponse @auth
+    ): EmptyResponse @feedPlus
   }
 `;
 

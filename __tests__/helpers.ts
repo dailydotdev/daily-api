@@ -140,6 +140,7 @@ export const testMutationError = async (
   const res = await client.mutate(mutation.mutation, {
     variables: mutation.variables,
   });
+  console.log(res);
   return callback(res.errors);
 };
 

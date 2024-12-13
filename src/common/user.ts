@@ -16,8 +16,8 @@ import {
   User,
   View,
 } from '../entity';
-import { ghostUser } from '../common';
-import { cancelSubscription } from '../common/paddle';
+import { ghostUser } from './index';
+import { cancelSubscription } from './paddle';
 
 export const deleteUser = async (
   con: DataSource,

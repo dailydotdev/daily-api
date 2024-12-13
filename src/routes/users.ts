@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { logout } from '../kratos';
-import { deleteUser } from '../directive/user';
+import { deleteUser } from '../common/user';
 import createOrGetConnection from '../db';
 import { getBootData, LoggedInBoot } from './boot';
 import { getShortGenericInviteLink } from '../common';
