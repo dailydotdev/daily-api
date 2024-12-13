@@ -35,6 +35,7 @@ export enum SubmissionFailErrorKeys {
   FeedNameRequired = 'FEED_NAME_REQUIRED',
   FeedNameInvalid = 'FEED_NAME_INVALID',
   FeedNameLength = 'FEED_NAME_LENGTH',
+  FeedIconInvalid = 'FEED_ICON_INVALID',
 }
 
 export const SubmissionFailErrorMessage: Record<
@@ -72,6 +73,7 @@ export const SubmissionFailErrorMessage: Record<
   FEED_NAME_REQUIRED: 'Feed name is required',
   FEED_NAME_INVALID: 'Feed name should not contain special characters',
   FEED_NAME_LENGTH: 'Feed name is too long',
+  FEED_ICON_INVALID: 'Feed icon is invalid',
 };
 
 export enum SourceRequestErrorKeys {
