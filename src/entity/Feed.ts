@@ -1,11 +1,33 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import type { User } from './user';
 
+export enum FeedOrderBy {
+  Upvotes = 'upvotes',
+  Downvotes = 'downvotes',
+  Comments = 'comments',
+  Clicks = 'clicks',
+}
+
 export type FeedFlags = Partial<{
   name: string;
+  orderBy: FeedOrderBy;
+  minDayRange: number;
+  minUpvotes: number;
+  minViews: number;
+  disableEngagementFilter: boolean;
+  icon: string;
 }>;
 
-export type FeedFlagsPublic = Pick<FeedFlags, 'name'>;
+export type FeedFlagsPublic = Pick<
+  FeedFlags,
+  | 'name'
+  | 'orderBy'
+  | 'minDayRange'
+  | 'minUpvotes'
+  | 'minViews'
+  | 'disableEngagementFilter'
+  | 'icon'
+>;
 
 @Entity()
 @Index('IDX_feed_id_user_id', ['id', 'userId'], { unique: true })
