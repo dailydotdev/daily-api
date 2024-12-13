@@ -29,7 +29,11 @@ export const workers: Worker[] = [
   },
   {
     topic: 'user-updated',
-    subscription: 'api.user-updated-plus-subscribed',
+    subscription: 'api.user-updated-plus-subscribed-squad',
+  },
+  {
+    topic: 'user-updated',
+    subscription: 'api.user-updated-plus-subscribed-custom-feed',
   },
   {
     topic: 'user-deleted',
