@@ -123,6 +123,10 @@ export const typeDefs = /* GraphQL */ `
       Paginate first
       """
       first: Int
+      """
+      Feed id (if empty defaults to my feed)
+      """
+      feedId: String
     ): ContentPreferenceConnection!
 
     """
@@ -305,11 +309,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: {
         userId: string;
         entity: ContentPreferenceType;
+        feedId?: string;
       } & ConnectionArguments,
       ctx: AuthContext,
       info,
     ): Promise<Connection<GQLContentPreference>> => {
       const page = contentPreferencePageGenerator.connArgsToPage(args);
+      if (args.feedId) {
+        await getFeedByIdentifiersOrFail({
+          con: ctx.con,
+          feedIdOrSlug: args.feedId,
+          userId: ctx.userId,
+        });
+      }
+
+      const feedId = args.feedId || ctx.userId;
 
       return graphorm.queryPaginated(
         ctx,
@@ -327,6 +341,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             })
             .andWhere(`${builder.alias}."type" = :type`, {
               type: args.entity,
+            })
+            .andWhere(`${builder.alias}."feedId" = :feedId`, {
+              feedId,
             })
             .limit(page.limit)
             .offset(page.offset)
