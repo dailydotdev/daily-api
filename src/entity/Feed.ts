@@ -18,7 +18,16 @@ export type FeedFlags = Partial<{
   icon: string;
 }>;
 
-export type FeedFlagsPublic = Pick<FeedFlags, 'name'>;
+export type FeedFlagsPublic = Pick<
+  FeedFlags,
+  | 'name'
+  | 'orderBy'
+  | 'minDayRange'
+  | 'minUpvotes'
+  | 'minViews'
+  | 'disableEngagementFilter'
+  | 'icon'
+>;
 
 @Entity()
 @Index('IDX_feed_id_user_id', ['id', 'userId'], { unique: true })

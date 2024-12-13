@@ -3,6 +3,7 @@ import {
   Feed,
   FeedAdvancedSettings,
   FeedFlagsPublic,
+  FeedOrderBy,
   FeedSource,
   FeedTag,
   Post,
@@ -32,6 +33,7 @@ import {
   Ranking,
   sourceFeedBuilder,
   tagFeedBuilder,
+  toGQLEnum,
   whereKeyword,
 } from '../common';
 import { In, Not, SelectQueryBuilder } from 'typeorm';
@@ -153,6 +155,8 @@ export const typeDefs = /* GraphQL */ `
     TIME
   }
 
+  ${toGQLEnum(FeedOrderBy, 'FeedOrderBy')}
+
   input FeedAdvancedSettingsInput {
     """
     Advanced Settings ID
@@ -217,6 +221,36 @@ export const typeDefs = /* GraphQL */ `
     Name of the feed
     """
     name: String
+
+    """
+    Order by
+    """
+    orderBy: FeedOrderBy
+
+    """
+    Minimum day range
+    """
+    minDayRange: Int
+
+    """
+    Minimum upvotes
+    """
+    minUpvotes: Int
+
+    """
+    Minimum views
+    """
+    minViews: Int
+
+    """
+    Disable engagement filter
+    """
+    disableEngagementFilter: Boolean
+
+    """
+    Icon
+    """
+    icon: String
   }
 
   type Feed {
