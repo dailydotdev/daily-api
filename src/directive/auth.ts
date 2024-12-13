@@ -7,25 +7,19 @@ import { Context } from '../Context';
 const directiveName = 'auth';
 
 export const typeDefs = /* GraphQL */ `
-directive @${directiveName}(
+  directive @${directiveName}(
   """
   Roles required for the operation (at least one)
   """
   requires: [Role] = []
+  ) on OBJECT | FIELD_DEFINITION
 
-  """
-  Whether premium subscription is required
-  """
-  premium: Boolean = false
-) on OBJECT | FIELD_DEFINITION
-
-enum Role {
+  enum Role {
   MODERATOR
-}
+  }
 `;
 
-const typeDirectiveArgumentMaps: { requires?: string[]; premium?: boolean } =
-  {};
+const typeDirectiveArgumentMaps: { requires?: string[] } = {};
 
 export const transformer = (schema: GraphQLSchema): GraphQLSchema =>
   mapSchema(schema, {
@@ -43,11 +37,11 @@ export const transformer = (schema: GraphQLSchema): GraphQLSchema =>
         // @ts-expect-error - internal mapping
         typeDirectiveArgumentMaps[typeName];
       if (args) {
-        const { requires, premium } = args;
+        const { requires } = args;
         if (requires) {
           const { resolve = defaultFieldResolver } = fieldConfig;
           fieldConfig.resolve = function (source, args, ctx: Context, info) {
-            if (!requires && !premium) {
+            if (!requires) {
               return resolve(source, args, ctx, info);
             }
             if (!ctx.userId) {
@@ -60,17 +54,12 @@ export const transformer = (schema: GraphQLSchema): GraphQLSchema =>
               resolve(source, args, ctx, info);
               return null;
             }
-            if (requires.length > 0 || premium) {
-              let authorized: boolean;
-              if (premium) {
-                authorized = ctx.premium;
-              } else {
-                const roles = ctx.roles;
-                authorized =
-                  roles.findIndex(
-                    (r) => requires.indexOf(r.toUpperCase()) > -1,
-                  ) > -1;
-              }
+            if (requires.length > 0) {
+              const roles = ctx.roles;
+              const authorized =
+                roles.findIndex((r) => requires.indexOf(r.toUpperCase()) > -1) >
+                -1;
+
               if (!authorized) {
                 if (['Query', 'Mutation'].includes(typeName)) {
                   throw new ForbiddenError(

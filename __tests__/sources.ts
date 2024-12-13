@@ -54,12 +54,11 @@ let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
-let premiumUser: boolean;
 
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    () => new MockContext(con, loggedUser, premiumUser),
+    () => new MockContext(con, loggedUser),
   );
   client = state.client;
 });
@@ -113,7 +112,6 @@ const getSourceCategories = () => [
 
 beforeEach(async () => {
   loggedUser = null;
-  premiumUser = false;
   await saveFixtures(con, SourceCategory, getSourceCategories());
   await saveFixtures(con, Source, [
     sourcesFixture[0],

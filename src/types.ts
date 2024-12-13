@@ -74,7 +74,6 @@ declare module 'fastify' {
   interface FastifyRequest {
     // Used for auth
     userId?: string;
-    premium?: boolean;
     roles?: Roles[];
     service?: boolean;
     accessToken?: AccessToken;
@@ -102,7 +101,11 @@ export type ChangeObject<Type> = {
   [Property in keyof Type as Exclude<
     Property,
     Required<Type>[Property] extends IgnoredTypes ? Property : never
-  >]: Required<Type>[Property] extends Date ? number : Type[Property];
+  >]: Required<Type>[Property] extends Date
+    ? number
+    : Required<Type>[Property] extends Record<string | number | symbol, unknown>
+      ? string
+      : Type[Property];
 };
 
 export type ChangeSchema = {

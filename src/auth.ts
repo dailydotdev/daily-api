@@ -16,7 +16,6 @@ interface Options {
 
 interface AuthPayload {
   userId: string;
-  premium: boolean;
   roles?: Roles[];
   isTeamMember?: boolean;
   isPlus?: boolean;
@@ -89,7 +88,6 @@ const plugin = async (
   }
 
   fastify.decorateRequest('userId');
-  fastify.decorateRequest('premium');
   fastify.decorateRequest('roles');
   fastify.decorateRequest('accessToken');
   fastify.decorateRequest('isTeamMember');
@@ -104,7 +102,6 @@ const plugin = async (
       req.service = true;
       if (req.headers['user-id'] && req.headers['logged-in'] === 'true') {
         req.userId = req.headers['user-id'] as string;
-        req.premium = req.headers.premium === 'true';
         req.isPlus = req.headers['is-plus'] === 'true';
         req.roles =
           ((req.headers['roles'] as string)?.split(',') as Roles[]) ?? [];
@@ -123,7 +120,6 @@ const plugin = async (
           const payload = await verifyJwt(validValue);
           if (payload) {
             req.userId = payload.userId;
-            req.premium = payload.premium;
             req.roles = payload.roles;
             req.isTeamMember = payload.isTeamMember;
             req.isPlus = !!payload.isPlus;

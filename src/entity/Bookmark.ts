@@ -1,4 +1,11 @@
-import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  ManyToOne,
+  PrimaryColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import type { BookmarkList } from './BookmarkList';
 import type { Post } from './posts';
 import type { User } from './user';
@@ -34,6 +41,10 @@ export class Bookmark {
   @Column({ default: () => 'now()' })
   @Index('IDX_bookmark_createdAt', { synchronize: false })
   createdAt: Date;
+
+  @UpdateDateColumn()
+  @Index('IDX_bookmark_updatedAt', { synchronize: false })
+  updatedAt: Date;
 
   @ManyToOne('User', {
     lazy: true,

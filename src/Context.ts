@@ -50,10 +50,6 @@ export class Context {
     return !!this.req.isTeamMember;
   }
 
-  get premium(): boolean {
-    return !!this.req.premium;
-  }
-
   get roles(): Roles[] {
     return this.req.roles ?? [];
   }

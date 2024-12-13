@@ -32,7 +32,6 @@ let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string;
-let premiumUser: boolean;
 let isPlus: boolean;
 
 const now = new Date();
@@ -57,8 +56,7 @@ const bookmarksFixture = [
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    (req) =>
-      new MockContext(con, loggedUser, premiumUser, [], req, false, isPlus),
+    (req) => new MockContext(con, loggedUser, [], req, false, isPlus),
   );
   client = state.client;
 });
@@ -146,6 +144,46 @@ describe('mutation addBookmarks', () => {
       .getRepository(Bookmark)
       .findOneBy({ postId: 'p2', userId: loggedUser });
     expect(actual?.listId).toEqual(listId);
+  });
+
+  it('should add new bookmarks to the last updated bookmark list', async () => {
+    loggedUser = '1';
+    const list1 = await con.getRepository(BookmarkList).save({
+      userId: loggedUser,
+      name: 'list1',
+    });
+    const list2 = await con.getRepository(BookmarkList).save({
+      userId: loggedUser,
+      name: 'list2',
+    });
+    await con.getRepository(Bookmark).save([
+      {
+        userId: loggedUser,
+        postId: 'p1',
+        listId: list1.id,
+        createdAt: new Date(now.getTime() - 1000),
+        updatedAt: new Date(now.getTime() - 300),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p2',
+        listId: list2.id,
+        createdAt: new Date(now.getTime() - 500),
+        updatedAt: new Date(now.getTime() - 500),
+      },
+    ]);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { data: { postIds: ['p3'] } },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.addBookmarks).toHaveLength(1);
+    expect(res.data.addBookmarks[0].list.id).toEqual(list1.id);
+
+    const actual = await con
+      .getRepository(Bookmark)
+      .findOneBy({ postId: 'p3', userId: loggedUser });
+    expect(actual?.listId).toEqual(list1.id);
   });
 
   it('should ignore conflicts', async () => {
@@ -532,7 +570,6 @@ describe('mutation moveBookmark', () => {
 
   it('should update existing bookmark', async () => {
     loggedUser = '1';
-    premiumUser = true;
     const list = await con
       .getRepository(BookmarkList)
       .save({ userId: loggedUser, name: 'list' });
@@ -552,7 +589,6 @@ describe('mutation moveBookmark', () => {
 
   it('should set list id to null', async () => {
     loggedUser = '1';
-    premiumUser = true;
     const list = await con
       .getRepository(BookmarkList)
       .save({ userId: loggedUser, name: 'list' });
@@ -701,6 +737,40 @@ describe('query bookmarks', () => {
       );
       expect(isInsideFolder).toBeTruthy();
     });
+
+    it('should return bookmarks from all lists if reminderOnly', async () => {
+      loggedUser = '1';
+      await saveFixtures(con, Bookmark, bookmarksFixture);
+      await con
+        .getRepository(Bookmark)
+        .update({ userId: '1', postId: 'p1' }, { remindAt: new Date() });
+      const list = await con.getRepository(BookmarkList).save({
+        userId: loggedUser,
+        name: 'Test',
+      });
+      await con.getRepository(Bookmark).update(
+        { userId: '1', postId: 'p3' },
+        {
+          listId: list.id,
+          remindAt: new Date(),
+        },
+      );
+      const res = await client.query(QUERY, {
+        variables: { first: 10, reminderOnly: true },
+      });
+      expect(res.data.bookmarksFeed.edges.length).toBeGreaterThan(0);
+      const { isReminderOnly, listIds } = res.data.bookmarksFeed.edges.reduce(
+        (acc, { node }) => {
+          acc.isReminderOnly = acc.isReminderOnly && !!node.bookmark.remindAt;
+          acc.listIds.add(node.bookmark.list?.id ?? null);
+          return acc;
+        },
+        { isReminderOnly: true, listIds: new Set<string>() },
+      );
+      expect(isReminderOnly).toBeTruthy();
+      expect(listIds.has(null)).toBeTruthy();
+      expect(listIds.has(list.id)).toBeTruthy();
+    });
   });
 
   describe('non-plus user', () => {
@@ -809,7 +879,6 @@ describe('query bookmarks', () => {
 
   it('should return bookmarks from list', async () => {
     loggedUser = '1';
-    premiumUser = true;
     const list = await con
       .getRepository(BookmarkList)
       .save({ userId: loggedUser, name: 'list' });

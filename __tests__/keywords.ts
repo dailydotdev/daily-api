@@ -27,7 +27,7 @@ let roles: Roles[] = [];
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    () => new MockContext(con, loggedUser, false, roles),
+    () => new MockContext(con, loggedUser, roles),
   );
   client = state.client;
 });

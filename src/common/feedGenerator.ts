@@ -691,8 +691,19 @@ export const bookmarksFeedBuilder = ({
     );
   }
 
+  if (query) {
+    newBuilder = newBuilder.andWhere(
+      `${alias}.tsv @@ (${getSearchQuery(':query')})`,
+      {
+        query: processSearchQuery(query),
+      },
+    );
+    return newBuilder;
+  }
+
   if (reminderOnly) {
     newBuilder = newBuilder.andWhere(`bookmark.remindAt IS NOT NULL`);
+    return newBuilder;
   }
 
   if (listId) {
@@ -715,15 +726,6 @@ export const bookmarksFeedBuilder = ({
         { firstFolderId },
       );
     }
-  }
-
-  if (query) {
-    newBuilder = newBuilder.andWhere(
-      `${alias}.tsv @@ (${getSearchQuery(':query')})`,
-      {
-        query: processSearchQuery(query),
-      },
-    );
   }
 
   return newBuilder;

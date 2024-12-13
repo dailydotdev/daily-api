@@ -97,7 +97,6 @@ let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
-let premiumUser = false;
 let isTeamMember = false;
 let isPlus = false;
 let roles: Roles[] = [];
@@ -105,16 +104,7 @@ let roles: Roles[] = [];
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    (req) =>
-      new MockContext(
-        con,
-        loggedUser,
-        premiumUser,
-        roles,
-        req,
-        isTeamMember,
-        isPlus,
-      ),
+    (req) => new MockContext(con, loggedUser, roles, req, isTeamMember, isPlus),
   );
   client = state.client;
 });
@@ -123,7 +113,6 @@ beforeEach(async () => {
   loggedUser = null;
   isTeamMember = false;
   isPlus = false;
-  premiumUser = false;
   roles = [];
   jest.clearAllMocks();
   await ioRedisPool.execute((client) => client.flushall());
@@ -524,7 +513,6 @@ describe('bookmarkList field', () => {
 
   it('should return null when bookmark does not belong to a list', async () => {
     loggedUser = '1';
-    premiumUser = true;
     await con.getRepository(Bookmark).save({
       postId: 'p1',
       userId: loggedUser,
