@@ -29,10 +29,12 @@ type FollowEntity = ({
   ctx,
   id,
   status,
+  feedId,
 }: {
   ctx: AuthContext;
   id: string;
   status: ContentPreferenceStatus.Follow | ContentPreferenceStatus.Subscribed;
+  feedId: string;
 }) => Promise<void>;
 
 type UnFollowEntity = ({
@@ -107,7 +109,7 @@ export const cleanContentNotificationPreference = async ({
   });
 };
 
-const followUser: FollowEntity = async ({ ctx, id, status }) => {
+const followUser: FollowEntity = async ({ ctx, id, status, feedId }) => {
   if (ctx.userId === id) {
     throw new ConflictError('Cannot follow yourself');
   }
@@ -121,7 +123,7 @@ const followUser: FollowEntity = async ({ ctx, id, status }) => {
 
     const contentPreference = repository.create({
       userId: ctx.userId,
-      feedId: ctx.userId,
+      feedId,
       referenceId: id,
       referenceUserId: id,
       status,
@@ -164,7 +166,7 @@ const unfollowUser: UnFollowEntity = async ({ ctx, id }) => {
   });
 };
 
-const followKeyword: FollowEntity = async ({ ctx, id, status }) => {
+const followKeyword: FollowEntity = async ({ ctx, id, status, feedId }) => {
   await ctx.con.transaction(async (entityManager) => {
     const repository = entityManager.getRepository(ContentPreferenceKeyword);
 
@@ -172,7 +174,7 @@ const followKeyword: FollowEntity = async ({ ctx, id, status }) => {
       userId: ctx.userId,
       referenceId: id,
       keywordId: id,
-      feedId: ctx.userId,
+      feedId,
       status,
       type: ContentPreferenceType.Keyword,
     });
@@ -181,7 +183,7 @@ const followKeyword: FollowEntity = async ({ ctx, id, status }) => {
 
     // TODO follow phase 3 remove when backward compatibility is done
     await entityManager.getRepository(FeedTag).save({
-      feedId: ctx.userId,
+      feedId,
       tag: id,
     });
   });
@@ -215,7 +217,7 @@ const unfollowWord: UnFollowEntity = async ({ ctx, id }) => {
   });
 };
 
-const followSource: FollowEntity = async ({ ctx, id, status }) => {
+const followSource: FollowEntity = async ({ ctx, id, status, feedId }) => {
   await ctx.con.transaction(async (entityManager) => {
     const repository = entityManager.getRepository(ContentPreferenceSource);
 
@@ -223,7 +225,7 @@ const followSource: FollowEntity = async ({ ctx, id, status }) => {
       userId: ctx.userId,
       referenceId: id,
       sourceId: id,
-      feedId: ctx.userId,
+      feedId,
       status,
       flags: {
         referralToken: randomUUID(),
@@ -252,7 +254,7 @@ const followSource: FollowEntity = async ({ ctx, id, status }) => {
 
     // TODO follow phase 3 remove when backward compatibility is done
     await entityManager.getRepository(FeedSource).save({
-      feedId: ctx.userId,
+      feedId,
       sourceId: id,
       blocked: false,
     });
@@ -426,19 +428,21 @@ export const followEntity = ({
   id,
   entity,
   status,
+  feedId,
 }: {
   ctx: AuthContext;
   id: string;
   entity: ContentPreferenceType;
   status: ContentPreferenceStatus.Follow | ContentPreferenceStatus.Subscribed;
+  feedId: string;
 }): Promise<void> => {
   switch (entity) {
     case ContentPreferenceType.User:
-      return followUser({ ctx, id, status });
+      return followUser({ ctx, id, status, feedId });
     case ContentPreferenceType.Keyword:
-      return followKeyword({ ctx, id, status });
+      return followKeyword({ ctx, id, status, feedId });
     case ContentPreferenceType.Source:
-      return followSource({ ctx, id, status });
+      return followSource({ ctx, id, status, feedId });
     default:
       throw new Error('Entity not supported');
   }

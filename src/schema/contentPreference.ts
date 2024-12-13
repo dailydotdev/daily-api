@@ -2,7 +2,11 @@ import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext } from '../Context';
 import { ContentPreference } from '../entity/contentPreference/ContentPreference';
-import { MAX_FOLLOWERS_LIMIT, toGQLEnum } from '../common';
+import {
+  getFeedByIdentifiersOrFail,
+  MAX_FOLLOWERS_LIMIT,
+  toGQLEnum,
+} from '../common';
 import {
   ContentPreferenceStatus,
   ContentPreferenceType,
@@ -161,6 +165,11 @@ export const typeDefs = /* GraphQL */ `
       Follow status
       """
       status: FollowStatus!
+
+      """
+      Feed id (if empty defaults to my feed)
+      """
+      feedId: String
     ): EmptyResponse @auth
     """
     Unfollow entity
@@ -363,15 +372,27 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         id,
         entity,
         status,
+        feedId: feedIdArg,
       }: {
         id: string;
         entity: ContentPreferenceType;
         status:
           | ContentPreferenceStatus.Follow
           | ContentPreferenceStatus.Subscribed;
+        feedId?: string;
       },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
+      if (feedIdArg) {
+        await getFeedByIdentifiersOrFail({
+          con: ctx.con,
+          feedIdOrSlug: feedIdArg,
+          userId: ctx.userId,
+        });
+      }
+
+      const feedId = feedIdArg || ctx.userId;
+
       const followersCount = await ctx.con
         .getRepository(ContentPreference)
         .countBy({
@@ -387,7 +408,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ConflictError('Max followers limit reached');
       }
 
-      await followEntity({ ctx, id, entity, status });
+      await followEntity({ ctx, id, entity, status, feedId });
 
       return {
         _: true,
