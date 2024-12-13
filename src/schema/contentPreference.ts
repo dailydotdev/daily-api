@@ -202,6 +202,11 @@ export const typeDefs = /* GraphQL */ `
       Entity to block (user, source..)
       """
       entity: ContentPreferenceType!
+
+      """
+      Feed id (if empty defaults to my feed)
+      """
+      feedId: String
     ): EmptyResponse @auth
 
     """
@@ -446,10 +451,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     block: async (
       _,
-      { id, entity }: { id: string; entity: ContentPreferenceType },
+      {
+        id,
+        entity,
+        feedId: feedIdArg,
+      }: { id: string; entity: ContentPreferenceType; feedId?: string },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      await blockEntity({ ctx, id, entity });
+      if (feedIdArg) {
+        await getFeedByIdentifiersOrFail({
+          con: ctx.con,
+          feedIdOrSlug: feedIdArg,
+          userId: ctx.userId,
+        });
+      }
+
+      const feedId = feedIdArg || ctx.userId;
+      await blockEntity({ ctx, id, entity, feedId });
 
       return {
         _: true,
