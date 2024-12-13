@@ -923,6 +923,36 @@ export const typeDefs = /* GraphQL */ `
       Feed name
       """
       name: String!
+
+      """
+      Order by
+      """
+      orderBy: FeedOrderBy
+
+      """
+      Minimum day range
+      """
+      minDayRange: Int
+
+      """
+      Minimum upvotes
+      """
+      minUpvotes: Int
+
+      """
+      Minimum views
+      """
+      minViews: Int
+
+      """
+      Disable engagement filter
+      """
+      disableEngagementFilter: Boolean
+
+      """
+      Icon
+      """
+      icon: String
     ): Feed @auth
 
     """
@@ -2238,7 +2268,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     updateFeed: async (
       _,
-      { feedId, name }: { feedId: string; name: string },
+      { feedId, name }: { feedId: string } & FeedFlagsPublic,
       ctx: AuthContext,
     ): Promise<GQLFeed> => {
       validateFeedPayload({ name });
