@@ -11,6 +11,7 @@ type RemoteConfigValue = {
   pricingIds: Record<string, SubscriptionCycles>;
   origins: string[];
   clickbaitTitleProbabilityThreshold: number;
+  plusCustomFeed: boolean;
 };
 
 class RemoteConfig {

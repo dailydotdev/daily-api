@@ -1,17 +1,13 @@
 import nock from 'nock';
-import worker from '../../src/workers/userUpdatedPlusSubscription';
+import worker from '../../src/workers/userUpdatedPlusSubscriptionCustomFeed';
 import { ChangeObject } from '../../src/types';
 import { expectSuccessfulTypedBackground, saveFixtures } from '../helpers';
-import { User, Source, Feed } from '../../src/entity';
+import { User, Feed } from '../../src/entity';
 import { ghostUser, PubSubSchema } from '../../src/common';
 import { typedWorkers } from '../../src/workers';
 import createOrGetConnection from '../../src/db';
 import { DataSource } from 'typeorm';
 import { usersFixture } from '../fixture/user';
-import { SourceMemberRoles } from '../../src/roles';
-import { randomUUID } from 'crypto';
-
-const PLUS_MEMBER_SQUAD_ID = '05862288-bace-4723-9218-d30fab6ae96d';
 
 jest.mock('../../src/common', () => ({
   ...jest.requireActual('../../src/common'),
@@ -25,12 +21,6 @@ jest.mock('../../src/cio', () => ({
 }));
 
 beforeEach(async () => {
-  await con.getRepository(Source).save({
-    id: PLUS_MEMBER_SQUAD_ID,
-    type: 'squad',
-    name: 'plus',
-    handle: 'plus',
-  });
   await saveFixtures(con, User, usersFixture);
   await con.getRepository(Feed).save({
     id: '1',
@@ -46,7 +36,7 @@ beforeAll(async () => {
   con = await createOrGetConnection();
 });
 
-describe('userUpdatedPlusSubscription', () => {
+describe('userUpdatedPlusSubscriptionCustomFeed', () => {
   type ObjectType = Partial<User>;
   const base: ChangeObject<ObjectType> = {
     id: '1',
@@ -71,7 +61,7 @@ describe('userUpdatedPlusSubscription', () => {
     expect(registeredWorker).toBeDefined();
   });
 
-  it('should add user to squad', async () => {
+  it('should create custom feed for user', async () => {
     const newBase = {
       ...base,
       subscriptionFlags: JSON.stringify({ subscriptionId: '1234' }),
@@ -80,55 +70,55 @@ describe('userUpdatedPlusSubscription', () => {
       newProfile: newBase,
       user: base,
     } as unknown as PubSubSchema['user-updated']);
-    const sourceMember = await con.getRepository('SourceMember').findOneBy({
-      sourceId: PLUS_MEMBER_SQUAD_ID,
+    const feed = await con.getRepository('Feed').findOneBy({
+      id: `cf-${newBase.id}`,
       userId: newBase.id,
     });
-    expect(sourceMember.role).toEqual(SourceMemberRoles.Member);
-    expect(sourceMember.sourceId).toEqual(PLUS_MEMBER_SQUAD_ID);
-    expect(sourceMember.userId).toEqual(newBase.id);
+    expect(feed.id).toEqual(`cf-${newBase.id}`);
+    expect(feed.flags.name).toEqual('My new feed');
+    expect(feed.flags.icon).toEqual('🤓');
   });
 
-  it('should not add user if user is ghost user', async () => {
+  it('should not add feed if user is ghost user', async () => {
     const before: ChangeObject<ObjectType> = { ...base, id: ghostUser.id };
     await expectSuccessfulTypedBackground(worker, {
       newProfile: before,
       user: before,
     } as unknown as PubSubSchema['user-updated']);
-    const sourceMember = await con.getRepository('SourceMember').findOneBy({
-      sourceId: PLUS_MEMBER_SQUAD_ID,
+    const feed = await con.getRepository('Feed').findOneBy({
+      id: `cf-${base.id}`,
       userId: base.id,
     });
-    expect(sourceMember).toEqual(null);
+    expect(feed).toEqual(null);
   });
 
-  it('should not add user if user is not confirmed', async () => {
+  it('should not add feed if user is not confirmed', async () => {
     const before: ChangeObject<ObjectType> = { ...base, infoConfirmed: false };
     await expectSuccessfulTypedBackground(worker, {
       newProfile: before,
       user: before,
     } as unknown as PubSubSchema['user-updated']);
-    const sourceMember = await con.getRepository('SourceMember').findOneBy({
-      sourceId: PLUS_MEMBER_SQUAD_ID,
+    const feed = await con.getRepository('Feed').findOneBy({
+      id: `cf-${base.id}`,
       userId: base.id,
     });
-    expect(sourceMember).toEqual(null);
+    expect(feed).toEqual(null);
   });
 
-  it('should not add user if flags empty', async () => {
+  it('should not add feed if flags empty', async () => {
     const before: ChangeObject<ObjectType> = { ...base, flags: '{}' };
     await expectSuccessfulTypedBackground(worker, {
       newProfile: before,
       user: before,
     } as unknown as PubSubSchema['user-updated']);
-    const sourceMember = await con.getRepository('SourceMember').findOneBy({
-      sourceId: PLUS_MEMBER_SQUAD_ID,
+    const feed = await con.getRepository('Feed').findOneBy({
+      id: `cf-${base.id}`,
       userId: base.id,
     });
-    expect(sourceMember).toEqual(null);
+    expect(feed).toEqual(null);
   });
 
-  it('should not add user if flags the same', async () => {
+  it('should not add feed if flags the same', async () => {
     const before: ChangeObject<ObjectType> = {
       ...base,
       flags: '{subscriptionId: "1234"}',
@@ -137,33 +127,10 @@ describe('userUpdatedPlusSubscription', () => {
       newProfile: before,
       user: before,
     } as unknown as PubSubSchema['user-updated']);
-    const sourceMember = await con.getRepository('SourceMember').findOneBy({
-      sourceId: PLUS_MEMBER_SQUAD_ID,
+    const feed = await con.getRepository('Feed').findOneBy({
+      id: `cf-${base.id}`,
       userId: base.id,
     });
-    expect(sourceMember).toEqual(null);
-  });
-
-  it('should remove user from squad', async () => {
-    await con.getRepository('SourceMember').save({
-      sourceId: PLUS_MEMBER_SQUAD_ID,
-      userId: base.id,
-      role: SourceMemberRoles.Member,
-      referralToken: new randomUUID(),
-    });
-    const oldBase = {
-      ...base,
-      subscriptionFlags: JSON.stringify({ subscriptionId: '1234' }),
-    };
-    await expectSuccessfulTypedBackground(worker, {
-      newProfile: base,
-      user: oldBase,
-    } as unknown as PubSubSchema['user-updated']);
-
-    const sourceMember = await con.getRepository('SourceMember').findOneBy({
-      sourceId: PLUS_MEMBER_SQUAD_ID,
-      userId: base.id,
-    });
-    expect(sourceMember).toEqual(null);
+    expect(feed).toEqual(null);
   });
 });
