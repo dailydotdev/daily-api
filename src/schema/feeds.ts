@@ -2239,7 +2239,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     createFeed: async (
       _,
-      { name }: { name: string },
+      { name }: FeedFlagsPublic,
       ctx: AuthContext,
     ): Promise<GQLFeed> => {
       validateFeedPayload({ name });
@@ -2295,7 +2295,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     deleteFeed: async (
       _,
-      { feedId }: { feedId: string; name: string },
+      { feedId }: { feedId: string },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       const feedRepo = ctx.con.getRepository(Feed);
