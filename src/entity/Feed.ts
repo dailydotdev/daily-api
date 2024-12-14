@@ -29,6 +29,11 @@ export type FeedFlagsPublic = Pick<
   | 'icon'
 >;
 
+export enum FeedType {
+  Main = 'main',
+  Custom = 'custom',
+}
+
 @Entity()
 @Index('IDX_feed_id_user_id', ['id', 'userId'], { unique: true })
 export class Feed {
@@ -56,6 +61,17 @@ export class Feed {
   })
   @Index('IDX_feed_slug', { unique: true })
   slug: string;
+
+  @Column({
+    type: 'text',
+    update: false,
+    insert: false,
+    nullable: false,
+    unique: false,
+    generatedType: 'STORED',
+    asExpression: `CASE WHEN "id" = "userId" THEN 'main' ELSE 'custom' END`,
+  })
+  type: FeedType;
 
   @ManyToOne('User', {
     lazy: true,
