@@ -25,20 +25,19 @@ export const transformer = (schema: GraphQLSchema): GraphQLSchema =>
       if (feedPlusDirective) {
         const { resolve = defaultFieldResolver } = fieldConfig;
         fieldConfig.resolve = function (source, args, ctx: Context, info) {
-          if (
-            !ctx.userId ||
-            (args?.feedId && ctx.userId !== args?.feedId && !ctx.isPlus)
-          ) {
-            if (['Query', 'Mutation'].includes(typeName)) {
+          if (['Query', 'Mutation'].includes(typeName)) {
+            if (!ctx.userId) {
               throw new AuthenticationError(
                 'Access denied! You need to be authorized to perform this action!',
               );
             }
-
-            resolve(source, args, ctx, info);
-            return null;
+            if (args?.feedId && ctx.userId !== args?.feedId && !ctx.isPlus) {
+              throw new AuthenticationError(
+                'Access denied! You need to be Plus member to perform this action!',
+              );
+            }
+            return resolve(source, args, ctx, info);
           }
-          return resolve(source, args, ctx, info);
         };
         return fieldConfig;
       }
