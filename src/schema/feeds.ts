@@ -3,6 +3,7 @@ import {
   Feed,
   FeedAdvancedSettings,
   FeedFlagsPublic,
+  FeedOrderBy,
   FeedSource,
   FeedTag,
   Post,
@@ -32,6 +33,7 @@ import {
   Ranking,
   sourceFeedBuilder,
   tagFeedBuilder,
+  toGQLEnum,
   whereKeyword,
 } from '../common';
 import { In, Not, SelectQueryBuilder } from 'typeorm';
@@ -153,6 +155,8 @@ export const typeDefs = /* GraphQL */ `
     TIME
   }
 
+  ${toGQLEnum(FeedOrderBy, 'FeedOrderBy')}
+
   input FeedAdvancedSettingsInput {
     """
     Advanced Settings ID
@@ -217,6 +221,36 @@ export const typeDefs = /* GraphQL */ `
     Name of the feed
     """
     name: String
+
+    """
+    Order by
+    """
+    orderBy: FeedOrderBy
+
+    """
+    Minimum day range
+    """
+    minDayRange: Int
+
+    """
+    Minimum upvotes
+    """
+    minUpvotes: Int
+
+    """
+    Minimum views
+    """
+    minViews: Int
+
+    """
+    Disable engagement filter
+    """
+    disableEngagementFilter: Boolean
+
+    """
+    Icon
+    """
+    icon: String
   }
 
   type Feed {
@@ -874,6 +908,36 @@ export const typeDefs = /* GraphQL */ `
       Feed name
       """
       name: String!
+      
+      """
+      Order by
+      """
+      orderBy: FeedOrderBy
+
+      """
+      Minimum day range
+      """
+      minDayRange: Int
+
+      """
+      Minimum upvotes
+      """
+      minUpvotes: Int
+
+      """
+      Minimum views
+      """
+      minViews: Int
+
+      """
+      Disable engagement filter
+      """
+      disableEngagementFilter: Boolean
+
+      """
+      Icon
+      """
+      icon: String
     ): Feed @feedPlus
 
     """
@@ -889,6 +953,36 @@ export const typeDefs = /* GraphQL */ `
       Feed name
       """
       name: String!
+      
+      """
+      Order by
+      """
+      orderBy: FeedOrderBy
+
+      """
+      Minimum day range
+      """
+      minDayRange: Int
+
+      """
+      Minimum upvotes
+      """
+      minUpvotes: Int
+
+      """
+      Minimum views
+      """
+      minViews: Int
+
+      """
+      Disable engagement filter
+      """
+      disableEngagementFilter: Boolean
+
+      """
+      Icon
+      """
+      icon: String
     ): Feed @feedPlus
 
     """
@@ -2175,10 +2269,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     createFeed: async (
       _,
-      { name }: { name: string },
+      flags: FeedFlagsPublic,
       ctx: AuthContext,
     ): Promise<GQLFeed> => {
-      validateFeedPayload({ name });
+      validateFeedPayload({ name: flags.name, icon: flags.icon });
 
       const feedRepo = ctx.con.getRepository(Feed);
 
@@ -2195,19 +2289,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const feed = await feedRepo.save({
         id: await generateShortId(),
         userId: ctx.userId,
-        flags: {
-          name,
-        },
+        flags,
       });
 
       return feed;
     },
     updateFeed: async (
       _,
-      { feedId, name }: { feedId: string; name: string },
+      { feedId, ...flags }: { feedId: string } & FeedFlagsPublic,
       ctx: AuthContext,
     ): Promise<GQLFeed> => {
-      validateFeedPayload({ name });
+      validateFeedPayload({ name: flags.name, icon: flags.icon });
 
       const feedRepo = ctx.con.getRepository(Feed);
       const feed = await getFeedByIdentifiersOrFail({
@@ -2220,7 +2312,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         id: feed.id,
         userId: feed.userId,
         flags: {
-          name,
+          ...feed.flags,
+          ...flags,
         },
       });
 
@@ -2231,7 +2324,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     deleteFeed: async (
       _,
-      { feedId }: { feedId: string; name: string },
+      { feedId }: { feedId: string },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       const feedRepo = ctx.con.getRepository(Feed);

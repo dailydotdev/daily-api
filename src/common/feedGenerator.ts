@@ -660,7 +660,6 @@ interface BookmarksFeedBuilderProps {
   unreadOnly: boolean;
   reminderOnly: boolean;
   listId?: string | null;
-  firstFolderId?: string | null;
   builder: SelectQueryBuilder<Post>;
   alias: string;
   query?: string | null;
@@ -671,7 +670,6 @@ export const bookmarksFeedBuilder = ({
   unreadOnly,
   reminderOnly,
   listId,
-  firstFolderId,
   builder,
   alias,
   query,
@@ -692,41 +690,26 @@ export const bookmarksFeedBuilder = ({
   }
 
   if (query) {
-    newBuilder = newBuilder.andWhere(
+    return newBuilder.andWhere(
       `${alias}.tsv @@ (${getSearchQuery(':query')})`,
       {
         query: processSearchQuery(query),
       },
     );
-    return newBuilder;
   }
 
   if (reminderOnly) {
-    newBuilder = newBuilder.andWhere(`bookmark.remindAt IS NOT NULL`);
+    return newBuilder.andWhere(`bookmark.remindAt IS NOT NULL`);
+  }
+
+  if (!ctx.isPlus) {
+    // non-plus user don't have the ability to create/search in folders
     return newBuilder;
   }
 
-  if (listId) {
-    newBuilder = newBuilder.andWhere(`bookmark."listId" = :listId`, { listId });
-
-    if (!ctx.isPlus) {
-      // unsubscribed accessing locked folders
-      newBuilder = newBuilder.andWhere(`bookmark."listId" = :firstFolderId`, {
-        firstFolderId,
-      });
-    }
-  } else {
-    if (ctx.isPlus) {
-      newBuilder = newBuilder.andWhere('bookmark.listId IS NULL');
-    } else {
-      // Get everything except the first folder
-      // This returns the bookmarked posts from the locked folders but as part of Quick Saves
-      newBuilder = newBuilder.andWhere(
-        `(bookmark."listId" IS NULL OR bookmark."listId" IS DISTINCT FROM :firstFolderId)`,
-        { firstFolderId },
-      );
-    }
-  }
+  newBuilder = listId
+    ? newBuilder.andWhere(`bookmark."listId" = :listId`, { listId })
+    : newBuilder.andWhere('bookmark.listId IS NULL');
 
   return newBuilder;
 };
