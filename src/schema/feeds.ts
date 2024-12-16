@@ -230,7 +230,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Minimum day range
     """
-    minDayRange: Int
+    maxDayRange: Int
 
     """
     Minimum upvotes
@@ -922,7 +922,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Minimum day range
       """
-      minDayRange: Int
+      maxDayRange: Int
 
       """
       Minimum upvotes
@@ -967,7 +967,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Minimum day range
       """
-      minDayRange: Int
+      maxDayRange: Int
 
       """
       Minimum upvotes
@@ -2279,7 +2279,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       flags: FeedFlagsPublic,
       ctx: AuthContext,
     ): Promise<GQLFeed> => {
-      validateFeedPayload({ name: flags.name, icon: flags.icon });
+      validateFeedPayload(flags);
 
       const feedRepo = ctx.con.getRepository(Feed);
 
@@ -2306,7 +2306,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { feedId, ...flags }: { feedId: string } & FeedFlagsPublic,
       ctx: AuthContext,
     ): Promise<GQLFeed> => {
-      validateFeedPayload({ name: flags.name, icon: flags.icon });
+      validateFeedPayload(flags);
 
       const feedRepo = ctx.con.getRepository(Feed);
       const feed = await getFeedByIdentifiersOrFail({
