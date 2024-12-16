@@ -15,7 +15,6 @@ import {
 import { SelectQueryBuilder } from 'typeorm';
 import { Post } from '../entity';
 import graphorm from '../graphorm';
-import { getFirstFolderId } from '../common/bookmarks';
 
 export const typeDefs = /* GraphQL */ `
   type Publication {
@@ -216,7 +215,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       },
     ),
     bookmarks: async (source, args, context: AuthContext, info) => {
-      const firstFolderId = await getFirstFolderId(context);
       const resolver = compatFeedResolver((ctx, args, opts, builder, alias) =>
         bookmarksFeedBuilder({
           ctx,
@@ -224,7 +222,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           reminderOnly: false,
           builder: builder.orderBy('bookmark.createdAt', 'DESC'),
           alias,
-          firstFolderId,
         }),
       );
 
