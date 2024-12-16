@@ -29,26 +29,32 @@ type FollowEntity = ({
   ctx,
   id,
   status,
+  feedId,
 }: {
   ctx: AuthContext;
   id: string;
   status: ContentPreferenceStatus.Follow | ContentPreferenceStatus.Subscribed;
+  feedId: string;
 }) => Promise<void>;
 
 type UnFollowEntity = ({
   ctx,
   id,
+  feedId,
 }: {
   ctx: AuthContext;
   id: string;
+  feedId: string;
 }) => Promise<void>;
 
 type BlockEntity = ({
   ctx,
   id,
+  feedId,
 }: {
   ctx: AuthContext;
   id: string;
+  feedId: string;
 }) => Promise<void>;
 
 export const entityToNotificationTypeMap: Record<
@@ -107,7 +113,7 @@ export const cleanContentNotificationPreference = async ({
   });
 };
 
-const followUser: FollowEntity = async ({ ctx, id, status }) => {
+const followUser: FollowEntity = async ({ ctx, id, status, feedId }) => {
   if (ctx.userId === id) {
     throw new ConflictError('Cannot follow yourself');
   }
@@ -121,7 +127,7 @@ const followUser: FollowEntity = async ({ ctx, id, status }) => {
 
     const contentPreference = repository.create({
       userId: ctx.userId,
-      feedId: ctx.userId,
+      feedId,
       referenceId: id,
       referenceUserId: id,
       status,
@@ -143,13 +149,13 @@ const followUser: FollowEntity = async ({ ctx, id, status }) => {
   });
 };
 
-const unfollowUser: UnFollowEntity = async ({ ctx, id }) => {
+const unfollowUser: UnFollowEntity = async ({ ctx, id, feedId }) => {
   await ctx.con.transaction(async (entityManager) => {
     const repository = entityManager.getRepository(ContentPreferenceUser);
 
     await repository.delete({
       userId: ctx.userId,
-      feedId: ctx.userId,
+      feedId,
       referenceId: id,
     });
 
@@ -164,7 +170,7 @@ const unfollowUser: UnFollowEntity = async ({ ctx, id }) => {
   });
 };
 
-const followKeyword: FollowEntity = async ({ ctx, id, status }) => {
+const followKeyword: FollowEntity = async ({ ctx, id, status, feedId }) => {
   await ctx.con.transaction(async (entityManager) => {
     const repository = entityManager.getRepository(ContentPreferenceKeyword);
 
@@ -172,7 +178,7 @@ const followKeyword: FollowEntity = async ({ ctx, id, status }) => {
       userId: ctx.userId,
       referenceId: id,
       keywordId: id,
-      feedId: ctx.userId,
+      feedId,
       status,
       type: ContentPreferenceType.Keyword,
     });
@@ -181,41 +187,41 @@ const followKeyword: FollowEntity = async ({ ctx, id, status }) => {
 
     // TODO follow phase 3 remove when backward compatibility is done
     await entityManager.getRepository(FeedTag).save({
-      feedId: ctx.userId,
+      feedId,
       tag: id,
     });
   });
 };
 
-const unfollowKeyword: UnFollowEntity = async ({ ctx, id }) => {
+const unfollowKeyword: UnFollowEntity = async ({ ctx, id, feedId }) => {
   await ctx.con.transaction(async (entityManager) => {
     const repository = entityManager.getRepository(ContentPreferenceKeyword);
 
     await repository.delete({
       userId: ctx.userId,
-      feedId: ctx.userId,
+      feedId,
       referenceId: id,
     });
 
     // TODO follow phase 3 remove when backward compatibility is done
     await entityManager.getRepository(FeedTag).delete({
-      feedId: ctx.userId,
+      feedId,
       tag: id,
     });
   });
 };
 
-const unfollowWord: UnFollowEntity = async ({ ctx, id }) => {
+const unfollowWord: UnFollowEntity = async ({ ctx, id, feedId }) => {
   const repository = ctx.getRepository(ContentPreferenceWord);
 
   await repository.delete({
     userId: ctx.userId,
-    feedId: ctx.userId,
+    feedId,
     referenceId: id,
   });
 };
 
-const followSource: FollowEntity = async ({ ctx, id, status }) => {
+const followSource: FollowEntity = async ({ ctx, id, status, feedId }) => {
   await ctx.con.transaction(async (entityManager) => {
     const repository = entityManager.getRepository(ContentPreferenceSource);
 
@@ -223,7 +229,7 @@ const followSource: FollowEntity = async ({ ctx, id, status }) => {
       userId: ctx.userId,
       referenceId: id,
       sourceId: id,
-      feedId: ctx.userId,
+      feedId,
       status,
       flags: {
         referralToken: randomUUID(),
@@ -252,20 +258,20 @@ const followSource: FollowEntity = async ({ ctx, id, status }) => {
 
     // TODO follow phase 3 remove when backward compatibility is done
     await entityManager.getRepository(FeedSource).save({
-      feedId: ctx.userId,
+      feedId,
       sourceId: id,
       blocked: false,
     });
   });
 };
 
-const unfollowSource: UnFollowEntity = async ({ ctx, id }) => {
+const unfollowSource: UnFollowEntity = async ({ ctx, id, feedId }) => {
   await ctx.con.transaction(async (entityManager) => {
     const repository = entityManager.getRepository(ContentPreferenceSource);
 
     await repository.delete({
       userId: ctx.userId,
-      feedId: ctx.userId,
+      feedId,
       referenceId: id,
     });
 
@@ -279,13 +285,13 @@ const unfollowSource: UnFollowEntity = async ({ ctx, id }) => {
     });
 
     await entityManager.getRepository(FeedSource).delete({
-      feedId: ctx.userId,
+      feedId,
       sourceId: id,
     });
   });
 };
 
-const blockUser: BlockEntity = async ({ ctx, id }) => {
+const blockUser: BlockEntity = async ({ ctx, id, feedId }) => {
   if (ctx.userId === id) {
     throw new ConflictError('Cannot block yourself');
   }
@@ -299,7 +305,7 @@ const blockUser: BlockEntity = async ({ ctx, id }) => {
 
     const contentPreference = repository.create({
       userId: ctx.userId,
-      feedId: ctx.userId,
+      feedId,
       referenceId: id,
       referenceUserId: id,
       status: ContentPreferenceStatus.Blocked,
@@ -319,7 +325,7 @@ const blockUser: BlockEntity = async ({ ctx, id }) => {
   });
 };
 
-const blockKeyword: BlockEntity = async ({ ctx, id }) => {
+const blockKeyword: BlockEntity = async ({ ctx, id, feedId }) => {
   await ctx.con.transaction(async (entityManager) => {
     const repository = entityManager.getRepository(ContentPreferenceKeyword);
 
@@ -327,7 +333,7 @@ const blockKeyword: BlockEntity = async ({ ctx, id }) => {
       userId: ctx.userId,
       referenceId: id,
       keywordId: id,
-      feedId: ctx.userId,
+      feedId,
       status: ContentPreferenceStatus.Blocked,
       type: ContentPreferenceType.Keyword,
     });
@@ -336,7 +342,7 @@ const blockKeyword: BlockEntity = async ({ ctx, id }) => {
 
     // TODO follow phase 3 remove when backward compatibility is done
     await entityManager.getRepository(FeedTag).save({
-      feedId: ctx.userId,
+      feedId,
       tag: id,
       blocked: true,
     });
@@ -349,7 +355,7 @@ const blockKeyword: BlockEntity = async ({ ctx, id }) => {
  * @param ctx
  * @param id
  */
-const blockWord: BlockEntity = async ({ ctx, id }) => {
+const blockWord: BlockEntity = async ({ ctx, id, feedId }) => {
   const ids = uniqueifyArray(
     id
       .toLowerCase()
@@ -370,7 +376,7 @@ const blockWord: BlockEntity = async ({ ctx, id }) => {
       ids.map((id) => ({
         userId: ctx.userId,
         referenceId: id,
-        feedId: ctx.userId,
+        feedId,
         status: ContentPreferenceStatus.Blocked,
         type: ContentPreferenceType.Word,
       })) as ContentPreferenceWord[],
@@ -379,7 +385,7 @@ const blockWord: BlockEntity = async ({ ctx, id }) => {
     .execute();
 };
 
-const blockSource: BlockEntity = async ({ ctx, id }) => {
+const blockSource: BlockEntity = async ({ ctx, id, feedId }) => {
   await ctx.con.transaction(async (entityManager) => {
     const repository = entityManager.getRepository(ContentPreferenceSource);
 
@@ -387,7 +393,7 @@ const blockSource: BlockEntity = async ({ ctx, id }) => {
       userId: ctx.userId,
       referenceId: id,
       sourceId: id,
-      feedId: ctx.userId,
+      feedId,
       status: ContentPreferenceStatus.Blocked,
       flags: {
         referralToken: randomUUID(),
@@ -414,7 +420,7 @@ const blockSource: BlockEntity = async ({ ctx, id }) => {
 
     // TODO follow phase 3 remove when backward compatibility is done
     await entityManager.getRepository(FeedSource).save({
-      feedId: ctx.userId,
+      feedId,
       sourceId: id,
       blocked: true,
     });
@@ -426,19 +432,21 @@ export const followEntity = ({
   id,
   entity,
   status,
+  feedId,
 }: {
   ctx: AuthContext;
   id: string;
   entity: ContentPreferenceType;
   status: ContentPreferenceStatus.Follow | ContentPreferenceStatus.Subscribed;
+  feedId: string;
 }): Promise<void> => {
   switch (entity) {
     case ContentPreferenceType.User:
-      return followUser({ ctx, id, status });
+      return followUser({ ctx, id, status, feedId });
     case ContentPreferenceType.Keyword:
-      return followKeyword({ ctx, id, status });
+      return followKeyword({ ctx, id, status, feedId });
     case ContentPreferenceType.Source:
-      return followSource({ ctx, id, status });
+      return followSource({ ctx, id, status, feedId });
     default:
       throw new Error('Entity not supported');
   }
@@ -448,20 +456,22 @@ export const unfollowEntity = ({
   ctx,
   id,
   entity,
+  feedId,
 }: {
   ctx: AuthContext;
   id: string;
   entity: ContentPreferenceType;
+  feedId: string;
 }): Promise<void> => {
   switch (entity) {
     case ContentPreferenceType.User:
-      return unfollowUser({ ctx, id });
+      return unfollowUser({ ctx, id, feedId });
     case ContentPreferenceType.Keyword:
-      return unfollowKeyword({ ctx, id });
+      return unfollowKeyword({ ctx, id, feedId });
     case ContentPreferenceType.Source:
-      return unfollowSource({ ctx, id });
+      return unfollowSource({ ctx, id, feedId });
     case ContentPreferenceType.Word:
-      return unfollowWord({ ctx, id });
+      return unfollowWord({ ctx, id, feedId });
     default:
       throw new Error('Entity not supported');
   }
@@ -471,20 +481,22 @@ export const blockEntity = async ({
   ctx,
   id,
   entity,
+  feedId,
 }: {
   ctx: AuthContext;
   id: string;
   entity: ContentPreferenceType;
+  feedId: string;
 }): Promise<void> => {
   switch (entity) {
     case ContentPreferenceType.User:
-      return blockUser({ ctx, id });
+      return blockUser({ ctx, id, feedId });
     case ContentPreferenceType.Keyword:
-      return blockKeyword({ ctx, id });
+      return blockKeyword({ ctx, id, feedId });
     case ContentPreferenceType.Source:
-      return blockSource({ ctx, id });
+      return blockSource({ ctx, id, feedId });
     case ContentPreferenceType.Word:
-      return blockWord({ ctx, id });
+      return blockWord({ ctx, id, feedId });
     default:
       throw new Error('Entity not supported');
   }
@@ -494,11 +506,13 @@ export const unblockEntity = async ({
   ctx,
   id,
   entity,
+  feedId,
 }: {
   ctx: AuthContext;
   id: string;
   entity: ContentPreferenceType;
+  feedId: string;
 }): Promise<void> => {
   // currently unblock is just like unfollow, eg. remove everything from db
-  return unfollowEntity({ ctx, id, entity });
+  return unfollowEntity({ ctx, id, entity, feedId });
 };

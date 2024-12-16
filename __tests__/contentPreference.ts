@@ -318,8 +318,8 @@ describe('query userFollowers', () => {
 });
 
 describe('query userFollowing', () => {
-  const QUERY = `query UserFollowing($id: ID!, $entity: ContentPreferenceType!) {
-    userFollowing(userId: $id, entity: $entity) {
+  const QUERY = `query UserFollowing($id: ID!, $entity: ContentPreferenceType!, $feedId: String) {
+    userFollowing(userId: $id, entity: $entity, feedId: $feedId) {
       edges {
         node {
           user {
@@ -392,11 +392,12 @@ describe('query userFollowing', () => {
     ]);
   });
 
-  it('should return list of users user is following', async () => {
+  it('should return list of users user is following on main feed', async () => {
     const res = await client.query(QUERY, {
       variables: {
         id: '1-ufwq',
         entity: ContentPreferenceType.User,
+        feedId: '1-ufwq',
       },
     });
 
@@ -426,6 +427,50 @@ describe('query userFollowing', () => {
           {
             node: {
               referenceId: '4-ufwq',
+              status: 'follow',
+              user: {
+                id: '1-ufwq',
+              },
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  it('should return list of users user is following on custom feed', async () => {
+    await con.getRepository(Feed).save({
+      id: '5-ufwq',
+      userId: '1-ufwq',
+    });
+    const now = new Date();
+    await con.getRepository(ContentPreferenceUser).save([
+      {
+        userId: '1-ufwq',
+        feedId: '5-ufwq',
+        referenceId: '2-ufwq',
+        referenceUserId: '2-ufwq',
+        status: ContentPreferenceStatus.Follow,
+        createdAt: new Date(now.getTime() - 1000),
+      },
+    ]);
+
+    const res = await client.query(QUERY, {
+      variables: {
+        id: '1-ufwq',
+        entity: ContentPreferenceType.User,
+        feedId: '5-ufwq',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data).toEqual({
+      userFollowing: {
+        edges: [
+          {
+            node: {
+              referenceId: '2-ufwq',
               status: 'follow',
               user: {
                 id: '1-ufwq',
