@@ -434,6 +434,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             ContentPreferenceStatus.Subscribed,
           ]),
           type: Not(ContentPreferenceType.Keyword),
+          feedId,
         });
 
       if (followersCount >= MAX_FOLLOWERS_LIMIT) {
