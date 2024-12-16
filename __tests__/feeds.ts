@@ -2140,7 +2140,7 @@ describe('mutation updateFeedAdvancedSettings', () => {
     loggedUser = '1';
     await saveFixtures(con, AdvancedSettings, advancedSettings);
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       {
         mutation: MUTATION,
@@ -2189,8 +2189,34 @@ describe('mutation updateFeedAdvancedSettings', () => {
     expect(res.data).toMatchSnapshot();
   });
 
+  it('should not update custom feed advanced settings if not plus', async () => {
+    loggedUser = '1';
+
+    await saveFeedFixtures();
+    await saveFixtures(con, Feed, [{ id: '1-ucfas', userId: '1' }]);
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: '1-ucfas',
+          settings: [
+            { id: 1, enabled: false },
+            { id: 2, enabled: true },
+            { id: 3, enabled: true },
+            { id: 4, enabled: false },
+            { id: 7, enabled: false },
+          ],
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
   it('should update custom feed advanced settings', async () => {
     loggedUser = '1';
+    isPlus = true;
 
     await saveFeedFixtures();
     await saveFixtures(con, Feed, [{ id: '1-ucfas', userId: '1' }]);
@@ -2207,6 +2233,7 @@ describe('mutation updateFeedAdvancedSettings', () => {
         ],
       },
     });
+    expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
 
     const advancedSettings = await con

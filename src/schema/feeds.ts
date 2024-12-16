@@ -903,7 +903,7 @@ export const typeDefs = /* GraphQL */ `
       Posts must comply with the advanced settings from this list
       """
       settings: [FeedAdvancedSettingsInput]!
-    ): [FeedAdvancedSettings]! @auth
+    ): [FeedAdvancedSettings]! @feedPlus
 
     """
     Create feed
