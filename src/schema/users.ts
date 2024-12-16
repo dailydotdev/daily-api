@@ -1327,11 +1327,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           }),
           ctx.con
             .createQueryBuilder(ContentPreferenceUser, 'cp')
-            .where('cp."referenceId" = :id', {
+            .where('cp."referenceId" = :referenceId', {
               referenceId: id,
             })
             .andWhere('cp.status IN (:...status)', {
-              id,
               status: [
                 ContentPreferenceStatus.Follow,
                 ContentPreferenceStatus.Subscribed,
