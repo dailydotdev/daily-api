@@ -908,7 +908,7 @@ export const typeDefs = /* GraphQL */ `
       Feed name
       """
       name: String!
-      
+
       """
       Order by
       """
@@ -953,7 +953,7 @@ export const typeDefs = /* GraphQL */ `
       Feed name
       """
       name: String!
-      
+
       """
       Order by
       """
