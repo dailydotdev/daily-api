@@ -84,7 +84,7 @@ import {
   TypeORMQueryFailedError,
   TypeOrmError,
 } from '../errors';
-import { deleteUser } from '../directive/user';
+import { deleteUser } from '../common/user';
 import { randomInt } from 'crypto';
 import { ArrayContains, DataSource, In, IsNull, QueryRunner } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';

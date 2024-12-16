@@ -70,17 +70,19 @@ import { ContentPreferenceSource } from '../src/entity/contentPreference/Content
 import { ContentPreferenceKeyword } from '../src/entity/contentPreference/ContentPreferenceKeyword';
 import { ContentPreferenceWord } from '../src/entity/contentPreference/ContentPreferenceWord';
 import { ContentPreferenceUser } from '../src/entity/contentPreference/ContentPreferenceUser';
+import { SubscriptionCycles } from '../src/paddle';
 
 let app: FastifyInstance;
 let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
+let isPlus: boolean = false;
 
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    () => new MockContext(con, loggedUser),
+    () => new MockContext(con, loggedUser, [], null, false, isPlus),
   );
   client = state.client;
   app = state.app;
@@ -88,6 +90,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   loggedUser = null;
+  isPlus = false;
 
   await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, AdvancedSettings, advancedSettings);
@@ -1452,8 +1455,40 @@ describe('query feedSettings', () => {
     expect(res.data).toMatchSnapshot();
   });
 
-  it('should return the feed settings for custom feed when feedId is provided', async () => {
+  it('should not authorize when trying custom feed but not plus', async () => {
     loggedUser = '1';
+    await saveFeedFixtures();
+    await saveFixtures(con, Feed, [{ id: 'cf2', userId: '1' }]);
+    await client.mutate(ADD_FILTERS_MUTATION, {
+      variables: {
+        feedId: 'cf2',
+        filters: {
+          includeTags: ['javascript'],
+          includeSources: ['a'],
+          excludeSources: ['b'],
+          blockedTags: ['golang'],
+        },
+      },
+    });
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { feedId: 'cf2' },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should return the feed settings for custom feed when feedId is provided and user is plus', async () => {
+    loggedUser = '1';
+    isPlus = true;
+    await con
+      .getRepository(User)
+      .update(
+        { id: '1' },
+        { subscriptionFlags: { cycle: SubscriptionCycles.Yearly } },
+      );
     await saveFeedFixtures();
     await saveFixtures(con, Feed, [{ id: 'cf2', userId: '1' }]);
     await client.mutate(ADD_FILTERS_MUTATION, {
@@ -1491,8 +1526,9 @@ describe('query feedSettings', () => {
     });
   });
 
-  it('should remove blocked source from feed settings if followed', async () => {
+  it('should remove blocked source from custom feed settings if followed', async () => {
     loggedUser = '1';
+    isPlus = true;
     await saveFeedFixtures();
     await saveFixtures(con, Feed, [{ id: 'cf2', userId: '1' }]);
     // add blocked source
@@ -1550,8 +1586,9 @@ describe('query feedSettings', () => {
     });
   });
 
-  it('should return empty settings when feed not found for user', async () => {
+  it('should return empty settings when custom feed not found for user', async () => {
     loggedUser = '1';
+    isPlus = true;
     await saveFeedFixtures();
     await saveFixtures(con, Feed, [{ id: 'cf2', userId: '1' }]);
     await client.mutate(ADD_FILTERS_MUTATION, {
@@ -2395,6 +2432,7 @@ describe('mutation addFiltersToFeed', () => {
 
   it('should save filters to custom feed when feedId is provided', async () => {
     loggedUser = '1';
+    isPlus = true;
     await saveFixtures(con, Feed, [{ id: 'cf2', userId: '1' }]);
     await saveFixtures(con, AdvancedSettings, advancedSettings);
     // my feed filters
@@ -2446,8 +2484,9 @@ describe('mutation addFiltersToFeed', () => {
     });
   });
 
-  it('should throw not found error when feedId is not found', async () => {
+  it('should throw not found error when custom feedId is not found', async () => {
     loggedUser = '1';
+    isPlus = true;
 
     return testMutationErrorCode(
       client,
@@ -2468,6 +2507,7 @@ describe('mutation addFiltersToFeed', () => {
 
   it('should save filters to multiple custom feeds when feedId is provided', async () => {
     loggedUser = '1';
+    isPlus = true;
     await saveFixtures(con, Feed, [
       { id: 'cf2', userId: '1' },
       {
@@ -2769,6 +2809,7 @@ describe('mutation removeFiltersFromFeed', () => {
 
   it('should remove existing filters for custom feed when feedId is provided', async () => {
     loggedUser = '1';
+    isPlus = true;
     await saveFeedFixtures();
     await saveFixtures(con, Feed, [{ id: 'cf2', userId: '1' }]);
     await client.mutate(ADD_FILTERS_MUTATION, {
@@ -2809,8 +2850,9 @@ describe('mutation removeFiltersFromFeed', () => {
     });
   });
 
-  it('should throw not found error when feedId is not found', async () => {
+  it('should throw not found error when custom feedId is not found', async () => {
     loggedUser = '1';
+    isPlus = true;
 
     return testMutationErrorCode(
       client,
@@ -2885,7 +2927,7 @@ describe('function feedToFilters', () => {
     ]);
     const filters = await feedToFilters(con, '1', '1');
     expect(filters.excludeSources).toEqual(['experimentIncludedSource']);
-    expect(filters.followingSources).toEqual([
+    expect(filters.followingSources).toContainAllValues([
       'excludedSource',
       'settingsCombinationSource',
     ]);
@@ -3803,6 +3845,7 @@ describe('mutation updateFeed', () => {
 
   it('should not update when different user owns the feed', () => {
     loggedUser = '2';
+    isPlus = true;
 
     return testMutationErrorCode(
       client,
@@ -3817,8 +3860,9 @@ describe('mutation updateFeed', () => {
     );
   });
 
-  it('should update the feed', async () => {
+  it('should update the custom feed', async () => {
     loggedUser = '1';
+    isPlus = true;
 
     const res = await client.mutate(MUTATION, {
       variables: {
@@ -3894,8 +3938,9 @@ describe('mutation updateFeed', () => {
     );
   });
 
-  it('should not update the feed when name is empty', async () => {
+  it('should not update the custom feed when name is empty', async () => {
     loggedUser = '1';
+    isPlus = true;
 
     await testMutationErrorCode(
       client,
@@ -3910,8 +3955,9 @@ describe('mutation updateFeed', () => {
     );
   });
 
-  it('should not update the feed when name contains special characters', async () => {
+  it('should not update the custom feed when name contains special characters', async () => {
     loggedUser = '1';
+    isPlus = true;
 
     await testMutationErrorCode(
       client,
@@ -3926,8 +3972,9 @@ describe('mutation updateFeed', () => {
     );
   });
 
-  it('should not update the feed when name is too long', async () => {
+  it('should not update the custom feed when name is too long', async () => {
     loggedUser = '1';
+    isPlus = true;
 
     await testMutationErrorCode(
       client,

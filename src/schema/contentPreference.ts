@@ -174,7 +174,7 @@ export const typeDefs = /* GraphQL */ `
       Feed id (if empty defaults to my feed)
       """
       feedId: String
-    ): EmptyResponse @auth
+    ): EmptyResponse @feedPlus
     """
     Unfollow entity
     """
@@ -192,7 +192,7 @@ export const typeDefs = /* GraphQL */ `
       Feed id (if empty defaults to my feed)
       """
       feedId: String
-    ): EmptyResponse @auth
+    ): EmptyResponse @feedPlus
 
     """
     Block entity
@@ -211,7 +211,7 @@ export const typeDefs = /* GraphQL */ `
       Feed id (if empty defaults to my feed)
       """
       feedId: String
-    ): EmptyResponse @auth
+    ): EmptyResponse @feedPlus
 
     """
     Unblock entity
@@ -230,7 +230,7 @@ export const typeDefs = /* GraphQL */ `
       Feed id (if empty defaults to my feed)
       """
       feedId: String
-    ): EmptyResponse @auth
+    ): EmptyResponse @feedPlus
   }
 `;
 
