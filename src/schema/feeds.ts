@@ -895,6 +895,11 @@ export const typeDefs = /* GraphQL */ `
     """
     updateFeedAdvancedSettings(
       """
+      Feed id
+      """
+      feedId: ID
+
+      """
       Posts must comply with the advanced settings from this list
       """
       settings: [FeedAdvancedSettingsInput]!
@@ -2233,17 +2238,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     updateFeedAdvancedSettings: async (
       _,
-      { settings }: { settings: GQLFeedAdvancedSettingsInput[] },
+      {
+        feedId: feedIdArg,
+        settings,
+      }: { settings: GQLFeedAdvancedSettingsInput[] } & { feedId: string },
       ctx: AuthContext,
     ): Promise<GQLFeedAdvancedSettings[]> => {
-      const feedId = ctx.userId;
+      const feedId = feedIdArg || ctx.userId;
       const feedRepo = ctx.con.getRepository(Feed);
-      const feed = await feedRepo.findOneBy({ id: feedId });
+      await feedRepo.findOneByOrFail({
+        id: feedId,
+        userId: ctx.userId,
+      });
       const feedAdvSettingsrepo = ctx.con.getRepository(FeedAdvancedSettings);
-
-      if (!feed) {
-        await feedRepo.save({ userId: feedId, id: feedId });
-      }
 
       await feedAdvSettingsrepo
         .createQueryBuilder()

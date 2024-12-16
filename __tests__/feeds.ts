@@ -2060,8 +2060,8 @@ describe('query advancedSettings', () => {
 
 describe('mutation updateFeedAdvancedSettings', () => {
   const MUTATION = `
-    mutation UpdateFeedAdvancedSettings($settings: [FeedAdvancedSettingsInput]!) {
-      updateFeedAdvancedSettings(settings: $settings) {
+    mutation UpdateFeedAdvancedSettings($feedId: ID, $settings: [FeedAdvancedSettingsInput]!) {
+      updateFeedAdvancedSettings(feedId: $feedId, settings: $settings) {
         id
         enabled
       }
@@ -2099,19 +2099,23 @@ describe('mutation updateFeedAdvancedSettings', () => {
     expect(res.data).toMatchSnapshot();
   });
 
-  it('should not fail if feed entity does not exists', async () => {
+  it('should fail if feed entity does not exist for user', async () => {
     loggedUser = '1';
     await saveFixtures(con, AdvancedSettings, advancedSettings);
-    const res = await client.mutate(MUTATION, {
-      variables: {
-        settings: [
-          { id: 1, enabled: true },
-          { id: 2, enabled: false },
-        ],
-      },
-    });
 
-    expect(res.data).toMatchSnapshot();
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          settings: [
+            { id: 1, enabled: true },
+            { id: 2, enabled: false },
+          ],
+        },
+      },
+      'NOT_FOUND',
+    );
   });
 
   it('should update existing feed advanced settings', async () => {
@@ -2146,6 +2150,63 @@ describe('mutation updateFeedAdvancedSettings', () => {
       },
     });
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should update custom feed advanced settings', async () => {
+    loggedUser = '1';
+
+    await saveFeedFixtures();
+    await saveFixtures(con, Feed, [{ id: '1-ucfas', userId: '1' }]);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        feedId: '1-ucfas',
+        settings: [
+          { id: 1, enabled: false },
+          { id: 2, enabled: true },
+          { id: 3, enabled: true },
+          { id: 4, enabled: false },
+          { id: 7, enabled: false },
+        ],
+      },
+    });
+    expect(res.data).toMatchSnapshot();
+
+    const advancedSettings = await con
+      .getRepository(FeedAdvancedSettings)
+      .find({
+        where: {
+          feedId: '1-ucfas',
+        },
+      });
+
+    expect(advancedSettings).toEqual([
+      {
+        feedId: '1-ucfas',
+        advancedSettingsId: 1,
+        enabled: false,
+      },
+      {
+        feedId: '1-ucfas',
+        advancedSettingsId: 2,
+        enabled: true,
+      },
+      {
+        feedId: '1-ucfas',
+        advancedSettingsId: 3,
+        enabled: true,
+      },
+      {
+        feedId: '1-ucfas',
+        advancedSettingsId: 4,
+        enabled: false,
+      },
+      {
+        feedId: '1-ucfas',
+        advancedSettingsId: 7,
+        enabled: false,
+      },
+    ]);
   });
 });
 
