@@ -1323,6 +1323,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               ContentPreferenceStatus.Follow,
               ContentPreferenceStatus.Subscribed,
             ]),
+            feedId: id,
           }),
           ctx.con.getRepository(ContentPreferenceUser).countBy({
             referenceId: id,
@@ -1330,6 +1331,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               ContentPreferenceStatus.Follow,
               ContentPreferenceStatus.Subscribed,
             ]),
+            feedId: id,
           }),
         ]);
       return {
