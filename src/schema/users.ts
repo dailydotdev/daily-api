@@ -1325,14 +1325,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             ]),
             feedId: id,
           }),
-          ctx.con.getRepository(ContentPreferenceUser).countBy({
-            referenceId: id,
-            status: In([
-              ContentPreferenceStatus.Follow,
-              ContentPreferenceStatus.Subscribed,
-            ]),
-            feedId: id,
-          }),
+          ctx.con
+            .createQueryBuilder(ContentPreferenceUser, 'cp')
+            .where('cp."referenceId" = :id', {
+              referenceId: id,
+            })
+            .andWhere('cp.status IN (:...status)', {
+              id,
+              status: [
+                ContentPreferenceStatus.Follow,
+                ContentPreferenceStatus.Subscribed,
+              ],
+            })
+            .andWhere('cp."feedId" = cp."userId"')
+            .getCount(),
         ]);
       return {
         numPosts: postStats?.numPosts ?? 0,
