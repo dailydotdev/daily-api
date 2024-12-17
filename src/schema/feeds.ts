@@ -6,6 +6,7 @@ import {
   FeedOrderBy,
   FeedSource,
   FeedTag,
+  FeedType,
   Post,
   PostType,
   Source,
@@ -157,6 +158,8 @@ export const typeDefs = /* GraphQL */ `
 
   ${toGQLEnum(FeedOrderBy, 'FeedOrderBy')}
 
+  ${toGQLEnum(FeedType, 'FeedType')}
+
   input FeedAdvancedSettingsInput {
     """
     Advanced Settings ID
@@ -283,6 +286,11 @@ export const typeDefs = /* GraphQL */ `
     Feed slug
     """
     slug: String
+
+    """
+    type of the feed
+    """
+    type: FeedType
   }
 
   type FeedConnection {
