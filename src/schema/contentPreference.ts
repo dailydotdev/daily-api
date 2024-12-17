@@ -321,11 +321,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         await getFeedByIdentifiersOrFail({
           con: ctx.con,
           feedIdOrSlug: args.feedId,
-          userId: ctx.userId,
+          userId: args.userId,
         });
       }
 
-      const feedId = args.feedId || ctx.userId;
+      const feedId = args.feedId || args.userId;
 
       return graphorm.queryPaginated(
         ctx,
