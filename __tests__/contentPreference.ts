@@ -440,6 +440,51 @@ describe('query userFollowing', () => {
     });
   });
 
+  it('should return list of users user is following on main feed without feedId', async () => {
+    const res = await client.query(QUERY, {
+      variables: {
+        id: '1-ufwq',
+        entity: ContentPreferenceType.User,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data).toEqual({
+      userFollowing: {
+        edges: [
+          {
+            node: {
+              referenceId: '2-ufwq',
+              status: 'follow',
+              user: {
+                id: '1-ufwq',
+              },
+            },
+          },
+          {
+            node: {
+              referenceId: '3-ufwq',
+              status: 'subscribed',
+              user: {
+                id: '1-ufwq',
+              },
+            },
+          },
+          {
+            node: {
+              referenceId: '4-ufwq',
+              status: 'follow',
+              user: {
+                id: '1-ufwq',
+              },
+            },
+          },
+        ],
+      },
+    });
+  });
+
   it('should return list of users user is following on custom feed', async () => {
     await con.getRepository(Feed).save({
       id: '5-ufwq',
