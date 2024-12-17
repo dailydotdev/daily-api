@@ -33,13 +33,17 @@ export const maxFeedNameLength = 50;
 
 export const feedNameMatcher = /^[a-z0-9 ]+$/i;
 
+export const feedThresholdMin = 0;
+
+export const feedThresholdMax = 1000;
+
 export const validateFeedPayload = ({
   name,
   icon,
-}: {
-  name: Feed['flags']['name'];
-  icon?: Feed['flags']['icon'];
-}): never | undefined => {
+  maxDayRange,
+  minUpvotes,
+  minViews,
+}: Feed['flags']): never | undefined => {
   if (!name) {
     throw new ValidationError(SubmissionFailErrorMessage.FEED_NAME_REQUIRED);
   }
@@ -54,5 +58,19 @@ export const validateFeedPayload = ({
 
   if (icon && !isOneValidEmoji(icon)) {
     throw new ValidationError(SubmissionFailErrorMessage.FEED_ICON_INVALID);
+  }
+
+  if (
+    [maxDayRange, minUpvotes, minViews].some((item) => {
+      if (!item) {
+        return false;
+      }
+
+      return item < feedThresholdMin || item > feedThresholdMax;
+    })
+  ) {
+    throw new ValidationError(
+      SubmissionFailErrorMessage.FEED_THRESHOLD_INVALID,
+    );
   }
 };

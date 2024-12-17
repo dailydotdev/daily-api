@@ -165,7 +165,8 @@ export const generateNotificationMap: Record<
   source_post_approved: (builder, ctx: NotificationPostContext) =>
     builder
       .icon(NotificationIcon.Bell)
-      .objectPost(ctx.post, ctx.source, ctx.sharedPost),
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost)
+      .uniqueKey(ctx.moderated?.id ?? ctx.post.id),
   source_post_rejected: (builder, ctx: NotificationPostModerationContext) =>
     builder
       .icon(NotificationIcon.Bell)

@@ -3634,7 +3634,7 @@ describe('mutation createFeed', () => {
     mutation CreateFeed(
       $name: String!
       $orderBy: FeedOrderBy
-      $minDayRange: Int
+      $maxDayRange: Int
       $icon: String
       $minUpvotes: Int
       $minViews: Int
@@ -3643,7 +3643,7 @@ describe('mutation createFeed', () => {
       createFeed(
         name: $name
         orderBy: $orderBy
-        minDayRange: $minDayRange
+        maxDayRange: $maxDayRange
         icon: $icon
         minUpvotes: $minUpvotes
         minViews: $minViews
@@ -3654,7 +3654,7 @@ describe('mutation createFeed', () => {
         flags {
           name
           orderBy
-          minDayRange
+          maxDayRange
           icon
           minUpvotes
           minViews
@@ -3820,7 +3820,7 @@ describe('mutation updateFeed', () => {
       $feedId: ID!
       $name: String!
       $orderBy: FeedOrderBy
-      $minDayRange: Int
+      $maxDayRange: Int
       $icon: String
       $minUpvotes: Int
       $minViews: Int
@@ -3830,7 +3830,7 @@ describe('mutation updateFeed', () => {
         feedId: $feedId
         name: $name
         orderBy: $orderBy
-        minDayRange: $minDayRange
+        maxDayRange: $maxDayRange
         icon: $icon
         minUpvotes: $minUpvotes
         minViews: $minViews
@@ -3841,7 +3841,7 @@ describe('mutation updateFeed', () => {
         flags {
           name
           orderBy
-          minDayRange
+          maxDayRange
           icon
           minUpvotes
           minViews
@@ -4010,6 +4010,93 @@ describe('mutation updateFeed', () => {
         variables: {
           feedId: 'cf1',
           name: new Array(maxFeedNameLength + 1).fill('a').join(''),
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not update feed if maxDayRange is invalid', async () => {
+    loggedUser = '1';
+    isPlus = true;
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: 'cf1',
+          maxDayRange: -5,
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: 'cf1',
+          maxDayRange: 1005,
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not update feed if minUpvotes is invalid', async () => {
+    loggedUser = '1';
+    isPlus = true;
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: 'cf1',
+          minUpvotes: -5,
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: 'cf1',
+          minUpvotes: 1005,
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not update feed if minViews is invalid', async () => {
+    loggedUser = '1';
+    isPlus = true;
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: 'cf1',
+          minViews: -5,
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: 'cf1',
+          minViews: 1005,
         },
       },
       'GRAPHQL_VALIDATION_FAILED',
