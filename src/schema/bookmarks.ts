@@ -374,8 +374,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return await graphorm.query<GQLBookmark>(ctx, info, (builder) => ({
         ...builder,
         queryBuilder: builder.queryBuilder.where(
-          `"${builder.alias}"."postId" IN (:...postIds)`,
-          { postIds: data.postIds },
+          `"${builder.alias}"."postId" IN (:...postIds) AND "${builder.alias}"."userId" = :userId`,
+          { postIds: data.postIds, userId: ctx.userId },
         ),
       }));
     },

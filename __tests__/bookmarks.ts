@@ -223,9 +223,7 @@ describe('mutation addBookmarks', () => {
         .findOneBy({ postId: 'p2', userId: loggedUser });
       expect(actual?.listId).toBeFalsy();
     });
-  });
 
-  describe('plus user', () => {
     it('should add new bookmarks to the last used list', async () => {
       loggedUser = '5';
       isPlus = true;
@@ -278,6 +276,13 @@ describe('mutation addBookmarks', () => {
           userId: loggedUser,
           postId: 'p2',
           listId: list2.id,
+          createdAt: new Date(now.getTime() - 500),
+          updatedAt: new Date(now.getTime() - 500),
+        },
+        {
+          userId: '2',
+          postId: 'p3',
+          listId: null,
           createdAt: new Date(now.getTime() - 500),
           updatedAt: new Date(now.getTime() - 500),
         },
