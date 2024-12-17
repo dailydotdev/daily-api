@@ -3177,15 +3177,7 @@ describe('function feedToFilters', () => {
     ]);
     const filters = await feedToFilters(con, 'cff1', '1');
 
-    const { order_by, disable_engagement_filter, min_day_range, thresholds } =
-      filters;
-
-    expect({
-      order_by,
-      disable_engagement_filter,
-      min_day_range,
-      thresholds,
-    }).toEqual({
+    expect(filters.flags).toEqual({
       order_by: FeedOrderBy.Downvotes,
       disable_engagement_filter: true,
       min_day_range: 7,
@@ -3211,15 +3203,8 @@ describe('function feedToFilters', () => {
       },
     ]);
     const filters = await feedToFilters(con, 'cff1', '1');
-    const { order_by, disable_engagement_filter, min_day_range, thresholds } =
-      filters;
 
-    expect({
-      order_by,
-      disable_engagement_filter,
-      min_day_range,
-      thresholds,
-    }).toEqual({
+    expect(filters.flags).toEqual({
       disable_engagement_filter: false,
     });
   });
@@ -3238,15 +3223,8 @@ describe('function feedToFilters', () => {
       },
     ]);
     const filters = await feedToFilters(con, 'cff1', '1');
-    const { order_by, disable_engagement_filter, min_day_range, thresholds } =
-      filters;
 
-    expect({
-      order_by,
-      disable_engagement_filter,
-      min_day_range,
-      thresholds,
-    }).toEqual({
+    expect(filters.flags).toEqual({
       disable_engagement_filter: false,
       thresholds: {
         min_thresholds: {

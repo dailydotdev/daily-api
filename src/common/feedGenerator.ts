@@ -317,17 +317,21 @@ const sourcesToFilters = ({
   };
 };
 
-const feedFlagsToFilters = ({ feeds }: RawFiltersData): FeedFlagsFilters => {
+const feedFlagsToFilters = ({
+  feeds,
+}: RawFiltersData): {
+  flags?: FeedFlagsFilters;
+} => {
   const feed = feeds?.[0];
   const flagFilters: FeedFlagsFilters = {};
 
   if (!feed) {
-    return flagFilters;
+    return {};
   }
 
   // we set flags only for custom feeds
   if (feed.type !== FeedType.Custom) {
-    return flagFilters;
+    return {};
   }
 
   if (feed.flags.orderBy) {
@@ -349,7 +353,9 @@ const feedFlagsToFilters = ({ feeds }: RawFiltersData): FeedFlagsFilters => {
     };
   }
 
-  return flagFilters;
+  return {
+    flags: flagFilters,
+  };
 };
 
 export const feedToFilters = async (
@@ -637,7 +643,7 @@ export function randomPostsResolver<
  * Feeds builders and resolvers
  */
 
-export type AnonymousFeedFilters = {
+export interface AnonymousFeedFilters {
   includeSources?: string[];
   excludeSources?: string[];
   excludeTypes?: string[];
@@ -649,7 +655,8 @@ export type AnonymousFeedFilters = {
   excludeSourceTypes?: string[];
   followingUsers?: string[];
   followingSources?: string[];
-} & FeedFlagsFilters;
+  flags?: FeedFlagsFilters;
+}
 
 export const anonymousFeedBuilder = (
   ctx: Context,

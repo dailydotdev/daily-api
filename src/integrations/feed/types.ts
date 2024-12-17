@@ -62,7 +62,7 @@ export type FeedConfig = {
   config?: {
     [key: string]: unknown;
   };
-};
+} & FeedFlagsFilters;
 
 export type DynamicConfig = Omit<FeedConfig, 'total_pages'>;
 
