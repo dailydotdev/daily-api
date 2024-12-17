@@ -62,7 +62,7 @@ import { usersFixture } from './fixture/user';
 import { base64 } from 'graphql-relay/utils/base64';
 import { maxFeedsPerUser, UserVote } from '../src/types';
 import { SubmissionFailErrorMessage } from '../src/errors';
-import { baseFeedConfig } from '../src/integrations/feed';
+import { baseFeedConfig, FeedConfigName } from '../src/integrations/feed';
 import {
   ContentPreferenceStatus,
   ContentPreferenceType,
@@ -4425,13 +4425,15 @@ describe('query customFeed', () => {
     loggedUser = '1';
 
     nock('http://localhost:6000')
-      .post('/popular', {
+      .post('/feed.json', {
         user_id: '1',
         page_size: 10,
         offset: 0,
         total_pages: 1,
         fresh_page_size: '4',
         allowed_tags: ['webdev', 'html', 'data'],
+        feed_config_name: FeedConfigName.CustomFeedV1,
+        disable_engagement_filter: false,
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
