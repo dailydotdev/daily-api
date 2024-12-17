@@ -218,9 +218,19 @@ export const typeDefs = /* GraphQL */ `
       limit: Int = ${defaultSearchLimit}
 
       """
+      Whether to include content preference status in the search
+      """
+      includeContentPreference: Boolean = false
+
+      """
       Version of the search algorithm
       """
       version: Int = 2
+
+      """
+      Feed id (if empty defaults to my feed)
+      """
+      feedId: String
     ): SearchSuggestionsResults!
 
     """
@@ -246,6 +256,11 @@ export const typeDefs = /* GraphQL */ `
       Version of the search algorithm
       """
       version: Int = 2
+
+      """
+      Feed id (if empty defaults to my feed)
+      """
+      feedId: String
     ): SearchSuggestionsResults!
   }
 
@@ -411,8 +426,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     searchSourceSuggestions: async (
       source,
-      { query, limit }: SearchSuggestionArgs,
-      ctx,
+      { query, limit, includeContentPreference, feedId }: SearchSuggestionArgs,
+      ctx: Context,
     ): Promise<GQLSearchSuggestionsResults> => {
       const searchQuery = ctx.con
         .getRepository(Source)
@@ -432,8 +447,29 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 query: `%${query}%`,
               });
           }),
-        )
-        .limit(getSearchLimit({ limit }));
+        );
+      if (includeContentPreference && ctx.userId) {
+        searchQuery.addSelect((contentPreferenceQueryBuilder) => {
+          return contentPreferenceQueryBuilder
+            .select('to_json(res)')
+            .from((subQuery) => {
+              return subQuery
+                .select('*')
+                .from(ContentPreference, 'cp')
+                .where('cp."referenceId" = id')
+                .andWhere('cp."type" = :cpType', {
+                  cpType: ContentPreferenceType.Source,
+                })
+                .andWhere('cp."userId" = :cpUserId', {
+                  cpUserId: ctx.userId,
+                })
+                .andWhere('cp."feedId" = :cpFeedId', {
+                  cpFeedId: feedId || ctx.userId,
+                });
+            }, 'res');
+        }, 'contentPreference');
+      }
+      searchQuery.limit(getSearchLimit({ limit }));
       const hits = await searchQuery.getRawMany();
 
       return {
@@ -443,7 +479,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     searchUserSuggestions: async (
       source,
-      { query, limit, includeContentPreference }: SearchSuggestionArgs,
+      { query, limit, includeContentPreference, feedId }: SearchSuggestionArgs,
       ctx: Context,
     ): Promise<GQLSearchSuggestionsResults> => {
       if (!query || query.length < 3 || query.length > 100) {
@@ -483,6 +519,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 })
                 .andWhere('cp."userId" = :cpUserId', {
                   cpUserId: ctx.userId,
+                })
+                .andWhere('cp."feedId" = :cpFeedId', {
+                  cpFeedId: feedId || ctx.userId,
                 });
             }, 'res');
         }, 'contentPreference');

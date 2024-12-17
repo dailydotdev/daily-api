@@ -5,6 +5,7 @@ export type SearchSuggestionArgs = {
   version: number;
   limit?: number;
   includeContentPreference?: boolean;
+  feedId?: string;
 };
 
 export const defaultSearchLimit = 3;
