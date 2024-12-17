@@ -11,6 +11,7 @@ import {
   BookmarkList,
   Feed,
   FeedAdvancedSettings,
+  FeedOrderBy,
   FreeformPost,
   Keyword,
   MachineSource,
@@ -3156,6 +3157,104 @@ describe('function feedToFilters', () => {
     const filters = await feedToFilters(con, '1', '1');
     expect(filters.sourceIds).toContain('a');
   });
+
+  it('should set feed flags', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).save(usersFixture[0]);
+    await saveFixtures(con, Feed, [
+      {
+        id: 'cff1',
+        userId: '1',
+        flags: {
+          name: 'Custom feed',
+          orderBy: FeedOrderBy.Downvotes,
+          disableEngagementFilter: true,
+          minDayRange: 7,
+          minUpvotes: 10,
+          minViews: 1,
+        },
+      },
+    ]);
+    const filters = await feedToFilters(con, 'cff1', '1');
+
+    const { order_by, disable_engagement_filter, min_day_range, thresholds } =
+      filters;
+
+    expect({
+      order_by,
+      disable_engagement_filter,
+      min_day_range,
+      thresholds,
+    }).toEqual({
+      order_by: FeedOrderBy.Downvotes,
+      disable_engagement_filter: true,
+      min_day_range: 7,
+      thresholds: {
+        min_thresholds: {
+          upvotes: 10,
+          views: 1,
+        },
+      },
+    });
+  });
+
+  it('should set default disable_engagement_filter', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).save(usersFixture[0]);
+    await saveFixtures(con, Feed, [
+      {
+        id: 'cff1',
+        userId: '1',
+        flags: {
+          name: 'Custom feed',
+        },
+      },
+    ]);
+    const filters = await feedToFilters(con, 'cff1', '1');
+    const { order_by, disable_engagement_filter, min_day_range, thresholds } =
+      filters;
+
+    expect({
+      order_by,
+      disable_engagement_filter,
+      min_day_range,
+      thresholds,
+    }).toEqual({
+      disable_engagement_filter: false,
+    });
+  });
+
+  it('should set optional thresholds', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).save(usersFixture[0]);
+    await saveFixtures(con, Feed, [
+      {
+        id: 'cff1',
+        userId: '1',
+        flags: {
+          name: 'Custom feed',
+          minUpvotes: 25,
+        },
+      },
+    ]);
+    const filters = await feedToFilters(con, 'cff1', '1');
+    const { order_by, disable_engagement_filter, min_day_range, thresholds } =
+      filters;
+
+    expect({
+      order_by,
+      disable_engagement_filter,
+      min_day_range,
+      thresholds,
+    }).toEqual({
+      disable_engagement_filter: false,
+      thresholds: {
+        min_thresholds: {
+          upvotes: 25,
+        },
+      },
+    });
+  });
 });
 
 describe('query feedPreview', () => {
@@ -3634,7 +3733,7 @@ describe('mutation createFeed', () => {
     mutation CreateFeed(
       $name: String!
       $orderBy: FeedOrderBy
-      $maxDayRange: Int
+      $minDayRange: Int
       $icon: String
       $minUpvotes: Int
       $minViews: Int
@@ -3643,7 +3742,7 @@ describe('mutation createFeed', () => {
       createFeed(
         name: $name
         orderBy: $orderBy
-        maxDayRange: $maxDayRange
+        minDayRange: $minDayRange
         icon: $icon
         minUpvotes: $minUpvotes
         minViews: $minViews
@@ -3654,7 +3753,7 @@ describe('mutation createFeed', () => {
         flags {
           name
           orderBy
-          maxDayRange
+          minDayRange
           icon
           minUpvotes
           minViews
@@ -3820,7 +3919,7 @@ describe('mutation updateFeed', () => {
       $feedId: ID!
       $name: String!
       $orderBy: FeedOrderBy
-      $maxDayRange: Int
+      $minDayRange: Int
       $icon: String
       $minUpvotes: Int
       $minViews: Int
@@ -3830,7 +3929,7 @@ describe('mutation updateFeed', () => {
         feedId: $feedId
         name: $name
         orderBy: $orderBy
-        maxDayRange: $maxDayRange
+        minDayRange: $minDayRange
         icon: $icon
         minUpvotes: $minUpvotes
         minViews: $minViews
@@ -3841,7 +3940,7 @@ describe('mutation updateFeed', () => {
         flags {
           name
           orderBy
-          maxDayRange
+          minDayRange
           icon
           minUpvotes
           minViews
@@ -4016,7 +4115,7 @@ describe('mutation updateFeed', () => {
     );
   });
 
-  it('should not update feed if maxDayRange is invalid', async () => {
+  it('should not update feed if minDayRange is invalid', async () => {
     loggedUser = '1';
     isPlus = true;
 
@@ -4026,7 +4125,7 @@ describe('mutation updateFeed', () => {
         mutation: MUTATION,
         variables: {
           feedId: 'cf1',
-          maxDayRange: -5,
+          minDayRange: -5,
         },
       },
       'GRAPHQL_VALIDATION_FAILED',
@@ -4038,7 +4137,7 @@ describe('mutation updateFeed', () => {
         mutation: MUTATION,
         variables: {
           feedId: 'cf1',
-          maxDayRange: 1005,
+          minDayRange: 1005,
         },
       },
       'GRAPHQL_VALIDATION_FAILED',

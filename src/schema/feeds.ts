@@ -233,7 +233,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Minimum day range
     """
-    maxDayRange: Int
+    minDayRange: Int
 
     """
     Minimum upvotes
@@ -930,7 +930,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Minimum day range
       """
-      maxDayRange: Int
+      minDayRange: Int
 
       """
       Minimum upvotes
@@ -975,7 +975,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Minimum day range
       """
-      maxDayRange: Int
+      minDayRange: Int
 
       """
       Minimum upvotes
