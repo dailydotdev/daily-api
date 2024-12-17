@@ -112,6 +112,8 @@ const getRawFiltersData = async (
   feedId: string,
   userId: string,
 ): Promise<RawFiltersData | undefined> => {
+  const isMainFeed = feedId === userId;
+
   const selects = [
     rawFilterSelect(con, 'settings', (qb) =>
       qb
@@ -164,14 +166,20 @@ const getRawFiltersData = async (
         .from(SourceMember, 't')
         .where('"userId" = $2'),
     ),
-    rawFilterSelect(con, 'feeds', (qb) =>
-      qb
-        .select(['flags', 'type'])
-        .from(Feed, 't')
-        .where('id = $1')
-        .andWhere('"userId" = $2'),
-    ),
   ];
+
+  if (!isMainFeed) {
+    selects.push(
+      rawFilterSelect(con, 'feeds', (qb) =>
+        qb
+          .select(['flags', 'type'])
+          .from(Feed, 't')
+          .where('id = $1')
+          .andWhere('"userId" = $2'),
+      ),
+    );
+  }
+
   const query =
     'select ' + selects.map((select) => `(${select.getQuery()})`).join(', ');
   const res = await con.query(query, [feedId, userId]);
