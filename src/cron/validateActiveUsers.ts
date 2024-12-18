@@ -35,11 +35,11 @@ const cron: Cron = {
 
         await blockingBatchRunner({
           batchLimit: ITEMS_PER_IDENTIFY,
-          data: validReactivateUsers.map((u) => ({ id: u.id })),
+          data: validReactivateUsers.map(({ id }) => id),
           runner: async (ids) => {
             const users = await con
               .getRepository(User)
-              .find({ where: { id: In(ids.map(({ id }) => id)) } });
+              .find({ where: { id: In(ids) } });
 
             const data = await Promise.all(
               users.map((user) =>
@@ -58,15 +58,6 @@ const cron: Cron = {
             await setTimeout(20); // wait for a bit to avoid rate limiting
           },
         });
-
-        await con
-          .getRepository(User)
-          .update(
-            { id: In(validReactivateUsers.map((u) => u.id)) },
-            { cioRegistered: true },
-          );
-
-        await setTimeout(200);
       },
     });
 
@@ -107,7 +98,7 @@ const cron: Cron = {
               },
             );
 
-            await setTimeout(20);
+            await setTimeout(20); // wait for a bit to avoid rate limiting
           },
         });
       },
