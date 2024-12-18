@@ -5,22 +5,11 @@ import {
   UserPersonalizedDigestSendType,
 } from '../entity';
 import { In } from 'typeorm';
-import { BigQuery } from '@google-cloud/bigquery';
 import { blockingBatchRunner, callWithRetryDefault } from '../common/async';
 import { setTimeout } from 'node:timers/promises';
 import { cio, generateIdentifyObject } from '../cio';
 import { updateFlagsStatement } from '../common';
-
-enum ActiveState {
-  SixWeeksAgo = 'six_weeks_ago',
-  TwelveWeeksAgo = 'twelve_weeks_ago',
-  Active = 'active',
-}
-
-interface UserBq {
-  state: string;
-  id: string;
-}
+import { getUsersActiveState } from '../common/googleCloud';
 
 const ITEMS_PER_DESTROY = 4000;
 const ITEMS_PER_IDENTIFY = 250;
@@ -28,23 +17,8 @@ const ITEMS_PER_IDENTIFY = 250;
 const cron: Cron = {
   name: 'validate-active-users',
   handler: async (con) => {
-    const bigquery = new BigQuery();
-    const ds = bigquery.dataset('id');
-    const [usersFromBq] = await ds.table('table id').get(); // replace with actual fetch
-    const inactiveUsers: string[] = [];
-    const downgradeUsers: string[] = [];
-    const reactivateUsers: string[] = [];
-
-    // sort users from bq into active, inactive, downgrade, and reactivate
-    for (const user of usersFromBq) {
-      if (user.state === ActiveState.SixWeeksAgo) {
-        inactiveUsers.push(user.id);
-      } else if (user.state === ActiveState.TwelveWeeksAgo) {
-        downgradeUsers.push(user.id);
-      } else if (user.state === ActiveState.Active) {
-        reactivateUsers.push(user.id);
-      }
-    }
+    const { reactivateUsers, inactiveUsers, downgradeUsers } =
+      await getUsersActiveState();
 
     // update users in db: reactivated
     await blockingBatchRunner({
