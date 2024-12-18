@@ -23,10 +23,10 @@ const cron: Cron = {
     // reactivated users: add to CIO
     await blockingBatchRunner({
       data: reactivateUsers,
-      runner: async (current) => {
+      runner: async (batch) => {
         const validReactivateUsers = await con.getRepository(User).find({
           select: ['id'],
-          where: { id: In(current), cioRegistered: false },
+          where: { id: In(batch), cioRegistered: false },
         });
 
         if (validReactivateUsers.length === 0) {
@@ -64,10 +64,10 @@ const cron: Cron = {
     // inactive for 12 weeks: remove from CIO
     await blockingBatchRunner({
       data: inactiveUsers,
-      runner: async (current) => {
+      runner: async (batch) => {
         const validInactiveUsers = await con.getRepository(User).find({
           select: ['id'],
-          where: { id: In(current), cioRegistered: true },
+          where: { id: In(batch), cioRegistered: true },
         });
 
         if (validInactiveUsers.length === 0) {
