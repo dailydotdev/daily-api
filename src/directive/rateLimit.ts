@@ -213,7 +213,7 @@ export const ensureCommentRateLimit = async (
       userId: userId,
       createdAt: MoreThan(subDays(new Date(), 1)),
     }),
-    remoteConfig.vars?.postRateLimit ?? 0,
+    remoteConfig.vars?.commentRateLimit ?? 0,
     `Take a break. You already commented enough`,
   );
 };

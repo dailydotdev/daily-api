@@ -14,6 +14,7 @@ type RemoteConfigValue = {
   plusCustomFeed: boolean;
   rateLimitReputationThreshold: number;
   postRateLimit: number;
+  commentRateLimit: number;
 };
 
 class RemoteConfig {
