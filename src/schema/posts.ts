@@ -110,7 +110,7 @@ import { logger } from '../logger';
 import { Source } from '@dailydotdev/schema';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { remoteConfig } from '../remoteConfig';
-import { ensurePostRateLimit } from '../directive/rateLimit';
+import { ensurePostRateLimit } from '../common/rateLimit';
 
 export interface GQLSourcePostModeration {
   id: string;

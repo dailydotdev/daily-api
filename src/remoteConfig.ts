@@ -43,9 +43,7 @@ class RemoteConfig {
 
   get vars(): Partial<RemoteConfigValue> {
     if (!process.env.GROWTHBOOK_API_CONFIG_CLIENT_KEY) {
-      return {
-        rateLimitReputationThreshold: 10,
-      };
+      return {};
     }
 
     if (!this.gb) {

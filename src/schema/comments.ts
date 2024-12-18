@@ -52,7 +52,7 @@ import {
 import { reportComment } from '../common/reporting';
 import { ReportReason } from '../entity/common';
 import { toGQLEnum } from '../common/utils';
-import { ensureCommentRateLimit } from '../directive/rateLimit';
+import { ensureCommentRateLimit } from '../common/rateLimit';
 
 export interface GQLComment {
   id: string;
