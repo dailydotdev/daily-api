@@ -26,17 +26,17 @@ beforeEach(async () => {
   ]);
 });
 
-// describe('validateActiveUsers', () => {
-//   beforeEach(async () => {
-//     await saveFixtures(con, User, usersFixture);
-//   });
-//
-//   it('should be registered', () => {
-//     const registeredWorker = crons.find((item) => item.name === cron.name);
-//
-//     expect(registeredWorker).toBeDefined();
-//   });
-// });
+describe('validateActiveUsers', () => {
+  beforeEach(async () => {
+    await saveFixtures(con, User, usersFixture);
+  });
+
+  it('should NOT be registered yet', () => {
+    const registeredWorker = crons.find((item) => item.name === cron.name);
+
+    expect(registeredWorker).not.toBeDefined();
+  });
+});
 
 describe('users for downgrade', () => {
   it('should not do anything if users do not have digest subscription', async () => {
