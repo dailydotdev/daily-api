@@ -136,10 +136,6 @@ export const typeDefs = /* GraphQL */ `
     """
     userBlocked(
       """
-      Id of user
-      """
-      userId: ID!
-      """
       Entity to list (user, source..)
       """
       entity: ContentPreferenceType!
@@ -151,6 +147,10 @@ export const typeDefs = /* GraphQL */ `
       Paginate first
       """
       first: Int
+      """
+      Feed id (if empty defaults to my feed)
+      """
+      feedId: String
     ): ContentPreferenceConnection @auth
   }
 
@@ -360,13 +360,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     userBlocked: async (
       _,
       args: {
-        userId: string;
         entity: ContentPreferenceType;
+        feedId?: string;
       } & ConnectionArguments,
       ctx: AuthContext,
       info,
     ): Promise<Connection<GQLContentPreference>> => {
       const page = contentPreferencePageGenerator.connArgsToPage(args);
+
+      if (args.feedId) {
+        await getFeedByIdentifiersOrFail({
+          con: ctx.con,
+          feedIdOrSlug: args.feedId,
+          userId: ctx.userId,
+        });
+      }
+
+      const feedId = args.feedId || ctx.userId;
 
       return graphorm.queryPaginated(
         ctx,
@@ -380,13 +390,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         (builder) => {
           builder.queryBuilder = builder.queryBuilder
             .where(`${builder.alias}."userId" = :userId`, {
-              userId: args.userId,
+              userId: ctx.userId,
             })
             .andWhere(`${builder.alias}."type" = :type`, {
               type: args.entity,
             })
             .andWhere(`${builder.alias}."status" = :status`, {
               status: ContentPreferenceStatus.Blocked,
+            })
+            .andWhere(`${builder.alias}."feedId" = :feedId`, {
+              feedId,
             })
             .limit(page.limit)
             .offset(page.offset)
