@@ -90,13 +90,13 @@ export async function identifyUserStreak({
   }
 }
 
-export const generateIdentifyObject = (
+export const generateIdentifyObject = async (
   con: ConnectionManager,
   user: ChangeObject<User>,
 ) => {
   const { id } = user;
   const changed = JSON.parse(JSON.stringify(user));
-  const identify = getIdentifyAttributes(con, changed);
+  const identify = await getIdentifyAttributes(con, changed);
 
   return {
     action: 'identify',

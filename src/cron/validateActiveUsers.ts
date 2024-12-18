@@ -7,7 +7,7 @@ import {
 import { In } from 'typeorm';
 import { blockingBatchRunner, callWithRetryDefault } from '../common/async';
 import { setTimeout } from 'node:timers/promises';
-import { cio, generateIdentifyObject } from '../cio';
+import { cioV2, generateIdentifyObject } from '../cio';
 import { updateFlagsStatement } from '../common';
 import { getUsersActiveState } from '../common/googleCloud';
 
@@ -41,12 +41,14 @@ const cron: Cron = {
               .getRepository(User)
               .find({ where: { id: In(ids.map(({ id }) => id)) } });
 
-            const data = users.map((user) =>
-              generateIdentifyObject(con, JSON.parse(JSON.stringify(user))),
+            const data = await Promise.all(
+              users.map((user) =>
+                generateIdentifyObject(con, JSON.parse(JSON.stringify(user))),
+              ),
             );
 
             await callWithRetryDefault(() =>
-              cio.request.post('/users', { batch: data }),
+              cioV2.request.post('/users', { batch: data }),
             );
 
             await con
@@ -83,7 +85,7 @@ const cron: Cron = {
 
         await blockingBatchRunner({
           batchLimit: ITEMS_PER_DESTROY,
-          data: validInactiveUsers.map((u) => ({ id: u.id })),
+          data: validInactiveUsers.map(({ id }) => id),
           runner: async (ids) => {
             const data = ids.map((id) => ({
               action: 'destroy',
@@ -92,7 +94,7 @@ const cron: Cron = {
             }));
 
             await callWithRetryDefault(() =>
-              cio.request.post('/users', { batch: data }),
+              cioV2.request.post('/users', { batch: data }),
             );
 
             await con.getRepository(User).update(
