@@ -63,6 +63,7 @@ import {
   SourcePostModeration,
   SourcePostModerationStatus,
 } from '../../src/entity/SourcePostModeration';
+import { randomUUID } from 'crypto';
 
 const userId = '1';
 const commentFixture: Reference<Comment> = {
@@ -1370,9 +1371,17 @@ describe('storeNotificationBundle', () => {
     await con.getRepository(Post).save(postsFixture);
     await con.getRepository(User).save(fixtures);
     const type = NotificationType.SourcePostApproved;
+    const id = randomUUID();
     const ctx: NotificationPostContext = {
       post: postsFixture[0] as Reference<Post>,
       userIds: ['2'],
+      moderated: {
+        id,
+        postId: 'p1',
+        sourceId: 'a',
+        createdById: '2',
+        status: SourcePostModerationStatus.Approved,
+      } as Reference<SourcePostModeration>,
       source: {
         ...sourcesFixture[0],
         type: SourceType.Squad,
@@ -1380,6 +1389,7 @@ describe('storeNotificationBundle', () => {
     };
     const actual = generateNotificationV2(type, ctx);
 
+    expect(actual.notification.uniqueKey).toEqual(id);
     expect(actual.notification.type).toEqual(type);
     expect(actual.userIds).toEqual(['2']);
     expect(actual.notification.public).toEqual(true);

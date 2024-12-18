@@ -24,6 +24,7 @@ const worker =
       });
       const ctx: NotificationPostContext = {
         ...baseCtx!,
+        moderated: data,
         userIds: [data.createdById],
       };
 

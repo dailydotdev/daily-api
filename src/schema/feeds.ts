@@ -3,8 +3,10 @@ import {
   Feed,
   FeedAdvancedSettings,
   FeedFlagsPublic,
+  FeedOrderBy,
   FeedSource,
   FeedTag,
+  FeedType,
   Post,
   PostType,
   Source,
@@ -32,6 +34,7 @@ import {
   Ranking,
   sourceFeedBuilder,
   tagFeedBuilder,
+  toGQLEnum,
   whereKeyword,
 } from '../common';
 import { In, Not, SelectQueryBuilder } from 'typeorm';
@@ -153,6 +156,10 @@ export const typeDefs = /* GraphQL */ `
     TIME
   }
 
+  ${toGQLEnum(FeedOrderBy, 'FeedOrderBy')}
+
+  ${toGQLEnum(FeedType, 'FeedType')}
+
   input FeedAdvancedSettingsInput {
     """
     Advanced Settings ID
@@ -217,6 +224,36 @@ export const typeDefs = /* GraphQL */ `
     Name of the feed
     """
     name: String
+
+    """
+    Order by
+    """
+    orderBy: FeedOrderBy
+
+    """
+    Minimum day range
+    """
+    minDayRange: Int
+
+    """
+    Minimum upvotes
+    """
+    minUpvotes: Int
+
+    """
+    Minimum views
+    """
+    minViews: Int
+
+    """
+    Disable engagement filter
+    """
+    disableEngagementFilter: Boolean
+
+    """
+    Icon
+    """
+    icon: String
   }
 
   type Feed {
@@ -249,6 +286,11 @@ export const typeDefs = /* GraphQL */ `
     Feed slug
     """
     slug: String
+
+    """
+    type of the feed
+    """
+    type: FeedType
   }
 
   type FeedConnection {
@@ -539,7 +581,7 @@ export const typeDefs = /* GraphQL */ `
       Feed id
       """
       feedId: ID
-    ): FeedSettings! @auth
+    ): FeedSettings! @feedPlus
 
     """
     Returns the user's RSS feeds
@@ -839,7 +881,7 @@ export const typeDefs = /* GraphQL */ `
       The filters to add to the feed
       """
       filters: FiltersInput!
-    ): FeedSettings @auth
+    ): FeedSettings @feedPlus
 
     """
     Remove filters from the user's feed
@@ -854,17 +896,22 @@ export const typeDefs = /* GraphQL */ `
       The filters to remove from the feed
       """
       filters: FiltersInput!
-    ): FeedSettings @auth
+    ): FeedSettings @feedPlus
 
     """
     Update user's feed advanced settings
     """
     updateFeedAdvancedSettings(
       """
+      Feed id
+      """
+      feedId: ID
+
+      """
       Posts must comply with the advanced settings from this list
       """
       settings: [FeedAdvancedSettingsInput]!
-    ): [FeedAdvancedSettings]! @auth
+    ): [FeedAdvancedSettings]! @feedPlus
 
     """
     Create feed
@@ -874,7 +921,37 @@ export const typeDefs = /* GraphQL */ `
       Feed name
       """
       name: String!
-    ): Feed @auth
+
+      """
+      Order by
+      """
+      orderBy: FeedOrderBy
+
+      """
+      Minimum day range
+      """
+      minDayRange: Int
+
+      """
+      Minimum upvotes
+      """
+      minUpvotes: Int
+
+      """
+      Minimum views
+      """
+      minViews: Int
+
+      """
+      Disable engagement filter
+      """
+      disableEngagementFilter: Boolean
+
+      """
+      Icon
+      """
+      icon: String
+    ): Feed @feedPlus
 
     """
     Update feed meta
@@ -889,7 +966,37 @@ export const typeDefs = /* GraphQL */ `
       Feed name
       """
       name: String!
-    ): Feed @auth
+
+      """
+      Order by
+      """
+      orderBy: FeedOrderBy
+
+      """
+      Minimum day range
+      """
+      minDayRange: Int
+
+      """
+      Minimum upvotes
+      """
+      minUpvotes: Int
+
+      """
+      Minimum views
+      """
+      minViews: Int
+
+      """
+      Disable engagement filter
+      """
+      disableEngagementFilter: Boolean
+
+      """
+      Icon
+      """
+      icon: String
+    ): Feed @feedPlus
 
     """
     Delete feed
@@ -1391,9 +1498,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ctx.userId
       ) {
         const feedGenerator = new FeedGenerator(
-          popularFeedClient,
+          feedClient,
           new FeedPreferencesConfigGenerator(
-            {},
+            {
+              feed_config_name: FeedConfigName.CustomFeedV1,
+            },
             {
               includeAllowedTags: true,
               includePostTypes: true,
@@ -1404,7 +1513,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               feedId: feedId,
             },
           ),
-          'popular',
         );
 
         return feedResolverCursor(
@@ -2139,17 +2247,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     updateFeedAdvancedSettings: async (
       _,
-      { settings }: { settings: GQLFeedAdvancedSettingsInput[] },
+      {
+        feedId: feedIdArg,
+        settings,
+      }: { settings: GQLFeedAdvancedSettingsInput[] } & { feedId: string },
       ctx: AuthContext,
     ): Promise<GQLFeedAdvancedSettings[]> => {
-      const feedId = ctx.userId;
+      const feedId = feedIdArg || ctx.userId;
       const feedRepo = ctx.con.getRepository(Feed);
-      const feed = await feedRepo.findOneBy({ id: feedId });
+      await feedRepo.findOneByOrFail({
+        id: feedId,
+        userId: ctx.userId,
+      });
       const feedAdvSettingsrepo = ctx.con.getRepository(FeedAdvancedSettings);
-
-      if (!feed) {
-        await feedRepo.save({ userId: feedId, id: feedId });
-      }
 
       await feedAdvSettingsrepo
         .createQueryBuilder()
@@ -2175,10 +2285,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     createFeed: async (
       _,
-      { name }: { name: string },
+      flags: FeedFlagsPublic,
       ctx: AuthContext,
     ): Promise<GQLFeed> => {
-      validateFeedPayload({ name });
+      validateFeedPayload(flags);
 
       const feedRepo = ctx.con.getRepository(Feed);
 
@@ -2195,19 +2305,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const feed = await feedRepo.save({
         id: await generateShortId(),
         userId: ctx.userId,
-        flags: {
-          name,
-        },
+        flags,
       });
 
       return feed;
     },
     updateFeed: async (
       _,
-      { feedId, name }: { feedId: string; name: string },
+      { feedId, ...flags }: { feedId: string } & FeedFlagsPublic,
       ctx: AuthContext,
     ): Promise<GQLFeed> => {
-      validateFeedPayload({ name });
+      validateFeedPayload(flags);
 
       const feedRepo = ctx.con.getRepository(Feed);
       const feed = await getFeedByIdentifiersOrFail({
@@ -2220,7 +2328,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         id: feed.id,
         userId: feed.userId,
         flags: {
-          name,
+          ...feed.flags,
+          ...flags,
         },
       });
 
@@ -2231,7 +2340,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     deleteFeed: async (
       _,
-      { feedId }: { feedId: string; name: string },
+      { feedId }: { feedId: string },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       const feedRepo = ctx.con.getRepository(Feed);

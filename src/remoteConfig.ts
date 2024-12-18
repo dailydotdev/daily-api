@@ -12,6 +12,9 @@ type RemoteConfigValue = {
   origins: string[];
   clickbaitTitleProbabilityThreshold: number;
   plusCustomFeed: boolean;
+  rateLimitReputationThreshold: number;
+  postRateLimit: number;
+  commentRateLimit: number;
 };
 
 class RemoteConfig {

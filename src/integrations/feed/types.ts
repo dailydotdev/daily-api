@@ -1,4 +1,5 @@
 import { Context } from '../../Context';
+import type { FeedFlags } from '../../entity';
 import { GenericMetadata } from '../lofn';
 
 export type FeedResponse = {
@@ -14,6 +15,7 @@ export enum FeedConfigName {
   VectorV26 = 'vector_v26',
   VectorV27 = 'vector_v27',
   PostSimilarity = 'post_similarity',
+  CustomFeedV1 = 'custom_feed_v1',
 }
 
 export type FeedProvider = {
@@ -61,7 +63,7 @@ export type FeedConfig = {
   config?: {
     [key: string]: unknown;
   };
-};
+} & FeedFlagsFilters;
 
 export type DynamicConfig = Omit<FeedConfig, 'total_pages'>;
 
@@ -107,4 +109,16 @@ export type FeedVersion =
 export const baseFeedConfig: Partial<FeedConfig> = {
   source_types: ['machine', 'squad'],
   allowed_languages: ['en'],
+};
+
+export type FeedFlagsFilters = {
+  order_by?: FeedFlags['orderBy'];
+  disable_engagement_filter?: FeedFlags['disableEngagementFilter'];
+  thresholds?: {
+    min_thresholds: {
+      upvotes?: FeedFlags['minUpvotes'];
+      views?: FeedFlags['minViews'];
+    };
+  };
+  min_day_range?: FeedFlags['minDayRange'];
 };

@@ -2,7 +2,11 @@ import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext } from '../Context';
 import { ContentPreference } from '../entity/contentPreference/ContentPreference';
-import { MAX_FOLLOWERS_LIMIT, toGQLEnum } from '../common';
+import {
+  getFeedByIdentifiersOrFail,
+  MAX_FOLLOWERS_LIMIT,
+  toGQLEnum,
+} from '../common';
 import {
   ContentPreferenceStatus,
   ContentPreferenceType,
@@ -39,7 +43,9 @@ export const typeDefs = /* GraphQL */ `
 
     user: User!
 
-    referenceUser: User!
+    referenceUser: User
+
+    source: Source
 
     type: ContentPreferenceType!
 
@@ -119,16 +125,16 @@ export const typeDefs = /* GraphQL */ `
       Paginate first
       """
       first: Int
+      """
+      Feed id (if empty defaults to my feed)
+      """
+      feedId: String
     ): ContentPreferenceConnection!
 
     """
     What user blocked
     """
     userBlocked(
-      """
-      Id of user
-      """
-      userId: ID!
       """
       Entity to list (user, source..)
       """
@@ -141,6 +147,10 @@ export const typeDefs = /* GraphQL */ `
       Paginate first
       """
       first: Int
+      """
+      Feed id (if empty defaults to my feed)
+      """
+      feedId: String
     ): ContentPreferenceConnection @auth
   }
 
@@ -161,7 +171,12 @@ export const typeDefs = /* GraphQL */ `
       Follow status
       """
       status: FollowStatus!
-    ): EmptyResponse @auth
+
+      """
+      Feed id (if empty defaults to my feed)
+      """
+      feedId: String
+    ): EmptyResponse @feedPlus
     """
     Unfollow entity
     """
@@ -174,7 +189,12 @@ export const typeDefs = /* GraphQL */ `
       Entity unfollow (user, source..)
       """
       entity: ContentPreferenceType!
-    ): EmptyResponse @auth
+
+      """
+      Feed id (if empty defaults to my feed)
+      """
+      feedId: String
+    ): EmptyResponse @feedPlus
 
     """
     Block entity
@@ -188,7 +208,12 @@ export const typeDefs = /* GraphQL */ `
       Entity to block (user, source..)
       """
       entity: ContentPreferenceType!
-    ): EmptyResponse @auth
+
+      """
+      Feed id (if empty defaults to my feed)
+      """
+      feedId: String
+    ): EmptyResponse @feedPlus
 
     """
     Unblock entity
@@ -202,7 +227,12 @@ export const typeDefs = /* GraphQL */ `
       Entity to unblock (user, source..)
       """
       entity: ContentPreferenceType!
-    ): EmptyResponse @auth
+
+      """
+      Feed id (if empty defaults to my feed)
+      """
+      feedId: String
+    ): EmptyResponse @feedPlus
   }
 `;
 
@@ -281,11 +311,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: {
         userId: string;
         entity: ContentPreferenceType;
+        feedId?: string;
       } & ConnectionArguments,
       ctx: AuthContext,
       info,
     ): Promise<Connection<GQLContentPreference>> => {
       const page = contentPreferencePageGenerator.connArgsToPage(args);
+      if (args.feedId) {
+        await getFeedByIdentifiersOrFail({
+          con: ctx.con,
+          feedIdOrSlug: args.feedId,
+          userId: args.userId,
+        });
+      }
+
+      const feedId = args.feedId || args.userId;
 
       return graphorm.queryPaginated(
         ctx,
@@ -303,6 +343,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             })
             .andWhere(`${builder.alias}."type" = :type`, {
               type: args.entity,
+            })
+            .andWhere(`${builder.alias}."feedId" = :feedId`, {
+              feedId,
             })
             .limit(page.limit)
             .offset(page.offset)
@@ -317,13 +360,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     userBlocked: async (
       _,
       args: {
-        userId: string;
         entity: ContentPreferenceType;
+        feedId?: string;
       } & ConnectionArguments,
       ctx: AuthContext,
       info,
     ): Promise<Connection<GQLContentPreference>> => {
       const page = contentPreferencePageGenerator.connArgsToPage(args);
+
+      if (args.feedId) {
+        await getFeedByIdentifiersOrFail({
+          con: ctx.con,
+          feedIdOrSlug: args.feedId,
+          userId: ctx.userId,
+        });
+      }
+
+      const feedId = args.feedId || ctx.userId;
 
       return graphorm.queryPaginated(
         ctx,
@@ -337,13 +390,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         (builder) => {
           builder.queryBuilder = builder.queryBuilder
             .where(`${builder.alias}."userId" = :userId`, {
-              userId: args.userId,
+              userId: ctx.userId,
             })
             .andWhere(`${builder.alias}."type" = :type`, {
               type: args.entity,
             })
             .andWhere(`${builder.alias}."status" = :status`, {
               status: ContentPreferenceStatus.Blocked,
+            })
+            .andWhere(`${builder.alias}."feedId" = :feedId`, {
+              feedId,
             })
             .limit(page.limit)
             .offset(page.offset)
@@ -363,15 +419,27 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         id,
         entity,
         status,
+        feedId: feedIdArg,
       }: {
         id: string;
         entity: ContentPreferenceType;
         status:
           | ContentPreferenceStatus.Follow
           | ContentPreferenceStatus.Subscribed;
+        feedId?: string;
       },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
+      if (feedIdArg) {
+        await getFeedByIdentifiersOrFail({
+          con: ctx.con,
+          feedIdOrSlug: feedIdArg,
+          userId: ctx.userId,
+        });
+      }
+
+      const feedId = feedIdArg || ctx.userId;
+
       const followersCount = await ctx.con
         .getRepository(ContentPreference)
         .countBy({
@@ -381,13 +449,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             ContentPreferenceStatus.Subscribed,
           ]),
           type: Not(ContentPreferenceType.Keyword),
+          feedId,
         });
 
       if (followersCount >= MAX_FOLLOWERS_LIMIT) {
         throw new ConflictError('Max followers limit reached');
       }
 
-      await followEntity({ ctx, id, entity, status });
+      await followEntity({ ctx, id, entity, status, feedId });
 
       return {
         _: true,
@@ -395,10 +464,24 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     unfollow: async (
       _,
-      { id, entity }: { id: string; entity: ContentPreferenceType },
+      {
+        id,
+        entity,
+        feedId: feedIdArg,
+      }: { id: string; entity: ContentPreferenceType; feedId?: string },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      await unfollowEntity({ ctx, id, entity });
+      if (feedIdArg) {
+        await getFeedByIdentifiersOrFail({
+          con: ctx.con,
+          feedIdOrSlug: feedIdArg,
+          userId: ctx.userId,
+        });
+      }
+
+      const feedId = feedIdArg || ctx.userId;
+
+      await unfollowEntity({ ctx, id, entity, feedId });
 
       return {
         _: true,
@@ -406,10 +489,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     block: async (
       _,
-      { id, entity }: { id: string; entity: ContentPreferenceType },
+      {
+        id,
+        entity,
+        feedId: feedIdArg,
+      }: { id: string; entity: ContentPreferenceType; feedId?: string },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      await blockEntity({ ctx, id, entity });
+      if (feedIdArg) {
+        await getFeedByIdentifiersOrFail({
+          con: ctx.con,
+          feedIdOrSlug: feedIdArg,
+          userId: ctx.userId,
+        });
+      }
+
+      const feedId = feedIdArg || ctx.userId;
+      await blockEntity({ ctx, id, entity, feedId });
 
       return {
         _: true,
@@ -417,10 +513,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     unblock: async (
       _,
-      { id, entity }: { id: string; entity: ContentPreferenceType },
+      {
+        id,
+        entity,
+        feedId: feedIdArg,
+      }: { id: string; entity: ContentPreferenceType; feedId?: string },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      await unblockEntity({ ctx, id, entity });
+      if (feedIdArg) {
+        await getFeedByIdentifiersOrFail({
+          con: ctx.con,
+          feedIdOrSlug: feedIdArg,
+          userId: ctx.userId,
+        });
+      }
+
+      const feedId = feedIdArg || ctx.userId;
+      await unblockEntity({ ctx, id, entity, feedId });
 
       return {
         _: true,

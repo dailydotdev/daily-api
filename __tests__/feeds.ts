@@ -11,6 +11,7 @@ import {
   BookmarkList,
   Feed,
   FeedAdvancedSettings,
+  FeedOrderBy,
   FreeformPost,
   Keyword,
   MachineSource,
@@ -61,7 +62,7 @@ import { usersFixture } from './fixture/user';
 import { base64 } from 'graphql-relay/utils/base64';
 import { maxFeedsPerUser, UserVote } from '../src/types';
 import { SubmissionFailErrorMessage } from '../src/errors';
-import { baseFeedConfig } from '../src/integrations/feed';
+import { baseFeedConfig, FeedConfigName } from '../src/integrations/feed';
 import {
   ContentPreferenceStatus,
   ContentPreferenceType,
@@ -70,17 +71,19 @@ import { ContentPreferenceSource } from '../src/entity/contentPreference/Content
 import { ContentPreferenceKeyword } from '../src/entity/contentPreference/ContentPreferenceKeyword';
 import { ContentPreferenceWord } from '../src/entity/contentPreference/ContentPreferenceWord';
 import { ContentPreferenceUser } from '../src/entity/contentPreference/ContentPreferenceUser';
+import { SubscriptionCycles } from '../src/paddle';
 
 let app: FastifyInstance;
 let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
+let isPlus: boolean = false;
 
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    () => new MockContext(con, loggedUser),
+    () => new MockContext(con, loggedUser, [], null, false, isPlus),
   );
   client = state.client;
   app = state.app;
@@ -88,6 +91,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   loggedUser = null;
+  isPlus = false;
 
   await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, AdvancedSettings, advancedSettings);
@@ -1452,8 +1456,40 @@ describe('query feedSettings', () => {
     expect(res.data).toMatchSnapshot();
   });
 
-  it('should return the feed settings for custom feed when feedId is provided', async () => {
+  it('should not authorize when trying custom feed but not plus', async () => {
     loggedUser = '1';
+    await saveFeedFixtures();
+    await saveFixtures(con, Feed, [{ id: 'cf2', userId: '1' }]);
+    await client.mutate(ADD_FILTERS_MUTATION, {
+      variables: {
+        feedId: 'cf2',
+        filters: {
+          includeTags: ['javascript'],
+          includeSources: ['a'],
+          excludeSources: ['b'],
+          blockedTags: ['golang'],
+        },
+      },
+    });
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { feedId: 'cf2' },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should return the feed settings for custom feed when feedId is provided and user is plus', async () => {
+    loggedUser = '1';
+    isPlus = true;
+    await con
+      .getRepository(User)
+      .update(
+        { id: '1' },
+        { subscriptionFlags: { cycle: SubscriptionCycles.Yearly } },
+      );
     await saveFeedFixtures();
     await saveFixtures(con, Feed, [{ id: 'cf2', userId: '1' }]);
     await client.mutate(ADD_FILTERS_MUTATION, {
@@ -1491,8 +1527,9 @@ describe('query feedSettings', () => {
     });
   });
 
-  it('should remove blocked source from feed settings if followed', async () => {
+  it('should remove blocked source from custom feed settings if followed', async () => {
     loggedUser = '1';
+    isPlus = true;
     await saveFeedFixtures();
     await saveFixtures(con, Feed, [{ id: 'cf2', userId: '1' }]);
     // add blocked source
@@ -1550,8 +1587,9 @@ describe('query feedSettings', () => {
     });
   });
 
-  it('should return empty settings when feed not found for user', async () => {
+  it('should return empty settings when custom feed not found for user', async () => {
     loggedUser = '1';
+    isPlus = true;
     await saveFeedFixtures();
     await saveFixtures(con, Feed, [{ id: 'cf2', userId: '1' }]);
     await client.mutate(ADD_FILTERS_MUTATION, {
@@ -2060,8 +2098,8 @@ describe('query advancedSettings', () => {
 
 describe('mutation updateFeedAdvancedSettings', () => {
   const MUTATION = `
-    mutation UpdateFeedAdvancedSettings($settings: [FeedAdvancedSettingsInput]!) {
-      updateFeedAdvancedSettings(settings: $settings) {
+    mutation UpdateFeedAdvancedSettings($feedId: ID, $settings: [FeedAdvancedSettingsInput]!) {
+      updateFeedAdvancedSettings(feedId: $feedId, settings: $settings) {
         id
         enabled
       }
@@ -2099,19 +2137,23 @@ describe('mutation updateFeedAdvancedSettings', () => {
     expect(res.data).toMatchSnapshot();
   });
 
-  it('should not fail if feed entity does not exists', async () => {
+  it('should fail if feed entity does not exist for user', async () => {
     loggedUser = '1';
     await saveFixtures(con, AdvancedSettings, advancedSettings);
-    const res = await client.mutate(MUTATION, {
-      variables: {
-        settings: [
-          { id: 1, enabled: true },
-          { id: 2, enabled: false },
-        ],
-      },
-    });
 
-    expect(res.data).toMatchSnapshot();
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          settings: [
+            { id: 1, enabled: true },
+            { id: 2, enabled: false },
+          ],
+        },
+      },
+      'NOT_FOUND',
+    );
   });
 
   it('should update existing feed advanced settings', async () => {
@@ -2146,6 +2188,90 @@ describe('mutation updateFeedAdvancedSettings', () => {
       },
     });
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should not update custom feed advanced settings if not plus', async () => {
+    loggedUser = '1';
+
+    await saveFeedFixtures();
+    await saveFixtures(con, Feed, [{ id: '1-ucfas', userId: '1' }]);
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: '1-ucfas',
+          settings: [
+            { id: 1, enabled: false },
+            { id: 2, enabled: true },
+            { id: 3, enabled: true },
+            { id: 4, enabled: false },
+            { id: 7, enabled: false },
+          ],
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should update custom feed advanced settings', async () => {
+    loggedUser = '1';
+    isPlus = true;
+
+    await saveFeedFixtures();
+    await saveFixtures(con, Feed, [{ id: '1-ucfas', userId: '1' }]);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        feedId: '1-ucfas',
+        settings: [
+          { id: 1, enabled: false },
+          { id: 2, enabled: true },
+          { id: 3, enabled: true },
+          { id: 4, enabled: false },
+          { id: 7, enabled: false },
+        ],
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+
+    const advancedSettings = await con
+      .getRepository(FeedAdvancedSettings)
+      .find({
+        where: {
+          feedId: '1-ucfas',
+        },
+      });
+
+    expect(advancedSettings).toEqual([
+      {
+        feedId: '1-ucfas',
+        advancedSettingsId: 1,
+        enabled: false,
+      },
+      {
+        feedId: '1-ucfas',
+        advancedSettingsId: 2,
+        enabled: true,
+      },
+      {
+        feedId: '1-ucfas',
+        advancedSettingsId: 3,
+        enabled: true,
+      },
+      {
+        feedId: '1-ucfas',
+        advancedSettingsId: 4,
+        enabled: false,
+      },
+      {
+        feedId: '1-ucfas',
+        advancedSettingsId: 7,
+        enabled: false,
+      },
+    ]);
   });
 });
 
@@ -2334,6 +2460,7 @@ describe('mutation addFiltersToFeed', () => {
 
   it('should save filters to custom feed when feedId is provided', async () => {
     loggedUser = '1';
+    isPlus = true;
     await saveFixtures(con, Feed, [{ id: 'cf2', userId: '1' }]);
     await saveFixtures(con, AdvancedSettings, advancedSettings);
     // my feed filters
@@ -2385,8 +2512,9 @@ describe('mutation addFiltersToFeed', () => {
     });
   });
 
-  it('should throw not found error when feedId is not found', async () => {
+  it('should throw not found error when custom feedId is not found', async () => {
     loggedUser = '1';
+    isPlus = true;
 
     return testMutationErrorCode(
       client,
@@ -2407,6 +2535,7 @@ describe('mutation addFiltersToFeed', () => {
 
   it('should save filters to multiple custom feeds when feedId is provided', async () => {
     loggedUser = '1';
+    isPlus = true;
     await saveFixtures(con, Feed, [
       { id: 'cf2', userId: '1' },
       {
@@ -2708,6 +2837,7 @@ describe('mutation removeFiltersFromFeed', () => {
 
   it('should remove existing filters for custom feed when feedId is provided', async () => {
     loggedUser = '1';
+    isPlus = true;
     await saveFeedFixtures();
     await saveFixtures(con, Feed, [{ id: 'cf2', userId: '1' }]);
     await client.mutate(ADD_FILTERS_MUTATION, {
@@ -2748,8 +2878,9 @@ describe('mutation removeFiltersFromFeed', () => {
     });
   });
 
-  it('should throw not found error when feedId is not found', async () => {
+  it('should throw not found error when custom feedId is not found', async () => {
     loggedUser = '1';
+    isPlus = true;
 
     return testMutationErrorCode(
       client,
@@ -2824,7 +2955,7 @@ describe('function feedToFilters', () => {
     ]);
     const filters = await feedToFilters(con, '1', '1');
     expect(filters.excludeSources).toEqual(['experimentIncludedSource']);
-    expect(filters.followingSources).toEqual([
+    expect(filters.followingSources).toContainAllValues([
       'excludedSource',
       'settingsCombinationSource',
     ]);
@@ -3025,6 +3156,82 @@ describe('function feedToFilters', () => {
     ]);
     const filters = await feedToFilters(con, '1', '1');
     expect(filters.sourceIds).toContain('a');
+  });
+
+  it('should set feed flags', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).save(usersFixture[0]);
+    await saveFixtures(con, Feed, [
+      {
+        id: 'cff1',
+        userId: '1',
+        flags: {
+          name: 'Custom feed',
+          orderBy: FeedOrderBy.Downvotes,
+          disableEngagementFilter: true,
+          minDayRange: 7,
+          minUpvotes: 10,
+          minViews: 1,
+        },
+      },
+    ]);
+    const filters = await feedToFilters(con, 'cff1', '1');
+
+    expect(filters.flags).toEqual({
+      order_by: FeedOrderBy.Downvotes,
+      disable_engagement_filter: true,
+      min_day_range: 7,
+      thresholds: {
+        min_thresholds: {
+          upvotes: 10,
+          views: 1,
+        },
+      },
+    });
+  });
+
+  it('should set default disable_engagement_filter', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).save(usersFixture[0]);
+    await saveFixtures(con, Feed, [
+      {
+        id: 'cff1',
+        userId: '1',
+        flags: {
+          name: 'Custom feed',
+        },
+      },
+    ]);
+    const filters = await feedToFilters(con, 'cff1', '1');
+
+    expect(filters.flags).toEqual({
+      disable_engagement_filter: false,
+    });
+  });
+
+  it('should set optional thresholds', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).save(usersFixture[0]);
+    await saveFixtures(con, Feed, [
+      {
+        id: 'cff1',
+        userId: '1',
+        flags: {
+          name: 'Custom feed',
+          minUpvotes: 25,
+        },
+      },
+    ]);
+    const filters = await feedToFilters(con, 'cff1', '1');
+
+    expect(filters.flags).toEqual({
+      disable_engagement_filter: false,
+      thresholds: {
+        min_thresholds: {
+          upvotes: 25,
+        },
+      },
+    });
   });
 });
 
@@ -3267,6 +3474,30 @@ describe('slug field', () => {
   });
 });
 
+describe('type field', () => {
+  it('should set the type to main when feed ID matches user ID', async () => {
+    await con.getRepository(Feed).save({
+      id: '1',
+      userId: '1',
+    });
+
+    const feed = await con.getRepository(Feed).findOneByOrFail({ id: '1' });
+    expect(feed.type).toEqual('main');
+  });
+
+  it('should set the type to custom when feed ID does not match user ID', async () => {
+    await con.getRepository(Feed).save({
+      id: 'something-else',
+      userId: '1',
+    });
+
+    const feed = await con
+      .getRepository(Feed)
+      .findOneByOrFail({ id: 'something-else' });
+    expect(feed.type).toEqual('custom');
+  });
+});
+
 describe('query feedList', () => {
   const QUERY = `{
     feedList {
@@ -3476,17 +3707,39 @@ describe('query getFeed', () => {
 });
 
 describe('mutation createFeed', () => {
-  const MUTATION = `
-  mutation CreateFeed($name: String!) {
-    createFeed(name: $name) {
-      id
-      userId
-      flags {
-        name
+  const MUTATION = /* GraphQL */ `
+    mutation CreateFeed(
+      $name: String!
+      $orderBy: FeedOrderBy
+      $minDayRange: Int
+      $icon: String
+      $minUpvotes: Int
+      $minViews: Int
+      $disableEngagementFilter: Boolean
+    ) {
+      createFeed(
+        name: $name
+        orderBy: $orderBy
+        minDayRange: $minDayRange
+        icon: $icon
+        minUpvotes: $minUpvotes
+        minViews: $minViews
+        disableEngagementFilter: $disableEngagementFilter
+      ) {
+        id
+        userId
+        flags {
+          name
+          orderBy
+          minDayRange
+          icon
+          minUpvotes
+          minViews
+          disableEngagementFilter
+        }
       }
     }
-  }
-`;
+  `;
 
   it('should not authorize when not logged-in', () =>
     testMutationErrorCode(
@@ -3505,6 +3758,8 @@ describe('mutation createFeed', () => {
     const res = await client.mutate(MUTATION, {
       variables: {
         name: 'Cool feed',
+        orderBy: 'upvotes',
+        icon: '🐙',
       },
     });
 
@@ -3514,6 +3769,8 @@ describe('mutation createFeed', () => {
         userId: '1',
         flags: {
           name: 'Cool feed',
+          orderBy: 'upvotes',
+          icon: '🐙',
         },
       },
     });
@@ -3522,8 +3779,23 @@ describe('mutation createFeed', () => {
     ).toMatchObject({
       id: expect.any(String),
       userId: '1',
-      flags: { name: 'Cool feed' },
+      flags: { name: 'Cool feed', orderBy: 'upvotes', icon: '🐙' },
     });
+  });
+
+  it('should throw error when feed is created with invalid icon', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          name: 'Cool feed',
+          icon: '😈',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
   });
 
   it('should not create a new feed when name is missing', async () => {
@@ -3620,17 +3892,41 @@ describe('mutation createFeed', () => {
 });
 
 describe('mutation updateFeed', () => {
-  const MUTATION = `
-  mutation UpdateFeed($feedId: ID!, $name: String!) {
-    updateFeed(feedId: $feedId, name: $name) {
-      id
-      userId
-      flags {
-        name
+  const MUTATION = /* GraphQL */ `
+    mutation UpdateFeed(
+      $feedId: ID!
+      $name: String!
+      $orderBy: FeedOrderBy
+      $minDayRange: Int
+      $icon: String
+      $minUpvotes: Int
+      $minViews: Int
+      $disableEngagementFilter: Boolean
+    ) {
+      updateFeed(
+        feedId: $feedId
+        name: $name
+        orderBy: $orderBy
+        minDayRange: $minDayRange
+        icon: $icon
+        minUpvotes: $minUpvotes
+        minViews: $minViews
+        disableEngagementFilter: $disableEngagementFilter
+      ) {
+        id
+        userId
+        flags {
+          name
+          orderBy
+          minDayRange
+          icon
+          minUpvotes
+          minViews
+          disableEngagementFilter
+        }
       }
     }
-  }
-`;
+  `;
 
   beforeEach(async () => {
     await saveFixtures(con, Feed, [
@@ -3653,6 +3949,7 @@ describe('mutation updateFeed', () => {
 
   it('should not update when different user owns the feed', () => {
     loggedUser = '2';
+    isPlus = true;
 
     return testMutationErrorCode(
       client,
@@ -3667,13 +3964,16 @@ describe('mutation updateFeed', () => {
     );
   });
 
-  it('should update the feed', async () => {
+  it('should update the custom feed', async () => {
     loggedUser = '1';
+    isPlus = true;
 
     const res = await client.mutate(MUTATION, {
       variables: {
         feedId: 'cf1',
         name: 'PHP feed',
+        disableEngagementFilter: true,
+        icon: '🐍',
       },
     });
 
@@ -3683,6 +3983,8 @@ describe('mutation updateFeed', () => {
         userId: '1',
         flags: {
           name: 'PHP feed',
+          disableEngagementFilter: true,
+          icon: '🐍',
         },
       },
     });
@@ -3691,8 +3993,23 @@ describe('mutation updateFeed', () => {
     ).toMatchObject({
       id: 'cf1',
       userId: '1',
-      flags: { name: 'PHP feed' },
+      flags: { name: 'PHP feed', disableEngagementFilter: true, icon: '🐍' },
     });
+  });
+
+  it('should throw error when feed is updated with invalid icon', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          name: 'Cool feed',
+          icon: '💼',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
   });
 
   it('should not update the feed when feedId is missing', async () => {
@@ -3725,8 +4042,9 @@ describe('mutation updateFeed', () => {
     );
   });
 
-  it('should not update the feed when name is empty', async () => {
+  it('should not update the custom feed when name is empty', async () => {
     loggedUser = '1';
+    isPlus = true;
 
     await testMutationErrorCode(
       client,
@@ -3741,8 +4059,9 @@ describe('mutation updateFeed', () => {
     );
   });
 
-  it('should not update the feed when name contains special characters', async () => {
+  it('should not update the custom feed when name contains special characters', async () => {
     loggedUser = '1';
+    isPlus = true;
 
     await testMutationErrorCode(
       client,
@@ -3757,8 +4076,9 @@ describe('mutation updateFeed', () => {
     );
   });
 
-  it('should not update the feed when name is too long', async () => {
+  it('should not update the custom feed when name is too long', async () => {
     loggedUser = '1';
+    isPlus = true;
 
     await testMutationErrorCode(
       client,
@@ -3767,6 +4087,93 @@ describe('mutation updateFeed', () => {
         variables: {
           feedId: 'cf1',
           name: new Array(maxFeedNameLength + 1).fill('a').join(''),
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not update feed if minDayRange is invalid', async () => {
+    loggedUser = '1';
+    isPlus = true;
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: 'cf1',
+          minDayRange: -5,
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: 'cf1',
+          minDayRange: 1005,
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not update feed if minUpvotes is invalid', async () => {
+    loggedUser = '1';
+    isPlus = true;
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: 'cf1',
+          minUpvotes: -5,
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: 'cf1',
+          minUpvotes: 1005,
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not update feed if minViews is invalid', async () => {
+    loggedUser = '1';
+    isPlus = true;
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: 'cf1',
+          minViews: -5,
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          feedId: 'cf1',
+          minViews: 1005,
         },
       },
       'GRAPHQL_VALIDATION_FAILED',
@@ -4018,13 +4425,15 @@ describe('query customFeed', () => {
     loggedUser = '1';
 
     nock('http://localhost:6000')
-      .post('/popular', {
+      .post('/feed.json', {
         user_id: '1',
         page_size: 10,
         offset: 0,
         total_pages: 1,
         fresh_page_size: '4',
         allowed_tags: ['webdev', 'html', 'data'],
+        feed_config_name: FeedConfigName.CustomFeedV1,
+        disable_engagement_filter: false,
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],

@@ -1,6 +1,7 @@
 import { ApolloError } from 'apollo-server-errors';
 import { QueryFailedError } from 'typeorm';
 import { submissionLimit } from './config';
+import { BookmarkListCountLimit, maxBookmarksPerMutation } from './types';
 
 export enum UserFailErrorKeys {
   GenericError = 'GENERIC_ERROR',
@@ -35,6 +36,8 @@ export enum SubmissionFailErrorKeys {
   FeedNameRequired = 'FEED_NAME_REQUIRED',
   FeedNameInvalid = 'FEED_NAME_INVALID',
   FeedNameLength = 'FEED_NAME_LENGTH',
+  FeedIconInvalid = 'FEED_ICON_INVALID',
+  FeedThresholdInvalid = 'FEED_THRESHOLD_INVALID',
 }
 
 export const SubmissionFailErrorMessage: Record<
@@ -72,6 +75,8 @@ export const SubmissionFailErrorMessage: Record<
   FEED_NAME_REQUIRED: 'Feed name is required',
   FEED_NAME_INVALID: 'Feed name should not contain special characters',
   FEED_NAME_LENGTH: 'Feed name is too long',
+  FEED_ICON_INVALID: 'Feed icon is invalid',
+  FEED_THRESHOLD_INVALID: 'Feed threshold should be between 0 and 1000',
 };
 
 export enum SourceRequestErrorKeys {
@@ -86,6 +91,23 @@ export const SourceRequestErrorMessage: Record<SourceRequestErrorKeys, string> =
     [SourceRequestErrorKeys.SquadIneligible]:
       'Squad has not been approved yet of becoming public',
   };
+
+export enum BookmarkFailErrorKeys {
+  UserNotPlus = 'USER_NOT_PLUS',
+  FolderFreeLimitReached = 'FOLDER_FREE_LIMIT_REACHED',
+  FolderPlusLimitReached = 'FOLDER_PLUS_LIMIT_REACHED',
+  ExceedsMutationLimit = 'EXCEEDS_MUTATION_LIMIT',
+  InvalidIconOrName = 'INVALID_ICON_OR_NAME',
+}
+
+export const BookmarkErrorMessage: Record<BookmarkFailErrorKeys, string> = {
+  [BookmarkFailErrorKeys.UserNotPlus]:
+    'You need to be a Plus member to use this feature',
+  [BookmarkFailErrorKeys.FolderFreeLimitReached]: `You have reached the maximum list count (${BookmarkListCountLimit.Free}) for free users`,
+  [BookmarkFailErrorKeys.FolderPlusLimitReached]: `You have reached the maximum list count (${BookmarkListCountLimit.Plus})`,
+  [BookmarkFailErrorKeys.ExceedsMutationLimit]: `Exceeded the maximum bookmarks per mutation (${maxBookmarksPerMutation})`,
+  [BookmarkFailErrorKeys.InvalidIconOrName]: 'Invalid icon or name',
+};
 
 export class NotFoundError extends ApolloError {
   constructor(message: string) {
