@@ -32,25 +32,6 @@ export const downloadJsonFile = async <T>({
   return JSON.parse(result);
 };
 
-interface UserActiveState {
-  current_state: string;
-  previous_state: string;
-  primary_user_id: string;
-}
-
-const bigquery = new BigQuery();
-
-export const queryFromBq = async (
-  query: string,
-): Promise<UserActiveState[]> => {
-  const options: Query = { query };
-
-  const [job] = await bigquery.createQueryJob(options);
-  const [rows] = await job.getQueryResults();
-
-  return rows;
-};
-
 export const userActiveStateQuery = `
   with d as (
     select uss.primary_user_id,
@@ -101,6 +82,25 @@ interface GetUsersActiveState {
   downgradeUsers: string[];
   reactivateUsers: string[];
 }
+
+interface UserActiveState {
+  current_state: string;
+  previous_state: string;
+  primary_user_id: string;
+}
+
+const bigquery = new BigQuery();
+
+export const queryFromBq = async (
+  query: string,
+): Promise<UserActiveState[]> => {
+  const options: Query = { query };
+
+  const [job] = await bigquery.createQueryJob(options);
+  const [rows] = await job.getQueryResults();
+
+  return rows;
+};
 
 export const getUsersActiveState = async (): Promise<GetUsersActiveState> => {
   const usersFromBq = await queryFromBq(userActiveStateQuery);
