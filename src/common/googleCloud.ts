@@ -2,6 +2,7 @@ import { Storage, DownloadOptions } from '@google-cloud/storage';
 import { PropsParameters } from '../types';
 import path from 'path';
 import { BigQuery } from '@google-cloud/bigquery';
+import { Query } from '@google-cloud/bigquery/build/src/bigquery';
 
 export const downloadFile = async ({
   url,
@@ -31,15 +32,9 @@ export const downloadJsonFile = async <T>({
   return JSON.parse(result);
 };
 
-enum ActiveState {
-  SixWeeksAgo = 'six_weeks_ago',
-  TwelveWeeksAgo = 'twelve_weeks_ago',
-  Active = 'active',
-}
-
 interface UserActiveState {
-  current_state: ActiveState;
-  previous_state: ActiveState;
+  current_state: string;
+  previous_state: string;
   primary_user_id: string;
 }
 
@@ -48,22 +43,10 @@ const bigquery = new BigQuery();
 export const queryFromBq = async (
   query: string,
 ): Promise<UserActiveState[]> => {
-  // Queries the U.S. given names dataset for the state of Texas.
+  const options: Query = { query };
 
-  // For all options, see https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query
-  // Location must match that of the dataset(s) referenced in the query.
-  const options = { query, location: 'US' };
-
-  // Run the query as a job
   const [job] = await bigquery.createQueryJob(options);
-  console.log(`Job ${job.id} started.`);
-
-  // Wait for the query to finish
   const [rows] = await job.getQueryResults();
-
-  // Print the results
-  console.log('Rows:');
-  rows.forEach((row) => console.log(row));
 
   return rows;
 };
@@ -128,21 +111,22 @@ export const getUsersActiveState = async (): Promise<GetUsersActiveState> => {
   // sort users from bq into active, inactive, downgrade, and reactivate
   for (const user of usersFromBq) {
     if (
-      user.previous_state === ActiveState.Active &&
-      user.current_state === ActiveState.SixWeeksAgo
+      user.current_state.includes('active_7w_12w') &&
+      user.previous_state.includes('active_last_6w')
     ) {
       downgradeUsers.push(user.primary_user_id);
     } else if (
-      user.previous_state === ActiveState.SixWeeksAgo &&
-      user.current_state === ActiveState.TwelveWeeksAgo
-    ) {
-      inactiveUsers.push(user.primary_user_id);
-    } else if (
-      user.current_state === ActiveState.Active ||
-      (user.previous_state === ActiveState.TwelveWeeksAgo &&
-        user.current_state === ActiveState.SixWeeksAgo)
+      user.current_state.includes('active_last_6w') &&
+      !user.previous_state.includes('active_last_6w')
     ) {
       reactivateUsers.push(user.primary_user_id);
+    } else if (
+      (user.current_state.includes('active_12w+') &&
+        !user.previous_state.includes('active_12w+')) ||
+      (user.current_state.includes('never_active') &&
+        !user.previous_state.includes('never_active'))
+    ) {
+      inactiveUsers.push(user.primary_user_id);
     }
   }
 

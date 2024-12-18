@@ -20,7 +20,7 @@ const cron: Cron = {
     const { reactivateUsers, inactiveUsers, downgradeUsers } =
       await getUsersActiveState();
 
-    // update users in db: reactivated
+    // reactivated users: add to CIO
     await blockingBatchRunner({
       data: reactivateUsers,
       runner: async (current) => {
@@ -95,9 +95,15 @@ const cron: Cron = {
               cio.request.post('/users', { batch: data }),
             );
 
-            await con
-              .getRepository(User)
-              .update({ id: In(ids) }, { cioRegistered: false });
+            await con.getRepository(User).update(
+              { id: In(ids) },
+              {
+                cioRegistered: false,
+                acceptedMarketing: false,
+                followingEmail: false,
+                notificationEmail: false,
+              },
+            );
 
             await setTimeout(20);
           },
