@@ -136,10 +136,6 @@ export const typeDefs = /* GraphQL */ `
     """
     userBlocked(
       """
-      Id of user
-      """
-      userId: ID!
-      """
       Entity to list (user, source..)
       """
       entity: ContentPreferenceType!
@@ -364,7 +360,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     userBlocked: async (
       _,
       args: {
-        userId: string;
         entity: ContentPreferenceType;
         feedId?: string;
       } & ConnectionArguments,
@@ -395,7 +390,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         (builder) => {
           builder.queryBuilder = builder.queryBuilder
             .where(`${builder.alias}."userId" = :userId`, {
-              userId: args.userId,
+              userId: ctx.userId,
             })
             .andWhere(`${builder.alias}."type" = :type`, {
               type: args.entity,

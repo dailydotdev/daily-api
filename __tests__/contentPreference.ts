@@ -79,8 +79,8 @@ beforeEach(async () => {
 afterAll(() => disposeGraphQLTesting(state));
 
 describe('query userBlocked', () => {
-  const QUERY = `query UserBlocked($id: ID!, $entity: ContentPreferenceType!) {
-    userBlocked(userId: $id, entity: $entity) {
+  const QUERY = `query UserBlocked($entity: ContentPreferenceType!) {
+    userBlocked(entity: $entity) {
       edges {
         node {
           referenceId
@@ -138,7 +138,6 @@ describe('query userBlocked', () => {
       {
         query: QUERY,
         variables: {
-          id: '1-uwb',
           entity: ContentPreferenceType.Word,
         },
       },
@@ -150,7 +149,6 @@ describe('query userBlocked', () => {
     loggedUser = '1-uwb';
     const res = await client.query(QUERY, {
       variables: {
-        id: '1-uwb',
         entity: ContentPreferenceType.Word,
       },
     });
