@@ -110,6 +110,7 @@ import { logger } from '../logger';
 import { Source } from '@dailydotdev/schema';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { remoteConfig } from '../remoteConfig';
+import { ensurePostRateLimit } from '../common/rateLimit';
 
 export interface GQLSourcePostModeration {
   id: string;
@@ -1027,10 +1028,7 @@ export const typeDefs = /* GraphQL */ `
       Content of the post
       """
       content: String
-    ): Post!
-      @auth
-      @rateLimit(limit: 10, duration: 3600)
-      @highRateLimit(limit: 1, duration: 600)
+    ): Post! @auth @rateLimit(limit: 1, duration: 60)
 
     """
     To allow user to edit posts
@@ -1173,10 +1171,7 @@ export const typeDefs = /* GraphQL */ `
       Commentary for the share
       """
       commentary: String
-    ): EmptyResponse
-      @auth
-      @rateLimit(limit: 10, duration: 3600)
-      @highRateLimit(limit: 1, duration: 600)
+    ): EmptyResponse @auth @rateLimit(limit: 1, duration: 60)
 
     """
     Share post to source
@@ -1194,10 +1189,7 @@ export const typeDefs = /* GraphQL */ `
       Source to share the post to
       """
       sourceId: ID!
-    ): Post
-      @auth
-      @rateLimit(limit: 10, duration: 3600)
-      @highRateLimit(limit: 1, duration: 600)
+    ): Post @auth @rateLimit(limit: 1, duration: 60)
 
     """
     Update share type post
@@ -2077,9 +2069,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('Title can not be an empty string!');
       }
 
+      await Promise.all([
+        ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
+        ensurePostRateLimit(ctx.con, ctx.userId),
+      ]);
       await con.transaction(async (manager) => {
-        await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
-
         const mentions = await getMentions(manager, content, userId, sourceId);
         const contentHtml = markdown.render(content, { mentions });
         const params: CreatePost = {
@@ -2274,8 +2268,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { sourceId, commentary, url, title, image }: SubmitExternalLinkArgs,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
+      await Promise.all([
+        ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
+        ensurePostRateLimit(ctx.con, ctx.userId),
+      ]);
       await ctx.con.transaction(async (manager) => {
-        await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
         const cleanUrl = standardizeURL(url);
         if (!isValidHttpUrl(cleanUrl)) {
           throw new ValidationError('URL is not valid');
@@ -2327,8 +2324,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLPost> => {
-      await ctx.con.getRepository(Post).findOneByOrFail({ id });
-      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
+      await Promise.all([
+        ctx.con.getRepository(Post).findOneByOrFail({ id }),
+        ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
+        ensurePostRateLimit(ctx.con, ctx.userId),
+      ]);
 
       const newPost = await createSharePost({
         con: ctx.con,

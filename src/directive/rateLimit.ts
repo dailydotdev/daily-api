@@ -9,12 +9,13 @@ import {
   IRateLimiterRedisOptions,
   RateLimiterRedis,
 } from 'rate-limiter-flexible';
-import { GraphQLError, GraphQLSchema } from 'graphql';
+import { GraphQLSchema } from 'graphql';
 import { singleRedisClient } from '../redis';
 import { Context } from '../Context';
 import { logger } from '../logger';
 import { WATERCOOLER_ID } from '../common';
 import { counters } from '../telemetry';
+import { RateLimitError } from '../common/rateLimit';
 
 export const highRateLimitedSquads = [WATERCOOLER_ID];
 
@@ -63,26 +64,6 @@ const keyGenerator: RateLimitKeyGenerator<Context> = (
     }
   }
 };
-
-class RateLimitError extends GraphQLError {
-  extensions = {};
-  message = '';
-
-  constructor({
-    msBeforeNextReset = 0,
-    message,
-  }: {
-    msBeforeNextReset?: number;
-    message?: string;
-  }) {
-    const seconds = (msBeforeNextReset / 1000).toFixed(0);
-    message = message ?? `Too many requests, please try again in ${seconds}s`;
-    super(message);
-
-    this.message = message;
-    this.extensions = { code: 'RATE_LIMITED' };
-  }
-}
 
 export const onLimit: RateLimitOnLimit<Context> = (
   resource,
