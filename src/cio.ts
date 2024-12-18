@@ -96,7 +96,7 @@ export const generateIdentifyObject = (
 ) => {
   const { id } = user;
   const changed = JSON.parse(JSON.stringify(user));
-  const identify = generateIdentifyAttributes(con, changed);
+  const identify = getIdentifyAttributes(con, changed);
 
   return {
     action: 'identify',
@@ -106,7 +106,7 @@ export const generateIdentifyObject = (
   };
 };
 
-export const generateIdentifyAttributes = async (
+export const getIdentifyAttributes = async (
   con: ConnectionManager,
   user: ChangeObject<User>,
 ) => {
@@ -155,7 +155,7 @@ export async function identifyUser({
   cio: TrackClient;
   user: ChangeObject<User>;
 }): Promise<void> {
-  const data = generateIdentifyAttributes(con, user);
+  const data = getIdentifyAttributes(con, user);
 
   try {
     await cio.identify(user.id, data);
