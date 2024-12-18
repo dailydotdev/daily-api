@@ -6,7 +6,7 @@ import {
 } from '../entity';
 import { In } from 'typeorm';
 import { BigQuery } from '@google-cloud/bigquery';
-import { blockingBatchRunner } from '../common/async';
+import { blockingBatchRunner, callWithRetryDefault } from '../common/async';
 import { setTimeout } from 'node:timers/promises';
 import { cio, generateIdentifyObject } from '../cio';
 import { updateFlagsStatement } from '../common';
@@ -71,7 +71,9 @@ const cron: Cron = {
               generateIdentifyObject(con, JSON.parse(JSON.stringify(user))),
             );
 
-            await cio.request.post('/users', { batch: data });
+            await callWithRetryDefault(() =>
+              cio.request.post('/users', { batch: data }),
+            );
 
             await con
               .getRepository(User)
@@ -115,7 +117,9 @@ const cron: Cron = {
               identifiers: { id },
             }));
 
-            await cio.request.post('/users', data);
+            await callWithRetryDefault(() =>
+              cio.request.post('/users', { batch: data }),
+            );
 
             await con
               .getRepository(User)
