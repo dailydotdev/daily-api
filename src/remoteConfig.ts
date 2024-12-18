@@ -12,6 +12,8 @@ type RemoteConfigValue = {
   origins: string[];
   clickbaitTitleProbabilityThreshold: number;
   plusCustomFeed: boolean;
+  rateLimitReputationThreshold: number;
+  postRateLimit: number;
 };
 
 class RemoteConfig {
@@ -40,7 +42,9 @@ class RemoteConfig {
 
   get vars(): Partial<RemoteConfigValue> {
     if (!process.env.GROWTHBOOK_API_CONFIG_CLIENT_KEY) {
-      return {};
+      return {
+        rateLimitReputationThreshold: 10,
+      };
     }
 
     if (!this.gb) {

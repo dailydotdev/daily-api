@@ -52,6 +52,7 @@ import {
 import { reportComment } from '../common/reporting';
 import { ReportReason } from '../entity/common';
 import { toGQLEnum } from '../common/utils';
+import { ensureCommentRateLimit } from '../directive/rateLimit';
 
 export interface GQLComment {
   id: string;
@@ -363,7 +364,7 @@ export const typeDefs = /* GraphQL */ `
       Content of the comment
       """
       content: String!
-    ): Comment @auth @rateLimit(limit: 20, duration: 3600)
+    ): Comment @auth @rateLimit(limit: 100, duration: 3600)
 
     """
     Comment on a comment
@@ -377,7 +378,7 @@ export const typeDefs = /* GraphQL */ `
       Content of the comment
       """
       content: String!
-    ): Comment @auth @rateLimit(limit: 20, duration: 3600)
+    ): Comment @auth @rateLimit(limit: 100, duration: 3600)
 
     """
     Edit comment
@@ -795,6 +796,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<GQLComment> => {
       validateComment(ctx, content);
+      await ensureCommentRateLimit(ctx.con, ctx.userId);
 
       try {
         const post = await ctx.con
@@ -843,6 +845,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<GQLComment> => {
       validateComment(ctx, content);
+      await ensureCommentRateLimit(ctx.con, ctx.userId);
 
       try {
         const comment = await ctx.con.transaction(async (entityManager) => {
