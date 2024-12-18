@@ -155,7 +155,7 @@ export async function identifyUser({
   cio: TrackClient;
   user: ChangeObject<User>;
 }): Promise<void> {
-  const data = getIdentifyAttributes(con, user);
+  const data = await getIdentifyAttributes(con, user);
 
   try {
     await cio.identify(user.id, data);
