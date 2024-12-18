@@ -11,7 +11,7 @@ export enum FeedOrderBy {
 export type FeedFlags = Partial<{
   name: string;
   orderBy: FeedOrderBy;
-  maxDayRange: number;
+  minDayRange: number;
   minUpvotes: number;
   minViews: number;
   disableEngagementFilter: boolean;
@@ -22,7 +22,7 @@ export type FeedFlagsPublic = Pick<
   FeedFlags,
   | 'name'
   | 'orderBy'
-  | 'maxDayRange'
+  | 'minDayRange'
   | 'minUpvotes'
   | 'minViews'
   | 'disableEngagementFilter'

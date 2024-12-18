@@ -233,7 +233,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Minimum day range
     """
-    maxDayRange: Int
+    minDayRange: Int
 
     """
     Minimum upvotes
@@ -930,7 +930,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Minimum day range
       """
-      maxDayRange: Int
+      minDayRange: Int
 
       """
       Minimum upvotes
@@ -975,7 +975,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Minimum day range
       """
-      maxDayRange: Int
+      minDayRange: Int
 
       """
       Minimum upvotes
@@ -1498,9 +1498,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ctx.userId
       ) {
         const feedGenerator = new FeedGenerator(
-          popularFeedClient,
+          feedClient,
           new FeedPreferencesConfigGenerator(
-            {},
+            {
+              feed_config_name: FeedConfigName.CustomFeedV1,
+            },
             {
               includeAllowedTags: true,
               includePostTypes: true,
@@ -1511,7 +1513,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               feedId: feedId,
             },
           ),
-          'popular',
         );
 
         return feedResolverCursor(

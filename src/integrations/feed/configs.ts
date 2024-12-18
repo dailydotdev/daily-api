@@ -80,7 +80,7 @@ const addFiltersToConfig = ({
   filters: AnonymousFeedFilters;
   opts: Options;
 }): FeedConfigGeneratorResult['config'] => {
-  const baseConfig = { ...config };
+  const baseConfig = { ...config, ...filters.flags };
 
   if (filters.includeTags?.length && opts.includeAllowedTags) {
     baseConfig.allowed_tags = filters.includeTags;
