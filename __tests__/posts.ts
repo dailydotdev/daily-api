@@ -72,10 +72,7 @@ import {
 import { checkHasMention, markdown } from '../src/common/markdown';
 import { generateStorageKey, StorageTopic } from '../src/config';
 import { UserVote, UserVoteEntity } from '../src/types';
-import {
-  highRateLimiterName,
-  rateLimiterName,
-} from '../src/directive/rateLimit';
+import { rateLimiterName } from '../src/directive/rateLimit';
 import { badUsersFixture } from './fixture/user';
 import { PostCodeSnippet } from '../src/entity/posts/PostCodeSnippet';
 import {
@@ -182,7 +179,6 @@ beforeEach(async () => {
     },
   ]);
   await deleteKeysByPattern(`${rateLimiterName}:*`);
-  await deleteKeysByPattern(`${highRateLimiterName}:*`);
 });
 
 const saveSquadFixtures = async () => {
@@ -2271,17 +2267,17 @@ describe('mutation sharePost', () => {
       expect(await getRedisObject(redisKey)).toEqual('1');
     });
 
-    it('should rate limit creating posts to 10 per hour', async () => {
+    it('should rate limit creating posts to 1 per minute', async () => {
       loggedUser = '1';
 
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 1; i++) {
         const res = await client.mutate(MUTATION, {
           variables: variables,
         });
 
         expect(res.errors).toBeFalsy();
       }
-      expect(await getRedisObject(redisKey)).toEqual('10');
+      expect(await getRedisObject(redisKey)).toEqual('1');
 
       await testMutationErrorCode(
         client,
@@ -2291,12 +2287,11 @@ describe('mutation sharePost', () => {
       );
 
       // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
-      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(3600);
-      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(3590);
+      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(60);
+      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(50);
     });
 
     describe('high rate squads', () => {
-      const highRateRedisKey = `${highRateLimiterName}:1:createPost`;
       beforeEach(async () => {
         await con.getRepository(SquadSource).save({
           id: WATERCOOLER_ID,
@@ -2321,7 +2316,6 @@ describe('mutation sharePost', () => {
 
         expect(res.errors).toBeFalsy();
         expect(await getRedisObject(redisKey)).toEqual('1');
-        expect(await getRedisObject(highRateRedisKey)).toEqual('1');
 
         await testMutationErrorCode(
           client,
@@ -2866,6 +2860,8 @@ describe('mutation submitExternalLink', () => {
       .findOneBy({ sharedPostId: articlePost?.id, title: 'Share 1' });
     expect(sharedPost?.visible).toEqual(false);
 
+    await deleteKeysByPattern(`${rateLimiterName}:*`);
+
     const res2 = await client.mutate(MUTATION, {
       variables: {
         ...variables,
@@ -2893,17 +2889,17 @@ describe('mutation submitExternalLink', () => {
       expect(await getRedisObject(redisKey)).toEqual('1');
     });
 
-    it('should rate limit creating posts to 10 per hour', async () => {
+    it('should rate limit creating posts to 1 per minute', async () => {
       loggedUser = '1';
 
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 1; i++) {
         const res = await client.mutate(MUTATION, {
           variables: { ...variables, url: 'http://p6.com' },
         });
 
         expect(res.errors).toBeFalsy();
       }
-      expect(await getRedisObject(redisKey)).toEqual('10');
+      expect(await getRedisObject(redisKey)).toEqual('1');
 
       await testMutationErrorCode(
         client,
@@ -2913,12 +2909,11 @@ describe('mutation submitExternalLink', () => {
       );
 
       // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
-      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(3600);
-      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(3590);
+      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(60);
+      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(50);
     });
 
     describe('high rate squads', () => {
-      const highRateRedisKey = `${highRateLimiterName}:1:createPost`;
       beforeEach(async () => {
         await con.getRepository(SquadSource).save({
           id: WATERCOOLER_ID,
@@ -2947,7 +2942,6 @@ describe('mutation submitExternalLink', () => {
 
         expect(res.errors).toBeFalsy();
         expect(await getRedisObject(redisKey)).toEqual('1');
-        expect(await getRedisObject(highRateRedisKey)).toEqual('1');
 
         await testMutationErrorCode(
           client,
@@ -3512,17 +3506,17 @@ describe('mutation createFreeformPost', () => {
       expect(await getRedisObject(redisKey)).toEqual('1');
     });
 
-    it('should rate limit creating posts to 10 per hour', async () => {
+    it('should rate limit creating posts to 1 per minute', async () => {
       loggedUser = '1';
 
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 1; i++) {
         const res = await client.mutate(MUTATION, {
           variables: params,
         });
 
         expect(res.errors).toBeFalsy();
       }
-      expect(await getRedisObject(redisKey)).toEqual('10');
+      expect(await getRedisObject(redisKey)).toEqual('1');
 
       await testMutationErrorCode(
         client,
@@ -3532,12 +3526,11 @@ describe('mutation createFreeformPost', () => {
       );
 
       // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
-      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(3600);
-      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(3590);
+      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(60);
+      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(50);
     });
 
     describe('high rate squads', () => {
-      const highRateRedisKey = `${highRateLimiterName}:1:createPost`;
       beforeEach(async () => {
         await con.getRepository(SquadSource).save({
           id: WATERCOOLER_ID,
@@ -3562,7 +3555,6 @@ describe('mutation createFreeformPost', () => {
 
         expect(res.errors).toBeFalsy();
         expect(await getRedisObject(redisKey)).toEqual('1');
-        expect(await getRedisObject(highRateRedisKey)).toEqual('1');
 
         await testMutationErrorCode(
           client,
