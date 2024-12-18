@@ -40,7 +40,7 @@ export const feedThresholdMax = 1000;
 export const validateFeedPayload = ({
   name,
   icon,
-  maxDayRange,
+  minDayRange,
   minUpvotes,
   minViews,
 }: Feed['flags']): never | undefined => {
@@ -61,7 +61,7 @@ export const validateFeedPayload = ({
   }
 
   if (
-    [maxDayRange, minUpvotes, minViews].some((item) => {
+    [minDayRange, minUpvotes, minViews].some((item) => {
       if (!item) {
         return false;
       }

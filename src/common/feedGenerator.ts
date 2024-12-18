@@ -1,6 +1,8 @@
 import {
   AdvancedSettings,
+  Feed,
   FeedAdvancedSettings,
+  FeedType,
   SourceMember,
   SourceType,
   UserPost,
@@ -28,7 +30,7 @@ import graphorm from '../graphorm';
 import { mapArrayToOjbect } from './object';
 import { runInSpan } from '../telemetry';
 import { whereVordrFilter } from './vordr';
-import { baseFeedConfig } from '../integrations/feed';
+import { baseFeedConfig, type FeedFlagsFilters } from '../integrations/feed';
 import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
 import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
 import {
@@ -102,6 +104,7 @@ type RawFiltersData = {
   users: Pick<ContentPreferenceUser, 'referenceId'>[] | null;
   sources: Pick<ContentPreferenceSource, 'sourceId' | 'status'>[] | null;
   memberships: { sourceId: SourceMember['sourceId']; hide: boolean }[] | null;
+  feeds: Pick<Feed, 'flags' | 'type'>[] | null;
 };
 
 const getRawFiltersData = async (
@@ -109,6 +112,8 @@ const getRawFiltersData = async (
   feedId: string,
   userId: string,
 ): Promise<RawFiltersData | undefined> => {
+  const isMainFeed = feedId === userId;
+
   const selects = [
     rawFilterSelect(con, 'settings', (qb) =>
       qb
@@ -162,6 +167,19 @@ const getRawFiltersData = async (
         .where('"userId" = $2'),
     ),
   ];
+
+  if (!isMainFeed) {
+    selects.push(
+      rawFilterSelect(con, 'feeds', (qb) =>
+        qb
+          .select(['flags', 'type'])
+          .from(Feed, 't')
+          .where('id = $1')
+          .andWhere('"userId" = $2'),
+      ),
+    );
+  }
+
   const query =
     'select ' + selects.map((select) => `(${select.getQuery()})`).join(', ');
   const res = await con.query(query, [feedId, userId]);
@@ -307,6 +325,47 @@ const sourcesToFilters = ({
   };
 };
 
+const feedFlagsToFilters = ({
+  feeds,
+}: RawFiltersData): {
+  flags?: FeedFlagsFilters;
+} => {
+  const feed = feeds?.[0];
+  const flagFilters: FeedFlagsFilters = {};
+
+  if (!feed) {
+    return {};
+  }
+
+  // we set flags only for custom feeds
+  if (feed.type !== FeedType.Custom) {
+    return {};
+  }
+
+  if (feed.flags.orderBy) {
+    flagFilters.order_by = feed.flags.orderBy;
+  }
+
+  flagFilters.disable_engagement_filter = !!feed.flags.disableEngagementFilter;
+
+  if (feed.flags.minDayRange) {
+    flagFilters.min_day_range = feed.flags.minDayRange;
+  }
+
+  if (feed.flags.minUpvotes || feed.flags.minViews) {
+    flagFilters.thresholds = {
+      min_thresholds: {
+        upvotes: feed.flags.minUpvotes,
+        views: feed.flags.minViews,
+      },
+    };
+  }
+
+  return {
+    flags: flagFilters,
+  };
+};
+
 export const feedToFilters = async (
   con: DataSource | EntityManager,
   feedId?: string,
@@ -327,6 +386,7 @@ export const feedToFilters = async (
     ...sourcesToFilters(rawData),
     ...wordsToFilters(rawData),
     ...usersToFilters(rawData),
+    ...feedFlagsToFilters(rawData),
   };
 };
 
@@ -603,6 +663,7 @@ export interface AnonymousFeedFilters {
   excludeSourceTypes?: string[];
   followingUsers?: string[];
   followingSources?: string[];
+  flags?: FeedFlagsFilters;
 }
 
 export const anonymousFeedBuilder = (
