@@ -126,12 +126,20 @@ export const getIdentifyAttributes = async (
     }),
   ]);
 
+  const getDate = (value: number | string | Date) => {
+    if (typeof value === 'number') {
+      return debeziumTimeToDate(dup.createdAt);
+    }
+
+    return new Date(value);
+  };
+
   return {
     ...camelCaseToSnakeCase(dup),
     first_name: getFirstName(dup.name),
-    created_at: dateToCioTimestamp(debeziumTimeToDate(dup.createdAt)),
+    created_at: dateToCioTimestamp(getDate(dup.createdAt)),
     updated_at: dup.updatedAt
-      ? dateToCioTimestamp(debeziumTimeToDate(dup.updatedAt))
+      ? dateToCioTimestamp(getDate(dup.updatedAt))
       : undefined,
     referral_link: genericInviteURL,
     [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Marketing}`]:

@@ -20,8 +20,8 @@ import { cioV2, generateIdentifyObject } from '../cio';
 import { setTimeout } from 'node:timers/promises';
 import { updateFlagsStatement } from './utils';
 import { GetUsersActiveState } from './googleCloud';
-import { ChangeObject } from '../types';
 import { logger } from '../logger';
+import { toChangeObject } from './typedPubsub';
 
 export enum CioUnsubscribeTopic {
   Marketing = '4',
@@ -214,10 +214,7 @@ export const syncSubscriptionsWithActiveState = async ({
 
           const data = await Promise.all(
             users.map((user) =>
-              generateIdentifyObject(
-                con,
-                structuredClone(user) as unknown as ChangeObject<User>,
-              ),
+              generateIdentifyObject(con, toChangeObject(user)),
             ),
           );
 

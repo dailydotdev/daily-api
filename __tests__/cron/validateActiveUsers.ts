@@ -12,11 +12,13 @@ import {
 } from '../../src/entity';
 import { badUsersFixture, plusUsersFixture, usersFixture } from '../fixture';
 import { updateFlagsStatement } from '../../src/common';
+import { ioRedisPool } from '../../src/redis';
 
 let con: DataSource;
 
 beforeEach(async () => {
   con = await createOrGetConnection();
+  await ioRedisPool.execute((client) => client.flushall());
   jest.clearAllMocks();
   jest.resetModules();
   await saveFixtures(con, User, [
@@ -230,7 +232,7 @@ describe('users for reactivation', () => {
           cio_registered: false,
           timezone: 'Etc/UTC',
           week_start: 1,
-          created_at: NaN,
+          created_at: 1656427727,
           updated_at: undefined,
           referral_id: null,
           referral_origin: null,
