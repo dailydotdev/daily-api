@@ -131,6 +131,9 @@ export class User {
   @Column({ default: false })
   devcardEligible: boolean;
 
+  @Column({ default: true })
+  cioRegistered: boolean;
+
   @Column({ type: 'text', nullable: true, default: DEFAULT_TIMEZONE })
   timezone?: string;
 

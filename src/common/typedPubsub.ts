@@ -119,3 +119,6 @@ export async function triggerTypedEvent<T extends keyof PubSubSchema>(
 ): Promise<void> {
   await publishEvent(log, pubsub.topic(topic), data);
 }
+
+export const toChangeObject = <T>(entity: T): ChangeObject<T> =>
+  JSON.parse(Buffer.from(JSON.stringify(entity)).toString('utf-8').trim());
