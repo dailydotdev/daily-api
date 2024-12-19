@@ -9,7 +9,7 @@ import { getRedisObject, setRedisObject } from '../redis';
 import { DataSource } from 'typeorm';
 import { addDays, subDays } from 'date-fns';
 
-const runCron = async (con: DataSource, runDate: Date) => {
+const runSync = async (con: DataSource, runDate: Date) => {
   const users = await getUsersActiveState(runDate);
 
   await syncSubscriptionsWithActiveState({
@@ -26,7 +26,7 @@ const cron: Cron = {
     const processingDate = subDays(new Date(), 1);
 
     if (!lastSuccessfulDate) {
-      return runCron(con, processingDate);
+      return runSync(con, processingDate);
     }
 
     const lastRunDate = new Date(lastSuccessfulDate);
@@ -37,7 +37,7 @@ const cron: Cron = {
     }
 
     for (let i = 1; i <= difference; i++) {
-      await runCron(con, addDays(lastRunDate, i));
+      await runSync(con, addDays(lastRunDate, i));
     }
   },
 };
