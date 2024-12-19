@@ -7,7 +7,7 @@ import {
 import { getUsersActiveState } from '../common/googleCloud';
 import { getRedisObject, setRedisObject } from '../redis';
 import { DataSource } from 'typeorm';
-import { addDays } from 'date-fns';
+import { addDays, subDays } from 'date-fns';
 
 const runCron = async (con: DataSource, runDate: Date) => {
   const users = await getUsersActiveState(runDate);
@@ -23,14 +23,14 @@ const cron: Cron = {
   name: 'validate-active-users',
   handler: async (con) => {
     const lastSuccessfulDate = await getRedisObject(SUCCESSFUL_CIO_SYNC_DATE);
+    const processingDate = subDays(new Date(), 1);
 
     if (!lastSuccessfulDate) {
-      return runCron(con, new Date());
+      return runCron(con, processingDate);
     }
 
     const lastRunDate = new Date(lastSuccessfulDate);
-    const runDate = new Date();
-    const difference = getAbsoluteDifferenceInDays(lastRunDate, runDate);
+    const difference = getAbsoluteDifferenceInDays(lastRunDate, processingDate);
 
     if (difference === 0) {
       return;
