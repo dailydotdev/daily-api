@@ -20,6 +20,8 @@ import { cioV2, generateIdentifyObject } from '../cio';
 import { setTimeout } from 'node:timers/promises';
 import { updateFlagsStatement } from './utils';
 import { GetUsersActiveState } from './googleCloud';
+import { ChangeObject } from '../types';
+import { logger } from '../logger';
 
 export enum CioUnsubscribeTopic {
   Marketing = '4',
@@ -212,17 +214,24 @@ export const syncSubscriptionsWithActiveState = async ({
 
           const data = await Promise.all(
             users.map((user) =>
-              generateIdentifyObject(con, JSON.parse(JSON.stringify(user))),
+              generateIdentifyObject(
+                con,
+                structuredClone(user) as unknown as ChangeObject<User>,
+              ),
             ),
           );
 
-          await callWithRetryDefault(() =>
-            cioV2.request.post('/users', { batch: data }),
-          );
-
-          await con
-            .getRepository(User)
-            .update({ id: In(ids) }, { cioRegistered: true });
+          await callWithRetryDefault({
+            callback: () => cioV2.request.post('/users', { batch: data }),
+            onSuccess: async () => {
+              await con
+                .getRepository(User)
+                .update({ id: In(ids) }, { cioRegistered: true });
+            },
+            onFailure: (err) => {
+              logger.info({ err }, 'Failed to add users to CIO');
+            },
+          });
 
           await setTimeout(20); // wait for a bit to avoid rate limiting
         },
@@ -253,19 +262,23 @@ export const syncSubscriptionsWithActiveState = async ({
             identifiers: { id },
           }));
 
-          await callWithRetryDefault(() =>
-            cioV2.request.post('/users', { batch: data }),
-          );
-
-          await con.getRepository(User).update(
-            { id: In(ids) },
-            {
-              cioRegistered: false,
-              acceptedMarketing: false,
-              followingEmail: false,
-              notificationEmail: false,
+          await callWithRetryDefault({
+            callback: () => cioV2.request.post('/users', { batch: data }),
+            onSuccess: async () => {
+              await con.getRepository(User).update(
+                { id: In(ids) },
+                {
+                  cioRegistered: false,
+                  acceptedMarketing: false,
+                  followingEmail: false,
+                  notificationEmail: false,
+                },
+              );
             },
-          );
+            onFailure: (err) => {
+              logger.info({ err }, 'Failed to remove users from CIO');
+            },
+          });
 
           await setTimeout(20); // wait for a bit to avoid rate limiting
         },

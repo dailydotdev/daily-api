@@ -95,8 +95,7 @@ export const generateIdentifyObject = async (
   user: ChangeObject<User>,
 ) => {
   const { id } = user;
-  const changed = JSON.parse(JSON.stringify(user));
-  const identify = await getIdentifyAttributes(con, changed);
+  const identify = await getIdentifyAttributes(con, user);
 
   return {
     action: 'identify',

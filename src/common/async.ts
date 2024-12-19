@@ -3,6 +3,8 @@ import {
   ConsecutiveBreaker,
   ExponentialBackoff,
   handleAll,
+  IFailureEvent,
+  ISuccessEvent,
   retry,
   wrap,
 } from 'cockatiel';
@@ -31,13 +33,31 @@ export const blockingBatchRunner = async <T>({
   }
 };
 
-export const callWithRetryDefault = (callback: () => Promise<unknown>) => {
+interface CallWithRetryDefaultProps {
+  callback: () => Promise<unknown>;
+  onSuccess?: (data: ISuccessEvent) => void;
+  onFailure?: (err: IFailureEvent) => void;
+}
+
+export const callWithRetryDefault = ({
+  callback,
+  onFailure,
+  onSuccess,
+}: CallWithRetryDefaultProps) => {
   // Create a retry policy that'll try whatever function we execute 3
   // times with a randomized exponential backoff.
   const retryPolicy = retry(handleAll, {
     maxAttempts: 3,
     backoff: new ExponentialBackoff(),
   });
+
+  if (onFailure) {
+    retryPolicy.onFailure(onFailure);
+  }
+
+  if (onSuccess) {
+    retryPolicy.onSuccess(onSuccess);
+  }
 
   // Create a circuit breaker that'll stop calling the executed function for 10
   // seconds if it fails 5 times in a row. This can give time for e.g. a database
