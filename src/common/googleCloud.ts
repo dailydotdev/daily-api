@@ -33,7 +33,6 @@ export const downloadJsonFile = async <T>({
   return JSON.parse(result);
 };
 
-// TODO: turn this into a get query function so we can pass the dates to supply the query
 export const userActiveStateQuery = `
   with d as (
     select uss.primary_user_id,
