@@ -510,6 +510,7 @@ const loggedInBoot = async ({
         language: user.language || undefined,
         image: mapCloudinaryUrl(user.image),
         cover: mapCloudinaryUrl(user.cover),
+        defaultFeedId: isPlus ? user.defaultFeedId : null,
       },
       visit,
       alerts: {

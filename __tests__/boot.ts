@@ -63,6 +63,7 @@ import { DEFAULT_TIMEZONE, submitArticleThreshold } from '../src/common';
 import { saveReturnAlerts } from '../src/schema/alerts';
 import { UserVote } from '../src/types';
 import { BootAlerts, excludeProperties } from '../src/routes/boot';
+import { SubscriptionCycles } from '../src/paddle';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -511,6 +512,9 @@ describe('logged in boot', () => {
     });
     await con.getRepository(User).save({
       ...usersFixture[0],
+      subscriptionFlags: {
+        cycle: SubscriptionCycles.Yearly,
+      },
       defaultFeedId: '1',
     });
     mockLoggedIn();
@@ -519,6 +523,24 @@ describe('logged in boot', () => {
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
     expect(res.body.user.defaultFeedId).toEqual('1');
+  });
+
+  it('should not return default feed id if not plus', async () => {
+    await con.getRepository(Feed).save({
+      id: '1',
+      name: 'My Feed',
+      userId: '1',
+    });
+    await con.getRepository(User).save({
+      ...usersFixture[0],
+      defaultFeedId: '1',
+    });
+    mockLoggedIn();
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+    expect(res.body.user.defaultFeedId).toBeNull();
   });
 });
 
