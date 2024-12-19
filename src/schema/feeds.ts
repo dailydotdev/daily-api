@@ -24,7 +24,7 @@ import {
   applyFeedWhere,
   base64,
   configuredFeedBuilder,
-  customFeedsPlustDate,
+  customFeedsPlusDate,
   FeedArgs,
   feedResolver,
   feedToFilters,
@@ -1493,7 +1493,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
       const feedId = feed.id;
 
-      if (feed.createdAt > customFeedsPlustDate && !ctx.isPlus) {
+      if (feed.createdAt > customFeedsPlusDate && !ctx.isPlus) {
         throw new ForbiddenError(
           'Access denied! You need to be authorized to perform this action!',
         );

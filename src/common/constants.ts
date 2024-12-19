@@ -5,4 +5,4 @@ export const ONE_WEEK_IN_SECONDS = ONE_DAY_IN_SECONDS * 7;
 
 export const MAX_FOLLOWERS_LIMIT = 5_000;
 
-export const customFeedsPlustDate = new Date('2024-12-11');
+export const customFeedsPlusDate = new Date('2024-12-11');
