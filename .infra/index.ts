@@ -436,7 +436,7 @@ const [apps] = deployApplicationSuite(
           ],
     },
     debezium: {
-      version: '2.4.2.Final',
+      version: '3.0.5.Final',
       topicName: debeziumTopicName,
       propsPath: './application.properties',
       propsVars: {
