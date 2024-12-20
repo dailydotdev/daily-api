@@ -18,10 +18,9 @@ import {
 import { blockingBatchRunner, callWithRetryDefault } from './async';
 import { cioV2, generateIdentifyObject } from '../cio';
 import { setTimeout } from 'node:timers/promises';
-import { updateFlagsStatement } from './utils';
+import { toChangeObject, updateFlagsStatement } from './utils';
 import { GetUsersActiveState } from './googleCloud';
 import { logger } from '../logger';
-import { toChangeObject } from './typedPubsub';
 
 export enum CioUnsubscribeTopic {
   Marketing = '4',

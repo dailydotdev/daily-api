@@ -7,13 +7,9 @@ import {
   UserPersonalizedDigestType,
   UserStreak,
 } from './entity';
-import {
-  camelCaseToSnakeCase,
-  CioUnsubscribeTopic,
-  debeziumTimeToDate,
-  getFirstName,
-  getShortGenericInviteLink,
-} from './common';
+import { camelCaseToSnakeCase, debeziumTimeToDate } from './common/utils';
+import { CioUnsubscribeTopic, getFirstName } from './common/mailing';
+import { getShortGenericInviteLink } from './common/links';
 import type { UserCompany } from './entity/UserCompany';
 import type { Company } from './entity/Company';
 import { DataSource } from 'typeorm';
