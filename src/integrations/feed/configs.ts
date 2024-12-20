@@ -15,7 +15,9 @@ import { Context } from '../../Context';
 export type Options = {
   includeAllowedTags?: boolean;
   includeBlockedTags?: boolean;
+  includeAllowedSources?: boolean;
   includeBlockedSources?: boolean;
+  includeAllowedUsers?: boolean;
   includeSourceMemberships?: boolean;
   includePostTypes?: boolean;
   includeContentCuration?: boolean;
@@ -115,8 +117,11 @@ const addFiltersToConfig = ({
   if (filters.followingSources?.length && opts.includeFollowedSources) {
     baseConfig.followed_sources = filters.followingSources;
   }
-  if (filters.followingUsers?.length && opts.includeFollowedUsers) {
-    baseConfig.followed_user_ids = filters.followingUsers;
+  if (filters.followingSources?.length && opts.includeAllowedSources) {
+    baseConfig.allowed_sources = filters.followingSources;
+  }
+  if (filters.followingUsers?.length && opts.includeAllowedUsers) {
+    baseConfig.allowed_author_ids = filters.followingUsers;
   }
 
   return baseConfig;

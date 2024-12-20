@@ -1517,6 +1517,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               includeBlockedTags: true,
               includeContentCuration: true,
               includeBlockedWords: true,
+              includeAllowedUsers: true,
+              includeAllowedSources: true,
               feedId: feedId,
             },
           ),
