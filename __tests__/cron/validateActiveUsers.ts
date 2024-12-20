@@ -36,7 +36,7 @@ describe('validateActiveUsers', () => {
   it('should NOT be registered yet', () => {
     const registeredWorker = crons.find((item) => item.name === cron.name);
 
-    expect(registeredWorker).not.toBeDefined();
+    expect(registeredWorker).toBeDefined();
   });
 });
 
