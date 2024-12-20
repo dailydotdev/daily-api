@@ -187,10 +187,16 @@ interface SyncSubscriptionsWithActiveStateProps {
   users: GetUsersActiveState;
 }
 
+interface SyncSubscriptionsWithActiveState {
+  hasAnyFailed: boolean;
+}
+
 export const syncSubscriptionsWithActiveState = async ({
   con,
   users: { inactiveUsers, downgradeUsers, reactivateUsers },
-}: SyncSubscriptionsWithActiveStateProps) => {
+}: SyncSubscriptionsWithActiveStateProps): Promise<SyncSubscriptionsWithActiveState> => {
+  let hasAnyFailed = false;
+
   // user is active again: reactivate to CIO
   await blockingBatchRunner({
     batchLimit: ITEMS_PER_IDENTIFY,
@@ -218,6 +224,7 @@ export const syncSubscriptionsWithActiveState = async ({
             .update({ id: In(ids) }, { cioRegistered: true });
         },
         onFailure: (err) => {
+          hasAnyFailed = true;
           logger.info({ err }, 'Failed to reactivate users to CIO');
         },
       });
@@ -266,6 +273,7 @@ export const syncSubscriptionsWithActiveState = async ({
           ]);
         },
         onFailure: (err) => {
+          hasAnyFailed = true;
           logger.info({ err }, 'Failed to remove users from CIO');
         },
       });
@@ -294,4 +302,6 @@ export const syncSubscriptionsWithActiveState = async ({
       );
     },
   });
+
+  return { hasAnyFailed };
 };
