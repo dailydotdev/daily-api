@@ -192,94 +192,72 @@ export const syncSubscriptionsWithActiveState = async ({
   con,
   users: { inactiveUsers, downgradeUsers, reactivateUsers },
 }: SyncSubscriptionsWithActiveStateProps) => {
+  const validReactivateUsers = await con.getRepository(User).find({
+    where: { id: In(reactivateUsers), cioRegistered: false },
+  });
+
+  // user is active again: reactivate to CIO
   await blockingBatchRunner({
-    data: reactivateUsers,
+    batchLimit: ITEMS_PER_IDENTIFY,
+    data: validReactivateUsers,
     runner: async (batch) => {
-      const validReactivateUsers = await con.getRepository(User).find({
-        select: ['id'],
-        where: { id: In(batch), cioRegistered: false },
-      });
+      const data = await Promise.all(
+        batch.map((batch) =>
+          generateIdentifyObject(con, toChangeObject(batch)),
+        ),
+      );
 
-      if (validReactivateUsers.length === 0) {
-        return true;
-      }
-
-      await blockingBatchRunner({
-        batchLimit: ITEMS_PER_IDENTIFY,
-        data: validReactivateUsers.map(({ id }) => id),
-        runner: async (ids) => {
-          const users = await con
+      await callWithRetryDefault({
+        callback: () => cioV2.request.post('/users', { batch: data }),
+        onSuccess: async () => {
+          const ids = batch.map(({ id }) => id);
+          await con
             .getRepository(User)
-            .find({ where: { id: In(ids) } });
-
-          const data = await Promise.all(
-            users.map((user) =>
-              generateIdentifyObject(con, toChangeObject(user)),
-            ),
-          );
-
-          await callWithRetryDefault({
-            callback: () => cioV2.request.post('/users', { batch: data }),
-            onSuccess: async () => {
-              await con
-                .getRepository(User)
-                .update({ id: In(ids) }, { cioRegistered: true });
-            },
-            onFailure: (err) => {
-              logger.info({ err }, 'Failed to add users to CIO');
-            },
-          });
-
-          await setTimeout(20); // wait for a bit to avoid rate limiting
+            .update({ id: In(ids) }, { cioRegistered: true });
+        },
+        onFailure: (err) => {
+          logger.info({ err }, 'Failed to add users to CIO');
         },
       });
+
+      await setTimeout(20); // wait for a bit to avoid rate limiting
     },
   });
 
+  const validInactiveUsers = await con.getRepository(User).find({
+    select: ['id'],
+    where: { id: In(inactiveUsers), cioRegistered: true },
+  });
   // inactive for 12 weeks: remove from CIO
   await blockingBatchRunner({
-    data: inactiveUsers,
+    batchLimit: ITEMS_PER_DESTROY,
+    data: validInactiveUsers.map(({ id }) => id),
     runner: async (batch) => {
-      const validInactiveUsers = await con.getRepository(User).find({
-        select: ['id'],
-        where: { id: In(batch), cioRegistered: true },
-      });
+      const data = batch.map((id) => ({
+        action: 'destroy',
+        type: 'person',
+        identifiers: { id },
+      }));
 
-      if (validInactiveUsers.length === 0) {
-        return true;
-      }
-
-      await blockingBatchRunner({
-        batchLimit: ITEMS_PER_DESTROY,
-        data: validInactiveUsers.map(({ id }) => id),
-        runner: async (ids) => {
-          const data = ids.map((id) => ({
-            action: 'destroy',
-            type: 'person',
-            identifiers: { id },
-          }));
-
-          await callWithRetryDefault({
-            callback: () => cioV2.request.post('/users', { batch: data }),
-            onSuccess: async () => {
-              await con.getRepository(User).update(
-                { id: In(ids) },
-                {
-                  cioRegistered: false,
-                  acceptedMarketing: false,
-                  followingEmail: false,
-                  notificationEmail: false,
-                },
-              );
+      await callWithRetryDefault({
+        callback: () => cioV2.request.post('/users', { batch: data }),
+        onSuccess: async () => {
+          await con.getRepository(User).update(
+            { id: In(batch) },
+            {
+              cioRegistered: false,
+              acceptedMarketing: false,
+              followingEmail: false,
+              notificationEmail: false,
             },
-            onFailure: (err) => {
-              logger.info({ err }, 'Failed to remove users from CIO');
-            },
-          });
-
-          await setTimeout(20); // wait for a bit to avoid rate limiting
+          );
+        },
+        onFailure: (err) => {
+          logger.info({ err }, 'Failed to remove users from CIO');
         },
       });
+
+      await setTimeout(20); // wait for a bit to avoid rate limiting
     },
   });
 

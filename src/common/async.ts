@@ -26,6 +26,11 @@ export const blockingBatchRunner = async <T>({
 }: BlockingBatchRunnerOptions<T>) => {
   for (let i = 0; i < data.length; i += batchLimit) {
     const current = data.slice(i, i + batchLimit);
+
+    if (current.length === 0) {
+      break;
+    }
+
     const shouldStop = await runner(current);
     if (shouldStop) {
       break;
