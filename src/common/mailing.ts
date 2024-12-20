@@ -240,7 +240,7 @@ export const syncSubscriptionsWithActiveState = async ({
         return true;
       }
 
-      const data = users.map((id) => ({
+      const data = users.map(({ id }) => ({
         action: 'destroy',
         type: 'person',
         identifiers: { id },
