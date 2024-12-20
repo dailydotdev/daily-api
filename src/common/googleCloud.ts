@@ -79,11 +79,14 @@ export const userActiveStateQuery = `
   and previous_state != '4'
 `;
 
-export const getUserActiveStateQuery = (runDate: Date): Query => {
+export const getUserActiveStateQuery = (
+  runDate: Date,
+  query = userActiveStateQuery,
+): Query => {
   const run_date = runDate.toISOString().split('T')[0];
   const previous_date = subDays(runDate, 1).toISOString().split('T')[0];
 
-  return { query: userActiveStateQuery, params: { previous_date, run_date } };
+  return { query, params: { previous_date, run_date } };
 };
 
 export interface GetUsersActiveState {
@@ -110,17 +113,13 @@ export const queryFromBq = async (
   return rows;
 };
 
-export const getUsersActiveState = async (
-  runDate: Date,
-): Promise<GetUsersActiveState> => {
-  const query = getUserActiveStateQuery(runDate);
-  const usersFromBq = await queryFromBq(query);
+export const sortUsersActiveState = (users: UserActiveStateData[]) => {
   const inactiveUsers: string[] = [];
   const downgradeUsers: string[] = [];
   const reactivateUsers: string[] = [];
 
   // sort users from bq into active, inactive, downgrade, and reactivate
-  for (const user of usersFromBq) {
+  for (const user of users) {
     if (
       user.current_state === UserActiveState.InactiveSince6wAgo &&
       user.previous_state === UserActiveState.Active
@@ -140,4 +139,13 @@ export const getUsersActiveState = async (
   }
 
   return { inactiveUsers, downgradeUsers, reactivateUsers };
+};
+
+export const getUsersActiveState = async (
+  runDate: Date,
+): Promise<GetUsersActiveState> => {
+  const query = getUserActiveStateQuery(runDate);
+  const usersFromBq = await queryFromBq(query);
+
+  return sortUsersActiveState(usersFromBq);
 };
