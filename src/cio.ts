@@ -7,7 +7,7 @@ import {
   UserPersonalizedDigestType,
   UserStreak,
 } from './entity';
-import { camelCaseToSnakeCase, debeziumTimeToDate } from './common/utils';
+import { camelCaseToSnakeCase, getDateBaseFromType } from './common/utils';
 import { CioUnsubscribeTopic, getFirstName } from './common/mailing';
 import { getShortGenericInviteLink } from './common/links';
 import type { UserCompany } from './entity/UserCompany';
@@ -122,20 +122,12 @@ export const getIdentifyAttributes = async (
     }),
   ]);
 
-  const getDate = (value: number | string | Date) => {
-    if (typeof value === 'number') {
-      return debeziumTimeToDate(dup.createdAt);
-    }
-
-    return new Date(value);
-  };
-
   return {
     ...camelCaseToSnakeCase(dup),
     first_name: getFirstName(dup.name),
-    created_at: dateToCioTimestamp(getDate(dup.createdAt)),
+    created_at: dateToCioTimestamp(getDateBaseFromType(dup.createdAt)),
     updated_at: dup.updatedAt
-      ? dateToCioTimestamp(getDate(dup.updatedAt))
+      ? dateToCioTimestamp(getDateBaseFromType(dup.updatedAt))
       : undefined,
     referral_link: genericInviteURL,
     [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Marketing}`]:

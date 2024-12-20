@@ -156,6 +156,14 @@ export function debeziumTimeToDate(time: number): Date {
   return new Date(Math.floor(time / 1000));
 }
 
+export const getDateBaseFromType = (value: number | string | Date) => {
+  if (typeof value === 'number') {
+    return debeziumTimeToDate(value);
+  }
+
+  return new Date(value);
+};
+
 export const safeJSONParse = <T>(json: string): T | undefined => {
   try {
     return JSON.parse(json);
