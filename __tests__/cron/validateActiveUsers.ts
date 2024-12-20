@@ -128,6 +128,8 @@ describe('users for removal', () => {
     await con
       .getRepository(User)
       .update({ id: In(['vordr']) }, { cioRegistered: false });
+    const digests = await con.getRepository(UserPersonalizedDigest).count();
+    expect(digests).toBeGreaterThan(0);
 
     await expectSuccessfulCron(cron);
 
@@ -160,6 +162,9 @@ describe('users for removal', () => {
       .getRepository(User)
       .findOne({ select: ['cioRegistered'], where: { id: '3' } });
     expect(unregistered.cioRegistered).toEqual(false);
+
+    const removed = await con.getRepository(UserPersonalizedDigest).count();
+    expect(removed).toBeLessThan(digests);
   });
 });
 
