@@ -557,7 +557,10 @@ export enum LogoutReason {
   KratosSessionAlreadyAvailable = 'kratos session already available',
 }
 
-const getAbsoluteDifferenceInDays: typeof differenceInDays = (date1, date2) => {
+export const getAbsoluteDifferenceInDays: typeof differenceInDays = (
+  date1,
+  date2,
+) => {
   const day1 = startOfDay(date1);
   const day2 = startOfDay(date2);
 

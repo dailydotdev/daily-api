@@ -1,18 +1,15 @@
 import { CustomerIORequestError, TrackClient } from 'customerio-node';
 import { ChangeObject } from './types';
 import {
+  ConnectionManager,
   User,
   UserPersonalizedDigest,
   UserPersonalizedDigestType,
   UserStreak,
 } from './entity';
-import {
-  camelCaseToSnakeCase,
-  CioUnsubscribeTopic,
-  debeziumTimeToDate,
-  getFirstName,
-  getShortGenericInviteLink,
-} from './common';
+import { camelCaseToSnakeCase, getDateBaseFromType } from './common/utils';
+import { CioUnsubscribeTopic, getFirstName } from './common/mailing';
+import { getShortGenericInviteLink } from './common/links';
 import type { UserCompany } from './entity/UserCompany';
 import type { Company } from './entity/Company';
 import { DataSource } from 'typeorm';
@@ -52,6 +49,16 @@ const OMIT_FIELDS: (keyof ChangeObject<User>)[] = [
   'followNotifications',
 ];
 
+export const CIO_REQUIRED_FIELDS: (keyof ChangeObject<User>)[] = [
+  'username',
+  'name',
+  'createdAt',
+  'updatedAt',
+  'notificationEmail',
+  'acceptedMarketing',
+  'followingEmail',
+];
+
 export async function identifyUserStreak({
   cio,
   data,
@@ -89,15 +96,25 @@ export async function identifyUserStreak({
   }
 }
 
-export async function identifyUser({
-  con,
-  cio,
-  user,
-}: {
-  con: DataSource;
-  cio: TrackClient;
-  user: ChangeObject<User>;
-}): Promise<void> {
+export const generateIdentifyObject = async (
+  con: ConnectionManager,
+  user: ChangeObject<User>,
+) => {
+  const { id } = user;
+  const identify = await getIdentifyAttributes(con, user);
+
+  return {
+    action: 'identify',
+    type: 'person',
+    identifiers: { id },
+    attributes: identify,
+  };
+};
+
+export const getIdentifyAttributes = async (
+  con: ConnectionManager,
+  user: ChangeObject<User>,
+) => {
   const dup = { ...user };
   const id = dup.id;
   for (const field of OMIT_FIELDS) {
@@ -115,24 +132,38 @@ export async function identifyUser({
     }),
   ]);
 
+  return {
+    ...camelCaseToSnakeCase(dup),
+    first_name: getFirstName(dup.name),
+    created_at: dateToCioTimestamp(getDateBaseFromType(dup.createdAt)),
+    updated_at: dup.updatedAt
+      ? dateToCioTimestamp(getDateBaseFromType(dup.updatedAt))
+      : undefined,
+    referral_link: genericInviteURL,
+    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Marketing}`]:
+      user.acceptedMarketing,
+    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Notifications}`]:
+      user.notificationEmail,
+    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Digest}`]:
+      !!personalizedDigest,
+    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Follow}`]:
+      user.followingEmail,
+  };
+};
+
+export async function identifyUser({
+  con,
+  cio,
+  user,
+}: {
+  con: DataSource;
+  cio: TrackClient;
+  user: ChangeObject<User>;
+}): Promise<void> {
+  const data = await getIdentifyAttributes(con, user);
+
   try {
-    await cio.identify(id, {
-      ...camelCaseToSnakeCase(dup),
-      first_name: getFirstName(dup.name),
-      created_at: dateToCioTimestamp(debeziumTimeToDate(dup.createdAt)),
-      updated_at: dup.updatedAt
-        ? dateToCioTimestamp(debeziumTimeToDate(dup.updatedAt))
-        : undefined,
-      referral_link: genericInviteURL,
-      [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Marketing}`]:
-        user.acceptedMarketing,
-      [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Notifications}`]:
-        user.notificationEmail,
-      [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Digest}`]:
-        !!personalizedDigest,
-      [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Follow}`]:
-        user.followingEmail,
-    });
+    await cio.identify(user.id, data);
   } catch (err) {
     if (err instanceof CustomerIORequestError && err.statusCode === 400) {
       logger.warn({ err, user }, 'failed to update user in cio');
