@@ -120,6 +120,9 @@ const addFiltersToConfig = ({
   if (filters.followingSources?.length && opts.includeAllowedSources) {
     baseConfig.allowed_sources = filters.followingSources;
   }
+  if (filters.followingUsers?.length && opts.includeFollowedUsers) {
+    baseConfig.followed_user_ids = filters.followingUsers;
+  }
   if (filters.followingUsers?.length && opts.includeAllowedUsers) {
     baseConfig.allowed_author_ids = filters.followingUsers;
   }
