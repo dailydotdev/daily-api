@@ -63,24 +63,6 @@ export const userActiveStateQuery = `
             when date(u.registration_timestamp) <  date(@run_date - interval 12*7 day) then '3'
             else '4' end
       ) as current_state,
-      min(
-        case
-          when period_end is null then '4. never_active'
-          when period_end between date(@previous_date - interval 6*7 day) and @previous_date then '1. active_last_6w'
-          when period_end between date(@previous_date - interval 12*7 day) and date(@previous_date - interval 6*7 + 1 day) then '2. active_7w_12w'
-          when date(u.last_app_timestamp) <  date(@previous_date - interval 12*7 day) then '3. active_12w+'
-          when date(u.registration_timestamp) <  date(@previous_date - interval 12*7 day) then '3. active_12w+'
-          else '4. never_active' end
-      ) as previous_state_name,
-      min(
-        case
-            when period_end is null then '4. never_active'
-            when period_end between date(@run_date - interval 6*7 day) and @run_date then '1. active_last_6w'
-            when period_end between date(@run_date - interval 12*7 day) and date(@run_date - interval 6*7 + 1 day) then '2. active_7w_12w'
-            when date(u.last_app_timestamp) <  date(@run_date - interval 12*7 day) then '3. active_12w+'
-            when date(u.registration_timestamp) <  date(@run_date - interval 12*7 day) then '3. active_12w+'
-            else '4. never_active' end
-      ) as current_state_name,
     from analytics.user as u
     left join analytics.user_state_sparse as uss on uss.primary_user_id = u.primary_user_id
       and uss.period_end between date(@previous_date - interval 12* 7 day) and @run_date
@@ -123,6 +105,7 @@ export const queryFromBq = async (
 ): Promise<UserActiveStateData[]> => {
   const [job] = await bigquery.createQueryJob(query);
   const [rows] = await job.getQueryResults();
+  console.log('rows: ', rows);
 
   return rows;
 };
