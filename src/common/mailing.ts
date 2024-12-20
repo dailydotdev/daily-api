@@ -241,15 +241,20 @@ export const syncSubscriptionsWithActiveState = async ({
       await callWithRetryDefault({
         callback: () => cioV2.request.post('/users', { batch: data }),
         onSuccess: async () => {
-          await con.getRepository(User).update(
-            { id: In(batch) },
-            {
-              cioRegistered: false,
-              acceptedMarketing: false,
-              followingEmail: false,
-              notificationEmail: false,
-            },
-          );
+          await Promise.all([
+            con.getRepository(User).update(
+              { id: In(batch) },
+              {
+                cioRegistered: false,
+                acceptedMarketing: false,
+                followingEmail: false,
+                notificationEmail: false,
+              },
+            ),
+            con
+              .getRepository(UserPersonalizedDigest)
+              .delete({ userId: In(batch) }),
+          ]);
         },
         onFailure: (err) => {
           logger.info({ err }, 'Failed to remove users from CIO');
