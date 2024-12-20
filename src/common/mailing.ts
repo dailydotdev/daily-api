@@ -7,7 +7,7 @@ import {
 import CIORequest from 'customerio-node/dist/lib/request';
 import { SendEmailRequestOptionalOptions } from 'customerio-node/lib/api/requests';
 import { SendEmailRequestWithTemplate } from 'customerio-node/dist/lib/api/requests';
-import { DataSource, In } from 'typeorm';
+import { DataSource, In, Raw } from 'typeorm';
 import {
   Source,
   User,
@@ -265,18 +265,12 @@ export const syncSubscriptionsWithActiveState = async ({
   await blockingBatchRunner({
     data: downgradeUsers,
     runner: async (current) => {
-      const validDowngradeUsers = await con
-        .getRepository(User)
-        .createQueryBuilder('u')
-        .select('id')
-        .innerJoin(UserPersonalizedDigest, 'upd', 'u.id = upd."userId"')
-        .where('u.id IN (:...ids)', { ids: current })
-        .andWhere(`upd.flags->>'sendType' = 'daily'`)
-        .getRawMany<Pick<User, 'id'>>();
-
       // set digest to weekly on Wednesday 9am
       await con.getRepository(UserPersonalizedDigest).update(
-        { userId: In(validDowngradeUsers.map(({ id }) => id)) },
+        {
+          userId: In(current),
+          flags: Raw(() => `flags->>'sendType' = 'daily'`),
+        },
         {
           preferredDay: 3,
           preferredHour: 9,
