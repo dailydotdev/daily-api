@@ -191,25 +191,27 @@ export const syncSubscriptionsWithActiveState = async ({
   con,
   users: { inactiveUsers, downgradeUsers, reactivateUsers },
 }: SyncSubscriptionsWithActiveStateProps) => {
-  const validReactivateUsers = await con.getRepository(User).find({
-    where: { id: In(reactivateUsers), cioRegistered: false },
-  });
-
   // user is active again: reactivate to CIO
   await blockingBatchRunner({
     batchLimit: ITEMS_PER_IDENTIFY,
-    data: validReactivateUsers,
+    data: reactivateUsers,
     runner: async (batch) => {
+      const users = await con.getRepository(User).find({
+        where: { id: In(batch), cioRegistered: false },
+      });
+
+      if (users.length === 0) {
+        return true;
+      }
+
       const data = await Promise.all(
-        batch.map((batch) =>
-          generateIdentifyObject(con, toChangeObject(batch)),
-        ),
+        users.map((user) => generateIdentifyObject(con, toChangeObject(user))),
       );
 
       await callWithRetryDefault({
         callback: () => cioV2.request.post('/users', { batch: data }),
         onSuccess: async () => {
-          const ids = batch.map(({ id }) => id);
+          const ids = users.map(({ id }) => id);
           await con
             .getRepository(User)
             .update({ id: In(ids) }, { cioRegistered: true });
@@ -223,16 +225,21 @@ export const syncSubscriptionsWithActiveState = async ({
     },
   });
 
-  const validInactiveUsers = await con.getRepository(User).find({
-    select: ['id'],
-    where: { id: In(inactiveUsers), cioRegistered: true },
-  });
   // inactive for 12 weeks: remove from CIO
   await blockingBatchRunner({
     batchLimit: ITEMS_PER_DESTROY,
-    data: validInactiveUsers.map(({ id }) => id),
+    data: inactiveUsers,
     runner: async (batch) => {
-      const data = batch.map((id) => ({
+      const users = await con.getRepository(User).find({
+        select: ['id'],
+        where: { id: In(batch), cioRegistered: true },
+      });
+
+      if (users.length === 0) {
+        return true;
+      }
+
+      const data = users.map((id) => ({
         action: 'destroy',
         type: 'person',
         identifiers: { id },
@@ -241,9 +248,10 @@ export const syncSubscriptionsWithActiveState = async ({
       await callWithRetryDefault({
         callback: () => cioV2.request.post('/users', { batch: data }),
         onSuccess: async () => {
+          const ids = users.map(({ id }) => id);
           await Promise.all([
             con.getRepository(User).update(
-              { id: In(batch) },
+              { id: In(ids) },
               {
                 cioRegistered: false,
                 acceptedMarketing: false,
@@ -253,7 +261,7 @@ export const syncSubscriptionsWithActiveState = async ({
             ),
             con
               .getRepository(UserPersonalizedDigest)
-              .delete({ userId: In(batch) }),
+              .delete({ userId: In(ids) }),
           ]);
         },
         onFailure: (err) => {
