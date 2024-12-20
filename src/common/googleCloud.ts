@@ -108,7 +108,6 @@ export const queryFromBq = async (
 ): Promise<UserActiveStateData[]> => {
   const [job] = await bigquery.createQueryJob(query);
   const [rows] = await job.getQueryResults();
-  console.log('rows: ', rows);
 
   return rows;
 };
