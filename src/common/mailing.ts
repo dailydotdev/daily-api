@@ -215,7 +215,7 @@ export const syncSubscriptionsWithActiveState = async ({
             .update({ id: In(ids) }, { cioRegistered: true });
         },
         onFailure: (err) => {
-          logger.info({ err }, 'Failed to add users to CIO');
+          logger.info({ err }, 'Failed to reactivate users to CIO');
         },
       });
 
