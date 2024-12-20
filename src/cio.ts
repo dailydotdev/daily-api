@@ -49,6 +49,16 @@ const OMIT_FIELDS: (keyof ChangeObject<User>)[] = [
   'followNotifications',
 ];
 
+export const CIO_REQUIRED_FIELDS: (keyof ChangeObject<User>)[] = [
+  'username',
+  'name',
+  'createdAt',
+  'updatedAt',
+  'notificationEmail',
+  'acceptedMarketing',
+  'followingEmail',
+];
+
 export async function identifyUserStreak({
   cio,
   data,

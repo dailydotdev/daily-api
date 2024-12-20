@@ -16,7 +16,7 @@ import {
   UserPersonalizedDigestType,
 } from '../entity';
 import { blockingBatchRunner, callWithRetryDefault } from './async';
-import { cioV2, generateIdentifyObject } from '../cio';
+import { CIO_REQUIRED_FIELDS, cioV2, generateIdentifyObject } from '../cio';
 import { setTimeout } from 'node:timers/promises';
 import { toChangeObject, updateFlagsStatement } from './utils';
 import { GetUsersActiveState } from './googleCloud';
@@ -198,6 +198,7 @@ export const syncSubscriptionsWithActiveState = async ({
     runner: async (batch) => {
       const users = await con.getRepository(User).find({
         where: { id: In(batch), cioRegistered: false },
+        select: CIO_REQUIRED_FIELDS.concat('id'),
       });
 
       if (users.length === 0) {
