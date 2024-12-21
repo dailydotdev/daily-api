@@ -4292,6 +4292,24 @@ describe('query customFeed', () => {
         },
       },
     ]);
+    await con.getRepository(ContentPreferenceUser).save([
+      {
+        feedId: 'cf1',
+        referenceUserId: '2',
+        referenceId: '2',
+        status: ContentPreferenceStatus.Follow,
+        userId: '1',
+      },
+    ]);
+    await con.getRepository(ContentPreferenceSource).save([
+      {
+        feedId: 'cf1',
+        sourceId: 'a',
+        referenceId: 'a',
+        status: ContentPreferenceStatus.Follow,
+        userId: '1',
+      },
+    ]);
     await con.getRepository(ContentPreferenceKeyword).save([
       {
         feedId: 'cf1',
@@ -4438,6 +4456,8 @@ describe('query customFeed', () => {
         total_pages: 1,
         fresh_page_size: '4',
         allowed_tags: ['webdev', 'html', 'data'],
+        allowed_sources: ['a'],
+        allowed_author_ids: ['2'],
         feed_config_name: FeedConfigName.CustomFeedV1,
         disable_engagement_filter: false,
       })
