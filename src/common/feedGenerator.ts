@@ -124,8 +124,7 @@ const getRawFiltersData = async (
       qb
         .select(['"advancedSettingsId"', 'enabled'])
         .from(FeedAdvancedSettings, 't')
-        .where('"feedId" = $1')
-        .andWhere('"userId" = $2'),
+        .where('"feedId" = $1'),
     ),
     rawFilterSelect(con, 'tags', (qb) =>
       qb
@@ -166,8 +165,7 @@ const getRawFiltersData = async (
         .select('"sourceId"')
         .addSelect("COALESCE((flags->'hideFeedPosts')::boolean, FALSE)", 'hide')
         .from(SourceMember, 't')
-        .where('"feedId" = $1')
-        .andWhere('"userId" = $2'),
+        .where('"userId" = $2'),
     ),
   ];
 
