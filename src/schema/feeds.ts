@@ -80,7 +80,7 @@ import {
   FeedLofnConfigGenerator,
 } from '../integrations/feed/configs';
 import { counters } from '../telemetry';
-import { lofnClient, popularFeedClient } from '../integrations/feed/generators';
+import { lofnClient } from '../integrations/feed/generators';
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
 import { randomUUID } from 'crypto';
@@ -1541,9 +1541,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const feedGenerator = filters
         ? new FeedGenerator(
-            popularFeedClient,
+            feedClient,
             new FeedLocalConfigGenerator(
-              {},
+              { feed_config_name: FeedConfigName.Popular },
               {
                 includeAllowedTags: true,
                 includePostTypes: true,

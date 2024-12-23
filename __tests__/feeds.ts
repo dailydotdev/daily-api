@@ -435,7 +435,7 @@ describe('query anonymousFeed', () => {
     loggedUser = '1';
 
     nock('http://localhost:6000')
-      .post('/popular', {
+      .post('/feed.json', {
         total_pages: 1,
         page_size: 10,
         fresh_page_size: '4',
@@ -443,7 +443,15 @@ describe('query anonymousFeed', () => {
         user_id: '1',
         source_types: ['machine', 'squad'],
         allowed_languages: ['en'],
+        feed_config_name: 'popular',
         min_day_range: 14,
+        allowed_content_curations: [
+          'news',
+          'release',
+          'opinion',
+          'comparison',
+          'story',
+        ],
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
@@ -457,7 +465,7 @@ describe('query anonymousFeed', () => {
 
   it('should safetly handle a case where the feed is empty', async () => {
     loggedUser = '1';
-    nock('http://localhost:6000').post('/popular').reply(200, {
+    nock('http://localhost:6000').post('/feed.json').reply(200, {
       data: [],
     });
     const res = await client.query(QUERY, {
@@ -522,7 +530,7 @@ describe('query anonymousFeed', () => {
     ]);
 
     nock('http://localhost:6000')
-      .post('/popular', {
+      .post('/feed.json', {
         total_pages: 1,
         page_size: 10,
         fresh_page_size: '4',
@@ -532,7 +540,15 @@ describe('query anonymousFeed', () => {
         user_id: '1',
         source_types: ['machine', 'squad'],
         allowed_languages: ['en'],
+        feed_config_name: 'popular',
         min_day_range: 14,
+        allowed_content_curations: [
+          'news',
+          'release',
+          'opinion',
+          'comparison',
+          'story',
+        ],
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
@@ -3295,13 +3311,14 @@ describe('query feedPreview', () => {
     loggedUser = '1';
 
     nock('http://localhost:6000')
-      .post('/popular', {
+      .post('/feed.json', {
         user_id: '1',
         page_size: 20,
         offset: 0,
         total_pages: 1,
         fresh_page_size: '7',
         allowed_tags: ['javascript', 'webdev'],
+        feed_config_name: 'popular',
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
