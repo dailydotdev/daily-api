@@ -347,6 +347,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             .andWhere(`${builder.alias}."feedId" = :feedId`, {
               feedId,
             })
+            .andWhere(`${builder.alias}."status" != :status`, {
+              status: ContentPreferenceStatus.Blocked,
+            })
             .limit(page.limit)
             .offset(page.offset)
             .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
