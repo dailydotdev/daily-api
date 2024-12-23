@@ -131,13 +131,14 @@ const getRawFiltersData = async (
         .select(['"keywordId"', 'status'])
         .from(ContentPreference, 't')
         .where('"feedId" = $1')
-        .andWhere(`type = '${ContentPreferenceType.Keyword}'`)
-        .andWhere('"userId" = $2'),
+        .andWhere('"userId" = $2')
+        .andWhere(`type = '${ContentPreferenceType.Keyword}'`),
     ),
     rawFilterSelect(con, 'users', (qb) =>
       qb
         .select('"referenceId"')
         .from(ContentPreference, 'u')
+        .where('"feedId" = $1')
         .andWhere('"userId" = $2')
         .andWhere(`type = '${ContentPreferenceType.User}'`)
         .andWhere(`status != '${ContentPreferenceStatus.Blocked}'`),
@@ -147,17 +148,17 @@ const getRawFiltersData = async (
         .select(['"sourceId"', 'status'])
         .from(ContentPreference, 't')
         .where('"feedId" = $1')
-        .andWhere(`type = '${ContentPreferenceType.Source}'`)
-        .andWhere('"userId" = $2'),
+        .andWhere('"userId" = $2')
+        .andWhere(`type = '${ContentPreferenceType.Source}'`),
     ),
     rawFilterSelect(con, 'words', (qb) =>
       qb
         .select(['"referenceId"'])
         .from(ContentPreference, 'w')
         .where('"feedId" = $1')
+        .andWhere('"userId" = $2')
         .andWhere(`type = '${ContentPreferenceType.Word}'`)
-        .andWhere(`status = '${ContentPreferenceStatus.Blocked}'`)
-        .andWhere('"userId" = $2'),
+        .andWhere(`status = '${ContentPreferenceStatus.Blocked}'`),
     ),
     rawFilterSelect(con, 'memberships', (qb) =>
       qb

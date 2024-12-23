@@ -24,6 +24,7 @@ import {
   applyFeedWhere,
   base64,
   configuredFeedBuilder,
+  customFeedsPlusDate,
   FeedArgs,
   feedResolver,
   feedToFilters,
@@ -1492,6 +1493,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
       const feedId = feed.id;
 
+      if (feed.createdAt > customFeedsPlusDate && !ctx.isPlus) {
+        throw new ForbiddenError(
+          'Access denied! You need to be authorized to perform this action!',
+        );
+      }
+
       if (
         args.version >= 2 &&
         args.ranking === Ranking.POPULARITY &&
@@ -1510,6 +1517,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               includeBlockedTags: true,
               includeContentCuration: true,
               includeBlockedWords: true,
+              includeAllowedUsers: true,
+              includeAllowedSources: true,
               feedId: feedId,
             },
           ),

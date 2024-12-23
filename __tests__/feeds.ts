@@ -4292,6 +4292,24 @@ describe('query customFeed', () => {
         },
       },
     ]);
+    await con.getRepository(ContentPreferenceUser).save([
+      {
+        feedId: 'cf1',
+        referenceUserId: '2',
+        referenceId: '2',
+        status: ContentPreferenceStatus.Follow,
+        userId: '1',
+      },
+    ]);
+    await con.getRepository(ContentPreferenceSource).save([
+      {
+        feedId: 'cf1',
+        sourceId: 'a',
+        referenceId: 'a',
+        status: ContentPreferenceStatus.Follow,
+        userId: '1',
+      },
+    ]);
     await con.getRepository(ContentPreferenceKeyword).save([
       {
         feedId: 'cf1',
@@ -4339,6 +4357,8 @@ describe('query customFeed', () => {
 
   it('should return the feed by slug', async () => {
     loggedUser = '1';
+    isPlus = true;
+
     const res = await client.query(QUERY, {
       variables: {
         ranking: Ranking.POPULARITY,
@@ -4379,6 +4399,7 @@ describe('query customFeed', () => {
 
   it('should return feed with preconfigured filters', async () => {
     loggedUser = '1';
+    isPlus = true;
 
     const res = await client.query(QUERY, {
       variables: {
@@ -4396,6 +4417,8 @@ describe('query customFeed', () => {
 
   it('should not return posts with blocked tags', async () => {
     loggedUser = '1';
+    isPlus = true;
+
     await con.getRepository(ContentPreferenceKeyword).save([
       {
         feedId: 'cf1',
@@ -4423,6 +4446,7 @@ describe('query customFeed', () => {
 
   it('should return v2 feed', async () => {
     loggedUser = '1';
+    isPlus = true;
 
     nock('http://localhost:6000')
       .post('/feed.json', {
@@ -4432,6 +4456,8 @@ describe('query customFeed', () => {
         total_pages: 1,
         fresh_page_size: '4',
         allowed_tags: ['webdev', 'html', 'data'],
+        allowed_sources: ['a'],
+        allowed_author_ids: ['2'],
         feed_config_name: FeedConfigName.CustomFeedV1,
         disable_engagement_filter: false,
       })
@@ -4450,6 +4476,23 @@ describe('query customFeed', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.customFeed.edges.map((item) => item.node.id)).toMatchObject(
       ['p1', 'p4'],
+    );
+  });
+
+  it('should not return the feed by slug if not plus', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: {
+          ranking: Ranking.POPULARITY,
+          first: 10,
+          feedId: 'cool-feed-cf1',
+        },
+      },
+      'FORBIDDEN',
     );
   });
 });
