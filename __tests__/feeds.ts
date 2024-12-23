@@ -441,6 +441,9 @@ describe('query anonymousFeed', () => {
         fresh_page_size: '4',
         offset: 0,
         user_id: '1',
+        source_types: ['machine', 'squad'],
+        allowed_languages: ['en'],
+        min_day_range: 14,
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
@@ -527,6 +530,9 @@ describe('query anonymousFeed', () => {
         blocked_tags: ['python', 'java'],
         blocked_sources: ['a', 'b'],
         user_id: '1',
+        source_types: ['machine', 'squad'],
+        allowed_languages: ['en'],
+        min_day_range: 14,
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],

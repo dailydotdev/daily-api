@@ -73,6 +73,16 @@ export class SimpleFeedConfigGenerator implements FeedConfigGenerator {
   }
 }
 
+const mergeSingleFilter = (
+  base: string[] | undefined,
+  filter: string[] | undefined,
+): string[] | undefined => {
+  if (!filter) {
+    return base;
+  }
+  return base ? Array.from(new Set([...base, ...filter])) : filter;
+};
+
 const addFiltersToConfig = ({
   config,
   filters,
@@ -85,16 +95,28 @@ const addFiltersToConfig = ({
   const baseConfig = { ...config, ...filters.flags };
 
   if (filters.includeTags?.length && opts.includeAllowedTags) {
-    baseConfig.allowed_tags = filters.includeTags;
+    baseConfig.allowed_tags = mergeSingleFilter(
+      baseConfig.allowed_tags,
+      filters.includeTags,
+    );
   }
   if (filters.blockedTags?.length && opts.includeBlockedTags) {
-    baseConfig.blocked_tags = filters.blockedTags;
+    baseConfig.blocked_tags = mergeSingleFilter(
+      baseConfig.blocked_tags,
+      filters.blockedTags,
+    );
   }
   if (filters.excludeSources?.length && opts.includeBlockedSources) {
-    baseConfig.blocked_sources = filters.excludeSources;
+    baseConfig.blocked_sources = mergeSingleFilter(
+      baseConfig.blocked_sources,
+      filters.excludeSources,
+    );
   }
   if (filters.sourceIds?.length && opts.includeSourceMemberships) {
-    baseConfig.squad_ids = filters.sourceIds;
+    baseConfig.squad_ids = mergeSingleFilter(
+      baseConfig.squad_ids,
+      filters.sourceIds,
+    );
   }
   if (filters.excludeTypes?.length && opts.includePostTypes) {
     baseConfig.allowed_post_types = (
@@ -107,24 +129,42 @@ const addFiltersToConfig = ({
     );
   }
   if (filters.blockedContentCuration?.length && opts.includeContentCuration) {
-    baseConfig.allowed_content_curations = AllowedContentCurationTypes.filter(
-      (type) => !filters.blockedContentCuration!.includes(type),
+    baseConfig.allowed_content_curations = mergeSingleFilter(
+      baseConfig.allowed_content_curations,
+      AllowedContentCurationTypes.filter(
+        (type) => !filters.blockedContentCuration!.includes(type),
+      ),
     );
   }
   if (filters.blockedWords?.length && opts.includeBlockedWords) {
-    baseConfig.blocked_title_words = filters.blockedWords;
+    baseConfig.blocked_title_words = mergeSingleFilter(
+      baseConfig.blocked_title_words,
+      filters.blockedWords,
+    );
   }
   if (filters.followingSources?.length && opts.includeFollowedSources) {
-    baseConfig.followed_sources = filters.followingSources;
+    baseConfig.followed_sources = mergeSingleFilter(
+      baseConfig.followed_sources,
+      filters.followingSources,
+    );
   }
   if (filters.followingSources?.length && opts.includeAllowedSources) {
-    baseConfig.allowed_sources = filters.followingSources;
+    baseConfig.allowed_sources = mergeSingleFilter(
+      baseConfig.allowed_sources,
+      filters.followingSources,
+    );
   }
   if (filters.followingUsers?.length && opts.includeFollowedUsers) {
-    baseConfig.followed_user_ids = filters.followingUsers;
+    baseConfig.followed_user_ids = mergeSingleFilter(
+      baseConfig.followed_user_ids,
+      filters.followingUsers,
+    );
   }
   if (filters.followingUsers?.length && opts.includeAllowedUsers) {
-    baseConfig.allowed_author_ids = filters.followingUsers;
+    baseConfig.allowed_author_ids = mergeSingleFilter(
+      baseConfig.allowed_author_ids,
+      filters.followingUsers,
+    );
   }
 
   return baseConfig;
