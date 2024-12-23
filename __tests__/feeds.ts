@@ -4463,7 +4463,7 @@ describe('query customFeed', () => {
         total_pages: 1,
         fresh_page_size: '4',
         allowed_tags: ['html', 'data'],
-        blocked_tags: ['webdev']
+        blocked_tags: ['webdev'],
         allowed_sources: ['a'],
         allowed_author_ids: ['2'],
         feed_config_name: FeedConfigName.CustomFeedV1,
