@@ -4359,6 +4359,24 @@ describe('query customFeed', () => {
     loggedUser = '1';
     isPlus = true;
 
+    nock('http://localhost:6000')
+      .post('/feed.json', {
+        user_id: '1',
+        page_size: 10,
+        offset: 0,
+        total_pages: 1,
+        fresh_page_size: '4',
+        allowed_tags: ['webdev', 'html', 'data'],
+        allowed_sources: ['a'],
+        allowed_author_ids: ['2'],
+        feed_config_name: FeedConfigName.CustomFeedV1,
+        disable_engagement_filter: false,
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'b',
+      });
+
     const res = await client.query(QUERY, {
       variables: {
         ranking: Ranking.POPULARITY,
@@ -4401,6 +4419,24 @@ describe('query customFeed', () => {
     loggedUser = '1';
     isPlus = true;
 
+    nock('http://localhost:6000')
+      .post('/feed.json', {
+        user_id: '1',
+        page_size: 10,
+        offset: 0,
+        total_pages: 1,
+        fresh_page_size: '4',
+        allowed_tags: ['webdev', 'html', 'data'],
+        allowed_sources: ['a'],
+        allowed_author_ids: ['2'],
+        feed_config_name: FeedConfigName.CustomFeedV1,
+        disable_engagement_filter: false,
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'b',
+      });
+
     const res = await client.query(QUERY, {
       variables: {
         ranking: Ranking.POPULARITY,
@@ -4411,13 +4447,32 @@ describe('query customFeed', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.customFeed.edges.map((item) => item.node.id)).toMatchObject(
-      ['p5', 'p4', 'p1'],
+      ['p1', 'p4'],
     );
   });
 
   it('should not return posts with blocked tags', async () => {
     loggedUser = '1';
     isPlus = true;
+
+    nock('http://localhost:6000')
+      .post('/feed.json', {
+        user_id: '1',
+        page_size: 10,
+        offset: 0,
+        total_pages: 1,
+        fresh_page_size: '4',
+        allowed_tags: ['html', 'data'],
+        blocked_tags: ['webdev'],
+        allowed_sources: ['a'],
+        allowed_author_ids: ['2'],
+        feed_config_name: FeedConfigName.CustomFeedV1,
+        disable_engagement_filter: false,
+      })
+      .reply(200, {
+        data: [{ post_id: 'p4' }],
+        cursor: 'b',
+      });
 
     await con.getRepository(ContentPreferenceKeyword).save([
       {
@@ -4440,7 +4495,7 @@ describe('query customFeed', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.customFeed.edges.map((item) => item.node.id)).toMatchObject(
-      ['p5', 'p4'],
+      ['p4'],
     );
   });
 
