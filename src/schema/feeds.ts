@@ -1499,47 +1499,31 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         );
       }
 
-      if (
-        args.version >= 2 &&
-        args.ranking === Ranking.POPULARITY &&
-        ctx.userId
-      ) {
-        const feedGenerator = new FeedGenerator(
-          feedClient,
-          new FeedPreferencesConfigGenerator(
-            {
-              feed_config_name: FeedConfigName.CustomFeedV1,
-            },
-            {
-              includeAllowedTags: true,
-              includePostTypes: true,
-              includeBlockedSources: true,
-              includeBlockedTags: true,
-              includeContentCuration: true,
-              includeBlockedWords: true,
-              includeAllowedUsers: true,
-              includeAllowedSources: true,
-              feedId: feedId,
-            },
-          ),
-        );
-
-        return feedResolverCursor(
-          source,
+      const feedGenerator = new FeedGenerator(
+        feedClient,
+        new FeedPreferencesConfigGenerator(
           {
-            ...(args as FeedArgs),
-            generator: feedGenerator,
+            feed_config_name: FeedConfigName.CustomFeedV1,
           },
-          ctx,
-          info,
-        );
-      }
+          {
+            includeAllowedTags: true,
+            includePostTypes: true,
+            includeBlockedSources: true,
+            includeBlockedTags: true,
+            includeContentCuration: true,
+            includeBlockedWords: true,
+            includeAllowedUsers: true,
+            includeAllowedSources: true,
+            feedId: feedId,
+          },
+        ),
+      );
 
-      return feedResolverV1(
+      return feedResolverCursor(
         source,
         {
-          ...args,
-          feedId,
+          ...(args as FeedArgs),
+          generator: feedGenerator,
         },
         ctx,
         info,
