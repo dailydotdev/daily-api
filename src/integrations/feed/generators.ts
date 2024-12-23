@@ -86,6 +86,8 @@ const opts: Options = {
   includePostTypes: true,
   includeContentCuration: true,
   includeBlockedWords: true,
+  includeFollowedSources: true,
+  includeFollowedUsers: true,
 };
 
 export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
@@ -93,7 +95,7 @@ export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
     popular: new FeedGenerator(
       popularFeedClient,
       new FeedPreferencesConfigGenerator(
-        {},
+        { ...baseFeedConfig, min_day_range: 14 },
         {
           includePostTypes: true,
           includeBlockedSources: true,
