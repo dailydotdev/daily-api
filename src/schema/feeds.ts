@@ -24,6 +24,7 @@ import {
   applyFeedWhere,
   base64,
   configuredFeedBuilder,
+  customFeedsPlusDate,
   FeedArgs,
   feedResolver,
   feedToFilters,
@@ -79,7 +80,7 @@ import {
   FeedLofnConfigGenerator,
 } from '../integrations/feed/configs';
 import { counters } from '../telemetry';
-import { lofnClient, popularFeedClient } from '../integrations/feed/generators';
+import { lofnClient } from '../integrations/feed/generators';
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
 import { randomUUID } from 'crypto';
@@ -1492,45 +1493,37 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
       const feedId = feed.id;
 
-      if (
-        args.version >= 2 &&
-        args.ranking === Ranking.POPULARITY &&
-        ctx.userId
-      ) {
-        const feedGenerator = new FeedGenerator(
-          feedClient,
-          new FeedPreferencesConfigGenerator(
-            {
-              feed_config_name: FeedConfigName.CustomFeedV1,
-            },
-            {
-              includeAllowedTags: true,
-              includePostTypes: true,
-              includeBlockedSources: true,
-              includeBlockedTags: true,
-              includeContentCuration: true,
-              includeBlockedWords: true,
-              feedId: feedId,
-            },
-          ),
-        );
-
-        return feedResolverCursor(
-          source,
-          {
-            ...(args as FeedArgs),
-            generator: feedGenerator,
-          },
-          ctx,
-          info,
+      if (feed.createdAt > customFeedsPlusDate && !ctx.isPlus) {
+        throw new ForbiddenError(
+          'Access denied! You need to be authorized to perform this action!',
         );
       }
 
-      return feedResolverV1(
+      const feedGenerator = new FeedGenerator(
+        feedClient,
+        new FeedPreferencesConfigGenerator(
+          {
+            feed_config_name: FeedConfigName.CustomFeedV1,
+          },
+          {
+            includeAllowedTags: true,
+            includePostTypes: true,
+            includeBlockedSources: true,
+            includeBlockedTags: true,
+            includeContentCuration: true,
+            includeBlockedWords: true,
+            includeAllowedUsers: true,
+            includeAllowedSources: true,
+            feedId: feedId,
+          },
+        ),
+      );
+
+      return feedResolverCursor(
         source,
         {
-          ...args,
-          feedId,
+          ...(args as FeedArgs),
+          generator: feedGenerator,
         },
         ctx,
         info,
@@ -1548,9 +1541,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const feedGenerator = filters
         ? new FeedGenerator(
-            popularFeedClient,
+            feedClient,
             new FeedLocalConfigGenerator(
-              {},
+              { feed_config_name: FeedConfigName.Popular },
               {
                 includeAllowedTags: true,
                 includePostTypes: true,

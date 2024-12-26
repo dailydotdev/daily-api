@@ -2,6 +2,7 @@ import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import type { User } from './user';
 
 export enum FeedOrderBy {
+  Date = 'date',
   Upvotes = 'upvotes',
   Downvotes = 'downvotes',
   Comments = 'comments',
