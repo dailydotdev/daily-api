@@ -65,10 +65,10 @@ const redis = new Redis(`${name}-redis`, {
   isAdhocEnv,
   name: `${name}-redis`,
   tier: 'BASIC',
-  memorySizeGb: 3,
+  memorySizeGb: 1,
   region: location,
   authEnabled: true,
-  redisVersion: 'REDIS_6_X',
+  redisVersion: 'REDIS_7_2',
   maintenancePolicy: {
     weeklyMaintenanceWindows: [
       {

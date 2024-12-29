@@ -33,7 +33,7 @@ jobs:
         environment:
           - POSTGRES_DB: api_test
           - POSTGRES_PASSWORD: 12345
-      - image: redis:6
+      - image: redis/redis-stack:7.2.0-v13
     parallelism: 4
     steps:
       - checkout
