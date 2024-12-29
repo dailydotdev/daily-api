@@ -69,6 +69,11 @@ const redis = new Redis(`${name}-redis`, {
   region: location,
   authEnabled: true,
   redisVersion: 'REDIS_7_2',
+  labels: { app: name },
+  redisConfigs: {
+    'maxmemory-policy': 'volatile-ttl',
+    'maxmemory-gb': '0.95',
+  },
   maintenancePolicy: {
     weeklyMaintenanceWindows: [
       {
