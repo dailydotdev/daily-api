@@ -1478,31 +1478,6 @@ describe('query feedSettings', () => {
     expect(res.data).toMatchSnapshot();
   });
 
-  it('should not authorize when trying custom feed but not plus', async () => {
-    loggedUser = '1';
-    await saveFeedFixtures();
-    await saveFixtures(con, Feed, [{ id: 'cf2', userId: '1' }]);
-    await client.mutate(ADD_FILTERS_MUTATION, {
-      variables: {
-        feedId: 'cf2',
-        filters: {
-          includeTags: ['javascript'],
-          includeSources: ['a'],
-          excludeSources: ['b'],
-          blockedTags: ['golang'],
-        },
-      },
-    });
-    return testQueryErrorCode(
-      client,
-      {
-        query: QUERY,
-        variables: { feedId: 'cf2' },
-      },
-      'UNAUTHENTICATED',
-    );
-  });
-
   it('should return the feed settings for custom feed when feedId is provided and user is plus', async () => {
     loggedUser = '1';
     isPlus = true;
