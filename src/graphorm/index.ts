@@ -940,6 +940,13 @@ const obj = new GraphORM({
       },
     },
   },
+  Prompt: {
+    fields: {
+      flags: {
+        jsonType: true,
+      },
+    },
+  },
 });
 
 export default obj;
