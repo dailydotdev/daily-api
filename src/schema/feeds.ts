@@ -582,7 +582,7 @@ export const typeDefs = /* GraphQL */ `
       Feed id
       """
       feedId: ID
-    ): FeedSettings! @feedPlus
+    ): FeedSettings! @auth
 
     """
     Returns the user's RSS feeds
@@ -882,7 +882,7 @@ export const typeDefs = /* GraphQL */ `
       The filters to add to the feed
       """
       filters: FiltersInput!
-    ): FeedSettings @feedPlus
+    ): FeedSettings @auth
 
     """
     Remove filters from the user's feed
@@ -897,7 +897,7 @@ export const typeDefs = /* GraphQL */ `
       The filters to remove from the feed
       """
       filters: FiltersInput!
-    ): FeedSettings @feedPlus
+    ): FeedSettings @auth
 
     """
     Update user's feed advanced settings
@@ -912,7 +912,7 @@ export const typeDefs = /* GraphQL */ `
       Posts must comply with the advanced settings from this list
       """
       settings: [FeedAdvancedSettingsInput]!
-    ): [FeedAdvancedSettings]! @feedPlus
+    ): [FeedAdvancedSettings]! @auth
 
     """
     Create feed
@@ -952,7 +952,7 @@ export const typeDefs = /* GraphQL */ `
       Icon
       """
       icon: String
-    ): Feed @feedPlus
+    ): Feed @auth
 
     """
     Update feed meta
@@ -997,7 +997,7 @@ export const typeDefs = /* GraphQL */ `
       Icon
       """
       icon: String
-    ): Feed @feedPlus
+    ): Feed @auth
 
     """
     Delete feed
