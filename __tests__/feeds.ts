@@ -1478,31 +1478,6 @@ describe('query feedSettings', () => {
     expect(res.data).toMatchSnapshot();
   });
 
-  it('should not authorize when trying custom feed but not plus', async () => {
-    loggedUser = '1';
-    await saveFeedFixtures();
-    await saveFixtures(con, Feed, [{ id: 'cf2', userId: '1' }]);
-    await client.mutate(ADD_FILTERS_MUTATION, {
-      variables: {
-        feedId: 'cf2',
-        filters: {
-          includeTags: ['javascript'],
-          includeSources: ['a'],
-          excludeSources: ['b'],
-          blockedTags: ['golang'],
-        },
-      },
-    });
-    return testQueryErrorCode(
-      client,
-      {
-        query: QUERY,
-        variables: { feedId: 'cf2' },
-      },
-      'UNAUTHENTICATED',
-    );
-  });
-
   it('should return the feed settings for custom feed when feedId is provided and user is plus', async () => {
     loggedUser = '1';
     isPlus = true;
@@ -2210,31 +2185,6 @@ describe('mutation updateFeedAdvancedSettings', () => {
       },
     });
     expect(res.data).toMatchSnapshot();
-  });
-
-  it('should not update custom feed advanced settings if not plus', async () => {
-    loggedUser = '1';
-
-    await saveFeedFixtures();
-    await saveFixtures(con, Feed, [{ id: '1-ucfas', userId: '1' }]);
-
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: {
-          feedId: '1-ucfas',
-          settings: [
-            { id: 1, enabled: false },
-            { id: 2, enabled: true },
-            { id: 3, enabled: true },
-            { id: 4, enabled: false },
-            { id: 7, enabled: false },
-          ],
-        },
-      },
-      'UNAUTHENTICATED',
-    );
   });
 
   it('should update custom feed advanced settings', async () => {

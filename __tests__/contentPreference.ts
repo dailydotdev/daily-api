@@ -733,24 +733,6 @@ describe('mutation follow', () => {
     expect(notificationPreferences).toHaveLength(0);
   });
 
-  it('should not follow on custom feed if not plus member', async () => {
-    loggedUser = '1-fm';
-
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: {
-          id: '1-fm',
-          entity: ContentPreferenceType.User,
-          status: ContentPreferenceStatus.Follow,
-          feedId: '2-fm',
-        },
-      },
-      'UNAUTHENTICATED',
-    );
-  });
-
   it('should follow user on custom feed', async () => {
     loggedUser = '1-fm';
     isPlus = true;
@@ -954,24 +936,6 @@ describe('mutation follow', () => {
       expect(contentPreference!.status).toBe(ContentPreferenceStatus.Follow);
     });
 
-    it('should not follow on custom feed if not plus member', async () => {
-      loggedUser = '1-fm';
-
-      await testMutationErrorCode(
-        client,
-        {
-          mutation: MUTATION,
-          variables: {
-            id: 'keyword-f1',
-            entity: ContentPreferenceType.Keyword,
-            status: ContentPreferenceStatus.Follow,
-            feedId: '2-fm',
-          },
-        },
-        'UNAUTHENTICATED',
-      );
-    });
-
     it('should follow user on custom feed', async () => {
       loggedUser = '1-fm';
       isPlus = true;
@@ -1087,24 +1051,6 @@ describe('mutation follow', () => {
       });
       expect(feedSource).not.toBeNull();
       expect(feedSource!.blocked).toBe(false);
-    });
-
-    it('should not follow on custom feed if not plus member', async () => {
-      loggedUser = '1-fm';
-
-      await testMutationErrorCode(
-        client,
-        {
-          mutation: MUTATION,
-          variables: {
-            id: 'a-fm',
-            entity: ContentPreferenceType.Source,
-            status: ContentPreferenceStatus.Follow,
-            feedId: '2-fm',
-          },
-        },
-        'UNAUTHENTICATED',
-      );
     });
 
     it('should follow user on custom feed', async () => {
@@ -1394,23 +1340,6 @@ describe('mutation unfollow', () => {
       });
 
     expect(notificationPreferences).toHaveLength(0);
-  });
-
-  it('should not unfollow on custom feed if not plus member', async () => {
-    loggedUser = '1-fm';
-
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: {
-          id: '2-um',
-          entity: ContentPreferenceType.User,
-          feedId: '2-fm',
-        },
-      },
-      'UNAUTHENTICATED',
-    );
   });
 
   it('should unfollow user on custom feed', async () => {
