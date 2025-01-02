@@ -28,7 +28,6 @@ const func = async () => {
     console.error('failed to read file: ', err.message);
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   stream.on('data', function ([id, rawStatus]) {
     if (!id || !rawStatus) {
       return;

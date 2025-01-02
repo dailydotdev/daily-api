@@ -22,30 +22,26 @@ const runSync = async (con: DataSource, runDate: Date) => {
   }
 };
 
-export const syncValidateActiveUsersCron = async (con: DataSource) => {
-  const runDate = subDays(new Date(), 1);
-  const lastSuccessfulDate = await getRedisObject(SUCCESSFUL_CIO_SYNC_DATE);
-
-  if (!lastSuccessfulDate) {
-    return runSync(con, runDate);
-  }
-
-  const lastRunDate = new Date(lastSuccessfulDate);
-  const difference = getAbsoluteDifferenceInDays(lastRunDate, runDate);
-
-  if (difference === 0) {
-    return;
-  }
-
-  for (let i = 1; i <= difference; i++) {
-    await runSync(con, addDays(lastRunDate, i));
-  }
-};
-
 const cron: Cron = {
   name: 'validate-active-users',
   handler: async (con) => {
-    await syncValidateActiveUsersCron(con);
+    const runDate = subDays(new Date(), 1);
+    const lastSuccessfulDate = await getRedisObject(SUCCESSFUL_CIO_SYNC_DATE);
+
+    if (!lastSuccessfulDate) {
+      return runSync(con, runDate);
+    }
+
+    const lastRunDate = new Date(lastSuccessfulDate);
+    const difference = getAbsoluteDifferenceInDays(lastRunDate, runDate);
+
+    if (difference === 0) {
+      return;
+    }
+
+    for (let i = 1; i <= difference; i++) {
+      await runSync(con, addDays(lastRunDate, i));
+    }
   },
 };
 
