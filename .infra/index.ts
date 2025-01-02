@@ -65,10 +65,15 @@ const redis = new Redis(`${name}-redis`, {
   isAdhocEnv,
   name: `${name}-redis`,
   tier: 'BASIC',
-  memorySizeGb: 3,
+  memorySizeGb: 1,
   region: location,
   authEnabled: true,
-  redisVersion: 'REDIS_6_X',
+  redisVersion: 'REDIS_7_2',
+  labels: { app: name },
+  redisConfigs: {
+    'maxmemory-policy': 'volatile-ttl',
+    'maxmemory-gb': '0.95',
+  },
   maintenancePolicy: {
     weeklyMaintenanceWindows: [
       {
@@ -436,7 +441,7 @@ const [apps] = deployApplicationSuite(
           ],
     },
     debezium: {
-      version: '2.4.2.Final',
+      version: '3.0.5.Final',
       topicName: debeziumTopicName,
       propsPath: './application.properties',
       propsVars: {
@@ -645,7 +650,7 @@ if (!isAdhocEnv) {
       },
       image: {
         repository: 'gcr.io/daily-ops/clickhouse-sink-docker',
-        tag: '74f13a789ffb053e695794ffa1d74ac652622a7b',
+        tag: '6b73adea1357df3e755dfc083c3a89bd2ccc348b',
       },
       resources: {
         // TODO: adjust resources based on the actual usage

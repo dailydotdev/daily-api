@@ -21,7 +21,7 @@ services:
       - "wal_level=logical"
 
   redis:
-    image: redis:6
+    image: redis/redis-stack:7.2.0-v13
     command: redis-server --appendonly yes
     volumes:
       - redis:/data

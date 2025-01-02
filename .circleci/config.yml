@@ -1,8 +1,8 @@
 version: 2.1
 orbs:
-  gcp-gcr: circleci/gcp-gcr@0.16.2
+  gcp-gcr: circleci/gcp-gcr@0.16.9
   pulumi: pulumi/pulumi@2.1.0
-  gcp-cli: circleci/gcp-cli@3.1.1
+  gcp-cli: circleci/gcp-cli@3.3.0
 jobs:
   build:
     docker:
@@ -29,11 +29,11 @@ jobs:
     resource_class: large
     docker:
       - image: cimg/node:20.12
-      - image: postgres:15-alpine
+      - image: postgres:17-alpine
         environment:
           - POSTGRES_DB: api_test
           - POSTGRES_PASSWORD: 12345
-      - image: redis:6
+      - image: redis/redis-stack:7.2.0-v13
     parallelism: 4
     steps:
       - checkout
