@@ -257,20 +257,23 @@ export const syncSubscriptionsWithActiveState = async ({
         callback: () => cioV2.request.post('/users', { batch: data }),
         onSuccess: async () => {
           const ids = users.map(({ id }) => id);
-          await Promise.all([
-            con.getRepository(User).update(
-              { id: In(ids) },
-              {
-                cioRegistered: false,
-                acceptedMarketing: false,
-                followingEmail: false,
-                notificationEmail: false,
-              },
-            ),
-            con
-              .getRepository(UserPersonalizedDigest)
-              .delete({ userId: In(ids) }),
-          ]);
+
+          await con.transaction(async (manager) => {
+            await Promise.all([
+              manager.getRepository(User).update(
+                { id: In(ids) },
+                {
+                  cioRegistered: false,
+                  acceptedMarketing: false,
+                  followingEmail: false,
+                  notificationEmail: false,
+                },
+              ),
+              manager
+                .getRepository(UserPersonalizedDigest)
+                .delete({ userId: In(ids) }),
+            ]);
+          });
         },
         onFailure: (err) => {
           hasAnyFailed = true;
