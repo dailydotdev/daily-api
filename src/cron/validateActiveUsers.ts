@@ -37,7 +37,7 @@ export const syncValidateActiveUsersCron = async (con: DataSource) => {
     return;
   }
 
-  for (let i = 1; i <= difference || i > 100; i++) {
+  for (let i = 1; i <= difference; i++) {
     await runSync(con, addDays(lastRunDate, i));
   }
 };
