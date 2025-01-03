@@ -12,8 +12,8 @@ import { cio } from '../../src/cio';
 import { typedWorkers } from '../../src/workers';
 import mocked = jest.mocked;
 
-jest.mock('../../src/common', () => ({
-  ...jest.requireActual('../../src/common'),
+jest.mock('../../src/common/links', () => ({
+  ...jest.requireActual('../../src/common/links'),
   getShortGenericInviteLink: jest.fn(),
 }));
 

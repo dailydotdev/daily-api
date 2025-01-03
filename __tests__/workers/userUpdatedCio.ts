@@ -21,6 +21,11 @@ import { usersFixture } from '../fixture/user';
 
 jest.mock('../../src/common', () => ({
   ...jest.requireActual('../../src/common'),
+  resubscribeUser: jest.fn(),
+}));
+
+jest.mock('../../src/common/links', () => ({
+  ...jest.requireActual('../../src/common/links'),
   getShortGenericInviteLink: jest.fn(),
   resubscribeUser: jest.fn(),
 }));

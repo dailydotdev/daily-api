@@ -3,6 +3,7 @@ import { zonedTimeToUtc } from 'date-fns-tz';
 import { snakeCase } from 'lodash';
 import { isNullOrUndefined } from './object';
 import { remoteConfig } from '../remoteConfig';
+import { ChangeObject } from '../types';
 
 const REMOVE_SPECIAL_CHARACTERS_REGEX = /[^a-zA-Z0-9-_#.]/g;
 
@@ -138,6 +139,9 @@ export const toGQLEnum = (value: Record<string, string>, name: string) => {
   return `enum ${name} { ${Object.values(value).join(' ')} }`;
 };
 
+export const toChangeObject = <T>(entity: T): ChangeObject<T> =>
+  JSON.parse(Buffer.from(JSON.stringify(entity)).toString('utf-8').trim());
+
 export function camelCaseToSnakeCase(
   obj: Record<string, unknown>,
 ): Record<string, unknown> {
@@ -151,6 +155,14 @@ export function camelCaseToSnakeCase(
 export function debeziumTimeToDate(time: number): Date {
   return new Date(Math.floor(time / 1000));
 }
+
+export const getDateBaseFromType = (value: number | string | Date) => {
+  if (typeof value === 'number') {
+    return debeziumTimeToDate(value);
+  }
+
+  return new Date(value);
+};
 
 export const safeJSONParse = <T>(json: string): T | undefined => {
   try {
