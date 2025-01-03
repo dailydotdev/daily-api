@@ -15,15 +15,15 @@ export class Prompt1735645895838 implements MigrationInterface {
     );
     await queryRunner.query(
       `INSERT INTO "public"."prompt" ("id", "order", "label", "description", "prompt", "flags") VALUES
-            ('Simplify it', 0, 'Simplify it', 'Break the post down into a simplified explanation of the main ideas using everyday language.', '', '{"icon": "CustomPrompt", "color": "blueCheese"}'),
-            ('Remove fluff', 1, 'Remove fluff', 'Get a condensed version of the post, focusing only on the most valuable parts.', '', '{"icon": "CustomPrompt", "color": "ketchup"}'),
-            ('Challenge this', 2, 'Challenge this', 'Identify flaws, assumptions, or contrarian viewpoints in the post’s content.', '', '{"icon": "CustomPrompt", "color": "avocado"}'),
-            ('Practical examples', 3, 'Practical examples', 'Show practical examples or case studies related to the topic of the post.', '', '{"icon": "CustomPrompt", "color": "onion"}'),
-            ('Actionable steps', 4, 'Actionable steps', 'Provide a structured output of steps to implement the content of the post.', '', '{"icon": "CustomPrompt", "color": "water"}'),
-            ('Skills needed', 5, 'Skills needed', 'Highlight the skills or prerequisites required to fully understand the post.', '', '{"icon": "CustomPrompt", "color": "lettuce"}'),
-            ('Compare alternatives', 6, 'Compare alternatives', 'Analyze similar tools or methods, highlighting their pros and cons.', '', '{"icon": "CustomPrompt", "color": "bun"}'),
-            ('Extract code', 7, 'Extract code', 'Pull out all code snippets from the post and display them in one place.', '', '{"icon": "CustomPrompt", "color": "cheese"}'),
-            ('Custom prompt', 8, 'Custom prompt', 'Your prompt, your way. Write a custom instruction and run it on the post.', '', '{"icon": "EditPrompt", "color": "bacon"}')
+            ('simplify-it', 0, 'Simplify it', 'Break the post down into a simplified explanation of the main ideas using everyday language.', '', '{"icon": "CustomPrompt", "color": "blueCheese"}'),
+            ('remove-fluff', 1, 'Remove fluff', 'Get a condensed version of the post, focusing only on the most valuable parts.', '', '{"icon": "CustomPrompt", "color": "ketchup"}'),
+            ('challenge-this', 2, 'Challenge this', 'Identify flaws, assumptions, or contrarian viewpoints in the post’s content.', '', '{"icon": "CustomPrompt", "color": "avocado"}'),
+            ('practical-examples', 3, 'Practical examples', 'Show practical examples or case studies related to the topic of the post.', '', '{"icon": "CustomPrompt", "color": "onion"}'),
+            ('actionable-steps', 4, 'Actionable steps', 'Provide a structured output of steps to implement the content of the post.', '', '{"icon": "CustomPrompt", "color": "water"}'),
+            ('skills-needed', 5, 'Skills needed', 'Highlight the skills or prerequisites required to fully understand the post.', '', '{"icon": "CustomPrompt", "color": "lettuce"}'),
+            ('compare-alternatives', 6, 'Compare alternatives', 'Analyze similar tools or methods, highlighting their pros and cons.', '', '{"icon": "CustomPrompt", "color": "bun"}'),
+            ('extract-code', 7, 'Extract code', 'Pull out all code snippets from the post and display them in one place.', '', '{"icon": "CustomPrompt", "color": "cheese"}'),
+            ('custom-prompt', 8, 'Custom prompt', 'Your prompt, your way. Write a custom instruction and run it on the post.', '', '{"icon": "EditPrompt", "color": "bacon"}')
          ON CONFLICT DO NOTHING`,
     );
   }
