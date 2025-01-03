@@ -63,6 +63,7 @@ import { DEFAULT_TIMEZONE, submitArticleThreshold } from '../src/common';
 import { saveReturnAlerts } from '../src/schema/alerts';
 import { UserVote } from '../src/types';
 import { BootAlerts, excludeProperties } from '../src/routes/boot';
+import { SubscriptionCycles } from '../src/paddle';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -123,6 +124,7 @@ const LOGGED_IN_BODY = {
     mastodon: null,
     language: undefined,
     isPlus: false,
+    defaultFeedId: null,
   },
   marketingCta: null,
   feeds: [],
@@ -440,6 +442,54 @@ describe('logged in boot', () => {
     });
   });
 
+  it('should not re-issue JWT token when isPlus in payload is same as user', async () => {
+    const accessToken = await signJwt(
+      {
+        userId: '1',
+        roles: [],
+        isPlus: false,
+      },
+      15 * 60 * 1000,
+    );
+    const key = app.signCookie(accessToken.token);
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', `${cookies.auth.key}=${key};`)
+      .expect(200);
+
+    (res.get('set-cookie') as unknown as string[]).forEach((cookie) => {
+      // cookies.auth.key should not be in cookie
+      expect(cookie).not.toEqual(expect.stringContaining(cookies.auth.key));
+    });
+  });
+
+  it('should re-issue JWT token when isPlus in payload is different from user', async () => {
+    const accessToken = await signJwt(
+      {
+        userId: '1',
+        roles: [],
+        isPlus: true,
+      },
+      15 * 60 * 1000,
+    );
+    const key = app.signCookie(accessToken.token);
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', `${cookies.auth.key}=${key};`)
+      .expect(200);
+
+    (res.get('set-cookie') as unknown as string[]).forEach((cookie) => {
+      if (cookie.startsWith(`${cookies.auth.key}=`)) {
+        const jwt = app.unsignCookie(
+          cookie.slice(`${cookies.auth.key}=`.length),
+        );
+        expect(jwt).not.toEqual(key);
+      }
+    });
+  });
+
   it('should set team member to true if user is a team member', async () => {
     await con.getRepository(Feature).save({
       feature: FeatureType.Team,
@@ -452,6 +502,45 @@ describe('logged in boot', () => {
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
     expect(res.body.user.isTeamMember).toEqual(true);
+  });
+
+  it('should return default feed id if set', async () => {
+    await con.getRepository(Feed).save({
+      id: '1',
+      name: 'My Feed',
+      userId: '1',
+    });
+    await con.getRepository(User).save({
+      ...usersFixture[0],
+      subscriptionFlags: {
+        cycle: SubscriptionCycles.Yearly,
+      },
+      defaultFeedId: '1',
+    });
+    mockLoggedIn();
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+    expect(res.body.user.defaultFeedId).toEqual('1');
+  });
+
+  it('should not return default feed id if not plus', async () => {
+    await con.getRepository(Feed).save({
+      id: '1',
+      name: 'My Feed',
+      userId: '1',
+    });
+    await con.getRepository(User).save({
+      ...usersFixture[0],
+      defaultFeedId: '1',
+    });
+    mockLoggedIn();
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+    expect(res.body.user.defaultFeedId).toBeNull();
   });
 });
 

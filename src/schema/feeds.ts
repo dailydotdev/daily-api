@@ -3,8 +3,10 @@ import {
   Feed,
   FeedAdvancedSettings,
   FeedFlagsPublic,
+  FeedOrderBy,
   FeedSource,
   FeedTag,
+  FeedType,
   Post,
   PostType,
   Source,
@@ -22,6 +24,7 @@ import {
   applyFeedWhere,
   base64,
   configuredFeedBuilder,
+  customFeedsPlusDate,
   FeedArgs,
   feedResolver,
   feedToFilters,
@@ -32,6 +35,7 @@ import {
   Ranking,
   sourceFeedBuilder,
   tagFeedBuilder,
+  toGQLEnum,
   whereKeyword,
 } from '../common';
 import { In, Not, SelectQueryBuilder } from 'typeorm';
@@ -76,7 +80,7 @@ import {
   FeedLofnConfigGenerator,
 } from '../integrations/feed/configs';
 import { counters } from '../telemetry';
-import { lofnClient, popularFeedClient } from '../integrations/feed/generators';
+import { lofnClient } from '../integrations/feed/generators';
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
 import { randomUUID } from 'crypto';
@@ -153,6 +157,10 @@ export const typeDefs = /* GraphQL */ `
     TIME
   }
 
+  ${toGQLEnum(FeedOrderBy, 'FeedOrderBy')}
+
+  ${toGQLEnum(FeedType, 'FeedType')}
+
   input FeedAdvancedSettingsInput {
     """
     Advanced Settings ID
@@ -217,6 +225,36 @@ export const typeDefs = /* GraphQL */ `
     Name of the feed
     """
     name: String
+
+    """
+    Order by
+    """
+    orderBy: FeedOrderBy
+
+    """
+    Minimum day range
+    """
+    minDayRange: Int
+
+    """
+    Minimum upvotes
+    """
+    minUpvotes: Int
+
+    """
+    Minimum views
+    """
+    minViews: Int
+
+    """
+    Disable engagement filter
+    """
+    disableEngagementFilter: Boolean
+
+    """
+    Icon
+    """
+    icon: String
   }
 
   type Feed {
@@ -249,6 +287,11 @@ export const typeDefs = /* GraphQL */ `
     Feed slug
     """
     slug: String
+
+    """
+    type of the feed
+    """
+    type: FeedType
   }
 
   type FeedConnection {
@@ -856,6 +899,11 @@ export const typeDefs = /* GraphQL */ `
     """
     updateFeedAdvancedSettings(
       """
+      Feed id
+      """
+      feedId: ID
+
+      """
       Posts must comply with the advanced settings from this list
       """
       settings: [FeedAdvancedSettingsInput]!
@@ -869,6 +917,36 @@ export const typeDefs = /* GraphQL */ `
       Feed name
       """
       name: String!
+
+      """
+      Order by
+      """
+      orderBy: FeedOrderBy
+
+      """
+      Minimum day range
+      """
+      minDayRange: Int
+
+      """
+      Minimum upvotes
+      """
+      minUpvotes: Int
+
+      """
+      Minimum views
+      """
+      minViews: Int
+
+      """
+      Disable engagement filter
+      """
+      disableEngagementFilter: Boolean
+
+      """
+      Icon
+      """
+      icon: String
     ): Feed @auth
 
     """
@@ -884,6 +962,36 @@ export const typeDefs = /* GraphQL */ `
       Feed name
       """
       name: String!
+
+      """
+      Order by
+      """
+      orderBy: FeedOrderBy
+
+      """
+      Minimum day range
+      """
+      minDayRange: Int
+
+      """
+      Minimum upvotes
+      """
+      minUpvotes: Int
+
+      """
+      Minimum views
+      """
+      minViews: Int
+
+      """
+      Disable engagement filter
+      """
+      disableEngagementFilter: Boolean
+
+      """
+      Icon
+      """
+      icon: String
     ): Feed @auth
 
     """
@@ -1374,44 +1482,37 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
       const feedId = feed.id;
 
-      if (
-        args.version >= 2 &&
-        args.ranking === Ranking.POPULARITY &&
-        ctx.userId
-      ) {
-        const feedGenerator = new FeedGenerator(
-          popularFeedClient,
-          new FeedPreferencesConfigGenerator(
-            {},
-            {
-              includeAllowedTags: true,
-              includePostTypes: true,
-              includeBlockedSources: true,
-              includeBlockedTags: true,
-              includeContentCuration: true,
-              includeBlockedWords: true,
-              feedId: feedId,
-            },
-          ),
-          'popular',
-        );
-
-        return feedResolverCursor(
-          source,
-          {
-            ...(args as FeedArgs),
-            generator: feedGenerator,
-          },
-          ctx,
-          info,
+      if (feed.createdAt > customFeedsPlusDate && !ctx.isPlus) {
+        throw new ForbiddenError(
+          'Access denied! You need to be authorized to perform this action!',
         );
       }
 
-      return feedResolverV1(
+      const feedGenerator = new FeedGenerator(
+        feedClient,
+        new FeedPreferencesConfigGenerator(
+          {
+            feed_config_name: FeedConfigName.CustomFeedV1,
+          },
+          {
+            includeAllowedTags: true,
+            includePostTypes: true,
+            includeBlockedSources: true,
+            includeBlockedTags: true,
+            includeContentCuration: true,
+            includeBlockedWords: true,
+            includeAllowedUsers: true,
+            includeAllowedSources: true,
+            feedId: feedId,
+          },
+        ),
+      );
+
+      return feedResolverCursor(
         source,
         {
-          ...args,
-          feedId,
+          ...(args as FeedArgs),
+          generator: feedGenerator,
         },
         ctx,
         info,
@@ -1429,9 +1530,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const feedGenerator = filters
         ? new FeedGenerator(
-            popularFeedClient,
+            feedClient,
             new FeedLocalConfigGenerator(
-              {},
+              { feed_config_name: FeedConfigName.Popular },
               {
                 includeAllowedTags: true,
                 includePostTypes: true,
@@ -2128,17 +2229,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     updateFeedAdvancedSettings: async (
       _,
-      { settings }: { settings: GQLFeedAdvancedSettingsInput[] },
+      {
+        feedId: feedIdArg,
+        settings,
+      }: { settings: GQLFeedAdvancedSettingsInput[] } & { feedId: string },
       ctx: AuthContext,
     ): Promise<GQLFeedAdvancedSettings[]> => {
-      const feedId = ctx.userId;
+      const feedId = feedIdArg || ctx.userId;
       const feedRepo = ctx.con.getRepository(Feed);
-      const feed = await feedRepo.findOneBy({ id: feedId });
+      await feedRepo.findOneByOrFail({
+        id: feedId,
+        userId: ctx.userId,
+      });
       const feedAdvSettingsrepo = ctx.con.getRepository(FeedAdvancedSettings);
-
-      if (!feed) {
-        await feedRepo.save({ userId: feedId, id: feedId });
-      }
 
       await feedAdvSettingsrepo
         .createQueryBuilder()
@@ -2164,10 +2267,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     createFeed: async (
       _,
-      { name }: { name: string },
+      flags: FeedFlagsPublic,
       ctx: AuthContext,
     ): Promise<GQLFeed> => {
-      validateFeedPayload({ name });
+      validateFeedPayload(flags);
 
       const feedRepo = ctx.con.getRepository(Feed);
 
@@ -2184,19 +2287,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const feed = await feedRepo.save({
         id: await generateShortId(),
         userId: ctx.userId,
-        flags: {
-          name,
-        },
+        flags,
       });
 
       return feed;
     },
     updateFeed: async (
       _,
-      { feedId, name }: { feedId: string; name: string },
+      { feedId, ...flags }: { feedId: string } & FeedFlagsPublic,
       ctx: AuthContext,
     ): Promise<GQLFeed> => {
-      validateFeedPayload({ name });
+      validateFeedPayload(flags);
 
       const feedRepo = ctx.con.getRepository(Feed);
       const feed = await getFeedByIdentifiersOrFail({
@@ -2209,7 +2310,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         id: feed.id,
         userId: feed.userId,
         flags: {
-          name,
+          ...feed.flags,
+          ...flags,
         },
       });
 
@@ -2220,7 +2322,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     deleteFeed: async (
       _,
-      { feedId }: { feedId: string; name: string },
+      { feedId }: { feedId: string },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       const feedRepo = ctx.con.getRepository(Feed);

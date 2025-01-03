@@ -27,6 +27,7 @@ export class BookmarkList {
   user: Promise<User>;
 
   @Column({ type: 'text' })
+  @Index('bookmark_list_idx_lowername_asc', { synchronize: false })
   name: string;
 
   @Column({ type: 'text', nullable: true })

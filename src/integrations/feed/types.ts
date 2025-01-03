@@ -1,4 +1,5 @@
 import { Context } from '../../Context';
+import type { FeedFlags } from '../../entity';
 import { GenericMetadata } from '../lofn';
 
 export type FeedResponse = {
@@ -14,6 +15,8 @@ export enum FeedConfigName {
   VectorV26 = 'vector_v26',
   VectorV27 = 'vector_v27',
   PostSimilarity = 'post_similarity',
+  CustomFeedV1 = 'custom_feed_v1',
+  Popular = 'popular',
 }
 
 export type FeedProvider = {
@@ -46,10 +49,12 @@ export type FeedConfig = {
   fresh_page_size?: string;
   allowed_tags?: string[];
   blocked_tags?: string[];
+  allowed_sources?: string[];
   blocked_sources?: string[];
   allowed_post_types?: string[];
   allowed_content_curations?: string[];
   blocked_title_words?: string[];
+  allowed_author_ids?: string[];
   followed_user_ids?: string[];
   followed_sources?: string[];
   squad_ids?: string[];
@@ -61,7 +66,7 @@ export type FeedConfig = {
   config?: {
     [key: string]: unknown;
   };
-};
+} & FeedFlagsFilters;
 
 export type DynamicConfig = Omit<FeedConfig, 'total_pages'>;
 
@@ -107,4 +112,16 @@ export type FeedVersion =
 export const baseFeedConfig: Partial<FeedConfig> = {
   source_types: ['machine', 'squad'],
   allowed_languages: ['en'],
+};
+
+export type FeedFlagsFilters = {
+  order_by?: FeedFlags['orderBy'];
+  disable_engagement_filter?: FeedFlags['disableEngagementFilter'];
+  thresholds?: {
+    min_thresholds: {
+      upvotes?: FeedFlags['minUpvotes'];
+      views?: FeedFlags['minViews'];
+    };
+  };
+  min_day_range?: FeedFlags['minDayRange'];
 };

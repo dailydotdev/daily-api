@@ -43,6 +43,7 @@ let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string | undefined;
+let isPlus: boolean;
 
 jest.mock('../src/common/mailing.ts', () => ({
   ...(jest.requireActual('../src/common/mailing.ts') as Record<
@@ -63,13 +64,14 @@ jest.mock('../src/common/constants.ts', () => ({
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    () => new MockContext(con, loggedUser) as Context,
+    () => new MockContext(con, loggedUser, [], null, false, isPlus) as Context,
   );
   client = state.client;
 });
 
 beforeEach(async () => {
   loggedUser = undefined;
+  isPlus = false;
   nock.cleanAll();
   jest.clearAllMocks();
 });
@@ -77,8 +79,8 @@ beforeEach(async () => {
 afterAll(() => disposeGraphQLTesting(state));
 
 describe('query userBlocked', () => {
-  const QUERY = `query UserBlocked($id: ID!, $entity: ContentPreferenceType!) {
-    userBlocked(userId: $id, entity: $entity) {
+  const QUERY = `query UserBlocked($entity: ContentPreferenceType!) {
+    userBlocked(entity: $entity) {
       edges {
         node {
           referenceId
@@ -136,7 +138,6 @@ describe('query userBlocked', () => {
       {
         query: QUERY,
         variables: {
-          id: '1-uwb',
           entity: ContentPreferenceType.Word,
         },
       },
@@ -148,7 +149,6 @@ describe('query userBlocked', () => {
     loggedUser = '1-uwb';
     const res = await client.query(QUERY, {
       variables: {
-        id: '1-uwb',
         entity: ContentPreferenceType.Word,
       },
     });
@@ -318,8 +318,8 @@ describe('query userFollowers', () => {
 });
 
 describe('query userFollowing', () => {
-  const QUERY = `query UserFollowing($id: ID!, $entity: ContentPreferenceType!) {
-    userFollowing(userId: $id, entity: $entity) {
+  const QUERY = `query UserFollowing($id: ID!, $entity: ContentPreferenceType!, $feedId: String) {
+    userFollowing(userId: $id, entity: $entity, feedId: $feedId) {
       edges {
         node {
           user {
@@ -392,7 +392,53 @@ describe('query userFollowing', () => {
     ]);
   });
 
-  it('should return list of users user is following', async () => {
+  it('should return list of users user is following on main feed', async () => {
+    const res = await client.query(QUERY, {
+      variables: {
+        id: '1-ufwq',
+        entity: ContentPreferenceType.User,
+        feedId: '1-ufwq',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data).toEqual({
+      userFollowing: {
+        edges: [
+          {
+            node: {
+              referenceId: '2-ufwq',
+              status: 'follow',
+              user: {
+                id: '1-ufwq',
+              },
+            },
+          },
+          {
+            node: {
+              referenceId: '3-ufwq',
+              status: 'subscribed',
+              user: {
+                id: '1-ufwq',
+              },
+            },
+          },
+          {
+            node: {
+              referenceId: '4-ufwq',
+              status: 'follow',
+              user: {
+                id: '1-ufwq',
+              },
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  it('should return list of users user is following on main feed without feedId', async () => {
     const res = await client.query(QUERY, {
       variables: {
         id: '1-ufwq',
@@ -426,6 +472,50 @@ describe('query userFollowing', () => {
           {
             node: {
               referenceId: '4-ufwq',
+              status: 'follow',
+              user: {
+                id: '1-ufwq',
+              },
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  it('should return list of users user is following on custom feed', async () => {
+    await con.getRepository(Feed).save({
+      id: '5-ufwq',
+      userId: '1-ufwq',
+    });
+    const now = new Date();
+    await con.getRepository(ContentPreferenceUser).save([
+      {
+        userId: '1-ufwq',
+        feedId: '5-ufwq',
+        referenceId: '2-ufwq',
+        referenceUserId: '2-ufwq',
+        status: ContentPreferenceStatus.Follow,
+        createdAt: new Date(now.getTime() - 1000),
+      },
+    ]);
+
+    const res = await client.query(QUERY, {
+      variables: {
+        id: '1-ufwq',
+        entity: ContentPreferenceType.User,
+        feedId: '5-ufwq',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data).toEqual({
+      userFollowing: {
+        edges: [
+          {
+            node: {
+              referenceId: '2-ufwq',
               status: 'follow',
               user: {
                 id: '1-ufwq',
@@ -581,8 +671,8 @@ describe('query ContentPreferenceStatus', () => {
 });
 
 describe('mutation follow', () => {
-  const MUTATION = `mutation Follow($id: ID!, $entity: ContentPreferenceType!, $status: FollowStatus!) {
-    follow(id: $id, entity: $entity, status: $status) {
+  const MUTATION = `mutation Follow($id: ID!, $entity: ContentPreferenceType!, $status: FollowStatus!, $feedId: String) {
+    follow(id: $id, entity: $entity, status: $status, feedId: $feedId) {
       _
     }
   }`;
@@ -632,6 +722,48 @@ describe('mutation follow', () => {
 
     expect(contentPreference).not.toBeNull();
     expect(contentPreference!.status).toBe(ContentPreferenceStatus.Follow);
+
+    const notificationPreferences = await con
+      .getRepository(NotificationPreferenceUser)
+      .findBy({
+        userId: '1-fm',
+        referenceUserId: '3-fm',
+      });
+
+    expect(notificationPreferences).toHaveLength(0);
+  });
+
+  it('should follow user on custom feed', async () => {
+    loggedUser = '1-fm';
+    isPlus = true;
+
+    await con.getRepository(Feed).save({
+      id: '5-fm',
+      userId: '1-fm',
+    });
+
+    const res = await client.query(MUTATION, {
+      variables: {
+        id: '3-fm',
+        entity: ContentPreferenceType.User,
+        status: ContentPreferenceStatus.Follow,
+        feedId: '5-fm',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceUser)
+      .findOneBy({
+        userId: '1-fm',
+        referenceId: '3-fm',
+        feedId: '5-fm',
+      });
+
+    expect(contentPreference).not.toBeNull();
+    expect(contentPreference!.status).toBe(ContentPreferenceStatus.Follow);
+    expect(contentPreference!.feedId).toEqual('5-fm');
 
     const notificationPreferences = await con
       .getRepository(NotificationPreferenceUser)
@@ -804,6 +936,39 @@ describe('mutation follow', () => {
       expect(contentPreference!.status).toBe(ContentPreferenceStatus.Follow);
     });
 
+    it('should follow user on custom feed', async () => {
+      loggedUser = '1-fm';
+      isPlus = true;
+
+      await con.getRepository(Feed).save({
+        id: '5-fm',
+        userId: '1-fm',
+      });
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: 'keyword-f1',
+          entity: ContentPreferenceType.Keyword,
+          status: ContentPreferenceStatus.Follow,
+          feedId: '5-fm',
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreference = await con
+        .getRepository(ContentPreferenceKeyword)
+        .findOneBy({
+          userId: '1-fm',
+          referenceId: 'keyword-f1',
+          feedId: '5-fm',
+        });
+
+      expect(contentPreference).not.toBeNull();
+      expect(contentPreference!.status).toBe(ContentPreferenceStatus.Follow);
+      expect(contentPreference!.feedId).toEqual('5-fm');
+    });
+
     it('should subscribe when already following', async () => {
       loggedUser = '1-fm';
 
@@ -886,6 +1051,39 @@ describe('mutation follow', () => {
       });
       expect(feedSource).not.toBeNull();
       expect(feedSource!.blocked).toBe(false);
+    });
+
+    it('should follow user on custom feed', async () => {
+      loggedUser = '1-fm';
+      isPlus = true;
+
+      await con.getRepository(Feed).save({
+        id: '5-fm',
+        userId: '1-fm',
+      });
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: 'a-fm',
+          entity: ContentPreferenceType.Source,
+          status: ContentPreferenceStatus.Follow,
+          feedId: '5-fm',
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const contentPreference = await con
+        .getRepository(ContentPreferenceSource)
+        .findOneBy({
+          userId: '1-fm',
+          referenceId: 'a-fm',
+          feedId: '5-fm',
+        });
+
+      expect(contentPreference).not.toBeNull();
+      expect(contentPreference!.status).toBe(ContentPreferenceStatus.Follow);
+      expect(contentPreference!.feedId).toEqual('5-fm');
     });
 
     it('should subscribe', async () => {
@@ -1060,8 +1258,8 @@ describe('mutation follow', () => {
 });
 
 describe('mutation unfollow', () => {
-  const MUTATION = `mutation Unfollow($id: ID!, $entity: ContentPreferenceType!) {
-    unfollow(id: $id, entity: $entity) {
+  const MUTATION = `mutation Unfollow($id: ID!, $entity: ContentPreferenceType!, $feedId: String) {
+    unfollow(id: $id, entity: $entity, feedId: $feedId) {
       _
     }
   }`;
@@ -1130,6 +1328,55 @@ describe('mutation unfollow', () => {
       .findOneBy({
         userId: '1-um',
         referenceId: '2-um',
+      });
+
+    expect(contentPreference).toBeNull();
+
+    const notificationPreferences = await con
+      .getRepository(NotificationPreferenceUser)
+      .findBy({
+        userId: '1-um',
+        referenceUserId: '2-um',
+      });
+
+    expect(notificationPreferences).toHaveLength(0);
+  });
+
+  it('should unfollow user on custom feed', async () => {
+    loggedUser = '1-um';
+    isPlus = true;
+
+    await con.getRepository(Feed).save({
+      id: '5-um',
+      userId: '1-um',
+    });
+
+    await con.getRepository(ContentPreferenceUser).save([
+      {
+        userId: '1-um',
+        feedId: '5-um',
+        referenceId: '2-um',
+        referenceUserId: '2-um',
+        status: ContentPreferenceStatus.Follow,
+      },
+    ]);
+
+    const res = await client.query(MUTATION, {
+      variables: {
+        id: '2-um',
+        entity: ContentPreferenceType.User,
+        feedId: '5-um',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceUser)
+      .findOneBy({
+        userId: '1-um',
+        referenceId: '2-um',
+        feedId: '5-um',
       });
 
     expect(contentPreference).toBeNull();

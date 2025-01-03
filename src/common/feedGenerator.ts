@@ -1,6 +1,8 @@
 import {
   AdvancedSettings,
+  Feed,
   FeedAdvancedSettings,
+  FeedType,
   SourceMember,
   SourceType,
   UserPost,
@@ -28,7 +30,7 @@ import graphorm from '../graphorm';
 import { mapArrayToOjbect } from './object';
 import { runInSpan } from '../telemetry';
 import { whereVordrFilter } from './vordr';
-import { baseFeedConfig } from '../integrations/feed';
+import { baseFeedConfig, type FeedFlagsFilters } from '../integrations/feed';
 import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
 import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
 import {
@@ -102,6 +104,7 @@ type RawFiltersData = {
   users: Pick<ContentPreferenceUser, 'referenceId'>[] | null;
   sources: Pick<ContentPreferenceSource, 'sourceId' | 'status'>[] | null;
   memberships: { sourceId: SourceMember['sourceId']; hide: boolean }[] | null;
+  feeds: Pick<Feed, 'flags' | 'type'>[] | null;
 };
 
 const getRawFiltersData = async (
@@ -109,6 +112,8 @@ const getRawFiltersData = async (
   feedId: string,
   userId: string,
 ): Promise<RawFiltersData | undefined> => {
+  const isMainFeed = feedId === userId;
+
   const selects = [
     rawFilterSelect(con, 'settings', (qb) =>
       qb
@@ -126,13 +131,14 @@ const getRawFiltersData = async (
         .select(['"keywordId"', 'status'])
         .from(ContentPreference, 't')
         .where('"feedId" = $1')
-        .andWhere(`type = '${ContentPreferenceType.Keyword}'`)
-        .andWhere('"userId" = $2'),
+        .andWhere('"userId" = $2')
+        .andWhere(`type = '${ContentPreferenceType.Keyword}'`),
     ),
     rawFilterSelect(con, 'users', (qb) =>
       qb
         .select('"referenceId"')
         .from(ContentPreference, 'u')
+        .where('"feedId" = $1')
         .andWhere('"userId" = $2')
         .andWhere(`type = '${ContentPreferenceType.User}'`)
         .andWhere(`status != '${ContentPreferenceStatus.Blocked}'`),
@@ -142,17 +148,17 @@ const getRawFiltersData = async (
         .select(['"sourceId"', 'status'])
         .from(ContentPreference, 't')
         .where('"feedId" = $1')
-        .andWhere(`type = '${ContentPreferenceType.Source}'`)
-        .andWhere('"userId" = $2'),
+        .andWhere('"userId" = $2')
+        .andWhere(`type = '${ContentPreferenceType.Source}'`),
     ),
     rawFilterSelect(con, 'words', (qb) =>
       qb
         .select(['"referenceId"'])
         .from(ContentPreference, 'w')
         .where('"feedId" = $1')
+        .andWhere('"userId" = $2')
         .andWhere(`type = '${ContentPreferenceType.Word}'`)
-        .andWhere(`status = '${ContentPreferenceStatus.Blocked}'`)
-        .andWhere('"userId" = $2'),
+        .andWhere(`status = '${ContentPreferenceStatus.Blocked}'`),
     ),
     rawFilterSelect(con, 'memberships', (qb) =>
       qb
@@ -162,6 +168,19 @@ const getRawFiltersData = async (
         .where('"userId" = $2'),
     ),
   ];
+
+  if (!isMainFeed) {
+    selects.push(
+      rawFilterSelect(con, 'feeds', (qb) =>
+        qb
+          .select(['flags', 'type'])
+          .from(Feed, 't')
+          .where('id = $1')
+          .andWhere('"userId" = $2'),
+      ),
+    );
+  }
+
   const query =
     'select ' + selects.map((select) => `(${select.getQuery()})`).join(', ');
   const res = await con.query(query, [feedId, userId]);
@@ -307,6 +326,47 @@ const sourcesToFilters = ({
   };
 };
 
+const feedFlagsToFilters = ({
+  feeds,
+}: RawFiltersData): {
+  flags?: FeedFlagsFilters;
+} => {
+  const feed = feeds?.[0];
+  const flagFilters: FeedFlagsFilters = {};
+
+  if (!feed) {
+    return {};
+  }
+
+  // we set flags only for custom feeds
+  if (feed.type !== FeedType.Custom) {
+    return {};
+  }
+
+  if (feed.flags.orderBy) {
+    flagFilters.order_by = feed.flags.orderBy;
+  }
+
+  flagFilters.disable_engagement_filter = !!feed.flags.disableEngagementFilter;
+
+  if (feed.flags.minDayRange) {
+    flagFilters.min_day_range = feed.flags.minDayRange;
+  }
+
+  if (feed.flags.minUpvotes || feed.flags.minViews) {
+    flagFilters.thresholds = {
+      min_thresholds: {
+        upvotes: feed.flags.minUpvotes,
+        views: feed.flags.minViews,
+      },
+    };
+  }
+
+  return {
+    flags: flagFilters,
+  };
+};
+
 export const feedToFilters = async (
   con: DataSource | EntityManager,
   feedId?: string,
@@ -327,6 +387,7 @@ export const feedToFilters = async (
     ...sourcesToFilters(rawData),
     ...wordsToFilters(rawData),
     ...usersToFilters(rawData),
+    ...feedFlagsToFilters(rawData),
   };
 };
 
@@ -602,6 +663,7 @@ export interface AnonymousFeedFilters {
   excludeSourceTypes?: string[];
   followingUsers?: string[];
   followingSources?: string[];
+  flags?: FeedFlagsFilters;
 }
 
 export const anonymousFeedBuilder = (
@@ -654,14 +716,25 @@ export const configuredFeedBuilder = (
   return newBuilder;
 };
 
-export const bookmarksFeedBuilder = (
-  ctx: Context,
-  unreadOnly: boolean,
-  listId: string | null,
-  builder: SelectQueryBuilder<Post>,
-  alias: string,
-  query?: string | null,
-): SelectQueryBuilder<Post> => {
+interface BookmarksFeedBuilderProps {
+  ctx: Context;
+  unreadOnly: boolean;
+  reminderOnly: boolean;
+  listId?: string | null;
+  builder: SelectQueryBuilder<Post>;
+  alias: string;
+  query?: string | null;
+}
+
+export const bookmarksFeedBuilder = ({
+  ctx,
+  unreadOnly,
+  reminderOnly,
+  listId,
+  builder,
+  alias,
+  query,
+}: BookmarksFeedBuilderProps): SelectQueryBuilder<Post> => {
   let newBuilder = builder
     .addSelect('bookmark.createdAt', 'bookmarkedAt')
     .innerJoin(
@@ -670,22 +743,35 @@ export const bookmarksFeedBuilder = (
       `bookmark."postId" = ${alias}.id AND bookmark."userId" = :userId`,
       { userId: ctx.userId },
     );
+
   if (unreadOnly) {
     newBuilder = newBuilder.andWhere((subBuilder) =>
       whereUnread(ctx.userId, subBuilder, alias),
     );
   }
-  if (listId && ctx.premium) {
-    newBuilder = newBuilder.andWhere('bookmark.listId = :listId', { listId });
-  }
+
   if (query) {
-    newBuilder = newBuilder.andWhere(
+    return newBuilder.andWhere(
       `${alias}.tsv @@ (${getSearchQuery(':query')})`,
       {
         query: processSearchQuery(query),
       },
     );
   }
+
+  if (reminderOnly) {
+    return newBuilder.andWhere(`bookmark.remindAt IS NOT NULL`);
+  }
+
+  if (!ctx.isPlus) {
+    // non-plus user don't have the ability to create/search in folders
+    return newBuilder;
+  }
+
+  newBuilder = listId
+    ? newBuilder.andWhere(`bookmark."listId" = :listId`, { listId })
+    : newBuilder.andWhere('bookmark.listId IS NULL');
+
   return newBuilder;
 };
 

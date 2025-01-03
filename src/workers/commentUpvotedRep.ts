@@ -33,7 +33,10 @@ const worker: TypedWorker<'comment-upvoted'> = {
           return;
         }
 
-        if (comment.userId === grantBy.id || !canGrantReputation(grantBy)) {
+        if (
+          comment.userId === grantBy.id ||
+          !(await canGrantReputation(transaction, grantBy))
+        ) {
           return;
         }
 

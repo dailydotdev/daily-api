@@ -84,7 +84,7 @@ import {
   TypeORMQueryFailedError,
   TypeOrmError,
 } from '../errors';
-import { deleteUser } from '../directive/user';
+import { deleteUser } from '../common/user';
 import { randomInt } from 'crypto';
 import { ArrayContains, DataSource, In, IsNull, QueryRunner } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
@@ -140,6 +140,7 @@ export interface GQLUpdateUserInput {
   language?: ContentLanguage;
   followingEmail?: boolean;
   followNotifications?: boolean;
+  defaultFeedId?: string;
 }
 
 interface GQLUserParameters {
@@ -550,6 +551,10 @@ export const typeDefs = /* GraphQL */ `
     Whether the user wants to receives following push notifications
     """
     followNotifications: Boolean
+    """
+    Default feed id for the user
+    """
+    defaultFeedId: String
   }
 
   type TagsReadingStatus {
@@ -1318,14 +1323,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               ContentPreferenceStatus.Follow,
               ContentPreferenceStatus.Subscribed,
             ]),
+            feedId: id,
           }),
-          ctx.con.getRepository(ContentPreferenceUser).countBy({
-            referenceId: id,
-            status: In([
-              ContentPreferenceStatus.Follow,
-              ContentPreferenceStatus.Subscribed,
-            ]),
-          }),
+          ctx.con
+            .createQueryBuilder(ContentPreferenceUser, 'cp')
+            .where('cp."referenceId" = :referenceId', {
+              referenceId: id,
+            })
+            .andWhere('cp.status IN (:...status)', {
+              status: [
+                ContentPreferenceStatus.Follow,
+                ContentPreferenceStatus.Subscribed,
+              ],
+            })
+            .andWhere('cp."feedId" = cp."userId"')
+            .getCount(),
         ]);
       return {
         numPosts: postStats?.numPosts ?? 0,

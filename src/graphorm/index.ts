@@ -72,6 +72,10 @@ const nullIfNotSameUser = <T>(
 };
 
 const checkIfTitleIsClickbait = (value?: string): boolean => {
+  if (!value) {
+    return false;
+  }
+
   const clickbaitProbability = parseFloat(value || '0');
   const threshold = remoteConfig.vars.clickbaitTitleProbabilityThreshold || 1;
 
@@ -86,6 +90,7 @@ const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
         i18nTitle: I18nRecord;
         smartTitle: I18nRecord;
         clickbaitProbability?: string;
+        manualClickbaitProbability?: string;
         [key: string]: unknown;
       };
 
@@ -101,8 +106,11 @@ const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
       const clickbaitShieldEnabled =
         settings?.flags?.clickbaitShieldEnabled ?? true;
 
+      // If manualClickbaitProbability is set, use it, otherwise use clickbaitProbability
       const clickbaitTitleDetected = checkIfTitleIsClickbait(
-        typedParent.clickbaitProbability,
+        typedParent.manualClickbaitProbability !== null
+          ? typedParent.manualClickbaitProbability
+          : typedParent.clickbaitProbability,
       );
 
       if (
@@ -303,6 +311,11 @@ const obj = new GraphORM({
         columnAs: 'clickbaitProbability',
         isJson: true,
       },
+      {
+        column: `"contentQuality"->'manual_clickbait_probability'`,
+        columnAs: 'manualClickbaitProbability',
+        isJson: true,
+      },
     ],
     fields: {
       tags: {
@@ -313,6 +326,7 @@ const obj = new GraphORM({
         transform: (_, ctx: Context, parent): boolean => {
           const typedParent = parent as {
             clickbaitProbability: string;
+            manualClickbaitProbability?: string;
             smartTitle: I18nRecord;
           };
           const altValue = getSmartTitle(
@@ -322,7 +336,12 @@ const obj = new GraphORM({
 
           return (
             !!altValue &&
-            checkIfTitleIsClickbait(typedParent.clickbaitProbability)
+            // If manualClickbaitProbability is set, use it, otherwise use clickbaitProbability
+            checkIfTitleIsClickbait(
+              typedParent.manualClickbaitProbability !== null
+                ? typedParent.manualClickbaitProbability
+                : typedParent.clickbaitProbability,
+            )
           );
         },
       },
@@ -918,6 +937,13 @@ const obj = new GraphORM({
     fields: {
       createdAt: {
         transform: transformDate,
+      },
+    },
+  },
+  Prompt: {
+    fields: {
+      flags: {
+        jsonType: true,
       },
     },
   },

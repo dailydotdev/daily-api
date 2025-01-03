@@ -4,7 +4,10 @@ import {
   PrimaryColumn,
   Column,
   BeforeInsert,
+  EntityManager,
+  MoreThan,
 } from 'typeorm';
+import { subDays } from 'date-fns';
 import type { User } from './user';
 
 export enum ReputationReason {
@@ -42,10 +45,21 @@ export const REPUTATION_THRESHOLD = parseInt(
   process.env.REPUTATION_THRESHOLD || '250',
 );
 
-export const canGrantReputation = (
-  grantBy: Pick<User, 'reputation' | 'flags'>,
-): boolean => {
-  return grantBy.reputation >= REPUTATION_THRESHOLD && !grantBy.flags?.vordr;
+const GRANTS_PER_DAY = parseInt(process.env.REPUTATION_GRANTS_PER_DAY || '5');
+
+export const canGrantReputation = async (
+  con: EntityManager,
+  grantBy: Pick<User, 'id' | 'reputation' | 'flags'>,
+): Promise<boolean> => {
+  const grants = await con.countBy(ReputationEvent, {
+    grantById: grantBy.id,
+    timestamp: MoreThan(subDays(new Date(), 1)),
+  });
+  return (
+    grantBy.reputation >= REPUTATION_THRESHOLD &&
+    !grantBy.flags?.vordr &&
+    grants <= GRANTS_PER_DAY
+  );
 };
 
 @Entity()

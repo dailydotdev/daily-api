@@ -2,6 +2,7 @@ import { DataSource } from 'typeorm';
 import { Feed } from '../entity/Feed';
 import { ValidationError } from 'apollo-server-errors';
 import { SubmissionFailErrorMessage } from '../errors';
+import { isOneValidEmoji } from './utils';
 
 export const getFeedByIdentifiersOrFail = async ({
   con,
@@ -32,11 +33,17 @@ export const maxFeedNameLength = 50;
 
 export const feedNameMatcher = /^[a-z0-9 ]+$/i;
 
+export const feedThresholdMin = 0;
+
+export const feedThresholdMax = 1000;
+
 export const validateFeedPayload = ({
   name,
-}: {
-  name: Feed['flags']['name'];
-}): never | undefined => {
+  icon,
+  minDayRange,
+  minUpvotes,
+  minViews,
+}: Feed['flags']): never | undefined => {
   if (!name) {
     throw new ValidationError(SubmissionFailErrorMessage.FEED_NAME_REQUIRED);
   }
@@ -47,5 +54,23 @@ export const validateFeedPayload = ({
 
   if (!feedNameMatcher.test(name)) {
     throw new ValidationError(SubmissionFailErrorMessage.FEED_NAME_INVALID);
+  }
+
+  if (icon && !isOneValidEmoji(icon)) {
+    throw new ValidationError(SubmissionFailErrorMessage.FEED_ICON_INVALID);
+  }
+
+  if (
+    [minDayRange, minUpvotes, minViews].some((item) => {
+      if (!item) {
+        return false;
+      }
+
+      return item < feedThresholdMin || item > feedThresholdMax;
+    })
+  ) {
+    throw new ValidationError(
+      SubmissionFailErrorMessage.FEED_THRESHOLD_INVALID,
+    );
   }
 };

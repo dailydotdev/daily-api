@@ -2,6 +2,7 @@ import { messageToJson } from '../worker';
 import {
   NotificationPreferenceSource,
   Post,
+  PostFlags,
   PostMention,
   PostType,
   SourceType,
@@ -43,7 +44,7 @@ const worker: NotificationWorker = {
       return;
     }
 
-    if (post.flags?.vordr) {
+    if ((post.flags as PostFlags)?.vordr) {
       return;
     }
 

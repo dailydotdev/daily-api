@@ -1521,17 +1521,17 @@ it('should add comment mention notification', async () => {
       commentUserId: '2',
     },
   });
-  expect(actual.length).toEqual(1);
-  expect(actual[0].type).toEqual(NotificationType.CommentMention);
-  expect(actual[0].ctx.userIds).toEqual(['1']);
-  expect((actual[0].ctx as NotificationPostContext).post.id).toEqual('p1');
-  expect((actual[0].ctx as NotificationPostContext).source.id).toEqual('a');
-  expect((actual[0].ctx as NotificationCommentContext).comment.id).toEqual(
+  expect(actual?.length).toEqual(1);
+  expect(actual?.[0].type).toEqual(NotificationType.CommentMention);
+  expect(actual?.[0].ctx.userIds).toEqual(['1']);
+  expect((actual?.[0].ctx as NotificationPostContext).post.id).toEqual('p1');
+  expect((actual?.[0].ctx as NotificationPostContext).source.id).toEqual('a');
+  expect((actual?.[0].ctx as NotificationCommentContext).comment.id).toEqual(
     'c1',
   );
-  expect((actual[0].ctx as NotificationCommenterContext).commenter.id).toEqual(
-    '2',
-  );
+  expect(
+    (actual?.[0].ctx as NotificationCommenterContext).commenter.id,
+  ).toEqual('2');
 });
 
 it('should not add comment mention notification when you mentioned the author', async () => {
@@ -1589,7 +1589,7 @@ it('should not add comment mention notification when you mentioned the parent co
   expect(actual).toBeFalsy();
 });
 
-it('should not add comment mention notification when you mentioned someone in the same thread', async () => {
+it('should add comment mention notification when you mentioned someone in the same thread', async () => {
   const mentionedUserId = '3';
   await con.getRepository(Comment).save([
     {
@@ -1617,7 +1617,17 @@ it('should not add comment mention notification when you mentioned someone in th
       mentionedUserId,
     },
   });
-  expect(actual).toBeFalsy();
+  expect(actual?.length).toEqual(1);
+  expect(actual?.[0].type).toEqual(NotificationType.CommentMention);
+  expect(actual?.[0].ctx.userIds).toEqual([mentionedUserId]);
+  expect((actual?.[0].ctx as NotificationPostContext).post.id).toEqual('p1');
+  expect((actual?.[0].ctx as NotificationPostContext).source.id).toEqual('a');
+  expect((actual?.[0].ctx as NotificationCommentContext).comment.id).toEqual(
+    'c2',
+  );
+  expect(
+    (actual?.[0].ctx as NotificationCommenterContext).commenter.id,
+  ).toEqual('1');
 });
 
 describe('comment reply worker', () => {

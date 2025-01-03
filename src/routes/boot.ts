@@ -420,6 +420,7 @@ const getUser = (
       'followingEmail',
       'followNotifications',
       'subscriptionFlags',
+      'defaultFeedId',
     ],
   });
 
@@ -484,9 +485,10 @@ const loggedInBoot = async ({
 
     span?.setAttribute(SEMATTRS_DAILY_STAFF, isTeamMember);
 
-    const accessToken = refreshToken
-      ? await setAuthCookie(req, res, userId, roles, isTeamMember, isPlus)
-      : req.accessToken;
+    const accessToken =
+      refreshToken || isPlus !== req.isPlus
+        ? await setAuthCookie(req, res, userId, roles, isTeamMember, isPlus)
+        : req.accessToken;
     return {
       user: {
         ...excludeProperties(user, [
@@ -508,6 +510,7 @@ const loggedInBoot = async ({
         language: user.language || undefined,
         image: mapCloudinaryUrl(user.image),
         cover: mapCloudinaryUrl(user.cover),
+        defaultFeedId: isPlus ? user.defaultFeedId : null,
       },
       visit,
       alerts: {

@@ -3,9 +3,11 @@ import worker from '../../src/workers/postUpvotedRep';
 import {
   ArticlePost,
   Post,
+  ReputationEvent,
+  ReputationReason,
+  ReputationType,
   Source,
   User,
-  ReputationEvent,
 } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
@@ -81,6 +83,29 @@ describe('postUpvotedRep worker', () => {
     const event = await con
       .getRepository(ReputationEvent)
       .findOneBy({ targetId: 'p1', grantById: '2', grantToId: '1' });
+    expect(event).toEqual(null);
+  });
+
+  it('should not create a reputation event when user granted more than threshold in last 24 hours', async () => {
+    const repo = con.getRepository(ReputationEvent);
+    await repo.save(
+      new Array(10).fill(0).map((_, i) =>
+        repo.create({
+          grantById: '2',
+          grantToId: '1',
+          targetId: `a${i}`,
+          targetType: ReputationType.Post,
+          reason: ReputationReason.PostUpvoted,
+        }),
+      ),
+    );
+    await expectSuccessfulTypedBackground(worker, {
+      userId: '2',
+      postId: 'p1',
+    });
+    const event = await repo.findOne({
+      where: { targetId: 'p1', grantById: '2', grantToId: '1' },
+    });
     expect(event).toEqual(null);
   });
 });

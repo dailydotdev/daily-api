@@ -2,7 +2,6 @@ import { FastifyInstance } from 'fastify';
 
 import rss from './rss';
 import alerts from './alerts';
-import settings from './settings';
 import redirector from './redirector';
 import devcards from './devcards';
 import privateRoutes from './private';
@@ -27,7 +26,6 @@ import integrations from './integrations';
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(rss, { prefix: '/rss' });
   fastify.register(alerts, { prefix: '/alerts' });
-  fastify.register(settings, { prefix: '/settings' });
   fastify.register(notifications, { prefix: '/notifications' });
   fastify.register(redirector, { prefix: '/r' });
   fastify.register(devcards, { prefix: '/devcards' });

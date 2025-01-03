@@ -18,6 +18,7 @@ import {
   AdvancedSettings,
   Feed,
   FeedAdvancedSettings,
+  FeedOrderBy,
   Keyword,
   PostType,
   postTypes,
@@ -560,6 +561,45 @@ describe('FeedUserStateConfigGenerator', () => {
       offset: 3,
     });
   });
+
+  it('should generate config based on flags filters', async () => {
+    await con.getRepository(Feed).save({
+      id: 'cff1',
+      userId: '1',
+      flags: {
+        name: 'Custom feed',
+        orderBy: FeedOrderBy.Downvotes,
+        disableEngagementFilter: true,
+        minDayRange: 7,
+        minUpvotes: 10,
+        minViews: 1,
+      },
+    });
+    const mockClient = mock<ISnotraClient>();
+    mockClient.fetchUserState.mockResolvedValueOnce({
+      personalise: { state: 'personalised' },
+    });
+    const generator: FeedConfigGenerator = new FeedPreferencesConfigGenerator(
+      config,
+      {
+        feedId: 'cff1',
+      },
+    );
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 2,
+      offset: 3,
+    });
+    expect(actual.config.disable_engagement_filter).toBeTruthy();
+    expect(actual.config.order_by).toEqual(FeedOrderBy.Downvotes);
+    expect(actual.config.min_day_range).toEqual(7);
+    expect(actual.config.thresholds).toEqual({
+      min_thresholds: {
+        upvotes: 10,
+        views: 1,
+      },
+    });
+  });
 });
 
 describe('FeedLofnConfigGenerator', () => {
@@ -685,8 +725,6 @@ describe('FeedLofnConfigGenerator', () => {
     const mockedValue = {
       user_id: '1',
       config: {
-        page_size: 20,
-        total_pages: 10,
         providers: {},
       },
       tyr_metadata: {
@@ -756,8 +794,6 @@ describe('FeedLofnConfigGenerator', () => {
     const mockedValue = {
       user_id: '1',
       config: {
-        page_size: 20,
-        total_pages: 10,
         providers: {},
       },
       tyr_metadata: {

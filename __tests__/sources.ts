@@ -54,12 +54,11 @@ let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
-let premiumUser: boolean;
 
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    () => new MockContext(con, loggedUser, premiumUser),
+    () => new MockContext(con, loggedUser),
   );
   client = state.client;
 });
@@ -113,7 +112,6 @@ const getSourceCategories = () => [
 
 beforeEach(async () => {
   loggedUser = null;
-  premiumUser = false;
   await saveFixtures(con, SourceCategory, getSourceCategories());
   await saveFixtures(con, Source, [
     sourcesFixture[0],
@@ -1242,6 +1240,21 @@ query Source($id: ID!) {
 
   it('should return moderationPostCount when user is admin', async () => {
     loggedUser = '1';
+    const res = await client.query(QUERY, { variables: { id: 'm' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.moderationRequired).toEqual(true);
+    expect(res.data.source.moderationPostCount).toBe(1);
+  });
+
+  it('should return moderationPostCount when user is admin and filters vordred posts', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourcePostModeration).save({
+      sourceId: 'm',
+      createdById: '2',
+      status: SourcePostModerationStatus.Pending,
+      type: PostType.Share,
+      flags: { vordr: true },
+    });
     const res = await client.query(QUERY, { variables: { id: 'm' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.source.moderationRequired).toEqual(true);

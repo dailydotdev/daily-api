@@ -51,7 +51,7 @@ describe('followEntity', () => {
       );
     });
 
-    it('should follow user', async () => {
+    it('should follow user on main feed', async () => {
       await followEntity({
         ctx: {
           userId: '1-cfe',
@@ -60,6 +60,7 @@ describe('followEntity', () => {
         id: '2-cfe',
         entity: ContentPreferenceType.User,
         status: ContentPreferenceStatus.Follow,
+        feedId: '1-cfe',
       });
 
       const followPreference = await con
@@ -81,7 +82,42 @@ describe('followEntity', () => {
       expect(notificationPreferences).toHaveLength(0);
     });
 
-    it('should subscribe to user', async () => {
+    it('should follow user on custom feed', async () => {
+      await con.getRepository(Feed).save({
+        id: '2-cfe',
+        userId: '1-cfe',
+      });
+      await followEntity({
+        ctx: {
+          userId: '1-cfe',
+          con,
+        } as AuthContext,
+        id: '2-cfe',
+        entity: ContentPreferenceType.User,
+        status: ContentPreferenceStatus.Follow,
+        feedId: '2-cfe',
+      });
+
+      const followPreference = await con
+        .getRepository(ContentPreferenceUser)
+        .findOneBy({
+          userId: '1-cfe',
+          referenceUserId: '2-cfe',
+        });
+
+      expect(followPreference).not.toBeNull();
+
+      const notificationPreferences = await con
+        .getRepository(NotificationPreferenceUser)
+        .findBy({
+          userId: '1-cfe',
+          referenceUserId: '2-cfe',
+        });
+
+      expect(notificationPreferences).toHaveLength(0);
+    });
+
+    it('should subscribe to user on main feed', async () => {
       await followEntity({
         ctx: {
           userId: '1-cfe',
@@ -90,6 +126,7 @@ describe('followEntity', () => {
         id: '2-cfe',
         entity: ContentPreferenceType.User,
         status: ContentPreferenceStatus.Subscribed,
+        feedId: '1-cfe',
       });
 
       const followPreference = await con
@@ -98,6 +135,34 @@ describe('followEntity', () => {
           userId: '1-cfe',
           referenceId: '2-cfe',
           referenceUserId: '2-cfe',
+        });
+
+      expect(followPreference).not.toBeNull();
+    });
+
+    it('should subscribe to user on custom feed', async () => {
+      await con.getRepository(Feed).save({
+        id: '2-cfe',
+        userId: '1-cfe',
+      });
+      await followEntity({
+        ctx: {
+          userId: '1-cfe',
+          con,
+        } as AuthContext,
+        id: '2-cfe',
+        entity: ContentPreferenceType.User,
+        status: ContentPreferenceStatus.Subscribed,
+        feedId: '2-cfe',
+      });
+
+      const followPreference = await con
+        .getRepository(ContentPreferenceUser)
+        .findOneBy({
+          userId: '1-cfe',
+          referenceId: '2-cfe',
+          referenceUserId: '2-cfe',
+          feedId: '2-cfe',
         });
 
       expect(followPreference).not.toBeNull();
@@ -141,7 +206,7 @@ describe('followEntity', () => {
       );
     });
 
-    it('should unfollow user', async () => {
+    it('should unfollow user from main feed', async () => {
       await saveFixtures(con, ContentPreferenceUser, [
         {
           userId: '1-cfe',
@@ -159,6 +224,7 @@ describe('followEntity', () => {
         } as AuthContext,
         id: '2-cfe',
         entity: ContentPreferenceType.User,
+        feedId: '1-cfe',
       });
 
       const followPreference = await con
@@ -182,7 +248,7 @@ describe('followEntity', () => {
       expect(notificationPreferences).toHaveLength(0);
     });
 
-    it('should unsubscribe from user', async () => {
+    it('should unsubscribe from user on main feed', async () => {
       await saveFixtures(con, NotificationPreferenceUser, [
         {
           userId: '1-cfe',
@@ -201,6 +267,7 @@ describe('followEntity', () => {
         id: '2-cfe',
         entity: ContentPreferenceType.User,
         status: ContentPreferenceStatus.Follow,
+        feedId: '1-cfe',
       });
 
       const followPreference = await con

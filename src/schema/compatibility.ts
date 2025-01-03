@@ -1,5 +1,5 @@
 import { IFieldResolver, IResolvers } from '@graphql-tools/utils';
-import { BaseContext, Context } from '../Context';
+import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import { GQLPost } from './posts';
 import {
@@ -214,15 +214,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }
       },
     ),
-    bookmarks: compatFeedResolver((ctx, args, opts, builder, alias) =>
-      bookmarksFeedBuilder(
-        ctx,
-        false,
-        null,
-        builder.orderBy('bookmark.createdAt', 'DESC'),
-        alias,
-      ),
-    ),
+    bookmarks: async (source, args, context: AuthContext, info) => {
+      const resolver = compatFeedResolver((ctx, args, opts, builder, alias) =>
+        bookmarksFeedBuilder({
+          ctx,
+          unreadOnly: false,
+          reminderOnly: false,
+          builder: builder.orderBy('bookmark.createdAt', 'DESC'),
+          alias,
+        }),
+      );
+
+      return resolver(source, args, context, info);
+    },
     postsByTag: compatFeedResolver(
       (
         ctx,

@@ -1,5 +1,6 @@
 import {
   disposeGraphQLTesting,
+  GraphQLTestClient,
   GraphQLTestingState,
   initializeGraphQLTesting,
   MockContext,
@@ -10,14 +11,23 @@ import {
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import nock from 'nock';
-import { GraphQLTestClient } from './helpers';
 import { magniOrigin, SearchResultFeedback } from '../src/integrations';
 import { meiliIndex, meiliOrigin } from '../src/integrations/meilisearch';
-import { ArticlePost, Keyword, Source, User, UserPost } from '../src/entity';
+import {
+  ArticlePost,
+  Feed,
+  Keyword,
+  Source,
+  User,
+  UserPost,
+} from '../src/entity';
 import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
 import { usersFixture } from './fixture/user';
 import { ghostUser, updateFlagsStatement } from '../src/common';
+import { ContentPreferenceUser } from '../src/entity/contentPreference/ContentPreferenceUser';
+import { ContentPreferenceStatus } from '../src/entity/contentPreference/types';
+import { ContentPreferenceSource } from '../src/entity/contentPreference/ContentPreferenceSource';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -469,14 +479,17 @@ describe('query searchTagSuggestions', () => {
 });
 
 describe('query searchSourceSuggestions', () => {
-  const QUERY = (query: string): string => `{
-    searchSourceSuggestions(query: "${query}") {
+  const QUERY = (query: string, feedId?: string): string => `{
+    searchSourceSuggestions(query: "${query}", feedId: "${feedId}", includeContentPreference: true) {
       query
       hits {
         id
         title
         subtitle
         image
+        contentPreference {
+          status
+        }
       }
     }
   }
@@ -484,6 +497,7 @@ describe('query searchSourceSuggestions', () => {
 
   beforeEach(async () => {
     await saveFixtures(con, Source, sourcesFixture);
+    await con.getRepository(User).save({ ...usersFixture[0] });
   });
 
   it('should return search suggestions', async () => {
@@ -573,17 +587,135 @@ describe('query searchSourceSuggestions', () => {
       },
     ]);
   });
+
+  it('should return following status', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update(
+      { id: 'squad' },
+      {
+        private: false,
+        flags: updateFlagsStatement<Source>({ publicThreshold: true }),
+      },
+    );
+    await con.getRepository(Feed).save({
+      id: '1',
+      userId: '1',
+    });
+    await con.getRepository(ContentPreferenceSource).save({
+      userId: '1',
+      referenceId: 'squad',
+      sourceId: 'squad',
+      feedId: '1',
+      status: ContentPreferenceStatus.Subscribed,
+    });
+    const res = await client.query(QUERY('squad', '1'));
+    expect(res.data.searchSourceSuggestions).toBeTruthy();
+
+    const result = res.data.searchSourceSuggestions;
+
+    expect(result.query).toBe('squad');
+    expect(result.hits).toHaveLength(1);
+    expect(result.hits).toMatchObject([
+      {
+        id: 'squad',
+        image: 'http//image.com/s',
+        subtitle: 'squad',
+        title: 'Squad',
+        contentPreference: { status: 'subscribed' },
+      },
+    ]);
+  });
+
+  it('should return following status for custom feed', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update(
+      { id: 'squad' },
+      {
+        private: false,
+        flags: updateFlagsStatement<Source>({ publicThreshold: true }),
+      },
+    );
+    await con.getRepository(Feed).save({
+      id: '2',
+      userId: '1',
+    });
+    await con.getRepository(ContentPreferenceSource).save({
+      userId: '1',
+      referenceId: 'squad',
+      sourceId: 'squad',
+      feedId: '2',
+      status: ContentPreferenceStatus.Subscribed,
+    });
+    const res = await client.query(QUERY('squad', '2'));
+    expect(res.data.searchSourceSuggestions).toBeTruthy();
+
+    const result = res.data.searchSourceSuggestions;
+
+    expect(result.query).toBe('squad');
+    expect(result.hits).toHaveLength(1);
+    expect(result.hits).toMatchObject([
+      {
+        id: 'squad',
+        image: 'http//image.com/s',
+        subtitle: 'squad',
+        title: 'Squad',
+        contentPreference: { status: 'subscribed' },
+      },
+    ]);
+  });
+
+  it('should not return following status if not your feed', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).save({ ...usersFixture[1] });
+    await con.getRepository(Source).update(
+      { id: 'squad' },
+      {
+        private: false,
+        flags: updateFlagsStatement<Source>({ publicThreshold: true }),
+      },
+    );
+    await con.getRepository(Feed).save({
+      id: '2',
+      userId: '2',
+    });
+    await con.getRepository(ContentPreferenceSource).save({
+      userId: '2',
+      referenceId: 'squad',
+      sourceId: 'squad',
+      feedId: '2',
+      status: ContentPreferenceStatus.Subscribed,
+    });
+    const res = await client.query(QUERY('squad', '2'));
+    expect(res.data.searchSourceSuggestions).toBeTruthy();
+
+    const result = res.data.searchSourceSuggestions;
+
+    expect(result.query).toBe('squad');
+    expect(result.hits).toHaveLength(1);
+    expect(result.hits).toMatchObject([
+      {
+        id: 'squad',
+        image: 'http//image.com/s',
+        subtitle: 'squad',
+        title: 'Squad',
+        contentPreference: null,
+      },
+    ]);
+  });
 });
 
 describe('query searchUserSuggestions', () => {
-  const QUERY = (query: string): string => `{
-    searchUserSuggestions(query: "${query}") {
+  const QUERY = (query: string, feedId?: string): string => `{
+    searchUserSuggestions(query: "${query}", feedId: "${feedId}", includeContentPreference: true) {
       query
       hits {
         id
         title
         subtitle
         image
+        contentPreference {
+          status
+        }
       }
     }
   }
@@ -733,6 +865,186 @@ describe('query searchUserSuggestions', () => {
         image: 'https://daily.dev/tsahi.jpg',
         subtitle: 'tsahidaily',
         title: 'Ido test 2',
+      },
+    ]);
+  });
+
+  it('should return following status', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(User)
+      .update({ id: '2' }, { name: 'Ido test 2', reputation: 100 });
+    await con
+      .getRepository(User)
+      .update({ id: '3' }, { name: 'Ido test 3', reputation: 99 });
+    await con
+      .getRepository(User)
+      .update({ id: '4' }, { name: 'Ido test 4', reputation: 98 });
+    await con.getRepository(Feed).save({
+      id: '1',
+      userId: '1',
+    });
+    await con.getRepository(ContentPreferenceUser).save({
+      userId: '1',
+      referenceId: '2',
+      referenceUserId: '2',
+      feedId: '1',
+      status: ContentPreferenceStatus.Follow,
+    });
+    await con.getRepository(ContentPreferenceUser).save({
+      userId: '1',
+      referenceId: '4',
+      referenceUserId: '4',
+      feedId: '1',
+      status: ContentPreferenceStatus.Subscribed,
+    });
+    const res = await client.query(QUERY('ido', '1'));
+    expect(res.data.searchUserSuggestions).toBeTruthy();
+
+    const result = res.data.searchUserSuggestions;
+
+    expect(result.query).toBe('ido');
+    expect(result.hits).toHaveLength(3);
+    expect(result.hits).toMatchObject([
+      {
+        id: '2',
+        image: 'https://daily.dev/tsahi.jpg',
+        subtitle: 'tsahidaily',
+        title: 'Ido test 2',
+        contentPreference: { status: 'follow' },
+      },
+      {
+        id: '3',
+        image: 'https://daily.dev/nimrod.jpg',
+        subtitle: 'nimroddaily',
+        title: 'Ido test 3',
+        contentPreference: null,
+      },
+      {
+        id: '4',
+        image: 'https://daily.dev/lee.jpg',
+        subtitle: 'lee',
+        title: 'Ido test 4',
+        contentPreference: { status: 'subscribed' },
+      },
+    ]);
+  });
+
+  it('should return following status for custom feed', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(User)
+      .update({ id: '2' }, { name: 'Ido test 2', reputation: 100 });
+    await con
+      .getRepository(User)
+      .update({ id: '3' }, { name: 'Ido test 3', reputation: 99 });
+    await con
+      .getRepository(User)
+      .update({ id: '4' }, { name: 'Ido test 4', reputation: 98 });
+    await con.getRepository(Feed).save({
+      id: '2',
+      userId: '1',
+    });
+    await con.getRepository(Feed).save({
+      id: '3',
+      userId: '2',
+    });
+    await con.getRepository(ContentPreferenceUser).save({
+      userId: '1',
+      referenceId: '2',
+      referenceUserId: '2',
+      feedId: '2',
+      status: ContentPreferenceStatus.Follow,
+    });
+    await con.getRepository(ContentPreferenceUser).save({
+      userId: '2',
+      referenceId: '4',
+      referenceUserId: '4',
+      feedId: '3',
+      status: ContentPreferenceStatus.Subscribed,
+    });
+    const res = await client.query(QUERY('ido', '2'));
+    expect(res.data.searchUserSuggestions).toBeTruthy();
+
+    const result = res.data.searchUserSuggestions;
+
+    expect(result.query).toBe('ido');
+    expect(result.hits).toHaveLength(3);
+    expect(result.hits).toMatchObject([
+      {
+        id: '2',
+        image: 'https://daily.dev/tsahi.jpg',
+        subtitle: 'tsahidaily',
+        title: 'Ido test 2',
+        contentPreference: { status: 'follow' },
+      },
+      {
+        id: '3',
+        image: 'https://daily.dev/nimrod.jpg',
+        subtitle: 'nimroddaily',
+        title: 'Ido test 3',
+        contentPreference: null,
+      },
+      {
+        id: '4',
+        image: 'https://daily.dev/lee.jpg',
+        subtitle: 'lee',
+        title: 'Ido test 4',
+        contentPreference: null,
+      },
+    ]);
+  });
+
+  it('should not return following status if not your feed', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(User)
+      .update({ id: '2' }, { name: 'Ido test 2', reputation: 100 });
+    await con
+      .getRepository(User)
+      .update({ id: '3' }, { name: 'Ido test 3', reputation: 99 });
+    await con
+      .getRepository(User)
+      .update({ id: '4' }, { name: 'Ido test 4', reputation: 98 });
+    await con.getRepository(Feed).save({
+      id: '2',
+      userId: '2',
+    });
+    await con.getRepository(ContentPreferenceUser).save({
+      userId: '2',
+      referenceId: '4',
+      referenceUserId: '4',
+      feedId: '2',
+      status: ContentPreferenceStatus.Subscribed,
+    });
+    const res = await client.query(QUERY('ido', '2'));
+    expect(res.data.searchUserSuggestions).toBeTruthy();
+
+    const result = res.data.searchUserSuggestions;
+
+    expect(result.query).toBe('ido');
+    expect(result.hits).toHaveLength(3);
+    expect(result.hits).toMatchObject([
+      {
+        id: '2',
+        image: 'https://daily.dev/tsahi.jpg',
+        subtitle: 'tsahidaily',
+        title: 'Ido test 2',
+        contentPreference: null,
+      },
+      {
+        id: '3',
+        image: 'https://daily.dev/nimrod.jpg',
+        subtitle: 'nimroddaily',
+        title: 'Ido test 3',
+        contentPreference: null,
+      },
+      {
+        id: '4',
+        image: 'https://daily.dev/lee.jpg',
+        subtitle: 'lee',
+        title: 'Ido test 4',
+        contentPreference: null,
       },
     ]);
   });

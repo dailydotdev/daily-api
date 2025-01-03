@@ -27,7 +27,6 @@ export interface User {
   name: string;
   image?: string | null;
   infoConfirmed: boolean;
-  premium?: boolean;
   reputation: number;
   permalink: string;
   username?: string;

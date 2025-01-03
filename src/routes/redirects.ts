@@ -79,9 +79,13 @@ const redirectToStore =
       return redirectToAndroid({ req, res });
     }
 
+    // If mobile, tablet or any non desktop device, redirect to webapp
+    if (!!ua.device.type || browser?.includes('safari')) {
+      return res.redirect(`https://app.daily.dev${url.search}`);
+    }
+
     if (browser?.includes('firefox') || browser?.includes('mozilla')) {
       // Redirect to webapp since FF downgraded us
-      return res.redirect(`https://app.daily.dev${url.search}`);
       // return res.redirect(
       //   `https://addons.mozilla.org/en-US/firefox/addon/daily/${url.search}`,
       // );
@@ -133,16 +137,13 @@ const redirectToProfileImage = async (
   return res.redirect(image);
 };
 
-const redirectToLanding = (
-  req: FastifyRequest,
-  res: FastifyReply,
-): FastifyReply => res.redirect('https://daily.dev');
-
 export default async function (fastify: FastifyInstance): Promise<void> {
   const con = await createOrGetConnection();
 
-  fastify.get('/', redirectToLanding);
-  fastify.get('/landing', redirectToLanding);
+  fastify.get('/', (req, res) =>
+    res.redirect('https://r.daily.dev/api-redirect'),
+  );
+  fastify.get('/landing', (req, res) => res.redirect('https://daily.dev'));
   fastify.get('/tos', (req, res) => res.redirect('https://daily.dev/tos'));
   fastify.get('/privacy', (req, res) =>
     res.redirect('https://daily.dev/privacy'),

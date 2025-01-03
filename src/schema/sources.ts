@@ -29,6 +29,7 @@ import {
   FindOptionsWhere,
   In,
   Not,
+  Raw,
 } from 'typeorm';
 import { GQLUser } from './users';
 import { Connection } from 'graphql-relay/index';
@@ -1725,8 +1726,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const query: FindOptionsWhere<SourcePostModeration> = {
         status,
         sourceId: source.id,
-        ...(!isModerator && { createdById: ctx.userId }),
       };
+
+      if (isModerator) {
+        query.flags = Raw(() => `(flags->>'vordr')::boolean IS NOT TRUE`);
+      } else {
+        query.createdById = ctx.userId;
+      }
 
       const moderationPostCount = await ctx.con
         .getRepository(SourcePostModeration)

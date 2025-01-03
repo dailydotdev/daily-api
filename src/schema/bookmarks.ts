@@ -10,23 +10,23 @@ import {
 } from './common';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, Context } from '../Context';
-import { Bookmark, BookmarkList, Post, User } from '../entity';
+import { Bookmark, BookmarkList, Post } from '../entity';
 import {
   base64,
   bookmarksFeedBuilder,
   FeedArgs,
   feedResolver,
   getCursorFromAfter,
-  isOneEmoji,
+  isOneValidEmoji,
   Ranking,
 } from '../common';
 import { In, SelectQueryBuilder } from 'typeorm';
 import { GQLPost } from './posts';
-import { isPlusMember } from '../paddle';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { logger } from '../logger';
 import { BookmarkListCountLimit, maxBookmarksPerMutation } from '../types';
 import graphorm from '../graphorm';
+import { BookmarkErrorMessage } from '../errors';
 
 interface GQLAddBookmarkInput {
   postIds: string[];
@@ -180,6 +180,11 @@ export const typeDefs = /* GraphQL */ `
       listId: ID
 
       """
+      Filter bookmarks with reminders only
+      """
+      reminderOnly: Boolean
+
+      """
       Array of supported post types
       """
       supportedTypes: [String!]
@@ -189,6 +194,11 @@ export const typeDefs = /* GraphQL */ `
     Get all the bookmark lists of the user
     """
     bookmarkLists: [BookmarkList!]! @auth
+
+    """
+    Get bookmark list by id
+    """
+    bookmarkList(id: ID!): BookmarkList! @auth
 
     """
     Get suggestions for search bookmarks query
@@ -246,6 +256,7 @@ interface BookmarksArgs extends ConnectionArguments {
   now: Date;
   unreadOnly: boolean;
   listId: string;
+  reminderOnly: boolean;
   supportedTypes?: string[];
   ranking: Ranking;
 }
@@ -295,10 +306,24 @@ const applyBookmarkPaging = (
 const searchResolver = feedResolver(
   (
     ctx,
-    { query, unreadOnly, listId }: BookmarksArgs & { query: string },
+    {
+      query,
+      unreadOnly,
+      reminderOnly,
+      listId,
+    }: BookmarksArgs & { query: string },
     builder,
     alias,
-  ) => bookmarksFeedBuilder(ctx, unreadOnly, listId, builder, alias, query),
+  ) =>
+    bookmarksFeedBuilder({
+      ctx,
+      unreadOnly,
+      reminderOnly,
+      listId,
+      builder,
+      alias,
+      query,
+    }),
   offsetPageGenerator(30, 50),
   (ctx, args, page, builder) => builder.limit(page.limit).offset(page.offset),
   { removeHiddenPosts: true, removeBannedPosts: false },
@@ -315,16 +340,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLBookmark[]> => {
-      const lastAddedBookmark = await ctx.con.getRepository(Bookmark).findOne({
-        where: { userId: ctx.userId },
-        select: ['listId'],
-      });
-      const lastUsedListId = lastAddedBookmark?.listId ?? null;
+      let lastUsedListId = null;
+      if (ctx.isPlus) {
+        const lastAddedBookmark = await ctx.con
+          .getRepository(Bookmark)
+          .findOne({
+            where: { userId: ctx.userId },
+            order: { updatedAt: 'DESC' },
+            select: ['listId'],
+          });
+        lastUsedListId = lastAddedBookmark?.listId ?? null;
+      }
 
       if (data.postIds.length > maxBookmarksPerMutation) {
-        throw new ValidationError(
-          `Exceeded the maximum bookmarks per mutation (${maxBookmarksPerMutation})`,
-        );
+        throw new ValidationError(BookmarkErrorMessage.EXCEEDS_MUTATION_LIMIT);
       }
 
       await ctx.con.transaction(async (manager) => {
@@ -345,8 +374,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return await graphorm.query<GQLBookmark>(ctx, info, (builder) => ({
         ...builder,
         queryBuilder: builder.queryBuilder.where(
-          `"${builder.alias}"."postId" IN (:...postIds)`,
-          { postIds: data.postIds },
+          `"${builder.alias}"."postId" IN (:...postIds) AND "${builder.alias}"."userId" = :userId`,
+          { postIds: data.postIds, userId: ctx.userId },
         ),
       }));
     },
@@ -355,6 +384,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { id, listId }: { id: string; listId?: string },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
+      if (!ctx.isPlus) {
+        throw new ForbiddenError(BookmarkErrorMessage.USER_NOT_PLUS);
+      }
+
       if (listId) {
         await ctx.con
           .getRepository(BookmarkList)
@@ -386,17 +419,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { name, icon }: Record<'name' | 'icon', string>,
       ctx: AuthContext,
     ): Promise<GQLBookmarkList> => {
-      const isValidIcon = !icon || isOneEmoji(icon);
+      const isValidIcon = !icon || isOneValidEmoji(icon);
       if (!isValidIcon || !name.length) {
-        throw new ValidationError('Invalid icon or name');
+        throw new ValidationError(BookmarkErrorMessage.INVALID_ICON_OR_NAME);
       }
-
-      const user = await ctx.con.getRepository(User).findOneOrFail({
-        where: { id: ctx.userId },
-        select: ['subscriptionFlags'],
-      });
-      const isPlus = isPlusMember(user.subscriptionFlags?.cycle);
-      const maxFoldersCount = isPlus
+      const maxFoldersCount = ctx.isPlus
         ? BookmarkListCountLimit.Plus
         : BookmarkListCountLimit.Free;
       const userFoldersCount = await ctx.con
@@ -404,7 +431,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .countBy({ userId: ctx.userId });
 
       if (userFoldersCount >= maxFoldersCount) {
-        if (isPlus) {
+        if (ctx.isPlus) {
           logger.warn(
             { listCount: userFoldersCount, userId: ctx.userId },
             'bookmark folders limit reached',
@@ -412,7 +439,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }
 
         throw new ForbiddenError(
-          `You have reached the maximum list count (${maxFoldersCount})`,
+          ctx.isPlus
+            ? BookmarkErrorMessage.FOLDER_PLUS_LIMIT_REACHED
+            : BookmarkErrorMessage.FOLDER_FREE_LIMIT_REACHED,
         );
       }
 
@@ -438,6 +467,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { id, name, icon }: Record<'id' | 'name' | 'icon', string>,
       ctx: AuthContext,
     ): Promise<GQLBookmarkList> => {
+      if (!ctx.isPlus) {
+        throw new ForbiddenError(BookmarkErrorMessage.USER_NOT_PLUS);
+      }
+
       const repo = ctx.con.getRepository(BookmarkList);
       await repo.findOneByOrFail({ userId: ctx.userId, id });
       return await repo.save({
@@ -467,37 +500,83 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   Query: {
-    bookmarksFeed: feedResolver(
-      (ctx, { unreadOnly, listId }: BookmarksArgs, builder, alias) =>
-        bookmarksFeedBuilder(ctx, unreadOnly, listId, builder, alias),
-      bookmarkPageGenerator,
-      applyBookmarkPaging,
-      {
-        removeHiddenPosts: false,
-        removeBannedPosts: false,
-        removeNonPublicThresholdSquads: false,
-      },
-    ),
-    bookmarkLists: async (
+    bookmarksFeed: async (source, args, ctx: AuthContext, info) => {
+      const resolver = feedResolver(
+        (
+          ctx,
+          { unreadOnly, reminderOnly, listId }: BookmarksArgs,
+          builder,
+          alias,
+        ) =>
+          bookmarksFeedBuilder({
+            ctx,
+            unreadOnly,
+            reminderOnly,
+            listId,
+            builder,
+            alias,
+          }),
+        bookmarkPageGenerator,
+        applyBookmarkPaging,
+        {
+          removeHiddenPosts: false,
+          removeBannedPosts: false,
+          removeNonPublicThresholdSquads: false,
+        },
+      );
+
+      return resolver(source, args, ctx, info);
+    },
+    bookmarkList: async (
       _,
-      __,
+      { id }: { id: string },
       ctx: AuthContext,
       info,
-    ): Promise<GQLBookmarkList[]> =>
-      graphorm.query<GQLBookmarkList>(
+    ): Promise<GQLBookmarkList> => {
+      if (!ctx.isPlus) {
+        throw new ForbiddenError(BookmarkErrorMessage.USER_NOT_PLUS);
+      }
+      return graphorm.queryOneOrFail<GQLBookmarkList>(
         ctx,
         info,
         (builder) => ({
           ...builder,
           queryBuilder: builder.queryBuilder.where(
-            `"${builder.alias}"."userId" = :userId`,
+            `"${builder.alias}"."id" = :id AND "${builder.alias}"."userId" = :userId`,
             {
+              id,
               userId: ctx.userId,
             },
           ),
         }),
+        undefined,
         true,
-      ),
+      );
+    },
+    bookmarkLists: async (
+      _,
+      __,
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLBookmarkList[]> => {
+      if (!ctx.isPlus) {
+        return [];
+      }
+
+      return graphorm.query<GQLBookmarkList>(
+        ctx,
+        info,
+        (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder
+            .where(`"${builder.alias}"."userId" = :userId`, {
+              userId: ctx.userId,
+            })
+            .addOrderBy(`LOWER("${builder.alias}"."name")`, 'ASC'),
+        }),
+        true,
+      );
+    },
     searchBookmarksSuggestions: async (
       source,
       { query }: { query: string },

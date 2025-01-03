@@ -72,10 +72,7 @@ import {
 import { checkHasMention, markdown } from '../src/common/markdown';
 import { generateStorageKey, StorageTopic } from '../src/config';
 import { UserVote, UserVoteEntity } from '../src/types';
-import {
-  highRateLimiterName,
-  rateLimiterName,
-} from '../src/directive/rateLimit';
+import { rateLimiterName } from '../src/directive/rateLimit';
 import { badUsersFixture } from './fixture/user';
 import { PostCodeSnippet } from '../src/entity/posts/PostCodeSnippet';
 import {
@@ -97,7 +94,6 @@ let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
-let premiumUser = false;
 let isTeamMember = false;
 let isPlus = false;
 let roles: Roles[] = [];
@@ -105,16 +101,7 @@ let roles: Roles[] = [];
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    (req) =>
-      new MockContext(
-        con,
-        loggedUser,
-        premiumUser,
-        roles,
-        req,
-        isTeamMember,
-        isPlus,
-      ),
+    (req) => new MockContext(con, loggedUser, roles, req, isTeamMember, isPlus),
   );
   client = state.client;
 });
@@ -123,7 +110,6 @@ beforeEach(async () => {
   loggedUser = null;
   isTeamMember = false;
   isPlus = false;
-  premiumUser = false;
   roles = [];
   jest.clearAllMocks();
   await ioRedisPool.execute((client) => client.flushall());
@@ -193,7 +179,6 @@ beforeEach(async () => {
     },
   ]);
   await deleteKeysByPattern(`${rateLimiterName}:*`);
-  await deleteKeysByPattern(`${highRateLimiterName}:*`);
 });
 
 const saveSquadFixtures = async () => {
@@ -524,7 +509,6 @@ describe('bookmarkList field', () => {
 
   it('should return null when bookmark does not belong to a list', async () => {
     loggedUser = '1';
-    premiumUser = true;
     await con.getRepository(Bookmark).save({
       postId: 'p1',
       userId: loggedUser,
@@ -1746,6 +1730,99 @@ describe('mutation banPost', () => {
   });
 });
 
+describe('mutation clickbaitPost', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation ClickbaitPost($id: ID!) {
+      clickbaitPost(id: $id) {
+        _
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should not authorize when not moderator', () => {
+    loggedUser = '1';
+    roles = [];
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should mark the post as clickbait when it does not have clickbait probability', async () => {
+    loggedUser = '1';
+    roles = [Roles.Moderator];
+
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post.contentQuality.manual_clickbait_probability).toEqual(1);
+  });
+
+  it('should mark the post as clickbait when it is below threshold', async () => {
+    await con
+      .getRepository(ArticlePost)
+      .update('p1', { contentQuality: { is_clickbait_probability: 0.9 } });
+
+    loggedUser = '1';
+    roles = [Roles.Moderator];
+
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post.contentQuality.is_clickbait_probability).toEqual(0.9);
+    expect(post.contentQuality.manual_clickbait_probability).toEqual(1);
+  });
+
+  it('should mark the post as not-clickbait when it is above threshold', async () => {
+    await con
+      .getRepository(ArticlePost)
+      .update('p1', { contentQuality: { is_clickbait_probability: 1.1 } });
+
+    loggedUser = '1';
+    roles = [Roles.Moderator];
+
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post.contentQuality.is_clickbait_probability).toEqual(1.1);
+    expect(post.contentQuality.manual_clickbait_probability).toEqual(0);
+  });
+
+  it('should revert the clickbait status when it is already marked as clickbait', async () => {
+    loggedUser = '1';
+    roles = [Roles.Moderator];
+
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post.contentQuality.manual_clickbait_probability).toEqual(1.0);
+
+    const res2 = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res2.errors).toBeFalsy();
+
+    const post2 = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post2.contentQuality.manual_clickbait_probability).toBeUndefined();
+  });
+});
+
 describe('mutation reportPost', () => {
   const MUTATION = `
   mutation ReportPost($id: ID!, $reason: ReportReason, $comment: String, $tags: [String]) {
@@ -2190,17 +2267,17 @@ describe('mutation sharePost', () => {
       expect(await getRedisObject(redisKey)).toEqual('1');
     });
 
-    it('should rate limit creating posts to 10 per hour', async () => {
+    it('should rate limit creating posts to 1 per minute', async () => {
       loggedUser = '1';
 
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 1; i++) {
         const res = await client.mutate(MUTATION, {
           variables: variables,
         });
 
         expect(res.errors).toBeFalsy();
       }
-      expect(await getRedisObject(redisKey)).toEqual('10');
+      expect(await getRedisObject(redisKey)).toEqual('1');
 
       await testMutationErrorCode(
         client,
@@ -2210,12 +2287,11 @@ describe('mutation sharePost', () => {
       );
 
       // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
-      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(3600);
-      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(3590);
+      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(60);
+      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(50);
     });
 
     describe('high rate squads', () => {
-      const highRateRedisKey = `${highRateLimiterName}:1:createPost`;
       beforeEach(async () => {
         await con.getRepository(SquadSource).save({
           id: WATERCOOLER_ID,
@@ -2240,7 +2316,6 @@ describe('mutation sharePost', () => {
 
         expect(res.errors).toBeFalsy();
         expect(await getRedisObject(redisKey)).toEqual('1');
-        expect(await getRedisObject(highRateRedisKey)).toEqual('1');
 
         await testMutationErrorCode(
           client,
@@ -2785,6 +2860,8 @@ describe('mutation submitExternalLink', () => {
       .findOneBy({ sharedPostId: articlePost?.id, title: 'Share 1' });
     expect(sharedPost?.visible).toEqual(false);
 
+    await deleteKeysByPattern(`${rateLimiterName}:*`);
+
     const res2 = await client.mutate(MUTATION, {
       variables: {
         ...variables,
@@ -2812,17 +2889,17 @@ describe('mutation submitExternalLink', () => {
       expect(await getRedisObject(redisKey)).toEqual('1');
     });
 
-    it('should rate limit creating posts to 10 per hour', async () => {
+    it('should rate limit creating posts to 1 per minute', async () => {
       loggedUser = '1';
 
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 1; i++) {
         const res = await client.mutate(MUTATION, {
           variables: { ...variables, url: 'http://p6.com' },
         });
 
         expect(res.errors).toBeFalsy();
       }
-      expect(await getRedisObject(redisKey)).toEqual('10');
+      expect(await getRedisObject(redisKey)).toEqual('1');
 
       await testMutationErrorCode(
         client,
@@ -2832,12 +2909,11 @@ describe('mutation submitExternalLink', () => {
       );
 
       // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
-      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(3600);
-      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(3590);
+      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(60);
+      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(50);
     });
 
     describe('high rate squads', () => {
-      const highRateRedisKey = `${highRateLimiterName}:1:createPost`;
       beforeEach(async () => {
         await con.getRepository(SquadSource).save({
           id: WATERCOOLER_ID,
@@ -2866,7 +2942,6 @@ describe('mutation submitExternalLink', () => {
 
         expect(res.errors).toBeFalsy();
         expect(await getRedisObject(redisKey)).toEqual('1');
-        expect(await getRedisObject(highRateRedisKey)).toEqual('1');
 
         await testMutationErrorCode(
           client,
@@ -3431,17 +3506,17 @@ describe('mutation createFreeformPost', () => {
       expect(await getRedisObject(redisKey)).toEqual('1');
     });
 
-    it('should rate limit creating posts to 10 per hour', async () => {
+    it('should rate limit creating posts to 1 per minute', async () => {
       loggedUser = '1';
 
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 1; i++) {
         const res = await client.mutate(MUTATION, {
           variables: params,
         });
 
         expect(res.errors).toBeFalsy();
       }
-      expect(await getRedisObject(redisKey)).toEqual('10');
+      expect(await getRedisObject(redisKey)).toEqual('1');
 
       await testMutationErrorCode(
         client,
@@ -3451,12 +3526,11 @@ describe('mutation createFreeformPost', () => {
       );
 
       // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
-      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(3600);
-      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(3590);
+      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(60);
+      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(50);
     });
 
     describe('high rate squads', () => {
-      const highRateRedisKey = `${highRateLimiterName}:1:createPost`;
       beforeEach(async () => {
         await con.getRepository(SquadSource).save({
           id: WATERCOOLER_ID,
@@ -3481,7 +3555,6 @@ describe('mutation createFreeformPost', () => {
 
         expect(res.errors).toBeFalsy();
         expect(await getRedisObject(redisKey)).toEqual('1');
-        expect(await getRedisObject(highRateRedisKey)).toEqual('1');
 
         await testMutationErrorCode(
           client,
@@ -5603,6 +5676,260 @@ describe('posts title field', () => {
 
     expect(res.data.post).toEqual({
       title: 'P1 Portugal Brazil',
+    });
+  });
+
+  describe('clickbait shield title', () => {
+    beforeEach(async () => {
+      await con.getRepository(Settings).save({
+        userId: '1',
+        flags: {
+          clickbaitShieldEnabled: false,
+        },
+      });
+    });
+
+    it('should return original title if free user but post has smart title', async () => {
+      loggedUser = '1';
+      await con.getRepository(Settings).update(
+        { userId: '1' },
+        {
+          flags: {
+            clickbaitShieldEnabled: true,
+          },
+        },
+      );
+      await con.getRepository(Post).update(
+        { id: 'p1' },
+        {
+          contentQuality: { is_clickbait_probability: 1.98 },
+          contentMeta: {
+            alt_title: { translations: { en: 'Clickbait title' } },
+          },
+        },
+      );
+
+      const res = await client.query(QUERY);
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post).toEqual({
+        title: 'P1',
+      });
+    });
+
+    it('should return smart title if user has enabled clickbait shield', async () => {
+      loggedUser = '1';
+      isPlus = true;
+      await con.getRepository(Settings).update(
+        { userId: '1' },
+        {
+          flags: {
+            clickbaitShieldEnabled: true,
+          },
+        },
+      );
+      await con.getRepository(Post).update(
+        { id: 'p1' },
+        {
+          contentQuality: { is_clickbait_probability: 1.98 },
+          contentMeta: {
+            alt_title: { translations: { en: 'Clickbait title' } },
+          },
+        },
+      );
+
+      const res = await client.query(QUERY);
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post).toEqual({
+        title: 'Clickbait title',
+      });
+    });
+
+    it('should return original title if user has enabled clickbait shield but post is not clickbait', async () => {
+      loggedUser = '1';
+      isPlus = true;
+      await con.getRepository(Settings).update(
+        { userId: '1' },
+        {
+          flags: {
+            clickbaitShieldEnabled: true,
+          },
+        },
+      );
+      await con.getRepository(Post).update(
+        { id: 'p1' },
+        {
+          contentQuality: { is_clickbait_probability: 0 },
+          contentMeta: {
+            alt_title: { translations: { en: 'Clickbait title' } },
+          },
+        },
+      );
+
+      const res = await client.query(QUERY);
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post).toEqual({
+        title: 'P1',
+      });
+    });
+
+    it('should return original title if user has disabled clickbait shield', async () => {
+      loggedUser = '1';
+      isPlus = true;
+      await con.getRepository(Settings).update(
+        { userId: '1' },
+        {
+          flags: {
+            clickbaitShieldEnabled: false,
+          },
+        },
+      );
+      await con.getRepository(Post).update(
+        { id: 'p1' },
+        {
+          contentQuality: { is_clickbait_probability: 1.98 },
+          contentMeta: {
+            alt_title: { translations: { en: 'Clickbait title' } },
+          },
+        },
+      );
+
+      const res = await client.query(QUERY);
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post).toEqual({
+        title: 'P1',
+      });
+    });
+
+    it('should return i18n smart title', async () => {
+      loggedUser = '1';
+      isPlus = true;
+      await con.getRepository(Settings).update(
+        { userId: '1' },
+        {
+          flags: {
+            clickbaitShieldEnabled: true,
+          },
+        },
+      );
+      await con.getRepository(Post).update(
+        { id: 'p1' },
+        {
+          contentQuality: { is_clickbait_probability: 1.98 },
+          contentMeta: {
+            alt_title: {
+              translations: { en: 'Clickbait title', de: 'Clickbait title DE' },
+            },
+          },
+        },
+      );
+
+      const res = await client.query(QUERY, {
+        headers: {
+          'content-language': 'de',
+        },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post).toEqual({
+        title: 'Clickbait title DE',
+      });
+    });
+
+    it('should return english smart title when i18n smart title does not exist', async () => {
+      loggedUser = '1';
+      isPlus = true;
+      await con.getRepository(Settings).update(
+        { userId: '1' },
+        {
+          flags: {
+            clickbaitShieldEnabled: true,
+          },
+        },
+      );
+      await con.getRepository(Post).update(
+        { id: 'p1' },
+        {
+          contentQuality: { is_clickbait_probability: 1.98 },
+          contentMeta: {
+            alt_title: {
+              translations: { en: 'Clickbait title EN' },
+            },
+          },
+        },
+      );
+
+      const res = await client.query(QUERY, {
+        headers: {
+          'content-language': 'de',
+        },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post).toEqual({
+        title: 'Clickbait title EN',
+      });
+    });
+
+    it('should return i18n title when smart title does not exist', async () => {
+      loggedUser = '1';
+      isPlus = true;
+      await con.getRepository(Settings).update(
+        { userId: '1' },
+        {
+          flags: {
+            clickbaitShieldEnabled: true,
+          },
+        },
+      );
+      await con.getRepository(Post).update(
+        { id: 'p1' },
+        {
+          contentQuality: { is_clickbait_probability: 1.98 },
+          contentMeta: {
+            translate_title: {
+              translations: { en: 'Title EN', de: 'Title DE' },
+            },
+          },
+        },
+      );
+
+      const res = await client.query(QUERY, {
+        headers: {
+          'content-language': 'de',
+        },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post).toEqual({
+        title: 'Title DE',
+      });
+    });
+
+    it('should return original title when smart title and i18n title does not exist', async () => {
+      loggedUser = '1';
+      isPlus = true;
+      await con.getRepository(Settings).update(
+        { userId: '1' },
+        {
+          flags: {
+            clickbaitShieldEnabled: true,
+          },
+        },
+      );
+      await con.getRepository(Post).update(
+        { id: 'p1' },
+        {
+          contentQuality: { is_clickbait_probability: 1.98 },
+          contentMeta: {},
+        },
+      );
+
+      const res = await client.query(QUERY, {
+        headers: {
+          'content-language': 'de',
+        },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post).toEqual({
+        title: 'P1',
+      });
     });
   });
 });
