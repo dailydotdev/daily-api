@@ -72,6 +72,7 @@ export const typeDefs = /* GraphQL */ `
     sidebarResourcesExpanded: Boolean
     sidebarBookmarksExpanded: Boolean
     clickbaitShieldEnabled: Boolean
+    prompt: JSONObject
   }
 
   """
