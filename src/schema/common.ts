@@ -9,7 +9,7 @@ import {
 import { GraphQLResolveInfo } from 'graphql';
 // @ts-expect-error - no types
 import GraphQLUpload from 'graphql-upload/GraphQLUpload.js';
-import { GraphQLDateTime } from 'graphql-scalars';
+import { GraphQLDateTime, GraphQLJSONObject } from 'graphql-scalars';
 
 import { BaseContext, Context } from '../Context';
 import type { MeiliPagination } from '../integrations/meilisearch';
@@ -34,6 +34,8 @@ export const typeDefs = /* GraphQL */ `
   The javascript \`Date\` as string. Type represents date and time as the ISO Date string.
   """
   scalar DateTime
+
+  scalar JSONObject
 
   input ConnectionArgs {
     """
@@ -90,6 +92,7 @@ export const typeDefs = /* GraphQL */ `
 
 export const resolvers: IResolvers<unknown, BaseContext> = {
   DateTime: GraphQLDateTime,
+  JSONObject: GraphQLJSONObject,
   Upload: GraphQLUpload,
 };
 
