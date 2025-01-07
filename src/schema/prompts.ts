@@ -30,6 +30,8 @@ export const typeDefs = /* GraphQL */ `
 
     description: String
 
+    prompt: String!
+
     createdAt: DateTime!
 
     updatedAt: DateTime!
