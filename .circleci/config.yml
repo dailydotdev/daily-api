@@ -31,8 +31,8 @@ jobs:
       - image: cimg/node:20.12
       - image: postgres:17-alpine
         environment:
-          - POSTGRES_DB: api_test
-          - POSTGRES_PASSWORD: 12345
+          POSTGRES_DB: api_test
+          POSTGRES_PASSWORD: 12345
       - image: redis/redis-stack:7.2.0-v13
     parallelism: 4
     steps:
@@ -66,8 +66,8 @@ jobs:
             TEST=$(./node_modules/.bin/jest --listTests)
             echo $TEST | circleci tests run --command="xargs ./node_modules/.bin/jest --testEnvironment=node --ci --runInBand --reporters=default --reporters=jest-junit --" --split-by=timings
           environment:
-            - NODE_OPTIONS: --max-old-space-size=4096
-            - JEST_JUNIT_OUTPUT_DIR: ./test-results
+            NODE_OPTIONS: --max-old-space-size=4096
+            JEST_JUNIT_OUTPUT_DIR: ./test-results
       - store_test_results:
           path: ./test-results
   build_and_push_docker:
