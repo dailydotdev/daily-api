@@ -216,18 +216,18 @@ export const syncSubscriptionsWithActiveState = async ({
       );
 
       await callWithRetryDefault({
-        callback: () => cioV2.request.post('/users', { batch: data }),
-        onSuccess: async () => {
-          const ids = users.map(({ id }) => id);
-          await con
-            .getRepository(User)
-            .update({ id: In(ids) }, { cioRegistered: true });
-        },
+        callback: () =>
+          cioV2.request.post(`${cioV2.trackRoot}/batch`, { batch: data }),
         onFailure: (err) => {
           hasAnyFailed = true;
           logger.info({ err }, 'Failed to reactivate users to CIO');
         },
       });
+
+      const ids = users.map(({ id }) => id);
+      await con
+        .getRepository(User)
+        .update({ id: In(ids) }, { cioRegistered: true });
 
       await setTimeout(20); // wait for a bit to avoid rate limiting
     },
@@ -248,37 +248,37 @@ export const syncSubscriptionsWithActiveState = async ({
       }
 
       const data = users.map(({ id }) => ({
-        action: 'destroy',
+        action: 'delete',
         type: 'person',
         identifiers: { id },
       }));
 
       await callWithRetryDefault({
-        callback: () => cioV2.request.post('/users', { batch: data }),
-        onSuccess: async () => {
-          const ids = users.map(({ id }) => id);
-
-          await con.transaction(async (manager) => {
-            await Promise.all([
-              manager.getRepository(User).update(
-                { id: In(ids) },
-                {
-                  cioRegistered: false,
-                  acceptedMarketing: false,
-                  followingEmail: false,
-                  notificationEmail: false,
-                },
-              ),
-              manager
-                .getRepository(UserPersonalizedDigest)
-                .delete({ userId: In(ids) }),
-            ]);
-          });
-        },
+        callback: () =>
+          cioV2.request.post(`${cioV2.trackRoot}/batch`, { batch: data }),
         onFailure: (err) => {
           hasAnyFailed = true;
           logger.info({ err }, 'Failed to remove users from CIO');
         },
+      });
+
+      const ids = users.map(({ id }) => id);
+      await con.transaction(async (manager) => {
+        await Promise.all([
+          manager.getRepository(User).update(
+            { id: In(ids) },
+            {
+              cioRegistered: false,
+              acceptedMarketing: false,
+              followingEmail: false,
+              followNotifications: false,
+              notificationEmail: false,
+            },
+          ),
+          manager
+            .getRepository(UserPersonalizedDigest)
+            .delete({ userId: In(ids) }),
+        ]);
       });
 
       await setTimeout(20); // wait for a bit to avoid rate limiting
@@ -293,7 +293,11 @@ export const syncSubscriptionsWithActiveState = async ({
       await con.getRepository(UserPersonalizedDigest).update(
         {
           userId: In(current),
-          flags: Raw(() => `flags->>'sendType' = 'daily'`),
+          type: UserPersonalizedDigestType.Digest,
+          flags: Raw(
+            () =>
+              `flags->>'sendType' = '${UserPersonalizedDigestSendType.workdays}'`,
+          ),
         },
         {
           preferredDay: 3,

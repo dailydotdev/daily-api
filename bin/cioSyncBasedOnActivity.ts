@@ -24,6 +24,8 @@ const func = async () => {
     .createReadStream(csvFilePath)
     .pipe(parse({ delimiter: ',', from_line: 2 }));
 
+  console.time('sync');
+
   stream.on('error', (err) => {
     console.error('failed to read file: ', err.message);
   });
@@ -58,6 +60,7 @@ const func = async () => {
   await syncSubscriptionsWithActiveState({ con, users });
 
   console.log('finished sync');
+  console.timeLog('sync');
 
   process.exit(0);
 };
