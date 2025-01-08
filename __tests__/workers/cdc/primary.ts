@@ -1582,7 +1582,7 @@ describe('User report', () => {
     reason: ReportReason.Harassment,
     note: 'This guy is very mean',
   };
-  
+
   it('should notify on new user report', async () => {
     const after: ChangeObject<ObjectType> = base;
     await expectSuccessfulBackground(

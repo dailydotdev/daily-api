@@ -267,7 +267,7 @@ export const notifyReportUser = async (
   note?: string,
 ): Promise<void> => {
   await webhooks.content.send({
-    text: 'An user was just reported!',
+    text: 'A user was just reported!',
     attachments: [
       {
         title: `User profile`,
