@@ -1,15 +1,23 @@
-import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import type { User } from './user';
 import { ReportReason } from './common';
 
 @Entity()
 export class UserReport {
-  @PrimaryColumn({ type: 'text' })
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({ type: 'text' })
   @Index('IDX_user_report_reported_user_id')
   reportedUserId: string;
 
-  @PrimaryColumn({ length: 36 })
-  @Index('IDX_user_report_user_id')
+  @Column({ type: 'text' })
   userId: string;
 
   @Column({ default: () => 'now()' })
