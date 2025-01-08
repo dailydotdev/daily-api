@@ -261,6 +261,37 @@ export const notifyCommentReport = async (
   });
 };
 
+export const notifyReportUser = async (
+  reportedUserId: string,
+  reason: string,
+  note?: string,
+): Promise<void> => {
+  await webhooks.content.send({
+    text: 'An user was just reported!',
+    attachments: [
+      {
+        title: `User profile`,
+        title_link: `https://app.daily.dev/${reportedUserId}`,
+        fields: [
+          {
+            title: 'Reported User',
+            value: reportedUserId,
+          },
+          {
+            title: 'Reason',
+            value: reason,
+          },
+          {
+            title: 'Note',
+            value: note || '',
+          },
+        ],
+        color: '#FF1E1F',
+      },
+    ],
+  });
+};
+
 export const getSlackIntegration = async ({
   id,
   userId,
