@@ -34,7 +34,7 @@ describe('validateActiveUsers', () => {
     await saveFixtures(con, User, usersFixture);
   });
 
-  it('should NOT be registered yet', () => {
+  it('should be registered', () => {
     const registeredWorker = crons.find((item) => item.name === cron.name);
 
     expect(registeredWorker).toBeDefined();
