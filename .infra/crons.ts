@@ -59,10 +59,10 @@ export const crons: Cron[] = [
     name: 'generic-referral-reminder',
     schedule: '12 3 * * *',
   },
-  // {
-  //   name: 'validate-active-users',
-  //   schedule: '15 4 * * *',
-  // },
+  {
+    name: 'validate-active-users',
+    schedule: '15 4 * * *',
+  },
   {
     name: 'update-source-tag-view',
     schedule: '20 3 * * 0',

@@ -13,6 +13,7 @@ import {
 import { badUsersFixture, plusUsersFixture, usersFixture } from '../fixture';
 import { updateFlagsStatement } from '../../src/common';
 import { ioRedisPool } from '../../src/redis';
+import { cioV2 } from '../../src/cio';
 
 let con: DataSource;
 
@@ -33,7 +34,7 @@ describe('validateActiveUsers', () => {
     await saveFixtures(con, User, usersFixture);
   });
 
-  it('should NOT be registered yet', () => {
+  it('should be registered', () => {
     const registeredWorker = crons.find((item) => item.name === cron.name);
 
     expect(registeredWorker).toBeDefined();
@@ -135,18 +136,18 @@ describe('users for removal', () => {
 
     const batch = [
       {
-        action: 'destroy',
+        action: 'delete',
         type: 'person',
         identifiers: { id: '3' },
       },
       {
-        action: 'destroy',
+        action: 'delete',
         type: 'person',
         identifiers: { id: '5' },
       },
     ];
 
-    expect(postSpy).toHaveBeenCalledWith('/users', { batch });
+    expect(postSpy).toHaveBeenCalledWith(`${cioV2.trackRoot}/batch`, { batch });
 
     const fromRemovalOnly = postSpy.mock.calls[0][1].batch.every(
       ({ identifiers }) => ['3', '5'].includes(identifiers.id),
@@ -229,7 +230,7 @@ describe('users for reactivation', () => {
       },
     ];
 
-    expect(postSpy).toHaveBeenCalledWith('/users', { batch });
+    expect(postSpy).toHaveBeenCalledWith(`${cioV2.trackRoot}/batch`, { batch });
 
     const fromReactivateUserOnly = postSpy.mock.calls[0][1].batch.every(
       ({ identifiers }) => ['1'].includes(identifiers.id),
