@@ -14,11 +14,11 @@ import {
   Comment,
   CommentMention,
   Post,
+  PostType,
   Source,
   SourceMember,
   SourceType,
   User,
-  PostType,
 } from '../entity';
 import {
   NotFoundError,
@@ -53,6 +53,7 @@ import { reportComment } from '../common/reporting';
 import { ReportReason } from '../entity/common';
 import { toGQLEnum } from '../common/utils';
 import { ensureCommentRateLimit } from '../common/rateLimit';
+import { whereNotUserBlocked } from '../common/contentPreference';
 
 export interface GQLComment {
   id: string;
@@ -630,6 +631,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               // Only show comments that vordr prevented, if the user is the author of the comment
               .andWhere(whereVordrFilter(builder.alias, ctx.userId));
 
+            if (ctx.userId) {
+              builder.queryBuilder.andWhere(
+                whereNotUserBlocked(builder.queryBuilder, ctx.userId),
+              );
+            }
             return builder;
           },
           readReplica: true,

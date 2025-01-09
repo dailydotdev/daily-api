@@ -24,6 +24,8 @@ import { SourceMemberRoles } from '../roles';
 import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
 import { logger } from '../logger';
 import { ContentPreferenceWord } from '../entity/contentPreference/ContentPreferenceWord';
+import { ContentPreference } from '../entity/contentPreference/ContentPreference';
+import { QueryBuilder } from '../graphorm/graphorm';
 
 type FollowEntity = ({
   ctx,
@@ -515,4 +517,19 @@ export const unblockEntity = async ({
 }): Promise<void> => {
   // currently unblock is just like unfollow, eg. remove everything from db
   return unfollowEntity({ ctx, id, entity, feedId });
+};
+
+export const whereNotUserBlocked = (qb: QueryBuilder, userId?: string) => {
+  const query = qb
+    .subQuery()
+    .select()
+    .from(ContentPreference, 'pref')
+    .where({
+      status: ContentPreferenceStatus.Blocked,
+      type: ContentPreferenceType.User,
+      userId: userId,
+    })
+    .andWhere(`"pref"."referenceId" = ${qb.alias}."userId"`)
+    .getQuery();
+  return `NOT EXISTS(${query})`;
 };
