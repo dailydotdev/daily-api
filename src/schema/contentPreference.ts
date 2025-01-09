@@ -509,6 +509,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const feedId = feedIdArg || ctx.userId;
       await blockEntity({ ctx, id, entity, feedId });
+      if (feedId === ctx.userId && entity === ContentPreferenceType.User) {
+        await unfollowEntity({
+          ctx,
+          id,
+          entity: ContentPreferenceType.User,
+          feedId: ctx.userId,
+        });
+      }
 
       return {
         _: true,

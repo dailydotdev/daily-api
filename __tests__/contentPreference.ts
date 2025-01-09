@@ -332,6 +332,12 @@ describe('query userFollowing', () => {
     }
   }`;
 
+  const BLOCK_MUTATION = `mutation Block($id: ID!, $entity: ContentPreferenceType!) {
+  block(id: $id, entity: $entity) {
+    _
+  }
+}`;
+
   beforeEach(async () => {
     await saveFixtures(
       con,
@@ -473,6 +479,51 @@ describe('query userFollowing', () => {
             node: {
               referenceId: '4-ufwq',
               status: 'follow',
+              user: {
+                id: '1-ufwq',
+              },
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  it('should have removed the user that was just blocked from the list', async () => {
+    loggedUser = '1-ufwq';
+
+    await client.query(BLOCK_MUTATION, {
+      variables: {
+        id: '4-ufwq',
+        entity: ContentPreferenceType.User,
+      },
+    });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        id: '1-ufwq',
+        entity: ContentPreferenceType.User,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data).toEqual({
+      userFollowing: {
+        edges: [
+          {
+            node: {
+              referenceId: '2-ufwq',
+              status: 'follow',
+              user: {
+                id: '1-ufwq',
+              },
+            },
+          },
+          {
+            node: {
+              referenceId: '3-ufwq',
+              status: 'subscribed',
               user: {
                 id: '1-ufwq',
               },
