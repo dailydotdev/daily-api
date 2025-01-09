@@ -42,6 +42,7 @@
     "@fastify/http-proxy": "^10.0.1",
     "@fastify/rate-limit": "^10.1.1",
     "@fastify/websocket": "^11.0.1",
+    "@google-cloud/bigquery": "^7.9.1",
     "@google-cloud/opentelemetry-resource-util": "^2.4.0",
     "@google-cloud/pubsub": "^4.8.0",
     "@google-cloud/storage": "^7.13.0",

@@ -86,14 +86,27 @@ const opts: Options = {
   includePostTypes: true,
   includeContentCuration: true,
   includeBlockedWords: true,
+  includeFollowedSources: true,
+  includeFollowedUsers: true,
 };
 
 export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
   Object.freeze({
     popular: new FeedGenerator(
-      popularFeedClient,
+      feedClient,
       new FeedPreferencesConfigGenerator(
-        {},
+        {
+          ...baseFeedConfig,
+          feed_config_name: FeedConfigName.Popular,
+          min_day_range: 14,
+          allowed_content_curations: [
+            'news',
+            'release',
+            'opinion',
+            'comparison',
+            'story',
+          ],
+        },
         {
           includePostTypes: true,
           includeBlockedSources: true,

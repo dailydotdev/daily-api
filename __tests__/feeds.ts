@@ -435,12 +435,23 @@ describe('query anonymousFeed', () => {
     loggedUser = '1';
 
     nock('http://localhost:6000')
-      .post('/popular', {
+      .post('/feed.json', {
         total_pages: 1,
         page_size: 10,
         fresh_page_size: '4',
         offset: 0,
         user_id: '1',
+        source_types: ['machine', 'squad'],
+        allowed_languages: ['en'],
+        feed_config_name: 'popular',
+        min_day_range: 14,
+        allowed_content_curations: [
+          'news',
+          'release',
+          'opinion',
+          'comparison',
+          'story',
+        ],
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
@@ -454,7 +465,7 @@ describe('query anonymousFeed', () => {
 
   it('should safetly handle a case where the feed is empty', async () => {
     loggedUser = '1';
-    nock('http://localhost:6000').post('/popular').reply(200, {
+    nock('http://localhost:6000').post('/feed.json').reply(200, {
       data: [],
     });
     const res = await client.query(QUERY, {
@@ -519,7 +530,7 @@ describe('query anonymousFeed', () => {
     ]);
 
     nock('http://localhost:6000')
-      .post('/popular', {
+      .post('/feed.json', {
         total_pages: 1,
         page_size: 10,
         fresh_page_size: '4',
@@ -527,6 +538,17 @@ describe('query anonymousFeed', () => {
         blocked_tags: ['python', 'java'],
         blocked_sources: ['a', 'b'],
         user_id: '1',
+        source_types: ['machine', 'squad'],
+        allowed_languages: ['en'],
+        feed_config_name: 'popular',
+        min_day_range: 14,
+        allowed_content_curations: [
+          'news',
+          'release',
+          'opinion',
+          'comparison',
+          'story',
+        ],
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
@@ -1456,31 +1478,6 @@ describe('query feedSettings', () => {
     expect(res.data).toMatchSnapshot();
   });
 
-  it('should not authorize when trying custom feed but not plus', async () => {
-    loggedUser = '1';
-    await saveFeedFixtures();
-    await saveFixtures(con, Feed, [{ id: 'cf2', userId: '1' }]);
-    await client.mutate(ADD_FILTERS_MUTATION, {
-      variables: {
-        feedId: 'cf2',
-        filters: {
-          includeTags: ['javascript'],
-          includeSources: ['a'],
-          excludeSources: ['b'],
-          blockedTags: ['golang'],
-        },
-      },
-    });
-    return testQueryErrorCode(
-      client,
-      {
-        query: QUERY,
-        variables: { feedId: 'cf2' },
-      },
-      'UNAUTHENTICATED',
-    );
-  });
-
   it('should return the feed settings for custom feed when feedId is provided and user is plus', async () => {
     loggedUser = '1';
     isPlus = true;
@@ -2188,31 +2185,6 @@ describe('mutation updateFeedAdvancedSettings', () => {
       },
     });
     expect(res.data).toMatchSnapshot();
-  });
-
-  it('should not update custom feed advanced settings if not plus', async () => {
-    loggedUser = '1';
-
-    await saveFeedFixtures();
-    await saveFixtures(con, Feed, [{ id: '1-ucfas', userId: '1' }]);
-
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: {
-          feedId: '1-ucfas',
-          settings: [
-            { id: 1, enabled: false },
-            { id: 2, enabled: true },
-            { id: 3, enabled: true },
-            { id: 4, enabled: false },
-            { id: 7, enabled: false },
-          ],
-        },
-      },
-      'UNAUTHENTICATED',
-    );
   });
 
   it('should update custom feed advanced settings', async () => {
@@ -3289,13 +3261,14 @@ describe('query feedPreview', () => {
     loggedUser = '1';
 
     nock('http://localhost:6000')
-      .post('/popular', {
+      .post('/feed.json', {
         user_id: '1',
         page_size: 20,
         offset: 0,
         total_pages: 1,
         fresh_page_size: '7',
         allowed_tags: ['javascript', 'webdev'],
+        feed_config_name: 'popular',
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
@@ -4292,6 +4265,24 @@ describe('query customFeed', () => {
         },
       },
     ]);
+    await con.getRepository(ContentPreferenceUser).save([
+      {
+        feedId: 'cf1',
+        referenceUserId: '2',
+        referenceId: '2',
+        status: ContentPreferenceStatus.Follow,
+        userId: '1',
+      },
+    ]);
+    await con.getRepository(ContentPreferenceSource).save([
+      {
+        feedId: 'cf1',
+        sourceId: 'a',
+        referenceId: 'a',
+        status: ContentPreferenceStatus.Follow,
+        userId: '1',
+      },
+    ]);
     await con.getRepository(ContentPreferenceKeyword).save([
       {
         feedId: 'cf1',
@@ -4341,6 +4332,24 @@ describe('query customFeed', () => {
     loggedUser = '1';
     isPlus = true;
 
+    nock('http://localhost:6000')
+      .post('/feed.json', {
+        user_id: '1',
+        page_size: 10,
+        offset: 0,
+        total_pages: 1,
+        fresh_page_size: '4',
+        allowed_tags: ['webdev', 'html', 'data'],
+        allowed_sources: ['a'],
+        allowed_author_ids: ['2'],
+        feed_config_name: FeedConfigName.CustomFeedV1,
+        disable_engagement_filter: false,
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'b',
+      });
+
     const res = await client.query(QUERY, {
       variables: {
         ranking: Ranking.POPULARITY,
@@ -4383,6 +4392,24 @@ describe('query customFeed', () => {
     loggedUser = '1';
     isPlus = true;
 
+    nock('http://localhost:6000')
+      .post('/feed.json', {
+        user_id: '1',
+        page_size: 10,
+        offset: 0,
+        total_pages: 1,
+        fresh_page_size: '4',
+        allowed_tags: ['webdev', 'html', 'data'],
+        allowed_sources: ['a'],
+        allowed_author_ids: ['2'],
+        feed_config_name: FeedConfigName.CustomFeedV1,
+        disable_engagement_filter: false,
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'b',
+      });
+
     const res = await client.query(QUERY, {
       variables: {
         ranking: Ranking.POPULARITY,
@@ -4393,13 +4420,32 @@ describe('query customFeed', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.customFeed.edges.map((item) => item.node.id)).toMatchObject(
-      ['p5', 'p4', 'p1'],
+      ['p1', 'p4'],
     );
   });
 
   it('should not return posts with blocked tags', async () => {
     loggedUser = '1';
     isPlus = true;
+
+    nock('http://localhost:6000')
+      .post('/feed.json', {
+        user_id: '1',
+        page_size: 10,
+        offset: 0,
+        total_pages: 1,
+        fresh_page_size: '4',
+        allowed_tags: ['html', 'data'],
+        blocked_tags: ['webdev'],
+        allowed_sources: ['a'],
+        allowed_author_ids: ['2'],
+        feed_config_name: FeedConfigName.CustomFeedV1,
+        disable_engagement_filter: false,
+      })
+      .reply(200, {
+        data: [{ post_id: 'p4' }],
+        cursor: 'b',
+      });
 
     await con.getRepository(ContentPreferenceKeyword).save([
       {
@@ -4422,7 +4468,7 @@ describe('query customFeed', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.customFeed.edges.map((item) => item.node.id)).toMatchObject(
-      ['p5', 'p4'],
+      ['p4'],
     );
   });
 
@@ -4438,6 +4484,8 @@ describe('query customFeed', () => {
         total_pages: 1,
         fresh_page_size: '4',
         allowed_tags: ['webdev', 'html', 'data'],
+        allowed_sources: ['a'],
+        allowed_author_ids: ['2'],
         feed_config_name: FeedConfigName.CustomFeedV1,
         disable_engagement_filter: false,
       })

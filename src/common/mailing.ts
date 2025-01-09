@@ -7,13 +7,20 @@ import {
 import CIORequest from 'customerio-node/dist/lib/request';
 import { SendEmailRequestOptionalOptions } from 'customerio-node/lib/api/requests';
 import { SendEmailRequestWithTemplate } from 'customerio-node/dist/lib/api/requests';
-import { DataSource } from 'typeorm';
+import { DataSource, In, Raw } from 'typeorm';
 import {
   Source,
   User,
   UserPersonalizedDigest,
+  UserPersonalizedDigestSendType,
   UserPersonalizedDigestType,
 } from '../entity';
+import { blockingBatchRunner, callWithRetryDefault } from './async';
+import { CIO_REQUIRED_FIELDS, cioV2, generateIdentifyObject } from '../cio';
+import { setTimeout } from 'node:timers/promises';
+import { toChangeObject, updateFlagsStatement } from './utils';
+import { GetUsersActiveState } from './googleCloud';
+import { logger } from '../logger';
 
 export enum CioUnsubscribeTopic {
   Marketing = '4',
@@ -170,4 +177,138 @@ export const addPrivateSourceJoinParams = ({
   urlObj.searchParams.set('type', source.type);
 
   return urlObj.toString();
+};
+
+const ITEMS_PER_DESTROY = 4000;
+const ITEMS_PER_IDENTIFY = 250;
+
+interface SyncSubscriptionsWithActiveStateProps {
+  con: DataSource;
+  users: GetUsersActiveState;
+}
+
+interface SyncSubscriptionsWithActiveState {
+  hasAnyFailed: boolean;
+}
+
+export const syncSubscriptionsWithActiveState = async ({
+  con,
+  users: { inactiveUsers, downgradeUsers, reactivateUsers },
+}: SyncSubscriptionsWithActiveStateProps): Promise<SyncSubscriptionsWithActiveState> => {
+  let hasAnyFailed = false;
+
+  // user is active again: reactivate to CIO
+  await blockingBatchRunner({
+    batchLimit: ITEMS_PER_IDENTIFY,
+    data: reactivateUsers,
+    runner: async (batch) => {
+      const users = await con.getRepository(User).find({
+        where: { id: In(batch), cioRegistered: false },
+        select: CIO_REQUIRED_FIELDS.concat('id'),
+      });
+
+      if (users.length === 0) {
+        return true;
+      }
+
+      const data = await Promise.all(
+        users.map((user) => generateIdentifyObject(con, toChangeObject(user))),
+      );
+
+      await callWithRetryDefault({
+        callback: () =>
+          cioV2.request.post(`${cioV2.trackRoot}/batch`, { batch: data }),
+        onFailure: (err) => {
+          hasAnyFailed = true;
+          logger.info({ err }, 'Failed to reactivate users to CIO');
+        },
+      });
+
+      const ids = users.map(({ id }) => id);
+      await con
+        .getRepository(User)
+        .update({ id: In(ids) }, { cioRegistered: true });
+
+      await setTimeout(20); // wait for a bit to avoid rate limiting
+    },
+  });
+
+  // inactive for 12 weeks: remove from CIO
+  await blockingBatchRunner({
+    batchLimit: ITEMS_PER_DESTROY,
+    data: inactiveUsers,
+    runner: async (batch) => {
+      const users = await con.getRepository(User).find({
+        select: ['id'],
+        where: { id: In(batch), cioRegistered: true },
+      });
+
+      if (users.length === 0) {
+        return true;
+      }
+
+      const data = users.map(({ id }) => ({
+        action: 'delete',
+        type: 'person',
+        identifiers: { id },
+      }));
+
+      await callWithRetryDefault({
+        callback: () =>
+          cioV2.request.post(`${cioV2.trackRoot}/batch`, { batch: data }),
+        onFailure: (err) => {
+          hasAnyFailed = true;
+          logger.info({ err }, 'Failed to remove users from CIO');
+        },
+      });
+
+      const ids = users.map(({ id }) => id);
+      await con.transaction(async (manager) => {
+        await Promise.all([
+          manager.getRepository(User).update(
+            { id: In(ids) },
+            {
+              cioRegistered: false,
+              acceptedMarketing: false,
+              followingEmail: false,
+              followNotifications: false,
+              notificationEmail: false,
+            },
+          ),
+          manager
+            .getRepository(UserPersonalizedDigest)
+            .delete({ userId: In(ids) }),
+        ]);
+      });
+
+      await setTimeout(20); // wait for a bit to avoid rate limiting
+    },
+  });
+
+  // inactive for 6 weeks: downgrade from daily to weekly digest
+  await blockingBatchRunner({
+    data: downgradeUsers,
+    runner: async (current) => {
+      // set digest to weekly on Wednesday 9am
+      await con.getRepository(UserPersonalizedDigest).update(
+        {
+          userId: In(current),
+          type: UserPersonalizedDigestType.Digest,
+          flags: Raw(
+            () =>
+              `flags->>'sendType' = '${UserPersonalizedDigestSendType.workdays}'`,
+          ),
+        },
+        {
+          preferredDay: 3,
+          preferredHour: 9,
+          flags: updateFlagsStatement({
+            sendType: UserPersonalizedDigestSendType.weekly,
+          }),
+        },
+      );
+    },
+  });
+
+  return { hasAnyFailed };
 };

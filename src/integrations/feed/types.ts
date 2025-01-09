@@ -16,6 +16,7 @@ export enum FeedConfigName {
   VectorV27 = 'vector_v27',
   PostSimilarity = 'post_similarity',
   CustomFeedV1 = 'custom_feed_v1',
+  Popular = 'popular',
 }
 
 export type FeedProvider = {
@@ -48,10 +49,12 @@ export type FeedConfig = {
   fresh_page_size?: string;
   allowed_tags?: string[];
   blocked_tags?: string[];
+  allowed_sources?: string[];
   blocked_sources?: string[];
   allowed_post_types?: string[];
   allowed_content_curations?: string[];
   blocked_title_words?: string[];
+  allowed_author_ids?: string[];
   followed_user_ids?: string[];
   followed_sources?: string[];
   squad_ids?: string[];

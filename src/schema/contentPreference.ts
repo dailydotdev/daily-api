@@ -176,7 +176,7 @@ export const typeDefs = /* GraphQL */ `
       Feed id (if empty defaults to my feed)
       """
       feedId: String
-    ): EmptyResponse @feedPlus
+    ): EmptyResponse @auth
     """
     Unfollow entity
     """
@@ -194,7 +194,7 @@ export const typeDefs = /* GraphQL */ `
       Feed id (if empty defaults to my feed)
       """
       feedId: String
-    ): EmptyResponse @feedPlus
+    ): EmptyResponse @auth
 
     """
     Block entity
@@ -213,7 +213,7 @@ export const typeDefs = /* GraphQL */ `
       Feed id (if empty defaults to my feed)
       """
       feedId: String
-    ): EmptyResponse @feedPlus
+    ): EmptyResponse @auth
 
     """
     Unblock entity
@@ -232,7 +232,7 @@ export const typeDefs = /* GraphQL */ `
       Feed id (if empty defaults to my feed)
       """
       feedId: String
-    ): EmptyResponse @feedPlus
+    ): EmptyResponse @auth
   }
 `;
 
@@ -346,6 +346,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             })
             .andWhere(`${builder.alias}."feedId" = :feedId`, {
               feedId,
+            })
+            .andWhere(`${builder.alias}."status" != :status`, {
+              status: ContentPreferenceStatus.Blocked,
             })
             .limit(page.limit)
             .offset(page.offset)

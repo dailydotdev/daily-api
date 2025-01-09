@@ -80,7 +80,7 @@ import {
   FeedLofnConfigGenerator,
 } from '../integrations/feed/configs';
 import { counters } from '../telemetry';
-import { lofnClient, popularFeedClient } from '../integrations/feed/generators';
+import { lofnClient } from '../integrations/feed/generators';
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
 import { randomUUID } from 'crypto';
@@ -582,7 +582,7 @@ export const typeDefs = /* GraphQL */ `
       Feed id
       """
       feedId: ID
-    ): FeedSettings! @feedPlus
+    ): FeedSettings! @auth
 
     """
     Returns the user's RSS feeds
@@ -882,7 +882,7 @@ export const typeDefs = /* GraphQL */ `
       The filters to add to the feed
       """
       filters: FiltersInput!
-    ): FeedSettings @feedPlus
+    ): FeedSettings @auth
 
     """
     Remove filters from the user's feed
@@ -897,7 +897,7 @@ export const typeDefs = /* GraphQL */ `
       The filters to remove from the feed
       """
       filters: FiltersInput!
-    ): FeedSettings @feedPlus
+    ): FeedSettings @auth
 
     """
     Update user's feed advanced settings
@@ -912,7 +912,7 @@ export const typeDefs = /* GraphQL */ `
       Posts must comply with the advanced settings from this list
       """
       settings: [FeedAdvancedSettingsInput]!
-    ): [FeedAdvancedSettings]! @feedPlus
+    ): [FeedAdvancedSettings]! @auth
 
     """
     Create feed
@@ -952,7 +952,7 @@ export const typeDefs = /* GraphQL */ `
       Icon
       """
       icon: String
-    ): Feed @feedPlus
+    ): Feed @auth
 
     """
     Update feed meta
@@ -997,7 +997,7 @@ export const typeDefs = /* GraphQL */ `
       Icon
       """
       icon: String
-    ): Feed @feedPlus
+    ): Feed @auth
 
     """
     Delete feed
@@ -1499,45 +1499,31 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         );
       }
 
-      if (
-        args.version >= 2 &&
-        args.ranking === Ranking.POPULARITY &&
-        ctx.userId
-      ) {
-        const feedGenerator = new FeedGenerator(
-          feedClient,
-          new FeedPreferencesConfigGenerator(
-            {
-              feed_config_name: FeedConfigName.CustomFeedV1,
-            },
-            {
-              includeAllowedTags: true,
-              includePostTypes: true,
-              includeBlockedSources: true,
-              includeBlockedTags: true,
-              includeContentCuration: true,
-              includeBlockedWords: true,
-              feedId: feedId,
-            },
-          ),
-        );
-
-        return feedResolverCursor(
-          source,
+      const feedGenerator = new FeedGenerator(
+        feedClient,
+        new FeedPreferencesConfigGenerator(
           {
-            ...(args as FeedArgs),
-            generator: feedGenerator,
+            feed_config_name: FeedConfigName.CustomFeedV1,
           },
-          ctx,
-          info,
-        );
-      }
+          {
+            includeAllowedTags: true,
+            includePostTypes: true,
+            includeBlockedSources: true,
+            includeBlockedTags: true,
+            includeContentCuration: true,
+            includeBlockedWords: true,
+            includeAllowedUsers: true,
+            includeAllowedSources: true,
+            feedId: feedId,
+          },
+        ),
+      );
 
-      return feedResolverV1(
+      return feedResolverCursor(
         source,
         {
-          ...args,
-          feedId,
+          ...(args as FeedArgs),
+          generator: feedGenerator,
         },
         ctx,
         info,
@@ -1555,9 +1541,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const feedGenerator = filters
         ? new FeedGenerator(
-            popularFeedClient,
+            feedClient,
             new FeedLocalConfigGenerator(
-              {},
+              { feed_config_name: FeedConfigName.Popular },
               {
                 includeAllowedTags: true,
                 includePostTypes: true,

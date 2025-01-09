@@ -60,6 +60,10 @@ export const crons: Cron[] = [
     schedule: '12 3 * * *',
   },
   {
+    name: 'validate-active-users',
+    schedule: '15 4 * * *',
+  },
+  {
     name: 'update-source-tag-view',
     schedule: '20 3 * * 0',
   },
@@ -109,5 +113,5 @@ export const crons: Cron[] = [
   {
     name: 'calculate-top-readers',
     schedule: '0 2 1 * *',
-  }
+  },
 ];
