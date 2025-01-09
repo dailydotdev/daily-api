@@ -1,11 +1,11 @@
 export enum Continent {
-  Africa = 'Africa',
-  Antarctica = 'Antarctica',
-  Asia = 'Asia',
-  Europe = 'Europe',
-  Oceania = 'Oceania',
-  NorthAmerica = 'North America',
-  SouthAmerica = 'South America',
+  Africa = 'AF',
+  Antarctica = 'AN',
+  Asia = 'AS',
+  Europe = 'EU',
+  Oceania = 'OC',
+  NorthAmerica = 'NA',
+  SouthAmerica = 'SA',
 }
 
 export const countryCodeToContinent: Record<string, Continent> = {
