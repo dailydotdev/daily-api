@@ -519,7 +519,16 @@ export const unblockEntity = async ({
   return unfollowEntity({ ctx, id, entity, feedId });
 };
 
-export const whereNotUserBlocked = (qb: QueryBuilder, userId?: string) => {
+export const whereNotUserBlocked = (
+  qb: QueryBuilder,
+  {
+    userId,
+    feedId,
+  }: Partial<{
+    userId: string;
+    feedId: string;
+  }>,
+) => {
   const query = qb
     .subQuery()
     .select()
@@ -527,7 +536,8 @@ export const whereNotUserBlocked = (qb: QueryBuilder, userId?: string) => {
     .where({
       status: ContentPreferenceStatus.Blocked,
       type: ContentPreferenceType.User,
-      userId: userId,
+      userId,
+      feedId: feedId ?? userId,
     })
     .andWhere(`"pref"."referenceId" = ${qb.alias}."userId"`)
     .getQuery();

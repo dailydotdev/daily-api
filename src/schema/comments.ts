@@ -633,7 +633,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
             if (ctx.userId) {
               builder.queryBuilder.andWhere(
-                whereNotUserBlocked(builder.queryBuilder, ctx.userId),
+                whereNotUserBlocked(builder.queryBuilder, {
+                  userId: ctx.userId,
+                }),
               );
             }
             return builder;
