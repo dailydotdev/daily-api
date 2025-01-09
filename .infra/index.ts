@@ -46,6 +46,8 @@ const { serviceAccount } = createServiceAccountAndGrantRoles(
     { name: 'secret', role: 'roles/secretmanager.secretAccessor' },
     { name: 'pubsub', role: 'roles/pubsub.editor' },
     { name: 'objViewer', role: 'roles/storage.objectViewer' },
+    { name: 'bigqueryJobUser', role: 'roles/bigquery.jobUser' },
+    { name: 'bigqueryDataViwer', role: 'roles/bigquery.dataViewer' },
   ],
   isAdhocEnv,
 );
