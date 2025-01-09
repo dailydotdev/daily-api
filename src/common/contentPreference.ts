@@ -531,7 +531,6 @@ export const whereNotUserBlocked = (
 ) => {
   const query = qb
     .subQuery()
-    .select()
     .from(ContentPreference, 'pref')
     .where({
       status: ContentPreferenceStatus.Blocked,
