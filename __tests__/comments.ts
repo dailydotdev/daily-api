@@ -425,6 +425,26 @@ describe('query commentFeed', () => {
     );
   });
 
+  it('should filter out blocked users comments', async () => {
+    loggedUser = '1';
+    await con.getRepository(Feed).save({
+      id: '1',
+      userId: '1',
+      type: FeedType.Main,
+    });
+    await con.getRepository(ContentPreference).save({
+      userId: '1',
+      referenceId: '2',
+      type: ContentPreferenceType.User,
+      status: ContentPreferenceStatus.Blocked,
+      feedId: '1',
+    });
+
+    const res = await client.query(QUERY, { variables: { first: 20 } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.commentFeed.edges.length).toEqual(5);
+  });
+
   it('should fetch comments feed', async () => {
     loggedUser = '1';
     const res = await client.query(QUERY, { variables: { first: 20 } });
