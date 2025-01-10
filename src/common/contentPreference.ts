@@ -529,6 +529,7 @@ export const whereNotUserBlocked = (
     feedId: string;
   }>,
 ) => {
+  const feedIds = feedId ? [feedId, userId] : [userId];
   const query = qb
     .subQuery()
     .from(ContentPreference, 'pref')
@@ -536,7 +537,7 @@ export const whereNotUserBlocked = (
       status: ContentPreferenceStatus.Blocked,
       type: ContentPreferenceType.User,
       userId,
-      feedId: feedId ?? userId,
+      feedId: In(feedIds),
     })
     .andWhere(`"pref"."referenceId" = ${qb.alias}."userId"`)
     .getQuery();
