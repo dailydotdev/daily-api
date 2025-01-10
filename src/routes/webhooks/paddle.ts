@@ -312,7 +312,7 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
 
         try {
           if (signature && rawRequestBody) {
-            const eventData = paddleInstance.webhooks.unmarshal(
+            const eventData = await paddleInstance.webhooks.unmarshal(
               rawRequestBody,
               secretKey,
               signature,
