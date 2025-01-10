@@ -2,6 +2,7 @@ export enum ReportEntity {
   Post = 'post',
   Source = 'source',
   Comment = 'comment',
+  User = 'user',
 }
 
 export enum ReportReason {
@@ -19,6 +20,10 @@ export enum ReportReason {
   Miscategorized = 'MISCATEGORIZED',
   Misinformation = 'MISINFORMATION',
   Illegal = 'ILLEGAL',
+  Inappropriate = 'INAPPROPRIATE',
+  Trolling = 'TROLLING',
+  Impersonation = 'IMPERSONATION',
+  Plagiarism = 'PLAGIARISM',
 }
 
 export const postReportReasonsMap: Map<ReportReason, string> = new Map([
@@ -48,5 +53,18 @@ export const reportCommentReasonsMap: Map<ReportReason, string> = new Map([
   [ReportReason.Spam, 'Spam or Scams'],
   [ReportReason.Nsfw, 'Explicit Sexual Content'],
   [ReportReason.Misinformation, 'False Information or Misinformation'],
+  [ReportReason.Other, 'Other'],
+]);
+
+export const userReportReasonsMap: Map<ReportReason, string> = new Map([
+  [ReportReason.Inappropriate, 'Inappropriate or NSFW Content'],
+  [ReportReason.Trolling, 'Trolling or Disruptive Behavior'],
+  [ReportReason.Harassment, 'Harassment or Bullying'],
+  [ReportReason.Impersonation, 'Impersonation or False Identity'],
+  [ReportReason.Spam, 'Spam or Unsolicited Advertising'],
+  [ReportReason.Misinformation, 'Misinformation or False Claims'],
+  [ReportReason.Hateful, 'Hate Speech or Discrimination'],
+  [ReportReason.Privacy, 'Privacy or Copyright Violation'],
+  [ReportReason.Plagiarism, 'Plagiarism or Content Theft'],
   [ReportReason.Other, 'Other'],
 ]);

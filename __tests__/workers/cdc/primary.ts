@@ -148,6 +148,7 @@ import {
   SourcePostModerationStatus,
 } from '../../../src/entity/SourcePostModeration';
 import { NotificationType } from '../../../src/notifications/common';
+import type { UserReport } from '../../../src/entity/UserReport';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -163,6 +164,7 @@ jest.mock('../../../src/common', () => ({
   notifyPostReport: jest.fn(),
   notifySourceReport: jest.fn(),
   notifyCommentReport: jest.fn(),
+  notifyReportUser: jest.fn(),
   notifySourceFeedAdded: jest.fn(),
   notifySourceFeedRemoved: jest.fn(),
   notifySettingsUpdated: jest.fn(),
@@ -1569,6 +1571,28 @@ describe('comment report', () => {
       comment,
       'False Information or Misinformation',
       'Test note',
+    );
+  });
+});
+
+describe('User report', () => {
+  type ObjectType = UserReport;
+  const base: ChangeObject<ObjectType> = {
+    reportedUserId: '2',
+    reason: ReportReason.Harassment,
+    note: 'This guy is very mean',
+  };
+
+  it('should notify on new user report', async () => {
+    const after: ChangeObject<ObjectType> = base;
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'user_report',
+      }),
     );
   });
 });
