@@ -5611,6 +5611,29 @@ describe('posts title field', () => {
     });
   });
 
+  it('should return original title when language is not set', async () => {
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        contentMeta: {
+          translate_title: {
+            translations: {
+              en: 'P1 English',
+            },
+          },
+        },
+      },
+    );
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.post).toEqual({
+      title: 'P1',
+    });
+  });
+
   it('should return i18n title if exists', async () => {
     await con.getRepository(Post).update(
       { id: 'p1' },

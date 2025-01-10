@@ -98,7 +98,9 @@ const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
         userId: ctx.userId!,
       });
 
-      const i18nValue = typedParent.i18nTitle?.[ctx.contentLanguage];
+      const i18nValue =
+        ctx.contentLanguage && typedParent.i18nTitle?.[ctx.contentLanguage];
+
       const altValue = getSmartTitle(
         ctx.contentLanguage,
         typedParent.smartTitle,
