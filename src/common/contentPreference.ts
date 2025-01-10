@@ -524,10 +524,10 @@ export const whereNotUserBlocked = (
   {
     userId,
     feedId,
-  }: Partial<{
+  }: {
     userId: string;
-    feedId: string;
-  }>,
+    feedId?: string;
+  },
 ) => {
   const feedIds = feedId ? [feedId, userId] : [userId];
   const query = qb
