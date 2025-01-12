@@ -4,7 +4,7 @@ import {
   NotificationV2,
   UserNotification,
 } from '../entity';
-import { DeepPartial, EntityManager, ObjectLiteral } from 'typeorm';
+import { DeepPartial, EntityManager, In, ObjectLiteral } from 'typeorm';
 import { NotificationBuilder } from './builder';
 import { NotificationBaseContext, NotificationBundleV2 } from './types';
 import { generateNotificationMap, notificationTitleMap } from './generate';
@@ -12,6 +12,11 @@ import { generateUserNotificationUniqueKey, NotificationType } from './common';
 import { NotificationHandlerReturn } from '../workers/notifications/worker';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { logger } from '../logger';
+import { ContentPreference } from '../entity/contentPreference/ContentPreference';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../entity/contentPreference/types';
 
 export * from './types';
 
@@ -165,7 +170,26 @@ export async function storeNotificationBundleV2(
   >[][] = [];
   const chunkSize = 500;
 
-  bundle.userIds.forEach((userId) => {
+  const userAvatar = bundle.avatars?.find(
+    (avatar) => avatar.type === 'user',
+  )?.referenceId;
+
+  const blockedList = await entityManager
+    .getRepository(ContentPreference)
+    .find({
+      where: {
+        status: ContentPreferenceStatus.Blocked,
+        feedId: In(bundle.userIds),
+        type: ContentPreferenceType.User,
+        referenceId: userAvatar,
+      },
+    });
+
+  const userIds = bundle.userIds.filter(
+    (userId) => !blockedList.some((blocked) => blocked.feedId === userId),
+  );
+
+  userIds.forEach((userId) => {
     if (chunks.length === 0 || chunks[chunks.length - 1].length === chunkSize) {
       chunks.push([]);
     }
@@ -180,6 +204,7 @@ export async function storeNotificationBundleV2(
   });
 
   for (const chunk of chunks) {
+    console.log('**** chunk', chunk);
     await entityManager
       .createQueryBuilder()
       .insert()
