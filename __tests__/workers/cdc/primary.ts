@@ -12,6 +12,8 @@ import {
   CollectionPost,
   PostRelation,
   PostRelationType,
+  FREEFORM_POST_MINIMUM_CONTENT_LENGTH,
+  FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
   MarketingCta,
   MarketingCtaStatus,
   UserMarketingCta,
@@ -1236,7 +1238,7 @@ describe('post', () => {
     const after = {
       ...base,
       type: PostType.Freeform,
-      content: '1'.repeat(1),
+      content: '1'.repeat(FREEFORM_POST_MINIMUM_CONTENT_LENGTH),
     };
 
     await expectSuccessfulBackground(
@@ -1260,7 +1262,9 @@ describe('post', () => {
     const after = {
       ...base,
       type: PostType.Freeform,
-      content: '1'.repeat(1),
+      content: '1'.repeat(
+        FREEFORM_POST_MINIMUM_CONTENT_LENGTH - base.title.length,
+      ),
     };
 
     await expectSuccessfulBackground(
@@ -1280,11 +1284,33 @@ describe('post', () => {
     ).toEqual(after);
   });
 
+  it('should not notify for new freeform post when title and content is less than the required amount characters', async () => {
+    const after = {
+      ...base,
+      type: PostType.Freeform,
+      content: '1'.repeat(
+        FREEFORM_POST_MINIMUM_CONTENT_LENGTH - base.title.length - 1,
+      ),
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'post',
+      }),
+    );
+
+    expect(notifyFreeformContentRequested).toHaveBeenCalledTimes(0);
+  });
+
   it('should not notify on welcome post', async () => {
     const after = {
       ...base,
       type: PostType.Welcome,
-      content: '1'.repeat(1),
+      content: '1'.repeat(FREEFORM_POST_MINIMUM_CONTENT_LENGTH),
     };
 
     await expectSuccessfulBackground(
@@ -1304,7 +1330,7 @@ describe('post', () => {
     const after = {
       ...base,
       type: PostType.Share,
-      content: '1'.repeat(1),
+      content: '1'.repeat(FREEFORM_POST_MINIMUM_CONTENT_LENGTH),
     };
 
     await expectSuccessfulBackground(
@@ -1329,7 +1355,7 @@ describe('post', () => {
 
     const after = {
       ...before,
-      content: before.content + '2'.repeat(1),
+      content: before.content + '2'.repeat(FREEFORM_POST_MINIMUM_CHANGE_LENGTH),
     };
 
     await expectSuccessfulBackground(
@@ -1351,6 +1377,32 @@ describe('post', () => {
       jest.mocked(notifyFreeformContentRequested).mock.calls[0][1].payload
         .after,
     ).toEqual(after);
+  });
+
+  it('should not notify for edited freeform post less than the required amount edited characters', async () => {
+    const before = {
+      ...base,
+      type: PostType.Freeform,
+      content: '1',
+    };
+
+    const after = {
+      ...before,
+      content:
+        before.content + '2'.repeat(FREEFORM_POST_MINIMUM_CHANGE_LENGTH - 1),
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+
+    expect(notifyContentRequested).toHaveBeenCalledTimes(0);
   });
 
   it('should notify when yggdrasil id is available on creation', async () => {
