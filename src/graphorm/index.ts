@@ -664,14 +664,19 @@ const obj = new GraphORM({
           order: 'ASC',
           sort: 'createdAt',
           customRelation(ctx, parentAlias, childAlias, qb) {
-            return qb
+            const builder = qb
               .where(`"${childAlias}"."parentId" = "${parentAlias}"."id"`)
-              .andWhere(
+              .andWhere(whereVordrFilter(childAlias, ctx.userId));
+
+            if (ctx.userId) {
+              builder.andWhere(
                 whereNotUserBlocked(qb, {
                   userId: ctx.userId,
                 }),
-              )
-              .andWhere(whereVordrFilter(childAlias, ctx.userId));
+              );
+            }
+
+            return builder;
           },
         },
         pagination: {
