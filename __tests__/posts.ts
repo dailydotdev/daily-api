@@ -3499,7 +3499,7 @@ describe('mutation createFreeformPost', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.createFreeformPost.contentHtml).toEqual(
       '<pre><code>```<span class="hljs-tag">&lt;<span class="hljs-name">style</span>&gt;</span><span class="language-css"><span class="hljs-selector-tag">body</span>{<span class="hljs-attribute">background-color</span>: blue<span class="hljs-meta">!important</span>}<span class="hljs-selector-tag">a</span>,<span class="hljs-selector-tag">h1</span>,<span class="hljs-selector-tag">h2</span>{<span class="hljs-attribute">color</span>: red<span class="hljs-meta">!important</span>}</span><span class="hljs-tag">&lt;/<span class="hljs-name">style</span>&gt;</span>\n' +
-      '</code></pre>\n',
+        '</code></pre>\n',
     );
   });
 
