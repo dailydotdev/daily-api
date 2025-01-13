@@ -589,6 +589,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               .innerJoin(Post, 'p', `"${builder.alias}"."postId" = p.id`)
               .innerJoin(Source, 's', `"p"."sourceId" = s.id`)
               .innerJoin(User, 'u', `"${builder.alias}"."userId" = u.id`)
+              .andWhere(
+                whereNotUserBlocked(builder.queryBuilder, {
+                  userId: ctx.userId,
+                }),
+              )
               .andWhere(`s.private = false`)
               .andWhere('p.visible = true')
               .andWhere('p.deleted = false')
