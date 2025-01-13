@@ -9,15 +9,17 @@ import {
   testQueryErrorCode,
 } from './helpers';
 import {
+  ArticlePost,
+  Comment,
+  CommentMention,
+  Feed,
+  FeedType,
   Post,
   PostTag,
   Source,
-  Comment,
-  User,
-  ArticlePost,
   SourceMember,
   SourceType,
-  CommentMention,
+  User,
 } from '../src/entity';
 import { SourceMemberRoles } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
@@ -28,6 +30,7 @@ import {
 } from './fixture/post';
 import { getMentionLink } from '../src/common/markdown';
 import {
+  GQLComment,
   saveComment,
   SortCommentsBy,
   updateMentions,
@@ -44,6 +47,12 @@ import {
   getRedisObjectExpiry,
 } from '../src/redis';
 import { badUsersFixture } from './fixture';
+import { ContentPreference } from '../src/entity/contentPreference/ContentPreference';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../src/entity/contentPreference/types';
+import { Connection } from 'graphql-relay';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -295,6 +304,54 @@ describe('query postComments', () => {
     const res = await client.query(QUERY, { variables: { postId: 'p1' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.postComments.edges.length).toEqual(4);
+  });
+
+  it('should filter out comment that are from blocked users', async () => {
+    loggedUser = '1';
+    const blockedUserId = '2';
+
+    const beforeBlock = await client.query<
+      { postComments: Connection<GQLComment> },
+      {
+        postId: string;
+      }
+    >(QUERY, {
+      variables: { postId: 'p1' },
+    });
+    // both parent and child comment authors
+    const beforeBlockCommentsAuthors =
+      beforeBlock.data.postComments.edges.flatMap(({ node }) => [
+        node.author?.id,
+        ...(node.children?.edges ?? []).map(({ node }) => node.author?.id),
+      ]);
+    expect(beforeBlockCommentsAuthors).toContain(blockedUserId);
+
+    await con.getRepository(Feed).save({
+      id: loggedUser,
+      userId: loggedUser,
+      type: FeedType.Main,
+    });
+    await con.getRepository(ContentPreference).save({
+      userId: loggedUser,
+      type: ContentPreferenceType.User,
+      referenceId: blockedUserId,
+      status: ContentPreferenceStatus.Blocked,
+      feedId: loggedUser,
+    });
+
+    const res = await client.query<
+      { postComments: Connection<GQLComment> },
+      {
+        postId: string;
+      }
+    >(QUERY, { variables: { postId: 'p1' } });
+    expect(res.errors).toBeFalsy();
+    // both parent and child comment authors
+    const commentsAuthors = res.data.postComments.edges.flatMap(({ node }) => [
+      node.author?.id,
+      ...(node.children?.edges ?? []).map(({ node }) => node.author?.id),
+    ]);
+    expect(commentsAuthors).not.toContain(blockedUserId);
   });
 });
 

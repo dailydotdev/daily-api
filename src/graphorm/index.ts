@@ -41,6 +41,7 @@ import { ContentPreferenceSource } from '../entity/contentPreference/ContentPref
 import { ContentPreference } from '../entity/contentPreference/ContentPreference';
 import { isPlusMember } from '../paddle';
 import { remoteConfig } from '../remoteConfig';
+import { whereNotUserBlocked } from '../common/contentPreference';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -666,9 +667,19 @@ const obj = new GraphORM({
           order: 'ASC',
           sort: 'createdAt',
           customRelation(ctx, parentAlias, childAlias, qb) {
-            return qb
+            const builder = qb
               .where(`"${childAlias}"."parentId" = "${parentAlias}"."id"`)
               .andWhere(whereVordrFilter(childAlias, ctx.userId));
+
+            if (ctx.userId) {
+              builder.andWhere(
+                whereNotUserBlocked(qb, {
+                  userId: ctx.userId,
+                }),
+              );
+            }
+
+            return builder;
           },
         },
         pagination: {
