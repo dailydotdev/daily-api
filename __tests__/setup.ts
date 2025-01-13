@@ -18,7 +18,11 @@ jest.mock('../src/remoteConfig', () => ({
   remoteConfig: {
     init: jest.fn(),
     vars: {
-      vordrWords: ['vordrwillcatchyou', 'andvordrwillhavefun'],
+      vordrWords: [
+        'vordrwillcatchyou',
+        'andvordrwillhavefun',
+        'and vordr will win',
+      ],
       vordrIps: ['192.0.2.0/24', '198.51.100.0/24', '203.0.113.0/24'],
       ignoredWorkEmailDomains: ['igored.com', 'ignored.org'],
       rateLimitReputationThreshold: 1,
