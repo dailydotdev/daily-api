@@ -99,7 +99,7 @@ const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
       });
 
       const i18nValue =
-        ctx.contentLanguage && typedParent.i18nTitle?.[ctx.contentLanguage];
+        ctx.contentLanguage ? typedParent.i18nTitle?.[ctx.contentLanguage] : undefined
 
       const altValue = getSmartTitle(
         ctx.contentLanguage,
