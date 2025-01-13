@@ -210,6 +210,9 @@ beforeEach(async () => {
   nock.cleanAll();
 });
 
+const TEST_FREEFORM_POST_MINIMUM_CONTENT_LENGTH = 5;
+const TEST_FREEFORM_POST_MINIMUM_CHANGE_LENGTH = 5;
+
 const defaultUser: ChangeObject<Omit<User, 'createdAt'>> = {
   id: '1',
   name: 'Ido',
@@ -1263,7 +1266,7 @@ describe('post', () => {
       ...base,
       type: PostType.Freeform,
       content: '1'.repeat(
-        FREEFORM_POST_MINIMUM_CONTENT_LENGTH - base.title.length,
+        TEST_FREEFORM_POST_MINIMUM_CONTENT_LENGTH - base.title.length,
       ),
     };
 
@@ -1289,7 +1292,7 @@ describe('post', () => {
       ...base,
       type: PostType.Freeform,
       content: '1'.repeat(
-        FREEFORM_POST_MINIMUM_CONTENT_LENGTH - base.title.length - 1,
+        TEST_FREEFORM_POST_MINIMUM_CONTENT_LENGTH - base.title.length - 1,
       ),
     };
 
@@ -1389,7 +1392,7 @@ describe('post', () => {
     const after = {
       ...before,
       content:
-        before.content + '2'.repeat(FREEFORM_POST_MINIMUM_CHANGE_LENGTH - 1),
+        before.content + '2'.repeat(TEST_FREEFORM_POST_MINIMUM_CHANGE_LENGTH - 1),
     };
 
     await expectSuccessfulBackground(
