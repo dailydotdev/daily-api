@@ -111,6 +111,7 @@ import { Source } from '@dailydotdev/schema';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { remoteConfig } from '../remoteConfig';
 import { ensurePostRateLimit } from '../common/rateLimit';
+import { whereNotUserBlocked } from '../common/contentPreference';
 
 export interface GQLSourcePostModeration {
   id: string;
@@ -1641,6 +1642,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 postId: args.id,
               })
               .andWhere(`${builder.alias}.vote = 1`);
+
+            if (ctx.userId) {
+              builder.queryBuilder.andWhere(
+                whereNotUserBlocked(builder.queryBuilder, {
+                  userId: ctx.userId,
+                }),
+              );
+            }
 
             return builder;
           },
