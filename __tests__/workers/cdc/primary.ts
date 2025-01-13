@@ -1392,7 +1392,8 @@ describe('post', () => {
     const after = {
       ...before,
       content:
-        before.content + '2'.repeat(TEST_FREEFORM_POST_MINIMUM_CHANGE_LENGTH - 1),
+        before.content +
+        '2'.repeat(TEST_FREEFORM_POST_MINIMUM_CHANGE_LENGTH - 1),
     };
 
     await expectSuccessfulBackground(
