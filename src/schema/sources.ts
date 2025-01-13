@@ -81,6 +81,7 @@ import {
   SourcePostModeration,
   SourcePostModerationStatus,
 } from '../entity/SourcePostModeration';
+import { remoteConfig } from '../remoteConfig';
 
 export interface GQLSourceCategory {
   id: string;
@@ -1966,6 +1967,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLSource> => {
+      if (remoteConfig.vars.blockedCountries?.includes(ctx.region)) {
+        throw new ForbiddenError('Squads are not available at the moment');
+      }
+
       const handle = await validateSquadData(
         {
           handle: inputHandle,

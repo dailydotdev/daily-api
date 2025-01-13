@@ -7,6 +7,7 @@ type RemoteConfigValue = {
   inc: number;
   vordrWords: string[];
   vordrIps: string[];
+  blockedCountries: string[];
   ignoredWorkEmailDomains: string[];
   pricingIds: Record<string, SubscriptionCycles>;
   origins: string[];
