@@ -47,6 +47,7 @@ Object {
   "title": "Title",
   "titleHtml": null,
   "toc": null,
+  "translation": Object {},
   "trending": null,
   "type": "article",
   "upvotes": 0,
