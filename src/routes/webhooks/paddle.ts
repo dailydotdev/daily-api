@@ -199,7 +199,7 @@ const notifyNewPaddleTransaction = async ({
     userId: customData?.user_id,
     subscriptionId: 'subscriptionId' in data && data.subscriptionId,
   });
-
+  const origin = data?.origin;
   const productId = data?.items?.[0].price?.productId;
 
   const total = data?.items?.[0]?.price?.unitPrice?.amount || '0';
@@ -215,7 +215,10 @@ const notifyNewPaddleTransaction = async ({
         type: 'header',
         text: {
           type: 'plain_text',
-          text: 'New Plus subscriber :moneybag:',
+          text:
+            origin === 'subscription_recurring'
+              ? 'Recurring payment :pepemoney:'
+              : 'New Plus subscriber :moneybag:',
           emoji: true,
         },
       },
@@ -312,7 +315,7 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
 
         try {
           if (signature && rawRequestBody) {
-            const eventData = paddleInstance.webhooks.unmarshal(
+            const eventData = await paddleInstance.webhooks.unmarshal(
               rawRequestBody,
               secretKey,
               signature,

@@ -99,7 +99,10 @@ const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
         userId: ctx.userId!,
       });
 
-      const i18nValue = typedParent.i18nTitle?.[ctx.contentLanguage];
+      const i18nValue = ctx.contentLanguage
+        ? typedParent.i18nTitle?.[ctx.contentLanguage]
+        : undefined;
+
       const altValue = getSmartTitle(
         ctx.contentLanguage,
         typedParent.smartTitle,
@@ -664,7 +667,7 @@ const obj = new GraphORM({
           order: 'ASC',
           sort: 'createdAt',
           customRelation(ctx, parentAlias, childAlias, qb) {
-            return qb
+            const builder = qb
               .where(`"${childAlias}"."parentId" = "${parentAlias}"."id"`)
               .andWhere(
                 whereNotUserBlocked(qb, {
@@ -672,6 +675,16 @@ const obj = new GraphORM({
                 }),
               )
               .andWhere(whereVordrFilter(childAlias, ctx.userId));
+
+            if (ctx.userId) {
+              builder.andWhere(
+                whereNotUserBlocked(qb, {
+                  userId: ctx.userId,
+                }),
+              );
+            }
+
+            return builder;
           },
         },
         pagination: {
