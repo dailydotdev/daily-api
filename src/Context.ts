@@ -17,7 +17,7 @@ export class Context {
   con: DataSource;
   loader: GraphQLDatabaseLoader;
   dataLoader: DataLoaderService;
-  contentLanguage: ContentLanguage;
+  contentLanguage: ContentLanguage | null;
 
   constructor(req: FastifyRequest, con: DataSource) {
     this.req = req;
@@ -31,7 +31,7 @@ export class Context {
       contentLanguageHeader as ContentLanguage,
     )
       ? (contentLanguageHeader as ContentLanguage)
-      : ContentLanguage.English;
+      : null;
   }
 
   get service(): boolean {
