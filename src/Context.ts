@@ -66,6 +66,10 @@ export class Context {
     return !!this.req.isPlus;
   }
 
+  get region(): string {
+    return (this.req.headers['x-client-region'] as string) ?? '';
+  }
+
   getRepository<Entity extends ObjectLiteral>(
     target: ObjectType<Entity> | EntitySchema<Entity> | string,
   ): Repository<Entity> {
