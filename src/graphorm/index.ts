@@ -669,11 +669,6 @@ const obj = new GraphORM({
           customRelation(ctx, parentAlias, childAlias, qb) {
             const builder = qb
               .where(`"${childAlias}"."parentId" = "${parentAlias}"."id"`)
-              .andWhere(
-                whereNotUserBlocked(qb, {
-                  userId: ctx.userId,
-                }),
-              )
               .andWhere(whereVordrFilter(childAlias, ctx.userId));
 
             if (ctx.userId) {
