@@ -162,7 +162,9 @@ const addFiltersToConfig = ({
   }
   if (filters.followingUsers?.length && opts.includeAllowedUsers) {
     baseConfig.allowed_author_ids = mergeSingleFilter(
-      baseConfig.allowed_author_ids,
+      baseConfig.allowed_author_ids?.filter(
+        (id) => !filters.excludeUsers?.includes(id),
+      ),
       filters.followingUsers,
     );
   }
