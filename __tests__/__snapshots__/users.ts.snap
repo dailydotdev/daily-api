@@ -437,15 +437,6 @@ Array [
 ]
 `;
 
-exports[`query userReadHistory should return the timezone based read history 1`] = `
-Array [
-  Object {
-    "date": "2021-04-25T19:00:00.000Z",
-    "reads": 1,
-  },
-]
-`;
-
 exports[`query userReadingRank should return partially null result when the user asks for someone else 1`] = `
 Object {
   "currentRank": 0,
