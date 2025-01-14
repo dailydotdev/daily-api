@@ -245,7 +245,7 @@ describe('query userFollowers', () => {
         feedId: '4-ufq',
         referenceId: '1-ufq',
         referenceUserId: '1-ufq',
-        status: ContentPreferenceStatus.Follow,
+        status: ContentPreferenceStatus.Blocked,
         createdAt: new Date(now.getTime() - 4000),
       },
     ]);
@@ -279,15 +279,6 @@ describe('query userFollowers', () => {
               status: 'subscribed',
               user: {
                 id: '3-ufq',
-              },
-            },
-          },
-          {
-            node: {
-              referenceId: '1-ufq',
-              status: 'follow',
-              user: {
-                id: '4-ufq',
               },
             },
           },
@@ -386,7 +377,7 @@ describe('query userFollowing', () => {
         feedId: '1-ufwq',
         referenceId: '4-ufwq',
         referenceUserId: '4-ufwq',
-        status: ContentPreferenceStatus.Follow,
+        status: ContentPreferenceStatus.Blocked,
         createdAt: new Date(now.getTime() - 4000),
       },
     ]);
@@ -424,15 +415,6 @@ describe('query userFollowing', () => {
               },
             },
           },
-          {
-            node: {
-              referenceId: '4-ufwq',
-              status: 'follow',
-              user: {
-                id: '1-ufwq',
-              },
-            },
-          },
         ],
       },
     });
@@ -464,15 +446,6 @@ describe('query userFollowing', () => {
             node: {
               referenceId: '3-ufwq',
               status: 'subscribed',
-              user: {
-                id: '1-ufwq',
-              },
-            },
-          },
-          {
-            node: {
-              referenceId: '4-ufwq',
-              status: 'follow',
               user: {
                 id: '1-ufwq',
               },
