@@ -4,7 +4,7 @@ import {
   NotificationV2,
   UserNotification,
 } from '../entity';
-import { DeepPartial, EntityManager, ObjectLiteral } from 'typeorm';
+import { DeepPartial, EntityManager, In, ObjectLiteral } from 'typeorm';
 import { NotificationBuilder } from './builder';
 import { NotificationBaseContext, NotificationBundleV2 } from './types';
 import { generateNotificationMap, notificationTitleMap } from './generate';
@@ -12,6 +12,7 @@ import { generateUserNotificationUniqueKey, NotificationType } from './common';
 import { NotificationHandlerReturn } from '../workers/notifications/worker';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { logger } from '../logger';
+import { ContentPreference } from '../entity/contentPreference/ContentPreference';
 
 export * from './types';
 
@@ -212,9 +213,50 @@ export async function generateAndStoreNotificationsV2(
   if (!args) {
     return;
   }
+  const filteredNotifications = [];
+
+  for (const arg of args) {
+    const { type, ctx } = arg;
+    if (!ctx.initiatorId) {
+      filteredNotifications.push(arg);
+      continue;
+    }
+
+    const userIdChunks: string[][] = [];
+    for (let i = 0; i < ctx.userIds.length; i += 500) {
+      userIdChunks.push(ctx.userIds.slice(i, i + 500));
+    }
+
+    const blockedUsersPromises = userIdChunks.map((chunk) =>
+      entityManager.getRepository(ContentPreference).find({
+        where: {
+          feedId: In(chunk),
+          referenceId: ctx.initiatorId!,
+        },
+      }),
+    );
+
+    const blockedUsersChunks = await Promise.all(blockedUsersPromises);
+    const blockedUsers = blockedUsersChunks.flat();
+
+    const blockedUserIds = new Set(blockedUsers.map((pref) => pref.userId));
+    const filteredUserIds = ctx.userIds.filter((id) => !blockedUserIds.has(id));
+
+    if (filteredUserIds.length === 0) {
+      continue;
+    }
+
+    filteredNotifications.push({
+      type,
+      ctx: {
+        ...ctx,
+        userIds: filteredUserIds,
+      },
+    });
+  }
 
   await Promise.all(
-    args.map(({ type, ctx }) => {
+    filteredNotifications.map(({ type, ctx }) => {
       const bundle = generateNotificationV2(type, ctx);
       if (!bundle.userIds.length) {
         return;

@@ -21,8 +21,10 @@ import {
   User,
   UserAction,
   UserActionType,
+  UserNotification,
   UserPost,
   UserStreak,
+  WelcomePost,
 } from '../../src/entity';
 import { SourceMemberRoles } from '../../src/roles';
 import { DataSource } from 'typeorm';
@@ -30,6 +32,7 @@ import createOrGetConnection from '../../src/db';
 import { usersFixture, sourcesFixture, badUsersFixture } from '../fixture';
 import { postsFixture } from '../fixture/post';
 import {
+  generateAndStoreNotificationsV2,
   NotificationBookmarkContext,
   NotificationCommentContext,
   NotificationCommenterContext,
@@ -54,7 +57,15 @@ import { generateStorageKey, StorageKey, StorageTopic } from '../../src/config';
 import { ioRedisPool, setRedisObject } from '../../src/redis';
 import { ReportReason } from '../../src/entity/common';
 import { ContentPreferenceUser } from '../../src/entity/contentPreference/ContentPreferenceUser';
-import { ContentPreferenceStatus } from '../../src/entity/contentPreference/types';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../../src/entity/contentPreference/types';
+import { ContentPreference } from '../../src/entity/contentPreference/ContentPreference';
+import {
+  articleNewCommentHandler,
+  buildPostContext,
+} from '../../src/workers/notifications/utils';
 
 let con: DataSource;
 
@@ -1051,6 +1062,127 @@ describe('article new comment', () => {
     });
     expect(actual.length).toEqual(1);
     expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '3']);
+  });
+
+  it('buildPostContext should include initiatorId', async () => {
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        authorId: '1',
+      },
+    );
+    const ctx = await buildPostContext(con, 'p1');
+    expect(ctx.initiatorId).toBeDefined();
+    expect(ctx.initiatorId).toEqual('1');
+  });
+
+  it('articleNewCommentHandler should include initiatorId', async () => {
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        authorId: '1',
+      },
+    );
+    await con.getRepository(Comment).update(
+      { id: 'c1' },
+      {
+        userId: '2',
+      },
+    );
+    const result = await articleNewCommentHandler(con, 'c1');
+    expect(result).toBeDefined();
+    expect(result[0].ctx.initiatorId).toBeDefined();
+    expect(result[0].ctx.initiatorId).toEqual('2');
+  });
+
+  it('squadMemberJoined should include initiatorId', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/squadMemberJoined'
+    );
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    await con.getRepository(WelcomePost).save({
+      id: 'w1',
+      shortId: 's1',
+      sourceId: 'a',
+    });
+    await con.getRepository(SourceMember).save([
+      {
+        userId: '1',
+        sourceId: 'a',
+        role: SourceMemberRoles.Admin,
+        referralToken: randomUUID(),
+      },
+      {
+        userId: '2',
+        sourceId: 'a',
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
+    ]);
+    const result = await invokeNotificationWorker(worker.default, {
+      sourceMember: {
+        userId: '2',
+        sourceId: 'a',
+        role: SourceMemberRoles.Member,
+      },
+    });
+    expect(result).toBeDefined();
+    expect(result[0].ctx.initiatorId).toBeDefined();
+    expect(result[0].ctx.initiatorId).toEqual('2');
+  });
+
+  it('should filter out blocked users when generating notifications', async () => {
+    await con.getRepository(Feed).save({
+      id: '1',
+      userId: '1',
+    });
+
+    await con.getRepository(ContentPreference).save({
+      userId: '1',
+      feedId: '1',
+      status: ContentPreferenceStatus.Blocked,
+      type: ContentPreferenceType.User,
+      referenceId: '2',
+    });
+
+    await generateAndStoreNotificationsV2(con.manager, [
+      {
+        type: NotificationType.ArticleNewComment,
+        ctx: {
+          userIds: ['1', '3'],
+          initiatorId: '2',
+          commenter: {
+            id: '2',
+            name: 'Commenter',
+          },
+          comment: {
+            id: 'c1',
+            content: 'Comment',
+          },
+          post: {
+            id: 'p1',
+            authorId: '1',
+            scoutId: '3',
+          },
+          source: {
+            id: 'a',
+            type: SourceType.Squad,
+          },
+        },
+      },
+    ]);
+
+    const notifications = await con
+      .getRepository(UserNotification)
+      .createQueryBuilder('un')
+      .innerJoinAndSelect('un.notification', 'n')
+      .where('n.type = :type', { type: NotificationType.ArticleNewComment })
+      .getMany();
+
+    expect(notifications).toHaveLength(1);
+    expect(notifications[0].userId).toEqual('3');
   });
 
   it('should add notification but ignore users with muted settings', async () => {

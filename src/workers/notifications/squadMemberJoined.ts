@@ -75,6 +75,7 @@ const worker: NotificationWorker = {
           post,
           source,
           doneBy,
+          initiatorId: doneBy.id,
         },
       },
     ];

@@ -80,6 +80,7 @@ export const buildPostContext = async (
       post,
       source: await post.source,
       sharedPost,
+      initiatorId: post.authorId,
     };
   }
   return null;
@@ -185,6 +186,7 @@ export async function articleNewCommentHandler(
         userIds: users.filter((id) =>
           muted.every(({ userId }) => userId !== id),
         ),
+        initiatorId: commenter.id,
       },
     },
   ];
