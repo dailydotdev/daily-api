@@ -13,6 +13,7 @@ import { NotificationHandlerReturn } from '../workers/notifications/worker';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { logger } from '../logger';
 import { ContentPreference } from '../entity/contentPreference/ContentPreference';
+import { ContentPreferenceStatus, ContentPreferenceType, ContentPreferenceType } from '../entity/contentPreference/types';
 
 export * from './types';
 
@@ -232,6 +233,8 @@ export async function generateAndStoreNotificationsV2(
         where: {
           feedId: In(chunk),
           referenceId: ctx.initiatorId!,
+          status: ContentPreferenceStatus.Blocked,
+          type: ContentPreferenceType.User,
         },
       }),
     );
