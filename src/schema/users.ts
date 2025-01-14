@@ -602,7 +602,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type ReadHistory {
-    date: String!
+    date: DateTime!
     reads: Int!
   }
 
@@ -1109,7 +1109,7 @@ export const getUserReadHistory = async ({
   return con
     .getRepository(ActiveView)
     .createQueryBuilder('view')
-    .select(`date_trunc('day', ${timestampAtTimezone})::date::text`, 'date')
+    .select('view.timestamp', 'date')
     .addSelect(`count(*) AS "reads"`)
     .innerJoin(User, 'user', 'user.id = view.userId')
     .where('view.userId = :userId', { userId })
