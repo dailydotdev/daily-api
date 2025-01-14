@@ -1262,9 +1262,7 @@ describe('post', () => {
     const after = {
       ...base,
       type: PostType.Freeform,
-      content: '1'.repeat(
-        FREEFORM_POST_MINIMUM_CONTENT_LENGTH - base.title.length,
-      ),
+      // not setting content, title length should be enough
     };
 
     await expectSuccessfulBackground(
@@ -1288,10 +1286,9 @@ describe('post', () => {
     const after = {
       ...base,
       type: PostType.Freeform,
-      content: '1'.repeat(
-        FREEFORM_POST_MINIMUM_CONTENT_LENGTH - base.title.length - 1,
-      ),
+      content: '',
     };
+    after.title = '';
 
     await expectSuccessfulBackground(
       worker,
