@@ -186,7 +186,6 @@ export async function articleNewCommentHandler(
         userIds: users.filter((id) =>
           muted.every(({ userId }) => userId !== id),
         ),
-        initiatorId: commenter.id,
       },
     },
   ];

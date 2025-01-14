@@ -62,10 +62,7 @@ import {
   ContentPreferenceType,
 } from '../../src/entity/contentPreference/types';
 import { ContentPreference } from '../../src/entity/contentPreference/ContentPreference';
-import {
-  articleNewCommentHandler,
-  buildPostContext,
-} from '../../src/workers/notifications/utils';
+import { buildPostContext } from '../../src/workers/notifications/utils';
 
 let con: DataSource;
 
@@ -1074,25 +1071,6 @@ describe('article new comment', () => {
     const ctx = await buildPostContext(con, 'p1');
     expect(ctx.initiatorId).toBeDefined();
     expect(ctx.initiatorId).toEqual('1');
-  });
-
-  it('articleNewCommentHandler should include initiatorId', async () => {
-    await con.getRepository(Post).update(
-      { id: 'p1' },
-      {
-        authorId: '1',
-      },
-    );
-    await con.getRepository(Comment).update(
-      { id: 'c1' },
-      {
-        userId: '2',
-      },
-    );
-    const result = await articleNewCommentHandler(con, 'c1');
-    expect(result).toBeDefined();
-    expect(result[0].ctx.initiatorId).toBeDefined();
-    expect(result[0].ctx.initiatorId).toEqual('2');
   });
 
   it('squadMemberJoined should include initiatorId', async () => {
