@@ -1078,6 +1078,22 @@ describe('mutation commentOnPost', () => {
       expect(comment.flags).toEqual({ vordr: true });
     });
 
+    it('should set correct vordr flags on comment with spaces by good user if vordr filter catches it', async () => {
+      loggedUser = '1';
+
+      const res = await client.mutate(MUTATION, {
+        variables: { postId: 'p1', content: 'and vordr will win' },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const comment = await con.getRepository(Comment).findOneByOrFail({
+        id: res.data.commentOnPost.id,
+      });
+
+      expect(comment.flags).toEqual({ vordr: true });
+    });
+
     it('should set correct vordr flags on comment by bad user', async () => {
       loggedUser = 'vordr';
 
