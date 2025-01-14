@@ -2,7 +2,7 @@ import { ghostUser } from '../common';
 import { TypedWorker } from './worker';
 import { cio, identifyUserStreak } from '../cio';
 import { getUserReadHistory } from '../schema/users';
-import { subDays } from 'date-fns';
+import { format, subDays } from 'date-fns';
 
 const days = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
@@ -27,7 +27,9 @@ const worker: TypedWorker<'api.v1.user-streak-updated'> = {
       before: new Date(),
       after: subDays(new Date(), 7),
     });
-    const readHistoryDates = readHistory.flatMap((item) => item.date);
+    const readHistoryDates = readHistory.flatMap((item) =>
+      format(item.date, 'yyyy-MM-dd'),
+    );
 
     const lastSevenDays = [...Array(7)].reduce((acc, _, i) => {
       const d = new Date();
