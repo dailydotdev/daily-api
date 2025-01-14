@@ -677,7 +677,12 @@ export const typeDefs = /* GraphQL */ `
     total: Int
     current: Int
     lastViewAt: DateTime
+
+    """
+    Deprecated and not needed anymore, bc for older clients
+    """
     lastViewAtTz: DateTime
+
     weekStart: Int
   }
 
@@ -1219,6 +1224,7 @@ const getUserStreakQuery = async (
   return await graphorm.queryOne<GQLUserStreakTz>(ctx, info, (builder) => ({
     ...builder,
     queryBuilder: builder.queryBuilder
+      // deprecated and not needed anymore, bc for older clients
       .addSelect(
         `(date_trunc('day', "${builder.alias}"."lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date)`,
         'lastViewAtTz',
