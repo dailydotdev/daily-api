@@ -15,6 +15,7 @@ import {
   Bookmark,
   BookmarkList,
   Comment,
+  Feed,
   FreeformPost,
   Post,
   PostMention,
@@ -83,6 +84,11 @@ import { generateUUID } from '../src/ids';
 import { GQLResponse } from 'mercurius-integration-testing';
 import type { GQLPostSmartTitle } from '../src/schema/posts';
 import { SubscriptionCycles } from '../src/paddle';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../src/entity/contentPreference/types';
+import { ContentPreference } from '../src/entity/contentPreference/ContentPreference';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -1309,6 +1315,63 @@ describe('query postUpvotes', () => {
     expect(new Date(secondUpvote.node.votedAt).getTime()).toBeGreaterThan(
       new Date(firstUpvote.node.votedAt).getTime(),
     );
+  });
+
+  it('should return a list of upvoters that the logged user has not blocked', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(User).save([
+      {
+        id: '2',
+        name: 'Lee',
+        image: 'https://daily.dev/lee.jpg',
+      },
+      {
+        id: '3',
+        name: 'Ante',
+        image: 'https://daily.dev/ante.jpg',
+      },
+      {
+        id: '4',
+        name: 'Amar',
+        image: 'https://daily.dev/amar.jpg',
+      },
+    ]);
+
+    await con.getRepository(UserPost).save([
+      {
+        userId: '2',
+        postId: 'p1',
+        vote: UserVote.Up,
+      },
+      {
+        userId: '3',
+        postId: 'p1',
+        vote: UserVote.Up,
+      },
+      {
+        userId: '4',
+        postId: 'p1',
+        vote: UserVote.Up,
+      },
+    ]);
+
+    await con.getRepository(Feed).save({
+      id: '1',
+      userId: '1',
+    });
+
+    await con.getRepository(ContentPreference).save({
+      userId: '1',
+      feedId: '1',
+      type: ContentPreferenceType.User,
+      status: ContentPreferenceStatus.Blocked,
+      referenceId: '2',
+    });
+
+    const res = await client.query(QUERY, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.postUpvotes.edges.length).toEqual(2);
   });
 });
 
