@@ -13,7 +13,10 @@ import { NotificationHandlerReturn } from '../workers/notifications/worker';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { logger } from '../logger';
 import { ContentPreference } from '../entity/contentPreference/ContentPreference';
-import { ContentPreferenceStatus, ContentPreferenceType, ContentPreferenceType } from '../entity/contentPreference/types';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../entity/contentPreference/types';
 
 export * from './types';
 
