@@ -213,12 +213,12 @@ export async function generateAndStoreNotificationsV2(
   if (!args) {
     return;
   }
-  const filteredNotifications = [];
+  const filteredArgs = [];
 
   for (const arg of args) {
     const { type, ctx } = arg;
     if (!ctx.initiatorId) {
-      filteredNotifications.push(arg);
+      filteredArgs.push(arg);
       continue;
     }
 
@@ -246,7 +246,7 @@ export async function generateAndStoreNotificationsV2(
       continue;
     }
 
-    filteredNotifications.push({
+    filteredArgs.push({
       type,
       ctx: {
         ...ctx,
@@ -256,7 +256,7 @@ export async function generateAndStoreNotificationsV2(
   }
 
   await Promise.all(
-    filteredNotifications.map(({ type, ctx }) => {
+    filteredArgs.map(({ type, ctx }) => {
       const bundle = generateNotificationV2(type, ctx);
       if (!bundle.userIds.length) {
         return;
