@@ -113,6 +113,7 @@ export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
           includeBlockedTags: true,
           includeContentCuration: true,
           includeBlockedWords: true,
+          includeBlockedUsers: true,
         },
       ),
       'popular',
