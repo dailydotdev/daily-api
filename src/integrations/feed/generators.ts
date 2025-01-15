@@ -88,6 +88,7 @@ const opts: Options = {
   includeBlockedWords: true,
   includeFollowedSources: true,
   includeFollowedUsers: true,
+  includeBlockedUsers: true,
 };
 
 export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
