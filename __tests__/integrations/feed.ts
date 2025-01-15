@@ -313,6 +313,7 @@ describe('FeedPreferencesConfigGenerator', () => {
         includeBlockedWords: true,
         includeFollowedUsers: true,
         includeFollowedSources: true,
+        includeBlockedUsers: true,
       },
     );
 
@@ -327,6 +328,7 @@ describe('FeedPreferencesConfigGenerator', () => {
         blocked_sources: expect.arrayContaining(['a', 'b']),
         blocked_tags: expect.arrayContaining(['python', 'java']),
         blocked_title_words: expect.arrayContaining(['word-abc', 'word-def']),
+        blocked_author_ids: expect.arrayContaining(['4']),
         followed_sources: expect.arrayContaining(['c', 'p']),
         followed_user_ids: expect.arrayContaining(['2', '3']),
         allowed_post_types: postTypes.filter(
