@@ -95,6 +95,7 @@ export const postAddedUserNotification =
               ...baseCtx,
               userIds: [],
               user: item,
+              initiatorId: post.authorId,
             },
           });
 

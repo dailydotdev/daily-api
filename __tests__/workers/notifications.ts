@@ -24,7 +24,6 @@ import {
   UserNotification,
   UserPost,
   UserStreak,
-  WelcomePost,
 } from '../../src/entity';
 import { SourceMemberRoles } from '../../src/roles';
 import { DataSource } from 'typeorm';
@@ -62,7 +61,6 @@ import {
   ContentPreferenceType,
 } from '../../src/entity/contentPreference/types';
 import { ContentPreference } from '../../src/entity/contentPreference/ContentPreference';
-import { buildPostContext } from '../../src/workers/notifications/utils';
 
 let con: DataSource;
 
@@ -1059,56 +1057,6 @@ describe('article new comment', () => {
     });
     expect(actual.length).toEqual(1);
     expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '3']);
-  });
-
-  it('buildPostContext should include initiatorId', async () => {
-    await con.getRepository(Post).update(
-      { id: 'p1' },
-      {
-        authorId: '1',
-      },
-    );
-    const ctx = await buildPostContext(con, 'p1');
-    expect(ctx.initiatorId).toBeDefined();
-    expect(ctx.initiatorId).toEqual('1');
-  });
-
-  it('squadMemberJoined should include initiatorId', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/squadMemberJoined'
-    );
-    await con
-      .getRepository(Source)
-      .update({ id: 'a' }, { type: SourceType.Squad });
-    await con.getRepository(WelcomePost).save({
-      id: 'w1',
-      shortId: 's1',
-      sourceId: 'a',
-    });
-    await con.getRepository(SourceMember).save([
-      {
-        userId: '1',
-        sourceId: 'a',
-        role: SourceMemberRoles.Admin,
-        referralToken: randomUUID(),
-      },
-      {
-        userId: '2',
-        sourceId: 'a',
-        role: SourceMemberRoles.Member,
-        referralToken: randomUUID(),
-      },
-    ]);
-    const result = await invokeNotificationWorker(worker.default, {
-      sourceMember: {
-        userId: '2',
-        sourceId: 'a',
-        role: SourceMemberRoles.Member,
-      },
-    });
-    expect(result).toBeDefined();
-    expect(result[0].ctx.initiatorId).toBeDefined();
-    expect(result[0].ctx.initiatorId).toEqual('2');
   });
 
   it('should filter out blocked users when generating notifications', async () => {

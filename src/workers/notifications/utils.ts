@@ -80,7 +80,6 @@ export const buildPostContext = async (
       post,
       source: await post.source,
       sharedPost,
-      initiatorId: post.authorId,
     };
   }
   return null;
