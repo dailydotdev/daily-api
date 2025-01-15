@@ -231,7 +231,7 @@ export async function generateAndStoreNotificationsV2(
       userIdChunks.push(ctx.userIds.slice(i, i + 500));
     }
 
-    const blockedUsersPromises = userIdChunks.map((chunk) =>
+    const contentPreferences = userIdChunks.map((chunk) =>
       entityManager.getRepository(ContentPreference).find({
         where: {
           feedId: In(chunk),
@@ -242,13 +242,17 @@ export async function generateAndStoreNotificationsV2(
       }),
     );
 
-    const blockedUsersChunks = await Promise.all(blockedUsersPromises);
-    const blockedUsers = blockedUsersChunks.flat();
+    const initiatorBlockedByChunks = await Promise.all(contentPreferences);
+    const initiatorBlockedBy = initiatorBlockedByChunks.flat();
 
-    const blockedUserIds = new Set(blockedUsers.map((pref) => pref.userId));
-    const filteredUserIds = ctx.userIds.filter((id) => !blockedUserIds.has(id));
+    const initiatorBlockedByIds = new Set(
+      initiatorBlockedBy.map((pref) => pref.userId),
+    );
+    const receivingUserIds = ctx.userIds.filter(
+      (id) => !initiatorBlockedByIds.has(id),
+    );
 
-    if (filteredUserIds.length === 0) {
+    if (receivingUserIds.length === 0) {
       continue;
     }
 
@@ -256,7 +260,7 @@ export async function generateAndStoreNotificationsV2(
       type,
       ctx: {
         ...ctx,
-        userIds: filteredUserIds,
+        userIds: receivingUserIds,
       },
     });
   }
