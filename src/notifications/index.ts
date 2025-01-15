@@ -231,25 +231,24 @@ export async function generateAndStoreNotificationsV2(
       userIdChunks.push(ctx.userIds.slice(i, i + 500));
     }
 
-    const contentPreferences = userIdChunks.map((chunk) =>
-      entityManager.getRepository(ContentPreference).find({
-        where: {
-          feedId: In(chunk),
-          referenceId: ctx.initiatorId!,
-          status: ContentPreferenceStatus.Blocked,
-          type: ContentPreferenceType.User,
-        },
-      }),
-    );
+    const contentPreferences: ContentPreference[] = [];
 
-    const initiatorBlockedByChunks = await Promise.all(contentPreferences);
-    const initiatorBlockedBy = initiatorBlockedByChunks.flat();
+    for (const chunk of userIdChunks) {
+      const preferences = await entityManager
+        .getRepository(ContentPreference)
+        .find({
+          where: {
+            feedId: In(chunk),
+            referenceId: ctx.initiatorId!,
+            status: ContentPreferenceStatus.Blocked,
+            type: ContentPreferenceType.User,
+          },
+        });
+      contentPreferences.push(...preferences);
+    }
 
-    const initiatorBlockedByIds = new Set(
-      initiatorBlockedBy.map((pref) => pref.userId),
-    );
     const receivingUserIds = ctx.userIds.filter(
-      (id) => !initiatorBlockedByIds.has(id),
+      (id) => !contentPreferences.some((pref) => pref.userId === id),
     );
 
     if (receivingUserIds.length === 0) {
