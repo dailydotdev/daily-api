@@ -524,9 +524,11 @@ export const whereNotUserBlocked = (
   {
     userId,
     feedId,
+    columnName = 'userId',
   }: {
     userId: string;
     feedId?: string;
+    columnName?: 'userId' | 'referenceId';
   },
 ) => {
   const feedIds = feedId ? [feedId, userId] : [userId];
@@ -539,7 +541,7 @@ export const whereNotUserBlocked = (
       userId,
       feedId: In(feedIds),
     })
-    .andWhere(`"pref"."referenceId" = ${qb.alias}."userId"`)
+    .andWhere(`"pref"."referenceId" = ${qb.alias}."${columnName}"`)
     .getQuery();
   return `NOT EXISTS(${query})`;
 };
