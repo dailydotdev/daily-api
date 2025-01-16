@@ -15,6 +15,30 @@ const chromeWebBadge =
 const chromeWebIcon =
   'https://media.daily.dev/image/upload/s--9vc188bS--/f_auto/v1712221649/1_smcxpz';
 
+function createPush(
+  userIds: string[],
+  url: string | undefined,
+  notificationType: string,
+): OneSignal.Notification {
+  const push = new OneSignal.Notification();
+  push.app_id = appId;
+  push.include_external_user_ids = userIds;
+  push.chrome_web_badge = chromeWebBadge;
+  push.chrome_web_icon = chromeWebIcon;
+  push.ios_badge_type = 'Increase';
+  push.ios_badge_count = 1;
+
+  if (url) {
+    push.web_url = addNotificationUtm(url, 'push', notificationType);
+    push.app_url = push.web_url.replace(
+      new RegExp(`${process.env.COMMENTS_PREFIX}/?`),
+      'dailydev://',
+    );
+  }
+
+  return push;
+}
+
 export async function sendPushNotification(
   userIds: string[],
   {
@@ -27,14 +51,10 @@ export async function sendPushNotification(
 ): Promise<void> {
   if (!appId || !apiKey) return;
 
-  const push = new OneSignal.Notification();
-  push.app_id = appId;
-  push.include_external_user_ids = userIds;
+  const push = createPush(userIds, targetUrl, type);
   push.contents = { en: basicHtmlStrip(title) };
   push.headings = { en: 'New update' };
-  push.url = addNotificationUtm(targetUrl, 'push', type);
   push.data = { notificationId: id };
-  push.chrome_web_badge = chromeWebBadge;
   if (avatar) {
     push.chrome_web_icon = mapCloudinaryUrl(avatar.image);
   }
@@ -73,9 +93,11 @@ export async function sendReadingReminderPush(
 
   const seed = Math.floor(new Date().getTime() / 1000);
 
-  const push = new OneSignal.Notification();
-  push.app_id = appId;
-  push.include_external_user_ids = userIds;
+  const push = createPush(
+    userIds,
+    `${process.env.COMMENTS_PREFIX}`,
+    'reminder',
+  );
   push.send_after = at.toISOString();
   push.contents = {
     en: readingReminderContents[seed % readingReminderContents.length],
@@ -83,13 +105,6 @@ export async function sendReadingReminderPush(
   push.headings = {
     en: readingReminderHeadings[seed % readingReminderHeadings.length],
   };
-  push.url = addNotificationUtm(
-    process.env.COMMENTS_PREFIX,
-    'push',
-    'reminder',
-  );
-  push.chrome_web_badge = chromeWebBadge;
-  push.chrome_web_icon = chromeWebIcon;
   await client.createNotification(push);
 }
 
@@ -97,24 +112,17 @@ export async function sendStreakReminderPush(
   userIds: string[],
 ): Promise<null | OneSignal.CreateNotificationSuccessResponse> {
   if (!appId || !apiKey) return null;
-  const push = new OneSignal.Notification();
-  push.app_id = appId;
-  push.include_external_user_ids = userIds;
+  const push = createPush(
+    userIds,
+    process.env.COMMENTS_PREFIX,
+    'streak_reminder',
+  );
   push.contents = {
     en: streakReminderContent,
   };
   push.headings = {
     en: streakReminderHeading,
   };
-  push.url = addNotificationUtm(
-    process.env.COMMENTS_PREFIX,
-    'push',
-    'streak_reminder',
-  );
-
-  push.chrome_web_badge = chromeWebBadge;
-  push.chrome_web_icon = chromeWebIcon;
-
   return await client.createNotification(push);
 }
 
@@ -130,24 +138,16 @@ export const sendGenericPush = async (
   notification: GenericPushPayload,
 ) => {
   if (!appId || !apiKey) return null;
-  const push = new OneSignal.Notification();
-  push.app_id = appId;
-  push.include_external_user_ids = userIds;
+  const push = createPush(
+    userIds,
+    notification.url,
+    notification.utm_campaign ?? 'generic',
+  );
   push.contents = {
     en: notification.body,
   };
   push.headings = {
     en: notification.title,
   };
-
-  push.chrome_web_badge = chromeWebBadge;
-  push.chrome_web_icon = chromeWebIcon;
-
-  if (notification.url) {
-    push.url = notification.utm_campaign
-      ? addNotificationUtm(notification.url, 'push', notification.utm_campaign)
-      : notification.url;
-  }
-
   return client.createNotification(push);
 };
