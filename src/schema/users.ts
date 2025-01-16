@@ -1133,13 +1133,10 @@ export const getUserReadHistory = async ({
     );
   } else {
     // format to ISO 8601 because we can't use DateTime of gql due to grouped format
-    readHistoryQuery
-      .select(
-        `to_char(view.timestamp, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`,
-        'date',
-      )
-      // limit to 30 events for ungrouped views, reading streak
-      .limit(30);
+    readHistoryQuery.select(
+      `to_char(view.timestamp, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`,
+      'date',
+    );
   }
 
   return readHistoryQuery
