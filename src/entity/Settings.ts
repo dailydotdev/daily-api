@@ -27,6 +27,7 @@ export type SettingsFlags = Partial<{
   sidebarBookmarksExpanded: boolean;
   clickbaitShieldEnabled: boolean;
   prompt: object;
+  timezoneMismatchIgnore: string;
 }>;
 
 export type SettingsFlagsPublic = Pick<
@@ -38,6 +39,7 @@ export type SettingsFlagsPublic = Pick<
   | 'sidebarBookmarksExpanded'
   | 'clickbaitShieldEnabled'
   | 'prompt'
+  | 'timezoneMismatchIgnore'
 >;
 
 @Entity()
