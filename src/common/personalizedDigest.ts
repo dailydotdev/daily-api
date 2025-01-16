@@ -255,6 +255,7 @@ export const getPersonalizedDigestEmailPayload = async ({
       ) || [],
     page_size: feature.maxPosts,
     total_pages: 1,
+    blocked_author_ids: feedConfig.excludeUsers,
   };
   const feedResponse = await personalizedDigestFeedClient.fetchFeed(
     { log: logger },

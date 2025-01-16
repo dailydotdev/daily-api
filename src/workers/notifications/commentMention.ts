@@ -63,6 +63,7 @@ const worker: NotificationWorker = {
           userIds: [data.commentMention.mentionedUserId],
           commenter,
           comment,
+          initiatorId: commenter.id,
         },
       },
     ];

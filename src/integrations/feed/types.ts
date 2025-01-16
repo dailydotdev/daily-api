@@ -55,6 +55,7 @@ export type FeedConfig = {
   allowed_content_curations?: string[];
   blocked_title_words?: string[];
   allowed_author_ids?: string[];
+  blocked_author_ids?: string[];
   followed_user_ids?: string[];
   followed_sources?: string[];
   squad_ids?: string[];

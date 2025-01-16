@@ -17,6 +17,7 @@ export type Options = {
   includeBlockedTags?: boolean;
   includeAllowedSources?: boolean;
   includeBlockedSources?: boolean;
+  includeBlockedUsers?: boolean;
   includeAllowedUsers?: boolean;
   includeSourceMemberships?: boolean;
   includePostTypes?: boolean;
@@ -164,6 +165,13 @@ const addFiltersToConfig = ({
     baseConfig.allowed_author_ids = mergeSingleFilter(
       baseConfig.allowed_author_ids,
       filters.followingUsers,
+    );
+  }
+
+  if (filters.excludeUsers?.length && opts.includeBlockedUsers) {
+    baseConfig.blocked_author_ids = mergeSingleFilter(
+      baseConfig.blocked_author_ids,
+      filters.excludeUsers,
     );
   }
 
