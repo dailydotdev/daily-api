@@ -1132,7 +1132,11 @@ export const getUserReadHistory = async ({
       'date',
     );
   } else {
-    readHistoryQuery.select('view.timestamp', 'date');
+    // format to ISO 8601 because we can't use DateTime of gql due to grouped format
+    readHistoryQuery.select(
+      `to_char(view.timestamp, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`,
+      'date',
+    );
   }
 
   return readHistoryQuery
