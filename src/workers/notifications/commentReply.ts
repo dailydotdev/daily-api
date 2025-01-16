@@ -66,6 +66,7 @@ const worker: NotificationWorker = {
         type,
         ctx: {
           ...ctx,
+          initiatorId: commenter.id,
           userIds: userIds.filter((id) =>
             mutes.every(({ userId }) => userId !== id),
           ),

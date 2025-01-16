@@ -4,7 +4,7 @@ import {
   NotificationV2,
   UserNotification,
 } from '../entity';
-import { DeepPartial, EntityManager, ObjectLiteral } from 'typeorm';
+import { DeepPartial, EntityManager, In, ObjectLiteral } from 'typeorm';
 import { NotificationBuilder } from './builder';
 import { NotificationBaseContext, NotificationBundleV2 } from './types';
 import { generateNotificationMap, notificationTitleMap } from './generate';
@@ -12,6 +12,11 @@ import { generateUserNotificationUniqueKey, NotificationType } from './common';
 import { NotificationHandlerReturn } from '../workers/notifications/worker';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { logger } from '../logger';
+import { ContentPreference } from '../entity/contentPreference/ContentPreference';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../entity/contentPreference/types';
 
 export * from './types';
 
@@ -212,9 +217,55 @@ export async function generateAndStoreNotificationsV2(
   if (!args) {
     return;
   }
+  const filteredArgs = [];
+
+  for (const arg of args) {
+    const { type, ctx } = arg;
+    if (!ctx.initiatorId) {
+      filteredArgs.push(arg);
+      continue;
+    }
+
+    const userIdChunks: string[][] = [];
+    for (let i = 0; i < ctx.userIds.length; i += 500) {
+      userIdChunks.push(ctx.userIds.slice(i, i + 500));
+    }
+
+    const contentPreferences: ContentPreference[] = [];
+
+    for (const chunk of userIdChunks) {
+      const preferences = await entityManager
+        .getRepository(ContentPreference)
+        .find({
+          where: {
+            feedId: In(chunk),
+            referenceId: ctx.initiatorId!,
+            status: ContentPreferenceStatus.Blocked,
+            type: ContentPreferenceType.User,
+          },
+        });
+      contentPreferences.push(...preferences);
+    }
+
+    const receivingUserIds = ctx.userIds.filter(
+      (id) => !contentPreferences.some((pref) => pref.userId === id),
+    );
+
+    if (receivingUserIds.length === 0) {
+      continue;
+    }
+
+    filteredArgs.push({
+      type,
+      ctx: {
+        ...ctx,
+        userIds: receivingUserIds,
+      },
+    });
+  }
 
   await Promise.all(
-    args.map(({ type, ctx }) => {
+    filteredArgs.map(({ type, ctx }) => {
       const bundle = generateNotificationV2(type, ctx);
       if (!bundle.userIds.length) {
         return;

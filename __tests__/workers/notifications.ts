@@ -21,6 +21,7 @@ import {
   User,
   UserAction,
   UserActionType,
+  UserNotification,
   UserPost,
   UserStreak,
 } from '../../src/entity';
@@ -30,6 +31,7 @@ import createOrGetConnection from '../../src/db';
 import { usersFixture, sourcesFixture, badUsersFixture } from '../fixture';
 import { postsFixture } from '../fixture/post';
 import {
+  generateAndStoreNotificationsV2,
   NotificationBookmarkContext,
   NotificationCommentContext,
   NotificationCommenterContext,
@@ -54,7 +56,11 @@ import { generateStorageKey, StorageKey, StorageTopic } from '../../src/config';
 import { ioRedisPool, setRedisObject } from '../../src/redis';
 import { ReportReason } from '../../src/entity/common';
 import { ContentPreferenceUser } from '../../src/entity/contentPreference/ContentPreferenceUser';
-import { ContentPreferenceStatus } from '../../src/entity/contentPreference/types';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../../src/entity/contentPreference/types';
+import { ContentPreference } from '../../src/entity/contentPreference/ContentPreference';
 
 let con: DataSource;
 
@@ -1051,6 +1057,58 @@ describe('article new comment', () => {
     });
     expect(actual.length).toEqual(1);
     expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '3']);
+  });
+
+  it('should filter out blocked users when generating notifications', async () => {
+    await con.getRepository(Feed).save({
+      id: '1',
+      userId: '1',
+    });
+
+    await con.getRepository(ContentPreference).save({
+      userId: '1',
+      feedId: '1',
+      status: ContentPreferenceStatus.Blocked,
+      type: ContentPreferenceType.User,
+      referenceId: '2',
+    });
+
+    await generateAndStoreNotificationsV2(con.manager, [
+      {
+        type: NotificationType.ArticleNewComment,
+        ctx: {
+          userIds: ['1', '3'],
+          initiatorId: '2',
+          commenter: {
+            id: '2',
+            name: 'Commenter',
+          },
+          comment: {
+            id: 'c1',
+            content: 'Comment',
+          },
+          post: {
+            id: 'p1',
+            authorId: '1',
+            scoutId: '3',
+          },
+          source: {
+            id: 'a',
+            type: SourceType.Squad,
+          },
+        },
+      },
+    ]);
+
+    const notifications = await con
+      .getRepository(UserNotification)
+      .createQueryBuilder('un')
+      .innerJoinAndSelect('un.notification', 'n')
+      .where('n.type = :type', { type: NotificationType.ArticleNewComment })
+      .getMany();
+
+    expect(notifications).toHaveLength(1);
+    expect(notifications[0].userId).toEqual('3');
   });
 
   it('should add notification but ignore users with muted settings', async () => {

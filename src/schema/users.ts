@@ -602,7 +602,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type ReadHistory {
-    date: String!
+    date: DateTime!
     reads: Int!
   }
 
@@ -677,7 +677,12 @@ export const typeDefs = /* GraphQL */ `
     total: Int
     current: Int
     lastViewAt: DateTime
+
+    """
+    Deprecated and not needed anymore, bc for older clients
+    """
     lastViewAtTz: DateTime
+
     weekStart: Int
   }
 
@@ -1109,7 +1114,7 @@ export const getUserReadHistory = async ({
   return con
     .getRepository(ActiveView)
     .createQueryBuilder('view')
-    .select(`date_trunc('day', ${timestampAtTimezone})::date::text`, 'date')
+    .select('view.timestamp', 'date')
     .addSelect(`count(*) AS "reads"`)
     .innerJoin(User, 'user', 'user.id = view.userId')
     .where('view.userId = :userId', { userId })
@@ -1219,6 +1224,7 @@ const getUserStreakQuery = async (
   return await graphorm.queryOne<GQLUserStreakTz>(ctx, info, (builder) => ({
     ...builder,
     queryBuilder: builder.queryBuilder
+      // deprecated and not needed anymore, bc for older clients
       .addSelect(
         `(date_trunc('day', "${builder.alias}"."lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date)`,
         'lastViewAtTz',
