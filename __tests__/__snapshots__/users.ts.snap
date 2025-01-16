@@ -419,29 +419,20 @@ Array [
 exports[`query userReadHistory should return the read history 1`] = `
 Array [
   Object {
-    "date": "2021-04-14",
+    "date": "2021-04-14T00:00:00.000Z",
     "reads": 2,
   },
   Object {
-    "date": "2021-04-23",
+    "date": "2021-04-23T00:00:00.000Z",
     "reads": 1,
   },
   Object {
-    "date": "2021-04-24",
+    "date": "2021-04-24T00:00:00.000Z",
     "reads": 1,
   },
   Object {
-    "date": "2021-04-26",
+    "date": "2021-04-26T00:00:00.000Z",
     "reads": 3,
-  },
-]
-`;
-
-exports[`query userReadHistory should return the timezone based read history 1`] = `
-Array [
-  Object {
-    "date": "2021-04-25",
-    "reads": 1,
   },
 ]
 `;
