@@ -394,6 +394,7 @@ describe('query anonymousFeed', () => {
     const filters = await feedToFilters(con, '1', '1');
     delete filters.sourceIds;
     delete filters.excludeTypes;
+    delete filters.excludeUsers;
     const res = await client.query(QUERY, {
       variables: { ...variables, filters },
     });
@@ -2958,6 +2959,35 @@ describe('function feedToFilters', () => {
     ]);
     const filters = await feedToFilters(con, '1', '1');
     expect(filters.followingUsers).toEqual(['2', '3']);
+  });
+
+  it('should return filters having excluded users based on content preference', async () => {
+    loggedUser = '1';
+    await saveAdvancedSettingsFiltersFixtures();
+    await con.getRepository(ContentPreferenceUser).save([
+      {
+        feedId: '1',
+        userId: '1',
+        status: ContentPreferenceStatus.Follow,
+        referenceId: '2',
+      },
+      {
+        feedId: '1',
+        userId: '1',
+        status: ContentPreferenceStatus.Subscribed,
+        referenceId: '3',
+      },
+      {
+        feedId: '1',
+        userId: '1',
+        status: ContentPreferenceStatus.Blocked,
+        referenceId: '4',
+        type: ContentPreferenceType.User,
+      },
+    ]);
+    const filters = await feedToFilters(con, '1', '1');
+    expect(filters.followingUsers).toEqual(['2', '3']);
+    expect(filters.excludeUsers).toEqual(['4']);
   });
 
   it('should return filters having excluded content types based on advanced settings', async () => {
