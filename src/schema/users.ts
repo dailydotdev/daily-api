@@ -602,7 +602,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type ReadHistory {
-    date: DateTime!
+    date: String!
     reads: Int!
   }
 
@@ -796,7 +796,16 @@ export const typeDefs = /* GraphQL */ `
     """
     Get a heatmap of reads per day in a given time frame.
     """
-    userReadHistory(id: ID!, after: String!, before: String!): [ReadHistory]
+    userReadHistory(
+      id: ID!
+      after: String!
+      before: String!
+
+      """
+      Group by day stamp yyyy-MM-dd
+      """
+      grouped: Boolean
+    ): [ReadHistory]
     """
     Get the number of articles the user read
     """
@@ -1105,16 +1114,28 @@ export const getUserReadHistory = async ({
   userId,
   after,
   before,
+  grouped,
 }: {
   con: DataSource;
   userId: string;
   after: Date;
   before: Date;
+  grouped?: boolean;
 }) => {
-  return con
+  const readHistoryQuery = con
     .getRepository(ActiveView)
-    .createQueryBuilder('view')
-    .select('view.timestamp', 'date')
+    .createQueryBuilder('view');
+
+  if (grouped) {
+    readHistoryQuery.select(
+      `date_trunc('day', view.timestamp)::date::text`,
+      'date',
+    );
+  } else {
+    readHistoryQuery.select('view.timestamp', 'date');
+  }
+
+  return readHistoryQuery
     .addSelect(`count(*) AS "reads"`)
     .innerJoin(User, 'user', 'user.id = view.userId')
     .where('view.userId = :userId', { userId })
@@ -1130,6 +1151,7 @@ interface ReadingHistyoryArgs {
   after: string;
   before: string;
   limit?: number;
+  grouped?: boolean;
 }
 
 interface userStreakProfileArgs {
@@ -1443,7 +1465,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     userReadHistory: async (
       source,
-      { id, after, before }: ReadingHistyoryArgs,
+      { id, after, before, grouped }: ReadingHistyoryArgs,
       ctx: Context,
     ): Promise<GQLReadingRankHistory[]> =>
       getUserReadHistory({
@@ -1451,6 +1473,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         userId: id,
         after: new Date(after),
         before: new Date(before),
+        grouped,
       }),
     userStreak: async (
       _,
