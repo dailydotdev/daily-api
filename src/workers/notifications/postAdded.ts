@@ -100,6 +100,7 @@ const worker: NotificationWorker = {
             ctx: {
               ...baseCtx,
               doneBy,
+              initiatorId: post.authorId,
               userIds: members.map(({ userId }) => userId),
             } as NotificationPostContext & Partial<NotificationDoneByContext>,
           });

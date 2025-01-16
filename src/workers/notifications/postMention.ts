@@ -42,6 +42,7 @@ const worker: NotificationWorker = {
 
     const ctx: NotificationPostContext & NotificationDoneByContext = {
       ...postCtx,
+      initiatorId: mentionedByUserId,
       userIds: [mentionedUserId],
       doneBy,
       doneTo,
