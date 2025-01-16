@@ -1128,7 +1128,7 @@ export const getUserReadHistory = async ({
 
   if (grouped) {
     readHistoryQuery.select(
-      `date_trunc('day', view.timestamp)::date::text`,
+      `date_trunc('day', ${timestampAtTimezone})::date::text`,
       'date',
     );
   } else {
