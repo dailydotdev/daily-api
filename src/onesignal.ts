@@ -1,9 +1,11 @@
 import * as OneSignal from '@onesignal/node-onesignal';
 import { NotificationV2, NotificationAvatarV2 } from './entity';
 import { addNotificationUtm, basicHtmlStrip, mapCloudinaryUrl } from './common';
+import { escapeRegExp } from 'lodash';
 
 const appId = process.env.ONESIGNAL_APP_ID;
 const apiKey = process.env.ONESIGNAL_API_KEY;
+const safeCommentsPrefix = escapeRegExp(process.env.COMMENTS_PREFIX || '');
 
 const configuration = OneSignal.createConfiguration({
   appKey: apiKey,
@@ -31,7 +33,7 @@ function createPush(
   if (url) {
     push.web_url = addNotificationUtm(url, 'push', notificationType);
     push.app_url = push.web_url.replace(
-      new RegExp(`${process.env.COMMENTS_PREFIX}/?`),
+      new RegExp(`${safeCommentsPrefix}/?`),
       'dailydev://',
     );
   }
