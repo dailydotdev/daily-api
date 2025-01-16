@@ -528,7 +528,7 @@ export const whereNotUserBlocked = (
   }: {
     userId: string;
     feedId?: string;
-    columnName?: string;
+    columnName?: 'userId' | 'referenceId';
   },
 ) => {
   const feedIds = feedId ? [feedId, userId] : [userId];
