@@ -321,6 +321,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.user-top-reader',
     subscription: 'api.user-top-reader-added',
   },
+  {
+    topic: 'kvasir.post-translated',
+    subscription: 'api.post-translated'
+  }
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
