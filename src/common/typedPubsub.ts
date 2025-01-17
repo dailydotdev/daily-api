@@ -1,4 +1,4 @@
-import { ChangeObject } from '../types';
+import { ChangeObject, type ContentLanguage } from '../types';
 import type {
   Post,
   SourceRequest,
@@ -8,6 +8,7 @@ import type {
   UserStreak,
   UserCompany,
   UserTopReader,
+  PostTranslation,
 } from '../entity';
 import {
   type EventLogger,
@@ -109,6 +110,11 @@ export type PubSubSchema = {
   };
   'api.v1.user-top-reader': {
     userTopReader: ChangeObject<UserTopReader>;
+  };
+  'kvasir.post-translated': {
+    id: string;
+    language: ContentLanguage;
+    translations: PostTranslation;
   };
 };
 
