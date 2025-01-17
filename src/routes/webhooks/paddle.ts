@@ -19,6 +19,7 @@ import {
 } from '../../integrations/analytics';
 import { JsonContains } from 'typeorm';
 import { paddleInstance } from '../../common/paddle';
+import { addMilliseconds } from 'date-fns';
 
 const extractSubscriptionType = (
   items:
@@ -38,6 +39,12 @@ const extractSubscriptionType = (
   }, '');
 };
 
+interface PaddleCustomData {
+  user_id?: string;
+  duration?: string;
+  gifterId?: string;
+}
+
 const updateUserSubscription = async ({
   data,
   state,
@@ -53,7 +60,7 @@ const updateUserSubscription = async ({
     return;
   }
 
-  const customData = data.data?.customData as { user_id: string };
+  const customData: PaddleCustomData = data.data?.customData ?? {};
 
   const con = await createOrGetConnection();
   const userId = customData?.user_id;
@@ -74,6 +81,24 @@ const updateUserSubscription = async ({
     );
     return false;
   }
+
+  const { gifterId, duration } = customData;
+  const durationTime = duration && parseInt(duration);
+  const isGift = !!durationTime && gifterId && userId !== gifterId;
+
+  if (isGift) {
+    if (Number.isNaN(durationTime) || durationTime <= 0) {
+      logger.error({ type: 'paddle', data }, 'Invalid duration');
+      return false;
+    }
+
+    const giftUser = await con.getRepository(User).findOneBy({ id: gifterId });
+    if (!giftUser) {
+      logger.error({ type: 'paddle', data }, 'Gifter not found');
+      return false;
+    }
+  }
+
   await con.getRepository(User).update(
     {
       id: userId,
@@ -83,6 +108,13 @@ const updateUserSubscription = async ({
         cycle: state ? subscriptionType : null,
         createdAt: state ? data.data?.startedAt : null,
         subscriptionId: state ? data.data?.id : null,
+        ...(isGift && {
+          gifterId,
+          giftExpirationDate: addMilliseconds(
+            new Date(),
+            durationTime,
+          ).toISOString(),
+        }),
       }),
     },
   );
