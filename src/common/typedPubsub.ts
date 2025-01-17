@@ -111,7 +111,7 @@ export type PubSubSchema = {
   'api.v1.user-top-reader': {
     userTopReader: ChangeObject<UserTopReader>;
   };
-  'kvasir.post-translated': {
+  'kvasir.v1.post-translated': {
     id: string;
     language: ContentLanguage;
     translations: PostTranslation;

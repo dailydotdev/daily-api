@@ -3,7 +3,7 @@ import { Post } from '../entity';
 import { validLanguages } from '../types';
 import { logger } from '../logger';
 
-export const postTranslated: TypedWorker<'kvasir.post-translated'> = {
+export const postTranslated: TypedWorker<'kvasir.v1.post-translated'> = {
   subscription: 'api.post-translated',
   handler: async (message, con) => {
     const { id, translations, language } = message.data;
