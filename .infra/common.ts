@@ -322,7 +322,7 @@ export const workers: Worker[] = [
     subscription: 'api.user-top-reader-added',
   },
   {
-    topic: 'kvasir.post-translated',
+    topic: 'kvasir.v1.post-translated',
     subscription: 'api.post-translated'
   }
 ];
