@@ -65,6 +65,26 @@ const getSubscriptionData = (customData: PaddleCustomData) =>
     },
   });
 
+describe('plus subscription', () => {
+  it('should add a plus subscription to a user', async () => {
+    const userId = '1';
+    const user = await con.getRepository(User).findOneByOrFail({ id: userId });
+    const isInitiallyPlus = isPlusMember(user.subscriptionFlags?.cycle);
+    expect(isInitiallyPlus).toBe(false);
+
+    const data = getSubscriptionData({
+      user_id: userId,
+    });
+    await updateUserSubscription({ data, state: true });
+
+    const updatedUser = await con
+      .getRepository(User)
+      .findOneByOrFail({ id: userId });
+    const isFinallyPlus = isPlusMember(updatedUser.subscriptionFlags?.cycle);
+    expect(isFinallyPlus).toBe(true);
+  });
+});
+
 describe('gift', () => {
   it('should ignore if gifter user is not valid', async () => {
     const userId = '2';
