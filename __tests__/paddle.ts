@@ -155,7 +155,7 @@ describe('gift', () => {
     const data = getSubscriptionData({
       user_id: userId,
       gifter_id: '2',
-      duration: '1000',
+      duration: '31557600000',
     });
     await updateUserSubscription({ data, state: true });
 
@@ -164,5 +164,11 @@ describe('gift', () => {
       .findOneByOrFail({ id: userId });
     const isFinallyPlus = isPlusMember(updatedUser.subscriptionFlags?.cycle);
     expect(isFinallyPlus).toBe(true);
+    expect(updatedUser.subscriptionFlags?.gifterId).toBe('2');
+    const expireDate =
+      updatedUser.subscriptionFlags?.giftExpirationDate &&
+      new Date(updatedUser.subscriptionFlags?.giftExpirationDate);
+    expect(expireDate).toBeInstanceOf(Date);
+    expect(expireDate?.getFullYear()).toBe(new Date().getFullYear() + 1);
   });
 });
