@@ -20,7 +20,7 @@ beforeEach(async () => {
   await saveFixtures(con, Post, postsFixture);
 });
 
-describe('vordrPostPrevented', () => {
+describe('postTranslated', () => {
   it('should be registered', () => {
     const registeredWorker = typedWorkers.find(
       (item) => item.subscription === worker.subscription,
