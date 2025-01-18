@@ -105,11 +105,11 @@ export const updateUserSubscription = async ({
       return false;
     }
 
-    const targetUser = await con.getRepository(User).findOneOrFail({
+    const targetUser = await con.getRepository(User).findOne({
       select: ['subscriptionFlags'],
       where: { id: userId },
     });
-    if (isPlusMember(targetUser.subscriptionFlags?.cycle)) {
+    if (isPlusMember(targetUser?.subscriptionFlags?.cycle)) {
       logger.error({ type: 'paddle', data }, 'User is already a Plus member');
       return false;
     }
