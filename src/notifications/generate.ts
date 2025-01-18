@@ -435,9 +435,10 @@ export const generateNotificationMap: Record<
       .objectPost(ctx.post, ctx.source, ctx.sharedPost!),
   user_gifted_plus: (builder, ctx: NotificationGiftPlusContext) =>
     builder
+      .uniqueKey(
+        `${ctx.gifter.id}-${ctx.recipient.id}-${ctx.subscriptionFlags.giftExpirationDate}`,
+      )
       .icon(NotificationIcon.Bell)
       .avatarUser(ctx.gifter)
-      .uniqueKey(
-        `${ctx.gifter.id}-${ctx.userIds[0]}-${ctx.subscriptionFlags.giftExpirationDate}`,
-      ),
+      .referenceSource(ctx.squad),
 };
