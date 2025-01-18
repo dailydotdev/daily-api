@@ -41,7 +41,7 @@ it('should remove expired gifted plus subscription', async () => {
     {
       subscriptionFlags: {
         giftExpirationDate: tomorrowDate,
-        gifterId: '2',
+        gifterId: '3',
         cycle: SubscriptionCycles.Yearly,
       },
     },
