@@ -68,6 +68,9 @@ export type NotificationStreakContext = NotificationBaseContext & {
   };
 };
 
+export type NotificationGiftPlusContext = NotificationBaseContext &
+  Record<'gifter' | 'recipient', Reference<Pick<User, 'id' | 'username'>>>;
+
 export type NotificationCommenterContext = NotificationCommentContext & {
   commenter: Reference<User>;
 };
