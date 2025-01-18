@@ -3,17 +3,18 @@ import { generateTypedNotificationWorker } from './worker';
 import { NotificationGiftPlusContext } from '../../notifications';
 import { User, UserSubscriptionFlags } from '../../entity';
 import { isGiftedPlus, isPlusMember } from '../../paddle';
+import { queryReadReplica } from '../../common/queryReadReplica';
 
 const worker = generateTypedNotificationWorker<'user-updated'>({
   subscription: 'api.user-gifted-plus-notification',
-  handler: async ({ user, newProfile }, con) => {
+  handler: async ({ user, newProfile: recipient }, con) => {
     const { id: userId } = user;
 
     const beforeSubscriptionFlags: Partial<UserSubscriptionFlags> = JSON.parse(
       (user.subscriptionFlags as string) || '{}',
     );
     const afterSubscriptionFlags: Partial<UserSubscriptionFlags> = JSON.parse(
-      (newProfile.subscriptionFlags as string) || '{}',
+      (recipient.subscriptionFlags as string) || '{}',
     );
 
     if (
@@ -24,15 +25,16 @@ const worker = generateTypedNotificationWorker<'user-updated'>({
       return;
     }
 
-    const gifterId = afterSubscriptionFlags.gifterId;
-    const { username } = await con
-      .getRepository(User)
-      .findOneByOrFail({ id: gifterId });
+    const gifter = await queryReadReplica(con, ({ queryRunner }) => {
+      return queryRunner.manager.getRepository(User).findOneOrFail({
+        where: { id: afterSubscriptionFlags.gifterId },
+      });
+    });
 
     const ctx: NotificationGiftPlusContext = {
-      userIds: [userId, gifterId],
-      gifter: { id: gifterId, username },
-      recipient: { id: userId, username: newProfile.username },
+      userIds: [userId],
+      gifter,
+      subscriptionFlags: afterSubscriptionFlags,
     };
 
     return [{ type: NotificationType.UserGiftedPlus, ctx }];
