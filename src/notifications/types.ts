@@ -13,6 +13,7 @@ import {
   UserStreak,
   type Keyword,
   type UserTopReader,
+  type UserSubscriptionFlags,
 } from '../entity';
 import { ChangeObject } from '../types';
 import { DeepPartial } from 'typeorm';
@@ -68,8 +69,10 @@ export type NotificationStreakContext = NotificationBaseContext & {
   };
 };
 
-export type NotificationGiftPlusContext = NotificationBaseContext &
-  Record<'gifter' | 'recipient', Reference<Pick<User, 'id' | 'username'>>>;
+export type NotificationGiftPlusContext = NotificationBaseContext & {
+  gifter: Reference<User>;
+  subscriptionFlags: UserSubscriptionFlags;
+};
 
 export type NotificationCommenterContext = NotificationCommentContext & {
   commenter: Reference<User>;
