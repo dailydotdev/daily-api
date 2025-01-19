@@ -6,9 +6,10 @@ volumes:
 services:
 
   db:
-    image: postgres:15.4-alpine
+    image: postgres:17-alpine
     environment:
       - POSTGRES_MULTIPLE_DATABASES=api,api_test
+      - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=12345
     volumes:
       - ./pg-init-scripts:/docker-entrypoint-initdb.d
@@ -22,7 +23,8 @@ services:
 
   redis:
     image: redis/redis-stack:7.2.0-v13
-    command: redis-server --appendonly yes
+    environment:
+      - REDIS_ARGS=--appendonly yes
     volumes:
       - redis:/data
     ports:
