@@ -13,18 +13,31 @@ export const postTranslated: TypedWorker<'kvasir.v1.post-translated'> = {
       return;
     }
 
-    const post = await con.getRepository(Post).findOneByOrFail({ id });
+    try {
+      await con
+        .getRepository(Post)
+        .createQueryBuilder()
+        .update(Post)
+        .set({
+          translation: () => `jsonb_set(
+          COALESCE(translation, '{}'::jsonb),
+          '{${language}}',
+          '${JSON.stringify(translations)}'::jsonb,
+          true
+        )`,
+        })
+        .where('id = :id', { id })
+        .execute();
 
-    const existingTranslation = post.translation?.[language];
-    post.translation[language] = {
-      ...existingTranslation,
-      ...translations,
-    };
-
-    await con.getRepository(Post).save(post);
-    logger.debug(
-      { id, language, keys: Object.keys(translations) },
-      '[postTranslated]: Post translation updated',
-    );
+      logger.info(
+        { id, language, keys: Object.keys(translations) },
+        '[postTranslated]: Post translation updated',
+      );
+    } catch (error) {
+      logger.error(
+        { id, error },
+        '[postTranslated]: Failed to update post translation',
+      );
+    }
   },
 };
