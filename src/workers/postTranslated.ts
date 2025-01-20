@@ -21,7 +21,7 @@ export const postTranslated: TypedWorker<'kvasir.v1.post-translated'> = {
         .update(Post)
         .set({
           translation: () => `jsonb_set(
-          COALESCE(translation, '{}'::jsonb),
+          translation,
           '{${language}}',
           '${JSON.stringify(translations)}'::jsonb,
           true
