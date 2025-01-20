@@ -1,13 +1,14 @@
 import { TypedWorker } from './worker';
 import { Post } from '../entity';
-import { validLanguages } from '../types';
 import { logger } from '../logger';
+import { remoteConfig } from '../remoteConfig';
 
 export const postTranslated: TypedWorker<'kvasir.v1.post-translated'> = {
   subscription: 'api.post-translated',
   handler: async (message, con) => {
     const { id, translations, language } = message.data;
 
+    const validLanguages = Object.keys(remoteConfig.vars.validLanguages!);
     if (!validLanguages.includes(language)) {
       logger.error({ id, language }, '[postTranslated]: Invalid language');
       return;
