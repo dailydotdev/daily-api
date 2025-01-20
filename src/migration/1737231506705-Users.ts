@@ -13,7 +13,7 @@ export class Users1737231506705 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX "public"."users_bluesky_unique"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."users_bluesky_unique"`);
     await queryRunner.query(`ALTER TABLE "user" DROP COLUMN "bluesky"`);
   }
 }
