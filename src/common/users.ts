@@ -625,4 +625,7 @@ export const mastodonSocialUrlMatch =
 export const socialUrlMatch =
   /^(?<value>https:\/\/(?:[a-z0-9-]{1,50}\.){0,5}[a-z0-9-]{1,50}\.[a-z]{2,24}\b([-a-zA-Z0-9@:%_+.~#?&\/=]*))$/;
 
+export const bskySocialUrlMatch =
+  /^(?:(?:https:\/\/)?(?:www\.)?bsky\.app\/profile\/)?(?<value>[\w.-]+)(?:\/.*)?$/;
+
 export const portfolioLimit = 500;

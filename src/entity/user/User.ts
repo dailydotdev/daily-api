@@ -121,6 +121,10 @@ export class User {
   @Index('users_mastodon_unique', { unique: true })
   mastodon?: string;
 
+  @Column({ length: 100, nullable: true })
+  @Index('users_bluesky_unique', { unique: true })
+  bluesky?: string;
+
   @Column({ type: 'text', nullable: true })
   portfolio?: string;
 

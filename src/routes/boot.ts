@@ -406,6 +406,7 @@ const getUser = (
       'reputation',
       'bio',
       'twitter',
+      'bluesky',
       'github',
       'portfolio',
       'hashnode',
