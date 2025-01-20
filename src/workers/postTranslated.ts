@@ -8,7 +8,10 @@ export const postTranslated: TypedWorker<'kvasir.v1.post-translated'> = {
   handler: async (message, con) => {
     const { id, translations, language } = message.data;
 
-    const validLanguages = Object.keys(remoteConfig.vars.validLanguages!);
+    const validLanguages = remoteConfig.vars.validLanguages
+      ? Object.keys(remoteConfig.vars.validLanguages)
+      : [];
+
     if (!validLanguages.includes(language)) {
       logger.error({ id, language }, '[postTranslated]: Invalid language');
       return;
