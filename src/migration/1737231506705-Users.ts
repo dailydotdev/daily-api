@@ -8,7 +8,7 @@ export class Users1737231506705 implements MigrationInterface {
       `ALTER TABLE "user" ADD "bluesky" character varying(100)`,
     );
     await queryRunner.query(
-      `CREATE UNIQUE INDEX "users_bluesky_unique" ON "user" ("bluesky") `,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "users_bluesky_unique" ON "user" ("bluesky") `,
     );
   }
 
