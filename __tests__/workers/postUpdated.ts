@@ -38,6 +38,7 @@ import {
   PostCodeSnippetLanguage,
 } from '../../src/types';
 import { insertCodeSnippetsFromUrl } from '../../src/common/post';
+import { generateShortId } from '../../src/ids';
 
 jest.mock('../../src/common/googleCloud', () => ({
   ...(jest.requireActual('../../src/common/googleCloud') as Record<
@@ -570,6 +571,43 @@ it('do not save post if source can not be found', async () => {
     },
   });
   expect(post).toBeNull();
+});
+
+it('should save post if source_id is not passed but post exists', async () => {
+  const newPostId = await generateShortId();
+
+  const newPost = await con.getRepository(FreeformPost).save({
+    id: newPostId,
+    shortId: newPostId,
+    title: 'Post title',
+    content: 'Post content',
+    yggdrasilId: '9bdf5876-847b-4ea7-82dc-0bcd1b2da49a',
+    visible: true,
+    sourceId: 'a',
+  });
+
+  const existingPost = await con.getRepository(FreeformPost).findOneOrFail({
+    where: {
+      id: newPost.id,
+    },
+  });
+
+  await expectSuccessfulBackground(worker, {
+    id: '9bdf5876-847b-4ea7-82dc-0bcd1b2da49a',
+    post_id: undefined,
+    content_type: PostType.Freeform,
+  });
+
+  const post = await con.getRepository(FreeformPost).findOne({
+    where: {
+      id: existingPost.id,
+    },
+  });
+
+  expect(post).not.toBeNull();
+  expect(post!.metadataChangedAt.getTime()).toBeGreaterThan(
+    existingPost.metadataChangedAt.getTime(),
+  );
 });
 
 it('should save a new post with the relevant scout id and update submission', async () => {
