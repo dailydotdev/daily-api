@@ -823,6 +823,61 @@ describe('type field', () => {
   });
 });
 
+describe('translation field', () => {
+  const QUERY = /* GraphQL */ `
+    {
+      post(id: "p1") {
+        translation {
+          title
+        }
+      }
+    }
+  `;
+
+  it('should return false for fields when content-language header is not set', async () => {
+    const res = await client.query(QUERY);
+    expect(res.data.post.translation).toEqual({
+      title: false,
+    });
+  });
+
+  it('should return false for fields when translation does not exist', async () => {
+    await con.getRepository(ArticlePost).update('p1', {
+      translation: {
+        es: {
+          title: 'Hola',
+        },
+      },
+    });
+    const res = await client.query(QUERY, {
+      headers: {
+        'content-language': 'de',
+      },
+    });
+    expect(res.data.post.translation).toEqual({
+      title: false,
+    });
+  });
+
+  it('should return true for fields when translation does exist', async () => {
+    await con.getRepository(ArticlePost).update('p1', {
+      translation: {
+        es: {
+          title: 'Hola',
+        },
+      },
+    });
+    const res = await client.query(QUERY, {
+      headers: {
+        'content-language': 'es',
+      },
+    });
+    expect(res.data.post.translation).toEqual({
+      title: true,
+    });
+  });
+});
+
 describe('freeformPost type', () => {
   const QUERY = `{
     post(id: "ff") {

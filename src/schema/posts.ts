@@ -68,6 +68,7 @@ import {
   SubmitExternalLinkArgs,
   UserAction,
   Settings,
+  type PostTranslation,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -174,6 +175,7 @@ export interface GQLPost {
   flags?: PostFlagsPublic;
   userState?: GQLUserPost;
   slug?: string;
+  translations?: Partial<Record<keyof PostTranslation, boolean>>;
 }
 
 interface PinPostArgs {
@@ -408,6 +410,10 @@ export const typeDefs = /* GraphQL */ `
     user: User!
 
     post: Post!
+  }
+
+  type PostTranslation {
+    title: Boolean
   }
 
   """
@@ -658,6 +664,11 @@ export const typeDefs = /* GraphQL */ `
     Whether the post title is detected as clickbait
     """
     clickbaitTitleDetected: Boolean
+
+    """
+    List of available translations for the post
+    """
+    translation: PostTranslation
   }
 
   type PostConnection {

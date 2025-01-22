@@ -53,9 +53,10 @@ export type PostContentQuality = Partial<{
   manual_clickbait_probability: number;
 }>;
 
-export type PostTranslation = Partial<{
-  title: string;
-}>;
+export const translateablePostFields = ['title'] as const;
+export type PostTranslation = {
+  [key in (typeof translateablePostFields)[number]]?: string;
+};
 
 @Entity()
 @Index('IDX_post_id_sourceid', ['id', 'sourceId'])

@@ -16,6 +16,8 @@ import {
   SettingsFlagsPublic,
   UserStats,
   UserSubscriptionFlags,
+  type PostTranslation,
+  translateablePostFields,
 } from '../entity';
 import {
   SourceMemberRoles,
@@ -29,7 +31,7 @@ import { base64, domainOnly, getSmartTitle, transformDate } from '../common';
 import { GQLComment } from '../schema/comments';
 import { GQLUserPost } from '../schema/posts';
 import { UserComment } from '../entity/user/UserComment';
-import { type I18nRecord, UserVote } from '../types';
+import { type ContentLanguage, type I18nRecord, UserVote } from '../types';
 import { whereVordrFilter } from '../common/vordr';
 import { UserCompany, Post } from '../entity';
 import {
@@ -490,6 +492,24 @@ const obj = new GraphORM({
       title: createSmartTitleField({
         field: 'title',
       }),
+      translation: {
+        jsonType: true,
+        transform: (
+          translations: Partial<Record<ContentLanguage, PostTranslation>>,
+          ctx: Context,
+        ): Record<keyof PostTranslation, boolean> => {
+          const translation = ctx.contentLanguage
+            ? translations[ctx.contentLanguage]
+            : {};
+          return translateablePostFields.reduce(
+            (acc: Record<string, boolean>, field) => {
+              acc[field] = !!translation?.[field];
+              return acc;
+            },
+            {},
+          );
+        },
+      },
     },
   },
   SourceCategory: {
