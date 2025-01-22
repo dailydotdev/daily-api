@@ -22,7 +22,14 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  await saveFixtures(con, User, [...usersFixture, ...plusUsersFixture]);
+  await saveFixtures(
+    con,
+    User,
+    [...usersFixture, ...plusUsersFixture].map((user) => ({
+      ...user,
+      id: `whp-${user.id}`,
+    })),
+  );
 });
 
 const getSubscriptionData = (customData: PaddleCustomData) =>
@@ -67,7 +74,7 @@ const getSubscriptionData = (customData: PaddleCustomData) =>
 
 describe('plus subscription', () => {
   it('should add a plus subscription to a user', async () => {
-    const userId = '1';
+    const userId = 'whp-1';
     const user = await con.getRepository(User).findOneByOrFail({ id: userId });
     const isInitiallyPlus = isPlusMember(user.subscriptionFlags?.cycle);
     expect(isInitiallyPlus).toBe(false);
@@ -87,10 +94,10 @@ describe('plus subscription', () => {
 
 describe('gift', () => {
   it('should ignore if gifter user is not valid', async () => {
-    const userId = '2';
+    const userId = 'whp-2';
     const data = getSubscriptionData({
       user_id: userId,
-      gifter_id: '10',
+      gifter_id: 'whp-10',
       duration: '1000',
     });
     const res = await updateUserSubscription({ data, state: true });
@@ -104,7 +111,7 @@ describe('gift', () => {
   });
 
   it('should ignore if gifter and user is the same', async () => {
-    const userId = '2';
+    const userId = 'whp-2';
     const user = await con.getRepository(User).findOneByOrFail({ id: userId });
     const isInitiallyPlus = isPlusMember(user.subscriptionFlags?.cycle);
     expect(isInitiallyPlus).toBe(false);
@@ -125,7 +132,7 @@ describe('gift', () => {
   });
 
   it('should ignore if user is already plus', async () => {
-    const userId = '1';
+    const userId = 'whp-1';
     await con
       .getRepository(User)
       .update(
@@ -138,7 +145,7 @@ describe('gift', () => {
 
     const data = getSubscriptionData({
       user_id: user.id,
-      gifter_id: '2',
+      gifter_id: 'whp-2',
       duration: '1000',
     });
     const res = await updateUserSubscription({ data, state: true });
@@ -146,15 +153,15 @@ describe('gift', () => {
   });
 
   it('should gift a subscription to a user', async () => {
-    const userId = '1';
-    const user = await con.getRepository(User).findOneByOrFail({ id: '1' });
+    const userId = 'whp-1';
+    const user = await con.getRepository(User).findOneByOrFail({ id: 'whp-1' });
     const isInitiallyPlus = isPlusMember(user.subscriptionFlags?.cycle);
 
     expect(isInitiallyPlus).toBe(false);
 
     const data = getSubscriptionData({
       user_id: userId,
-      gifter_id: '2',
+      gifter_id: 'whp-2',
       duration: '31557600000',
     });
     await updateUserSubscription({ data, state: true });
@@ -164,7 +171,7 @@ describe('gift', () => {
       .findOneByOrFail({ id: userId });
     const isFinallyPlus = isPlusMember(updatedUser.subscriptionFlags?.cycle);
     expect(isFinallyPlus).toBe(true);
-    expect(updatedUser.subscriptionFlags?.gifterId).toBe('2');
+    expect(updatedUser.subscriptionFlags?.gifterId).toBe('whp-2');
     const expireDate =
       updatedUser.subscriptionFlags?.giftExpirationDate &&
       new Date(updatedUser.subscriptionFlags?.giftExpirationDate);
