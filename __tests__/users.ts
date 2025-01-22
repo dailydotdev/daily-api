@@ -79,6 +79,7 @@ import {
   type GQLUserTopReader,
   UploadPreset,
   updateSubscriptionFlags,
+  bskySocialUrlMatch,
 } from '../src/common';
 import { DataSource, In, IsNull } from 'typeorm';
 import createOrGetConnection from '../src/db';
@@ -3666,6 +3667,33 @@ describe('mutation updateUserProfile', () => {
 
     invalid.forEach((item) => {
       expect(twitterSocialUrlMatch.test(item)).toBe(false);
+    });
+  });
+
+  it('should validate bluesky handle', () => {
+    const valid = [
+      'https://bsky.app/profile/amar.com',
+      'https://bsky.app/profile/amartrebinjac.bsky.social',
+      'bsky.app/profile/user.example.com',
+      'www.bsky.app/profile/test.bsky.social',
+      'amar.com',
+      'amartrebinjac.bsky.social',
+      'user.example.com',
+    ];
+
+    const invalid = [
+      'https://bsky.app/amar.com',
+      'https://bsky.app/amar/',
+      'https://bsky.app/',
+      '#amar.com',
+    ];
+
+    valid.forEach((item) => {
+      expect(bskySocialUrlMatch.test(item)).toBe(true);
+    });
+
+    invalid.forEach((item) => {
+      expect(bskySocialUrlMatch.test(item)).toBe(false);
     });
   });
 

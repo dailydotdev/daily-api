@@ -27,6 +27,13 @@ jest.mock('../src/remoteConfig', () => ({
       ignoredWorkEmailDomains: ['igored.com', 'ignored.org'],
       rateLimitReputationThreshold: 1,
       pricingIds: { pricingGift: 'yearly' },
+      validLanguages: {
+        en: 'English',
+        es: 'Spanish',
+        fr: 'French',
+        de: 'German',
+        'zh-Hans': 'ChineseSimplified',
+      },
     } as typeof remoteConfig.vars,
   },
 }));

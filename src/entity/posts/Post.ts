@@ -13,7 +13,7 @@ import { PostKeyword } from '../PostKeyword';
 import { User } from '../user';
 import { PostRelation } from './PostRelation';
 import type { PostCodeSnippet } from './PostCodeSnippet';
-import type { I18nRecord } from '../../types';
+import type { ContentLanguage } from '../../types';
 
 export enum PostType {
   Article = 'article',
@@ -54,7 +54,7 @@ export type PostContentQuality = Partial<{
 }>;
 
 export type PostTranslation = Partial<{
-  title: I18nRecord;
+  title: string;
 }>;
 
 @Entity()
@@ -272,7 +272,7 @@ export class Post {
   contentQuality: PostContentQuality;
 
   @Column({ type: 'jsonb', default: {} })
-  translation: PostTranslation;
+  translation: Partial<Record<ContentLanguage, PostTranslation>>;
 
   @OneToMany(
     'PostCodeSnippet',
