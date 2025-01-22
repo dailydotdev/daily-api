@@ -5,7 +5,7 @@ import createOrGetConnection from '../../src/db';
 import { Post, SharePost, Source } from '../../src/entity';
 import { postsFixture, sharedPostsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture';
-import { typedWorkers, workers } from '../../src/workers';
+import { workers } from '../../src/workers';
 
 let con: DataSource;
 beforeEach(async () => {
