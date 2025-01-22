@@ -4,7 +4,7 @@ import { User } from '../entity';
 const cron: Cron = {
   name: 'clean-gifted-plus',
   handler: async (con, logger) => {
-    logger.info('cleaning gifted plus membership...');
+    logger.debug('cleaning gifted plus membership...');
     const timeThreshold = new Date();
 
     const { affected } = await con
@@ -12,8 +12,7 @@ const cron: Cron = {
       .createQueryBuilder('user')
       .update()
       .set({ subscriptionFlags: {} })
-      .where('"user"."subscriptionFlags" ->> :expire  < :time', {
-        expire: 'giftExpirationDate',
+      .where('"user"."subscriptionFlags" ->> \'giftExpirationDate\'  < :time', {
         time: timeThreshold,
       })
       .execute();
