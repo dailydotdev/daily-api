@@ -720,7 +720,11 @@ const worker: Worker = {
           await fixData({
             logger,
             entityManager,
-            data,
+            data: {
+              ...data,
+              // pass resolved post id or fallback to original data
+              post_id: postId || data.post_id,
+            },
           });
 
         // See if post id is not available
