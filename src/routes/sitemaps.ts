@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { Keyword, Post, PostType } from '../entity';
+import { Keyword, Post, PostType, User } from '../entity';
 import createOrGetConnection from '../db';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
@@ -12,12 +12,14 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         'url',
       )
       .from(Post, 'p')
+      .leftJoin(User, 'u', 'p."authorId" = u.id')
       .where('type NOT IN (:...types)', { types: [PostType.Welcome] })
       .andWhere('NOT private')
       .andWhere('NOT banned')
       .andWhere('NOT deleted')
-      .andWhere('"createdAt" > current_timestamp - interval \'90 day\'')
-      .orderBy('"createdAt"', 'DESC')
+      .andWhere('p."createdAt" > current_timestamp - interval \'90 day\'')
+      .andWhere('(u.id is null or u.reputation > 10)')
+      .orderBy('p."createdAt"', 'DESC')
       .limit(50_000);
 
     const input = await query.stream();

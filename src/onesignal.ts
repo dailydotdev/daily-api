@@ -17,18 +17,23 @@ const chromeWebBadge =
 const chromeWebIcon =
   'https://media.daily.dev/image/upload/s--9vc188bS--/f_auto/v1712221649/1_smcxpz';
 
+type PushOpts = { increaseBadge?: boolean };
+
 function createPush(
   userIds: string[],
   url: string | undefined,
   notificationType: string,
+  opts?: PushOpts,
 ): OneSignal.Notification {
   const push = new OneSignal.Notification();
   push.app_id = appId;
   push.include_external_user_ids = userIds;
   push.chrome_web_badge = chromeWebBadge;
   push.chrome_web_icon = chromeWebIcon;
-  push.ios_badge_type = 'Increase';
-  push.ios_badge_count = 1;
+  if (opts?.increaseBadge) {
+    push.ios_badge_type = 'Increase';
+    push.ios_badge_count = 1;
+  }
 
   if (url) {
     push.web_url = addNotificationUtm(url, 'push', notificationType);
@@ -53,7 +58,7 @@ export async function sendPushNotification(
 ): Promise<void> {
   if (!appId || !apiKey) return;
 
-  const push = createPush(userIds, targetUrl, type);
+  const push = createPush(userIds, targetUrl, type, { increaseBadge: true });
   push.contents = { en: basicHtmlStrip(title) };
   push.headings = { en: 'New update' };
   push.data = { notificationId: id };

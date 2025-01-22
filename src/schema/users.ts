@@ -125,6 +125,7 @@ export interface GQLUpdateUserInput {
   threads?: string;
   codepen?: string;
   reddit?: string;
+  bluesky?: string;
   stackoverflow?: string;
   youtube?: string;
   linkedin?: string;
@@ -174,6 +175,7 @@ export interface GQLUser {
   cover?: string | null;
   readme?: string;
   readmeHtml?: string;
+  bluesky?: string;
   experienceLevel?: string | null;
   language?: ContentLanguage | null;
   topReader?: GQLUserTopReader;
@@ -362,6 +364,10 @@ export const typeDefs = /* GraphQL */ `
     """
     mastodon: String
     """
+    Bluesky profile of the user
+    """
+    bluesky: String
+    """
     Portfolio URL of the user
     """
     portfolio: String
@@ -471,6 +477,10 @@ export const typeDefs = /* GraphQL */ `
     Hashnode handle of the user
     """
     hashnode: String
+    """
+    Bluesky profile of the user
+    """
+    bluesky: String
     """
     Roadmap profile of the user
     """
@@ -1920,6 +1930,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             'stackoverflow',
             'youtube',
             'linkedin',
+            'bluesky',
             'mastodon',
           ];
 
