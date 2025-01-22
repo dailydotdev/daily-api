@@ -823,6 +823,79 @@ describe('type field', () => {
   });
 });
 
+describe('translation field', () => {
+  beforeEach(async () => {
+    await saveFixtures(con, ArticlePost, [
+      {
+        id: 'p1-tf',
+        shortId: 'sp1-tf',
+        title: 'P1-tf',
+        url: 'http://p1-tf.com',
+        canonicalUrl: 'http://p1-tfc.com',
+        image: 'https://daily.dev/image.jpg',
+        score: 1,
+        sourceId: 'a',
+        tagsStr: 'javascript,webdev',
+        type: PostType.Article,
+        contentCuration: ['c1', 'c2'],
+      },
+    ]);
+  });
+
+  const QUERY = /* GraphQL */ `
+    {
+      post(id: "p1-tf") {
+        translation {
+          title
+        }
+      }
+    }
+  `;
+
+  it('should return false for fields when content-language header is not set', async () => {
+    const res = await client.query(QUERY);
+    expect(res.data.post.translation).toEqual({
+      title: null,
+    });
+  });
+
+  it('should return false for fields when translation does not exist', async () => {
+    await con.getRepository(ArticlePost).update('p1-tf', {
+      translation: {
+        es: {
+          title: 'Hola',
+        },
+      },
+    });
+    const res = await client.query(QUERY, {
+      headers: {
+        'content-language': 'de',
+      },
+    });
+    expect(res.data.post.translation).toEqual({
+      title: null,
+    });
+  });
+
+  it('should return true for fields when translation does exist', async () => {
+    await con.getRepository(ArticlePost).update('p1-tf', {
+      translation: {
+        es: {
+          title: 'Hola',
+        },
+      },
+    });
+    const res = await client.query(QUERY, {
+      headers: {
+        'content-language': 'es',
+      },
+    });
+    expect(res.data.post.translation).toEqual({
+      title: true,
+    });
+  });
+});
+
 describe('freeformPost type', () => {
   const QUERY = `{
     post(id: "ff") {
