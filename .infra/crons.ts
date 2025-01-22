@@ -114,4 +114,8 @@ export const crons: Cron[] = [
     name: 'calculate-top-readers',
     schedule: '0 2 1 * *',
   },
+  {
+    name: 'clean-gifted-plus',
+    schedule: '0 1 * * *',
+  }
 ];
