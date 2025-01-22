@@ -56,6 +56,7 @@ import userCompanyApprovedCio from './userCompanyApprovedCio';
 import userUpdatedPlusSubscriptionSquad from './userUpdatedPlusSubscriptionSquad';
 import userUpdatedPlusSubscriptionCustomFeed from './userUpdatedPlusSubscriptionCustomFeed';
 import { postTranslated } from './postTranslated';
+import postDeletedSharedPostCleanup from './postDeletedSharedPostCleanup';
 
 export { Worker } from './worker';
 
@@ -74,6 +75,7 @@ export const workers: Worker[] = [
   postUpvotedRedis,
   postBannedRep,
   postDeletedCommentsCleanup,
+  postDeletedSharedPostCleanup,
   usernameChanged,
   updateComments,
   newNotificationRealTime,
