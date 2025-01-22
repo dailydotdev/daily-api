@@ -26,7 +26,7 @@ const worker: Worker = {
         'failed to cleanup shared post due to post deletion error',
       );
     }
-    
+
     await con
       .getRepository(SharePost)
       .createQueryBuilder()
