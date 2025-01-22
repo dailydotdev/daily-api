@@ -16,7 +16,6 @@ const worker: Worker = {
     const databasePost = await con
       .getRepository(Post)
       .findOneBy({ id: post?.id });
-    console.log('del: ', databasePost?.deleted);
     if (!databasePost || !databasePost?.deleted) {
       return logger.info(
         {

@@ -5,6 +5,7 @@ import createOrGetConnection from '../../src/db';
 import { Post, SharePost, Source } from '../../src/entity';
 import { postsFixture, sharedPostsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture';
+import { typedWorkers, workers } from '../../src/workers';
 
 let con: DataSource;
 beforeEach(async () => {
@@ -35,15 +36,29 @@ beforeEach(async () => {
   );
 });
 
-it('should set shared post to not show on feed if post gets deleted', async () => {
-  await expectSuccessfulBackground(worker, {
-    post: {
-      id: 'pdspc-p1',
-    },
+describe('postDeletedSharedPostCleanup worker', () => {
+  it('should be registered', async () => {
+    const worker = await import(
+      '../../src/workers/postDeletedSharedPostCleanup'
+    );
+
+    const registeredWorker = workers.find(
+      (item) => item.subscription === worker.default.subscription,
+    );
+
+    expect(registeredWorker).toBeDefined();
   });
-  const sharedPost = await con.getRepository(SharePost).findOneBy({
-    id: 'pdspc-squadP1',
+
+  it('should set shared post to not show on feed if post gets deleted', async () => {
+    await expectSuccessfulBackground(worker, {
+      post: {
+        id: 'pdspc-p1',
+      },
+    });
+    const sharedPost = await con.getRepository(SharePost).findOneBy({
+      id: 'pdspc-squadP1',
+    });
+    expect(sharedPost?.showOnFeed).toBe(false);
+    expect(sharedPost?.flags?.showOnFeed).toEqual(false);
   });
-  expect(sharedPost?.showOnFeed).toBe(false);
-  expect(sharedPost?.flags?.showOnFeed).toEqual(false);
 });
