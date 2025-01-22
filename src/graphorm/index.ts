@@ -497,13 +497,15 @@ const obj = new GraphORM({
         transform: (
           translations: Partial<Record<ContentLanguage, PostTranslation>>,
           ctx: Context,
-        ): Record<keyof PostTranslation, boolean> => {
-          const translation = ctx.contentLanguage
-            ? translations[ctx.contentLanguage]
-            : {};
+        ): Partial<Record<keyof PostTranslation, boolean>> => {
+          if (!ctx.contentLanguage || !translations[ctx.contentLanguage]) {
+            return {};
+          }
+
+          const translation = translations[ctx.contentLanguage]!;
           return translateablePostFields.reduce(
             (acc: Record<string, boolean>, field) => {
-              acc[field] = !!translation?.[field];
+              acc[field] = !!translation[field];
               return acc;
             },
             {},

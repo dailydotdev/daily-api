@@ -855,7 +855,7 @@ describe('translation field', () => {
   it('should return false for fields when content-language header is not set', async () => {
     const res = await client.query(QUERY);
     expect(res.data.post.translation).toEqual({
-      title: false,
+      title: null,
     });
   });
 
@@ -873,7 +873,7 @@ describe('translation field', () => {
       },
     });
     expect(res.data.post.translation).toEqual({
-      title: false,
+      title: null,
     });
   });
 
