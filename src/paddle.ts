@@ -3,5 +3,7 @@ export enum SubscriptionCycles {
   Yearly = 'yearly',
 }
 
+export const subscriptionGiftDuration = 31557600000;
+
 export const isPlusMember = (cycle: SubscriptionCycles | undefined): boolean =>
   !!cycle?.length || false;

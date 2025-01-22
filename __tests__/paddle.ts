@@ -98,7 +98,6 @@ describe('gift', () => {
     const data = getSubscriptionData({
       user_id: userId,
       gifter_id: 'whp-10',
-      duration: '1000',
     });
     const res = await updateUserSubscription({ data, state: true });
     expect(res).toBe(false);
@@ -119,7 +118,6 @@ describe('gift', () => {
     const data = getSubscriptionData({
       user_id: userId,
       gifter_id: userId,
-      duration: '1000',
     });
     const res = await updateUserSubscription({ data, state: true });
     expect(res).toBe(false);
@@ -146,7 +144,6 @@ describe('gift', () => {
     const data = getSubscriptionData({
       user_id: user.id,
       gifter_id: 'whp-2',
-      duration: '1000',
     });
     const res = await updateUserSubscription({ data, state: true });
     expect(res).toBe(false);
@@ -162,7 +159,6 @@ describe('gift', () => {
     const data = getSubscriptionData({
       user_id: userId,
       gifter_id: 'whp-2',
-      duration: '31557600000',
     });
     await updateUserSubscription({ data, state: true });
 

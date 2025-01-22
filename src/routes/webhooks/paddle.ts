@@ -20,7 +20,7 @@ import {
 import { JsonContains } from 'typeorm';
 import { paddleInstance } from '../../common/paddle';
 import { addMilliseconds } from 'date-fns';
-import { isPlusMember } from '../../paddle';
+import { isPlusMember, subscriptionGiftDuration } from '../../paddle';
 
 const extractSubscriptionType = (
   items:
@@ -42,7 +42,6 @@ const extractSubscriptionType = (
 
 export interface PaddleCustomData {
   user_id?: string;
-  duration?: string;
   gifter_id?: string;
 }
 
@@ -83,17 +82,12 @@ export const updateUserSubscription = async ({
     return false;
   }
 
-  const { gifter_id: gifterId, duration } = customData;
-  const durationTime = duration && parseInt(duration);
-  const isGift = !!durationTime && gifterId;
+  const { gifter_id: gifterId } = customData;
+  const duration = subscriptionGiftDuration;
+  const isGift = !!gifterId;
   if (isGift) {
     if (userId === gifterId) {
       logger.error({ type: 'paddle', data }, 'User and gifter are the same');
-      return false;
-    }
-
-    if (!durationTime || durationTime <= 0) {
-      logger.error({ type: 'paddle', data }, 'Invalid duration');
       return false;
     }
 
@@ -128,7 +122,7 @@ export const updateUserSubscription = async ({
           gifterId,
           giftExpirationDate: addMilliseconds(
             new Date(),
-            durationTime,
+            duration,
           ).toISOString(),
         }),
       }),
