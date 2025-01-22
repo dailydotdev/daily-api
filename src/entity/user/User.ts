@@ -29,8 +29,8 @@ export type UserSubscriptionFlags = Partial<{
   cycle: SubscriptionCycles;
   createdAt: Date;
   subscriptionId: string;
-  gifterId: string;
-  giftExpirationDate: Date;
+  gifterId?: string;
+  giftExpirationDate?: Date;
 }>;
 
 @Entity()
