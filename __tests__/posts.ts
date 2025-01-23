@@ -5838,6 +5838,88 @@ describe('posts title field', () => {
     });
   });
 
+  describe('new translation field', () => {
+    const QUERY = /* GraphQL */ `
+      {
+        post(id: "p1-ntf") {
+          title
+        }
+      }
+    `;
+
+    beforeEach(async () => {
+      await saveFixtures(con, ArticlePost, [
+        {
+          id: 'p1-ntf',
+          shortId: 'sp1-ntf',
+          title: 'P1-ntf',
+          url: 'http://p1-ntf.com',
+          canonicalUrl: 'http://p1-ntfc.com',
+          image: 'https://daily.dev/image.jpg',
+          score: 1,
+          sourceId: 'a',
+          tagsStr: 'javascript,webdev',
+          type: PostType.Article,
+          contentCuration: ['c1', 'c2'],
+        },
+      ]);
+    });
+
+    it('should return i18n title from new translation field when user is team member', async () => {
+      loggedUser = '1';
+      isTeamMember = true;
+      await con.getRepository(Post).update(
+        { id: 'p1-ntf' },
+        {
+          translation: {
+            'pt-BR': {
+              title: 'P1 Portugal Brazil',
+            },
+          },
+        },
+      );
+
+      const res = await client.query(QUERY, {
+        headers: {
+          'content-language': 'pt-BR',
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      expect(res.data.post).toEqual({
+        title: 'P1 Portugal Brazil',
+      });
+    });
+
+    it('should return original title from new translation field when user is team member', async () => {
+      loggedUser = '1';
+      isTeamMember = true;
+      await con.getRepository(Post).update(
+        { id: 'p1-ntf' },
+        {
+          translation: {
+            'pt-BR': {
+              title: 'P1 Portugal Brazil',
+            },
+          },
+        },
+      );
+
+      const res = await client.query(QUERY, {
+        headers: {
+          'content-language': 'pt-BR',
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      expect(res.data.post).toEqual({
+        title: 'P1 Portugal Brazil',
+      });
+    });
+  });
+
   describe('clickbait shield title', () => {
     beforeEach(async () => {
       await con.getRepository(Settings).save({
