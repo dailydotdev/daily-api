@@ -114,6 +114,7 @@ const LOGGED_IN_BODY = {
     followNotifications: true,
     followingEmail: true,
     isTeamMember: false,
+    bluesky: null,
     roadmap: null,
     threads: null,
     codepen: null,

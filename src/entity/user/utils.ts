@@ -11,6 +11,7 @@ import { generateTrackingId } from '../../ids';
 import { fallbackImages } from '../../config';
 import { validateAndTransformHandle } from '../../common/handles';
 import {
+  bskySocialUrlMatch,
   codepenSocialUrlMatch,
   DEFAULT_TIMEZONE,
   DEFAULT_WEEK_START,
@@ -352,6 +353,7 @@ export const validateUserUpdate = async (
     ['linkedin', data.linkedin, linkedinSocialUrlMatch],
     ['mastodon', data.mastodon, mastodonSocialUrlMatch],
     ['portfolio', data.portfolio, socialUrlMatch],
+    ['bluesky', data.bluesky, bskySocialUrlMatch],
   ];
 
   try {

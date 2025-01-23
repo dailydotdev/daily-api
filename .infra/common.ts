@@ -108,6 +108,10 @@ export const workers: Worker[] = [
     subscription: 'api.post-deleted-comments-cleanup',
   },
   {
+    topic: 'post-banned-or-removed',
+    subscription: 'api.post-deleted-shared-post-cleanup',
+  },
+  {
     topic: 'pub-request',
     subscription: 'pub-request-rep',
   },
@@ -320,6 +324,10 @@ export const workers: Worker[] = [
   {
     topic: 'api.v1.user-top-reader',
     subscription: 'api.user-top-reader-added',
+  },
+  {
+    topic: 'kvasir.v1.post-translated',
+    subscription: 'api.post-translated',
   },
 ];
 

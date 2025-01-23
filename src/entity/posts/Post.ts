@@ -13,7 +13,7 @@ import { PostKeyword } from '../PostKeyword';
 import { User } from '../user';
 import { PostRelation } from './PostRelation';
 import type { PostCodeSnippet } from './PostCodeSnippet';
-import type { I18nRecord } from '../../types';
+import type { ContentLanguage } from '../../types';
 
 export enum PostType {
   Article = 'article',
@@ -53,9 +53,10 @@ export type PostContentQuality = Partial<{
   manual_clickbait_probability: number;
 }>;
 
-export type PostTranslation = Partial<{
-  title: I18nRecord;
-}>;
+export const translateablePostFields = ['title'] as const;
+export type PostTranslation = {
+  [key in (typeof translateablePostFields)[number]]?: string;
+};
 
 @Entity()
 @Index('IDX_post_id_sourceid', ['id', 'sourceId'])
@@ -272,7 +273,7 @@ export class Post {
   contentQuality: PostContentQuality;
 
   @Column({ type: 'jsonb', default: {} })
-  translation: PostTranslation;
+  translation: Partial<Record<ContentLanguage, PostTranslation>>;
 
   @OneToMany(
     'PostCodeSnippet',
