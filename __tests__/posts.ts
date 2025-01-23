@@ -5748,6 +5748,7 @@ describe('posts title field', () => {
   });
 
   it('should return original title when language is not set', async () => {
+    loggedUser = '1';
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
@@ -5771,6 +5772,7 @@ describe('posts title field', () => {
   });
 
   it('should return i18n title if exists', async () => {
+    loggedUser = '1';
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
@@ -5798,6 +5800,7 @@ describe('posts title field', () => {
   });
 
   it('should return default title if i18n title does not exist', async () => {
+    loggedUser = '1';
     const res = await client.query(QUERY, {
       headers: {
         'content-language': 'fr',
@@ -5812,6 +5815,7 @@ describe('posts title field', () => {
   });
 
   it('should return i18n title for cased language codes', async () => {
+    loggedUser = '1';
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
