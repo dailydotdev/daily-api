@@ -89,6 +89,10 @@ const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
   return {
     select: field,
     transform: async (value: string, ctx: Context, parent) => {
+      if (!ctx.userId) {
+        return value;
+      }
+
       const typedParent = parent as {
         i18nTitle: I18nRecord;
         smartTitle: I18nRecord;
@@ -98,7 +102,7 @@ const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
       };
 
       const settings = await ctx.dataLoader.userSettings.load({
-        userId: ctx.userId!,
+        userId: ctx.userId,
       });
 
       const i18nValue = ctx.contentLanguage
