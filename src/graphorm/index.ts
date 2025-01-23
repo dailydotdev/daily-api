@@ -85,6 +85,9 @@ const checkIfTitleIsClickbait = (value?: string): boolean => {
   return clickbaitProbability > threshold;
 };
 
+const shouldUseNewTranslation = (ctx: Context) =>
+  ctx.isTeamMember || remoteConfig.vars.useNewTranslation;
+
 const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
   return {
     select: field,
@@ -98,6 +101,7 @@ const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
         smartTitle: I18nRecord;
         clickbaitProbability?: string;
         manualClickbaitProbability?: string;
+        translation: Partial<Record<ContentLanguage, PostTranslation>>;
         [key: string]: unknown;
       };
 
@@ -106,7 +110,9 @@ const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
       });
 
       const i18nValue = ctx.contentLanguage
-        ? typedParent.i18nTitle?.[ctx.contentLanguage]
+        ? shouldUseNewTranslation(ctx)
+          ? typedParent.translation?.[ctx.contentLanguage]?.title
+          : typedParent.i18nTitle?.[ctx.contentLanguage]
         : undefined;
 
       const altValue = getSmartTitle(
@@ -306,6 +312,7 @@ const obj = new GraphORM({
       'private',
       'type',
       'slug',
+      'translation',
       {
         column: `"contentMeta"->'translate_title'->'translations'`,
         columnAs: 'i18nTitle',
