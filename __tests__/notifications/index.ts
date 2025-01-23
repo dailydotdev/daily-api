@@ -6,6 +6,7 @@ import {
   NotificationCommentContext,
   NotificationCommenterContext,
   NotificationDoneByContext,
+  NotificationGiftPlusContext,
   NotificationPostContext,
   NotificationPostModerationContext,
   NotificationSourceContext,
@@ -15,9 +16,9 @@ import {
   NotificationSubmissionContext,
   NotificationUpvotersContext,
   NotificationUserContext,
+  type NotificationUserTopReaderContext,
   Reference,
   storeNotificationBundleV2,
-  type NotificationUserTopReaderContext,
 } from '../../src/notifications';
 import { postsFixture } from '../fixture/post';
 import {
@@ -56,7 +57,7 @@ import { DataSource, In } from 'typeorm';
 import { sourcesFixture } from '../fixture/source';
 import { SourceMemberRoles } from '../../src/roles';
 import { NotificationType } from '../../src/notifications/common';
-import { format } from 'date-fns';
+import { addYears, format } from 'date-fns';
 import { saveFixtures } from '../helpers';
 import {
   PostModerationReason,
@@ -64,6 +65,7 @@ import {
   SourcePostModerationStatus,
 } from '../../src/entity/SourcePostModeration';
 import { randomUUID } from 'crypto';
+import { SubscriptionCycles } from '../../src/paddle';
 
 const userId = '1';
 const commentFixture: Reference<Comment> = {
@@ -1510,6 +1512,36 @@ describe('storeNotificationBundle', () => {
         type: 'top_reader_badge',
       },
     ]);
+    expect(actual.attachments!.length).toEqual(0);
+  });
+});
+
+describe('plus notifications', () => {
+  it('should notify user when they are gifted a subscription', async () => {
+    const type = NotificationType.UserGiftedPlus;
+    const gifter = usersFixture[1] as Reference<User>;
+    const recipient = usersFixture[0] as Reference<User>;
+    const squad = sourcesFixture[5] as Reference<SquadSource>;
+    const ctx: NotificationGiftPlusContext = {
+      userIds: [recipient.id],
+      gifter,
+      recipient,
+      squad,
+      subscriptionFlags: {
+        cycle: SubscriptionCycles.Yearly,
+        gifterId: gifter.id,
+        giftExpirationDate: addYears(new Date(), 1),
+      },
+    };
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([recipient.id]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toBe('squad');
+    expect(actual.notification.description).toBeFalsy();
+    expect(actual.notification.targetUrl).toContain(`/squads/${squad.handle}`);
+    expect(actual.avatars?.[0]?.image).toEqual(gifter.image);
     expect(actual.attachments!.length).toEqual(0);
   });
 });
