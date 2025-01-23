@@ -116,6 +116,6 @@ export const crons: Cron[] = [
   },
   {
     name: 'clean-gifted-plus',
-    schedule: '0 1 * * *',
+    schedule: '45 2 * * *',
   }
 ];
