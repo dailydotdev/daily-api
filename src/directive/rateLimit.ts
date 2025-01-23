@@ -10,6 +10,7 @@ import {
   RateLimiterRedis,
 } from 'rate-limiter-flexible';
 import { GraphQLSchema } from 'graphql';
+import humanizeDuration from 'humanize-duration';
 import { singleRedisClient } from '../redis';
 import { Context } from '../Context';
 import { logger } from '../logger';
@@ -67,20 +68,18 @@ const keyGenerator: RateLimitKeyGenerator<Context> = (
 
 export const onLimit: RateLimitOnLimit<Context> = (
   resource,
-  _,
+  rlArgs,
   __,
   args,
   context,
   info,
 ) => {
+  const period = humanizeDuration(rlArgs.duration * 1000);
   switch (info.fieldName) {
     case 'createFreeformPost':
     case 'submitExternalLink':
     case 'sharePost':
       counters?.api?.rateLimit?.add(1, { type: 'createPost' });
-      const period = highRateLimitedSquads.includes(args.sourceId as string)
-        ? 'ten minutes'
-        : 'hour';
       throw new RateLimitError({
         message: `Take a break. You already posted enough in the last ${period}`,
       });
@@ -88,7 +87,7 @@ export const onLimit: RateLimitOnLimit<Context> = (
     case 'commentOnComment':
       counters?.api?.rateLimit?.add(1, { type: 'createComment' });
       throw new RateLimitError({
-        message: 'Take a break. You already commented enough in the last hour',
+        message: `Take a break. You already commented enough in the last ${period}`,
       });
     case 'addUserCompany':
       counters?.api?.rateLimit?.add(1, { type: 'addUserCompany' });

@@ -2419,12 +2419,12 @@ describe('mutation sharePost', () => {
         client,
         { mutation: MUTATION, variables: variables },
         'RATE_LIMITED',
-        'Take a break. You already posted enough in the last hour',
+        'Take a break. You already posted enough in the last 30 seconds',
       );
 
       // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
-      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(60);
-      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(50);
+      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(30);
+      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(20);
     });
 
     describe('high rate squads', () => {
@@ -2460,7 +2460,7 @@ describe('mutation sharePost', () => {
             variables: { ...variables, sourceId: WATERCOOLER_ID },
           },
           'RATE_LIMITED',
-          'Take a break. You already posted enough in the last ten minutes',
+          'Take a break. You already posted enough in the last 30 seconds',
         );
       });
     });
@@ -3041,12 +3041,12 @@ describe('mutation submitExternalLink', () => {
         client,
         { mutation: MUTATION, variables: variables },
         'RATE_LIMITED',
-        'Take a break. You already posted enough in the last hour',
+        'Take a break. You already posted enough in the last 30 seconds',
       );
 
       // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
-      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(60);
-      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(50);
+      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(30);
+      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(20);
     });
 
     describe('high rate squads', () => {
@@ -3090,7 +3090,7 @@ describe('mutation submitExternalLink', () => {
             },
           },
           'RATE_LIMITED',
-          'Take a break. You already posted enough in the last ten minutes',
+          'Take a break. You already posted enough in the last 30 seconds',
         );
       });
     });
@@ -3658,12 +3658,12 @@ describe('mutation createFreeformPost', () => {
         client,
         { mutation: MUTATION, variables: params },
         'RATE_LIMITED',
-        'Take a break. You already posted enough in the last hour',
+        'Take a break. You already posted enough in the last 30 seconds',
       );
 
       // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
-      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(60);
-      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(50);
+      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(30);
+      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(20);
     });
 
     describe('high rate squads', () => {
@@ -3699,7 +3699,7 @@ describe('mutation createFreeformPost', () => {
             variables: { ...params, sourceId: WATERCOOLER_ID },
           },
           'RATE_LIMITED',
-          'Take a break. You already posted enough in the last ten minutes',
+          'Take a break. You already posted enough in the last 30 seconds',
         );
       });
     });
