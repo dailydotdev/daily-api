@@ -5839,7 +5839,7 @@ describe('posts title field', () => {
   });
 
   describe('new translation field', () => {
-    const QUERY = /* GraphQL */ `
+    const QUERY_NTF = /* GraphQL */ `
       {
         post(id: "p1-ntf") {
           title
@@ -5879,7 +5879,7 @@ describe('posts title field', () => {
         },
       );
 
-      const res = await client.query(QUERY, {
+      const res = await client.query(QUERY_NTF, {
         headers: {
           'content-language': 'pt-BR',
         },
@@ -5906,7 +5906,7 @@ describe('posts title field', () => {
         },
       );
 
-      const res = await client.query(QUERY, {
+      const res = await client.query(QUERY_NTF, {
         headers: {
           'content-language': 'pt-BR',
         },
