@@ -440,5 +440,6 @@ export const generateNotificationMap: Record<
       )
       .icon(NotificationIcon.Bell)
       .avatarUser(ctx.gifter)
-      .referenceSource(ctx.squad),
+      .referenceSource(ctx.squad)
+      .targetSource(ctx.squad),
 };
