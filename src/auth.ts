@@ -103,6 +103,7 @@ const plugin = async (
       if (req.headers['user-id'] && req.headers['logged-in'] === 'true') {
         req.userId = req.headers['user-id'] as string;
         req.isPlus = req.headers['is-plus'] === 'true';
+        req.isTeamMember = req.headers['is-team-member'] === 'true';
         req.roles =
           ((req.headers['roles'] as string)?.split(',') as Roles[]) ?? [];
       }

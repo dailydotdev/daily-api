@@ -17,6 +17,7 @@ type RemoteConfigValue = {
   postRateLimit: number;
   commentRateLimit: number;
   validLanguages: Record<string, string>;
+  useNewTranslation: boolean;
 };
 
 class RemoteConfig {
