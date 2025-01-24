@@ -588,6 +588,8 @@ const onPostChange = async (
           { metadataChangedAt: new Date() },
         );
     }
+  } else if (data.payload.op === 'd') {
+    await notifyPostBannedOrRemoved(logger, data.payload.before!);
   }
 };
 

@@ -2347,7 +2347,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       await Promise.all([
         ctx.con.getRepository(Post).findOneByOrFail({ id }),
         ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
-        ensurePostRateLimit(ctx.con, ctx.userId),
+        // ensurePostRateLimit(ctx.con, ctx.userId),
       ]);
 
       const newPost = await createSharePost({

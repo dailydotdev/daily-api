@@ -1,12 +1,24 @@
 import { messageToJson, Worker } from './worker';
 import { Post, SharePost } from '../entity/';
 import { ChangeObject } from '../types';
-import { updateFlagsStatement } from '../common';
+import {
+  DELETED_BY_WORKER,
+  deletedPost,
+  updateFlagsStatement,
+} from '../common';
+import { Not, IsNull } from 'typeorm';
 
 interface Data {
   post: ChangeObject<Post>;
 }
 
+/**
+ * This worker is responsible for managing shared post state when referenced post is deleted.
+ * Rules:
+ * - When a post is deleted, all shared posts referencing it should be set to link to DELETED_POST
+ * - Shared posts with DELETED_POST should not show on feed
+ * - Shared posts with DELETED_POST and no commentary should be soft deleted as well but not decrease reputation
+ */
 const worker: Worker = {
   subscription: 'api.post-deleted-shared-post-cleanup',
   handler: async (message, con, logger): Promise<void> => {
@@ -32,9 +44,30 @@ const worker: Worker = {
       .update()
       .where({
         sharedPostId: post.id,
+        title: IsNull(),
+      })
+      .set({
+        deleted: true,
+        showOnFeed: false,
+        sharedPostId: deletedPost.id,
+        flags: updateFlagsStatement<Post>({
+          showOnFeed: false,
+          deletedBy: DELETED_BY_WORKER,
+        }),
+      })
+      .execute();
+
+    await con
+      .getRepository(SharePost)
+      .createQueryBuilder()
+      .update()
+      .where({
+        sharedPostId: post.id,
+        title: Not(IsNull()),
       })
       .set({
         showOnFeed: false,
+        sharedPostId: deletedPost.id,
         flags: updateFlagsStatement<Post>({
           showOnFeed: false,
         }),
