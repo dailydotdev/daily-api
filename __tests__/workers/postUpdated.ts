@@ -38,6 +38,7 @@ import {
   PostCodeSnippetLanguage,
 } from '../../src/types';
 import { insertCodeSnippetsFromUrl } from '../../src/common/post';
+import { generateShortId } from '../../src/ids';
 
 jest.mock('../../src/common/googleCloud', () => ({
   ...(jest.requireActual('../../src/common/googleCloud') as Record<
@@ -555,6 +556,58 @@ it('save a post as private if source is private', async () => {
   expect(posts.length).toEqual(3);
   expect(posts[2].private).toBe(true);
   expect(posts[2].flags.private).toBe(true);
+});
+
+it('do not save post if source can not be found', async () => {
+  await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+    title: 'Title',
+    url: 'https://post.com',
+    source_id: 'source-does-not-exist-on-the-api',
+  });
+  const post = await con.getRepository(Post).findOne({
+    where: {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+    },
+  });
+  expect(post).toBeNull();
+});
+
+it('should save post if source_id is not passed but post exists', async () => {
+  const newPostId = await generateShortId();
+
+  const newPost = await con.getRepository(FreeformPost).save({
+    id: newPostId,
+    shortId: newPostId,
+    title: 'Post title',
+    content: 'Post content',
+    yggdrasilId: '9bdf5876-847b-4ea7-82dc-0bcd1b2da49a',
+    visible: true,
+    sourceId: 'a',
+  });
+
+  const existingPost = await con.getRepository(FreeformPost).findOneOrFail({
+    where: {
+      id: newPost.id,
+    },
+  });
+
+  await expectSuccessfulBackground(worker, {
+    id: '9bdf5876-847b-4ea7-82dc-0bcd1b2da49a',
+    post_id: undefined,
+    content_type: PostType.Freeform,
+  });
+
+  const post = await con.getRepository(FreeformPost).findOne({
+    where: {
+      id: existingPost.id,
+    },
+  });
+
+  expect(post).not.toBeNull();
+  expect(post!.metadataChangedAt.getTime()).toBeGreaterThan(
+    existingPost.metadataChangedAt.getTime(),
+  );
 });
 
 it('should save a new post with the relevant scout id and update submission', async () => {
@@ -2209,11 +2262,18 @@ describe('on youtube post', () => {
 
 describe('on collection post', () => {
   beforeEach(async () => {
-    await con.getRepository(Source).save({
-      id: UNKNOWN_SOURCE,
-      name: 'Unknown',
-      handle: UNKNOWN_SOURCE,
-    });
+    await con.getRepository(Source).save([
+      {
+        id: UNKNOWN_SOURCE,
+        name: 'Unknown',
+        handle: UNKNOWN_SOURCE,
+      },
+      {
+        id: 'collections',
+        name: 'Collections',
+        handle: 'collections',
+      },
+    ]);
   });
 
   it('should create a new collection post', async () => {
@@ -2224,6 +2284,7 @@ describe('on collection post', () => {
       image: 'http://image.com',
       readTime: 10,
       content_type: PostType.Collection,
+      source_id: 'collections',
       extra: {
         description: 'New description',
         summary: 'New summary',
@@ -2242,7 +2303,7 @@ describe('on collection post', () => {
     expect(collection).toMatchObject({
       type: 'collection',
       title: 'New title',
-      sourceId: 'unknown',
+      sourceId: 'collections',
       yggdrasilId: '7ec0bccb-e41f-4c77-a3b4-fe19d20b3874',
       image: 'http://image.com',
       content: '## New heading\n\n New content',
@@ -2286,6 +2347,7 @@ describe('on collection post', () => {
       post_id: undefined,
       title: 'New title',
       content_type: PostType.Collection,
+      source_id: 'collections',
       extra: {
         origin_entries: [
           '3d5da6ec-b960-4ad8-8278-665a66b71c1f',
@@ -2351,6 +2413,7 @@ describe('on collection post', () => {
       post_id: undefined,
       title: 'New title',
       content_type: PostType.Collection,
+      source_id: 'collections',
       extra: {
         origin_entries: ['3d5da6ec-b960-4ad8-8278-665a66b71c1f'],
       },
@@ -2379,6 +2442,7 @@ describe('on collection post', () => {
       post_id: collection!.id,
       title: 'New title',
       content_type: PostType.Collection,
+      source_id: 'collections',
       extra: {
         origin_entries: [
           '3d5da6ec-b960-4ad8-8278-665a66b71c1f',
@@ -2428,6 +2492,7 @@ describe('on collection post', () => {
       post_id: undefined,
       title: 'New title',
       content_type: PostType.Collection,
+      source_id: 'collections',
       extra: {
         origin_entries: [
           '3d5da6ec-b960-4ad8-8278-665a66b71c1f',
@@ -2461,6 +2526,7 @@ describe('on collection post', () => {
       post_id: undefined,
       title: 'New title',
       content_type: PostType.Collection,
+      source_id: 'collections',
       extra: {
         origin_entries: [
           '3d5da6ec-b960-4ad8-8278-665a66b71c1f',
@@ -2481,6 +2547,7 @@ describe('on collection post', () => {
       post_id: undefined,
       title: 'New title',
       content_type: PostType.Article,
+      source_id: 'a',
       collections: ['7ec0bccb-e41f-4c77-a3b4-fe19d20b3874'],
     });
 
@@ -2503,6 +2570,7 @@ describe('on collection post', () => {
       post_id: undefined,
       title: 'New title',
       content_type: PostType.Collection,
+      source_id: 'collections',
     });
 
     await con.getRepository(ArticlePost).save([
@@ -2536,6 +2604,7 @@ describe('on collection post', () => {
       post_id: 'cp1',
       title: 'New title',
       content_type: PostType.Article,
+      source_id: 'a',
       collections: ['7ec0bccb-e41f-4c77-a3b4-fe19d20b3874'],
     });
 
