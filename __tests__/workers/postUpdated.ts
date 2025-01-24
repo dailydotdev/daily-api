@@ -445,8 +445,8 @@ it('should save a new post with basic information', async () => {
     order: 0,
   });
   const posts = await con.getRepository(Post).find();
-  expect(posts.length).toEqual(3);
-  expect(posts[2]).toMatchSnapshot({
+  expect(posts.length).toEqual(4);
+  expect(posts[3]).toMatchSnapshot({
     visible: true,
     visibleAt: expect.any(Date),
     createdAt: expect.any(Date),
@@ -476,8 +476,8 @@ it('should save a new post with with non-default language', async () => {
     language: 'nb',
   });
   const posts = await con.getRepository(Post).find();
-  expect(posts.length).toEqual(3);
-  expect(posts[2]).toMatchObject({
+  expect(posts.length).toEqual(4);
+  expect(posts[3]).toMatchObject({
     sourceId: 'a',
     title: 'Title',
     showOnFeed: true,
@@ -493,7 +493,7 @@ it('should set show on feed to true when order is missing', async () => {
     source_id: 'a',
   });
   const posts = await con.getRepository(Post).find();
-  expect(posts.length).toEqual(3);
+  expect(posts.length).toEqual(4);
   expect(posts[2].showOnFeed).toEqual(true);
 });
 
@@ -506,8 +506,8 @@ it('should save a new post with showOnFeed information', async () => {
     order: 1,
   });
   const posts = await con.getRepository(Post).find();
-  expect(posts.length).toEqual(3);
-  expect(posts[2].showOnFeed).toEqual(false);
+  expect(posts.length).toEqual(4);
+  expect(posts[3].showOnFeed).toEqual(false);
 });
 
 it('should save a new post with content curation', async () => {
@@ -521,7 +521,7 @@ it('should save a new post with content curation', async () => {
     },
   });
   const posts = await con.getRepository(Post).find();
-  expect(posts.length).toEqual(3);
+  expect(posts.length).toEqual(4);
   const post = await con
     .getRepository(Post)
     .findOneBy({ yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e816' });
@@ -540,9 +540,9 @@ it('save a post as public if source is public', async () => {
     source_id: 'a',
   });
   const posts = await con.getRepository(Post).find();
-  expect(posts.length).toEqual(3);
+  expect(posts.length).toEqual(4);
   expect(posts[2].private).toEqual(false);
-  expect(posts[2].flags.private).toEqual(false);
+  expect(posts[3].flags.private).toEqual(false);
 });
 
 it('save a post as private if source is private', async () => {
@@ -553,9 +553,9 @@ it('save a post as private if source is private', async () => {
     source_id: 'p',
   });
   const posts = await con.getRepository(Post).find();
-  expect(posts.length).toEqual(3);
-  expect(posts[2].private).toBe(true);
-  expect(posts[2].flags.private).toBe(true);
+  expect(posts.length).toEqual(4);
+  expect(posts[3].private).toBe(true);
+  expect(posts[3].flags.private).toBe(true);
 });
 
 it('do not save post if source can not be found', async () => {
@@ -663,9 +663,9 @@ it('should save a new post with the relevant keywords', async () => {
     },
   });
   const posts = await con.getRepository(Post).find();
-  expect(posts.length).toEqual(3);
-  expect(posts[2].scoutId).toEqual('1');
-  const tagsArray = posts[2].tagsStr.split(',');
+  expect(posts.length).toEqual(4);
+  expect(posts[3].scoutId).toEqual('1');
+  const tagsArray = posts[3].tagsStr.split(',');
   ['mongodb', 'alpinejs', 'ab-testing'].forEach((item) => {
     expect(tagsArray).toContain(item);
   });

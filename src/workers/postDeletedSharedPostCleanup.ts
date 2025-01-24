@@ -38,41 +38,42 @@ const worker: Worker = {
       );
     }
 
-    await con
-      .getRepository(SharePost)
-      .createQueryBuilder()
-      .update()
-      .where({
-        sharedPostId: post.id,
-        title: IsNull(),
-      })
-      .set({
-        deleted: true,
-        showOnFeed: false,
-        sharedPostId: deletedPost.id,
-        flags: updateFlagsStatement<Post>({
+    await Promise.all([
+      await con
+        .getRepository(SharePost)
+        .createQueryBuilder()
+        .update()
+        .where({
+          sharedPostId: post.id,
+          title: IsNull(),
+        })
+        .set({
+          deleted: true,
           showOnFeed: false,
-          deletedBy: DELETED_BY_WORKER,
-        }),
-      })
-      .execute();
-
-    await con
-      .getRepository(SharePost)
-      .createQueryBuilder()
-      .update()
-      .where({
-        sharedPostId: post.id,
-        title: Not(IsNull()),
-      })
-      .set({
-        showOnFeed: false,
-        sharedPostId: deletedPost.id,
-        flags: updateFlagsStatement<Post>({
+          sharedPostId: deletedPost.id,
+          flags: updateFlagsStatement<Post>({
+            showOnFeed: false,
+            deletedBy: DELETED_BY_WORKER,
+          }),
+        })
+        .execute(),
+      await con
+        .getRepository(SharePost)
+        .createQueryBuilder()
+        .update()
+        .where({
+          sharedPostId: post.id,
+          title: Not(IsNull()),
+        })
+        .set({
           showOnFeed: false,
-        }),
-      })
-      .execute();
+          sharedPostId: deletedPost.id,
+          flags: updateFlagsStatement<Post>({
+            showOnFeed: false,
+          }),
+        })
+        .execute(),
+    ]);
 
     logger.info(
       {
