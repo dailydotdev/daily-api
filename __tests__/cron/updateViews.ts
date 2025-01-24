@@ -2,7 +2,7 @@ import cron from '../../src/cron/updateViews';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { ArticlePost, Post, Source, View } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
-import { DataSource } from 'typeorm';
+import { DataSource, Not } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 
 let con: DataSource;
@@ -62,6 +62,7 @@ it('should update views', async () => {
   const posts = await con.getRepository(Post).find({
     select: ['id', 'views', 'score', 'createdAt'],
     order: { createdAt: 'ASC' },
+    where: { id: Not('404') },
   });
   expect(posts[0].views).toEqual(0);
   expect(posts[1].views).toEqual(2);
