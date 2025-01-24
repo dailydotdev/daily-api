@@ -30,7 +30,7 @@ export const postTranslated: TypedWorker<'kvasir.v1.post-translated'> = {
         .where('id = :id', { id })
         .execute();
 
-      logger.info(
+      logger.debug(
         { id, language, keys: Object.keys(translations) },
         '[postTranslated]: Post translation updated',
       );
