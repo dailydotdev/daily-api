@@ -37,9 +37,8 @@ Object {
         "type": "post",
       },
       Object {
-        "image": "https://email.buysellads.net/?k=CW7DE23N&i=1",
-        "link": "https://email.buysellads.net/?k=CW7DE23N&c=1",
-        "type": "ad_image",
+        "post_link": "https://app.daily.dev/plus?utm_source=notification&utm_medium=email&utm_campaign=digest",
+        "type": "ad_plus",
       },
       Object {
         "post_comments": 5,
@@ -139,9 +138,8 @@ Object {
         "type": "post",
       },
       Object {
-        "image": "https://email.buysellads.net/?k=CW7DE23N&i=1",
-        "link": "https://email.buysellads.net/?k=CW7DE23N&c=1",
-        "type": "ad_image",
+        "post_link": "https://app.daily.dev/plus?utm_source=notification&utm_medium=email&utm_campaign=digest",
+        "type": "ad_plus",
       },
       Object {
         "post_comments": 5,
@@ -261,9 +259,8 @@ Object {
         "type": "post",
       },
       Object {
-        "image": "https://email.buysellads.net/?k=CW7DE23N&i=1",
-        "link": "https://email.buysellads.net/?k=CW7DE23N&c=1",
-        "type": "ad_image",
+        "post_link": "https://app.daily.dev/plus?utm_source=notification&utm_medium=email&utm_campaign=digest",
+        "type": "ad_plus",
       },
       Object {
         "post_comments": 5,
@@ -383,9 +380,8 @@ Object {
         "type": "post",
       },
       Object {
-        "image": "https://email.buysellads.net/?k=CW7DE23N&i=1",
-        "link": "https://email.buysellads.net/?k=CW7DE23N&c=1",
-        "type": "ad_image",
+        "post_link": "https://app.daily.dev/plus?utm_source=notification&utm_medium=email&utm_campaign=digest",
+        "type": "ad_plus",
       },
       Object {
         "post_comments": 5,
@@ -505,9 +501,8 @@ Object {
         "type": "post",
       },
       Object {
-        "image": "https://email.buysellads.net/?k=CW7DE23N&i=1",
-        "link": "https://email.buysellads.net/?k=CW7DE23N&c=1",
-        "type": "ad_image",
+        "post_link": "https://app.daily.dev/plus?utm_source=notification&utm_medium=email&utm_campaign=digest",
+        "type": "ad_plus",
       },
       Object {
         "post_comments": 5,
@@ -627,9 +622,8 @@ Object {
         "type": "post",
       },
       Object {
-        "image": "https://email.buysellads.net/?k=CW7DE23N&i=1",
-        "link": "https://email.buysellads.net/?k=CW7DE23N&c=1",
-        "type": "ad_image",
+        "post_link": "https://app.daily.dev/plus?utm_source=notification&utm_medium=email&utm_campaign=digest",
+        "type": "ad_plus",
       },
       Object {
         "post_comments": 5,
