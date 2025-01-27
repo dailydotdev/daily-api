@@ -6,6 +6,7 @@ import { Post, SharePost, Source } from '../../src/entity';
 import { postsFixture, sharedPostsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture';
 import { workers } from '../../src/workers';
+import { DELETED_BY_WORKER } from '../../src/common';
 
 let con: DataSource;
 beforeEach(async () => {
@@ -34,6 +35,20 @@ beforeEach(async () => {
       };
     }),
   );
+  await saveFixtures(
+    con,
+    SharePost,
+    sharedPostsFixture.map((item) => {
+      return {
+        ...item,
+        id: `pdspc-nc-${item.id}`,
+        shortId: `pdspcns1`,
+        sharedPostId: `pdspc-p2`,
+        title: null,
+        titleHtml: null,
+      };
+    }),
+  );
 });
 
 describe('postDeletedSharedPostCleanup worker', () => {
@@ -49,7 +64,23 @@ describe('postDeletedSharedPostCleanup worker', () => {
     expect(registeredWorker).toBeDefined();
   });
 
-  it('should set shared post to not show on feed if post gets deleted', async () => {
+  it('should set shared post with no commentary to not show on feed and be shadow banned if post gets deleted', async () => {
+    await expectSuccessfulBackground(worker, {
+      post: {
+        id: 'pdspc-p2',
+      },
+    });
+    const sharedPost = await con.getRepository(SharePost).findOneBy({
+      id: 'pdspc-nc-squadP1',
+    });
+    expect(sharedPost?.sharedPostId).toBe('404');
+    expect(sharedPost?.deleted).toBe(true);
+    expect(sharedPost?.flags?.deletedBy).toBe(DELETED_BY_WORKER);
+    expect(sharedPost?.showOnFeed).toBe(false);
+    expect(sharedPost?.flags?.showOnFeed).toEqual(false);
+  });
+
+  it('should set shared post with commentary to not show on feed if post gets deleted', async () => {
     await expectSuccessfulBackground(worker, {
       post: {
         id: 'pdspc-p1',
@@ -58,6 +89,8 @@ describe('postDeletedSharedPostCleanup worker', () => {
     const sharedPost = await con.getRepository(SharePost).findOneBy({
       id: 'pdspc-squadP1',
     });
+    expect(sharedPost?.sharedPostId).toBe('404');
+    expect(sharedPost?.deleted).toBe(false);
     expect(sharedPost?.showOnFeed).toBe(false);
     expect(sharedPost?.flags?.showOnFeed).toEqual(false);
   });
