@@ -2,6 +2,7 @@ import * as matchers from 'jest-extended';
 import '../src/config';
 import createOrGetConnection from '../src/db';
 import { remoteConfig } from '../src/remoteConfig';
+import { SubscriptionCycles } from '../src/paddle';
 
 expect.extend(matchers);
 
@@ -26,7 +27,7 @@ jest.mock('../src/remoteConfig', () => ({
       vordrIps: ['192.0.2.0/24', '198.51.100.0/24', '203.0.113.0/24'],
       ignoredWorkEmailDomains: ['igored.com', 'ignored.org'],
       rateLimitReputationThreshold: 1,
-      pricingIds: { pricingGift: 'yearly' },
+      pricingIds: { pricingGift: SubscriptionCycles.Yearly },
       validLanguages: {
         en: 'English',
         es: 'Spanish',
