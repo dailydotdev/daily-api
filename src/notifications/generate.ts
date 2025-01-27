@@ -180,7 +180,7 @@ export const generateNotificationMap: Record<
       .avatarSource(ctx.source)
       .avatarUser(ctx.user)
       .referencePostModeration(ctx.post)
-      .targetSourceModeration(ctx.source),
+      .targetSourceModeration(),
   community_picks_failed: (builder, ctx: NotificationSubmissionContext) =>
     builder.systemNotification().referenceSubmission(ctx.submission),
   community_picks_succeeded: (builder, ctx: NotificationPostContext) =>

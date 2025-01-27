@@ -212,9 +212,11 @@ export class NotificationBuilder {
     });
   }
 
-  targetSourceModeration(source: Reference<Source>): NotificationBuilder {
+  targetSourceModeration(source?: Reference<Source>): NotificationBuilder {
     return this.enrichNotification({
-      targetUrl: `${getSourceLink(source)}/moderate`,
+      targetUrl: source
+        ? `${process.env.COMMENTS_PREFIX}/squads/moderate?handle=${source.handle}`
+        : `${process.env.COMMENTS_PREFIX}/squads/moderate`,
     });
   }
 
