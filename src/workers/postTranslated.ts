@@ -22,10 +22,14 @@ export const postTranslated: TypedWorker<'kvasir.v1.post-translated'> = {
         .set({
           translation: () => `jsonb_set(
           translation,
-          '{${language}}',
-          '${JSON.stringify(translations)}'::jsonb,
+          :language,
+          :translations::jsonb,
           true
         )`,
+        })
+        .setParameters({
+          language: [language],
+          translations: JSON.stringify(translations),
         })
         .where('id = :id', { id })
         .execute();
