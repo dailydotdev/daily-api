@@ -303,3 +303,32 @@ describe('updateFeedFeedbackReminder', () => {
     expect(isSameDay(alerts.lastFeedSettingsFeedback, new Date())).toBeTruthy();
   });
 });
+
+describe('show_gifted_plus', () => {
+  it('should set the alerts showPlusGift to true', async () => {
+    const before = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+    expect(before.showPlusGift).toBeFalsy();
+
+    await con
+      .getRepository(User)
+      .update({ id: '1' }, { subscriptionFlags: { gifterId: '2' } });
+
+    const after = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+    expect(after.showPlusGift).toBeTruthy();
+  });
+
+  it('should NOT set the alerts showPlusGift to true', async () => {
+    const before = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+    expect(before.showPlusGift).toBeFalsy();
+
+    await con
+      .getRepository(User)
+      .update(
+        { id: '1' },
+        { subscriptionFlags: { subscriptionId: 'some random id' } },
+      );
+
+    const after = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+    expect(after.showPlusGift).toBeFalsy();
+  });
+});
