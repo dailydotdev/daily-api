@@ -11,7 +11,12 @@ import {
 import { User } from '../user';
 import { PostKeyword } from '../PostKeyword';
 import { ArticlePost } from './ArticlePost';
-import { Post, PostOrigin } from './Post';
+import {
+  Post,
+  PostOrigin,
+  translateablePostFields,
+  type TranslateablePostField,
+} from './Post';
 import { MAX_COMMENTARY_LENGTH, SharePost } from './SharePost';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { Source, UNKNOWN_SOURCE } from '../Source';
@@ -602,4 +607,27 @@ export const normalizeCollectionPostSources = async ({
 
 export const getPostVisible = ({ post }: { post: Pick<Post, 'title'> }) => {
   return !!post?.title?.length;
+};
+
+export const clearPostTranslations = async (
+  con: DataSource,
+  postId: string,
+  field: TranslateablePostField,
+) => {
+  if (!translateablePostFields.includes(field)) {
+    throw new Error('Invalid field');
+  }
+
+  await con
+    .getRepository(Post)
+    .createQueryBuilder()
+    .update(Post)
+    .set({
+      translation: () => `(
+SELECT jsonb_object_agg(key, value - '${field}')
+FROM jsonb_each(translation)
+)`,
+    })
+    .where('id = :id', { id: postId })
+    .execute();
 };
