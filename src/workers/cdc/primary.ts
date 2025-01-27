@@ -11,6 +11,7 @@ import {
   Alerts,
   UserTopReader,
   SquadSource,
+  clearPostTranslations,
 } from '../../entity';
 import { messageToJson, Worker } from '../worker';
 import {
@@ -86,6 +87,7 @@ import {
   notifySourceReport,
   DayOfWeek,
   processApprovedModeratedPost,
+  notifyReportUser,
 } from '../../common';
 import { ChangeMessage, ChangeObject, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
@@ -117,6 +119,7 @@ import {
   postReportReasonsMap,
   reportCommentReasonsMap,
   sourceReportReasonsMap,
+  userReportReasonsMap,
 } from '../../entity/common';
 import { utcToZonedTime } from 'date-fns-tz';
 import { SourceReport } from '../../entity/sources/SourceReport';
@@ -125,6 +128,7 @@ import {
   SourcePostModerationStatus,
 } from '../../entity/SourcePostModeration';
 import { cleanupSourcePostModerationNotifications } from '../../notifications/common';
+import { UserReport } from '../../entity/UserReport';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -585,6 +589,12 @@ const onPostChange = async (
           { metadataChangedAt: new Date() },
         );
     }
+
+    if (isChanged(data.payload.before!, data.payload.after!, 'title')) {
+      await clearPostTranslations(con, data.payload.after!.id, 'title');
+    }
+  } else if (data.payload.op === 'd') {
+    await notifyPostBannedOrRemoved(logger, data.payload.before!);
   }
 };
 
@@ -626,6 +636,16 @@ const onPostReportChange = async (
         data.payload.after!.tags,
       );
     }
+  }
+};
+
+const onUserReportChange = async (data: ChangeMessage<UserReport>) => {
+  if (data.payload.op === 'c') {
+    await notifyReportUser(
+      data.payload.after!.reportedUserId,
+      userReportReasonsMap.get(data.payload.after!.reason)!,
+      data.payload.after!.note,
+    );
   }
 };
 
@@ -1140,6 +1160,9 @@ const worker: Worker = {
           break;
         case getTableName(con, PostReport):
           await onPostReportChange(con, logger, data);
+          break;
+        case getTableName(con, UserReport):
+          await onUserReportChange(data);
           break;
         case getTableName(con, SourceReport):
           await onSourceReportChange(con, logger, data);

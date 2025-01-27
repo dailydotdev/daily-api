@@ -125,6 +125,7 @@ export interface GQLUpdateUserInput {
   threads?: string;
   codepen?: string;
   reddit?: string;
+  bluesky?: string;
   stackoverflow?: string;
   youtube?: string;
   linkedin?: string;
@@ -174,6 +175,7 @@ export interface GQLUser {
   cover?: string | null;
   readme?: string;
   readmeHtml?: string;
+  bluesky?: string;
   experienceLevel?: string | null;
   language?: ContentLanguage | null;
   topReader?: GQLUserTopReader;
@@ -362,6 +364,10 @@ export const typeDefs = /* GraphQL */ `
     """
     mastodon: String
     """
+    Bluesky profile of the user
+    """
+    bluesky: String
+    """
     Portfolio URL of the user
     """
     portfolio: String
@@ -471,6 +477,10 @@ export const typeDefs = /* GraphQL */ `
     Hashnode handle of the user
     """
     hashnode: String
+    """
+    Bluesky profile of the user
+    """
+    bluesky: String
     """
     Roadmap profile of the user
     """
@@ -677,7 +687,12 @@ export const typeDefs = /* GraphQL */ `
     total: Int
     current: Int
     lastViewAt: DateTime
+
+    """
+    Deprecated and not needed anymore, bc for older clients
+    """
     lastViewAtTz: DateTime
+
     weekStart: Int
   }
 
@@ -791,7 +806,16 @@ export const typeDefs = /* GraphQL */ `
     """
     Get a heatmap of reads per day in a given time frame.
     """
-    userReadHistory(id: ID!, after: String!, before: String!): [ReadHistory]
+    userReadHistory(
+      id: ID!
+      after: String!
+      before: String!
+
+      """
+      Group by day stamp yyyy-MM-dd
+      """
+      grouped: Boolean
+    ): [ReadHistory]
     """
     Get the number of articles the user read
     """
@@ -1100,16 +1124,32 @@ export const getUserReadHistory = async ({
   userId,
   after,
   before,
+  grouped,
 }: {
   con: DataSource;
   userId: string;
   after: Date;
   before: Date;
+  grouped?: boolean;
 }) => {
-  return con
+  const readHistoryQuery = con
     .getRepository(ActiveView)
-    .createQueryBuilder('view')
-    .select(`date_trunc('day', ${timestampAtTimezone})::date::text`, 'date')
+    .createQueryBuilder('view');
+
+  if (grouped) {
+    readHistoryQuery.select(
+      `date_trunc('day', ${timestampAtTimezone})::date::text`,
+      'date',
+    );
+  } else {
+    // format to ISO 8601 because we can't use DateTime of gql due to grouped format
+    readHistoryQuery.select(
+      `to_char(view.timestamp, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`,
+      'date',
+    );
+  }
+
+  return readHistoryQuery
     .addSelect(`count(*) AS "reads"`)
     .innerJoin(User, 'user', 'user.id = view.userId')
     .where('view.userId = :userId', { userId })
@@ -1125,6 +1165,7 @@ interface ReadingHistyoryArgs {
   after: string;
   before: string;
   limit?: number;
+  grouped?: boolean;
 }
 
 interface userStreakProfileArgs {
@@ -1219,6 +1260,7 @@ const getUserStreakQuery = async (
   return await graphorm.queryOne<GQLUserStreakTz>(ctx, info, (builder) => ({
     ...builder,
     queryBuilder: builder.queryBuilder
+      // deprecated and not needed anymore, bc for older clients
       .addSelect(
         `(date_trunc('day', "${builder.alias}"."lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date)`,
         'lastViewAtTz',
@@ -1437,7 +1479,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     userReadHistory: async (
       source,
-      { id, after, before }: ReadingHistyoryArgs,
+      { id, after, before, grouped }: ReadingHistyoryArgs,
       ctx: Context,
     ): Promise<GQLReadingRankHistory[]> =>
       getUserReadHistory({
@@ -1445,6 +1487,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         userId: id,
         after: new Date(after),
         before: new Date(before),
+        grouped,
       }),
     userStreak: async (
       _,
@@ -1887,6 +1930,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             'stackoverflow',
             'youtube',
             'linkedin',
+            'bluesky',
             'mastodon',
           ];
 

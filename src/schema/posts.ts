@@ -68,6 +68,7 @@ import {
   SubmitExternalLinkArgs,
   UserAction,
   Settings,
+  type PostTranslation,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -111,6 +112,7 @@ import { Source } from '@dailydotdev/schema';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { remoteConfig } from '../remoteConfig';
 import { ensurePostRateLimit } from '../common/rateLimit';
+import { whereNotUserBlocked } from '../common/contentPreference';
 
 export interface GQLSourcePostModeration {
   id: string;
@@ -173,6 +175,7 @@ export interface GQLPost {
   flags?: PostFlagsPublic;
   userState?: GQLUserPost;
   slug?: string;
+  translations?: Partial<Record<keyof PostTranslation, boolean>>;
 }
 
 interface PinPostArgs {
@@ -407,6 +410,10 @@ export const typeDefs = /* GraphQL */ `
     user: User!
 
     post: Post!
+  }
+
+  type PostTranslation {
+    title: Boolean
   }
 
   """
@@ -657,6 +664,11 @@ export const typeDefs = /* GraphQL */ `
     Whether the post title is detected as clickbait
     """
     clickbaitTitleDetected: Boolean
+
+    """
+    List of available translations for the post
+    """
+    translation: PostTranslation
   }
 
   type PostConnection {
@@ -1028,7 +1040,7 @@ export const typeDefs = /* GraphQL */ `
       Content of the post
       """
       content: String
-    ): Post! @auth @rateLimit(limit: 1, duration: 60)
+    ): Post! @auth @rateLimit(limit: 1, duration: 30)
 
     """
     To allow user to edit posts
@@ -1171,7 +1183,7 @@ export const typeDefs = /* GraphQL */ `
       Commentary for the share
       """
       commentary: String
-    ): EmptyResponse @auth @rateLimit(limit: 1, duration: 60)
+    ): EmptyResponse @auth @rateLimit(limit: 1, duration: 30)
 
     """
     Share post to source
@@ -1189,7 +1201,7 @@ export const typeDefs = /* GraphQL */ `
       Source to share the post to
       """
       sourceId: ID!
-    ): Post @auth @rateLimit(limit: 1, duration: 60)
+    ): Post @auth @rateLimit(limit: 1, duration: 30)
 
     """
     Update share type post
@@ -1641,6 +1653,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 postId: args.id,
               })
               .andWhere(`${builder.alias}.vote = 1`);
+
+            if (ctx.userId) {
+              builder.queryBuilder.andWhere(
+                whereNotUserBlocked(builder.queryBuilder, {
+                  userId: ctx.userId,
+                }),
+              );
+            }
 
             return builder;
           },

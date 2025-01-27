@@ -38,6 +38,7 @@ import {
 import { ghostUser } from '../src/common';
 import { ContentPreferenceKeyword } from '../src/entity/contentPreference/ContentPreferenceKeyword';
 import { ContentPreferenceWord } from '../src/entity/contentPreference/ContentPreferenceWord';
+import { ContentPreference } from '../src/entity/contentPreference/ContentPreference';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -245,7 +246,7 @@ describe('query userFollowers', () => {
         feedId: '4-ufq',
         referenceId: '1-ufq',
         referenceUserId: '1-ufq',
-        status: ContentPreferenceStatus.Follow,
+        status: ContentPreferenceStatus.Blocked,
         createdAt: new Date(now.getTime() - 4000),
       },
     ]);
@@ -282,15 +283,6 @@ describe('query userFollowers', () => {
               },
             },
           },
-          {
-            node: {
-              referenceId: '1-ufq',
-              status: 'follow',
-              user: {
-                id: '4-ufq',
-              },
-            },
-          },
         ],
       },
     });
@@ -312,6 +304,44 @@ describe('query userFollowers', () => {
     expect(res.data).toEqual({
       userFollowers: {
         edges: [],
+      },
+    });
+  });
+
+  it('should hide blocked users for the requesting user', async () => {
+    // logged as user 2, user 3 is blocked
+    loggedUser = `2-ufq`;
+    const blockedUserId = `3-ufq`;
+    await con.getRepository(ContentPreference).save({
+      userId: loggedUser,
+      referenceId: blockedUserId,
+      status: ContentPreferenceStatus.Blocked,
+      type: ContentPreferenceType.User,
+      feedId: loggedUser,
+    });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        id: '1-ufq',
+        entity: ContentPreferenceType.User,
+        feedId: '1-ufq',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      userFollowers: {
+        edges: [
+          {
+            node: {
+              referenceId: '1-ufq',
+              status: 'follow',
+              user: {
+                id: '2-ufq',
+              },
+            },
+          },
+        ],
       },
     });
   });
@@ -386,7 +416,7 @@ describe('query userFollowing', () => {
         feedId: '1-ufwq',
         referenceId: '4-ufwq',
         referenceUserId: '4-ufwq',
-        status: ContentPreferenceStatus.Follow,
+        status: ContentPreferenceStatus.Blocked,
         createdAt: new Date(now.getTime() - 4000),
       },
     ]);
@@ -424,15 +454,6 @@ describe('query userFollowing', () => {
               },
             },
           },
-          {
-            node: {
-              referenceId: '4-ufwq',
-              status: 'follow',
-              user: {
-                id: '1-ufwq',
-              },
-            },
-          },
         ],
       },
     });
@@ -464,15 +485,6 @@ describe('query userFollowing', () => {
             node: {
               referenceId: '3-ufwq',
               status: 'subscribed',
-              user: {
-                id: '1-ufwq',
-              },
-            },
-          },
-          {
-            node: {
-              referenceId: '4-ufwq',
-              status: 'follow',
               user: {
                 id: '1-ufwq',
               },
@@ -543,6 +555,45 @@ describe('query userFollowing', () => {
     expect(res.data).toEqual({
       userFollowing: {
         edges: [],
+      },
+    });
+  });
+
+  it('should hide blocked users for the requesting user', async () => {
+    // logged as user 2, user 3 is blocked
+    loggedUser = `2-ufwq`;
+    const blockedUserId = `3-ufwq`;
+    await con.getRepository(ContentPreference).save({
+      userId: loggedUser,
+      referenceId: blockedUserId,
+      status: ContentPreferenceStatus.Blocked,
+      type: ContentPreferenceType.User,
+      feedId: loggedUser,
+    });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        id: '1-ufwq',
+        entity: ContentPreferenceType.User,
+        feedId: '1-ufwq',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data).toEqual({
+      userFollowing: {
+        edges: [
+          {
+            node: {
+              referenceId: '2-ufwq',
+              status: 'follow',
+              user: {
+                id: '1-ufwq',
+              },
+            },
+          },
+        ],
       },
     });
   });

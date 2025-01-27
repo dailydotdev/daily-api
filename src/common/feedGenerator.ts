@@ -101,7 +101,7 @@ type RawFiltersData = {
     | null;
   tags: Pick<ContentPreferenceKeyword, 'keywordId' | 'status'>[] | null;
   words: Pick<ContentPreferenceWord, 'referenceId'>[] | null;
-  users: Pick<ContentPreferenceUser, 'referenceId'>[] | null;
+  users: Pick<ContentPreferenceUser, 'referenceId' | 'status'>[] | null;
   sources: Pick<ContentPreferenceSource, 'sourceId' | 'status'>[] | null;
   memberships: { sourceId: SourceMember['sourceId']; hide: boolean }[] | null;
   feeds: Pick<Feed, 'flags' | 'type'>[] | null;
@@ -136,12 +136,11 @@ const getRawFiltersData = async (
     ),
     rawFilterSelect(con, 'users', (qb) =>
       qb
-        .select('"referenceId"')
+        .select(['"referenceId"', 'status'])
         .from(ContentPreference, 'u')
         .where('"feedId" = $1')
         .andWhere('"userId" = $2')
-        .andWhere(`type = '${ContentPreferenceType.User}'`)
-        .andWhere(`status != '${ContentPreferenceStatus.Blocked}'`),
+        .andWhere(`type = '${ContentPreferenceType.User}'`),
     ),
     rawFilterSelect(con, 'sources', (qb) =>
       qb
@@ -253,15 +252,17 @@ const wordsToFilters = ({
 
 const usersToFilters = ({
   users,
-}: RawFiltersData): {
-  followingUsers: string[];
-} => {
+}: RawFiltersData): Record<'followingUsers' | 'excludeUsers', string[]> => {
   return (users || []).reduce<ReturnType<typeof usersToFilters>>(
-    (acc, value) => {
-      acc.followingUsers.push(value.referenceId);
+    (acc, { referenceId, status }) => {
+      if (status === ContentPreferenceStatus.Blocked) {
+        acc.excludeUsers.push(referenceId);
+      } else {
+        acc.followingUsers.push(referenceId);
+      }
       return acc;
     },
-    { followingUsers: [] },
+    { followingUsers: [], excludeUsers: [] },
   );
 };
 
@@ -662,6 +663,7 @@ export interface AnonymousFeedFilters {
   blockedWords?: string[];
   excludeSourceTypes?: string[];
   followingUsers?: string[];
+  excludeUsers?: string[];
   followingSources?: string[];
   flags?: FeedFlagsFilters;
 }

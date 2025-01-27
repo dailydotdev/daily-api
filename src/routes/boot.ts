@@ -63,6 +63,7 @@ import { maxFeedsPerUser } from '../types';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { queryDataSource } from '../common/queryDataSource';
 import { isPlusMember } from '../paddle';
+import { Continent, countryCodeToContinent } from '../common/geo';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -79,6 +80,7 @@ export type Experimentation = {
 
 export type Geo = {
   region?: string;
+  continent?: Continent;
 };
 
 interface ComputedAlerts {
@@ -136,8 +138,11 @@ type BootMiddleware = (
 ) => Promise<Record<string, unknown>>;
 
 const geoSection = (req: FastifyRequest): BaseBoot['geo'] => {
+  const region = req.headers['x-client-region'] as string;
+
   return {
-    region: req.headers['x-client-region'] as string,
+    region,
+    continent: countryCodeToContinent[region],
   };
 };
 
@@ -401,6 +406,7 @@ const getUser = (
       'reputation',
       'bio',
       'twitter',
+      'bluesky',
       'github',
       'portfolio',
       'hashnode',

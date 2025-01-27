@@ -79,6 +79,7 @@ import {
   type GQLUserTopReader,
   UploadPreset,
   updateSubscriptionFlags,
+  bskySocialUrlMatch,
 } from '../src/common';
 import { DataSource, In, IsNull } from 'typeorm';
 import createOrGetConnection from '../src/db';
@@ -2778,47 +2779,6 @@ describe('query userReadHistory', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.userReadHistory).toMatchSnapshot();
   });
-
-  it('should return the timezone based read history', async () => {
-    loggedUser = '1';
-    const loggedUserTimezonded = '2';
-    const thisWeekStartTimezoned = getTimezonedStartOfISOWeek({
-      date: thisWeekStart,
-      timezone: userTimezone,
-    });
-    await con.getRepository(View).save([
-      {
-        userId: loggedUser,
-        postId: 'p1',
-        timestamp: subHours(thisWeekStart, 5),
-      },
-      {
-        userId: loggedUserTimezonded,
-        postId: 'p1',
-        timestamp: subHours(thisWeekStartTimezoned, 5),
-      },
-    ]);
-    const res = await client.query(QUERY, {
-      variables: {
-        id: '1',
-        after: lastThreeWeeksStart.toISOString(),
-        before: now.toISOString(),
-      },
-    });
-    expect(res.errors).toBeFalsy();
-    expect(res.data.userReadHistory).toMatchSnapshot();
-    expect(res.data.userReadHistory[0].date).toBe('2021-04-25');
-
-    const resPacific = await client.query(QUERY, {
-      variables: {
-        id: loggedUserTimezonded,
-        after: lastThreeWeeksStart.toISOString(),
-        before: now.toISOString(),
-      },
-    });
-    expect(resPacific.errors).toBeFalsy();
-    expect(resPacific.data.userReadHistory[0].date).toBe('2021-04-25');
-  });
 });
 
 describe('query public readHistory', () => {
@@ -3707,6 +3667,33 @@ describe('mutation updateUserProfile', () => {
 
     invalid.forEach((item) => {
       expect(twitterSocialUrlMatch.test(item)).toBe(false);
+    });
+  });
+
+  it('should validate bluesky handle', () => {
+    const valid = [
+      'https://bsky.app/profile/amar.com',
+      'https://bsky.app/profile/amartrebinjac.bsky.social',
+      'bsky.app/profile/user.example.com',
+      'www.bsky.app/profile/test.bsky.social',
+      'amar.com',
+      'amartrebinjac.bsky.social',
+      'user.example.com',
+    ];
+
+    const invalid = [
+      'https://bsky.app/amar.com',
+      'https://bsky.app/amar/',
+      'https://bsky.app/',
+      '#amar.com',
+    ];
+
+    valid.forEach((item) => {
+      expect(bskySocialUrlMatch.test(item)).toBe(true);
+    });
+
+    invalid.forEach((item) => {
+      expect(bskySocialUrlMatch.test(item)).toBe(false);
     });
   });
 

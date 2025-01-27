@@ -572,20 +572,18 @@ describe('query sources', () => {
       },
     );
     await saveMembers('a', ['3']);
-    await saveMembers('b', ['1']);
+    await saveMembers('b', ['1', '2']);
     await saveMembers('c', ['1', '2', '3', '4']);
 
     const query = QUERY({ first: 10, sortByMembersCount: true });
     const res = await client.query(query);
     expect(res.errors).toBeFalsy();
 
-    expect(res.data.sources.edges.map(({ node }) => node.id)).toEqual([
-      'c',
-      'a',
-      'b',
-      'squad',
-      'm',
-    ]);
+    expect(
+      res.data.sources.edges
+        .filter(({ node }) => ['a', 'b', 'c'].includes(node.id))
+        .map(({ node }) => node.id),
+    ).toEqual(['c', 'b', 'a']);
   });
 
   it('should not order by members count without the right parameter', async () => {

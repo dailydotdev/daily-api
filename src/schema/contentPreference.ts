@@ -16,6 +16,7 @@ import {
   followEntity,
   unblockEntity,
   unfollowEntity,
+  whereNotUserBlocked,
 } from '../common/contentPreference';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import graphorm from '../graphorm';
@@ -296,9 +297,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             .andWhere(`${builder.alias}."type" = :type`, {
               type: args.entity,
             })
+            .andWhere(`${builder.alias}."status" != :status`, {
+              status: ContentPreferenceStatus.Blocked,
+            })
             .limit(page.limit)
             .offset(page.offset)
             .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
+
+          if (ctx.userId) {
+            builder.queryBuilder.andWhere(
+              whereNotUserBlocked(builder.queryBuilder, {
+                userId: ctx.userId,
+              }),
+            );
+          }
 
           return builder;
         },
@@ -353,6 +365,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             .limit(page.limit)
             .offset(page.offset)
             .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
+
+          if (ctx.userId) {
+            builder.queryBuilder.andWhere(
+              whereNotUserBlocked(builder.queryBuilder, {
+                userId: ctx.userId,
+                columnName: `referenceId`,
+              }),
+            );
+          }
 
           return builder;
         },

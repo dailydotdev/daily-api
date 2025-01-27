@@ -557,7 +557,10 @@ export enum LogoutReason {
   KratosSessionAlreadyAvailable = 'kratos session already available',
 }
 
-const getAbsoluteDifferenceInDays: typeof differenceInDays = (date1, date2) => {
+export const getAbsoluteDifferenceInDays: typeof differenceInDays = (
+  date1,
+  date2,
+) => {
   const day1 = startOfDay(date1);
   const day2 = startOfDay(date2);
 
@@ -621,5 +624,8 @@ export const mastodonSocialUrlMatch =
 
 export const socialUrlMatch =
   /^(?<value>https:\/\/(?:[a-z0-9-]{1,50}\.){0,5}[a-z0-9-]{1,50}\.[a-z]{2,24}\b([-a-zA-Z0-9@:%_+.~#?&\/=]*))$/;
+
+export const bskySocialUrlMatch =
+  /^(?:(?:https:\/\/)?(?:www\.)?bsky\.app\/profile\/)?(?<value>[\w.-]+)(?:\/.*)?$/;
 
 export const portfolioLimit = 500;

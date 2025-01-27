@@ -16,6 +16,8 @@ import {
   SettingsFlagsPublic,
   UserStats,
   UserSubscriptionFlags,
+  type PostTranslation,
+  translateablePostFields,
 } from '../entity';
 import {
   SourceMemberRoles,
@@ -29,7 +31,7 @@ import { base64, domainOnly, getSmartTitle, transformDate } from '../common';
 import { GQLComment } from '../schema/comments';
 import { GQLUserPost } from '../schema/posts';
 import { UserComment } from '../entity/user/UserComment';
-import { type I18nRecord, UserVote } from '../types';
+import { type ContentLanguage, type I18nRecord, UserVote } from '../types';
 import { whereVordrFilter } from '../common/vordr';
 import { UserCompany, Post } from '../entity';
 import {
@@ -41,6 +43,7 @@ import { ContentPreferenceSource } from '../entity/contentPreference/ContentPref
 import { ContentPreference } from '../entity/contentPreference/ContentPreference';
 import { isPlusMember } from '../paddle';
 import { remoteConfig } from '../remoteConfig';
+import { whereNotUserBlocked } from '../common/contentPreference';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -82,23 +85,36 @@ const checkIfTitleIsClickbait = (value?: string): boolean => {
   return clickbaitProbability > threshold;
 };
 
+const shouldUseNewTranslation = (ctx: Context) =>
+  ctx.isTeamMember || remoteConfig.vars.useNewTranslation;
+
 const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
   return {
     select: field,
     transform: async (value: string, ctx: Context, parent) => {
+      if (!ctx.userId) {
+        return value;
+      }
+
       const typedParent = parent as {
         i18nTitle: I18nRecord;
         smartTitle: I18nRecord;
         clickbaitProbability?: string;
         manualClickbaitProbability?: string;
+        translation: Partial<Record<ContentLanguage, PostTranslation>>;
         [key: string]: unknown;
       };
 
       const settings = await ctx.dataLoader.userSettings.load({
-        userId: ctx.userId!,
+        userId: ctx.userId,
       });
 
-      const i18nValue = typedParent.i18nTitle?.[ctx.contentLanguage];
+      const i18nValue = ctx.contentLanguage
+        ? shouldUseNewTranslation(ctx)
+          ? typedParent.translation?.[ctx.contentLanguage]?.title
+          : typedParent.i18nTitle?.[ctx.contentLanguage]
+        : undefined;
+
       const altValue = getSmartTitle(
         ctx.contentLanguage,
         typedParent.smartTitle,
@@ -296,6 +312,7 @@ const obj = new GraphORM({
       'private',
       'type',
       'slug',
+      'translation',
       {
         column: `"contentMeta"->'translate_title'->'translations'`,
         columnAs: 'i18nTitle',
@@ -486,6 +503,29 @@ const obj = new GraphORM({
       title: createSmartTitleField({
         field: 'title',
       }),
+      translation: {
+        jsonType: true,
+        transform: (
+          translations: Partial<Record<ContentLanguage, PostTranslation>>,
+          ctx: Context,
+        ): Partial<Record<keyof PostTranslation, boolean>> => {
+          const translation = ctx.contentLanguage
+            ? translations[ctx.contentLanguage]
+            : undefined;
+
+          if (!translation) {
+            return {};
+          }
+
+          return translateablePostFields.reduce(
+            (acc: Record<string, boolean>, field) => {
+              acc[field] = !!translation[field];
+              return acc;
+            },
+            {},
+          );
+        },
+      },
     },
   },
   SourceCategory: {
@@ -663,9 +703,19 @@ const obj = new GraphORM({
           order: 'ASC',
           sort: 'createdAt',
           customRelation(ctx, parentAlias, childAlias, qb) {
-            return qb
+            const builder = qb
               .where(`"${childAlias}"."parentId" = "${parentAlias}"."id"`)
               .andWhere(whereVordrFilter(childAlias, ctx.userId));
+
+            if (ctx.userId) {
+              builder.andWhere(
+                whereNotUserBlocked(qb, {
+                  userId: ctx.userId,
+                }),
+              );
+            }
+
+            return builder;
           },
         },
         pagination: {

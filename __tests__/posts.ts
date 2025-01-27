@@ -14,7 +14,9 @@ import {
   ArticlePost,
   Bookmark,
   BookmarkList,
+  clearPostTranslations,
   Comment,
+  Feed,
   FreeformPost,
   Post,
   PostMention,
@@ -83,6 +85,11 @@ import { generateUUID } from '../src/ids';
 import { GQLResponse } from 'mercurius-integration-testing';
 import type { GQLPostSmartTitle } from '../src/schema/posts';
 import { SubscriptionCycles } from '../src/paddle';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../src/entity/contentPreference/types';
+import { ContentPreference } from '../src/entity/contentPreference/ContentPreference';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -817,6 +824,137 @@ describe('type field', () => {
   });
 });
 
+describe('translation field', () => {
+  beforeEach(async () => {
+    await saveFixtures(con, ArticlePost, [
+      {
+        id: 'p1-tf',
+        shortId: 'sp1-tf',
+        title: 'P1-tf',
+        url: 'http://p1-tf.com',
+        canonicalUrl: 'http://p1-tfc.com',
+        image: 'https://daily.dev/image.jpg',
+        score: 1,
+        sourceId: 'a',
+        tagsStr: 'javascript,webdev',
+        type: PostType.Article,
+        contentCuration: ['c1', 'c2'],
+      },
+    ]);
+  });
+
+  const QUERY = /* GraphQL */ `
+    {
+      post(id: "p1-tf") {
+        translation {
+          title
+        }
+      }
+    }
+  `;
+
+  it('should return false for fields when content-language header is not set', async () => {
+    const res = await client.query(QUERY);
+    expect(res.data.post.translation).toEqual({
+      title: null,
+    });
+  });
+
+  it('should return false for fields when translation does not exist', async () => {
+    await con.getRepository(ArticlePost).update('p1-tf', {
+      translation: {
+        es: {
+          title: 'Hola',
+        },
+      },
+    });
+    const res = await client.query(QUERY, {
+      headers: {
+        'content-language': 'de',
+      },
+    });
+    expect(res.data.post.translation).toEqual({
+      title: null,
+    });
+  });
+
+  it('should return true for fields when translation does exist', async () => {
+    await con.getRepository(ArticlePost).update('p1-tf', {
+      translation: {
+        es: {
+          title: 'Hola',
+        },
+      },
+    });
+    const res = await client.query(QUERY, {
+      headers: {
+        'content-language': 'es',
+      },
+    });
+    expect(res.data.post.translation).toEqual({
+      title: true,
+    });
+  });
+
+  describe('post updated', () => {
+    it('should clear post title translations when title is updated', async () => {
+      await con.getRepository(ArticlePost).update('p1-tf', {
+        translation: {
+          es: {
+            title: 'Hola',
+            body: 'Cuerpo',
+          },
+          de: {
+            title: 'Hallo',
+            body: 'Körper',
+          },
+        },
+      });
+
+      await clearPostTranslations(con, 'p1-tf', 'title');
+
+      const post = await con
+        .getRepository(ArticlePost)
+        .findOneByOrFail({ id: 'p1-tf' });
+
+      expect(post.translation).toEqual({
+        es: {
+          body: 'Cuerpo',
+        },
+        de: {
+          body: 'Körper',
+        },
+      });
+    });
+
+    it('should not fail when translation does not exist', async () => {
+      expect(
+        (await con.getRepository(ArticlePost).findOneByOrFail({ id: 'p1-tf' }))
+          .translation,
+      ).toEqual({});
+      await clearPostTranslations(con, 'p1-tf', 'title');
+      expect(
+        (await con.getRepository(ArticlePost).findOneByOrFail({ id: 'p1-tf' }))
+          .translation,
+      ).toEqual({});
+    });
+
+    it('should not fail when translation contains scalar value', async () => {
+      await con.getRepository(ArticlePost).update('p1-tf', {
+        translation: {
+          some: 'value',
+        },
+      });
+
+      await clearPostTranslations(con, 'p1-tf', 'title');
+      expect(
+        (await con.getRepository(ArticlePost).findOneByOrFail({ id: 'p1-tf' }))
+          .translation,
+      ).toEqual({ some: 'value' });
+    });
+  });
+});
+
 describe('freeformPost type', () => {
   const QUERY = `{
     post(id: "ff") {
@@ -1309,6 +1447,63 @@ describe('query postUpvotes', () => {
     expect(new Date(secondUpvote.node.votedAt).getTime()).toBeGreaterThan(
       new Date(firstUpvote.node.votedAt).getTime(),
     );
+  });
+
+  it('should return a list of upvoters that the logged user has not blocked', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(User).save([
+      {
+        id: '2',
+        name: 'Lee',
+        image: 'https://daily.dev/lee.jpg',
+      },
+      {
+        id: '3',
+        name: 'Ante',
+        image: 'https://daily.dev/ante.jpg',
+      },
+      {
+        id: '4',
+        name: 'Amar',
+        image: 'https://daily.dev/amar.jpg',
+      },
+    ]);
+
+    await con.getRepository(UserPost).save([
+      {
+        userId: '2',
+        postId: 'p1',
+        vote: UserVote.Up,
+      },
+      {
+        userId: '3',
+        postId: 'p1',
+        vote: UserVote.Up,
+      },
+      {
+        userId: '4',
+        postId: 'p1',
+        vote: UserVote.Up,
+      },
+    ]);
+
+    await con.getRepository(Feed).save({
+      id: '1',
+      userId: '1',
+    });
+
+    await con.getRepository(ContentPreference).save({
+      userId: '1',
+      feedId: '1',
+      type: ContentPreferenceType.User,
+      status: ContentPreferenceStatus.Blocked,
+      referenceId: '2',
+    });
+
+    const res = await client.query(QUERY, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.postUpvotes.edges.length).toEqual(2);
   });
 });
 
@@ -2283,12 +2478,12 @@ describe('mutation sharePost', () => {
         client,
         { mutation: MUTATION, variables: variables },
         'RATE_LIMITED',
-        'Take a break. You already posted enough in the last hour',
+        'Take a break. You already posted enough in the last 30 seconds',
       );
 
       // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
-      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(60);
-      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(50);
+      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(30);
+      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(20);
     });
 
     describe('high rate squads', () => {
@@ -2324,7 +2519,7 @@ describe('mutation sharePost', () => {
             variables: { ...variables, sourceId: WATERCOOLER_ID },
           },
           'RATE_LIMITED',
-          'Take a break. You already posted enough in the last ten minutes',
+          'Take a break. You already posted enough in the last 30 seconds',
         );
       });
     });
@@ -2905,12 +3100,12 @@ describe('mutation submitExternalLink', () => {
         client,
         { mutation: MUTATION, variables: variables },
         'RATE_LIMITED',
-        'Take a break. You already posted enough in the last hour',
+        'Take a break. You already posted enough in the last 30 seconds',
       );
 
       // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
-      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(60);
-      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(50);
+      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(30);
+      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(20);
     });
 
     describe('high rate squads', () => {
@@ -2954,7 +3149,7 @@ describe('mutation submitExternalLink', () => {
             },
           },
           'RATE_LIMITED',
-          'Take a break. You already posted enough in the last ten minutes',
+          'Take a break. You already posted enough in the last 30 seconds',
         );
       });
     });
@@ -3522,12 +3717,12 @@ describe('mutation createFreeformPost', () => {
         client,
         { mutation: MUTATION, variables: params },
         'RATE_LIMITED',
-        'Take a break. You already posted enough in the last hour',
+        'Take a break. You already posted enough in the last 30 seconds',
       );
 
       // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
-      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(60);
-      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(50);
+      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(30);
+      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(20);
     });
 
     describe('high rate squads', () => {
@@ -3563,7 +3758,7 @@ describe('mutation createFreeformPost', () => {
             variables: { ...params, sourceId: WATERCOOLER_ID },
           },
           'RATE_LIMITED',
-          'Take a break. You already posted enough in the last ten minutes',
+          'Take a break. You already posted enough in the last 30 seconds',
         );
       });
     });
@@ -5611,7 +5806,32 @@ describe('posts title field', () => {
     });
   });
 
+  it('should return original title when language is not set', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        contentMeta: {
+          translate_title: {
+            translations: {
+              en: 'P1 English',
+            },
+          },
+        },
+      },
+    );
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.post).toEqual({
+      title: 'P1',
+    });
+  });
+
   it('should return i18n title if exists', async () => {
+    loggedUser = '1';
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
@@ -5639,6 +5859,7 @@ describe('posts title field', () => {
   });
 
   it('should return default title if i18n title does not exist', async () => {
+    loggedUser = '1';
     const res = await client.query(QUERY, {
       headers: {
         'content-language': 'fr',
@@ -5653,6 +5874,7 @@ describe('posts title field', () => {
   });
 
   it('should return i18n title for cased language codes', async () => {
+    loggedUser = '1';
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
@@ -5676,6 +5898,88 @@ describe('posts title field', () => {
 
     expect(res.data.post).toEqual({
       title: 'P1 Portugal Brazil',
+    });
+  });
+
+  describe('new translation field', () => {
+    const QUERY_NTF = /* GraphQL */ `
+      {
+        post(id: "p1-ntf") {
+          title
+        }
+      }
+    `;
+
+    beforeEach(async () => {
+      await saveFixtures(con, ArticlePost, [
+        {
+          id: 'p1-ntf',
+          shortId: 'sp1-ntf',
+          title: 'P1-ntf',
+          url: 'http://p1-ntf.com',
+          canonicalUrl: 'http://p1-ntfc.com',
+          image: 'https://daily.dev/image.jpg',
+          score: 1,
+          sourceId: 'a',
+          tagsStr: 'javascript,webdev',
+          type: PostType.Article,
+          contentCuration: ['c1', 'c2'],
+        },
+      ]);
+    });
+
+    it('should return i18n title from new translation field when user is team member', async () => {
+      loggedUser = '1';
+      isTeamMember = true;
+      await con.getRepository(Post).update(
+        { id: 'p1-ntf' },
+        {
+          translation: {
+            'pt-BR': {
+              title: 'P1 Portugal Brazil',
+            },
+          },
+        },
+      );
+
+      const res = await client.query(QUERY_NTF, {
+        headers: {
+          'content-language': 'pt-BR',
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      expect(res.data.post).toEqual({
+        title: 'P1 Portugal Brazil',
+      });
+    });
+
+    it('should return original title from new translation field when user is team member', async () => {
+      loggedUser = '1';
+      isTeamMember = true;
+      await con.getRepository(Post).update(
+        { id: 'p1-ntf' },
+        {
+          translation: {
+            'pt-BR': {
+              title: 'P1 Portugal Brazil',
+            },
+          },
+        },
+      );
+
+      const res = await client.query(QUERY_NTF, {
+        headers: {
+          'content-language': 'pt-BR',
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      expect(res.data.post).toEqual({
+        title: 'P1 Portugal Brazil',
+      });
     });
   });
 

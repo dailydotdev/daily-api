@@ -15,7 +15,11 @@ import { postsFixture } from '../fixture/post';
 import { PostReport, ReputationEvent } from '../../src/entity';
 import { DataSource, LessThan } from 'typeorm';
 import createOrGetConnection from '../../src/db';
-import { createSquadWelcomePost, updateFlagsStatement } from '../../src/common';
+import {
+  createSquadWelcomePost,
+  DELETED_BY_WORKER,
+  updateFlagsStatement,
+} from '../../src/common';
 import { ReportReason } from '../../src/entity/common';
 
 let con: DataSource;
@@ -59,6 +63,23 @@ it('should create a reputation event that increases reputation', async () => {
   expect(events.length).toEqual(2);
   expect(events[0].amount).toEqual(100);
   expect(events[1].amount).toEqual(100);
+});
+
+it('should not create a reputation event if deleted by worker', async () => {
+  const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+  await expectSuccessfulBackground(worker, {
+    post: {
+      ...post,
+      flags: {
+        ...post.flags,
+        deletedBy: DELETED_BY_WORKER,
+      },
+    },
+  });
+  const events = await con
+    .getRepository(ReputationEvent)
+    .find({ where: { targetId: 'p1', grantById: '' } });
+  expect(events.length).toEqual(0);
 });
 
 const createSharedPost = async (id = 'sp1', args: Partial<Post> = {}) => {

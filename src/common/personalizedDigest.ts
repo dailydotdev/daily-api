@@ -153,9 +153,15 @@ const getEmailVariation = async ({
     !isPlusMember(user.subscriptionFlags?.cycle)
   ) {
     posts.splice(feature.adIndex, 0, {
-      type: 'ad_image',
-      link: `https://email.buysellads.net/?k=CW7DE23N&c=${user.id}`,
-      image: `https://email.buysellads.net/?k=CW7DE23N&i=${user.id}`,
+      // type: 'ad_image',
+      // link: `https://email.buysellads.net/?k=CW7DE23N&c=${user.id}`,
+      // image: `https://email.buysellads.net/?k=CW7DE23N&i=${user.id}`,
+      type: 'ad_plus',
+      post_link: addNotificationUtm(
+        'https://app.daily.dev/plus',
+        'email',
+        'digest',
+      ),
     });
   }
   const data = {
@@ -255,6 +261,7 @@ export const getPersonalizedDigestEmailPayload = async ({
       ) || [],
     page_size: feature.maxPosts,
     total_pages: 1,
+    blocked_author_ids: feedConfig.excludeUsers,
   };
   const feedResponse = await personalizedDigestFeedClient.fetchFeed(
     { log: logger },

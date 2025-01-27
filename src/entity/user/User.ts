@@ -29,6 +29,8 @@ export type UserSubscriptionFlags = Partial<{
   cycle: SubscriptionCycles;
   createdAt: Date;
   subscriptionId: string;
+  gifterId?: string;
+  giftExpirationDate?: Date;
 }>;
 
 @Entity()
@@ -121,6 +123,10 @@ export class User {
   @Index('users_mastodon_unique', { unique: true })
   mastodon?: string;
 
+  @Column({ length: 100, nullable: true })
+  @Index('users_bluesky_unique', { unique: true })
+  bluesky?: string;
+
   @Column({ type: 'text', nullable: true })
   portfolio?: string;
 
@@ -130,6 +136,9 @@ export class User {
 
   @Column({ default: false })
   devcardEligible: boolean;
+
+  @Column({ default: true })
+  cioRegistered: boolean;
 
   @Column({ type: 'text', nullable: true, default: DEFAULT_TIMEZONE })
   timezone?: string;

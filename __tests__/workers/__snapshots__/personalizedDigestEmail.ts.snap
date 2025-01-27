@@ -37,9 +37,8 @@ Object {
         "type": "post",
       },
       Object {
-        "image": "https://email.buysellads.net/?k=CW7DE23N&i=1",
-        "link": "https://email.buysellads.net/?k=CW7DE23N&c=1",
-        "type": "ad_image",
+        "post_link": "https://app.daily.dev/plus?utm_source=notification&utm_medium=email&utm_campaign=digest",
+        "type": "ad_plus",
       },
       Object {
         "post_comments": 5,
@@ -139,9 +138,8 @@ Object {
         "type": "post",
       },
       Object {
-        "image": "https://email.buysellads.net/?k=CW7DE23N&i=1",
-        "link": "https://email.buysellads.net/?k=CW7DE23N&c=1",
-        "type": "ad_image",
+        "post_link": "https://app.daily.dev/plus?utm_source=notification&utm_medium=email&utm_campaign=digest",
+        "type": "ad_plus",
       },
       Object {
         "post_comments": 5,
@@ -207,6 +205,7 @@ Object {
 exports[`personalizedDigestEmail worker should generate personalized digest for user in timezone ahead UTC 2`] = `
 Object {
   "allowed_tags": Array [],
+  "blocked_author_ids": Array [],
   "blocked_sources": Array [],
   "blocked_tags": Array [],
   "date_from": Any<String>,
@@ -260,9 +259,8 @@ Object {
         "type": "post",
       },
       Object {
-        "image": "https://email.buysellads.net/?k=CW7DE23N&i=1",
-        "link": "https://email.buysellads.net/?k=CW7DE23N&c=1",
-        "type": "ad_image",
+        "post_link": "https://app.daily.dev/plus?utm_source=notification&utm_medium=email&utm_campaign=digest",
+        "type": "ad_plus",
       },
       Object {
         "post_comments": 5,
@@ -328,6 +326,7 @@ Object {
 exports[`personalizedDigestEmail worker should generate personalized digest for user in timezone behind UTC 2`] = `
 Object {
   "allowed_tags": Array [],
+  "blocked_author_ids": Array [],
   "blocked_sources": Array [],
   "blocked_tags": Array [],
   "date_from": Any<String>,
@@ -381,9 +380,8 @@ Object {
         "type": "post",
       },
       Object {
-        "image": "https://email.buysellads.net/?k=CW7DE23N&i=1",
-        "link": "https://email.buysellads.net/?k=CW7DE23N&c=1",
-        "type": "ad_image",
+        "post_link": "https://app.daily.dev/plus?utm_source=notification&utm_medium=email&utm_campaign=digest",
+        "type": "ad_plus",
       },
       Object {
         "post_comments": 5,
@@ -449,6 +447,7 @@ Object {
 exports[`personalizedDigestEmail worker should generate personalized digest for user with provided config 2`] = `
 Object {
   "allowed_tags": Array [],
+  "blocked_author_ids": Array [],
   "blocked_sources": Array [],
   "blocked_tags": Array [],
   "date_from": Any<String>,
@@ -502,9 +501,8 @@ Object {
         "type": "post",
       },
       Object {
-        "image": "https://email.buysellads.net/?k=CW7DE23N&i=1",
-        "link": "https://email.buysellads.net/?k=CW7DE23N&c=1",
-        "type": "ad_image",
+        "post_link": "https://app.daily.dev/plus?utm_source=notification&utm_medium=email&utm_campaign=digest",
+        "type": "ad_plus",
       },
       Object {
         "post_comments": 5,
@@ -570,6 +568,7 @@ Object {
 exports[`personalizedDigestEmail worker should generate personalized digest for user with subscription 2`] = `
 Object {
   "allowed_tags": Array [],
+  "blocked_author_ids": Array [],
   "blocked_sources": Array [],
   "blocked_tags": Array [],
   "date_from": Any<String>,
@@ -623,9 +622,8 @@ Object {
         "type": "post",
       },
       Object {
-        "image": "https://email.buysellads.net/?k=CW7DE23N&i=1",
-        "link": "https://email.buysellads.net/?k=CW7DE23N&c=1",
-        "type": "ad_image",
+        "post_link": "https://app.daily.dev/plus?utm_source=notification&utm_medium=email&utm_campaign=digest",
+        "type": "ad_plus",
       },
       Object {
         "post_comments": 5,

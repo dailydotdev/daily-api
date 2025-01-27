@@ -7,6 +7,7 @@ type RemoteConfigValue = {
   inc: number;
   vordrWords: string[];
   vordrIps: string[];
+  blockedCountries: string[];
   ignoredWorkEmailDomains: string[];
   pricingIds: Record<string, SubscriptionCycles>;
   origins: string[];
@@ -15,6 +16,8 @@ type RemoteConfigValue = {
   rateLimitReputationThreshold: number;
   postRateLimit: number;
   commentRateLimit: number;
+  validLanguages: Record<string, string>;
+  useNewTranslation: boolean;
 };
 
 class RemoteConfig {

@@ -19,6 +19,8 @@ import {
 } from '../../integrations/analytics';
 import { JsonContains } from 'typeorm';
 import { paddleInstance } from '../../common/paddle';
+import { addMilliseconds } from 'date-fns';
+import { isPlusMember, subscriptionGiftDuration } from '../../paddle';
 
 const extractSubscriptionType = (
   items:
@@ -38,7 +40,12 @@ const extractSubscriptionType = (
   }, '');
 };
 
-const updateUserSubscription = async ({
+export interface PaddleCustomData {
+  user_id?: string;
+  gifter_id?: string;
+}
+
+export const updateUserSubscription = async ({
   data,
   state,
 }: {
@@ -53,7 +60,7 @@ const updateUserSubscription = async ({
     return;
   }
 
-  const customData = data.data?.customData as { user_id: string };
+  const customData: PaddleCustomData = data.data?.customData ?? {};
 
   const con = await createOrGetConnection();
   const userId = customData?.user_id;
@@ -74,6 +81,34 @@ const updateUserSubscription = async ({
     );
     return false;
   }
+
+  const { gifter_id: gifterId } = customData;
+  const duration = subscriptionGiftDuration;
+  const isGift = !!gifterId;
+  if (isGift) {
+    if (userId === gifterId) {
+      logger.error({ type: 'paddle', data }, 'User and gifter are the same');
+      return false;
+    }
+
+    const gifterUser = await con
+      .getRepository(User)
+      .findOneBy({ id: gifterId });
+    if (!gifterUser) {
+      logger.error({ type: 'paddle', data }, 'Gifter user not found');
+      return false;
+    }
+
+    const targetUser = await con.getRepository(User).findOne({
+      select: ['subscriptionFlags'],
+      where: { id: userId },
+    });
+    if (isPlusMember(targetUser?.subscriptionFlags?.cycle)) {
+      logger.error({ type: 'paddle', data }, 'User is already a Plus member');
+      return false;
+    }
+  }
+
   await con.getRepository(User).update(
     {
       id: userId,
@@ -83,6 +118,13 @@ const updateUserSubscription = async ({
         cycle: state ? subscriptionType : null,
         createdAt: state ? data.data?.startedAt : null,
         subscriptionId: state ? data.data?.id : null,
+        ...(isGift && {
+          gifterId,
+          giftExpirationDate: addMilliseconds(
+            new Date(),
+            duration,
+          ).toISOString(),
+        }),
       }),
     },
   );
@@ -199,7 +241,7 @@ const notifyNewPaddleTransaction = async ({
     userId: customData?.user_id,
     subscriptionId: 'subscriptionId' in data && data.subscriptionId,
   });
-
+  const origin = data?.origin;
   const productId = data?.items?.[0].price?.productId;
 
   const total = data?.items?.[0]?.price?.unitPrice?.amount || '0';
@@ -215,7 +257,10 @@ const notifyNewPaddleTransaction = async ({
         type: 'header',
         text: {
           type: 'plain_text',
-          text: 'New Plus subscriber :moneybag:',
+          text:
+            origin === 'subscription_recurring'
+              ? 'Recurring payment :pepemoney:'
+              : 'New Plus subscriber :moneybag:',
           emoji: true,
         },
       },
@@ -312,7 +357,7 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
 
         try {
           if (signature && rawRequestBody) {
-            const eventData = paddleInstance.webhooks.unmarshal(
+            const eventData = await paddleInstance.webhooks.unmarshal(
               rawRequestBody,
               secretKey,
               signature,

@@ -9,15 +9,17 @@ import {
   testQueryErrorCode,
 } from './helpers';
 import {
+  ArticlePost,
+  Comment,
+  CommentMention,
+  Feed,
+  FeedType,
   Post,
   PostTag,
   Source,
-  Comment,
-  User,
-  ArticlePost,
   SourceMember,
   SourceType,
-  CommentMention,
+  User,
 } from '../src/entity';
 import { SourceMemberRoles } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
@@ -28,6 +30,7 @@ import {
 } from './fixture/post';
 import { getMentionLink } from '../src/common/markdown';
 import {
+  GQLComment,
   saveComment,
   SortCommentsBy,
   updateMentions,
@@ -44,6 +47,12 @@ import {
   getRedisObjectExpiry,
 } from '../src/redis';
 import { badUsersFixture } from './fixture';
+import { ContentPreference } from '../src/entity/contentPreference/ContentPreference';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../src/entity/contentPreference/types';
+import { Connection } from 'graphql-relay';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -296,6 +305,54 @@ describe('query postComments', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.postComments.edges.length).toEqual(4);
   });
+
+  it('should filter out comment that are from blocked users', async () => {
+    loggedUser = '1';
+    const blockedUserId = '2';
+
+    const beforeBlock = await client.query<
+      { postComments: Connection<GQLComment> },
+      {
+        postId: string;
+      }
+    >(QUERY, {
+      variables: { postId: 'p1' },
+    });
+    // both parent and child comment authors
+    const beforeBlockCommentsAuthors =
+      beforeBlock.data.postComments.edges.flatMap(({ node }) => [
+        node.author?.id,
+        ...(node.children?.edges ?? []).map(({ node }) => node.author?.id),
+      ]);
+    expect(beforeBlockCommentsAuthors).toContain(blockedUserId);
+
+    await con.getRepository(Feed).save({
+      id: loggedUser,
+      userId: loggedUser,
+      type: FeedType.Main,
+    });
+    await con.getRepository(ContentPreference).save({
+      userId: loggedUser,
+      type: ContentPreferenceType.User,
+      referenceId: blockedUserId,
+      status: ContentPreferenceStatus.Blocked,
+      feedId: loggedUser,
+    });
+
+    const res = await client.query<
+      { postComments: Connection<GQLComment> },
+      {
+        postId: string;
+      }
+    >(QUERY, { variables: { postId: 'p1' } });
+    expect(res.errors).toBeFalsy();
+    // both parent and child comment authors
+    const commentsAuthors = res.data.postComments.edges.flatMap(({ node }) => [
+      node.author?.id,
+      ...(node.children?.edges ?? []).map(({ node }) => node.author?.id),
+    ]);
+    expect(commentsAuthors).not.toContain(blockedUserId);
+  });
 });
 
 describe('query userComments', () => {
@@ -366,6 +423,26 @@ describe('query commentFeed', () => {
         ),
       ),
     );
+  });
+
+  it('should filter out blocked users comments', async () => {
+    loggedUser = '1';
+    await con.getRepository(Feed).save({
+      id: '1',
+      userId: '1',
+      type: FeedType.Main,
+    });
+    await con.getRepository(ContentPreference).save({
+      userId: '1',
+      referenceId: '2',
+      type: ContentPreferenceType.User,
+      status: ContentPreferenceStatus.Blocked,
+      feedId: '1',
+    });
+
+    const res = await client.query(QUERY, { variables: { first: 20 } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.commentFeed.edges.length).toEqual(5);
   });
 
   it('should fetch comments feed', async () => {
@@ -959,7 +1036,7 @@ describe('mutation commentOnPost', () => {
         client,
         { mutation: MUTATION, variables },
         'RATE_LIMITED',
-        'Take a break. You already commented enough in the last hour',
+        'Take a break. You already commented enough in the last 1 hour',
       );
 
       // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
@@ -990,6 +1067,22 @@ describe('mutation commentOnPost', () => {
 
       const res = await client.mutate(MUTATION, {
         variables: { postId: 'p1', content: 'VordrWillCatchYou' },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const comment = await con.getRepository(Comment).findOneByOrFail({
+        id: res.data.commentOnPost.id,
+      });
+
+      expect(comment.flags).toEqual({ vordr: true });
+    });
+
+    it('should set correct vordr flags on comment with spaces by good user if vordr filter catches it', async () => {
+      loggedUser = '1';
+
+      const res = await client.mutate(MUTATION, {
+        variables: { postId: 'p1', content: 'and vordr will win' },
       });
 
       expect(res.errors).toBeFalsy();
@@ -1205,7 +1298,7 @@ describe('mutation commentOnComment', () => {
         client,
         { mutation: MUTATION, variables },
         'RATE_LIMITED',
-        'Take a break. You already commented enough in the last hour',
+        'Take a break. You already commented enough in the last 1 hour',
       );
 
       // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds

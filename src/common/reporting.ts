@@ -11,12 +11,14 @@ import {
   ReportEntity,
   ReportReason,
   sourceReportReasonsMap,
+  userReportReasonsMap,
 } from '../entity/common';
 import { ValidationError } from 'apollo-server-errors';
 import { AuthContext } from '../Context';
 import { SourceReport } from '../entity/sources/SourceReport';
 import { ensureSourcePermissions } from '../schema/sources';
 import { CommentReport } from '../entity/CommentReport';
+import { UserReport } from '../entity/UserReport';
 
 interface SaveHiddenPostArgs {
   postId: string;
@@ -156,8 +158,27 @@ export const reportSource = async ({
   });
 };
 
+export const reportUser = async ({
+  ctx,
+  id,
+  reason,
+  comment,
+}: BaseReportArgs) => {
+  if (!userReportReasonsMap.has(reason)) {
+    throw new ValidationError('Reason is invalid');
+  }
+
+  await ctx.getRepository(UserReport).insert({
+    reportedUserId: id,
+    userId: ctx.userId,
+    reason,
+    note: comment,
+  });
+};
+
 export const reportFunctionMap: Record<ReportEntity, ReportFunction> = {
   [ReportEntity.Post]: reportPost,
   [ReportEntity.Comment]: reportComment,
   [ReportEntity.Source]: reportSource,
+  [ReportEntity.User]: reportUser,
 };
