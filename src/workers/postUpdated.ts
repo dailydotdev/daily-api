@@ -567,10 +567,15 @@ const getSourcePrivacy = async ({
       query = query.where('source.id = :id', { id: data?.source_id });
     }
 
-    const source = await query.getOne();
-    return source?.private;
+    const source = await query.getOneOrFail();
+
+    return source.private;
   } catch (err) {
-    logger.error({ data, err }, 'failed find source for post');
+    const sourcePostError = new Error('failed to find source for post');
+
+    logger.error({ data, err }, sourcePostError.message);
+
+    throw sourcePostError;
   }
 };
 
@@ -715,7 +720,11 @@ const worker: Worker = {
           await fixData({
             logger,
             entityManager,
-            data,
+            data: {
+              ...data,
+              // pass resolved post id or fallback to original data
+              post_id: postId || data.post_id,
+            },
           });
 
         // See if post id is not available

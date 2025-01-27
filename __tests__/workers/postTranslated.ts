@@ -51,6 +51,28 @@ describe('postTranslated', () => {
     });
   });
 
+  it('should handle titles with special characters', async () => {
+    expect(
+      (await con.getRepository(Post).findOneByOrFail({ id: 'p1' })).translation,
+    ).toEqual({});
+
+    await expectSuccessfulTypedBackground(worker, {
+      id: 'p1',
+      language: ContentLanguage.German,
+      translations: {
+        title: `new title #"!#%&/()=?'"\`\\ƒ∂∞€€é∂ßä`,
+      },
+    });
+
+    expect(
+      (await con.getRepository(Post).findOneByOrFail({ id: 'p1' })).translation,
+    ).toEqual({
+      de: {
+        title: `new title #"!#%&/()=?'"\`\\ƒ∂∞€€é∂ßä`,
+      },
+    });
+  });
+
   it('should not update post translation if language is invalid', async () => {
     expect(
       (await con.getRepository(Post).findOneByOrFail({ id: 'p1' })).translation,

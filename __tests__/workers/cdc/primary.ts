@@ -115,7 +115,7 @@ import {
   relatedPostsFixture,
 } from '../../fixture/post';
 import { randomUUID } from 'crypto';
-import { DataSource } from 'typeorm';
+import { DataSource, Not } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
 import { TypeOrmError } from '../../../src/errors';
 import { SourceMemberRoles } from '../../../src/roles';
@@ -4881,7 +4881,7 @@ describe('source_post_moderation', () => {
     it('should create freeform post', async () => {
       const repo = con.getRepository(Post);
       const before = await repo.find();
-      expect(before.length).toEqual(0);
+      expect(before.length).toEqual(1);
       const after = {
         ...base,
         status: SourcePostModerationStatus.Approved,
@@ -4912,7 +4912,7 @@ describe('source_post_moderation', () => {
       await saveFixtures(con, User, badUsersFixture);
       const repo = con.getRepository(Post);
       const before = await repo.find();
-      expect(before.length).toEqual(0);
+      expect(before.length).toEqual(1);
       const after = {
         ...base,
         createdById: 'vordr',
@@ -4961,7 +4961,7 @@ describe('source_post_moderation', () => {
       ]);
       const repo = con.getRepository(Post);
       const before = await repo.find();
-      expect(before.length).toEqual(0);
+      expect(before.length).toEqual(1);
       const after = {
         ...base,
         status: SourcePostModerationStatus.Approved,
@@ -4985,7 +4985,7 @@ describe('source_post_moderation', () => {
     it('should not create post if status did not change', async () => {
       const repo = con.getRepository(Post);
       const before = await repo.find();
-      expect(before.length).toEqual(0);
+      expect(before.length).toEqual(1);
       const after = {
         ...base,
         status: SourcePostModerationStatus.Approved,
@@ -5005,7 +5005,7 @@ describe('source_post_moderation', () => {
     it('should not create share post when share post id is null', async () => {
       const repo = con.getRepository(Post);
       const before = await repo.find();
-      expect(before.length).toEqual(0);
+      expect(before.length).toEqual(1);
       await mockUpdate({
         type: PostType.Share,
         status: SourcePostModerationStatus.Approved,
@@ -5080,7 +5080,7 @@ describe('source_post_moderation', () => {
         .update({ id: 'b' }, { id: UNKNOWN_SOURCE });
       const repo = con.getRepository(Post);
       const before = await repo.find();
-      expect(before.length).toEqual(0);
+      expect(before.length).toEqual(1);
       await mockUpdate({
         sourceId: 'a',
         type: PostType.Share,
@@ -5089,8 +5089,8 @@ describe('source_post_moderation', () => {
         content: '# Sample',
         contentHtml: '# Sample',
       });
-      const unknown = await repo.findOneBy({ sourceId: UNKNOWN_SOURCE });
-      expect(unknown).toBeNull();
+      const unknown = await repo.findBy({ sourceId: UNKNOWN_SOURCE });
+      expect(unknown.length).toEqual(1);
       const share = await repo.findOneBy({ sourceId: 'a' });
       expect(share).toBeNull();
     });
@@ -5101,7 +5101,7 @@ describe('source_post_moderation', () => {
         .update({ id: 'b' }, { id: UNKNOWN_SOURCE });
       const repo = con.getRepository(Post);
       const before = await repo.find();
-      expect(before.length).toEqual(0);
+      expect(before.length).toEqual(1);
       const after = {
         ...base,
         sourceId: 'a',
@@ -5113,7 +5113,10 @@ describe('source_post_moderation', () => {
         externalLink: 'https://daily.dev/blog-post/sauron',
       };
       await mockUpdate(after);
-      const unknown = await repo.findOneBy({ sourceId: UNKNOWN_SOURCE });
+      const unknown = await repo.findOneBy({
+        sourceId: UNKNOWN_SOURCE,
+        id: Not('404'),
+      });
       expect(unknown).toBeTruthy();
       expect(unknown.title).toEqual('Test');
       const share = (await repo.findOneBy({
@@ -5142,7 +5145,7 @@ describe('source_post_moderation', () => {
         },
       ]);
       const before = await repo.find();
-      expect(before.length).toEqual(1);
+      expect(before.length).toEqual(2);
       const after = {
         ...base,
         sourceId: 'a',
@@ -5167,7 +5170,7 @@ describe('source_post_moderation', () => {
       ]);
 
       const list = await con.getRepository(Post).find();
-      expect(list.length).toEqual(2); // to ensure nothing new was created other than the share post
+      expect(list.length).toEqual(3); // to ensure nothing new was created other than the share post
     });
 
     it('should update the content if post id is present', async () => {
