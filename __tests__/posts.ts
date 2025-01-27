@@ -926,6 +926,18 @@ describe('translation field', () => {
         },
       });
     });
+
+    it('should not fail when translation does not exist', async () => {
+      expect(
+        (await con.getRepository(ArticlePost).findOneByOrFail({ id: 'p1-tf' }))
+          .translation,
+      ).toEqual({});
+      await clearPostTranslations(con, 'p1-tf', 'title');
+      expect(
+        (await con.getRepository(ArticlePost).findOneByOrFail({ id: 'p1-tf' }))
+          .translation,
+      ).toEqual({});
+    });
   });
 });
 

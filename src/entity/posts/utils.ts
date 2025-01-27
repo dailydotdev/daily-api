@@ -623,11 +623,16 @@ export const clearPostTranslations = async (
     .createQueryBuilder()
     .update(Post)
     .set({
-      translation: () => `(
-SELECT jsonb_object_agg(key, value - '${field}')
-FROM jsonb_each(translation)
-)`,
+      translation: () => /* sql */ `
+        COALESCE(
+          (
+            SELECT jsonb_object_agg(key, value - :field)
+            FROM jsonb_each(translation)
+          ),
+          '{}'::jsonb
+        )`,
     })
+    .setParameters({ field })
     .where('id = :id', { id: postId })
     .execute();
 };
