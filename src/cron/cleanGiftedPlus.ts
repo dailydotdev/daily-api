@@ -12,7 +12,7 @@ const cron: Cron = {
       .createQueryBuilder('user')
       .update()
       .set({ subscriptionFlags: {} })
-      .where('"user"."subscriptionFlags" ->> \'giftExpirationDate\'  < :time', {
+      .where(`"user"."subscriptionFlags"->>'giftExpirationDate'  < :time`, {
         time: timeThreshold,
       })
       .execute();
