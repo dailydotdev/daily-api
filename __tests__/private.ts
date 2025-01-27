@@ -1,7 +1,13 @@
 import appFunc from '../src';
 import { FastifyInstance } from 'fastify';
 import { saveFixtures } from './helpers';
-import { Feed, Source, User, UserPersonalizedDigest } from '../src/entity';
+import {
+  ArticlePost,
+  Feed,
+  Source,
+  User,
+  UserPersonalizedDigest,
+} from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import request from 'supertest';
 import { usersFixture } from './fixture/user';
@@ -10,6 +16,7 @@ import createOrGetConnection from '../src/db';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { DayOfWeek } from '../src/common';
 import { ContentLanguage } from '../src/types';
+import { postsFixture } from './fixture/post';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -752,5 +759,51 @@ describe('POST /p/updateUserEmail', () => {
       .getRepository(User)
       .findOneBy({ id: usersFixture[0].id });
     expect(user.email).toBe('somenewemail@gmail.com');
+  });
+});
+
+describe('GET /p/posts/:id', () => {
+  beforeEach(async () => {
+    await saveFixtures(con, ArticlePost, [
+      {
+        ...postsFixture[0],
+        id: 'p-prl',
+        shortId: 'p-prl',
+        url: 'https://daily.dev/posts/p-prl',
+        contentMeta: {
+          cleaned: [{ resource_location: 'gs://path/to/resource' }],
+        },
+      },
+    ]);
+  });
+
+  it('should return unauthorized when token is missing', () => {
+    return request(app.server).post('/p/posts/p-prl').expect(404);
+  });
+
+  it('should return 404 if post is not found', async () => {
+    await request(app.server)
+      .get('/p/posts/does-not-exist')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .expect(404);
+  });
+
+  it('should return 400 if id is empty', async () => {
+    await request(app.server)
+      .get('/p/posts/')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .expect(400);
+  });
+
+  it('should return post resource location', async () => {
+    const { body } = await request(app.server)
+      .get('/p/posts/p-prl')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .expect(200);
+
+    expect(body).toEqual({
+      id: 'p-prl',
+      resourceLocation: 'gs://path/to/resource',
+    });
   });
 });
