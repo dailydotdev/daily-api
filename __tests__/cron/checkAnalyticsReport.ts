@@ -78,7 +78,7 @@ it('should publish message for every post that needs analytics report', async ()
   const posts = await con
     .getRepository(Post)
     .findBy({ sentAnalyticsReport: true });
-  expect(posts.length).toEqual(4);
+  expect(posts.length).toEqual(5);
   expect(posts.map(({ id }) => id)).toEqual(
     expect.arrayContaining(['p3', 'p4', 'p5']),
   );

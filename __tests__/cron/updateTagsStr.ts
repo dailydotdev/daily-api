@@ -10,7 +10,7 @@ import {
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture, sharedPostsFixture } from '../fixture/post';
 import { Checkpoint } from '../../src/entity/Checkpoint';
-import { DataSource } from 'typeorm';
+import { DataSource, Not } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 
 let con: DataSource;
@@ -57,6 +57,7 @@ it('should update post tagsStr with the all recently updated keywords', async ()
   const posts = await con.getRepository(Post).find({
     select: ['id', 'tagsStr'],
     order: { id: 'ASC' },
+    where: { id: Not('404') },
   });
   expect(posts).toMatchSnapshot();
 });

@@ -7,6 +7,7 @@ import { messageToJson, Worker } from './worker';
 import { PostReport } from '../entity/PostReport';
 import { Post } from '../entity';
 import { ChangeObject } from '../types';
+import { DELETED_BY_WORKER } from '../common';
 
 interface Data {
   post: ChangeObject<Post>;
@@ -20,6 +21,10 @@ const worker: Worker = {
     const parsedFlags =
       typeof flags === 'string' ? JSON.parse(flags as string) : flags;
     const { deletedBy } = parsedFlags;
+
+    if (deletedBy === DELETED_BY_WORKER) {
+      return;
+    }
 
     try {
       await con.transaction(async (transaction) => {

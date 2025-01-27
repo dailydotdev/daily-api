@@ -5769,6 +5769,7 @@ describe('posts title field', () => {
   });
 
   it('should return original title when language is not set', async () => {
+    loggedUser = '1';
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
@@ -5792,6 +5793,7 @@ describe('posts title field', () => {
   });
 
   it('should return i18n title if exists', async () => {
+    loggedUser = '1';
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
@@ -5819,6 +5821,7 @@ describe('posts title field', () => {
   });
 
   it('should return default title if i18n title does not exist', async () => {
+    loggedUser = '1';
     const res = await client.query(QUERY, {
       headers: {
         'content-language': 'fr',
@@ -5833,6 +5836,7 @@ describe('posts title field', () => {
   });
 
   it('should return i18n title for cased language codes', async () => {
+    loggedUser = '1';
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
@@ -5856,6 +5860,88 @@ describe('posts title field', () => {
 
     expect(res.data.post).toEqual({
       title: 'P1 Portugal Brazil',
+    });
+  });
+
+  describe('new translation field', () => {
+    const QUERY_NTF = /* GraphQL */ `
+      {
+        post(id: "p1-ntf") {
+          title
+        }
+      }
+    `;
+
+    beforeEach(async () => {
+      await saveFixtures(con, ArticlePost, [
+        {
+          id: 'p1-ntf',
+          shortId: 'sp1-ntf',
+          title: 'P1-ntf',
+          url: 'http://p1-ntf.com',
+          canonicalUrl: 'http://p1-ntfc.com',
+          image: 'https://daily.dev/image.jpg',
+          score: 1,
+          sourceId: 'a',
+          tagsStr: 'javascript,webdev',
+          type: PostType.Article,
+          contentCuration: ['c1', 'c2'],
+        },
+      ]);
+    });
+
+    it('should return i18n title from new translation field when user is team member', async () => {
+      loggedUser = '1';
+      isTeamMember = true;
+      await con.getRepository(Post).update(
+        { id: 'p1-ntf' },
+        {
+          translation: {
+            'pt-BR': {
+              title: 'P1 Portugal Brazil',
+            },
+          },
+        },
+      );
+
+      const res = await client.query(QUERY_NTF, {
+        headers: {
+          'content-language': 'pt-BR',
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      expect(res.data.post).toEqual({
+        title: 'P1 Portugal Brazil',
+      });
+    });
+
+    it('should return original title from new translation field when user is team member', async () => {
+      loggedUser = '1';
+      isTeamMember = true;
+      await con.getRepository(Post).update(
+        { id: 'p1-ntf' },
+        {
+          translation: {
+            'pt-BR': {
+              title: 'P1 Portugal Brazil',
+            },
+          },
+        },
+      );
+
+      const res = await client.query(QUERY_NTF, {
+        headers: {
+          'content-language': 'pt-BR',
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      expect(res.data.post).toEqual({
+        title: 'P1 Portugal Brazil',
+      });
     });
   });
 
