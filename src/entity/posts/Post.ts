@@ -54,8 +54,9 @@ export type PostContentQuality = Partial<{
 }>;
 
 export const translateablePostFields = ['title'] as const;
+export type TranslateablePostField = (typeof translateablePostFields)[number];
 export type PostTranslation = {
-  [key in (typeof translateablePostFields)[number]]?: string;
+  [key in TranslateablePostField]?: string;
 };
 
 @Entity()
