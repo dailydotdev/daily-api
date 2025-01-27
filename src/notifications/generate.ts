@@ -436,7 +436,7 @@ export const generateNotificationMap: Record<
   user_gifted_plus: (builder, ctx: NotificationGiftPlusContext) =>
     builder
       .uniqueKey(
-        `${ctx.gifter.id}-${ctx.recipient.id}-${ctx.subscriptionFlags.giftExpirationDate}`,
+        `${ctx.gifter.id}-${ctx.recipient.id}-${new Date().toISOString()}`,
       )
       .icon(NotificationIcon.Bell)
       .avatarUser(ctx.gifter)

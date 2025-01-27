@@ -13,7 +13,6 @@ import {
   UserStreak,
   type Keyword,
   type UserTopReader,
-  type UserSubscriptionFlags,
   SquadSource,
 } from '../entity';
 import { ChangeObject } from '../types';
@@ -74,7 +73,6 @@ export type NotificationGiftPlusContext = NotificationBaseContext & {
   gifter: Reference<User>;
   recipient: Reference<User>;
   squad: Reference<SquadSource>;
-  subscriptionFlags: UserSubscriptionFlags;
 };
 
 export type NotificationCommenterContext = NotificationCommentContext & {

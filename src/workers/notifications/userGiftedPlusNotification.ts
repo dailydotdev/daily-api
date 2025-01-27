@@ -58,7 +58,6 @@ const worker = generateTypedNotificationWorker<'user-updated'>({
       userIds: [userId, gifter.id],
       gifter,
       recipient,
-      subscriptionFlags: afterSubscriptionFlags,
       squad,
     };
 

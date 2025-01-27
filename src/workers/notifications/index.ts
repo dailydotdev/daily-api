@@ -95,7 +95,7 @@ const notificationWorkers: NotificationWorker[] = [
   sourcePostModerationApprovedNotification,
   sourcePostModerationRejectedNotification,
   userTopReaderAdded,
-  userGiftedPlusNotification
+  userGiftedPlusNotification,
 ];
 
 export const workers = [...notificationWorkers.map(notificationWorkerToWorker)];

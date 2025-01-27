@@ -57,7 +57,7 @@ import { DataSource, In } from 'typeorm';
 import { sourcesFixture } from '../fixture/source';
 import { SourceMemberRoles } from '../../src/roles';
 import { NotificationType } from '../../src/notifications/common';
-import { addYears, format } from 'date-fns';
+import { format } from 'date-fns';
 import { saveFixtures } from '../helpers';
 import {
   PostModerationReason,
@@ -65,7 +65,6 @@ import {
   SourcePostModerationStatus,
 } from '../../src/entity/SourcePostModeration';
 import { randomUUID } from 'crypto';
-import { SubscriptionCycles } from '../../src/paddle';
 
 const userId = '1';
 const commentFixture: Reference<Comment> = {
@@ -1527,11 +1526,6 @@ describe('plus notifications', () => {
       gifter,
       recipient,
       squad,
-      subscriptionFlags: {
-        cycle: SubscriptionCycles.Yearly,
-        gifterId: gifter.id,
-        giftExpirationDate: addYears(new Date(), 1),
-      },
     };
     const actual = generateNotificationV2(type, ctx);
 
