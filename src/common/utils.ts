@@ -7,10 +7,16 @@ import { ChangeObject } from '../types';
 
 const REMOVE_SPECIAL_CHARACTERS_REGEX = /[^a-zA-Z0-9-_#.]/g;
 
+export const DELETED_BY_WORKER = 'worker';
+
 export const ghostUser = {
   id: '404',
   username: 'ghost',
   name: 'Deleted user',
+};
+
+export const deletedPost = {
+  id: '404',
 };
 
 interface GetTimezonedIsoWeekProps {

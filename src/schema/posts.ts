@@ -1040,7 +1040,7 @@ export const typeDefs = /* GraphQL */ `
       Content of the post
       """
       content: String
-    ): Post! @auth @rateLimit(limit: 1, duration: 60)
+    ): Post! @auth @rateLimit(limit: 1, duration: 30)
 
     """
     To allow user to edit posts
@@ -1183,7 +1183,7 @@ export const typeDefs = /* GraphQL */ `
       Commentary for the share
       """
       commentary: String
-    ): EmptyResponse @auth @rateLimit(limit: 1, duration: 60)
+    ): EmptyResponse @auth @rateLimit(limit: 1, duration: 30)
 
     """
     Share post to source
@@ -1201,7 +1201,7 @@ export const typeDefs = /* GraphQL */ `
       Source to share the post to
       """
       sourceId: ID!
-    ): Post @auth @rateLimit(limit: 1, duration: 60)
+    ): Post @auth @rateLimit(limit: 1, duration: 30)
 
     """
     Update share type post
