@@ -13,9 +13,9 @@ export class DeletedPost1737718327973 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DELETE FROM "public"."user" where id = "404"`);
     await queryRunner.query(
       `DROP RULE prototect_ghostpost_deletion on "post";`,
     );
+    await queryRunner.query(`DELETE FROM "public"."user" where id = "404"`);
   }
 }
