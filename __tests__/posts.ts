@@ -938,6 +938,20 @@ describe('translation field', () => {
           .translation,
       ).toEqual({});
     });
+
+    it('should not fail when translation contains scalar value', async () => {
+      await con.getRepository(ArticlePost).update('p1-tf', {
+        translation: {
+          some: 'value',
+        },
+      });
+
+      await clearPostTranslations(con, 'p1-tf', 'title');
+      expect(
+        (await con.getRepository(ArticlePost).findOneByOrFail({ id: 'p1-tf' }))
+          .translation,
+      ).toEqual({ some: 'value' });
+    });
   });
 });
 

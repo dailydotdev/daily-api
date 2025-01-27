@@ -626,7 +626,10 @@ export const clearPostTranslations = async (
       translation: () => /* sql */ `
         COALESCE(
           (
-            SELECT jsonb_object_agg(key, value - :field)
+            SELECT jsonb_object_agg(key, CASE
+                WHEN jsonb_typeof(value) = 'object' AND value ? :field THEN value - :field
+                ELSE value
+              END)
             FROM jsonb_each(translation)
           ),
           '{}'::jsonb
