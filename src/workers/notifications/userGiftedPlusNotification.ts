@@ -5,6 +5,18 @@ import { SquadSource, User, UserSubscriptionFlags } from '../../entity';
 import { isGiftedPlus, isPlusMember } from '../../paddle';
 import { queryReadReplica } from '../../common/queryReadReplica';
 import { PLUS_MEMBER_SQUAD_ID } from '../userUpdatedPlusSubscriptionSquad';
+import { CioTransactionalMessageTemplateId, sendEmail } from '../../common';
+
+async function sendNotificationEmailToGifter(ctx: NotificationGiftPlusContext) {
+  await sendEmail({
+    send_to_unsubscribed: true,
+    identifiers: { id: ctx.gifter.id },
+    transactional_message_id:
+      CioTransactionalMessageTemplateId.UserSentPlusGift,
+    to: ctx.gifter.email,
+    message_data: ctx,
+  });
+}
 
 const worker = generateTypedNotificationWorker<'user-updated'>({
   subscription: 'api.user-gifted-plus-notification',
@@ -44,6 +56,8 @@ const worker = generateTypedNotificationWorker<'user-updated'>({
       subscriptionFlags: afterSubscriptionFlags,
       squad,
     };
+
+    await sendNotificationEmailToGifter(ctx);
 
     return [{ type: NotificationType.UserGiftedPlus, ctx }];
   },
