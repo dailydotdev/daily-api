@@ -857,8 +857,23 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       keyword: keyword?.flags?.title || keyword.value,
     };
   },
-  user_gifted_plus: async () => {
-    return null;
+  user_gifted_plus: async (con, user) => {
+    const { subscriptionFlags } = await con.getRepository(User).findOneOrFail({
+      where: {
+        id: user.id,
+      },
+      select: ['subscriptionFlags'],
+    });
+    const gifter = await con.getRepository(User).findOneOrFail({
+      where: {
+        id: subscriptionFlags?.gifterId,
+      },
+      select: ['name', 'image'],
+    });
+    return {
+      gifter_name: gifter.name,
+      gifter_image: gifter.image,
+    };
   },
 };
 

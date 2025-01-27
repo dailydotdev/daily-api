@@ -8,13 +8,18 @@ import { PLUS_MEMBER_SQUAD_ID } from '../userUpdatedPlusSubscriptionSquad';
 import { CioTransactionalMessageTemplateId, sendEmail } from '../../common';
 
 async function sendNotificationEmailToGifter(ctx: NotificationGiftPlusContext) {
+  const message_data = {
+    recipient_name: ctx.recipient.name,
+    recipient_image: ctx.recipient.image,
+  };
+
   await sendEmail({
     send_to_unsubscribed: true,
     identifiers: { id: ctx.gifter.id },
     transactional_message_id:
       CioTransactionalMessageTemplateId.UserSentPlusGift,
     to: ctx.gifter.email,
-    message_data: ctx,
+    message_data,
   });
 }
 
