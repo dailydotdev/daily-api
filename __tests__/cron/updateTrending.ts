@@ -5,7 +5,7 @@ import { sourcesFixture } from '../fixture/source';
 import { postsFixture, sharedPostsFixture } from '../fixture/post';
 
 import { DeepPartial } from 'typeorm/common/DeepPartial';
-import { DataSource } from 'typeorm';
+import { DataSource, Not } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 
 let con: DataSource;
@@ -51,9 +51,11 @@ it('should update the trending score of the relevant articles', async () => {
     addViewsToPost(postsFixture[2].id, 30, halfHour),
   ]);
   await expectSuccessfulCron(cron);
-  const posts = await con
-    .getRepository(Post)
-    .find({ select: ['id', 'trending'], order: { id: 'ASC' } });
+  const posts = await con.getRepository(Post).find({
+    select: ['id', 'trending'],
+    order: { id: 'ASC' },
+    where: { id: Not('404') },
+  });
   expect(posts).toMatchSnapshot();
   const trendingPost = await con.getRepository(Post).findOne({
     select: ['id', 'lastTrending'],
