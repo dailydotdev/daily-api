@@ -9,6 +9,7 @@ import {
   ensureSourcePermissions,
   GQLSource,
   isPrivilegedMember,
+  canModeratePosts,
   SourcePermissions,
   sourceTypesWithMembers,
 } from './sources';
@@ -69,6 +70,7 @@ import {
   UserAction,
   Settings,
   type PostTranslation,
+  SourceMember,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -91,7 +93,7 @@ import {
   queryPaginatedByDate,
 } from '../common/datePageGenerator';
 import { GraphQLResolveInfo } from 'graphql';
-import { Roles } from '../roles';
+import { Roles, SourceMemberRoles } from '../roles';
 import { markdown, saveMentions } from '../common/markdown';
 // @ts-expect-error - no types
 import { FileUpload } from 'graphql-upload/GraphQLUpload';
@@ -819,7 +821,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Id of the source
       """
-      sourceId: ID!
+      sourceId: ID
       """
       Status of the moderation
       """
@@ -1250,10 +1252,6 @@ export const typeDefs = /* GraphQL */ `
       """
       status: String
       """
-      Source to moderate the post in
-      """
-      sourceId: ID!
-      """
       Rejection reason for the post
       """
       rejectionReason: String
@@ -1464,12 +1462,55 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: Context,
       info,
     ): Promise<ConnectionRelay<GQLSourcePostModeration>> => {
-      const isModerator = await isPrivilegedMember(ctx, args.sourceId);
       const page = sourcePostModerationPageGenerator.connArgsToPage(args);
-
       const statuses = Array.from(new Set(args.status));
+      const { userId } = ctx;
 
-      if (isModerator) {
+      if (args?.sourceId) {
+        const isModerator = await isPrivilegedMember(ctx, args.sourceId);
+        if (isModerator) {
+          return graphorm.queryPaginated(
+            ctx,
+            info,
+            (nodeSize) =>
+              sourcePostModerationPageGenerator.hasPreviousPage(page, nodeSize),
+            (nodeSize) =>
+              sourcePostModerationPageGenerator.hasNextPage(page, nodeSize),
+            (node, index) =>
+              sourcePostModerationPageGenerator.nodeToCursor(
+                page,
+                args,
+                node,
+                index,
+              ),
+            (builder) => {
+              builder.queryBuilder
+                .where(`"${builder.alias}"."sourceId" = :sourceId`, {
+                  sourceId: args.sourceId,
+                })
+                .andWhere(
+                  `("${builder.alias}"."flags"->>'vordr')::boolean IS NOT TRUE`,
+                )
+                .orderBy(`${builder.alias}.updatedAt`, 'DESC')
+                .limit(page.limit)
+                .offset(page.offset);
+
+              if (statuses.length) {
+                builder.queryBuilder.andWhere(
+                  `"${builder.alias}"."status" IN (:...status)`,
+                  {
+                    status: statuses,
+                  },
+                );
+              }
+
+              return builder;
+            },
+            undefined,
+            true,
+          );
+        }
+
         return graphorm.queryPaginated(
           ctx,
           info,
@@ -1489,9 +1530,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               .where(`"${builder.alias}"."sourceId" = :sourceId`, {
                 sourceId: args.sourceId,
               })
-              .andWhere(
-                `("${builder.alias}"."flags"->>'vordr')::boolean IS NOT TRUE`,
-              )
+              .andWhere(`"${builder.alias}"."createdById" = :userId`, {
+                userId,
+              })
               .orderBy(`${builder.alias}.updatedAt`, 'DESC')
               .limit(page.limit)
               .offset(page.offset);
@@ -1511,7 +1552,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           true,
         );
       }
-      const { userId } = ctx;
+      const userModeratorSources = await ctx.con
+        .getRepository(SourceMember)
+        .createQueryBuilder('member')
+        .select('member.sourceId')
+        .where('member.userId = :userId', { userId })
+        .andWhere('member.role IN (:...roles)', {
+          roles: [SourceMemberRoles.Admin, SourceMemberRoles.Moderator],
+        })
+        .getMany();
+
+      const sourceIds = userModeratorSources.map((source) => source.sourceId);
+      if (!sourceIds.length)
+        throw new NotFoundError('Not moderator of any sources');
 
       return graphorm.queryPaginated(
         ctx,
@@ -1529,11 +1582,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           ),
         (builder) => {
           builder.queryBuilder
-            .where(`"${builder.alias}"."sourceId" = :sourceId`, {
-              sourceId: args.sourceId,
-            })
-            .andWhere(`"${builder.alias}"."createdById" = :userId`, {
-              userId,
+            .where(`"${builder.alias}"."sourceId" IN (:...sourceIds)`, {
+              sourceIds,
             })
             .orderBy(`${builder.alias}.updatedAt`, 'DESC')
             .limit(page.limit)
@@ -2441,7 +2491,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     moderateSourcePosts: async (
       _,
       {
-        sourceId,
         postIds,
         status,
         rejectionReason = null,
@@ -2479,15 +2528,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('Invalid status provided');
       }
 
-      const isModerator = await isPrivilegedMember(ctx, sourceId);
+      const canModerate = await canModeratePosts(ctx, uniquePostIds);
+
+      if (!canModerate) {
+        throw new ForbiddenError('Access denied!');
+      }
+
       const update: Partial<SourcePostModeration> = {
         status,
         moderatedById: ctx.userId,
       };
-
-      if (!isModerator) {
-        throw new ForbiddenError('Access denied!');
-      }
 
       if (status === SourcePostModerationStatus.Rejected) {
         if (!rejectionReason) {
