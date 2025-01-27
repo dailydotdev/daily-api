@@ -14,6 +14,7 @@ import {
   ArticlePost,
   Bookmark,
   BookmarkList,
+  clearPostTranslations,
   Comment,
   Feed,
   FreeformPost,
@@ -913,6 +914,64 @@ describe('translation field', () => {
     });
     expect(res.data.post.translation).toEqual({
       title: true,
+    });
+  });
+
+  describe('post updated', () => {
+    it('should clear post title translations when title is updated', async () => {
+      await con.getRepository(ArticlePost).update('p1-tf', {
+        translation: {
+          es: {
+            title: 'Hola',
+            body: 'Cuerpo',
+          },
+          de: {
+            title: 'Hallo',
+            body: 'Körper',
+          },
+        },
+      });
+
+      await clearPostTranslations(con, 'p1-tf', 'title');
+
+      const post = await con
+        .getRepository(ArticlePost)
+        .findOneByOrFail({ id: 'p1-tf' });
+
+      expect(post.translation).toEqual({
+        es: {
+          body: 'Cuerpo',
+        },
+        de: {
+          body: 'Körper',
+        },
+      });
+    });
+
+    it('should not fail when translation does not exist', async () => {
+      expect(
+        (await con.getRepository(ArticlePost).findOneByOrFail({ id: 'p1-tf' }))
+          .translation,
+      ).toEqual({});
+      await clearPostTranslations(con, 'p1-tf', 'title');
+      expect(
+        (await con.getRepository(ArticlePost).findOneByOrFail({ id: 'p1-tf' }))
+          .translation,
+      ).toEqual({});
+    });
+
+    it('should not fail when translation contains scalar value', async () => {
+      await con.getRepository(ArticlePost).update('p1-tf', {
+        translation: {
+          some: 'value',
+        },
+      });
+
+      await clearPostTranslations(con, 'p1-tf', 'title');
+      expect(
+        (await con.getRepository(ArticlePost).findOneByOrFail({ id: 'p1-tf' }))
+          .translation,
+      ).toEqual({ some: 'value' });
     });
   });
 });

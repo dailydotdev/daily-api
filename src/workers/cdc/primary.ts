@@ -11,6 +11,7 @@ import {
   Alerts,
   UserTopReader,
   SquadSource,
+  clearPostTranslations,
 } from '../../entity';
 import { messageToJson, Worker } from '../worker';
 import {
@@ -587,6 +588,10 @@ const onPostChange = async (
           { id: data.payload.before!.id },
           { metadataChangedAt: new Date() },
         );
+    }
+
+    if (isChanged(data.payload.before!, data.payload.after!, 'title')) {
+      await clearPostTranslations(con, data.payload.after!.id, 'title');
     }
   } else if (data.payload.op === 'd') {
     await notifyPostBannedOrRemoved(logger, data.payload.before!);
