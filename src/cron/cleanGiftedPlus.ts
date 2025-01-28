@@ -11,7 +11,10 @@ const cron: Cron = {
       .getRepository(User)
       .createQueryBuilder('user')
       .update()
-      .set({ subscriptionFlags: {} })
+      .set({
+        subscriptionFlags: {},
+        flags: () => `"user"."flags"::jsonb - 'showPlusGift'`,
+      })
       .where(`"user"."subscriptionFlags"->>'giftExpirationDate'  < :time`, {
         time: timeThreshold,
       })

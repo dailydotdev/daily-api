@@ -7,6 +7,7 @@ import createOrGetConnection from '../../src/db';
 import { addDays, subDays } from 'date-fns';
 import { SubscriptionCycles } from '../../src/paddle';
 import { crons } from '../../src/cron/index';
+import { updateFlagsStatement } from '../../src/common';
 
 let con: DataSource;
 
@@ -82,5 +83,36 @@ describe('cleanGiftedPlus cron', () => {
     // 1 is the only removed user as it was gifted and expired
     expect(users[0].id).toEqual('2-clgp');
     expect(users[1].id).toEqual('5-clgp');
+  });
+
+  it('should remove user flag on expire', async () => {
+    const yesterdayDate = subDays(new Date(), 1);
+    // 1 is gifted and expired
+    await con.getRepository(User).update(
+      { id: '1-clgp' },
+      {
+        subscriptionFlags: {
+          giftExpirationDate: yesterdayDate,
+          gifterId: '2-clgp',
+          cycle: SubscriptionCycles.Yearly,
+        },
+        flags: updateFlagsStatement({
+          vordr: false,
+          trustScore: 1,
+          showPlusGift: true,
+        }),
+      },
+    );
+
+    await expectSuccessfulCron(cron);
+
+    const user = await con.getRepository(User).findOneByOrFail({
+      id: '1-clgp',
+    });
+
+    expect(user.flags).toStrictEqual({
+      vordr: false,
+      trustScore: 1,
+    });
   });
 });
