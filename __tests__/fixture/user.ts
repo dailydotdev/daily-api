@@ -17,6 +17,10 @@ export const usersFixture: DeepPartial<User>[] = [
     twitter: null,
     username: 'idoshamun',
     infoConfirmed: true,
+    flags: {
+      vordr: false,
+      trustScore: 1,
+    },
   },
   {
     id: '2',
