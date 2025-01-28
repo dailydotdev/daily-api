@@ -179,6 +179,7 @@ describe('gift', () => {
     const userId = 'whp-1';
     const user = await con.getRepository(User).findOneByOrFail({ id: 'whp-1' });
 
+    expect(isPlusMember(user.subscriptionFlags?.cycle)).toBe(false);
     expect(user.flags).toStrictEqual({
       vordr: false,
       trustScore: 1,
@@ -194,6 +195,7 @@ describe('gift', () => {
       .getRepository(User)
       .findOneByOrFail({ id: userId });
 
+    expect(isPlusMember(updatedUser.subscriptionFlags?.cycle)).toBe(true);
     expect(updatedUser.flags).toStrictEqual({
       vordr: false,
       trustScore: 1,
