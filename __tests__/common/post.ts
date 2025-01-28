@@ -1,15 +1,14 @@
 import { getPostSmartTitle, getPostTranslatedTitle } from '../../src/common';
+import type { Post } from '../../src/entity';
 import { ContentLanguage } from '../../src/types';
 
 describe('getPostTranslatedTitle', () => {
   it('should return the translated title if it exists', () => {
-    const post = {
+    const post: Partial<Post> = {
       title: 'Original Title',
-      contentMeta: {
-        translate_title: {
-          translations: {
-            [ContentLanguage.German]: 'Übersetzter Titel',
-          },
+      translation: {
+        [ContentLanguage.German]: {
+          title: 'Übersetzter Titel',
         },
       },
     };
@@ -19,13 +18,11 @@ describe('getPostTranslatedTitle', () => {
   });
 
   it('should return the original title if the translation does not exist', () => {
-    const post = {
+    const post: Partial<Post> = {
       title: 'Original Title',
-      contentMeta: {
-        translate_title: {
-          translations: {
-            [ContentLanguage.Spanish]: 'Título Traducido',
-          },
+      translation: {
+        [ContentLanguage.Spanish]: {
+          title: 'Título Traducido',
         },
       },
     };
@@ -34,21 +31,21 @@ describe('getPostTranslatedTitle', () => {
     expect(result).toBe('Original Title');
   });
 
-  it('should return the original title if contentMeta is undefined', () => {
-    const post = {
+  it('should return the original title if translation is undefined', () => {
+    const post: Partial<Post> = {
       title: 'Original Title',
-      contentMeta: undefined,
+      translation: undefined,
     };
 
     const result = getPostTranslatedTitle(post, ContentLanguage.German);
     expect(result).toBe('Original Title');
   });
 
-  it('should return the original title if translate_title is undefined', () => {
-    const post = {
+  it('should return the original title if "de" is undefined', () => {
+    const post: Partial<Post> = {
       title: 'Original Title',
-      contentMeta: {
-        translate_title: undefined,
+      translation: {
+        [ContentLanguage.German]: undefined,
       },
     };
 
@@ -56,12 +53,12 @@ describe('getPostTranslatedTitle', () => {
     expect(result).toBe('Original Title');
   });
 
-  it('should return the original title if translations is undefined', () => {
-    const post = {
+  it('should return the original title if title is undefined', () => {
+    const post: Partial<Post> = {
       title: 'Original Title',
-      contentMeta: {
-        translate_title: {
-          translations: undefined,
+      translation: {
+        [ContentLanguage.German]: {
+          title: undefined,
         },
       },
     };
@@ -73,7 +70,8 @@ describe('getPostTranslatedTitle', () => {
 
 describe('getPostSmartTitle', () => {
   it('should return the alt title for the specified content language', () => {
-    const post = {
+    const post: Partial<Post> = {
+      title: 'Default Title',
       contentMeta: {
         alt_title: {
           translations: {
@@ -81,7 +79,6 @@ describe('getPostSmartTitle', () => {
           },
         },
       },
-      title: 'Default Title',
     };
 
     const result = getPostSmartTitle(post, ContentLanguage.Spanish);
@@ -89,7 +86,8 @@ describe('getPostSmartTitle', () => {
   });
 
   it('should return the English alt title if specified content language is not available', () => {
-    const post = {
+    const post: Partial<Post> = {
+      title: 'Default Title',
       contentMeta: {
         alt_title: {
           translations: {
@@ -97,7 +95,6 @@ describe('getPostSmartTitle', () => {
           },
         },
       },
-      title: 'Default Title',
     };
 
     const result = getPostSmartTitle(post, ContentLanguage.Spanish);
@@ -105,7 +102,7 @@ describe('getPostSmartTitle', () => {
   });
 
   it('should return the default title if no alt title translations are available', () => {
-    const post = {
+    const post: Partial<Post> = {
       title: 'Default Title',
     };
 
@@ -114,7 +111,7 @@ describe('getPostSmartTitle', () => {
   });
 
   it('should return the default title if contentMeta is not defined', () => {
-    const post = {
+    const post: Partial<Post> = {
       title: 'Default Title',
     };
 
@@ -123,13 +120,11 @@ describe('getPostSmartTitle', () => {
   });
 
   it('should return the translated title if no alt title translations are available', () => {
-    const post = {
+    const post: Partial<Post> = {
       title: 'Default Title',
-      contentMeta: {
-        translate_title: {
-          translations: {
-            [ContentLanguage.German]: 'Übersetzter Titel',
-          },
+      translation: {
+        [ContentLanguage.German]: {
+          title: 'Übersetzter Titel',
         },
       },
     };
