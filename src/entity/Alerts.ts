@@ -47,9 +47,6 @@ export class Alerts {
   @Column({ type: 'bool', default: false })
   showRecoverStreak: boolean;
 
-  @Column({ type: 'bool', default: false })
-  showPlusGift: boolean;
-
   @Column({ type: 'timestamptz', default: () => 'now()' })
   lastFeedSettingsFeedback: Date;
 
@@ -84,7 +81,6 @@ export const ALERTS_DEFAULT: Omit<Alerts, 'userId' | 'flags' | 'user'> = {
   banner: false,
   squadTour: true,
   lastFeedSettingsFeedback: new Date(),
-  showPlusGift: false,
   showGenericReferral: false,
   showStreakMilestone: false,
   lastBootPopup: null,
