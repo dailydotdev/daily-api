@@ -6,6 +6,7 @@ import { isGiftedPlus, isPlusMember } from '../../paddle';
 import { queryReadReplica } from '../../common/queryReadReplica';
 import { PLUS_MEMBER_SQUAD_ID } from '../userUpdatedPlusSubscriptionSquad';
 import { CioTransactionalMessageTemplateId, sendEmail } from '../../common';
+import { logger } from '../../logger';
 
 async function sendNotificationEmailToGifter(ctx: NotificationGiftPlusContext) {
   const message_data = {
@@ -40,6 +41,14 @@ const worker = generateTypedNotificationWorker<'user-updated'>({
       !isGiftedPlus(afterSubscriptionFlags) ||
       !afterSubscriptionFlags?.gifterId
     ) {
+      logger.warn(
+        {
+          user,
+          beforeSubscriptionFlags,
+          afterSubscriptionFlags,
+        },
+        'Invalid user-gifted-plus-notification',
+      );
       return;
     }
 
