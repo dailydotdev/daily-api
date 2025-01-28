@@ -142,6 +142,7 @@ export interface GQLUpdateUserInput {
   followingEmail?: boolean;
   followNotifications?: boolean;
   defaultFeedId?: string;
+  showPlusGift?: boolean;
 }
 
 interface GQLUserParameters {
@@ -273,6 +274,16 @@ export const typeDefs = /* GraphQL */ `
     Company connected to this record
     """
     company: Company
+  }
+
+  """
+  User flags
+  """
+  type UserFlags {
+    """
+    Whether the user has received a plus subscription as gift
+    """
+    showPlusGift: Boolean
   }
 
   """
@@ -439,6 +450,11 @@ export const typeDefs = /* GraphQL */ `
     Returns the latest top reader badge for the user
     """
     topReader: UserTopReader
+
+    """
+    Flags for the user
+    """
+    flags: UserFlags
   }
 
   """
@@ -565,6 +581,10 @@ export const typeDefs = /* GraphQL */ `
     Default feed id for the user
     """
     defaultFeedId: String
+    """
+    Flags for the user
+    """
+    showPlusGift: Boolean
   }
 
   type TagsReadingStatus {
@@ -1905,6 +1925,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       try {
         const updatedUser = { ...user, ...data, image: avatar };
         updatedUser.email = updatedUser.email?.toLowerCase();
+
+        if ('showPlusGift' in data) {
+          updatedUser.flags.showPlusGift = data.showPlusGift;
+        }
+
         if (
           !user.infoConfirmed &&
           updatedUser.email &&

@@ -80,6 +80,7 @@ import {
   UploadPreset,
   updateSubscriptionFlags,
   bskySocialUrlMatch,
+  updateFlagsStatement,
 } from '../src/common';
 import { DataSource, In, IsNull } from 'typeorm';
 import createOrGetConnection from '../src/db';
@@ -3215,6 +3216,9 @@ describe('mutation updateUserProfile', () => {
         timezone
         experienceLevel
         language
+        flags {
+          showPlusGift
+        }
       }
     }
   `;
@@ -3935,6 +3939,32 @@ describe('mutation updateUserProfile', () => {
       },
       'GRAPHQL_VALIDATION_FAILED',
     );
+  });
+
+  it('should update showPlusGift flag', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).update(
+      { id: loggedUser },
+      {
+        flags: updateFlagsStatement({
+          showPlusGift: true,
+          vordr: true,
+          trustScore: 0.9,
+        }),
+      },
+    );
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: { showPlusGift: false },
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.updateUserProfile.flags.showPlusGift).toBe(false);
+
+    const updated = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(updated?.flags.showPlusGift).toBe(false);
+    expect(updated?.flags.vordr).toBe(true);
+    expect(updated?.flags.trustScore).toBe(0.9);
   });
 });
 
