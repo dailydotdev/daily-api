@@ -113,6 +113,7 @@ describe('cleanGiftedPlus cron', () => {
     expect(user.flags).toStrictEqual({
       vordr: false,
       trustScore: 1,
+      showPlusGift: false,
     });
   });
 });

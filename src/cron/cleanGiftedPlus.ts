@@ -1,5 +1,6 @@
 import { Cron } from './cron';
 import { User } from '../entity';
+import { updateFlagsStatement } from '../common';
 
 const cron: Cron = {
   name: 'clean-gifted-plus',
@@ -13,7 +14,7 @@ const cron: Cron = {
       .update()
       .set({
         subscriptionFlags: {},
-        flags: () => `"user"."flags"::jsonb - 'showPlusGift'`,
+        flags: updateFlagsStatement({ showPlusGift: false }),
       })
       .where(`"user"."subscriptionFlags"->>'giftExpirationDate'  < :time`, {
         time: timeThreshold,
