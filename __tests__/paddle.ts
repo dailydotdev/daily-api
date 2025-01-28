@@ -28,6 +28,10 @@ beforeEach(async () => {
     [...usersFixture, ...plusUsersFixture].map((user) => ({
       ...user,
       id: `whp-${user.id}`,
+      flags: {
+        vordr: false,
+        trustScore: 1,
+      },
     })),
   );
 });
