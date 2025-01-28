@@ -36,6 +36,7 @@ import {
   NotificationCommentContext,
   NotificationCommenterContext,
   NotificationDoneByContext,
+  NotificationGiftPlusContext,
   NotificationPostContext,
   NotificationSourceContext,
   NotificationSourceRequestContext,
@@ -49,7 +50,7 @@ import {
 } from '../../src/notifications/common';
 import { createSquadWelcomePost, NotificationReason } from '../../src/common';
 import { randomUUID } from 'crypto';
-import { UserVote } from '../../src/types';
+import { ChangeObject, UserVote } from '../../src/types';
 import { UserComment } from '../../src/entity/user/UserComment';
 import { workers } from '../../src/workers';
 import { generateStorageKey, StorageKey, StorageTopic } from '../../src/config';
@@ -61,6 +62,9 @@ import {
   ContentPreferenceType,
 } from '../../src/entity/contentPreference/types';
 import { ContentPreference } from '../../src/entity/contentPreference/ContentPreference';
+import { SubscriptionCycles } from '../../src/paddle';
+import { addYears } from 'date-fns';
+import { PLUS_MEMBER_SQUAD_ID } from '../../src/workers/userUpdatedPlusSubscriptionSquad';
 
 let con: DataSource;
 
@@ -2431,5 +2435,80 @@ describe('user post added', () => {
     const bundle = actual![0];
     expect(bundle.ctx.userIds).toHaveLength(2);
     expect(bundle.ctx.userIds).toIncludeSameMembers(['3', '4']);
+  });
+});
+
+describe('plus subscription gift', () => {
+  type ObjectType = Partial<User>;
+  const base: ChangeObject<ObjectType> = {
+    ...usersFixture[0],
+    subscriptionFlags: JSON.stringify({}),
+  };
+  const plusUser = {
+    ...base,
+    subscriptionFlags: JSON.stringify({ cycle: SubscriptionCycles.Yearly }),
+  };
+  const giftedPlusUser = {
+    ...base,
+    subscriptionFlags: JSON.stringify({
+      cycle: SubscriptionCycles.Yearly,
+      gifterId: 2,
+      giftExpirationDate: addYears(new Date(), 1),
+    }),
+  };
+
+  beforeEach(async () => {
+    await saveFixtures(con, Source, [
+      {
+        id: PLUS_MEMBER_SQUAD_ID,
+        name: 'Plus Squad',
+        image: 'http://image.com/a',
+        handle: 'plus-squad-notify',
+        type: SourceType.Squad,
+      },
+    ]);
+  });
+
+  it('should early return for currently non plus user', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/userGiftedPlusNotification'
+    );
+    const actual = await invokeNotificationWorker(worker.default, {
+      user: base,
+      newProfile: base,
+    });
+    expect(actual).toBeUndefined();
+  });
+
+  it('should not return anything plus user since before', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/userGiftedPlusNotification'
+    );
+    const actual = await invokeNotificationWorker(worker.default, {
+      user: plusUser,
+      newProfile: plusUser,
+    });
+    expect(actual).toBeUndefined();
+  });
+
+  it('should return notification for gifted plus user', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/userGiftedPlusNotification'
+    );
+    const actual = (await invokeNotificationWorker(worker.default, {
+      user: base,
+      newProfile: giftedPlusUser,
+    })) as Array<{
+      type: string;
+      ctx: NotificationGiftPlusContext;
+    }>;
+    expect(actual).toBeTruthy();
+    expect(actual.length).toEqual(1);
+    expect(actual[0].type).toEqual(NotificationType.UserGiftedPlus);
+
+    const notification = actual[0].ctx;
+    expect(notification.recipient.id).toEqual(base.id);
+    expect(notification.gifter.id).toEqual('2');
+    expect(notification.squad.id).toEqual(PLUS_MEMBER_SQUAD_ID);
   });
 });
