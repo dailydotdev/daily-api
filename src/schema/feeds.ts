@@ -379,6 +379,12 @@ export const typeDefs = /* GraphQL */ `
       unreadOnly: Boolean = false
 
       """
+      Force refresh the feed
+      """
+      refresh: Boolean = false
+        @deprecated(reason: "No longer available in the API")
+
+      """
       Version of the feed algorithm
       """
       version: Int = 1
