@@ -864,6 +864,11 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       },
       select: ['subscriptionFlags'],
     });
+
+    if (!subscriptionFlags?.gifterId) {
+      throw new Error('Gifter user not found');
+    }
+
     const gifter = await con.getRepository(User).findOneOrFail({
       where: {
         id: subscriptionFlags?.gifterId,
