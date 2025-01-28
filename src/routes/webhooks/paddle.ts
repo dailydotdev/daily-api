@@ -9,7 +9,11 @@ import {
   type TransactionItemNotification,
 } from '@paddle/paddle-node-sdk';
 import createOrGetConnection from '../../db';
-import { updateSubscriptionFlags, webhooks } from '../../common';
+import {
+  updateFlagsStatement,
+  updateSubscriptionFlags,
+  webhooks,
+} from '../../common';
 import { User } from '../../entity';
 import { logger } from '../../logger';
 import { remoteConfig } from '../../remoteConfig';
@@ -124,6 +128,11 @@ export const updateUserSubscription = async ({
             new Date(),
             duration,
           ).toISOString(),
+        }),
+      }),
+      ...(isGift && {
+        flags: updateFlagsStatement({
+          showPlusGift: isGift,
         }),
       }),
     },

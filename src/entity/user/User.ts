@@ -23,6 +23,7 @@ import type { Feed } from '../Feed';
 export type UserFlags = Partial<{
   vordr: boolean;
   trustScore: number;
+  showPlusGift: boolean;
 }>;
 
 export type UserSubscriptionFlags = Partial<{
