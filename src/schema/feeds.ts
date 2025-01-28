@@ -79,7 +79,6 @@ import {
   FeedLocalConfigGenerator,
   FeedLofnConfigGenerator,
 } from '../integrations/feed/configs';
-import { counters } from '../telemetry';
 import { lofnClient } from '../integrations/feed/generators';
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
