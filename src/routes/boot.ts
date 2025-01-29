@@ -427,6 +427,7 @@ const getUser = (
       'followNotifications',
       'subscriptionFlags',
       'defaultFeedId',
+      'flags',
     ],
   });
 
@@ -506,6 +507,7 @@ const loggedInBoot = async ({
           'image',
           'cover',
           'subscriptionFlags',
+          'flags',
         ]),
         providers: [null],
         roles,
@@ -537,6 +539,7 @@ const loggedInBoot = async ({
         shouldShowFeedFeedback:
           subDays(new Date(), FEED_SURVEY_INTERVAL) >
           alerts.lastFeedSettingsFeedback,
+        shouldShowGiftPlus: Boolean(user?.flags?.showPlusGift),
       },
       settings: excludeProperties(settings, [
         'userId',

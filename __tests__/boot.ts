@@ -59,7 +59,11 @@ import { getEncryptedFeatures } from '../src/growthbook';
 import { base64 } from 'graphql-relay/utils/base64';
 import { cookies } from '../src/cookies';
 import { signJwt } from '../src/auth';
-import { DEFAULT_TIMEZONE, submitArticleThreshold } from '../src/common';
+import {
+  DEFAULT_TIMEZONE,
+  submitArticleThreshold,
+  updateFlagsStatement,
+} from '../src/common';
 import { saveReturnAlerts } from '../src/schema/alerts';
 import { UserVote } from '../src/types';
 import { BootAlerts, excludeProperties } from '../src/routes/boot';
@@ -92,6 +96,7 @@ const LOGGED_IN_BODY = {
   alerts: {
     ...BASE_BODY.alerts,
     bootPopup: true,
+    shouldShowGiftPlus: false,
   },
   accessToken: {
     expiresIn: expect.any(String),
@@ -149,6 +154,7 @@ const getBootAlert = (data: Alerts): BootAlerts =>
     ]),
     shouldShowFeedFeedback:
       subDays(new Date(), FEED_SURVEY_INTERVAL) > data.lastFeedSettingsFeedback,
+    shouldShowGiftPlus: false,
   }) as BootAlerts;
 
 beforeAll(async () => {
@@ -865,6 +871,24 @@ describe('boot alerts', () => {
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
     expect(res.body.alerts).toEqual(alerts);
+  });
+
+  it('should return shouldShowGiftPlus if user is gift recipient', async () => {
+    mockLoggedIn();
+    await con.getRepository(User).update(
+      { id: '1' },
+      {
+        flags: updateFlagsStatement({
+          showPlusGift: true,
+        }),
+      },
+    );
+
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+    expect(res.body.alerts.shouldShowGiftPlus).toEqual(true);
   });
 });
 
