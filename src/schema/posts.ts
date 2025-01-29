@@ -2345,9 +2345,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLPost> => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const [post, __, ___] = await Promise.all([
-        ctx.con.getRepository(Post).findOneByOrFail({ id }),
+      const [post] = await Promise.all([
+        ctx.con.getRepository(Post).findOneOrFail({ where: { id } }),
         ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
         ensurePostRateLimit(ctx.con, ctx.userId),
       ]);
