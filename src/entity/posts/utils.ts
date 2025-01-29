@@ -14,8 +14,9 @@ import { ArticlePost } from './ArticlePost';
 import {
   Post,
   PostOrigin,
-  translateablePostFields,
+  PostType,
   type TranslateablePostField,
+  translateablePostFields,
 } from './Post';
 import { MAX_COMMENTARY_LENGTH, SharePost } from './SharePost';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
@@ -351,6 +352,16 @@ interface CreateSharePostArgs {
   ctx?: AuthContext;
   args: SharePostArgs;
 }
+
+export const determineSharedPostId = (post: Post | SharePost): string => {
+  if (post.type === PostType.Share) {
+    if (!post.title) {
+      return post instanceof SharePost ? post.sharedPostId : post.id;
+    }
+  }
+
+  return post.id;
+};
 
 export const createSharePost = async ({
   con,

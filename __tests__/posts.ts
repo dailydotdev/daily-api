@@ -2289,6 +2289,56 @@ describe('mutation sharePost', () => {
     expect(post.title).toEqual('My comment');
   });
 
+  it('should share sharedPost to squad if title was provided', async () => {
+    await con.getRepository(SharePost).save({
+      id: 'sp-1',
+      shortId: 'sp-1',
+      sourceId: 's1',
+      title: 'Some special title',
+      type: PostType.Share,
+      sharedPostId: 'p1',
+    });
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        sourceId: 's1',
+        id: 'sp-1',
+        commentary: 'My comment',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const newId = res.data.sharePost.id;
+    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    expect(post.authorId).toEqual('1');
+    expect(post.sharedPostId).toEqual('sp-1');
+    expect(post.title).toEqual('My comment');
+  });
+
+  it('should share sharedPost to squad but link to original article if no title was provided', async () => {
+    await con.getRepository(SharePost).save({
+      id: 'sp-2',
+      shortId: 'sp-2',
+      sourceId: 's1',
+      title: null,
+      type: PostType.Share,
+      sharedPostId: 'p1',
+    });
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        sourceId: 's1',
+        id: 'sp-2',
+        commentary: 'My comment',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const newId = res.data.sharePost.id;
+    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    expect(post.authorId).toEqual('1');
+    expect(post.sharedPostId).toEqual('p1');
+    expect(post.title).toEqual('My comment');
+  });
+
   it('should share to squad and increment squad flags total posts', async () => {
     loggedUser = '1';
     const res = await client.mutate(MUTATION, { variables });
