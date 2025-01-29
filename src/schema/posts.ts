@@ -1807,10 +1807,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: Context,
     ): Promise<GQLPostSmartTitle> =>
       queryReadReplica(ctx.con, async ({ queryRunner }) => {
-        const post: Pick<Post, 'title' | 'contentMeta'> =
+        const post: Pick<Post, 'title' | 'contentMeta' | 'translation'> =
           await queryRunner.manager.getRepository(Post).findOneOrFail({
             where: { id },
-            select: ['title', 'contentMeta'],
+            select: ['title', 'contentMeta', 'translation'],
           });
 
         if (!ctx.isPlus) {

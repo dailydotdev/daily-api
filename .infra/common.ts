@@ -36,6 +36,10 @@ export const workers: Worker[] = [
     subscription: 'api.user-updated-plus-subscribed-custom-feed',
   },
   {
+    topic: 'user-updated',
+    subscription: 'api.user-gifted-plus-notification',
+  },
+  {
     topic: 'user-deleted',
     subscription: 'api.user-deleted-cio',
   },
@@ -328,7 +332,7 @@ export const workers: Worker[] = [
   {
     topic: 'kvasir.v1.post-translated',
     subscription: 'api.post-translated',
-  },
+  }
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

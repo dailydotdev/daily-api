@@ -30,6 +30,7 @@ import {
   Alerts,
   reputationReasonAmount,
   ConnectionManager,
+  UserFlagsPublic,
 } from '../entity';
 import {
   AuthenticationError,
@@ -72,6 +73,7 @@ import {
   mapCloudinaryUrl,
   UploadPreset,
   clearFile,
+  updateFlagsStatement,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -142,6 +144,7 @@ export interface GQLUpdateUserInput {
   followingEmail?: boolean;
   followNotifications?: boolean;
   defaultFeedId?: string;
+  flags: UserFlagsPublic;
 }
 
 interface GQLUserParameters {
@@ -442,6 +445,16 @@ export const typeDefs = /* GraphQL */ `
   }
 
   """
+  User flags
+  """
+  input UserFlagsPublic {
+    """
+    Whether the user has received a plus subscription as gift
+    """
+    showPlusGift: Boolean
+  }
+
+  """
   Update user profile input
   """
   input UpdateUserInput {
@@ -565,6 +578,10 @@ export const typeDefs = /* GraphQL */ `
     Default feed id for the user
     """
     defaultFeedId: String
+    """
+    Flags for the user
+    """
+    flags: UserFlagsPublic
   }
 
   type TagsReadingStatus {
@@ -1905,6 +1922,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       try {
         const updatedUser = { ...user, ...data, image: avatar };
         updatedUser.email = updatedUser.email?.toLowerCase();
+
         if (
           !user.infoConfirmed &&
           updatedUser.email &&
@@ -1913,7 +1931,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ) {
           updatedUser.infoConfirmed = true;
         }
-        return await ctx.con.getRepository(User).save(updatedUser);
+
+        await repo.update(
+          { id: user.id },
+          {
+            ...updatedUser,
+            permalink: undefined,
+            flags: data?.flags ? updateFlagsStatement(data.flags) : undefined,
+          },
+        );
+
+        return updatedUser;
       } catch (originalError) {
         const err = originalError as TypeORMQueryFailedError;
 

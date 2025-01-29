@@ -23,7 +23,10 @@ import type { Feed } from '../Feed';
 export type UserFlags = Partial<{
   vordr: boolean;
   trustScore: number;
+  showPlusGift: boolean;
 }>;
+
+export type UserFlagsPublic = Pick<UserFlags, 'showPlusGift'>;
 
 export type UserSubscriptionFlags = Partial<{
   cycle: SubscriptionCycles;
