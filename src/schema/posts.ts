@@ -669,6 +669,11 @@ export const typeDefs = /* GraphQL */ `
     List of available translations for the post
     """
     translation: PostTranslation
+
+    """
+    Language of the post
+    """
+    language: String
   }
 
   type PostConnection {
