@@ -3216,9 +3216,6 @@ describe('mutation updateUserProfile', () => {
         timezone
         experienceLevel
         language
-        flags {
-          showPlusGift
-        }
       }
     }
   `;
@@ -3955,11 +3952,10 @@ describe('mutation updateUserProfile', () => {
     );
     const res = await client.mutate(MUTATION, {
       variables: {
-        data: { showPlusGift: false },
+        data: { flags: { showPlusGift: false } },
       },
     });
     expect(res.errors).toBeFalsy();
-    expect(res.data.updateUserProfile.flags.showPlusGift).toBe(false);
 
     const updated = await con.getRepository(User).findOneBy({ id: loggedUser });
     expect(updated?.flags.showPlusGift).toBe(false);

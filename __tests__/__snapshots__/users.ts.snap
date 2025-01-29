@@ -43,9 +43,6 @@ Object {
   "bio": null,
   "createdAt": Any<String>,
   "experienceLevel": null,
-  "flags": Object {
-    "showPlusGift": null,
-  },
   "github": null,
   "hashnode": null,
   "id": "1",

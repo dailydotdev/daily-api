@@ -30,6 +30,7 @@ import {
   Alerts,
   reputationReasonAmount,
   ConnectionManager,
+  UserFlagsPublic,
 } from '../entity';
 import {
   AuthenticationError,
@@ -142,7 +143,7 @@ export interface GQLUpdateUserInput {
   followingEmail?: boolean;
   followNotifications?: boolean;
   defaultFeedId?: string;
-  showPlusGift?: boolean;
+  flags: UserFlagsPublic;
 }
 
 interface GQLUserParameters {
@@ -274,16 +275,6 @@ export const typeDefs = /* GraphQL */ `
     Company connected to this record
     """
     company: Company
-  }
-
-  """
-  User flags
-  """
-  type UserFlags {
-    """
-    Whether the user has received a plus subscription as gift
-    """
-    showPlusGift: Boolean
   }
 
   """
@@ -450,11 +441,16 @@ export const typeDefs = /* GraphQL */ `
     Returns the latest top reader badge for the user
     """
     topReader: UserTopReader
+  }
 
+  """
+  User flags
+  """
+  input UserFlagsPublic {
     """
-    Flags for the user
+    Whether the user has received a plus subscription as gift
     """
-    flags: UserFlags
+    showPlusGift: Boolean
   }
 
   """
@@ -584,7 +580,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Flags for the user
     """
-    showPlusGift: Boolean
+    flags: UserFlagsPublic
   }
 
   type TagsReadingStatus {
@@ -1926,8 +1922,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         const updatedUser = { ...user, ...data, image: avatar };
         updatedUser.email = updatedUser.email?.toLowerCase();
 
-        if ('showPlusGift' in data) {
-          updatedUser.flags.showPlusGift = data.showPlusGift;
+        if ('flags' in data) {
+          updatedUser.flags = { ...user.flags, ...data.flags };
         }
 
         if (

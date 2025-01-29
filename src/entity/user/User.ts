@@ -26,6 +26,8 @@ export type UserFlags = Partial<{
   showPlusGift: boolean;
 }>;
 
+export type UserFlagsPublic = Pick<UserFlags, 'showPlusGift'>;
+
 export type UserSubscriptionFlags = Partial<{
   cycle: SubscriptionCycles;
   createdAt: Date;
