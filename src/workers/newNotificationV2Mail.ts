@@ -871,7 +871,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
 
     const gifter = await con.getRepository(User).findOneOrFail({
       where: {
-        id: subscriptionFlags?.gifterId,
+        id: subscriptionFlags.gifterId,
       },
       select: ['name', 'image'],
     });
