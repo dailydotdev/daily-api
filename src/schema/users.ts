@@ -73,6 +73,7 @@ import {
   mapCloudinaryUrl,
   UploadPreset,
   clearFile,
+  updateFlagsStatement,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -1922,10 +1923,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         const updatedUser = { ...user, ...data, image: avatar };
         updatedUser.email = updatedUser.email?.toLowerCase();
 
-        if ('flags' in data) {
-          updatedUser.flags = { ...user.flags, ...data.flags };
-        }
-
         if (
           !user.infoConfirmed &&
           updatedUser.email &&
@@ -1934,7 +1931,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ) {
           updatedUser.infoConfirmed = true;
         }
-        return await ctx.con.getRepository(User).save(updatedUser);
+
+        await repo.update(
+          { id: user.id },
+          {
+            ...updatedUser,
+            permalink: undefined,
+            flags: data?.flags ? updateFlagsStatement(data.flags) : undefined,
+          },
+        );
+
+        return updatedUser;
       } catch (originalError) {
         const err = originalError as TypeORMQueryFailedError;
 
