@@ -1,4 +1,4 @@
-import { FreeformPost, KeywordFlags, PostType } from '../entity';
+import { PostType, FreeformPost, KeywordFlags } from '../entity';
 import { NotificationBuilder } from './builder';
 import { NotificationIcon } from './icons';
 import {
