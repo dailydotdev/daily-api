@@ -5811,11 +5811,9 @@ describe('posts title field', () => {
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
-        contentMeta: {
-          translate_title: {
-            translations: {
-              en: 'P1 English',
-            },
+        translation: {
+          en: {
+            title: 'P1 English',
           },
         },
       },
@@ -5835,11 +5833,9 @@ describe('posts title field', () => {
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
-        contentMeta: {
-          translate_title: {
-            translations: {
-              de: 'P1 german',
-            },
+        translation: {
+          de: {
+            title: 'P1 german',
           },
         },
       },
@@ -5878,11 +5874,9 @@ describe('posts title field', () => {
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
-        contentMeta: {
-          translate_title: {
-            translations: {
-              'pt-BR': 'P1 Portugal Brazil',
-            },
+        translation: {
+          'pt-BR': {
+            title: 'P1 Portugal Brazil',
           },
         },
       },
@@ -6187,9 +6181,12 @@ describe('posts title field', () => {
         { id: 'p1' },
         {
           contentQuality: { is_clickbait_probability: 1.98 },
-          contentMeta: {
-            translate_title: {
-              translations: { en: 'Title EN', de: 'Title DE' },
+          translation: {
+            en: {
+              title: 'Title EN',
+            },
+            de: {
+              title: 'Title DE',
             },
           },
         },
@@ -6736,10 +6733,10 @@ describe('query fetchSmartTitle', () => {
               de: 'Alt Title DE',
             },
           },
-          translate_title: {
-            translations: {
-              de: 'Title DE',
-            },
+        },
+        translation: {
+          de: {
+            title: 'Title DE',
           },
         },
       },
