@@ -91,6 +91,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   squad_featured: '56',
   user_post_added: '58',
   user_given_top_reader: CioTransactionalMessageTemplateId.UserGivenTopReader,
+  user_gifted_plus: CioTransactionalMessageTemplateId.UserReceivedPlusGift,
 };
 
 type TemplateData = Record<string, unknown>;
@@ -854,6 +855,29 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       image: userTopReader.image,
       issuedAt: formatMailDate(userTopReader.issuedAt),
       keyword: keyword?.flags?.title || keyword.value,
+    };
+  },
+  user_gifted_plus: async (con, user) => {
+    const { subscriptionFlags } = await con.getRepository(User).findOneOrFail({
+      where: {
+        id: user.id,
+      },
+      select: ['subscriptionFlags'],
+    });
+
+    if (!subscriptionFlags?.gifterId) {
+      throw new Error('Gifter user not found');
+    }
+
+    const gifter = await con.getRepository(User).findOneOrFail({
+      where: {
+        id: subscriptionFlags.gifterId,
+      },
+      select: ['name', 'image'],
+    });
+    return {
+      gifter_name: gifter.name,
+      gifter_image: gifter.image,
     };
   },
 };
