@@ -15,6 +15,7 @@ import {
   NotificationCommentContext,
   NotificationCommenterContext,
   NotificationDoneByContext,
+  NotificationGiftPlusContext,
   NotificationPostContext,
   NotificationPostModerationContext,
   NotificationSourceContext,
@@ -145,6 +146,8 @@ export const notificationTitleMap: Record<
   },
   source_post_submitted: (ctx: NotificationPostModerationContext) =>
     `${ctx.user.name} just posted in ${ctx.source.name}. This post is waiting for your review before it gets published on the squad.`,
+  user_gifted_plus: (ctx: NotificationGiftPlusContext) =>
+    `Surprise! 🎁 ${ctx.gifter.username} thought of you and gifted you a one-year daily.dev Plus membership! How’s that for a thoughtful surprise?`,
 };
 
 export const generateNotificationMap: Record<
@@ -430,4 +433,13 @@ export const generateNotificationMap: Record<
       .icon(NotificationIcon.Bell)
       .avatarUser(ctx.user)
       .objectPost(ctx.post, ctx.source, ctx.sharedPost!),
+  user_gifted_plus: (builder, ctx: NotificationGiftPlusContext) =>
+    builder
+      .uniqueKey(
+        `${ctx.gifter.id}-${ctx.recipient.id}-${new Date().toISOString()}`,
+      )
+      .icon(NotificationIcon.Bell)
+      .avatarUser(ctx.gifter)
+      .referenceSource(ctx.squad)
+      .targetSource(ctx.squad),
 };
