@@ -42,6 +42,11 @@ import {
   validateSourcePostModeration,
   getPostTranslatedTitle,
   getPostSmartTitle,
+  getModerationItemsAsAdminForSource,
+  getModerationItemsByUserForSource,
+  type GQLSourcePostModeration,
+  type SourcePostModerationArgs,
+  getAllModerationItemsAsAdmin,
 } from '../common';
 import {
   ArticlePost,
@@ -70,7 +75,6 @@ import {
   UserAction,
   Settings,
   type PostTranslation,
-  SourceMember,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -93,7 +97,7 @@ import {
   queryPaginatedByDate,
 } from '../common/datePageGenerator';
 import { GraphQLResolveInfo } from 'graphql';
-import { Roles, SourceMemberRoles } from '../roles';
+import { Roles } from '../roles';
 import { markdown, saveMentions } from '../common/markdown';
 // @ts-expect-error - no types
 import { FileUpload } from 'graphql-upload/GraphQLUpload';
@@ -110,27 +114,10 @@ import {
   SourcePostModerationStatus,
 } from '../entity/SourcePostModeration';
 import { logger } from '../logger';
-import { Source } from '@dailydotdev/schema';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { remoteConfig } from '../remoteConfig';
 import { ensurePostRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
-
-export interface GQLSourcePostModeration {
-  id: string;
-  title?: string;
-  content?: string;
-  contentHtml?: string;
-  image?: string;
-  sourceId: string;
-  sharedPostId?: string;
-  status: SourcePostModerationStatus;
-  createdAt: Date;
-  updatedAt: Date;
-  source: Source;
-  post?: Post;
-  postId?: string;
-}
 
 export interface GQLPost {
   id: string;
@@ -201,15 +188,7 @@ export type GQLPostSmartTitle = {
   title: string;
 };
 
-const POST_MODERATION_PAGE_SIZE = 15;
 const POST_MODERATION_LIMIT_FOR_MUTATION = 50;
-const sourcePostModerationPageGenerator =
-  offsetPageGenerator<GQLSourcePostModeration>(POST_MODERATION_PAGE_SIZE, 50);
-
-type SourcePostModerationArgs = ConnectionArguments & {
-  sourceId: string;
-  status: SourcePostModerationStatus[];
-};
 
 export interface GQLPostUpvote {
   createdAt: Date;
@@ -1462,147 +1441,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: Context,
       info,
     ): Promise<ConnectionRelay<GQLSourcePostModeration>> => {
-      const page = sourcePostModerationPageGenerator.connArgsToPage(args);
-      const statuses = Array.from(new Set(args.status));
-      const { userId } = ctx;
-
       if (args?.sourceId) {
         const isModerator = await isPrivilegedMember(ctx, args.sourceId);
         if (isModerator) {
-          return graphorm.queryPaginated(
-            ctx,
-            info,
-            (nodeSize) =>
-              sourcePostModerationPageGenerator.hasPreviousPage(page, nodeSize),
-            (nodeSize) =>
-              sourcePostModerationPageGenerator.hasNextPage(page, nodeSize),
-            (node, index) =>
-              sourcePostModerationPageGenerator.nodeToCursor(
-                page,
-                args,
-                node,
-                index,
-              ),
-            (builder) => {
-              builder.queryBuilder
-                .where(`"${builder.alias}"."sourceId" = :sourceId`, {
-                  sourceId: args.sourceId,
-                })
-                .andWhere(
-                  `("${builder.alias}"."flags"->>'vordr')::boolean IS NOT TRUE`,
-                )
-                .orderBy(`${builder.alias}.updatedAt`, 'DESC')
-                .limit(page.limit)
-                .offset(page.offset);
-
-              if (statuses.length) {
-                builder.queryBuilder.andWhere(
-                  `"${builder.alias}"."status" IN (:...status)`,
-                  {
-                    status: statuses,
-                  },
-                );
-              }
-
-              return builder;
-            },
-            undefined,
-            true,
-          );
+          return getModerationItemsAsAdminForSource(ctx, info, args);
         }
-
-        return graphorm.queryPaginated(
-          ctx,
-          info,
-          (nodeSize) =>
-            sourcePostModerationPageGenerator.hasPreviousPage(page, nodeSize),
-          (nodeSize) =>
-            sourcePostModerationPageGenerator.hasNextPage(page, nodeSize),
-          (node, index) =>
-            sourcePostModerationPageGenerator.nodeToCursor(
-              page,
-              args,
-              node,
-              index,
-            ),
-          (builder) => {
-            builder.queryBuilder
-              .where(`"${builder.alias}"."sourceId" = :sourceId`, {
-                sourceId: args.sourceId,
-              })
-              .andWhere(`"${builder.alias}"."createdById" = :userId`, {
-                userId,
-              })
-              .orderBy(`${builder.alias}.updatedAt`, 'DESC')
-              .limit(page.limit)
-              .offset(page.offset);
-
-            if (statuses.length) {
-              builder.queryBuilder.andWhere(
-                `"${builder.alias}"."status" IN (:...status)`,
-                {
-                  status: statuses,
-                },
-              );
-            }
-
-            return builder;
-          },
-          undefined,
-          true,
-        );
+        return getModerationItemsByUserForSource(ctx, info, args);
       }
-      const userModeratorSources = await ctx.con
-        .getRepository(SourceMember)
-        .createQueryBuilder('member')
-        .select('member.sourceId')
-        .where('member.userId = :userId', { userId })
-        .andWhere('member.role IN (:...roles)', {
-          roles: [SourceMemberRoles.Admin, SourceMemberRoles.Moderator],
-        })
-        .getMany();
-
-      const sourceIds = userModeratorSources.map((source) => source.sourceId);
-      if (!sourceIds.length)
-        throw new NotFoundError('Not moderator of any sources');
-
-      return graphorm.queryPaginated(
-        ctx,
-        info,
-        (nodeSize) =>
-          sourcePostModerationPageGenerator.hasPreviousPage(page, nodeSize),
-        (nodeSize) =>
-          sourcePostModerationPageGenerator.hasNextPage(page, nodeSize),
-        (node, index) =>
-          sourcePostModerationPageGenerator.nodeToCursor(
-            page,
-            args,
-            node,
-            index,
-          ),
-        (builder) => {
-          builder.queryBuilder
-            .where(`"${builder.alias}"."sourceId" IN (:...sourceIds)`, {
-              sourceIds,
-            })
-            .orderBy(`${builder.alias}.updatedAt`, 'DESC')
-            .limit(page.limit)
-            .offset(page.offset);
-
-          if (statuses.length) {
-            builder.queryBuilder.andWhere(
-              `"${builder.alias}"."status" IN (:...status)`,
-              {
-                status: statuses,
-              },
-            );
-          }
-
-          return builder;
-        },
-        undefined,
-        true,
-      );
+      return getAllModerationItemsAsAdmin(ctx, info, args);
     },
     post: async (
       source,
