@@ -112,6 +112,7 @@ import { reportFunctionMap } from '../common/reporting';
 import { format } from 'date-fns';
 import { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
+import { isGiftedPlus } from '../paddle';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -947,6 +948,11 @@ export const typeDefs = /* GraphQL */ `
     Get the top reader badge based on badge ID
     """
     topReaderBadgeById(id: ID!): UserTopReader
+
+    """
+    Get the plus gifter user
+    """
+    plusGifterUser: User @auth
   }
 
   ${toGQLEnum(UploadPreset, 'UploadPreset')}
@@ -1872,6 +1878,25 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         'top reader badge',
         true,
       );
+    },
+    plusGifterUser: async (_, __, ctx: AuthContext): Promise<GQLUser> => {
+      const { subscriptionFlags } = await ctx.con
+        .getRepository(User)
+        .findOneOrFail({
+          where: {
+            id: ctx.userId,
+          },
+          select: ['subscriptionFlags'],
+        });
+
+      if (!isGiftedPlus(subscriptionFlags)) {
+        throw new ForbiddenError('User is not a gifted plus user');
+      }
+
+      return await ctx.con.getRepository(User).findOneOrFail({
+        where: { id: subscriptionFlags.gifterId },
+        select: ['id', 'username', 'name', 'image'],
+      });
     },
   },
   Mutation: {
