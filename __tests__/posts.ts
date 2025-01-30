@@ -6960,3 +6960,81 @@ describe('query fetchSmartTitle', () => {
     });
   });
 });
+
+describe('field language', () => {
+  const QUERY = /* GraphQL */ `
+    query Post($id: ID!) {
+      post(id: $id) {
+        language
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await saveFixtures(con, ArticlePost, [
+      {
+        id: 'lp1',
+        shortId: 'slp1',
+        title: 'LP1',
+        url: 'http://lp1.com',
+        canonicalUrl: 'http://lp1c.com',
+        image: 'https://daily.dev/image.jpg',
+        score: 1,
+        sourceId: 'a',
+        tagsStr: 'javascript,webdev',
+        type: PostType.Article,
+        contentCuration: ['c1', 'c2'],
+        language: 'en',
+      },
+      {
+        id: 'lp2',
+        shortId: 'slp2',
+        title: 'LP2',
+        url: 'http://lp2.com',
+        canonicalUrl: 'http://lp2c.com',
+        image: 'https://daily.dev/image.jpg',
+        score: 1,
+        sourceId: 'a',
+        tagsStr: 'javascript,webdev',
+        type: PostType.Article,
+        contentCuration: ['c1', 'c2'],
+        language: 'de',
+      },
+      {
+        id: 'lp3',
+        shortId: 'slp3',
+        title: 'LP3',
+        url: 'http://lp3.com',
+        canonicalUrl: 'http://lp3c.com',
+        image: 'https://daily.dev/image.jpg',
+        score: 1,
+        sourceId: 'a',
+        tagsStr: 'javascript,webdev',
+        type: PostType.Article,
+        contentCuration: ['c1', 'c2'],
+      },
+    ]);
+  });
+
+  it('should return the post language', async () => {
+    const res = await client.query(QUERY, {
+      variables: { id: 'lp1' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.post.language).toEqual('en');
+
+    const resDe = await client.query(QUERY, {
+      variables: { id: 'lp2' },
+    });
+    expect(resDe.errors).toBeFalsy();
+    expect(resDe.data.post.language).toEqual('de');
+  });
+
+  it('should default to en when language is not set', async () => {
+    const res = await client.query(QUERY, {
+      variables: { id: 'lp3' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.post.language).toEqual('en');
+  });
+});
