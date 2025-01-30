@@ -2351,9 +2351,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<GQLPost> => {
       const [post] = await Promise.all([
-        ctx.con.getRepository(Post).findOneByOrFail({ id }),
+        ctx.con
+          .createQueryBuilder()
+          .select(['post.id', 'post.title', 'post.type', 'post.sharedPostId'])
+          .from(Post, 'post')
+          .where('post.id = :id', { id })
+          .getOneOrFail(),
         ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
-        ensurePostRateLimit(ctx.con, ctx.userId),
+        // ensurePostRateLimit(ctx.con, ctx.userId),
       ]);
 
       const sharedPostId = determineSharedPostId(post);
