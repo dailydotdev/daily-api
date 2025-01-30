@@ -3,7 +3,7 @@ import {
   UpdateUserFailErrorKeys,
   UserFailErrorKeys,
 } from '../../errors';
-import { ContentLanguage, validLanguages } from '../../types';
+import { ContentLanguage } from '../../types';
 import { DataSource, DeepPartial, EntityManager } from 'typeorm';
 import { FastifyBaseLogger, FastifyRequest } from 'fastify';
 import { counters } from '../../telemetry';
@@ -35,6 +35,7 @@ import { nameRegex, validateRegex, ValidateRegex } from '../../common/object';
 import { logger } from '../../logger';
 import { User } from './User';
 import { Feed } from '../Feed';
+import { remoteConfig } from '../../remoteConfig';
 
 export type AddUserData = Pick<
   User,
@@ -66,6 +67,7 @@ const checkLanguage = (language?: string | null): boolean => {
     return true;
   }
 
+  const validLanguages = Object.keys(remoteConfig.validLanguages || {});
   return validLanguages.includes(language as ContentLanguage);
 };
 

@@ -44,6 +44,7 @@ config:
   api:env:
     accessSecret: topsecret
     analyticsUrl: http://localhost:3000
+    validLanguagesFeatureKey: valid_languages
     cioReportingWebhookSecret: topsecret
     cioWebhookSecret: topsecret
     commentsPrefix: http://webapp.local.com:5002
