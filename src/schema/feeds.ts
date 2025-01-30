@@ -79,7 +79,6 @@ import {
   FeedLocalConfigGenerator,
   FeedLofnConfigGenerator,
 } from '../integrations/feed/configs';
-import { counters } from '../telemetry';
 import { lofnClient } from '../integrations/feed/generators';
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
@@ -382,6 +381,7 @@ export const typeDefs = /* GraphQL */ `
       Force refresh the feed
       """
       refresh: Boolean = false
+        @deprecated(reason: "No longer available in the API")
 
       """
       Version of the feed algorithm
@@ -1063,7 +1063,6 @@ interface AnonymousFeedArgs extends FeedArgs {
 interface ConfiguredFeedArgs extends FeedArgs {
   unreadOnly: boolean;
   version: number;
-  refresh?: boolean;
 }
 
 interface SourceFeedArgs extends FeedArgs {
@@ -1361,7 +1360,6 @@ const feedResolverCursor = feedResolver<
         offset: 0,
         cursor: page.cursor,
         allowed_post_types: args.supportedTypes,
-        ...(args?.refresh && { refresh: true }),
       }),
     warnOnPartialFirstPage: true,
     // Feed service should take care of this
@@ -1435,10 +1433,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     feed: (source, args: ConfiguredFeedArgs, ctx: Context, info) => {
       if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
-        if (args?.refresh) {
-          counters?.api?.forceRefresh?.add(1);
-        }
-
         return feedResolverCursor(
           source,
           {

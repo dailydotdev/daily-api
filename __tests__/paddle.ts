@@ -28,6 +28,10 @@ beforeEach(async () => {
     [...usersFixture, ...plusUsersFixture].map((user) => ({
       ...user,
       id: `whp-${user.id}`,
+      flags: {
+        vordr: false,
+        trustScore: 1,
+      },
     })),
   );
 });
@@ -173,5 +177,33 @@ describe('gift', () => {
       new Date(updatedUser.subscriptionFlags?.giftExpirationDate);
     expect(expireDate).toBeInstanceOf(Date);
     expect(expireDate?.getFullYear()).toBe(new Date().getFullYear() + 1);
+  });
+
+  it('should add showPlusGift flags to recipient when gifted', async () => {
+    const userId = 'whp-1';
+    const user = await con.getRepository(User).findOneByOrFail({ id: 'whp-1' });
+
+    expect(isPlusMember(user.subscriptionFlags?.cycle)).toBe(false);
+    expect(user.flags).toStrictEqual({
+      vordr: false,
+      trustScore: 1,
+    });
+
+    const data = getSubscriptionData({
+      user_id: userId,
+      gifter_id: 'whp-2',
+    });
+    await updateUserSubscription({ data, state: true });
+
+    const updatedUser = await con
+      .getRepository(User)
+      .findOneByOrFail({ id: userId });
+
+    expect(isPlusMember(updatedUser.subscriptionFlags?.cycle)).toBe(true);
+    expect(updatedUser.flags).toStrictEqual({
+      vordr: false,
+      trustScore: 1,
+      showPlusGift: true,
+    });
   });
 });

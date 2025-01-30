@@ -14,7 +14,6 @@ import MercuriusGQLUpload from 'mercurius-upload';
 import MercuriusCache from 'mercurius-cache';
 import proxy, { type FastifyHttpProxyOptions } from '@fastify/http-proxy';
 import { NoSchemaIntrospectionCustomRule } from 'graphql';
-// import fastifyWebsocket from '@fastify/websocket';
 
 import './config';
 
@@ -150,13 +149,6 @@ export default async function app(
     res.type('application/health+json');
     res.send(stringifyHealthCheck({ status: 'ok' }));
   });
-
-  // app.register(fastifyWebsocket, {
-  //   options: {
-  //     maxPayload: 1048576,
-  //     verifyClient: (info, next) => next(true),
-  //   },
-  // });
 
   app.register(MercuriusGQLUpload, {
     maxFileSize: 1024 * 1024 * 20,
