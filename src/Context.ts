@@ -10,14 +10,14 @@ import { FastifyRequest, FastifyBaseLogger } from 'fastify';
 import { GraphQLDatabaseLoader } from '@mando75/typeorm-graphql-loader';
 import { Roles } from './roles';
 import { DataLoaderService } from './dataLoaderService';
-import { ContentLanguage, validLanguages } from './types';
+import { remoteConfig } from './remoteConfig';
 
 export class Context {
   req: FastifyRequest;
   con: DataSource;
   loader: GraphQLDatabaseLoader;
   dataLoader: DataLoaderService;
-  contentLanguage: ContentLanguage | null;
+  contentLanguage: string | null;
 
   constructor(req: FastifyRequest, con: DataSource) {
     this.req = req;
@@ -26,11 +26,12 @@ export class Context {
     this.dataLoader = new DataLoaderService({ ctx: this });
 
     const contentLanguageHeader = req.headers['content-language'];
+    const validLanguages = Object.keys(remoteConfig.vars.validLanguages || {});
 
     this.contentLanguage = validLanguages.includes(
-      contentLanguageHeader as ContentLanguage,
+      contentLanguageHeader as string,
     )
-      ? (contentLanguageHeader as ContentLanguage)
+      ? (contentLanguageHeader as string)
       : null;
   }
 

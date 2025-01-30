@@ -45,7 +45,15 @@ class RemoteConfig {
 
   get vars(): Partial<RemoteConfigValue> {
     if (!process.env.GROWTHBOOK_API_CONFIG_CLIENT_KEY) {
-      return {};
+      return {
+        validLanguages: {
+          de: 'German',
+          en: 'English',
+          es: 'Spanish',
+          no: 'Norwegian',
+          fr: 'French',
+        },
+      };
     }
 
     if (!this.gb) {
