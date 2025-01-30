@@ -86,7 +86,7 @@ class RemoteConfig {
     );
 
     if (!result) {
-      logger.error('failed to get remote config');
+      logger.error('failed to get valid languages');
 
       return {};
     }
