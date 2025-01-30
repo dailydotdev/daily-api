@@ -997,9 +997,12 @@ export const canModeratePosts = async (
 
   const sourceIds = Array.from(new Set(posts.map((p) => p.sourceId)));
 
-  const memberships = await ctx.con.getRepository(SourceMember).findBy({
-    sourceId: In(sourceIds),
-    userId: ctx.userId,
+  const memberships = await ctx.con.getRepository(SourceMember).find({
+    where: {
+      sourceId: In(sourceIds),
+      userId: ctx.userId,
+    },
+    select: ['role'],
   });
 
   if (!memberships.length || memberships.length !== sourceIds.length) {

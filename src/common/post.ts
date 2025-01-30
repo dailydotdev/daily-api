@@ -10,12 +10,12 @@ import {
   Post,
   PostOrigin,
   PostType,
+  Source,
   SourceMember,
   SquadSource,
   User,
   validateCommentary,
   WelcomePost,
-  type Source,
 } from '../entity';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { isValidHttpUrl, standardizeURL } from './links';
@@ -49,7 +49,6 @@ import graphorm from '../graphorm';
 import type { GraphQLResolveInfo } from 'graphql';
 import { offsetPageGenerator } from '../schema/common';
 import { SourceMemberRoles } from '../roles';
-import { NotFoundError } from '../errors';
 
 export type SourcePostModerationArgs = ConnectionArguments & {
   sourceId: string;
@@ -820,20 +819,6 @@ export const getAllModerationItemsAsAdmin = async (
   const { userId } = ctx;
   const statuses = Array.from(new Set(args.status));
 
-  const userModeratorSources = await ctx.con
-    .getRepository(SourceMember)
-    .createQueryBuilder('member')
-    .select('member.sourceId')
-    .where('member.userId = :userId', { userId })
-    .andWhere('member.role IN (:...roles)', {
-      roles: [SourceMemberRoles.Admin, SourceMemberRoles.Moderator],
-    })
-    .getMany();
-
-  const sourceIds = userModeratorSources.map((source) => source.sourceId);
-  if (!sourceIds.length)
-    throw new NotFoundError('Not moderator of any sources');
-
   return graphorm.queryPaginated<GQLSourcePostModeration>(
     ctx,
     info,
@@ -844,9 +829,11 @@ export const getAllModerationItemsAsAdmin = async (
       sourcePostModerationPageGenerator.nodeToCursor(page, args, node, index),
     (builder) => {
       builder.queryBuilder
-        .where(`"${builder.alias}"."sourceId" IN (:...sourceIds)`, {
-          sourceIds,
+        .innerJoin(SourceMember, 'sm', 'sm.userId = :userId', { userId })
+        .where('sm.role IN (:...roles)', {
+          roles: [SourceMemberRoles.Admin, SourceMemberRoles.Moderator],
         })
+        .andWhere(`"${builder.alias}"."sourceId" = "sm"."sourceId"`)
         .orderBy(`${builder.alias}.updatedAt`, 'DESC')
         .limit(page.limit)
         .offset(page.offset);
@@ -859,7 +846,6 @@ export const getAllModerationItemsAsAdmin = async (
           },
         );
       }
-
       return builder;
     },
     undefined,
