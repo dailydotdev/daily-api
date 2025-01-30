@@ -28,13 +28,13 @@ jest.mock('../src/remoteConfig', () => ({
       rateLimitReputationThreshold: 1,
       pricingIds: { pricingGift: 'yearly' },
     } as typeof remoteConfig.vars,
-  },
-  validLanguages: {
-    en: 'English',
-    es: 'Spanish',
-    fr: 'French',
-    de: 'German',
-    'zh-Hans': 'ChineseSimplified',
+    validLanguages: {
+      en: 'English',
+      es: 'Spanish',
+      fr: 'French',
+      de: 'German',
+      'zh-Hans': 'ChineseSimplified',
+    },
   },
 }));
 
