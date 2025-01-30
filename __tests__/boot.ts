@@ -96,7 +96,6 @@ const LOGGED_IN_BODY = {
   alerts: {
     ...BASE_BODY.alerts,
     bootPopup: true,
-    shouldShowGiftPlus: false,
   },
   accessToken: {
     expiresIn: expect.any(String),
@@ -131,6 +130,7 @@ const LOGGED_IN_BODY = {
     language: undefined,
     isPlus: false,
     defaultFeedId: null,
+    shouldShowGiftPlus: false,
   },
   marketingCta: null,
   feeds: [],
@@ -154,7 +154,6 @@ const getBootAlert = (data: Alerts): BootAlerts =>
     ]),
     shouldShowFeedFeedback:
       subDays(new Date(), FEED_SURVEY_INTERVAL) > data.lastFeedSettingsFeedback,
-    shouldShowGiftPlus: false,
   }) as BootAlerts;
 
 beforeAll(async () => {
@@ -888,7 +887,7 @@ describe('boot alerts', () => {
       .get(BASE_PATH)
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
-    expect(res.body.alerts.shouldShowGiftPlus).toEqual(true);
+    expect(res.body.user.shouldShowGiftPlus).toEqual(true);
   });
 });
 

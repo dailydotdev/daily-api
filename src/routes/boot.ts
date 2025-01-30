@@ -519,6 +519,7 @@ const loggedInBoot = async ({
         image: mapCloudinaryUrl(user.image),
         cover: mapCloudinaryUrl(user.cover),
         defaultFeedId: isPlus ? user.defaultFeedId : null,
+        shouldShowGiftPlus: Boolean(user?.flags?.showPlusGift),
       },
       visit,
       alerts: {
@@ -539,7 +540,6 @@ const loggedInBoot = async ({
         shouldShowFeedFeedback:
           subDays(new Date(), FEED_SURVEY_INTERVAL) >
           alerts.lastFeedSettingsFeedback,
-        shouldShowGiftPlus: Boolean(user?.flags?.showPlusGift),
       },
       settings: excludeProperties(settings, [
         'userId',
