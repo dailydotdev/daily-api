@@ -19,6 +19,7 @@ export const updateSourcePublicThreshold: Cron = {
           "description" IS NOT NULL AND
           (flags->>'publicThreshold')::boolean IS NOT TRUE AND
           (flags->>'vordr')::boolean IS NOT TRUE AND
+          ("memberPostingRank" = 0 OR "moderationRequired") AND
           (
           ((flags->>'totalMembers')::int >= 3 AND (flags->>'totalPosts')::int >= 3) OR
           exists (select 1
