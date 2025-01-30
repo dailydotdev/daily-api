@@ -59,6 +59,7 @@ declare global {
       SUBMIT_ARTICLE_THRESHOLD: string;
       SLACK_SIGNING_SECRET: string;
       API_CONFIG_FEATURE_KEY: string;
+      VALID_LANGUAGES_FEATURE_KEY: string;
       PADDLE_API_KEY: string;
       PADDLE_WEBHOOK_SECRET: string;
       PADDLE_ENVIRONMENT: string;

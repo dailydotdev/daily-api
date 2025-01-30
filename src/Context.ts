@@ -27,7 +27,7 @@ export class Context {
     this.dataLoader = new DataLoaderService({ ctx: this });
 
     const contentLanguageHeader = req.headers['content-language'];
-    const validLanguages = Object.keys(remoteConfig.vars.validLanguages || {});
+    const validLanguages = Object.keys(remoteConfig.validLanguages || {});
 
     this.contentLanguage = validLanguages.includes(
       contentLanguageHeader as ContentLanguage,

@@ -67,7 +67,7 @@ const checkLanguage = (language?: string | null): boolean => {
     return true;
   }
 
-  const validLanguages = Object.keys(remoteConfig.vars.validLanguages || {});
+  const validLanguages = Object.keys(remoteConfig.validLanguages || {});
   return validLanguages.includes(language as ContentLanguage);
 };
 
