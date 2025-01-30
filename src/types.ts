@@ -54,7 +54,6 @@ declare global {
       MEILI_INDEX: string;
       MAGNI_ORIGIN: string;
       ANALYTICS_URL: string;
-      DEFAULT_IMAGE_RATIO: string;
       POST_SCRAPER_ORIGIN: string;
       SUBMIT_ARTICLE_THRESHOLD: string;
       SLACK_SIGNING_SECRET: string;
