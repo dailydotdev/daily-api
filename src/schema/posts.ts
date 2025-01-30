@@ -2346,7 +2346,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<GQLPost> => {
       const [post] = await Promise.all([
-        ctx.con.getRepository(Post).findOneOrFail({ where: { id } }),
+        ctx.con.getRepository(Post).findOneByOrFail({ id }),
         ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
         ensurePostRateLimit(ctx.con, ctx.userId),
       ]);

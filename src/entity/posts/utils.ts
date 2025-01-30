@@ -355,7 +355,9 @@ interface CreateSharePostArgs {
 
 export const determineSharedPostId = (post: Post | SharePost): string => {
   if (post.type === PostType.Share && !post.title) {
-    return post instanceof SharePost ? post.sharedPostId : post.id;
+    if (post instanceof SharePost) {
+      return post.sharedPostId;
+    }
   }
 
   return post.id;
