@@ -1,6 +1,7 @@
 import { Cron } from './cron';
 import { Source, SQUAD_IMAGE_PLACEHOLDER } from '../entity';
 import { updateFlagsStatement } from '../common';
+import { SourceMemberRoles, sourceRoleRank } from '../roles';
 
 export const updateSourcePublicThreshold: Cron = {
   name: 'update-source-public-threshold',
@@ -19,7 +20,7 @@ export const updateSourcePublicThreshold: Cron = {
           "description" IS NOT NULL AND
           (flags->>'publicThreshold')::boolean IS NOT TRUE AND
           (flags->>'vordr')::boolean IS NOT TRUE AND
-          ("memberPostingRank" = 0 OR "moderationRequired") AND
+          ("memberPostingRank" >= ${sourceRoleRank[SourceMemberRoles.Moderator]} OR "moderationRequired") AND
           (
           ((flags->>'totalMembers')::int >= 3 AND (flags->>'totalPosts')::int >= 3) OR
           exists (select 1
