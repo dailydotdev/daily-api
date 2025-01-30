@@ -1879,7 +1879,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         true,
       );
     },
-    plusGifterUser: async (_, __, ctx: AuthContext): Promise<GQLUser> => {
+    plusGifterUser: async (_, __, ctx: AuthContext, info): Promise<GQLUser> => {
       const { subscriptionFlags } = await ctx.con
         .getRepository(User)
         .findOneOrFail({
@@ -1889,14 +1889,24 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           select: ['subscriptionFlags'],
         });
 
-      if (!isGiftedPlus(subscriptionFlags)) {
+      if (!subscriptionFlags || !isGiftedPlus(subscriptionFlags)) {
         throw new ForbiddenError('User is not a gifted plus user');
       }
 
-      return await ctx.con.getRepository(User).findOneOrFail({
-        where: { id: subscriptionFlags.gifterId },
-        select: ['id', 'username', 'name', 'image'],
-      });
+      return await graphorm.queryOneOrFail<GQLUser>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .andWhere(`${builder.alias}."id" = :userId`, {
+              userId: subscriptionFlags.gifterId,
+            })
+            .select(['id', 'username', 'name', 'image']);
+          return builder;
+        },
+        User,
+        true,
+      );
     },
   },
   Mutation: {
