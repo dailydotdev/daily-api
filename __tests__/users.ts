@@ -6022,7 +6022,7 @@ describe('query getGifterUser', () => {
     );
   });
 
-  it('should thwrow an error if the user is not plus', async () => {
+  it('should throw an error if the user is not plus', async () => {
     loggedUser = '1';
     await testQueryErrorCode(
       client,
@@ -6033,7 +6033,7 @@ describe('query getGifterUser', () => {
     );
   });
 
-  it('should thwrow an error if the user is plus but has no gifter', async () => {
+  it('should throw an error if the user is plus but has no gifter', async () => {
     loggedUser = '5';
     const user = await con
       .getRepository(User)
