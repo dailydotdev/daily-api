@@ -155,7 +155,7 @@ export enum UserVoteEntity {
   Post = 'post',
 }
 
-export const maxFeedsPerUser = 10;
+export const maxFeedsPerUser = 20;
 
 export const maxBookmarksPerMutation = 10;
 
