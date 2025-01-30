@@ -16,7 +16,6 @@ type RemoteConfigValue = {
   rateLimitReputationThreshold: number;
   postRateLimit: number;
   commentRateLimit: number;
-  validLanguages: Record<string, string>;
 };
 
 class RemoteConfig {
@@ -59,6 +58,35 @@ class RemoteConfig {
 
     if (!result) {
       logger.error('failed to get remote config');
+
+      return {};
+    }
+
+    return result;
+  }
+
+  get validLanguages(): Record<string, string> {
+    if (!process.env.GROWTHBOOK_API_CONFIG_CLIENT_KEY) {
+      return {
+        de: 'German',
+        en: 'English',
+        es: 'Spanish',
+        no: 'Norwegian',
+        fr: 'French',
+      };
+    }
+
+    if (!this.gb) {
+      throw new Error('remote config not initialized');
+    }
+
+    const result = this.gb.getFeatureValue(
+      process.env.VALID_LANGUAGES_FEATURE_KEY,
+      null,
+    );
+
+    if (!result) {
+      logger.error('failed to get valid languages');
 
       return {};
     }

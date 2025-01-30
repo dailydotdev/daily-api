@@ -69,6 +69,7 @@ import {
   UserAction,
   Settings,
   type PostTranslation,
+  determineSharedPostId,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -2349,11 +2350,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLPost> => {
-      await Promise.all([
-        ctx.con.getRepository(Post).findOneByOrFail({ id }),
+      const [post] = await Promise.all([
+        ctx.con
+          .createQueryBuilder()
+          .select(['post.id', 'post.title', 'post.type', 'post.sharedPostId'])
+          .from(Post, 'post')
+          .where('post.id = :id', { id })
+          .getOneOrFail(),
         ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
         ensurePostRateLimit(ctx.con, ctx.userId),
       ]);
+
+      const sharedPostId = determineSharedPostId(post);
 
       const newPost = await createSharePost({
         con: ctx.con,
@@ -2361,7 +2369,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         args: {
           authorId: ctx.userId,
           sourceId,
-          postId: id,
+          postId: sharedPostId,
           commentary,
         },
       });
