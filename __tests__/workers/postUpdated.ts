@@ -2004,7 +2004,7 @@ describe('on post update', () => {
         id: uuid,
         post_id: postId,
         content_type: PostType.Article,
-        alt_title: 'Alt title',
+        alt_title: `Alt title's`,
       });
 
       const updatedPost = await con.getRepository(ArticlePost).findOneBy({
@@ -2014,7 +2014,7 @@ describe('on post update', () => {
       expect(updatedPost).not.toBeNull();
       expect(updatedPost?.translation).toEqual({
         en: {
-          smartTitle: 'Alt title',
+          smartTitle: `Alt title's`,
         },
       });
     });

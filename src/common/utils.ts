@@ -44,21 +44,6 @@ export const updateFlagsStatement = <Entity extends { flags: object }>(
   return () => `flags || '${JSON.stringify(update)}'`;
 };
 
-export const addSmartTitleToTranslationStatement = (
-  smartTitle?: string,
-): (() => string) | undefined => {
-  if (!smartTitle) {
-    return undefined;
-  }
-
-  return () => /* sql */ `jsonb_set(
-    translation,
-    '{en}',
-    COALESCE(translation->'en', '{}'::jsonb) || jsonb_build_object('smartTitle', '${smartTitle}'),
-    true
-  )`;
-};
-
 export const updateSubscriptionFlags = <
   Entity extends {
     subscriptionFlags: object;

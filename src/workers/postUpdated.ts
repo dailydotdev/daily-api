@@ -32,11 +32,7 @@ import { SubmissionFailErrorKeys, SubmissionFailErrorMessage } from '../errors';
 import { generateShortId } from '../ids';
 import { FastifyBaseLogger } from 'fastify';
 import { EntityManager } from 'typeorm';
-import {
-  addSmartTitleToTranslationStatement,
-  parseDate,
-  updateFlagsStatement,
-} from '../common';
+import { parseDate, updateFlagsStatement } from '../common';
 import { markdown } from '../common/markdown';
 import { counters } from '../telemetry';
 import { I18nRecord } from '../types';
@@ -489,6 +485,15 @@ const updatePost = async ({
     data.contentQuality.manual_clickbait_probability =
       databasePost.contentQuality.manual_clickbait_probability;
   }
+  if (smartTitle) {
+    if (Object.keys(databasePost.translation).length !== 0) {
+      data.translation = databasePost.translation;
+      data.translation.en = data.translation.en || {};
+      data.translation.en.smartTitle = smartTitle;
+    } else {
+      data.translation = { en: { smartTitle } };
+    }
+  }
 
   if (allowedFieldsMapping[content_type]) {
     const allowedFields = [
@@ -515,7 +520,6 @@ const updatePost = async ({
         ...data.flags,
         visible: data.visible,
       }),
-      translation: addSmartTitleToTranslationStatement(smartTitle),
     },
   );
 
