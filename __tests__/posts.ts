@@ -847,19 +847,21 @@ describe('translation field', () => {
       post(id: "p1-tf") {
         translation {
           title
+          smartTitle
         }
       }
     }
   `;
 
-  it('should return false for fields when content-language header is not set', async () => {
+  it('should return null for fields when content-language header is not set', async () => {
     const res = await client.query(QUERY);
     expect(res.data.post.translation).toEqual({
       title: null,
+      smartTitle: null,
     });
   });
 
-  it('should return false for fields when translation does not exist', async () => {
+  it('should return null for fields when translation does not exist', async () => {
     await con.getRepository(ArticlePost).update('p1-tf', {
       translation: {
         es: {
@@ -874,10 +876,11 @@ describe('translation field', () => {
     });
     expect(res.data.post.translation).toEqual({
       title: null,
+      smartTitle: null,
     });
   });
 
-  it('should return true for fields when translation does exist', async () => {
+  it('should return true for fields when translation does exist for the field', async () => {
     await con.getRepository(ArticlePost).update('p1-tf', {
       translation: {
         es: {
@@ -892,6 +895,7 @@ describe('translation field', () => {
     });
     expect(res.data.post.translation).toEqual({
       title: true,
+      smartTitle: false,
     });
   });
 
