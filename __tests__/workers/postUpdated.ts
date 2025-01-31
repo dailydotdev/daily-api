@@ -1118,6 +1118,37 @@ describe('on post create', () => {
       ]);
     });
   });
+
+  describe('post alt_title translation', () => {
+    it('should create post with alt_title translation', async () => {
+      const uuid = randomUUID();
+
+      const postBefore = await con.getRepository(Post).findOneBy({
+        yggdrasilId: uuid,
+      });
+      expect(postBefore).toBeNull();
+
+      await expectSuccessfulBackground(worker, {
+        id: uuid,
+        content_type: PostType.Article,
+        alt_title: 'Alt title',
+        source_id: 'a',
+      });
+
+      const createdPost = await con.getRepository(ArticlePost).findOneBy({
+        yggdrasilId: uuid,
+      });
+
+      console.log({ uuid });
+
+      expect(createdPost).not.toBeNull();
+      expect(createdPost?.translation).toEqual({
+        en: {
+          smartTitle: 'Alt title',
+        },
+      });
+    });
+  });
 });
 
 describe('on post update', () => {
@@ -1951,6 +1982,87 @@ describe('on post update', () => {
           postId: post.id,
         },
       ]);
+    });
+  });
+
+  describe('post alt_title translation', () => {
+    it('should update post with alt_title English translation', async () => {
+      const postId = await generateShortId();
+      const uuid = randomUUID();
+
+      const existingPost = await con.getRepository(ArticlePost).save({
+        id: postId,
+        shortId: postId,
+        type: PostType.Article,
+        yggdrasilId: uuid,
+        sourceId: 'a',
+      });
+
+      expect(existingPost).not.toBeNull();
+
+      await expectSuccessfulBackground(worker, {
+        id: uuid,
+        post_id: postId,
+        content_type: PostType.Article,
+        alt_title: `Alt title's`,
+      });
+
+      const updatedPost = await con.getRepository(ArticlePost).findOneBy({
+        id: postId,
+      });
+
+      expect(updatedPost).not.toBeNull();
+      expect(updatedPost?.translation).toEqual({
+        en: {
+          smartTitle: `Alt title's`,
+        },
+      });
+    });
+    it('should not replace existing translations when updating post with alt_title', async () => {
+      const postId = await generateShortId();
+      const uuid = randomUUID();
+
+      const existingPost = await con.getRepository(ArticlePost).save({
+        id: postId,
+        shortId: postId,
+        type: PostType.Article,
+        yggdrasilId: uuid,
+        sourceId: 'a',
+        translation: {
+          en: {
+            title: 'Post title',
+            content: 'Post content',
+          },
+          de: {
+            title: 'Post title DE',
+          },
+        },
+      });
+
+      expect(existingPost).not.toBeNull();
+
+      await expectSuccessfulBackground(worker, {
+        id: uuid,
+        post_id: postId,
+        content_type: PostType.Article,
+        alt_title: 'Alt title',
+      });
+
+      const updatedPost = await con.getRepository(ArticlePost).findOneBy({
+        id: postId,
+      });
+
+      expect(updatedPost).not.toBeNull();
+      expect(updatedPost?.translation).toEqual({
+        en: {
+          title: 'Post title',
+          content: 'Post content',
+          smartTitle: 'Alt title',
+        },
+        de: {
+          title: 'Post title DE',
+        },
+      });
     });
   });
 });

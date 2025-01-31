@@ -55,6 +55,7 @@ interface Data {
   order?: number;
   collections?: string[];
   language?: string;
+  alt_title?: string;
   extra?: {
     keywords?: string[];
     keywords_native?: string[];
@@ -125,6 +126,7 @@ type CreatePostProps = {
   submissionId?: string;
   mergedKeywords: string[];
   questions: string[];
+  smartTitle?: string;
 };
 
 const handleCollectionRelations = async ({
@@ -254,6 +256,7 @@ const createPost = async ({
   submissionId,
   mergedKeywords,
   questions,
+  smartTitle,
 }: CreatePostProps): Promise<Post | null> => {
   if (
     await checkExistingUrl({
@@ -307,6 +310,10 @@ const createPost = async ({
     visible: data.visible,
   };
 
+  if (smartTitle) {
+    data.translation = { en: { smartTitle } };
+  }
+
   const post = await entityManager
     .getRepository(
       contentTypeFromPostType[
@@ -352,6 +359,7 @@ type UpdatePostProps = {
   questions: string[];
   content_type: PostType;
   submissionId?: string;
+  smartTitle?: string;
 };
 const updatePost = async ({
   logger,
@@ -362,6 +370,7 @@ const updatePost = async ({
   questions,
   content_type = PostType.Article,
   submissionId,
+  smartTitle,
 }: UpdatePostProps) => {
   const postType = contentTypeFromPostType[content_type];
   let databasePost = await entityManager
@@ -479,6 +488,15 @@ const updatePost = async ({
     data.contentQuality.manual_clickbait_probability =
       databasePost.contentQuality.manual_clickbait_probability;
   }
+  if (smartTitle) {
+    data.translation = {
+      ...databasePost.translation,
+      en: {
+        ...databasePost.translation?.en,
+        smartTitle,
+      },
+    };
+  }
 
   if (allowedFieldsMapping[content_type]) {
     const allowedFields = [
@@ -591,6 +609,7 @@ type FixData = {
   fixedData: Partial<ArticlePost> &
     Partial<CollectionPost> &
     Partial<YouTubePost>;
+  smartTitle?: string;
 };
 const fixData = async ({
   logger,
@@ -638,6 +657,7 @@ const fixData = async ({
     mergedKeywords,
     questions: data?.extra?.questions || [],
     content_type: data?.content_type as PostType,
+    smartTitle: data?.alt_title,
     fixedData: {
       origin: data?.origin as PostOrigin,
       authorId,
@@ -716,16 +736,21 @@ const worker: Worker = {
           postId = matchedYggdrasilPost?.id;
         }
 
-        const { mergedKeywords, questions, content_type, fixedData } =
-          await fixData({
-            logger,
-            entityManager,
-            data: {
-              ...data,
-              // pass resolved post id or fallback to original data
-              post_id: postId || data.post_id,
-            },
-          });
+        const {
+          mergedKeywords,
+          questions,
+          content_type,
+          smartTitle,
+          fixedData,
+        } = await fixData({
+          logger,
+          entityManager,
+          data: {
+            ...data,
+            // pass resolved post id or fallback to original data
+            post_id: postId || data.post_id,
+          },
+        });
 
         // See if post id is not available
         if (!postId) {
@@ -737,6 +762,7 @@ const worker: Worker = {
             submissionId: data?.submission_id,
             mergedKeywords,
             questions,
+            smartTitle,
           });
 
           postId = newPost?.id;
@@ -751,6 +777,7 @@ const worker: Worker = {
             questions,
             content_type,
             submissionId: data?.submission_id,
+            smartTitle,
           });
         }
 
