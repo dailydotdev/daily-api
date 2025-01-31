@@ -1900,11 +1900,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ctx,
         info,
         (builder) => {
-          builder.queryBuilder = builder.queryBuilder
-            .andWhere(`${builder.alias}."id" = :userId`, {
+          builder.queryBuilder = builder.queryBuilder.andWhere(
+            `${builder.alias}."id" = :userId`,
+            {
               userId: subscriptionFlags.gifterId,
-            })
-            .select(['id', 'username', 'name', 'image']);
+            },
+          );
           return builder;
         },
         User,
