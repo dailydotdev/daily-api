@@ -489,13 +489,13 @@ const updatePost = async ({
       databasePost.contentQuality.manual_clickbait_probability;
   }
   if (smartTitle) {
-    if (Object.keys(databasePost.translation).length !== 0) {
-      data.translation = databasePost.translation;
-      data.translation.en = data.translation.en || {};
-      data.translation.en.smartTitle = smartTitle;
-    } else {
-      data.translation = { en: { smartTitle } };
-    }
+    data.translation = {
+      ...databasePost.translation,
+      en: {
+        ...databasePost.translation?.en,
+        smartTitle,
+      },
+    };
   }
 
   if (allowedFieldsMapping[content_type]) {
