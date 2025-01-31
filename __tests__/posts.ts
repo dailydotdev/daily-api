@@ -280,13 +280,13 @@ describe('slug field', () => {
 });
 
 describe('image fields', () => {
-  const QUERY = `{
-    post(id: "image") {
-      image
-      placeholder
-      ratio
+  const QUERY = /* GraphQL */ `
+    {
+      post(id: "image") {
+        image
+      }
     }
-  }`;
+  `;
 
   it('should return default image when no image exists', async () => {
     const repo = con.getRepository(ArticlePost);
@@ -314,7 +314,6 @@ describe('image fields', () => {
       sourceId: 'a',
       createdAt: new Date(2020, 4, 4, 19, 35),
       image: 'http://image.com',
-      placeholder: 'data:image/jpeg;base64,placeholder',
       ratio: 0.5,
     });
     const res = await client.query(QUERY);

@@ -48,11 +48,14 @@ export const defaultImage = {
     process.env.DEFAULT_IMAGE_URL?.split?.(',').map((x: string) =>
       mapCloudinaryUrl(x),
     ) ?? [],
-  ratio: parseFloat(process.env.DEFAULT_IMAGE_RATIO),
-  placeholder: process.env.DEFAULT_IMAGE_PLACEHOLDER,
   welcomePost:
     'https://media.daily.dev/image/upload/f_auto,q_auto/public/welcome_post',
 };
+
+// 1x1 transparent pixel, used in the places where we don't need an image, but it is required.
+// E.g. in notifications, like the top reader badge.
+export const emptyImage =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQMAAAAl21bKAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAAApJREFUCNdjYAAAAAIAAeIhvDMAAAAASUVORK5CYII=';
 
 export const pickImageUrl = (post: {
   createdAt: Date | string | number;
