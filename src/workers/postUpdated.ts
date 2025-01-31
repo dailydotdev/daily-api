@@ -307,7 +307,7 @@ const createPost = async ({
     visible: data.visible,
   };
 
-  const post = await entityManager
+  const post = entityManager
     .getRepository(
       contentTypeFromPostType[
         data.type as keyof typeof contentTypeFromPostType
