@@ -3,6 +3,7 @@ import {
   FeedConfig,
   FeedConfigGenerator,
   FeedConfigGeneratorResult,
+  FeedConfigName,
   FeedVersion,
 } from './types';
 import { AnonymousFeedFilters, feedToFilters } from '../../common';
@@ -94,6 +95,15 @@ const addFiltersToConfig = ({
   opts: Options;
 }): FeedConfigGeneratorResult['config'] => {
   const baseConfig = { ...config, ...filters.flags };
+
+  // if order_by is set we use the CustomFeedNaV1 config
+  // for better results while sorting custom feeds
+  if (
+    baseConfig.feed_config_name === FeedConfigName.CustomFeedV1 &&
+    baseConfig.order_by
+  ) {
+    baseConfig.feed_config_name = FeedConfigName.CustomFeedNaV1;
+  }
 
   if (filters.includeTags?.length && opts.includeAllowedTags) {
     baseConfig.allowed_tags = mergeSingleFilter(
