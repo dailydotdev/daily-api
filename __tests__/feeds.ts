@@ -4553,4 +4553,49 @@ describe('query customFeed', () => {
       'FORBIDDEN',
     );
   });
+
+  it('should use sort config if order_by is set', async () => {
+    loggedUser = '1';
+    isPlus = true;
+
+    await con.getRepository(Feed).save([
+      {
+        id: 'cf1',
+        flags: {
+          orderBy: FeedOrderBy.Clicks,
+        },
+      },
+    ]);
+
+    nock('http://localhost:6000')
+      .post('/feed.json', {
+        user_id: '1',
+        page_size: 10,
+        offset: 0,
+        total_pages: 1,
+        fresh_page_size: '4',
+        allowed_tags: ['webdev', 'html', 'data'],
+        allowed_sources: ['a'],
+        allowed_author_ids: ['2'],
+        order_by: FeedOrderBy.Clicks,
+        feed_config_name: FeedConfigName.CustomFeedNaV1,
+        disable_engagement_filter: false,
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'b',
+      });
+    const res = await client.query(QUERY, {
+      variables: {
+        ranking: Ranking.POPULARITY,
+        first: 10,
+        feedId: 'cf1',
+        version: 2,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.customFeed.edges.map((item) => item.node.id)).toMatchObject(
+      ['p1', 'p4'],
+    );
+  });
 });
