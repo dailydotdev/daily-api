@@ -15,24 +15,26 @@ export const postTranslated: TypedWorker<'kvasir.v1.post-translated'> = {
     }
 
     try {
-      await con
+      const query = con
         .getRepository(Post)
         .createQueryBuilder()
         .update(Post)
         .set({
-          translation: () => `jsonb_set(
+          translation: () => /*sql*/ `jsonb_set(
           translation,
-          :language,
-          :translations::jsonb,
+          :languages,
+          COALESCE(translation->:language, '{}'::jsonb) || :translations::jsonb,
           true
         )`,
         })
         .setParameters({
-          language: [language],
+          language,
+          languages: [language],
           translations: JSON.stringify(translations),
         })
-        .where('id = :id', { id })
-        .execute();
+        .where('id = :id', { id });
+
+      await query.execute();
 
       logger.debug(
         { id, language, keys: Object.keys(translations) },

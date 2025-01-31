@@ -51,6 +51,30 @@ describe('postTranslated', () => {
     });
   });
 
+  it('should update multiple translations', async () => {
+    expect(
+      (await con.getRepository(Post).findOneByOrFail({ id: 'p1' })).translation,
+    ).toEqual({});
+
+    await expectSuccessfulTypedBackground(worker, {
+      id: 'p1',
+      language: ContentLanguage.German,
+      translations: {
+        title: 'new title',
+        smartTitle: `smart title's @re cool#$%`,
+      },
+    });
+
+    expect(
+      (await con.getRepository(Post).findOneByOrFail({ id: 'p1' })).translation,
+    ).toEqual({
+      de: {
+        title: 'new title',
+        smartTitle: `smart title's @re cool#$%`,
+      },
+    });
+  });
+
   it('should handle titles with special characters', async () => {
     expect(
       (await con.getRepository(Post).findOneByOrFail({ id: 'p1' })).translation,
@@ -137,6 +161,29 @@ describe('postTranslated', () => {
     ).toEqual({
       de: {
         title: 'new title',
+      },
+    });
+  });
+
+  it('should not remove other existing translations', async () => {
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { translation: { de: { title: 'old title' } } });
+
+    await expectSuccessfulTypedBackground(worker, {
+      id: 'p1',
+      language: ContentLanguage.German,
+      translations: {
+        smartTitle: `smart title's @re cool#$%`,
+      },
+    });
+
+    expect(
+      (await con.getRepository(Post).findOneByOrFail({ id: 'p1' })).translation,
+    ).toEqual({
+      de: {
+        title: 'old title',
+        smartTitle: `smart title's @re cool#$%`,
       },
     });
   });
