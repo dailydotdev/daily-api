@@ -113,6 +113,7 @@ import { format } from 'date-fns';
 import { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 import { isGiftedPlus } from '../paddle';
+import { queryReadReplica } from '../common/queryReadReplica';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -1880,14 +1881,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       );
     },
     plusGifterUser: async (_, __, ctx: AuthContext, info): Promise<GQLUser> => {
-      const { subscriptionFlags } = await ctx.con
-        .getRepository(User)
-        .findOneOrFail({
-          where: {
-            id: ctx.userId,
-          },
-          select: ['subscriptionFlags'],
-        });
+      const { subscriptionFlags } = await queryReadReplica(
+        ctx.con,
+        ({ queryRunner }) =>
+          queryRunner.manager.getRepository(User).findOneOrFail({
+            where: {
+              id: ctx.userId,
+            },
+            select: ['subscriptionFlags'],
+          }),
+      );
 
       if (!subscriptionFlags || !isGiftedPlus(subscriptionFlags)) {
         throw new ForbiddenError('User is not a gifted plus user');
