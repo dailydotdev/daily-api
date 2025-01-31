@@ -32,7 +32,11 @@ import { SubmissionFailErrorKeys, SubmissionFailErrorMessage } from '../errors';
 import { generateShortId } from '../ids';
 import { FastifyBaseLogger } from 'fastify';
 import { EntityManager } from 'typeorm';
-import { parseDate, updateFlagsStatement } from '../common';
+import {
+  addSmartTitleToTranslationStatement,
+  parseDate,
+  updateFlagsStatement,
+} from '../common';
 import { markdown } from '../common/markdown';
 import { counters } from '../telemetry';
 import { I18nRecord } from '../types';
@@ -55,6 +59,7 @@ interface Data {
   order?: number;
   collections?: string[];
   language?: string;
+  alt_title?: string;
   extra?: {
     keywords?: string[];
     keywords_native?: string[];
@@ -125,6 +130,7 @@ type CreatePostProps = {
   submissionId?: string;
   mergedKeywords: string[];
   questions: string[];
+  smartTitle?: string;
 };
 
 const handleCollectionRelations = async ({
@@ -254,6 +260,7 @@ const createPost = async ({
   submissionId,
   mergedKeywords,
   questions,
+  smartTitle,
 }: CreatePostProps): Promise<Post | null> => {
   if (
     await checkExistingUrl({
@@ -306,8 +313,9 @@ const createPost = async ({
     ...data.flags,
     visible: data.visible,
   };
+  data.translation = { en: { smartTitle } };
 
-  const post = entityManager
+  const post = await entityManager
     .getRepository(
       contentTypeFromPostType[
         data.type as keyof typeof contentTypeFromPostType
@@ -352,6 +360,7 @@ type UpdatePostProps = {
   questions: string[];
   content_type: PostType;
   submissionId?: string;
+  smartTitle?: string;
 };
 const updatePost = async ({
   logger,
@@ -362,6 +371,7 @@ const updatePost = async ({
   questions,
   content_type = PostType.Article,
   submissionId,
+  smartTitle,
 }: UpdatePostProps) => {
   const postType = contentTypeFromPostType[content_type];
   let databasePost = await entityManager
@@ -505,6 +515,7 @@ const updatePost = async ({
         ...data.flags,
         visible: data.visible,
       }),
+      translation: addSmartTitleToTranslationStatement(smartTitle),
     },
   );
 
@@ -591,6 +602,7 @@ type FixData = {
   fixedData: Partial<ArticlePost> &
     Partial<CollectionPost> &
     Partial<YouTubePost>;
+  smartTitle?: string;
 };
 const fixData = async ({
   logger,
@@ -638,6 +650,7 @@ const fixData = async ({
     mergedKeywords,
     questions: data?.extra?.questions || [],
     content_type: data?.content_type as PostType,
+    smartTitle: data?.alt_title,
     fixedData: {
       origin: data?.origin as PostOrigin,
       authorId,
@@ -716,16 +729,21 @@ const worker: Worker = {
           postId = matchedYggdrasilPost?.id;
         }
 
-        const { mergedKeywords, questions, content_type, fixedData } =
-          await fixData({
-            logger,
-            entityManager,
-            data: {
-              ...data,
-              // pass resolved post id or fallback to original data
-              post_id: postId || data.post_id,
-            },
-          });
+        const {
+          mergedKeywords,
+          questions,
+          content_type,
+          smartTitle,
+          fixedData,
+        } = await fixData({
+          logger,
+          entityManager,
+          data: {
+            ...data,
+            // pass resolved post id or fallback to original data
+            post_id: postId || data.post_id,
+          },
+        });
 
         // See if post id is not available
         if (!postId) {
@@ -737,6 +755,7 @@ const worker: Worker = {
             submissionId: data?.submission_id,
             mergedKeywords,
             questions,
+            smartTitle,
           });
 
           postId = newPost?.id;
@@ -751,6 +770,7 @@ const worker: Worker = {
             questions,
             content_type,
             submissionId: data?.submission_id,
+            smartTitle,
           });
         }
 
