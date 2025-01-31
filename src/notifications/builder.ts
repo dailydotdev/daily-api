@@ -18,7 +18,7 @@ import {
   type UserTopReader,
 } from '../entity';
 import {
-  defaultImage,
+  emptyImage,
   getDiscussionLink,
   getSourceLink,
   getUserPermalink,
@@ -305,7 +305,7 @@ export class NotificationBuilder {
       name: (ctx.keyword.flags as KeywordFlags)?.title || ctx.keyword.value,
       targetUrl: '',
       referenceId: ctx.userTopReader.id,
-      image: defaultImage.placeholder,
+      image: emptyImage,
     });
     return this;
   }

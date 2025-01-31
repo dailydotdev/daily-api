@@ -46,7 +46,7 @@ import {
 } from '../../src/entity';
 import {
   createSquadWelcomePost,
-  defaultImage,
+  emptyImage,
   notificationsLink,
   scoutArticleLink,
   squadsFeaturedPage,
@@ -1504,7 +1504,7 @@ describe('storeNotificationBundle', () => {
     );
     expect(actual.avatars).toEqual([
       {
-        image: defaultImage.placeholder,
+        image: emptyImage,
         name: 'kw_1 title',
         referenceId: 'cdaac113-0e8b-4189-9a6b-ceea7b21de0e',
         targetUrl: '',
