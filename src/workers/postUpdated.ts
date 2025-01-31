@@ -309,7 +309,10 @@ const createPost = async ({
     ...data.flags,
     visible: data.visible,
   };
-  data.translation = { en: { smartTitle } };
+
+  if (smartTitle) {
+    data.translation = { en: { smartTitle } };
+  }
 
   const post = await entityManager
     .getRepository(
