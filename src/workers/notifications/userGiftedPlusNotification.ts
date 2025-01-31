@@ -54,14 +54,18 @@ const worker = generateTypedNotificationWorker<'user-updated'>({
 
     const [gifter, squad] = await queryReadReplica(con, ({ queryRunner }) => {
       return Promise.all([
-        queryRunner.manager.getRepository(User).findOneOrFail({
+        queryRunner.manager.getRepository(User).findOne({
           where: { id: afterSubscriptionFlags.gifterId },
         }),
-        queryRunner.manager.getRepository(SquadSource).findOneOrFail({
+        queryRunner.manager.getRepository(SquadSource).findOne({
           where: { id: PLUS_MEMBER_SQUAD_ID },
         }),
       ]);
     });
+
+    if (!gifter || !squad) {
+      return;
+    }
 
     const ctx: NotificationGiftPlusContext = {
       userIds: [userId, gifter.id],

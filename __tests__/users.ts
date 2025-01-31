@@ -6,6 +6,7 @@ import {
   addDays,
   addHours,
   addSeconds,
+  addYears,
   format,
   startOfDay,
   startOfISOWeek,
@@ -89,7 +90,7 @@ import { FastifyInstance } from 'fastify';
 import setCookieParser from 'set-cookie-parser';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { CampaignType, Invite } from '../src/entity/Invite';
-import { usersFixture } from './fixture/user';
+import { plusUsersFixture, usersFixture } from './fixture/user';
 import {
   deleteKeysByPattern,
   deleteRedisKey,
@@ -114,6 +115,7 @@ import { ContentPreferenceStatus } from '../src/entity/contentPreference/types';
 import { identifyUserPersonalizedDigest } from '../src/cio';
 import type { GQLUser } from '../src/schema/users';
 import { cancelSubscription } from '../src/common/paddle';
+import { isPlusMember } from '../src/paddle';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -5992,5 +5994,87 @@ describe('query topReaderBadge', () => {
       expect(user.id).toEqual('3');
       expect(user.topReader).toBeNull();
     });
+  });
+});
+
+describe('query getGifterUser', () => {
+  const QUERY = /* GraphQL */ `
+    query GetGifterUser {
+      plusGifterUser {
+        id
+        username
+        image
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await saveFixtures(con, User, plusUsersFixture);
+  });
+
+  it('should throw an error if the user is not logged in', async () => {
+    await testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should throw an error if the user is not plus', async () => {
+    loggedUser = '1';
+    await testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw an error if the user is plus but has no gifter', async () => {
+    loggedUser = '5';
+    const user = await con
+      .getRepository(User)
+      .findOneByOrFail({ id: loggedUser });
+    const isPlus = isPlusMember(user?.subscriptionFlags?.cycle);
+
+    expect(isPlus).toBeTruthy();
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should return the gifter user', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).update(
+      {
+        id: loggedUser,
+      },
+      {
+        subscriptionFlags: updateSubscriptionFlags({
+          cycle: 'plus',
+          gifterId: '2',
+          giftExpirationDate: addYears(new Date(), 1),
+          createdAt: new Date(),
+        }),
+      },
+    );
+
+    const user = await con.getRepository(User).findOneByOrFail({ id: '1' });
+    const isPlus = isPlusMember(user?.subscriptionFlags?.cycle);
+    expect(isPlus).toBeTruthy();
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.plusGifterUser.id).toEqual('2');
+    expect(res.data.plusGifterUser.username).toBe('tsahi');
+    expect(res.data.plusGifterUser.image).toBeTruthy();
   });
 });

@@ -13,6 +13,7 @@ export const isPlusMember = (cycle: SubscriptionCycles | undefined): boolean =>
 
 export const isGiftedPlus = (
   subscriptionFlags: UserSubscriptionFlags,
-): boolean =>
+): subscriptionFlags is UserSubscriptionFlags &
+  Required<Pick<UserSubscriptionFlags, 'gifterId' | 'cycle'>> =>
   (!!subscriptionFlags?.gifterId || false) &&
   isPlusMember(subscriptionFlags.cycle);
