@@ -519,7 +519,9 @@ const loggedInBoot = async ({
         image: mapCloudinaryUrl(user.image),
         cover: mapCloudinaryUrl(user.cover),
         defaultFeedId: isPlus ? user.defaultFeedId : null,
-        shouldShowGiftPlus: Boolean(user?.flags?.showPlusGift),
+        flags: {
+          showPlusGift: Boolean(user?.flags?.showPlusGift),
+        },
       },
       visit,
       alerts: {

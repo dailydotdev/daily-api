@@ -130,7 +130,9 @@ const LOGGED_IN_BODY = {
     language: undefined,
     isPlus: false,
     defaultFeedId: null,
-    shouldShowGiftPlus: false,
+    flags: {
+      showPlusGift: false,
+    },
   },
   marketingCta: null,
   feeds: [],
@@ -872,7 +874,7 @@ describe('boot alerts', () => {
     expect(res.body.alerts).toEqual(alerts);
   });
 
-  it('should return shouldShowGiftPlus if user is gift recipient', async () => {
+  it('should return true on "flags.showGiftPlus" if user is gift recipient', async () => {
     mockLoggedIn();
     await con.getRepository(User).update(
       { id: '1' },
@@ -887,7 +889,7 @@ describe('boot alerts', () => {
       .get(BASE_PATH)
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
-    expect(res.body.user.shouldShowGiftPlus).toEqual(true);
+    expect(res.body.user.flags.showPlusGift).toEqual(true);
   });
 });
 
