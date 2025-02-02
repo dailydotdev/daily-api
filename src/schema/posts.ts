@@ -19,7 +19,6 @@ import {
   CreatePost,
   CreatePostArgs,
   DEFAULT_POST_TITLE,
-  defaultImage,
   EditablePost,
   EditPostArgs,
   fetchLinkPreview,
@@ -75,6 +74,7 @@ import {
   UserAction,
   Settings,
   type PostTranslation,
+  determineSharedPostId,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -129,8 +129,6 @@ export interface GQLPost {
   url: string;
   title?: string;
   image?: string;
-  ratio?: number;
-  placeholder?: string;
   readTime?: number;
   source?: GQLSource;
   tags?: string[];
@@ -395,6 +393,7 @@ export const typeDefs = /* GraphQL */ `
 
   type PostTranslation {
     title: Boolean
+    smartTitle: Boolean
   }
 
   """
@@ -450,16 +449,6 @@ export const typeDefs = /* GraphQL */ `
     URL to the image of post
     """
     image: String
-
-    """
-    Aspect ratio of the image
-    """
-    ratio: Float @deprecated(reason: "no longer maintained")
-
-    """
-    Tiny version of the image in base64
-    """
-    placeholder: String @deprecated(reason: "no longer maintained")
 
     """
     Estimation of time to read the article (in minutes)
@@ -2245,11 +2234,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLPost> => {
-      await Promise.all([
-        ctx.con.getRepository(Post).findOneByOrFail({ id }),
+      const [post] = await Promise.all([
+        ctx.con
+          .createQueryBuilder()
+          .select(['post.id', 'post.title', 'post.type', 'post.sharedPostId'])
+          .from(Post, 'post')
+          .where('post.id = :id', { id })
+          .getOneOrFail(),
         ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
         ensurePostRateLimit(ctx.con, ctx.userId),
       ]);
+
+      const sharedPostId = determineSharedPostId(post);
 
       const newPost = await createSharePost({
         con: ctx.con,
@@ -2257,7 +2253,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         args: {
           authorId: ctx.userId,
           sourceId,
-          postId: id,
+          postId: sharedPostId,
           commentary,
         },
       });
@@ -2529,10 +2525,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return image || pickImageUrl(post);
     },
-    placeholder: (post: GQLPost): string | undefined =>
-      post.image ? post.placeholder : defaultImage.placeholder,
-    ratio: (post: GQLPost): number | undefined =>
-      post.image ? post.ratio : defaultImage.ratio,
     permalink: getPostPermalink,
     commentsPermalink: (post: GQLPost): string | undefined =>
       post.slug ? getDiscussionLink(post.slug) : undefined,

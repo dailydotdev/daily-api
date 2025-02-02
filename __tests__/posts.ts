@@ -301,13 +301,13 @@ describe('slug field', () => {
 });
 
 describe('image fields', () => {
-  const QUERY = `{
-    post(id: "image") {
-      image
-      placeholder
-      ratio
+  const QUERY = /* GraphQL */ `
+    {
+      post(id: "image") {
+        image
+      }
     }
-  }`;
+  `;
 
   it('should return default image when no image exists', async () => {
     const repo = con.getRepository(ArticlePost);
@@ -335,7 +335,6 @@ describe('image fields', () => {
       sourceId: 'a',
       createdAt: new Date(2020, 4, 4, 19, 35),
       image: 'http://image.com',
-      placeholder: 'data:image/jpeg;base64,placeholder',
       ratio: 0.5,
     });
     const res = await client.query(QUERY);
@@ -869,19 +868,21 @@ describe('translation field', () => {
       post(id: "p1-tf") {
         translation {
           title
+          smartTitle
         }
       }
     }
   `;
 
-  it('should return false for fields when content-language header is not set', async () => {
+  it('should return null for fields when content-language header is not set', async () => {
     const res = await client.query(QUERY);
     expect(res.data.post.translation).toEqual({
       title: null,
+      smartTitle: null,
     });
   });
 
-  it('should return false for fields when translation does not exist', async () => {
+  it('should return null for fields when translation does not exist', async () => {
     await con.getRepository(ArticlePost).update('p1-tf', {
       translation: {
         es: {
@@ -896,10 +897,11 @@ describe('translation field', () => {
     });
     expect(res.data.post.translation).toEqual({
       title: null,
+      smartTitle: null,
     });
   });
 
-  it('should return true for fields when translation does exist', async () => {
+  it('should return true for fields when translation does exist for the field', async () => {
     await con.getRepository(ArticlePost).update('p1-tf', {
       translation: {
         es: {
@@ -914,6 +916,7 @@ describe('translation field', () => {
     });
     expect(res.data.post.translation).toEqual({
       title: true,
+      smartTitle: false,
     });
   });
 
@@ -2302,6 +2305,56 @@ describe('mutation sharePost', () => {
   it('should share to squad', async () => {
     loggedUser = '1';
     const res = await client.mutate(MUTATION, { variables });
+    expect(res.errors).toBeFalsy();
+    const newId = res.data.sharePost.id;
+    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    expect(post.authorId).toEqual('1');
+    expect(post.sharedPostId).toEqual('p1');
+    expect(post.title).toEqual('My comment');
+  });
+
+  it('should share sharedPost to squad if title was provided', async () => {
+    await con.getRepository(SharePost).save({
+      id: 'sp-1',
+      shortId: 'sp-1',
+      sourceId: 's1',
+      title: 'Some special title',
+      type: PostType.Share,
+      sharedPostId: 'p1',
+    });
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        sourceId: 's1',
+        id: 'sp-1',
+        commentary: 'My comment',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const newId = res.data.sharePost.id;
+    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    expect(post.authorId).toEqual('1');
+    expect(post.sharedPostId).toEqual('sp-1');
+    expect(post.title).toEqual('My comment');
+  });
+
+  it('should share sharedPost to squad but link to original article if no title was provided', async () => {
+    await con.getRepository(SharePost).save({
+      id: 'sp-2',
+      shortId: 'sp-2',
+      sourceId: 's1',
+      title: null,
+      type: PostType.Share,
+      sharedPostId: 'p1',
+    });
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        sourceId: 's1',
+        id: 'sp-2',
+        commentary: 'My comment',
+      },
+    });
     expect(res.errors).toBeFalsy();
     const newId = res.data.sharePost.id;
     const post = await con.getRepository(SharePost).findOneBy({ id: newId });

@@ -54,11 +54,11 @@ declare global {
       MEILI_INDEX: string;
       MAGNI_ORIGIN: string;
       ANALYTICS_URL: string;
-      DEFAULT_IMAGE_RATIO: string;
       POST_SCRAPER_ORIGIN: string;
       SUBMIT_ARTICLE_THRESHOLD: string;
       SLACK_SIGNING_SECRET: string;
       API_CONFIG_FEATURE_KEY: string;
+      VALID_LANGUAGES_FEATURE_KEY: string;
       PADDLE_API_KEY: string;
       PADDLE_WEBHOOK_SECRET: string;
       PADDLE_ENVIRONMENT: string;
@@ -155,7 +155,7 @@ export enum UserVoteEntity {
   Post = 'post',
 }
 
-export const maxFeedsPerUser = 10;
+export const maxFeedsPerUser = 20;
 
 export const maxBookmarksPerMutation = 10;
 
@@ -205,8 +205,6 @@ export enum ContentLanguage {
 }
 
 export type I18nRecord = Partial<Record<ContentLanguage, string>>;
-
-export const validLanguages = Object.values(ContentLanguage);
 
 export type PropsParameters<T extends (props: never) => unknown> = T extends (
   props: infer P,

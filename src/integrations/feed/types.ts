@@ -17,6 +17,8 @@ export enum FeedConfigName {
   PostSimilarity = 'post_similarity',
   CustomFeedV1 = 'custom_feed_v1',
   Popular = 'popular',
+  // currently used when sorting custom feed by other option then recommended
+  CustomFeedNaV1 = 'custom_feed_na_v1',
 }
 
 export type FeedProvider = {

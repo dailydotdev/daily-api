@@ -3,19 +3,20 @@ import { crons } from '../../src/cron/index';
 import { updateSourcePublicThreshold as cron } from '../../src/cron/updateSourcePublicThreshold';
 import { saveFixtures } from '../helpers';
 import { expectSuccessfulCron } from '../helpers';
-import { DataSource } from 'typeorm';
+import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import {
   Feed,
   Source,
   SourceType,
   SQUAD_IMAGE_PLACEHOLDER,
+  SquadSource,
   User,
 } from '../../src/entity';
 import { updateFlagsStatement } from '../../src/common';
 import { usersFixture } from '../fixture';
 import { ContentPreferenceSource } from '../../src/entity/contentPreference/ContentPreferenceSource';
-import { SourceMemberRoles } from '../../src/roles';
+import { SourceMemberRoles, sourceRoleRank } from '../../src/roles';
 import { ContentPreferenceStatus } from '../../src/entity/contentPreference/types';
 
 let con: DataSource;
@@ -115,15 +116,13 @@ describe('updateSourcePublicThreshold', () => {
 
   it('should update public threshold if all checks passed', async () => {
     const repo = con.getRepository(Source);
-    await repo.update(
-      { id: 'a' },
-      {
-        type: SourceType.Squad,
-        image: 'not null',
-        description: 'not null',
-        flags: updateFlagsStatement({ totalMembers: 3, totalPosts: 3 }),
-      },
-    );
+    await repo.update({ id: 'a' }, {
+      type: SourceType.Squad,
+      image: 'not null',
+      description: 'not null',
+      flags: updateFlagsStatement({ totalMembers: 3, totalPosts: 3 }),
+      memberPostingRank: sourceRoleRank[SourceMemberRoles.Moderator],
+    } as DeepPartial<SquadSource>);
     await expectSuccessfulCron(cron);
     const source = await repo.findOneBy({ id: 'a' });
     expect(source!.flags.publicThreshold).toBeTruthy();
@@ -151,14 +150,12 @@ describe('updateSourcePublicThreshold', () => {
 
   it('should update public threshold if admin has high reputation', async () => {
     const repo = con.getRepository(Source);
-    await repo.update(
-      { id: 'a' },
-      {
-        type: SourceType.Squad,
-        image: 'not null',
-        description: 'not null',
-      },
-    );
+    await repo.update({ id: 'a' }, {
+      type: SourceType.Squad,
+      image: 'not null',
+      description: 'not null',
+      memberPostingRank: sourceRoleRank[SourceMemberRoles.Moderator],
+    } as DeepPartial<SquadSource>);
     const users = usersFixture.slice(0, 2);
     await saveFixtures(con, User, users);
     await con
@@ -176,6 +173,36 @@ describe('updateSourcePublicThreshold', () => {
         flags: { role: SourceMemberRoles.Admin },
       })),
     );
+    await expectSuccessfulCron(cron);
+    const source = await repo.findOneBy({ id: 'a' });
+    expect(source!.flags.publicThreshold).toBeTruthy();
+  });
+
+  it('should not update public threshold if squad is not moderated', async () => {
+    const repo = con.getRepository(Source);
+    await repo.update(
+      { id: 'a' },
+      {
+        type: SourceType.Squad,
+        image: 'not null',
+        description: 'not null',
+        flags: updateFlagsStatement({ totalMembers: 3, totalPosts: 3 }),
+      },
+    );
+    await expectSuccessfulCron(cron);
+    const source = await repo.findOneBy({ id: 'a' });
+    expect(source!.flags.publicThreshold).toBeFalsy();
+  });
+
+  it('should update public threshold if squad is moderated', async () => {
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, {
+      type: SourceType.Squad,
+      image: 'not null',
+      description: 'not null',
+      flags: updateFlagsStatement({ totalMembers: 3, totalPosts: 3 }),
+      moderationRequired: true,
+    } as DeepPartial<SquadSource>);
     await expectSuccessfulCron(cron);
     const source = await repo.findOneBy({ id: 'a' });
     expect(source!.flags.publicThreshold).toBeTruthy();
