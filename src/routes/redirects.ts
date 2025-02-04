@@ -40,13 +40,6 @@ const sendRedirectAnalytics = async (
   }
 };
 
-const isAndroid = ({ req }: { req: FastifyRequest }): boolean => {
-  const ua = uaParser(req.headers['user-agent']);
-  const os = ua.os.name?.toLowerCase();
-
-  return !!os?.includes('android');
-};
-
 export const redirectToAndroid = ({
   req,
   res,
@@ -62,6 +55,19 @@ export const redirectToAndroid = ({
   );
 };
 
+export const redirectToAppStore = ({
+  req,
+  res,
+}: {
+  req: FastifyRequest;
+  res: FastifyReply;
+}): FastifyReply => {
+  const url = new URL(req.raw.url!, 'http://localhost');
+  return res.redirect(
+    `https://apps.apple.com/app/daily-dev/id6740634400${url.search}`,
+  );
+};
+
 const redirectToStore =
   (con: DataSource) =>
   async (req: FastifyRequest, res: FastifyReply): Promise<FastifyReply> => {
@@ -72,11 +78,16 @@ const redirectToStore =
 
     const ua = uaParser(req.headers['user-agent']);
     const browser = ua.browser.name?.toLowerCase();
+    const os = ua.os.name?.toLowerCase();
     const url = new URL(req.raw.url!, 'http://localhost');
     await sendRedirectAnalytics(con, req, res);
 
-    if (isAndroid({ req })) {
+    if (os?.includes('android')) {
       return redirectToAndroid({ req, res });
+    }
+
+    if (os?.includes('ios')) {
+      return redirectToAppStore({ req, res });
     }
 
     // If mobile, tablet or any non desktop device, redirect to webapp
@@ -112,8 +123,15 @@ const redirectToMobile =
 
     const url = new URL(req.raw.url!, 'http://localhost');
     await sendRedirectAnalytics(con, req, res, '/mobile');
-    if (isAndroid({ req })) {
+
+    const ua = uaParser(req.headers['user-agent']);
+    const os = ua.os.name?.toLowerCase();
+    if (os?.includes('android')) {
       return redirectToAndroid({ req, res });
+    }
+
+    if (os?.includes('ios')) {
+      return redirectToAppStore({ req, res });
     }
 
     return res.redirect(`https://app.daily.dev${url.search}`);
