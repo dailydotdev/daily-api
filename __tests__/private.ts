@@ -772,6 +772,7 @@ describe('GET /p/posts/:id', () => {
         url: 'https://daily.dev/posts/p-prl',
         contentMeta: {
           cleaned: [{ resource_location: 'gs://path/to/resource' }],
+          scraped: { resource_location: 'gs://path/to/scraped' },
         },
       },
     ]);
@@ -804,6 +805,7 @@ describe('GET /p/posts/:id', () => {
     expect(body).toEqual({
       id: 'p-prl',
       resourceLocation: 'gs://path/to/resource',
+      scrapedResourceLocation: 'gs://path/to/scraped',
     });
   });
 });
