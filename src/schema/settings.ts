@@ -354,7 +354,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError(`Invalid value for 'campaignCtaPlacement'`);
       }
 
-      if (data.flags?.prompt?.length && !data.flags.prompt.every(Boolean)) {
+      if (
+        !!data.flags?.prompt &&
+        Object.values(data.flags.prompt).every(Boolean)
+      ) {
         throw new ValidationError('Invalid value for prompt');
       }
 
