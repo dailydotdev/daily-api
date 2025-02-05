@@ -354,6 +354,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError(`Invalid value for 'campaignCtaPlacement'`);
       }
 
+      if (data.flags?.prompt?.length && !data.flags.prompt.every(Boolean)) {
+        throw new ValidationError('Invalid value for prompt');
+      }
+
       return con.transaction(async (manager): Promise<Settings> => {
         const repo = manager.getRepository(Settings);
         const settings = await repo.findOneBy({ userId });
