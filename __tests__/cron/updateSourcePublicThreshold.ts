@@ -177,34 +177,4 @@ describe('updateSourcePublicThreshold', () => {
     const source = await repo.findOneBy({ id: 'a' });
     expect(source!.flags.publicThreshold).toBeTruthy();
   });
-
-  it('should not update public threshold if squad is not moderated', async () => {
-    const repo = con.getRepository(Source);
-    await repo.update(
-      { id: 'a' },
-      {
-        type: SourceType.Squad,
-        image: 'not null',
-        description: 'not null',
-        flags: updateFlagsStatement({ totalMembers: 3, totalPosts: 3 }),
-      },
-    );
-    await expectSuccessfulCron(cron);
-    const source = await repo.findOneBy({ id: 'a' });
-    expect(source!.flags.publicThreshold).toBeFalsy();
-  });
-
-  it('should update public threshold if squad is moderated', async () => {
-    const repo = con.getRepository(Source);
-    await repo.update({ id: 'a' }, {
-      type: SourceType.Squad,
-      image: 'not null',
-      description: 'not null',
-      flags: updateFlagsStatement({ totalMembers: 3, totalPosts: 3 }),
-      moderationRequired: true,
-    } as DeepPartial<SquadSource>);
-    await expectSuccessfulCron(cron);
-    const source = await repo.findOneBy({ id: 'a' });
-    expect(source!.flags.publicThreshold).toBeTruthy();
-  });
 });

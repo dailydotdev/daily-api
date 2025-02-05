@@ -36,9 +36,12 @@ const worker = generateTypedNotificationWorker<'user-updated'>({
       (recipient.subscriptionFlags as string) || '{}',
     );
 
+    if (!isGiftedPlus(afterSubscriptionFlags)) {
+      return;
+    }
+
     if (
       isPlusMember(beforeSubscriptionFlags?.cycle) ||
-      !isGiftedPlus(afterSubscriptionFlags) ||
       !afterSubscriptionFlags?.gifterId
     ) {
       logger.warn(

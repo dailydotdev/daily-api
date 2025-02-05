@@ -13,6 +13,7 @@ import { ValidationError } from 'apollo-server-errors';
 import { v4 as uuidv4 } from 'uuid';
 import { DataSource, QueryRunner } from 'typeorm';
 import { transformSettingFlags } from '../common/flags';
+import { z } from 'zod';
 
 interface GQLSettings {
   userId: string;
@@ -352,6 +353,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         !Object.values(CampaignCtaPlacement).includes(data.campaignCtaPlacement)
       ) {
         throw new ValidationError(`Invalid value for 'campaignCtaPlacement'`);
+      }
+
+      const promptSchema = z.record(z.boolean());
+      const result = promptSchema.safeParse(data.flags?.prompt);
+
+      if (!!data.flags?.prompt && !result.success) {
+        throw new ValidationError('Invalid value for prompt');
       }
 
       return con.transaction(async (manager): Promise<Settings> => {

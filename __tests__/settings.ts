@@ -155,6 +155,46 @@ describe('mutation updateUserSettings', () => {
     });
   });
 
+  it('should create user settings flags for prompts when does not exist', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: { flags: { prompt: { 'simplify-it': false } } },
+      },
+    });
+
+    expect(res.data.updateUserSettings.flags).toEqual({
+      sidebarCustomFeedsExpanded: null,
+      sidebarOtherExpanded: null,
+      sidebarResourcesExpanded: null,
+      sidebarSquadExpanded: null,
+      sidebarBookmarksExpanded: null,
+      clickbaitShieldEnabled: null,
+    });
+
+    const userSettings = await con.getRepository(Settings).findOneOrFail({
+      where: { userId: '1' },
+    });
+    expect(userSettings.flags).toEqual({
+      prompt: { 'simplify-it': false },
+    });
+  });
+
+  it('should not allow non boolean prompts', async () => {
+    loggedUser = '1';
+
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          data: { flags: { prompt: { 'simplify-it': 'some value' } } },
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
   it('should not allow invalid user links', async () => {
     loggedUser = '1';
 
