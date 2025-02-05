@@ -114,6 +114,11 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           cleaned?: { resource_location?: string }[];
         }
       )?.cleaned?.[0]?.resource_location,
+      scrapedResourceLocation: (
+        post.contentMeta as {
+          scraped?: { resource_location?: string };
+        }
+      )?.scraped?.resource_location,
     });
   });
 }
