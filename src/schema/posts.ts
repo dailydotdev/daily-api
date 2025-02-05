@@ -1225,6 +1225,10 @@ export const typeDefs = /* GraphQL */ `
       """
       status: String
       """
+      Source to moderate the post in
+      """
+      sourceId: ID!
+      """
       Rejection reason for the post
       """
       rejectionReason: String
