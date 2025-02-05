@@ -114,6 +114,7 @@ import { ContentPreferenceUser } from '../entity/contentPreference/ContentPrefer
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 import { isGiftedPlus } from '../paddle';
 import { queryReadReplica } from '../common/queryReadReplica';
+import { logger } from '../logger';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -1578,6 +1579,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const timeForRecoveryPassed = !!streak && streak.currentStreak > 1;
 
       if (!oldStreakLength || timeForRecoveryPassed) {
+        logger.info(
+          { streak, today: new Date(), oldStreakLength },
+          `streak restore not possible`,
+        );
         return {
           canRecover: false,
           cost: 0,
