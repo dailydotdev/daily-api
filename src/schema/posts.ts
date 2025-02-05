@@ -2346,7 +2346,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .where('post.id = :id', { id })
           .getOneOrFail(),
         ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
-        // ensurePostRateLimit(ctx.con, ctx.userId),
+        ensurePostRateLimit(ctx.con, ctx.userId),
       ]);
 
       const sharedPostId = determineSharedPostId(post);
