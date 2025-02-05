@@ -6425,10 +6425,11 @@ describe('Source post moderation approve/reject', () => {
   mutation ModerateSourcePost(
     $postIds: [ID]!,
     $status: String,
+    $sourceId: ID,
     $rejectionReason: String,
     $moderatorMessage: String
   ) {
-    moderateSourcePosts(postIds: $postIds, status: $status, rejectionReason: $rejectionReason, moderatorMessage: $moderatorMessage) {
+    moderateSourcePosts(postIds: $postIds, status: $status, sourceId: $sourceId, rejectionReason: $rejectionReason, moderatorMessage: $moderatorMessage) {
       id
       status
     }

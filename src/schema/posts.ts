@@ -1227,7 +1227,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Source to moderate the post in
       """
-      sourceId: ID!
+      sourceId: ID
       """
       Rejection reason for the post
       """
