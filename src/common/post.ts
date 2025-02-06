@@ -10,6 +10,8 @@ import {
   Post,
   PostOrigin,
   PostType,
+  Source,
+  SourceMember,
   SquadSource,
   User,
   validateCommentary,
@@ -24,7 +26,7 @@ import { GQLPost } from '../schema/posts';
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { HttpError, retryFetchParse } from '../integrations/retry';
 import { checkWithVordr, VordrFilterType } from './vordr';
-import { AuthContext } from '../Context';
+import { AuthContext, type Context } from '../Context';
 import { createHash } from 'node:crypto';
 import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
 import { logger } from '../logger';
@@ -42,6 +44,36 @@ import {
 } from '../entity/SourcePostModeration';
 import { mapCloudinaryUrl, uploadPostFile, UploadPreset } from './cloudinary';
 import { getMentions } from '../schema/comments';
+import type { ConnectionArguments } from 'graphql-relay';
+import graphorm from '../graphorm';
+import type { GraphQLResolveInfo } from 'graphql';
+import { offsetPageGenerator } from '../schema/common';
+import { SourceMemberRoles } from '../roles';
+
+export type SourcePostModerationArgs = ConnectionArguments & {
+  sourceId: string;
+  status: SourcePostModerationStatus[];
+};
+
+export interface GQLSourcePostModeration {
+  id: string;
+  title?: string;
+  content?: string;
+  contentHtml?: string;
+  image?: string;
+  sourceId: string;
+  sharedPostId?: string;
+  status: SourcePostModerationStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  source: Source;
+  post?: Post;
+  postId?: string;
+}
+
+const POST_MODERATION_PAGE_SIZE = 15;
+const sourcePostModerationPageGenerator =
+  offsetPageGenerator<GQLSourcePostModeration>(POST_MODERATION_PAGE_SIZE, 50);
 
 export const defaultImage = {
   urls:
@@ -701,3 +733,134 @@ export const getPostSmartTitle = (
     (post.contentMeta as PostContentMeta)?.alt_title?.translations,
     post.translation,
   ) || getPostTranslatedTitle(post, contentLanguage);
+
+export const getModerationItemsAsAdminForSource = async (
+  ctx: Context,
+  info: GraphQLResolveInfo,
+  args: SourcePostModerationArgs,
+) => {
+  const page = sourcePostModerationPageGenerator.connArgsToPage(args);
+  const statuses = Array.from(new Set(args.status));
+
+  return graphorm.queryPaginated<GQLSourcePostModeration>(
+    ctx,
+    info,
+    (nodeSize) =>
+      sourcePostModerationPageGenerator.hasPreviousPage(page, nodeSize),
+    (nodeSize) => sourcePostModerationPageGenerator.hasNextPage(page, nodeSize),
+    (node, index) =>
+      sourcePostModerationPageGenerator.nodeToCursor(page, args, node, index),
+    (builder) => {
+      builder.queryBuilder
+        .where(`"${builder.alias}"."sourceId" = :sourceId`, {
+          sourceId: args.sourceId,
+        })
+        .andWhere(`("${builder.alias}"."flags"->>'vordr')::boolean IS NOT TRUE`)
+        .orderBy(`${builder.alias}.updatedAt`, 'DESC')
+        .limit(page.limit)
+        .offset(page.offset);
+
+      if (statuses.length) {
+        builder.queryBuilder.andWhere(
+          `"${builder.alias}"."status" IN (:...status)`,
+          {
+            status: statuses,
+          },
+        );
+      }
+
+      return builder;
+    },
+    undefined,
+    true,
+  );
+};
+
+export const getModerationItemsByUserForSource = async (
+  ctx: Context,
+  info: GraphQLResolveInfo,
+  args: SourcePostModerationArgs,
+) => {
+  const page = sourcePostModerationPageGenerator.connArgsToPage(args);
+  const { userId } = ctx;
+  const statuses = Array.from(new Set(args.status));
+
+  return graphorm.queryPaginated<GQLSourcePostModeration>(
+    ctx,
+    info,
+    (nodeSize) =>
+      sourcePostModerationPageGenerator.hasPreviousPage(page, nodeSize),
+    (nodeSize) => sourcePostModerationPageGenerator.hasNextPage(page, nodeSize),
+    (node, index) =>
+      sourcePostModerationPageGenerator.nodeToCursor(page, args, node, index),
+    (builder) => {
+      builder.queryBuilder
+        .where(`"${builder.alias}"."sourceId" = :sourceId`, {
+          sourceId: args.sourceId,
+        })
+        .andWhere(`"${builder.alias}"."createdById" = :userId`, {
+          userId,
+        })
+        .orderBy(`${builder.alias}.updatedAt`, 'DESC')
+        .limit(page.limit)
+        .offset(page.offset);
+
+      if (statuses.length) {
+        builder.queryBuilder.andWhere(
+          `"${builder.alias}"."status" IN (:...status)`,
+          {
+            status: statuses,
+          },
+        );
+      }
+
+      return builder;
+    },
+    undefined,
+    true,
+  );
+};
+
+export const getAllModerationItemsAsAdmin = async (
+  ctx: Context,
+  info: GraphQLResolveInfo,
+  args: SourcePostModerationArgs,
+) => {
+  const page = sourcePostModerationPageGenerator.connArgsToPage(args);
+  const { userId } = ctx;
+  const statuses = Array.from(new Set(args.status));
+
+  return graphorm.queryPaginated<GQLSourcePostModeration>(
+    ctx,
+    info,
+    (nodeSize) =>
+      sourcePostModerationPageGenerator.hasPreviousPage(page, nodeSize),
+    (nodeSize) => sourcePostModerationPageGenerator.hasNextPage(page, nodeSize),
+    (node, index) =>
+      sourcePostModerationPageGenerator.nodeToCursor(page, args, node, index),
+    (builder) => {
+      builder.queryBuilder
+        .innerJoin(SourceMember, 'sm', 'sm.userId = :userId', { userId })
+        .where('sm.role IN (:...roles)', {
+          roles: [SourceMemberRoles.Admin, SourceMemberRoles.Moderator],
+        })
+        .andWhere(`("${builder.alias}"."flags"->>'vordr')::boolean IS NOT TRUE`)
+        .andWhere(`"${builder.alias}"."sourceId" = "sm"."sourceId"`)
+        .orderBy(`${builder.alias}.updatedAt`, 'DESC')
+        .limit(page.limit)
+        .offset(page.offset);
+
+      if (statuses.length) {
+        builder.queryBuilder.andWhere(
+          `"${builder.alias}"."status" IN (:...status)`,
+          {
+            status: statuses,
+          },
+        );
+      }
+      return builder;
+    },
+    undefined,
+    true,
+  );
+};

@@ -153,18 +153,33 @@ beforeEach(async () => {
       name: 'Joanna Deer',
     },
   ]);
-  await con.getRepository(SquadSource).save({
-    id: 'm',
-    name: 'Moderated Squad',
-    image: 'http//image.com/m',
-    handle: 'moderatedSquad',
-    type: SourceType.Squad,
-    active: true,
-    private: false,
-    moderationRequired: true,
-    memberPostingRank: sourceRoleRank[SourceMemberRoles.Member],
-    memberInviteRank: sourceRoleRank[SourceMemberRoles.Member],
-  });
+  await con.getRepository(SquadSource).save([
+    {
+      id: 'm',
+      name: 'Moderated Squad',
+      image: 'http//image.com/m',
+      handle: 'moderatedSquad',
+      type: SourceType.Squad,
+      active: true,
+      private: false,
+      moderationRequired: true,
+      memberPostingRank: sourceRoleRank[SourceMemberRoles.Member],
+      memberInviteRank: sourceRoleRank[SourceMemberRoles.Member],
+    },
+    {
+      id: 'm2',
+      name: 'Second Moderated Squad',
+      image: 'http//image.com/m2',
+      handle: 'moderatedSquad2',
+      type: SourceType.Squad,
+      active: true,
+      private: false,
+      moderationRequired: true,
+      memberPostingRank: sourceRoleRank[SourceMemberRoles.Member],
+      memberInviteRank: sourceRoleRank[SourceMemberRoles.Member],
+    },
+  ]);
+
   await con.getRepository(SourceMember).save([
     {
       userId: '3',
@@ -182,6 +197,12 @@ beforeEach(async () => {
       userId: '5',
       sourceId: 'm',
       role: SourceMemberRoles.Member,
+      referralToken: randomUUID(),
+    },
+    {
+      userId: '2',
+      sourceId: 'm2',
+      role: SourceMemberRoles.Moderator,
       referralToken: randomUUID(),
     },
   ]);
@@ -6442,7 +6463,7 @@ describe('query postCodeSnippets', () => {
 });
 
 describe('Source post moderation approve/reject', () => {
-  const [pendingId, rejectedId] = Array.from({ length: 2 }, () =>
+  const [pendingId, pendingId2, rejectedId] = Array.from({ length: 2 }, () =>
     generateUUID(),
   );
   beforeEach(async () => {
@@ -6451,6 +6472,15 @@ describe('Source post moderation approve/reject', () => {
       {
         id: pendingId,
         sourceId: 'm',
+        createdById: '4',
+        title: 'Title',
+        content: 'Content',
+        status: SourcePostModerationStatus.Pending,
+        type: PostType.Article,
+      },
+      {
+        id: pendingId2,
+        sourceId: 'm2',
         createdById: '4',
         title: 'Title',
         content: 'Content',
@@ -6476,7 +6506,7 @@ describe('Source post moderation approve/reject', () => {
   mutation ModerateSourcePost(
     $postIds: [ID]!,
     $status: String,
-    $sourceId: ID!,
+    $sourceId: ID,
     $rejectionReason: String,
     $moderatorMessage: String
   ) {
@@ -6494,7 +6524,6 @@ describe('Source post moderation approve/reject', () => {
         mutation: MUTATION,
         variables: {
           postIds: [pendingId],
-          sourceId: 'm',
           status: SourcePostModerationStatus.Approved,
         },
       },
@@ -6510,7 +6539,6 @@ describe('Source post moderation approve/reject', () => {
         mutation: MUTATION,
         variables: {
           postIds: [pendingId],
-          sourceId: 'm',
           status: SourcePostModerationStatus.Approved,
         },
       },
@@ -6526,7 +6554,6 @@ describe('Source post moderation approve/reject', () => {
         mutation: MUTATION,
         variables: {
           postIds: [pendingId],
-          sourceId: 'm',
           status: SourcePostModerationStatus.Approved,
         },
       },
@@ -6542,7 +6569,6 @@ describe('Source post moderation approve/reject', () => {
     }> = await client.mutate(MUTATION, {
       variables: {
         postIds: [pendingId],
-        sourceId: 'm',
         status: SourcePostModerationStatus.Approved,
       },
     });
@@ -6557,6 +6583,38 @@ describe('Source post moderation approve/reject', () => {
     expect(post.moderatedById).toEqual('3');
   });
 
+  it('should not approve posts in sources where user is not moderator', async () => {
+    loggedUser = '2'; // Not moderator of "m" squad, which "pendingId" post belongs to.
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          postIds: [pendingId],
+          status: SourcePostModerationStatus.Approved,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw error when one or more posts in postIds is from a source where user is not moderator', async () => {
+    loggedUser = '2'; // Not moderator of "m" squad, which "pendingId" post belongs to.
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          postIds: [pendingId, pendingId2],
+          status: SourcePostModerationStatus.Approved,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
   it('should reject pending posts', async () => {
     loggedUser = '3'; // Moderator level
 
@@ -6565,7 +6623,6 @@ describe('Source post moderation approve/reject', () => {
     }> = await client.mutate(MUTATION, {
       variables: {
         postIds: [pendingId],
-        sourceId: 'm',
         status: SourcePostModerationStatus.Rejected,
         rejectionReason: 'Spam',
         moderatorMessage: 'This is spam',
@@ -6593,7 +6650,6 @@ describe('Source post moderation approve/reject', () => {
         mutation: MUTATION,
         variables: {
           postIds: [pendingId],
-          sourceId: 'm',
           status: SourcePostModerationStatus.Rejected,
           moderatorMessage: 'This is spam',
         },
@@ -6611,7 +6667,6 @@ describe('Source post moderation approve/reject', () => {
         mutation: MUTATION,
         variables: {
           postIds: [pendingId],
-          sourceId: 'm',
           status: SourcePostModerationStatus.Rejected,
           rejectionReason: 'Other',
         },
@@ -6628,7 +6683,6 @@ describe('Source post moderation approve/reject', () => {
     }> = await client.mutate(MUTATION, {
       variables: {
         postIds: [pendingId, rejectedId],
-        sourceId: 'm',
         status: SourcePostModerationStatus.Approved,
       },
     });
