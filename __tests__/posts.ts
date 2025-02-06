@@ -6285,6 +6285,87 @@ describe('posts title field', () => {
         title: 'P1',
       });
     });
+
+    it('should return smart title translation', async () => {
+      loggedUser = '1';
+      isPlus = true;
+      await con.getRepository(Settings).update(
+        { userId: '1' },
+        {
+          flags: {
+            clickbaitShieldEnabled: true,
+          },
+        },
+      );
+      await con.getRepository(Post).update(
+        { id: 'p1' },
+        {
+          contentQuality: { is_clickbait_probability: 1.98 },
+          contentMeta: {
+            alt_title: {
+              translations: { en: 'Clickbait title', de: 'Clickbait title DE' },
+            },
+          },
+          translation: {
+            en: {
+              smartTitle: 'Smart Title EN',
+            },
+            de: {
+              smartTitle: 'Smart Title DE',
+            },
+          },
+        },
+      );
+
+      const res = await client.query(QUERY, {
+        headers: {
+          'content-language': 'de',
+        },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post).toEqual({
+        title: 'Smart Title DE',
+      });
+    });
+
+    it('should return english smart title translation when smart title translation does not exist', async () => {
+      loggedUser = '1';
+      isPlus = true;
+      await con.getRepository(Settings).update(
+        { userId: '1' },
+        {
+          flags: {
+            clickbaitShieldEnabled: true,
+          },
+        },
+      );
+      await con.getRepository(Post).update(
+        { id: 'p1' },
+        {
+          contentQuality: { is_clickbait_probability: 1.98 },
+          contentMeta: {
+            alt_title: {
+              translations: { en: 'Clickbait title EN' },
+            },
+          },
+          translation: {
+            en: {
+              smartTitle: 'Smart Title EN',
+            },
+          },
+        },
+      );
+
+      const res = await client.query(QUERY, {
+        headers: {
+          'content-language': 'de',
+        },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post).toEqual({
+        title: 'Smart Title EN',
+      });
+    });
   });
 });
 
@@ -6905,6 +6986,82 @@ describe('query fetchSmartTitle', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.fetchSmartTitle.title).toEqual('Alt Title DE');
+  });
+
+  it('should return smart title translation when clickbait shield is enabled and language is set', async () => {
+    loggedUser = '1';
+    isPlus = true;
+
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        contentMeta: {
+          alt_title: {
+            translations: {
+              en: 'Alt Title',
+              de: 'Alt Title DE',
+            },
+          },
+        },
+        translation: {
+          de: {
+            title: 'Title DE',
+            smartTitle: 'Smart Title DE',
+          },
+        },
+      },
+    );
+
+    await con
+      .getRepository(Settings)
+      .save({ userId: loggedUser, flags: { clickbaitShieldEnabled: false } });
+
+    const res = await client.query<
+      { fetchSmartTitle: GQLPostSmartTitle },
+      { id: string }
+    >(QUERY, {
+      variables: { id: 'p1' },
+      headers: { 'content-language': 'de' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.fetchSmartTitle.title).toEqual('Smart Title DE');
+  });
+
+  it('should return the original title translation when clickbait shield is enabled and language is set', async () => {
+    loggedUser = '1';
+    isPlus = true;
+
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        contentMeta: {
+          alt_title: {
+            translations: {
+              en: 'Alt Title',
+              de: 'Alt Title DE',
+            },
+          },
+        },
+        translation: {
+          de: {
+            title: 'Title DE',
+            smartTitle: 'Smart Title DE',
+          },
+        },
+      },
+    );
+
+    const res = await client.query<
+      { fetchSmartTitle: GQLPostSmartTitle },
+      { id: string }
+    >(QUERY, {
+      variables: { id: 'p1' },
+      headers: { 'content-language': 'de' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.fetchSmartTitle.title).toEqual('Title DE');
   });
 
   describe('free user', () => {
