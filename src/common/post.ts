@@ -836,6 +836,7 @@ export const getAllModerationItemsAsAdmin = async (
         .where('sm.role IN (:...roles)', {
           roles: [SourceMemberRoles.Admin, SourceMemberRoles.Moderator],
         })
+        .andWhere(`("${builder.alias}"."flags"->>'vordr')::boolean IS NOT TRUE`)
         .andWhere(`"${builder.alias}"."sourceId" = "sm"."sourceId"`)
         .orderBy(`${builder.alias}.updatedAt`, 'DESC')
         .limit(page.limit)
