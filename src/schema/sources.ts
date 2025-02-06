@@ -982,6 +982,38 @@ export const canAccessSource = async (
   return hasPermissionCheck(source, member, permission, validateRankAgainst);
 };
 
+export const canModeratePosts = async (
+  ctx: Context,
+  moderationIds: string[],
+): Promise<boolean> => {
+  const posts = await ctx.con.getRepository(SourcePostModeration).find({
+    where: { id: In(moderationIds) },
+    select: ['sourceId'],
+  });
+
+  if (!posts.length) {
+    return false;
+  }
+
+  const sourceIds = Array.from(new Set(posts.map((p) => p.sourceId)));
+
+  const memberships = await ctx.con.getRepository(SourceMember).find({
+    where: {
+      sourceId: In(sourceIds),
+      userId: ctx.userId,
+    },
+    select: ['role'],
+  });
+
+  if (!memberships.length || memberships.length !== sourceIds.length) {
+    return false;
+  }
+
+  return memberships.every(
+    (m) => sourceRoleRank[m.role] >= sourceRoleRank.moderator,
+  );
+};
+
 export const isPrivilegedMember = async (
   ctx: Context,
   sourceId: string,
