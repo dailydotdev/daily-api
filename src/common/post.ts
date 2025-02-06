@@ -705,25 +705,33 @@ export const getPostTranslatedTitle = (
 
 export const getSmartTitle = (
   contentLanguage: ContentLanguage | null,
-  translations?: I18nRecord,
+  legacyTranslations?: I18nRecord, // TODO AS-912 remove when we migrate data to translation column
+  translations?: Post['translation'],
 ): string | undefined => {
+  const fallbackSmartTitle =
+    translations?.[ContentLanguage.English]?.smartTitle ||
+    legacyTranslations?.[ContentLanguage.English];
+
   // We will always return the English smart title if the content language is not set
   if (!contentLanguage) {
-    return translations?.[ContentLanguage.English];
+    return fallbackSmartTitle;
   }
 
-  return (
-    translations?.[contentLanguage] ?? translations?.[ContentLanguage.English]
-  );
+  const smartTitle =
+    translations?.[contentLanguage]?.smartTitle ||
+    legacyTranslations?.[contentLanguage];
+
+  return smartTitle ?? fallbackSmartTitle;
 };
 
 export const getPostSmartTitle = (
-  post: Partial<Pick<Post, 'title' | 'contentMeta'>>,
+  post: Partial<Pick<Post, 'title' | 'contentMeta' | 'translation'>>,
   contentLanguage: ContentLanguage | null,
 ) =>
   getSmartTitle(
     contentLanguage,
     (post.contentMeta as PostContentMeta)?.alt_title?.translations,
+    post.translation,
   ) || getPostTranslatedTitle(post, contentLanguage);
 
 export const getModerationItemsAsAdminForSource = async (

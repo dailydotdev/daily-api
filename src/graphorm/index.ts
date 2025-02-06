@@ -112,6 +112,7 @@ const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
       const altValue = getSmartTitle(
         ctx.contentLanguage,
         typedParent.smartTitle,
+        typedParent.translation,
       );
       const clickbaitShieldEnabled =
         settings?.flags?.clickbaitShieldEnabled ?? true;
@@ -334,10 +335,12 @@ const obj = new GraphORM({
             clickbaitProbability: string;
             manualClickbaitProbability?: string;
             smartTitle: I18nRecord;
+            translation: Partial<Record<ContentLanguage, PostTranslation>>;
           };
           const altValue = getSmartTitle(
             ctx.contentLanguage,
             typedParent.smartTitle,
+            typedParent.translation,
           );
 
           return (
