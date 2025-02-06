@@ -201,6 +201,8 @@ const logPaddleAnalyticsEvent = async (
   const localCost = (data as TransactionCompletedEvent).data?.details?.totals
     ?.total;
   const localCurrency = data.data?.currencyCode;
+  const payout = (data as TransactionCompletedEvent).data?.details
+    ?.payoutTotals;
   const userId = await getUserId({
     userId: customData?.user_id,
     subscriptionId:
@@ -227,6 +229,7 @@ const logPaddleAnalyticsEvent = async (
     payment,
     localCost: localCost ? parseInt(localCost) / 100 : undefined,
     localCurrency,
+    payout,
   };
 
   await sendAnalyticsEvent([
