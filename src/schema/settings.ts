@@ -65,6 +65,7 @@ export const typeDefs = /* GraphQL */ `
     sidebarBookmarksExpanded: Boolean
     clickbaitShieldEnabled: Boolean
     timezoneMismatchIgnore: String
+    lastPrompt: String
   }
 
   input SettingsFlagsPublicInput {
@@ -76,6 +77,7 @@ export const typeDefs = /* GraphQL */ `
     clickbaitShieldEnabled: Boolean
     prompt: JSONObject
     timezoneMismatchIgnore: String
+    lastPrompt: String
   }
 
   """

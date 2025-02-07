@@ -28,6 +28,7 @@ export type SettingsFlags = Partial<{
   clickbaitShieldEnabled: boolean;
   prompt: object;
   timezoneMismatchIgnore: string;
+  lastPrompt: string;
 }>;
 
 export type SettingsFlagsPublic = Pick<
@@ -40,6 +41,7 @@ export type SettingsFlagsPublic = Pick<
   | 'clickbaitShieldEnabled'
   | 'prompt'
   | 'timezoneMismatchIgnore'
+  | 'lastPrompt'
 >;
 
 @Entity()
