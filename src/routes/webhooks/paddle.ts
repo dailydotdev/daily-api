@@ -248,11 +248,29 @@ const concatText = (a: string, b: string) => [a, b].filter(Boolean).join(`\n`);
 const notifyNewPaddleTransaction = async ({
   data,
 }: TransactionCompletedEvent) => {
-  const customData = data?.customData as { user_id: string };
-  const userId = await getUserId({
-    userId: customData?.user_id,
+  const { user_id, gifter_id } = (data?.customData ?? {}) as PaddleCustomData;
+  const purchasedById = gifter_id ?? user_id;
+  const subscriptionForId = await getUserId({
+    userId: user_id,
     subscriptionId: 'subscriptionId' in data && data.subscriptionId,
   });
+  const con = await createOrGetConnection();
+  const flags = gifter_id
+    ? (
+        await con.getRepository(User).findOne({
+          select: ['subscriptionFlags'],
+          where: { id: subscriptionForId },
+        })
+      )?.subscriptionFlags
+    : null;
+
+  if (gifter_id && !flags?.giftExpirationDate) {
+    logger.info(
+      { type: 'paddle' },
+      'Gifted subscription without expiration date',
+    );
+  }
+
   const origin = data?.origin;
   const productId = data?.items?.[0].price?.productId;
 
@@ -263,97 +281,128 @@ const notifyNewPaddleTransaction = async ({
   const localTotal = data?.details?.totals?.total || '0';
   const localCurrencyCode = data?.currencyCode || 'USD';
 
-  await webhooks.transactions.send({
-    blocks: [
-      {
-        type: 'header',
-        text: {
-          type: 'plain_text',
-          text:
-            origin === 'subscription_recurring'
-              ? 'Recurring payment :pepemoney:'
-              : 'New Plus subscriber :moneybag:',
-          emoji: true,
+  const headerText = (() => {
+    if (origin === 'subscription_recurring') {
+      return 'Recurring payment :pepemoney:';
+    }
+
+    if (gifter_id) {
+      return 'Gift subscription :gift:';
+    }
+
+    return 'New Plus subscriber :moneybag:';
+  })();
+
+  const blocks = [
+    {
+      type: 'header',
+      text: {
+        type: 'plain_text',
+        text: headerText,
+        emoji: true,
+      },
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatText(
+            '*Transaction ID:*',
+            `<https://vendors.paddle.com/transactions-v2/${data.id}|${data.id}>`,
+          ),
         },
-      },
-      {
-        type: 'section',
-        fields: [
-          {
-            type: 'mrkdwn',
-            text: concatText(
-              '*Transaction ID:*',
-              `<https://vendors.paddle.com/transactions-v2/${data.id}|${data.id}>`,
-            ),
-          },
-          {
-            type: 'mrkdwn',
-            text: concatText(
-              '*Customer ID:*',
-              `<https://vendors.paddle.com/customers-v2/${data.customerId}|${data.customerId}>`,
-            ),
-          },
-        ],
-      },
-      {
-        type: 'section',
-        fields: [
-          {
-            type: 'mrkdwn',
-            text: concatText(
-              '*Type:*',
-              `<https://vendors.paddle.com/products-v2/${productId}|${extractSubscriptionType(data?.items)}>`,
-            ),
-          },
-          {
-            type: 'mrkdwn',
-            text: concatText(
-              '*Purchased by:*',
-              `<https://app.daily.dev/${userId}|${userId}>`,
-            ),
-          },
-        ],
-      },
-      {
-        type: 'section',
-        fields: [
-          {
-            type: 'mrkdwn',
-            text: concatText(
-              '*Cost:*',
-              new Intl.NumberFormat('en-US', {
-                style: 'currency',
-                currency: currencyCode,
-              }).format((parseFloat(total) || 0) / 100),
-            ),
-          },
-          {
-            type: 'mrkdwn',
-            text: concatText('*Currency:*', currencyCode),
-          },
-        ],
-      },
-      {
-        type: 'section',
-        fields: [
-          {
-            type: 'mrkdwn',
-            text: concatText(
-              '*Cost (local):*',
-              new Intl.NumberFormat('en-US', {
-                style: 'currency',
-                currency: localCurrencyCode,
-              }).format((parseFloat(localTotal) || 0) / 100),
-            ),
-          },
-          {
-            type: 'mrkdwn',
-            text: concatText('*Currency (local):*', localCurrencyCode),
-          },
-        ],
-      },
-    ],
-  });
+        {
+          type: 'mrkdwn',
+          text: concatText(
+            '*Customer ID:*',
+            `<https://vendors.paddle.com/customers-v2/${data.customerId}|${data.customerId}>`,
+          ),
+        },
+      ],
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatText(
+            '*Type:*',
+            `<https://vendors.paddle.com/products-v2/${productId}|${extractSubscriptionType(data?.items)}>`,
+          ),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatText(
+            '*Purchased by:*',
+            `<https://app.daily.dev/${purchasedById}|${purchasedById}>`,
+          ),
+        },
+      ],
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatText(
+            '*Cost:*',
+            new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: currencyCode,
+            }).format((parseFloat(total) || 0) / 100),
+          ),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatText('*Currency:*', currencyCode),
+        },
+      ],
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatText(
+            '*Cost (local):*',
+            new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: localCurrencyCode,
+            }).format((parseFloat(localTotal) || 0) / 100),
+          ),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatText('*Currency (local):*', localCurrencyCode),
+        },
+      ],
+    },
+  ];
+
+  if (gifter_id && flags?.giftExpirationDate) {
+    blocks.push({
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatText(
+            '*Gifted to:*',
+            `<https://app.daily.dev/${subscriptionForId}|${subscriptionForId}>`,
+          ),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatText(
+            '*Gift expires:*',
+            new Date(flags.giftExpirationDate).toLocaleDateString(),
+          ),
+        },
+      ],
+    });
+  }
+
+  await webhooks.transactions.send({ blocks });
 };
 
 export const paddle = async (fastify: FastifyInstance): Promise<void> => {
