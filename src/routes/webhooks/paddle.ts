@@ -265,7 +265,7 @@ const notifyNewPaddleTransaction = async ({
     : null;
 
   if (gifter_id && !flags?.giftExpirationDate) {
-    logger.info(
+    logger.error(
       { type: 'paddle' },
       'Gifted subscription without expiration date',
     );
