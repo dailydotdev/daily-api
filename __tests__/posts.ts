@@ -153,18 +153,33 @@ beforeEach(async () => {
       name: 'Joanna Deer',
     },
   ]);
-  await con.getRepository(SquadSource).save({
-    id: 'm',
-    name: 'Moderated Squad',
-    image: 'http//image.com/m',
-    handle: 'moderatedSquad',
-    type: SourceType.Squad,
-    active: true,
-    private: false,
-    moderationRequired: true,
-    memberPostingRank: sourceRoleRank[SourceMemberRoles.Member],
-    memberInviteRank: sourceRoleRank[SourceMemberRoles.Member],
-  });
+  await con.getRepository(SquadSource).save([
+    {
+      id: 'm',
+      name: 'Moderated Squad',
+      image: 'http//image.com/m',
+      handle: 'moderatedSquad',
+      type: SourceType.Squad,
+      active: true,
+      private: false,
+      moderationRequired: true,
+      memberPostingRank: sourceRoleRank[SourceMemberRoles.Member],
+      memberInviteRank: sourceRoleRank[SourceMemberRoles.Member],
+    },
+    {
+      id: 'm2',
+      name: 'Second Moderated Squad',
+      image: 'http//image.com/m2',
+      handle: 'moderatedSquad2',
+      type: SourceType.Squad,
+      active: true,
+      private: false,
+      moderationRequired: true,
+      memberPostingRank: sourceRoleRank[SourceMemberRoles.Member],
+      memberInviteRank: sourceRoleRank[SourceMemberRoles.Member],
+    },
+  ]);
+
   await con.getRepository(SourceMember).save([
     {
       userId: '3',
@@ -182,6 +197,12 @@ beforeEach(async () => {
       userId: '5',
       sourceId: 'm',
       role: SourceMemberRoles.Member,
+      referralToken: randomUUID(),
+    },
+    {
+      userId: '2',
+      sourceId: 'm2',
+      role: SourceMemberRoles.Moderator,
       referralToken: randomUUID(),
     },
   ]);
@@ -6285,6 +6306,87 @@ describe('posts title field', () => {
         title: 'P1',
       });
     });
+
+    it('should return smart title translation', async () => {
+      loggedUser = '1';
+      isPlus = true;
+      await con.getRepository(Settings).update(
+        { userId: '1' },
+        {
+          flags: {
+            clickbaitShieldEnabled: true,
+          },
+        },
+      );
+      await con.getRepository(Post).update(
+        { id: 'p1' },
+        {
+          contentQuality: { is_clickbait_probability: 1.98 },
+          contentMeta: {
+            alt_title: {
+              translations: { en: 'Clickbait title', de: 'Clickbait title DE' },
+            },
+          },
+          translation: {
+            en: {
+              smartTitle: 'Smart Title EN',
+            },
+            de: {
+              smartTitle: 'Smart Title DE',
+            },
+          },
+        },
+      );
+
+      const res = await client.query(QUERY, {
+        headers: {
+          'content-language': 'de',
+        },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post).toEqual({
+        title: 'Smart Title DE',
+      });
+    });
+
+    it('should return english smart title translation when smart title translation does not exist', async () => {
+      loggedUser = '1';
+      isPlus = true;
+      await con.getRepository(Settings).update(
+        { userId: '1' },
+        {
+          flags: {
+            clickbaitShieldEnabled: true,
+          },
+        },
+      );
+      await con.getRepository(Post).update(
+        { id: 'p1' },
+        {
+          contentQuality: { is_clickbait_probability: 1.98 },
+          contentMeta: {
+            alt_title: {
+              translations: { en: 'Clickbait title EN' },
+            },
+          },
+          translation: {
+            en: {
+              smartTitle: 'Smart Title EN',
+            },
+          },
+        },
+      );
+
+      const res = await client.query(QUERY, {
+        headers: {
+          'content-language': 'de',
+        },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post).toEqual({
+        title: 'Smart Title EN',
+      });
+    });
   });
 });
 
@@ -6361,7 +6463,7 @@ describe('query postCodeSnippets', () => {
 });
 
 describe('Source post moderation approve/reject', () => {
-  const [pendingId, rejectedId] = Array.from({ length: 2 }, () =>
+  const [pendingId, pendingId2, rejectedId] = Array.from({ length: 2 }, () =>
     generateUUID(),
   );
   beforeEach(async () => {
@@ -6370,6 +6472,15 @@ describe('Source post moderation approve/reject', () => {
       {
         id: pendingId,
         sourceId: 'm',
+        createdById: '4',
+        title: 'Title',
+        content: 'Content',
+        status: SourcePostModerationStatus.Pending,
+        type: PostType.Article,
+      },
+      {
+        id: pendingId2,
+        sourceId: 'm2',
         createdById: '4',
         title: 'Title',
         content: 'Content',
@@ -6395,7 +6506,7 @@ describe('Source post moderation approve/reject', () => {
   mutation ModerateSourcePost(
     $postIds: [ID]!,
     $status: String,
-    $sourceId: ID!,
+    $sourceId: ID,
     $rejectionReason: String,
     $moderatorMessage: String
   ) {
@@ -6413,7 +6524,6 @@ describe('Source post moderation approve/reject', () => {
         mutation: MUTATION,
         variables: {
           postIds: [pendingId],
-          sourceId: 'm',
           status: SourcePostModerationStatus.Approved,
         },
       },
@@ -6429,7 +6539,6 @@ describe('Source post moderation approve/reject', () => {
         mutation: MUTATION,
         variables: {
           postIds: [pendingId],
-          sourceId: 'm',
           status: SourcePostModerationStatus.Approved,
         },
       },
@@ -6445,7 +6554,6 @@ describe('Source post moderation approve/reject', () => {
         mutation: MUTATION,
         variables: {
           postIds: [pendingId],
-          sourceId: 'm',
           status: SourcePostModerationStatus.Approved,
         },
       },
@@ -6461,7 +6569,6 @@ describe('Source post moderation approve/reject', () => {
     }> = await client.mutate(MUTATION, {
       variables: {
         postIds: [pendingId],
-        sourceId: 'm',
         status: SourcePostModerationStatus.Approved,
       },
     });
@@ -6476,6 +6583,38 @@ describe('Source post moderation approve/reject', () => {
     expect(post.moderatedById).toEqual('3');
   });
 
+  it('should not approve posts in sources where user is not moderator', async () => {
+    loggedUser = '2'; // Not moderator of "m" squad, which "pendingId" post belongs to.
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          postIds: [pendingId],
+          status: SourcePostModerationStatus.Approved,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw error when one or more posts in postIds is from a source where user is not moderator', async () => {
+    loggedUser = '2'; // Not moderator of "m" squad, which "pendingId" post belongs to.
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          postIds: [pendingId, pendingId2],
+          status: SourcePostModerationStatus.Approved,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
   it('should reject pending posts', async () => {
     loggedUser = '3'; // Moderator level
 
@@ -6484,7 +6623,6 @@ describe('Source post moderation approve/reject', () => {
     }> = await client.mutate(MUTATION, {
       variables: {
         postIds: [pendingId],
-        sourceId: 'm',
         status: SourcePostModerationStatus.Rejected,
         rejectionReason: 'Spam',
         moderatorMessage: 'This is spam',
@@ -6512,7 +6650,6 @@ describe('Source post moderation approve/reject', () => {
         mutation: MUTATION,
         variables: {
           postIds: [pendingId],
-          sourceId: 'm',
           status: SourcePostModerationStatus.Rejected,
           moderatorMessage: 'This is spam',
         },
@@ -6530,7 +6667,6 @@ describe('Source post moderation approve/reject', () => {
         mutation: MUTATION,
         variables: {
           postIds: [pendingId],
-          sourceId: 'm',
           status: SourcePostModerationStatus.Rejected,
           rejectionReason: 'Other',
         },
@@ -6547,7 +6683,6 @@ describe('Source post moderation approve/reject', () => {
     }> = await client.mutate(MUTATION, {
       variables: {
         postIds: [pendingId, rejectedId],
-        sourceId: 'm',
         status: SourcePostModerationStatus.Approved,
       },
     });
@@ -6905,6 +7040,82 @@ describe('query fetchSmartTitle', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.fetchSmartTitle.title).toEqual('Alt Title DE');
+  });
+
+  it('should return smart title translation when clickbait shield is enabled and language is set', async () => {
+    loggedUser = '1';
+    isPlus = true;
+
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        contentMeta: {
+          alt_title: {
+            translations: {
+              en: 'Alt Title',
+              de: 'Alt Title DE',
+            },
+          },
+        },
+        translation: {
+          de: {
+            title: 'Title DE',
+            smartTitle: 'Smart Title DE',
+          },
+        },
+      },
+    );
+
+    await con
+      .getRepository(Settings)
+      .save({ userId: loggedUser, flags: { clickbaitShieldEnabled: false } });
+
+    const res = await client.query<
+      { fetchSmartTitle: GQLPostSmartTitle },
+      { id: string }
+    >(QUERY, {
+      variables: { id: 'p1' },
+      headers: { 'content-language': 'de' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.fetchSmartTitle.title).toEqual('Smart Title DE');
+  });
+
+  it('should return the original title translation when clickbait shield is enabled and language is set', async () => {
+    loggedUser = '1';
+    isPlus = true;
+
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        contentMeta: {
+          alt_title: {
+            translations: {
+              en: 'Alt Title',
+              de: 'Alt Title DE',
+            },
+          },
+        },
+        translation: {
+          de: {
+            title: 'Title DE',
+            smartTitle: 'Smart Title DE',
+          },
+        },
+      },
+    );
+
+    const res = await client.query<
+      { fetchSmartTitle: GQLPostSmartTitle },
+      { id: string }
+    >(QUERY, {
+      variables: { id: 'p1' },
+      headers: { 'content-language': 'de' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.fetchSmartTitle.title).toEqual('Title DE');
   });
 
   describe('free user', () => {

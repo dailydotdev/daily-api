@@ -1295,7 +1295,7 @@ describe('storeNotificationBundle', () => {
     );
     expect(actual.notification.description).toBeFalsy();
     expect(actual.notification.targetUrl).toEqual(
-      'http://localhost:5002/squads/a/moderate',
+      'http://localhost:5002/squads/moderate',
     );
     expect(actual.avatars).toEqual([
       {
@@ -1352,7 +1352,7 @@ describe('storeNotificationBundle', () => {
     );
     expect(actual.notification.description).toEqual('Lacks value.');
     expect(actual.notification.targetUrl).toEqual(
-      'http://localhost:5002/squads/a/moderate',
+      'http://localhost:5002/squads/moderate?handle=a',
     );
     expect(actual.avatars).toEqual([
       {
