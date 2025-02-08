@@ -3,14 +3,20 @@ import createOrGetConnection from '../src/db';
 import { saveFixtures } from './helpers';
 import { User } from '../src/entity';
 import { plusUsersFixture, usersFixture } from './fixture';
-import { EventName, SubscriptionCreatedEvent } from '@paddle/paddle-node-sdk';
+import {
+  EventName,
+  SubscriptionCreatedEvent,
+  TransactionCompletedEvent,
+} from '@paddle/paddle-node-sdk';
 import {
   PaddleCustomData,
+  processGiftedPayment,
   updateUserSubscription,
 } from '../src/routes/webhooks/paddle';
 import { isPlusMember, SubscriptionCycles } from '../src/paddle';
 import { FastifyInstance } from 'fastify';
 import appFunc from '../src';
+import { logger } from '../src/logger';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -76,6 +82,29 @@ const getSubscriptionData = (customData: PaddleCustomData) =>
     },
   });
 
+const getTransactionData = (customData: PaddleCustomData) =>
+  new TransactionCompletedEvent({
+    event_id: '1',
+    notification_id: '1',
+    event_type: EventName.SubscriptionCreated,
+    occurred_at: new Date().toISOString(),
+    data: {
+      id: '1',
+      customer_id: '1',
+      address_id: '1',
+      business_id: null,
+      custom_data: customData,
+      currency_code: 'USD',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      collection_mode: 'automatic',
+      status: 'completed',
+      origin: 'web',
+      payments: [],
+      items: [],
+    },
+  });
+
 describe('plus subscription', () => {
   it('should add a plus subscription to a user', async () => {
     const userId = 'whp-1';
@@ -97,14 +126,21 @@ describe('plus subscription', () => {
 });
 
 describe('gift', () => {
+  const logError = jest.fn();
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+  });
+
   it('should ignore if gifter user is not valid', async () => {
+    jest.spyOn(logger, 'error').mockImplementation(logError);
     const userId = 'whp-2';
-    const data = getSubscriptionData({
+    const result = getTransactionData({
       user_id: userId,
       gifter_id: 'whp-10',
     });
-    const res = await updateUserSubscription({ data, state: true });
-    expect(res).toBe(false);
+    await processGiftedPayment(result.data);
+    expect(logError).toHaveBeenCalled();
 
     const updatedUser = await con
       .getRepository(User)
@@ -114,17 +150,18 @@ describe('gift', () => {
   });
 
   it('should ignore if gifter and user is the same', async () => {
+    jest.spyOn(logger, 'error').mockImplementation(logError);
     const userId = 'whp-2';
     const user = await con.getRepository(User).findOneByOrFail({ id: userId });
     const isInitiallyPlus = isPlusMember(user.subscriptionFlags?.cycle);
     expect(isInitiallyPlus).toBe(false);
 
-    const data = getSubscriptionData({
+    const result = getTransactionData({
       user_id: userId,
       gifter_id: userId,
     });
-    const res = await updateUserSubscription({ data, state: true });
-    expect(res).toBe(false);
+    await processGiftedPayment(result.data);
+    expect(logError).toHaveBeenCalled();
 
     const updatedUser = await con
       .getRepository(User)
@@ -134,6 +171,7 @@ describe('gift', () => {
   });
 
   it('should ignore if user is already plus', async () => {
+    jest.spyOn(logger, 'error').mockImplementation(logError);
     const userId = 'whp-1';
     await con
       .getRepository(User)
@@ -145,12 +183,12 @@ describe('gift', () => {
     const isInitiallyPlus = isPlusMember(user.subscriptionFlags?.cycle);
     expect(isInitiallyPlus).toBe(true);
 
-    const data = getSubscriptionData({
+    const result = getTransactionData({
       user_id: user.id,
       gifter_id: 'whp-2',
     });
-    const res = await updateUserSubscription({ data, state: true });
-    expect(res).toBe(false);
+    await processGiftedPayment(result.data);
+    expect(logError).toHaveBeenCalled();
   });
 
   it('should gift a subscription to a user', async () => {
@@ -160,11 +198,11 @@ describe('gift', () => {
 
     expect(isInitiallyPlus).toBe(false);
 
-    const data = getSubscriptionData({
+    const result = getTransactionData({
       user_id: userId,
       gifter_id: 'whp-2',
     });
-    await updateUserSubscription({ data, state: true });
+    await processGiftedPayment(result.data);
 
     const updatedUser = await con
       .getRepository(User)
@@ -189,11 +227,11 @@ describe('gift', () => {
       trustScore: 1,
     });
 
-    const data = getSubscriptionData({
+    const result = getTransactionData({
       user_id: userId,
       gifter_id: 'whp-2',
     });
-    await updateUserSubscription({ data, state: true });
+    await processGiftedPayment(result.data);
 
     const updatedUser = await con
       .getRepository(User)

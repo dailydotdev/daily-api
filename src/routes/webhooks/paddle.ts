@@ -24,7 +24,11 @@ import {
 import { JsonContains } from 'typeorm';
 import { paddleInstance } from '../../common/paddle';
 import { addMilliseconds } from 'date-fns';
-import { isPlusMember, subscriptionGiftDuration } from '../../paddle';
+import {
+  isPlusMember,
+  plusGiftDuration,
+  SubscriptionCycles,
+} from '../../paddle';
 
 const extractSubscriptionType = (
   items:
@@ -86,33 +90,6 @@ export const updateUserSubscription = async ({
     return false;
   }
 
-  const { gifter_id: gifterId } = customData;
-  const duration = subscriptionGiftDuration;
-  const isGift = !!gifterId;
-  if (isGift) {
-    if (userId === gifterId) {
-      logger.error({ type: 'paddle', data }, 'User and gifter are the same');
-      return false;
-    }
-
-    const gifterUser = await con
-      .getRepository(User)
-      .findOneBy({ id: gifterId });
-    if (!gifterUser) {
-      logger.error({ type: 'paddle', data }, 'Gifter user not found');
-      return false;
-    }
-
-    const targetUser = await con.getRepository(User).findOne({
-      select: ['subscriptionFlags'],
-      where: { id: userId },
-    });
-    if (isPlusMember(targetUser?.subscriptionFlags?.cycle)) {
-      logger.error({ type: 'paddle', data }, 'User is already a Plus member');
-      return false;
-    }
-  }
-
   await con.getRepository(User).update(
     {
       id: userId,
@@ -122,18 +99,6 @@ export const updateUserSubscription = async ({
         cycle: state ? subscriptionType : null,
         createdAt: state ? data.data?.startedAt : null,
         subscriptionId: state ? data.data?.id : null,
-        ...(isGift && {
-          gifterId,
-          giftExpirationDate: addMilliseconds(
-            new Date(),
-            duration,
-          ).toISOString(),
-        }),
-      }),
-      ...(isGift && {
-        flags: updateFlagsStatement({
-          showPlusGift: isGift,
-        }),
       }),
     },
   );
@@ -405,6 +370,66 @@ const notifyNewPaddleTransaction = async ({
   await webhooks.transactions.send({ blocks });
 };
 
+export const processGiftedPayment = async (
+  data: TransactionCompletedEvent['data'],
+) => {
+  const con = await createOrGetConnection();
+  const { gifter_id, user_id } = data.customData as PaddleCustomData;
+
+  if (user_id === gifter_id) {
+    logger.error({ type: 'paddle' }, 'User and gifter are the same');
+    return;
+  }
+
+  const gifterUser = await con.getRepository(User).findOneBy({ id: gifter_id });
+
+  if (!gifterUser) {
+    logger.error({ type: 'paddle' }, 'Gifter user not found');
+    return;
+  }
+
+  const targetUser = await con.getRepository(User).findOne({
+    select: ['subscriptionFlags'],
+    where: { id: user_id },
+  });
+
+  if (isPlusMember(targetUser?.subscriptionFlags?.cycle)) {
+    logger.error({ type: 'paddle' }, 'User is already a Plus member');
+    return;
+  }
+
+  await con.getRepository(User).update(
+    {
+      id: user_id,
+    },
+    {
+      subscriptionFlags: updateSubscriptionFlags({
+        cycle: SubscriptionCycles.Yearly,
+        createdAt: data?.createdAt,
+        subscriptionId: data?.id,
+        gifterId: gifter_id,
+        giftExpirationDate: addMilliseconds(
+          new Date(),
+          plusGiftDuration,
+        ).toISOString(),
+      }),
+      flags: updateFlagsStatement({ showPlusGift: true }),
+    },
+  );
+};
+
+export const processTransactionCompleted = async (
+  result: TransactionCompletedEvent,
+) => {
+  const { gifter_id } = (result?.data?.customData ?? {}) as PaddleCustomData;
+
+  if (gifter_id) {
+    await processGiftedPayment(result.data);
+  }
+
+  await notifyNewPaddleTransaction(result);
+};
+
 export const paddle = async (fastify: FastifyInstance): Promise<void> => {
   fastify.register(async (fastify: FastifyInstance): Promise<void> => {
     fastify.post('/', {
@@ -462,7 +487,7 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
                     eventData,
                     AnalyticsEventName.ReceivePayment,
                   ),
-                  notifyNewPaddleTransaction(eventData),
+                  processTransactionCompleted(eventData),
                 ]);
                 break;
               default:
