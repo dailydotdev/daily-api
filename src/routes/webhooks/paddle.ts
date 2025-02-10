@@ -487,7 +487,7 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
                     eventData,
                     AnalyticsEventName.ReceivePayment,
                   ),
-                  processTransactionCompleted(eventData),
+                  await processTransactionCompleted(eventData),
                 ]);
                 break;
               default:
