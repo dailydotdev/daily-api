@@ -1,5 +1,14 @@
 import { FastifyInstance } from 'fastify';
-import { Post, User, UserAction } from '../entity';
+import {
+  getAllSourcesBaseQuery,
+  NotificationPreferencePost,
+  Post,
+  PostRelationType,
+  Source,
+  User,
+  UserAction,
+  UserActionType,
+} from '../entity';
 import createOrGetConnection from '../db';
 import { ValidationError } from 'apollo-server-errors';
 import { validateAndTransformHandle } from '../common/handles';
@@ -8,6 +17,11 @@ import type {
   UpdateUserEmailData,
 } from '../entity/user/utils';
 import { addNewUser, updateUserEmail } from '../entity/user/utils';
+import { queryReadReplica } from '../common/queryReadReplica';
+import {
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../notifications/common';
 
 interface SearchUsername {
   search: string;
@@ -141,11 +155,15 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     }
 
     const con = await createOrGetConnection();
-
-    const action = await con.getRepository(UserAction).findOne({
-      select: ['completedAt'],
-      where: { userId: user_id, type: action_name },
-    });
+    const action = await queryReadReplica(con, ({ queryRunner }) =>
+      queryRunner.manager.getRepository(UserAction).findOne({
+        select: ['completedAt'],
+        where: {
+          userId: user_id,
+          type: action_name as UserActionType,
+        },
+      }),
+    );
 
     return res.status(200).send({
       found: !!action,
