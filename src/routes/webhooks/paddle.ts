@@ -399,9 +399,7 @@ export const processGiftedPayment = async (
   }
 
   await con.getRepository(User).update(
-    {
-      id: user_id,
-    },
+    { id: user_id },
     {
       subscriptionFlags: updateSubscriptionFlags({
         cycle: SubscriptionCycles.Yearly,
