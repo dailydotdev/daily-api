@@ -595,11 +595,9 @@ describe('FeedUserStateConfigGenerator', () => {
     expect(actual.config.disable_engagement_filter).toBeTruthy();
     expect(actual.config.order_by).toEqual(FeedOrderBy.Downvotes);
     expect(actual.config.min_day_range).toEqual(7);
-    expect(actual.config.thresholds).toEqual({
-      min_thresholds: {
-        upvotes: 10,
-        views: 1,
-      },
+    expect(actual.config.min_thresholds).toEqual({
+      upvotes: 10,
+      views: 1,
     });
   });
 });
