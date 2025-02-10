@@ -210,9 +210,9 @@ const logPaddleAnalyticsEvent = async (
 };
 
 const concatText = (a: string, b: string) => [a, b].filter(Boolean).join(`\n`);
-const notifyNewPaddleTransaction = async ({
-  data,
-}: TransactionCompletedEvent) => {
+const notifyNewPaddleTransaction = async (
+  data: TransactionCompletedEvent['data'],
+) => {
   const { user_id, gifter_id } = (data?.customData ?? {}) as PaddleCustomData;
   const purchasedById = gifter_id ?? user_id;
   const subscriptionForId = await getUserId({
@@ -419,15 +419,15 @@ export const processGiftedPayment = async (
 };
 
 export const processTransactionCompleted = async (
-  result: TransactionCompletedEvent,
+  data: TransactionCompletedEvent['data'],
 ) => {
-  const { gifter_id } = (result?.data?.customData ?? {}) as PaddleCustomData;
+  const { gifter_id } = (data?.customData ?? {}) as PaddleCustomData;
 
   if (gifter_id) {
-    await processGiftedPayment(result.data);
+    await processGiftedPayment(data);
   }
 
-  await notifyNewPaddleTransaction(result);
+  await notifyNewPaddleTransaction(data);
 };
 
 export const paddle = async (fastify: FastifyInstance): Promise<void> => {
@@ -487,7 +487,7 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
                     eventData,
                     AnalyticsEventName.ReceivePayment,
                   ),
-                  processTransactionCompleted(eventData),
+                  processTransactionCompleted(eventData.data),
                 ]);
                 break;
               default:
