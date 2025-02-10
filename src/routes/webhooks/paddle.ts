@@ -377,14 +377,14 @@ export const processGiftedPayment = async (
   const { gifter_id, user_id } = data.customData as PaddleCustomData;
 
   if (user_id === gifter_id) {
-    logger.error({ type: 'paddle' }, 'User and gifter are the same');
+    logger.error({ type: 'paddle', data }, 'User and gifter are the same');
     return;
   }
 
   const gifterUser = await con.getRepository(User).findOneBy({ id: gifter_id });
 
   if (!gifterUser) {
-    logger.error({ type: 'paddle' }, 'Gifter user not found');
+    logger.error({ type: 'paddle', data }, 'Gifter user not found');
     return;
   }
 
@@ -394,7 +394,7 @@ export const processGiftedPayment = async (
   });
 
   if (isPlusMember(targetUser?.subscriptionFlags?.cycle)) {
-    logger.error({ type: 'paddle' }, 'User is already a Plus member');
+    logger.error({ type: 'paddle', data }, 'User is already a Plus member');
     return;
   }
 
