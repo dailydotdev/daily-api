@@ -139,8 +139,8 @@ describe('gift', () => {
       user_id: userId,
       gifter_id: 'whp-10',
     });
-    await processGiftedPayment(result.data);
     expect(logError).toHaveBeenCalled();
+    await processGiftedPayment({ event: result });
 
     const updatedUser = await con
       .getRepository(User)
@@ -160,8 +160,8 @@ describe('gift', () => {
       user_id: userId,
       gifter_id: userId,
     });
-    await processGiftedPayment(result.data);
     expect(logError).toHaveBeenCalled();
+    await processGiftedPayment({ event: result });
 
     const updatedUser = await con
       .getRepository(User)
@@ -187,8 +187,8 @@ describe('gift', () => {
       user_id: user.id,
       gifter_id: 'whp-2',
     });
-    await processGiftedPayment(result.data);
     expect(logError).toHaveBeenCalled();
+    await processGiftedPayment({ event: result });
   });
 
   it('should gift a subscription to a user', async () => {
@@ -202,8 +202,8 @@ describe('gift', () => {
       user_id: userId,
       gifter_id: 'whp-2',
     });
-    await processGiftedPayment(result.data);
 
+    await processGiftedPayment({ event: result });
     const updatedUser = await con
       .getRepository(User)
       .findOneByOrFail({ id: userId });
@@ -231,8 +231,8 @@ describe('gift', () => {
       user_id: userId,
       gifter_id: 'whp-2',
     });
-    await processGiftedPayment(result.data);
 
+    await processGiftedPayment({ event: result });
     const updatedUser = await con
       .getRepository(User)
       .findOneByOrFail({ id: userId });
