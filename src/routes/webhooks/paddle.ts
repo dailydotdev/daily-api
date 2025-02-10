@@ -482,12 +482,12 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
                 }
                 break;
               case EventName.TransactionCompleted:
-                Promise.all([
+                await Promise.all([
                   logPaddleAnalyticsEvent(
                     eventData,
                     AnalyticsEventName.ReceivePayment,
                   ),
-                  await processTransactionCompleted(eventData),
+                  processTransactionCompleted(eventData),
                 ]);
                 break;
               default:
