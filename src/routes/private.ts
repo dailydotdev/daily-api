@@ -1,14 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import {
-  getAllSourcesBaseQuery,
-  NotificationPreferencePost,
-  Post,
-  PostRelationType,
-  Source,
-  User,
-  UserAction,
-  UserActionType,
-} from '../entity';
+import { Post, User, UserAction, UserActionType } from '../entity';
 import createOrGetConnection from '../db';
 import { ValidationError } from 'apollo-server-errors';
 import { validateAndTransformHandle } from '../common/handles';
@@ -18,10 +9,6 @@ import type {
 } from '../entity/user/utils';
 import { addNewUser, updateUserEmail } from '../entity/user/utils';
 import { queryReadReplica } from '../common/queryReadReplica';
-import {
-  NotificationPreferenceStatus,
-  NotificationType,
-} from '../notifications/common';
 
 interface SearchUsername {
   search: string;
