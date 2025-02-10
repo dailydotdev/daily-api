@@ -355,11 +355,9 @@ const feedFlagsToFilters = ({
   }
 
   if (feed.flags.minUpvotes || feed.flags.minViews) {
-    flagFilters.thresholds = {
-      min_thresholds: {
-        upvotes: feed.flags.minUpvotes,
-        views: feed.flags.minViews,
-      },
+    flagFilters.min_thresholds = {
+      upvotes: feed.flags.minUpvotes,
+      views: feed.flags.minViews,
     };
   }
 
