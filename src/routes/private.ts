@@ -123,10 +123,12 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   });
   fastify.get<{
     Params: {
-      id: string;
+      user_id: string;
+      action_name: string;
     };
-    Body: Pick<Post, 'id'> & {
-      resourceLocation?: string;
+    Body: {
+      found: boolean;
+      completedAt?: string;
     };
   }>('/actions/:user_id/:action_name', async (req, res) => {
     if (!req.service) {
