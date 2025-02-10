@@ -6,6 +6,7 @@ import {
   Feed,
   Source,
   User,
+  UserAction,
   UserPersonalizedDigest,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
@@ -806,6 +807,44 @@ describe('GET /p/posts/:id', () => {
       id: 'p-prl',
       resourceLocation: 'gs://path/to/resource',
       scrapedResourceLocation: 'gs://path/to/scraped',
+    });
+  });
+});
+
+describe('GET /p/actions/:user_id/:action_name', () => {
+  beforeEach(async () => {
+    await createDefaultUser();
+  });
+
+  it('should return unauthorized when token is missing', () => {
+    return request(app.server).post('/p/actions/p-uid/p-an').expect(404);
+  });
+
+  it('should return not found if no action yet', async () => {
+    const { body } = await request(app.server)
+      .get('/p/actions/p-uid/p-an')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .expect(200);
+
+    expect(body).toEqual({
+      found: false,
+    });
+  });
+
+  it('should return if action is made', async () => {
+    await con.getRepository(UserAction).save({
+      userId: usersFixture[0].id,
+      type: 'p-an',
+      completedAt: new Date('2025-02-04 12:01:47.042565'),
+    });
+    const { body } = await request(app.server)
+      .get('/p/actions/1/p-an')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .expect(200);
+
+    expect(body).toEqual({
+      found: true,
+      completedAt: '2025-02-04T12:01:47.042Z',
     });
   });
 });

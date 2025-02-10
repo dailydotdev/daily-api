@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { Post, User } from '../entity';
+import { Post, User, UserAction } from '../entity';
 import createOrGetConnection from '../db';
 import { ValidationError } from 'apollo-server-errors';
 import { validateAndTransformHandle } from '../common/handles';
@@ -119,6 +119,35 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           scraped?: { resource_location?: string };
         }
       )?.scraped?.resource_location,
+    });
+  });
+  fastify.get<{
+    Params: {
+      id: string;
+    };
+    Body: Pick<Post, 'id'> & {
+      resourceLocation?: string;
+    };
+  }>('/actions/:user_id/:action_name', async (req, res) => {
+    if (!req.service) {
+      return res.status(404).send();
+    }
+
+    const { user_id, action_name } = req.params;
+    if (!user_id || !action_name) {
+      return res.status(400).send();
+    }
+
+    const con = await createOrGetConnection();
+
+    const action = await con.getRepository(UserAction).findOne({
+      select: ['completedAt'],
+      where: { userId: user_id, type: action_name },
+    });
+
+    return res.status(200).send({
+      found: !!action,
+      completedAt: action?.completedAt,
     });
   });
 }
