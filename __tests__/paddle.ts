@@ -139,8 +139,8 @@ describe('gift', () => {
       user_id: userId,
       gifter_id: 'whp-10',
     });
-    expect(logError).toHaveBeenCalled();
     await processGiftedPayment({ event: result });
+    expect(logError).toHaveBeenCalled();
 
     const updatedUser = await con
       .getRepository(User)
@@ -160,8 +160,8 @@ describe('gift', () => {
       user_id: userId,
       gifter_id: userId,
     });
-    expect(logError).toHaveBeenCalled();
     await processGiftedPayment({ event: result });
+    expect(logError).toHaveBeenCalled();
 
     const updatedUser = await con
       .getRepository(User)
@@ -187,8 +187,8 @@ describe('gift', () => {
       user_id: user.id,
       gifter_id: 'whp-2',
     });
-    expect(logError).toHaveBeenCalled();
     await processGiftedPayment({ event: result });
+    expect(logError).toHaveBeenCalled();
   });
 
   it('should gift a subscription to a user', async () => {
