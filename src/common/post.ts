@@ -13,9 +13,11 @@ import {
   Source,
   SourceMember,
   SquadSource,
+  translateablePostFields,
   User,
   validateCommentary,
   WelcomePost,
+  type PostTranslation,
 } from '../entity';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { isValidHttpUrl, standardizeURL } from './links';
@@ -862,5 +864,29 @@ export const getAllModerationItemsAsAdmin = async (
     },
     undefined,
     true,
+  );
+};
+
+export const getTranslationRecord = ({
+  translations,
+  contentLanguage,
+}: {
+  translations: Partial<Record<ContentLanguage, PostTranslation>>;
+  contentLanguage: ContentLanguage | null;
+}) => {
+  const translation = contentLanguage
+    ? translations[contentLanguage]
+    : undefined;
+
+  if (!translation) {
+    return {};
+  }
+
+  return translateablePostFields.reduce(
+    (acc: Record<string, boolean>, field) => {
+      acc[field] = !!translation[field];
+      return acc;
+    },
+    {},
   );
 };

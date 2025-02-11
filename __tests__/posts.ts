@@ -6906,6 +6906,10 @@ describe('query fetchSmartTitle', () => {
     query FetchSmartTitle($id: ID!) {
       fetchSmartTitle(id: $id) {
         title
+        translation {
+          title
+          smartTitle
+        }
       }
     }
   `;
@@ -7171,6 +7175,25 @@ describe('query fetchSmartTitle', () => {
 
       expect(res.errors?.length || 0).toEqual(1);
       expect(res.errors[0].extensions?.code).toEqual('FORBIDDEN');
+    });
+
+    it('should return translate field', async () => {
+      loggedUser = '1';
+      isPlus = true;
+      const res = await client.query<
+        { fetchSmartTitle: GQLPostSmartTitle },
+        { id: string }
+      >(QUERY, {
+        variables: { id: 'p1' },
+        headers: { 'content-language': 'de' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.fetchSmartTitle.title).toEqual('Title DE');
+      expect(res.data.fetchSmartTitle.translation).toEqual({
+        title: true,
+        smartTitle: false,
+      });
     });
   });
 });

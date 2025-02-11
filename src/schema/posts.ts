@@ -46,6 +46,7 @@ import {
   type GQLSourcePostModeration,
   type SourcePostModerationArgs,
   getAllModerationItemsAsAdmin,
+  getTranslationRecord,
 } from '../common';
 import {
   ArticlePost,
@@ -162,7 +163,7 @@ export interface GQLPost {
   flags?: PostFlagsPublic;
   userState?: GQLUserPost;
   slug?: string;
-  translations?: Partial<Record<keyof PostTranslation, boolean>>;
+  translation?: Partial<Record<keyof PostTranslation, boolean>>;
 }
 
 interface PinPostArgs {
@@ -184,6 +185,7 @@ export type GQLPostNotification = Pick<
 
 export type GQLPostSmartTitle = {
   title: string;
+  translation: GQLPost['translation'];
 };
 
 const POST_MODERATION_LIMIT_FOR_MUTATION = 50;
@@ -741,6 +743,7 @@ export const typeDefs = /* GraphQL */ `
 
   type PostSmartTitle {
     title: String
+    translation: PostTranslation
   }
 
   """
@@ -1706,6 +1709,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             select: ['title', 'contentMeta', 'translation'],
           });
 
+        const translationRecord = getTranslationRecord({
+          translations: post.translation,
+          contentLanguage: ctx.contentLanguage,
+        });
+
         if (!ctx.isPlus) {
           const hasUsedFreeTrial = await ctx.con
             .getRepository(UserAction)
@@ -1728,6 +1736,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           // We always want to return the smart title for non-plus users who have not used the free trial, as it is part of the try before you buy experience
           return {
             title: getPostSmartTitle(post, ctx.contentLanguage),
+            translation: translationRecord,
           };
         }
 
@@ -1742,12 +1751,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         if (settings?.flags?.clickbaitShieldEnabled ?? true) {
           return {
             title: getPostTranslatedTitle(post, ctx.contentLanguage),
+            translation: translationRecord,
           };
         }
 
         // If the user has clickbait shield disabled, return the smart title
         return {
           title: getPostSmartTitle(post, ctx.contentLanguage),
+          translation: translationRecord,
         };
       }),
   },
