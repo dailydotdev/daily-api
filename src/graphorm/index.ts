@@ -17,7 +17,6 @@ import {
   UserStats,
   UserSubscriptionFlags,
   type PostTranslation,
-  translateablePostFields,
 } from '../entity';
 import {
   SourceMemberRoles,
@@ -27,7 +26,13 @@ import {
 } from '../roles';
 
 import { Context } from '../Context';
-import { base64, domainOnly, getSmartTitle, transformDate } from '../common';
+import {
+  base64,
+  domainOnly,
+  getSmartTitle,
+  getTranslationRecord,
+  transformDate,
+} from '../common';
 import { GQLComment } from '../schema/comments';
 import { GQLUserPost } from '../schema/posts';
 import { UserComment } from '../entity/user/UserComment';
@@ -501,21 +506,10 @@ const obj = new GraphORM({
           translations: Partial<Record<ContentLanguage, PostTranslation>>,
           ctx: Context,
         ): Partial<Record<keyof PostTranslation, boolean>> => {
-          const translation = ctx.contentLanguage
-            ? translations[ctx.contentLanguage]
-            : undefined;
-
-          if (!translation) {
-            return {};
-          }
-
-          return translateablePostFields.reduce(
-            (acc: Record<string, boolean>, field) => {
-              acc[field] = !!translation[field];
-              return acc;
-            },
-            {},
-          );
+          return getTranslationRecord({
+            translations,
+            contentLanguage: ctx.contentLanguage,
+          });
         },
       },
     },
