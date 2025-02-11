@@ -50,14 +50,14 @@ Daily API requires a running instance of PostgreSQL, you can easily set it up us
 [Check out this guide](https://docs.docker.com/compose/install/) of how to install Docker Compose. Once installed, you can run `docker-compose up -d` and viola!
 
 Make sure to apply the latest migrations by running:
-`npm run db:migrate:latest`
+`pnpm run db:migrate:latest`
 
 [.env](.env) is used to set the required environment variables. It is loaded automatically by the project.
 
 If you want some seed data you can run:
-`npm run db:seed:import`
+`pnpm run db:seed:import`
 
-Finally run `npm run dev` to run the service and listen to port `5000`.
+Finally run `pnpm run dev` to run the service and listen to port `5000`.
 
 ### Caveat
 

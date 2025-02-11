@@ -18,7 +18,7 @@ jobs:
             pnpm install
       - run:
           name: Build
-          command: npm run build
+          command: pnpm run build
       - save_cache:
           key: dependency-v4-cache-{{ checksum "pnpm-lock.yaml" }}
           paths:
@@ -64,7 +64,7 @@ jobs:
       - run:
           name: Test
           command: |
-            npm run pretest
+            pnpm run pretest
             TEST=$(./node_modules/.bin/jest --listTests)
             echo $TEST | circleci tests run --command="xargs ./node_modules/.bin/jest --testEnvironment=node --ci --runInBand --reporters=default --reporters=jest-junit --" --split-by=timings
           environment:
