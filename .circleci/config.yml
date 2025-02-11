@@ -96,7 +96,7 @@ jobs:
       - pulumi/login
       - run:
           name: Install dependencies
-          command: npm i
+          command: pnpm install --frozen-lockfile
           working_directory: .infra
       - run:
           name: Pulumi preview
@@ -117,7 +117,7 @@ jobs:
       - pulumi/login
       - run:
           name: Install dependencies
-          command: npm i
+          command: pnpm install --frozen-lockfile
           working_directory: .infra
       - run:
           name: Pulumi up
