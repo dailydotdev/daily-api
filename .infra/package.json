@@ -1,8 +1,5 @@
 {
   "name": "api",
-  "scripts": {
-    "prepare": "corepack enable || true"
-  },
   "devDependencies": {
     "@types/node": "22.13.x"
   },
