@@ -23,7 +23,7 @@ along with other very useful endpoints.
 ## Stack
 
 - Node v20 (a `.nvmrc` is presented for [nvm](https://github.com/nvm-sh/nvm) users).
-- NPM for managing dependencies.
+- pnpm for managing dependencies.
 - Fastify as the web framework
 - Apollo for GraphQL
 - Typeorm as a database layer

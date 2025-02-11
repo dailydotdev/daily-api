@@ -1,7 +1,10 @@
 {
   "name": "api",
+  "scripts": {
+    "prepare": "corepack enable || true"
+  },
   "devDependencies": {
-    "@types/node": "20.12.x"
+    "@types/node": "22.13.x"
   },
   "dependencies": {
     "@dailydotdev/pulumi-common": "^2.4.6",

@@ -19,7 +19,7 @@ export const runInQueueStream = async <T>(
 
   await new Promise((resolve, reject) => {
     stream.on('error', reject);
-    stream.on('end', resolve);
+    stream.on('end', () => resolve(true));
   });
   await insertQueue.drained();
   console.log('update finished with a total of: ', insertCount);

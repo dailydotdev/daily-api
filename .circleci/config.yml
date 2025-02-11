@@ -6,19 +6,21 @@ orbs:
 jobs:
   build:
     docker:
-      - image: cimg/node:20.12
+      - image: cimg/node:22.13
     steps:
       - checkout
       - restore_cache:
-          key: dependency-v3-cache-{{ checksum "package-lock.json" }}
+          key: dependency-v4-cache-{{ checksum "pnpm-lock.yaml" }}
       - run:
           name: Install dependencies
-          command: npm install
+          command: |
+            sudo npm install -g corepack@0.31.0
+            pnpm install
       - run:
           name: Build
           command: npm run build
       - save_cache:
-          key: dependency-v3-cache-{{ checksum "package-lock.json" }}
+          key: dependency-v4-cache-{{ checksum "pnpm-lock.yaml" }}
           paths:
             - ./node_modules
       - persist_to_workspace:
@@ -28,7 +30,7 @@ jobs:
   test:
     resource_class: large
     docker:
-      - image: cimg/node:20.12
+      - image: cimg/node:22.13
       - image: postgres:17-alpine
         environment:
           POSTGRES_DB: api_test
@@ -38,7 +40,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: dependency-v3-cache-{{ checksum "package-lock.json" }}
+          key: dependency-v4-cache-{{ checksum "pnpm-lock.yaml" }}
       - run:
           name: Wait for PostgreSQL
           command: |
@@ -88,7 +90,7 @@ jobs:
           registry-url: us.gcr.io
   pulumi_preview:
     docker:
-      - image: cimg/node:20.12
+      - image: cimg/node:22.13
     steps:
       - checkout
       - pulumi/login
@@ -103,7 +105,7 @@ jobs:
   pulumi_up:
     circleci_ip_ranges: true
     docker:
-      - image: cimg/node:20.12
+      - image: cimg/node:22.13
     environment:
       USE_GKE_GCLOUD_AUTH_PLUGIN: 'True'
     steps:
