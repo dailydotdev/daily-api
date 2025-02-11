@@ -366,7 +366,7 @@ importers:
         specifier: 14.1.2
         version: 14.1.2
       '@types/node':
-        specifier: ^22.13.1
+        specifier: 22.13.1
         version: 22.13.1
       '@types/node-fetch':
         specifier: ^2.6.12

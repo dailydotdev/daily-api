@@ -148,7 +148,7 @@
     "@types/jsonwebtoken": "^9.0.7",
     "@types/lodash": "^4.17.14",
     "@types/markdown-it": "14.1.2",
-    "@types/node": "^22.13.1",
+    "@types/node": "22.13.1",
     "@types/node-fetch": "^2.6.12",
     "@types/retry": "^0.12.5",
     "@types/rss": "0.0.32",
