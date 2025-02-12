@@ -1,7 +1,7 @@
 import { GrowthBook } from '@growthbook/growthbook';
 import { logger } from './logger';
 import { isProd } from './common/utils';
-import type { SubscriptionCycles } from './paddle';
+import { SubscriptionCycles } from './paddle';
 
 type RemoteConfigValue = {
   inc: number;
@@ -44,7 +44,16 @@ class RemoteConfig {
 
   get vars(): Partial<RemoteConfigValue> {
     if (!process.env.GROWTHBOOK_API_CONFIG_CLIENT_KEY) {
-      return {};
+      return {
+        postRateLimit: 10000,
+        commentRateLimit: 10000,
+        rateLimitReputationThreshold: 0,
+        pricingIds: {
+          pri_01jjbwd5j7k0nm45k8e07yfmwr: SubscriptionCycles.Yearly,
+          pri_01jcdp5ef4yhv00p43hr2knrdg: SubscriptionCycles.Monthly,
+          pri_01jcdn6enr5ap3ekkddc6fv6tq: SubscriptionCycles.Yearly,
+        },
+      };
     }
 
     if (!this.gb) {
