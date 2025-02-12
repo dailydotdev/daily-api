@@ -43,7 +43,6 @@ const OMIT_FIELDS: (keyof ChangeObject<User>)[] = [
   'readme',
   'readmeHtml',
   'infoConfirmed',
-  'profileConfirmed',
   'notificationEmail',
   'followingEmail',
   'followNotifications',
