@@ -56,7 +56,7 @@ export type PostContentQuality = Partial<{
 export const translateablePostFields = [
   'title',
   'smartTitle',
-  'titleHtml', // titleHtml is not translatable via Kvasir, but is rendered via postTranslated worker
+  'titleHtml',
 ] as const;
 export type TranslateablePostField = (typeof translateablePostFields)[number];
 export type PostTranslation = {

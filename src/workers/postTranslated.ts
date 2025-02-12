@@ -1,8 +1,7 @@
 import { TypedWorker } from './worker';
-import { generateTitleHtml, Post, PostType } from '../entity';
+import { Post } from '../entity';
 import { logger } from '../logger';
 import { remoteConfig } from '../remoteConfig';
-import { getMentions } from '../schema/comments';
 
 export const postTranslated: TypedWorker<'kvasir.v1.post-translated'> = {
   subscription: 'api.post-translated',
@@ -16,25 +15,7 @@ export const postTranslated: TypedWorker<'kvasir.v1.post-translated'> = {
     }
 
     try {
-      const post = await con.getRepository(Post).findOneByOrFail({ id });
-
-      if (post.type === PostType.Share && translations.title) {
-        const mentions = await getMentions(
-          con,
-          translations.title,
-          post.authorId || '',
-        );
-
-        translations.titleHtml = generateTitleHtml(
-          translations.title,
-          mentions,
-        );
-
-        logger.debug(
-          { id },
-          '[postTranslated]: Rendered title markdown for share post',
-        );
-      }
+      await con.getRepository(Post).findOneByOrFail({ id });
 
       const query = con
         .getRepository(Post)

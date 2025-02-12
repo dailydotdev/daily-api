@@ -396,6 +396,7 @@ export const typeDefs = /* GraphQL */ `
   type PostTranslation {
     title: Boolean
     smartTitle: Boolean
+    titleHtml: Boolean
   }
 
   """
