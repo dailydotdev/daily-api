@@ -15,6 +15,7 @@ export const postTranslated: TypedWorker<'kvasir.v1.post-translated'> = {
     }
 
     try {
+      const post = await con.getRepository(Post).findOneByOrFail({ id });
       const query = con
         .getRepository(Post)
         .createQueryBuilder()
