@@ -511,9 +511,15 @@ const obj = new GraphORM({
             translation: Partial<Record<ContentLanguage, PostTranslation>>;
           };
 
-          return ctx.contentLanguage
+          const i18nTitleHtml = ctx.contentLanguage
             ? typedParent.translation?.[ctx.contentLanguage]?.titleHtml
-            : titleHtml;
+            : undefined;
+
+          if (i18nTitleHtml) {
+            return i18nTitleHtml;
+          }
+
+          return titleHtml;
         },
       },
       translation: {

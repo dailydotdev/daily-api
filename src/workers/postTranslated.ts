@@ -22,7 +22,7 @@ export const postTranslated: TypedWorker<'kvasir.v1.post-translated'> = {
         const mentions = await getMentions(
           con,
           translations.title,
-          post.authorId!, // authorId is not null for share posts
+          post.authorId || '',
         );
 
         translations.titleHtml = generateTitleHtml(
