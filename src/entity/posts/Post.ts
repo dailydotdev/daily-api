@@ -53,7 +53,11 @@ export type PostContentQuality = Partial<{
   manual_clickbait_probability: number;
 }>;
 
-export const translateablePostFields = ['title', 'smartTitle'] as const;
+export const translateablePostFields = [
+  'title',
+  'smartTitle',
+  'titleHtml', // titleHtml is not translatable via Kvasir, but is rendered via postTranslated worker
+] as const;
 export type TranslateablePostField = (typeof translateablePostFields)[number];
 export type PostTranslation = {
   [key in TranslateablePostField]?: string;

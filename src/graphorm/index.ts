@@ -500,6 +500,22 @@ const obj = new GraphORM({
       title: createSmartTitleField({
         field: 'title',
       }),
+      titleHtml: {
+        select: 'titleHtml',
+        transform: async (titleHtml: string, ctx: Context, parent) => {
+          if (!ctx.userId) {
+            return titleHtml;
+          }
+
+          const typedParent = parent as {
+            translation: Partial<Record<ContentLanguage, PostTranslation>>;
+          };
+
+          return ctx.contentLanguage
+            ? typedParent.translation?.[ctx.contentLanguage]?.titleHtml
+            : titleHtml;
+        },
+      },
       translation: {
         jsonType: true,
         transform: (
