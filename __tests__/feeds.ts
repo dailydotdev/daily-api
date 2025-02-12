@@ -3183,11 +3183,9 @@ describe('function feedToFilters', () => {
       order_by: FeedOrderBy.Downvotes,
       disable_engagement_filter: true,
       min_day_range: 7,
-      thresholds: {
-        min_thresholds: {
-          upvotes: 10,
-          views: 1,
-        },
+      min_thresholds: {
+        upvotes: 10,
+        views: 1,
       },
     });
   });
@@ -3228,10 +3226,8 @@ describe('function feedToFilters', () => {
 
     expect(filters.flags).toEqual({
       disable_engagement_filter: false,
-      thresholds: {
-        min_thresholds: {
-          upvotes: 25,
-        },
+      min_thresholds: {
+        upvotes: 25,
       },
     });
   });
