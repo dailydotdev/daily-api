@@ -22,7 +22,6 @@ import { PersonalizedDigestFeatureConfig } from '../growthbook';
 import privateRpc from './privateRpc';
 import { connectRpcPlugin } from '../common/connectRpc';
 import integrations from './integrations';
-import pricePreviews from './pricePreviews';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(rss, { prefix: '/rss' });
@@ -47,7 +46,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(automations, { prefix: '/auto' });
   fastify.register(sitemaps, { prefix: '/sitemaps' });
   fastify.register(integrations, { prefix: '/integrations' });
-  fastify.register(pricePreviews, { prefix: '/price_previews' });
   fastify.get('/robots.txt', (req, res) => {
     return res.type('text/plain').send(`User-agent: *
 Allow: /devcards/
