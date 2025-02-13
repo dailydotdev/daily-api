@@ -20,12 +20,6 @@ export class ArticlePost extends Post {
   @Column({ type: 'text', nullable: true })
   image?: string | null;
 
-  @Column({ type: 'float', nullable: true })
-  ratio?: number;
-
-  @Column({ type: 'text', nullable: true })
-  placeholder?: string;
-
   @Column({ type: 'text', nullable: true })
   siteTwitter?: string;
 

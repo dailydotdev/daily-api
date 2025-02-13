@@ -220,7 +220,6 @@ const defaultUser: ChangeObject<Omit<User, 'createdAt'>> = {
   image: 'https://daily.dev/image.jpg',
   reputation: 5,
   devcardEligible: false,
-  profileConfirmed: false,
   twitter: null,
   username: 'idoshamun',
   infoConfirmed: true,
