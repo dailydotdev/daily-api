@@ -70,7 +70,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 >({
   Query: {
     pricePreviews: async (_, __, ctx: BaseContext) => {
-      const region = ctx.req.headers['x-client-region'] as
+      const region = ctx?.req.headers['x-client-region'] as
         | CountryCode
         | undefined;
       const pricePreview = await paddleInstance?.pricingPreview.preview({
