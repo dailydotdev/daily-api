@@ -74,7 +74,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         | CountryCode
         | undefined;
       const pricePreview = await paddleInstance?.pricingPreview.preview({
-        items: Object.keys(remoteConfig.vars.pricingIds!).map((priceId) => ({
+        items: Object.keys(remoteConfig.vars.pricingIds || {}).map((priceId) => ({
           priceId,
           quantity: 1,
         })),
