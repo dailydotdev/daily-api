@@ -168,7 +168,7 @@ export const confirmUserEmail = async (
       };
     }
 
-    logger.info({ id: data.id }, 'Updated email confirmation for user');
+    logger.debug({ id: data.id }, 'Updated email confirmation for user');
     return { status: 'ok', userId: data.id };
   } catch (_err) {
     const err = _err as Error;
