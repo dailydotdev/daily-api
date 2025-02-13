@@ -346,6 +346,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .where('post.id IN (:...ids)', {
           ids: hits.length ? hits.map((x) => x.post_id) : ['nosuchid'],
         })
+        .andWhere('post.deleted = FALSE')
+        .andWhere('post.private = FALSE')
         .andWhere('post.title IS NOT NULL')
         .orderBy(`array_position(array[${idsStr}], post.id)`);
       if (ctx.userId) {
