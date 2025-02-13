@@ -55,7 +55,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   extend type Query {
-    pricePreviews: PricePreviews!
+    pricePreviews: PricePreviews! @auth
   }
 `;
 
