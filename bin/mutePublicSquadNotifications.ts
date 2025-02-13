@@ -60,7 +60,7 @@ const QUEUE_CONCURRENCY = 100;
 
   await new Promise((resolve, reject) => {
     stream.on('error', reject);
-    stream.on('end', resolve);
+    stream.on('end', () => resolve(true));
   });
 
   await insertQueue.drained();

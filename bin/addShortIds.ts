@@ -31,6 +31,6 @@ interface Row {
   });
   await new Promise((resolve, reject) => {
     resStream.on('error', reject);
-    resStream.on('end', resolve);
+    resStream.on('end', () => resolve(true));
   });
 })();
