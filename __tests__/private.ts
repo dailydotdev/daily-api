@@ -763,6 +763,97 @@ describe('POST /p/updateUserEmail', () => {
   });
 });
 
+describe('POST /p/confirmUserEmail', () => {
+  const path = '/p/confirmUserEmail';
+  it('should return unauthorized when token is missing', () => {
+    return request(app.server).post(path).expect(404);
+  });
+
+  it('should handle when id is empty', async () => {
+    const { body } = await request(app.server)
+      .post(path)
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({})
+      .expect(200);
+    expect(body).toEqual({ status: 'failed', reason: 'MISSING_FIELDS' });
+  });
+
+  it('should handle when email is empty', async () => {
+    const { body } = await request(app.server)
+      .post(path)
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({ id: '1' })
+      .expect(200);
+    expect(body).toEqual({ status: 'failed', reason: 'MISSING_FIELDS' });
+  });
+
+  it("should return correct response if user doesn't exist", async () => {
+    const newEmail = 'somenewemail@gmail.com';
+    const { body } = await request(app.server)
+      .post(path)
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        email: newEmail,
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'failed', reason: 'USER_DOESNT_EXIST' });
+
+    const users = await con.getRepository(User).find();
+    expect(users.length).toBe(1);
+  });
+
+  it("should return correct response if user doesn't match on id and email", async () => {
+    await createDefaultUser();
+    const newEmail = 'somenewemail@gmail.com';
+    const { body } = await request(app.server)
+      .post(path)
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        email: newEmail,
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'failed', reason: 'USER_DOESNT_EXIST' });
+
+    const users = await con.getRepository(User).find();
+    expect(users.length).toBe(2);
+  });
+
+  it('should return correct response if exists', async () => {
+    await createDefaultUser();
+
+    expect(
+      (
+        await con
+          .getRepository(User)
+          .findOneByOrFail({ id: usersFixture[0].id })
+      ).emailConfirmed,
+    ).toEqual(false);
+
+    const { body } = await request(app.server)
+      .post(path)
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        email: usersFixture[0].email,
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
+
+    const user = await con
+      .getRepository(User)
+      .findOneByOrFail({ id: usersFixture[0].id });
+
+    expect(user.emailConfirmed).toEqual(true);
+  });
+});
+
 describe('GET /p/posts/:id', () => {
   beforeEach(async () => {
     await saveFixtures(con, ArticlePost, [
