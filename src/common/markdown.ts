@@ -26,7 +26,7 @@ export const markdown: MarkdownIt = MarkdownIt({
 export const getMentionLink = ({ id, username }: MarkdownMention): string => {
   const href = getUserProfileUrl(username || ghostUser.id);
 
-  return `<a href="${href}" data-mention-id="${id}" data-mention-username="${username}">@${username}</a>`;
+  return `<a href="${href}" data-mention-id="${id}" data-mention-username="${username}" translate="no">@${username}</a>`;
 };
 
 const defaultRender =
