@@ -389,7 +389,7 @@ export const schedulePersonalizedDigestSubscriptions = async ({
 
       reject(error);
     });
-    personalizedDigestStream.on('end', resolve);
+    personalizedDigestStream.on('end', () => resolve(true));
   });
   await notifyQueue.drained();
 

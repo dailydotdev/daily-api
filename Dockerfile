@@ -1,4 +1,4 @@
-FROM node:20-bookworm-slim
+FROM node:22.13-bookworm-slim
 RUN apt-get update \
     && apt-get install -y ca-certificates dumb-init \
     && rm -rf /var/lib/apt/lists/*
@@ -8,11 +8,13 @@ WORKDIR /opt/app
 
 COPY .npmrc .
 COPY package.json .
-COPY package-lock.json .
+COPY pnpm-lock.yaml .
 COPY patches patches
 COPY queries queries
 
-RUN npm i --only=prod
+RUN npm install -g corepack@0.31.0
+
+RUN pnpm install --frozen-lockfile
 
 COPY build .
 
