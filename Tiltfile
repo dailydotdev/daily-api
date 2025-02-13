@@ -10,8 +10,8 @@ docker_build(
     sync('./src', '/opt/app/src'),
     sync('./bin', '/opt/app/bin'),
     run(
-      'npm i',
-      trigger=['./package.json', './package-lock.json']
+      'pnpm install',
+      trigger=['./package.json', './pnpm-lock.yaml']
     )
   ])
 

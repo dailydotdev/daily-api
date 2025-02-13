@@ -4,15 +4,15 @@
   "scripts": {
     "prebuild": "rm -rf build",
     "build": "tsc",
-    "postbuild": "cp -R ormconfig.js package.json package-lock.json seeds ./build",
+    "postbuild": "cp -R ormconfig.js package.json pnpm-lock.yaml seeds ./build",
     "cli": "node bin/cli",
-    "db:migrate:create": "npm run typeorm -- migration:create",
-    "db:migrate:latest": "npm run typeorm -- migration:run -d src/data-source.ts",
-    "db:migrate:make": "npm run typeorm -- migration:generate -d src/data-source.ts",
-    "db:migrate:reset": "npm run db:schema:drop && npm run db:migrate:latest",
-    "db:migrate:rollback": "npm run typeorm -- migration:revert -d src/data-source.ts",
-    "db:schema:drop": "npm run typeorm schema:drop -- -d src/data-source.ts",
-    "db:schema:sync": "npm run typeorm -- schema:sync",
+    "db:migrate:create": "pnpm run typeorm migration:create",
+    "db:migrate:latest": "pnpm run typeorm migration:run -d src/data-source.ts",
+    "db:migrate:make": "pnpm run typeorm migration:generate -d src/data-source.ts",
+    "db:migrate:reset": "pnpm run db:schema:drop && pnpm run db:migrate:latest",
+    "db:migrate:rollback": "pnpm run typeorm migration:revert -d src/data-source.ts",
+    "db:schema:drop": "pnpm run typeorm schema:drop -d src/data-source.ts",
+    "db:schema:sync": "pnpm run typeorm schema:sync",
     "db:seed:export": "ts-node bin/export.ts",
     "db:seed:import": "ts-node bin/import.ts",
     "dev": "nodemon ./bin/cli api | pino-pretty --messageKey message --levelKey severity",
@@ -21,12 +21,12 @@
     "dev:temporal-worker": "nodemon ./src/temporal/local.ts",
     "dev:temporal-server": "temporal server start-dev",
     "lint": "eslint . --ext .js,.ts --max-warnings 0",
-    "start": "npm run cli -- api",
-    "start:background": "npm run cli -- background",
-    "pretest": "npm run lint && cross-env NODE_ENV=test npm run db:migrate:reset",
+    "start": "pnpm run cli api",
+    "start:background": "pnpm run cli background",
+    "pretest": "pnpm run lint && cross-env NODE_ENV=test pnpm run db:migrate:reset",
     "test": "jest --testEnvironment=node --runInBand",
     "typeorm": "typeorm-ts-node-commonjs",
-    "postinstall": "patch-package"
+    "prepare": "corepack enable || true"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^1.10.0",
@@ -54,6 +54,7 @@
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/exporter-prometheus": "^0.57.0",
     "@opentelemetry/exporter-trace-otlp-grpc": "^0.57.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.57.0",
     "@opentelemetry/instrumentation-fastify": "^0.44.0",
     "@opentelemetry/instrumentation-graphql": "^0.47.0",
     "@opentelemetry/instrumentation-grpc": "^0.57.0",
@@ -89,6 +90,7 @@
     "date-fns": "^2.30.0",
     "date-fns-tz": "^2.0.0",
     "deepmerge": "^4.3.1",
+    "dotenv": "16.0.3",
     "eventsource": "^2.0.2",
     "fast-json-stringify": "^6.0.0",
     "fastify": "^5.2.1",
@@ -96,6 +98,7 @@
     "fastify-raw-body": "^5.0.0",
     "fastq": "^1.18.0",
     "form-data": "^4.0.1",
+    "google-auth-library": "9.3.0",
     "graphql": "^16.10.0",
     "graphql-parse-resolve-info": "^4.13.0",
     "graphql-rate-limit-directive": "^2.0.6",
@@ -122,7 +125,6 @@
     "node-html-parser": "^6.1.13",
     "opentelemetry-instrumentation-typeorm": "^0.41.0",
     "p-timeout": "4.1.0",
-    "patch-package": "^8.0.0",
     "pg": "^8.13.1",
     "pg-query-stream": "^4.7.1",
     "pino": "^9.6.0",
@@ -146,11 +148,10 @@
     "@types/jsonwebtoken": "^9.0.7",
     "@types/lodash": "^4.17.14",
     "@types/markdown-it": "14.1.2",
-    "@types/node": "^20.14.10",
+    "@types/node": "22.13.1",
     "@types/node-fetch": "^2.6.12",
     "@types/retry": "^0.12.5",
     "@types/rss": "0.0.32",
-    "@types/sharp": "^0.32.0",
     "@types/supertest": "^6.0.2",
     "@types/ua-parser-js": "^0.7.39",
     "@typescript-eslint/eslint-plugin": "^7.16.0",
@@ -182,6 +183,12 @@
     }
   },
   "volta": {
-    "node": "20.12.2"
+    "node": "22.13.1"
+  },
+  "packageManager": "pnpm@9.14.4+sha256.26a726b633b629a3fabda006f696ae4260954a3632c8054112d7ae89779e5f9a",
+  "pnpm": {
+    "patchedDependencies": {
+      "mercurius-upload": "patches/mercurius-upload.patch"
+    }
   }
 }

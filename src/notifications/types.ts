@@ -114,3 +114,10 @@ export type NotificationUserTopReaderContext = NotificationBaseContext & {
   userTopReader: Reference<UserTopReader>;
   keyword: Reference<Keyword>;
 };
+
+declare module 'fs' {
+  interface ReadStream {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    on(event: 'data', listener: (chunk: any) => void): this;
+  }
+}
