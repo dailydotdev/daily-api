@@ -341,7 +341,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .innerJoin(
           Source,
           'source',
-          `source.id = post.sourceId AND source.private = false AND source.id != :sourceId AND (type != '${SourceType.Squad}' OR (flags->>'publicThreshold')::boolean IS TRUE)`,
+          `source.id = post.sourceId AND source.private = false AND source.id != :sourceId AND (source.type != '${SourceType.Squad}' OR (source.flags->>'publicThreshold')::boolean IS TRUE)`,
           { sourceId: 'unknown' },
         )
         .where('post.id IN (:...ids)', {
