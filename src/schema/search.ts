@@ -324,6 +324,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const searchParams = new URLSearchParams({
         q: query,
         attributesToRetrieve: 'post_id,title',
+        limit: '50',
       });
       if (version === 2) {
         searchParams.append('attributesToSearchOn', 'title');
@@ -340,7 +341,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .innerJoin(
           Source,
           'source',
-          'source.id = post.sourceId AND source.private = false AND source.id != :sourceId',
+          `source.id = post.sourceId AND source.private = false AND source.id != :sourceId AND (source.flags->>'publicThreshold')::boolean IS TRUE`,
           { sourceId: 'unknown' },
         )
         .where('post.id IN (:...ids)', {
@@ -398,6 +399,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         pagination: meilieSearchRes.pagination,
       };
 
+      console.log('args', meilieArgs);
       const res = await meiliSearchResolver(source, meilieArgs, ctx, info);
       return {
         ...res,
