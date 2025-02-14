@@ -12,14 +12,14 @@ importers:
         specifier: ^2.6.0
         version: 2.6.0(encoding@0.1.13)
       '@pulumi/gcp':
-        specifier: ^8.10.2
-        version: 8.12.1
+        specifier: ^8.19.1
+        version: 8.19.1
       '@pulumi/kubernetes':
-        specifier: ^4.19.0
-        version: 4.19.0
+        specifier: ^4.21.1
+        version: 4.21.1
       '@pulumi/pulumi':
-        specifier: ^3.143.0
-        version: 3.143.0
+        specifier: ^3.150.0
+        version: 3.150.0
       knex:
         specifier: ^3.1.0
         version: 3.1.0(mysql@2.18.1)(pg@8.13.3)
@@ -244,29 +244,11 @@ packages:
   '@protobufjs/utf8@1.1.0':
     resolution: {integrity: sha512-Vvn3zZrhQZkkBE8LSuW3em98c0FwgO4nxzv6OdSxPKJIEKY2bGbHn+mhGIPerzI4twdxaP8/0+06HBpwf345Lw==}
 
-  '@pulumi/gcp@8.12.1':
-    resolution: {integrity: sha512-C73cRyXLAK2khUZJSiWbUPesynDZpDbnrhUXTOjNTOiHgyliS3LS6IEbcUFoYv8wlUbF3cImPjNukCVG/LVsZw==}
-
-  '@pulumi/gcp@8.18.0':
-    resolution: {integrity: sha512-Wfl5bHghD7bezu/jaZYG6tZRR78y6LBuiCiobEfIzktik5hIAP2velxQbRs9bKt9Sg2NkcKp/rtHyaNc8PsBXg==}
-
-  '@pulumi/kubernetes@4.19.0':
-    resolution: {integrity: sha512-q11ORIJPNakGwHllEq+owBWsGuVinwUIfLR8QUeqkeUJkz8sTfkU3psqVIOIai/7XITQyKbXNRhbQAJckfudOw==}
+  '@pulumi/gcp@8.19.1':
+    resolution: {integrity: sha512-M1PASlrmAfynPLSUw93fC7nICFENRRY6OahR5Gqv6a0QdWHIPZW0LNLAPpgqlr5KEJg4AU2v/6laGHXh9A8TYA==}
 
   '@pulumi/kubernetes@4.21.1':
     resolution: {integrity: sha512-+mhO7xM4+Sy7Bqu9DKsmJEpqn34qb3ZQxPqGgrphYqiYnUiS8SWL6pDvecZWYFWBlr85KcGdaCoHRLg2paa8Ng==}
-
-  '@pulumi/pulumi@3.143.0':
-    resolution: {integrity: sha512-t3xSiq+B0FAJfELszBJYV+saTO4Po1g9jC7pCowi7UhmAhHebkixnGSUBhTCx/neCKeer4rX6hDCZ6b/1LUWfg==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      ts-node: '>= 7.0.1 < 12'
-      typescript: '>= 3.8.3 < 6'
-    peerDependenciesMeta:
-      ts-node:
-        optional: true
-      typescript:
-        optional: true
 
   '@pulumi/pulumi@3.150.0':
     resolution: {integrity: sha512-zATZhIGD6bG3eJgMgD82RGaFSs1Tlm8NgYsIeYWfTDbGdzq0kBLgRfm4b7Bwu+M2lTJD79vnRN5Dxx2L74Clvw==}
@@ -1575,7 +1557,7 @@ snapshots:
   '@dailydotdev/pulumi-common@2.6.0(encoding@0.1.13)':
     dependencies:
       '@google-cloud/pubsub': 4.10.0(encoding@0.1.13)
-      '@pulumi/gcp': 8.18.0
+      '@pulumi/gcp': 8.19.1
       '@pulumi/kubernetes': 4.21.1
       '@pulumi/pulumi': 3.150.0
       knex: 3.1.0(mysql@2.18.1)(pg@8.13.3)
@@ -1888,33 +1870,11 @@ snapshots:
 
   '@protobufjs/utf8@1.1.0': {}
 
-  '@pulumi/gcp@8.12.1':
-    dependencies:
-      '@pulumi/pulumi': 3.143.0
-      '@types/express': 4.17.21
-      read-package-json: 2.1.2
-    transitivePeerDependencies:
-      - bluebird
-      - supports-color
-      - ts-node
-      - typescript
-
-  '@pulumi/gcp@8.18.0':
+  '@pulumi/gcp@8.19.1':
     dependencies:
       '@pulumi/pulumi': 3.150.0
       '@types/express': 4.17.21
       read-package-json: 2.1.2
-    transitivePeerDependencies:
-      - bluebird
-      - supports-color
-      - ts-node
-      - typescript
-
-  '@pulumi/kubernetes@4.19.0':
-    dependencies:
-      '@pulumi/pulumi': 3.143.0
-      glob: 10.4.5
-      shell-quote: 1.8.2
     transitivePeerDependencies:
       - bluebird
       - supports-color
@@ -1931,42 +1891,6 @@ snapshots:
       - supports-color
       - ts-node
       - typescript
-
-  '@pulumi/pulumi@3.143.0':
-    dependencies:
-      '@grpc/grpc-js': 1.12.2
-      '@logdna/tail-file': 2.2.0
-      '@npmcli/arborist': 7.5.4
-      '@opentelemetry/api': 1.9.0
-      '@opentelemetry/exporter-zipkin': 1.29.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/instrumentation': 0.55.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/instrumentation-grpc': 0.55.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/resources': 1.29.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-trace-base': 1.29.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-trace-node': 1.29.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/semantic-conventions': 1.28.0
-      '@pulumi/query': 0.3.0
-      '@types/google-protobuf': 3.15.12
-      '@types/semver': 7.5.8
-      '@types/tmp': 0.2.6
-      execa: 5.1.1
-      fdir: 6.4.2(picomatch@3.0.1)
-      google-protobuf: 3.21.4
-      got: 11.8.6
-      ini: 2.0.0
-      js-yaml: 3.14.1
-      minimist: 1.2.8
-      normalize-package-data: 6.0.2
-      picomatch: 3.0.1
-      pkg-dir: 7.0.0
-      require-from-string: 2.0.2
-      semver: 7.6.3
-      source-map-support: 0.5.21
-      tmp: 0.2.3
-      upath: 1.2.0
-    transitivePeerDependencies:
-      - bluebird
-      - supports-color
 
   '@pulumi/pulumi@3.150.0':
     dependencies:
