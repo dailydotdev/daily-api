@@ -5,6 +5,7 @@ import {
   MockContext,
   saveFixtures,
   type GraphQLTestingState,
+  type GraphQLTestClient,
 } from './helpers';
 import { User } from '../src/entity';
 import { plusUsersFixture, usersFixture } from './fixture';
@@ -23,11 +24,11 @@ import { FastifyInstance } from 'fastify';
 import appFunc from '../src';
 import { logger } from '../src/logger';
 import { paddleInstance } from '../src/common/paddle';
-import { resolvers } from '../src/schema/paddle';
 
 let app: FastifyInstance;
 let con: DataSource;
 let state: GraphQLTestingState;
+let client: GraphQLTestClient;
 let loggedUser: string = '';
 
 beforeAll(async () => {
@@ -36,6 +37,7 @@ beforeAll(async () => {
   state = await initializeGraphQLTesting(
     () => new MockContext(con, loggedUser),
   );
+  client = state.client;
   return app.ready();
 });
 
@@ -158,6 +160,22 @@ const getTransactionData = (customData: PaddleCustomData) =>
   });
 
 describe('pricing preview', () => {
+  const QUERY = `
+    query PricePreviews {
+      pricePreviews {
+        currencyCode
+        items {
+          label
+          value
+          price
+          priceUnformatted
+          currencyCode
+          extraLabel
+          appsId
+        }
+      }
+    }
+  `;
   it('should return pricing preview data', async () => {
     loggedUser = 'whp-1';
     const mockPreview = jest.fn().mockResolvedValue(getPricingPreviewData());
@@ -165,11 +183,11 @@ describe('pricing preview', () => {
       .spyOn(paddleInstance.pricingPreview, 'preview')
       .mockImplementation(mockPreview);
 
-    const result = await resolvers.Query.pricePreviews(null, {}, state.context);
-    expect(result.currencyCode).toBe('USD');
-    expect(result.items).toHaveLength(2);
-    expect(result.items[0].price).toBe('$5.00');
-    expect(result.items[1].price).toBe('$50.00');
+    const result = await client.query(QUERY);
+    expect(result.data.pricePreviews.currencyCode).toBe('USD');
+    expect(result.data.pricePreviews.items).toHaveLength(2);
+    expect(result.data.pricePreviews.items[0].price).toBe('$5.00');
+    expect(result.data.pricePreviews.items[1].price).toBe('$50.00');
   });
 });
 
