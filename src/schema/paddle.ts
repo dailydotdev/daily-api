@@ -70,9 +70,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 >({
   Query: {
     pricePreviews: async (_, __, ctx: BaseContext) => {
-      const region = ctx?.req.headers['x-client-region'] as
-        | CountryCode
-        | undefined;
+      const region = ctx.region;
+
       const pricePreview = await paddleInstance?.pricingPreview.preview({
         items: Object.keys(remoteConfig.vars?.pricingIds || {}).map(
           (priceId) => ({
@@ -80,7 +79,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             quantity: 1,
           }),
         ),
-        address: region ? { countryCode: region } : undefined,
+        address: region ? { countryCode: region as CountryCode } : undefined,
       });
 
       const items = pricePreview?.details?.lineItems.map((item) => ({
