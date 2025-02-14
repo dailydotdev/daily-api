@@ -47,7 +47,6 @@ import commentDownvotedRep from './commentDownvotedRep';
 import commentDownvoteCanceledRep from './commentDownvoteCanceledRep';
 import userUpdatedCio from './userUpdatedCio';
 import userDeletedCio from './userDeletedCio';
-import userCreatedCio from './userCreatedCio';
 import userStreakUpdatedCio from './userStreakUpdatedCio';
 import { vordrPostCommentPrevented } from './vordrPostCommentPrevented';
 import { vordrPostPrevented } from './vordrPostPrevented';
@@ -108,7 +107,6 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   postDownvoteCanceledRep,
   userUpdatedCio,
   userDeletedCio,
-  userCreatedCio,
   userStreakUpdatedCio,
   vordrPostCommentPrevented,
   vordrPostPrevented,

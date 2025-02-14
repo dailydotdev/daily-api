@@ -13,7 +13,11 @@ const worker: TypedWorker<'user-updated'> = {
       data: { newProfile: user, user: oldUser },
     } = message;
 
-    if (user.id === ghostUser.id || !user.infoConfirmed) {
+    if (
+      user.id === ghostUser.id ||
+      !user.infoConfirmed ||
+      !user.emailConfirmed
+    ) {
       return;
     }
 

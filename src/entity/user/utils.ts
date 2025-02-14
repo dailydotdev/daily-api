@@ -143,6 +143,47 @@ export const updateUserEmail = async (
   }
 };
 
+export const confirmUserEmail = async (
+  con: DataSource,
+  data: UpdateUserEmailData,
+): Promise<UpdateUserEmailResult> => {
+  if (!data.email || !data.id) {
+    return { status: 'failed', reason: UpdateUserFailErrorKeys.MissingFields };
+  }
+
+  try {
+    const res = await con
+      .getRepository(User)
+      .update({ id: data.id, email: data.email }, { emailConfirmed: true });
+
+    if (res.affected === 0) {
+      logger.info(
+        { id: data.id },
+        'Failed to update email user not found with ID or email',
+      );
+      return {
+        status: 'failed',
+        reason: UpdateUserFailErrorKeys.UserDoesntExist,
+      };
+    }
+
+    logger.debug({ id: data.id }, 'Updated email confirmation for user');
+    return { status: 'ok', userId: data.id };
+  } catch (_err) {
+    const err = _err as Error;
+    logger.error(
+      {
+        data,
+        userId: data.id,
+        err,
+      },
+      'failed to update user email confirmation',
+    );
+
+    throw err;
+  }
+};
+
 const isInfoConfirmed = (user: AddUserData) =>
   !!(user.name && user.email && user.username);
 
