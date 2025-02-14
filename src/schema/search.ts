@@ -341,7 +341,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .innerJoin(
           Source,
           'source',
-          `source.id = post.sourceId AND source.private = false AND source.id != :sourceId AND (source.flags->>'publicThreshold')::boolean IS TRUE`,
+          `source.id = post.sourceId AND source.private = false AND source.id != :sourceId AND (type != '${SourceType.Squad}' OR (flags->>'publicThreshold')::boolean IS TRUE)`,
           { sourceId: 'unknown' },
         )
         .where('post.id IN (:...ids)', {
@@ -399,7 +399,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         pagination: meilieSearchRes.pagination,
       };
 
-      console.log('args', meilieArgs);
       const res = await meiliSearchResolver(source, meilieArgs, ctx, info);
       return {
         ...res,
