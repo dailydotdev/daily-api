@@ -26,6 +26,7 @@ import * as leaderboard from './schema/leaderboard';
 import * as integrations from './schema/integrations';
 import * as contentPreference from './schema/contentPreference';
 import * as prompts from './schema/prompts';
+import * as paddle from './schema/paddle';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import {
   rateLimitTypeDefs,
@@ -65,6 +66,7 @@ export const schema = urlDirective.transformer(
             integrations.typeDefs,
             contentPreference.typeDefs,
             prompts.typeDefs,
+            paddle.typeDefs,
           ],
           resolvers: merge(
             common.resolvers,
@@ -90,6 +92,7 @@ export const schema = urlDirective.transformer(
             integrations.resolvers,
             contentPreference.resolvers,
             prompts.resolvers,
+            paddle.resolvers,
           ),
         }),
       ),
