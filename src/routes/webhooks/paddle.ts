@@ -248,11 +248,11 @@ const notifyNewPaddleTransaction = async ({
   const localTotal = data?.details?.totals?.total || '0';
   const localCurrencyCode = data?.currencyCode || 'USD';
 
-  const headerText = (() => {
-    if (origin === 'subscription_recurring') {
-      return 'Recurring payment :pepemoney:';
-    }
+  if (origin === 'subscription_recurring') {
+    return;
+  }
 
+  const headerText = (() => {
     if (gifter_id) {
       return 'Gift subscription :gift:';
     }
