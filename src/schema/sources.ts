@@ -5,6 +5,7 @@ import { AuthContext, BaseContext, Context } from '../Context';
 import {
   createSharePost,
   NotificationPreferenceSource,
+  REPUTATION_THRESHOLD,
   Source,
   SourceFeed,
   SourceFlagsPublic,
@@ -1999,7 +2000,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLSource> => {
-      if (remoteConfig.vars.blockedCountries?.includes(ctx.region)) {
+      const user = await ctx.con
+        .getRepository(User)
+        .findOneOrFail({ where: { id: ctx.userId }, select: ['reputation'] });
+      if (
+        remoteConfig.vars.blockedCountries?.includes(ctx.region) &&
+        user.reputation < REPUTATION_THRESHOLD
+      ) {
         throw new ForbiddenError('Squads are not available at the moment');
       }
 
