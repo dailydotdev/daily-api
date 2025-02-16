@@ -9,17 +9,17 @@ importers:
   .:
     dependencies:
       '@dailydotdev/pulumi-common':
-        specifier: 2.5.0
-        version: 2.5.0(encoding@0.1.13)
+        specifier: ^2.6.0
+        version: 2.6.0(encoding@0.1.13)
       '@pulumi/gcp':
-        specifier: ^8.10.2
-        version: 8.12.1
+        specifier: ^8.19.1
+        version: 8.19.1
       '@pulumi/kubernetes':
-        specifier: ^4.19.0
-        version: 4.19.0
+        specifier: ^4.21.1
+        version: 4.21.1
       '@pulumi/pulumi':
-        specifier: ^3.143.0
-        version: 3.143.0
+        specifier: ^3.150.0
+        version: 3.150.0
     devDependencies:
       '@types/node':
         specifier: 22.13.x
@@ -27,8 +27,8 @@ importers:
 
 packages:
 
-  '@dailydotdev/pulumi-common@2.5.0':
-    resolution: {integrity: sha512-CqQbGOQejO4GMQoC0PDdgJiICYzjSOiuIxnRIZB/ChAPMJpD0kgyu2gJeSobwd3//nJ4niLo2/L/pMhBfQgYuA==}
+  '@dailydotdev/pulumi-common@2.6.0':
+    resolution: {integrity: sha512-21GxhefOgT83WtiyjqB9WoDuK6zjEF3P/8a62tQ3HDOs0IPNWyc09+Qv1nrfOzEOiBO+SujKW8EK/kWw+5rl9g==}
 
   '@google-cloud/paginator@5.0.2':
     resolution: {integrity: sha512-DJS3s0OVH4zFDB1PzjxAsHqJT6sKVbRwwML0ZBP9PbU7Yebtu/7SWMRzvO2J3nUi9pRNITCfu4LJeooM2w4pjg==}
@@ -46,8 +46,8 @@ packages:
     resolution: {integrity: sha512-Orxzlfb9c67A15cq2JQEyVc7wEsmFBmHjZWZYQMUyJ1qivXyMwdyNOs9odi79hze+2zqdTtu1E19IM/FtqZ10g==}
     engines: {node: '>=14'}
 
-  '@google-cloud/pubsub@4.9.0':
-    resolution: {integrity: sha512-VLGRwWwjEnyC+NVEiScCRGfVBJzAw9fT5IM3YvC6mlEkv8llr5vcVsoDjv1EbE0P31I601RqlLXH7s6J9tqpfA==}
+  '@google-cloud/pubsub@4.10.0':
+    resolution: {integrity: sha512-HLlIA8qGr6PxAnjK4YjSi2swqEiXjGAC2Tj9GHMNYFtL4uubTIJLHv4CtbJ/Gzem5Cb1HRjuubt/H0oTuRLV0g==}
     engines: {node: '>=14.0.0'}
 
   '@grpc/grpc-js@1.12.2':
@@ -199,10 +199,6 @@ packages:
     peerDependencies:
       '@opentelemetry/api': '>=1.0.0 <1.10.0'
 
-  '@opentelemetry/semantic-conventions@1.26.0':
-    resolution: {integrity: sha512-U9PJlOswJPSgQVPI+XEuNLElyFWkb0hAiMg+DExD9V0St03X2lPHGMdxMY/LrVmoukuIpXJ12oyrOtEZ4uXFkw==}
-    engines: {node: '>=14'}
-
   '@opentelemetry/semantic-conventions@1.27.0':
     resolution: {integrity: sha512-sAay1RrB+ONOem0OZanAR1ZI/k7yDpnOQSQmTMuGImUQb2y8EbSaCJ94FQluM74xoU03vlb2d2U90hZluL6nQg==}
     engines: {node: '>=14'}
@@ -245,29 +241,11 @@ packages:
   '@protobufjs/utf8@1.1.0':
     resolution: {integrity: sha512-Vvn3zZrhQZkkBE8LSuW3em98c0FwgO4nxzv6OdSxPKJIEKY2bGbHn+mhGIPerzI4twdxaP8/0+06HBpwf345Lw==}
 
-  '@pulumi/gcp@8.12.1':
-    resolution: {integrity: sha512-C73cRyXLAK2khUZJSiWbUPesynDZpDbnrhUXTOjNTOiHgyliS3LS6IEbcUFoYv8wlUbF3cImPjNukCVG/LVsZw==}
-
-  '@pulumi/gcp@8.18.0':
-    resolution: {integrity: sha512-Wfl5bHghD7bezu/jaZYG6tZRR78y6LBuiCiobEfIzktik5hIAP2velxQbRs9bKt9Sg2NkcKp/rtHyaNc8PsBXg==}
-
-  '@pulumi/kubernetes@4.19.0':
-    resolution: {integrity: sha512-q11ORIJPNakGwHllEq+owBWsGuVinwUIfLR8QUeqkeUJkz8sTfkU3psqVIOIai/7XITQyKbXNRhbQAJckfudOw==}
+  '@pulumi/gcp@8.19.1':
+    resolution: {integrity: sha512-M1PASlrmAfynPLSUw93fC7nICFENRRY6OahR5Gqv6a0QdWHIPZW0LNLAPpgqlr5KEJg4AU2v/6laGHXh9A8TYA==}
 
   '@pulumi/kubernetes@4.21.1':
     resolution: {integrity: sha512-+mhO7xM4+Sy7Bqu9DKsmJEpqn34qb3ZQxPqGgrphYqiYnUiS8SWL6pDvecZWYFWBlr85KcGdaCoHRLg2paa8Ng==}
-
-  '@pulumi/pulumi@3.143.0':
-    resolution: {integrity: sha512-t3xSiq+B0FAJfELszBJYV+saTO4Po1g9jC7pCowi7UhmAhHebkixnGSUBhTCx/neCKeer4rX6hDCZ6b/1LUWfg==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      ts-node: '>= 7.0.1 < 12'
-      typescript: '>= 3.8.3 < 6'
-    peerDependenciesMeta:
-      ts-node:
-        optional: true
-      typescript:
-        optional: true
 
   '@pulumi/pulumi@3.150.0':
     resolution: {integrity: sha512-zATZhIGD6bG3eJgMgD82RGaFSs1Tlm8NgYsIeYWfTDbGdzq0kBLgRfm4b7Bwu+M2lTJD79vnRN5Dxx2L74Clvw==}
@@ -1167,20 +1145,20 @@ packages:
     resolution: {integrity: sha512-WCtabS6t3c8SkpDBUlb1kjOs7l66xsGdKpIPZsg4wR+B3+u9UAum2odSsF9tnvxg80h4ZxLWMy4pRjOsFIqQpw==}
     engines: {node: '>=4.0.0'}
 
-  pg-pool@3.7.0:
-    resolution: {integrity: sha512-ZOBQForurqh4zZWjrgSwwAtzJ7QiRX0ovFkZr2klsen3Nm0aoh33Ls0fzfv3imeH/nw/O27cjdz5kzYJfeGp/g==}
+  pg-pool@3.7.1:
+    resolution: {integrity: sha512-xIOsFoh7Vdhojas6q3596mXFsR8nwBQBXX5JiV7p9buEVAGqYL4yFzclON5P9vFrpu1u7Zwl2oriyDa89n0wbw==}
     peerDependencies:
       pg: '>=8.0'
 
-  pg-protocol@1.7.0:
-    resolution: {integrity: sha512-hTK/mE36i8fDDhgDFjy6xNOG+LCorxLG3WO17tku+ij6sVHXh1jQUJ8hYAnRhNla4QVD2H8er/FOjc/+EgC6yQ==}
+  pg-protocol@1.7.1:
+    resolution: {integrity: sha512-gjTHWGYWsEgy9MsY0Gp6ZJxV24IjDqdpTW7Eh0x+WfJLFsm/TJx1MzL6T0D88mBvkpxotCQ6TwW6N+Kko7lhgQ==}
 
   pg-types@2.2.0:
     resolution: {integrity: sha512-qTAAlrEsl8s4OiEQY69wDvcMIdQN6wdz5ojQiOy6YRMuynxenON0O5oCpJI6lshc6scgAY8qvJ2On/p+CXY0GA==}
     engines: {node: '>=4'}
 
-  pg@8.13.1:
-    resolution: {integrity: sha512-OUir1A0rPNZlX//c7ksiu7crsGZTKSOXJPgtNiHGIlC9H0lO+NC6ZDYksSgBYY/thSWhnSRBv8w1lieNNGATNQ==}
+  pg@8.13.3:
+    resolution: {integrity: sha512-P6tPt9jXbL9HVu/SSRERNYaYG++MjnscnegFh9pPHihfoBSujsrka0hyuymMzeJKFWrcG8wvCKy8rCe8e5nDUQ==}
     engines: {node: '>= 8.0.0'}
     peerDependencies:
       pg-native: '>=3.0.1'
@@ -1573,15 +1551,15 @@ packages:
 
 snapshots:
 
-  '@dailydotdev/pulumi-common@2.5.0(encoding@0.1.13)':
+  '@dailydotdev/pulumi-common@2.6.0(encoding@0.1.13)':
     dependencies:
-      '@google-cloud/pubsub': 4.9.0(encoding@0.1.13)
-      '@pulumi/gcp': 8.18.0
+      '@google-cloud/pubsub': 4.10.0(encoding@0.1.13)
+      '@pulumi/gcp': 8.19.1
       '@pulumi/kubernetes': 4.21.1
       '@pulumi/pulumi': 3.150.0
-      knex: 3.1.0(mysql@2.18.1)(pg@8.13.1)
+      knex: 3.1.0(mysql@2.18.1)(pg@8.13.3)
       mysql: 2.18.1
-      pg: 8.13.1
+      pg: 8.13.3
       yaml: 2.7.0
     transitivePeerDependencies:
       - better-sqlite3
@@ -1606,14 +1584,14 @@ snapshots:
 
   '@google-cloud/promisify@4.0.0': {}
 
-  '@google-cloud/pubsub@4.9.0(encoding@0.1.13)':
+  '@google-cloud/pubsub@4.10.0(encoding@0.1.13)':
     dependencies:
       '@google-cloud/paginator': 5.0.2
       '@google-cloud/precise-date': 4.0.0
       '@google-cloud/projectify': 4.0.0
       '@google-cloud/promisify': 4.0.0
       '@opentelemetry/api': 1.9.0
-      '@opentelemetry/semantic-conventions': 1.26.0
+      '@opentelemetry/semantic-conventions': 1.28.0
       arrify: 2.0.1
       extend: 3.0.2
       google-auth-library: 9.15.0(encoding@0.1.13)
@@ -1859,8 +1837,6 @@ snapshots:
       '@opentelemetry/sdk-trace-base': 1.29.0(@opentelemetry/api@1.9.0)
       semver: 7.6.3
 
-  '@opentelemetry/semantic-conventions@1.26.0': {}
-
   '@opentelemetry/semantic-conventions@1.27.0': {}
 
   '@opentelemetry/semantic-conventions@1.28.0': {}
@@ -1891,33 +1867,11 @@ snapshots:
 
   '@protobufjs/utf8@1.1.0': {}
 
-  '@pulumi/gcp@8.12.1':
-    dependencies:
-      '@pulumi/pulumi': 3.143.0
-      '@types/express': 4.17.21
-      read-package-json: 2.1.2
-    transitivePeerDependencies:
-      - bluebird
-      - supports-color
-      - ts-node
-      - typescript
-
-  '@pulumi/gcp@8.18.0':
+  '@pulumi/gcp@8.19.1':
     dependencies:
       '@pulumi/pulumi': 3.150.0
       '@types/express': 4.17.21
       read-package-json: 2.1.2
-    transitivePeerDependencies:
-      - bluebird
-      - supports-color
-      - ts-node
-      - typescript
-
-  '@pulumi/kubernetes@4.19.0':
-    dependencies:
-      '@pulumi/pulumi': 3.143.0
-      glob: 10.4.5
-      shell-quote: 1.8.2
     transitivePeerDependencies:
       - bluebird
       - supports-color
@@ -1934,42 +1888,6 @@ snapshots:
       - supports-color
       - ts-node
       - typescript
-
-  '@pulumi/pulumi@3.143.0':
-    dependencies:
-      '@grpc/grpc-js': 1.12.2
-      '@logdna/tail-file': 2.2.0
-      '@npmcli/arborist': 7.5.4
-      '@opentelemetry/api': 1.9.0
-      '@opentelemetry/exporter-zipkin': 1.29.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/instrumentation': 0.55.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/instrumentation-grpc': 0.55.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/resources': 1.29.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-trace-base': 1.29.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-trace-node': 1.29.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/semantic-conventions': 1.28.0
-      '@pulumi/query': 0.3.0
-      '@types/google-protobuf': 3.15.12
-      '@types/semver': 7.5.8
-      '@types/tmp': 0.2.6
-      execa: 5.1.1
-      fdir: 6.4.2(picomatch@3.0.1)
-      google-protobuf: 3.21.4
-      got: 11.8.6
-      ini: 2.0.0
-      js-yaml: 3.14.1
-      minimist: 1.2.8
-      normalize-package-data: 6.0.2
-      picomatch: 3.0.1
-      pkg-dir: 7.0.0
-      require-from-string: 2.0.2
-      semver: 7.6.3
-      source-map-support: 0.5.21
-      tmp: 0.2.3
-      upath: 1.2.0
-    transitivePeerDependencies:
-      - bluebird
-      - supports-color
 
   '@pulumi/pulumi@3.150.0':
     dependencies:
@@ -2642,7 +2560,7 @@ snapshots:
     dependencies:
       json-buffer: 3.0.1
 
-  knex@3.1.0(mysql@2.18.1)(pg@8.13.1):
+  knex@3.1.0(mysql@2.18.1)(pg@8.13.3):
     dependencies:
       colorette: 2.0.19
       commander: 10.0.1
@@ -2660,7 +2578,7 @@ snapshots:
       tildify: 2.0.0
     optionalDependencies:
       mysql: 2.18.1
-      pg: 8.13.1
+      pg: 8.13.3
     transitivePeerDependencies:
       - supports-color
 
@@ -2941,11 +2859,11 @@ snapshots:
 
   pg-int8@1.0.1: {}
 
-  pg-pool@3.7.0(pg@8.13.1):
+  pg-pool@3.7.1(pg@8.13.3):
     dependencies:
-      pg: 8.13.1
+      pg: 8.13.3
 
-  pg-protocol@1.7.0: {}
+  pg-protocol@1.7.1: {}
 
   pg-types@2.2.0:
     dependencies:
@@ -2955,11 +2873,11 @@ snapshots:
       postgres-date: 1.0.7
       postgres-interval: 1.2.0
 
-  pg@8.13.1:
+  pg@8.13.3:
     dependencies:
       pg-connection-string: 2.7.0
-      pg-pool: 3.7.0(pg@8.13.1)
-      pg-protocol: 1.7.0
+      pg-pool: 3.7.1(pg@8.13.3)
+      pg-protocol: 1.7.1
       pg-types: 2.2.0
       pgpass: 1.0.5
     optionalDependencies:

@@ -36,7 +36,7 @@ Object {
 `;
 
 exports[`mutation createFreeformPost should allow mention as part of the content 1`] = `
-"<p>Test <a href=\\"http://localhost:5002/lee\\" data-mention-id=\\"2\\" data-mention-username=\\"lee\\">@lee</a></p>
+"<p>Test <a href=\\"http://localhost:5002/lee\\" data-mention-id=\\"2\\" data-mention-username=\\"lee\\" translate=\\"no\\">@lee</a></p>
 "
 `;
 
@@ -56,13 +56,13 @@ exports[`mutation editPost should allow author to update their freeform post 1`]
 `;
 
 exports[`mutation editPost should allow mention as part of the content 1`] = `
-"<p>Test <a href=\\"http://localhost:5002/lee\\" data-mention-id=\\"2\\" data-mention-username=\\"lee\\">@lee</a></p>
+"<p>Test <a href=\\"http://localhost:5002/lee\\" data-mention-id=\\"2\\" data-mention-username=\\"lee\\" translate=\\"no\\">@lee</a></p>
 "
 `;
 
-exports[`mutation editSharePost should update with mentioned users 1`] = `"<p>Test <a href=\\"http://localhost:5002/lee\\" data-mention-id=\\"2\\" data-mention-username=\\"lee\\">@lee</a> @non-existent</p>"`;
+exports[`mutation editSharePost should update with mentioned users 1`] = `"<p>Test <a href=\\"http://localhost:5002/lee\\" data-mention-id=\\"2\\" data-mention-username=\\"lee\\" translate=\\"no\\">@lee</a> @non-existent</p>"`;
 
-exports[`mutation sharePost should share to squad with mentioned users 1`] = `"<p>Test <a href=\\"http://localhost:5002/lee\\" data-mention-id=\\"2\\" data-mention-username=\\"lee\\">@lee</a> @non-existent</p>"`;
+exports[`mutation sharePost should share to squad with mentioned users 1`] = `"<p>Test <a href=\\"http://localhost:5002/lee\\" data-mention-id=\\"2\\" data-mention-username=\\"lee\\" translate=\\"no\\">@lee</a> @non-existent</p>"`;
 
 exports[`query post should return post by id 1`] = `
 Object {
