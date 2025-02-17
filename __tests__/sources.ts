@@ -3537,7 +3537,7 @@ query Source($id: ID!) {
     expect(res.data).toMatchObject({
       source: {
         id: 'c',
-        privilegedMembers: [
+        privilegedMembers: expect.arrayContaining([
           {
             role: 'admin',
             user: {
@@ -3556,9 +3556,11 @@ query Source($id: ID!) {
               id: '3',
             },
           },
-        ],
+        ]),
       },
     });
+
+    expect(res.data.source.privilegedMembers).toHaveLength(3);
   });
 });
 
