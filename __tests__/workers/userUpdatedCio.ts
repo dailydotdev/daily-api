@@ -61,6 +61,7 @@ describe('userUpdatedCio', () => {
     notificationEmail: true,
     acceptedMarketing: true,
     followingEmail: true,
+    emailConfirmed: true,
   };
 
   it('should be registered', () => {
@@ -86,6 +87,7 @@ describe('userUpdatedCio', () => {
       username: 'cio',
       referral_link: referral,
       accepted_marketing: true,
+      email_confirmed: true,
       'cio_subscription_preferences.topics.topic_4': true,
       'cio_subscription_preferences.topics.topic_7': true,
       'cio_subscription_preferences.topics.topic_8': false,
@@ -121,6 +123,17 @@ describe('userUpdatedCio', () => {
     await expectSuccessfulTypedBackground(worker, {
       newProfile: before,
       user: before,
+    } as unknown as PubSubSchema['user-updated']);
+    expect(cio.identify).toHaveBeenCalledTimes(0);
+  });
+
+  it('should not update customer.io when user email is not confirmed', async () => {
+    const referral = 'https://dly.dev/12345678';
+    const user = { ...base, emailConfirmed: false };
+    mocked(getShortGenericInviteLink).mockImplementation(async () => referral);
+    await expectSuccessfulTypedBackground(worker, {
+      newProfile: user,
+      user: user,
     } as unknown as PubSubSchema['user-updated']);
     expect(cio.identify).toHaveBeenCalledTimes(0);
   });
