@@ -76,7 +76,7 @@ import pino from 'pino';
 
       reject(error);
     });
-    personalizedDigestStream.on('end', resolve);
+    personalizedDigestStream.on('end', () => resolve(true));
   });
   await allocationClient.waitForSend();
 

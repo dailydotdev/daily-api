@@ -61,7 +61,7 @@ const main = async () => {
 
     await new Promise((resolve, reject) => {
       stream.on('error', reject);
-      stream.on('end', resolve);
+      stream.on('end', () => resolve(true));
     });
     await downloadQueue.drained();
 

@@ -4,7 +4,7 @@ exports[`function updateMentions should update mentions based on passed comment 
 Object {
   "comments": 0,
   "content": "@Solevilla",
-  "contentHtml": "<p><a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\">@Solevilla</a></p>
+  "contentHtml": "<p><a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\" translate=\\"no\\">@Solevilla</a></p>
 ",
   "createdAt": Any<Date>,
   "downvotes": 0,
@@ -23,7 +23,7 @@ exports[`function updateMentions should update mentions based on passed comment 
 Object {
   "comments": 0,
   "content": "@sshanzel",
-  "contentHtml": "<p><a href=\\"http://localhost:5002/sshanzel\\" data-mention-id=\\"7\\" data-mention-username=\\"sshanzel\\">@sshanzel</a></p>
+  "contentHtml": "<p><a href=\\"http://localhost:5002/sshanzel\\" data-mention-id=\\"7\\" data-mention-username=\\"sshanzel\\" translate=\\"no\\">@sshanzel</a></p>
 ",
   "createdAt": Any<Date>,
   "downvotes": 0,
@@ -71,7 +71,7 @@ Object {
 exports[`mutation commentOnPost should comment markdown on a post with user mention 1`] = `
 Object {
   "content": "@Lee",
-  "contentHtml": "<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">@Lee</a></p>
+  "contentHtml": "<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\" translate=\\"no\\">@Lee</a></p>
 ",
   "id": Any<String>,
   "parentId": null,
@@ -81,7 +81,7 @@ Object {
 exports[`mutation commentOnPost should comment markdown on a post with user mention inside the squad only 1`] = `
 Object {
   "content": "@sample1 @sample2",
-  "contentHtml": "<p><a href=\\"http://localhost:5002/sample1\\" data-mention-id=\\"sample1\\" data-mention-username=\\"sample1\\">@sample1</a> @sample2</p>
+  "contentHtml": "<p><a href=\\"http://localhost:5002/sample1\\" data-mention-id=\\"sample1\\" data-mention-username=\\"sample1\\" translate=\\"no\\">@sample1</a> @sample2</p>
 ",
   "id": Any<String>,
   "parentId": null,
@@ -99,12 +99,12 @@ exports[`query commentPreview should return markdown equivalent of the content 1
 `;
 
 exports[`query commentPreview should return markdown equivalent of the content 2`] = `
-"<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">@Lee</a></p>
+"<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\" translate=\\"no\\">@Lee</a></p>
 "
 `;
 
 exports[`query commentPreview should return markdown equivalent of the content with hyphen mention 1`] = `
-"<p><a href=\\"http://localhost:5002/Lee-Hansel\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee-Hansel\\">@Lee-Hansel</a></p>
+"<p><a href=\\"http://localhost:5002/Lee-Hansel\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee-Hansel\\" translate=\\"no\\">@Lee-Hansel</a></p>
 "
 `;
 
@@ -114,22 +114,22 @@ exports[`query commentPreview should return markdown equivalent of the content w
 `;
 
 exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 2`] = `
-"<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">@Lee</a></p>
+"<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\" translate=\\"no\\">@Lee</a></p>
 "
 `;
 
 exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 3`] = `
-"<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">@Lee</a>.</p>
+"<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\" translate=\\"no\\">@Lee</a>.</p>
 "
 `;
 
 exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 4`] = `
-"<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">@Lee</a>/<a href=\\"http://localhost:5002/Hansel\\" data-mention-id=\\"5\\" data-mention-username=\\"Hansel\\">@Hansel</a></p>
+"<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\" translate=\\"no\\">@Lee</a>/<a href=\\"http://localhost:5002/Hansel\\" data-mention-id=\\"5\\" data-mention-username=\\"Hansel\\" translate=\\"no\\">@Hansel</a></p>
 "
 `;
 
 exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 5`] = `
-"<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">@Lee</a>,<a href=\\"http://localhost:5002/Hansel\\" data-mention-id=\\"5\\" data-mention-username=\\"Hansel\\">@Hansel</a>,<a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\">@Solevilla</a></p>
+"<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\" translate=\\"no\\">@Lee</a>,<a href=\\"http://localhost:5002/Hansel\\" data-mention-id=\\"5\\" data-mention-username=\\"Hansel\\" translate=\\"no\\">@Hansel</a>,<a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\" translate=\\"no\\">@Solevilla</a></p>
 "
 `;
 
@@ -144,27 +144,27 @@ exports[`query commentPreview should return markdown equivalent of the content w
 `;
 
 exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 8`] = `
-"<p>Hi!<a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\">@Solevilla</a></p>
+"<p>Hi!<a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\" translate=\\"no\\">@Solevilla</a></p>
 "
 `;
 
 exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 9`] = `
-"<p>Hi <a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\">@Solevilla</a></p>
+"<p>Hi <a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\" translate=\\"no\\">@Solevilla</a></p>
 "
 `;
 
 exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 10`] = `
-"<p>Hi <a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\">@Solevilla</a>!</p>
+"<p>Hi <a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\" translate=\\"no\\">@Solevilla</a>!</p>
 "
 `;
 
 exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 11`] = `
-"<p>Hi <a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\">@Solevilla</a>! This is normal comment, let’s tag <a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">@Lee</a> as well</p>
+"<p>Hi <a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\" translate=\\"no\\">@Solevilla</a>! This is normal comment, let’s tag <a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\" translate=\\"no\\">@Lee</a> as well</p>
 "
 `;
 
 exports[`query commentPreview should return markdown with user mentioned inside squad 1`] = `
-"<p><a href=\\"http://localhost:5002/sample1\\" data-mention-id=\\"sample1\\" data-mention-username=\\"sample1\\">@sample1</a> @sample2</p>
+"<p><a href=\\"http://localhost:5002/sample1\\" data-mention-id=\\"sample1\\" data-mention-username=\\"sample1\\" translate=\\"no\\">@sample1</a> @sample2</p>
 "
 `;
 

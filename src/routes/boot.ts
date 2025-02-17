@@ -502,7 +502,6 @@ const loggedInBoot = async ({
           'updatedAt',
           'referralId',
           'referralOrigin',
-          'profileConfirmed',
           'devcardEligible',
           'image',
           'cover',

@@ -82,6 +82,10 @@ const redirectToStore =
     const url = new URL(req.raw.url!, 'http://localhost');
     await sendRedirectAnalytics(con, req, res);
 
+    if (!!req.userId) {
+      return res.redirect(`https://app.daily.dev${url.search}`);
+    }
+
     if (os?.includes('android')) {
       return redirectToAndroid({ req, res });
     }
@@ -96,10 +100,7 @@ const redirectToStore =
     }
 
     if (browser?.includes('firefox') || browser?.includes('mozilla')) {
-      // Redirect to webapp since FF downgraded us
-      // return res.redirect(
-      //   `https://addons.mozilla.org/en-US/firefox/addon/daily/${url.search}`,
-      // );
+      return res.redirect(`https://app.daily.dev${url.search}`);
     }
 
     if (browser?.includes('edge')) {
@@ -123,6 +124,10 @@ const redirectToMobile =
 
     const url = new URL(req.raw.url!, 'http://localhost');
     await sendRedirectAnalytics(con, req, res, '/mobile');
+
+    if (!!req.userId) {
+      return res.redirect(`https://app.daily.dev${url.search}`);
+    }
 
     const ua = uaParser(req.headers['user-agent']);
     const os = ua.os.name?.toLowerCase();

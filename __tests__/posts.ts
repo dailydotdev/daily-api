@@ -75,7 +75,7 @@ import { checkHasMention, markdown } from '../src/common/markdown';
 import { generateStorageKey, StorageTopic } from '../src/config';
 import { UserVote, UserVoteEntity } from '../src/types';
 import { rateLimiterName } from '../src/directive/rateLimit';
-import { badUsersFixture } from './fixture/user';
+import { badUsersFixture, usersFixture } from './fixture/user';
 import { PostCodeSnippet } from '../src/entity/posts/PostCodeSnippet';
 import {
   SourcePostModeration,
@@ -5864,11 +5864,13 @@ describe('query relatedPosts', () => {
 });
 
 describe('posts title field', () => {
-  const QUERY = `{
-    post(id: "p1") {
-      title
+  const QUERY = /* GraphQL */ `
+    {
+      post(id: "p1") {
+        title
+      }
     }
-  }`;
+  `;
 
   it('should return title', async () => {
     const res = await client.query(QUERY);
@@ -6386,6 +6388,127 @@ describe('posts title field', () => {
       expect(res.data.post).toEqual({
         title: 'Smart Title EN',
       });
+    });
+  });
+});
+
+describe('posts titleHtml field', () => {
+  const QUERY = /* GraphQL */ `
+    query Post($id: ID!) {
+      post(id: $id) {
+        titleHtml
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await saveFixtures(con, SharePost, [
+      {
+        id: 'sp1',
+        shortId: 'ssp1',
+        title: 'sp1',
+        titleHtml: '<p>sp1</p>',
+        score: 1,
+        sourceId: 'a',
+        tagsStr: 'javascript,webdev',
+        type: PostType.Share,
+        sharedPostId: 'p1',
+        contentCuration: ['c1', 'c2'],
+        authorId: usersFixture[0].id,
+      },
+    ]);
+  });
+
+  it('should return titleHtml', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: {
+        id: 'sp1',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.post).toEqual({
+      titleHtml: '<p>sp1</p>',
+    });
+  });
+
+  it('should return original titleHtml when not logged in', async () => {
+    await con.getRepository(SharePost).update(
+      { id: 'sp1' },
+      {
+        translation: {
+          de: {
+            titleHtml: '<p>sp1 DE</p>',
+          },
+        },
+      },
+    );
+
+    const res = await client.query(QUERY, {
+      variables: {
+        id: 'sp1',
+      },
+      headers: {
+        'content-language': 'de',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.post).toEqual({
+      titleHtml: '<p>sp1</p>',
+    });
+  });
+
+  it('should return translated titleHtml when it exists', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(SharePost).update(
+      { id: 'sp1' },
+      {
+        translation: {
+          de: {
+            titleHtml: '<p>sp1 DE</p>',
+          },
+        },
+      },
+    );
+
+    const res = await client.query(QUERY, {
+      variables: {
+        id: 'sp1',
+      },
+      headers: {
+        'content-language': 'de',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.post).toEqual({
+      titleHtml: '<p>sp1 DE</p>',
+    });
+  });
+
+  it('should fallback to original titleHtml when translation does not exist', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: {
+        id: 'sp1',
+      },
+      headers: {
+        'content-language': 'de',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.post).toEqual({
+      titleHtml: '<p>sp1</p>',
     });
   });
 });

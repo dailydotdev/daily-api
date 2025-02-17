@@ -152,9 +152,6 @@ export class User {
   @Column({ type: 'int', nullable: true, default: DEFAULT_WEEK_START })
   weekStart: DayOfWeek;
 
-  @Column({ type: 'boolean', default: false })
-  profileConfirmed: boolean | null;
-
   @Column({ nullable: false, default: () => 'now()' })
   @Index('IDX_user_createdAt')
   createdAt: Date;

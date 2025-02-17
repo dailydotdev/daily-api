@@ -15,6 +15,8 @@ export const postTranslated: TypedWorker<'kvasir.v1.post-translated'> = {
     }
 
     try {
+      await con.getRepository(Post).findOneByOrFail({ id });
+
       const query = con
         .getRepository(Post)
         .createQueryBuilder()
@@ -39,9 +41,10 @@ export const postTranslated: TypedWorker<'kvasir.v1.post-translated'> = {
         { id, language, keys: Object.keys(translations) },
         '[postTranslated]: Post translation updated',
       );
-    } catch (error) {
+    } catch (_err) {
+      const err = _err as Error;
       logger.error(
-        { id, error },
+        { id, err },
         '[postTranslated]: Failed to update post translation',
       );
     }

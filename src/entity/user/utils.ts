@@ -50,7 +50,6 @@ export type AddUserData = Pick<
   | 'referralId'
   | 'referralOrigin'
   | 'infoConfirmed'
-  | 'profileConfirmed'
   | 'acceptedMarketing'
   | 'timezone'
   | 'experienceLevel'
@@ -303,7 +302,6 @@ export const addNewUser = async (
         ? await validateAndTransformHandle(data.username, 'username', con)
         : undefined,
       email: data.email.toLowerCase(),
-      profileConfirmed: data.profileConfirmed,
       infoConfirmed: isInfoConfirmed(data),
       createdAt: data.createdAt,
       referralId: data.referralId,
