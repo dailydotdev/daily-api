@@ -8,10 +8,23 @@ const cron: Cron = {
   handler: async (con, logger) => {
     logger.info('cleaning zombie users...');
     const timeThreshold = subHours(new Date(), 1);
-    const { affected } = await con.getRepository(User).delete({
-      infoConfirmed: false,
-      createdAt: LessThan(timeThreshold),
-    });
+    const query = con
+      .createQueryBuilder()
+      .delete()
+      .from(User)
+      .where([
+        {
+          infoConfirmed: false,
+        },
+        {
+          emailConfirmed: false,
+        },
+      ])
+      .andWhere({
+        createdAt: LessThan(timeThreshold),
+      });
+
+    const { affected } = await query.execute();
     logger.info({ count: affected }, 'zombies users cleaned! 🧟');
   },
 };
