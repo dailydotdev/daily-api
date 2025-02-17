@@ -44,6 +44,7 @@ export type UserSubscriptionFlags = Partial<{
 @Index('IDX_user_gin_name', { synchronize: false })
 @Index('IDX_user_reputation', { synchronize: false })
 @Index('IDX_user_subflags_subscriptionid', { synchronize: false })
+@Index('IDX_user_info_email_unconfirmed', { synchronize: false })
 export class User {
   @PrimaryColumn({ length: 36 })
   id: string;
