@@ -7,7 +7,11 @@ import type {
   AddUserDataPost,
   UpdateUserEmailData,
 } from '../entity/user/utils';
-import { addNewUser, updateUserEmail } from '../entity/user/utils';
+import {
+  addNewUser,
+  confirmUserEmail,
+  updateUserEmail,
+} from '../entity/user/utils';
 import { queryReadReplica } from '../common/queryReadReplica';
 
 interface SearchUsername {
@@ -44,6 +48,18 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
       const con = await createOrGetConnection();
       const operationResult = await updateUserEmail(con, req.body, req.log);
+      return res.status(200).send(operationResult);
+    },
+  );
+  fastify.post<{ Body: UpdateUserEmailData }>(
+    '/confirmUserEmail',
+    async (req, res) => {
+      if (!req.service) {
+        return res.status(404).send();
+      }
+
+      const con = await createOrGetConnection();
+      const operationResult = await confirmUserEmail(con, req.body);
       return res.status(200).send(operationResult);
     },
   );

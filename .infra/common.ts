@@ -234,10 +234,6 @@ export const workers: Worker[] = [
     subscription: 'api.member-joined-source-notification',
   },
   {
-    topic: 'api.v1.user-created',
-    subscription: 'api.user-created-cio',
-  },
-  {
     topic: 'api.v1.banner-added',
     subscription: 'api.banner-added',
   },

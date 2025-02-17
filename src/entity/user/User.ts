@@ -55,6 +55,9 @@ export class User {
   @Index('IDX_user_email')
   email: string;
 
+  @Column({ default: false })
+  emailConfirmed: boolean;
+
   @Column({ type: 'text', nullable: true })
   image?: string | null;
 
