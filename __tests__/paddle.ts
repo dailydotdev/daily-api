@@ -1,6 +1,12 @@
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
-import { saveFixtures } from './helpers';
+import {
+  initializeGraphQLTesting,
+  MockContext,
+  saveFixtures,
+  type GraphQLTestingState,
+  type GraphQLTestClient,
+} from './helpers';
 import { User } from '../src/entity';
 import { plusUsersFixture, usersFixture } from './fixture';
 import {
@@ -17,13 +23,21 @@ import { isPlusMember, SubscriptionCycles } from '../src/paddle';
 import { FastifyInstance } from 'fastify';
 import appFunc from '../src';
 import { logger } from '../src/logger';
+import { paddleInstance } from '../src/common/paddle';
 
 let app: FastifyInstance;
 let con: DataSource;
+let state: GraphQLTestingState;
+let client: GraphQLTestClient;
+let loggedUser: string = '';
 
 beforeAll(async () => {
   con = await createOrGetConnection();
   app = await appFunc();
+  state = await initializeGraphQLTesting(
+    () => new MockContext(con, loggedUser),
+  );
+  client = state.client;
   return app.ready();
 });
 
@@ -40,6 +54,46 @@ beforeEach(async () => {
       },
     })),
   );
+});
+
+const getPricingPreviewData = () => ({
+  details: {
+    lineItems: [
+      {
+        price: {
+          id: 'pri_monthly',
+          description: 'Monthly Subscription',
+          customData: {
+            label: 'Monthly',
+            appsId: 'monthly-sub',
+          },
+        },
+        formattedTotals: {
+          total: '$5.00',
+        },
+        totals: {
+          total: '5.00',
+        },
+      },
+      {
+        price: {
+          id: 'pri_yearly',
+          description: 'Yearly Subscription',
+          customData: {
+            label: 'Yearly',
+            appsId: 'yearly-sub',
+          },
+        },
+        formattedTotals: {
+          total: '$50.00',
+        },
+        totals: {
+          total: '50.00',
+        },
+      },
+    ],
+  },
+  currencyCode: 'USD',
 });
 
 const getSubscriptionData = (customData: PaddleCustomData) =>
@@ -104,6 +158,38 @@ const getTransactionData = (customData: PaddleCustomData) =>
       items: [],
     },
   });
+
+describe('pricing preview', () => {
+  const QUERY = `
+    query PricePreviews {
+      pricePreviews {
+        currencyCode
+        items {
+          label
+          value
+          price
+          priceUnformatted
+          currencyCode
+          extraLabel
+          appsId
+        }
+      }
+    }
+  `;
+  it('should return pricing preview data', async () => {
+    loggedUser = 'whp-1';
+    const mockPreview = jest.fn().mockResolvedValue(getPricingPreviewData());
+    jest
+      .spyOn(paddleInstance.pricingPreview, 'preview')
+      .mockImplementation(mockPreview);
+
+    const result = await client.query(QUERY);
+    expect(result.data.pricePreviews.currencyCode).toBe('USD');
+    expect(result.data.pricePreviews.items).toHaveLength(2);
+    expect(result.data.pricePreviews.items[0].price).toBe('$5.00');
+    expect(result.data.pricePreviews.items[1].price).toBe('$50.00');
+  });
+});
 
 describe('plus subscription', () => {
   it('should add a plus subscription to a user', async () => {
