@@ -1,7 +1,7 @@
 import { GrowthBook } from '@growthbook/growthbook';
 import { logger } from './logger';
 import { isProd } from './common/utils';
-import type { SubscriptionCycles } from './paddle';
+import { SubscriptionCycles } from './paddle';
 
 type RemoteConfigValue = {
   inc: number;
