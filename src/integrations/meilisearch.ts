@@ -10,12 +10,14 @@ type Meili = {
   post_id: string;
   title?: string;
 };
+
 interface MeiliResponse {
   hits: Meili[];
   limit: number;
   offset: number;
   estimatedTotalHits: number;
 }
+
 export type MeiliPagination = {
   limit: number;
   offset: number;
@@ -37,7 +39,7 @@ export const searchMeili = async (
     headers,
   };
   const res = await retryFetchParse<MeiliResponse>(
-    `${meiliOrigin}indexes/${meiliIndex}/search?${params}`,
+    `${meiliOrigin}indexes/${meiliIndex}/search?${params}&filter=private=false`,
     {
       ...fetchOptions,
       ...requestOptions,

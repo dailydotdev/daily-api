@@ -324,7 +324,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const searchParams = new URLSearchParams({
         q: query,
         attributesToRetrieve: 'post_id,title',
-        limit: '50',
       });
       if (version === 2) {
         searchParams.append('attributesToSearchOn', 'title');

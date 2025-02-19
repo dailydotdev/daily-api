@@ -322,7 +322,7 @@ describe('query searchPostSuggestions', () => {
   const mockMeili = (params: string, res: string) => {
     nock(meiliOrigin)
       .get(
-        `/indexes/${meiliIndex}/search?${params}&limit=50&attributesToSearchOn=title`,
+        `/indexes/${meiliIndex}/search?${params}&attributesToSearchOn=title&filter=private=false`,
       )
       .matchHeader('Authorization', `Bearer ${process.env.MEILI_TOKEN}`)
       .reply(204, res);
