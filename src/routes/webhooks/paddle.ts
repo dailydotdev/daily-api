@@ -14,7 +14,7 @@ import {
   updateSubscriptionFlags,
   webhooks,
 } from '../../common';
-import { User } from '../../entity';
+import { SubscriptionProvider, User } from '../../entity';
 import { logger } from '../../logger';
 import { remoteConfig } from '../../remoteConfig';
 import {
@@ -99,6 +99,7 @@ export const updateUserSubscription = async ({
         cycle: state ? subscriptionType : null,
         createdAt: state ? data.data?.startedAt : null,
         subscriptionId: state ? data.data?.id : null,
+        provider: state ? SubscriptionProvider.Paddle : null,
       }),
     },
   );
