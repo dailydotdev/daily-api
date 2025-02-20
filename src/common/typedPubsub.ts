@@ -16,7 +16,10 @@ import {
   publishEvent,
   pubsub,
 } from './pubsub';
-import { ContentUpdatedMessage } from '@dailydotdev/schema';
+import {
+  ContentUpdatedMessage,
+  type TransactionLogEntry,
+} from '@dailydotdev/schema';
 import { SourcePostModeration } from '../entity/SourcePostModeration';
 
 export type PubSubSchema = {
@@ -116,6 +119,7 @@ export type PubSubSchema = {
     language: ContentLanguage;
     translations: PostTranslation;
   };
+  'njord.v1.balance-log': TransactionLogEntry;
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(

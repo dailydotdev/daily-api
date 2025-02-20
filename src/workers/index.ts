@@ -56,6 +56,7 @@ import userUpdatedPlusSubscriptionSquad from './userUpdatedPlusSubscriptionSquad
 import userUpdatedPlusSubscriptionCustomFeed from './userUpdatedPlusSubscriptionCustomFeed';
 import { postTranslated } from './postTranslated';
 import postDeletedSharedPostCleanup from './postDeletedSharedPostCleanup';
+import { transactionBalanceLogWorker } from './transactionBalanceLog';
 
 export { Worker } from './worker';
 
@@ -115,6 +116,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   userUpdatedPlusSubscriptionSquad,
   userUpdatedPlusSubscriptionCustomFeed,
   postTranslated,
+  transactionBalanceLogWorker,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
