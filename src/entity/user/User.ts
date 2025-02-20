@@ -28,12 +28,18 @@ export type UserFlags = Partial<{
 
 export type UserFlagsPublic = Pick<UserFlags, 'showPlusGift'>;
 
+export enum SubscriptionProvider {
+  Paddle = 'paddle',
+  AppleStoreKit = 'storekit',
+}
+
 export type UserSubscriptionFlags = Partial<{
   cycle: SubscriptionCycles;
   createdAt: Date;
   subscriptionId: string;
   gifterId?: string;
   giftExpirationDate?: Date;
+  provider: SubscriptionProvider;
 }>;
 
 @Entity()
