@@ -6,7 +6,7 @@ import { ExperimentAllocationClient } from '../growthbook';
 import { NotificationHandlerReturn } from './notifications/worker';
 
 export interface Message {
-  messageId: string;
+  messageId?: string;
   data: Buffer;
 }
 
@@ -25,7 +25,7 @@ export interface Worker {
 }
 
 export interface TypedMessage<T> {
-  messageId: string;
+  messageId?: string;
   data: T;
 }
 
@@ -53,6 +53,7 @@ export interface BaseTypedWorker<
   subscription: string;
   handler: Worker;
   maxMessages?: number;
+  parseMessage?: (message: Message) => TypedMessage<T>;
 }
 
 export interface TypedWorker<T extends keyof PubSubSchema>

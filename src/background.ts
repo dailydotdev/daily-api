@@ -49,16 +49,19 @@ export default async function app(): Promise<void> {
       pubsub,
       connection,
       worker.subscription,
-      (message, con, logger, pubsub) =>
-        worker.handler(
+      (message, con, logger, pubsub) => {
+        const messageParser = worker.parseMessage ?? messageToJson;
+
+        return worker.handler(
           {
             messageId: message.id,
-            data: messageToJson(message),
+            data: messageParser(message),
           },
           con,
           logger,
           pubsub,
-        ),
+        );
+      },
     ),
   );
 }
