@@ -328,7 +328,11 @@ export const workers: Worker[] = [
   {
     topic: 'kvasir.v1.post-translated',
     subscription: 'api.post-translated',
-  }
+  },
+  {
+    topic: 'njord.v1.balance-log',
+    subscription: 'api.transaction-balance-log'
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
