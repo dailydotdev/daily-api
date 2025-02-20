@@ -28,12 +28,18 @@ export type UserFlags = Partial<{
 
 export type UserFlagsPublic = Pick<UserFlags, 'showPlusGift'>;
 
+export enum SubscriptionProvider {
+  Paddle = 'paddle',
+  AppleStoreKit = 'storekit',
+}
+
 export type UserSubscriptionFlags = Partial<{
   cycle: SubscriptionCycles;
   createdAt: Date;
   subscriptionId: string;
   gifterId?: string;
   giftExpirationDate?: Date;
+  provider: SubscriptionProvider;
 }>;
 
 @Entity()
@@ -44,6 +50,7 @@ export type UserSubscriptionFlags = Partial<{
 @Index('IDX_user_gin_name', { synchronize: false })
 @Index('IDX_user_reputation', { synchronize: false })
 @Index('IDX_user_subflags_subscriptionid', { synchronize: false })
+@Index('IDX_user_info_email_unconfirmed', { synchronize: false })
 export class User {
   @PrimaryColumn({ length: 36 })
   id: string;

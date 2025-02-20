@@ -7,7 +7,7 @@ import {
   type GraphQLTestingState,
   type GraphQLTestClient,
 } from './helpers';
-import { User } from '../src/entity';
+import { SubscriptionProvider, User } from '../src/entity';
 import { plusUsersFixture, usersFixture } from './fixture';
 import {
   EventName,
@@ -208,6 +208,9 @@ describe('plus subscription', () => {
       .findOneByOrFail({ id: userId });
     const isFinallyPlus = isPlusMember(updatedUser.subscriptionFlags?.cycle);
     expect(isFinallyPlus).toBe(true);
+    expect(updatedUser.subscriptionFlags?.provider).toEqual(
+      SubscriptionProvider.Paddle,
+    );
   });
 });
 
@@ -296,6 +299,9 @@ describe('gift', () => {
     const isFinallyPlus = isPlusMember(updatedUser.subscriptionFlags?.cycle);
     expect(isFinallyPlus).toBe(true);
     expect(updatedUser.subscriptionFlags?.gifterId).toBe('whp-2');
+    expect(updatedUser.subscriptionFlags?.provider).toEqual(
+      SubscriptionProvider.Paddle,
+    );
     const expireDate =
       updatedUser.subscriptionFlags?.giftExpirationDate &&
       new Date(updatedUser.subscriptionFlags?.giftExpirationDate);
