@@ -331,7 +331,7 @@ export const workers: Worker[] = [
   },
   {
     topic: 'njord.v1.balance-log',
-    subscription: 'pi.transaction-balance-log'
+    subscription: 'api.transaction-balance-log'
   },
 ];
 
