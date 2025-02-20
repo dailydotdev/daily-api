@@ -415,6 +415,7 @@ export const processGiftedPayment = async ({
           new Date(),
           plusGiftDuration,
         ).toISOString(),
+        provider: SubscriptionProvider.Paddle,
       }),
       flags: updateFlagsStatement({ showPlusGift: true }),
     },
