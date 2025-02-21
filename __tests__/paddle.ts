@@ -62,7 +62,7 @@ const getPricingPreviewData = () => ({
       {
         price: {
           id: 'pri_monthly',
-          description: 'Monthly Subscription',
+          name: 'Monthly Subscription',
           customData: {
             label: 'Monthly',
             appsId: 'monthly-sub',
@@ -78,7 +78,7 @@ const getPricingPreviewData = () => ({
       {
         price: {
           id: 'pri_yearly',
-          description: 'Yearly Subscription',
+          name: 'Yearly Subscription',
           customData: {
             label: 'Yearly',
             appsId: 'yearly-sub',
