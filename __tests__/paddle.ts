@@ -123,7 +123,7 @@ const getSubscriptionData = (customData: PaddleCustomData) =>
           price: {
             id: 'pricingGift',
             product_id: '1',
-            description: 'Gift Subscription',
+            name: 'Gift Subscription',
             tax_mode: 'internal',
           },
           status: 'active',
