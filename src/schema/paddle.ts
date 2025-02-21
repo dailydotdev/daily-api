@@ -83,7 +83,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       const items = pricePreview?.details?.lineItems.map((item) => ({
-        label: item.price.description,
+        label: item.price.name,
         value: item.price.id,
         price: item.formattedTotals.total,
         priceUnformatted: Number(item.totals.total),

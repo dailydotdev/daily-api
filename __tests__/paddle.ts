@@ -62,7 +62,7 @@ const getPricingPreviewData = () => ({
       {
         price: {
           id: 'pri_monthly',
-          description: 'Monthly Subscription',
+          name: 'Monthly Subscription',
           customData: {
             label: 'Monthly',
             appsId: 'monthly-sub',
@@ -78,7 +78,7 @@ const getPricingPreviewData = () => ({
       {
         price: {
           id: 'pri_yearly',
-          description: 'Yearly Subscription',
+          name: 'Yearly Subscription',
           customData: {
             label: 'Yearly',
             appsId: 'yearly-sub',
@@ -123,7 +123,7 @@ const getSubscriptionData = (customData: PaddleCustomData) =>
           price: {
             id: 'pricingGift',
             product_id: '1',
-            description: 'Gift Subscription',
+            name: 'Gift Subscription',
             tax_mode: 'internal',
           },
           status: 'active',
