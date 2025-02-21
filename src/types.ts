@@ -66,6 +66,7 @@ declare global {
       SLACK_COMMENTS_WEBHOOK: string;
       SLACK_VORDR_WEBHOOK: string;
       SLACK_TRANSACTIONS_WEBHOOK: string;
+      NJORD_ORIGIN: string;
     }
   }
 }

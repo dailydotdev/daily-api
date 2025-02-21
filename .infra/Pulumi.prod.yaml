@@ -142,6 +142,8 @@ config:
       secure: AAABABn4A3L8LlBI77M+EM73dUMete6GUvoWIcaEj4DYxn+wNRB3lKKnSVNOZxb3/D9jniDoQIWOvPPeZkzOoQ==
     slackTransactionsWebhook:
       secure: AAABAEmQkyYVT2wlatUVjH/bXxB9COGaLA6MLYX2XjlDWfrq8TjMHUKzk7NFtmcVyYmDq3zU/vOAck9XVGfYggL8LkSfQApX3/G+MisO1F8MLI6tPdmBUsMZ2ougQ1ki2e2kivOAfQEuY/G1ILywYvg=
+    njordOrigin:
+      secure: AAABABVq3A3dOmAa1RN9dBlJb0m4gH7PVvukN8en2VY9M4/Z5d1VFoksfQ4+ZdppUe8O60TMmSJJJBwpMj9T/qz2TSWvFrwS3IpTG8IRYLLwb5EQ+wGP6cUlP+h8wIwG
   api:k8s:
     host: subs.daily.dev
     namespace: daily
