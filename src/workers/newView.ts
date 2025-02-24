@@ -5,6 +5,7 @@ import { TypeORMQueryFailedError, TypeOrmError } from '../errors';
 import { isFibonacci } from '../common/fibonacci';
 import { generateStorageKey, StorageKey, StorageTopic } from '../config';
 import { deleteRedisKey } from '../redis';
+import { FastifyLoggerInstance } from 'fastify';
 
 interface ShouldIncrement {
   currentStreak: number;
@@ -63,10 +64,19 @@ const shouldIncrementStreak = async (
 const incrementReadingStreak = async (
   manager: EntityManager,
   data: DeepPartial<View>,
+  logger: FastifyLoggerInstance,
+  messageId: string | undefined,
 ): Promise<boolean> => {
   const { userId, timestamp } = data;
 
   if (!userId) {
+    logger?.warn(
+      {
+        view: data,
+        messageId: messageId,
+      },
+      'missing userId in view event, cannot update reading streak',
+    );
     return false;
   }
 
@@ -182,17 +192,7 @@ const worker: Worker = {
       }
 
       try {
-        const didUpdate = await incrementReadingStreak(manager, data);
-
-        if (!didUpdate) {
-          logger.warn(
-            {
-              view: data,
-              messageId: message.messageId,
-            },
-            'missing userId in view event, cannot update reading streak',
-          );
-        }
+        await incrementReadingStreak(manager, data, logger, message.messageId);
       } catch (err) {
         logger.error(
           {
