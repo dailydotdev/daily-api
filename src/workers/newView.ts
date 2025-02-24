@@ -6,6 +6,7 @@ import { isFibonacci } from '../common/fibonacci';
 import { generateStorageKey, StorageKey, StorageTopic } from '../config';
 import { deleteRedisKey } from '../redis';
 import { FastifyLoggerInstance } from 'fastify';
+import { logger } from '../logger';
 
 interface ShouldIncrement {
   currentStreak: number;
@@ -64,13 +65,12 @@ const shouldIncrementStreak = async (
 const incrementReadingStreak = async (
   manager: EntityManager,
   data: DeepPartial<View>,
-  logger: FastifyLoggerInstance,
   messageId: string | undefined,
 ): Promise<boolean> => {
   const { userId, timestamp } = data;
 
   if (!userId) {
-    logger?.warn(
+    logger.warn(
       {
         view: data,
         messageId: messageId,
@@ -192,7 +192,7 @@ const worker: Worker = {
       }
 
       try {
-        await incrementReadingStreak(manager, data, logger, message.messageId);
+        await incrementReadingStreak(manager, data, message.messageId);
       } catch (err) {
         logger.error(
           {
