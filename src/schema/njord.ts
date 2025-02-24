@@ -69,6 +69,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         productId,
         note,
       });
+
+      return { _: true };
     },
   },
 });

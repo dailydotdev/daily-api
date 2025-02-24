@@ -2,8 +2,9 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
   ManyToOne,
-  PrimaryColumn,
+  PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import type { User } from './User';
@@ -20,7 +21,7 @@ export type UserTransactionRequest = RequestMeta;
 
 @Entity()
 export class UserTransaction {
-  @PrimaryColumn({ type: 'uuid' })
+  @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({ type: 'uuid', nullable: true })
@@ -48,7 +49,8 @@ export class UserTransaction {
     lazy: true,
     onDelete: 'CASCADE',
   })
-  user: Promise<User>;
+  @JoinColumn({ name: 'receiverId' })
+  receiver: Promise<User>;
 
   @Column({ nullable: true })
   senderId: string | null;
@@ -58,6 +60,7 @@ export class UserTransaction {
     onDelete: 'CASCADE',
     nullable: true,
   })
+  @JoinColumn({ name: 'senderId' })
   sender: Promise<User>;
 
   @Column()

@@ -10,15 +10,17 @@ import type { AuthContext } from '../Context';
 import { UserTransaction } from '../entity/user/UserTransaction';
 import { Product } from '../entity/Product';
 import { remoteConfig } from '../remoteConfig';
-import { dispatchWhoami } from '../kratos';
 import { isProd } from './utils';
+import { ForbiddenError } from 'apollo-server-errors';
 
 const transport = createGrpcTransport({
   baseUrl: process.env.NJORD_ORIGIN,
   httpVersion: '2',
 });
 
-const njordClient = createClient<typeof Credits>(Credits, transport);
+export const getNjordClient = (clientTransport = transport) => {
+  return createClient<typeof Credits>(Credits, clientTransport);
+};
 
 export type TransferProps = {
   ctx: AuthContext;
@@ -33,19 +35,15 @@ export const transferCores = async ({
   productId,
 }: TransferProps): Promise<UserTransaction> => {
   if (!ctx.userId) {
-    throw new Error('Auth is required');
+    throw new ForbiddenError('Auth is required');
   }
 
   // TODO feat/transactions check if user is team member, remove check when prod is ready
   if (!ctx.isTeamMember && isProd) {
-    throw new Error('Not allowed for you yet');
+    throw new ForbiddenError('Not allowed for you yet');
   }
 
-  const whoami = await dispatchWhoami(ctx.req);
-
-  if (!whoami.valid) {
-    throw new Error('Auth is no longer valid');
-  }
+  // TODO feat/transactions check if session is valid for real on whoami endpoint
 
   const { con, userId: senderId } = ctx;
 
@@ -62,6 +60,7 @@ export const transferCores = async ({
       value: product.value,
       fee: remoteConfig.vars.fees?.transfer,
       request: ctx.requestMeta,
+      // TODO feat/transactions add note
     });
 
     const userTransactionResult = await manager
@@ -77,6 +76,8 @@ export const transferCores = async ({
     if (!userTransaction.senderId) {
       throw new Error('No sender id');
     }
+
+    const njordClient = getNjordClient();
 
     await njordClient.transfer({
       transferType: TransferType.TRANSFER,
