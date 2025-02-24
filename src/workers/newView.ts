@@ -5,7 +5,6 @@ import { TypeORMQueryFailedError, TypeOrmError } from '../errors';
 import { isFibonacci } from '../common/fibonacci';
 import { generateStorageKey, StorageKey, StorageTopic } from '../config';
 import { deleteRedisKey } from '../redis';
-import { FastifyLoggerInstance } from 'fastify';
 import { logger } from '../logger';
 
 interface ShouldIncrement {
