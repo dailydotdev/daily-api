@@ -11,6 +11,7 @@ import { UserTransaction } from '../entity/user/UserTransaction';
 import { Product } from '../entity/Product';
 import { remoteConfig } from '../remoteConfig';
 import { dispatchWhoami } from '../kratos';
+import { isProd } from './utils';
 
 const transport = createGrpcTransport({
   baseUrl: process.env.NJORD_ORIGIN,
@@ -33,6 +34,11 @@ export const transferCores = async ({
 }: TransferProps): Promise<UserTransaction> => {
   if (!ctx.userId) {
     throw new Error('Auth is required');
+  }
+
+  // TODO feat/transactions check if user is team member, remove check when prod is ready
+  if (!ctx.isTeamMember && isProd) {
+    throw new Error('Not allowed for you yet');
   }
 
   const whoami = await dispatchWhoami(ctx.req);
