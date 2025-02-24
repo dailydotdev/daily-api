@@ -3893,6 +3893,29 @@ describe('query sourcePostModeration', () => {
   const firstPostUuid = randomUUID();
   beforeEach(async () => {
     await saveSquadFixtures();
+
+    await con.getRepository(SquadSource).save({
+      id: 'm2',
+      handle: 'm2',
+      name: 'moderated2',
+      private: false,
+    });
+
+    await con.getRepository(SourceMember).save([
+      {
+        userId: '3',
+        sourceId: 'm2',
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
+      {
+        userId: '4',
+        sourceId: 'm2',
+        role: SourceMemberRoles.Moderator,
+        referralToken: randomUUID(),
+      },
+    ]);
+
     await con.getRepository(SourcePostModeration).save([
       {
         id: firstPostUuid,
@@ -3940,6 +3963,15 @@ describe('query sourcePostModeration', () => {
         status: SourcePostModerationStatus.Approved,
         content: 'Hello World',
       },
+      {
+        id: randomUUID(),
+        sourceId: 'm2',
+        createdById: '3',
+        title: 'My First Moderated Post',
+        type: PostType.Freeform,
+        status: SourcePostModerationStatus.Pending,
+        content: 'Hello World!',
+      },
     ]);
   });
 
@@ -3950,7 +3982,7 @@ describe('query sourcePostModeration', () => {
   }
 }`;
 
-  const queryAllForSource = `query sourcePostModerations($sourceId: ID!, $status: [String]) {
+  const queryAllForSource = `query sourcePostModerations($sourceId: ID, $status: [String]) {
   sourcePostModerations(sourceId: $sourceId, status: $status) {
     edges {
       node {
@@ -3961,6 +3993,10 @@ describe('query sourcePostModeration', () => {
     }
   }
 }`;
+
+  const queryPendingPostCount = `query sourcePostModerationPendingCount($sourceId: ID) {
+    sourcePostModerationPendingCount(sourceId: $sourceId)
+  }`;
 
   it('should receive forbidden error because user is not member of squad', async () => {
     loggedUser = '2';
@@ -4062,6 +4098,63 @@ describe('query sourcePostModeration', () => {
       },
       'FORBIDDEN',
     );
+  });
+
+  describe('counting pending posts', () => {
+    it('should return the count of pending posts from all moderated squads', async () => {
+      loggedUser = '3';
+      const res = await client.query(queryPendingPostCount);
+      expect(res.errors).toBeUndefined();
+      // user "3" has:
+      // - As admin 3 pending, 1 accepted, 1 rejected post in squad "m"
+      // - As member 1 pending post in squad "m2"
+      // expecting 3 because we want only to be moderated and pending posts
+      expect(res.data.sourcePostModerationPendingCount).toEqual(3);
+
+      loggedUser = '4';
+      const res2 = await client.query(queryPendingPostCount);
+      expect(res2.errors).toBeUndefined();
+      // user "4" has:
+      // - As moderator 1 pending post in squad "m2"
+      // - As member 2 pending posts in squad "m"
+      expect(res2.data.sourcePostModerationPendingCount).toEqual(1);
+    });
+
+    it('should return the count of a specific source pending posts as standard member', async () => {
+      loggedUser = '3';
+      const res = await client.query(queryPendingPostCount, {
+        variables: { sourceId: 'm2' },
+      });
+      expect(res.errors).toBeUndefined();
+      // "3" have 1 pending post in squad "m2" as member
+      expect(res.data.sourcePostModerationPendingCount).toEqual(1);
+
+      loggedUser = '4';
+      const res2 = await client.query(queryPendingPostCount, {
+        variables: { sourceId: 'm' },
+      });
+      expect(res2.errors).toBeUndefined();
+      // "4" have 2 pending post in squad "m2" as member
+      expect(res2.data.sourcePostModerationPendingCount).toEqual(2);
+    });
+
+    it('should return the count of a specific source pending posts as moderator', async () => {
+      loggedUser = '4';
+      const res = await client.query(queryPendingPostCount, {
+        variables: { sourceId: 'm2' },
+      });
+      expect(res.errors).toBeUndefined();
+      // "4" have 1 pending post in squad "m2" as moderator
+      expect(res.data.sourcePostModerationPendingCount).toEqual(1);
+
+      loggedUser = '3';
+      const res2 = await client.query(queryPendingPostCount, {
+        variables: { sourceId: 'm' },
+      });
+      expect(res2.errors).toBeUndefined();
+      // "3" have 3 pending post in squad "m" as moderator
+      expect(res2.data.sourcePostModerationPendingCount).toEqual(3);
+    });
   });
 });
 

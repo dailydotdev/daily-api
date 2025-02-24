@@ -46,7 +46,7 @@ import {
   type GQLSourcePostModeration,
   type SourcePostModerationArgs,
   getAllModerationItemsAsAdmin,
-  getTranslationRecord,
+  getTranslationRecord, whereUserIsSquadModerator,
 } from '../common';
 import {
   ArticlePost,
@@ -75,7 +75,7 @@ import {
   UserAction,
   Settings,
   type PostTranslation,
-  determineSharedPostId,
+  determineSharedPostId, SquadSource,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -814,6 +814,16 @@ export const typeDefs = /* GraphQL */ `
     ): SourcePostModerationConnection! @auth
 
     """
+    Get count of pending post for all sources
+    """
+    sourcePostModerationPendingCount(
+      """
+      Id of the source
+      """
+      sourceId: ID
+    ): Int! @auth
+
+    """
     Get post by id
     """
     post(
@@ -1451,6 +1461,34 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         return getModerationItemsByUserForSource(ctx, info, args);
       }
       return getAllModerationItemsAsAdmin(ctx, info, args);
+    },
+    sourcePostModerationPendingCount: async (
+      _,
+      args: { sourceId?: SquadSource['id'] },
+      ctx: AuthContext,
+    ): Promise<number> => {
+      const { sourceId } = args;
+      const query = ctx.con.manager
+        .getRepository(SourcePostModeration)
+        .createQueryBuilder('moderation')
+        .where({
+          status: SourcePostModerationStatus.Pending,
+        });
+
+      if (sourceId) {
+        query.andWhere('moderation.sourceId = :sourceId', { sourceId });
+
+        const isAdmin = await isPrivilegedMember(ctx, sourceId);
+        if (!isAdmin) {
+          query.andWhere('moderation.createdById = :userId', {
+            userId: ctx.userId,
+          });
+        }
+      } else {
+        query.andWhere(whereUserIsSquadModerator(query, ctx.userId));
+      }
+
+      return query.getCount();
     },
     post: async (
       source,

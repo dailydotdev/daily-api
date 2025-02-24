@@ -1,4 +1,10 @@
-import { DataSource, EntityManager, In, Not } from 'typeorm';
+import {
+  DataSource,
+  EntityManager,
+  In,
+  Not,
+  SelectQueryBuilder,
+} from 'typeorm';
 import {
   Comment,
   ConnectionManager,
@@ -865,6 +871,24 @@ export const getAllModerationItemsAsAdmin = async (
     undefined,
     true,
   );
+};
+
+export const whereUserIsSquadModerator = (
+  qb: SelectQueryBuilder<SourcePostModeration>,
+  userId: string,
+) => {
+  const subQuery = qb
+    .subQuery()
+    .from(SourceMember, 'sourceMember')
+    .select('sourceMember.sourceId')
+    .where('sourceMember.userId = :userId', {
+      userId,
+    })
+    .andWhere('sourceMember.role IN (:...roles)', {
+      roles: [SourceMemberRoles.Moderator, SourceMemberRoles.Admin],
+    })
+    .getQuery();
+  return `"${qb.alias}"."sourceId" IN (${subQuery})`;
 };
 
 export const getTranslationRecord = ({
