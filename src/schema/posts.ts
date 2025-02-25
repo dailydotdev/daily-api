@@ -816,7 +816,7 @@ export const typeDefs = /* GraphQL */ `
     ): SourcePostModerationConnection! @auth
 
     """
-    Get count of pending post for all sources
+    Get count of pending post for all or one source
     """
     sourcePostModerationPendingCount(
       """
@@ -1470,18 +1470,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
     ): Promise<number> => {
       const { sourceId } = args;
-      const isAdmin = !!sourceId && (await isPrivilegedMember(ctx, sourceId));
-      return queryReadReplica(ctx.con, ({ queryRunner }) => {
+
+      return queryReadReplica(ctx.con, async ({ queryRunner }) => {
         const manager = queryRunner.manager;
         const query = manager
           .getRepository(SourcePostModeration)
           .createQueryBuilder('moderation')
           .where({
             status: SourcePostModerationStatus.Pending,
-          });
+          })
+          .andWhere(`("moderation"."flags"->>'vordr')::boolean IS NOT TRUE`);
 
         if (sourceId) {
           query.andWhere('moderation.sourceId = :sourceId', { sourceId });
+          const isAdmin = await isPrivilegedMember(ctx, sourceId);
 
           if (!isAdmin) {
             query.andWhere('moderation.createdById = :userId', {

@@ -3972,6 +3972,16 @@ describe('query sourcePostModeration', () => {
         status: SourcePostModerationStatus.Pending,
         content: 'Hello World!',
       },
+      {
+        id: randomUUID(),
+        sourceId: 'm2',
+        createdById: '3',
+        title: 'Vordred Post',
+        type: PostType.Freeform,
+        status: SourcePostModerationStatus.Pending,
+        content: 'Hello World!',
+        flags: { vordr: true },
+      },
     ]);
   });
 
@@ -4145,6 +4155,7 @@ describe('query sourcePostModeration', () => {
       });
       expect(res.errors).toBeUndefined();
       // "4" have 1 pending post in squad "m2" as moderator
+      // also have one vrorded post, but will not appear in the count
       expect(res.data.sourcePostModerationPendingCount).toEqual(1);
 
       loggedUser = '3';
