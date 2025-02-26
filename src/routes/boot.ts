@@ -485,6 +485,7 @@ const loggedInBoot = async ({
     }
     const isTeamMember = exp?.a?.team === 1;
     const isPlus = isPlusMember(user.subscriptionFlags?.cycle);
+    const plusProvider = user.subscriptionFlags?.provider || null;
 
     if (isPlus) {
       exp.a.plus = 1;
@@ -514,6 +515,7 @@ const loggedInBoot = async ({
         canSubmitArticle: user.reputation >= submitArticleThreshold,
         isTeamMember,
         isPlus,
+        plusProvider,
         language: user.language || undefined,
         image: mapCloudinaryUrl(user.image),
         cover: mapCloudinaryUrl(user.cover),
