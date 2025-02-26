@@ -58,7 +58,7 @@ export const transferCores = async ({
       productId: product.id,
       senderId,
       value: product.value,
-      fee: remoteConfig.vars.fees?.transfer,
+      fee: remoteConfig.vars.fees?.transfer || 0,
       request: ctx.requestMeta,
       // TODO feat/transactions add note
     });

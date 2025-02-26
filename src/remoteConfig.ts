@@ -16,9 +16,9 @@ type RemoteConfigValue = {
   rateLimitReputationThreshold: number;
   postRateLimit: number;
   commentRateLimit: number;
-  fees: {
+  fees: Partial<{
     transfer: number;
-  };
+  }>;
 };
 
 class RemoteConfig {
