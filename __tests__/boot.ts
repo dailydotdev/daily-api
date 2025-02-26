@@ -555,10 +555,6 @@ describe('logged in boot', () => {
 
   describe('plusProvider', () => {
     it('should return the correct plus provider when not plus', async () => {
-      // await con.getRepository(User).save({
-      //   ...usersFixture[0],
-      //   plusProvider: 'stripe',
-      // });
       mockLoggedIn();
       const res = await request(app.server)
         .get(BASE_PATH)
