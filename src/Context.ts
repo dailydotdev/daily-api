@@ -77,7 +77,29 @@ export class Context {
   ): Repository<Entity> {
     return this.con.getRepository(target);
   }
+
+  get requestMeta(): RequestMeta {
+    return {
+      userId: this.req.userId || 'unknown',
+      trackingId: this.req.trackingId || 'unknown',
+      userAgent: this.req.headers['user-agent'] || 'unknown',
+      ip: this.req.ip || 'unknown',
+      origin: this.req.headers.origin || 'unknown',
+      referer: this.req.headers.referer || 'unknown',
+      acceptLanguage: this.req.headers['accept-language'] || 'unknown',
+    };
+  }
 }
+
+export type RequestMeta = {
+  userId: string;
+  trackingId: string;
+  userAgent: string;
+  ip: string;
+  origin: string;
+  referer: string;
+  acceptLanguage: string;
+};
 
 export type SubscriptionContext = {
   req: FastifyRequest;

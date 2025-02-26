@@ -29,6 +29,7 @@ import {
   SourceType,
   SQUAD_IMAGE_PLACEHOLDER,
   SquadSource,
+  SubscriptionProvider,
   User,
   UserMarketingCta,
   UserNotification,
@@ -129,6 +130,7 @@ const LOGGED_IN_BODY = {
     mastodon: null,
     language: undefined,
     isPlus: false,
+    plusProvider: null,
     defaultFeedId: null,
     flags: {
       showPlusGift: false,
@@ -549,6 +551,49 @@ describe('logged in boot', () => {
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
     expect(res.body.user.defaultFeedId).toBeNull();
+  });
+
+  describe('plusProvider', () => {
+    it('should return the correct plus provider when not plus', async () => {
+      mockLoggedIn();
+      const res = await request(app.server)
+        .get(BASE_PATH)
+        .set('Cookie', 'ory_kratos_session=value;')
+        .expect(200);
+      expect(res.body.user.plusProvider).toEqual(null);
+    });
+
+    it('should return the correct plus provider when paddle', async () => {
+      await con.getRepository(User).save({
+        ...usersFixture[0],
+        subscriptionFlags: {
+          provider: SubscriptionProvider.Paddle,
+        },
+      });
+      mockLoggedIn();
+      const res = await request(app.server)
+        .get(BASE_PATH)
+        .set('Cookie', 'ory_kratos_session=value;')
+        .expect(200);
+      expect(res.body.user.plusProvider).toEqual(SubscriptionProvider.Paddle);
+    });
+
+    it('should return the correct plus provider when storekit', async () => {
+      await con.getRepository(User).save({
+        ...usersFixture[0],
+        subscriptionFlags: {
+          provider: SubscriptionProvider.AppleStoreKit,
+        },
+      });
+      mockLoggedIn();
+      const res = await request(app.server)
+        .get(BASE_PATH)
+        .set('Cookie', 'ory_kratos_session=value;')
+        .expect(200);
+      expect(res.body.user.plusProvider).toEqual(
+        SubscriptionProvider.AppleStoreKit,
+      );
+    });
   });
 });
 
