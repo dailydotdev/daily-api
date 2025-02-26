@@ -129,6 +129,7 @@ const LOGGED_IN_BODY = {
     mastodon: null,
     language: undefined,
     isPlus: false,
+    plusProvider: null,
     defaultFeedId: null,
     flags: {
       showPlusGift: false,
