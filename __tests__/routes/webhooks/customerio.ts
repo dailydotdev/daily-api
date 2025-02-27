@@ -69,13 +69,13 @@ beforeEach(async () => {
   await saveFixtures(con, MarketingCta, marketingCtaFixture);
 });
 
-jest.mock('../src/common', () => ({
-  ...(jest.requireActual('../src/common') as Record<string, unknown>),
+jest.mock('../../../src/common', () => ({
+  ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
   triggerTypedEvent: jest.fn(),
 }));
 
-jest.mock('../src/onesignal.ts', () => ({
-  ...(jest.requireActual('../src/onesignal.ts') as Record<string, unknown>),
+jest.mock('../../../src/onesignal', () => ({
+  ...(jest.requireActual('../../../src/onesignal') as Record<string, unknown>),
   sendGenericPush: jest.fn(),
 }));
 
