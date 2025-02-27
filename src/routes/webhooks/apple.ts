@@ -70,18 +70,30 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
   // Endpoint for receiving App Store Server Notifications V2
   fastify.post(
     '/notifications',
-    async (request: FastifyRequest<{ Body: AppleNotificationRequest }>) => {
+    async (
+      request: FastifyRequest<{ Body: AppleNotificationRequest }>,
+      response,
+    ) => {
       const { signedPayload } = request.body;
-      const notification =
-        await verifier.verifyAndDecodeNotification(signedPayload);
+      try {
+        const notification =
+          await verifier.verifyAndDecodeNotification(signedPayload);
 
-      logger.info(
-        { notification },
-        'Received Apple App Store Server Notification',
-      );
-      return {
-        received: true,
-      };
+        logger.info(
+          { notification },
+          'Received Apple App Store Server Notification',
+        );
+        return {
+          received: true,
+        };
+      } catch (_err) {
+        const err = _err as Error;
+        logger.error(
+          { err },
+          'Failed to verify Apple App Store Server Notification',
+        );
+        return response.status(403).send({ error: 'Invalid Payload' });
+      }
     },
   );
 };
