@@ -20,6 +20,7 @@ import {
 } from '../redis';
 import { generateStorageKey, StorageKey, StorageTopic } from '../config';
 import { coresBalanceExpirationSeconds } from './constants';
+import { NjordErrorMessages } from '../errors';
 
 const transport = createGrpcTransport({
   baseUrl: process.env.NJORD_ORIGIN,
@@ -112,7 +113,7 @@ export const transferCores = async ({
 };
 
 export type GetBalanceProps = {
-  ctx: AuthContext;
+  ctx: Pick<AuthContext, 'userId'>;
 };
 
 export type GetBalanceResult = {
@@ -148,8 +149,7 @@ export const getFreshBalance = createAuthProtectedFn(
       };
     } catch (originalError) {
       const error = originalError as ConnectError;
-
-      if (error.message === 'account not found') {
+      if (error.rawMessage === NjordErrorMessages.BalanceAccountNotFound) {
         return {
           amount: 0,
         };
