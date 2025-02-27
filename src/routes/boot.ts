@@ -64,7 +64,7 @@ import { queryReadReplica } from '../common/queryReadReplica';
 import { queryDataSource } from '../common/queryDataSource';
 import { isPlusMember } from '../paddle';
 import { Continent, countryCodeToContinent } from '../common/geo';
-import { getBalance } from '../common/njord';
+import { getBalance, type GetBalanceResult } from '../common/njord';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -127,6 +127,7 @@ export type LoggedInBoot = BaseBoot & {
     permalink: string;
     roles: string[];
     canSubmitArticle: boolean;
+    balance: GetBalanceResult;
   };
   accessToken?: AccessToken;
   marketingCta: MarketingCta | null;

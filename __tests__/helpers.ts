@@ -31,6 +31,8 @@ import { NotificationType } from '../src/notifications/common';
 import { DataLoaderService, defaultCacheKeyFn } from '../src/dataLoaderService';
 import { opentelemetry } from '../src/telemetry/opentelemetry';
 import { logger } from '../src/logger';
+import { createRouterTransport } from '@connectrpc/connect';
+import { Credits, Currency } from '@dailydotdev/schema';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<opentelemetry.Span> & opentelemetry.Span;
@@ -375,3 +377,55 @@ export const doNotFake: FakeableAPI[] = [
   'setTimeout',
   'clearTimeout',
 ];
+
+export const createMockNjordTransport = () => {
+  return createRouterTransport(({ service }) => {
+    const accounts: Record<
+      string,
+      {
+        amount: number;
+      }
+    > = {};
+
+    service(Credits, {
+      getBalance: (request) => {
+        return (
+          accounts[request.account!.userId] || {
+            amount: BigInt(0),
+          }
+        );
+      },
+      transfer: (request) => {
+        const receiverAccount = accounts[request.receiver!.id] || {
+          amount: BigInt(0),
+        };
+        const senderAccount = accounts[request.sender!.id] || {
+          amount: BigInt(0),
+        };
+
+        receiverAccount.amount += request.amount;
+        senderAccount.amount -= request.amount;
+
+        accounts[request.receiver!.id] = receiverAccount;
+        accounts[request.sender!.id] = senderAccount;
+
+        return {
+          idempotencyKey: request.idempotencyKey,
+          senderBalance: {
+            account: { userId: request.sender?.id, currency: Currency.CORES },
+            previousBalance: 0,
+            newBalance: -request.amount,
+            changeAmount: -request.amount,
+          },
+          receiverBalance: {
+            account: { userId: request.receiver?.id, currency: Currency.CORES },
+            previousBalance: 0,
+            newBalance: request.amount,
+            changeAmount: request.amount,
+          },
+          timestamp: Date.now(),
+        };
+      },
+    });
+  });
+};

@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import request from 'supertest';
 import {
+  createMockNjordTransport,
   GraphQLTestingState,
   initializeGraphQLTesting,
   MockContext,
@@ -38,6 +39,7 @@ import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { notificationV2Fixture } from './fixture/notifications';
 import { usersFixture } from './fixture/user';
 import {
+  deleteKeysByPattern,
   getRedisObject,
   ioRedisPool,
   RedisMagicValues,
@@ -69,6 +71,9 @@ import { saveReturnAlerts } from '../src/schema/alerts';
 import { UserVote } from '../src/types';
 import { BootAlerts, excludeProperties } from '../src/routes/boot';
 import { SubscriptionCycles } from '../src/paddle';
+import * as njordCommon from '../src/common/njord';
+import { Credits, EntityType } from '@dailydotdev/schema';
+import { createClient } from '@connectrpc/connect';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -135,6 +140,9 @@ const LOGGED_IN_BODY = {
     flags: {
       showPlusGift: false,
     },
+    balance: {
+      amount: 0,
+    },
   },
   marketingCta: null,
   feeds: [],
@@ -167,12 +175,19 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  jest.resetAllMocks();
+  jest.clearAllMocks();
   jest.mocked(getEncryptedFeatures).mockReturnValue('enc');
   await con.getRepository(User).save(usersFixture[0]);
   await con.getRepository(Source).save(sourcesFixture);
   await con.getRepository(Post).save(postsFixture);
   await ioRedisPool.execute((client) => client.flushall());
+
+  await deleteKeysByPattern('njord:cores_balance:*');
+
+  const mockTransport = createMockNjordTransport();
+  jest
+    .spyOn(njordCommon, 'getNjordClient')
+    .mockImplementation(() => createClient(Credits, mockTransport));
 });
 
 const BASE_PATH = '/boot';
@@ -593,6 +608,38 @@ describe('logged in boot', () => {
       expect(res.body.user.plusProvider).toEqual(
         SubscriptionProvider.AppleStoreKit,
       );
+    });
+  });
+
+  describe('balance field', () => {
+    it('should return default balance', async () => {
+      mockLoggedIn();
+      const res = await request(app.server)
+        .get(BASE_PATH)
+        .set('Cookie', 'ory_kratos_session=value;')
+        .expect(200);
+      expect(res.body.user.balance).toEqual({
+        amount: 0,
+      });
+    });
+
+    it('should return balance', async () => {
+      const testNjordClient = njordCommon.getNjordClient();
+      await testNjordClient.transfer({
+        sender: { id: 'system', type: EntityType.SYSTEM },
+        receiver: { id: '1', type: EntityType.USER },
+        amount: 100,
+        idempotencyKey: crypto.randomUUID(),
+      });
+
+      mockLoggedIn();
+      const res = await request(app.server)
+        .get(BASE_PATH)
+        .set('Cookie', 'ory_kratos_session=value;')
+        .expect(200);
+      expect(res.body.user.balance).toEqual({
+        amount: 100,
+      });
     });
   });
 });

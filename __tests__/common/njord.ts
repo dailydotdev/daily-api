@@ -1,70 +1,18 @@
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
-import { saveFixtures } from '../helpers';
+import { createMockNjordTransport, saveFixtures } from '../helpers';
 import { usersFixture } from '../fixture';
 
 import { Product, ProductType } from '../../src/entity/Product';
 import type { AuthContext } from '../../src/Context';
-import { createClient, createRouterTransport } from '@connectrpc/connect';
-import { Credits, Currency, EntityType } from '@dailydotdev/schema';
+import { createClient } from '@connectrpc/connect';
+import { Credits, EntityType } from '@dailydotdev/schema';
 import * as njordCommon from '../../src/common/njord';
 import { User } from '../../src/entity/user/User';
 import { ForbiddenError } from 'apollo-server-errors';
 import { UserTransaction } from '../../src/entity/user/UserTransaction';
 import * as redisFile from '../../src/redis';
 import { ioRedisPool } from '../../src/redis';
-
-const createMockTransport = () => {
-  return createRouterTransport(({ service }) => {
-    const accounts: Record<
-      string,
-      {
-        amount: number;
-      }
-    > = {};
-
-    service(Credits, {
-      getBalance: (request) => {
-        return (
-          accounts[request.account!.userId] || {
-            amount: BigInt(0),
-          }
-        );
-      },
-      transfer: (request) => {
-        const receiverAccount = accounts[request.receiver!.id] || {
-          amount: BigInt(0),
-        };
-        const senderAccount = accounts[request.sender!.id] || {
-          amount: BigInt(0),
-        };
-
-        receiverAccount.amount += request.amount;
-        senderAccount.amount -= request.amount;
-
-        accounts[request.receiver!.id] = receiverAccount;
-        accounts[request.sender!.id] = senderAccount;
-
-        return {
-          idempotencyKey: request.idempotencyKey,
-          senderBalance: {
-            account: { userId: request.sender?.id, currency: Currency.CORES },
-            previousBalance: 0,
-            newBalance: -request.amount,
-            changeAmount: -request.amount,
-          },
-          receiverBalance: {
-            account: { userId: request.receiver?.id, currency: Currency.CORES },
-            previousBalance: 0,
-            newBalance: request.amount,
-            changeAmount: request.amount,
-          },
-          timestamp: Date.now(),
-        };
-      },
-    });
-  });
-};
 
 let con: DataSource;
 
@@ -76,7 +24,7 @@ describe('transferCores', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
 
-    const mockTransport = createMockTransport();
+    const mockTransport = createMockNjordTransport();
     jest
       .spyOn(njordCommon, 'getNjordClient')
       .mockImplementation(() => createClient(Credits, mockTransport));
@@ -173,7 +121,7 @@ describe('getBalance', () => {
     await ioRedisPool.execute((client) => client.flushall());
     jest.clearAllMocks();
 
-    const mockTransport = createMockTransport();
+    const mockTransport = createMockNjordTransport();
     jest
       .spyOn(njordCommon, 'getNjordClient')
       .mockImplementation(() => createClient(Credits, mockTransport));
@@ -341,7 +289,7 @@ describe('updatedBalanceCache', () => {
     await ioRedisPool.execute((client) => client.flushall());
     jest.clearAllMocks();
 
-    const mockTransport = createMockTransport();
+    const mockTransport = createMockNjordTransport();
     jest
       .spyOn(njordCommon, 'getNjordClient')
       .mockImplementation(() => createClient(Credits, mockTransport));
@@ -383,7 +331,7 @@ describe('expireBalanceCache', () => {
     await ioRedisPool.execute((client) => client.flushall());
     jest.clearAllMocks();
 
-    const mockTransport = createMockTransport();
+    const mockTransport = createMockNjordTransport();
     jest
       .spyOn(njordCommon, 'getNjordClient')
       .mockImplementation(() => createClient(Credits, mockTransport));
