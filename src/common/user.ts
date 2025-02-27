@@ -111,7 +111,10 @@ export /**
  * @param {(props: Props) => Result} fn
  * @return {Result}
  */
-const createAuthProtectedFn = <Props extends { ctx: AuthContext }, Result>(
+const createAuthProtectedFn = <
+  Props extends { ctx: Pick<AuthContext, 'userId'> },
+  Result,
+>(
   fn: (props: Props) => Result,
 ) => {
   return (props: Props): Result => {
