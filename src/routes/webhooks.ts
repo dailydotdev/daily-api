@@ -7,6 +7,7 @@ import { sendAnalyticsEvent } from '../integrations/analytics';
 import { customerio } from './webhooks/customerio';
 import { counters } from '../telemetry';
 import { paddle } from './webhooks/paddle';
+import { apple } from './webhooks/apple';
 
 type SendgridEvent = {
   email: string;
@@ -115,4 +116,5 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
   fastify.register(customerio, { prefix: '/customerio' });
   fastify.register(paddle, { prefix: '/paddle' });
+  fastify.register(apple, { prefix: '/apple' });
 }
