@@ -1,4 +1,4 @@
-import { createClient } from '@connectrpc/connect';
+import { createClient, type ConnectError } from '@connectrpc/connect';
 import { createGrpcTransport } from '@connectrpc/connect-node';
 import {
   Credits,
@@ -10,8 +10,16 @@ import type { AuthContext } from '../Context';
 import { UserTransaction } from '../entity/user/UserTransaction';
 import { Product } from '../entity/Product';
 import { remoteConfig } from '../remoteConfig';
-import { isProd } from './utils';
+import { isProd, parseBigInt } from './utils';
 import { ForbiddenError } from 'apollo-server-errors';
+import { createAuthProtectedFn } from './user';
+import {
+  deleteRedisKey,
+  getRedisObject,
+  setRedisObjectWithExpiry,
+} from '../redis';
+import { generateStorageKey, StorageKey, StorageTopic } from '../config';
+import { coresBalanceExpirationSeconds } from './constants';
 
 const transport = createGrpcTransport({
   baseUrl: process.env.NJORD_ORIGIN,
@@ -102,3 +110,91 @@ export const transferCores = async ({
 
   return transferResult;
 };
+
+export type GetBalanceProps = {
+  ctx: AuthContext;
+};
+
+export type GetBalanceResult = {
+  amount: number;
+};
+
+const getBalanceRedisKey = createAuthProtectedFn(
+  ({ ctx }: Pick<GetBalanceProps, 'ctx'>) => {
+    const redisKey = generateStorageKey(
+      StorageTopic.Njord,
+      StorageKey.CoresBalance,
+      ctx.userId,
+    );
+
+    return redisKey;
+  },
+);
+
+export const getFreshBalance = createAuthProtectedFn(
+  async ({ ctx }: GetBalanceProps): Promise<GetBalanceResult> => {
+    try {
+      const njordClient = getNjordClient();
+
+      const balance = await njordClient.getBalance({
+        account: {
+          userId: ctx.userId,
+          currency: Currency.CORES,
+        },
+      });
+
+      return {
+        amount: parseBigInt(balance.amount),
+      };
+    } catch (originalError) {
+      const error = originalError as ConnectError;
+
+      if (error.message === 'account not found') {
+        return {
+          amount: 0,
+        };
+      }
+
+      throw originalError;
+    }
+  },
+);
+
+export const updateBalanceCache = createAuthProtectedFn(
+  async ({ ctx, value }: GetBalanceProps & { value: GetBalanceResult }) => {
+    const redisKey = getBalanceRedisKey({ ctx });
+
+    const currentTsSec = Date.now() / 1000;
+    const expiresAt = currentTsSec + coresBalanceExpirationSeconds;
+
+    await setRedisObjectWithExpiry(redisKey, JSON.stringify(value), expiresAt);
+  },
+);
+
+export const expireBalanceCache = createAuthProtectedFn(
+  async ({ ctx }: GetBalanceProps) => {
+    const redisKey = getBalanceRedisKey({ ctx });
+
+    await deleteRedisKey(redisKey);
+  },
+);
+
+export const getBalance = createAuthProtectedFn(
+  async ({ ctx }: GetBalanceProps) => {
+    const redisKey = getBalanceRedisKey({ ctx });
+
+    const redisResult = await getRedisObject(redisKey);
+
+    if (redisResult) {
+      const cachedBalance = JSON.parse(redisResult) as GetBalanceResult;
+
+      return cachedBalance;
+    }
+
+    const freshBalance = await getFreshBalance({ ctx });
+
+    await updateBalanceCache({ ctx, value: freshBalance });
+
+    return freshBalance;
+  },
+);
