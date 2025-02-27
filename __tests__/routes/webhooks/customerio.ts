@@ -1,10 +1,19 @@
-import appFunc from '../src';
+import appFunc from '../../../src';
 import { FastifyInstance } from 'fastify';
-import { saveFixtures } from './helpers';
-import { MarketingCta, Source, User, UserMarketingCta } from '../src/entity';
-import { marketingCtaFixture, sourcesFixture, usersFixture } from './fixture';
+import { saveFixtures } from '../../helpers';
+import {
+  MarketingCta,
+  Source,
+  User,
+  UserMarketingCta,
+} from '../../../src/entity';
+import {
+  marketingCtaFixture,
+  sourcesFixture,
+  usersFixture,
+} from '../../fixture';
 import { DataSource } from 'typeorm';
-import createOrGetConnection from '../src/db';
+import createOrGetConnection from '../../../src/db';
 import request from 'supertest';
 import { createHmac } from 'crypto';
 import {
@@ -13,12 +22,16 @@ import {
   getRedisListLength,
   getRedisObject,
   setRedisObject,
-} from '../src/redis';
-import { StorageKey, StorageTopic, generateStorageKey } from '../src/config';
+} from '../../../src/redis';
+import {
+  StorageKey,
+  StorageTopic,
+  generateStorageKey,
+} from '../../../src/config';
 import nock from 'nock';
-import { triggerTypedEvent } from '../src/common';
-import { NotificationPayload } from '../src/routes/webhooks/customerio';
-import { sendGenericPush } from '../src/onesignal';
+import { triggerTypedEvent } from '../../../src/common';
+import { NotificationPayload } from '../../../src/routes/webhooks/customerio';
+import { sendGenericPush } from '../../../src/onesignal';
 
 let app: FastifyInstance;
 let con: DataSource;
