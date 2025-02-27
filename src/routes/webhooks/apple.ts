@@ -6,19 +6,39 @@ import {
   Environment,
   SignedDataVerifier,
 } from '@apple/app-store-server-library';
-import { isProd } from '../../common';
+import { isTest } from '../../common';
 import { isInSubnet } from 'is-in-subnet';
 
-const bundleId = env.APPLE_APP_BUNDLE_ID;
+const loadAppleRootCAs = (): Buffer[] => {
+  if (isTest) {
+    return [readFileSync('__tests__/fixture/testCA.der')];
+  }
+
+  return [
+    readFileSync(
+      '/usr/local/share/ca-certificates/AppleIncRootCertificate.cer',
+    ),
+    readFileSync('/usr/local/share/ca-certificates/AppleRootCA-G2.cer'),
+    readFileSync('/usr/local/share/ca-certificates/AppleRootCA-G3.cer'),
+  ];
+};
+
+const getVerifierEnvironment = (): Environment => {
+  switch (env.NODE_ENV) {
+    case 'development':
+      return Environment.SANDBOX;
+    case 'test':
+      return Environment.LOCAL_TESTING;
+    default:
+      return Environment.PRODUCTION;
+  }
+};
+
+const bundleId = isTest ? 'com.example' : env.APPLE_APP_BUNDLE_ID;
 const appAppleId = env.APPLE_APP_APPLE_ID;
 const enableOnlineChecks = true;
-const environment = isProd ? Environment.PRODUCTION : Environment.SANDBOX;
-
-const appleRootCAs: Buffer[] = [
-  readFileSync('/usr/local/share/ca-certificates/AppleIncRootCertificate.cer'),
-  readFileSync('/usr/local/share/ca-certificates/AppleRootCA-G2.cer'),
-  readFileSync('/usr/local/share/ca-certificates/AppleRootCA-G3.cer'),
-];
+const environment = getVerifierEnvironment();
+const appleRootCAs = loadAppleRootCAs();
 
 const verifier = new SignedDataVerifier(
   appleRootCAs,
