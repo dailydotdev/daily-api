@@ -6,34 +6,65 @@ import { usersFixture } from '../fixture';
 import { Product, ProductType } from '../../src/entity/Product';
 import type { AuthContext } from '../../src/Context';
 import { createClient, createRouterTransport } from '@connectrpc/connect';
-import { Credits, Currency } from '@dailydotdev/schema';
+import { Credits, Currency, EntityType } from '@dailydotdev/schema';
 import * as njordCommon from '../../src/common/njord';
 import { User } from '../../src/entity/user/User';
 import { ForbiddenError } from 'apollo-server-errors';
 import { UserTransaction } from '../../src/entity/user/UserTransaction';
+import * as redisFile from '../../src/redis';
+import { ioRedisPool } from '../../src/redis';
 
-const mockTransport = createRouterTransport(({ service }) => {
-  service(Credits, {
-    transfer: (request) => {
-      return {
-        idempotencyKey: request.idempotencyKey,
-        senderBalance: {
-          account: { userId: request.sender?.id, currency: Currency.CORES },
-          previousBalance: 0,
-          newBalance: -request.amount,
-          changeAmount: -request.amount,
-        },
-        receiverBalance: {
-          account: { userId: request.receiver?.id, currency: Currency.CORES },
-          previousBalance: 0,
-          newBalance: request.amount,
-          changeAmount: request.amount,
-        },
-        timestamp: Date.now(),
-      };
-    },
+const createMockTransport = () => {
+  return createRouterTransport(({ service }) => {
+    const accounts: Record<
+      string,
+      {
+        amount: number;
+      }
+    > = {};
+
+    service(Credits, {
+      getBalance: (request) => {
+        return (
+          accounts[request.account!.userId] || {
+            amount: BigInt(0),
+          }
+        );
+      },
+      transfer: (request) => {
+        const receiverAccount = accounts[request.receiver!.id] || {
+          amount: BigInt(0),
+        };
+        const senderAccount = accounts[request.sender!.id] || {
+          amount: BigInt(0),
+        };
+
+        receiverAccount.amount += request.amount;
+        senderAccount.amount -= request.amount;
+
+        accounts[request.receiver!.id] = receiverAccount;
+        accounts[request.sender!.id] = senderAccount;
+
+        return {
+          idempotencyKey: request.idempotencyKey,
+          senderBalance: {
+            account: { userId: request.sender?.id, currency: Currency.CORES },
+            previousBalance: 0,
+            newBalance: -request.amount,
+            changeAmount: -request.amount,
+          },
+          receiverBalance: {
+            account: { userId: request.receiver?.id, currency: Currency.CORES },
+            previousBalance: 0,
+            newBalance: request.amount,
+            changeAmount: request.amount,
+          },
+          timestamp: Date.now(),
+        };
+      },
+    });
   });
-});
+};
 
 let con: DataSource;
 
@@ -43,8 +74,9 @@ beforeAll(async () => {
 
 describe('transferCores', () => {
   beforeEach(async () => {
-    jest.resetAllMocks();
+    jest.clearAllMocks();
 
+    const mockTransport = createMockTransport();
     jest
       .spyOn(njordCommon, 'getNjordClient')
       .mockImplementation(() => createClient(Credits, mockTransport));
@@ -133,5 +165,258 @@ describe('transferCores', () => {
 
     expect(transaction.id).toBe(result.id);
     expect(transaction).toMatchObject(result);
+  });
+});
+
+describe('getBalance', () => {
+  beforeEach(async () => {
+    await ioRedisPool.execute((client) => client.flushall());
+    jest.clearAllMocks();
+
+    const mockTransport = createMockTransport();
+    jest
+      .spyOn(njordCommon, 'getNjordClient')
+      .mockImplementation(() => createClient(Credits, mockTransport));
+
+    await saveFixtures(
+      con,
+      User,
+      usersFixture.map((item) => {
+        return {
+          ...item,
+          id: `t-gb-${item.id}`,
+          username: `t-gb-${item.username}`,
+          github: undefined,
+        };
+      }),
+    );
+  });
+
+  it('should return balance', async () => {
+    const setRedisObjectWithExpirySpy = jest.spyOn(
+      redisFile,
+      'setRedisObjectWithExpiry',
+    );
+    const getRedisObjectSpy = jest.spyOn(redisFile, 'getRedisObject');
+
+    const testNjordClient = njordCommon.getNjordClient();
+    await testNjordClient.transfer({
+      sender: { id: 'system', type: EntityType.SYSTEM },
+      receiver: { id: 't-gb-1', type: EntityType.USER },
+      amount: 100,
+      idempotencyKey: crypto.randomUUID(),
+    });
+
+    const result = await njordCommon.getBalance({
+      ctx: { userId: 't-gb-1' } as AuthContext,
+    });
+
+    expect(result).toEqual({ amount: 100 });
+    expect(getRedisObjectSpy).toHaveBeenCalledTimes(1);
+    expect(setRedisObjectWithExpirySpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('should save with redis keys', async () => {
+    const setRedisObjectWithExpirySpy = jest.spyOn(
+      redisFile,
+      'setRedisObjectWithExpiry',
+    );
+    const getRedisObjectSpy = jest.spyOn(redisFile, 'getRedisObject');
+
+    const result = await njordCommon.getBalance({
+      ctx: { userId: 't-gb-1' } as AuthContext,
+    });
+
+    expect(result).toEqual({ amount: 0 });
+
+    expect(getRedisObjectSpy).toHaveBeenCalledWith(
+      'njord:cores_balance:t-gb-1',
+    );
+    expect(setRedisObjectWithExpirySpy).toHaveBeenCalledWith(
+      'njord:cores_balance:t-gb-1',
+      JSON.stringify(result),
+      expect.any(Number),
+    );
+  });
+
+  it('should return cached balance', async () => {
+    const setRedisObjectWithExpirySpy = jest.spyOn(
+      redisFile,
+      'setRedisObjectWithExpiry',
+    );
+    const getRedisObjectSpy = jest.spyOn(redisFile, 'getRedisObject');
+    const getFreshBalanceSpy = jest.spyOn(njordCommon, 'getFreshBalance');
+
+    const testNjordClient = njordCommon.getNjordClient();
+    await testNjordClient.transfer({
+      sender: { id: 'system', type: EntityType.SYSTEM },
+      receiver: { id: 't-gb-1', type: EntityType.USER },
+      amount: 42,
+      idempotencyKey: crypto.randomUUID(),
+    });
+
+    const resultNotCached = await njordCommon.getBalance({
+      ctx: { userId: 't-gb-1' } as AuthContext,
+    });
+
+    expect(resultNotCached).toEqual({ amount: 42 });
+
+    expect(getRedisObjectSpy).toHaveBeenCalledTimes(1);
+    expect(setRedisObjectWithExpirySpy).toHaveBeenCalledTimes(1);
+    expect(getFreshBalanceSpy).toHaveBeenCalledTimes(1);
+
+    const result = await njordCommon.getBalance({
+      ctx: { userId: 't-gb-1' } as AuthContext,
+    });
+
+    expect(result).toEqual({ amount: 42 });
+
+    expect(getRedisObjectSpy).toHaveBeenCalledTimes(2);
+    expect(setRedisObjectWithExpirySpy).toHaveBeenCalledTimes(1);
+    expect(getFreshBalanceSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('should fetch fresh balance if cache is expired', async () => {
+    const setRedisObjectWithExpirySpy = jest.spyOn(
+      redisFile,
+      'setRedisObjectWithExpiry',
+    );
+    const getRedisObjectSpy = jest.spyOn(redisFile, 'getRedisObject');
+    const getFreshBalanceSpy = jest.spyOn(njordCommon, 'getFreshBalance');
+
+    const testNjordClient = njordCommon.getNjordClient();
+    await testNjordClient.transfer({
+      sender: { id: 'system', type: EntityType.SYSTEM },
+      receiver: { id: 't-gb-1', type: EntityType.USER },
+      amount: 42,
+      idempotencyKey: crypto.randomUUID(),
+    });
+
+    const resultNotCached = await njordCommon.getBalance({
+      ctx: { userId: 't-gb-1' } as AuthContext,
+    });
+
+    expect(resultNotCached).toEqual({ amount: 42 });
+
+    expect(getRedisObjectSpy).toHaveBeenCalledTimes(1);
+    expect(setRedisObjectWithExpirySpy).toHaveBeenCalledTimes(1);
+    expect(getFreshBalanceSpy).toHaveBeenCalledTimes(1);
+
+    const result = await njordCommon.getBalance({
+      ctx: { userId: 't-gb-1' } as AuthContext,
+    });
+
+    expect(result).toEqual({ amount: 42 });
+
+    expect(getRedisObjectSpy).toHaveBeenCalledTimes(2);
+    expect(setRedisObjectWithExpirySpy).toHaveBeenCalledTimes(1);
+    expect(getFreshBalanceSpy).toHaveBeenCalledTimes(1);
+
+    await ioRedisPool.execute((client) => {
+      return client.expire('njord:cores_balance:t-gb-1', 0);
+    });
+
+    const resultExpired = await njordCommon.getBalance({
+      ctx: { userId: 't-gb-1' } as AuthContext,
+    });
+
+    expect(resultExpired).toEqual({ amount: 42 });
+
+    expect(getRedisObjectSpy).toHaveBeenCalledTimes(3);
+    expect(setRedisObjectWithExpirySpy).toHaveBeenCalledTimes(2);
+    expect(getFreshBalanceSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('should return 0 if no balance', async () => {
+    const result = await njordCommon.getBalance({
+      ctx: { userId: 't-gb-1-not-exists' } as AuthContext,
+    });
+
+    expect(result).toEqual({ amount: 0 });
+  });
+});
+
+describe('updatedBalanceCache', () => {
+  beforeEach(async () => {
+    await ioRedisPool.execute((client) => client.flushall());
+    jest.clearAllMocks();
+
+    const mockTransport = createMockTransport();
+    jest
+      .spyOn(njordCommon, 'getNjordClient')
+      .mockImplementation(() => createClient(Credits, mockTransport));
+  });
+
+  it('should update balance cache', async () => {
+    const setRedisObjectWithExpirySpy = jest.spyOn(
+      redisFile,
+      'setRedisObjectWithExpiry',
+    );
+
+    const resultBefore = await njordCommon.getBalance({
+      ctx: { userId: 't-ubc-1' } as AuthContext,
+    });
+
+    expect(resultBefore).toEqual({ amount: 0 });
+
+    await njordCommon.updateBalanceCache({
+      ctx: { userId: 't-ubc-1' } as AuthContext,
+      value: { amount: 101 },
+    });
+
+    expect(setRedisObjectWithExpirySpy).toHaveBeenCalledWith(
+      'njord:cores_balance:t-ubc-1',
+      JSON.stringify({ amount: 101 }),
+      expect.any(Number),
+    );
+
+    const resultAfter = await njordCommon.getBalance({
+      ctx: { userId: 't-ubc-1' } as AuthContext,
+    });
+
+    expect(resultAfter).toEqual({ amount: 101 });
+  });
+});
+
+describe('expireBalanceCache', () => {
+  beforeEach(async () => {
+    await ioRedisPool.execute((client) => client.flushall());
+    jest.clearAllMocks();
+
+    const mockTransport = createMockTransport();
+    jest
+      .spyOn(njordCommon, 'getNjordClient')
+      .mockImplementation(() => createClient(Credits, mockTransport));
+  });
+
+  it('should expire balance cache', async () => {
+    const deleteRedisKeySpy = jest.spyOn(redisFile, 'deleteRedisKey');
+    const getFreshBalanceSpy = jest.spyOn(njordCommon, 'getFreshBalance');
+
+    await njordCommon.getBalance({
+      ctx: { userId: 't-ebc-1' } as AuthContext,
+    });
+
+    expect(getFreshBalanceSpy).toHaveBeenCalledTimes(1);
+
+    await njordCommon.getBalance({
+      ctx: { userId: 't-ebc-1' } as AuthContext,
+    });
+
+    expect(getFreshBalanceSpy).toHaveBeenCalledTimes(1);
+
+    await njordCommon.expireBalanceCache({
+      ctx: { userId: 't-ebc-1' } as AuthContext,
+    });
+
+    expect(deleteRedisKeySpy).toHaveBeenCalledWith(
+      'njord:cores_balance:t-ebc-1',
+    );
+
+    await njordCommon.getBalance({
+      ctx: { userId: 't-ebc-1' } as AuthContext,
+    });
+
+    expect(getFreshBalanceSpy).toHaveBeenCalledTimes(2);
   });
 });
