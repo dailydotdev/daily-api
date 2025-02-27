@@ -1,14 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { env } from 'node:process';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import rateLimit from '@fastify/rate-limit';
 import { logger } from '../../logger';
 import {
   Environment,
   SignedDataVerifier,
 } from '@apple/app-store-server-library';
 import { isProd } from '../../common';
-import { singleRedisClient } from '../../redis';
 import { isInSubnet } from 'is-in-subnet';
 
 const bundleId = env.APPLE_APP_BUNDLE_ID;
@@ -43,12 +41,10 @@ interface AppleNotificationRequest {
 }
 
 export const apple = async (fastify: FastifyInstance): Promise<void> => {
-  fastify.register(rateLimit, {
-    max: 10,
-    timeWindow: '1 minute',
-    redis: singleRedisClient,
-    allowList: (request) => isInSubnet(request.ip, allowedIPs),
-    nameSpace: 'webhooks:apple:',
+  fastify.addHook('onRequest', async (request, res) => {
+    if (!isInSubnet(request.ip, allowedIPs)) {
+      return res.status(403).send({ error: 'Forbidden' });
+    }
   });
 
   // Endpoint for receiving App Store Server Notifications V2
