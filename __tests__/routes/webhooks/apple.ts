@@ -13,7 +13,7 @@ function createSignedData(): string {
     data: {
       environment: 'LocalTesting',
       appAppleId: 41234,
-      bundleId: 'com.example',
+      bundleId: 'dev.fylla',
       bundleVersion: '1.2.3',
       signedTransactionInfo: 'signed_transaction_info_value',
       signedRenewalInfo: 'signed_renewal_info_value',
