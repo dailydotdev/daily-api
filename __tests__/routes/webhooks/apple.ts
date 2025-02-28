@@ -64,7 +64,7 @@ describe('POST /webhooks/apple/notifications', () => {
     expect(body.error).toEqual('Forbidden');
   });
 
-  it('should return 500 when no x-cio-timestamp header', async () => {
+  it('should return 403 when payload is incorrect', async () => {
     const { body } = await request(app.server)
       .post('/webhooks/apple/notifications')
       .send({
