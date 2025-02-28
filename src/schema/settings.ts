@@ -7,6 +7,7 @@ import {
   Settings,
   SETTINGS_DEFAULT,
   SettingsFlagsPublic,
+  SortCommentsBy,
 } from '../entity';
 import { isValidHttpUrl, toGQLEnum, updateFlagsStatement } from '../common';
 import { ValidationError } from 'apollo-server-errors';
@@ -79,6 +80,8 @@ export const typeDefs = /* GraphQL */ `
     timezoneMismatchIgnore: String
     lastPrompt: String
   }
+
+  ${toGQLEnum(SortCommentsBy, 'SortCommentsBy')}
 
   """
   User personal preferences
@@ -178,6 +181,11 @@ export const typeDefs = /* GraphQL */ `
     State of the onboarding checklist
     """
     onboardingChecklistView: ChecklistViewState
+
+    """
+    Selected algorithm by the user for comments section
+    """
+    sortCommentsBy: SortCommentsBy
 
     """
     Time of last update
@@ -286,6 +294,11 @@ export const typeDefs = /* GraphQL */ `
     State of the onboarding checklist
     """
     onboardingChecklistView: ChecklistViewState
+
+    """
+    Selected algorithm by the user for comments section
+    """
+    sortCommentsBy: SortCommentsBy
 
     """
     Flags for the settings
