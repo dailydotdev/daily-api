@@ -19,6 +19,11 @@ export enum ChecklistViewState {
   Hidden = 'hidden',
 }
 
+export enum SortCommentsBy {
+  Newest = 'newest',
+  Oldest = 'oldest',
+}
+
 export type SettingsFlags = Partial<{
   sidebarSquadExpanded: boolean;
   sidebarCustomFeedsExpanded: boolean;
@@ -89,6 +94,9 @@ export class Settings {
   @Column({ default: false })
   optOutCompanion: boolean;
 
+  @Column({ default: SortCommentsBy.Oldest })
+  sortCommentsBy: SortCommentsBy;
+
   @Column({ type: 'text', array: true, default: null })
   customLinks: string[] | null;
 
@@ -129,6 +137,7 @@ export const SETTINGS_DEFAULT = {
   optOutWeeklyGoal: false,
   optOutReadingStreak: false,
   sortingEnabled: false,
+  sortCommentsBy: SortCommentsBy.Oldest,
   campaignCtaPlacement: CampaignCtaPlacement.Header,
   onboardingChecklistView: ChecklistViewState.Hidden,
   flags: {
