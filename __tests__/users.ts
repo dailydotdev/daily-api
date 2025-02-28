@@ -6078,3 +6078,44 @@ describe('query getGifterUser', () => {
     expect(res.data.plusGifterUser.image).toBeTruthy();
   });
 });
+
+describe('mutation requestAppAccountToken', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation RequestAppAccountToken {
+      requestAppAccountToken
+    }
+  `;
+
+  it('should throw an error if the user is not logged in', async () => {
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should generate a new app account token if the user does not have one', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.requestAppAccountToken).toBeTruthy();
+  });
+
+  it('should return the existing app account token if the user already has one', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).update(
+      { id: loggedUser },
+      {
+        subscriptionFlags: updateSubscriptionFlags({
+          appAccountToken: '77601fd2-0490-44e8-a042-4fd516929715',
+        }),
+      },
+    );
+
+    const res = await client.mutate(MUTATION);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.requestAppAccountToken).toEqual(
+      '77601fd2-0490-44e8-a042-4fd516929715',
+    );
+  });
+});
