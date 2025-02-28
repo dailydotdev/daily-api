@@ -40,6 +40,9 @@ export type UserSubscriptionFlags = Partial<{
   gifterId?: string;
   giftExpirationDate?: Date;
   provider: SubscriptionProvider;
+
+  // StoreKit flags
+  appAccountToken?: string; // StoreKit app account token (UUID)
 }>;
 
 @Entity()

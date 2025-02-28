@@ -613,6 +613,34 @@ describe('logged in boot', () => {
         );
       });
     });
+
+    describe('appAccountToken flag', () => {
+      it('should not return appAccountToken when not set on user', async () => {
+        mockLoggedIn();
+        const res = await request(app.server)
+          .get(BASE_PATH)
+          .set('Cookie', 'ory_kratos_session=value;')
+          .expect(200);
+        expect(res.body.user.subscriptionFlags.appAccountToken).toBeUndefined();
+      });
+
+      it('should not return appAccountToken when set on user', async () => {
+        await con.getRepository(User).save({
+          ...usersFixture[0],
+          subscriptionFlags: {
+            appAccountToken: 'b381c50a-b79d-4ec9-9284-973d4d5d767b',
+          },
+        });
+        mockLoggedIn();
+        const res = await request(app.server)
+          .get(BASE_PATH)
+          .set('Cookie', 'ory_kratos_session=value;')
+          .expect(200);
+        expect(res.body.user.subscriptionFlags.appAccountToken).toEqual(
+          'b381c50a-b79d-4ec9-9284-973d4d5d767b',
+        );
+      });
+    });
   });
 
   describe('balance field', () => {
