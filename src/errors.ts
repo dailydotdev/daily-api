@@ -163,3 +163,7 @@ export class RedirectError extends Error {
     this.statusCode = statusCode;
   }
 }
+
+export enum NjordErrorMessages {
+  BalanceAccountNotFound = 'get balance error: account not found',
+}

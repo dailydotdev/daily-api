@@ -18,6 +18,8 @@ import {
 } from '../entity';
 import { ghostUser } from './index';
 import { cancelSubscription } from './paddle';
+import type { AuthContext } from '../Context';
+import { ForbiddenError } from 'apollo-server-errors';
 
 export const deleteUser = async (
   con: DataSource,
@@ -95,4 +97,31 @@ export const deleteUser = async (
     }
     throw err;
   }
+};
+
+export /**
+ * Function creator that wraps a function with auth protection
+ * In this case it checks ctx contains userId but it can be expanded
+ * in the future to check more advanced things.
+ * This is a DX layer to make sure auth required stuff like credits
+ * is protected on the function level.
+ *
+ * @template Props
+ * @template Result
+ * @param {(props: Props) => Result} fn
+ * @return {Result}
+ */
+const createAuthProtectedFn = <
+  Props extends { ctx: Pick<AuthContext, 'userId'> },
+  Result,
+>(
+  fn: (props: Props) => Result,
+) => {
+  return (props: Props): Result => {
+    if (!props.ctx.userId) {
+      throw new ForbiddenError('Auth is required');
+    }
+
+    return fn(props);
+  };
 };

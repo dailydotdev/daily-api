@@ -64,6 +64,7 @@ import { queryReadReplica } from '../common/queryReadReplica';
 import { queryDataSource } from '../common/queryDataSource';
 import { isPlusMember } from '../paddle';
 import { Continent, countryCodeToContinent } from '../common/geo';
+import { getBalance, type GetBalanceResult } from '../common/njord';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -126,6 +127,7 @@ export type LoggedInBoot = BaseBoot & {
     permalink: string;
     roles: string[];
     canSubmitArticle: boolean;
+    balance: GetBalanceResult;
   };
   accessToken?: AccessToken;
   marketingCta: MarketingCta | null;
@@ -458,6 +460,7 @@ const loggedInBoot = async ({
       extra,
       [alerts, settings, marketingCta],
       [user, squads, lastBanner, exp, feeds, unreadNotificationsCount],
+      balance,
     ] = await Promise.all([
       visitSection(req, res),
       getRoles(userId),
@@ -479,6 +482,7 @@ const loggedInBoot = async ({
           getUnreadNotificationsCount(queryRunner, userId),
         ]);
       }),
+      getBalance({ ctx: { userId } }),
     ]);
     if (!user) {
       return handleNonExistentUser(con, req, res, middleware);
@@ -523,6 +527,7 @@ const loggedInBoot = async ({
         flags: {
           showPlusGift: Boolean(user?.flags?.showPlusGift),
         },
+        balance,
       },
       visit,
       alerts: {
