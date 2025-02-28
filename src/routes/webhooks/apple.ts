@@ -8,6 +8,7 @@ import {
 } from '@apple/app-store-server-library';
 import { isTest } from '../../common';
 import { isInSubnet } from 'is-in-subnet';
+import { isNullOrUndefined } from '../../common/object';
 
 const loadAppleRootCAs = (): Buffer[] => {
   const appleRootCAs: Buffer[] = [];
@@ -88,7 +89,15 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
         appAppleId,
       );
 
-      const { signedPayload } = request.body;
+      const { signedPayload } = request.body || {};
+
+      if (isNullOrUndefined(signedPayload)) {
+        logger.info(
+          { body: request.body },
+          "Missing 'signedPayload' in request body",
+        );
+        return response.status(403).send({ error: 'Invalid Payload' });
+      }
 
       try {
         const notification =
