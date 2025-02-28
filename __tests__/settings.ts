@@ -252,6 +252,8 @@ describe('mutation updateUserSettings', () => {
       variables: { data: { sortCommentsBy: SortCommentsBy.Newest } },
     });
     expect(res.data.updateUserSettings.sortCommentsBy).toEqual('newest');
+    const updated = await repo.findOneBy({ userId: '1' });
+    expect(updated.sortCommentsBy).toEqual('newest');
   });
 
   it('should update user settings', async () => {
