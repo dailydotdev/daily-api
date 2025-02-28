@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { env } from 'node:process';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { logger } from '../../logger';
@@ -10,21 +10,21 @@ import { isTest } from '../../common';
 import { isInSubnet } from 'is-in-subnet';
 import { isNullOrUndefined } from '../../common/object';
 
-const loadAppleRootCAs = (): Buffer[] => {
+const loadAppleRootCAs = async (): Promise<Buffer[]> => {
   const appleRootCAs: Buffer[] = [];
   if (isTest) {
-    appleRootCAs.push(readFileSync('__tests__/fixture/testCA.der'));
+    appleRootCAs.push(await readFile('__tests__/fixture/testCA.der'));
   } else {
     appleRootCAs.push(
-      readFileSync(
+      await readFile(
         '/usr/local/share/ca-certificates/AppleIncRootCertificate.cer',
       ),
     );
     appleRootCAs.push(
-      readFileSync('/usr/local/share/ca-certificates/AppleRootCA-G2.cer'),
+      await readFile('/usr/local/share/ca-certificates/AppleRootCA-G2.cer'),
     );
     appleRootCAs.push(
-      readFileSync('/usr/local/share/ca-certificates/AppleRootCA-G3.cer'),
+      await readFile('/usr/local/share/ca-certificates/AppleRootCA-G3.cer'),
     );
   }
 
@@ -70,7 +70,7 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
     }
 
     if (appleRootCAs.length === 0) {
-      appleRootCAs = loadAppleRootCAs();
+      appleRootCAs = await loadAppleRootCAs();
     }
   });
 
