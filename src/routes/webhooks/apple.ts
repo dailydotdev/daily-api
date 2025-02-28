@@ -10,17 +10,25 @@ import { isTest } from '../../common';
 import { isInSubnet } from 'is-in-subnet';
 
 const loadAppleRootCAs = (): Buffer[] => {
+  const appleRootCAs: Buffer[] = [];
   if (isTest) {
-    return [readFileSync('__tests__/fixture/testCA.der')];
+    appleRootCAs.push(readFileSync('__tests__/fixture/testCA.der'));
+  } else {
+    appleRootCAs.push(
+      readFileSync(
+        '/usr/local/share/ca-certificates/AppleIncRootCertificate.cer',
+      ),
+    );
+    appleRootCAs.push(
+      readFileSync('/usr/local/share/ca-certificates/AppleRootCA-G2.cer'),
+    );
+    appleRootCAs.push(
+      readFileSync('/usr/local/share/ca-certificates/AppleRootCA-G3.cer'),
+    );
   }
 
-  return [
-    readFileSync(
-      '/usr/local/share/ca-certificates/AppleIncRootCertificate.cer',
-    ),
-    readFileSync('/usr/local/share/ca-certificates/AppleRootCA-G2.cer'),
-    readFileSync('/usr/local/share/ca-certificates/AppleRootCA-G3.cer'),
-  ];
+  logger.debug(`Loaded ${appleRootCAs.length} Apple's Root CAs`);
+  return appleRootCAs;
 };
 
 const getVerifierEnvironment = (): Environment => {
@@ -40,15 +48,6 @@ const bundleId = isTest ? 'dev.fylla' : env.APPLE_APP_BUNDLE_ID;
 const appAppleId = env.APPLE_APP_APPLE_ID;
 const enableOnlineChecks = true;
 const environment = getVerifierEnvironment();
-const appleRootCAs = loadAppleRootCAs();
-
-const verifier = new SignedDataVerifier(
-  appleRootCAs,
-  enableOnlineChecks,
-  environment,
-  bundleId,
-  appAppleId,
-);
 
 const allowedIPs = [
   '127.0.0.1/24',
@@ -63,9 +62,14 @@ interface AppleNotificationRequest {
 }
 
 export const apple = async (fastify: FastifyInstance): Promise<void> => {
+  let appleRootCAs: Buffer[] = [];
   fastify.addHook('onRequest', async (request, res) => {
     if (!isInSubnet(request.ip, allowedIPs)) {
       return res.status(403).send({ error: 'Forbidden' });
+    }
+
+    if (appleRootCAs.length === 0) {
+      appleRootCAs = loadAppleRootCAs();
     }
   });
 
@@ -76,7 +80,16 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
       request: FastifyRequest<{ Body: AppleNotificationRequest }>,
       response,
     ) => {
+      const verifier = new SignedDataVerifier(
+        appleRootCAs,
+        enableOnlineChecks,
+        environment,
+        bundleId,
+        appAppleId,
+      );
+
       const { signedPayload } = request.body;
+
       try {
         const notification =
           await verifier.verifyAndDecodeNotification(signedPayload);
