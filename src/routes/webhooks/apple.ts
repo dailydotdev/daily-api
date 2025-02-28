@@ -25,12 +25,14 @@ const loadAppleRootCAs = (): Buffer[] => {
 
 const getVerifierEnvironment = (): Environment => {
   switch (env.NODE_ENV) {
+    case 'production':
+      return Environment.PRODUCTION;
     case 'development':
       return Environment.SANDBOX;
     case 'test':
       return Environment.LOCAL_TESTING;
     default:
-      return Environment.PRODUCTION;
+      throw new Error("Invalid 'NODE_ENV' value");
   }
 };
 
