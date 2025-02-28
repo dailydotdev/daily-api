@@ -249,7 +249,7 @@ describe('mutation updateUserSettings', () => {
     expect(settings.sortCommentsBy).toEqual('oldest');
 
     const res = await client.mutate(MUTATION, {
-      variables: { data: { sortCommentsBy: SortCommentsBy.Newest } },
+      variables: { data: { sortCommentsBy: SortCommentsBy.NewestFirst } },
     });
     expect(res.data.updateUserSettings.sortCommentsBy).toEqual('newest');
     const updated = await repo.findOneBy({ userId: '1' });

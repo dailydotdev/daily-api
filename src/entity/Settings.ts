@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import type { User } from './user';
+import { SortCommentsBy } from '../schema/comments';
 
 export enum CampaignCtaPlacement {
   Header = 'header',
@@ -17,11 +18,6 @@ export enum ChecklistViewState {
   Open = 'open',
   Closed = 'closed',
   Hidden = 'hidden',
-}
-
-export enum SortCommentsBy {
-  Newest = 'newest',
-  Oldest = 'oldest',
 }
 
 export type SettingsFlags = Partial<{
@@ -48,6 +44,8 @@ export type SettingsFlagsPublic = Pick<
   | 'timezoneMismatchIgnore'
   | 'lastPrompt'
 >;
+
+export { SortCommentsBy };
 
 @Entity()
 export class Settings {
@@ -94,7 +92,7 @@ export class Settings {
   @Column({ default: false })
   optOutCompanion: boolean;
 
-  @Column({ default: SortCommentsBy.Oldest })
+  @Column({ default: SortCommentsBy.OldestFirst })
   sortCommentsBy: SortCommentsBy;
 
   @Column({ type: 'text', array: true, default: null })
@@ -137,7 +135,7 @@ export const SETTINGS_DEFAULT = {
   optOutWeeklyGoal: false,
   optOutReadingStreak: false,
   sortingEnabled: false,
-  sortCommentsBy: SortCommentsBy.Oldest,
+  sortCommentsBy: SortCommentsBy.OldestFirst,
   campaignCtaPlacement: CampaignCtaPlacement.Header,
   onboardingChecklistView: ChecklistViewState.Hidden,
   flags: {
