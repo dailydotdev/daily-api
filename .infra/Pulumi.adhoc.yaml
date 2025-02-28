@@ -44,6 +44,8 @@ config:
   api:env:
     accessSecret: topsecret
     analyticsUrl: http://localhost:3000
+    appleAppAppleId: 6740634400
+    appleAppBundleId: dev.daily.app
     cioReportingWebhookSecret: topsecret
     cioWebhookSecret: topsecret
     commentsPrefix: https://app.local.fylla.dev:5002
