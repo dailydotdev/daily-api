@@ -10,23 +10,18 @@ import { isTest } from '../../common';
 import { isInSubnet } from 'is-in-subnet';
 import { isNullOrUndefined } from '../../common/object';
 
+const certificatesToLoad = isTest
+  ? ['__tests__/fixture/testCA.der']
+  : [
+      '/usr/local/share/ca-certificates/AppleIncRootCertificate.cer',
+      '/usr/local/share/ca-certificates/AppleRootCA-G2.cer',
+      '/usr/local/share/ca-certificates/AppleRootCA-G3.cer',
+    ];
+
 const loadAppleRootCAs = async (): Promise<Buffer[]> => {
-  const appleRootCAs: Buffer[] = [];
-  if (isTest) {
-    appleRootCAs.push(await readFile('__tests__/fixture/testCA.der'));
-  } else {
-    appleRootCAs.push(
-      await readFile(
-        '/usr/local/share/ca-certificates/AppleIncRootCertificate.cer',
-      ),
-    );
-    appleRootCAs.push(
-      await readFile('/usr/local/share/ca-certificates/AppleRootCA-G2.cer'),
-    );
-    appleRootCAs.push(
-      await readFile('/usr/local/share/ca-certificates/AppleRootCA-G3.cer'),
-    );
-  }
+  const appleRootCAs: Buffer[] = await Promise.all(
+    certificatesToLoad.map(async (certPath) => await readFile(certPath)),
+  );
 
   logger.debug(`Loaded ${appleRootCAs.length} Apple's Root CAs`);
   return appleRootCAs;
