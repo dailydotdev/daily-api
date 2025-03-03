@@ -4,7 +4,6 @@ import { snakeCase } from 'lodash';
 import { isNullOrUndefined } from './object';
 import { remoteConfig } from '../remoteConfig';
 import { ChangeObject } from '../types';
-import { logger } from '../logger';
 
 const REMOVE_SPECIAL_CHARACTERS_REGEX = /[^a-zA-Z0-9-_#.]/g;
 
@@ -228,19 +227,4 @@ export const unwrapArray = <T>(
   }
 
   return arrayOrValue;
-};
-
-export const parseBigInt = (value: bigint): number => {
-  try {
-    return Number(value);
-  } catch (originalError) {
-    const error = originalError as Error;
-
-    logger.error(
-      { err: originalError, value: value?.toString() },
-      'failed parsing bigint',
-    );
-
-    throw error;
-  }
 };
