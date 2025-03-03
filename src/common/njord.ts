@@ -187,10 +187,11 @@ export const updateBalanceCache = createAuthProtectedFn(
   async ({ ctx, value }: GetBalanceProps & { value: GetBalanceResult }) => {
     const redisKey = getBalanceRedisKey({ ctx });
 
-    const currentTsSec = Date.now() / 1000;
-    const expiresAt = currentTsSec + coresBalanceExpirationSeconds;
-
-    await setRedisObjectWithExpiry(redisKey, JSON.stringify(value), expiresAt);
+    await setRedisObjectWithExpiry(
+      redisKey,
+      JSON.stringify(value),
+      coresBalanceExpirationSeconds,
+    );
   },
 );
 
