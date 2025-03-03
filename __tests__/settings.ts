@@ -19,6 +19,7 @@ import {
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
+import { SortCommentsBy } from '../src/schema/comments';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -110,6 +111,7 @@ describe('mutation updateUserSettings', () => {
     optOutCompanion
     campaignCtaPlacement
     onboardingChecklistView
+    sortCommentsBy
     flags {
       sidebarCustomFeedsExpanded
       sidebarOtherExpanded
@@ -237,6 +239,21 @@ describe('mutation updateUserSettings', () => {
       variables: { data: { customLinks: ['http://abc.com'] } },
     });
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should update selected algo by user for comments section', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(Settings);
+    const settings = await repo.save(repo.create({ userId: '1' }));
+    expect(settings.sortCommentsBy).toEqual('oldest');
+
+    const res = await client.mutate(MUTATION, {
+      variables: { data: { sortCommentsBy: SortCommentsBy.NewestFirst } },
+    });
+    expect(res.data.updateUserSettings.sortCommentsBy).toEqual('newest');
+    const updated = await repo.findOneBy({ userId: '1' });
+    expect(updated.sortCommentsBy).toEqual('newest');
   });
 
   it('should update user settings', async () => {

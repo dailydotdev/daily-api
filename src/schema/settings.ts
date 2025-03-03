@@ -180,6 +180,11 @@ export const typeDefs = /* GraphQL */ `
     onboardingChecklistView: ChecklistViewState
 
     """
+    Selected algorithm by the user for comments section
+    """
+    sortCommentsBy: SortCommentsBy
+
+    """
     Time of last update
     """
     updatedAt: DateTime!
@@ -286,6 +291,11 @@ export const typeDefs = /* GraphQL */ `
     State of the onboarding checklist
     """
     onboardingChecklistView: ChecklistViewState
+
+    """
+    Selected algorithm by the user for comments section
+    """
+    sortCommentsBy: SortCommentsBy
 
     """
     Flags for the settings
