@@ -30,6 +30,7 @@ jest.mock('../src/remoteConfig', () => ({
       fees: {
         transfer: 5,
       },
+      enableBalance: true,
     } as typeof remoteConfig.vars,
     validLanguages: {
       en: 'English',
