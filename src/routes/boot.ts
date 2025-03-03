@@ -65,6 +65,7 @@ import { queryDataSource } from '../common/queryDataSource';
 import { isPlusMember } from '../paddle';
 import { Continent, countryCodeToContinent } from '../common/geo';
 import { getBalance, type GetBalanceResult } from '../common/njord';
+import { remoteConfig } from '../remoteConfig';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -433,6 +434,29 @@ const getUser = (
     ],
   });
 
+const getBalanceBoot: typeof getBalance = async ({ ctx }) => {
+  try {
+    if (!remoteConfig.vars.enableBalance) {
+      return {
+        amount: 0,
+        error: 'Balance is disabled',
+      };
+    }
+
+    const result = await getBalance({ ctx });
+
+    return result;
+  } catch (originalError) {
+    const error = originalError as Error;
+
+    // TODO feat/transactions for now ignore any error and return 0 balance
+    return {
+      amount: 0,
+      error: error.message,
+    };
+  }
+};
+
 const loggedInBoot = async ({
   con,
   req,
@@ -482,13 +506,7 @@ const loggedInBoot = async ({
           getUnreadNotificationsCount(queryRunner, userId),
         ]);
       }),
-      getBalance({ ctx: { userId } }).catch(() => {
-        // TODO feat/transactions for now ignore any error and return 0 balance
-
-        return {
-          amount: 0,
-        };
-      }),
+      getBalanceBoot({ ctx: { userId } }),
     ]);
     if (!user) {
       return handleNonExistentUser(con, req, res, middleware);
