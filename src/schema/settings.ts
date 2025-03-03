@@ -7,7 +7,6 @@ import {
   Settings,
   SETTINGS_DEFAULT,
   SettingsFlagsPublic,
-  SortCommentsBy,
 } from '../entity';
 import { isValidHttpUrl, toGQLEnum, updateFlagsStatement } from '../common';
 import { ValidationError } from 'apollo-server-errors';
