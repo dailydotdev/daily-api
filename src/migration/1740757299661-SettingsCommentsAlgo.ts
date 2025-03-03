@@ -5,7 +5,7 @@ export class SettingsCommentsAlgo1740757299661 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE "settings" ADD "sortCommentsBy" character varying NOT NULL DEFAULT 'oldest'`,
+      `ALTER TABLE "settings" ADD "sortCommentsBy" text NOT NULL DEFAULT 'oldest'`,
     );
   }
 
