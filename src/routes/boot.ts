@@ -482,7 +482,13 @@ const loggedInBoot = async ({
           getUnreadNotificationsCount(queryRunner, userId),
         ]);
       }),
-      getBalance({ ctx: { userId } }),
+      getBalance({ ctx: { userId } }).catch(() => {
+        // TODO feat/transactions for now ignore any error and return 0 balance
+
+        return {
+          amount: 0,
+        };
+      }),
     ]);
     if (!user) {
       return handleNonExistentUser(con, req, res, middleware);

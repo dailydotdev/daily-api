@@ -21,10 +21,21 @@ import {
 import { generateStorageKey, StorageKey, StorageTopic } from '../config';
 import { coresBalanceExpirationSeconds } from './constants';
 import { NjordErrorMessages } from '../errors';
+import { GarmrService } from '../integrations/garmr';
+import { BrokenCircuitError } from 'cockatiel';
 
 const transport = createGrpcTransport({
   baseUrl: process.env.NJORD_ORIGIN,
   httpVersion: '2',
+});
+
+const garmNjordService = new GarmrService({
+  service: 'njord',
+  breakerOpts: {
+    halfOpenAfter: 5 * 1000,
+    threshold: 0.1,
+    duration: 10 * 1000,
+  },
 });
 
 export const getNjordClient = (clientTransport = transport) => {
@@ -78,29 +89,31 @@ export const transferCores = async ({
 
     userTransaction.id = userTransactionResult.identifiers[0].id as string;
 
-    if (!userTransaction.id) {
-      throw new Error('No transaction id');
-    }
-
-    if (!userTransaction.senderId) {
-      throw new Error('No sender id');
-    }
-
     const njordClient = getNjordClient();
 
-    await njordClient.transfer({
-      transferType: TransferType.TRANSFER,
-      currency: Currency.CORES,
-      idempotencyKey: userTransaction.id,
-      sender: {
-        id: userTransaction.senderId,
-        type: EntityType.USER,
-      },
-      receiver: {
-        id: userTransaction.receiverId,
-        type: EntityType.USER,
-      },
-      amount: userTransaction.value,
+    await garmNjordService.execute(() => {
+      if (!userTransaction.id) {
+        throw new Error('No transaction id');
+      }
+
+      if (!userTransaction.senderId) {
+        throw new Error('No sender id');
+      }
+
+      return njordClient.transfer({
+        transferType: TransferType.TRANSFER,
+        currency: Currency.CORES,
+        idempotencyKey: userTransaction.id,
+        sender: {
+          id: userTransaction.senderId,
+          type: EntityType.USER,
+        },
+        receiver: {
+          id: userTransaction.receiverId,
+          type: EntityType.USER,
+        },
+        amount: userTransaction.value,
+      });
     });
 
     // TODO feat/transactions error handling
@@ -137,18 +150,28 @@ export const getFreshBalance = createAuthProtectedFn(
     try {
       const njordClient = getNjordClient();
 
-      const balance = await njordClient.getBalance({
-        account: {
-          userId: ctx.userId,
-          currency: Currency.CORES,
-        },
+      const balance = await garmNjordService.execute(() => {
+        return njordClient.getBalance({
+          account: {
+            userId: ctx.userId,
+            currency: Currency.CORES,
+          },
+        });
       });
 
       return {
         amount: parseBigInt(balance.amount),
       };
     } catch (originalError) {
+      if (originalError instanceof BrokenCircuitError) {
+        // if njord is down, return 0 balance for now
+        return {
+          amount: 0,
+        };
+      }
+
       const error = originalError as ConnectError;
+
       if (error.rawMessage === NjordErrorMessages.BalanceAccountNotFound) {
         return {
           amount: 0,
