@@ -14,7 +14,6 @@ import {
 } from 'cockatiel';
 import { logger } from '../logger';
 import { isTest } from '../common/utils';
-import { counters } from '../telemetry/metrics';
 
 export interface IGarmrService {
   readonly instance: IPolicy;
@@ -43,6 +42,10 @@ export class GarmrNoopService implements IGarmrService {
   }
 }
 
+type GarmrMeta = {
+  service: string;
+};
+
 export class GarmrService implements IGarmrService {
   readonly instance: IPolicy;
 
@@ -52,6 +55,7 @@ export class GarmrService implements IGarmrService {
     breakerOpts,
     retryOpts,
     limits,
+    events,
   }: {
     service: string;
     handler?: Policy;
@@ -69,6 +73,18 @@ export class GarmrService implements IGarmrService {
       maxRequests: number;
       queuedRequests?: number;
     };
+    events?: Partial<{
+      onBreak?: (props: {
+        event: FailureReason<Error>;
+        meta: GarmrMeta;
+      }) => void;
+      onHalfOpen?: (props: { meta: GarmrMeta }) => void;
+      onReset?: (props: { meta: GarmrMeta }) => void;
+      onRetry?: (props: {
+        event: FailureReason<unknown>;
+        meta: GarmrMeta;
+      }) => void;
+    }>;
   }) {
     // in testing we avoid the breaker logic due to repeatable nature
     if (isTest) {
@@ -76,6 +92,10 @@ export class GarmrService implements IGarmrService {
 
       return;
     }
+
+    const instanceMeta: GarmrMeta = {
+      service,
+    };
 
     const retryPolicy = retry(handleAll, {
       maxAttempts: retryOpts?.maxAttempts ?? 2,
@@ -85,25 +105,19 @@ export class GarmrService implements IGarmrService {
     retryPolicy.onRetry((event: FailureReason<unknown>) => {
       logger.debug(
         {
-          ...commonLoggerData,
+          ...instanceMeta,
           event,
         },
         'retrying request',
       );
 
-      counters?.['personalized-digest']?.garmrRetry?.add(1, {
-        service: commonLoggerData.service,
-      });
+      events?.onRetry?.({ event, meta: instanceMeta });
     });
 
     const bulkheadPolicy = bulkhead(
       limits?.maxRequests ?? Infinity,
       limits?.queuedRequests ?? 0,
     );
-
-    const commonLoggerData = {
-      service,
-    };
 
     const circuitBreakerPolicy = circuitBreaker(handler ?? handleAll, {
       halfOpenAfter: breakerOpts.halfOpenAfter,
@@ -118,29 +132,23 @@ export class GarmrService implements IGarmrService {
 
       logger.warn(
         {
-          ...commonLoggerData,
+          ...instanceMeta,
           event,
         },
         'breaker opened',
       );
 
-      counters?.['personalized-digest']?.garmrBreak?.add(1, {
-        service: commonLoggerData.service,
-      });
+      events?.onBreak?.({ event, meta: instanceMeta });
     });
     circuitBreakerPolicy.onHalfOpen(() => {
-      logger.info(commonLoggerData, 'breaker half-opened');
+      logger.info(instanceMeta, 'breaker half-opened');
 
-      counters?.['personalized-digest']?.garmrHalfOpen?.add(1, {
-        service: commonLoggerData.service,
-      });
+      events?.onHalfOpen?.({ meta: instanceMeta });
     });
     circuitBreakerPolicy.onReset(() => {
-      logger.info(commonLoggerData, 'breaker reset');
+      logger.info(instanceMeta, 'breaker reset');
 
-      counters?.['personalized-digest']?.garmrReset?.add(1, {
-        service: commonLoggerData.service,
-      });
+      events?.onReset?.({ meta: instanceMeta });
     });
 
     this.instance = wrap(retryPolicy, circuitBreakerPolicy, bulkheadPolicy);
