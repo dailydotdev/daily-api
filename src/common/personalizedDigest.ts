@@ -29,6 +29,7 @@ import { FeedConfigName } from '../integrations/feed';
 import { isPlusMember } from '../paddle';
 import { mapCloudinaryUrl } from './cloudinary';
 import { queryReadReplica } from './queryReadReplica';
+import { counters } from '../telemetry/metrics';
 
 type TemplatePostData = Pick<
   ArticlePost,
@@ -212,6 +213,28 @@ const personalizedDigestFeedClient = new FeedClient(
       },
       retryOpts: {
         maxAttempts: 0,
+      },
+      events: {
+        onBreak: ({ meta }) => {
+          counters?.['personalized-digest']?.garmrBreak?.add(1, {
+            service: meta.service,
+          });
+        },
+        onHalfOpen: ({ meta }) => {
+          counters?.['personalized-digest']?.garmrHalfOpen?.add(1, {
+            service: meta.service,
+          });
+        },
+        onReset: ({ meta }) => {
+          counters?.['personalized-digest']?.garmrReset?.add(1, {
+            service: meta.service,
+          });
+        },
+        onRetry: ({ meta }) => {
+          counters?.['personalized-digest']?.garmrRetry?.add(1, {
+            service: meta.service,
+          });
+        },
       },
     }),
   },
