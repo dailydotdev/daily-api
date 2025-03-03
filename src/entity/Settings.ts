@@ -45,8 +45,6 @@ export type SettingsFlagsPublic = Pick<
   | 'lastPrompt'
 >;
 
-export { SortCommentsBy };
-
 @Entity()
 export class Settings {
   @PrimaryColumn({ type: 'text' })

@@ -14,12 +14,12 @@ import {
   CampaignCtaPlacement,
   ChecklistViewState,
   Settings,
-  SortCommentsBy,
   User,
 } from '../src/entity';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
+import { SortCommentsBy } from '../src/schema/comments';
 
 let con: DataSource;
 let state: GraphQLTestingState;
