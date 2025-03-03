@@ -81,8 +81,6 @@ export const typeDefs = /* GraphQL */ `
     lastPrompt: String
   }
 
-  ${toGQLEnum(SortCommentsBy, 'SortCommentsBy')}
-
   """
   User personal preferences
   """
