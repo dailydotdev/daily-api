@@ -92,7 +92,7 @@ export class Settings {
   @Column({ default: false })
   optOutCompanion: boolean;
 
-  @Column({ default: SortCommentsBy.OldestFirst })
+  @Column({ type: 'text', default: SortCommentsBy.OldestFirst })
   sortCommentsBy: SortCommentsBy;
 
   @Column({ type: 'text', array: true, default: null })
