@@ -4,6 +4,7 @@ import {
   Credits,
   Currency,
   EntityType,
+  GetBalanceResponse,
   TransferType,
 } from '@dailydotdev/schema';
 import type { AuthContext } from '../Context';
@@ -147,39 +148,35 @@ const getBalanceRedisKey = createAuthProtectedFn(
 
 export const getFreshBalance = createAuthProtectedFn(
   async ({ ctx }: GetBalanceProps): Promise<GetBalanceResult> => {
-    try {
-      const njordClient = getNjordClient();
+    const njordClient = getNjordClient();
 
-      const balance = await garmNjordService.execute(() => {
-        return njordClient.getBalance({
+    const balance = await garmNjordService.execute(async () => {
+      try {
+        const result = await njordClient.getBalance({
           account: {
             userId: ctx.userId,
             currency: Currency.CORES,
           },
         });
-      });
 
-      return {
-        amount: parseBigInt(balance.amount),
-      };
-    } catch (originalError) {
-      if (originalError instanceof BrokenCircuitError) {
-        // if njord is down, return 0 balance for now
-        return {
-          amount: 0,
-        };
+        return result;
+      } catch (originalError) {
+        const error = originalError as ConnectError;
+
+        // user has no account yet, account is created on first transfer
+        if (error.rawMessage === NjordErrorMessages.BalanceAccountNotFound) {
+          return new GetBalanceResponse({
+            amount: 0,
+          } as GetBalanceResult);
+        }
+
+        throw originalError;
       }
+    });
 
-      const error = originalError as ConnectError;
-
-      if (error.rawMessage === NjordErrorMessages.BalanceAccountNotFound) {
-        return {
-          amount: 0,
-        };
-      }
-
-      throw originalError;
-    }
+    return {
+      amount: parseBigInt(balance.amount),
+    };
   },
 );
 
@@ -215,10 +212,21 @@ export const getBalance = createAuthProtectedFn(
       return cachedBalance;
     }
 
-    const freshBalance = await getFreshBalance({ ctx });
+    try {
+      const freshBalance = await getFreshBalance({ ctx });
 
-    await updateBalanceCache({ ctx, value: freshBalance });
+      await updateBalanceCache({ ctx, value: freshBalance });
 
-    return freshBalance;
+      return freshBalance;
+    } catch (originalError) {
+      if (originalError instanceof BrokenCircuitError) {
+        // if njord is down, return 0 balance for now
+        return {
+          amount: 0,
+        };
+      }
+
+      throw originalError;
+    }
   },
 );
