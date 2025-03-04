@@ -135,7 +135,6 @@ const LOGGED_IN_BODY = {
     mastodon: null,
     language: undefined,
     isPlus: false,
-    plusProvider: null,
     defaultFeedId: null,
     flags: {
       showPlusGift: false,
@@ -143,6 +142,7 @@ const LOGGED_IN_BODY = {
     balance: {
       amount: 0,
     },
+    subscriptionFlags: {},
   },
   marketingCta: null,
   feeds: [],
@@ -568,46 +568,78 @@ describe('logged in boot', () => {
     expect(res.body.user.defaultFeedId).toBeNull();
   });
 
-  describe('plusProvider', () => {
-    it('should return the correct plus provider when not plus', async () => {
-      mockLoggedIn();
-      const res = await request(app.server)
-        .get(BASE_PATH)
-        .set('Cookie', 'ory_kratos_session=value;')
-        .expect(200);
-      expect(res.body.user.plusProvider).toEqual(null);
+  describe('subscriptionFlags', () => {
+    describe('provider flag', () => {
+      it('should not return provider when not set on user', async () => {
+        mockLoggedIn();
+        const res = await request(app.server)
+          .get(BASE_PATH)
+          .set('Cookie', 'ory_kratos_session=value;')
+          .expect(200);
+        expect(res.body.user.subscriptionFlags.provider).toBeUndefined();
+      });
+
+      it('should return the correct plus provider when paddle', async () => {
+        await con.getRepository(User).save({
+          ...usersFixture[0],
+          subscriptionFlags: {
+            provider: SubscriptionProvider.Paddle,
+          },
+        });
+        mockLoggedIn();
+        const res = await request(app.server)
+          .get(BASE_PATH)
+          .set('Cookie', 'ory_kratos_session=value;')
+          .expect(200);
+        expect(res.body.user.subscriptionFlags.provider).toEqual(
+          SubscriptionProvider.Paddle,
+        );
+      });
+
+      it('should return the correct plus provider when storekit', async () => {
+        await con.getRepository(User).save({
+          ...usersFixture[0],
+          subscriptionFlags: {
+            provider: SubscriptionProvider.AppleStoreKit,
+          },
+        });
+        mockLoggedIn();
+        const res = await request(app.server)
+          .get(BASE_PATH)
+          .set('Cookie', 'ory_kratos_session=value;')
+          .expect(200);
+        expect(res.body.user.subscriptionFlags.provider).toEqual(
+          SubscriptionProvider.AppleStoreKit,
+        );
+      });
     });
 
-    it('should return the correct plus provider when paddle', async () => {
-      await con.getRepository(User).save({
-        ...usersFixture[0],
-        subscriptionFlags: {
-          provider: SubscriptionProvider.Paddle,
-        },
+    describe('appAccountToken flag', () => {
+      it('should not return appAccountToken when not set on user', async () => {
+        mockLoggedIn();
+        const res = await request(app.server)
+          .get(BASE_PATH)
+          .set('Cookie', 'ory_kratos_session=value;')
+          .expect(200);
+        expect(res.body.user.subscriptionFlags.appAccountToken).toBeUndefined();
       });
-      mockLoggedIn();
-      const res = await request(app.server)
-        .get(BASE_PATH)
-        .set('Cookie', 'ory_kratos_session=value;')
-        .expect(200);
-      expect(res.body.user.plusProvider).toEqual(SubscriptionProvider.Paddle);
-    });
 
-    it('should return the correct plus provider when storekit', async () => {
-      await con.getRepository(User).save({
-        ...usersFixture[0],
-        subscriptionFlags: {
-          provider: SubscriptionProvider.AppleStoreKit,
-        },
+      it('should not return appAccountToken when set on user', async () => {
+        await con.getRepository(User).save({
+          ...usersFixture[0],
+          subscriptionFlags: {
+            appAccountToken: 'b381c50a-b79d-4ec9-9284-973d4d5d767b',
+          },
+        });
+        mockLoggedIn();
+        const res = await request(app.server)
+          .get(BASE_PATH)
+          .set('Cookie', 'ory_kratos_session=value;')
+          .expect(200);
+        expect(res.body.user.subscriptionFlags.appAccountToken).toEqual(
+          'b381c50a-b79d-4ec9-9284-973d4d5d767b',
+        );
       });
-      mockLoggedIn();
-      const res = await request(app.server)
-        .get(BASE_PATH)
-        .set('Cookie', 'ory_kratos_session=value;')
-        .expect(200);
-      expect(res.body.user.plusProvider).toEqual(
-        SubscriptionProvider.AppleStoreKit,
-      );
     });
   });
 
