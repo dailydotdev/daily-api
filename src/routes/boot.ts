@@ -570,10 +570,8 @@ const loggedInBoot = async ({
         },
         balance,
         subscriptionFlags: {
-          ...includeProperties(user.subscriptionFlags!, [
-            'provider',
-            'appAccountToken',
-          ]),
+          provider: user.subscriptionFlags?.provider,
+          appAccountToken: user.subscriptionFlags?.appAccountToken,
         },
       },
       visit,
