@@ -180,6 +180,25 @@ export const excludeProperties = <T, K extends keyof T>(
   return clone;
 };
 
+export const includeProperties = <T, K extends keyof T>(
+  obj: T,
+  properties: K[],
+): Pick<T, K> => {
+  if (!obj) {
+    return obj;
+  }
+
+  const clone = structuredClone(obj);
+  const keys = Object.keys(clone) as K[];
+  keys.forEach((key) => {
+    if (!properties.includes(key)) {
+      delete clone[key];
+    }
+  });
+
+  return clone;
+};
+
 const getSquads = async (
   con: DataSource | QueryRunner,
   userId: string,
@@ -513,7 +532,6 @@ const loggedInBoot = async ({
     }
     const isTeamMember = exp?.a?.team === 1;
     const isPlus = isPlusMember(user.subscriptionFlags?.cycle);
-    const plusProvider = user.subscriptionFlags?.provider || null;
 
     if (isPlus) {
       exp.a.plus = 1;
@@ -543,7 +561,6 @@ const loggedInBoot = async ({
         canSubmitArticle: user.reputation >= submitArticleThreshold,
         isTeamMember,
         isPlus,
-        plusProvider,
         language: user.language || undefined,
         image: mapCloudinaryUrl(user.image),
         cover: mapCloudinaryUrl(user.cover),
@@ -552,6 +569,10 @@ const loggedInBoot = async ({
           showPlusGift: Boolean(user?.flags?.showPlusGift),
         },
         balance,
+        subscriptionFlags: {
+          provider: user.subscriptionFlags?.provider,
+          appAccountToken: user.subscriptionFlags?.appAccountToken,
+        },
       },
       visit,
       alerts: {

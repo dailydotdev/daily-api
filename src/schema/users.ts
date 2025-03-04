@@ -74,6 +74,7 @@ import {
   UploadPreset,
   clearFile,
   updateFlagsStatement,
+  updateSubscriptionFlags,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -115,6 +116,7 @@ import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 import { isGiftedPlus } from '../paddle';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { logger } from '../logger';
+import { generateAppAccountToken } from '../common/storekit';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -1130,6 +1132,11 @@ export const typeDefs = /* GraphQL */ `
     Restore user's streak
     """
     recoverStreak: UserStreak @auth
+
+    """
+    Request an app account token that is used for StoreKit
+    """
+    requestAppAccountToken: ID @auth
   }
 `;
 
@@ -2505,6 +2512,28 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       return reportCommand({ ...args, ctx });
+    },
+    requestAppAccountToken: async (_, __, ctx: AuthContext) => {
+      const user = await ctx.con.getRepository(User).findOneByOrFail({
+        id: ctx.userId,
+      });
+
+      if (user.subscriptionFlags?.appAccountToken) {
+        return user.subscriptionFlags.appAccountToken;
+      }
+
+      const token = generateAppAccountToken();
+
+      await ctx.con.getRepository(User).update(
+        { id: ctx.userId },
+        {
+          subscriptionFlags: updateSubscriptionFlags({
+            appAccountToken: token,
+          }),
+        },
+      );
+
+      return token;
     },
   },
   User: {
