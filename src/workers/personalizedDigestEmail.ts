@@ -9,7 +9,6 @@ import {
   UserPersonalizedDigest,
   UserPersonalizedDigestSendType,
   UserPersonalizedDigestType,
-  UserStreak,
 } from '../entity';
 import { messageToJson, Worker, workerToExperimentWorker } from './worker';
 import { DataSource } from 'typeorm';
@@ -24,7 +23,7 @@ import {
 import deepmerge from 'deepmerge';
 import { FastifyBaseLogger } from 'fastify';
 import { sendReadingReminderPush, sendStreakReminderPush } from '../onesignal';
-import { isSameDay } from 'date-fns';
+import { isSameDayInTimezone } from '../common/timezone';
 
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
@@ -166,9 +165,23 @@ const digestTypeToFunctionMap: Record<
       return;
     }
 
-    const userStreak = await con
-      .getRepository(UserStreak)
-      .findOneBy({ userId });
+    const user = await con.getRepository(User).findOne({
+      where: {
+        id: userId,
+      },
+      relations: {
+        streak: true,
+      },
+    });
+
+    if (!user) {
+      logger.debug(
+        `User not found for user ${userId} when sending streak reminder.`,
+      );
+      return;
+    }
+
+    const userStreak = await user.streak;
 
     if (!userStreak) {
       logger.debug(
@@ -179,7 +192,11 @@ const digestTypeToFunctionMap: Record<
 
     if (
       (userStreak.lastViewAt &&
-        isSameDay(currentDate, userStreak.lastViewAt)) ||
+        isSameDayInTimezone(
+          currentDate,
+          userStreak.lastViewAt,
+          user.timezone,
+        )) ||
       userStreak.currentStreak === 0
     ) {
       return;
