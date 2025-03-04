@@ -66,6 +66,7 @@ import { isPlusMember } from '../paddle';
 import { Continent, countryCodeToContinent } from '../common/geo';
 import { getBalance, type GetBalanceResult } from '../common/njord';
 import { remoteConfig } from '../remoteConfig';
+import { logger } from '../logger';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -458,7 +459,6 @@ const getBalanceBoot: typeof getBalance = async ({ ctx }) => {
     if (!remoteConfig.vars.enableBalance) {
       return {
         amount: 0,
-        error: 'Balance is disabled',
       };
     }
 
@@ -466,12 +466,11 @@ const getBalanceBoot: typeof getBalance = async ({ ctx }) => {
 
     return result;
   } catch (originalError) {
-    const error = originalError as Error;
+    logger.debug({ err: originalError }, 'getBalanceBoot error');
 
     // TODO feat/transactions for now ignore any error and return 0 balance
     return {
       amount: 0,
-      error: error.message,
     };
   }
 };
