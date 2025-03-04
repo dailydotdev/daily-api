@@ -1,3 +1,6 @@
+import { formatInTimeZone } from 'date-fns-tz';
+import { DEFAULT_TIMEZONE } from './date';
+
 export interface TimeZoneItem {
   value: string;
   label: string;
@@ -505,4 +508,21 @@ export const TIME_ZONES: TimeZoneItem[] = [
 
 export const validateValidTimeZone = (timeZone?: string): boolean => {
   return TIME_ZONES.some((tz) => tz.value === timeZone);
+};
+
+export const isSameDayInTimezone = (
+  date1: Date,
+  date2: Date,
+  timezone?: string,
+): boolean => {
+  const dateFormat = 'dd-MM-yyyy';
+
+  if (Number.isNaN(date1.getTime()) || Number.isNaN(date2.getTime())) {
+    return false;
+  }
+
+  return (
+    formatInTimeZone(date1, timezone || DEFAULT_TIMEZONE, dateFormat) ===
+    formatInTimeZone(date2, timezone || DEFAULT_TIMEZONE, dateFormat)
+  );
 };
