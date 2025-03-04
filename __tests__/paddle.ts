@@ -67,6 +67,10 @@ const getPricingPreviewData = () => ({
             label: 'Monthly',
             appsId: 'monthly-sub',
           },
+          billingCycle: {
+            interval: 'month',
+            frequency: 1,
+          },
         },
         formattedTotals: {
           total: '$5.00',
@@ -83,12 +87,16 @@ const getPricingPreviewData = () => ({
             label: 'Yearly',
             appsId: 'yearly-sub',
           },
+          billingCycle: {
+            interval: 'year',
+            frequency: 1,
+          },
         },
         formattedTotals: {
-          total: '$50.00',
+          total: '$60.00',
         },
         totals: {
-          total: '50.00',
+          total: '60.00',
         },
       },
     ],
@@ -167,11 +175,21 @@ describe('pricing preview', () => {
         items {
           label
           value
-          price
-          priceUnformatted
+          price {
+            amount
+            formatted
+            monthlyAmount
+            monthlyFormatted
+          }
           currencyCode
+          currencySymbol
           extraLabel
           appsId
+          duration
+          trialPeriod {
+            interval
+            frequency
+          }
         }
       }
     }
@@ -186,8 +204,14 @@ describe('pricing preview', () => {
     const result = await client.query(QUERY);
     expect(result.data.pricePreviews.currencyCode).toBe('USD');
     expect(result.data.pricePreviews.items).toHaveLength(2);
-    expect(result.data.pricePreviews.items[0].price).toBe('$5.00');
-    expect(result.data.pricePreviews.items[1].price).toBe('$50.00');
+    expect(result.data.pricePreviews.items[0].price.formatted).toBe('$5.00');
+    expect(result.data.pricePreviews.items[0].price.monthlyFormatted).toBe(
+      '$5.00',
+    );
+    expect(result.data.pricePreviews.items[1].price.formatted).toBe('$60.00');
+    expect(result.data.pricePreviews.items[1].price.monthlyFormatted).toBe(
+      '$5.00',
+    );
   });
 });
 
