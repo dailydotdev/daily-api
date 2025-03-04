@@ -19,6 +19,7 @@ type RemoteConfigValue = {
   fees: Partial<{
     transfer: number;
   }>;
+  enableBalance: boolean;
 };
 
 class RemoteConfig {
