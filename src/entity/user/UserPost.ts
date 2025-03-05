@@ -10,9 +10,11 @@ import {
 import type { Post } from '../posts';
 import type { User } from './User';
 import { UserVote } from '../../types';
+import type { UserTransaction } from './UserTransaction';
 
 export type UserPostFlags = Partial<{
   feedbackDismiss: boolean;
+  awardId: string;
 }>;
 
 export type UserPostFlagsPublic = Pick<UserPostFlags, 'feedbackDismiss'>;
@@ -57,4 +59,14 @@ export class UserPost {
     onDelete: 'CASCADE',
   })
   user: Promise<User>;
+
+  @Column({ type: 'uuid', nullable: true })
+  @Index({ unique: true })
+  awardTransactionId: string;
+
+  @ManyToOne('UserTransaction', {
+    lazy: true,
+    onDelete: 'SET NULL',
+  })
+  awardTransaction: Promise<UserTransaction>;
 }
