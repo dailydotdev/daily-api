@@ -288,4 +288,8 @@ export class Post {
     },
   )
   public codeSnippets: Promise<PostCodeSnippet[]>;
+
+  @Column({ type: 'integer', default: 0 })
+  @Index('IDX_post_awards')
+  awards: number;
 }
