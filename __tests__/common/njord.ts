@@ -13,6 +13,7 @@ import { ForbiddenError } from 'apollo-server-errors';
 import { UserTransaction } from '../../src/entity/user/UserTransaction';
 import * as redisFile from '../../src/redis';
 import { ioRedisPool } from '../../src/redis';
+import { parseBigInt } from '../../src/common';
 
 let con: DataSource;
 
@@ -118,6 +119,38 @@ describe('transferCores', () => {
 
     expect(transactionAfter.id).toBe(transaction.id);
     expect(transactionAfter).toMatchObject(transaction);
+  });
+
+  it('should update balance cache', async () => {
+    const updateBalanceCacheSpy = jest.spyOn(njordCommon, 'updateBalanceCache');
+
+    const transaction = await njordCommon.createTransaction({
+      ctx: {
+        userId: 't-tc-1',
+      } as unknown as AuthContext,
+      entityManager: con.manager,
+      productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
+      receiverId: 't-tc-2',
+      note: 'Test test!',
+    });
+
+    const result = await njordCommon.transferCores({
+      ctx: {
+        userId: 't-tc-1',
+      } as unknown as AuthContext,
+      transaction,
+    });
+
+    [result.senderBalance, result.receiverBalance].forEach((balance) => {
+      expect(updateBalanceCacheSpy).toHaveBeenCalledWith({
+        ctx: {
+          userId: balance!.account!.userId,
+        },
+        value: {
+          amount: parseBigInt(balance!.newBalance),
+        },
+      });
+    });
   });
 });
 
