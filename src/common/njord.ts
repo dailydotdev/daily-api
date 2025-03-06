@@ -57,111 +57,106 @@ export type TransactionProps = {
   note?: string;
 };
 
-export const createTransaction = async ({
-  ctx,
-  entityManager,
-  productId,
-  receiverId,
-  note,
-}: TransactionProps & {
-  entityManager: EntityManager;
-}): Promise<UserTransaction> => {
-  if (!ctx.userId) {
-    throw new ForbiddenError('Auth is required');
-  }
-
-  const { userId: senderId } = ctx;
-
-  const product = await entityManager.getRepository(Product).findOneByOrFail({
-    id: productId,
-  });
-
-  const userTransaction = entityManager.getRepository(UserTransaction).create({
+export const createTransaction = createAuthProtectedFn(
+  async ({
+    ctx,
+    entityManager,
+    productId,
     receiverId,
-    status: 0, // TODO feat/transactions enum from schema later
-    productId: product.id,
-    senderId,
-    value: product.value,
-    fee: remoteConfig.vars.fees?.transfer || 0,
-    request: ctx.requestMeta,
-    flags: {
-      note,
-    },
-  });
+    note,
+  }: TransactionProps & {
+    entityManager: EntityManager;
+  }): Promise<UserTransaction> => {
+    const { userId: senderId } = ctx;
 
-  const userTransactionResult = await entityManager
-    .getRepository(UserTransaction)
-    .insert(userTransaction);
-
-  userTransaction.id = userTransactionResult.identifiers[0].id as string;
-
-  return userTransaction;
-};
-
-export const transferCores = async ({
-  ctx,
-  transaction,
-}: TransferProps): Promise<TransferResponse> => {
-  if (!ctx.userId) {
-    throw new ForbiddenError('Auth is required');
-  }
-
-  // TODO feat/transactions check if user is team member, remove check when prod is ready
-  if (!ctx.isTeamMember && isProd) {
-    throw new ForbiddenError('Not allowed for you yet');
-  }
-
-  // TODO feat/transactions check if session is valid for real on whoami endpoint
-
-  const njordClient = getNjordClient();
-
-  const transferResult = await garmNjordService.execute(async () => {
-    if (!transaction.id) {
-      throw new Error('No transaction id');
-    }
-
-    if (!transaction.senderId) {
-      throw new Error('No sender id');
-    }
-
-    const result = await njordClient.transfer({
-      transferType: TransferType.TRANSFER,
-      currency: Currency.CORES,
-      idempotencyKey: transaction.id,
-      sender: {
-        id: transaction.senderId,
-        type: EntityType.USER,
-      },
-      receiver: {
-        id: transaction.receiverId,
-        type: EntityType.USER,
-      },
-      amount: transaction.value,
+    const product = await entityManager.getRepository(Product).findOneByOrFail({
+      id: productId,
     });
 
-    await Promise.allSettled([
-      [result.senderBalance, result.receiverBalance].map(
-        async (balanceUpdate) => {
-          await updateBalanceCache({
-            ctx: {
-              // TODO feat/transactions remove !. new transfer response will always have account
-              userId: balanceUpdate!.account!.userId,
-            },
-            value: {
-              amount: parseBigInt(balanceUpdate!.newBalance),
-            },
-          });
+    const userTransaction = entityManager
+      .getRepository(UserTransaction)
+      .create({
+        receiverId,
+        status: 0, // TODO feat/transactions enum from schema later
+        productId: product.id,
+        senderId,
+        value: product.value,
+        fee: remoteConfig.vars.fees?.transfer || 0,
+        request: ctx.requestMeta,
+        flags: {
+          note,
         },
-      ),
-    ]);
+      });
 
-    // TODO feat/transactions error handling
+    const userTransactionResult = await entityManager
+      .getRepository(UserTransaction)
+      .insert(userTransaction);
 
-    return result;
-  });
+    userTransaction.id = userTransactionResult.identifiers[0].id as string;
 
-  return transferResult;
-};
+    return userTransaction;
+  },
+);
+
+export const transferCores = createAuthProtectedFn(
+  async ({ ctx, transaction }: TransferProps): Promise<TransferResponse> => {
+    // TODO feat/transactions check if user is team member, remove check when prod is ready
+    if (!ctx.isTeamMember && isProd) {
+      throw new ForbiddenError('Not allowed for you yet');
+    }
+
+    // TODO feat/transactions check if session is valid for real on whoami endpoint
+
+    const njordClient = getNjordClient();
+
+    const transferResult = await garmNjordService.execute(async () => {
+      if (!transaction.id) {
+        throw new Error('No transaction id');
+      }
+
+      if (!transaction.senderId) {
+        throw new Error('No sender id');
+      }
+
+      const result = await njordClient.transfer({
+        transferType: TransferType.TRANSFER,
+        currency: Currency.CORES,
+        idempotencyKey: transaction.id,
+        sender: {
+          id: transaction.senderId,
+          type: EntityType.USER,
+        },
+        receiver: {
+          id: transaction.receiverId,
+          type: EntityType.USER,
+        },
+        amount: transaction.value,
+      });
+
+      await Promise.allSettled([
+        [result.senderBalance, result.receiverBalance].map(
+          async (balanceUpdate) => {
+            await updateBalanceCache({
+              ctx: {
+                // TODO feat/transactions remove !. new transfer response will always have account
+                userId: balanceUpdate!.account!.userId,
+              },
+              value: {
+                amount: parseBigInt(balanceUpdate!.newBalance),
+              },
+            });
+          },
+        ),
+      ]);
+
+      // TODO feat/transactions error handling
+
+      return result;
+    });
+
+    return transferResult;
+  },
+);
 
 export type GetBalanceProps = {
   ctx: Pick<AuthContext, 'userId'>;
