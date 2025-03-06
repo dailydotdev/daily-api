@@ -62,7 +62,7 @@ export class UserPost {
 
   @Column({ type: 'uuid', nullable: true })
   @Index({ unique: true })
-  awardTransactionId: string;
+  awardTransactionId: string | null;
 
   @ManyToOne('UserTransaction', {
     lazy: true,

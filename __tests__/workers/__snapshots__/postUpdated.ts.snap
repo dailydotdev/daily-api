@@ -3,6 +3,7 @@
 exports[`should save a new post with basic information 1`] = `
 Object {
   "authorId": null,
+  "awards": 0,
   "banned": false,
   "canonicalUrl": "https://post.com",
   "comments": 0,

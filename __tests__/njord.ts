@@ -203,6 +203,7 @@ describe('awardPost mutation', () => {
         type: PostType.Article,
         contentCuration: ['c1', 'c2'],
         authorId: 't-awpm-2',
+        awards: 0,
       },
       {
         id: 'p-awpm-no-author',
@@ -217,6 +218,7 @@ describe('awardPost mutation', () => {
         tagsStr: 'javascript,webdev',
         type: PostType.Article,
         contentCuration: ['c1', 'c2'],
+        awards: 0,
       },
     ]);
 
@@ -383,5 +385,13 @@ describe('awardPost mutation', () => {
     });
 
     expect(transaction.productId).toBe('dd65570f-86c0-40a0-b8a0-3fdbd0d3945d');
+
+    const post = await con.getRepository(ArticlePost).findOneOrFail({
+      where: {
+        id: 'p-awpm-1',
+      },
+    });
+
+    expect(post.awards).toBe(1);
   });
 });
