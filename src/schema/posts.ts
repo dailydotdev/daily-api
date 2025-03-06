@@ -140,7 +140,7 @@ export interface GQLPost {
   bookmarkList?: GQLBookmarkList;
   numUpvotes: number;
   numComments: number;
-  numAwards?: number;
+  numAwards: number;
   deleted?: boolean;
   private: boolean;
   // Used only for pagination (not part of the schema)
