@@ -1,7 +1,11 @@
 import type { AuthContext, BaseContext } from '../Context';
 import type { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
-import { transferCores, type TransferProps } from '../common/njord';
+import {
+  createTransaction,
+  transferCores,
+  type TransactionProps,
+} from '../common/njord';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { Product, ProductType } from '../entity/Product';
 import { ForbiddenError } from 'apollo-server-errors';
@@ -9,9 +13,12 @@ import { Post } from '../entity/posts/Post';
 import { UserPost } from '../entity';
 import { ConflictError } from '../errors';
 
-type UserAwardInput = Pick<TransferProps, 'productId' | 'receiverId' | 'note'>;
+type UserAwardInput = Pick<
+  TransactionProps,
+  'productId' | 'receiverId' | 'note'
+>;
 
-type PostAwardInput = Pick<TransferProps, 'productId' | 'note'> & {
+type PostAwardInput = Pick<TransactionProps, 'productId' | 'note'> & {
   postId: string;
 };
 
@@ -69,18 +76,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   BaseContext
 >({
   Mutation: {
-    awardUser: async (
-      _,
-      { productId, receiverId, note }: UserAwardInput,
-      ctx: AuthContext,
-    ) => {
-      const product = await queryReadReplica<Pick<Product, 'type'>>(
+    awardUser: async (_, props: UserAwardInput, ctx: AuthContext) => {
+      const product = await queryReadReplica<Pick<Product, 'id' | 'type'>>(
         ctx.con,
         async ({ queryRunner }) => {
           return queryRunner.manager.getRepository(Product).findOneOrFail({
-            select: ['type'],
+            select: ['id', 'type'],
             where: {
-              id: productId,
+              id: props.productId,
             },
           });
         },
@@ -90,47 +93,53 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ForbiddenError('Can not gift this product');
       }
 
-      await transferCores({
-        ctx,
-        receiverId,
-        productId,
-        note,
+      await ctx.con.transaction(async (entityManager) => {
+        const { receiverId, note } = props;
+
+        const transaction = await createTransaction({
+          ctx,
+          entityManager,
+          productId: product.id,
+          receiverId,
+          note,
+        });
+
+        await transferCores({
+          ctx,
+          transaction,
+        });
       });
 
       return { _: true };
     },
-    awardPost: async (
-      _,
-      { productId, postId, note }: PostAwardInput,
-      ctx: AuthContext,
-    ) => {
+    awardPost: async (_, props: PostAwardInput, ctx: AuthContext) => {
       // TODO add @auth directive
       ctx.req.userId = '5GHEUpildSXvvbOdcfing';
 
       const [product, post, userPost] = await queryReadReplica<
         [
-          Pick<Product, 'type'>,
+          Pick<Product, 'id' | 'type'>,
           Pick<Post, 'id' | 'authorId'>,
           Pick<UserPost, 'awardTransactionId'> | null,
         ]
       >(ctx.con, async ({ queryRunner }) => {
         return Promise.all([
           queryRunner.manager.getRepository(Product).findOneOrFail({
-            select: ['type'],
+            select: ['id', 'type'],
             where: {
-              id: productId,
+              id: props.productId,
             },
           }),
           queryRunner.manager.getRepository(Post).findOneOrFail({
             select: ['id', 'authorId'],
             where: {
-              id: postId,
+              id: props.postId,
             },
           }),
           queryRunner.manager.getRepository(UserPost).findOne({
             select: ['awardTransactionId'],
             where: {
-              postId,
+              postId: props.postId,
               userId: ctx.userId,
             },
           }),
@@ -141,42 +150,52 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ForbiddenError('Can not gift this product');
       }
 
-      if (!post.authorId) {
-        throw new ConflictError('Post does not have an author');
-      }
-
       if (userPost?.awardTransactionId) {
         throw new ConflictError('Post already awarded');
       }
 
-      const transaction = await transferCores({
-        ctx,
-        receiverId: post.authorId,
-        productId,
-        note,
+      await ctx.con.transaction(async (entityManager) => {
+        if (!post.authorId) {
+          throw new ConflictError('Post does not have an author');
+        }
+
+        const { note } = props;
+
+        const transaction = await createTransaction({
+          ctx,
+          entityManager,
+          productId: product.id,
+          receiverId: post.authorId,
+          note,
+        });
+
+        if (!transaction.productId) {
+          throw new Error('Product missing from transaction');
+        }
+
+        await entityManager
+          .getRepository(UserPost)
+          .createQueryBuilder()
+          .insert()
+          .into(UserPost)
+          .values({
+            postId: post.id,
+            userId: ctx.userId,
+            awardTransactionId: transaction.id,
+            flags: {
+              awardId: transaction.productId,
+            },
+          })
+          .onConflict(
+            `("postId", "userId") DO UPDATE SET "awardTransactionId" = EXCLUDED."awardTransactionId", "flags" = user_post.flags || EXCLUDED."flags"`,
+          )
+          .execute();
+
+        await transferCores({
+          ctx,
+          transaction,
+        });
       });
-
-      if (!transaction.productId) {
-        throw new Error('Product missing from transaction');
-      }
-
-      await ctx.con
-        .getRepository(UserPost)
-        .createQueryBuilder()
-        .insert()
-        .into(UserPost)
-        .values({
-          postId: post.id,
-          userId: ctx.userId,
-          awardTransactionId: transaction.id,
-          flags: {
-            awardId: transaction.productId,
-          },
-        })
-        .onConflict(
-          `("postId", "userId") DO UPDATE SET "awardTransactionId" = EXCLUDED."awardTransactionId", "flags" = user_post.flags || EXCLUDED."flags"`,
-        )
-        .execute();
 
       return { _: true };
     },
