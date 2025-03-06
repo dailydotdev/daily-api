@@ -1,10 +1,11 @@
 import type { CountryCode } from '@paddle/paddle-node-sdk';
-import type { BaseContext } from '../Context';
+import type { AuthContext } from '../Context';
 import { getPriceFromPaddleItem, paddleInstance } from '../common/paddle';
-import { remoteConfig } from '../remoteConfig';
 import type { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { SubscriptionCycles } from '../paddle';
+import { getUserGrowthBookInstace } from '../growthbook';
+import { User } from '../entity';
 
 export const typeDefs = /* GraphQL */ `
   """
@@ -109,21 +110,37 @@ export interface GQLCustomData {
   label: string;
 }
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
+export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
   unknown,
-  BaseContext
+  AuthContext
 >({
   Query: {
-    pricePreviews: async (_, __, ctx: BaseContext) => {
+    pricePreviews: async (_, __, ctx: AuthContext) => {
       const region = ctx.region;
 
+      const user = await ctx.con.getRepository(User).findOneOrFail({
+        where: { id: ctx.userId },
+        select: {
+          createdAt: true,
+        },
+      });
+
+      const growthbookClient = getUserGrowthBookInstace(ctx.userId, {
+        enableDevMode: process.env.NODE_ENV !== 'production',
+        subscribeToChanges: false,
+        attributes: {
+          registrationDate: user.createdAt.toISOString(),
+        },
+      });
+
+      const featureValue: Record<string, string> =
+        growthbookClient.getFeatureValue('pricing_ids', {});
+
       const pricePreview = await paddleInstance?.pricingPreview.preview({
-        items: Object.keys(remoteConfig.vars?.pricingIds || {}).map(
-          (priceId) => ({
-            priceId,
-            quantity: 1,
-          }),
-        ),
+        items: Object.keys(featureValue).map((priceId) => ({
+          priceId,
+          quantity: 1,
+        })),
         address: region ? { countryCode: region as CountryCode } : undefined,
       });
 
