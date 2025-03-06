@@ -429,6 +429,9 @@ const obj = new GraphORM({
       numComments: {
         select: 'comments',
       },
+      numAwards: {
+        select: 'awards',
+      },
       publication: {
         alias: { field: 'source', type: 'Source' },
       },
