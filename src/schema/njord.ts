@@ -22,7 +22,18 @@ type PostAwardInput = Pick<TransactionProps, 'productId' | 'note'> & {
   postId: string;
 };
 
+type TransactionCreated = {
+  transactionId: string;
+};
+
 export const typeDefs = /* GraphQL */ `
+  type TransactionCreated {
+    """
+    Id of the transaction
+    """
+    transactionId: ID!
+  }
+
   extend type Mutation {
     """
     Award user
@@ -42,7 +53,7 @@ export const typeDefs = /* GraphQL */ `
       Note for the receiver
       """
       note: String
-    ): EmptyResponse @auth
+    ): TransactionCreated @auth
 
     """
     Award post author
@@ -62,7 +73,7 @@ export const typeDefs = /* GraphQL */ `
       Note for the receiver
       """
       note: String
-    ): EmptyResponse
+    ): TransactionCreated @auth
   }
 `;
 
@@ -76,7 +87,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   BaseContext
 >({
   Mutation: {
-    awardUser: async (_, props: UserAwardInput, ctx: AuthContext) => {
+    awardUser: async (
+      _,
+      props: UserAwardInput,
+      ctx: AuthContext,
+    ): Promise<TransactionCreated> => {
       const product = await queryReadReplica<Pick<Product, 'id' | 'type'>>(
         ctx.con,
         async ({ queryRunner }) => {
@@ -93,7 +108,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ForbiddenError('Can not gift this product');
       }
 
-      await ctx.con.transaction(async (entityManager) => {
+      const transaction = await ctx.con.transaction(async (entityManager) => {
         const { receiverId, note } = props;
 
         const transaction = await createTransaction({
@@ -108,14 +123,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           ctx,
           transaction,
         });
+
+        return transaction;
       });
 
-      return { _: true };
+      return {
+        transactionId: transaction.id,
+      };
     },
-    awardPost: async (_, props: PostAwardInput, ctx: AuthContext) => {
-      // TODO add @auth directive
-      ctx.req.userId = '5GHEUpildSXvvbOdcfing';
-
+    awardPost: async (
+      _,
+      props: PostAwardInput,
+      ctx: AuthContext,
+    ): Promise<TransactionCreated> => {
       const [product, post, userPost] = await queryReadReplica<
         [
           Pick<Product, 'id' | 'type'>,
@@ -154,7 +174,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ConflictError('Post already awarded');
       }
 
-      await ctx.con.transaction(async (entityManager) => {
+      const transaction = await ctx.con.transaction(async (entityManager) => {
         if (!post.authorId) {
           throw new ConflictError('Post does not have an author');
         }
@@ -195,9 +215,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           ctx,
           transaction,
         });
+
+        return transaction;
       });
 
-      return { _: true };
+      return {
+        transactionId: transaction.id,
+      };
     },
   },
 });

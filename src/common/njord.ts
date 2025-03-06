@@ -46,7 +46,7 @@ export const getNjordClient = (clientTransport = transport) => {
 };
 
 export type TransferProps = {
-  ctx: Omit<AuthContext, 'con'>;
+  ctx: Pick<AuthContext, 'userId' | 'isTeamMember'>;
   transaction: UserTransaction;
 };
 
