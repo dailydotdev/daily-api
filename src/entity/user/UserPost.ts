@@ -24,6 +24,10 @@ export type UserPostFlagsPublic = Pick<UserPostFlags, 'feedbackDismiss'>;
 @Index(['userId', 'vote', 'votedAt'])
 @Index('IDX_user_post_postid_userid_hidden', ['postId', 'userId', 'hidden'])
 export class UserPost {
+  get awarded(): boolean {
+    return !!this.awardTransactionId;
+  }
+
   @PrimaryColumn({ type: 'text' })
   postId: string;
 

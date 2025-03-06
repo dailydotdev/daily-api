@@ -90,6 +90,7 @@ import {
   ContentPreferenceType,
 } from '../src/entity/contentPreference/types';
 import { ContentPreference } from '../src/entity/contentPreference/ContentPreference';
+import { UserTransaction } from '../src/entity/user/UserTransaction';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -5122,6 +5123,7 @@ describe('userState field', () => {
         flags {
           feedbackDismiss
         }
+        awarded
       }
     }
   }`;
@@ -5139,6 +5141,7 @@ describe('userState field', () => {
       vote,
       hidden,
       flags,
+      awarded: false,
     });
   });
 
@@ -5156,6 +5159,36 @@ describe('userState field', () => {
       vote: UserVote.Up,
       hidden: true,
       flags: { feedbackDismiss: false },
+      awarded: false,
+    });
+  });
+
+  it('should return awarded state', async () => {
+    loggedUser = '1';
+
+    const transaction = await con.getRepository(UserTransaction).save({
+      receiverId: '1',
+      status: 0,
+      productId: null,
+      senderId: '1',
+      fee: 0,
+      value: 100,
+    });
+
+    await con.getRepository(UserPost).save({
+      postId: 'p1',
+      userId: loggedUser,
+      vote: UserVote.Up,
+      hidden: true,
+      flags: { feedbackDismiss: false },
+      awardTransactionId: transaction.id,
+    });
+    const res = await client.query(QUERY);
+    expect(res.data.post.userState).toMatchObject({
+      vote: UserVote.Up,
+      hidden: true,
+      flags: { feedbackDismiss: false },
+      awarded: true,
     });
   });
 });

@@ -201,6 +201,7 @@ export interface GQLUserPost {
   hidden: boolean;
   flags?: UserPostFlagsPublic;
   votedAt: Date | null;
+  awarded: boolean;
 }
 
 export interface GQLPostUpvoteArgs extends ConnectionArguments {
@@ -392,6 +393,8 @@ export const typeDefs = /* GraphQL */ `
     user: User!
 
     post: Post!
+
+    awarded: Boolean!
   }
 
   type PostTranslation {
