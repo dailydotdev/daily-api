@@ -12,6 +12,7 @@ import { ForbiddenError } from 'apollo-server-errors';
 import { Post } from '../entity/posts/Post';
 import { UserPost } from '../entity';
 import { ConflictError } from '../errors';
+import { isSpecialUser } from '../common';
 
 type UserAwardInput = Pick<
   TransactionProps,
@@ -24,6 +25,22 @@ type PostAwardInput = Pick<TransactionProps, 'productId' | 'note'> & {
 
 type TransactionCreated = {
   transactionId: string;
+};
+
+const canAward = async ({
+  ctx,
+  receiverId,
+}: {
+  ctx: AuthContext;
+  receiverId?: string | null;
+}): Promise<void> => {
+  if (ctx.userId === receiverId) {
+    throw new ForbiddenError('Can not award yourself');
+  }
+
+  if (isSpecialUser({ userId: receiverId })) {
+    throw new ForbiddenError('Can not award this user');
+  }
 };
 
 export const typeDefs = /* GraphQL */ `
@@ -92,6 +109,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       props: UserAwardInput,
       ctx: AuthContext,
     ): Promise<TransactionCreated> => {
+      await canAward({ ctx, ...props });
+
       const product = await queryReadReplica<Pick<Product, 'id' | 'type'>>(
         ctx.con,
         async ({ queryRunner }) => {
@@ -105,7 +124,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       );
 
       if (product.type !== ProductType.Award) {
-        throw new ForbiddenError('Can not gift this product');
+        throw new ForbiddenError('Can not award this product');
       }
 
       const transaction = await ctx.con.transaction(async (entityManager) => {
@@ -166,8 +185,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ]);
       });
 
+      await canAward({ ctx, receiverId: post.authorId });
+
       if (product.type !== ProductType.Award) {
-        throw new ForbiddenError('Can not gift this product');
+        throw new ForbiddenError('Can not award this product');
       }
 
       if (userPost?.awardTransactionId) {

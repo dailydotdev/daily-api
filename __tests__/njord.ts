@@ -19,6 +19,7 @@ import { createClient, createRouterTransport } from '@connectrpc/connect';
 import { Credits, Currency } from '@dailydotdev/schema';
 import * as njordCommon from '../src/common/njord';
 import { UserTransaction } from '../src/entity/user/UserTransaction';
+import { ghostUser } from '../src/common';
 
 const mockTransport = createRouterTransport(({ service }) => {
   service(Credits, {
@@ -128,6 +129,40 @@ describe('awardUser mutation', () => {
     );
   });
 
+  it('should throw if awarding yourself', async () => {
+    loggedUser = 't-awum-2';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
+          receiverId: 't-awum-2',
+          note: 'Test test!',
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw if awarding special user', async () => {
+    loggedUser = 't-awum-2';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
+          receiverId: ghostUser.id,
+          note: 'Test test!',
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
   it('should award user', async () => {
     loggedUser = 't-awum-1';
 
@@ -220,6 +255,22 @@ describe('awardPost mutation', () => {
         contentCuration: ['c1', 'c2'],
         awards: 0,
       },
+      {
+        id: 'p-awpm-special-user',
+        shortId: 'sp-awpm-spu',
+        title: 'P-AWPM-NO-AUTHOR',
+        url: 'http://p-awpm-spu.com',
+        canonicalUrl: 'http://p-awpm-spu-c.com',
+        image: 'https://daily.dev/image.jpg',
+        score: 1,
+        sourceId: 's-awpm-a',
+        createdAt: new Date(),
+        tagsStr: 'javascript,webdev',
+        type: PostType.Article,
+        contentCuration: ['c1', 'c2'],
+        awards: 0,
+        authorId: ghostUser.id,
+      },
     ]);
 
     await saveFixtures(con, Product, [
@@ -263,6 +314,40 @@ describe('awardPost mutation', () => {
         },
       },
       'UNAUTHENTICATED',
+    );
+  });
+
+  it('should throw if awarding yourself', async () => {
+    loggedUser = 't-awpm-2';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
+          postId: 'p-awpm-1',
+          note: 'Test test!',
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw if awarding special user', async () => {
+    loggedUser = 't-awpm-2';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
+          postId: 'p-awpm-special-user',
+          note: 'Test test!',
+        },
+      },
+      'FORBIDDEN',
     );
   });
 

@@ -251,3 +251,11 @@ export const parseBigInt = (value: bigint): number => {
     throw error;
   }
 };
+
+export const isSpecialUser = ({
+  userId,
+}: {
+  userId?: string | null;
+}): boolean => {
+  return !!userId && [ghostUser.id, systemUser.id].includes(userId);
+};
