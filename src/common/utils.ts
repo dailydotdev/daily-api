@@ -20,6 +20,13 @@ export const deletedPost = {
   id: '404',
 };
 
+// TODO feat/transactions not created yet on db side
+export const systemUser = {
+  id: 'system',
+  username: 'system',
+  name: 'System',
+};
+
 interface GetTimezonedIsoWeekProps {
   date: Date;
   timezone: string;

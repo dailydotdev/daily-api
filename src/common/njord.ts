@@ -24,6 +24,8 @@ import { NjordErrorMessages } from '../errors';
 import { GarmrService } from '../integrations/garmr';
 import { BrokenCircuitError } from 'cockatiel';
 import type { EntityManager } from 'typeorm';
+import { Product } from '../entity/Product';
+import { remoteConfig } from '../remoteConfig';
 
 const transport = createGrpcTransport({
   baseUrl: process.env.NJORD_ORIGIN,
@@ -70,13 +72,17 @@ export const createTransaction = async ({
 
   const { userId: senderId } = ctx;
 
+  const product = await entityManager.getRepository(Product).findOneByOrFail({
+    id: productId,
+  });
+
   const userTransaction = entityManager.getRepository(UserTransaction).create({
     receiverId,
     status: 0, // TODO feat/transactions enum from schema later
-    productId,
+    productId: product.id,
     senderId,
-    value: 0,
-    fee: 0,
+    value: product.value,
+    fee: remoteConfig.vars.fees?.transfer || 0,
     request: ctx.requestMeta,
     flags: {
       note,
@@ -133,8 +139,23 @@ export const transferCores = async ({
       amount: transaction.value,
     });
 
+    await Promise.allSettled([
+      [result.senderBalance, result.receiverBalance].map(
+        async (balanceUpdate) => {
+          await updateBalanceCache({
+            ctx: {
+              // TODO feat/transactions remove !. new transfer response will always have account
+              userId: balanceUpdate!.account!.userId,
+            },
+            value: {
+              amount: parseBigInt(balanceUpdate!.newBalance),
+            },
+          });
+        },
+      ),
+    ]);
+
     // TODO feat/transactions error handling
-    // TODO feat/transactions update users balance
 
     return result;
   });
