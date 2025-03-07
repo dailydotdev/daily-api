@@ -279,6 +279,7 @@ export type AwardInput = Pick<TransactionProps, 'productId' | 'note'> & {
 
 export type TransactionCreated = {
   transactionId: string;
+  balance: GetBalanceResult;
 };
 
 const canAward = async ({
@@ -319,27 +320,32 @@ export const awardUser = async (
     throw new ForbiddenError('Can not award this product');
   }
 
-  const transaction = await ctx.con.transaction(async (entityManager) => {
-    const { entityId: receiverId, note } = props;
+  const { transaction, transfer } = await ctx.con.transaction(
+    async (entityManager) => {
+      const { entityId: receiverId, note } = props;
 
-    const transaction = await createTransaction({
-      ctx,
-      entityManager,
-      productId: product.id,
-      receiverId,
-      note,
-    });
+      const transaction = await createTransaction({
+        ctx,
+        entityManager,
+        productId: product.id,
+        receiverId,
+        note,
+      });
 
-    await transferCores({
-      ctx,
-      transaction,
-    });
+      const transfer = await transferCores({
+        ctx,
+        transaction,
+      });
 
-    return transaction;
-  });
+      return { transaction, transfer };
+    },
+  );
 
   return {
     transactionId: transaction.id,
+    balance: {
+      amount: parseBigInt(transfer.senderBalance!.newBalance),
+    },
   };
 };
 
@@ -387,52 +393,57 @@ export const awardPost = async (
     throw new ConflictError('Post already awarded');
   }
 
-  const transaction = await ctx.con.transaction(async (entityManager) => {
-    if (!post.authorId) {
-      throw new ConflictError('Post does not have an author');
-    }
+  const { transaction, transfer } = await ctx.con.transaction(
+    async (entityManager) => {
+      if (!post.authorId) {
+        throw new ConflictError('Post does not have an author');
+      }
 
-    const { note } = props;
+      const { note } = props;
 
-    const transaction = await createTransaction({
-      ctx,
-      entityManager,
-      productId: product.id,
-      receiverId: post.authorId,
-      note,
-    });
+      const transaction = await createTransaction({
+        ctx,
+        entityManager,
+        productId: product.id,
+        receiverId: post.authorId,
+        note,
+      });
 
-    if (!transaction.productId) {
-      throw new Error('Product missing from transaction');
-    }
+      if (!transaction.productId) {
+        throw new Error('Product missing from transaction');
+      }
 
-    await entityManager
-      .getRepository(UserPost)
-      .createQueryBuilder()
-      .insert()
-      .into(UserPost)
-      .values({
-        postId: post.id,
-        userId: ctx.userId,
-        awardTransactionId: transaction.id,
-        flags: {
-          awardId: transaction.productId,
-        },
-      })
-      .onConflict(
-        `("postId", "userId") DO UPDATE SET "awardTransactionId" = EXCLUDED."awardTransactionId", "flags" = user_post.flags || EXCLUDED."flags"`,
-      )
-      .execute();
+      await entityManager
+        .getRepository(UserPost)
+        .createQueryBuilder()
+        .insert()
+        .into(UserPost)
+        .values({
+          postId: post.id,
+          userId: ctx.userId,
+          awardTransactionId: transaction.id,
+          flags: {
+            awardId: transaction.productId,
+          },
+        })
+        .onConflict(
+          `("postId", "userId") DO UPDATE SET "awardTransactionId" = EXCLUDED."awardTransactionId", "flags" = user_post.flags || EXCLUDED."flags"`,
+        )
+        .execute();
 
-    await transferCores({
-      ctx,
-      transaction,
-    });
+      const transfer = await transferCores({
+        ctx,
+        transaction,
+      });
 
-    return transaction;
-  });
+      return { transaction, transfer };
+    },
+  );
 
   return {
     transactionId: transaction.id,
+    balance: {
+      amount: parseBigInt(transfer.senderBalance!.newBalance),
+    },
   };
 };

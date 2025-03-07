@@ -1012,6 +1012,13 @@ const obj = new GraphORM({
       },
     },
   },
+  Product: {
+    fields: {
+      flags: {
+        jsonType: true,
+      },
+    },
+  },
 });
 
 export default obj;
