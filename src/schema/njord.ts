@@ -1,34 +1,52 @@
 import type { AuthContext, BaseContext } from '../Context';
 import type { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
-import { transferCores, type TransferProps } from '../common/njord';
-import { queryReadReplica } from '../common/queryReadReplica';
-import { Product, ProductType } from '../entity/Product';
-import { ForbiddenError } from 'apollo-server-errors';
-
-type AwardInput = Pick<TransferProps, 'productId' | 'receiverId' | 'note'>;
+import {
+  awardPost,
+  AwardType,
+  awardUser,
+  type AwardInput,
+  type TransactionCreated,
+} from '../common/njord';
+import { ForbiddenError, ValidationError } from 'apollo-server-errors';
+import { toGQLEnum } from '../common';
+import { z } from 'zod';
 
 export const typeDefs = /* GraphQL */ `
+  ${toGQLEnum(AwardType, 'AwardType')}
+
+  type TransactionCreated {
+    """
+    Id of the transaction
+    """
+    transactionId: ID!
+  }
+
   extend type Mutation {
     """
-    Award user
+    Award entity (post, comment, user etc.)
     """
-    awardUser(
+    award(
       """
       Id of the product to award
       """
       productId: ID!
 
       """
-      Id of the user which will get the award
+      Entity type to award
       """
-      receiverId: ID!
+      type: AwardType!
+
+      """
+      Id of the post to award
+      """
+      entityId: ID!
 
       """
       Note for the receiver
       """
       note: String
-    ): EmptyResponse @auth
+    ): TransactionCreated @auth
   }
 `;
 
@@ -42,35 +60,36 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   BaseContext
 >({
   Mutation: {
-    awardUser: async (
-      _,
-      { productId, receiverId, note }: AwardInput,
+    award: async (
+      _: unknown,
+      props: AwardInput,
       ctx: AuthContext,
-    ) => {
-      const product = await queryReadReplica<Pick<Product, 'type'>>(
-        ctx.con,
-        async ({ queryRunner }) => {
-          return queryRunner.manager.getRepository(Product).findOneOrFail({
-            select: ['type'],
-            where: {
-              id: productId,
-            },
-          });
-        },
-      );
+    ): Promise<TransactionCreated> => {
+      const validationSchema = z.object({
+        productId: z.string().uuid('Invalid product id provided'),
+        note: z.preprocess(
+          (value) => (value as string)?.replace(/[‎\s]+/g, ' '),
+          z
+            .string()
+            .trim()
+            .max(400, 'That is a big note, try to keep it under 400 characters')
+            .optional(),
+        ),
+      });
+      const result = validationSchema.safeParse(props);
 
-      if (product.type !== ProductType.Award) {
-        throw new ForbiddenError('Can not gift this product');
+      if (result.error) {
+        throw new ValidationError(result.error.errors[0].message);
       }
 
-      await transferCores({
-        ctx,
-        receiverId,
-        productId,
-        note,
-      });
-
-      return { _: true };
+      switch (props.type) {
+        case AwardType.Post:
+          return awardPost(props, ctx);
+        case AwardType.User:
+          return awardUser(props, ctx);
+        default:
+          throw new ForbiddenError('Can not award this entity');
+      }
     },
   },
 });

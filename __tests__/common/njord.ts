@@ -13,6 +13,7 @@ import { ForbiddenError } from 'apollo-server-errors';
 import { UserTransaction } from '../../src/entity/user/UserTransaction';
 import * as redisFile from '../../src/redis';
 import { ioRedisPool } from '../../src/redis';
+import { parseBigInt } from '../../src/common';
 
 let con: DataSource;
 
@@ -69,30 +70,35 @@ describe('transferCores', () => {
 
   it('should throw if not auth context', async () => {
     await expect(
-      njordCommon.transferCores({
-        ctx: {
-          con,
-          userId: undefined,
-        } as unknown as AuthContext,
-        productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
-        receiverId: 't-tc-2',
-        note: 'Test test!',
-      }),
+      async () =>
+        await njordCommon.transferCores({
+          ctx: {
+            userId: undefined,
+          } as unknown as AuthContext,
+          transaction: con.getRepository(UserTransaction).create({}),
+        }),
     ).rejects.toThrow(new ForbiddenError('Auth is required'));
   });
 
   it('should transfer cores', async () => {
-    const result = await njordCommon.transferCores({
+    const transaction = await njordCommon.createTransaction({
       ctx: {
-        con,
         userId: 't-tc-1',
       } as unknown as AuthContext,
+      entityManager: con.manager,
       productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
       receiverId: 't-tc-2',
       note: 'Test test!',
     });
 
-    expect(result).toMatchObject({
+    await njordCommon.transferCores({
+      ctx: {
+        userId: 't-tc-1',
+      } as unknown as AuthContext,
+      transaction,
+    });
+
+    expect(transaction).toMatchObject({
       id: expect.any(String),
       receiverId: 't-tc-2',
       status: 0,
@@ -105,14 +111,46 @@ describe('transferCores', () => {
       flags: {},
     } as UserTransaction);
 
-    const transaction = await con
+    const transactionAfter = await con
       .getRepository(UserTransaction)
       .findOneByOrFail({
-        id: result.id,
+        id: transaction.id,
       });
 
-    expect(transaction.id).toBe(result.id);
-    expect(transaction).toMatchObject(result);
+    expect(transactionAfter.id).toBe(transaction.id);
+    expect(transactionAfter).toMatchObject(transaction);
+  });
+
+  it('should update balance cache', async () => {
+    const updateBalanceCacheSpy = jest.spyOn(njordCommon, 'updateBalanceCache');
+
+    const transaction = await njordCommon.createTransaction({
+      ctx: {
+        userId: 't-tc-1',
+      } as unknown as AuthContext,
+      entityManager: con.manager,
+      productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
+      receiverId: 't-tc-2',
+      note: 'Test test!',
+    });
+
+    const result = await njordCommon.transferCores({
+      ctx: {
+        userId: 't-tc-1',
+      } as unknown as AuthContext,
+      transaction,
+    });
+
+    [result.senderBalance, result.receiverBalance].forEach((balance) => {
+      expect(updateBalanceCacheSpy).toHaveBeenCalledWith({
+        ctx: {
+          userId: balance!.account!.userId,
+        },
+        value: {
+          amount: parseBigInt(balance!.newBalance),
+        },
+      });
+    });
   });
 });
 
