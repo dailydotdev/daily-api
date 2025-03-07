@@ -69,6 +69,9 @@ describe('award user mutation', () => {
   mutation award($productId: ID!, $entityId: ID!, $note: String) {
     award(productId: $productId, type: USER, entityId: $entityId, note: $note) {
       transactionId
+      balance {
+        amount
+      }
     }
   }
 `;
@@ -180,7 +183,10 @@ describe('award user mutation', () => {
     expect(res.errors).toBeUndefined();
 
     expect(res.data).toEqual({
-      award: { transactionId: expect.any(String) },
+      award: {
+        transactionId: expect.any(String),
+        balance: { amount: expect.any(Number) },
+      },
     });
   });
 });
@@ -190,6 +196,9 @@ describe('award post mutation', () => {
   mutation award($productId: ID!, $entityId: ID!, $note: String) {
     award(productId: $productId, type: POST, entityId: $entityId, note: $note) {
       transactionId
+      balance {
+        amount
+      }
     }
   }
 `;
@@ -448,7 +457,10 @@ describe('award post mutation', () => {
     expect(res.errors).toBeUndefined();
 
     expect(res.data).toEqual({
-      award: { transactionId: expect.any(String) },
+      award: {
+        transactionId: expect.any(String),
+        balance: { amount: expect.any(Number) },
+      },
     });
 
     const { transactionId } = res.data.award;

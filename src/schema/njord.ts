@@ -24,11 +24,20 @@ export type GQLProduct = Pick<
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(AwardType, 'AwardType')}
 
+  type UserBalance {
+    amount: Int!
+  }
+
   type TransactionCreated {
     """
     Id of the transaction
     """
     transactionId: ID!
+
+    """
+    Balance of the user
+    """
+    balance: UserBalance!
   }
 
   type ProductFlagsPublic {
