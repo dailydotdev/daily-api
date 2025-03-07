@@ -8,8 +8,9 @@ import {
   type AwardInput,
   type TransactionCreated,
 } from '../common/njord';
-import { ForbiddenError } from 'apollo-server-errors';
+import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { toGQLEnum } from '../common';
+import { z } from 'zod';
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(AwardType, 'AwardType')}
@@ -64,6 +65,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       props: AwardInput,
       ctx: AuthContext,
     ): Promise<TransactionCreated> => {
+      const validationSchema = z.object({
+        productId: z.string().uuid('Invalid product id provided'),
+        note: z.preprocess(
+          (value) => (value as string)?.replace(/[‎\s]+/g, ' '),
+          z
+            .string()
+            .trim()
+            .max(400, 'That is a big note, try to keep it under 400 characters')
+            .optional(),
+        ),
+      });
+      const result = validationSchema.safeParse(props);
+
+      if (result.error) {
+        throw new ValidationError(result.error.errors[0].message);
+      }
+
       switch (props.type) {
         case AwardType.Post:
           return awardPost(props, ctx);
