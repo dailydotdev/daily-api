@@ -64,10 +64,10 @@ beforeEach(() => {
   loggedUser = null;
 });
 
-describe('awardUser mutation', () => {
+describe('award user mutation', () => {
   const MUTATION = `
-  mutation awardUser ($productId: ID!, $receiverId: ID!, $note: String) {
-    awardUser(productId: $productId, receiverId: $receiverId, note: $note) {
+  mutation award($productId: ID!, $entityId: ID!, $note: String) {
+    award(productId: $productId, type: USER, entityId: $entityId, note: $note) {
       transactionId
     }
   }
@@ -121,7 +121,7 @@ describe('awardUser mutation', () => {
         mutation: MUTATION,
         variables: {
           productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
-          receiverId: 't-awum-2',
+          entityId: 't-awum-2',
           note: 'Test test!',
         },
       },
@@ -138,7 +138,7 @@ describe('awardUser mutation', () => {
         mutation: MUTATION,
         variables: {
           productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
-          receiverId: 't-awum-2',
+          entityId: 't-awum-2',
           note: 'Test test!',
         },
       },
@@ -155,7 +155,7 @@ describe('awardUser mutation', () => {
         mutation: MUTATION,
         variables: {
           productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
-          receiverId: ghostUser.id,
+          entityId: ghostUser.id,
           note: 'Test test!',
         },
       },
@@ -173,22 +173,22 @@ describe('awardUser mutation', () => {
     const res = await client.mutate(MUTATION, {
       variables: {
         productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
-        receiverId: 't-awum-2',
+        entityId: 't-awum-2',
         note: 'Test test!',
       },
     });
     expect(res.errors).toBeUndefined();
 
     expect(res.data).toEqual({
-      awardUser: { transactionId: expect.any(String) },
+      award: { transactionId: expect.any(String) },
     });
   });
 });
 
-describe('awardPost mutation', () => {
+describe('award post mutation', () => {
   const MUTATION = `
-  mutation awardPost ($productId: ID!, $postId: ID!, $note: String) {
-    awardPost(productId: $productId, postId: $postId, note: $note) {
+  mutation award($productId: ID!, $entityId: ID!, $note: String) {
+    award(productId: $productId, type: POST, entityId: $entityId, note: $note) {
       transactionId
     }
   }
@@ -309,7 +309,7 @@ describe('awardPost mutation', () => {
         mutation: MUTATION,
         variables: {
           productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
-          postId: 'p-awpm-1',
+          entityId: 'p-awpm-1',
           note: 'Test test!',
         },
       },
@@ -326,7 +326,7 @@ describe('awardPost mutation', () => {
         mutation: MUTATION,
         variables: {
           productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
-          postId: 'p-awpm-1',
+          entityId: 'p-awpm-1',
           note: 'Test test!',
         },
       },
@@ -343,7 +343,7 @@ describe('awardPost mutation', () => {
         mutation: MUTATION,
         variables: {
           productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
-          postId: 'p-awpm-special-user',
+          entityId: 'p-awpm-special-user',
           note: 'Test test!',
         },
       },
@@ -360,7 +360,7 @@ describe('awardPost mutation', () => {
         mutation: MUTATION,
         variables: {
           productId: 'd6129095-38cc-468e-aed9-7884fc07c349',
-          postId: 'p-awpm-1',
+          entityId: 'p-awpm-1',
           note: 'Test test!',
         },
       },
@@ -377,7 +377,7 @@ describe('awardPost mutation', () => {
         mutation: MUTATION,
         variables: {
           productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
-          postId: 'does-not-exist',
+          entityId: 'does-not-exist',
           note: 'Test test!',
         },
       },
@@ -394,7 +394,7 @@ describe('awardPost mutation', () => {
         mutation: MUTATION,
         variables: {
           productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
-          postId: 'p-awpm-no-author',
+          entityId: 'p-awpm-no-author',
           note: 'Test test!',
         },
       },
@@ -427,7 +427,7 @@ describe('awardPost mutation', () => {
         mutation: MUTATION,
         variables: {
           productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
-          postId: 'p-awpm-1',
+          entityId: 'p-awpm-1',
           note: 'Test test!',
         },
       },
@@ -441,17 +441,17 @@ describe('awardPost mutation', () => {
     const res = await client.mutate(MUTATION, {
       variables: {
         productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
-        postId: 'p-awpm-1',
+        entityId: 'p-awpm-1',
         note: 'Test test!',
       },
     });
     expect(res.errors).toBeUndefined();
 
     expect(res.data).toEqual({
-      awardPost: { transactionId: expect.any(String) },
+      award: { transactionId: expect.any(String) },
     });
 
-    const { transactionId } = res.data.awardPost;
+    const { transactionId } = res.data.award;
 
     const userPost = await con.getRepository(UserPost).findOneOrFail({
       where: {

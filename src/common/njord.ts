@@ -10,7 +10,7 @@ import {
 } from '@dailydotdev/schema';
 import type { AuthContext } from '../Context';
 import { UserTransaction } from '../entity/user/UserTransaction';
-import { isProd, parseBigInt } from './utils';
+import { isProd, isSpecialUser, parseBigInt } from './utils';
 import { ForbiddenError } from 'apollo-server-errors';
 import { createAuthProtectedFn } from './user';
 import {
@@ -20,12 +20,15 @@ import {
 } from '../redis';
 import { generateStorageKey, StorageKey, StorageTopic } from '../config';
 import { coresBalanceExpirationSeconds } from './constants';
-import { NjordErrorMessages } from '../errors';
+import { ConflictError, NjordErrorMessages } from '../errors';
 import { GarmrService } from '../integrations/garmr';
 import { BrokenCircuitError } from 'cockatiel';
 import type { EntityManager } from 'typeorm';
-import { Product } from '../entity/Product';
+import { Product, ProductType } from '../entity/Product';
 import { remoteConfig } from '../remoteConfig';
+import { queryReadReplica } from './queryReadReplica';
+import { UserPost } from '../entity/user/UserPost';
+import { Post } from '../entity/posts/Post';
 
 const transport = createGrpcTransport({
   baseUrl: process.env.NJORD_ORIGIN,
@@ -262,3 +265,174 @@ export const getBalance = createAuthProtectedFn(
     }
   },
 );
+
+export enum AwardType {
+  Post = 'POST',
+  User = 'USER',
+  Comment = 'COMMENT',
+}
+
+export type AwardInput = Pick<TransactionProps, 'productId' | 'note'> & {
+  entityId: string;
+  type: AwardType;
+};
+
+export type TransactionCreated = {
+  transactionId: string;
+};
+
+const canAward = async ({
+  ctx,
+  receiverId,
+}: {
+  ctx: AuthContext;
+  receiverId?: string | null;
+}): Promise<void> => {
+  if (ctx.userId === receiverId) {
+    throw new ForbiddenError('Can not award yourself');
+  }
+
+  if (isSpecialUser({ userId: receiverId })) {
+    throw new ForbiddenError('Can not award this user');
+  }
+};
+
+export const awardUser = async (
+  props: AwardInput,
+  ctx: AuthContext,
+): Promise<TransactionCreated> => {
+  await canAward({ ctx, receiverId: props.entityId });
+
+  const product = await queryReadReplica<Pick<Product, 'id' | 'type'>>(
+    ctx.con,
+    async ({ queryRunner }) => {
+      return queryRunner.manager.getRepository(Product).findOneOrFail({
+        select: ['id', 'type'],
+        where: {
+          id: props.productId,
+        },
+      });
+    },
+  );
+
+  if (product.type !== ProductType.Award) {
+    throw new ForbiddenError('Can not award this product');
+  }
+
+  const transaction = await ctx.con.transaction(async (entityManager) => {
+    const { entityId: receiverId, note } = props;
+
+    const transaction = await createTransaction({
+      ctx,
+      entityManager,
+      productId: product.id,
+      receiverId,
+      note,
+    });
+
+    await transferCores({
+      ctx,
+      transaction,
+    });
+
+    return transaction;
+  });
+
+  return {
+    transactionId: transaction.id,
+  };
+};
+
+export const awardPost = async (
+  props: AwardInput,
+  ctx: AuthContext,
+): Promise<TransactionCreated> => {
+  const [product, post, userPost] = await queryReadReplica<
+    [
+      Pick<Product, 'id' | 'type'>,
+      Pick<Post, 'id' | 'authorId'>,
+      Pick<UserPost, 'awardTransactionId'> | null,
+    ]
+  >(ctx.con, async ({ queryRunner }) => {
+    return Promise.all([
+      queryRunner.manager.getRepository(Product).findOneOrFail({
+        select: ['id', 'type'],
+        where: {
+          id: props.productId,
+        },
+      }),
+      queryRunner.manager.getRepository(Post).findOneOrFail({
+        select: ['id', 'authorId'],
+        where: {
+          id: props.entityId,
+        },
+      }),
+      queryRunner.manager.getRepository(UserPost).findOne({
+        select: ['awardTransactionId'],
+        where: {
+          postId: props.entityId,
+          userId: ctx.userId,
+        },
+      }),
+    ]);
+  });
+
+  await canAward({ ctx, receiverId: post.authorId });
+
+  if (product.type !== ProductType.Award) {
+    throw new ForbiddenError('Can not award this product');
+  }
+
+  if (userPost?.awardTransactionId) {
+    throw new ConflictError('Post already awarded');
+  }
+
+  const transaction = await ctx.con.transaction(async (entityManager) => {
+    if (!post.authorId) {
+      throw new ConflictError('Post does not have an author');
+    }
+
+    const { note } = props;
+
+    const transaction = await createTransaction({
+      ctx,
+      entityManager,
+      productId: product.id,
+      receiverId: post.authorId,
+      note,
+    });
+
+    if (!transaction.productId) {
+      throw new Error('Product missing from transaction');
+    }
+
+    await entityManager
+      .getRepository(UserPost)
+      .createQueryBuilder()
+      .insert()
+      .into(UserPost)
+      .values({
+        postId: post.id,
+        userId: ctx.userId,
+        awardTransactionId: transaction.id,
+        flags: {
+          awardId: transaction.productId,
+        },
+      })
+      .onConflict(
+        `("postId", "userId") DO UPDATE SET "awardTransactionId" = EXCLUDED."awardTransactionId", "flags" = user_post.flags || EXCLUDED."flags"`,
+      )
+      .execute();
+
+    await transferCores({
+      ctx,
+      transaction,
+    });
+
+    return transaction;
+  });
+
+  return {
+    transactionId: transaction.id,
+  };
+};
