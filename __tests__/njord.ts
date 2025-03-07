@@ -480,3 +480,101 @@ describe('award post mutation', () => {
     expect(post.awards).toBe(1);
   });
 });
+
+describe('query products', () => {
+  const QUERY = `
+  query {
+    products {
+      edges {
+        node {
+          id
+          name
+          value
+          flags {
+            description
+          }
+        }
+      }
+    }
+  }
+`;
+
+  beforeEach(async () => {
+    await saveFixtures(
+      con,
+      User,
+      usersFixture.map((item) => {
+        return {
+          ...item,
+          id: `t-pq-${item.id}`,
+          username: `t-pq-${item.username}`,
+          github: undefined,
+        };
+      }),
+    );
+
+    await saveFixtures(con, Product, [
+      {
+        id: 'a617586b-6d46-4f54-9b67-edc91b79b279',
+        name: 'Award 1',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 42,
+        flags: {
+          description: 'meaning of life?',
+        },
+      },
+      {
+        id: 'c7f0bc48-3e79-46cb-8bef-140a037271c6',
+        name: 'Award 2',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 10,
+      },
+      {
+        id: '90a8f2a4-d76e-488c-9935-baed96fac7a0',
+        name: 'Award 3',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 20,
+      },
+    ]);
+  });
+
+  it('should return products sorted by value', async () => {
+    loggedUser = 't-awpm-1';
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.products).toMatchObject({
+      edges: [
+        {
+          node: {
+            id: 'c7f0bc48-3e79-46cb-8bef-140a037271c6',
+            name: 'Award 2',
+            value: 10,
+          },
+        },
+        {
+          node: {
+            id: '90a8f2a4-d76e-488c-9935-baed96fac7a0',
+            name: 'Award 3',
+            value: 20,
+          },
+        },
+        {
+          node: {
+            id: 'a617586b-6d46-4f54-9b67-edc91b79b279',
+            name: 'Award 1',
+            value: 42,
+            flags: {
+              description: 'meaning of life?',
+            },
+          },
+        },
+      ],
+    });
+  });
+});
