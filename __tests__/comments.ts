@@ -1020,17 +1020,17 @@ describe('mutation commentOnPost', () => {
       expect(await getRedisObject(redisKey)).toEqual('1');
     });
 
-    it('should rate limit commenting to 100 per hour', async () => {
+    it('should rate limit commenting to 500 per hour', async () => {
       loggedUser = '1';
 
-      for (let i = 0; i < 100; i++) {
+      for (let i = 0; i < 500; i++) {
         const res = await client.mutate(MUTATION, {
           variables,
         });
 
         expect(res.errors).toBeFalsy();
       }
-      expect(await getRedisObject(redisKey)).toEqual('100');
+      expect(await getRedisObject(redisKey)).toEqual('500');
 
       await testMutationErrorCode(
         client,
@@ -1282,17 +1282,17 @@ describe('mutation commentOnComment', () => {
       expect(await getRedisObject(redisKey)).toEqual('1');
     });
 
-    it('should rate limit commenting to 100 per hour', async () => {
+    it('should rate limit commenting to 500 per hour', async () => {
       loggedUser = '1';
 
-      for (let i = 0; i < 100; i++) {
+      for (let i = 0; i < 500; i++) {
         const res = await client.mutate(MUTATION, {
           variables,
         });
 
         expect(res.errors).toBeFalsy();
       }
-      expect(await getRedisObject(redisKey)).toEqual('100');
+      expect(await getRedisObject(redisKey)).toEqual('500');
 
       await testMutationErrorCode(
         client,
