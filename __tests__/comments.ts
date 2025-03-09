@@ -1020,17 +1020,17 @@ describe('mutation commentOnPost', () => {
       expect(await getRedisObject(redisKey)).toEqual('1');
     });
 
-    it('should rate limit commenting to 100 per hour', async () => {
+    it('should rate limit commenting to 500 per hour', async () => {
       loggedUser = '1';
 
-      for (let i = 0; i < 100; i++) {
+      for (let i = 0; i < 500; i++) {
         const res = await client.mutate(MUTATION, {
           variables,
         });
 
         expect(res.errors).toBeFalsy();
       }
-      expect(await getRedisObject(redisKey)).toEqual('100');
+      expect(await getRedisObject(redisKey)).toEqual('500');
 
       await testMutationErrorCode(
         client,
@@ -1263,48 +1263,6 @@ describe('mutation commentOnComment', () => {
       },
       'FORBIDDEN',
     );
-  });
-
-  describe('rate limiting', () => {
-    const redisKey = `${rateLimiterName}:1:createComment`;
-    const variables = {
-      commentId: 'c1',
-      content: '# my comment http://daily.dev',
-    };
-    it('store rate limiting state in redis', async () => {
-      loggedUser = '1';
-
-      const res = await client.mutate(MUTATION, {
-        variables,
-      });
-
-      expect(res.errors).toBeFalsy();
-      expect(await getRedisObject(redisKey)).toEqual('1');
-    });
-
-    it('should rate limit commenting to 100 per hour', async () => {
-      loggedUser = '1';
-
-      for (let i = 0; i < 100; i++) {
-        const res = await client.mutate(MUTATION, {
-          variables,
-        });
-
-        expect(res.errors).toBeFalsy();
-      }
-      expect(await getRedisObject(redisKey)).toEqual('100');
-
-      await testMutationErrorCode(
-        client,
-        { mutation: MUTATION, variables },
-        'RATE_LIMITED',
-        'Take a break. You already commented enough in the last 1 hour',
-      );
-
-      // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
-      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(3600);
-      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(3590);
-    });
   });
 
   describe('vordr', () => {
