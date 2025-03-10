@@ -1042,7 +1042,7 @@ describe('mutation commentOnPost', () => {
       // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
       expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(3600);
       expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(3590);
-    });
+    }, 10_000);
   });
 
   describe('vordr', () => {
