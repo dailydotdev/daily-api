@@ -53,6 +53,7 @@ import {
   ContentPreferenceType,
 } from '../src/entity/contentPreference/types';
 import { Connection } from 'graphql-relay';
+import { UserTransaction } from '../src/entity/user/UserTransaction';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -1720,6 +1721,7 @@ describe('userState field', () => {
         id
         userState {
           vote
+          awarded
         }
       } }
     }
@@ -1748,6 +1750,7 @@ describe('userState field', () => {
     res.data.postComments.edges.forEach((edge) => {
       expect(edge.node.userState).toMatchObject({
         vote,
+        awarded: false,
       });
     });
   });
@@ -1792,10 +1795,51 @@ describe('userState field', () => {
       if (edge.node.id === 'c1') {
         expect(edge.node.userState).toMatchObject({
           vote: UserVote.Up,
+          awarded: false,
         });
       } else {
         expect(edge.node.userState).toMatchObject({
           vote: UserVote.None,
+          awarded: false,
+        });
+      }
+    });
+  });
+
+  it('should return awarded state', async () => {
+    loggedUser = '1';
+
+    const transaction = await con.getRepository(UserTransaction).save({
+      receiverId: '1',
+      status: 0,
+      productId: null,
+      senderId: '1',
+      fee: 0,
+      value: 100,
+    });
+
+    await con.getRepository(UserComment).save({
+      commentId: 'c1',
+      userId: loggedUser,
+      vote: UserVote.Up,
+      awardTransactionId: transaction.id,
+    });
+    const res = await client.query(QUERY, {
+      variables: { postId: 'p1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    res.data.postComments.edges.forEach((edge) => {
+      if (edge.node.id === 'c1') {
+        expect(edge.node.userState).toMatchObject({
+          vote: UserVote.Up,
+          awarded: true,
+        });
+      } else {
+        expect(edge.node.userState).toMatchObject({
+          vote: UserVote.None,
+          awarded: false,
         });
       }
     });
