@@ -10,15 +10,20 @@ import {
 import type { User } from './User';
 import type { Comment } from '../Comment';
 import { UserVote } from '../../types';
+import type { UserTransaction } from './UserTransaction';
 
 export type UserCommentFlags = Partial<{
-  // flags
+  awardId: string;
 }>;
 
 @Entity()
 @Index(['commentId', 'userId'], { unique: true })
 @Index(['userId', 'vote', 'votedAt'])
 export class UserComment {
+  get awarded(): boolean {
+    return !!this.awardTransactionId;
+  }
+
   @PrimaryColumn({ type: 'text' })
   commentId: string;
 
@@ -51,4 +56,14 @@ export class UserComment {
     onDelete: 'CASCADE',
   })
   user: Promise<User>;
+
+  @Column({ type: 'uuid', nullable: true })
+  @Index({ unique: true })
+  awardTransactionId: string | null;
+
+  @ManyToOne('UserTransaction', {
+    lazy: true,
+    onDelete: 'SET NULL',
+  })
+  awardTransaction: Promise<UserTransaction>;
 }

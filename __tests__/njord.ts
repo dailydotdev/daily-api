@@ -8,7 +8,14 @@ import {
   type GraphQLTestClient,
   testMutationErrorCode,
 } from './helpers';
-import { ArticlePost, PostType, Source, User, UserPost } from '../src/entity';
+import {
+  ArticlePost,
+  Comment,
+  PostType,
+  Source,
+  User,
+  UserPost,
+} from '../src/entity';
 import { sourcesFixture, usersFixture } from './fixture';
 
 import { FastifyInstance } from 'fastify';
@@ -20,6 +27,7 @@ import { Credits, Currency } from '@dailydotdev/schema';
 import * as njordCommon from '../src/common/njord';
 import { UserTransaction } from '../src/entity/user/UserTransaction';
 import { ghostUser } from '../src/common';
+import { UserComment } from '../src/entity/user/UserComment';
 
 const mockTransport = createRouterTransport(({ service }) => {
   service(Credits, {
@@ -588,5 +596,288 @@ describe('query products', () => {
         },
       ],
     });
+  });
+});
+
+describe('award comment mutation', () => {
+  const MUTATION = `
+  mutation award($productId: ID!, $entityId: ID!, $note: String) {
+    award(productId: $productId, type: COMMENT, entityId: $entityId, note: $note) {
+      transactionId
+      balance {
+        amount
+      }
+    }
+  }
+`;
+
+  beforeEach(async () => {
+    jest.resetAllMocks();
+
+    await saveFixtures(
+      con,
+      User,
+      usersFixture.map((item) => {
+        return {
+          ...item,
+          id: `t-awcm-${item.id}`,
+          username: `t-awcm-${item.username}`,
+          github: undefined,
+        };
+      }),
+    );
+
+    await saveFixtures(
+      con,
+      Source,
+      sourcesFixture.map((item) => {
+        return {
+          ...item,
+          id: `s-awcm-${item.id}`,
+          handle: `s-awcm-${item.handle}`,
+          name: `S-awcm-${item.name}`,
+        };
+      }),
+    );
+
+    await saveFixtures(con, ArticlePost, [
+      {
+        id: 'p-awcm-1',
+        shortId: 'sp-awcm-1',
+        title: 'P-awcm-1',
+        url: 'http://p-awcm-1.com',
+        canonicalUrl: 'http://p-awcm-1-c.com',
+        image: 'https://daily.dev/image.jpg',
+        score: 1,
+        sourceId: 's-awcm-a',
+        createdAt: new Date(),
+        tagsStr: 'javascript,webdev',
+        type: PostType.Article,
+        contentCuration: ['c1', 'c2'],
+        authorId: 't-awcm-2',
+        awards: 0,
+      },
+    ]);
+
+    await saveFixtures(con, Comment, [
+      {
+        id: 'c-awcm-1',
+        postId: 'p-awcm-1',
+        userId: 't-awcm-2',
+        content: 'Test comment',
+        createdAt: new Date(),
+      },
+      {
+        id: 'c-awcm-2-spu',
+        postId: 'p-awcm-1',
+        userId: ghostUser.id,
+        content: 'Test comment',
+        createdAt: new Date(),
+      },
+    ]);
+
+    await saveFixtures(con, Product, [
+      {
+        id: '17380714-1a0c-4dfc-b435-1ff44be8558d',
+        name: 'Award 1',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 42,
+      },
+      {
+        id: '238669af-2102-4a8a-8002-4dfff2cf71b6',
+        name: 'Award 2',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 10,
+      },
+      {
+        id: 'c2fdf38b-67df-40c4-85e8-c44e253e7d40',
+        name: 'Award 3',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 20,
+      },
+    ]);
+
+    jest
+      .spyOn(njordCommon, 'getNjordClient')
+      .mockImplementation(() => createClient(Credits, mockTransport));
+  });
+
+  it('should not authorize when not logged in', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          productId: '17380714-1a0c-4dfc-b435-1ff44be8558d',
+          entityId: 'c-awcm-1',
+          note: 'Test test!',
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should throw if awarding yourself', async () => {
+    loggedUser = 't-awcm-2';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          productId: '17380714-1a0c-4dfc-b435-1ff44be8558d',
+          entityId: 'c-awcm-1',
+          note: 'Test test!',
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw if awarding special user', async () => {
+    loggedUser = 't-awcm-2';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          productId: '17380714-1a0c-4dfc-b435-1ff44be8558d',
+          entityId: 'c-awcm-2-spu',
+          note: 'Test test!',
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw if no product', async () => {
+    loggedUser = 't-awcm-1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          productId: 'd6129095-38cc-468e-aed9-7884fc07c349',
+          entityId: 'c-awcm-1',
+          note: 'Test test!',
+        },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should throw if no comment', async () => {
+    loggedUser = 't-awcm-1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          productId: '17380714-1a0c-4dfc-b435-1ff44be8558d',
+          entityId: 'does-not-exist',
+          note: 'Test test!',
+        },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should throw if comment already rewarded', async () => {
+    const transaction = await njordCommon.createTransaction({
+      ctx: {
+        userId: 't-awcm-1',
+      } as AuthContext,
+      entityManager: con.getRepository(Product).manager,
+      productId: '17380714-1a0c-4dfc-b435-1ff44be8558d',
+      receiverId: 't-awcm-2',
+      note: 'Test test!',
+    });
+
+    await con.getRepository(UserComment).save({
+      userId: 't-awcm-1',
+      commentId: 'c-awcm-1',
+      awardTransactionId: transaction.id,
+    });
+
+    loggedUser = 't-awcm-1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          productId: '17380714-1a0c-4dfc-b435-1ff44be8558d',
+          entityId: 'c-awcm-1',
+          note: 'Test test!',
+        },
+      },
+      'CONFLICT',
+    );
+  });
+
+  it('should award comment', async () => {
+    loggedUser = 't-awcm-1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        productId: '17380714-1a0c-4dfc-b435-1ff44be8558d',
+        entityId: 'c-awcm-1',
+        note: 'Test test!',
+      },
+    });
+    expect(res.errors).toBeUndefined();
+
+    expect(res.data).toEqual({
+      award: {
+        transactionId: expect.any(String),
+        balance: { amount: expect.any(Number) },
+      },
+    });
+
+    const { transactionId } = res.data.award;
+
+    const userComment = await con.getRepository(UserComment).findOneOrFail({
+      where: {
+        userId: 't-awcm-1',
+        commentId: 'c-awcm-1',
+      },
+    });
+
+    expect(userComment.awardTransactionId).toBe(transactionId);
+    expect(userComment.flags.awardId).toBe(
+      '17380714-1a0c-4dfc-b435-1ff44be8558d',
+    );
+
+    const transaction = await con.getRepository(UserTransaction).findOneOrFail({
+      where: {
+        id: transactionId,
+      },
+    });
+
+    expect(transaction.productId).toBe('17380714-1a0c-4dfc-b435-1ff44be8558d');
+
+    const awardComment = await con.getRepository(Comment).findOne({
+      where: {
+        userId: 't-awcm-1',
+        awardTransactionId: transactionId,
+      },
+    });
+
+    expect(awardComment).toBeTruthy();
+    expect(awardComment!.content).toBe('Test test!');
+
+    const comment = await con.getRepository(Comment).findOneOrFail({
+      where: {
+        id: 'c-awcm-1',
+      },
+    });
+
+    expect(comment.awards).toBe(1);
   });
 });

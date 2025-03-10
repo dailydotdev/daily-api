@@ -2,6 +2,7 @@ import type { AuthContext, BaseContext } from '../Context';
 import type { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import {
+  awardComment,
   awardPost,
   AwardType,
   awardUser,
@@ -184,6 +185,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return awardPost(props, ctx);
         case AwardType.User:
           return awardUser(props, ctx);
+        case AwardType.Comment:
+          return awardComment(props, ctx);
         default:
           throw new ForbiddenError('Can not award this entity');
       }
