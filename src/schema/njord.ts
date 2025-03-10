@@ -11,15 +11,84 @@ import {
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { toGQLEnum } from '../common';
 import { z } from 'zod';
+import type { Product } from '../entity/Product';
+import type { Connection, ConnectionArguments } from 'graphql-relay';
+import { offsetPageGenerator } from './common';
+import graphorm from '../graphorm';
+
+export type GQLProduct = Pick<
+  Product,
+  'id' | 'type' | 'name' | 'image' | 'value' | 'flags'
+>;
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(AwardType, 'AwardType')}
+
+  type UserBalance {
+    amount: Int!
+  }
 
   type TransactionCreated {
     """
     Id of the transaction
     """
     transactionId: ID!
+
+    """
+    Balance of the user
+    """
+    balance: UserBalance!
+  }
+
+  type ProductFlagsPublic {
+    description: String
+  }
+
+  type Product {
+    id: ID!
+    type: String!
+    name: String!
+    image: String!
+    value: Int!
+    flags: ProductFlagsPublic
+  }
+
+  type ProductConnection {
+    pageInfo: PageInfo!
+    edges: [ProductEdge!]!
+  }
+
+  type ProductEdge {
+    node: Product!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  extend type Query {
+    """
+    List feeds
+    """
+    products(
+      """
+      Paginate before opaque cursor
+      """
+      before: String
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+      """
+      Paginate last
+      """
+      last: Int
+    ): ProductConnection! @auth
   }
 
   extend type Mutation {
@@ -59,6 +128,34 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
   BaseContext
 >({
+  Query: {
+    products: async (
+      _,
+      args: ConnectionArguments,
+      ctx: AuthContext,
+      info,
+    ): Promise<Connection<GQLProduct>> => {
+      const pageGenerator = offsetPageGenerator<GQLProduct>(10, 100);
+      const page = pageGenerator.connArgsToPage(args);
+
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => pageGenerator.hasNextPage(page, nodeSize),
+        (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder.limit(page.limit);
+
+          builder.queryBuilder.orderBy(`${builder.alias}."value"`, 'ASC');
+
+          return builder;
+        },
+        undefined,
+        true,
+      );
+    },
+  },
   Mutation: {
     award: async (
       _: unknown,
