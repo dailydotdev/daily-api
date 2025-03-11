@@ -54,6 +54,7 @@ import {
 } from '../src/entity/contentPreference/types';
 import { Connection } from 'graphql-relay';
 import { UserTransaction } from '../src/entity/user/UserTransaction';
+import { Product, ProductType } from '../src/entity/Product';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -2302,5 +2303,85 @@ describe('mutation vote comment', () => {
     const comment = await con.getRepository(Comment).findOneBy({ id: 'c1' });
     expect(comment?.upvotes).toEqual(0);
     expect(comment?.downvotes).toEqual(2);
+  });
+});
+
+describe('award field', () => {
+  const QUERY = `query PostComments($postId: ID!, $after: String, $first: Int, $sortBy: SortCommentsBy) {
+      postComments(postId: $postId, after: $after, first: $first, sortBy: $sortBy) {
+        pageInfo { endCursor, hasNextPage }
+        edges {
+          node {
+            id
+            award {
+              id
+              name
+            }
+          }
+        }
+      }
+    }`;
+
+  beforeEach(async () => {
+    await saveFixtures(con, Product, [
+      {
+        id: '9104b834-6fac-4276-a168-0be1294ab371',
+        name: 'Award 1',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 42,
+      },
+      {
+        id: 'b633129e-8d36-4108-9f5d-92766f089d21',
+        name: 'Award 2',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 10,
+      },
+      {
+        id: 'e6fddef9-7110-430c-b032-b3e4de8b939f',
+        name: 'Award 3',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 20,
+      },
+    ]);
+  });
+
+  it('should return awarded product', async () => {
+    loggedUser = '1';
+
+    const transaction = await con.getRepository(UserTransaction).save({
+      receiverId: '1',
+      status: 0,
+      productId: '9104b834-6fac-4276-a168-0be1294ab371',
+      senderId: '1',
+      fee: 0,
+      value: 100,
+    });
+
+    await con.getRepository(Comment).save({
+      id: 'c1',
+      awardTransactionId: transaction.id,
+      flags: {
+        awardId: transaction.productId,
+      },
+    });
+    const res = await client.query(QUERY, {
+      variables: { postId: 'p1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    res.data.postComments.edges.forEach((edge) => {
+      if (edge.node.id === 'c1') {
+        expect(edge.node.award).toMatchObject({
+          id: '9104b834-6fac-4276-a168-0be1294ab371',
+          name: 'Award 1',
+        });
+      } else {
+        expect(edge.node.award).toBeNull();
+      }
+    });
   });
 });

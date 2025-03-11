@@ -54,6 +54,7 @@ import { ReportReason } from '../entity/common';
 import { toGQLEnum } from '../common/utils';
 import { ensureCommentRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
+import type { GQLProduct } from './njord';
 
 export interface GQLComment {
   id: string;
@@ -69,6 +70,7 @@ export interface GQLComment {
   numAwards: number;
   userState?: GQLUserComment;
   fromAward: boolean;
+  award?: GQLProduct;
 }
 
 interface GQLMentionUserArgs {
@@ -188,6 +190,11 @@ export const typeDefs = /* GraphQL */ `
     If comment was added from award
     """
     fromAward: Boolean!
+
+    """
+    Awarded product
+    """
+    award: Product
   }
 
   type CommentEdge {
