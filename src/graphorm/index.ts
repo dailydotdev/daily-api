@@ -770,6 +770,10 @@ const obj = new GraphORM({
           return value;
         },
       },
+      fromAward: {
+        select: '"awardTransactionId" IS NOT NULL',
+        rawSelect: true,
+      },
     },
   },
   FeedSettings: {

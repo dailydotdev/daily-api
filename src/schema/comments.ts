@@ -68,6 +68,7 @@ export interface GQLComment {
   numUpvotes: number;
   numAwards: number;
   userState?: GQLUserComment;
+  fromAward: boolean;
 }
 
 interface GQLMentionUserArgs {
@@ -182,6 +183,11 @@ export const typeDefs = /* GraphQL */ `
     User state for the comment
     """
     userState: UserComment @auth
+
+    """
+    If comment was added from award
+    """
+    fromAward: Boolean!
   }
 
   type CommentEdge {
