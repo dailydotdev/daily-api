@@ -29,6 +29,11 @@ import { remoteConfig } from '../remoteConfig';
 import { queryReadReplica } from './queryReadReplica';
 import { UserPost } from '../entity/user/UserPost';
 import { Post } from '../entity/posts/Post';
+import { Comment } from '../entity';
+import { UserComment } from '../entity/user/UserComment';
+import { saveComment } from '../schema/comments';
+import { generateShortId } from '../ids';
+import { checkWithVordr, VordrFilterType } from './vordr';
 
 const transport = createGrpcTransport({
   baseUrl: process.env.NJORD_ORIGIN,
@@ -430,6 +435,134 @@ export const awardPost = async (
           `("postId", "userId") DO UPDATE SET "awardTransactionId" = EXCLUDED."awardTransactionId", "flags" = user_post.flags || EXCLUDED."flags"`,
         )
         .execute();
+
+      const transfer = await transferCores({
+        ctx,
+        transaction,
+      });
+
+      return { transaction, transfer };
+    },
+  );
+
+  return {
+    transactionId: transaction.id,
+    balance: {
+      amount: parseBigInt(transfer.senderBalance!.newBalance),
+    },
+  };
+};
+
+export const awardComment = async (
+  props: AwardInput,
+  ctx: AuthContext,
+): Promise<TransactionCreated> => {
+  const [product, comment, userComment] = await queryReadReplica<
+    [
+      Pick<Product, 'id' | 'type'>,
+      Pick<Comment, 'id' | 'userId' | 'postId' | 'post'>,
+      Pick<UserComment, 'awardTransactionId'> | null,
+    ]
+  >(ctx.con, async ({ queryRunner }) => {
+    return Promise.all([
+      queryRunner.manager.getRepository(Product).findOneOrFail({
+        select: ['id', 'type'],
+        where: {
+          id: props.productId,
+        },
+      }),
+      queryRunner.manager.getRepository(Comment).findOneOrFail({
+        select: ['id', 'userId', 'postId'],
+        where: {
+          id: props.entityId,
+        },
+        relations: {
+          post: true,
+        },
+      }),
+      queryRunner.manager.getRepository(UserComment).findOne({
+        select: ['awardTransactionId'],
+        where: {
+          commentId: props.entityId,
+          userId: ctx.userId,
+        },
+      }),
+    ]);
+  });
+
+  await canAward({ ctx, receiverId: comment.userId });
+
+  if (product.type !== ProductType.Award) {
+    throw new ForbiddenError('Can not award this product');
+  }
+
+  if (userComment?.awardTransactionId) {
+    throw new ConflictError('Comment already awarded');
+  }
+
+  const { transaction, transfer } = await ctx.con.transaction(
+    async (entityManager) => {
+      const { note } = props;
+
+      const transaction = await createTransaction({
+        ctx,
+        entityManager,
+        productId: product.id,
+        receiverId: comment.userId,
+        note,
+      });
+
+      if (!transaction.productId) {
+        throw new Error('Product missing from transaction');
+      }
+
+      await entityManager
+        .getRepository(UserComment)
+        .createQueryBuilder()
+        .insert()
+        .into(UserComment)
+        .values({
+          commentId: comment.id,
+          userId: ctx.userId,
+          awardTransactionId: transaction.id,
+          flags: {
+            awardId: transaction.productId,
+          },
+        })
+        .onConflict(
+          `("commentId", "userId") DO UPDATE SET "awardTransactionId" = EXCLUDED."awardTransactionId", "flags" = user_comment.flags || EXCLUDED."flags"`,
+        )
+        .execute();
+
+      if (note) {
+        const post = await comment.post;
+
+        const newComment = entityManager.getRepository(Comment).create({
+          id: await generateShortId(),
+          postId: comment.postId,
+          parentId: comment.id,
+          userId: ctx.userId,
+          content: note,
+          awardTransactionId: transaction.id,
+          flags: {
+            awardId: transaction.productId,
+          },
+        });
+
+        newComment.flags = {
+          ...newComment.flags,
+          vordr: await checkWithVordr(
+            {
+              id: newComment.id,
+              type: VordrFilterType.Comment,
+              content: newComment.content,
+            },
+            ctx,
+          ),
+        };
+
+        await saveComment(entityManager, newComment, post.sourceId);
+      }
 
       const transfer = await transferCores({
         ctx,

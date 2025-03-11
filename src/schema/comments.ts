@@ -66,7 +66,9 @@ export interface GQLComment {
   children?: Connection<GQLComment>;
   post: GQLPost;
   numUpvotes: number;
+  numAwards: number;
   userState?: GQLUserComment;
+  fromAward: boolean;
 }
 
 interface GQLMentionUserArgs {
@@ -100,6 +102,7 @@ interface ReportCommentArgs {
 export interface GQLUserComment {
   vote: UserVote;
   votedAt: Date | null;
+  awarded: boolean;
 }
 
 export enum SortCommentsBy {
@@ -167,6 +170,11 @@ export const typeDefs = /* GraphQL */ `
     numUpvotes: Int!
 
     """
+    Total number of awards
+    """
+    numAwards: Int!
+
+    """
     Parent comment of this comment
     """
     parent: Comment
@@ -175,6 +183,11 @@ export const typeDefs = /* GraphQL */ `
     User state for the comment
     """
     userState: UserComment @auth
+
+    """
+    If comment was added from award
+    """
+    fromAward: Boolean!
   }
 
   type CommentEdge {
@@ -249,6 +262,8 @@ export const typeDefs = /* GraphQL */ `
     user: User!
 
     comment: Comment!
+
+    awarded: Boolean!
   }
 
   extend type Query {

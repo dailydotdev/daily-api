@@ -2,6 +2,8 @@
 
 exports[`function updateMentions should update mentions based on passed comment ids utilizing old and new username 1`] = `
 Object {
+  "awardTransactionId": null,
+  "awards": 0,
   "comments": 0,
   "content": "@Solevilla",
   "contentHtml": "<p><a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\" translate=\\"no\\">@Solevilla</a></p>
@@ -21,6 +23,8 @@ Object {
 
 exports[`function updateMentions should update mentions based on passed comment ids utilizing old and new username 2`] = `
 Object {
+  "awardTransactionId": null,
+  "awards": 0,
   "comments": 0,
   "content": "@sshanzel",
   "contentHtml": "<p><a href=\\"http://localhost:5002/sshanzel\\" data-mention-id=\\"7\\" data-mention-username=\\"sshanzel\\" translate=\\"no\\">@sshanzel</a></p>

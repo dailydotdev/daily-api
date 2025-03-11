@@ -1,13 +1,21 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import type { Post } from './posts';
 import type { User } from './user';
+import type { UserTransaction } from './user/UserTransaction';
 
 export type CommentFlags = Partial<{
   vordr: boolean;
+  awardId: string;
 }>;
+
+export type CommentFlagsPublic = Pick<CommentFlags, 'awardId'>;
 
 @Entity()
 export class Comment {
+  get awarded(): boolean {
+    return !!this.awardTransactionId;
+  }
+
   @PrimaryColumn({ length: 14 })
   id: string;
 
@@ -70,4 +78,18 @@ export class Comment {
     onDelete: 'CASCADE',
   })
   parent: Promise<Comment>;
+
+  @Column({ type: 'uuid', nullable: true })
+  @Index({ unique: true })
+  awardTransactionId: string | null;
+
+  @ManyToOne('UserTransaction', {
+    lazy: true,
+    onDelete: 'SET NULL',
+  })
+  awardTransaction: Promise<UserTransaction>;
+
+  @Column({ type: 'integer', default: 0 })
+  @Index('IDX_comment_awards')
+  awards: number;
 }

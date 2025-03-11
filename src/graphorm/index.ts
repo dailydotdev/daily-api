@@ -707,6 +707,9 @@ const obj = new GraphORM({
       numUpvotes: {
         select: 'upvotes',
       },
+      numAwards: {
+        select: 'awards',
+      },
       children: {
         relation: {
           isMany: true,
@@ -766,6 +769,10 @@ const obj = new GraphORM({
 
           return value;
         },
+      },
+      fromAward: {
+        select: '"awardTransactionId" IS NOT NULL',
+        rawSelect: true,
       },
     },
   },
@@ -965,10 +972,14 @@ const obj = new GraphORM({
     },
   },
   UserComment: {
-    requiredColumns: ['votedAt'],
+    requiredColumns: ['votedAt', 'awardTransactionId'],
     fields: {
       flags: {
         jsonType: true,
+      },
+      awarded: {
+        select: '"awardTransactionId" IS NOT NULL',
+        rawSelect: true,
       },
     },
   },
