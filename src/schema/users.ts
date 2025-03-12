@@ -2028,7 +2028,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     deleteUser: async (_, __, ctx: AuthContext): Promise<unknown> => {
       const userId = ctx.userId;
-      return await deleteUser(ctx.con, ctx.log, userId);
+      return await deleteUser(ctx.con, userId);
     },
     hideReadHistory: (
       _,

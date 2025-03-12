@@ -1,5 +1,4 @@
 import { DataSource } from 'typeorm';
-import { FastifyLoggerInstance } from 'fastify';
 import {
   Alerts,
   ArticlePost,
@@ -22,10 +21,10 @@ import { ghostUser } from './index';
 import { cancelSubscription } from './paddle';
 import type { AuthContext } from '../Context';
 import { ForbiddenError } from 'apollo-server-errors';
+import { logger } from '../logger';
 
 export const deleteUser = async (
   con: DataSource,
-  logger: FastifyLoggerInstance,
   userId: string,
   messageId?: string,
 ) => {
@@ -86,26 +85,22 @@ export const deleteUser = async (
         .update({ scoutId: userId }, { scoutId: null });
       await entityManager.getRepository(User).delete(userId);
     });
-    if (logger) {
-      logger.info(
-        {
-          userId,
-          messageId,
-        },
-        'deleted user',
-      );
-    }
+    logger.info(
+      {
+        userId,
+        messageId,
+      },
+      'deleted user',
+    );
   } catch (err) {
-    if (logger) {
-      logger.error(
-        {
-          userId,
-          messageId,
-          err,
-        },
-        'failed to delete user',
-      );
-    }
+    logger.error(
+      {
+        userId,
+        messageId,
+        err,
+      },
+      'failed to delete user',
+    );
     throw err;
   }
 };
