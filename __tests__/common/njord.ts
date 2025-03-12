@@ -6,7 +6,7 @@ import { usersFixture } from '../fixture';
 import { Product, ProductType } from '../../src/entity/Product';
 import type { AuthContext } from '../../src/Context';
 import { createClient } from '@connectrpc/connect';
-import { Credits, EntityType } from '@dailydotdev/schema';
+import { Credits, EntityType, TransferStatus } from '@dailydotdev/schema';
 import * as njordCommon from '../../src/common/njord';
 import { User } from '../../src/entity/user/User';
 import { ForbiddenError } from 'apollo-server-errors';
@@ -101,7 +101,7 @@ describe('transferCores', () => {
     expect(transaction).toMatchObject({
       id: expect.any(String),
       receiverId: 't-tc-2',
-      status: 0,
+      status: TransferStatus.SUCCESS,
       productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
       senderId: 't-tc-1',
       value: 42,
@@ -141,13 +141,22 @@ describe('transferCores', () => {
       transaction,
     });
 
-    [result.senderBalance, result.receiverBalance].forEach((balance) => {
+    [
+      {
+        balance: result.senderBalance!,
+        userId: result.senderId,
+      },
+      {
+        balance: result.receiverBalance!,
+        userId: result.receiverId,
+      },
+    ].forEach((balanceUpdate) => {
       expect(updateBalanceCacheSpy).toHaveBeenCalledWith({
         ctx: {
-          userId: balance!.account!.userId,
+          userId: balanceUpdate.userId,
         },
         value: {
-          amount: parseBigInt(balance!.newBalance),
+          amount: parseBigInt(balanceUpdate.balance.newBalance),
         },
       });
     });
@@ -187,10 +196,14 @@ describe('getBalance', () => {
 
     const testNjordClient = njordCommon.getNjordClient();
     await testNjordClient.transfer({
-      sender: { id: 'system', type: EntityType.SYSTEM },
-      receiver: { id: 't-gb-1', type: EntityType.USER },
-      amount: 100,
       idempotencyKey: crypto.randomUUID(),
+      transfers: [
+        {
+          sender: { id: 'system', type: EntityType.SYSTEM },
+          receiver: { id: 't-gb-1', type: EntityType.USER },
+          amount: 100,
+        },
+      ],
     });
 
     const result = await njordCommon.getBalance({
@@ -235,10 +248,14 @@ describe('getBalance', () => {
 
     const testNjordClient = njordCommon.getNjordClient();
     await testNjordClient.transfer({
-      sender: { id: 'system', type: EntityType.SYSTEM },
-      receiver: { id: 't-gb-1', type: EntityType.USER },
-      amount: 42,
       idempotencyKey: crypto.randomUUID(),
+      transfers: [
+        {
+          sender: { id: 'system', type: EntityType.SYSTEM },
+          receiver: { id: 't-gb-1', type: EntityType.USER },
+          amount: 42,
+        },
+      ],
     });
 
     const resultNotCached = await njordCommon.getBalance({
@@ -272,10 +289,14 @@ describe('getBalance', () => {
 
     const testNjordClient = njordCommon.getNjordClient();
     await testNjordClient.transfer({
-      sender: { id: 'system', type: EntityType.SYSTEM },
-      receiver: { id: 't-gb-1', type: EntityType.USER },
-      amount: 42,
       idempotencyKey: crypto.randomUUID(),
+      transfers: [
+        {
+          sender: { id: 'system', type: EntityType.SYSTEM },
+          receiver: { id: 't-gb-1', type: EntityType.USER },
+          amount: 42,
+        },
+      ],
     });
 
     const resultNotCached = await njordCommon.getBalance({

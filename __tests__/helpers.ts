@@ -395,7 +395,8 @@ export const createMockNjordTransport = () => {
           }
         );
       },
-      transfer: (request) => {
+      transfer: (transferRequest) => {
+        const [request] = transferRequest.transfers;
         const receiverAccount = accounts[request.receiver!.id] || {
           amount: BigInt(0),
         };
@@ -410,7 +411,7 @@ export const createMockNjordTransport = () => {
         accounts[request.sender!.id] = senderAccount;
 
         return {
-          idempotencyKey: request.idempotencyKey,
+          idempotencyKey: transferRequest.idempotencyKey,
           senderBalance: {
             account: { userId: request.sender?.id, currency: Currency.CORES },
             previousBalance: 0,
