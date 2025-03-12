@@ -33,6 +33,12 @@ export enum SubscriptionProvider {
   AppleStoreKit = 'storekit',
 }
 
+export enum UserSubscriptionStatus {
+  Active = 'active',
+  Expired = 'expired',
+  Cancelled = 'cancelled',
+}
+
 export type PaddleUserSubscriptionFlags = Partial<{
   gifterId?: string; // Currently only supported in Paddle
   giftExpirationDate?: Date; // Currently only supported in Paddle
@@ -49,6 +55,7 @@ export type UserSubscriptionFlags = Partial<{
   cycle: SubscriptionCycles;
   createdAt: Date;
   provider: SubscriptionProvider;
+  status: UserSubscriptionStatus;
 }> &
   PaddleUserSubscriptionFlags &
   StoreKitUserSubscriptionFlags;
