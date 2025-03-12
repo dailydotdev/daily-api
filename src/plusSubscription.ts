@@ -19,16 +19,18 @@ export const updateUserSubscription = async ({
     return;
   }
 
+  const clone = structuredClone(data);
+
   // Remove appAccountToken from data, to make sure we don't accidentally update it
-  if (data.appAccountToken) {
-    delete data.appAccountToken;
+  if (clone.appAccountToken) {
+    delete clone.appAccountToken;
   }
 
   const con = await createOrGetConnection();
 
   // Convert all keys in data to null when status is expired
   const subscriptionFlags = Object.fromEntries(
-    Object.entries(data).map(([key, value]) => [
+    Object.entries(clone).map(([key, value]) => [
       key,
       status === UserSubscriptionStatus.Expired ? null : value,
     ]),
