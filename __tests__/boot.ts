@@ -658,10 +658,14 @@ describe('logged in boot', () => {
     it('should return balance', async () => {
       const testNjordClient = njordCommon.getNjordClient();
       await testNjordClient.transfer({
-        sender: { id: 'system', type: EntityType.SYSTEM },
-        receiver: { id: '1', type: EntityType.USER },
-        amount: 100,
         idempotencyKey: crypto.randomUUID(),
+        transfers: [
+          {
+            sender: { id: 'system', type: EntityType.SYSTEM },
+            receiver: { id: '1', type: EntityType.USER },
+            amount: 100,
+          },
+        ],
       });
 
       mockLoggedIn();

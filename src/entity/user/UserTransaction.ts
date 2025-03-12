@@ -10,6 +10,7 @@ import {
 import type { User } from './User';
 import type { Product } from '../Product';
 import type { RequestMeta } from '../../Context';
+import type { TransferStatus } from '@dailydotdev/schema';
 
 export type UserTransactionFlags = Partial<{
   note: string;
@@ -33,8 +34,8 @@ export class UserTransaction {
   })
   product: Promise<Product>;
 
-  @Column()
-  status: number; // TODO feat/transactions enum from schema later
+  @Column({ type: 'integer' })
+  status: TransferStatus;
 
   @CreateDateColumn()
   createdAt: Date;

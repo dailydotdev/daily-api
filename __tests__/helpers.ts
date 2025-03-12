@@ -32,7 +32,7 @@ import { DataLoaderService, defaultCacheKeyFn } from '../src/dataLoaderService';
 import { opentelemetry } from '../src/telemetry/opentelemetry';
 import { logger } from '../src/logger';
 import { createRouterTransport } from '@connectrpc/connect';
-import { Credits, Currency } from '@dailydotdev/schema';
+import { Credits, TransferType } from '@dailydotdev/schema';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<opentelemetry.Span> & opentelemetry.Span;
@@ -395,7 +395,8 @@ export const createMockNjordTransport = () => {
           }
         );
       },
-      transfer: (request) => {
+      transfer: (transferRequest) => {
+        const [request] = transferRequest.transfers;
         const receiverAccount = accounts[request.receiver!.id] || {
           amount: BigInt(0),
         };
@@ -410,20 +411,25 @@ export const createMockNjordTransport = () => {
         accounts[request.sender!.id] = senderAccount;
 
         return {
-          idempotencyKey: request.idempotencyKey,
-          senderBalance: {
-            account: { userId: request.sender?.id, currency: Currency.CORES },
-            previousBalance: 0,
-            newBalance: -request.amount,
-            changeAmount: -request.amount,
-          },
-          receiverBalance: {
-            account: { userId: request.receiver?.id, currency: Currency.CORES },
-            previousBalance: 0,
-            newBalance: request.amount,
-            changeAmount: request.amount,
-          },
-          timestamp: Date.now(),
+          idempotencyKey: transferRequest.idempotencyKey,
+          results: [
+            {
+              senderId: request.sender?.id,
+              senderBalance: {
+                previousBalance: 0,
+                newBalance: -request.amount,
+                changeAmount: -request.amount,
+              },
+              receiverId: request.receiver?.id,
+              receiverBalance: {
+                previousBalance: 0,
+                newBalance: request.amount,
+                changeAmount: request.amount,
+              },
+              timestamp: Date.now(),
+              transferType: TransferType.TRANSFER,
+            },
+          ],
         };
       },
     });

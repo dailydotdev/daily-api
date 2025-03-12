@@ -3,7 +3,8 @@ import { transactionBalanceLogWorker as worker } from '../../src/workers/transac
 import { typedWorkers } from '../../src/workers';
 import {
   Currency,
-  TransactionLogEntry,
+  TransferResponse,
+  TransferStatus,
   TransferType,
 } from '@dailydotdev/schema';
 import { expectSuccessfulTypedBackground } from '../helpers';
@@ -26,16 +27,30 @@ describe('transactionBalanceLog worker', () => {
   });
 
   it('should log transaction', async () => {
-    const message = new TransactionLogEntry({
-      transactionId: 'test-transaction-id',
-      userId: 'test-user-id',
-      currency: Currency.CORES,
-      amount: 42,
-      previousBalance: 0,
-      currentBalance: 42,
-      transferType: TransferType.TRANSFER,
-      description: 'test transaction',
+    const message = new TransferResponse({
+      idempotencyKey: 'test-transaction-id',
+      status: TransferStatus.SUCCESS,
       timestamp: Date.now(),
+      results: [
+        {
+          id: 'test-transfer-id',
+          senderId: 'system',
+          receiverId: 'test-user-id',
+          currency: Currency.CORES,
+          senderBalance: {
+            newBalance: -42,
+            previousBalance: 0,
+            changeAmount: -42,
+          },
+          receiverBalance: {
+            newBalance: 42,
+            previousBalance: 0,
+            changeAmount: 42,
+          },
+          transferType: TransferType.TRANSFER,
+          description: 'test transaction',
+        },
+      ],
     });
 
     await expectSuccessfulTypedBackground(worker, message);

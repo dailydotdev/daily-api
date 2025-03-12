@@ -5,8 +5,10 @@ import {
   Currency,
   EntityType,
   GetBalanceResponse,
+  TransferStatus,
   TransferType,
-  type TransferResponse,
+  type BalanceChange,
+  type TransferResult,
 } from '@dailydotdev/schema';
 import type { AuthContext } from '../Context';
 import { UserTransaction } from '../entity/user/UserTransaction';
@@ -85,7 +87,7 @@ export const createTransaction = createAuthProtectedFn(
       .getRepository(UserTransaction)
       .create({
         receiverId,
-        status: 0, // TODO feat/transactions enum from schema later
+        status: TransferStatus.SUCCESS,
         productId: product.id,
         senderId,
         value: product.value,
@@ -106,8 +108,30 @@ export const createTransaction = createAuthProtectedFn(
   },
 );
 
+const parseBalanceUpdate = ({
+  balance,
+  userId,
+}: {
+  balance?: BalanceChange;
+  userId: string;
+}):
+  | {
+      balance: BalanceChange;
+      userId: string;
+    }
+  | undefined => {
+  if (!balance || !userId) {
+    return undefined;
+  }
+
+  return {
+    balance,
+    userId,
+  };
+};
+
 export const transferCores = createAuthProtectedFn(
-  async ({ ctx, transaction }: TransferProps): Promise<TransferResponse> => {
+  async ({ ctx, transaction }: TransferProps): Promise<TransferResult> => {
     // TODO feat/transactions check if user is team member, remove check when prod is ready
     if (!ctx.isTeamMember && isProd) {
       throw new ForbiddenError('Not allowed for you yet');
@@ -126,35 +150,60 @@ export const transferCores = createAuthProtectedFn(
         throw new Error('No sender id');
       }
 
-      const result = await njordClient.transfer({
-        transferType: TransferType.TRANSFER,
-        currency: Currency.CORES,
+      const { results } = await njordClient.transfer({
         idempotencyKey: transaction.id,
-        sender: {
-          id: transaction.senderId,
-          type: EntityType.USER,
-        },
-        receiver: {
-          id: transaction.receiverId,
-          type: EntityType.USER,
-        },
-        amount: transaction.value,
+        transfers: [
+          {
+            transferType: TransferType.TRANSFER,
+            currency: Currency.CORES,
+            sender: {
+              id: transaction.senderId,
+              type: EntityType.USER,
+            },
+            receiver: {
+              id: transaction.receiverId,
+              type: EntityType.USER,
+            },
+            amount: transaction.value,
+            fee: {
+              percentage: transaction.fee,
+            },
+          },
+        ],
       });
+      // we always have singe transfer
+      const result = results.find(
+        (item) => item.transferType === TransferType.TRANSFER,
+      );
+
+      if (!result) {
+        throw new Error('No transfer result');
+      }
 
       await Promise.allSettled([
-        [result.senderBalance, result.receiverBalance].map(
-          async (balanceUpdate) => {
-            await updateBalanceCache({
-              ctx: {
-                // TODO feat/transactions remove !. new transfer response will always have account
-                userId: balanceUpdate!.account!.userId,
-              },
-              value: {
-                amount: parseBigInt(balanceUpdate!.newBalance),
-              },
-            });
-          },
-        ),
+        [
+          parseBalanceUpdate({
+            balance: result.senderBalance,
+            userId: transaction.senderId,
+          }),
+          parseBalanceUpdate({
+            balance: result.receiverBalance,
+            userId: transaction.receiverId,
+          }),
+        ].map(async (balanceUpdate) => {
+          if (!balanceUpdate) {
+            return;
+          }
+
+          await updateBalanceCache({
+            ctx: {
+              userId: balanceUpdate.userId,
+            },
+            value: {
+              amount: parseBigInt(balanceUpdate.balance.newBalance),
+            },
+          });
+        }),
       ]);
 
       // TODO feat/transactions error handling

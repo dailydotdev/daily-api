@@ -15,6 +15,7 @@ import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { UserTransaction } from '../../src/entity/user/UserTransaction';
 import { usersFixture } from '../fixture';
+import { TransferStatus } from '@dailydotdev/schema';
 
 let con: DataSource;
 
@@ -267,7 +268,7 @@ describe('trigger user_post_award_insert_trigger', () => {
 
     const transaction = await con.getRepository(UserTransaction).save({
       receiverId: 'upait-1',
-      status: 0,
+      status: TransferStatus.SUCCESS,
       productId: null,
       senderId: 'upait-2',
       fee: 0,
@@ -327,7 +328,7 @@ describe('trigger user_post_award_delete_trigger_function', () => {
 
     const transaction = await con.getRepository(UserTransaction).save({
       receiverId: 'upadt-1',
-      status: 0,
+      status: TransferStatus.SUCCESS,
       productId: null,
       senderId: 'upadt-2',
       fee: 0,
@@ -414,7 +415,7 @@ describe('trigger user_post_award_update_trigger_function', () => {
 
     const transaction = await con.getRepository(UserTransaction).save({
       receiverId: 'upaut-1',
-      status: 0,
+      status: TransferStatus.SUCCESS,
       productId: null,
       senderId: 'upaut-2',
       fee: 0,
@@ -444,7 +445,7 @@ describe('trigger user_post_award_update_trigger_function', () => {
   it('should update post awards on award removed', async () => {
     const transaction = await con.getRepository(UserTransaction).save({
       receiverId: 'upaut-1',
-      status: 0,
+      status: TransferStatus.SUCCESS,
       productId: null,
       senderId: 'upaut-2',
       fee: 0,

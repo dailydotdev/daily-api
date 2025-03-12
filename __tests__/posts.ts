@@ -91,6 +91,7 @@ import {
 } from '../src/entity/contentPreference/types';
 import { ContentPreference } from '../src/entity/contentPreference/ContentPreference';
 import { UserTransaction } from '../src/entity/user/UserTransaction';
+import { TransferStatus } from '@dailydotdev/schema';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -5168,7 +5169,7 @@ describe('userState field', () => {
 
     const transaction = await con.getRepository(UserTransaction).save({
       receiverId: '1',
-      status: 0,
+      status: TransferStatus.SUCCESS,
       productId: null,
       senderId: '1',
       fee: 0,

@@ -12,6 +12,7 @@ import {
 import { UserTransaction } from '../../src/entity/user/UserTransaction';
 import { usersFixture } from '../fixture';
 import { UserComment } from '../../src/entity/user/UserComment';
+import { TransferStatus } from '@dailydotdev/schema';
 
 let con: DataSource;
 
@@ -72,7 +73,7 @@ describe('trigger user_comment_award_insert_trigger', () => {
 
     const transaction = await con.getRepository(UserTransaction).save({
       receiverId: 'ucait-1',
-      status: 0,
+      status: TransferStatus.SUCCESS,
       productId: null,
       senderId: 'ucait-2',
       fee: 0,
@@ -138,7 +139,7 @@ describe('trigger user_comment_award_delete_trigger_function', () => {
 
     const transaction = await con.getRepository(UserTransaction).save({
       receiverId: 'ucadt-1',
-      status: 0,
+      status: TransferStatus.SUCCESS,
       productId: null,
       senderId: 'ucadt-2',
       fee: 0,
@@ -232,7 +233,7 @@ describe('trigger user_comment_award_update_trigger_function', () => {
 
     const transaction = await con.getRepository(UserTransaction).save({
       receiverId: 'ucaut-1',
-      status: 0,
+      status: TransferStatus.SUCCESS,
       productId: null,
       senderId: 'ucaut-2',
       fee: 0,
@@ -262,7 +263,7 @@ describe('trigger user_comment_award_update_trigger_function', () => {
   it('should update comment awards on award removed', async () => {
     const transaction = await con.getRepository(UserTransaction).save({
       receiverId: 'ucaut-1',
-      status: 0,
+      status: TransferStatus.SUCCESS,
       productId: null,
       senderId: 'ucaut-2',
       fee: 0,
