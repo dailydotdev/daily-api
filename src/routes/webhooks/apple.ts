@@ -159,7 +159,7 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
             { notification },
             "Missing 'signedRenewalInfo' in notification data",
           );
-          return response.status(403).send({ error: 'Invalid Payload' });
+          return response.status(400).send({ error: 'Invalid Payload' });
         }
 
         const renewalInfo = await verifier.verifyAndDecodeRenewalInfo(
@@ -181,7 +181,7 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
             { notification },
             'User not found with matching app account token',
           );
-          return response.status(403).send({ error: 'Invalid Payload' });
+          return response.status(404).send({ error: 'Invalid Payload' });
         }
 
         logger.info(
@@ -196,6 +196,9 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
 
         if (isNullOrUndefined(subscriptionStatus)) {
           logger.error('Unknown notification type');
+          return response
+            .status(400)
+            .send({ error: 'Unknown notification event' });
         } else {
           await updateUserSubscription({
             userId: user.id,
