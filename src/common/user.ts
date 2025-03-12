@@ -13,6 +13,8 @@ import {
   Settings,
   SourceDisplay,
   SourceRequest,
+  UserSubscriptionStatus,
+  SubscriptionProvider,
   User,
   View,
 } from '../entity';
@@ -28,19 +30,28 @@ export const deleteUser = async (
   messageId?: string,
 ) => {
   try {
-    const user = await con.getRepository(User).findOne({
+    const { subscriptionFlags } = await con.getRepository(User).findOneOrFail({
       select: ['subscriptionFlags'],
       where: { id: userId },
     });
-    if (user?.subscriptionFlags?.subscriptionId) {
+    if (subscriptionFlags?.subscriptionId) {
+      if (
+        subscriptionFlags?.provider === SubscriptionProvider.AppleStoreKit &&
+        subscriptionFlags?.status === UserSubscriptionStatus.Active
+      ) {
+        throw new Error(
+          'Apple subscriptions are not supported for user deletion',
+        );
+      }
+
       await cancelSubscription({
-        subscriptionId: user.subscriptionFlags.subscriptionId,
+        subscriptionId: subscriptionFlags.subscriptionId,
       });
       logger.info(
         {
           type: 'paddle',
           userId,
-          subscriptionId: user.subscriptionFlags.subscriptionId,
+          subscriptionId: subscriptionFlags.subscriptionId,
         },
         'Subscription cancelled user deletion',
       );
