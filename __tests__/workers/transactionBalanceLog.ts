@@ -30,11 +30,12 @@ describe('transactionBalanceLog worker', () => {
     const message = new TransferResponse({
       idempotencyKey: 'test-transaction-id',
       status: TransferStatus.SUCCESS,
+      timestamp: Date.now(),
       results: [
         {
-          id: 'test-user-id',
+          id: 'test-transfer-id',
           senderId: 'system',
-          receiverId: '5GHEUpildSXvvbOdcfing',
+          receiverId: 'test-user-id',
           currency: Currency.CORES,
           senderBalance: {
             newBalance: -42,
