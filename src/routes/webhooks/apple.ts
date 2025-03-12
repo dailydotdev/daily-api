@@ -102,16 +102,16 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
         const notification =
           await verifier.verifyAndDecodeNotification(signedPayload);
 
-        if (isNullOrUndefined(notification?.data?.signedTransactionInfo)) {
+        if (isNullOrUndefined(notification?.data?.signedRenewalInfo)) {
           logger.info(
             { notification },
-            "Missing 'signedTransactionInfo' in notification data",
+            "Missing 'signedRenewalInfo' in notification data",
           );
           return response.status(403).send({ error: 'Invalid Payload' });
         }
 
-        const transactionInfo = await verifier.verifyAndDecodeTransaction(
-          notification.data.signedTransactionInfo,
+        const renewalInfo = await verifier.verifyAndDecodeRenewalInfo(
+          notification.data.signedRenewalInfo!,
         );
 
         const con = await createOrGetConnection();
@@ -119,7 +119,7 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
           select: ['id', 'subscriptionFlags'],
           where: {
             subscriptionFlags: JsonContains({
-              appAccountToken: transactionInfo.appAccountToken,
+              appAccountToken: renewalInfo.appAccountToken,
             }),
           },
         });
@@ -133,7 +133,7 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
         }
 
         logger.info(
-          { transactionInfo, user },
+          { renewalInfo, user },
           'Received Apple App Store Server Notification',
         );
 
