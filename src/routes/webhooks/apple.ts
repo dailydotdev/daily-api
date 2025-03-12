@@ -23,7 +23,7 @@ import {
 } from '../../entity';
 import { JsonContains } from 'typeorm';
 import { SubscriptionCycles } from '../../paddle';
-import { updateUserSubscription } from '../../plusSubscription';
+import { updateStoreKitUserSubscription } from '../../plusSubscription';
 
 const certificatesToLoad = isTest
   ? ['__tests__/fixture/testCA.der']
@@ -210,7 +210,7 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
             .status(400)
             .send({ error: 'Unknown notification event' });
         } else {
-          await updateUserSubscription({
+          await updateStoreKitUserSubscription({
             userId: user.id,
             status: subscriptionStatus,
             data: renewalInfoToSubscriptionFlags(renewalInfo),

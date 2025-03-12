@@ -6,7 +6,7 @@ import {
   type UserSubscriptionFlags,
 } from './entity';
 
-export const updateUserSubscription = async ({
+export const updateStoreKitUserSubscription = async ({
   userId,
   data,
   status,
