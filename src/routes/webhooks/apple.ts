@@ -187,7 +187,7 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
         });
 
         if (!user) {
-          logger.info(
+          logger.error(
             { notification },
             'User not found with matching app account token',
           );
