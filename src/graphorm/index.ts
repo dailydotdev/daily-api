@@ -774,6 +774,17 @@ const obj = new GraphORM({
         select: '"awardTransactionId" IS NOT NULL',
         rawSelect: true,
       },
+      award: {
+        relation: {
+          isMany: false,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(
+                `${childAlias}."id" = ("${parentAlias}".flags->>'awardId')::uuid`,
+              )
+              .limit(1),
+        },
+      },
     },
   },
   FeedSettings: {
