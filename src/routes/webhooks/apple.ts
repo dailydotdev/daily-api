@@ -10,6 +10,9 @@ import {
 import { isTest } from '../../common';
 import { isInSubnet } from 'is-in-subnet';
 import { isNullOrUndefined } from '../../common/object';
+import createOrGetConnection from '../../db';
+import { User } from '../../entity';
+import { JsonContains } from 'typeorm';
 
 const certificatesToLoad = isTest
   ? ['__tests__/fixture/testCA.der']
@@ -99,10 +102,41 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
         const notification =
           await verifier.verifyAndDecodeNotification(signedPayload);
 
+        if (isNullOrUndefined(notification?.data?.signedTransactionInfo)) {
+          logger.info(
+            { notification },
+            "Missing 'signedTransactionInfo' in notification data",
+          );
+          return response.status(403).send({ error: 'Invalid Payload' });
+        }
+
+        const transactionInfo = await verifier.verifyAndDecodeTransaction(
+          notification.data.signedTransactionInfo,
+        );
+
+        const con = await createOrGetConnection();
+        const user = await con.getRepository(User).findOne({
+          select: ['id', 'subscriptionFlags'],
+          where: {
+            subscriptionFlags: JsonContains({
+              appAccountToken: transactionInfo.appAccountToken,
+            }),
+          },
+        });
+
+        if (!user) {
+          logger.info(
+            { notification },
+            'User not found with matching app account token',
+          );
+          return response.status(403).send({ error: 'Invalid Payload' });
+        }
+
         logger.info(
-          { notification },
+          { transactionInfo, user },
           'Received Apple App Store Server Notification',
         );
+
         return {
           received: true,
         };
