@@ -84,6 +84,11 @@ const renewalInfoToSubscriptionFlags = (
   const cycle =
     productIdToCycle[data.autoRenewProductId as keyof typeof productIdToCycle];
 
+  if (isNullOrUndefined(cycle)) {
+    logger.error({ data }, 'Invalid auto renew product ID');
+    throw new Error('Invalid auto renew product ID');
+  }
+
   return {
     cycle,
     subscriptionId: data.originalTransactionId,
