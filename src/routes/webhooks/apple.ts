@@ -4,15 +4,26 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { logger } from '../../logger';
 import {
   Environment,
+  NotificationTypeV2,
   SignedDataVerifier,
+  Subtype,
   VerificationException,
+  type JWSRenewalInfoDecodedPayload,
+  type ResponseBodyV2DecodedPayload,
 } from '@apple/app-store-server-library';
 import { isTest } from '../../common';
 import { isInSubnet } from 'is-in-subnet';
 import { isNullOrUndefined } from '../../common/object';
 import createOrGetConnection from '../../db';
-import { User } from '../../entity';
+import {
+  UserSubscriptionStatus,
+  SubscriptionProvider,
+  User,
+  type UserSubscriptionFlags,
+} from '../../entity';
 import { JsonContains } from 'typeorm';
+import { SubscriptionCycles } from '../../paddle';
+import { updateUserSubscription } from '../../plusSubscription';
 
 const certificatesToLoad = isTest
   ? ['__tests__/fixture/testCA.der']
@@ -60,6 +71,47 @@ const allowedIPs = [
 interface AppleNotificationRequest {
   signedPayload: string;
 }
+
+const productIdToCycle = {
+  annualSpecial: SubscriptionCycles.Yearly,
+  annual: SubscriptionCycles.Yearly,
+  monthly: SubscriptionCycles.Monthly,
+};
+
+const renewalInfoToSubscriptionFlags = (
+  data: JWSRenewalInfoDecodedPayload,
+): UserSubscriptionFlags => {
+  const cycle =
+    productIdToCycle[data.autoRenewProductId as keyof typeof productIdToCycle];
+
+  return {
+    cycle,
+    subscriptionId: data.originalTransactionId,
+    createdAt: new Date(data.recentSubscriptionStartDate!),
+    expiresAt: new Date(data.renewalDate!),
+    provider: SubscriptionProvider.AppleStoreKit,
+  };
+};
+
+const getSubscriptionStatus = (
+  notificationType: ResponseBodyV2DecodedPayload['notificationType'],
+  subtype?: ResponseBodyV2DecodedPayload['subtype'],
+): UserSubscriptionStatus | null => {
+  switch (notificationType) {
+    case NotificationTypeV2.SUBSCRIBED:
+    case NotificationTypeV2.DID_RENEW:
+    case NotificationTypeV2.DID_CHANGE_RENEWAL_PREF:
+      return UserSubscriptionStatus.Active;
+    case NotificationTypeV2.DID_CHANGE_RENEWAL_STATUS:
+      return subtype === Subtype.AUTO_RENEW_ENABLED
+        ? UserSubscriptionStatus.Active
+        : UserSubscriptionStatus.Cancelled;
+    case NotificationTypeV2.EXPIRED:
+      return UserSubscriptionStatus.Expired;
+    default:
+      return null;
+  }
+};
 
 export const apple = async (fastify: FastifyInstance): Promise<void> => {
   let appleRootCAs: Buffer[] = [];
@@ -136,6 +188,21 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
           { renewalInfo, user },
           'Received Apple App Store Server Notification',
         );
+
+        const subscriptionStatus = getSubscriptionStatus(
+          notification.notificationType,
+          notification.subtype,
+        );
+
+        if (isNullOrUndefined(subscriptionStatus)) {
+          logger.error('Unknown notification type');
+        } else {
+          await updateUserSubscription({
+            userId: user.id,
+            status: subscriptionStatus,
+            data: renewalInfoToSubscriptionFlags(renewalInfo),
+          });
+        }
 
         return {
           received: true,
