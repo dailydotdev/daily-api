@@ -34,15 +34,19 @@ export enum SubscriptionProvider {
 }
 
 export type UserSubscriptionFlags = Partial<{
+  // Common flags
   cycle: SubscriptionCycles;
   createdAt: Date;
-  subscriptionId: string;
   gifterId?: string;
   giftExpirationDate?: Date;
   provider: SubscriptionProvider;
 
+  // Paddle flags
+  subscriptionId: string;
+
   // StoreKit flags
   appAccountToken?: string; // StoreKit app account token (UUID)
+  expiresAt?: Date; // StoreKit subscription expiration date
 }>;
 
 @Entity()
