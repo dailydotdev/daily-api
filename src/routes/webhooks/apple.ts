@@ -5,6 +5,7 @@ import { logger } from '../../logger';
 import {
   Environment,
   SignedDataVerifier,
+  VerificationException,
 } from '@apple/app-store-server-library';
 import { isTest } from '../../common';
 import { isInSubnet } from 'is-in-subnet';
@@ -107,11 +108,19 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
         };
       } catch (_err) {
         const err = _err as Error;
-        logger.error(
-          { err },
-          'Failed to verify Apple App Store Server Notification',
-        );
-        return response.status(403).send({ error: 'Invalid Payload' });
+        if (err instanceof VerificationException) {
+          logger.error(
+            { err },
+            'Failed to verify Apple App Store Server Notification',
+          );
+          return response.status(403).send({ error: 'Invalid Payload' });
+        } else {
+          logger.error(
+            { err },
+            'Failed to process Apple App Store Server Notification',
+          );
+          return response.status(500).send({ error: 'Internal Server Error' });
+        }
       }
     },
   );
