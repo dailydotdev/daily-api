@@ -32,7 +32,7 @@ import { DataLoaderService, defaultCacheKeyFn } from '../src/dataLoaderService';
 import { opentelemetry } from '../src/telemetry/opentelemetry';
 import { logger } from '../src/logger';
 import { createRouterTransport } from '@connectrpc/connect';
-import { Credits } from '@dailydotdev/schema';
+import { Credits, TransferType } from '@dailydotdev/schema';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<opentelemetry.Span> & opentelemetry.Span;
@@ -427,6 +427,7 @@ export const createMockNjordTransport = () => {
                 changeAmount: request.amount,
               },
               timestamp: Date.now(),
+              transferType: TransferType.TRANSFER,
             },
           ],
         };

@@ -150,9 +150,7 @@ export const transferCores = createAuthProtectedFn(
         throw new Error('No sender id');
       }
 
-      const {
-        results: [result],
-      } = await njordClient.transfer({
+      const { results } = await njordClient.transfer({
         idempotencyKey: transaction.id,
         transfers: [
           {
@@ -173,6 +171,14 @@ export const transferCores = createAuthProtectedFn(
           },
         ],
       });
+      // we always have singe transfer
+      const result = results.find(
+        (item) => item.transferType === TransferType.TRANSFER,
+      );
+
+      if (!result) {
+        throw new Error('No transfer result');
+      }
 
       await Promise.allSettled([
         [
