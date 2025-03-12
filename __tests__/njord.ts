@@ -7,6 +7,7 @@ import {
   type GraphQLTestingState,
   type GraphQLTestClient,
   testMutationErrorCode,
+  createMockNjordTransport,
 } from './helpers';
 import {
   ArticlePost,
@@ -22,35 +23,14 @@ import { FastifyInstance } from 'fastify';
 import appFunc from '../src';
 import { Product, ProductType } from '../src/entity/Product';
 import type { AuthContext, Context } from '../src/Context';
-import { createClient, createRouterTransport } from '@connectrpc/connect';
-import { Credits, Currency } from '@dailydotdev/schema';
+import { createClient } from '@connectrpc/connect';
+import { Credits } from '@dailydotdev/schema';
 import * as njordCommon from '../src/common/njord';
 import { UserTransaction } from '../src/entity/user/UserTransaction';
 import { ghostUser } from '../src/common';
 import { UserComment } from '../src/entity/user/UserComment';
 
-const mockTransport = createRouterTransport(({ service }) => {
-  service(Credits, {
-    transfer: (request) => {
-      return {
-        idempotencyKey: request.idempotencyKey,
-        senderBalance: {
-          account: { userId: request.sender?.id, currency: Currency.CORES },
-          previousBalance: 0,
-          newBalance: -request.amount,
-          changeAmount: -request.amount,
-        },
-        receiverBalance: {
-          account: { userId: request.receiver?.id, currency: Currency.CORES },
-          previousBalance: 0,
-          newBalance: request.amount,
-          changeAmount: request.amount,
-        },
-        timestamp: Date.now(),
-      };
-    },
-  });
-});
+const mockTransport = createMockNjordTransport();
 
 let app: FastifyInstance;
 let con: DataSource;

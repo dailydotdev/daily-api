@@ -34,7 +34,7 @@ export class UserTransaction {
   })
   product: Promise<Product>;
 
-  @Column()
+  @Column({ type: 'integer' })
   status: TransferStatus;
 
   @CreateDateColumn()

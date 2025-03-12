@@ -32,7 +32,7 @@ import { DataLoaderService, defaultCacheKeyFn } from '../src/dataLoaderService';
 import { opentelemetry } from '../src/telemetry/opentelemetry';
 import { logger } from '../src/logger';
 import { createRouterTransport } from '@connectrpc/connect';
-import { Credits, Currency } from '@dailydotdev/schema';
+import { Credits } from '@dailydotdev/schema';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<opentelemetry.Span> & opentelemetry.Span;
@@ -412,19 +412,23 @@ export const createMockNjordTransport = () => {
 
         return {
           idempotencyKey: transferRequest.idempotencyKey,
-          senderBalance: {
-            account: { userId: request.sender?.id, currency: Currency.CORES },
-            previousBalance: 0,
-            newBalance: -request.amount,
-            changeAmount: -request.amount,
-          },
-          receiverBalance: {
-            account: { userId: request.receiver?.id, currency: Currency.CORES },
-            previousBalance: 0,
-            newBalance: request.amount,
-            changeAmount: request.amount,
-          },
-          timestamp: Date.now(),
+          results: [
+            {
+              senderId: request.sender?.id,
+              senderBalance: {
+                previousBalance: 0,
+                newBalance: -request.amount,
+                changeAmount: -request.amount,
+              },
+              receiverId: request.receiver?.id,
+              receiverBalance: {
+                previousBalance: 0,
+                newBalance: request.amount,
+                changeAmount: request.amount,
+              },
+              timestamp: Date.now(),
+            },
+          ],
         };
       },
     });
