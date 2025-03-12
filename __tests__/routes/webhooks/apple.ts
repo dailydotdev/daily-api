@@ -174,7 +174,7 @@ describe('POST /webhooks/apple/notifications', () => {
     expect(body.error).toEqual('Invalid Payload');
   });
 
-  it('should return 500 when payload is correct but not able to fund subscripton cycle', async () => {
+  it('should return 500 when payload is correct but not able to determine subscription cycle', async () => {
     await request(app.server)
       .post('/webhooks/apple/notifications')
       .send({
