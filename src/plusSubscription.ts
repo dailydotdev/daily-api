@@ -26,7 +26,7 @@ export const updateUserSubscription = async ({
 
   const con = await createOrGetConnection();
 
-  // Convert all keys in data to null when stutus is expired
+  // Convert all keys in data to null when status is expired
   const subscriptionFlags = Object.fromEntries(
     Object.entries(data).map(([key, value]) => [
       key,
