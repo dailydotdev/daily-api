@@ -33,17 +33,32 @@ export enum SubscriptionProvider {
   AppleStoreKit = 'storekit',
 }
 
+export enum UserSubscriptionStatus {
+  Active = 'active',
+  Expired = 'expired',
+  Cancelled = 'cancelled',
+}
+
+export type PaddleUserSubscriptionFlags = Partial<{
+  gifterId?: string; // Currently only supported in Paddle
+  giftExpirationDate?: Date; // Currently only supported in Paddle
+}>;
+
+export type StoreKitUserSubscriptionFlags = Partial<{
+  appAccountToken: string;
+  expiresAt: Date;
+}>;
+
 export type UserSubscriptionFlags = Partial<{
+  // Common flags
+  subscriptionId: string;
   cycle: SubscriptionCycles;
   createdAt: Date;
-  subscriptionId: string;
-  gifterId?: string;
-  giftExpirationDate?: Date;
   provider: SubscriptionProvider;
-
-  // StoreKit flags
-  appAccountToken?: string; // StoreKit app account token (UUID)
-}>;
+  status: UserSubscriptionStatus;
+}> &
+  PaddleUserSubscriptionFlags &
+  StoreKitUserSubscriptionFlags;
 
 @Entity()
 @Index('IDX_user_lowerusername_username', { synchronize: false })

@@ -14,7 +14,11 @@ import {
   updateSubscriptionFlags,
   webhooks,
 } from '../../common';
-import { SubscriptionProvider, User } from '../../entity';
+import {
+  SubscriptionProvider,
+  User,
+  UserSubscriptionStatus,
+} from '../../entity';
 import { logger } from '../../logger';
 import { remoteConfig } from '../../remoteConfig';
 import {
@@ -73,8 +77,29 @@ export const updateUserSubscription = async ({
   const con = await createOrGetConnection();
   const userId = customData?.user_id;
   if (!userId) {
-    logger.error({ type: 'paddle' }, 'User ID missing in payload');
+    logger.error(
+      { provider: SubscriptionProvider.Paddle },
+      'User ID missing in payload',
+    );
     return false;
+  }
+
+  const user = await con.getRepository(User).findOneBy({ id: userId });
+  if (!user) {
+    logger.error({ provider: SubscriptionProvider.Paddle }, 'User not found');
+    return false;
+  }
+
+  if (user.subscriptionFlags?.provider === SubscriptionProvider.AppleStoreKit) {
+    logger.error(
+      {
+        user,
+        data,
+        provider: SubscriptionProvider.Paddle,
+      },
+      'User already has a Apple subscription',
+    );
+    throw new Error('User already has a StoreKit subscription');
   }
 
   const subscriptionType = extractSubscriptionType(data.data?.items);
@@ -82,7 +107,7 @@ export const updateUserSubscription = async ({
   if (!subscriptionType) {
     logger.error(
       {
-        type: 'paddle',
+        provider: SubscriptionProvider.Paddle,
         data,
       },
       'Subscription type missing in payload',
@@ -100,6 +125,7 @@ export const updateUserSubscription = async ({
         createdAt: state ? data.data?.startedAt : null,
         subscriptionId: state ? data.data?.id : null,
         provider: state ? SubscriptionProvider.Paddle : null,
+        status: state ? UserSubscriptionStatus.Active : null,
       }),
     },
   );
@@ -123,7 +149,10 @@ const getUserId = async ({
   });
 
   if (!user) {
-    logger.error({ type: 'paddle', subscriptionId, userId }, 'User not found');
+    logger.error(
+      { provider: SubscriptionProvider.Paddle, subscriptionId, userId },
+      'User not found',
+    );
     return '';
   }
 
@@ -234,7 +263,7 @@ const notifyNewPaddleTransaction = async ({
 
   if (gifter_id && !flags?.giftExpirationDate) {
     logger.error(
-      { type: 'paddle' },
+      { provider: SubscriptionProvider.Paddle },
       'Gifted subscription without expiration date',
     );
   }
@@ -382,14 +411,20 @@ export const processGiftedPayment = async ({
   const { gifter_id, user_id } = data.customData as PaddleCustomData;
 
   if (user_id === gifter_id) {
-    logger.error({ type: 'paddle', data }, 'User and gifter are the same');
+    logger.error(
+      { provider: SubscriptionProvider.Paddle, data },
+      'User and gifter are the same',
+    );
     return;
   }
 
   const gifterUser = await con.getRepository(User).findOneBy({ id: gifter_id });
 
   if (!gifterUser) {
-    logger.error({ type: 'paddle', data }, 'Gifter user not found');
+    logger.error(
+      { provider: SubscriptionProvider.Paddle, data },
+      'Gifter user not found',
+    );
     return;
   }
 
@@ -399,7 +434,10 @@ export const processGiftedPayment = async ({
   });
 
   if (isPlusMember(targetUser?.subscriptionFlags?.cycle)) {
-    logger.error({ type: 'paddle', data }, 'User is already a Plus member');
+    logger.error(
+      { provider: SubscriptionProvider.Paddle, data },
+      'User is already a Plus member',
+    );
     return;
   }
 
@@ -497,13 +535,22 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
                 ]);
                 break;
               default:
-                logger.info({ type: 'paddle' }, eventData?.eventType);
+                logger.info(
+                  { provider: SubscriptionProvider.Paddle },
+                  eventData?.eventType,
+                );
             }
           } else {
-            logger.error({ type: 'paddle' }, 'Signature missing in header');
+            logger.error(
+              { provider: SubscriptionProvider.Paddle },
+              'Signature missing in header',
+            );
           }
         } catch (e) {
-          logger.error({ type: 'paddle', e }, 'Paddle generic error');
+          logger.error(
+            { provider: SubscriptionProvider.Paddle, e },
+            'Paddle generic error',
+          );
         }
         res.send('Processed webhook event');
       },

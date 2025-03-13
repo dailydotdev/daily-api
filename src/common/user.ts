@@ -1,5 +1,4 @@
 import { DataSource } from 'typeorm';
-import { FastifyLoggerInstance } from 'fastify';
 import {
   Alerts,
   ArticlePost,
@@ -13,6 +12,8 @@ import {
   Settings,
   SourceDisplay,
   SourceRequest,
+  UserSubscriptionStatus,
+  SubscriptionProvider,
   User,
   View,
 } from '../entity';
@@ -20,30 +21,41 @@ import { ghostUser } from './index';
 import { cancelSubscription } from './paddle';
 import type { AuthContext } from '../Context';
 import { ForbiddenError } from 'apollo-server-errors';
+import { logger } from '../logger';
 
 export const deleteUser = async (
   con: DataSource,
-  logger: FastifyLoggerInstance,
   userId: string,
   messageId?: string,
 ) => {
   try {
-    const user = await con.getRepository(User).findOne({
+    const { subscriptionFlags } = await con.getRepository(User).findOneOrFail({
       select: ['subscriptionFlags'],
       where: { id: userId },
     });
-    if (user?.subscriptionFlags?.subscriptionId) {
-      await cancelSubscription({
-        subscriptionId: user.subscriptionFlags.subscriptionId,
-      });
-      logger.info(
-        {
-          type: 'paddle',
-          userId,
-          subscriptionId: user.subscriptionFlags.subscriptionId,
-        },
-        'Subscription cancelled user deletion',
-      );
+    if (subscriptionFlags?.subscriptionId) {
+      if (
+        subscriptionFlags?.provider === SubscriptionProvider.AppleStoreKit &&
+        subscriptionFlags?.status === UserSubscriptionStatus.Active
+      ) {
+        throw new Error(
+          'Apple subscriptions are not supported for user deletion',
+        );
+      }
+
+      if (subscriptionFlags?.provider === SubscriptionProvider.Paddle) {
+        await cancelSubscription({
+          subscriptionId: subscriptionFlags.subscriptionId,
+        });
+        logger.info(
+          {
+            type: 'paddle',
+            userId,
+            subscriptionId: subscriptionFlags.subscriptionId,
+          },
+          'Subscription cancelled user deletion',
+        );
+      }
     }
     await con.transaction(async (entityManager): Promise<void> => {
       await entityManager.getRepository(View).delete({ userId });
@@ -75,26 +87,22 @@ export const deleteUser = async (
         .update({ scoutId: userId }, { scoutId: null });
       await entityManager.getRepository(User).delete(userId);
     });
-    if (logger) {
-      logger.info(
-        {
-          userId,
-          messageId,
-        },
-        'deleted user',
-      );
-    }
+    logger.info(
+      {
+        userId,
+        messageId,
+      },
+      'deleted user',
+    );
   } catch (err) {
-    if (logger) {
-      logger.error(
-        {
-          userId,
-          messageId,
-          err,
-        },
-        'failed to delete user',
-      );
-    }
+    logger.error(
+      {
+        userId,
+        messageId,
+        err,
+      },
+      'failed to delete user',
+    );
     throw err;
   }
 };
