@@ -85,7 +85,10 @@ const renewalInfoToSubscriptionFlags = (
     productIdToCycle[data.autoRenewProductId as keyof typeof productIdToCycle];
 
   if (isNullOrUndefined(cycle)) {
-    logger.error({ data }, '[Apple StoreKit]: Invalid auto renew product ID');
+    logger.error(
+      { data, provider: SubscriptionProvider.AppleStoreKit },
+      'Invalid auto renew product ID',
+    );
     throw new Error('Invalid auto renew product ID');
   }
 
@@ -125,8 +128,12 @@ const getSubscriptionStatus = (
       return UserSubscriptionStatus.Expired;
     default:
       logger.error(
-        { notificationType, subtype },
-        '[Apple StoreKit]: Unknown notification type',
+        {
+          notificationType,
+          subtype,
+          provider: SubscriptionProvider.AppleStoreKit,
+        },
+        'Unknown notification type',
       );
       throw new Error('Unknown notification type');
   }
@@ -163,8 +170,8 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
 
       if (isNullOrUndefined(signedPayload)) {
         logger.info(
-          { body: request.body },
-          "[Apple StoreKit]: Missing 'signedPayload' in request body",
+          { body: request.body, provider: SubscriptionProvider.AppleStoreKit },
+          "Missing 'signedPayload' in request body",
         );
         return response.status(403).send({ error: 'Invalid Payload' });
       }
@@ -175,8 +182,8 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
 
         if (isNullOrUndefined(notification?.data?.signedRenewalInfo)) {
           logger.info(
-            { notification },
-            "[Apple StoreKit]: Missing 'signedRenewalInfo' in notification data",
+            { notification, provider: SubscriptionProvider.AppleStoreKit },
+            "Missing 'signedRenewalInfo' in notification data",
           );
           return response.status(400).send({ error: 'Invalid Payload' });
         }
@@ -197,15 +204,15 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
 
         if (!user) {
           logger.error(
-            { notification },
-            '[Apple StoreKit]: User not found with matching app account token',
+            { notification, provider: SubscriptionProvider.AppleStoreKit },
+            'User not found with matching app account token',
           );
           return response.status(404).send({ error: 'Invalid Payload' });
         }
 
         logger.info(
-          { renewalInfo, user },
-          '[Apple StoreKit]: Received Apple App Store Server Notification',
+          { renewalInfo, user, provider: SubscriptionProvider.AppleStoreKit },
+          'Received Apple App Store Server Notification',
         );
 
         const subscriptionStatus = getSubscriptionStatus(
@@ -228,14 +235,22 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
         const err = _err as Error;
         if (err instanceof VerificationException) {
           logger.error(
-            { err, signedPayload },
-            '[Apple StoreKit]: Failed to verify Apple App Store Server Notification',
+            {
+              err,
+              signedPayload,
+              provider: SubscriptionProvider.AppleStoreKit,
+            },
+            'Failed to verify Apple App Store Server Notification',
           );
           return response.status(403).send({ error: 'Invalid Payload' });
         } else {
           logger.error(
-            { err, signedPayload },
-            '[Apple StoreKit]: Failed to process Apple App Store Server Notification',
+            {
+              err,
+              signedPayload,
+              provider: SubscriptionProvider.AppleStoreKit,
+            },
+            'Failed to process Apple App Store Server Notification',
           );
           return response.status(500).send({ error: 'Internal Server Error' });
         }
