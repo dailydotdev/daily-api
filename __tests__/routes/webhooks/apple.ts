@@ -146,6 +146,26 @@ describe('POST /webhooks/apple/notifications', () => {
           appAccountToken: '7e3fb20b-4cdb-47cc-936d-99d65f608138',
         },
       },
+      {
+        id: 'paddle-user-0',
+        username: 'paddle-user-0',
+        subscriptionFlags: {
+          subscriptionId: 'paddle-subscription-id',
+          provider: SubscriptionProvider.Paddle,
+          status: UserSubscriptionStatus.Active,
+          appAccountToken: '4b1d83a3-163e-4434-a502-96fb2a516a51',
+        },
+      },
+    ]);
+  });
+
+  afterEach(async () => {
+    await saveFixtures(con, User, [
+      {
+        id: 'storekit-user-0',
+        username: 'storekit-user-0',
+        subscriptionFlags: {},
+      },
     ]);
   });
 
@@ -314,5 +334,21 @@ describe('POST /webhooks/apple/notifications', () => {
       UserSubscriptionStatus.Expired,
     );
     expect(user.subscriptionFlags?.provider).toBeUndefined();
+  });
+
+  it('should return error if user already has a paddle subscription', async () => {
+    await request(app.server)
+      .post('/webhooks/apple/notifications')
+      .send({
+        signedPayload: signedPayload({
+          notificationType: NotificationTypeV2.SUBSCRIBED,
+          data: {
+            signedRenewalInfo: {
+              appAccountToken: '4b1d83a3-163e-4434-a502-96fb2a516a51',
+            },
+          },
+        }),
+      })
+      .expect(500);
   });
 });

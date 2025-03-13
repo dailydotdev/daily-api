@@ -210,6 +210,18 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
           return response.status(404).send({ error: 'Invalid Payload' });
         }
 
+        if (user.subscriptionFlags?.provider === SubscriptionProvider.Paddle) {
+          logger.error(
+            {
+              user,
+              notification,
+              provider: SubscriptionProvider.AppleStoreKit,
+            },
+            'User already has a Paddle subscription',
+          );
+          throw new Error('User already has a Paddle subscription');
+        }
+
         logger.info(
           { renewalInfo, user, provider: SubscriptionProvider.AppleStoreKit },
           'Received Apple App Store Server Notification',
