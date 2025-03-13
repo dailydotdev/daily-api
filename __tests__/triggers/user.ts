@@ -8,6 +8,8 @@ import {
   UserStreak,
   Comment,
   ArticlePost,
+  UserSubscriptionStatus,
+  SubscriptionProvider,
 } from '../../src/entity';
 import { sourcesFixture } from '../fixture';
 import { postsFixture } from '../fixture/post';
@@ -39,6 +41,109 @@ describe('user', () => {
 
       const streak = await repo.findOneBy({ userId: user.id });
       expect(streak).toBeTruthy();
+    });
+  });
+
+  describe('deletion', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, User, [
+        {
+          id: 'user-deletion-0',
+          username: 'user-deletion-0',
+        },
+      ]);
+    });
+
+    afterEach(async () => {
+      await con.getRepository(User).update(
+        { id: 'user-deletion-0' },
+        {
+          subscriptionFlags: {},
+        },
+      );
+    });
+
+    it('should not delete user with active Apple subscription', async () => {
+      await con.getRepository(User).update(
+        { id: 'user-deletion-0' },
+        {
+          subscriptionFlags: {
+            provider: SubscriptionProvider.AppleStoreKit,
+            status: UserSubscriptionStatus.Active,
+          },
+        },
+      );
+
+      await expect(
+        con.getRepository(User).delete({ id: 'user-deletion-0' }),
+      ).rejects.toThrow(
+        'Deletion is not allowed for users with an active subscription and StoreKit provider',
+      );
+    });
+
+    it('should delete user with cancelled Apple subscription', async () => {
+      await con.getRepository(User).update(
+        { id: 'user-deletion-0' },
+        {
+          subscriptionFlags: {
+            provider: SubscriptionProvider.AppleStoreKit,
+            status: UserSubscriptionStatus.Cancelled,
+          },
+        },
+      );
+
+      await con.getRepository(User).delete({ id: 'user-deletion-0' });
+
+      const user = await con
+        .getRepository(User)
+        .findOneBy({ id: 'user-deletion-0' });
+      expect(user).toBeFalsy();
+    });
+
+    it('should delete user with expired Apple subscription', async () => {
+      await con.getRepository(User).update(
+        { id: 'user-deletion-0' },
+        {
+          subscriptionFlags: {
+            provider: SubscriptionProvider.AppleStoreKit,
+            status: UserSubscriptionStatus.Expired,
+          },
+        },
+      );
+
+      await con.getRepository(User).delete({ id: 'user-deletion-0' });
+
+      const user = await con
+        .getRepository(User)
+        .findOneBy({ id: 'user-deletion-0' });
+      expect(user).toBeFalsy();
+    });
+
+    it('should delete user with paddle subscription', async () => {
+      await con.getRepository(User).update(
+        { id: 'user-deletion-0' },
+        {
+          subscriptionFlags: {
+            provider: SubscriptionProvider.Paddle,
+          },
+        },
+      );
+
+      await con.getRepository(User).delete({ id: 'user-deletion-0' });
+
+      const user = await con
+        .getRepository(User)
+        .findOneBy({ id: 'user-deletion-0' });
+      expect(user).toBeFalsy();
+    });
+
+    it('should delete user without subscription', async () => {
+      await con.getRepository(User).delete({ id: 'user-deletion-0' });
+
+      const user = await con
+        .getRepository(User)
+        .findOneBy({ id: 'user-deletion-0' });
+      expect(user).toBeFalsy();
     });
   });
 
