@@ -45,6 +45,7 @@ import {
   ReputationType,
   Source,
   SourceMember,
+  SubscriptionProvider,
   User,
   UserMarketingCta,
   UserPersonalizedDigest,
@@ -55,6 +56,7 @@ import {
   UserStreak,
   UserStreakAction,
   UserStreakActionType,
+  UserSubscriptionStatus,
   UserTopReader,
   View,
 } from '../src/entity';
@@ -3967,7 +3969,7 @@ describe('mutation updateUserProfile', () => {
 });
 
 describe('mutation deleteUser', () => {
-  const MUTATION = `
+  const MUTATION = /* GraphQL */ `
     mutation deleteUser {
       deleteUser {
         _
@@ -4022,13 +4024,79 @@ describe('mutation deleteUser', () => {
     await con.getRepository(User).update(
       { id: '1' },
       {
-        subscriptionFlags: updateSubscriptionFlags({ subscriptionId: '123' }),
+        subscriptionFlags: updateSubscriptionFlags({
+          subscriptionId: '123',
+          provider: SubscriptionProvider.Paddle,
+        }),
       },
     );
 
     await client.mutate(MUTATION);
 
-    expect(cancelSubscription).toBeCalledWith({ subscriptionId: '123' });
+    expect(cancelSubscription).toHaveBeenCalledWith({ subscriptionId: '123' });
+    const userOne = await con.getRepository(User).findOneBy({ id: '1' });
+    expect(userOne).toEqual(null);
+  });
+
+  it('should not delete user if storekit subscription is active', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(User).update(
+      { id: '1' },
+      {
+        subscriptionFlags: updateSubscriptionFlags({
+          subscriptionId: '123',
+          provider: SubscriptionProvider.AppleStoreKit,
+          status: UserSubscriptionStatus.Active,
+        }),
+      },
+    );
+
+    await testMutationErrorCode(client, { mutation: MUTATION }, 'UNEXPECTED');
+
+    expect(cancelSubscription).toHaveBeenCalledTimes(0);
+    const userOne = await con.getRepository(User).findOneBy({ id: '1' });
+    expect(userOne).not.toEqual(null);
+  });
+
+  it('should delete user if storekit subscription is cancelled', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(User).update(
+      { id: '1' },
+      {
+        subscriptionFlags: updateSubscriptionFlags({
+          subscriptionId: '123',
+          provider: SubscriptionProvider.AppleStoreKit,
+          status: UserSubscriptionStatus.Cancelled,
+        }),
+      },
+    );
+
+    await client.mutate(MUTATION);
+
+    expect(cancelSubscription).toHaveBeenCalledTimes(0);
+    const userOne = await con.getRepository(User).findOneBy({ id: '1' });
+    expect(userOne).toEqual(null);
+  });
+
+  it('should delete user if storekit subscription is expired', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(User).update(
+      { id: '1' },
+      {
+        subscriptionFlags: updateSubscriptionFlags({
+          subscriptionId: '123',
+          provider: SubscriptionProvider.AppleStoreKit,
+          status: UserSubscriptionStatus.Expired,
+        }),
+      },
+    );
+
+    await client.mutate(MUTATION);
+
+    expect(cancelSubscription).toHaveBeenCalledTimes(0);
     const userOne = await con.getRepository(User).findOneBy({ id: '1' });
     expect(userOne).toEqual(null);
   });

@@ -43,17 +43,19 @@ export const deleteUser = async (
         );
       }
 
-      await cancelSubscription({
-        subscriptionId: subscriptionFlags.subscriptionId,
-      });
-      logger.info(
-        {
-          type: 'paddle',
-          userId,
+      if (subscriptionFlags?.provider === SubscriptionProvider.Paddle) {
+        await cancelSubscription({
           subscriptionId: subscriptionFlags.subscriptionId,
-        },
-        'Subscription cancelled user deletion',
-      );
+        });
+        logger.info(
+          {
+            type: 'paddle',
+            userId,
+            subscriptionId: subscriptionFlags.subscriptionId,
+          },
+          'Subscription cancelled user deletion',
+        );
+      }
     }
     await con.transaction(async (entityManager): Promise<void> => {
       await entityManager.getRepository(View).delete({ userId });
