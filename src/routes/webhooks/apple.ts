@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { env } from 'node:process';
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { logger } from '../../logger';
 import {
   Environment,
@@ -139,6 +139,114 @@ const getSubscriptionStatus = (
   }
 };
 
+const handleNotifcationRequest = async (
+  verifier: SignedDataVerifier,
+  request: FastifyRequest<{ Body: AppleNotificationRequest }>,
+  response: FastifyReply,
+) => {
+  const { signedPayload } = request.body || {};
+
+  if (isNullOrUndefined(signedPayload)) {
+    logger.info(
+      { body: request.body, provider: SubscriptionProvider.AppleStoreKit },
+      "Missing 'signedPayload' in request body",
+    );
+    return response.status(403).send({ error: 'Invalid Payload' });
+  }
+
+  try {
+    const notification =
+      await verifier.verifyAndDecodeNotification(signedPayload);
+
+    if (isNullOrUndefined(notification?.data?.signedRenewalInfo)) {
+      logger.info(
+        { notification, provider: SubscriptionProvider.AppleStoreKit },
+        "Missing 'signedRenewalInfo' in notification data",
+      );
+      return response.status(400).send({ error: 'Invalid Payload' });
+    }
+
+    const renewalInfo = await verifier.verifyAndDecodeRenewalInfo(
+      notification.data.signedRenewalInfo!,
+    );
+
+    const con = await createOrGetConnection();
+    const user = await con.getRepository(User).findOne({
+      select: ['id', 'subscriptionFlags'],
+      where: {
+        subscriptionFlags: JsonContains({
+          appAccountToken: renewalInfo.appAccountToken,
+        }),
+      },
+    });
+
+    if (!user) {
+      logger.error(
+        { notification, provider: SubscriptionProvider.AppleStoreKit },
+        'User not found with matching app account token',
+      );
+      return response.status(404).send({ error: 'Invalid Payload' });
+    }
+
+    if (user.subscriptionFlags?.provider === SubscriptionProvider.Paddle) {
+      logger.error(
+        {
+          user,
+          notification,
+          provider: SubscriptionProvider.AppleStoreKit,
+        },
+        'User already has a Paddle subscription',
+      );
+      throw new Error('User already has a Paddle subscription');
+    }
+
+    logger.info(
+      { renewalInfo, user, provider: SubscriptionProvider.AppleStoreKit },
+      'Received Apple App Store Server Notification',
+    );
+
+    const subscriptionStatus = getSubscriptionStatus(
+      notification.notificationType,
+      notification.subtype,
+    );
+
+    const subscriptionFlags = renewalInfoToSubscriptionFlags(renewalInfo);
+
+    await updateStoreKitUserSubscription({
+      userId: user.id,
+      status: subscriptionStatus,
+      data: subscriptionFlags,
+    });
+
+    return {
+      received: true,
+    };
+  } catch (_err) {
+    const err = _err as Error;
+    if (err instanceof VerificationException) {
+      logger.error(
+        {
+          err,
+          signedPayload,
+          provider: SubscriptionProvider.AppleStoreKit,
+        },
+        'Failed to verify Apple App Store Server Notification',
+      );
+      return response.status(403).send({ error: 'Invalid Payload' });
+    } else {
+      logger.error(
+        {
+          err,
+          signedPayload,
+          provider: SubscriptionProvider.AppleStoreKit,
+        },
+        'Failed to process Apple App Store Server Notification',
+      );
+      return response.status(500).send({ error: 'Internal Server Error' });
+    }
+  }
+};
+
 export const apple = async (fastify: FastifyInstance): Promise<void> => {
   let appleRootCAs: Buffer[] = [];
   fastify.addHook('onRequest', async (request, res) => {
@@ -166,107 +274,25 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
         appAppleId,
       );
 
-      const { signedPayload } = request.body || {};
+      await handleNotifcationRequest(verifier, request, response);
+    },
+  );
 
-      if (isNullOrUndefined(signedPayload)) {
-        logger.info(
-          { body: request.body, provider: SubscriptionProvider.AppleStoreKit },
-          "Missing 'signedPayload' in request body",
-        );
-        return response.status(403).send({ error: 'Invalid Payload' });
-      }
+  fastify.post(
+    '/notifications/sandbox',
+    async (
+      request: FastifyRequest<{ Body: AppleNotificationRequest }>,
+      response,
+    ) => {
+      const verifier = new SignedDataVerifier(
+        appleRootCAs,
+        enableOnlineChecks,
+        Environment.SANDBOX,
+        bundleId,
+        appAppleId,
+      );
 
-      try {
-        const notification =
-          await verifier.verifyAndDecodeNotification(signedPayload);
-
-        if (isNullOrUndefined(notification?.data?.signedRenewalInfo)) {
-          logger.info(
-            { notification, provider: SubscriptionProvider.AppleStoreKit },
-            "Missing 'signedRenewalInfo' in notification data",
-          );
-          return response.status(400).send({ error: 'Invalid Payload' });
-        }
-
-        const renewalInfo = await verifier.verifyAndDecodeRenewalInfo(
-          notification.data.signedRenewalInfo!,
-        );
-
-        const con = await createOrGetConnection();
-        const user = await con.getRepository(User).findOne({
-          select: ['id', 'subscriptionFlags'],
-          where: {
-            subscriptionFlags: JsonContains({
-              appAccountToken: renewalInfo.appAccountToken,
-            }),
-          },
-        });
-
-        if (!user) {
-          logger.error(
-            { notification, provider: SubscriptionProvider.AppleStoreKit },
-            'User not found with matching app account token',
-          );
-          return response.status(404).send({ error: 'Invalid Payload' });
-        }
-
-        if (user.subscriptionFlags?.provider === SubscriptionProvider.Paddle) {
-          logger.error(
-            {
-              user,
-              notification,
-              provider: SubscriptionProvider.AppleStoreKit,
-            },
-            'User already has a Paddle subscription',
-          );
-          throw new Error('User already has a Paddle subscription');
-        }
-
-        logger.info(
-          { renewalInfo, user, provider: SubscriptionProvider.AppleStoreKit },
-          'Received Apple App Store Server Notification',
-        );
-
-        const subscriptionStatus = getSubscriptionStatus(
-          notification.notificationType,
-          notification.subtype,
-        );
-
-        const subscriptionFlags = renewalInfoToSubscriptionFlags(renewalInfo);
-
-        await updateStoreKitUserSubscription({
-          userId: user.id,
-          status: subscriptionStatus,
-          data: subscriptionFlags,
-        });
-
-        return {
-          received: true,
-        };
-      } catch (_err) {
-        const err = _err as Error;
-        if (err instanceof VerificationException) {
-          logger.error(
-            {
-              err,
-              signedPayload,
-              provider: SubscriptionProvider.AppleStoreKit,
-            },
-            'Failed to verify Apple App Store Server Notification',
-          );
-          return response.status(403).send({ error: 'Invalid Payload' });
-        } else {
-          logger.error(
-            {
-              err,
-              signedPayload,
-              provider: SubscriptionProvider.AppleStoreKit,
-            },
-            'Failed to process Apple App Store Server Notification',
-          );
-          return response.status(500).send({ error: 'Internal Server Error' });
-        }
-      }
+      await handleNotifcationRequest(verifier, request, response);
     },
   );
 };
