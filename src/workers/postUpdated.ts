@@ -242,7 +242,7 @@ const checkExistingUrl = async ({
     counters?.background?.postError?.add(1, {
       reason: 'duplication_conflict',
     });
-    logger.info({ data }, errorMsg);
+    logger.warn({ data }, errorMsg);
     return true;
   }
 
