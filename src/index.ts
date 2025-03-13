@@ -53,7 +53,7 @@ const trackingExtendKey = (
 ): string | undefined =>
   ctx.trackingId ? `tracking:${ctx.trackingId}` : undefined;
 
-// readiness probe is set failureThreshold: 2, periodSeconds: 2 (4s) + small delay
+// readiness probe is set failureThreshold: 2, periodSeconds: 2 (4s) + small delay.
 const GRACEFUL_DELAY = 2 * 2 * 1000 + 5000;
 
 export default async function app(
