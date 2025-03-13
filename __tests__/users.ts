@@ -4038,67 +4038,97 @@ describe('mutation deleteUser', () => {
     expect(userOne).toEqual(null);
   });
 
-  it('should not delete user if storekit subscription is active', async () => {
-    loggedUser = '1';
+  describe('when user has a storekit subscription', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, User, [
+        {
+          id: 'sk-del-user-0',
+          username: 'sk-del-user-0',
+          subscriptionFlags: {
+            appAccountToken: '7e3fb20b-4cdb-47cc-936d-99d65f608138',
+          },
+        },
+      ]);
+    });
 
-    await con.getRepository(User).update(
-      { id: '1' },
-      {
-        subscriptionFlags: updateSubscriptionFlags({
-          subscriptionId: '123',
-          provider: SubscriptionProvider.AppleStoreKit,
-          status: UserSubscriptionStatus.Active,
-        }),
-      },
-    );
+    afterEach(async () => {
+      await saveFixtures(con, User, [
+        {
+          id: 'sk-del-user-0',
+          username: 'sk-del-user-0',
+          subscriptionFlags: {},
+        },
+      ]);
+    });
 
-    await testMutationErrorCode(client, { mutation: MUTATION }, 'UNEXPECTED');
+    it('should not delete user if storekit subscription is active', async () => {
+      loggedUser = 'sk-del-user-0';
 
-    expect(cancelSubscription).toHaveBeenCalledTimes(0);
-    const userOne = await con.getRepository(User).findOneBy({ id: '1' });
-    expect(userOne).not.toEqual(null);
-  });
+      await con.getRepository(User).update(
+        { id: 'sk-del-user-0' },
+        {
+          subscriptionFlags: updateSubscriptionFlags({
+            subscriptionId: '123',
+            provider: SubscriptionProvider.AppleStoreKit,
+            status: UserSubscriptionStatus.Active,
+          }),
+        },
+      );
 
-  it('should delete user if storekit subscription is cancelled', async () => {
-    loggedUser = '1';
+      await testMutationErrorCode(client, { mutation: MUTATION }, 'UNEXPECTED');
 
-    await con.getRepository(User).update(
-      { id: '1' },
-      {
-        subscriptionFlags: updateSubscriptionFlags({
-          subscriptionId: '123',
-          provider: SubscriptionProvider.AppleStoreKit,
-          status: UserSubscriptionStatus.Cancelled,
-        }),
-      },
-    );
+      expect(cancelSubscription).toHaveBeenCalledTimes(0);
+      const userOne = await con
+        .getRepository(User)
+        .findOneBy({ id: 'sk-del-user-0' });
+      expect(userOne).not.toEqual(null);
+    });
 
-    await client.mutate(MUTATION);
+    it('should delete user if storekit subscription is cancelled', async () => {
+      loggedUser = 'sk-del-user-0';
 
-    expect(cancelSubscription).toHaveBeenCalledTimes(0);
-    const userOne = await con.getRepository(User).findOneBy({ id: '1' });
-    expect(userOne).toEqual(null);
-  });
+      await con.getRepository(User).update(
+        { id: 'sk-del-user-0' },
+        {
+          subscriptionFlags: updateSubscriptionFlags({
+            subscriptionId: '123',
+            provider: SubscriptionProvider.AppleStoreKit,
+            status: UserSubscriptionStatus.Cancelled,
+          }),
+        },
+      );
 
-  it('should delete user if storekit subscription is expired', async () => {
-    loggedUser = '1';
+      await client.mutate(MUTATION);
 
-    await con.getRepository(User).update(
-      { id: '1' },
-      {
-        subscriptionFlags: updateSubscriptionFlags({
-          subscriptionId: '123',
-          provider: SubscriptionProvider.AppleStoreKit,
-          status: UserSubscriptionStatus.Expired,
-        }),
-      },
-    );
+      expect(cancelSubscription).toHaveBeenCalledTimes(0);
+      const userOne = await con
+        .getRepository(User)
+        .findOneBy({ id: 'sk-del-user-0' });
+      expect(userOne).toEqual(null);
+    });
 
-    await client.mutate(MUTATION);
+    it('should delete user if storekit subscription is expired', async () => {
+      loggedUser = 'sk-del-user-0';
 
-    expect(cancelSubscription).toHaveBeenCalledTimes(0);
-    const userOne = await con.getRepository(User).findOneBy({ id: '1' });
-    expect(userOne).toEqual(null);
+      await con.getRepository(User).update(
+        { id: 'sk-del-user-0' },
+        {
+          subscriptionFlags: updateSubscriptionFlags({
+            subscriptionId: '123',
+            provider: SubscriptionProvider.AppleStoreKit,
+            status: UserSubscriptionStatus.Expired,
+          }),
+        },
+      );
+
+      await client.mutate(MUTATION);
+
+      expect(cancelSubscription).toHaveBeenCalledTimes(0);
+      const userOne = await con
+        .getRepository(User)
+        .findOneBy({ id: 'sk-del-user-0' });
+      expect(userOne).toEqual(null);
+    });
   });
 });
 
