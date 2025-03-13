@@ -81,6 +81,24 @@ export const updateUserSubscription = async ({
     return false;
   }
 
+  const user = await con.getRepository(User).findOneBy({ id: userId });
+  if (!user) {
+    logger.error({ type: 'paddle' }, 'User not found');
+    return false;
+  }
+
+  if (user.subscriptionFlags?.provider === SubscriptionProvider.AppleStoreKit) {
+    logger.error(
+      {
+        user,
+        data,
+        provider: SubscriptionProvider.Paddle,
+      },
+      'User already has a Apple subscription',
+    );
+    throw new Error('User already has a StoreKit subscription');
+  }
+
   const subscriptionType = extractSubscriptionType(data.data?.items);
 
   if (!subscriptionType) {
