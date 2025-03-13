@@ -4,6 +4,10 @@ ADD https://www.apple.com/appleca/AppleIncRootCertificate.cer /usr/local/share/c
 ADD https://www.apple.com/certificateauthority/AppleRootCA-G2.cer /usr/local/share/ca-certificates/AppleRootCA-G2.cer
 ADD https://www.apple.com/certificateauthority/AppleRootCA-G3.cer /usr/local/share/ca-certificates/AppleRootCA-G3.cer
 
+RUN chmod 644 /usr/local/share/ca-certificates/AppleIncRootCertificate.cer && \
+    chmod 644 /usr/local/share/ca-certificates/AppleRootCA-G2.cer && \
+    chmod 644 /usr/local/share/ca-certificates/AppleRootCA-G3.cer
+
 RUN apt-get update \
     && apt-get install -y ca-certificates dumb-init \
     && update-ca-certificates \
