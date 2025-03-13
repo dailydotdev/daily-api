@@ -101,7 +101,7 @@ const renewalInfoToSubscriptionFlags = (
 const getSubscriptionStatus = (
   notificationType: ResponseBodyV2DecodedPayload['notificationType'],
   subtype?: ResponseBodyV2DecodedPayload['subtype'],
-): UserSubscriptionStatus | null => {
+): UserSubscriptionStatus => {
   switch (notificationType) {
     case NotificationTypeV2.SUBSCRIBED:
     case NotificationTypeV2.DID_RENEW:
@@ -124,7 +124,11 @@ const getSubscriptionStatus = (
     case NotificationTypeV2.REVOKE: // We don't support Family Sharing, but to be on the safe side
       return UserSubscriptionStatus.Expired;
     default:
-      return null;
+      logger.error(
+        { notificationType, subtype },
+        '[Apple StoreKit]: Unknown notification type',
+      );
+      throw new Error('Unknown notification type');
   }
 };
 
@@ -209,20 +213,12 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
           notification.subtype,
         );
 
-        if (isNullOrUndefined(subscriptionStatus)) {
-          logger.error(
-            { notification },
-            '[Apple StoreKit]: Unknown notification type',
-          );
-          return response
-            .status(400)
-            .send({ error: 'Unknown notification event' });
-        }
+        const subscriptionFlags = renewalInfoToSubscriptionFlags(renewalInfo);
 
         await updateStoreKitUserSubscription({
           userId: user.id,
           status: subscriptionStatus,
-          data: renewalInfoToSubscriptionFlags(renewalInfo),
+          data: subscriptionFlags,
         });
 
         return {
@@ -232,13 +228,13 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
         const err = _err as Error;
         if (err instanceof VerificationException) {
           logger.error(
-            { err },
+            { err, signedPayload },
             '[Apple StoreKit]: Failed to verify Apple App Store Server Notification',
           );
           return response.status(403).send({ error: 'Invalid Payload' });
         } else {
           logger.error(
-            { err },
+            { err, signedPayload },
             '[Apple StoreKit]: Failed to process Apple App Store Server Notification',
           );
           return response.status(500).send({ error: 'Internal Server Error' });
