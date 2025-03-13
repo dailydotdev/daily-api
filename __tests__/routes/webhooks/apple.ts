@@ -309,10 +309,10 @@ describe('POST /webhooks/apple/notifications', () => {
       .getRepository(User)
       .findOneByOrFail({ id: 'storekit-user-0' });
 
-    expect(user.subscriptionFlags?.cycle).toEqual(null);
+    expect(user.subscriptionFlags?.cycle).toBeUndefined();
     expect(user.subscriptionFlags?.status).toEqual(
       UserSubscriptionStatus.Expired,
     );
-    expect(user.subscriptionFlags?.provider).toEqual(null);
+    expect(user.subscriptionFlags?.provider).toBeUndefined();
   });
 });

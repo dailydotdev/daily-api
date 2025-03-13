@@ -29,22 +29,17 @@ export const updateStoreKitUserSubscription = async ({
   const con = await createOrGetConnection();
 
   // Convert all keys in data to null when status is expired
-  const subscriptionFlags = Object.fromEntries(
-    Object.entries(clone).map(([key, value]) => [
-      key,
-      status === UserSubscriptionStatus.Expired ? null : value,
-    ]),
-  );
+  const subscriptionFlags =
+    status === UserSubscriptionStatus.Expired
+      ? { status, appAccountToken: data.appAccountToken }
+      : updateSubscriptionFlags({ ...clone, status });
 
   await con.getRepository(User).update(
     {
       id: userId,
     },
     {
-      subscriptionFlags: updateSubscriptionFlags({
-        ...subscriptionFlags,
-        status,
-      }),
+      subscriptionFlags: subscriptionFlags,
     },
   );
 };
