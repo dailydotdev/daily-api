@@ -571,6 +571,7 @@ const loggedInBoot = async ({
         subscriptionFlags: {
           provider: user.subscriptionFlags?.provider,
           appAccountToken: user.subscriptionFlags?.appAccountToken,
+          status: user.subscriptionFlags?.status,
         },
       },
       visit,
