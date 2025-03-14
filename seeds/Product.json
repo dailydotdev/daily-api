@@ -1,0 +1,42 @@
+[
+	{
+		"id": "a39d7368-22d9-4e01-b961-077179ff992d",
+		"type": "award",
+		"image": "https:\/\/daily-now-res.cloudinary.com\/image\/upload\/s--t9sWnia4--\/f_auto,q_auto\/v1740123247\/awards\/Unicorn",
+		"name": "Test",
+		"createdAt": "2025-03-05T14:13:01.035Z",
+		"updatedAt": "2025-03-05T14:13:01.035Z",
+		"value": 10,
+		"flags": "{}"
+	},
+	{
+		"id": "ef2e2633-c9b9-401a-a372-0edce9fa6329",
+		"type": "award",
+		"image": "https:\/\/daily-now-res.cloudinary.com\/image\/upload\/s--t9sWnia4--\/f_auto,q_auto\/v1740123247\/awards\/Unicorn",
+		"name": "Test 2",
+		"createdAt": "2025-03-05T14:13:01.035Z",
+		"updatedAt": "2025-03-05T14:13:01.035Z",
+		"value": 25,
+		"flags": "{}"
+	},
+	{
+		"id": "8aeb45ce-2e96-4dbf-826d-433c98047642",
+		"type": "award",
+		"image": "https:\/\/daily-now-res.cloudinary.com\/image\/upload\/s--t9sWnia4--\/f_auto,q_auto\/v1740123247\/awards\/Unicorn",
+		"name": "Test 3",
+		"createdAt": "2025-03-05T14:13:01.035Z",
+		"updatedAt": "2025-03-05T14:13:01.035Z",
+		"value": 50,
+		"flags": "{}"
+	},
+	{
+		"id": "1b536ed1-3ab0-4780-a179-d0387d4c6d72",
+		"type": "award",
+		"image": "https:\/\/daily-now-res.cloudinary.com\/image\/upload\/s--t9sWnia4--\/f_auto,q_auto\/v1740123247\/awards\/Unicorn",
+		"name": "Test free",
+		"createdAt": "2025-03-05T14:13:01.035Z",
+		"updatedAt": "2025-03-05T14:13:01.035Z",
+		"value": 0,
+		"flags": "{}"
+	}
+]
