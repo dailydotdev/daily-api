@@ -10,9 +10,6 @@ export const transactionBalanceLogWorker: TypedWorker<'njord.v1.balance-log'> =
       logger.info({ data }, 'transaction log');
     },
     parseMessage: (message) => {
-      return {
-        ...message,
-        data: TransferResponse.fromBinary(message.data),
-      };
+      return TransferResponse.fromBinary(message.data);
     },
   };

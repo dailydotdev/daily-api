@@ -53,7 +53,7 @@ export interface BaseTypedWorker<
   subscription: string;
   handler: Worker;
   maxMessages?: number;
-  parseMessage?: (message: Message) => TypedMessage<T>;
+  parseMessage?: (message: Message) => T;
 }
 
 export interface TypedWorker<T extends keyof PubSubSchema>
