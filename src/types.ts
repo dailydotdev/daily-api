@@ -68,7 +68,7 @@ declare global {
       SLACK_TRANSACTIONS_WEBHOOK: string;
       NJORD_ORIGIN: string;
 
-      APPLE_APP_APPLE_ID?: number;
+      APPLE_APP_APPLE_ID: string;
       APPLE_APP_BUNDLE_ID: string;
     }
   }

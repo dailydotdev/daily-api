@@ -56,7 +56,7 @@ const getVerifierEnvironment = (): Environment => {
 };
 
 const bundleId = isTest ? 'dev.fylla' : env.APPLE_APP_BUNDLE_ID;
-const appAppleId = env.APPLE_APP_APPLE_ID;
+const appAppleId = parseInt(env.APPLE_APP_APPLE_ID);
 const enableOnlineChecks = true;
 const environment = getVerifierEnvironment();
 
