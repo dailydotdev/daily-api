@@ -1,13 +1,17 @@
 import {
   type Environment,
+  LogLevel,
   Paddle,
   type Subscription,
 } from '@paddle/paddle-node-sdk';
 import { logger } from '../logger';
 import { PricingPreviewLineItem } from '@paddle/paddle-node-sdk/dist/types/entities/pricing-preview';
+import { SubscriptionProvider } from '../entity';
+import { isProd } from './utils';
 
 export const paddleInstance = new Paddle(process.env.PADDLE_API_KEY, {
   environment: process.env.PADDLE_ENVIRONMENT as Environment,
+  logLevel: isProd ? LogLevel.error : LogLevel.verbose,
 });
 
 type CancelSubscriptionProps = {
@@ -23,7 +27,7 @@ export const cancelSubscription = async ({
   } catch (e) {
     logger.error(
       {
-        type: 'paddle',
+        provider: SubscriptionProvider.Paddle,
         subscriptionId,
         error: e,
       },
