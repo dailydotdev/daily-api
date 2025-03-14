@@ -14,6 +14,7 @@ export type ProductFlagsPublic = Pick<ProductFlags, 'description'>;
 
 export enum ProductType {
   Award = 'award',
+  Core = 'core',
 }
 
 @Entity()

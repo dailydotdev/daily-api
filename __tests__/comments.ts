@@ -53,9 +53,11 @@ import {
   ContentPreferenceType,
 } from '../src/entity/contentPreference/types';
 import { Connection } from 'graphql-relay';
-import { UserTransaction } from '../src/entity/user/UserTransaction';
+import {
+  UserTransaction,
+  UserTransactionStatus,
+} from '../src/entity/user/UserTransaction';
 import { Product, ProductType } from '../src/entity/Product';
-import { TransferStatus } from '@dailydotdev/schema';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -1813,7 +1815,7 @@ describe('userState field', () => {
 
     const transaction = await con.getRepository(UserTransaction).save({
       receiverId: '1',
-      status: TransferStatus.SUCCESS,
+      status: UserTransactionStatus.Success,
       productId: null,
       senderId: '1',
       fee: 0,
@@ -2354,7 +2356,7 @@ describe('award field', () => {
 
     const transaction = await con.getRepository(UserTransaction).save({
       receiverId: '1',
-      status: TransferStatus.SUCCESS,
+      status: UserTransactionStatus.Success,
       productId: '9104b834-6fac-4276-a168-0be1294ab371',
       senderId: '1',
       fee: 0,

@@ -1,12 +1,16 @@
 import { FastifyInstance } from 'fastify';
 import {
   EventName,
+  TransactionCompletedEvent,
+  TransactionCreatedEvent,
+  TransactionItemNotification,
+  type EventEntity,
   type SubscriptionCanceledEvent,
   type SubscriptionCreatedEvent,
   type SubscriptionItemNotification,
   type SubscriptionUpdatedEvent,
-  type TransactionCompletedEvent,
-  type TransactionItemNotification,
+  type TransactionPaymentFailedEvent,
+  type TransactionReadyEvent,
 } from '@paddle/paddle-node-sdk';
 import createOrGetConnection from '../../db';
 import {
@@ -25,14 +29,24 @@ import {
   AnalyticsEventName,
   sendAnalyticsEvent,
 } from '../../integrations/analytics';
-import { JsonContains } from 'typeorm';
-import { paddleInstance } from '../../common/paddle';
+import { JsonContains, type DataSource, type EntityManager } from 'typeorm';
+import {
+  getPaddleTransactionData,
+  getTransactionForProviderId,
+  isCoreTransaction,
+  paddleInstance,
+} from '../../common/paddle';
 import { addMilliseconds } from 'date-fns';
 import {
   isPlusMember,
   plusGiftDuration,
   SubscriptionCycles,
 } from '../../paddle';
+import {
+  UserTransaction,
+  UserTransactionStatus,
+} from '../../entity/user/UserTransaction';
+import { purchaseCores } from '../../common/njord';
 
 const extractSubscriptionType = (
   items:
@@ -460,18 +474,246 @@ export const processGiftedPayment = async ({
   );
 };
 
+const checkTransactionStatusValid = ({
+  event,
+  transaction,
+  nextStatus,
+  validStatus,
+  data,
+}: {
+  event: EventEntity;
+  transaction: UserTransaction;
+  nextStatus: UserTransactionStatus;
+  validStatus: UserTransactionStatus[];
+  data: ReturnType<typeof getPaddleTransactionData>;
+}): boolean => {
+  if (!validStatus.includes(transaction.status)) {
+    logger.warn(
+      {
+        eventType: event.eventType,
+        provider: SubscriptionProvider.Paddle,
+        currentStatus: transaction.status,
+        nextStatus,
+        data,
+      },
+      'Transaction with invalid status',
+    );
+
+    return false;
+  }
+
+  return true;
+};
+
 export const processTransactionCompleted = async ({
   event,
 }: {
   event: TransactionCompletedEvent;
 }) => {
+  await notifyNewPaddleTransaction({ event });
+
+  if (isCoreTransaction({ event })) {
+    const transactionData = getPaddleTransactionData({ event });
+    const con = await createOrGetConnection();
+
+    const transaction = await getTransactionForProviderId({
+      con,
+      providerId: transactionData.id,
+    });
+
+    if (!transaction) {
+      throw new Error('Transaction not found');
+    }
+
+    await con.transaction(async (entityManager) => {
+      const userTransaction = await updateUserTransaction({
+        con: entityManager,
+        transaction,
+        nextStatus: UserTransactionStatus.Success,
+        data: transactionData,
+        event,
+      });
+
+      await purchaseCores({
+        transaction: userTransaction,
+      });
+    });
+
+    return;
+  }
+
   const { gifter_id } = (event?.data?.customData ?? {}) as PaddleCustomData;
 
   if (gifter_id) {
     await processGiftedPayment({ event });
   }
+};
 
-  await notifyNewPaddleTransaction({ event });
+export const updateUserTransaction = async ({
+  con,
+  transaction,
+  nextStatus,
+  data,
+}: {
+  con: DataSource | EntityManager;
+  transaction: UserTransaction | null;
+  nextStatus?: UserTransactionStatus;
+  data: ReturnType<typeof getPaddleTransactionData>;
+  event: EventEntity;
+}): Promise<UserTransaction> => {
+  const providerTransactionId = data.id;
+
+  const itemData = data.items[0];
+
+  if (transaction) {
+    if (
+      transaction.status !== UserTransactionStatus.Created &&
+      transaction.receiverId !== data.customData.user_id
+    ) {
+      throw new Error('Transaction receiver does not match user ID');
+    }
+
+    if (
+      transaction.status === UserTransactionStatus.Success &&
+      transaction.value !== itemData.price.customData.cores
+    ) {
+      throw new Error('Transaction value changed after success');
+    }
+  }
+
+  const updatedTransaction = await con.getRepository(UserTransaction).save(
+    con.getRepository(UserTransaction).create({
+      id: transaction?.id,
+      receiverId: data.customData.user_id,
+      status: nextStatus,
+      productId: null, // no product user is buying cores directly
+      senderId: null, // no sender, user is buying cores
+      value: itemData.price.customData.cores,
+      fee: 0, // no fee when buying cores
+      request: {},
+      flags: {
+        providerId: providerTransactionId,
+      },
+    }),
+  );
+
+  return updatedTransaction;
+};
+
+export const processTransactionCreated = async ({
+  event,
+}: {
+  event: TransactionCreatedEvent;
+}) => {
+  const transactionData = getPaddleTransactionData({ event });
+
+  if (isCoreTransaction({ event })) {
+    const con = await createOrGetConnection();
+
+    const transaction = await getTransactionForProviderId({
+      con,
+      providerId: transactionData.id,
+    });
+
+    if (transaction) {
+      throw new Error('Transaction already exists');
+    }
+
+    await updateUserTransaction({
+      con,
+      transaction,
+      nextStatus: UserTransactionStatus.Created,
+      data: transactionData,
+      event,
+    });
+  }
+};
+
+export const processTransactionReady = async ({
+  event,
+}: {
+  event: TransactionReadyEvent;
+}) => {
+  const con = await createOrGetConnection();
+
+  const transactionData = getPaddleTransactionData({ event });
+
+  const transaction = await getTransactionForProviderId({
+    con,
+    providerId: transactionData.id,
+  });
+
+  if (!transaction) {
+    throw new Error('Transaction not found');
+  }
+
+  const nextStatus = UserTransactionStatus.Processing;
+
+  if (
+    !checkTransactionStatusValid({
+      event,
+      transaction,
+      nextStatus,
+      validStatus: [UserTransactionStatus.Created],
+      data: transactionData,
+    })
+  ) {
+    return;
+  }
+
+  await updateUserTransaction({
+    con,
+    transaction,
+    nextStatus,
+    data: transactionData,
+    event,
+  });
+};
+
+export const processTransactionPaymentFailed = async ({
+  event,
+}: {
+  event: TransactionPaymentFailedEvent;
+}) => {
+  const con = await createOrGetConnection();
+
+  const transactionData = getPaddleTransactionData({ event });
+
+  const transaction = await getTransactionForProviderId({
+    con,
+    providerId: transactionData.id,
+  });
+
+  if (!transaction) {
+    throw new Error('Transaction not found');
+  }
+
+  const nextStatus = UserTransactionStatus.Error;
+
+  if (
+    !checkTransactionStatusValid({
+      event,
+      transaction,
+      nextStatus,
+      validStatus: [
+        UserTransactionStatus.Created,
+        UserTransactionStatus.Processing,
+      ],
+      data: transactionData,
+    })
+  ) {
+    return;
+  }
+
+  await con.getRepository(UserTransaction).update(
+    { id: transaction.id },
+    {
+      status: nextStatus,
+      flags: updateFlagsStatement<UserTransaction>({
+        error: `Payment failed: ${event.data.payments[0]?.errorCode || 'unknown'}`,
+      }),
+    },
+  );
 };
 
 export const paddle = async (fastify: FastifyInstance): Promise<void> => {
@@ -494,11 +736,30 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
             );
 
             switch (eventData?.eventType) {
+              case EventName.TransactionCreated:
+                await processTransactionCreated({
+                  event: eventData,
+                });
+
+                break;
+              case EventName.TransactionReady:
+                await processTransactionReady({
+                  event: eventData,
+                });
+
+                break;
               case EventName.SubscriptionCreated:
                 await updateUserSubscription({
                   data: eventData,
                   state: true,
                 });
+
+                break;
+              case EventName.TransactionPaymentFailed:
+                await processTransactionPaymentFailed({
+                  event: eventData,
+                });
+
                 break;
               case EventName.SubscriptionCanceled:
                 Promise.all([
