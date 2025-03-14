@@ -5,14 +5,17 @@ import {
   Currency,
   EntityType,
   GetBalanceResponse,
-  TransferStatus,
   TransferType,
   type BalanceChange,
   type TransferResult,
 } from '@dailydotdev/schema';
 import type { AuthContext } from '../Context';
-import { UserTransaction } from '../entity/user/UserTransaction';
-import { isProd, isSpecialUser, parseBigInt } from './utils';
+import {
+  UserTransaction,
+  UserTransactionProcessor,
+  UserTransactionStatus,
+} from '../entity/user/UserTransaction';
+import { isProd, isSpecialUser, parseBigInt, systemUser } from './utils';
 import { ForbiddenError } from 'apollo-server-errors';
 import { createAuthProtectedFn } from './user';
 import {
@@ -86,8 +89,9 @@ export const createTransaction = createAuthProtectedFn(
     const userTransaction = entityManager
       .getRepository(UserTransaction)
       .create({
+        processor: UserTransactionProcessor.Njord,
         receiverId,
-        status: TransferStatus.SUCCESS,
+        status: UserTransactionStatus.Success,
         productId: product.id,
         senderId,
         value: product.value,
@@ -171,7 +175,7 @@ export const transferCores = createAuthProtectedFn(
           },
         ],
       });
-      // we always have singe transfer
+      // we always have single transfer
       const result = results.find(
         (item) => item.transferType === TransferType.TRANSFER,
       );
@@ -214,6 +218,86 @@ export const transferCores = createAuthProtectedFn(
     return transferResult;
   },
 );
+
+export const purchaseCores = async ({
+  transaction,
+}: {
+  transaction: UserTransaction;
+}): Promise<TransferResult> => {
+  const transferResult = await garmNjordService.execute(async () => {
+    if (!transaction.id) {
+      throw new Error('No transaction id');
+    }
+
+    if (transaction.senderId) {
+      throw new Error('Purchase cores transaction can not have sender');
+    }
+
+    if (transaction.productId) {
+      throw new Error('Purchase cores transaction can not have product');
+    }
+
+    const njordClient = getNjordClient();
+
+    const { results } = await njordClient.transfer({
+      idempotencyKey: transaction.id,
+      transfers: [
+        {
+          transferType: TransferType.TRANSFER,
+          currency: Currency.CORES,
+          sender: {
+            id: systemUser.id,
+            type: EntityType.SYSTEM,
+          },
+          receiver: {
+            id: transaction.receiverId,
+            type: EntityType.USER,
+          },
+          amount: transaction.value,
+          fee: {
+            percentage: transaction.fee,
+          },
+        },
+      ],
+    });
+    // we always have single transfer
+    const result = results.find(
+      (item) => item.transferType === TransferType.TRANSFER,
+    );
+
+    if (!result) {
+      throw new Error('No transfer result');
+    }
+
+    await Promise.allSettled([
+      [
+        parseBalanceUpdate({
+          balance: result.receiverBalance,
+          userId: transaction.receiverId,
+        }),
+      ].map(async (balanceUpdate) => {
+        if (!balanceUpdate) {
+          return;
+        }
+
+        await updateBalanceCache({
+          ctx: {
+            userId: balanceUpdate.userId,
+          },
+          value: {
+            amount: parseBigInt(balanceUpdate.balance.newBalance),
+          },
+        });
+      }),
+    ]);
+
+    // TODO feat/transactions error handling
+
+    return result;
+  });
+
+  return transferResult;
+};
 
 export type GetBalanceProps = {
   ctx: Pick<AuthContext, 'userId'>;

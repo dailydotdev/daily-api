@@ -7,18 +7,35 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import type { User } from './User';
+import { SubscriptionProvider, type User } from './User';
 import type { Product } from '../Product';
 import type { RequestMeta } from '../../Context';
-import type { TransferStatus } from '@dailydotdev/schema';
+import { TransferStatus } from '@dailydotdev/schema';
 
 export type UserTransactionFlags = Partial<{
   note: string;
+  providerId: string;
+  error: string;
 }>;
 
 export type UserTransactionFlagsPublic = Pick<UserTransactionFlags, 'note'>;
 
 export type UserTransactionRequest = RequestMeta;
+
+export enum UserTransactionStatus {
+  Success = TransferStatus.SUCCESS,
+  InsufficientFunds = TransferStatus.INSUFFICIENT_FUNDS,
+  InternalErrorNjord = TransferStatus.INTERNAL_ERROR,
+  Created = 201,
+  Processing = 202,
+  Error = 500,
+}
+
+export enum UserTransactionProcessor {
+  Njord = 'njord',
+  Paddle = SubscriptionProvider.Paddle,
+  AppleStoreKit = SubscriptionProvider.AppleStoreKit,
+}
 
 @Entity()
 export class UserTransaction {
@@ -35,7 +52,7 @@ export class UserTransaction {
   product: Promise<Product>;
 
   @Column({ type: 'integer' })
-  status: TransferStatus;
+  status: UserTransactionStatus;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -75,4 +92,7 @@ export class UserTransaction {
 
   @Column({ type: 'jsonb', default: {} })
   flags: UserTransactionFlags;
+
+  @Column({ type: 'text' })
+  processor: UserTransactionProcessor;
 }

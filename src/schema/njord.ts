@@ -12,7 +12,7 @@ import {
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { toGQLEnum } from '../common';
 import { z } from 'zod';
-import type { Product } from '../entity/Product';
+import { ProductType, type Product } from '../entity/Product';
 import type { Connection, ConnectionArguments } from 'graphql-relay';
 import { offsetPageGenerator } from './common';
 import graphorm from '../graphorm';
@@ -147,6 +147,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
         (builder) => {
           builder.queryBuilder.limit(page.limit);
+
+          builder.queryBuilder.andWhere(
+            `${builder.alias}."type" != :productType`,
+            {
+              productType: ProductType.Core,
+            },
+          );
 
           builder.queryBuilder.orderBy(`${builder.alias}."value"`, 'ASC');
 
