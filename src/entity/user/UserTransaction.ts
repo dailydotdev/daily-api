@@ -7,7 +7,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import type { User } from './User';
+import { SubscriptionProvider, type User } from './User';
 import type { Product } from '../Product';
 import type { RequestMeta } from '../../Context';
 import { TransferStatus } from '@dailydotdev/schema';
@@ -29,6 +29,12 @@ export enum UserTransactionStatus {
   Created = 201,
   Processing = 202,
   Error = 500,
+}
+
+export enum UserTransactionProcessor {
+  Njord = 'njord',
+  Paddle = SubscriptionProvider.Paddle,
+  AppleStoreKit = SubscriptionProvider.AppleStoreKit,
 }
 
 @Entity()
@@ -86,4 +92,7 @@ export class UserTransaction {
 
   @Column({ type: 'jsonb', default: {} })
   flags: UserTransactionFlags;
+
+  @Column({ type: 'text' })
+  processor: UserTransactionProcessor;
 }

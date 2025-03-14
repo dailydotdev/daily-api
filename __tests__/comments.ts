@@ -55,6 +55,7 @@ import {
 import { Connection } from 'graphql-relay';
 import {
   UserTransaction,
+  UserTransactionProcessor,
   UserTransactionStatus,
 } from '../src/entity/user/UserTransaction';
 import { Product, ProductType } from '../src/entity/Product';
@@ -1814,6 +1815,7 @@ describe('userState field', () => {
     loggedUser = '1';
 
     const transaction = await con.getRepository(UserTransaction).save({
+      processor: UserTransactionProcessor.Njord,
       receiverId: '1',
       status: UserTransactionStatus.Success,
       productId: null,
@@ -2355,6 +2357,7 @@ describe('award field', () => {
     loggedUser = '1';
 
     const transaction = await con.getRepository(UserTransaction).save({
+      processor: UserTransactionProcessor.Njord,
       receiverId: '1',
       status: UserTransactionStatus.Success,
       productId: '9104b834-6fac-4276-a168-0be1294ab371',

@@ -12,6 +12,7 @@ import { User } from '../../src/entity/user/User';
 import { ForbiddenError } from 'apollo-server-errors';
 import {
   UserTransaction,
+  UserTransactionProcessor,
   UserTransactionStatus,
 } from '../../src/entity/user/UserTransaction';
 import * as redisFile from '../../src/redis';
@@ -103,6 +104,7 @@ describe('transferCores', () => {
 
     expect(transaction).toMatchObject({
       id: expect.any(String),
+      processor: UserTransactionProcessor.Njord,
       receiverId: 't-tc-2',
       status: UserTransactionStatus.Success,
       productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',

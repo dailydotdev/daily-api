@@ -44,6 +44,7 @@ import {
 } from '../../paddle';
 import {
   UserTransaction,
+  UserTransactionProcessor,
   UserTransactionStatus,
 } from '../../entity/user/UserTransaction';
 import { purchaseCores } from '../../common/njord';
@@ -583,6 +584,7 @@ export const updateUserTransaction = async ({
 
   const updatedTransaction = await con.getRepository(UserTransaction).save(
     con.getRepository(UserTransaction).create({
+      processor: UserTransactionProcessor.Paddle,
       id: transaction?.id,
       receiverId: data.customData.user_id,
       status: nextStatus,

@@ -92,6 +92,7 @@ import {
 import { ContentPreference } from '../src/entity/contentPreference/ContentPreference';
 import {
   UserTransaction,
+  UserTransactionProcessor,
   UserTransactionStatus,
 } from '../src/entity/user/UserTransaction';
 
@@ -5170,6 +5171,7 @@ describe('userState field', () => {
     loggedUser = '1';
 
     const transaction = await con.getRepository(UserTransaction).save({
+      processor: UserTransactionProcessor.Njord,
       receiverId: '1',
       status: UserTransactionStatus.Success,
       productId: null,

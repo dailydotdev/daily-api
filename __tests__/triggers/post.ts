@@ -15,6 +15,7 @@ import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import {
   UserTransaction,
+  UserTransactionProcessor,
   UserTransactionStatus,
 } from '../../src/entity/user/UserTransaction';
 import { usersFixture } from '../fixture';
@@ -269,6 +270,7 @@ describe('trigger user_post_award_insert_trigger', () => {
     expect(post.awards).toBe(0);
 
     const transaction = await con.getRepository(UserTransaction).save({
+      processor: UserTransactionProcessor.Njord,
       receiverId: 'upait-1',
       status: UserTransactionStatus.Success,
       productId: null,
@@ -329,6 +331,7 @@ describe('trigger user_post_award_delete_trigger_function', () => {
     });
 
     const transaction = await con.getRepository(UserTransaction).save({
+      processor: UserTransactionProcessor.Njord,
       receiverId: 'upadt-1',
       status: UserTransactionStatus.Success,
       productId: null,
@@ -416,6 +419,7 @@ describe('trigger user_post_award_update_trigger_function', () => {
     expect(post.awards).toBe(5);
 
     const transaction = await con.getRepository(UserTransaction).save({
+      processor: UserTransactionProcessor.Njord,
       receiverId: 'upaut-1',
       status: UserTransactionStatus.Success,
       productId: null,
@@ -446,6 +450,7 @@ describe('trigger user_post_award_update_trigger_function', () => {
 
   it('should update post awards on award removed', async () => {
     const transaction = await con.getRepository(UserTransaction).save({
+      processor: UserTransactionProcessor.Njord,
       receiverId: 'upaut-1',
       status: UserTransactionStatus.Success,
       productId: null,

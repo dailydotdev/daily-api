@@ -12,6 +12,7 @@ import {
 import type { AuthContext } from '../Context';
 import {
   UserTransaction,
+  UserTransactionProcessor,
   UserTransactionStatus,
 } from '../entity/user/UserTransaction';
 import { isProd, isSpecialUser, parseBigInt, systemUser } from './utils';
@@ -88,6 +89,7 @@ export const createTransaction = createAuthProtectedFn(
     const userTransaction = entityManager
       .getRepository(UserTransaction)
       .create({
+        processor: UserTransactionProcessor.Njord,
         receiverId,
         status: UserTransactionStatus.Success,
         productId: product.id,
