@@ -1,5 +1,6 @@
 import {
   type Environment,
+  LogLevel,
   Paddle,
   type Subscription,
   type TransactionCompletedEvent,
@@ -14,9 +15,12 @@ import { remoteConfig } from '../remoteConfig';
 import { z } from 'zod';
 import { UserTransaction } from '../entity/user/UserTransaction';
 import type { DataSource, EntityManager } from 'typeorm';
+import { SubscriptionProvider } from '../entity';
+import { isProd } from './utils';
 
 export const paddleInstance = new Paddle(process.env.PADDLE_API_KEY, {
   environment: process.env.PADDLE_ENVIRONMENT as Environment,
+  logLevel: isProd ? LogLevel.error : LogLevel.verbose,
 });
 
 type CancelSubscriptionProps = {
@@ -32,7 +36,7 @@ export const cancelSubscription = async ({
   } catch (e) {
     logger.error(
       {
-        type: 'paddle',
+        provider: SubscriptionProvider.Paddle,
         subscriptionId,
         error: e,
       },

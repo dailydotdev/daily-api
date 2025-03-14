@@ -49,7 +49,7 @@ export const deleteUser = async (
         });
         logger.info(
           {
-            type: 'paddle',
+            provider: SubscriptionProvider.Paddle,
             userId,
             subscriptionId: subscriptionFlags.subscriptionId,
           },
