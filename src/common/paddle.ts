@@ -109,6 +109,10 @@ const coreProductCustomDataSchema = z.object(
 
 const paddleTransactionSchema = z.object({
   id: z.string({ message: 'Transaction id is required' }),
+  updatedAt: z.preprocess(
+    (value) => new Date(value as string),
+    z.date({ message: 'Transaction updated at is required' }),
+  ),
   items: z
     .array(
       z.object({

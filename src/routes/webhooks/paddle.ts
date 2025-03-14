@@ -11,6 +11,7 @@ import {
   type SubscriptionUpdatedEvent,
   type TransactionPaymentFailedEvent,
   type TransactionReadyEvent,
+  type TransactionUpdatedEvent,
 } from '@paddle/paddle-node-sdk';
 import createOrGetConnection from '../../db';
 import {
@@ -522,10 +523,6 @@ export const processTransactionCompleted = async ({
       providerId: transactionData.id,
     });
 
-    if (!transaction) {
-      throw new Error('Transaction not found');
-    }
-
     await con.transaction(async (entityManager) => {
       const userTransaction = await updateUserTransaction({
         con: entityManager,
@@ -567,10 +564,7 @@ export const updateUserTransaction = async ({
   const itemData = data.items[0];
 
   if (transaction) {
-    if (
-      transaction.status !== UserTransactionStatus.Created &&
-      transaction.receiverId !== data.customData.user_id
-    ) {
+    if (transaction.receiverId !== data.customData.user_id) {
       throw new Error('Transaction receiver does not match user ID');
     }
 
@@ -582,24 +576,42 @@ export const updateUserTransaction = async ({
     }
   }
 
-  const updatedTransaction = await con.getRepository(UserTransaction).save(
-    con.getRepository(UserTransaction).create({
-      processor: UserTransactionProcessor.Paddle,
-      id: transaction?.id,
-      receiverId: data.customData.user_id,
-      status: nextStatus,
-      productId: null, // no product user is buying cores directly
-      senderId: null, // no sender, user is buying cores
-      value: itemData.price.customData.cores,
-      fee: 0, // no fee when buying cores
-      request: {},
-      flags: {
-        providerId: providerTransactionId,
-      },
-    }),
-  );
+  const payload = con.getRepository(UserTransaction).create({
+    processor: UserTransactionProcessor.Paddle,
+    id: transaction?.id,
+    receiverId: data.customData.user_id,
+    status: nextStatus,
+    productId: null, // no product user is buying cores directly
+    senderId: null, // no sender, user is buying cores
+    value: itemData.price.customData.cores,
+    fee: 0, // no fee when buying cores
+    request: {},
+    flags: {
+      providerId: providerTransactionId,
+    },
+  });
 
-  return updatedTransaction;
+  if (!transaction) {
+    const newTransaction = await con
+      .getRepository(UserTransaction)
+      .save(payload);
+
+    return newTransaction;
+  } else {
+    await con.getRepository(UserTransaction).update(
+      { id: transaction.id },
+      {
+        value: itemData.price.customData.cores,
+        status: nextStatus,
+      },
+    );
+
+    return con.getRepository(UserTransaction).create({
+      ...transaction,
+      value: itemData.price.customData.cores,
+      status: transaction.status || nextStatus,
+    });
+  }
 };
 
 export const processTransactionCreated = async ({
@@ -645,13 +657,10 @@ export const processTransactionReady = async ({
     providerId: transactionData.id,
   });
 
-  if (!transaction) {
-    throw new Error('Transaction not found');
-  }
-
   const nextStatus = UserTransactionStatus.Processing;
 
   if (
+    transaction &&
     !checkTransactionStatusValid({
       event,
       transaction,
@@ -718,6 +727,76 @@ export const processTransactionPaymentFailed = async ({
   );
 };
 
+export const processTransactionUpdated = async ({
+  event,
+}: {
+  event: TransactionUpdatedEvent;
+}) => {
+  const con = await createOrGetConnection();
+
+  const transactionData = getPaddleTransactionData({ event });
+
+  const transaction = await getTransactionForProviderId({
+    con,
+    providerId: transactionData.id,
+  });
+
+  if (transaction && transaction.updatedAt > transactionData.updatedAt) {
+    logger.warn(
+      {
+        eventType: event.eventType,
+        provider: SubscriptionProvider.Paddle,
+        currentStatus: transaction.status,
+        data: transactionData,
+      },
+      'Transaction already updated',
+    );
+
+    return;
+  }
+
+  // get status from update event, other events we don't handle as update
+  // but wait for the dedicated eventType to process transaction
+  const getUpdatedStatus = (): UserTransactionStatus | undefined => {
+    if (transaction) {
+      return transaction.status;
+    }
+
+    switch (event.data.status) {
+      case 'draft':
+        return UserTransactionStatus.Created;
+      case 'ready':
+        return UserTransactionStatus.Processing;
+      default:
+        return undefined;
+    }
+  };
+
+  const nextStatus = getUpdatedStatus();
+
+  if (!nextStatus) {
+    logger.warn(
+      {
+        eventType: event.eventType,
+        provider: SubscriptionProvider.Paddle,
+        currentStatus: transaction?.status || 'unknown',
+        data: transactionData,
+      },
+      'Transaction update skipped',
+    );
+
+    return;
+  }
+
+  await updateUserTransaction({
+    con,
+    transaction,
+    data: transactionData,
+    nextStatus: transaction ? undefined : nextStatus,
+    event,
+  });
+};
+
 export const paddle = async (fastify: FastifyInstance): Promise<void> => {
   fastify.register(async (fastify: FastifyInstance): Promise<void> => {
     fastify.post('/', {
@@ -759,6 +838,12 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
                 break;
               case EventName.TransactionPaymentFailed:
                 await processTransactionPaymentFailed({
+                  event: eventData,
+                });
+
+                break;
+              case EventName.TransactionUpdated:
+                await processTransactionUpdated({
                   event: eventData,
                 });
 
@@ -809,9 +894,16 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
               'Signature missing in header',
             );
           }
-        } catch (e) {
+        } catch (originalError) {
+          const error = originalError as Error;
+
           logger.error(
-            { provider: SubscriptionProvider.Paddle, e },
+            {
+              provider: SubscriptionProvider.Paddle,
+              err: {
+                message: error.message,
+              },
+            },
             'Paddle generic error',
           );
         }
