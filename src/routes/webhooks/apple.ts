@@ -286,11 +286,6 @@ const handleNotifcationRequest = async (
       throw new Error('User already has a Paddle subscription');
     }
 
-    logger.info(
-      { renewalInfo, user, provider: SubscriptionProvider.AppleStoreKit },
-      'Received Apple App Store Server Notification',
-    );
-
     const subscriptionStatus = getSubscriptionStatus(
       notification.notificationType,
       notification.subtype,
@@ -316,6 +311,11 @@ const handleNotifcationRequest = async (
     if (notification.notificationType === NotificationTypeV2.SUBSCRIBED) {
       await notifyNewStoreKitSubscription(renewalInfo, user);
     }
+
+    logger.info(
+      { renewalInfo, user, provider: SubscriptionProvider.AppleStoreKit },
+      'Received Apple App Store Server Notification',
+    );
 
     return response.status(200).send({ received: true });
   } catch (_err) {
