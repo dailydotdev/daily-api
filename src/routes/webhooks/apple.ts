@@ -166,6 +166,14 @@ const handleNotifcationRequest = async (
       return response.status(400).send({ error: 'Invalid Payload' });
     }
 
+    if (notification.notificationType === NotificationTypeV2.TEST) {
+      logger.info(
+        { notification, provider: SubscriptionProvider.AppleStoreKit },
+        'Received Test Notification',
+      );
+      return response.status(200).send({ received: true });
+    }
+
     const renewalInfo = await verifier.verifyAndDecodeRenewalInfo(
       notification.data.signedRenewalInfo!,
     );
@@ -218,9 +226,7 @@ const handleNotifcationRequest = async (
       data: subscriptionFlags,
     });
 
-    return {
-      received: true,
-    };
+    return response.status(200).send({ received: true });
   } catch (_err) {
     const err = _err as Error;
     if (err instanceof VerificationException) {
