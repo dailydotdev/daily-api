@@ -95,7 +95,7 @@ const paddleNotificationCustomDataSchema = z.object(
   },
 );
 
-const coreProductCustomDataSchema = z.object(
+export const coreProductCustomDataSchema = z.object(
   {
     cores: z.preprocess(
       (value) => +(value as string),

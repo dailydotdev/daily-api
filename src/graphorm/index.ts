@@ -25,7 +25,7 @@ import {
   sourceRoleRankKeys,
 } from '../roles';
 
-import { Context } from '../Context';
+import { Context, type AuthContext } from '../Context';
 import {
   base64,
   domainOnly,
@@ -49,6 +49,7 @@ import { ContentPreference } from '../entity/contentPreference/ContentPreference
 import { isPlusMember } from '../paddle';
 import { remoteConfig } from '../remoteConfig';
 import { whereNotUserBlocked } from '../common/contentPreference';
+import { getBalance, type GetBalanceResult } from '../common/njord';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -1038,6 +1039,26 @@ const obj = new GraphORM({
     fields: {
       flags: {
         jsonType: true,
+      },
+    },
+  },
+  UserTransaction: {
+    fields: {
+      flags: {
+        jsonType: true,
+      },
+      balance: {
+        jsonType: true,
+        transform: async (_, ctx): Promise<GetBalanceResult> => {
+          if (!ctx.userId) {
+            return {
+              amount: 0,
+            };
+          }
+
+          // TODO feat/transations data loader
+          return getBalance({ ctx: ctx as AuthContext });
+        },
       },
     },
   },

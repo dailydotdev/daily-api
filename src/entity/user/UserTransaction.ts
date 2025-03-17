@@ -18,7 +18,10 @@ export type UserTransactionFlags = Partial<{
   error: string;
 }>;
 
-export type UserTransactionFlagsPublic = Pick<UserTransactionFlags, 'note'>;
+export type UserTransactionFlagsPublic = Pick<
+  UserTransactionFlags,
+  'note' | 'error'
+>;
 
 export type UserTransactionRequest = RequestMeta;
 

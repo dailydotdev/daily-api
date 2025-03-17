@@ -259,3 +259,21 @@ export const isSpecialUser = ({
 }): boolean => {
   return !!userId && [ghostUser.id, systemUser.id].includes(userId);
 };
+
+export const getCurrencySymbol = ({
+  locale,
+  currency,
+}: {
+  locale: string;
+  currency: string;
+}) => {
+  return (0)
+    .toLocaleString(locale, {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    })
+    .replace(/\d/g, '')
+    .trim();
+};

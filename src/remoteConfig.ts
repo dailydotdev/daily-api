@@ -21,9 +21,6 @@ type RemoteConfigValue = {
   }>;
   enableBalance: boolean;
   coreProductId: string;
-  corePricings: {
-    id: string;
-  }[];
 };
 
 class RemoteConfig {
