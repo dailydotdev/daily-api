@@ -169,12 +169,12 @@ const getSubscriptionAnalyticsEvent = (
   }
 };
 
-const logAppleAnalyticsEvent = async (
+export const logAppleAnalyticsEvent = async (
   data: JWSRenewalInfoDecodedPayload,
   eventName: AnalyticsEventName,
   user: User,
 ) => {
-  if (!data) {
+  if (!data || env.NODE_ENV === 'test') {
     return;
   }
 
@@ -344,10 +344,14 @@ const handleNotifcationRequest = async (
   }
 };
 
-const notifyNewStoreKitSubscription = async (
+export const notifyNewStoreKitSubscription = async (
   data: JWSRenewalInfoDecodedPayload,
   user: User,
 ) => {
+  if (env.NODE_ENV === 'test') {
+    return;
+  }
+
   const blocks: (KnownBlock | Block)[] = [
     {
       type: 'header',
