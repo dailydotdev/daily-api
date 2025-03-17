@@ -24,6 +24,10 @@ import {
 import { JsonContains } from 'typeorm';
 import { SubscriptionCycles } from '../../paddle';
 import { updateStoreKitUserSubscription } from '../../plusSubscription';
+import {
+  AnalyticsEventName,
+  sendAnalyticsEvent,
+} from '../../integrations/analytics';
 
 const certificatesToLoad = isTest
   ? ['__tests__/fixture/testCA.der']
@@ -139,6 +143,61 @@ const getSubscriptionStatus = (
   }
 };
 
+const getSubscriptionAnalyticsEvent = (
+  notificationType: ResponseBodyV2DecodedPayload['notificationType'],
+  subtype?: ResponseBodyV2DecodedPayload['subtype'],
+): AnalyticsEventName | null => {
+  switch (notificationType) {
+    case NotificationTypeV2.SUBSCRIBED:
+    case NotificationTypeV2.DID_RENEW:
+      return AnalyticsEventName.ReceivePayment;
+    case NotificationTypeV2.DID_CHANGE_RENEWAL_PREF:
+      return AnalyticsEventName.ChangeBillingCycle;
+    case NotificationTypeV2.DID_CHANGE_RENEWAL_STATUS: // Disable/Enable Auto-Renew
+      return subtype === Subtype.AUTO_RENEW_ENABLED
+        ? null
+        : AnalyticsEventName.CancelSubscription;
+    case NotificationTypeV2.DID_FAIL_TO_RENEW:
+      // When user fails to renew and there is no grace period
+      if (isNullOrUndefined(subtype)) {
+        return AnalyticsEventName.CancelSubscription;
+      }
+    default:
+      return null;
+  }
+};
+
+const logAppleAnalyticsEvent = async (
+  data: JWSRenewalInfoDecodedPayload,
+  eventName: AnalyticsEventName,
+  user: User,
+) => {
+  if (!data) {
+    return;
+  }
+
+  const cycle =
+    productIdToCycle[data?.autoRenewProductId as keyof typeof productIdToCycle];
+  const cost = data?.renewalPrice;
+
+  const extra = {
+    cycle,
+    localCost: cost ? cost / 100 : undefined,
+    localCurrency: data?.currency,
+  };
+
+  await sendAnalyticsEvent([
+    {
+      event_name: eventName,
+      event_timestamp: new Date(data?.signedDate || ''),
+      event_id: data.appTransactionId,
+      app_platform: 'api',
+      user_id: user.id,
+      extra: JSON.stringify(extra),
+    },
+  ]);
+};
+
 const handleNotifcationRequest = async (
   verifier: SignedDataVerifier,
   request: FastifyRequest<{ Body: AppleNotificationRequest }>,
@@ -218,6 +277,11 @@ const handleNotifcationRequest = async (
       notification.subtype,
     );
 
+    const eventName = getSubscriptionAnalyticsEvent(
+      notification.notificationType,
+      notification.subtype,
+    );
+
     const subscriptionFlags = renewalInfoToSubscriptionFlags(renewalInfo);
 
     await updateStoreKitUserSubscription({
@@ -225,6 +289,10 @@ const handleNotifcationRequest = async (
       status: subscriptionStatus,
       data: subscriptionFlags,
     });
+
+    if (eventName) {
+      await logAppleAnalyticsEvent(renewalInfo, eventName, user);
+    }
 
     return response.status(200).send({ received: true });
   } catch (_err) {
