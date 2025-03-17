@@ -11,7 +11,7 @@ import {
   type JWSRenewalInfoDecodedPayload,
   type ResponseBodyV2DecodedPayload,
 } from '@apple/app-store-server-library';
-import { isTest } from '../../common';
+import { concatText, isTest, webhooks } from '../../common';
 import { isInSubnet } from 'is-in-subnet';
 import { isNullOrUndefined } from '../../common/object';
 import createOrGetConnection from '../../db';
@@ -28,6 +28,7 @@ import {
   AnalyticsEventName,
   sendAnalyticsEvent,
 } from '../../integrations/analytics';
+import type { Block, KnownBlock } from '@slack/web-api';
 
 const certificatesToLoad = isTest
   ? ['__tests__/fixture/testCA.der']
@@ -294,6 +295,8 @@ const handleNotifcationRequest = async (
       await logAppleAnalyticsEvent(renewalInfo, eventName, user);
     }
 
+    await notifyNewStoreKitSubscription(renewalInfo, user);
+
     return response.status(200).send({ received: true });
   } catch (_err) {
     const err = _err as Error;
@@ -319,6 +322,87 @@ const handleNotifcationRequest = async (
       return response.status(500).send({ error: 'Internal Server Error' });
     }
   }
+};
+
+const notifyNewStoreKitSubscription = async (
+  data: JWSRenewalInfoDecodedPayload,
+  user: User,
+) => {
+  const blocks: (KnownBlock | Block)[] = [
+    {
+      type: 'header',
+      text: {
+        type: 'plain_text',
+        text: 'New Plus subscriber :moneybag: :apple-ico:',
+        emoji: true,
+      },
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatText('*Transaction ID:*', data.appTransactionId),
+        },
+      ],
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatText('*Type:*', data.autoRenewProductId),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatText(
+            '*Purchased by:*',
+            `<https://app.daily.dev/${user.id}|${user.id}>`,
+          ),
+        },
+      ],
+    },
+    // {
+    //   type: 'section',
+    //   fields: [
+    //     {
+    //       type: 'mrkdwn',
+    //       text: concatText(
+    //         '*Cost:*',
+    //         new Intl.NumberFormat('en-US', {
+    //           style: 'currency',
+    //           currency: currencyCode,
+    //         }).format((parseFloat(total) || 0) / 100),
+    //       ),
+    //     },
+    //     {
+    //       type: 'mrkdwn',
+    //       text: concatText('*Currency:*', currencyCode),
+    //     },
+    //   ],
+    // },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatText(
+            '*Cost (local):*',
+            new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: data.currency,
+            }).format((data.renewalPrice || 0) / 1000),
+          ),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatText('*Currency (local):*', data.currency),
+        },
+      ],
+    },
+  ];
+
+  await webhooks.transactions.send({ blocks });
 };
 
 export const apple = async (fastify: FastifyInstance): Promise<void> => {
