@@ -209,7 +209,7 @@ const handleNotifcationRequest = async (
   const { signedPayload } = request.body || {};
 
   if (isNullOrUndefined(signedPayload)) {
-    logger.info(
+    logger.error(
       { body: request.body, provider: SubscriptionProvider.AppleStoreKit },
       "Missing 'signedPayload' in request body",
     );
