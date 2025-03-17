@@ -313,7 +313,9 @@ const handleNotifcationRequest = async (
       await logAppleAnalyticsEvent(renewalInfo, eventName, user);
     }
 
-    await notifyNewStoreKitSubscription(renewalInfo, user);
+    if (notification.notificationType === NotificationTypeV2.SUBSCRIBED) {
+      await notifyNewStoreKitSubscription(renewalInfo, user);
+    }
 
     return response.status(200).send({ received: true });
   } catch (_err) {
