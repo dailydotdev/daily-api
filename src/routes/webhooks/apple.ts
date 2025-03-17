@@ -174,7 +174,7 @@ export const logAppleAnalyticsEvent = async (
   eventName: AnalyticsEventName,
   user: User,
 ) => {
-  if (!data || env.NODE_ENV === 'test') {
+  if (!data || isTest) {
     return;
   }
 
@@ -348,7 +348,7 @@ export const notifyNewStoreKitSubscription = async (
   data: JWSRenewalInfoDecodedPayload,
   user: User,
 ) => {
-  if (env.NODE_ENV === 'test') {
+  if (isTest) {
     return;
   }
 
