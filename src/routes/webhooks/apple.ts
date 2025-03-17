@@ -220,6 +220,8 @@ const handleNotifcationRequest = async (
     const notification =
       await verifier.verifyAndDecodeNotification(signedPayload);
 
+    // Check if the event is a subscription event
+    // NOTE: When adding support for purchasing cores, we must remove this check as it's not a subscription event
     if (isNullOrUndefined(notification?.data?.signedRenewalInfo)) {
       logger.info(
         { notification, provider: SubscriptionProvider.AppleStoreKit },
@@ -228,6 +230,7 @@ const handleNotifcationRequest = async (
       return response.status(400).send({ error: 'Invalid Payload' });
     }
 
+    // Don't proceed any further if it's a test notification
     if (notification.notificationType === NotificationTypeV2.TEST) {
       logger.info(
         { notification, provider: SubscriptionProvider.AppleStoreKit },
@@ -270,6 +273,7 @@ const handleNotifcationRequest = async (
       return response.status(403).send({ error: 'Invalid Payload' });
     }
 
+    // Prevent double subscription
     if (user.subscriptionFlags?.provider === SubscriptionProvider.Paddle) {
       logger.error(
         {
