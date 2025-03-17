@@ -418,6 +418,111 @@ const notifyNewPaddleTransaction = async ({
   await webhooks.transactions.send({ blocks });
 };
 
+const notifyNewPaddleCoresTransaction = async ({
+  data,
+  transaction,
+  event,
+}: {
+  data: ReturnType<typeof getPaddleTransactionData>;
+  transaction: UserTransaction;
+  event: TransactionCompletedEvent;
+}) => {
+  const purchasedById = data.customData.user_id;
+
+  const currencyCode =
+    event?.data?.items?.[0]?.price?.unitPrice?.currencyCode || 'USD';
+
+  const total = event?.data?.items?.[0]?.price?.unitPrice?.amount || '0';
+  const localTotal = event?.data?.details?.totals?.total || '0';
+  const localCurrencyCode = event?.data?.currencyCode || 'USD';
+
+  const blocks = [
+    {
+      type: 'header',
+      text: {
+        type: 'plain_text',
+        text: 'Cores purchased :cores:',
+        emoji: true,
+      },
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatText(
+            '*Transaction ID:*',
+            `<https://vendors.paddle.com/transactions-v2/${data.id}|${data.id}>`,
+          ),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatText(
+            '*Customer ID:*',
+            `<https://vendors.paddle.com/customers-v2/${event.data.customerId}|${event.data.customerId}>`,
+          ),
+        },
+      ],
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatText('*Cores:*', transaction.value.toString()),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatText(
+            '*Purchased by:*',
+            `<https://app.daily.dev/${purchasedById}|${purchasedById}>`,
+          ),
+        },
+      ],
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatText(
+            '*Cost:*',
+            new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: currencyCode,
+            }).format((parseFloat(total) || 0) / 100),
+          ),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatText('*Currency:*', currencyCode),
+        },
+      ],
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatText(
+            '*Cost (local):*',
+            new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: localCurrencyCode,
+            }).format((parseFloat(localTotal) || 0) / 100),
+          ),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatText('*Currency (local):*', localCurrencyCode),
+        },
+      ],
+    },
+  ];
+
+  await webhooks.transactions.send({ blocks });
+};
+
 export const processGiftedPayment = async ({
   event: { data },
 }: {
@@ -512,8 +617,6 @@ export const processTransactionCompleted = async ({
 }: {
   event: TransactionCompletedEvent;
 }) => {
-  await notifyNewPaddleTransaction({ event });
-
   if (isCoreTransaction({ event })) {
     const transactionData = getPaddleTransactionData({ event });
     const con = await createOrGetConnection();
@@ -523,18 +626,28 @@ export const processTransactionCompleted = async ({
       providerId: transactionData.id,
     });
 
-    await con.transaction(async (entityManager) => {
-      const userTransaction = await updateUserTransaction({
-        con: entityManager,
-        transaction,
-        nextStatus: UserTransactionStatus.Success,
-        data: transactionData,
-        event,
-      });
+    const completedTransaction = await con.transaction(
+      async (entityManager) => {
+        const userTransaction = await updateUserTransaction({
+          con: entityManager,
+          transaction,
+          nextStatus: UserTransactionStatus.Success,
+          data: transactionData,
+          event,
+        });
 
-      await purchaseCores({
-        transaction: userTransaction,
-      });
+        await purchaseCores({
+          transaction: userTransaction,
+        });
+
+        return userTransaction;
+      },
+    );
+
+    await notifyNewPaddleCoresTransaction({
+      data: transactionData,
+      transaction: completedTransaction,
+      event,
     });
 
     return;
@@ -545,6 +658,8 @@ export const processTransactionCompleted = async ({
   if (gifter_id) {
     await processGiftedPayment({ event });
   }
+
+  await notifyNewPaddleTransaction({ event });
 };
 
 export const updateUserTransaction = async ({
