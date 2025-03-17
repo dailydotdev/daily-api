@@ -20,6 +20,7 @@ type RemoteConfigValue = {
     transfer: number;
   }>;
   enableBalance: boolean;
+  approvedStoreKitSandboxUsers: string[];
 };
 
 class RemoteConfig {

@@ -29,6 +29,7 @@ import {
   sendAnalyticsEvent,
 } from '../../integrations/analytics';
 import type { Block, KnownBlock } from '@slack/web-api';
+import { remoteConfig } from '../../remoteConfig';
 
 const certificatesToLoad = isTest
   ? ['__tests__/fixture/testCA.der']
@@ -203,6 +204,7 @@ const handleNotifcationRequest = async (
   verifier: SignedDataVerifier,
   request: FastifyRequest<{ Body: AppleNotificationRequest }>,
   response: FastifyReply,
+  environment: Environment,
 ) => {
   const { signedPayload } = request.body || {};
 
@@ -254,6 +256,18 @@ const handleNotifcationRequest = async (
         'User not found with matching app account token',
       );
       return response.status(404).send({ error: 'Invalid Payload' });
+    }
+
+    // Only allow sandbox requests from approved users
+    if (
+      environment === Environment.SANDBOX &&
+      !remoteConfig.vars.approvedStoreKitSandboxUsers?.includes(user.id)
+    ) {
+      logger.error(
+        { user, provider: SubscriptionProvider.AppleStoreKit },
+        'User not approved for sandbox',
+      );
+      return response.status(403).send({ error: 'Invalid Payload' });
     }
 
     if (user.subscriptionFlags?.provider === SubscriptionProvider.Paddle) {
@@ -432,7 +446,7 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
         appAppleId,
       );
 
-      await handleNotifcationRequest(verifier, request, response);
+      await handleNotifcationRequest(verifier, request, response, environment);
     },
   );
 
@@ -450,7 +464,12 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
         appAppleId,
       );
 
-      await handleNotifcationRequest(verifier, request, response);
+      await handleNotifcationRequest(
+        verifier,
+        request,
+        response,
+        Environment.SANDBOX,
+      );
     },
   );
 };
