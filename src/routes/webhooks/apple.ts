@@ -220,6 +220,15 @@ const handleNotifcationRequest = async (
     const notification =
       await verifier.verifyAndDecodeNotification(signedPayload);
 
+    // Don't proceed any further if it's a test notification
+    if (notification.notificationType === NotificationTypeV2.TEST) {
+      logger.info(
+        { notification, provider: SubscriptionProvider.AppleStoreKit },
+        'Received Test Notification',
+      );
+      return response.status(200).send({ received: true });
+    }
+
     // Check if the event is a subscription event
     // NOTE: When adding support for purchasing cores, we must remove this check as it's not a subscription event
     if (isNullOrUndefined(notification?.data?.signedRenewalInfo)) {
@@ -228,15 +237,6 @@ const handleNotifcationRequest = async (
         "Missing 'signedRenewalInfo' in notification data",
       );
       return response.status(400).send({ error: 'Invalid Payload' });
-    }
-
-    // Don't proceed any further if it's a test notification
-    if (notification.notificationType === NotificationTypeV2.TEST) {
-      logger.info(
-        { notification, provider: SubscriptionProvider.AppleStoreKit },
-        'Received Test Notification',
-      );
-      return response.status(200).send({ received: true });
     }
 
     const renewalInfo = await verifier.verifyAndDecodeRenewalInfo(
