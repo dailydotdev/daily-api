@@ -3,6 +3,7 @@ import { Context } from './Context';
 import { getShortUrl } from './common';
 import { Settings, SourceMember } from './entity';
 import { GQLSource } from './schema/sources';
+import { getBalance, type GetBalanceResult } from './common/njord';
 
 export const defaultCacheKeyFn = <K extends object | string>(key: K) => {
   if (typeof key === 'object') {
@@ -123,6 +124,25 @@ export class DataLoaderService {
 
         return defaultCacheKeyFn({ sourceId, userId });
       },
+    });
+  }
+
+  get userBalance() {
+    return this.getLoader<
+      {
+        userId: string;
+      },
+      GetBalanceResult
+    >({
+      type: 'userBalance',
+      loadFn: async ({ userId }) => {
+        return getBalance({
+          ctx: {
+            userId,
+          },
+        });
+      },
+      cacheKeyFn: ({ userId }) => defaultCacheKeyFn({ userId }),
     });
   }
 }

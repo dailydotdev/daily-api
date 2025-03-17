@@ -219,18 +219,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ) => {
-      return graphorm.queryOneOrFail<UserTransaction>(ctx, info, (builder) => {
-        return {
-          ...builder,
-          queryBuilder: builder.queryBuilder
-            .andWhere(`${builder.alias}.flags->>'providerId' = :providerId`, {
-              providerId: id,
-            })
-            .andWhere(`${builder.alias}."receiverId" = :receiverId`, {
-              receiverId: ctx.userId,
-            }),
-        };
-      });
+      return graphorm.queryOneOrFail<GQLUserTransaction>(
+        ctx,
+        info,
+        (builder) => {
+          return {
+            ...builder,
+            queryBuilder: builder.queryBuilder
+              .andWhere(`${builder.alias}.flags->>'providerId' = :providerId`, {
+                providerId: id,
+              })
+              .andWhere(`${builder.alias}."receiverId" = :receiverId`, {
+                receiverId: ctx.userId,
+              }),
+          };
+        },
+      );
     },
   },
   Mutation: {
