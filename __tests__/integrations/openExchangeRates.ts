@@ -1,6 +1,7 @@
 import nock from 'nock';
 
 import {
+  convertCurrencyToUSD,
   getExchangeRate,
   getOpenExchangeRates,
 } from '../../src/integrations/openExchangeRates';
@@ -87,6 +88,37 @@ describe('openExchangeRates', () => {
       const rate = await getExchangeRate('INVALID');
 
       expect(rate).toBeNull();
+    });
+  });
+
+  describe('convertCurrencyToUSD', () => {
+    it('it should convert currency to USD', async () => {
+      nock(mockedURL)
+        .get('/api/latest.json')
+        .query({
+          app_id: env.OPEN_EXCHANGE_RATES_APP_ID,
+        })
+        .reply(200, mockedResponse);
+
+      await getOpenExchangeRates();
+
+      const converted = await convertCurrencyToUSD(100, 'NOK');
+      expect(converted).toEqual(9.52);
+    });
+
+    it('it should return null if the currency is not found', async () => {
+      nock(mockedURL)
+        .get('/api/latest.json')
+        .query({
+          app_id: env.OPEN_EXCHANGE_RATES_APP_ID,
+        })
+        .reply(200, mockedResponse);
+
+      await getOpenExchangeRates();
+
+      const converted = await convertCurrencyToUSD(100, 'WOLOLO');
+
+      expect(converted).toBeNull();
     });
   });
 });

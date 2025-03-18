@@ -57,3 +57,15 @@ export const getOpenExchangeRates = async (): Promise<void> => {
     logger.error({ err }, 'Error fetching open exchange rates');
   }
 };
+
+export const convertCurrencyToUSD = async (
+  amount: number,
+  currency: string,
+): Promise<number | null> => {
+  const rate = await getExchangeRate(currency);
+  if (isNullOrUndefined(rate)) {
+    return null;
+  }
+
+  return +(amount / rate).toFixed(2);
+};
