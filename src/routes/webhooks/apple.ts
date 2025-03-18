@@ -197,6 +197,7 @@ export const logAppleAnalyticsEvent = async (
     payout: {
       total: currencyInUSD * 100,
       grandTotal: currencyInUSD * 100,
+      currencyCode: 'USD',
     },
   };
 
