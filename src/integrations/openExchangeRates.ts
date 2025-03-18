@@ -51,8 +51,9 @@ export const getOpenExchangeRates = async (): Promise<CurrencyRate> => {
   } catch (_err) {
     const err = _err as Error;
     logger.error({ err }, 'Error fetching open exchange rates');
-    throw err;
   }
+
+  return {};
 };
 
 export const getExchangeRate = async (
