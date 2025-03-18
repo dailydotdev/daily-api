@@ -30,7 +30,12 @@ import {
 } from '../../integrations/analytics';
 import type { Block, KnownBlock } from '@slack/web-api';
 import { remoteConfig } from '../../remoteConfig';
-import { convertCurrencyToUSD } from '../../integrations/openExchangeRates';
+import {
+  convertCurrencyToUSD,
+  getOpenExchangeRates,
+} from '../../integrations/openExchangeRates';
+import { checkRedisObjectExists } from '../../redis';
+import { StorageKey } from '../../config';
 
 const certificatesToLoad = isTest
   ? ['__tests__/fixture/testCA.der']
@@ -463,6 +468,14 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
 
     if (appleRootCAs.length === 0) {
       appleRootCAs = await loadAppleRootCAs();
+    }
+
+    const currencyRatesExists = await checkRedisObjectExists(
+      StorageKey.OpenExchangeRates,
+    );
+
+    if (!currencyRatesExists) {
+      await getOpenExchangeRates();
     }
   });
 

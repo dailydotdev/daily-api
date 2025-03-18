@@ -109,3 +109,6 @@ export const getRedisHash = (key: string) =>
 
 export const getRedisHashField = (key: string, field: string) =>
   ioRedisPool.execute((client) => client.hget(key, field));
+
+export const checkRedisObjectExists = (key: string) =>
+  ioRedisPool.execute((client) => client.exists(key));
