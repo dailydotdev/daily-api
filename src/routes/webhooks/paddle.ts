@@ -10,6 +10,7 @@ import {
 } from '@paddle/paddle-node-sdk';
 import createOrGetConnection from '../../db';
 import {
+  concatText,
   updateFlagsStatement,
   updateSubscriptionFlags,
   webhooks,
@@ -239,7 +240,6 @@ const logPaddleAnalyticsEvent = async (
   ]);
 };
 
-const concatText = (a: string, b: string) => [a, b].filter(Boolean).join(`\n`);
 const notifyNewPaddleTransaction = async ({
   event: { data },
 }: {
@@ -284,10 +284,10 @@ const notifyNewPaddleTransaction = async ({
 
   const headerText = (() => {
     if (gifter_id) {
-      return 'Gift subscription :gift:';
+      return 'Gift subscription :gift: :paddle:';
     }
 
-    return 'New Plus subscriber :moneybag:';
+    return 'New Plus subscriber :moneybag: :paddle:';
   })();
 
   const blocks = [

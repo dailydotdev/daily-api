@@ -259,3 +259,6 @@ export const isSpecialUser = ({
 }): boolean => {
   return !!userId && [ghostUser.id, systemUser.id].includes(userId);
 };
+
+export const concatText = (a?: string, b?: string) =>
+  [a, b].filter(Boolean).join(`\n`);
