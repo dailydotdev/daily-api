@@ -55,6 +55,8 @@ describe('openExchangeRates', () => {
 
   describe('getExchangeRate', () => {
     it('it should return the exchange rate for a given currency', async () => {
+      expect(await getRedisHash(StorageKey.OpenExchangeRates)).toEqual({});
+
       nock(mockedURL)
         .get('/api/latest.json')
         .query({
@@ -70,6 +72,8 @@ describe('openExchangeRates', () => {
     });
 
     it('it should return null if the currency is not found', async () => {
+      expect(await getRedisHash(StorageKey.OpenExchangeRates)).toEqual({});
+
       nock(mockedURL)
         .get('/api/latest.json')
         .query({
@@ -79,12 +83,6 @@ describe('openExchangeRates', () => {
 
       await getOpenExchangeRates();
 
-      const rate = await getExchangeRate('INVALID');
-
-      expect(rate).toBeNull();
-    });
-
-    it('it should return null if the currency is not found - missing from redis', async () => {
       const rate = await getExchangeRate('INVALID');
 
       expect(rate).toBeNull();

@@ -30,10 +30,7 @@ import {
 } from '../../integrations/analytics';
 import type { Block, KnownBlock } from '@slack/web-api';
 import { remoteConfig } from '../../remoteConfig';
-import {
-  convertCurrencyToUSD,
-  getOpenExchangeRates,
-} from '../../integrations/openExchangeRates';
+import { convertCurrencyToUSD } from '../../integrations/openExchangeRates';
 
 const certificatesToLoad = isTest
   ? ['__tests__/fixture/testCA.der']
@@ -467,8 +464,6 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
     if (appleRootCAs.length === 0) {
       appleRootCAs = await loadAppleRootCAs();
     }
-
-    await getOpenExchangeRates();
   });
 
   // Endpoint for receiving App Store Server Notifications V2

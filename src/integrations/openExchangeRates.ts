@@ -1,11 +1,7 @@
 import { env } from 'node:process';
 import { ONE_HOUR_IN_SECONDS } from '../common';
 import { logger } from '../logger';
-import {
-  checkRedisObjectExists,
-  getRedisHashField,
-  setRedisHashWithExpiry,
-} from '../redis';
+import { getRedisHash, setRedisHashWithExpiry } from '../redis';
 import { isNullOrUndefined } from '../common/object';
 import { retryFetchParse } from './retry';
 import { StorageKey } from '../config';
@@ -14,7 +10,7 @@ const REDIS_EXPIRATION = ONE_HOUR_IN_SECONDS;
 
 const URL = 'https://openexchangerates.org/api/latest.json';
 
-export type CurrencyRate = Record<string, number>;
+export type CurrencyRate = Record<string, string>;
 
 export type OpenExchangeRates = {
   disclaimer: string;
@@ -24,27 +20,14 @@ export type OpenExchangeRates = {
   rates: CurrencyRate;
 };
 
-export const getExchangeRate = async (
-  currency: string,
-): Promise<number | null> => {
-  const rate = await getRedisHashField(StorageKey.OpenExchangeRates, currency);
-  if (isNullOrUndefined(rate)) {
-    return null;
-  }
-
-  return parseFloat(rate);
-};
-
-export const getOpenExchangeRates = async (): Promise<void> => {
+export const getOpenExchangeRates = async (): Promise<CurrencyRate> => {
   if (!env.OPEN_EXCHANGE_RATES_APP_ID) {
     throw new Error('OPEN_EXCHANGE_RATES_APP_ID is not set');
   }
 
-  const currencyRatesExists = await checkRedisObjectExists(
-    StorageKey.OpenExchangeRates,
-  );
-  if (currencyRatesExists) {
-    return;
+  const redisRates = await getRedisHash(StorageKey.OpenExchangeRates);
+  if (redisRates && Object.keys(redisRates).length > 0) {
+    return redisRates;
   }
 
   try {
@@ -63,10 +46,25 @@ export const getOpenExchangeRates = async (): Promise<void> => {
       data.rates,
       REDIS_EXPIRATION,
     );
+
+    return data.rates;
   } catch (_err) {
     const err = _err as Error;
     logger.error({ err }, 'Error fetching open exchange rates');
+    throw err;
   }
+};
+
+export const getExchangeRate = async (
+  currency: string,
+): Promise<number | null> => {
+  const rates = await getOpenExchangeRates();
+  const rate = rates?.[currency];
+  if (isNullOrUndefined(rate)) {
+    return null;
+  }
+
+  return parseFloat(rate);
 };
 
 export const convertCurrencyToUSD = async (
