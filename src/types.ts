@@ -67,6 +67,7 @@ declare global {
       SLACK_VORDR_WEBHOOK: string;
       SLACK_TRANSACTIONS_WEBHOOK: string;
       NJORD_ORIGIN: string;
+      OPEN_EXCHANGE_RATES_APP_ID?: string;
 
       APPLE_APP_APPLE_ID: string;
       APPLE_APP_BUNDLE_ID: string;
