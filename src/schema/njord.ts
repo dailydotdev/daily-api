@@ -7,20 +7,41 @@ import {
   AwardType,
   awardUser,
   type AwardInput,
+  type GetBalanceResult,
   type TransactionCreated,
 } from '../common/njord';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { toGQLEnum } from '../common';
 import { z } from 'zod';
-import type { Product } from '../entity/Product';
+import { type Product } from '../entity/Product';
 import type { Connection, ConnectionArguments } from 'graphql-relay';
 import { offsetPageGenerator } from './common';
 import graphorm from '../graphorm';
+import {
+  UserTransaction,
+  UserTransactionFlagsPublic,
+} from '../entity/user/UserTransaction';
 
 export type GQLProduct = Pick<
   Product,
   'id' | 'type' | 'name' | 'image' | 'value' | 'flags'
 >;
+
+export type GQLUserTransaction = Pick<
+  UserTransaction,
+  | 'id'
+  | 'productId'
+  | 'product'
+  | 'status'
+  | 'receiverId'
+  | 'receiver'
+  | 'senderId'
+  | 'sender'
+  | 'value'
+> & {
+  flags: UserTransactionFlagsPublic;
+  balance: GetBalanceResult;
+};
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(AwardType, 'AwardType')}
@@ -68,6 +89,25 @@ export const typeDefs = /* GraphQL */ `
     cursor: String!
   }
 
+  type UserTransactionFlagsPublic {
+    note: String
+    error: String
+  }
+
+  type UserTransaction {
+    id: ID!
+    productId: ID
+    product: Product
+    status: Int!
+    receiverId: ID!
+    receiver: User!
+    senderId: ID
+    sender: User
+    value: Int!
+    flags: UserTransactionFlagsPublic
+    balance: UserBalance!
+  }
+
   extend type Query {
     """
     List feeds
@@ -90,6 +130,16 @@ export const typeDefs = /* GraphQL */ `
       """
       last: Int
     ): ProductConnection! @auth
+
+    """
+    Get transaction by provider id
+    """
+    transactionByProvider(
+      """
+      Id of the transaction
+      """
+      id: ID
+    ): UserTransaction @auth
   }
 
   extend type Mutation {
@@ -154,6 +204,29 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
         undefined,
         true,
+      );
+    },
+    transactionByProvider: async (
+      _,
+      { id }: { id: string },
+      ctx: AuthContext,
+      info,
+    ) => {
+      return graphorm.queryOneOrFail<GQLUserTransaction>(
+        ctx,
+        info,
+        (builder) => {
+          return {
+            ...builder,
+            queryBuilder: builder.queryBuilder
+              .andWhere(`${builder.alias}.flags->>'providerId' = :providerId`, {
+                providerId: id,
+              })
+              .andWhere(`${builder.alias}."receiverId" = :receiverId`, {
+                receiverId: ctx.userId,
+              }),
+          };
+        },
       );
     },
   },

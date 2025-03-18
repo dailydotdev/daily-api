@@ -21,6 +21,7 @@ type RemoteConfigValue = {
   }>;
   enableBalance: boolean;
   approvedStoreKitSandboxUsers: string[];
+  coreProductId: string;
 };
 
 class RemoteConfig {

@@ -1,11 +1,17 @@
 import type { CountryCode } from '@paddle/paddle-node-sdk';
 import type { AuthContext } from '../Context';
-import { getPriceFromPaddleItem, paddleInstance } from '../common/paddle';
+import {
+  coreProductCustomDataSchema,
+  getPriceFromPaddleItem,
+  paddleInstance,
+} from '../common/paddle';
 import type { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { SubscriptionCycles } from '../paddle';
 import { getUserGrowthBookInstace } from '../growthbook';
 import { User } from '../entity';
+import { remoteConfig } from '../remoteConfig';
+import { getCurrencySymbol } from '../common';
 
 export const typeDefs = /* GraphQL */ `
   """
@@ -84,6 +90,11 @@ export const typeDefs = /* GraphQL */ `
     Trial period
     """
     trialPeriod: TrialPeriod
+
+    """
+    Number of cores
+    """
+    coresValue: Int
   }
 
   """
@@ -102,6 +113,7 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Query {
     pricePreviews: PricePreviews! @auth
+    corePricePreviews: PricePreviews! @auth
   }
 `;
 
@@ -185,6 +197,67 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
           trialPeriod: item.price.trialPeriod,
         };
       });
+
+      return {
+        currencyCode: pricePreview?.currencyCode as string,
+        items,
+      };
+    },
+    corePricePreviews: async (_, __, ctx: AuthContext) => {
+      const region = ctx.region;
+
+      const corePaddleProductId = remoteConfig.vars.coreProductId;
+
+      if (!corePaddleProductId) {
+        throw new Error('Core product id is not set in remote config');
+      }
+
+      const paddleProduct = await paddleInstance?.products.get(
+        corePaddleProductId,
+        {
+          include: ['prices'],
+        },
+      );
+
+      const pricePreview = await paddleInstance?.pricingPreview.preview({
+        items: (paddleProduct.prices || [])
+          .filter((item) => item.status === 'active')
+          .map((price) => ({
+            priceId: price.id,
+            quantity: 1,
+          })),
+        address: region ? { countryCode: region as CountryCode } : undefined,
+      });
+
+      const items = pricePreview.details.lineItems.map((item) => {
+        const currencyCode = pricePreview?.currencyCode;
+        const currencySymbol = getCurrencySymbol({
+          locale: 'en-US',
+          currency: currencyCode,
+        });
+        const customData = coreProductCustomDataSchema.parse(
+          item.price.customData,
+        );
+
+        return {
+          label: item.price.name,
+          value: item.price.id,
+          price: {
+            amount: item.price.unitPrice.amount,
+            formatted: item.formattedTotals.total,
+            // just for current schema compatibility
+            monthlyAmount: item.price.unitPrice.amount,
+            monthlyFormatted: item.formattedTotals.total,
+          },
+          currencyCode,
+          currencySymbol,
+          appsId: 'cores',
+          duration: 'one-time',
+          trialPeriod: null,
+          coresValue: customData.cores,
+        };
+      });
+      items.sort((a, b) => a.coresValue - b.coresValue);
 
       return {
         currencyCode: pricePreview?.currencyCode as string,
