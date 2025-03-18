@@ -117,9 +117,5 @@ export const crons: Cron[] = [
   {
     name: 'clean-gifted-plus',
     schedule: '45 2 * * *',
-  },
-  {
-    name: 'fetch-exchange-rates',
-    schedule: '0 * * * *',
   }
 ];

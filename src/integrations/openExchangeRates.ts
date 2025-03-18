@@ -1,12 +1,12 @@
 import { env } from 'node:process';
-import { ONE_DAY_IN_SECONDS } from '../common';
+import { ONE_HOUR_IN_SECONDS } from '../common';
 import { logger } from '../logger';
 import { getRedisHashField, setRedisHashWithExpiry } from '../redis';
 import { isNullOrUndefined } from '../common/object';
 import { retryFetchParse } from './retry';
 import { StorageKey } from '../config';
 
-const REDIS_EXPIRATION = ONE_DAY_IN_SECONDS;
+const REDIS_EXPIRATION = ONE_HOUR_IN_SECONDS;
 
 const URL = 'https://openexchangerates.org/api/latest.json';
 
