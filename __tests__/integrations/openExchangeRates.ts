@@ -6,13 +6,8 @@ import {
   getOpenExchangeRates,
 } from '../../src/integrations/openExchangeRates';
 import { env } from 'node:process';
-import {
-  deleteRedisKey,
-  getRedisHash,
-  setRedisHashWithExpiry,
-} from '../../src/redis';
+import { deleteRedisKey, getRedisHash } from '../../src/redis';
 import { StorageKey } from '../../src/config';
-import { ONE_DAY_IN_SECONDS } from '../../src/common';
 
 const mockedURL = 'https://openexchangerates.org';
 
@@ -56,6 +51,7 @@ describe('openExchangeRates', () => {
         GBP: '0.8',
       });
     });
+  });
 
   describe('getExchangeRate', () => {
     it('it should return the exchange rate for a given currency', async () => {
