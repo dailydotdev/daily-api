@@ -11,7 +11,7 @@ import {
   type JWSRenewalInfoDecodedPayload,
   type ResponseBodyV2DecodedPayload,
 } from '@apple/app-store-server-library';
-import { isTest } from '../../common';
+import { concatText, isTest, webhooks } from '../../common';
 import { isInSubnet } from 'is-in-subnet';
 import { isNullOrUndefined } from '../../common/object';
 import createOrGetConnection from '../../db';
@@ -24,6 +24,12 @@ import {
 import { JsonContains } from 'typeorm';
 import { SubscriptionCycles } from '../../paddle';
 import { updateStoreKitUserSubscription } from '../../plusSubscription';
+import {
+  AnalyticsEventName,
+  sendAnalyticsEvent,
+} from '../../integrations/analytics';
+import type { Block, KnownBlock } from '@slack/web-api';
+import { remoteConfig } from '../../remoteConfig';
 
 const certificatesToLoad = isTest
   ? ['__tests__/fixture/testCA.der']
@@ -139,15 +145,71 @@ const getSubscriptionStatus = (
   }
 };
 
+const getSubscriptionAnalyticsEvent = (
+  notificationType: ResponseBodyV2DecodedPayload['notificationType'],
+  subtype?: ResponseBodyV2DecodedPayload['subtype'],
+): AnalyticsEventName | null => {
+  switch (notificationType) {
+    case NotificationTypeV2.SUBSCRIBED:
+    case NotificationTypeV2.DID_RENEW:
+      return AnalyticsEventName.ReceivePayment;
+    case NotificationTypeV2.DID_CHANGE_RENEWAL_PREF:
+      return AnalyticsEventName.ChangeBillingCycle;
+    case NotificationTypeV2.DID_CHANGE_RENEWAL_STATUS: // Disable/Enable Auto-Renew
+      return subtype === Subtype.AUTO_RENEW_ENABLED
+        ? null
+        : AnalyticsEventName.CancelSubscription;
+    case NotificationTypeV2.DID_FAIL_TO_RENEW:
+      // When user fails to renew and there is no grace period
+      if (isNullOrUndefined(subtype)) {
+        return AnalyticsEventName.CancelSubscription;
+      }
+    default:
+      return null;
+  }
+};
+
+export const logAppleAnalyticsEvent = async (
+  data: JWSRenewalInfoDecodedPayload,
+  eventName: AnalyticsEventName,
+  user: User,
+) => {
+  if (!data || isTest) {
+    return;
+  }
+
+  const cycle =
+    productIdToCycle[data?.autoRenewProductId as keyof typeof productIdToCycle];
+  const cost = data?.renewalPrice;
+
+  const extra = {
+    cycle,
+    localCost: cost ? cost / 100 : undefined,
+    localCurrency: data?.currency,
+  };
+
+  await sendAnalyticsEvent([
+    {
+      event_name: eventName,
+      event_timestamp: new Date(data?.signedDate || ''),
+      event_id: data.appTransactionId,
+      app_platform: 'api',
+      user_id: user.id,
+      extra: JSON.stringify(extra),
+    },
+  ]);
+};
+
 const handleNotifcationRequest = async (
   verifier: SignedDataVerifier,
   request: FastifyRequest<{ Body: AppleNotificationRequest }>,
   response: FastifyReply,
+  environment: Environment,
 ) => {
   const { signedPayload } = request.body || {};
 
   if (isNullOrUndefined(signedPayload)) {
-    logger.info(
+    logger.error(
       { body: request.body, provider: SubscriptionProvider.AppleStoreKit },
       "Missing 'signedPayload' in request body",
     );
@@ -158,6 +220,17 @@ const handleNotifcationRequest = async (
     const notification =
       await verifier.verifyAndDecodeNotification(signedPayload);
 
+    // Don't proceed any further if it's a test notification
+    if (notification.notificationType === NotificationTypeV2.TEST) {
+      logger.info(
+        { notification, provider: SubscriptionProvider.AppleStoreKit },
+        'Received Test Notification',
+      );
+      return response.status(200).send({ received: true });
+    }
+
+    // Check if the event is a subscription event
+    // NOTE: When adding support for purchasing cores, we must remove this check as it's not a subscription event
     if (isNullOrUndefined(notification?.data?.signedRenewalInfo)) {
       logger.info(
         { notification, provider: SubscriptionProvider.AppleStoreKit },
@@ -188,6 +261,19 @@ const handleNotifcationRequest = async (
       return response.status(404).send({ error: 'Invalid Payload' });
     }
 
+    // Only allow sandbox requests from approved users
+    if (
+      environment === Environment.SANDBOX &&
+      !remoteConfig.vars.approvedStoreKitSandboxUsers?.includes(user.id)
+    ) {
+      logger.error(
+        { user, provider: SubscriptionProvider.AppleStoreKit },
+        'User not approved for sandbox',
+      );
+      return response.status(403).send({ error: 'Invalid Payload' });
+    }
+
+    // Prevent double subscription
     if (user.subscriptionFlags?.provider === SubscriptionProvider.Paddle) {
       logger.error(
         {
@@ -200,12 +286,12 @@ const handleNotifcationRequest = async (
       throw new Error('User already has a Paddle subscription');
     }
 
-    logger.info(
-      { renewalInfo, user, provider: SubscriptionProvider.AppleStoreKit },
-      'Received Apple App Store Server Notification',
+    const subscriptionStatus = getSubscriptionStatus(
+      notification.notificationType,
+      notification.subtype,
     );
 
-    const subscriptionStatus = getSubscriptionStatus(
+    const eventName = getSubscriptionAnalyticsEvent(
       notification.notificationType,
       notification.subtype,
     );
@@ -218,9 +304,20 @@ const handleNotifcationRequest = async (
       data: subscriptionFlags,
     });
 
-    return {
-      received: true,
-    };
+    if (eventName) {
+      await logAppleAnalyticsEvent(renewalInfo, eventName, user);
+    }
+
+    if (notification.notificationType === NotificationTypeV2.SUBSCRIBED) {
+      await notifyNewStoreKitSubscription(renewalInfo, user);
+    }
+
+    logger.info(
+      { renewalInfo, user, provider: SubscriptionProvider.AppleStoreKit },
+      'Received Apple App Store Server Notification',
+    );
+
+    return response.status(200).send({ received: true });
   } catch (_err) {
     const err = _err as Error;
     if (err instanceof VerificationException) {
@@ -245,6 +342,91 @@ const handleNotifcationRequest = async (
       return response.status(500).send({ error: 'Internal Server Error' });
     }
   }
+};
+
+export const notifyNewStoreKitSubscription = async (
+  data: JWSRenewalInfoDecodedPayload,
+  user: User,
+) => {
+  if (isTest) {
+    return;
+  }
+
+  const blocks: (KnownBlock | Block)[] = [
+    {
+      type: 'header',
+      text: {
+        type: 'plain_text',
+        text: 'New Plus subscriber :moneybag: :apple-ico:',
+        emoji: true,
+      },
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatText('*Transaction ID:*', data.appTransactionId),
+        },
+      ],
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatText('*Type:*', data.autoRenewProductId),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatText(
+            '*Purchased by:*',
+            `<https://app.daily.dev/${user.id}|${user.id}>`,
+          ),
+        },
+      ],
+    },
+    // {
+    //   type: 'section',
+    //   fields: [
+    //     {
+    //       type: 'mrkdwn',
+    //       text: concatText(
+    //         '*Cost:*',
+    //         new Intl.NumberFormat('en-US', {
+    //           style: 'currency',
+    //           currency: currencyCode,
+    //         }).format((parseFloat(total) || 0) / 100),
+    //       ),
+    //     },
+    //     {
+    //       type: 'mrkdwn',
+    //       text: concatText('*Currency:*', currencyCode),
+    //     },
+    //   ],
+    // },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatText(
+            '*Cost (local):*',
+            new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: data.currency,
+            }).format((data.renewalPrice || 0) / 1000),
+          ),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatText('*Currency (local):*', data.currency),
+        },
+      ],
+    },
+  ];
+
+  await webhooks.transactions.send({ blocks });
 };
 
 export const apple = async (fastify: FastifyInstance): Promise<void> => {
@@ -274,7 +456,7 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
         appAppleId,
       );
 
-      await handleNotifcationRequest(verifier, request, response);
+      await handleNotifcationRequest(verifier, request, response, environment);
     },
   );
 
@@ -292,7 +474,12 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
         appAppleId,
       );
 
-      await handleNotifcationRequest(verifier, request, response);
+      await handleNotifcationRequest(
+        verifier,
+        request,
+        response,
+        Environment.SANDBOX,
+      );
     },
   );
 };

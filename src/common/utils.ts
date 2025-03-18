@@ -277,3 +277,6 @@ export const getCurrencySymbol = ({
     .replace(/\d/g, '')
     .trim();
 };
+
+export const concatText = (a?: string, b?: string) =>
+  [a, b].filter(Boolean).join(`\n`);
