@@ -454,7 +454,7 @@ const getUser = (
     ],
   });
 
-const getBalanceBoot: typeof getBalance = async ({ ctx }) => {
+const getBalanceBoot: typeof getBalance = async ({ userId }) => {
   try {
     if (!remoteConfig.vars.enableBalance) {
       return {
@@ -462,7 +462,7 @@ const getBalanceBoot: typeof getBalance = async ({ ctx }) => {
       };
     }
 
-    const result = await getBalance({ ctx });
+    const result = await getBalance({ userId });
 
     return result;
   } catch (originalError) {
@@ -524,7 +524,7 @@ const loggedInBoot = async ({
           getUnreadNotificationsCount(queryRunner, userId),
         ]);
       }),
-      getBalanceBoot({ ctx: { userId } }),
+      getBalanceBoot({ userId }),
     ]);
     if (!user) {
       return handleNonExistentUser(con, req, res, middleware);

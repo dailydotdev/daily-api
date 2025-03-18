@@ -137,9 +137,7 @@ export class DataLoaderService {
       type: 'userBalance',
       loadFn: async ({ userId }) => {
         return getBalance({
-          ctx: {
-            userId,
-          },
+          userId,
         });
       },
       cacheKeyFn: ({ userId }) => defaultCacheKeyFn({ userId }),

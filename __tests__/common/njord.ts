@@ -212,7 +212,7 @@ describe('getBalance', () => {
     });
 
     const result = await njordCommon.getBalance({
-      ctx: { userId: 't-gb-1' } as AuthContext,
+      userId: 't-gb-1',
     });
 
     expect(result).toEqual({ amount: 100 });
@@ -228,7 +228,7 @@ describe('getBalance', () => {
     const getRedisObjectSpy = jest.spyOn(redisFile, 'getRedisObject');
 
     const result = await njordCommon.getBalance({
-      ctx: { userId: 't-gb-1' } as AuthContext,
+      userId: 't-gb-1',
     });
 
     expect(result).toEqual({ amount: 0 });
@@ -264,7 +264,7 @@ describe('getBalance', () => {
     });
 
     const resultNotCached = await njordCommon.getBalance({
-      ctx: { userId: 't-gb-1' } as AuthContext,
+      userId: 't-gb-1',
     });
 
     expect(resultNotCached).toEqual({ amount: 42 });
@@ -274,7 +274,7 @@ describe('getBalance', () => {
     expect(getFreshBalanceSpy).toHaveBeenCalledTimes(1);
 
     const result = await njordCommon.getBalance({
-      ctx: { userId: 't-gb-1' } as AuthContext,
+      userId: 't-gb-1',
     });
 
     expect(result).toEqual({ amount: 42 });
@@ -305,7 +305,7 @@ describe('getBalance', () => {
     });
 
     const resultNotCached = await njordCommon.getBalance({
-      ctx: { userId: 't-gb-1' } as AuthContext,
+      userId: 't-gb-1',
     });
 
     expect(resultNotCached).toEqual({ amount: 42 });
@@ -315,7 +315,7 @@ describe('getBalance', () => {
     expect(getFreshBalanceSpy).toHaveBeenCalledTimes(1);
 
     const result = await njordCommon.getBalance({
-      ctx: { userId: 't-gb-1' } as AuthContext,
+      userId: 't-gb-1',
     });
 
     expect(result).toEqual({ amount: 42 });
@@ -329,7 +329,7 @@ describe('getBalance', () => {
     });
 
     const resultExpired = await njordCommon.getBalance({
-      ctx: { userId: 't-gb-1' } as AuthContext,
+      userId: 't-gb-1',
     });
 
     expect(resultExpired).toEqual({ amount: 42 });
@@ -341,7 +341,7 @@ describe('getBalance', () => {
 
   it('should return 0 if no balance', async () => {
     const result = await njordCommon.getBalance({
-      ctx: { userId: 't-gb-1-not-exists' } as AuthContext,
+      userId: 't-gb-1-not-exists',
     });
 
     expect(result).toEqual({ amount: 0 });
@@ -366,7 +366,7 @@ describe('updatedBalanceCache', () => {
     );
 
     const resultBefore = await njordCommon.getBalance({
-      ctx: { userId: 't-ubc-1' } as AuthContext,
+      userId: 't-ubc-1',
     });
 
     expect(resultBefore).toEqual({ amount: 0 });
@@ -383,7 +383,7 @@ describe('updatedBalanceCache', () => {
     );
 
     const resultAfter = await njordCommon.getBalance({
-      ctx: { userId: 't-ubc-1' } as AuthContext,
+      userId: 't-ubc-1',
     });
 
     expect(resultAfter).toEqual({ amount: 101 });
@@ -406,13 +406,13 @@ describe('expireBalanceCache', () => {
     const getFreshBalanceSpy = jest.spyOn(njordCommon, 'getFreshBalance');
 
     await njordCommon.getBalance({
-      ctx: { userId: 't-ebc-1' } as AuthContext,
+      userId: 't-ebc-1',
     });
 
     expect(getFreshBalanceSpy).toHaveBeenCalledTimes(1);
 
     await njordCommon.getBalance({
-      ctx: { userId: 't-ebc-1' } as AuthContext,
+      userId: 't-ebc-1',
     });
 
     expect(getFreshBalanceSpy).toHaveBeenCalledTimes(1);
@@ -426,7 +426,7 @@ describe('expireBalanceCache', () => {
     );
 
     await njordCommon.getBalance({
-      ctx: { userId: 't-ebc-1' } as AuthContext,
+      userId: 't-ebc-1',
     });
 
     expect(getFreshBalanceSpy).toHaveBeenCalledTimes(2);

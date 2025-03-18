@@ -299,62 +299,63 @@ export const purchaseCores = async ({
   return transferResult;
 };
 
-export type GetBalanceProps = {
-  ctx: Pick<AuthContext, 'userId'>;
-};
+export type GetBalanceProps = Pick<AuthContext, 'userId'>;
 
 export type GetBalanceResult = {
   amount: number;
 };
 
-const getBalanceRedisKey = createAuthProtectedFn(
-  ({ ctx }: Pick<GetBalanceProps, 'ctx'>) => {
-    const redisKey = generateStorageKey(
-      StorageTopic.Njord,
-      StorageKey.CoresBalance,
-      ctx.userId,
-    );
+const getBalanceRedisKey = createAuthProtectedFn(({ ctx }) => {
+  const redisKey = generateStorageKey(
+    StorageTopic.Njord,
+    StorageKey.CoresBalance,
+    ctx.userId,
+  );
 
-    return redisKey;
-  },
-);
+  return redisKey;
+});
 
-export const getFreshBalance = createAuthProtectedFn(
-  async ({ ctx }: GetBalanceProps): Promise<GetBalanceResult> => {
-    const njordClient = getNjordClient();
+export const getFreshBalance = async ({
+  userId,
+}: GetBalanceProps): Promise<GetBalanceResult> => {
+  const njordClient = getNjordClient();
 
-    const balance = await garmNjordService.execute(async () => {
-      try {
-        const result = await njordClient.getBalance({
-          account: {
-            userId: ctx.userId,
-            currency: Currency.CORES,
-          },
-        });
+  const balance = await garmNjordService.execute(async () => {
+    try {
+      const result = await njordClient.getBalance({
+        account: {
+          userId: userId,
+          currency: Currency.CORES,
+        },
+      });
 
-        return result;
-      } catch (originalError) {
-        const error = originalError as ConnectError;
+      return result;
+    } catch (originalError) {
+      const error = originalError as ConnectError;
 
-        // user has no account yet, account is created on first transfer
-        if (error.rawMessage === NjordErrorMessages.BalanceAccountNotFound) {
-          return new GetBalanceResponse({
-            amount: 0,
-          } as GetBalanceResult);
-        }
-
-        throw originalError;
+      // user has no account yet, account is created on first transfer
+      if (error.rawMessage === NjordErrorMessages.BalanceAccountNotFound) {
+        return new GetBalanceResponse({
+          amount: 0,
+        } as GetBalanceResult);
       }
-    });
 
-    return {
-      amount: parseBigInt(balance.amount),
-    };
-  },
-);
+      throw originalError;
+    }
+  });
+
+  return {
+    amount: parseBigInt(balance.amount),
+  };
+};
 
 export const updateBalanceCache = createAuthProtectedFn(
-  async ({ ctx, value }: GetBalanceProps & { value: GetBalanceResult }) => {
+  async ({
+    ctx,
+    value,
+  }: { ctx: Pick<AuthContext, 'userId'> } & {
+    value: GetBalanceResult;
+  }) => {
     const redisKey = getBalanceRedisKey({ ctx });
 
     await setRedisObjectWithExpiry(
@@ -365,44 +366,40 @@ export const updateBalanceCache = createAuthProtectedFn(
   },
 );
 
-export const expireBalanceCache = createAuthProtectedFn(
-  async ({ ctx }: GetBalanceProps) => {
-    const redisKey = getBalanceRedisKey({ ctx });
+export const expireBalanceCache = createAuthProtectedFn(async ({ ctx }) => {
+  const redisKey = getBalanceRedisKey({ ctx });
 
-    await deleteRedisKey(redisKey);
-  },
-);
+  await deleteRedisKey(redisKey);
+});
 
-export const getBalance = createAuthProtectedFn(
-  async ({ ctx }: GetBalanceProps) => {
-    const redisKey = getBalanceRedisKey({ ctx });
+export const getBalance = async ({ userId }: GetBalanceProps) => {
+  const redisKey = getBalanceRedisKey({ ctx: { userId } });
 
-    const redisResult = await getRedisObject(redisKey);
+  const redisResult = await getRedisObject(redisKey);
 
-    if (redisResult) {
-      const cachedBalance = JSON.parse(redisResult) as GetBalanceResult;
+  if (redisResult) {
+    const cachedBalance = JSON.parse(redisResult) as GetBalanceResult;
 
-      return cachedBalance;
+    return cachedBalance;
+  }
+
+  try {
+    const freshBalance = await getFreshBalance({ userId });
+
+    await updateBalanceCache({ ctx: { userId }, value: freshBalance });
+
+    return freshBalance;
+  } catch (originalError) {
+    if (originalError instanceof BrokenCircuitError) {
+      // if njord is down, return 0 balance for now
+      return {
+        amount: 0,
+      };
     }
 
-    try {
-      const freshBalance = await getFreshBalance({ ctx });
-
-      await updateBalanceCache({ ctx, value: freshBalance });
-
-      return freshBalance;
-    } catch (originalError) {
-      if (originalError instanceof BrokenCircuitError) {
-        // if njord is down, return 0 balance for now
-        return {
-          amount: 0,
-        };
-      }
-
-      throw originalError;
-    }
-  },
-);
+    throw originalError;
+  }
+};
 
 export enum AwardType {
   Post = 'POST',
