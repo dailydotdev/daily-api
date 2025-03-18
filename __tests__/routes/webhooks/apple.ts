@@ -19,6 +19,10 @@ import {
   type JWSTransactionDecodedPayload,
 } from '@apple/app-store-server-library';
 import { SubscriptionCycles } from '../../../src/paddle';
+import nock from 'nock';
+import { env } from 'process';
+import { deleteRedisKey, getRedisHash } from '../../../src/redis';
+import { StorageKey } from '../../../src/config';
 
 function createSignedData(payload): string {
   const keyPairOptions: ECKeyPairOptions<'pem', 'pem'> = {
@@ -40,6 +44,20 @@ function createSignedData(payload): string {
 let app: FastifyInstance;
 let con: DataSource;
 
+const mockedURL = 'https://openexchangerates.org';
+const mockedResponse = {
+  disclaimer: 'Usage subject to terms: https://openexchangerates.org/terms',
+  license: 'https://openexchangerates.org/license',
+  timestamp: 1742295600,
+  base: 'USD',
+  rates: {
+    USD: 1,
+    NOK: 10.5,
+    EUR: 0.9,
+    GBP: 0.8,
+  },
+};
+
 beforeAll(async () => {
   app = await appFunc();
   con = await createOrGetConnection();
@@ -50,6 +68,15 @@ afterAll(() => app.close());
 
 beforeEach(async () => {
   jest.resetAllMocks();
+  nock.cleanAll();
+  await deleteRedisKey(StorageKey.OpenExchangeRates);
+
+  nock(mockedURL)
+    .get('/api/latest.json')
+    .query({
+      app_id: env.OPEN_EXCHANGE_RATES_APP_ID,
+    })
+    .reply(200, mockedResponse);
 });
 
 describe('POST /webhooks/apple/notifications', () => {
@@ -350,5 +377,25 @@ describe('POST /webhooks/apple/notifications', () => {
         }),
       })
       .expect(500);
+  });
+
+  it('should store exchange rates in redis', async () => {
+    expect(await getRedisHash(StorageKey.OpenExchangeRates)).toEqual({});
+
+    await request(app.server)
+      .post('/webhooks/apple/notifications')
+      .send({
+        signedPayload: signedPayload({
+          notificationType: NotificationTypeV2.DID_CHANGE_RENEWAL_STATUS,
+        }),
+      })
+      .expect(200);
+
+    expect(await getRedisHash(StorageKey.OpenExchangeRates)).toEqual({
+      USD: '1',
+      NOK: '10.5',
+      EUR: '0.9',
+      GBP: '0.8',
+    });
   });
 });
