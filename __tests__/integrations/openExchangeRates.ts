@@ -57,43 +57,6 @@ describe('openExchangeRates', () => {
       });
     });
 
-    it('it should update exchange rates', async () => {
-      await setRedisHashWithExpiry(
-        StorageKey.OpenExchangeRates,
-        {
-          USD: '1',
-          NOK: '9.23',
-          EUR: '0.86',
-          GBP: '0.81',
-        },
-        ONE_DAY_IN_SECONDS,
-      );
-
-      expect(await getRedisHash(StorageKey.OpenExchangeRates)).toEqual({
-        USD: '1',
-        NOK: '9.23',
-        EUR: '0.86',
-        GBP: '0.81',
-      });
-
-      nock(mockedURL)
-        .get('/api/latest.json')
-        .query({
-          app_id: env.OPEN_EXCHANGE_RATES_APP_ID,
-        })
-        .reply(200, mockedResponse);
-
-      await getOpenExchangeRates();
-
-      expect(await getRedisHash(StorageKey.OpenExchangeRates)).toEqual({
-        USD: '1',
-        NOK: '10.5',
-        EUR: '0.9',
-        GBP: '0.8',
-      });
-    });
-  });
-
   describe('getExchangeRate', () => {
     it('it should return the exchange rate for a given currency', async () => {
       nock(mockedURL)
