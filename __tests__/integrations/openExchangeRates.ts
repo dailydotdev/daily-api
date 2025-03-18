@@ -6,8 +6,13 @@ import {
   getOpenExchangeRates,
 } from '../../src/integrations/openExchangeRates';
 import { env } from 'node:process';
-import { deleteRedisKey, getRedisHash } from '../../src/redis';
+import {
+  deleteRedisKey,
+  getRedisHash,
+  setRedisHashWithExpiry,
+} from '../../src/redis';
 import { StorageKey } from '../../src/config';
+import { ONE_DAY_IN_SECONDS } from '../../src/common';
 
 const mockedURL = 'https://openexchangerates.org';
 
@@ -34,6 +39,42 @@ describe('openExchangeRates', () => {
   describe('getOpenExchangeRates', () => {
     it('it should fetch exchange rates and store it in redis', async () => {
       expect(await getRedisHash(StorageKey.OpenExchangeRates)).toEqual({});
+
+      nock(mockedURL)
+        .get('/api/latest.json')
+        .query({
+          app_id: env.OPEN_EXCHANGE_RATES_APP_ID,
+        })
+        .reply(200, mockedResponse);
+
+      await getOpenExchangeRates();
+
+      expect(await getRedisHash(StorageKey.OpenExchangeRates)).toEqual({
+        USD: '1',
+        NOK: '10.5',
+        EUR: '0.9',
+        GBP: '0.8',
+      });
+    });
+
+    it('it should update exchange rates', async () => {
+      await setRedisHashWithExpiry(
+        StorageKey.OpenExchangeRates,
+        {
+          USD: '1',
+          NOK: '9.23',
+          EUR: '0.86',
+          GBP: '0.81',
+        },
+        ONE_DAY_IN_SECONDS,
+      );
+
+      expect(await getRedisHash(StorageKey.OpenExchangeRates)).toEqual({
+        USD: '1',
+        NOK: '9.23',
+        EUR: '0.86',
+        GBP: '0.81',
+      });
 
       nock(mockedURL)
         .get('/api/latest.json')
