@@ -106,7 +106,7 @@ describe('openExchangeRates', () => {
       expect(converted).toEqual(9.52);
     });
 
-    it('it should return null if the currency is not found', async () => {
+    it('it should return 0 if the currency is not found', async () => {
       nock(mockedURL)
         .get('/api/latest.json')
         .query({
@@ -118,7 +118,7 @@ describe('openExchangeRates', () => {
 
       const converted = await convertCurrencyToUSD(100, 'WOLOLO');
 
-      expect(converted).toBeNull();
+      expect(converted).toEqual(0);
     });
   });
 });

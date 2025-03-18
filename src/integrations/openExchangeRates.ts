@@ -61,10 +61,10 @@ export const getOpenExchangeRates = async (): Promise<void> => {
 export const convertCurrencyToUSD = async (
   amount: number,
   currency: string,
-): Promise<number | null> => {
+): Promise<number> => {
   const rate = await getExchangeRate(currency);
   if (isNullOrUndefined(rate)) {
-    return null;
+    return 0;
   }
 
   return +(amount / rate).toFixed(2);

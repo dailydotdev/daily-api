@@ -30,6 +30,7 @@ import {
 } from '../../integrations/analytics';
 import type { Block, KnownBlock } from '@slack/web-api';
 import { remoteConfig } from '../../remoteConfig';
+import { convertCurrencyToUSD } from '../../integrations/openExchangeRates';
 
 const certificatesToLoad = isTest
   ? ['__tests__/fixture/testCA.der']
@@ -182,10 +183,21 @@ export const logAppleAnalyticsEvent = async (
     productIdToCycle[data?.autoRenewProductId as keyof typeof productIdToCycle];
   const cost = data?.renewalPrice;
 
+  const currencyInUSD = await convertCurrencyToUSD(
+    cost || 0,
+    data.currency || 'USD',
+  );
+
   const extra = {
     cycle,
+    cost: currencyInUSD,
+    currency: 'USD',
     localCost: cost ? cost / 100 : undefined,
     localCurrency: data?.currency,
+    payout: {
+      total: currencyInUSD * 100,
+      grandTotal: currencyInUSD * 100,
+    },
   };
 
   await sendAnalyticsEvent([
@@ -352,6 +364,11 @@ export const notifyNewStoreKitSubscription = async (
     return;
   }
 
+  const currencyInUSD = await convertCurrencyToUSD(
+    data.renewalPrice || 0,
+    data.currency || 'USD',
+  );
+
   const blocks: (KnownBlock | Block)[] = [
     {
       type: 'header',
@@ -393,25 +410,25 @@ export const notifyNewStoreKitSubscription = async (
         },
       ],
     },
-    // {
-    //   type: 'section',
-    //   fields: [
-    //     {
-    //       type: 'mrkdwn',
-    //       text: concatText(
-    //         '*Cost:*',
-    //         new Intl.NumberFormat('en-US', {
-    //           style: 'currency',
-    //           currency: currencyCode,
-    //         }).format((parseFloat(total) || 0) / 100),
-    //       ),
-    //     },
-    //     {
-    //       type: 'mrkdwn',
-    //       text: concatText('*Currency:*', currencyCode),
-    //     },
-    //   ],
-    // },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*Cost:*',
+            new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: 'USD',
+            }).format(currencyInUSD || 0),
+          ),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline('*Currency:*', 'USD'),
+        },
+      ],
+    },
     {
       type: 'section',
       fields: [
