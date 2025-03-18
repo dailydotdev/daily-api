@@ -174,6 +174,7 @@ export const logAppleAnalyticsEvent = async (
   data: JWSRenewalInfoDecodedPayload,
   eventName: AnalyticsEventName,
   user: User,
+  currencyInUSD: number,
 ) => {
   if (!data || isTest) {
     return;
@@ -182,11 +183,6 @@ export const logAppleAnalyticsEvent = async (
   const cycle =
     productIdToCycle[data?.autoRenewProductId as keyof typeof productIdToCycle];
   const cost = data?.renewalPrice;
-
-  const currencyInUSD = await convertCurrencyToUSD(
-    cost || 0,
-    data.currency || 'USD',
-  );
 
   const extra = {
     cycle,
@@ -317,12 +313,17 @@ const handleNotifcationRequest = async (
       data: subscriptionFlags,
     });
 
+    const currencyInUSD = await convertCurrencyToUSD(
+      renewalInfo.renewalPrice || 0,
+      renewalInfo.currency || 'USD',
+    );
+
     if (eventName) {
-      await logAppleAnalyticsEvent(renewalInfo, eventName, user);
+      await logAppleAnalyticsEvent(renewalInfo, eventName, user, currencyInUSD);
     }
 
     if (notification.notificationType === NotificationTypeV2.SUBSCRIBED) {
-      await notifyNewStoreKitSubscription(renewalInfo, user);
+      await notifyNewStoreKitSubscription(renewalInfo, user, currencyInUSD);
     }
 
     logger.info(
@@ -360,15 +361,11 @@ const handleNotifcationRequest = async (
 export const notifyNewStoreKitSubscription = async (
   data: JWSRenewalInfoDecodedPayload,
   user: User,
+  currencyInUSD: number,
 ) => {
   if (isTest) {
     return;
   }
-
-  const currencyInUSD = await convertCurrencyToUSD(
-    data.renewalPrice || 0,
-    data.currency || 'USD',
-  );
 
   const blocks: (KnownBlock | Block)[] = [
     {
