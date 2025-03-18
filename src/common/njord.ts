@@ -590,7 +590,7 @@ export const awardComment = async (
   const [product, comment, userComment] = await queryReadReplica<
     [
       Pick<Product, 'id' | 'type'>,
-      Pick<Comment, 'id' | 'userId' | 'postId' | 'post'>,
+      Pick<Comment, 'id' | 'userId' | 'postId' | 'post' | 'parentId'>,
       Pick<UserComment, 'awardTransactionId'> | null,
     ]
   >(ctx.con, async ({ queryRunner }) => {
@@ -602,7 +602,7 @@ export const awardComment = async (
         },
       }),
       queryRunner.manager.getRepository(Comment).findOneOrFail({
-        select: ['id', 'userId', 'postId'],
+        select: ['id', 'userId', 'postId', 'parentId'],
         where: {
           id: props.entityId,
         },
@@ -670,7 +670,7 @@ export const awardComment = async (
         const newComment = entityManager.getRepository(Comment).create({
           id: await generateShortId(),
           postId: comment.postId,
-          parentId: comment.id,
+          parentId: comment.parentId || comment.id,
           userId: ctx.userId,
           content: note,
           awardTransactionId: transaction.id,
