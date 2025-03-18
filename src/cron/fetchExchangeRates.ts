@@ -9,8 +9,8 @@ export const fetchExchangeRates: Cron = {
     try {
       await getOpenExchangeRates();
     } catch (_err) {
-      const err = _err as Error
-      logger.error({ err },'Error fetching exchange rates');
+      const err = _err as Error;
+      logger.error({ err }, 'Error fetching exchange rates');
     }
   },
 };
