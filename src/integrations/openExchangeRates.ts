@@ -4,8 +4,8 @@ import { logger } from '../logger';
 import { getRedisHashField, setRedisHashWithExpiry } from '../redis';
 import { isNullOrUndefined } from '../common/object';
 import { retryFetchParse } from './retry';
+import { StorageKey } from '../config';
 
-const REDIS_KEY = 'openExchangeRates';
 const REDIS_EXPIRATION = ONE_DAY_IN_SECONDS;
 
 const URL = 'https://openexchangerates.org/api/latest.json';
@@ -23,7 +23,7 @@ export type OpenExchangeRates = {
 export const getExchangeRate = async (
   currency: string,
 ): Promise<number | null> => {
-  const rate = await getRedisHashField(REDIS_KEY, currency);
+  const rate = await getRedisHashField(StorageKey.OpenExchangeRates, currency);
   if (isNullOrUndefined(rate)) {
     return null;
   }
@@ -47,7 +47,11 @@ export const getOpenExchangeRates = async (): Promise<void> => {
         retries: 3,
       },
     );
-    await setRedisHashWithExpiry(REDIS_KEY, data.rates, REDIS_EXPIRATION);
+    await setRedisHashWithExpiry(
+      StorageKey.OpenExchangeRates,
+      data.rates,
+      REDIS_EXPIRATION,
+    );
   } catch (_err) {
     const err = _err as Error;
     logger.error({ err }, 'Error fetching open exchange rates');
