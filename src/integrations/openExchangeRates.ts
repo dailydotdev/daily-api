@@ -1,7 +1,11 @@
 import { env } from 'node:process';
 import { ONE_HOUR_IN_SECONDS } from '../common';
 import { logger } from '../logger';
-import { getRedisHashField, setRedisHashWithExpiry } from '../redis';
+import {
+  checkRedisObjectExists,
+  getRedisHashField,
+  setRedisHashWithExpiry,
+} from '../redis';
 import { isNullOrUndefined } from '../common/object';
 import { retryFetchParse } from './retry';
 import { StorageKey } from '../config';
@@ -34,6 +38,13 @@ export const getExchangeRate = async (
 export const getOpenExchangeRates = async (): Promise<void> => {
   if (!env.OPEN_EXCHANGE_RATES_APP_ID) {
     throw new Error('OPEN_EXCHANGE_RATES_APP_ID is not set');
+  }
+
+  const currencyRatesExists = await checkRedisObjectExists(
+    StorageKey.OpenExchangeRates,
+  );
+  if (currencyRatesExists) {
+    return;
   }
 
   try {

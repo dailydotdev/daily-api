@@ -34,8 +34,6 @@ import {
   convertCurrencyToUSD,
   getOpenExchangeRates,
 } from '../../integrations/openExchangeRates';
-import { checkRedisObjectExists } from '../../redis';
-import { StorageKey } from '../../config';
 
 const certificatesToLoad = isTest
   ? ['__tests__/fixture/testCA.der']
@@ -470,13 +468,7 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
       appleRootCAs = await loadAppleRootCAs();
     }
 
-    const currencyRatesExists = await checkRedisObjectExists(
-      StorageKey.OpenExchangeRates,
-    );
-
-    if (!currencyRatesExists) {
-      await getOpenExchangeRates();
-    }
+    await getOpenExchangeRates();
   });
 
   // Endpoint for receiving App Store Server Notifications V2
