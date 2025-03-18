@@ -368,6 +368,13 @@ export const notifyNewStoreKitSubscription = async (
           type: 'mrkdwn',
           text: concatTextToNewline('*Transaction ID:*', data.appTransactionId),
         },
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*App Account Token:*',
+            data.appAccountToken,
+          ),
+        },
       ],
     },
     {
