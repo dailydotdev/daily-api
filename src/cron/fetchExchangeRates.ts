@@ -6,6 +6,11 @@ export const fetchExchangeRates: Cron = {
   name: 'fetch-exchange-rates',
   handler: async () => {
     logger.info('Fetching exchange rates');
-    getOpenExchangeRates();
+    try {
+      await getOpenExchangeRates();
+    } catch (_err) {
+      const err = _err as Error
+      logger.error({ err },'Error fetching exchange rates');
+    }
   },
 };
