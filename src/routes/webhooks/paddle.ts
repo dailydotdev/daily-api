@@ -734,9 +734,9 @@ export const processTransactionCreated = async ({
 }: {
   event: TransactionCreatedEvent;
 }) => {
-  const transactionData = getPaddleTransactionData({ event });
-
   if (isCoreTransaction({ event })) {
+    const transactionData = getPaddleTransactionData({ event });
+
     const con = await createOrGetConnection();
 
     const transaction = await getTransactionForProviderId({
@@ -763,37 +763,39 @@ export const processTransactionReady = async ({
 }: {
   event: TransactionReadyEvent;
 }) => {
-  const con = await createOrGetConnection();
+  if (isCoreTransaction({ event })) {
+    const transactionData = getPaddleTransactionData({ event });
 
-  const transactionData = getPaddleTransactionData({ event });
+    const con = await createOrGetConnection();
 
-  const transaction = await getTransactionForProviderId({
-    con,
-    providerId: transactionData.id,
-  });
+    const transaction = await getTransactionForProviderId({
+      con,
+      providerId: transactionData.id,
+    });
 
-  const nextStatus = UserTransactionStatus.Processing;
+    const nextStatus = UserTransactionStatus.Processing;
 
-  if (
-    transaction &&
-    !checkTransactionStatusValid({
-      event,
+    if (
+      transaction &&
+      !checkTransactionStatusValid({
+        event,
+        transaction,
+        nextStatus,
+        validStatus: [UserTransactionStatus.Created],
+        data: transactionData,
+      })
+    ) {
+      return;
+    }
+
+    await updateUserTransaction({
+      con,
       transaction,
       nextStatus,
-      validStatus: [UserTransactionStatus.Created],
       data: transactionData,
-    })
-  ) {
-    return;
+      event,
+    });
   }
-
-  await updateUserTransaction({
-    con,
-    transaction,
-    nextStatus,
-    data: transactionData,
-    event,
-  });
 };
 
 export const processTransactionPaymentFailed = async ({
@@ -801,45 +803,47 @@ export const processTransactionPaymentFailed = async ({
 }: {
   event: TransactionPaymentFailedEvent;
 }) => {
-  const con = await createOrGetConnection();
+  if (isCoreTransaction({ event })) {
+    const transactionData = getPaddleTransactionData({ event });
 
-  const transactionData = getPaddleTransactionData({ event });
+    const con = await createOrGetConnection();
 
-  const transaction = await getTransactionForProviderId({
-    con,
-    providerId: transactionData.id,
-  });
+    const transaction = await getTransactionForProviderId({
+      con,
+      providerId: transactionData.id,
+    });
 
-  if (!transaction) {
-    throw new Error('Transaction not found');
+    if (!transaction) {
+      throw new Error('Transaction not found');
+    }
+
+    const nextStatus = UserTransactionStatus.Error;
+
+    if (
+      !checkTransactionStatusValid({
+        event,
+        transaction,
+        nextStatus,
+        validStatus: [
+          UserTransactionStatus.Created,
+          UserTransactionStatus.Processing,
+        ],
+        data: transactionData,
+      })
+    ) {
+      return;
+    }
+
+    await con.getRepository(UserTransaction).update(
+      { id: transaction.id },
+      {
+        status: nextStatus,
+        flags: updateFlagsStatement<UserTransaction>({
+          error: `Payment failed: ${event.data.payments[0]?.errorCode || 'unknown'}`,
+        }),
+      },
+    );
   }
-
-  const nextStatus = UserTransactionStatus.Error;
-
-  if (
-    !checkTransactionStatusValid({
-      event,
-      transaction,
-      nextStatus,
-      validStatus: [
-        UserTransactionStatus.Created,
-        UserTransactionStatus.Processing,
-      ],
-      data: transactionData,
-    })
-  ) {
-    return;
-  }
-
-  await con.getRepository(UserTransaction).update(
-    { id: transaction.id },
-    {
-      status: nextStatus,
-      flags: updateFlagsStatement<UserTransaction>({
-        error: `Payment failed: ${event.data.payments[0]?.errorCode || 'unknown'}`,
-      }),
-    },
-  );
 };
 
 export const processTransactionUpdated = async ({
@@ -847,69 +851,71 @@ export const processTransactionUpdated = async ({
 }: {
   event: TransactionUpdatedEvent;
 }) => {
-  const con = await createOrGetConnection();
+  if (isCoreTransaction({ event })) {
+    const transactionData = getPaddleTransactionData({ event });
 
-  const transactionData = getPaddleTransactionData({ event });
+    const con = await createOrGetConnection();
 
-  const transaction = await getTransactionForProviderId({
-    con,
-    providerId: transactionData.id,
-  });
+    const transaction = await getTransactionForProviderId({
+      con,
+      providerId: transactionData.id,
+    });
 
-  if (transaction && transaction.updatedAt > transactionData.updatedAt) {
-    logger.warn(
-      {
-        eventType: event.eventType,
-        provider: SubscriptionProvider.Paddle,
-        currentStatus: transaction.status,
-        data: transactionData,
-      },
-      'Transaction already updated',
-    );
+    if (transaction && transaction.updatedAt > transactionData.updatedAt) {
+      logger.warn(
+        {
+          eventType: event.eventType,
+          provider: SubscriptionProvider.Paddle,
+          currentStatus: transaction.status,
+          data: transactionData,
+        },
+        'Transaction already updated',
+      );
 
-    return;
-  }
-
-  // get status from update event, other events we don't handle as update
-  // but wait for the dedicated eventType to process transaction
-  const getUpdatedStatus = (): UserTransactionStatus | undefined => {
-    if (transaction) {
-      return transaction.status;
+      return;
     }
 
-    switch (event.data.status) {
-      case 'draft':
-        return UserTransactionStatus.Created;
-      case 'ready':
-        return UserTransactionStatus.Processing;
-      default:
-        return undefined;
+    // get status from update event, other events we don't handle as update
+    // but wait for the dedicated eventType to process transaction
+    const getUpdatedStatus = (): UserTransactionStatus | undefined => {
+      if (transaction) {
+        return transaction.status;
+      }
+
+      switch (event.data.status) {
+        case 'draft':
+          return UserTransactionStatus.Created;
+        case 'ready':
+          return UserTransactionStatus.Processing;
+        default:
+          return undefined;
+      }
+    };
+
+    const nextStatus = getUpdatedStatus();
+
+    if (!nextStatus) {
+      logger.warn(
+        {
+          eventType: event.eventType,
+          provider: SubscriptionProvider.Paddle,
+          currentStatus: transaction?.status || 'unknown',
+          data: transactionData,
+        },
+        'Transaction update skipped',
+      );
+
+      return;
     }
-  };
 
-  const nextStatus = getUpdatedStatus();
-
-  if (!nextStatus) {
-    logger.warn(
-      {
-        eventType: event.eventType,
-        provider: SubscriptionProvider.Paddle,
-        currentStatus: transaction?.status || 'unknown',
-        data: transactionData,
-      },
-      'Transaction update skipped',
-    );
-
-    return;
+    await updateUserTransaction({
+      con,
+      transaction,
+      data: transactionData,
+      nextStatus: transaction ? undefined : nextStatus,
+      event,
+    });
   }
-
-  await updateUserTransaction({
-    con,
-    transaction,
-    data: transactionData,
-    nextStatus: transaction ? undefined : nextStatus,
-    event,
-  });
 };
 
 export const paddle = async (fastify: FastifyInstance): Promise<void> => {
