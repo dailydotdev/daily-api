@@ -817,7 +817,13 @@ export const processTransactionPaymentFailed = async ({
       throw new Error('Transaction not found');
     }
 
-    const nextStatus = UserTransactionStatus.Error;
+    const paymentErrorCode = event.data.payments[0]?.errorCode;
+
+    // for declined payments user can retry checkout
+    const nextStatus =
+      paymentErrorCode === 'declined'
+        ? UserTransactionStatus.ErrorRecoverable
+        : UserTransactionStatus.Error;
 
     if (
       !checkTransactionStatusValid({

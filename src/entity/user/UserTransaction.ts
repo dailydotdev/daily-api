@@ -32,6 +32,7 @@ export enum UserTransactionStatus {
   Created = 201,
   Processing = 202,
   Error = 500,
+  ErrorRecoverable = 501,
 }
 
 export enum UserTransactionProcessor {
