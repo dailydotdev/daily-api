@@ -11,7 +11,7 @@ import {
   type JWSRenewalInfoDecodedPayload,
   type ResponseBodyV2DecodedPayload,
 } from '@apple/app-store-server-library';
-import { concatText, isTest, webhooks } from '../../common';
+import { concatTextToNewline, isTest, webhooks } from '../../common';
 import { isInSubnet } from 'is-in-subnet';
 import { isNullOrUndefined } from '../../common/object';
 import createOrGetConnection from '../../db';
@@ -366,7 +366,7 @@ export const notifyNewStoreKitSubscription = async (
       fields: [
         {
           type: 'mrkdwn',
-          text: concatText('*Transaction ID:*', data.appTransactionId),
+          text: concatTextToNewline('*Transaction ID:*', data.appTransactionId),
         },
       ],
     },
@@ -375,11 +375,11 @@ export const notifyNewStoreKitSubscription = async (
       fields: [
         {
           type: 'mrkdwn',
-          text: concatText('*Type:*', data.autoRenewProductId),
+          text: concatTextToNewline('*Type:*', data.autoRenewProductId),
         },
         {
           type: 'mrkdwn',
-          text: concatText(
+          text: concatTextToNewline(
             '*Purchased by:*',
             `<https://app.daily.dev/${user.id}|${user.id}>`,
           ),
@@ -410,7 +410,7 @@ export const notifyNewStoreKitSubscription = async (
       fields: [
         {
           type: 'mrkdwn',
-          text: concatText(
+          text: concatTextToNewline(
             '*Cost (local):*',
             new Intl.NumberFormat('en-US', {
               style: 'currency',
@@ -420,7 +420,7 @@ export const notifyNewStoreKitSubscription = async (
         },
         {
           type: 'mrkdwn',
-          text: concatText('*Currency (local):*', data.currency),
+          text: concatTextToNewline('*Currency (local):*', data.currency),
         },
       ],
     },
