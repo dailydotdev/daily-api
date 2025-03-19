@@ -654,6 +654,14 @@ describe('award comment mutation', () => {
         content: 'Test comment',
         createdAt: new Date(),
       },
+      {
+        id: 'c-awcm-3',
+        parentId: 'c-awcm-1',
+        postId: 'p-awcm-1',
+        userId: 't-awcm-2',
+        content: 'Test sub comment',
+        createdAt: new Date(),
+      },
     ]);
 
     await saveFixtures(con, Product, [
@@ -855,6 +863,67 @@ describe('award comment mutation', () => {
     const comment = await con.getRepository(Comment).findOneOrFail({
       where: {
         id: 'c-awcm-1',
+      },
+    });
+
+    expect(comment.awards).toBe(1);
+  });
+
+  it('should award nested comment', async () => {
+    loggedUser = 't-awcm-1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        productId: '17380714-1a0c-4dfc-b435-1ff44be8558d',
+        entityId: 'c-awcm-3',
+        note: 'Test test!',
+      },
+    });
+    expect(res.errors).toBeUndefined();
+
+    expect(res.data).toEqual({
+      award: {
+        transactionId: expect.any(String),
+        balance: { amount: expect.any(Number) },
+      },
+    });
+
+    const { transactionId } = res.data.award;
+
+    const userComment = await con.getRepository(UserComment).findOneOrFail({
+      where: {
+        userId: 't-awcm-1',
+        commentId: 'c-awcm-3',
+      },
+    });
+
+    expect(userComment.awardTransactionId).toBe(transactionId);
+    expect(userComment.flags.awardId).toBe(
+      '17380714-1a0c-4dfc-b435-1ff44be8558d',
+    );
+
+    const transaction = await con.getRepository(UserTransaction).findOneOrFail({
+      where: {
+        id: transactionId,
+      },
+    });
+
+    expect(transaction.productId).toBe('17380714-1a0c-4dfc-b435-1ff44be8558d');
+
+    const awardComment = await con.getRepository(Comment).findOne({
+      where: {
+        userId: 't-awcm-1',
+        awardTransactionId: transactionId,
+      },
+    });
+
+    expect(awardComment).toBeTruthy();
+    expect(awardComment!.content).toBe('Test test!');
+    expect(awardComment!.parentId).toBe('c-awcm-1');
+
+    const comment = await con.getRepository(Comment).findOneOrFail({
+      where: {
+        id: 'c-awcm-3',
       },
     });
 
