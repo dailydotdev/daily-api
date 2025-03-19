@@ -189,7 +189,7 @@ export const logAppleAnalyticsEvent = async (
     cycle,
     cost: currencyInUSD,
     currency: 'USD',
-    localCost: cost ? cost / 100 : undefined,
+    localCost: cost ? cost / 1000 : undefined,
     localCurrency: data?.currency,
     payout: {
       total: currencyInUSD * 100,
