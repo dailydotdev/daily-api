@@ -3,8 +3,9 @@ import { ONE_HOUR_IN_SECONDS } from '../common';
 import { logger } from '../logger';
 import { getRedisHash, setRedisHashWithExpiry } from '../redis';
 import { isNullOrUndefined } from '../common/object';
-import { retryFetchParse } from './retry';
+import { fetchParse } from './retry';
 import { StorageKey } from '../config';
+import { GarmrService } from './garmr';
 
 const REDIS_EXPIRATION = ONE_HOUR_IN_SECONDS;
 
@@ -20,6 +21,16 @@ export type OpenExchangeRates = {
   rates: CurrencyRate;
 };
 
+const garmOpenExchangeRates = new GarmrService({
+  service: 'openExchangeRates',
+  breakerOpts: {
+    halfOpenAfter: 5 * 1000,
+    threshold: 0.5,
+    duration: 10 * 1000,
+    minimumRps: 0,
+  },
+});
+
 export const getOpenExchangeRates = async (): Promise<CurrencyRate> => {
   if (!env.OPEN_EXCHANGE_RATES_APP_ID) {
     throw new Error('OPEN_EXCHANGE_RATES_APP_ID is not set');
@@ -30,30 +41,26 @@ export const getOpenExchangeRates = async (): Promise<CurrencyRate> => {
     return redisRates;
   }
 
-  try {
-    const params = new URLSearchParams({
-      app_id: env.OPEN_EXCHANGE_RATES_APP_ID,
-    });
-    const data = await retryFetchParse<OpenExchangeRates>(
-      `${URL}?${params}`,
-      {},
-      {
-        retries: 3,
-      },
-    );
-    await setRedisHashWithExpiry(
-      StorageKey.OpenExchangeRates,
-      data.rates,
-      REDIS_EXPIRATION,
-    );
+  const fetchedRates = await garmOpenExchangeRates.execute(async () => {
+    try {
+      const params = new URLSearchParams({
+        app_id: env.OPEN_EXCHANGE_RATES_APP_ID!,
+      });
+      const data = await fetchParse<OpenExchangeRates>(`${URL}?${params}`, {});
+      await setRedisHashWithExpiry(
+        StorageKey.OpenExchangeRates,
+        data.rates,
+        REDIS_EXPIRATION,
+      );
 
-    return data.rates;
-  } catch (_err) {
-    const err = _err as Error;
-    logger.error({ err }, 'Error fetching open exchange rates');
-  }
+      return data.rates;
+    } catch (_err) {
+      const err = _err as Error;
+      logger.error({ err }, 'Error fetching open exchange rates');
+    }
+  });
 
-  return {};
+  return fetchedRates || {};
 };
 
 export const getExchangeRate = async (
