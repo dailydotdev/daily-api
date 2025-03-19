@@ -315,7 +315,7 @@ const handleNotifcationRequest = async (
     });
 
     const currencyInUSD = await convertCurrencyToUSD(
-      renewalInfo.renewalPrice || 0,
+      (renewalInfo.renewalPrice || 0) / 1000,
       renewalInfo.currency || 'USD',
     );
 
