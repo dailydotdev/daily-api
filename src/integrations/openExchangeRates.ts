@@ -1,6 +1,5 @@
 import { env } from 'node:process';
 import { ONE_HOUR_IN_SECONDS } from '../common';
-import { logger } from '../logger';
 import { getRedisHash, setRedisHashWithExpiry } from '../redis';
 import { isNullOrUndefined } from '../common/object';
 import { fetchParse } from './retry';
@@ -42,22 +41,17 @@ export const getOpenExchangeRates = async (): Promise<CurrencyRate> => {
   }
 
   const fetchedRates = await garmOpenExchangeRates.execute(async () => {
-    try {
-      const params = new URLSearchParams({
-        app_id: env.OPEN_EXCHANGE_RATES_APP_ID!,
-      });
-      const data = await fetchParse<OpenExchangeRates>(`${URL}?${params}`, {});
-      await setRedisHashWithExpiry(
-        StorageKey.OpenExchangeRates,
-        data.rates,
-        REDIS_EXPIRATION,
-      );
+    const params = new URLSearchParams({
+      app_id: env.OPEN_EXCHANGE_RATES_APP_ID!,
+    });
+    const data = await fetchParse<OpenExchangeRates>(`${URL}?${params}`, {});
+    await setRedisHashWithExpiry(
+      StorageKey.OpenExchangeRates,
+      data.rates,
+      REDIS_EXPIRATION,
+    );
 
-      return data.rates;
-    } catch (_err) {
-      const err = _err as Error;
-      logger.error({ err }, 'Error fetching open exchange rates');
-    }
+    return data.rates;
   });
 
   return fetchedRates || {};
