@@ -328,7 +328,15 @@ const handleNotifcationRequest = async (
     }
 
     logger.info(
-      { renewalInfo, user, provider: SubscriptionProvider.AppleStoreKit },
+      {
+        renewalInfo,
+        user,
+        provider: SubscriptionProvider.AppleStoreKit,
+        notification: {
+          notificationType: notification.notificationType,
+          subtype: notification.subtype,
+        },
+      },
       'Received Apple App Store Server Notification',
     );
 
