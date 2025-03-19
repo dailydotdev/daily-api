@@ -94,3 +94,21 @@ export const popFromRedisList = (
 
 export const getRedisListLength = (key: string) =>
   ioRedisPool.execute((client) => client.llen(key));
+
+export const setRedisHashWithExpiry = (
+  key: string,
+  value: object,
+  seconds: number,
+) =>
+  ioRedisPool.execute((client) =>
+    client.multi().hset(key, value).expire(key, seconds).exec(),
+  );
+
+export const getRedisHash = (key: string) =>
+  ioRedisPool.execute((client) => client.hgetall(key));
+
+export const getRedisHashField = (key: string, field: string) =>
+  ioRedisPool.execute((client) => client.hget(key, field));
+
+export const checkRedisObjectExists = (key: string) =>
+  ioRedisPool.execute((client) => client.exists(key));

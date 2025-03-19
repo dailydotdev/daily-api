@@ -2,6 +2,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { ArticlePost, Post, PostTag, Source } from '../../src/entity';
 import {
+  concatTextToNewline,
   isNumber,
   parseDate,
   removeEmptyValues,
@@ -168,5 +169,12 @@ describe('isNumber', () => {
     expect(isNumber('    ')).toBeFalsy();
     expect(isNumber('  f   f  ')).toBeFalsy();
     expect(isNumber(new Date() as unknown as number)).toBeFalsy();
+  });
+});
+
+describe('concatTextToNewline', () => {
+  it('should return the concatenated text', () => {
+    const actual = concatTextToNewline('Hello', 'World', '!');
+    expect(actual).toEqual('Hello\nWorld\n!');
   });
 });

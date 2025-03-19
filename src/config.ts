@@ -37,6 +37,7 @@ export enum StorageKey {
   Reporting = 'reporting',
   Reset = 'reset',
   CoresBalance = 'cores_balance',
+  OpenExchangeRates = 'open_exchange_rates',
 }
 
 export const generateStorageKey = (

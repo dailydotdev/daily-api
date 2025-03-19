@@ -11,7 +11,7 @@ import {
   type JWSRenewalInfoDecodedPayload,
   type ResponseBodyV2DecodedPayload,
 } from '@apple/app-store-server-library';
-import { concatText, isTest, webhooks } from '../../common';
+import { concatTextToNewline, isTest, webhooks } from '../../common';
 import { isInSubnet } from 'is-in-subnet';
 import { isNullOrUndefined } from '../../common/object';
 import createOrGetConnection from '../../db';
@@ -30,6 +30,7 @@ import {
 } from '../../integrations/analytics';
 import type { Block, KnownBlock } from '@slack/web-api';
 import { remoteConfig } from '../../remoteConfig';
+import { convertCurrencyToUSD } from '../../integrations/openExchangeRates';
 
 const certificatesToLoad = isTest
   ? ['__tests__/fixture/testCA.der']
@@ -173,6 +174,7 @@ export const logAppleAnalyticsEvent = async (
   data: JWSRenewalInfoDecodedPayload,
   eventName: AnalyticsEventName,
   user: User,
+  currencyInUSD: number,
 ) => {
   if (!data || isTest) {
     return;
@@ -183,9 +185,17 @@ export const logAppleAnalyticsEvent = async (
   const cost = data?.renewalPrice;
 
   const extra = {
+    payment: SubscriptionProvider.AppleStoreKit,
     cycle,
+    cost: currencyInUSD,
+    currency: 'USD',
     localCost: cost ? cost / 100 : undefined,
     localCurrency: data?.currency,
+    payout: {
+      total: currencyInUSD * 100,
+      grandTotal: currencyInUSD * 100,
+      currencyCode: 'USD',
+    },
   };
 
   await sendAnalyticsEvent([
@@ -304,12 +314,17 @@ const handleNotifcationRequest = async (
       data: subscriptionFlags,
     });
 
+    const currencyInUSD = await convertCurrencyToUSD(
+      renewalInfo.renewalPrice || 0,
+      renewalInfo.currency || 'USD',
+    );
+
     if (eventName) {
-      await logAppleAnalyticsEvent(renewalInfo, eventName, user);
+      await logAppleAnalyticsEvent(renewalInfo, eventName, user, currencyInUSD);
     }
 
     if (notification.notificationType === NotificationTypeV2.SUBSCRIBED) {
-      await notifyNewStoreKitSubscription(renewalInfo, user);
+      await notifyNewStoreKitSubscription(renewalInfo, user, currencyInUSD);
     }
 
     logger.info(
@@ -347,6 +362,7 @@ const handleNotifcationRequest = async (
 export const notifyNewStoreKitSubscription = async (
   data: JWSRenewalInfoDecodedPayload,
   user: User,
+  currencyInUSD: number,
 ) => {
   if (isTest) {
     return;
@@ -366,7 +382,14 @@ export const notifyNewStoreKitSubscription = async (
       fields: [
         {
           type: 'mrkdwn',
-          text: concatText('*Transaction ID:*', data.appTransactionId),
+          text: concatTextToNewline('*Transaction ID:*', data.appTransactionId),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*App Account Token:*',
+            data.appAccountToken,
+          ),
         },
       ],
     },
@@ -375,42 +398,42 @@ export const notifyNewStoreKitSubscription = async (
       fields: [
         {
           type: 'mrkdwn',
-          text: concatText('*Type:*', data.autoRenewProductId),
+          text: concatTextToNewline('*Type:*', data.autoRenewProductId),
         },
         {
           type: 'mrkdwn',
-          text: concatText(
+          text: concatTextToNewline(
             '*Purchased by:*',
             `<https://app.daily.dev/${user.id}|${user.id}>`,
           ),
         },
       ],
     },
-    // {
-    //   type: 'section',
-    //   fields: [
-    //     {
-    //       type: 'mrkdwn',
-    //       text: concatText(
-    //         '*Cost:*',
-    //         new Intl.NumberFormat('en-US', {
-    //           style: 'currency',
-    //           currency: currencyCode,
-    //         }).format((parseFloat(total) || 0) / 100),
-    //       ),
-    //     },
-    //     {
-    //       type: 'mrkdwn',
-    //       text: concatText('*Currency:*', currencyCode),
-    //     },
-    //   ],
-    // },
     {
       type: 'section',
       fields: [
         {
           type: 'mrkdwn',
-          text: concatText(
+          text: concatTextToNewline(
+            '*Cost:*',
+            new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: 'USD',
+            }).format(currencyInUSD || 0),
+          ),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline('*Currency:*', 'USD'),
+        },
+      ],
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
             '*Cost (local):*',
             new Intl.NumberFormat('en-US', {
               style: 'currency',
@@ -420,7 +443,7 @@ export const notifyNewStoreKitSubscription = async (
         },
         {
           type: 'mrkdwn',
-          text: concatText('*Currency (local):*', data.currency),
+          text: concatTextToNewline('*Currency (local):*', data.currency),
         },
       ],
     },

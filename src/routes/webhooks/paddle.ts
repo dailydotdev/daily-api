@@ -15,7 +15,7 @@ import {
 } from '@paddle/paddle-node-sdk';
 import createOrGetConnection from '../../db';
 import {
-  concatText,
+  concatTextToNewline,
   updateFlagsStatement,
   updateSubscriptionFlags,
   webhooks,
@@ -320,14 +320,14 @@ const notifyNewPaddleTransaction = async ({
       fields: [
         {
           type: 'mrkdwn',
-          text: concatText(
+          text: concatTextToNewline(
             '*Transaction ID:*',
             `<https://vendors.paddle.com/transactions-v2/${data.id}|${data.id}>`,
           ),
         },
         {
           type: 'mrkdwn',
-          text: concatText(
+          text: concatTextToNewline(
             '*Customer ID:*',
             `<https://vendors.paddle.com/customers-v2/${data.customerId}|${data.customerId}>`,
           ),
@@ -339,14 +339,14 @@ const notifyNewPaddleTransaction = async ({
       fields: [
         {
           type: 'mrkdwn',
-          text: concatText(
+          text: concatTextToNewline(
             '*Type:*',
             `<https://vendors.paddle.com/products-v2/${productId}|${extractSubscriptionType(data?.items)}>`,
           ),
         },
         {
           type: 'mrkdwn',
-          text: concatText(
+          text: concatTextToNewline(
             '*Purchased by:*',
             `<https://app.daily.dev/${purchasedById}|${purchasedById}>`,
           ),
@@ -358,7 +358,7 @@ const notifyNewPaddleTransaction = async ({
       fields: [
         {
           type: 'mrkdwn',
-          text: concatText(
+          text: concatTextToNewline(
             '*Cost:*',
             new Intl.NumberFormat('en-US', {
               style: 'currency',
@@ -368,7 +368,7 @@ const notifyNewPaddleTransaction = async ({
         },
         {
           type: 'mrkdwn',
-          text: concatText('*Currency:*', currencyCode),
+          text: concatTextToNewline('*Currency:*', currencyCode),
         },
       ],
     },
@@ -377,7 +377,7 @@ const notifyNewPaddleTransaction = async ({
       fields: [
         {
           type: 'mrkdwn',
-          text: concatText(
+          text: concatTextToNewline(
             '*Cost (local):*',
             new Intl.NumberFormat('en-US', {
               style: 'currency',
@@ -387,7 +387,7 @@ const notifyNewPaddleTransaction = async ({
         },
         {
           type: 'mrkdwn',
-          text: concatText('*Currency (local):*', localCurrencyCode),
+          text: concatTextToNewline('*Currency (local):*', localCurrencyCode),
         },
       ],
     },
@@ -399,14 +399,14 @@ const notifyNewPaddleTransaction = async ({
       fields: [
         {
           type: 'mrkdwn',
-          text: concatText(
+          text: concatTextToNewline(
             '*Gifted to:*',
             `<https://app.daily.dev/${subscriptionForId}|${subscriptionForId}>`,
           ),
         },
         {
           type: 'mrkdwn',
-          text: concatText(
+          text: concatTextToNewline(
             '*Gift expires:*',
             new Date(flags.giftExpirationDate).toLocaleDateString(),
           ),
@@ -450,14 +450,14 @@ const notifyNewPaddleCoresTransaction = async ({
       fields: [
         {
           type: 'mrkdwn',
-          text: concatText(
+          text: concatTextToNewline(
             '*Transaction ID:*',
             `<https://vendors.paddle.com/transactions-v2/${data.id}|${data.id}>`,
           ),
         },
         {
           type: 'mrkdwn',
-          text: concatText(
+          text: concatTextToNewline(
             '*Customer ID:*',
             `<https://vendors.paddle.com/customers-v2/${event.data.customerId}|${event.data.customerId}>`,
           ),
@@ -469,11 +469,11 @@ const notifyNewPaddleCoresTransaction = async ({
       fields: [
         {
           type: 'mrkdwn',
-          text: concatText('*Cores:*', transaction.value.toString()),
+          text: concatTextToNewline('*Cores:*', transaction.value.toString()),
         },
         {
           type: 'mrkdwn',
-          text: concatText(
+          text: concatTextToNewline(
             '*Purchased by:*',
             `<https://app.daily.dev/${purchasedById}|${purchasedById}>`,
           ),
@@ -485,7 +485,7 @@ const notifyNewPaddleCoresTransaction = async ({
       fields: [
         {
           type: 'mrkdwn',
-          text: concatText(
+          text: concatTextToNewline(
             '*Cost:*',
             new Intl.NumberFormat('en-US', {
               style: 'currency',
@@ -495,7 +495,7 @@ const notifyNewPaddleCoresTransaction = async ({
         },
         {
           type: 'mrkdwn',
-          text: concatText('*Currency:*', currencyCode),
+          text: concatTextToNewline('*Currency:*', currencyCode),
         },
       ],
     },
@@ -504,7 +504,7 @@ const notifyNewPaddleCoresTransaction = async ({
       fields: [
         {
           type: 'mrkdwn',
-          text: concatText(
+          text: concatTextToNewline(
             '*Cost (local):*',
             new Intl.NumberFormat('en-US', {
               style: 'currency',
@@ -514,7 +514,7 @@ const notifyNewPaddleCoresTransaction = async ({
         },
         {
           type: 'mrkdwn',
-          text: concatText('*Currency (local):*', localCurrencyCode),
+          text: concatTextToNewline('*Currency (local):*', localCurrencyCode),
         },
       ],
     },

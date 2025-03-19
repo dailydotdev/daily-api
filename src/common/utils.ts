@@ -278,5 +278,5 @@ export const getCurrencySymbol = ({
     .trim();
 };
 
-export const concatText = (a?: string, b?: string) =>
-  [a, b].filter(Boolean).join(`\n`);
+export const concatTextToNewline = (...args: Array<string | undefined>) =>
+  args.filter(Boolean).join(`\n`);
