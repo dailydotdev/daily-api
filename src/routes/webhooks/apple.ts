@@ -185,6 +185,7 @@ export const logAppleAnalyticsEvent = async (
   const cost = data?.renewalPrice;
 
   const extra = {
+    payment: SubscriptionProvider.AppleStoreKit,
     cycle,
     cost: currencyInUSD,
     currency: 'USD',
