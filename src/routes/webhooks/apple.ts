@@ -189,7 +189,7 @@ export const logAppleAnalyticsEvent = async (
     cycle,
     cost: currencyInUSD,
     currency: 'USD',
-    localCost: cost ? cost / 100 : undefined,
+    localCost: cost ? cost / 1000 : undefined,
     localCurrency: data?.currency,
     payout: {
       total: currencyInUSD * 100,
@@ -315,7 +315,7 @@ const handleNotifcationRequest = async (
     });
 
     const currencyInUSD = await convertCurrencyToUSD(
-      renewalInfo.renewalPrice || 0,
+      (renewalInfo.renewalPrice || 0) / 1000,
       renewalInfo.currency || 'USD',
     );
 
@@ -328,7 +328,15 @@ const handleNotifcationRequest = async (
     }
 
     logger.info(
-      { renewalInfo, user, provider: SubscriptionProvider.AppleStoreKit },
+      {
+        renewalInfo,
+        user,
+        provider: SubscriptionProvider.AppleStoreKit,
+        notification: {
+          notificationType: notification.notificationType,
+          subtype: notification.subtype,
+        },
+      },
       'Received Apple App Store Server Notification',
     );
 
