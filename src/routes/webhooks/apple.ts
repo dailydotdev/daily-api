@@ -220,7 +220,11 @@ const handleNotifcationRequest = async (
 
   if (isNullOrUndefined(signedPayload)) {
     logger.error(
-      { body: request.body, provider: SubscriptionProvider.AppleStoreKit },
+      {
+        environment,
+        body: request.body,
+        provider: SubscriptionProvider.AppleStoreKit,
+      },
       "Missing 'signedPayload' in request body",
     );
     return response.status(403).send({ error: 'Invalid Payload' });
@@ -233,7 +237,11 @@ const handleNotifcationRequest = async (
     // Don't proceed any further if it's a test notification
     if (notification.notificationType === NotificationTypeV2.TEST) {
       logger.info(
-        { notification, provider: SubscriptionProvider.AppleStoreKit },
+        {
+          environment,
+          notification,
+          provider: SubscriptionProvider.AppleStoreKit,
+        },
         'Received Test Notification',
       );
       return response.status(200).send({ received: true });
@@ -243,7 +251,11 @@ const handleNotifcationRequest = async (
     // NOTE: When adding support for purchasing cores, we must remove this check as it's not a subscription event
     if (isNullOrUndefined(notification?.data?.signedRenewalInfo)) {
       logger.info(
-        { notification, provider: SubscriptionProvider.AppleStoreKit },
+        {
+          environment,
+          notification,
+          provider: SubscriptionProvider.AppleStoreKit,
+        },
         "Missing 'signedRenewalInfo' in notification data",
       );
       return response.status(400).send({ error: 'Invalid Payload' });
@@ -265,7 +277,11 @@ const handleNotifcationRequest = async (
 
     if (!user) {
       logger.error(
-        { notification, provider: SubscriptionProvider.AppleStoreKit },
+        {
+          environment,
+          notification,
+          provider: SubscriptionProvider.AppleStoreKit,
+        },
         'User not found with matching app account token',
       );
       return response.status(404).send({ error: 'Invalid Payload' });
@@ -277,7 +293,12 @@ const handleNotifcationRequest = async (
       !remoteConfig.vars.approvedStoreKitSandboxUsers?.includes(user.id)
     ) {
       logger.error(
-        { user, provider: SubscriptionProvider.AppleStoreKit },
+        {
+          environment,
+          notification,
+          user,
+          provider: SubscriptionProvider.AppleStoreKit,
+        },
         'User not approved for sandbox',
       );
       return response.status(403).send({ error: 'Invalid Payload' });
@@ -288,6 +309,7 @@ const handleNotifcationRequest = async (
       logger.error(
         {
           user,
+          environment,
           notification,
           provider: SubscriptionProvider.AppleStoreKit,
         },
@@ -331,6 +353,7 @@ const handleNotifcationRequest = async (
       {
         renewalInfo,
         user,
+        environment,
         provider: SubscriptionProvider.AppleStoreKit,
         notification: {
           notificationType: notification.notificationType,
@@ -348,6 +371,7 @@ const handleNotifcationRequest = async (
         {
           err,
           signedPayload,
+          environment,
           provider: SubscriptionProvider.AppleStoreKit,
         },
         'Failed to verify Apple App Store Server Notification',
@@ -358,6 +382,7 @@ const handleNotifcationRequest = async (
         {
           err,
           signedPayload,
+          environment,
           provider: SubscriptionProvider.AppleStoreKit,
         },
         'Failed to process Apple App Store Server Notification',
