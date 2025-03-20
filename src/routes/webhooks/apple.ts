@@ -277,7 +277,7 @@ const handleNotifcationRequest = async (
       !remoteConfig.vars.approvedStoreKitSandboxUsers?.includes(user.id)
     ) {
       logger.error(
-        { user, provider: SubscriptionProvider.AppleStoreKit },
+        { notification, user, provider: SubscriptionProvider.AppleStoreKit },
         'User not approved for sandbox',
       );
       return response.status(403).send({ error: 'Invalid Payload' });
