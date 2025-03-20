@@ -26,7 +26,11 @@ import type { AuthContext, Context } from '../src/Context';
 import { createClient } from '@connectrpc/connect';
 import { Credits } from '@dailydotdev/schema';
 import * as njordCommon from '../src/common/njord';
-import { UserTransaction } from '../src/entity/user/UserTransaction';
+import {
+  UserTransaction,
+  UserTransactionProcessor,
+  UserTransactionStatus,
+} from '../src/entity/user/UserTransaction';
 import { ghostUser } from '../src/common';
 import { UserComment } from '../src/entity/user/UserComment';
 
@@ -928,5 +932,298 @@ describe('award comment mutation', () => {
     });
 
     expect(comment.awards).toBe(1);
+  });
+});
+
+describe('query list transactions', () => {
+  const QUERY = `
+  query {
+    transactions {
+      edges {
+        node {
+          id
+          status
+          receiver {
+            id
+          }
+          sender {
+            id
+          }
+          value
+        }
+      }
+    }
+  }
+`;
+
+  beforeEach(async () => {
+    await saveFixtures(
+      con,
+      User,
+      usersFixture.map((item) => {
+        return {
+          ...item,
+          id: `t-tq-${item.id}`,
+          username: `t-pq-${item.username}`,
+          github: undefined,
+        };
+      }),
+    );
+
+    const now = new Date();
+
+    await saveFixtures(con, UserTransaction, [
+      {
+        id: 'ca902187-0978-4b33-85eb-4e1e08c8edf0',
+        processor: UserTransactionProcessor.Njord,
+        receiverId: 't-tq-1',
+        status: UserTransactionStatus.Success,
+        productId: null,
+        senderId: 't-tq-2',
+        fee: 5,
+        value: 100,
+        createdAt: new Date(now.getTime() - 3000),
+      },
+      {
+        id: '0046f666-ed75-46be-a1d4-74157218a484',
+        processor: UserTransactionProcessor.Njord,
+        receiverId: 't-tq-1',
+        status: UserTransactionStatus.Error,
+        productId: null,
+        senderId: 't-tq-2',
+        fee: 5,
+        value: 50,
+        createdAt: new Date(now.getTime() - 2000),
+      },
+      {
+        id: '15a0904d-51e0-4555-b531-ab6e3c99119f',
+        processor: UserTransactionProcessor.Njord,
+        receiverId: 't-tq-3',
+        status: UserTransactionStatus.Success,
+        productId: null,
+        senderId: null,
+        fee: 0,
+        value: 350,
+        createdAt: new Date(now.getTime() - 1000),
+      },
+      {
+        id: '2dc94a5d-7bc4-464d-97d5-b4d1d4e41ce2',
+        processor: UserTransactionProcessor.Njord,
+        receiverId: 't-tq-1',
+        status: UserTransactionStatus.Success,
+        productId: null,
+        senderId: null,
+        fee: 0,
+        value: 1200,
+        createdAt: new Date(now.getTime() - 1000),
+      },
+      {
+        id: '637f848c-f593-4389-a53b-dec198661da4',
+        processor: UserTransactionProcessor.Njord,
+        receiverId: 't-tq-1',
+        status: UserTransactionStatus.Created,
+        productId: null,
+        senderId: null,
+        fee: 0,
+        value: 1200,
+        createdAt: new Date(now.getTime() - 1000),
+      },
+    ]);
+  });
+
+  it('should not authorize when not logged in', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: QUERY,
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should return transactions sorted by createdAt', async () => {
+    loggedUser = 't-tq-1';
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.transactions).toMatchObject({
+      edges: [
+        {
+          node: {
+            id: '2dc94a5d-7bc4-464d-97d5-b4d1d4e41ce2',
+            status: UserTransactionStatus.Success,
+            receiver: { id: 't-tq-1' },
+            sender: null,
+            value: 1200,
+          },
+        },
+        {
+          node: {
+            id: '0046f666-ed75-46be-a1d4-74157218a484',
+            status: UserTransactionStatus.Error,
+            receiver: { id: 't-tq-1' },
+            sender: { id: 't-tq-2' },
+            value: 50,
+          },
+        },
+        {
+          node: {
+            id: 'ca902187-0978-4b33-85eb-4e1e08c8edf0',
+            status: UserTransactionStatus.Success,
+            receiver: { id: 't-tq-1' },
+            sender: { id: 't-tq-2' },
+            value: 100,
+          },
+        },
+      ],
+    });
+  });
+});
+
+describe('query transactionSummary', () => {
+  const QUERY = `
+  query {
+    transactionSummary {
+      purchased
+      received
+      spent
+    }
+  }
+`;
+
+  beforeEach(async () => {
+    await saveFixtures(
+      con,
+      User,
+      usersFixture.map((item) => {
+        return {
+          ...item,
+          id: `t-tsq-${item.id}`,
+          username: `t-pq-${item.username}`,
+          github: undefined,
+        };
+      }),
+    );
+
+    const now = new Date();
+
+    await saveFixtures(con, Product, [
+      {
+        id: '2032fee4-4071-4a58-bcd6-4869083bd1d5',
+        name: 'Award 1',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 42,
+      },
+    ]);
+
+    await saveFixtures(con, UserTransaction, [
+      {
+        processor: UserTransactionProcessor.Njord,
+        receiverId: 't-tsq-1',
+        status: UserTransactionStatus.Success,
+        productId: '2032fee4-4071-4a58-bcd6-4869083bd1d5',
+        senderId: 't-tsq-2',
+        fee: 5,
+        value: 100,
+        createdAt: new Date(now.getTime() - 3000),
+      },
+      {
+        processor: UserTransactionProcessor.Njord,
+        receiverId: 't-tsq-1',
+        status: UserTransactionStatus.Success,
+        productId: '2032fee4-4071-4a58-bcd6-4869083bd1d5',
+        senderId: 't-tsq-2',
+        fee: 5,
+        value: 200,
+        createdAt: new Date(now.getTime() - 3000),
+      },
+      {
+        processor: UserTransactionProcessor.Njord,
+        receiverId: 't-tsq-2',
+        status: UserTransactionStatus.Success,
+        productId: '2032fee4-4071-4a58-bcd6-4869083bd1d5',
+        senderId: 't-tsq-1',
+        fee: 5,
+        value: 200,
+        createdAt: new Date(now.getTime() - 3000),
+      },
+      {
+        processor: UserTransactionProcessor.Njord,
+        receiverId: 't-tsq-2',
+        status: UserTransactionStatus.Error,
+        productId: '2032fee4-4071-4a58-bcd6-4869083bd1d5',
+        senderId: 't-tsq-1',
+        fee: 5,
+        value: 200,
+        createdAt: new Date(now.getTime() - 3000),
+      },
+      {
+        processor: UserTransactionProcessor.Njord,
+        receiverId: 't-tsq-1',
+        status: UserTransactionStatus.Error,
+        productId: '2032fee4-4071-4a58-bcd6-4869083bd1d5',
+        senderId: 't-tsq-2',
+        fee: 5,
+        value: 50,
+        createdAt: new Date(now.getTime() - 2000),
+      },
+      {
+        processor: UserTransactionProcessor.Njord,
+        receiverId: 't-tsq-3',
+        status: UserTransactionStatus.Success,
+        productId: null,
+        senderId: null,
+        fee: 0,
+        value: 350,
+        createdAt: new Date(now.getTime() - 1000),
+      },
+      {
+        processor: UserTransactionProcessor.Njord,
+        receiverId: 't-tsq-1',
+        status: UserTransactionStatus.Success,
+        productId: null,
+        senderId: null,
+        fee: 0,
+        value: 1200,
+        createdAt: new Date(now.getTime() - 1000),
+      },
+      {
+        processor: UserTransactionProcessor.Njord,
+        receiverId: 't-tsq-1',
+        status: UserTransactionStatus.Success,
+        productId: null,
+        senderId: null,
+        fee: 0,
+        value: 100,
+        createdAt: new Date(now.getTime() - 1000),
+      },
+    ]);
+  });
+
+  it('should not authorize when not logged in', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: QUERY,
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should return transaction summary', async () => {
+    loggedUser = 't-tsq-1';
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.transactionSummary).toMatchObject({
+      purchased: 1300,
+      received: 300,
+      spent: 200,
+    });
   });
 });

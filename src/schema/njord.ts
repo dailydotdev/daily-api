@@ -20,7 +20,10 @@ import graphorm from '../graphorm';
 import {
   UserTransaction,
   UserTransactionFlagsPublic,
+  UserTransactionStatus,
 } from '../entity/user/UserTransaction';
+import { queryReadReplica } from '../common/queryReadReplica';
+import { Brackets } from 'typeorm';
 
 export type GQLProduct = Pick<
   Product,
@@ -38,9 +41,16 @@ export type GQLUserTransaction = Pick<
   | 'senderId'
   | 'sender'
   | 'value'
+  | 'createdAt'
 > & {
   flags: UserTransactionFlagsPublic;
   balance: GetBalanceResult;
+};
+
+type GQLUserTransactionSummary = {
+  purchased: number;
+  received: number;
+  spent: number;
 };
 
 export const typeDefs = /* GraphQL */ `
@@ -106,6 +116,28 @@ export const typeDefs = /* GraphQL */ `
     value: Int!
     flags: UserTransactionFlagsPublic
     balance: UserBalance!
+    createdAt: DateTime!
+  }
+
+  type UserTransactionSummary {
+    purchased: Int!
+    received: Int!
+    spent: Int!
+  }
+
+  type UserTransactionEdge {
+    node: UserTransaction!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type UserTransactionConnection {
+    pageInfo: PageInfo!
+
+    edges: [UserTransactionEdge!]!
   }
 
   extend type Query {
@@ -140,6 +172,33 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID
     ): UserTransaction @auth
+
+    """
+    Get current user transactions summary
+    """
+    transactionSummary: UserTransactionSummary @auth
+
+    """
+    Get user transactions
+    """
+    transactions(
+      """
+      Paginate before opaque cursor
+      """
+      before: String
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+      """
+      Paginate last
+      """
+      last: Int
+    ): UserTransactionConnection @auth
   }
 
   extend type Mutation {
@@ -227,6 +286,99 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               }),
           };
         },
+      );
+    },
+    transactionSummary: async (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<GQLUserTransactionSummary> => {
+      const [purchased, received, spent] = await queryReadReplica(
+        ctx.con,
+        async ({ queryRunner }) => {
+          const summary: { amount: string }[] = await Promise.all([
+            queryRunner.manager
+              .createQueryBuilder(UserTransaction, 'ut')
+              .select('COALESCE(SUM(ut.value), 0)', 'amount')
+              .where('ut."receiverId" = :userId', { userId: ctx.userId })
+              .andWhere('ut."senderId" IS NULL')
+              .andWhere('ut."productId" IS NULL')
+              .andWhere('ut.status = :status', {
+                status: UserTransactionStatus.Success,
+              })
+              .getRawOne(),
+            queryRunner.manager
+              .createQueryBuilder(UserTransaction, 'ut')
+              .select('COALESCE(SUM(ut.value), 0)', 'amount')
+              .where('ut."receiverId" = :userId', { userId: ctx.userId })
+              .andWhere('ut."senderId" IS NOT NULL')
+              .andWhere('ut."productId" IS NOT NULL')
+              .andWhere('ut.status = :status', {
+                status: UserTransactionStatus.Success,
+              })
+              .getRawOne(),
+            queryRunner.manager
+              .createQueryBuilder(UserTransaction, 'ut')
+              .select('COALESCE(SUM(ut.value), 0)', 'amount')
+              .where('ut."senderId" = :userId', { userId: ctx.userId })
+              .andWhere('ut."receiverId" IS NOT NULL')
+              .andWhere('ut."productId" IS NOT NULL')
+              .andWhere('ut.status = :status', {
+                status: UserTransactionStatus.Success,
+              })
+              .getRawOne(),
+          ]);
+
+          return summary.map((item) => +item.amount);
+        },
+      );
+
+      return {
+        purchased,
+        received,
+        spent,
+      };
+    },
+    transactions: async (
+      _,
+      args: ConnectionArguments,
+      ctx: AuthContext,
+      info,
+    ): Promise<Connection<GQLUserTransaction>> => {
+      const pageGenerator = offsetPageGenerator<GQLUserTransaction>(10, 100);
+      const page = pageGenerator.connArgsToPage(args);
+
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => pageGenerator.hasNextPage(page, nodeSize),
+        (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder
+            .andWhere(
+              new Brackets((qb) => {
+                return qb
+                  .where(`${builder.alias}."receiverId" = :receiverId`, {
+                    receiverId: ctx.userId,
+                  })
+                  .orWhere(`${builder.alias}."senderId" = :senderId`, {
+                    senderId: ctx.userId,
+                  });
+              }),
+            )
+            .andWhere(`${builder.alias}.status NOT IN (:...status)`, {
+              status: [UserTransactionStatus.Created],
+            });
+
+          builder.queryBuilder.limit(page.limit).offset(page.offset);
+
+          builder.queryBuilder.orderBy(`${builder.alias}."createdAt"`, 'DESC');
+
+          return builder;
+        },
+        undefined,
+        true,
       );
     },
   },
