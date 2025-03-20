@@ -355,17 +355,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         (nodeSize) => pageGenerator.hasNextPage(page, nodeSize),
         (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
         (builder) => {
-          builder.queryBuilder.andWhere(
-            new Brackets((qb) => {
-              return qb
-                .where(`${builder.alias}."receiverId" = :receiverId`, {
-                  receiverId: ctx.userId,
-                })
-                .orWhere(`${builder.alias}."senderId" = :senderId`, {
-                  senderId: ctx.userId,
-                });
-            }),
-          );
+          builder.queryBuilder
+            .andWhere(
+              new Brackets((qb) => {
+                return qb
+                  .where(`${builder.alias}."receiverId" = :receiverId`, {
+                    receiverId: ctx.userId,
+                  })
+                  .orWhere(`${builder.alias}."senderId" = :senderId`, {
+                    senderId: ctx.userId,
+                  });
+              }),
+            )
+            .andWhere(`${builder.alias}.status NOT IN (:...status)`, {
+              status: [UserTransactionStatus.Created],
+            });
 
           builder.queryBuilder.limit(page.limit).offset(page.offset);
 

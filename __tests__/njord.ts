@@ -1017,6 +1017,17 @@ describe('query list transactions', () => {
         value: 1200,
         createdAt: new Date(now.getTime() - 1000),
       },
+      {
+        id: '637f848c-f593-4389-a53b-dec198661da4',
+        processor: UserTransactionProcessor.Njord,
+        receiverId: 't-tq-1',
+        status: UserTransactionStatus.Created,
+        productId: null,
+        senderId: null,
+        fee: 0,
+        value: 1200,
+        createdAt: new Date(now.getTime() - 1000),
+      },
     ]);
   });
 
