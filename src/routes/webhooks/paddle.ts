@@ -539,9 +539,18 @@ const assignSubscriptionCores = async ({
     return;
   }
 
-  const coresForPayment = Math.floor(
-    remoteConfig.vars?.coreModifier * data.details?.totals?.grandTotal,
-  );
+  const modifier = remoteConfig.vars?.coreModifier || 0.001;
+  const total = parseInt(data.details?.totals?.grandTotal || '0');
+  const coresForPayment = Math.floor(modifier * total);
+
+  if (coresForPayment <= 0) {
+    logger.error(
+      { provider: SubscriptionProvider.Paddle, data },
+      'Cores for payment is less than 0',
+    );
+    return;
+  }
+
   await con.transaction(async (entityManager) => {
     const newTransaction = await entityManager
       .getRepository(UserTransaction)
