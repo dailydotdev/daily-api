@@ -425,12 +425,26 @@ const canAward = async ({
   ctx: AuthContext;
   receiverId?: string | null;
 }): Promise<void> => {
+  if (!receiverId) {
+    throw new ConflictError('Can not award this entity');
+  }
+
   if (ctx.userId === receiverId) {
     throw new ForbiddenError('Can not award yourself');
   }
 
   if (isSpecialUser({ userId: receiverId })) {
     throw new ForbiddenError('Can not award this user');
+  }
+
+  if (
+    (await checkUserCoresAccess({
+      con: ctx.con,
+      userId: receiverId,
+      requiredRole: CoresRole.Creator,
+    })) === false
+  ) {
+    throw new ForbiddenError('You can not award this user');
   }
 };
 
@@ -459,16 +473,6 @@ export const awardUser = async (
   const { transaction, transfer } = await ctx.con.transaction(
     async (entityManager) => {
       const { entityId: receiverId, note } = props;
-
-      if (
-        (await checkUserCoresAccess({
-          con: entityManager,
-          userId: receiverId,
-          requiredRole: CoresRole.Creator,
-        })) === false
-      ) {
-        throw new ForbiddenError('You can not award this user');
-      }
 
       const transaction = await createTransaction({
         ctx,
@@ -543,16 +547,6 @@ export const awardPost = async (
     async (entityManager) => {
       if (!post.authorId) {
         throw new ConflictError('Post does not have an author');
-      }
-
-      if (
-        (await checkUserCoresAccess({
-          con: entityManager,
-          userId: post.authorId,
-          requiredRole: CoresRole.Creator,
-        })) === false
-      ) {
-        throw new ForbiddenError('You can not award post from this author');
       }
 
       const { note } = props;
@@ -653,16 +647,6 @@ export const awardComment = async (
 
   const { transaction, transfer } = await ctx.con.transaction(
     async (entityManager) => {
-      if (
-        (await checkUserCoresAccess({
-          con: entityManager,
-          userId: comment.userId,
-          requiredRole: CoresRole.Creator,
-        })) === false
-      ) {
-        throw new ForbiddenError('You can not award comment from this author');
-      }
-
       const { note } = props;
 
       const transaction = await createTransaction({
