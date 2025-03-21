@@ -50,6 +50,8 @@ import {
   UserTransactionStatus,
 } from '../../entity/user/UserTransaction';
 import { purchaseCores } from '../../common/njord';
+import { checkUserCoresAccess } from '../../common/user';
+import { CoresRole } from '../../types';
 
 const extractSubscriptionType = (
   items:
@@ -635,6 +637,16 @@ export const processTransactionCompleted = async ({
           data: transactionData,
           event,
         });
+
+        if (
+          (await checkUserCoresAccess({
+            con: entityManager,
+            userId: transactionData.customData.user_id,
+            requiredRole: CoresRole.User,
+          })) === false
+        ) {
+          throw new Error('User does not have access to cores purchase');
+        }
 
         await purchaseCores({
           transaction: userTransaction,

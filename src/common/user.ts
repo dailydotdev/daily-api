@@ -1,4 +1,4 @@
-import { DataSource } from 'typeorm';
+import { DataSource, type EntityManager } from 'typeorm';
 import {
   Alerts,
   ArticlePost,
@@ -150,4 +150,35 @@ export const getUserCoresRole = ({ region }: { region?: string }) => {
   }
 
   return CoresRole.Creator;
+};
+
+export const checkUserCoresAccess = async ({
+  con,
+  userId,
+  requiredRole,
+}: {
+  con: DataSource | EntityManager;
+  userId: string;
+  requiredRole: CoresRole;
+}): Promise<boolean> => {
+  // TODO maybe use data loader
+  // const user = await ctx.dataLoader?.userData.load({ userId });
+  const user = await con.getRepository(User).findOne({
+    select: ['coresRole'],
+    where: { id: userId },
+  });
+
+  if (!user) {
+    return false;
+  }
+
+  if (typeof user.coresRole !== 'number') {
+    return false;
+  }
+
+  if (user.coresRole < requiredRole) {
+    return false;
+  }
+
+  return true;
 };
