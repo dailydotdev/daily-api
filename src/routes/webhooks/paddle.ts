@@ -523,6 +523,48 @@ const notifyNewPaddleCoresTransaction = async ({
   await webhooks.transactions.send({ blocks });
 };
 
+const assignSubscriptionCores = async ({
+  event: { data },
+}: {
+  event: TransactionCompletedEvent;
+}) => {
+  const con = await createOrGetConnection();
+  const { user_id } = data.customData as PaddleCustomData;
+
+  if (!user_id) {
+    logger.error(
+      { provider: SubscriptionProvider.Paddle, data },
+      'User ID missing in payload',
+    );
+    return;
+  }
+
+  const coresForPayment = Math.floor(
+    remoteConfig.vars?.coreModifier * data.details?.totals?.grandTotal,
+  );
+  await con.transaction(async (entityManager) => {
+    const newTransaction = await entityManager
+      .getRepository(UserTransaction)
+      .save({
+        processor: UserTransactionProcessor.Paddle,
+        receiverId: user_id,
+        productId: null, // no product user is buying cores directly
+        senderId: null, // no sender, user is buying cores
+        status: UserTransactionStatus.Success,
+        value: coresForPayment,
+        fee: 0, // no fee when buying cores
+        request: {},
+        flags: {
+          providerId: data.id,
+        },
+      });
+
+    await purchaseCores({
+      transaction: newTransaction,
+    });
+  });
+};
+
 export const processGiftedPayment = async ({
   event: { data },
 }: {
@@ -654,9 +696,12 @@ export const processTransactionCompleted = async ({
   }
 
   const { gifter_id } = (event?.data?.customData ?? {}) as PaddleCustomData;
-
   if (gifter_id) {
     await processGiftedPayment({ event });
+  } else {
+    // Manual subscription purchase
+    // Assign cores to user
+    await assignSubscriptionCores({ event });
   }
 
   await notifyNewPaddleTransaction({ event });
