@@ -204,6 +204,32 @@ describe('award user mutation', () => {
         },
       },
       'FORBIDDEN',
+      'You can not award yet',
+    );
+  });
+
+  it('should not award user that is not a creator', async () => {
+    loggedUser = 't-awum-2';
+
+    await con.getRepository(User).update(
+      { id: 't-awum-1' },
+      {
+        coresRole: CoresRole.User,
+      },
+    );
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
+          entityId: 't-awum-1',
+          note: 'Test test!',
+        },
+      },
+      'FORBIDDEN',
+      'You can not award this user',
     );
   });
 });
@@ -525,11 +551,37 @@ describe('award post mutation', () => {
         mutation: MUTATION,
         variables: {
           productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
-          entityId: 't-awpm-1',
+          entityId: 'p-awpm-1',
           note: 'Test test!',
         },
       },
       'FORBIDDEN',
+      'You can not award yet',
+    );
+  });
+
+  it('should not award post of user that is not a creator', async () => {
+    loggedUser = 't-awpm-1';
+
+    await con.getRepository(User).update(
+      { id: 't-awpm-2' },
+      {
+        coresRole: CoresRole.User,
+      },
+    );
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
+          entityId: 'p-awpm-1',
+          note: 'Test test!',
+        },
+      },
+      'FORBIDDEN',
+      'You can not award this user',
     );
   });
 });
@@ -999,11 +1051,37 @@ describe('award comment mutation', () => {
         mutation: MUTATION,
         variables: {
           productId: '17380714-1a0c-4dfc-b435-1ff44be8558d',
-          entityId: 't-awcm-1',
+          entityId: 'c-awcm-3',
           note: 'Test test!',
         },
       },
       'FORBIDDEN',
+      'You can not award yet',
+    );
+  });
+
+  it('should not award comment of user that is not a creator', async () => {
+    loggedUser = 't-awcm-1';
+
+    await con.getRepository(User).update(
+      { id: 't-awcm-2' },
+      {
+        coresRole: CoresRole.None,
+      },
+    );
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          productId: '17380714-1a0c-4dfc-b435-1ff44be8558d',
+          entityId: 'c-awcm-3',
+          note: 'Test test!',
+        },
+      },
+      'FORBIDDEN',
+      'You can not award this user',
     );
   });
 });
