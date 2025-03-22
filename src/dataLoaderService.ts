@@ -2,6 +2,7 @@ import DataLoader, { BatchLoadFn } from 'dataloader';
 import { Context } from './Context';
 import { getShortUrl } from './common';
 import { Settings, SourceMember } from './entity';
+import { User } from './entity/user/User';
 import { GQLSource } from './schema/sources';
 import { getBalance, type GetBalanceResult } from './common/njord';
 
@@ -139,6 +140,20 @@ export class DataLoaderService {
         return getBalance({
           userId,
         });
+      },
+      cacheKeyFn: ({ userId }) => defaultCacheKeyFn({ userId }),
+    });
+  }
+
+  get userData() {
+    return this.getLoader<{ userId: string }, User>({
+      type: 'userData',
+      loadFn: async ({ userId }) => {
+        if (!userId) {
+          return null;
+        }
+
+        return this.ctx.con.getRepository(User).findOneBy({ id: userId });
       },
       cacheKeyFn: ({ userId }) => defaultCacheKeyFn({ userId }),
     });

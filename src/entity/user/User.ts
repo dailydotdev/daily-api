@@ -10,7 +10,7 @@ import {
   PrimaryColumn,
 } from 'typeorm';
 import { DayOfWeek, DEFAULT_TIMEZONE, DEFAULT_WEEK_START } from '../../common';
-import { ContentLanguage } from '../../types';
+import { ContentLanguage, CoresRole } from '../../types';
 import type { Post } from '../posts';
 import type { DevCard } from '../DevCard';
 import type { UserStreak } from './UserStreak';
@@ -275,4 +275,8 @@ export class User {
       this.username ?? this.id
     }`;
   }
+
+  @Index()
+  @Column({ type: 'smallint', default: CoresRole.Creator })
+  coresRole: CoresRole;
 }

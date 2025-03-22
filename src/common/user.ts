@@ -1,4 +1,4 @@
-import { DataSource } from 'typeorm';
+import { DataSource, type EntityManager } from 'typeorm';
 import {
   Alerts,
   ArticlePost,
@@ -22,6 +22,8 @@ import { cancelSubscription } from './paddle';
 import type { AuthContext } from '../Context';
 import { ForbiddenError } from 'apollo-server-errors';
 import { logger } from '../logger';
+import { CoresRole } from '../types';
+import { remoteConfig } from '../remoteConfig';
 
 export const deleteUser = async (
   con: DataSource,
@@ -111,7 +113,7 @@ export /**
  * Function creator that wraps a function with auth protection
  * In this case it checks ctx contains userId but it can be expanded
  * in the future to check more advanced things.
- * This is a DX layer to make sure auth required stuff like credits
+ * This is a DX layer to make sure auth required stuff like cores
  * is protected on the function level.
  *
  * @template Props
@@ -132,4 +134,51 @@ const createAuthProtectedFn = <
 
     return fn(props);
   };
+};
+
+export const getUserCoresRole = ({ region }: { region?: string }) => {
+  if (!region) {
+    return CoresRole.None;
+  }
+
+  const ruleForRegion = remoteConfig.vars.coresRoleRules?.find((rule) =>
+    rule.regions.includes(region),
+  );
+
+  if (ruleForRegion) {
+    return ruleForRegion.role;
+  }
+
+  return CoresRole.Creator;
+};
+
+export const checkUserCoresAccess = async ({
+  con,
+  userId,
+  requiredRole,
+}: {
+  con: DataSource | EntityManager;
+  userId: string;
+  requiredRole: CoresRole;
+}): Promise<boolean> => {
+  // TODO maybe use data loader
+  // const user = await ctx.dataLoader?.userData.load({ userId });
+  const user = await con.getRepository(User).findOne({
+    select: ['coresRole'],
+    where: { id: userId },
+  });
+
+  if (!user) {
+    return false;
+  }
+
+  if (typeof user.coresRole !== 'number') {
+    return false;
+  }
+
+  if (user.coresRole < requiredRole) {
+    return false;
+  }
+
+  return true;
 };

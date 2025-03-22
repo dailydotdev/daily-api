@@ -33,6 +33,7 @@ import {
 } from '../src/entity/user/UserTransaction';
 import { ghostUser } from '../src/common';
 import { UserComment } from '../src/entity/user/UserComment';
+import { CoresRole } from '../src/types';
 
 const mockTransport = createMockNjordTransport();
 
@@ -180,6 +181,56 @@ describe('award user mutation', () => {
         balance: { amount: expect.any(Number) },
       },
     });
+  });
+
+  it('should not award when user does not have access to cores', async () => {
+    loggedUser = 't-awum-2';
+
+    await con.getRepository(User).update(
+      { id: 't-awum-2' },
+      {
+        coresRole: CoresRole.None,
+      },
+    );
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
+          entityId: 't-awum-1',
+          note: 'Test test!',
+        },
+      },
+      'FORBIDDEN',
+      'You can not award yet',
+    );
+  });
+
+  it('should not award user that is not a creator', async () => {
+    loggedUser = 't-awum-2';
+
+    await con.getRepository(User).update(
+      { id: 't-awum-1' },
+      {
+        coresRole: CoresRole.User,
+      },
+    );
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
+          entityId: 't-awum-1',
+          note: 'Test test!',
+        },
+      },
+      'FORBIDDEN',
+      'You can not award this user',
+    );
   });
 });
 
@@ -482,6 +533,56 @@ describe('award post mutation', () => {
     });
 
     expect(post.awards).toBe(1);
+  });
+
+  it('should not award when user does not have access to cores', async () => {
+    loggedUser = 't-awpm-2';
+
+    await con.getRepository(User).update(
+      { id: 't-awpm-2' },
+      {
+        coresRole: CoresRole.None,
+      },
+    );
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
+          entityId: 'p-awpm-1',
+          note: 'Test test!',
+        },
+      },
+      'FORBIDDEN',
+      'You can not award yet',
+    );
+  });
+
+  it('should not award post of user that is not a creator', async () => {
+    loggedUser = 't-awpm-1';
+
+    await con.getRepository(User).update(
+      { id: 't-awpm-2' },
+      {
+        coresRole: CoresRole.User,
+      },
+    );
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
+          entityId: 'p-awpm-1',
+          note: 'Test test!',
+        },
+      },
+      'FORBIDDEN',
+      'You can not award this user',
+    );
   });
 });
 
@@ -932,6 +1033,56 @@ describe('award comment mutation', () => {
     });
 
     expect(comment.awards).toBe(1);
+  });
+
+  it('should not award when user does not have access to cores', async () => {
+    loggedUser = 't-awcm-2';
+
+    await con.getRepository(User).update(
+      { id: 't-awcm-2' },
+      {
+        coresRole: CoresRole.None,
+      },
+    );
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          productId: '17380714-1a0c-4dfc-b435-1ff44be8558d',
+          entityId: 'c-awcm-3',
+          note: 'Test test!',
+        },
+      },
+      'FORBIDDEN',
+      'You can not award yet',
+    );
+  });
+
+  it('should not award comment of user that is not a creator', async () => {
+    loggedUser = 't-awcm-1';
+
+    await con.getRepository(User).update(
+      { id: 't-awcm-2' },
+      {
+        coresRole: CoresRole.None,
+      },
+    );
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          productId: '17380714-1a0c-4dfc-b435-1ff44be8558d',
+          entityId: 'c-awcm-3',
+          note: 'Test test!',
+        },
+      },
+      'FORBIDDEN',
+      'You can not award this user',
+    );
   });
 });
 

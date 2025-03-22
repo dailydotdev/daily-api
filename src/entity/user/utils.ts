@@ -36,6 +36,7 @@ import { logger } from '../../logger';
 import { User } from './User';
 import { Feed } from '../Feed';
 import { remoteConfig } from '../../remoteConfig';
+import { getUserCoresRole } from '../../common/user';
 
 export type AddUserData = Pick<
   User,
@@ -54,7 +55,9 @@ export type AddUserData = Pick<
   | 'timezone'
   | 'experienceLevel'
   | 'language'
->;
+> & {
+  region?: string;
+};
 export type AddUserDataPost = { referral: string } & AddUserData;
 export type UpdateUserEmailData = Pick<User, 'id' | 'email'>;
 type AddNewUserResult =
@@ -317,6 +320,7 @@ export const addNewUser = async (
         trustScore: 1,
         vordr: false,
       },
+      coresRole: getUserCoresRole(data),
     });
   } catch (error) {
     if (error instanceof ValidationError) {

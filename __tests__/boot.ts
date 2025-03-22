@@ -68,7 +68,7 @@ import {
   updateFlagsStatement,
 } from '../src/common';
 import { saveReturnAlerts } from '../src/schema/alerts';
-import { UserVote } from '../src/types';
+import { CoresRole, UserVote } from '../src/types';
 import { BootAlerts, excludeProperties } from '../src/routes/boot';
 import { SubscriptionCycles } from '../src/paddle';
 import * as njordCommon from '../src/common/njord';
@@ -143,6 +143,7 @@ const LOGGED_IN_BODY = {
       amount: 0,
     },
     subscriptionFlags: {},
+    coresRole: CoresRole.Creator,
   },
   marketingCta: null,
   feeds: [],

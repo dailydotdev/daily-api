@@ -1,6 +1,6 @@
-import { Roles } from './roles';
-import { AccessToken } from './auth';
-import { opentelemetry } from './telemetry';
+import type { Roles } from './roles';
+import type { AccessToken } from './auth';
+import type { opentelemetry } from './telemetry';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -224,3 +224,10 @@ export enum PostCodeSnippetLanguage {
 export type PostCodeSnippetJsonFile = {
   snippets: string[];
 };
+
+export enum CoresRole {
+  None = 0,
+  ReadOnly = 1,
+  User = 2,
+  Creator = 3,
+}

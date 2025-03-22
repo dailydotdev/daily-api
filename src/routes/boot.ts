@@ -59,7 +59,7 @@ import {
   SEMATTRS_DAILY_STAFF,
 } from '../telemetry';
 import { getUnreadNotificationsCount } from '../notifications/common';
-import { maxFeedsPerUser } from '../types';
+import { maxFeedsPerUser, type CoresRole } from '../types';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { queryDataSource } from '../common/queryDataSource';
 import { isPlusMember } from '../paddle';
@@ -130,6 +130,7 @@ export type LoggedInBoot = BaseBoot & {
     roles: string[];
     canSubmitArticle: boolean;
     balance: GetBalanceResult;
+    coresRole: CoresRole;
   };
   accessToken?: AccessToken;
   marketingCta: MarketingCta | null;
@@ -451,6 +452,7 @@ const getUser = (
       'subscriptionFlags',
       'defaultFeedId',
       'flags',
+      'coresRole',
     ],
   });
 
