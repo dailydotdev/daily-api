@@ -17,7 +17,7 @@ import {
 } from '../entity/user/UserTransaction';
 import { isProd, isSpecialUser, parseBigInt, systemUser } from './utils';
 import { ForbiddenError } from 'apollo-server-errors';
-import { checkUserCoresAccess, createAuthProtectedFn } from './user';
+import { checkCoresAccess, createAuthProtectedFn } from './user';
 import {
   deleteRedisKey,
   getRedisObject,
@@ -438,8 +438,8 @@ const canAward = async ({
   }
 
   if (
-    (await checkUserCoresAccess({
-      con: ctx.con,
+    (await checkCoresAccess({
+      ctx,
       userId: receiverId,
       requiredRole: CoresRole.Creator,
     })) === false

@@ -1,4 +1,4 @@
-import { DataSource, type EntityManager } from 'typeorm';
+import { DataSource } from 'typeorm';
 import {
   Alerts,
   ArticlePost,
@@ -19,7 +19,7 @@ import {
 } from '../entity';
 import { ghostUser } from './index';
 import { cancelSubscription } from './paddle';
-import type { AuthContext } from '../Context';
+import type { AuthContext, Context } from '../Context';
 import { ForbiddenError } from 'apollo-server-errors';
 import { logger } from '../logger';
 import { CoresRole } from '../types';
@@ -152,22 +152,13 @@ export const getUserCoresRole = ({ region }: { region?: string }) => {
   return CoresRole.Creator;
 };
 
-export const checkUserCoresAccess = async ({
-  con,
-  userId,
+export const checkUserCoresAccess = ({
+  user,
   requiredRole,
 }: {
-  con: DataSource | EntityManager;
-  userId: string;
+  user: User;
   requiredRole: CoresRole;
-}): Promise<boolean> => {
-  // TODO maybe use data loader
-  // const user = await ctx.dataLoader?.userData.load({ userId });
-  const user = await con.getRepository(User).findOne({
-    select: ['coresRole'],
-    where: { id: userId },
-  });
-
+}): boolean => {
   if (!user) {
     return false;
   }
@@ -181,4 +172,22 @@ export const checkUserCoresAccess = async ({
   }
 
   return true;
+};
+
+export const checkCoresAccess = async ({
+  ctx,
+  userId,
+  requiredRole,
+}: {
+  ctx: Context;
+  userId: string;
+  requiredRole: CoresRole;
+}): Promise<boolean> => {
+  const user = await ctx.dataLoader.user.load({ userId });
+
+  if (!user) {
+    return false;
+  }
+
+  return checkUserCoresAccess({ user, requiredRole });
 };

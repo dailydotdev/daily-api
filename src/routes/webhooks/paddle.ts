@@ -638,12 +638,15 @@ export const processTransactionCompleted = async ({
           event,
         });
 
+        const user = await entityManager.getRepository(User).findOneByOrFail({
+          id: transactionData.customData.user_id,
+        });
+
         if (
-          (await checkUserCoresAccess({
-            con: entityManager,
-            userId: transactionData.customData.user_id,
+          checkUserCoresAccess({
+            user,
             requiredRole: CoresRole.User,
-          })) === false
+          }) === false
         ) {
           throw new Error('User does not have access to cores purchase');
         }

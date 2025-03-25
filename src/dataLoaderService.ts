@@ -5,6 +5,7 @@ import { Settings, SourceMember } from './entity';
 import { User } from './entity/user/User';
 import { GQLSource } from './schema/sources';
 import { getBalance, type GetBalanceResult } from './common/njord';
+import { queryReadReplica } from './common/queryReadReplica';
 
 export const defaultCacheKeyFn = <K extends object | string>(key: K) => {
   if (typeof key === 'object') {
@@ -145,15 +146,19 @@ export class DataLoaderService {
     });
   }
 
-  get userData() {
+  get user() {
     return this.getLoader<{ userId: string }, User>({
-      type: 'userData',
+      type: 'user',
       loadFn: async ({ userId }) => {
         if (!userId) {
           return null;
         }
 
-        return this.ctx.con.getRepository(User).findOneBy({ id: userId });
+        return queryReadReplica(this.ctx.con, async ({ queryRunner }) => {
+          return queryRunner.manager
+            .getRepository(User)
+            .findOneBy({ id: userId });
+        });
       },
       cacheKeyFn: ({ userId }) => defaultCacheKeyFn({ userId }),
     });
