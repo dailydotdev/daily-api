@@ -38,6 +38,7 @@ const worker: TypedWorker<'user-updated'> = {
     } catch (_err) {
       const err = _err as Error;
       log.error({ err }, 'failed to update user profile in customerio');
+      throw err;
     }
   },
 };
