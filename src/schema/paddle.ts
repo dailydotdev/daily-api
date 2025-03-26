@@ -14,6 +14,8 @@ import { remoteConfig } from '../remoteConfig';
 import { getCurrencySymbol, ONE_HOUR_IN_SECONDS } from '../common';
 import { generateStorageKey, StorageKey, StorageTopic } from '../config';
 import { getRedisObject, setRedisObjectWithExpiry } from '../redis';
+import { createHmac } from 'node:crypto';
+import type { PricingPreview } from '@paddle/paddle-node-sdk/dist/types/entities/pricing-preview';
 
 export const typeDefs = /* GraphQL */ `
   """
@@ -150,13 +152,37 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
       const featureValue: Record<string, string> =
         growthbookClient.getFeatureValue('pricing_ids', {});
 
-      const pricePreview = await paddleInstance?.pricingPreview.preview({
-        items: Object.keys(featureValue).map((priceId) => ({
-          priceId,
-          quantity: 1,
-        })),
-        address: region ? { countryCode: region as CountryCode } : undefined,
-      });
+      const hmac = createHmac('sha1', process.env.SLACK_SIGNING_SECRET);
+      hmac.update(Object.keys(featureValue).toString());
+      const pricesHash = hmac.digest().toString('hex');
+
+      const redisKey = generateStorageKey(
+        StorageTopic.Paddle,
+        StorageKey.PricingPreview,
+        [pricesHash, region].join(':'),
+      );
+
+      let pricePreview: PricingPreview;
+
+      const redisResult = await getRedisObject(redisKey);
+
+      if (redisResult) {
+        pricePreview = JSON.parse(redisResult);
+      } else {
+        pricePreview = await paddleInstance?.pricingPreview.preview({
+          items: Object.keys(featureValue).map((priceId) => ({
+            priceId,
+            quantity: 1,
+          })),
+          address: region ? { countryCode: region as CountryCode } : undefined,
+        });
+
+        await setRedisObjectWithExpiry(
+          redisKey,
+          JSON.stringify(pricePreview),
+          1 * ONE_HOUR_IN_SECONDS,
+        );
+      }
 
       const items = pricePreview?.details?.lineItems.map((item) => {
         const isOneOff = !item.price?.billingCycle?.interval;
@@ -212,8 +238,8 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
 
       const redisKey = generateStorageKey(
         StorageTopic.Paddle,
-        StorageKey.PricingPreview,
-        JSON.stringify({ productId: corePaddleProductId, region }),
+        StorageKey.PricingPreviewCores,
+        [corePaddleProductId, region].join(':'),
       );
 
       const redisResult = await getRedisObject(redisKey);

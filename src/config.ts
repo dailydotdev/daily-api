@@ -40,6 +40,7 @@ export enum StorageKey {
   CoresBalance = 'cores_balance',
   OpenExchangeRates = 'open_exchange_rates',
   PricingPreview = 'pricing_preview',
+  PricingPreviewCores = 'pricing_preview_cores',
 }
 
 export const generateStorageKey = (

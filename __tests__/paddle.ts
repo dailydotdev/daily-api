@@ -24,6 +24,8 @@ import { FastifyInstance } from 'fastify';
 import appFunc from '../src';
 import { logger } from '../src/logger';
 import { paddleInstance } from '../src/common/paddle';
+import * as redisFile from '../src/redis';
+import { ioRedisPool } from '../src/redis';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -194,6 +196,11 @@ describe('pricing preview', () => {
       }
     }
   `;
+
+  beforeEach(async () => {
+    await ioRedisPool.execute((client) => client.flushall());
+  });
+
   it('should return pricing preview data', async () => {
     loggedUser = 'whp-1';
     const mockPreview = jest.fn().mockResolvedValue(getPricingPreviewData());
@@ -212,6 +219,46 @@ describe('pricing preview', () => {
     expect(result.data.pricePreviews.items[1].price.monthlyFormatted).toBe(
       '$5.00',
     );
+  });
+
+  it('should cache pricing preview data', async () => {
+    const getRedisObjectSpy = jest.spyOn(redisFile, 'getRedisObject');
+
+    const setRedisObjectWithExpirySpy = jest.spyOn(
+      redisFile,
+      'setRedisObjectWithExpiry',
+    );
+
+    loggedUser = 'whp-1';
+    const mockPreview = jest.fn().mockResolvedValue(getPricingPreviewData());
+    jest
+      .spyOn(paddleInstance.pricingPreview, 'preview')
+      .mockImplementationOnce(mockPreview);
+
+    const result = await client.query(QUERY);
+
+    expect(result.errors).toBeFalsy();
+
+    expect(getRedisObjectSpy).toHaveBeenCalledTimes(1);
+    expect(getRedisObjectSpy).toHaveBeenCalledWith(
+      'paddle:pricing_preview:97dce8c48f6e9acfb42a37421d9a32d50b7187ab:',
+    );
+
+    expect(setRedisObjectWithExpirySpy).toHaveBeenCalledTimes(1);
+    expect(setRedisObjectWithExpirySpy).toHaveBeenCalledWith(
+      'paddle:pricing_preview:97dce8c48f6e9acfb42a37421d9a32d50b7187ab:',
+      expect.any(String),
+      3600,
+    );
+
+    const result2 = await client.query(QUERY);
+
+    expect(result2.errors).toBeFalsy();
+
+    expect(getRedisObjectSpy).toHaveBeenCalledTimes(2);
+    expect(setRedisObjectWithExpirySpy).toHaveBeenCalledTimes(1);
+
+    expect(result).toEqual(result2);
   });
 });
 
