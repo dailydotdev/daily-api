@@ -85,7 +85,7 @@ config:
     typeormPassword: 12345
     typeormUsername: postgres
     tz: UTC
-    urlPrefix: http://api.local.com
+    urlPrefix: https://api.local.fylla.dev
     validLanguagesFeatureKey: valid_languages
   api:k8s:
     namespace: local
