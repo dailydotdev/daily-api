@@ -30,6 +30,7 @@ export enum StorageTopic {
   CIO = 'customer_io',
   Streak = 'streak',
   Njord = 'njord',
+  Paddle = 'paddle',
 }
 
 export enum StorageKey {
@@ -38,6 +39,7 @@ export enum StorageKey {
   Reset = 'reset',
   CoresBalance = 'cores_balance',
   OpenExchangeRates = 'open_exchange_rates',
+  PricingPreview = 'pricing_preview',
 }
 
 export const generateStorageKey = (

@@ -11,7 +11,9 @@ import { SubscriptionCycles } from '../paddle';
 import { getUserGrowthBookInstace } from '../growthbook';
 import { User } from '../entity';
 import { remoteConfig } from '../remoteConfig';
-import { getCurrencySymbol } from '../common';
+import { getCurrencySymbol, ONE_HOUR_IN_SECONDS } from '../common';
+import { generateStorageKey, StorageKey, StorageTopic } from '../config';
+import { getRedisObject, setRedisObjectWithExpiry } from '../redis';
 
 export const typeDefs = /* GraphQL */ `
   """
@@ -208,6 +210,20 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
 
       const corePaddleProductId = remoteConfig.vars.coreProductId;
 
+      const redisKey = generateStorageKey(
+        StorageTopic.Paddle,
+        StorageKey.PricingPreview,
+        JSON.stringify({ productId: corePaddleProductId, region }),
+      );
+
+      const redisResult = await getRedisObject(redisKey);
+
+      if (redisResult) {
+        const cachedResult = JSON.parse(redisResult);
+
+        return cachedResult;
+      }
+
       if (!corePaddleProductId) {
         throw new Error('Core product id is not set in remote config');
       }
@@ -259,10 +275,20 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
       });
       items.sort((a, b) => a.coresValue - b.coresValue);
 
-      return {
+      const result = {
         currencyCode: pricePreview?.currencyCode as string,
         items,
       };
+
+      const expirationSeconds = 1 * ONE_HOUR_IN_SECONDS;
+
+      await setRedisObjectWithExpiry(
+        redisKey,
+        JSON.stringify(result),
+        expirationSeconds,
+      );
+
+      return result;
     },
   },
 });
