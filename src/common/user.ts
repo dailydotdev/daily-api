@@ -156,7 +156,7 @@ export const checkUserCoresAccess = ({
   user,
   requiredRole,
 }: {
-  user: User;
+  user: Pick<User, 'id' | 'coresRole'>;
   requiredRole: CoresRole;
 }): boolean => {
   if (!user) {
@@ -183,7 +183,10 @@ export const checkCoresAccess = async ({
   userId: string;
   requiredRole: CoresRole;
 }): Promise<boolean> => {
-  const user = await ctx.dataLoader.user.load({ userId });
+  const user = await ctx.dataLoader.user.load({
+    userId,
+    select: ['id', 'coresRole'],
+  });
 
   if (!user) {
     return false;

@@ -638,9 +638,14 @@ export const processTransactionCompleted = async ({
           event,
         });
 
-        const user = await entityManager.getRepository(User).findOneByOrFail({
-          id: transactionData.customData.user_id,
-        });
+        const user: Pick<User, 'id' | 'coresRole'> = await entityManager
+          .getRepository(User)
+          .findOneOrFail({
+            select: ['id', 'coresRole'],
+            where: {
+              id: transactionData.customData.user_id,
+            },
+          });
 
         if (
           checkUserCoresAccess({

@@ -6,6 +6,7 @@ import { User } from './entity/user/User';
 import { GQLSource } from './schema/sources';
 import { getBalance, type GetBalanceResult } from './common/njord';
 import { queryReadReplica } from './common/queryReadReplica';
+import type { FindOneOptions } from 'typeorm';
 
 export const defaultCacheKeyFn = <K extends object | string>(key: K) => {
   if (typeof key === 'object') {
@@ -147,20 +148,26 @@ export class DataLoaderService {
   }
 
   get user() {
-    return this.getLoader<{ userId: string }, User>({
+    return this.getLoader<
+      { userId: string; select?: FindOneOptions<User>['select'] },
+      User
+    >({
       type: 'user',
-      loadFn: async ({ userId }) => {
+      loadFn: async ({ userId, select }) => {
         if (!userId) {
           return null;
         }
 
         return queryReadReplica(this.ctx.con, async ({ queryRunner }) => {
-          return queryRunner.manager
-            .getRepository(User)
-            .findOneBy({ id: userId });
+          return queryRunner.manager.getRepository(User).findOne({
+            select,
+            where: {
+              id: userId,
+            },
+          });
         });
       },
-      cacheKeyFn: ({ userId }) => defaultCacheKeyFn({ userId }),
+      cacheKeyFn: ({ userId, select }) => defaultCacheKeyFn({ userId, select }),
     });
   }
 }
