@@ -11,7 +11,11 @@ import { SubscriptionCycles } from '../paddle';
 import { getUserGrowthBookInstace } from '../growthbook';
 import { User } from '../entity';
 import { remoteConfig } from '../remoteConfig';
-import { getCurrencySymbol } from '../common';
+import { getCurrencySymbol, ONE_HOUR_IN_SECONDS } from '../common';
+import { generateStorageKey, StorageKey, StorageTopic } from '../config';
+import { getRedisObject, setRedisObjectWithExpiry } from '../redis';
+import { createHmac } from 'node:crypto';
+import type { PricingPreview } from '@paddle/paddle-node-sdk/dist/types/entities/pricing-preview';
 
 export const typeDefs = /* GraphQL */ `
   """
@@ -148,13 +152,37 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
       const featureValue: Record<string, string> =
         growthbookClient.getFeatureValue('pricing_ids', {});
 
-      const pricePreview = await paddleInstance?.pricingPreview.preview({
-        items: Object.keys(featureValue).map((priceId) => ({
-          priceId,
-          quantity: 1,
-        })),
-        address: region ? { countryCode: region as CountryCode } : undefined,
-      });
+      const hmac = createHmac('sha1', StorageTopic.Paddle);
+      hmac.update(Object.keys(featureValue).sort().toString());
+      const pricesHash = hmac.digest().toString('hex');
+
+      const redisKey = generateStorageKey(
+        StorageTopic.Paddle,
+        StorageKey.PricingPreviewPlus,
+        [pricesHash, region].join(':'),
+      );
+
+      let pricePreview: PricingPreview;
+
+      const redisResult = await getRedisObject(redisKey);
+
+      if (redisResult) {
+        pricePreview = JSON.parse(redisResult);
+      } else {
+        pricePreview = await paddleInstance?.pricingPreview.preview({
+          items: Object.keys(featureValue).map((priceId) => ({
+            priceId,
+            quantity: 1,
+          })),
+          address: region ? { countryCode: region as CountryCode } : undefined,
+        });
+
+        await setRedisObjectWithExpiry(
+          redisKey,
+          JSON.stringify(pricePreview),
+          1 * ONE_HOUR_IN_SECONDS,
+        );
+      }
 
       const items = pricePreview?.details?.lineItems.map((item) => {
         const isOneOff = !item.price?.billingCycle?.interval;
@@ -208,6 +236,20 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
 
       const corePaddleProductId = remoteConfig.vars.coreProductId;
 
+      const redisKey = generateStorageKey(
+        StorageTopic.Paddle,
+        StorageKey.PricingPreviewCores,
+        [corePaddleProductId, region].join(':'),
+      );
+
+      const redisResult = await getRedisObject(redisKey);
+
+      if (redisResult) {
+        const cachedResult = JSON.parse(redisResult);
+
+        return cachedResult;
+      }
+
       if (!corePaddleProductId) {
         throw new Error('Core product id is not set in remote config');
       }
@@ -259,10 +301,18 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
       });
       items.sort((a, b) => a.coresValue - b.coresValue);
 
-      return {
+      const result = {
         currencyCode: pricePreview?.currencyCode as string,
         items,
       };
+
+      await setRedisObjectWithExpiry(
+        redisKey,
+        JSON.stringify(result),
+        1 * ONE_HOUR_IN_SECONDS,
+      );
+
+      return result;
     },
   },
 });
