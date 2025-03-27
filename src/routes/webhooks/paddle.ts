@@ -33,10 +33,12 @@ import {
 } from '../../integrations/analytics';
 import { JsonContains, type DataSource, type EntityManager } from 'typeorm';
 import {
+  coreProductCustomDataSchema,
   getPaddleTransactionData,
   getTransactionForProviderId,
   isCoreTransaction,
   paddleInstance,
+  paddleTransactionSchema,
 } from '../../common/paddle';
 import { addMilliseconds } from 'date-fns';
 import {
@@ -523,6 +525,60 @@ const notifyNewPaddleCoresTransaction = async ({
   await webhooks.transactions.send({ blocks });
 };
 
+const assignSubscriptionCores = async ({
+  event: { data },
+}: {
+  event: TransactionCompletedEvent;
+}) => {
+  const con = await createOrGetConnection();
+
+  const { user_id, details } = paddleTransactionSchema.parse(data);
+
+  const modifier = remoteConfig.vars?.coreModifier;
+
+  if (!modifier) {
+    logger.error(
+      { provider: SubscriptionProvider.Paddle, data },
+      'Core modifier not set',
+    );
+    return;
+  }
+
+  const total = parseInt(details.totals.grandTotal || '0');
+  const coresForPayment = Math.floor(modifier * total);
+
+  if (coresForPayment <= 0) {
+    logger.error(
+      { provider: SubscriptionProvider.Paddle, data },
+      'Cores for payment is less than 0',
+    );
+    return;
+  }
+
+  await con.transaction(async (entityManager) => {
+    const newTransaction = await entityManager
+      .getRepository(UserTransaction)
+      .save({
+        processor: UserTransactionProcessor.Paddle,
+        receiverId: user_id,
+        productId: null, // no product user is buying cores directly
+        senderId: null, // no sender, user is buying cores
+        status: UserTransactionStatus.Success,
+        value: coresForPayment,
+        fee: 0, // no fee when buying cores
+        request: {},
+        flags: {
+          providerId: data.id,
+          note: 'Plus subscription',
+        },
+      });
+
+    await purchaseCores({
+      transaction: newTransaction,
+    });
+  });
+};
+
 export const processGiftedPayment = async ({
   event: { data },
 }: {
@@ -654,9 +710,12 @@ export const processTransactionCompleted = async ({
   }
 
   const { gifter_id } = (event?.data?.customData ?? {}) as PaddleCustomData;
-
   if (gifter_id) {
     await processGiftedPayment({ event });
+  } else {
+    // Manual subscription purchase
+    // Assign cores to user
+    await assignSubscriptionCores({ event });
   }
 
   await notifyNewPaddleTransaction({ event });
