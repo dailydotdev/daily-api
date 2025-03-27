@@ -107,12 +107,19 @@ export const coreProductCustomDataSchema = z.object(
   },
 );
 
-const paddleTransactionSchema = z.object({
+export const paddleTransactionSchema = z.object({
   id: z.string({ message: 'Transaction id is required' }),
   updatedAt: z.preprocess(
     (value) => new Date(value as string),
     z.date({ message: 'Transaction updated at is required' }),
   ),
+  details: z.object({
+    totals: z.object({
+      grandTotal: z.string({
+        message: 'Transaction grand total is required',
+      }),
+    }),
+  }),
   items: z
     .array(
       z.object({

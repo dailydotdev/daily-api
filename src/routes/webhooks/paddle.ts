@@ -33,10 +33,12 @@ import {
 } from '../../integrations/analytics';
 import { JsonContains, type DataSource, type EntityManager } from 'typeorm';
 import {
+  coreProductCustomDataSchema,
   getPaddleTransactionData,
   getTransactionForProviderId,
   isCoreTransaction,
   paddleInstance,
+  paddleTransactionSchema,
 } from '../../common/paddle';
 import { addMilliseconds } from 'date-fns';
 import {
@@ -529,18 +531,20 @@ const assignSubscriptionCores = async ({
   event: TransactionCompletedEvent;
 }) => {
   const con = await createOrGetConnection();
-  const { user_id } = data.customData as PaddleCustomData;
 
-  if (!user_id) {
+  const { user_id, details } = paddleTransactionSchema.parse(data);
+
+  const modifier = remoteConfig.vars?.coreModifier;
+
+  if (!modifier) {
     logger.error(
       { provider: SubscriptionProvider.Paddle, data },
-      'User ID missing in payload',
+      'Core modifier not set',
     );
     return;
   }
 
-  const modifier = remoteConfig.vars?.coreModifier || 0.001;
-  const total = parseInt(data.details?.totals?.grandTotal || '0');
+  const total = parseInt(details.totals.grandTotal || '0');
   const coresForPayment = Math.floor(modifier * total);
 
   if (coresForPayment <= 0) {
@@ -565,6 +569,7 @@ const assignSubscriptionCores = async ({
         request: {},
         flags: {
           providerId: data.id,
+          note: 'Plus subscription',
         },
       });
 
