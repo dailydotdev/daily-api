@@ -118,6 +118,7 @@ import { identifyUserPersonalizedDigest } from '../src/cio';
 import type { GQLUser } from '../src/schema/users';
 import { cancelSubscription } from '../src/common/paddle';
 import { isPlusMember } from '../src/paddle';
+import { CoresRole } from '../src/types';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -6215,5 +6216,28 @@ describe('mutation requestAppAccountToken', () => {
     expect(res.data.requestAppAccountToken).toEqual(
       '77601fd2-0490-44e8-a042-4fd516929715',
     );
+  });
+});
+
+describe('coresRole field on User', () => {
+  const QUERY = /* GraphQL */ `
+    query User($id: ID!) {
+      user(id: $id) {
+        id
+        coresRole
+      }
+    }
+  `;
+
+  it('should return coresRole', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, { variables: { id: '2' } });
+    const user: GQLUser = res.data.user;
+
+    expect(res.errors).toBeFalsy();
+
+    expect(user.id).toEqual('2');
+    expect(user.coresRole).toEqual(CoresRole.Creator);
   });
 });
