@@ -153,7 +153,7 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
         growthbookClient.getFeatureValue('pricing_ids', {});
 
       const hmac = createHmac('sha1', process.env.SLACK_SIGNING_SECRET);
-      hmac.update(Object.keys(featureValue).toString());
+      hmac.update(Object.keys(featureValue).sort().toString());
       const pricesHash = hmac.digest().toString('hex');
 
       const redisKey = generateStorageKey(
