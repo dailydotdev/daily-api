@@ -222,6 +222,7 @@ if (isAdhocEnv) {
       maxReplicas: 15,
       limits: apiLimits,
       requests: apiRequests,
+      livenessProbe,
       metric: { type: 'memory_cpu', cpu: 70 },
       ports: [
         { containerPort: 3000, name: 'http' },
