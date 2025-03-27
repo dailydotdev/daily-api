@@ -158,7 +158,7 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
 
       const redisKey = generateStorageKey(
         StorageTopic.Paddle,
-        StorageKey.PricingPreview,
+        StorageKey.PricingPreviewPlus,
         [pricesHash, region].join(':'),
       );
 

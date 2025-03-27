@@ -39,7 +39,7 @@ export enum StorageKey {
   Reset = 'reset',
   CoresBalance = 'cores_balance',
   OpenExchangeRates = 'open_exchange_rates',
-  PricingPreview = 'pricing_preview',
+  PricingPreviewPlus = 'pricing_preview_plus',
   PricingPreviewCores = 'pricing_preview_cores',
 }
 

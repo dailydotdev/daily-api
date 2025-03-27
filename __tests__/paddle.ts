@@ -241,12 +241,12 @@ describe('pricing preview', () => {
 
     expect(getRedisObjectSpy).toHaveBeenCalledTimes(1);
     expect(getRedisObjectSpy).toHaveBeenCalledWith(
-      'paddle:pricing_preview:5a1afc9a87661f19ef8486f7d83ff8883eb0db40:',
+      'paddle:pricing_preview_plus:5a1afc9a87661f19ef8486f7d83ff8883eb0db40:',
     );
 
     expect(setRedisObjectWithExpirySpy).toHaveBeenCalledTimes(1);
     expect(setRedisObjectWithExpirySpy).toHaveBeenCalledWith(
-      'paddle:pricing_preview:5a1afc9a87661f19ef8486f7d83ff8883eb0db40:',
+      'paddle:pricing_preview_plus:5a1afc9a87661f19ef8486f7d83ff8883eb0db40:',
       expect.any(String),
       3600,
     );
