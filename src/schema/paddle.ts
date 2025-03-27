@@ -152,7 +152,7 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
       const featureValue: Record<string, string> =
         growthbookClient.getFeatureValue('pricing_ids', {});
 
-      const hmac = createHmac('sha1', process.env.SLACK_SIGNING_SECRET);
+      const hmac = createHmac('sha1', StorageTopic.Paddle);
       hmac.update(Object.keys(featureValue).sort().toString());
       const pricesHash = hmac.digest().toString('hex');
 
@@ -306,12 +306,10 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
         items,
       };
 
-      const expirationSeconds = 1 * ONE_HOUR_IN_SECONDS;
-
       await setRedisObjectWithExpiry(
         redisKey,
         JSON.stringify(result),
-        expirationSeconds,
+        1 * ONE_HOUR_IN_SECONDS,
       );
 
       return result;
