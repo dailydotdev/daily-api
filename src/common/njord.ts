@@ -17,7 +17,7 @@ import {
 } from '../entity/user/UserTransaction';
 import { isProd, isSpecialUser, parseBigInt, systemUser } from './utils';
 import { ForbiddenError } from 'apollo-server-errors';
-import { createAuthProtectedFn } from './user';
+import { checkCoresAccess, createAuthProtectedFn } from './user';
 import {
   deleteRedisKey,
   getRedisObject,
@@ -39,6 +39,7 @@ import { UserComment } from '../entity/user/UserComment';
 import { saveComment } from '../schema/comments';
 import { generateShortId } from '../ids';
 import { checkWithVordr, VordrFilterType } from './vordr';
+import { CoresRole } from '../types';
 
 const transport = createGrpcTransport({
   baseUrl: process.env.NJORD_ORIGIN,
@@ -424,12 +425,26 @@ const canAward = async ({
   ctx: AuthContext;
   receiverId?: string | null;
 }): Promise<void> => {
+  if (!receiverId) {
+    throw new ConflictError('Can not award this entity');
+  }
+
   if (ctx.userId === receiverId) {
     throw new ForbiddenError('Can not award yourself');
   }
 
   if (isSpecialUser({ userId: receiverId })) {
     throw new ForbiddenError('Can not award this user');
+  }
+
+  if (
+    (await checkCoresAccess({
+      ctx,
+      userId: receiverId,
+      requiredRole: CoresRole.Creator,
+    })) === false
+  ) {
+    throw new ForbiddenError('You can not award this user');
   }
 };
 

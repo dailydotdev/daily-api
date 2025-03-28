@@ -24,6 +24,8 @@ import {
 } from '../entity/user/UserTransaction';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { Brackets } from 'typeorm';
+import { checkCoresAccess } from '../common/user';
+import { CoresRole } from '../types';
 
 export type GQLProduct = Pick<
   Product,
@@ -403,6 +405,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       if (result.error) {
         throw new ValidationError(result.error.errors[0].message);
+      }
+
+      if (
+        (await checkCoresAccess({
+          ctx,
+          userId: ctx.userId,
+          requiredRole: CoresRole.User,
+        })) === false
+      ) {
+        throw new ForbiddenError('You can not award yet');
       }
 
       switch (props.type) {

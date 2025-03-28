@@ -31,6 +31,12 @@ jest.mock('../src/remoteConfig', () => ({
         transfer: 5,
       },
       enableBalance: true,
+      coresRoleRules: [
+        {
+          regions: ['RS'],
+          role: 1,
+        },
+      ],
     } as typeof remoteConfig.vars,
     validLanguages: {
       en: 'English',

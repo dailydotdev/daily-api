@@ -2,6 +2,7 @@ import { GrowthBook } from '@growthbook/growthbook';
 import { logger } from './logger';
 import { isProd } from './common/utils';
 import { SubscriptionCycles } from './paddle';
+import type { CoresRole } from './types';
 
 type RemoteConfigValue = {
   inc: number;
@@ -22,6 +23,10 @@ type RemoteConfigValue = {
   enableBalance: boolean;
   approvedStoreKitSandboxUsers: string[];
   coreProductId: string;
+  coresRoleRules: {
+    regions: string[];
+    role: CoresRole;
+  }[];
 };
 
 class RemoteConfig {

@@ -91,7 +91,12 @@ import { deleteUser } from '../common/user';
 import { randomInt } from 'crypto';
 import { ArrayContains, DataSource, In, IsNull, QueryRunner } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
-import { ContentLanguage, UserVote, UserVoteEntity } from '../types';
+import {
+  ContentLanguage,
+  UserVote,
+  UserVoteEntity,
+  type CoresRole,
+} from '../types';
 import { markdown } from '../common/markdown';
 import { deleteRedisKey, getRedisObject, RedisMagicValues } from '../redis';
 import { generateStorageKey, StorageKey, StorageTopic } from '../config';
@@ -187,6 +192,7 @@ export interface GQLUser {
   experienceLevel?: string | null;
   language?: ContentLanguage | null;
   topReader?: GQLUserTopReader;
+  coresRole: CoresRole;
 }
 
 export interface GQLView {
@@ -447,6 +453,11 @@ export const typeDefs = /* GraphQL */ `
     Returns the latest top reader badge for the user
     """
     topReader: UserTopReader
+
+    """
+    Role for Cores access
+    """
+    coresRole: Int!
   }
 
   """

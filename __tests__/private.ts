@@ -16,7 +16,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { DayOfWeek } from '../src/common';
-import { ContentLanguage } from '../src/types';
+import { ContentLanguage, CoresRole } from '../src/types';
 import { postsFixture } from './fixture/post';
 
 let app: FastifyInstance;
@@ -629,6 +629,75 @@ describe('POST /p/newUser', () => {
     expect(feed).not.toBeNull();
     expect(feed!.id).toEqual(usersFixture[0].id);
     expect(feed!.userId).toEqual(usersFixture[0].id);
+  });
+
+  it('should assign cores rule', async () => {
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: usersFixture[0].username,
+        email: usersFixture[0].email,
+        experienceLevel: 'foo',
+        region: 'HR',
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
+
+    const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
+    expect(users[0].id).toEqual(usersFixture[0].id);
+    expect(users[0].coresRole).toEqual(CoresRole.Creator);
+  });
+
+  it('should respect region rule for cores role', async () => {
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: usersFixture[0].username,
+        email: usersFixture[0].email,
+        experienceLevel: 'foo',
+        region: 'RS',
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
+
+    const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
+    expect(users[0].id).toEqual(usersFixture[0].id);
+    expect(users[0].coresRole).toEqual(CoresRole.ReadOnly);
+  });
+
+  it('should set cores rule to none if no region', async () => {
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: usersFixture[0].username,
+        email: usersFixture[0].email,
+        experienceLevel: 'foo',
+        region: undefined,
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
+
+    const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
+    expect(users[0].id).toEqual(usersFixture[0].id);
+    expect(users[0].coresRole).toEqual(CoresRole.None);
   });
 });
 
