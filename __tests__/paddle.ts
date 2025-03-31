@@ -272,7 +272,7 @@ describe('plus subscription', () => {
     const data = getSubscriptionData({
       user_id: userId,
     });
-    await updateUserSubscription({ data, state: true });
+    await updateUserSubscription({ event: data, state: true });
 
     const updatedUser = await con
       .getRepository(User)

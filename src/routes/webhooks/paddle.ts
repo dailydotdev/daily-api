@@ -3,15 +3,14 @@ import {
   EventName,
   TransactionCompletedEvent,
   TransactionCreatedEvent,
-  TransactionItemNotification,
   type EventEntity,
   type SubscriptionCanceledEvent,
   type SubscriptionCreatedEvent,
-  type SubscriptionItemNotification,
   type SubscriptionUpdatedEvent,
   type TransactionPaymentFailedEvent,
   type TransactionReadyEvent,
   type TransactionUpdatedEvent,
+  TransactionPayoutTotalsNotification,
 } from '@paddle/paddle-node-sdk';
 import createOrGetConnection from '../../db';
 import {
@@ -26,7 +25,6 @@ import {
   UserSubscriptionStatus,
 } from '../../entity';
 import { logger } from '../../logger';
-import { remoteConfig } from '../../remoteConfig';
 import {
   AnalyticsEventName,
   sendAnalyticsEvent,
@@ -53,45 +51,35 @@ import { purchaseCores } from '../../common/njord';
 import { checkUserCoresAccess } from '../../common/user';
 import { CoresRole } from '../../types';
 
-const extractSubscriptionType = (
-  items:
-    | SubscriptionItemNotification[]
-    | TransactionItemNotification[]
-    | undefined,
-): string => {
-  if (!items) {
-    return '';
-  }
-  return items.reduce((acc, item) => {
-    const pricingIds = remoteConfig.vars?.pricingIds;
-    if (item.price?.id && pricingIds?.[item.price.id]) {
-      acc = pricingIds?.[item.price.id] || '';
-    }
-    return acc;
-  }, '');
-};
-
 export interface PaddleCustomData {
   user_id?: string;
   gifter_id?: string;
 }
 
+type PaddleSubscriptionEvent =
+  | SubscriptionCreatedEvent
+  | SubscriptionCanceledEvent
+  | SubscriptionUpdatedEvent;
+
+const extractSubscriptionCycle = (
+  items: PaddleSubscriptionEvent['data']['items'],
+) => {
+  return items?.[0]?.price?.billingCycle?.interval;
+};
+
 export const updateUserSubscription = async ({
-  data,
+  event,
   state,
 }: {
-  data:
-    | SubscriptionCreatedEvent
-    | SubscriptionCanceledEvent
-    | SubscriptionUpdatedEvent
-    | undefined;
+  event: PaddleSubscriptionEvent | undefined;
   state: boolean;
 }) => {
-  if (!data) {
+  if (!event) {
     return;
   }
 
-  const customData: PaddleCustomData = data.data?.customData ?? {};
+  const { data } = event;
+  const customData: PaddleCustomData = data?.customData ?? {};
 
   const con = await createOrGetConnection();
   const userId = customData?.user_id;
@@ -113,7 +101,7 @@ export const updateUserSubscription = async ({
     logger.error(
       {
         user,
-        data,
+        event: event,
         provider: SubscriptionProvider.Paddle,
       },
       'User already has a Apple subscription',
@@ -121,13 +109,13 @@ export const updateUserSubscription = async ({
     throw new Error('User already has a StoreKit subscription');
   }
 
-  const subscriptionType = extractSubscriptionType(data.data?.items);
+  const subscriptionType = extractSubscriptionCycle(data.items);
 
   if (!subscriptionType) {
     logger.error(
       {
         provider: SubscriptionProvider.Paddle,
-        data,
+        data: event,
       },
       'Subscription type missing in payload',
     );
@@ -141,8 +129,8 @@ export const updateUserSubscription = async ({
     {
       subscriptionFlags: updateSubscriptionFlags({
         cycle: state ? subscriptionType : null,
-        createdAt: state ? data.data?.startedAt : null,
-        subscriptionId: state ? data.data?.id : null,
+        createdAt: state ? event.data?.startedAt : null,
+        subscriptionId: state ? event.data?.id : null,
         provider: state ? SubscriptionProvider.Paddle : null,
         status: state ? UserSubscriptionStatus.Active : null,
       }),
@@ -178,11 +166,11 @@ const getUserId = async ({
   return user.id;
 };
 
-const planChanged = async (data: SubscriptionUpdatedEvent) => {
-  const customData = data.data?.customData as { user_id: string };
+const planChanged = async ({ data }: SubscriptionUpdatedEvent) => {
+  const customData = data?.customData as { user_id: string };
   const userId = await getUserId({
     userId: customData?.user_id,
-    subscriptionId: data.data?.id,
+    subscriptionId: data?.id,
   });
   const con = await createOrGetConnection();
   const flags = await con.getRepository(User).findOne({
@@ -192,52 +180,52 @@ const planChanged = async (data: SubscriptionUpdatedEvent) => {
 
   return (
     (flags?.subscriptionFlags?.cycle as string) !==
-    extractSubscriptionType(data.data?.items)
+    extractSubscriptionCycle(data?.items)
   );
 };
 
-const logPaddleAnalyticsEvent = async (
-  data:
+interface AnalyticsExtra {
+  cycle: string;
+  cost: number;
+  currency: string;
+  payment: string;
+  localCost: number;
+  localCurrency: string;
+  payout: TransactionPayoutTotalsNotification | null;
+}
+
+const getAnalyticsExtra = (
+  data: (
     | SubscriptionUpdatedEvent
     | SubscriptionCanceledEvent
     | TransactionCompletedEvent
-    | undefined,
-  eventName: AnalyticsEventName,
-) => {
-  if (!data) {
-    return;
+  )['data'],
+): Partial<AnalyticsExtra> => {
+  const cost = data.items?.[0]?.price?.unitPrice?.amount;
+  const currency = data.items?.[0]?.price?.unitPrice?.currencyCode;
+  const localCurrency = data.currencyCode;
+
+  // payments are only available on transaction events
+  if (!('payments' in data)) {
+    return {
+      cycle: extractSubscriptionCycle(data.items),
+      cost: cost ? parseInt(cost) / 100 : undefined,
+      currency,
+      localCurrency,
+    };
   }
 
-  const customData = data.data?.customData as { user_id: string };
-  const cycle = extractSubscriptionType(data.data?.items);
-  const cost = data.data?.items?.[0]?.price?.unitPrice?.amount;
-  const currency = data.data?.items?.[0]?.price?.unitPrice?.currencyCode;
-  const localCost = (data as TransactionCompletedEvent).data?.details?.totals
-    ?.total;
-  const localCurrency = data.data?.currencyCode;
-  const payout = (data as TransactionCompletedEvent).data?.details
-    ?.payoutTotals;
-  const userId = await getUserId({
-    userId: customData?.user_id,
-    subscriptionId:
-      ('subscriptionId' in data.data && data.data.subscriptionId) ||
-      data.data.id,
-  });
-  if (!userId) {
-    return;
-  }
+  const transaction = data as TransactionCompletedEvent['data'];
+  const localCost = transaction?.details?.totals?.total;
+  const payout = transaction?.details?.payoutTotals;
+  const payment = transaction.payments?.reduce((acc, item) => {
+    if (item.status === 'captured') {
+      acc = item?.methodDetails?.type || '';
+    }
+    return acc;
+  }, '');
 
-  const payment =
-    'payments' in data.data &&
-    data.data?.payments?.reduce((acc, item) => {
-      if (item.status === 'captured') {
-        acc = item?.methodDetails?.type || '';
-      }
-      return acc;
-    }, '');
-
-  const extra = {
-    cycle,
+  return {
     cost: cost ? parseInt(cost) / 100 : undefined,
     currency,
     payment,
@@ -245,15 +233,40 @@ const logPaddleAnalyticsEvent = async (
     localCurrency,
     payout,
   };
+};
+
+const logPaddleAnalyticsEvent = async (
+  event:
+    | SubscriptionUpdatedEvent
+    | SubscriptionCanceledEvent
+    | TransactionCompletedEvent
+    | undefined,
+  eventName: AnalyticsEventName,
+) => {
+  if (!event) {
+    return;
+  }
+
+  const { data, occurredAt, eventId } = event;
+  const customData = data.customData as { user_id: string };
+  const userId = await getUserId({
+    userId: customData?.user_id,
+    subscriptionId:
+      ('subscriptionId' in data && data.subscriptionId) || data.id,
+  });
+
+  if (!userId) {
+    return;
+  }
 
   await sendAnalyticsEvent([
     {
       event_name: eventName,
-      event_timestamp: new Date(data.occurredAt),
-      event_id: data?.eventId,
+      event_timestamp: new Date(occurredAt),
+      event_id: eventId,
       app_platform: 'api',
       user_id: userId,
-      extra: JSON.stringify(extra),
+      extra: JSON.stringify(getAnalyticsExtra(data)),
     },
   ]);
 };
@@ -343,7 +356,7 @@ const notifyNewPaddleTransaction = async ({
           type: 'mrkdwn',
           text: concatTextToNewline(
             '*Type:*',
-            `<https://vendors.paddle.com/products-v2/${productId}|${extractSubscriptionType(data?.items)}>`,
+            `<https://vendors.paddle.com/products-v2/${productId}|${flags?.cycle}>`,
           ),
         },
         {
@@ -978,7 +991,7 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
                 break;
               case EventName.SubscriptionCreated:
                 await updateUserSubscription({
-                  data: eventData,
+                  event: eventData,
                   state: true,
                 });
 
@@ -998,7 +1011,7 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
               case EventName.SubscriptionCanceled:
                 Promise.all([
                   updateUserSubscription({
-                    data: eventData,
+                    event: eventData,
                     state: false,
                   }),
                   logPaddleAnalyticsEvent(
@@ -1011,7 +1024,7 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
                 const didPlanChange = await planChanged(eventData);
                 if (didPlanChange) {
                   await updateUserSubscription({
-                    data: eventData,
+                    event: eventData,
                     state: true,
                   });
                   await logPaddleAnalyticsEvent(

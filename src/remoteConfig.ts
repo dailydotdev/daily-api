@@ -1,7 +1,6 @@
 import { GrowthBook } from '@growthbook/growthbook';
 import { logger } from './logger';
 import { isProd } from './common/utils';
-import { SubscriptionCycles } from './paddle';
 import type { CoresRole } from './types';
 
 type RemoteConfigValue = {
@@ -10,7 +9,6 @@ type RemoteConfigValue = {
   vordrIps: string[];
   blockedCountries: string[];
   ignoredWorkEmailDomains: string[];
-  pricingIds: Record<string, SubscriptionCycles>;
   origins: string[];
   clickbaitTitleProbabilityThreshold: number;
   plusCustomFeed: boolean;
