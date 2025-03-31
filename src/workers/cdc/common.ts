@@ -125,6 +125,7 @@ export const notifyPostContentUpdated = async ({
       value: post.contentQuality,
       decoder: new ContentQuality(),
     }),
+    deleted: articlePost.deleted,
   });
 
   await triggerTypedEvent(

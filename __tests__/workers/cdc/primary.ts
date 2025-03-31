@@ -3122,6 +3122,7 @@ describe('post content updated', () => {
         url: 'http://p4.com',
         visible: true,
         yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
+        deleted: false,
       },
     ]);
   });
@@ -3208,6 +3209,7 @@ describe('post content updated', () => {
         url: '',
         visible: true,
         yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
+        deleted: false,
       },
     ]);
   });
@@ -3336,6 +3338,7 @@ describe('post content updated', () => {
         url: '',
         visible: true,
         yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
+        deleted: false,
       },
     ]);
   });
@@ -3421,6 +3424,7 @@ describe('post content updated', () => {
         url: 'http://youtube.com/watch?v=123',
         visible: true,
         yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
+        deleted: false,
       },
     ]);
   });
@@ -3493,6 +3497,38 @@ describe('post content updated', () => {
           updatedAt: Math.floor(
             contentUpdatedPost.metadataChangedAt / 1_000_000,
           ),
+        },
+      ],
+    );
+  });
+
+  it('should send deleted field', async () => {
+    type ArticlePostJsonB = Omit<ArticlePost, 'contentMeta'> & {
+      contentMeta: string;
+    };
+    const after: ChangeObject<ArticlePostJsonB> = {
+      ...contentUpdatedPost,
+      type: PostType.Article,
+      url: 'http://p4.com',
+      canonicalUrl: 'http://p4c.com',
+      contentMeta: '{}',
+      deleted: true,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ArticlePostJsonB>({
+        after,
+        before: after,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toMatchObject(
+      [
+        'api.v1.content-updated',
+        {
+          deleted: true,
         },
       ],
     );
