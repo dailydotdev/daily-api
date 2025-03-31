@@ -10,7 +10,7 @@ import {
   type TransactionPaymentFailedEvent,
   type TransactionReadyEvent,
   type TransactionUpdatedEvent,
-  TransactionPayoutTotalsNotification,
+  type TransactionPayoutTotalsNotification,
 } from '@paddle/paddle-node-sdk';
 import createOrGetConnection from '../../db';
 import {
