@@ -812,6 +812,7 @@ export class UserTransactionError extends GraphQLError {
   constructor(props: {
     status: UserTransactionStatus | TransferStatus;
     balance: GetBalanceResult;
+    transaction: UserTransaction;
   }) {
     const message =
       userTransactionErrorMessageMap[props.status] ||
@@ -822,6 +823,7 @@ export class UserTransactionError extends GraphQLError {
         code: 'BALANCE_TRANSACTION_ERROR',
         status: props.status,
         balance: props.balance,
+        transactionId: props.transaction.id,
       },
     });
   }
@@ -842,6 +844,7 @@ export const throwUserTransactionError = async ({
     balance: {
       amount: 0,
     },
+    transaction,
   });
 
   await entityManager.getRepository(UserTransaction).update(

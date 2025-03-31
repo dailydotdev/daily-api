@@ -8,6 +8,7 @@ import {
   type GraphQLTestClient,
   testMutationErrorCode,
   createMockNjordTransport,
+  createMockNjordErrorTransport,
 } from './helpers';
 import {
   ArticlePost,
@@ -24,7 +25,7 @@ import appFunc from '../src';
 import { Product, ProductType } from '../src/entity/Product';
 import type { AuthContext, Context } from '../src/Context';
 import { createClient } from '@connectrpc/connect';
-import { Credits } from '@dailydotdev/schema';
+import { Credits, TransferStatus } from '@dailydotdev/schema';
 import * as njordCommon from '../src/common/njord';
 import {
   UserTransaction,
@@ -231,6 +232,51 @@ describe('award user mutation', () => {
       'FORBIDDEN',
       'You can not award this user',
     );
+  });
+
+  it('should not award user when njord error', async () => {
+    loggedUser = 't-awum-1';
+
+    jest.spyOn(njordCommon, 'getNjordClient').mockImplementation(() =>
+      createClient(
+        Credits,
+        createMockNjordErrorTransport({
+          errorStatus: TransferStatus.INSUFFICIENT_FUNDS,
+          errorMessage: 'Insufficient funds',
+        }),
+      ),
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
+        entityId: 't-awum-2',
+        note: 'Test test!',
+      },
+    });
+    expect(res.errors).toBeTruthy();
+
+    expect(res.errors).toMatchObject([
+      {
+        extensions: {
+          balance: { amount: 0 },
+          code: 'BALANCE_TRANSACTION_ERROR',
+          status: 1,
+          transactionId: expect.any(String),
+        },
+        message: 'Insufficient Cores balance.',
+      },
+    ]);
+
+    const transactionId = res.errors![0].extensions.transactionId as string;
+
+    const transaction = await con.getRepository(UserTransaction).findOneBy({
+      id: transactionId,
+    });
+
+    expect(transaction).not.toBeNull();
+    expect(transaction!.id).toBe(transactionId);
+    expect(transaction!.status).toBe(UserTransactionStatus.InsufficientFunds);
   });
 });
 
@@ -583,6 +629,69 @@ describe('award post mutation', () => {
       'FORBIDDEN',
       'You can not award this user',
     );
+  });
+
+  it('should not award post when njord error', async () => {
+    loggedUser = 't-awpm-1';
+
+    jest.spyOn(njordCommon, 'getNjordClient').mockImplementation(() =>
+      createClient(
+        Credits,
+        createMockNjordErrorTransport({
+          errorStatus: TransferStatus.INSUFFICIENT_FUNDS,
+          errorMessage: 'Insufficient funds',
+        }),
+      ),
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
+        entityId: 'p-awpm-1',
+        note: 'Test test!',
+      },
+    });
+
+    expect(res.errors).toBeTruthy();
+
+    expect(res.errors).toMatchObject([
+      {
+        extensions: {
+          balance: { amount: 0 },
+          code: 'BALANCE_TRANSACTION_ERROR',
+          status: 1,
+          transactionId: expect.any(String),
+        },
+        message: 'Insufficient Cores balance.',
+      },
+    ]);
+
+    const transactionId = res.errors![0].extensions.transactionId as string;
+
+    const transaction = await con.getRepository(UserTransaction).findOneBy({
+      id: transactionId,
+    });
+
+    expect(transaction).not.toBeNull();
+    expect(transaction!.id).toBe(transactionId);
+    expect(transaction!.status).toBe(UserTransactionStatus.InsufficientFunds);
+    expect(transaction!.productId).toBe('dd65570f-86c0-40a0-b8a0-3fdbd0d3945d');
+
+    const userPost = await con.getRepository(UserPost).findOne({
+      where: {
+        awardTransactionId: transactionId,
+      },
+    });
+
+    expect(userPost).toBeNull();
+
+    const post = await con.getRepository(ArticlePost).findOneOrFail({
+      where: {
+        id: 'p-awpm-1',
+      },
+    });
+
+    expect(post.awards).toBe(0);
   });
 });
 
@@ -1083,6 +1192,77 @@ describe('award comment mutation', () => {
       'FORBIDDEN',
       'You can not award this user',
     );
+  });
+
+  it('should not award comment when njord error', async () => {
+    jest.spyOn(njordCommon, 'getNjordClient').mockImplementation(() =>
+      createClient(
+        Credits,
+        createMockNjordErrorTransport({
+          errorStatus: TransferStatus.INSUFFICIENT_FUNDS,
+          errorMessage: 'Insufficient funds',
+        }),
+      ),
+    );
+
+    loggedUser = 't-awcm-1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        productId: '17380714-1a0c-4dfc-b435-1ff44be8558d',
+        entityId: 'c-awcm-1',
+        note: 'Test test!',
+      },
+    });
+    expect(res.errors).toBeTruthy();
+
+    expect(res.errors).toMatchObject([
+      {
+        extensions: {
+          balance: { amount: 0 },
+          code: 'BALANCE_TRANSACTION_ERROR',
+          status: 1,
+          transactionId: expect.any(String),
+        },
+        message: 'Insufficient Cores balance.',
+      },
+    ]);
+
+    const transactionId = res.errors![0].extensions.transactionId as string;
+
+    const transaction = await con.getRepository(UserTransaction).findOneBy({
+      id: transactionId,
+    });
+
+    expect(transaction).not.toBeNull();
+    expect(transaction!.id).toBe(transactionId);
+    expect(transaction!.status).toBe(UserTransactionStatus.InsufficientFunds);
+    expect(transaction!.productId).toBe('17380714-1a0c-4dfc-b435-1ff44be8558d');
+
+    const userComment = await con.getRepository(UserComment).findOne({
+      where: {
+        awardTransactionId: transactionId,
+      },
+    });
+
+    expect(userComment).toBeNull();
+
+    const awardComment = await con.getRepository(Comment).findOne({
+      where: {
+        userId: 't-awcm-1',
+        awardTransactionId: transactionId,
+      },
+    });
+
+    expect(awardComment).toBeNull();
+
+    const comment = await con.getRepository(Comment).findOneOrFail({
+      where: {
+        id: 'c-awcm-1',
+      },
+    });
+
+    expect(comment.awards).toBe(0);
   });
 });
 
