@@ -1,15 +1,8 @@
 import { ApolloError } from 'apollo-server-errors';
-import { QueryFailedError, type EntityManager } from 'typeorm';
+import { QueryFailedError } from 'typeorm';
 import { submissionLimit } from './config';
 import { BookmarkListCountLimit, maxBookmarksPerMutation } from './types';
-import type { TransferResponse, TransferStatus } from '@dailydotdev/schema';
-import type { GetBalanceResult } from './common/njord';
-import { GraphQLError } from 'graphql';
-import {
-  UserTransaction,
-  UserTransactionStatus,
-} from './entity/user/UserTransaction';
-import { updateFlagsStatement } from './common';
+import type { TransferResponse } from '@dailydotdev/schema';
 
 export enum UserFailErrorKeys {
   GenericError = 'GENERIC_ERROR',
@@ -185,64 +178,3 @@ export class TransferError extends Error {
     this.transfer = transfer;
   }
 }
-
-const userTransactionErrorMessageMap: Partial<
-  Record<UserTransactionStatus, string>
-> = {
-  [UserTransactionStatus.InsufficientFunds]: 'Insufficient Cores balance.',
-};
-
-export class UserTransactionError extends GraphQLError {
-  constructor(props: {
-    status: UserTransactionStatus | TransferStatus;
-    balance: GetBalanceResult;
-  }) {
-    const message =
-      userTransactionErrorMessageMap[props.status] ||
-      `Failed, code: ${props.status}`;
-
-    super(message, {
-      extensions: {
-        code: 'BALANCE_TRANSACTION_ERROR',
-        status: props.status,
-        balance: props.balance,
-      },
-    });
-  }
-}
-
-export const throwUserTransactionError = async ({
-  entityManager,
-  error,
-  transaction,
-}: {
-  entityManager: EntityManager;
-  error: TransferError;
-  transaction: UserTransaction;
-}): Promise<never> => {
-  const userTransactionError = new UserTransactionError({
-    status: error.transfer.status,
-    // TODO feat/transactions replace with balance from error.transfer when njord is updated
-    balance: {
-      amount: 0,
-    },
-  });
-
-  await entityManager.getRepository(UserTransaction).update(
-    {
-      id: transaction.id,
-    },
-    {
-      status: error.transfer.status as number,
-      flags: updateFlagsStatement<UserTransaction>({
-        error: userTransactionError.message,
-      }),
-    },
-  );
-
-  // commit transaction after updating the transaction status
-  await entityManager.queryRunner?.commitTransaction();
-
-  // throw error for client after committing the transaction in error state
-  throw userTransactionError;
-};

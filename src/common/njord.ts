@@ -16,7 +16,13 @@ import {
   UserTransactionProcessor,
   UserTransactionStatus,
 } from '../entity/user/UserTransaction';
-import { isProd, isSpecialUser, parseBigInt, systemUser } from './utils';
+import {
+  isProd,
+  isSpecialUser,
+  parseBigInt,
+  systemUser,
+  updateFlagsStatement,
+} from './utils';
 import { ForbiddenError } from 'apollo-server-errors';
 import { checkCoresAccess, createAuthProtectedFn } from './user';
 import {
@@ -26,12 +32,7 @@ import {
 } from '../redis';
 import { generateStorageKey, StorageKey, StorageTopic } from '../config';
 import { coresBalanceExpirationSeconds } from './constants';
-import {
-  ConflictError,
-  NjordErrorMessages,
-  throwUserTransactionError,
-  TransferError,
-} from '../errors';
+import { ConflictError, NjordErrorMessages, TransferError } from '../errors';
 import { GarmrService } from '../integrations/garmr';
 import { BrokenCircuitError } from 'cockatiel';
 import type { EntityManager } from 'typeorm';
@@ -46,6 +47,7 @@ import { saveComment } from '../schema/comments';
 import { generateShortId } from '../ids';
 import { checkWithVordr, VordrFilterType } from './vordr';
 import { CoresRole } from '../types';
+import { GraphQLError } from 'graphql';
 
 const transport = createGrpcTransport({
   baseUrl: process.env.NJORD_ORIGIN,
@@ -798,4 +800,65 @@ export const awardComment = async (
       amount: parseBigInt(transfer.senderBalance!.newBalance),
     },
   };
+};
+
+const userTransactionErrorMessageMap: Partial<
+  Record<UserTransactionStatus, string>
+> = {
+  [UserTransactionStatus.InsufficientFunds]: 'Insufficient Cores balance.',
+};
+
+export class UserTransactionError extends GraphQLError {
+  constructor(props: {
+    status: UserTransactionStatus | TransferStatus;
+    balance: GetBalanceResult;
+  }) {
+    const message =
+      userTransactionErrorMessageMap[props.status] ||
+      `Failed, code: ${props.status}`;
+
+    super(message, {
+      extensions: {
+        code: 'BALANCE_TRANSACTION_ERROR',
+        status: props.status,
+        balance: props.balance,
+      },
+    });
+  }
+}
+
+export const throwUserTransactionError = async ({
+  entityManager,
+  error,
+  transaction,
+}: {
+  entityManager: EntityManager;
+  error: TransferError;
+  transaction: UserTransaction;
+}): Promise<never> => {
+  const userTransactionError = new UserTransactionError({
+    status: error.transfer.status,
+    // TODO feat/transactions replace with balance from error.transfer when njord is updated
+    balance: {
+      amount: 0,
+    },
+  });
+
+  await entityManager.getRepository(UserTransaction).update(
+    {
+      id: transaction.id,
+    },
+    {
+      status: error.transfer.status as number,
+      flags: updateFlagsStatement<UserTransaction>({
+        error: userTransactionError.message,
+      }),
+    },
+  );
+
+  // commit transaction after updating the transaction status
+  await entityManager.queryRunner?.commitTransaction();
+
+  // throw error for client after committing the transaction in error state
+  throw userTransactionError;
 };
