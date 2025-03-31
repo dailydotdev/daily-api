@@ -129,8 +129,8 @@ export const updateUserSubscription = async ({
     {
       subscriptionFlags: updateSubscriptionFlags({
         cycle: state ? subscriptionType : null,
-        createdAt: state ? event.data?.startedAt : null,
-        subscriptionId: state ? event.data?.id : null,
+        createdAt: state ? data?.startedAt : null,
+        subscriptionId: state ? data?.id : null,
         provider: state ? SubscriptionProvider.Paddle : null,
         status: state ? UserSubscriptionStatus.Active : null,
       }),
