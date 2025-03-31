@@ -49,10 +49,10 @@ import {
   UserTransactionProcessor,
   UserTransactionStatus,
 } from '../../entity/user/UserTransaction';
-import { purchaseCores } from '../../common/njord';
+import { purchaseCores, throwUserTransactionError } from '../../common/njord';
 import { checkUserCoresAccess } from '../../common/user';
 import { CoresRole } from '../../types';
-import { throwUserTransactionError, TransferError } from '../../errors';
+import { TransferError } from '../../errors';
 
 const extractSubscriptionType = (
   items:
