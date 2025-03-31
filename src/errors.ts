@@ -9,6 +9,7 @@ import {
   UserTransaction,
   UserTransactionStatus,
 } from './entity/user/UserTransaction';
+import { updateFlagsStatement } from './common';
 
 export enum UserFailErrorKeys {
   GenericError = 'GENERIC_ERROR',
@@ -188,8 +189,7 @@ export class TransferError extends Error {
 const userTransactionErrorMessageMap: Partial<
   Record<UserTransactionStatus, string>
 > = {
-  [UserTransactionStatus.InsufficientFunds]:
-    '🚫 Insufficient balance, you can purchase some Cores and try again.',
+  [UserTransactionStatus.InsufficientFunds]: 'Insufficient Cores balance.',
 };
 
 export class UserTransactionError extends GraphQLError {
@@ -199,11 +199,12 @@ export class UserTransactionError extends GraphQLError {
   }) {
     const message =
       userTransactionErrorMessageMap[props.status] ||
-      '🚫 Something went wrong, please try again.';
+      `Failed, code: ${props.status}`;
 
     super(message, {
       extensions: {
         code: 'BALANCE_TRANSACTION_ERROR',
+        status: props.status,
         balance: props.balance,
       },
     });
@@ -219,12 +220,23 @@ export const throwUserTransactionError = async ({
   error: TransferError;
   transaction: UserTransaction;
 }): Promise<never> => {
+  const userTransactionError = new UserTransactionError({
+    status: error.transfer.status,
+    // TODO feat/transactions replace with balance from error.transfer when njord is updated
+    balance: {
+      amount: 0,
+    },
+  });
+
   await entityManager.getRepository(UserTransaction).update(
     {
       id: transaction.id,
     },
     {
       status: error.transfer.status as number,
+      flags: updateFlagsStatement<UserTransaction>({
+        error: userTransactionError.message,
+      }),
     },
   );
 
@@ -232,11 +244,5 @@ export const throwUserTransactionError = async ({
   await entityManager.queryRunner?.commitTransaction();
 
   // throw error for client after committing the transaction in error state
-  throw new UserTransactionError({
-    status: error.transfer.status,
-    // TODO feat/transactions replace with balance from error.transfer when njord is updated
-    balance: {
-      amount: 0,
-    },
-  });
+  throw userTransactionError;
 };
