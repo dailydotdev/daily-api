@@ -101,7 +101,7 @@ export const updateUserSubscription = async ({
     logger.error(
       {
         user,
-        event: event,
+        data: event,
         provider: SubscriptionProvider.Paddle,
       },
       'User already has a Apple subscription',
