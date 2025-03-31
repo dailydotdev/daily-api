@@ -58,7 +58,6 @@ import setCookieParser from 'set-cookie-parser';
 import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
 import { SourcePermissions } from '../src/schema/sources';
-import { getEncryptedFeatures } from '../src/growthbook';
 import { base64 } from 'graphql-relay/utils/base64';
 import { cookies } from '../src/cookies';
 import { signJwt } from '../src/auth';
@@ -69,11 +68,12 @@ import {
 } from '../src/common';
 import { saveReturnAlerts } from '../src/schema/alerts';
 import { CoresRole, UserVote } from '../src/types';
-import { BootAlerts, excludeProperties } from '../src/routes/boot';
+import { BootAlerts, excludeProperties, FunnelBoot } from '../src/routes/boot';
 import { SubscriptionCycles } from '../src/paddle';
 import * as njordCommon from '../src/common/njord';
 import { Credits, EntityType } from '@dailydotdev/schema';
 import { createClient } from '@connectrpc/connect';
+import { FunnelState } from '../src/integrations/freyja';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -169,6 +169,18 @@ const getBootAlert = (data: Alerts): BootAlerts =>
       subDays(new Date(), FEED_SURVEY_INTERVAL) > data.lastFeedSettingsFeedback,
   }) as BootAlerts;
 
+jest.mock('../src/growthbook', () => ({
+  ...(jest.requireActual('../src/growthbook') as Record<string, unknown>),
+  getEncryptedFeatures: () => 'enc',
+  getUserGrowthBookInstace: () => {
+    return {
+      loadFeatures: jest.fn(),
+      getFeatures: jest.fn(),
+      getFeatureValue: () => 'gbId',
+    };
+  },
+}));
+
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(() => new MockContext(con));
@@ -177,7 +189,6 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   jest.clearAllMocks();
-  jest.mocked(getEncryptedFeatures).mockReturnValue('enc');
   await con.getRepository(User).save(usersFixture[0]);
   await con.getRepository(Source).save(sourcesFixture);
   await con.getRepository(Post).save(postsFixture);
@@ -1484,5 +1495,172 @@ describe('boot alerts shouldShowFeedFeedback property', () => {
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
     expect(res.body.alerts.shouldShowFeedFeedback).toBeTruthy();
+  });
+});
+
+describe('funnel boot', () => {
+  const FUNNEL_DATA: FunnelState = {
+    session: {
+      userId: '1',
+      id: 'sessionId',
+      currentStep: '5',
+    },
+    funnel: {
+      id: 'funnelId',
+      version: 2,
+    },
+  };
+
+  const FUNNEL_BOOT_BODY: FunnelBoot = {
+    ...ANONYMOUS_BODY,
+    funnelState: FUNNEL_DATA,
+  };
+
+  it('should return the funnel data for an anonymous user', async () => {
+    nock(process.env.FREYJA_ORIGIN)
+      .post('/api/sessions', {
+        userId: '1',
+        funnelId: 'funnelId',
+        version: 2,
+      })
+      .reply(200, JSON.stringify(FUNNEL_DATA));
+
+    const res = await request(app.server)
+      .get(`${BASE_PATH}/funnel?id=funnelId&v=2`)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', `${cookies.tracking.key}=1;`)
+      .expect(200);
+    expect(res.body).toEqual(FUNNEL_BOOT_BODY);
+  });
+
+  it('should return the logged in user', async () => {
+    nock(process.env.FREYJA_ORIGIN)
+      .post('/api/sessions')
+      .reply(200, JSON.stringify(FUNNEL_DATA));
+
+    const accessToken = await signJwt(
+      {
+        userId: '1',
+        roles: [],
+      },
+      15 * 60 * 1000,
+    );
+
+    const res = await request(app.server)
+      .get(`${BASE_PATH}/funnel?id=funnelId`)
+      .set('User-Agent', TEST_UA)
+      .set(
+        'Cookie',
+        `${cookies.auth.key}=${app.signCookie(accessToken.token)};`,
+      )
+      .expect(200);
+    expect(res.body).toEqual({
+      ...FUNNEL_BOOT_BODY,
+      user: excludeProperties(LOGGED_IN_BODY.user, [
+        'balance',
+        'flags',
+        'isPlus',
+        'isTeamMember',
+        'language',
+        'roles',
+        'subscriptionFlags',
+      ]),
+    });
+  });
+
+  it('should return anonymous user if jwt is expired', async () => {
+    nock(process.env.FREYJA_ORIGIN)
+      .post('/api/sessions')
+      .reply(200, JSON.stringify(FUNNEL_DATA));
+
+    const accessToken = await signJwt(
+      {
+        userId: '1',
+        roles: [],
+      },
+      -15 * 60 * 1000,
+    );
+
+    const res = await request(app.server)
+      .get(`${BASE_PATH}/funnel?id=funnelId`)
+      .set('User-Agent', TEST_UA)
+      .set(
+        'Cookie',
+        `${cookies.auth.key}=${app.signCookie(accessToken.token)};`,
+      )
+      .expect(200);
+    expect(res.body).toEqual(FUNNEL_BOOT_BODY);
+  });
+
+  it('should set cookie for the new funnel', async () => {
+    nock(process.env.FREYJA_ORIGIN)
+      .post('/api/sessions')
+      .reply(200, JSON.stringify(FUNNEL_DATA));
+
+    const res = await request(app.server)
+      .get(`${BASE_PATH}/funnel?id=funnelId`)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', `${cookies.tracking.key}=1;`)
+      .expect(200);
+
+    const cookie = (res.get('set-cookie') as unknown as string[]).find((c) =>
+      c.startsWith(cookies.funnel.key),
+    );
+    expect(cookie?.split(';')[0]).toEqual(
+      `${cookies.funnel.key}=${FUNNEL_DATA.session.id}`,
+    );
+  });
+
+  it('should load funnel when cookie is present', async () => {
+    nock(process.env.FREYJA_ORIGIN)
+      .get(`/api/sessions/${FUNNEL_DATA.session.id}`)
+      .reply(200, JSON.stringify(FUNNEL_DATA));
+
+    const res = await request(app.server)
+      .get(`${BASE_PATH}/funnel?id=funnelId2`)
+      .set('User-Agent', TEST_UA)
+      .set(
+        'Cookie',
+        `${cookies.tracking.key}=1;${cookies.funnel.key}=${FUNNEL_DATA.session.id};`,
+      )
+      .expect(200);
+    expect(res.body).toEqual(FUNNEL_BOOT_BODY);
+  });
+
+  it('should ignore cookie when the user does not match', async () => {
+    nock(process.env.FREYJA_ORIGIN)
+      .get(`/api/sessions/${FUNNEL_DATA.session.id}`)
+      .reply(200, JSON.stringify(FUNNEL_DATA));
+
+    const clone = structuredClone(FUNNEL_DATA);
+    clone.session.userId = '2';
+    nock(process.env.FREYJA_ORIGIN)
+      .post('/api/sessions')
+      .reply(200, JSON.stringify(clone));
+
+    const res = await request(app.server)
+      .get(`${BASE_PATH}/funnel?id=funnelId`)
+      .set('User-Agent', TEST_UA)
+      .set(
+        'Cookie',
+        `${cookies.tracking.key}=2;${cookies.funnel.key}=${FUNNEL_DATA.session.id};`,
+      )
+      .expect(200);
+    expect(res.body.funnelState.session.userId).toEqual('2');
+  });
+
+  it('should load funnel id from growthbook', async () => {
+    nock(process.env.FREYJA_ORIGIN)
+      .post('/api/sessions', {
+        userId: '1',
+        funnelId: 'gbId',
+      })
+      .reply(200, JSON.stringify(FUNNEL_DATA));
+
+    await request(app.server)
+      .get(`${BASE_PATH}/funnel`)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', `${cookies.tracking.key}=1;`)
+      .expect(200);
   });
 });

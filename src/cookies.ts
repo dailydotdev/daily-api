@@ -36,6 +36,16 @@ export const cookies: {
     },
     key: 'da3',
   },
+  funnel: {
+    opts: {
+      maxAge: 1000 * 60 * 30,
+      httpOnly: false,
+      signed: false,
+      secure: false,
+      sameSite: 'lax',
+    },
+    key: 'da4',
+  },
   kratos: {
     key: 'ory_kratos_session',
     opts: {
