@@ -5,6 +5,7 @@ import {
   Currency,
   EntityType,
   GetBalanceResponse,
+  TransferStatus,
   TransferType,
   type BalanceChange,
   type TransferResult,
@@ -25,7 +26,12 @@ import {
 } from '../redis';
 import { generateStorageKey, StorageKey, StorageTopic } from '../config';
 import { coresBalanceExpirationSeconds } from './constants';
-import { ConflictError, NjordErrorMessages } from '../errors';
+import {
+  ConflictError,
+  NjordErrorMessages,
+  throwUserTransactionError,
+  TransferError,
+} from '../errors';
 import { GarmrService } from '../integrations/garmr';
 import { BrokenCircuitError } from 'cockatiel';
 import type { EntityManager } from 'typeorm';
@@ -52,6 +58,9 @@ const garmNjordService = new GarmrService({
     halfOpenAfter: 5 * 1000,
     threshold: 0.1,
     duration: 10 * 1000,
+  },
+  retryOpts: {
+    maxAttempts: 1,
   },
 });
 
@@ -146,27 +155,30 @@ export const transferCores = createAuthProtectedFn(
 
     const njordClient = getNjordClient();
 
-    const transferResult = await garmNjordService.execute(async () => {
-      if (!transaction.id) {
-        throw new Error('No transaction id');
-      }
+    if (!transaction.id) {
+      throw new Error('No transaction id');
+    }
 
-      if (!transaction.senderId) {
-        throw new Error('No sender id');
-      }
+    if (!transaction.senderId) {
+      throw new Error('No sender id');
+    }
 
-      const { results } = await njordClient.transfer({
+    const senderId = transaction.senderId;
+    const receiverId = transaction.receiverId;
+
+    const response = await garmNjordService.execute(async () => {
+      const response = await njordClient.transfer({
         idempotencyKey: transaction.id,
         transfers: [
           {
             transferType: TransferType.TRANSFER,
             currency: Currency.CORES,
             sender: {
-              id: transaction.senderId,
+              id: senderId,
               type: EntityType.USER,
             },
             receiver: {
-              id: transaction.receiverId,
+              id: receiverId,
               type: EntityType.USER,
             },
             amount: transaction.value,
@@ -176,91 +188,16 @@ export const transferCores = createAuthProtectedFn(
           },
         ],
       });
-      // we always have single transfer
-      const result = results.find(
-        (item) => item.transferType === TransferType.TRANSFER,
-      );
 
-      if (!result) {
-        throw new Error('No transfer result');
-      }
-
-      await Promise.allSettled([
-        [
-          parseBalanceUpdate({
-            balance: result.senderBalance,
-            userId: transaction.senderId,
-          }),
-          parseBalanceUpdate({
-            balance: result.receiverBalance,
-            userId: transaction.receiverId,
-          }),
-        ].map(async (balanceUpdate) => {
-          if (!balanceUpdate) {
-            return;
-          }
-
-          await updateBalanceCache({
-            ctx: {
-              userId: balanceUpdate.userId,
-            },
-            value: {
-              amount: parseBigInt(balanceUpdate.balance.newBalance),
-            },
-          });
-        }),
-      ]);
-
-      // TODO feat/transactions error handling
-
-      return result;
+      return response;
     });
 
-    return transferResult;
-  },
-);
-
-export const purchaseCores = async ({
-  transaction,
-}: {
-  transaction: UserTransaction;
-}): Promise<TransferResult> => {
-  const transferResult = await garmNjordService.execute(async () => {
-    if (!transaction.id) {
-      throw new Error('No transaction id');
+    if (response.status !== TransferStatus.SUCCESS) {
+      throw new TransferError(response);
     }
 
-    if (transaction.senderId) {
-      throw new Error('Purchase cores transaction can not have sender');
-    }
+    const { results } = response;
 
-    if (transaction.productId) {
-      throw new Error('Purchase cores transaction can not have product');
-    }
-
-    const njordClient = getNjordClient();
-
-    const { results } = await njordClient.transfer({
-      idempotencyKey: transaction.id,
-      transfers: [
-        {
-          transferType: TransferType.TRANSFER,
-          currency: Currency.CORES,
-          sender: {
-            id: systemUser.id,
-            type: EntityType.SYSTEM,
-          },
-          receiver: {
-            id: transaction.receiverId,
-            type: EntityType.USER,
-          },
-          amount: transaction.value,
-          fee: {
-            percentage: transaction.fee,
-          },
-        },
-      ],
-    });
     // we always have single transfer
     const result = results.find(
       (item) => item.transferType === TransferType.TRANSFER,
@@ -272,6 +209,10 @@ export const purchaseCores = async ({
 
     await Promise.allSettled([
       [
+        parseBalanceUpdate({
+          balance: result.senderBalance,
+          userId: transaction.senderId,
+        }),
         parseBalanceUpdate({
           balance: result.receiverBalance,
           userId: transaction.receiverId,
@@ -292,12 +233,93 @@ export const purchaseCores = async ({
       }),
     ]);
 
-    // TODO feat/transactions error handling
-
     return result;
+  },
+);
+
+export const purchaseCores = async ({
+  transaction,
+}: {
+  transaction: UserTransaction;
+}): Promise<TransferResult> => {
+  if (!transaction.id) {
+    throw new Error('No transaction id');
+  }
+
+  if (transaction.senderId) {
+    throw new Error('Purchase cores transaction can not have sender');
+  }
+
+  if (transaction.productId) {
+    throw new Error('Purchase cores transaction can not have product');
+  }
+
+  const njordClient = getNjordClient();
+
+  const response = await garmNjordService.execute(async () => {
+    const response = await njordClient.transfer({
+      idempotencyKey: transaction.id,
+      transfers: [
+        {
+          transferType: TransferType.TRANSFER,
+          currency: Currency.CORES,
+          sender: {
+            id: systemUser.id,
+            type: EntityType.SYSTEM,
+          },
+          receiver: {
+            id: transaction.receiverId,
+            type: EntityType.USER,
+          },
+          amount: transaction.value,
+          fee: {
+            percentage: transaction.fee,
+          },
+        },
+      ],
+    });
+
+    return response;
   });
 
-  return transferResult;
+  if (response.status !== TransferStatus.SUCCESS) {
+    throw new TransferError(response);
+  }
+
+  const { results } = response;
+
+  // we always have single transfer
+  const result = results.find(
+    (item) => item.transferType === TransferType.TRANSFER,
+  );
+
+  if (!result) {
+    throw new Error('No transfer result');
+  }
+
+  await Promise.allSettled([
+    [
+      parseBalanceUpdate({
+        balance: result.receiverBalance,
+        userId: transaction.receiverId,
+      }),
+    ].map(async (balanceUpdate) => {
+      if (!balanceUpdate) {
+        return;
+      }
+
+      await updateBalanceCache({
+        ctx: {
+          userId: balanceUpdate.userId,
+        },
+        value: {
+          amount: parseBigInt(balanceUpdate.balance.newBalance),
+        },
+      });
+    }),
+  ]);
+
+  return result;
 };
 
 export type GetBalanceProps = Pick<AuthContext, 'userId'>;
@@ -482,12 +504,24 @@ export const awardUser = async (
         note,
       });
 
-      const transfer = await transferCores({
-        ctx,
-        transaction,
-      });
+      try {
+        const transfer = await transferCores({
+          ctx,
+          transaction,
+        });
 
-      return { transaction, transfer };
+        return { transaction, transfer };
+      } catch (error) {
+        if (error instanceof TransferError) {
+          await throwUserTransactionError({
+            entityManager,
+            error,
+            transaction,
+          });
+        }
+
+        throw error;
+      }
     },
   );
 
@@ -581,12 +615,28 @@ export const awardPost = async (
         )
         .execute();
 
-      const transfer = await transferCores({
-        ctx,
-        transaction,
-      });
+      try {
+        const transfer = await transferCores({
+          ctx,
+          transaction,
+        });
 
-      return { transaction, transfer };
+        return { transaction, transfer };
+      } catch (error) {
+        if (error instanceof TransferError) {
+          await entityManager.getRepository(UserPost).delete({
+            awardTransactionId: transaction.id,
+          });
+
+          await throwUserTransactionError({
+            entityManager,
+            error,
+            transaction,
+          });
+        }
+
+        throw error;
+      }
     },
   );
 
@@ -679,10 +729,12 @@ export const awardComment = async (
         )
         .execute();
 
+      let newComment: Comment | undefined;
+
       if (note) {
         const post = await comment.post;
 
-        const newComment = entityManager.getRepository(Comment).create({
+        newComment = entityManager.getRepository(Comment).create({
           id: await generateShortId(),
           postId: comment.postId,
           parentId: comment.parentId || comment.id,
@@ -709,12 +761,34 @@ export const awardComment = async (
         await saveComment(entityManager, newComment, post.sourceId);
       }
 
-      const transfer = await transferCores({
-        ctx,
-        transaction,
-      });
+      try {
+        const transfer = await transferCores({
+          ctx,
+          transaction,
+        });
 
-      return { transaction, transfer };
+        return { transaction, transfer };
+      } catch (error) {
+        if (error instanceof TransferError) {
+          if (newComment) {
+            await entityManager.getRepository(Comment).delete({
+              id: newComment.id,
+            });
+          }
+
+          await entityManager.getRepository(UserComment).delete({
+            awardTransactionId: transaction.id,
+          });
+
+          await throwUserTransactionError({
+            entityManager,
+            error,
+            transaction,
+          });
+        }
+
+        throw error;
+      }
     },
   );
 

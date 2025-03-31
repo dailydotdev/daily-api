@@ -52,6 +52,7 @@ import {
 import { purchaseCores } from '../../common/njord';
 import { checkUserCoresAccess } from '../../common/user';
 import { CoresRole } from '../../types';
+import { throwUserTransactionError, TransferError } from '../../errors';
 
 const extractSubscriptionType = (
   items:
@@ -656,9 +657,21 @@ export const processTransactionCompleted = async ({
           throw new Error('User does not have access to cores purchase');
         }
 
-        await purchaseCores({
-          transaction: userTransaction,
-        });
+        try {
+          await purchaseCores({
+            transaction: userTransaction,
+          });
+        } catch (error) {
+          if (error instanceof TransferError) {
+            await throwUserTransactionError({
+              entityManager,
+              error,
+              transaction: userTransaction,
+            });
+          }
+
+          throw error;
+        }
 
         return userTransaction;
       },

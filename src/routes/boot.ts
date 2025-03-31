@@ -470,7 +470,7 @@ const getBalanceBoot: typeof getBalance = async ({ userId }) => {
   } catch (originalError) {
     logger.debug({ err: originalError }, 'getBalanceBoot error');
 
-    // TODO feat/transactions for now ignore any error and return 0 balance
+    // in case of issues with fetching balance we return zero balance
     return {
       amount: 0,
     };

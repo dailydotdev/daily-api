@@ -1,7 +1,14 @@
 import { ApolloError } from 'apollo-server-errors';
-import { QueryFailedError } from 'typeorm';
+import { QueryFailedError, type EntityManager } from 'typeorm';
 import { submissionLimit } from './config';
 import { BookmarkListCountLimit, maxBookmarksPerMutation } from './types';
+import type { TransferResponse, TransferStatus } from '@dailydotdev/schema';
+import type { GetBalanceResult } from './common/njord';
+import { GraphQLError } from 'graphql';
+import {
+  UserTransaction,
+  UserTransactionStatus,
+} from './entity/user/UserTransaction';
 
 export enum UserFailErrorKeys {
   GenericError = 'GENERIC_ERROR',
@@ -167,3 +174,69 @@ export class RedirectError extends Error {
 export enum NjordErrorMessages {
   BalanceAccountNotFound = 'get balance error: account not found',
 }
+
+export class TransferError extends Error {
+  transfer: TransferResponse;
+
+  constructor(transfer: TransferResponse) {
+    super(transfer.errorMessage || 'Transfer error');
+
+    this.transfer = transfer;
+  }
+}
+
+const userTransactionErrorMessageMap: Partial<
+  Record<UserTransactionStatus, string>
+> = {
+  [UserTransactionStatus.InsufficientFunds]:
+    '🚫 Insufficient balance, you can purchase some Cores and try again.',
+};
+
+export class UserTransactionError extends GraphQLError {
+  constructor(props: {
+    status: UserTransactionStatus | TransferStatus;
+    balance: GetBalanceResult;
+  }) {
+    const message =
+      userTransactionErrorMessageMap[props.status] ||
+      '🚫 Something went wrong, please try again.';
+
+    super(message, {
+      extensions: {
+        code: 'BALANCE_TRANSACTION_ERROR',
+        balance: props.balance,
+      },
+    });
+  }
+}
+
+export const throwUserTransactionError = async ({
+  entityManager,
+  error,
+  transaction,
+}: {
+  entityManager: EntityManager;
+  error: TransferError;
+  transaction: UserTransaction;
+}): Promise<never> => {
+  await entityManager.getRepository(UserTransaction).update(
+    {
+      id: transaction.id,
+    },
+    {
+      status: error.transfer.status as number,
+    },
+  );
+
+  // commit transaction after updating the transaction status
+  await entityManager.queryRunner?.commitTransaction();
+
+  // throw error for client after committing the transaction in error state
+  throw new UserTransactionError({
+    status: error.transfer.status,
+    // TODO feat/transactions replace with balance from error.transfer when njord is updated
+    balance: {
+      amount: 0,
+    },
+  });
+};
