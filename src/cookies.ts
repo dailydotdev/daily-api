@@ -39,9 +39,9 @@ export const cookies: {
   funnel: {
     opts: {
       maxAge: 1000 * 60 * 30,
-      httpOnly: false,
+      httpOnly: true,
       signed: false,
-      secure: false,
+      secure: env === 'production',
       sameSite: 'lax',
     },
     key: 'da4',
