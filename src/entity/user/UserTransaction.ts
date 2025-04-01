@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -42,6 +43,7 @@ export enum UserTransactionProcessor {
 }
 
 @Entity()
+@Index('IDX_user_transaction_flags_providerId', { synchronize: false })
 export class UserTransaction {
   @PrimaryGeneratedColumn('uuid')
   id: string;
