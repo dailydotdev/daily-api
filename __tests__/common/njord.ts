@@ -1,12 +1,16 @@
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
-import { createMockNjordTransport, saveFixtures } from '../helpers';
+import {
+  createMockNjordErrorTransport,
+  createMockNjordTransport,
+  saveFixtures,
+} from '../helpers';
 import { usersFixture } from '../fixture';
 
 import { Product, ProductType } from '../../src/entity/Product';
 import type { AuthContext } from '../../src/Context';
 import { createClient } from '@connectrpc/connect';
-import { Credits, EntityType } from '@dailydotdev/schema';
+import { Credits, EntityType, TransferStatus } from '@dailydotdev/schema';
 import * as njordCommon from '../../src/common/njord';
 import { User } from '../../src/entity/user/User';
 import { ForbiddenError } from 'apollo-server-errors';
@@ -18,6 +22,7 @@ import {
 import * as redisFile from '../../src/redis';
 import { ioRedisPool } from '../../src/redis';
 import { parseBigInt } from '../../src/common';
+import { TransferError } from '../../src/errors';
 
 let con: DataSource;
 
@@ -165,6 +170,38 @@ describe('transferCores', () => {
         },
       });
     });
+  });
+
+  it('should throw on njord error', async () => {
+    jest.spyOn(njordCommon, 'getNjordClient').mockImplementation(() =>
+      createClient(
+        Credits,
+        createMockNjordErrorTransport({
+          errorStatus: TransferStatus.INSUFFICIENT_FUNDS,
+          errorMessage: 'Insufficient funds',
+        }),
+      ),
+    );
+
+    const transaction = await njordCommon.createTransaction({
+      ctx: {
+        userId: 't-tc-1',
+      } as unknown as AuthContext,
+      entityManager: con.manager,
+      productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
+      receiverId: 't-tc-2',
+      note: 'Test test!',
+    });
+
+    await expect(
+      async () =>
+        await njordCommon.transferCores({
+          ctx: {
+            userId: 't-tc-1',
+          } as unknown as AuthContext,
+          transaction,
+        }),
+    ).rejects.toBeInstanceOf(TransferError);
   });
 });
 

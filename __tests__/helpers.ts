@@ -32,7 +32,11 @@ import { DataLoaderService, defaultCacheKeyFn } from '../src/dataLoaderService';
 import { opentelemetry } from '../src/telemetry/opentelemetry';
 import { logger } from '../src/logger';
 import { createRouterTransport } from '@connectrpc/connect';
-import { Credits, TransferType } from '@dailydotdev/schema';
+import {
+  Credits,
+  TransferType,
+  type TransferStatus,
+} from '@dailydotdev/schema';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<opentelemetry.Span> & opentelemetry.Span;
@@ -430,6 +434,42 @@ export const createMockNjordTransport = () => {
               transferType: TransferType.TRANSFER,
             },
           ],
+        };
+      },
+    });
+  });
+};
+
+export const createMockNjordErrorTransport = ({
+  errorStatus,
+  errorMessage = 'something broke',
+}: {
+  errorStatus: TransferStatus;
+  errorMessage?: string;
+}) => {
+  return createRouterTransport(({ service }) => {
+    const accounts: Record<
+      string,
+      {
+        amount: number;
+      }
+    > = {};
+
+    service(Credits, {
+      getBalance: (request) => {
+        return (
+          accounts[request.account!.userId] || {
+            amount: BigInt(0),
+          }
+        );
+      },
+      transfer: (transferRequest) => {
+        return {
+          idempotencyKey: transferRequest.idempotencyKey,
+          status: errorStatus,
+          errorMessage,
+          results: [],
+          timestamp: Date.now(),
         };
       },
     });

@@ -2,6 +2,7 @@ import { ApolloError } from 'apollo-server-errors';
 import { QueryFailedError } from 'typeorm';
 import { submissionLimit } from './config';
 import { BookmarkListCountLimit, maxBookmarksPerMutation } from './types';
+import type { TransferResponse } from '@dailydotdev/schema';
 
 export enum UserFailErrorKeys {
   GenericError = 'GENERIC_ERROR',
@@ -166,4 +167,14 @@ export class RedirectError extends Error {
 
 export enum NjordErrorMessages {
   BalanceAccountNotFound = 'get balance error: account not found',
+}
+
+export class TransferError extends Error {
+  transfer: TransferResponse;
+
+  constructor(transfer: TransferResponse) {
+    super(transfer.errorMessage || 'Transfer error');
+
+    this.transfer = transfer;
+  }
 }
