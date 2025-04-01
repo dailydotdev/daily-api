@@ -51,7 +51,11 @@ import { execute } from 'graphql/execution/execute';
 import { schema } from '../graphql';
 import { Context } from '../Context';
 import { SourceMemberRoles } from '../roles';
-import { getEncryptedFeatures } from '../growthbook';
+import {
+  ExperimentAllocationClient,
+  getEncryptedFeatures,
+  getUserGrowthBookInstace,
+} from '../growthbook';
 import { differenceInMinutes, isSameDay, subDays } from 'date-fns';
 import {
   runInSpan,
@@ -67,6 +71,7 @@ import { Continent, countryCodeToContinent } from '../common/geo';
 import { getBalance, type GetBalanceResult } from '../common/njord';
 import { remoteConfig } from '../remoteConfig';
 import { logger } from '../logger';
+import { freyjaClient, type FunnelState } from '../integrations/freyja';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -134,6 +139,16 @@ export type LoggedInBoot = BaseBoot & {
   };
   accessToken?: AccessToken;
   marketingCta: MarketingCta | null;
+};
+
+export type FunnelLoggedInUser = GQLUser & {
+  providers: (string | null)[];
+  permalink: string;
+};
+
+export type FunnelBoot = AnonymousBoot & {
+  user: FunnelLoggedInUser | AnonymousUser;
+  funnelState: FunnelState;
 };
 
 type BootMiddleware = (
@@ -748,6 +763,103 @@ const COMPANION_QUERY = parse(`query Post($url: String) {
         }
       }`);
 
+const allocationClient = new ExperimentAllocationClient();
+// Uses Growthbook to resolve the funnel id
+const resolveDynamicFunnelId = (userId: string): string => {
+  const gbClient = getUserGrowthBookInstace(userId, {
+    allocationClient,
+  });
+  return gbClient.getFeatureValue('web_funnel_id', 'off');
+};
+
+// Fetches the funnel data from Freyja
+const getFunnel = async (req: FastifyRequest, res: FastifyReply) => {
+  const userId = req.userId || req.trackingId;
+  const query = req.query as { id?: string; v?: string };
+  const sessionId = req.cookies[cookies.funnel.key];
+
+  if (!userId) {
+    throw new Error('User ID is required');
+  }
+
+  // If the session id is set, we should use it to fetch the funnel data
+  if (sessionId) {
+    const sessionFunnel = await freyjaClient.getSession(sessionId);
+    if (sessionFunnel?.session.userId === userId) {
+      return sessionFunnel;
+    }
+  }
+
+  // If the funnel id is not set, we should resolve it using Growthbook
+  if (!query.id) {
+    query.id = resolveDynamicFunnelId(userId);
+    query.v = undefined;
+  }
+
+  const funnel = await freyjaClient.createSession(
+    userId,
+    query.id,
+    query.v ? Number(query.v) : undefined,
+  );
+  setCookie(req, res, 'funnel', funnel.session.id);
+
+  return funnel;
+};
+
+// Fetches the logged-in user data (if available)
+const getFunnelLoggedInData = async (
+  con: DataSource,
+  req: FastifyRequest,
+): Promise<FunnelLoggedInUser | null> => {
+  const { userId } = req;
+  if (userId) {
+    const user = await queryReadReplica(con, ({ queryRunner }) =>
+      getUser(queryRunner, userId),
+    );
+    if (user) {
+      return {
+        ...excludeProperties(user, [
+          'updatedAt',
+          'referralId',
+          'referralOrigin',
+          'devcardEligible',
+          'image',
+          'cover',
+          'subscriptionFlags',
+          'flags',
+        ]),
+        providers: [null],
+        permalink: `${process.env.COMMENTS_PREFIX}/${user.username || user.id}`,
+        language: user.language || undefined,
+        image: mapCloudinaryUrl(user.image),
+        cover: mapCloudinaryUrl(user.cover),
+      };
+    }
+  }
+  return null;
+};
+
+// Fetches the funnel and logged-in user data (if available)
+const funnelBootMiddleware: BootMiddleware = async (
+  con,
+  req,
+  res,
+): Promise<Pick<FunnelBoot, 'funnelState'> & { user?: FunnelLoggedInUser }> => {
+  const [funnelState, user] = await Promise.all([
+    getFunnel(req, res),
+    getFunnelLoggedInData(con, req),
+  ]);
+  if (user) {
+    return {
+      user,
+      funnelState,
+    };
+  }
+  return {
+    funnelState,
+  };
+};
+
 export default async function (fastify: FastifyInstance): Promise<void> {
   const con = await createOrGetConnection();
 
@@ -772,6 +884,17 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       return {};
     };
     const data = await getBootData(con, req, res, middleware);
+    return res.send(data);
+  });
+
+  // Used to get the boot data for the web funnels
+  fastify.get('/funnel', async (req, res) => {
+    const data = (await anonymousBoot(
+      con,
+      req,
+      res,
+      funnelBootMiddleware,
+    )) as FunnelBoot;
     return res.send(data);
   });
 }
