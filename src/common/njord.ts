@@ -568,7 +568,7 @@ export const awardPost = async (
     const [product, post, userPost] = await queryReadReplica<
       [
         Pick<Product, 'id' | 'type'>,
-        Pick<Post, 'id' | 'authorId'>,
+        Pick<Post, 'id' | 'authorId' | 'sourceId'>,
         Pick<UserPost, 'awardTransactionId'> | null,
       ]
     >(ctx.con, async ({ queryRunner }) => {
@@ -580,7 +580,7 @@ export const awardPost = async (
           },
         }),
         queryRunner.manager.getRepository(Post).findOneOrFail({
-          select: ['id', 'authorId'],
+          select: ['id', 'authorId', 'sourceId'],
           where: {
             id: props.entityId,
           },
@@ -644,6 +644,53 @@ export const awardPost = async (
           )
           .execute();
 
+        let newComment: Comment | undefined;
+
+        if (note) {
+          newComment = entityManager.getRepository(Comment).create({
+            id: await generateShortId(),
+            postId: post.id,
+            parentId: null,
+            userId: ctx.userId,
+            content: note,
+            awardTransactionId: transaction.id,
+            flags: {
+              awardId: transaction.productId,
+            },
+          });
+
+          newComment.flags = {
+            ...newComment.flags,
+            vordr: await checkWithVordr(
+              {
+                id: newComment.id,
+                type: VordrFilterType.Comment,
+                content: newComment.content,
+              },
+              ctx,
+            ),
+          };
+
+          await saveComment(entityManager, newComment, post.sourceId);
+          await entityManager
+            .getRepository(UserComment)
+            .createQueryBuilder()
+            .insert()
+            .into(UserComment)
+            .values({
+              commentId: newComment.id,
+              userId: ctx.userId,
+              awardTransactionId: transaction.id,
+              flags: {
+                awardId: transaction.productId,
+              },
+            })
+            .onConflict(
+              `("commentId", "userId") DO UPDATE SET "awardTransactionId" = EXCLUDED."awardTransactionId", "flags" = user_comment.flags || EXCLUDED."flags"`,
+            )
+            .execute();
+        }
+
         try {
           const transfer = await transferCores({
             ctx,
@@ -653,6 +700,15 @@ export const awardPost = async (
           return { transaction, transfer };
         } catch (error) {
           if (error instanceof TransferError) {
+            if (newComment) {
+              await entityManager.getRepository(Comment).delete({
+                id: newComment.id,
+              });
+              await entityManager.getRepository(UserComment).delete({
+                awardTransactionId: transaction.id,
+              });
+            }
+
             await entityManager.getRepository(UserPost).delete({
               awardTransactionId: transaction.id,
             });
