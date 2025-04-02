@@ -569,7 +569,6 @@ describe('award post mutation', () => {
         userId: loggedUser,
       },
     });
-    console.log(comment);
     expect(comment.awardTransactionId).toBe(transactionId);
     expect(comment.content).toBe('Test test!');
 
