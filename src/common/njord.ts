@@ -672,23 +672,6 @@ export const awardPost = async (
           };
 
           await saveComment(entityManager, newComment, post.sourceId);
-          await entityManager
-            .getRepository(UserComment)
-            .createQueryBuilder()
-            .insert()
-            .into(UserComment)
-            .values({
-              commentId: newComment.id,
-              userId: ctx.userId,
-              awardTransactionId: transaction.id,
-              flags: {
-                awardId: transaction.productId,
-              },
-            })
-            .onConflict(
-              `("commentId", "userId") DO UPDATE SET "awardTransactionId" = EXCLUDED."awardTransactionId", "flags" = user_comment.flags || EXCLUDED."flags"`,
-            )
-            .execute();
         }
 
         try {
@@ -703,9 +686,6 @@ export const awardPost = async (
             if (newComment) {
               await entityManager.getRepository(Comment).delete({
                 id: newComment.id,
-              });
-              await entityManager.getRepository(UserComment).delete({
-                awardTransactionId: transaction.id,
               });
             }
 
