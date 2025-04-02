@@ -564,6 +564,14 @@ describe('award post mutation', () => {
     expect(userPost.awardTransactionId).toBe(transactionId);
     expect(userPost.flags.awardId).toBe('dd65570f-86c0-40a0-b8a0-3fdbd0d3945d');
 
+    const comment = await con.getRepository(Comment).findOneOrFail({
+      where: {
+        userId: loggedUser,
+      },
+    });
+    expect(comment.awardTransactionId).toBe(transactionId);
+    expect(comment.content).toBe('Test test!');
+
     const transaction = await con.getRepository(UserTransaction).findOneOrFail({
       where: {
         id: transactionId,
