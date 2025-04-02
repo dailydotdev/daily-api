@@ -1,42 +1,122 @@
 [
-	{
-		"id": "a39d7368-22d9-4e01-b961-077179ff992d",
-		"type": "award",
-		"image": "https:\/\/daily-now-res.cloudinary.com\/image\/upload\/s--t9sWnia4--\/f_auto,q_auto\/v1740123247\/awards\/Unicorn",
-		"name": "Test",
-		"createdAt": "2025-03-05T14:13:01.035Z",
-		"updatedAt": "2025-03-05T14:13:01.035Z",
-		"value": 10,
-		"flags": "{}"
-	},
-	{
-		"id": "ef2e2633-c9b9-401a-a372-0edce9fa6329",
-		"type": "award",
-		"image": "https:\/\/daily-now-res.cloudinary.com\/image\/upload\/s--t9sWnia4--\/f_auto,q_auto\/v1740123247\/awards\/Unicorn",
-		"name": "Test 2",
-		"createdAt": "2025-03-05T14:13:01.035Z",
-		"updatedAt": "2025-03-05T14:13:01.035Z",
-		"value": 25,
-		"flags": "{}"
-	},
-	{
-		"id": "8aeb45ce-2e96-4dbf-826d-433c98047642",
-		"type": "award",
-		"image": "https:\/\/daily-now-res.cloudinary.com\/image\/upload\/s--t9sWnia4--\/f_auto,q_auto\/v1740123247\/awards\/Unicorn",
-		"name": "Test 3",
-		"createdAt": "2025-03-05T14:13:01.035Z",
-		"updatedAt": "2025-03-05T14:13:01.035Z",
-		"value": 50,
-		"flags": "{}"
-	},
-	{
-		"id": "1b536ed1-3ab0-4780-a179-d0387d4c6d72",
-		"type": "award",
-		"image": "https:\/\/daily-now-res.cloudinary.com\/image\/upload\/s--t9sWnia4--\/f_auto,q_auto\/v1740123247\/awards\/Unicorn",
-		"name": "Test free",
-		"createdAt": "2025-03-05T14:13:01.035Z",
-		"updatedAt": "2025-03-05T14:13:01.035Z",
-		"value": 0,
-		"flags": "{}"
-	}
+  {
+    "id": "a39d7368-22d9-4e01-b961-077179ff992d",
+    "type": "award",
+    "image": "https:\/\/media.daily.dev\/image\/upload\/s--fECRRnj0--\/f_auto\/v1743596232\/public\/Default9",
+    "name": "Smiley Face",
+    "createdAt": "2025-03-05T13:13:01.035Z",
+    "updatedAt": "2025-03-05T13:13:01.035Z",
+    "value": 0,
+    "flags": "{\"imageGlow\": \"https:\/\/media.daily.dev\/image\/upload\/s--zjNsqrFs--\/f_auto\/v1743596232\/public\/glow9\"}"
+  },
+  {
+    "id": "ef2e2633-c9b9-401a-a372-0edce9fa6329",
+    "type": "award",
+    "image": "https:\/\/media.daily.dev\/image\/upload\/s--0T3RTBI_--\/f_auto\/v1743596232\/public\/Default3",
+    "name": "Laughing Face",
+    "createdAt": "2025-03-05T13:13:01.035Z",
+    "updatedAt": "2025-03-05T13:13:01.035Z",
+    "value": 0,
+    "flags": "{\"imageGlow\": \"https:\/\/media.daily.dev\/image\/upload\/s--abSZONx_--\/f_auto\/v1743596232\/public\/glow3\"}"
+  },
+  {
+    "id": "8aeb45ce-2e96-4dbf-826d-433c98047642",
+    "type": "award",
+    "image": "https:\/\/media.daily.dev\/image\/upload\/s--ljEnvBO_--\/f_auto\/v1743604210\/public\/Default-10",
+    "name": "Heart",
+    "createdAt": "2025-03-05T13:13:01.035Z",
+    "updatedAt": "2025-03-05T13:13:01.035Z",
+    "value": 50,
+    "flags": "{\"imageGlow\": \"https:\/\/media.daily.dev\/image\/upload\/s--An-n1xde--\/f_auto\/v1743604210\/public\/glow-10\"}"
+  },
+  {
+    "id": "352f1e07-06af-4d5e-a843-b3e324a899a0",
+    "type": "award",
+    "image": "https:\/\/media.daily.dev\/image\/upload\/s--A2Rj0sSU--\/f_auto\/v1743604210\/public\/Default-1",
+    "name": "Coffee Mug",
+    "createdAt": "2025-04-02T13:33:25.845Z",
+    "updatedAt": "2025-04-02T13:33:25.845Z",
+    "value": 75,
+    "flags": "{\"imageGlow\": \"https:\/\/media.daily.dev\/image\/upload\/s--eAWkYGbA--\/f_auto\/v1743604210\/public\/glow-1\"}"
+  },
+  {
+    "id": "1b536ed1-3ab0-4780-a179-d0387d4c6d72",
+    "type": "award",
+    "image": "https:\/\/media.daily.dev\/image\/upload\/s--wY2jAelM--\/f_auto\/v1743604210\/public\/Default-8",
+    "name": "Star",
+    "createdAt": "2025-03-05T13:13:01.035Z",
+    "updatedAt": "2025-03-05T13:13:01.035Z",
+    "value": 100,
+    "flags": "{\"imageGlow\": \"https:\/\/media.daily.dev\/image\/upload\/s--nP3htZoY--\/f_auto\/v1743604210\/public\/glow-8\"}"
+  },
+  {
+    "id": "17432ba4-bba6-42f8-81dd-f325409e92bf",
+    "type": "award",
+    "image": "https:\/\/media.daily.dev\/image\/upload\/s--YtXXyQPa--\/f_auto\/v1743596232\/public\/Default5",
+    "name": "Hot Dog",
+    "createdAt": "2025-04-02T13:37:37.273Z",
+    "updatedAt": "2025-04-02T13:37:37.273Z",
+    "value": 150,
+    "flags": "{\"imageGlow\": \"https:\/\/media.daily.dev\/image\/upload\/s--FePf0DTP--\/f_auto\/v1743596232\/public\/glow5\"}"
+  },
+  {
+    "id": "1ab1bc67-78d8-4e01-be2b-c262acc27053",
+    "type": "award",
+    "image": "https:\/\/media.daily.dev\/image\/upload\/s--xqa62ifF--\/f_auto\/v1743596232\/public\/Default11",
+    "name": "Pizza",
+    "createdAt": "2025-04-02T13:38:22.097Z",
+    "updatedAt": "2025-04-02T13:38:22.097Z",
+    "value": 200,
+    "flags": "{\"imageGlow\": \"https:\/\/media.daily.dev\/image\/upload\/s--FCMH3E08--\/f_auto\/v1743596232\/public\/glow11\"}"
+  },
+  {
+    "id": "c0d239b9-72de-4975-a1ac-97668068a310",
+    "type": "award",
+    "image": "https:\/\/media.daily.dev\/image\/upload\/s--xlilmB1L--\/f_auto\/v1743596232\/public\/Default4",
+    "name": "Stash of Cash",
+    "createdAt": "2025-04-02T13:39:18.432Z",
+    "updatedAt": "2025-04-02T13:39:18.432Z",
+    "value": 350,
+    "flags": "{\"imageGlow\": \"https:\/\/media.daily.dev\/image\/upload\/s--CuVXGAqU--\/f_auto\/v1743596232\/public\/glow4\"}"
+  },
+  {
+    "id": "0951d2c8-f045-425d-aa1d-0c72a153e939",
+    "type": "award",
+    "image": "https:\/\/media.daily.dev\/image\/upload\/s--pYEHMqJE--\/f_auto\/v1743596232\/public\/Default2",
+    "name": "Terminal",
+    "createdAt": "2025-04-02T13:39:52.435Z",
+    "updatedAt": "2025-04-02T13:39:52.435Z",
+    "value": 500,
+    "flags": "{\"imageGlow\": \"https:\/\/media.daily.dev\/image\/upload\/s--Azc2njeU--\/f_auto\/v1743596232\/public\/glow2\"}"
+  },
+  {
+    "id": "7bd171f2-781f-400b-af45-1fc3bc02e7c0",
+    "type": "award",
+    "image": "https:\/\/media.daily.dev\/image\/upload\/s--Io3wPjOS--\/f_auto\/v1743596232\/public\/Default7",
+    "name": "Rubber Duck",
+    "createdAt": "2025-04-02T13:40:24.278Z",
+    "updatedAt": "2025-04-02T13:40:24.278Z",
+    "value": 700,
+    "flags": "{\"imageGlow\": \"https:\/\/media.daily.dev\/image\/upload\/s--HGbIOJpq--\/f_auto\/v1743596232\/public\/glow7\"}"
+  },
+  {
+    "id": "e9dab194-6d2c-409d-b422-3e51d5ed673c",
+    "type": "award",
+    "image": "https:\/\/media.daily.dev\/image\/upload\/s--Gg2-Z5tj--\/f_auto\/v1743596232\/public\/Default6",
+    "name": "Keyboard",
+    "createdAt": "2025-04-02T13:41:27.979Z",
+    "updatedAt": "2025-04-02T13:41:27.979Z",
+    "value": 1000,
+    "flags": "{\"imageGlow\": \"https:\/\/media.daily.dev\/image\/upload\/s--MMJ5PHyw--\/f_auto\/v1743596233\/public\/glow6\"}"
+  },
+  {
+    "id": "ae8d3e70-0358-440d-93ba-9a76fd1dc4fd",
+    "type": "award",
+    "image": "https:\/\/media.daily.dev\/image\/upload\/s--10Rf2kyK--\/f_auto\/v1743595864\/public\/Default",
+    "name": "\"This is fine\" Dog",
+    "createdAt": "2025-04-02T13:41:27.981Z",
+    "updatedAt": "2025-04-02T13:41:27.981Z",
+    "value": 1500,
+    "flags": "{\"imageGlow\": \"https:\/\/media.daily.dev\/image\/upload\/s--5uPlH4HC--\/f_auto\/v1743595864\/public\/glow\"}"
+  }
 ]
