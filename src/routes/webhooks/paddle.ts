@@ -277,21 +277,20 @@ const notifyNewPaddleTransaction = async ({
 }: {
   event: TransactionCompletedEvent;
 }) => {
-  const { user_id, gifter_id } = (data?.customData ?? {}) as PaddleCustomData;
+  const { customData, subscriptionId } = data ?? {};
+  const { user_id, gifter_id } = (customData ?? {}) as PaddleCustomData;
   const purchasedById = gifter_id ?? user_id;
   const subscriptionForId = await getUserId({
     userId: user_id,
-    subscriptionId: 'subscriptionId' in data && data.subscriptionId,
+    subscriptionId,
   });
   const con = await createOrGetConnection();
-  const flags = gifter_id
-    ? (
-        await con.getRepository(User).findOne({
-          select: ['subscriptionFlags'],
-          where: { id: subscriptionForId },
-        })
-      )?.subscriptionFlags
-    : null;
+  const flags = (
+    await con.getRepository(User).findOne({
+      select: ['subscriptionFlags'],
+      where: { id: subscriptionForId },
+    })
+  )?.subscriptionFlags;
 
   if (gifter_id && !flags?.giftExpirationDate) {
     logger.error(
