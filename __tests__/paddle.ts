@@ -135,6 +135,10 @@ const getSubscriptionData = (customData: PaddleCustomData) =>
             product_id: '1',
             name: 'Gift Subscription',
             tax_mode: 'internal',
+            billing_cycle: {
+              interval: 'year',
+              frequency: 1,
+            },
           },
           status: 'active',
           quantity: 1,
