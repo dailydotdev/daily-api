@@ -368,6 +368,27 @@ export default async function app(
     prefix: '/lettericons/:word',
     ...letterProxy,
   });
+
+  app.register(proxy, {
+    prefix: '/freyja',
+    httpMethods: ['POST'],
+    upstream: `${process.env.FREYJA_ORIGIN}/api`,
+    preHandler: async (req: FastifyRequest, res: FastifyReply) => {
+      res.helmet({
+        crossOriginResourcePolicy: {
+          policy: 'cross-origin',
+        },
+      });
+
+      const regex = new RegExp('^/freyja/sessions/[^/]+/transition$');
+      if (!regex.test(req.url)) {
+        res.status(404).send();
+        return;
+      }
+    },
+    logLevel: 'warn',
+  });
+
   app.register(routes, { prefix: '/' });
 
   return app;

@@ -33,6 +33,9 @@ export class FreyjaClient implements IFreyjaClient {
       return fetchParse(`${this.url}/api/sessions`, {
         ...this.fetchOptions,
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ userId, funnelId, version }),
       });
     });
