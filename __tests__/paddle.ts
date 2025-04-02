@@ -135,6 +135,10 @@ const getSubscriptionData = (customData: PaddleCustomData) =>
             product_id: '1',
             name: 'Gift Subscription',
             tax_mode: 'internal',
+            billing_cycle: {
+              interval: 'year',
+              frequency: 1,
+            },
           },
           status: 'active',
           quantity: 1,
@@ -272,7 +276,7 @@ describe('plus subscription', () => {
     const data = getSubscriptionData({
       user_id: userId,
     });
-    await updateUserSubscription({ data, state: true });
+    await updateUserSubscription({ event: data, state: true });
 
     const updatedUser = await con
       .getRepository(User)
