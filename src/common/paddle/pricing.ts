@@ -34,7 +34,8 @@ export interface PricePreview {
   formatted: string;
 }
 
-export interface PlusPricingPreview extends PlusPricingMetadata {
+export interface PlusPricingPreview {
+  metadata: PlusPricingMetadata;
   productId: string;
   price: PricePreview & { monthly: PricePreview };
   currency: {

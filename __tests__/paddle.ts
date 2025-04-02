@@ -377,15 +377,17 @@ describe('plus pricing preview', () => {
   const QUERY = `
     query PlusPricingPreview {
       plusPricingPreview {
-        appsId
-        title
-        caption {
-          copy
-          color
-        }
-        idMap {
-          paddle
-          ios
+        metadata {
+          appsId
+          title
+          caption {
+            copy
+            color
+          }
+          idMap {
+            paddle
+            ios
+          }
         }
         productId
         price {
@@ -474,8 +476,8 @@ describe('plus pricing preview', () => {
     const result = await client.query(QUERY);
     expect(result.data.plusPricingPreview).toHaveLength(1);
     const preview = result.data.plusPricingPreview[0];
-    expect(preview.appsId).toBe('monthly');
-    expect(preview.title).toBe('Monthly Plan');
+    expect(preview.metadata.appsId).toBe('monthly');
+    expect(preview.metadata.title).toBe('Monthly Plan');
     expect(preview.productId).toBe('prod_monthly');
     expect(preview.price.amount).toBe(5);
     expect(preview.price.formatted).toBe('$5.00');

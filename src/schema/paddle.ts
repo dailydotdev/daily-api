@@ -219,21 +219,9 @@ export const typeDefs = /* GraphQL */ `
   """
   type PlusPricingPreview {
     """
-    Application ID
+    Metadata information
     """
-    appsId: String!
-    """
-    Title of the pricing option
-    """
-    title: String!
-    """
-    Optional caption information
-    """
-    caption: PricingCaption
-    """
-    Platform-specific IDs
-    """
-    idMap: PricingIdMap!
+    metadata: PlusPricingMetadata!
     """
     Product ID
     """
@@ -408,7 +396,7 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
         const trialPeriod = item.price.trialPeriod;
 
         return {
-          ...meta,
+          metadata: meta,
           productId: item.price.productId,
           price: {
             monthly,
