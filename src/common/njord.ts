@@ -5,6 +5,7 @@ import {
   Currency,
   EntityType,
   GetBalanceResponse,
+  TransferStatus,
   TransferType,
   type BalanceChange,
   type TransferResult,
@@ -15,7 +16,13 @@ import {
   UserTransactionProcessor,
   UserTransactionStatus,
 } from '../entity/user/UserTransaction';
-import { isProd, isSpecialUser, parseBigInt, systemUser } from './utils';
+import {
+  isProd,
+  isSpecialUser,
+  parseBigInt,
+  systemUser,
+  updateFlagsStatement,
+} from './utils';
 import { ForbiddenError } from 'apollo-server-errors';
 import { checkCoresAccess, createAuthProtectedFn } from './user';
 import {
@@ -25,7 +32,7 @@ import {
 } from '../redis';
 import { generateStorageKey, StorageKey, StorageTopic } from '../config';
 import { coresBalanceExpirationSeconds } from './constants';
-import { ConflictError, NjordErrorMessages } from '../errors';
+import { ConflictError, NjordErrorMessages, TransferError } from '../errors';
 import { GarmrService } from '../integrations/garmr';
 import { BrokenCircuitError } from 'cockatiel';
 import type { EntityManager } from 'typeorm';
@@ -40,6 +47,9 @@ import { saveComment } from '../schema/comments';
 import { generateShortId } from '../ids';
 import { checkWithVordr, VordrFilterType } from './vordr';
 import { CoresRole } from '../types';
+import { GraphQLError } from 'graphql';
+import { randomUUID } from 'node:crypto';
+import { logger } from '../logger';
 
 const transport = createGrpcTransport({
   baseUrl: process.env.NJORD_ORIGIN,
@@ -52,6 +62,9 @@ const garmNjordService = new GarmrService({
     halfOpenAfter: 5 * 1000,
     threshold: 0.1,
     duration: 10 * 1000,
+  },
+  retryOpts: {
+    maxAttempts: 1,
   },
 });
 
@@ -75,10 +88,12 @@ export const createTransaction = createAuthProtectedFn(
   async ({
     ctx,
     entityManager,
+    id,
     productId,
     receiverId,
     note,
   }: TransactionProps & {
+    id?: string;
     entityManager: EntityManager;
   }): Promise<UserTransaction> => {
     const { userId: senderId } = ctx;
@@ -90,6 +105,7 @@ export const createTransaction = createAuthProtectedFn(
     const userTransaction = entityManager
       .getRepository(UserTransaction)
       .create({
+        id: id || randomUUID(),
         processor: UserTransactionProcessor.Njord,
         receiverId,
         status: UserTransactionStatus.Success,
@@ -146,27 +162,30 @@ export const transferCores = createAuthProtectedFn(
 
     const njordClient = getNjordClient();
 
-    const transferResult = await garmNjordService.execute(async () => {
-      if (!transaction.id) {
-        throw new Error('No transaction id');
-      }
+    if (!transaction.id) {
+      throw new Error('No transaction id');
+    }
 
-      if (!transaction.senderId) {
-        throw new Error('No sender id');
-      }
+    if (!transaction.senderId) {
+      throw new Error('No sender id');
+    }
 
-      const { results } = await njordClient.transfer({
+    const senderId = transaction.senderId;
+    const receiverId = transaction.receiverId;
+
+    const response = await garmNjordService.execute(async () => {
+      const response = await njordClient.transfer({
         idempotencyKey: transaction.id,
         transfers: [
           {
             transferType: TransferType.TRANSFER,
             currency: Currency.CORES,
             sender: {
-              id: transaction.senderId,
+              id: senderId,
               type: EntityType.USER,
             },
             receiver: {
-              id: transaction.receiverId,
+              id: receiverId,
               type: EntityType.USER,
             },
             amount: transaction.value,
@@ -176,91 +195,16 @@ export const transferCores = createAuthProtectedFn(
           },
         ],
       });
-      // we always have single transfer
-      const result = results.find(
-        (item) => item.transferType === TransferType.TRANSFER,
-      );
 
-      if (!result) {
-        throw new Error('No transfer result');
-      }
-
-      await Promise.allSettled([
-        [
-          parseBalanceUpdate({
-            balance: result.senderBalance,
-            userId: transaction.senderId,
-          }),
-          parseBalanceUpdate({
-            balance: result.receiverBalance,
-            userId: transaction.receiverId,
-          }),
-        ].map(async (balanceUpdate) => {
-          if (!balanceUpdate) {
-            return;
-          }
-
-          await updateBalanceCache({
-            ctx: {
-              userId: balanceUpdate.userId,
-            },
-            value: {
-              amount: parseBigInt(balanceUpdate.balance.newBalance),
-            },
-          });
-        }),
-      ]);
-
-      // TODO feat/transactions error handling
-
-      return result;
+      return response;
     });
 
-    return transferResult;
-  },
-);
-
-export const purchaseCores = async ({
-  transaction,
-}: {
-  transaction: UserTransaction;
-}): Promise<TransferResult> => {
-  const transferResult = await garmNjordService.execute(async () => {
-    if (!transaction.id) {
-      throw new Error('No transaction id');
+    if (response.status !== TransferStatus.SUCCESS) {
+      throw new TransferError(response);
     }
 
-    if (transaction.senderId) {
-      throw new Error('Purchase cores transaction can not have sender');
-    }
+    const { results } = response;
 
-    if (transaction.productId) {
-      throw new Error('Purchase cores transaction can not have product');
-    }
-
-    const njordClient = getNjordClient();
-
-    const { results } = await njordClient.transfer({
-      idempotencyKey: transaction.id,
-      transfers: [
-        {
-          transferType: TransferType.TRANSFER,
-          currency: Currency.CORES,
-          sender: {
-            id: systemUser.id,
-            type: EntityType.SYSTEM,
-          },
-          receiver: {
-            id: transaction.receiverId,
-            type: EntityType.USER,
-          },
-          amount: transaction.value,
-          fee: {
-            percentage: transaction.fee,
-          },
-        },
-      ],
-    });
     // we always have single transfer
     const result = results.find(
       (item) => item.transferType === TransferType.TRANSFER,
@@ -272,6 +216,10 @@ export const purchaseCores = async ({
 
     await Promise.allSettled([
       [
+        parseBalanceUpdate({
+          balance: result.senderBalance,
+          userId: transaction.senderId,
+        }),
         parseBalanceUpdate({
           balance: result.receiverBalance,
           userId: transaction.receiverId,
@@ -292,12 +240,93 @@ export const purchaseCores = async ({
       }),
     ]);
 
-    // TODO feat/transactions error handling
-
     return result;
+  },
+);
+
+export const purchaseCores = async ({
+  transaction,
+}: {
+  transaction: UserTransaction;
+}): Promise<TransferResult> => {
+  if (!transaction.id) {
+    throw new Error('No transaction id');
+  }
+
+  if (transaction.senderId) {
+    throw new Error('Purchase cores transaction can not have sender');
+  }
+
+  if (transaction.productId) {
+    throw new Error('Purchase cores transaction can not have product');
+  }
+
+  const njordClient = getNjordClient();
+
+  const response = await garmNjordService.execute(async () => {
+    const response = await njordClient.transfer({
+      idempotencyKey: transaction.id,
+      transfers: [
+        {
+          transferType: TransferType.TRANSFER,
+          currency: Currency.CORES,
+          sender: {
+            id: systemUser.id,
+            type: EntityType.SYSTEM,
+          },
+          receiver: {
+            id: transaction.receiverId,
+            type: EntityType.USER,
+          },
+          amount: transaction.value,
+          fee: {
+            percentage: transaction.fee,
+          },
+        },
+      ],
+    });
+
+    return response;
   });
 
-  return transferResult;
+  if (response.status !== TransferStatus.SUCCESS) {
+    throw new TransferError(response);
+  }
+
+  const { results } = response;
+
+  // we always have single transfer
+  const result = results.find(
+    (item) => item.transferType === TransferType.TRANSFER,
+  );
+
+  if (!result) {
+    throw new Error('No transfer result');
+  }
+
+  await Promise.allSettled([
+    [
+      parseBalanceUpdate({
+        balance: result.receiverBalance,
+        userId: transaction.receiverId,
+      }),
+    ].map(async (balanceUpdate) => {
+      if (!balanceUpdate) {
+        return;
+      }
+
+      await updateBalanceCache({
+        ctx: {
+          userId: balanceUpdate.userId,
+        },
+        value: {
+          amount: parseBigInt(balanceUpdate.balance.newBalance),
+        },
+      });
+    }),
+  ]);
+
+  return result;
 };
 
 export type GetBalanceProps = Pick<AuthContext, 'userId'>;
@@ -452,276 +481,482 @@ export const awardUser = async (
   props: AwardInput,
   ctx: AuthContext,
 ): Promise<TransactionCreated> => {
-  await canAward({ ctx, receiverId: props.entityId });
+  const newTransactionId = randomUUID();
 
-  const product = await queryReadReplica<Pick<Product, 'id' | 'type'>>(
-    ctx.con,
-    async ({ queryRunner }) => {
-      return queryRunner.manager.getRepository(Product).findOneOrFail({
-        select: ['id', 'type'],
-        where: {
-          id: props.productId,
-        },
-      });
-    },
-  );
+  try {
+    await canAward({ ctx, receiverId: props.entityId });
 
-  if (product.type !== ProductType.Award) {
-    throw new ForbiddenError('Can not award this product');
+    const product = await queryReadReplica<Pick<Product, 'id' | 'type'>>(
+      ctx.con,
+      async ({ queryRunner }) => {
+        return queryRunner.manager.getRepository(Product).findOneOrFail({
+          select: ['id', 'type'],
+          where: {
+            id: props.productId,
+          },
+        });
+      },
+    );
+
+    if (product.type !== ProductType.Award) {
+      throw new ForbiddenError('Can not award this product');
+    }
+
+    const { transaction, transfer } = await ctx.con.transaction(
+      async (entityManager) => {
+        const { entityId: receiverId, note } = props;
+
+        const transaction = await createTransaction({
+          ctx,
+          id: newTransactionId,
+          entityManager,
+          productId: product.id,
+          receiverId,
+          note,
+        });
+
+        try {
+          const transfer = await transferCores({
+            ctx,
+            transaction,
+          });
+
+          return { transaction, transfer };
+        } catch (error) {
+          if (error instanceof TransferError) {
+            await throwUserTransactionError({
+              entityManager,
+              error,
+              transaction,
+            });
+          }
+
+          throw error;
+        }
+      },
+    );
+
+    return {
+      transactionId: transaction.id,
+      balance: {
+        amount: parseBigInt(transfer.senderBalance!.newBalance),
+      },
+    };
+  } catch (error) {
+    logger.error(
+      {
+        context: 'award',
+        err: error,
+        props,
+        userId: ctx.userId,
+        transactionId: newTransactionId,
+      },
+      'Award error',
+    );
+
+    throw error;
   }
-
-  const { transaction, transfer } = await ctx.con.transaction(
-    async (entityManager) => {
-      const { entityId: receiverId, note } = props;
-
-      const transaction = await createTransaction({
-        ctx,
-        entityManager,
-        productId: product.id,
-        receiverId,
-        note,
-      });
-
-      const transfer = await transferCores({
-        ctx,
-        transaction,
-      });
-
-      return { transaction, transfer };
-    },
-  );
-
-  return {
-    transactionId: transaction.id,
-    balance: {
-      amount: parseBigInt(transfer.senderBalance!.newBalance),
-    },
-  };
 };
 
 export const awardPost = async (
   props: AwardInput,
   ctx: AuthContext,
 ): Promise<TransactionCreated> => {
-  const [product, post, userPost] = await queryReadReplica<
-    [
-      Pick<Product, 'id' | 'type'>,
-      Pick<Post, 'id' | 'authorId'>,
-      Pick<UserPost, 'awardTransactionId'> | null,
-    ]
-  >(ctx.con, async ({ queryRunner }) => {
-    return Promise.all([
-      queryRunner.manager.getRepository(Product).findOneOrFail({
-        select: ['id', 'type'],
-        where: {
-          id: props.productId,
-        },
-      }),
-      queryRunner.manager.getRepository(Post).findOneOrFail({
-        select: ['id', 'authorId'],
-        where: {
-          id: props.entityId,
-        },
-      }),
-      queryRunner.manager.getRepository(UserPost).findOne({
-        select: ['awardTransactionId'],
-        where: {
-          postId: props.entityId,
-          userId: ctx.userId,
-        },
-      }),
-    ]);
-  });
+  const newTransactionId = randomUUID();
 
-  await canAward({ ctx, receiverId: post.authorId });
-
-  if (product.type !== ProductType.Award) {
-    throw new ForbiddenError('Can not award this product');
-  }
-
-  if (userPost?.awardTransactionId) {
-    throw new ConflictError('Post already awarded');
-  }
-
-  const { transaction, transfer } = await ctx.con.transaction(
-    async (entityManager) => {
-      if (!post.authorId) {
-        throw new ConflictError('Post does not have an author');
-      }
-
-      const { note } = props;
-
-      const transaction = await createTransaction({
-        ctx,
-        entityManager,
-        productId: product.id,
-        receiverId: post.authorId,
-        note,
-      });
-
-      if (!transaction.productId) {
-        throw new Error('Product missing from transaction');
-      }
-
-      await entityManager
-        .getRepository(UserPost)
-        .createQueryBuilder()
-        .insert()
-        .into(UserPost)
-        .values({
-          postId: post.id,
-          userId: ctx.userId,
-          awardTransactionId: transaction.id,
-          flags: {
-            awardId: transaction.productId,
+  try {
+    const [product, post, userPost] = await queryReadReplica<
+      [
+        Pick<Product, 'id' | 'type'>,
+        Pick<Post, 'id' | 'authorId' | 'sourceId'>,
+        Pick<UserPost, 'awardTransactionId'> | null,
+      ]
+    >(ctx.con, async ({ queryRunner }) => {
+      return Promise.all([
+        queryRunner.manager.getRepository(Product).findOneOrFail({
+          select: ['id', 'type'],
+          where: {
+            id: props.productId,
           },
-        })
-        .onConflict(
-          `("postId", "userId") DO UPDATE SET "awardTransactionId" = EXCLUDED."awardTransactionId", "flags" = user_post.flags || EXCLUDED."flags"`,
-        )
-        .execute();
+        }),
+        queryRunner.manager.getRepository(Post).findOneOrFail({
+          select: ['id', 'authorId', 'sourceId'],
+          where: {
+            id: props.entityId,
+          },
+        }),
+        queryRunner.manager.getRepository(UserPost).findOne({
+          select: ['awardTransactionId'],
+          where: {
+            postId: props.entityId,
+            userId: ctx.userId,
+          },
+        }),
+      ]);
+    });
 
-      const transfer = await transferCores({
-        ctx,
-        transaction,
-      });
+    await canAward({ ctx, receiverId: post.authorId });
 
-      return { transaction, transfer };
-    },
-  );
+    if (product.type !== ProductType.Award) {
+      throw new ForbiddenError('Can not award this product');
+    }
 
-  return {
-    transactionId: transaction.id,
-    balance: {
-      amount: parseBigInt(transfer.senderBalance!.newBalance),
-    },
-  };
+    if (userPost?.awardTransactionId) {
+      throw new ConflictError('Post already awarded');
+    }
+
+    const { transaction, transfer } = await ctx.con.transaction(
+      async (entityManager) => {
+        if (!post.authorId) {
+          throw new ConflictError('Post does not have an author');
+        }
+
+        const { note } = props;
+
+        const transaction = await createTransaction({
+          ctx,
+          id: newTransactionId,
+          entityManager,
+          productId: product.id,
+          receiverId: post.authorId,
+          note,
+        });
+
+        if (!transaction.productId) {
+          throw new Error('Product missing from transaction');
+        }
+
+        await entityManager
+          .getRepository(UserPost)
+          .createQueryBuilder()
+          .insert()
+          .into(UserPost)
+          .values({
+            postId: post.id,
+            userId: ctx.userId,
+            awardTransactionId: transaction.id,
+            flags: {
+              awardId: transaction.productId,
+            },
+          })
+          .onConflict(
+            `("postId", "userId") DO UPDATE SET "awardTransactionId" = EXCLUDED."awardTransactionId", "flags" = user_post.flags || EXCLUDED."flags"`,
+          )
+          .execute();
+
+        let newComment: Comment | undefined;
+
+        if (note) {
+          newComment = entityManager.getRepository(Comment).create({
+            id: await generateShortId(),
+            postId: post.id,
+            parentId: null,
+            userId: ctx.userId,
+            content: note,
+            awardTransactionId: transaction.id,
+            flags: {
+              awardId: transaction.productId,
+            },
+          });
+
+          newComment.flags = {
+            ...newComment.flags,
+            vordr: await checkWithVordr(
+              {
+                id: newComment.id,
+                type: VordrFilterType.Comment,
+                content: newComment.content,
+              },
+              ctx,
+            ),
+          };
+
+          await saveComment(entityManager, newComment, post.sourceId);
+        }
+
+        try {
+          const transfer = await transferCores({
+            ctx,
+            transaction,
+          });
+
+          return { transaction, transfer };
+        } catch (error) {
+          if (error instanceof TransferError) {
+            if (newComment) {
+              await entityManager.getRepository(Comment).delete({
+                id: newComment.id,
+              });
+            }
+
+            await entityManager.getRepository(UserPost).delete({
+              awardTransactionId: transaction.id,
+            });
+
+            await throwUserTransactionError({
+              entityManager,
+              error,
+              transaction,
+            });
+          }
+
+          throw error;
+        }
+      },
+    );
+
+    return {
+      transactionId: transaction.id,
+      balance: {
+        amount: parseBigInt(transfer.senderBalance!.newBalance),
+      },
+    };
+  } catch (error) {
+    logger.error(
+      {
+        context: 'award',
+        err: error,
+        props,
+        userId: ctx.userId,
+        transactionId: newTransactionId,
+      },
+      'Award error',
+    );
+
+    throw error;
+  }
 };
 
 export const awardComment = async (
   props: AwardInput,
   ctx: AuthContext,
 ): Promise<TransactionCreated> => {
-  const [product, comment, userComment] = await queryReadReplica<
-    [
-      Pick<Product, 'id' | 'type'>,
-      Pick<Comment, 'id' | 'userId' | 'postId' | 'post' | 'parentId'>,
-      Pick<UserComment, 'awardTransactionId'> | null,
-    ]
-  >(ctx.con, async ({ queryRunner }) => {
-    return Promise.all([
-      queryRunner.manager.getRepository(Product).findOneOrFail({
-        select: ['id', 'type'],
-        where: {
-          id: props.productId,
-        },
-      }),
-      queryRunner.manager.getRepository(Comment).findOneOrFail({
-        select: ['id', 'userId', 'postId', 'parentId'],
-        where: {
-          id: props.entityId,
-        },
-        relations: {
-          post: true,
-        },
-      }),
-      queryRunner.manager.getRepository(UserComment).findOne({
-        select: ['awardTransactionId'],
-        where: {
-          commentId: props.entityId,
-          userId: ctx.userId,
-        },
-      }),
-    ]);
-  });
+  const newTransactionId = randomUUID();
 
-  await canAward({ ctx, receiverId: comment.userId });
-
-  if (product.type !== ProductType.Award) {
-    throw new ForbiddenError('Can not award this product');
-  }
-
-  if (userComment?.awardTransactionId) {
-    throw new ConflictError('Comment already awarded');
-  }
-
-  const { transaction, transfer } = await ctx.con.transaction(
-    async (entityManager) => {
-      const { note } = props;
-
-      const transaction = await createTransaction({
-        ctx,
-        entityManager,
-        productId: product.id,
-        receiverId: comment.userId,
-        note,
-      });
-
-      if (!transaction.productId) {
-        throw new Error('Product missing from transaction');
-      }
-
-      await entityManager
-        .getRepository(UserComment)
-        .createQueryBuilder()
-        .insert()
-        .into(UserComment)
-        .values({
-          commentId: comment.id,
-          userId: ctx.userId,
-          awardTransactionId: transaction.id,
-          flags: {
-            awardId: transaction.productId,
+  try {
+    const [product, comment, userComment] = await queryReadReplica<
+      [
+        Pick<Product, 'id' | 'type'>,
+        Pick<Comment, 'id' | 'userId' | 'postId' | 'post' | 'parentId'>,
+        Pick<UserComment, 'awardTransactionId'> | null,
+      ]
+    >(ctx.con, async ({ queryRunner }) => {
+      return Promise.all([
+        queryRunner.manager.getRepository(Product).findOneOrFail({
+          select: ['id', 'type'],
+          where: {
+            id: props.productId,
           },
-        })
-        .onConflict(
-          `("commentId", "userId") DO UPDATE SET "awardTransactionId" = EXCLUDED."awardTransactionId", "flags" = user_comment.flags || EXCLUDED."flags"`,
-        )
-        .execute();
-
-      if (note) {
-        const post = await comment.post;
-
-        const newComment = entityManager.getRepository(Comment).create({
-          id: await generateShortId(),
-          postId: comment.postId,
-          parentId: comment.parentId || comment.id,
-          userId: ctx.userId,
-          content: note,
-          awardTransactionId: transaction.id,
-          flags: {
-            awardId: transaction.productId,
+        }),
+        queryRunner.manager.getRepository(Comment).findOneOrFail({
+          select: ['id', 'userId', 'postId', 'parentId'],
+          where: {
+            id: props.entityId,
           },
+          relations: {
+            post: true,
+          },
+        }),
+        queryRunner.manager.getRepository(UserComment).findOne({
+          select: ['awardTransactionId'],
+          where: {
+            commentId: props.entityId,
+            userId: ctx.userId,
+          },
+        }),
+      ]);
+    });
+
+    await canAward({ ctx, receiverId: comment.userId });
+
+    if (product.type !== ProductType.Award) {
+      throw new ForbiddenError('Can not award this product');
+    }
+
+    if (userComment?.awardTransactionId) {
+      throw new ConflictError('Comment already awarded');
+    }
+
+    const { transaction, transfer } = await ctx.con.transaction(
+      async (entityManager) => {
+        const { note } = props;
+
+        const transaction = await createTransaction({
+          ctx,
+          id: newTransactionId,
+          entityManager,
+          productId: product.id,
+          receiverId: comment.userId,
+          note,
         });
 
-        newComment.flags = {
-          ...newComment.flags,
-          vordr: await checkWithVordr(
-            {
-              id: newComment.id,
-              type: VordrFilterType.Comment,
-              content: newComment.content,
+        if (!transaction.productId) {
+          throw new Error('Product missing from transaction');
+        }
+
+        await entityManager
+          .getRepository(UserComment)
+          .createQueryBuilder()
+          .insert()
+          .into(UserComment)
+          .values({
+            commentId: comment.id,
+            userId: ctx.userId,
+            awardTransactionId: transaction.id,
+            flags: {
+              awardId: transaction.productId,
             },
+          })
+          .onConflict(
+            `("commentId", "userId") DO UPDATE SET "awardTransactionId" = EXCLUDED."awardTransactionId", "flags" = user_comment.flags || EXCLUDED."flags"`,
+          )
+          .execute();
+
+        let newComment: Comment | undefined;
+
+        if (note) {
+          const post = await comment.post;
+
+          newComment = entityManager.getRepository(Comment).create({
+            id: await generateShortId(),
+            postId: comment.postId,
+            parentId: comment.parentId || comment.id,
+            userId: ctx.userId,
+            content: note,
+            awardTransactionId: transaction.id,
+            flags: {
+              awardId: transaction.productId,
+            },
+          });
+
+          newComment.flags = {
+            ...newComment.flags,
+            vordr: await checkWithVordr(
+              {
+                id: newComment.id,
+                type: VordrFilterType.Comment,
+                content: newComment.content,
+              },
+              ctx,
+            ),
+          };
+
+          await saveComment(entityManager, newComment, post.sourceId);
+        }
+
+        try {
+          const transfer = await transferCores({
             ctx,
-          ),
-        };
+            transaction,
+          });
 
-        await saveComment(entityManager, newComment, post.sourceId);
-      }
+          return { transaction, transfer };
+        } catch (error) {
+          if (error instanceof TransferError) {
+            if (newComment) {
+              await entityManager.getRepository(Comment).delete({
+                id: newComment.id,
+              });
+            }
 
-      const transfer = await transferCores({
-        ctx,
-        transaction,
-      });
+            await entityManager.getRepository(UserComment).delete({
+              awardTransactionId: transaction.id,
+            });
 
-      return { transaction, transfer };
+            await throwUserTransactionError({
+              entityManager,
+              error,
+              transaction,
+            });
+          }
+
+          throw error;
+        }
+      },
+    );
+
+    return {
+      transactionId: transaction.id,
+      balance: {
+        amount: parseBigInt(transfer.senderBalance!.newBalance),
+      },
+    };
+  } catch (error) {
+    logger.error(
+      {
+        context: 'award',
+        err: error,
+        props,
+        userId: ctx.userId,
+        transactionId: newTransactionId,
+      },
+      'Award error',
+    );
+
+    throw error;
+  }
+};
+
+const userTransactionErrorMessageMap: Partial<
+  Record<UserTransactionStatus, string>
+> = {
+  [UserTransactionStatus.InsufficientFunds]: 'Insufficient Cores balance.',
+};
+
+export class UserTransactionError extends GraphQLError {
+  constructor(props: {
+    status: UserTransactionStatus | TransferStatus;
+    balance: GetBalanceResult;
+    transaction: UserTransaction;
+  }) {
+    const message =
+      userTransactionErrorMessageMap[props.status] ||
+      `Failed, code: ${props.status}`;
+
+    super(message, {
+      extensions: {
+        code: 'BALANCE_TRANSACTION_ERROR',
+        status: props.status,
+        balance: props.balance,
+        transactionId: props.transaction.id,
+      },
+    });
+  }
+}
+
+export const throwUserTransactionError = async ({
+  entityManager,
+  error,
+  transaction,
+}: {
+  entityManager: EntityManager;
+  error: TransferError;
+  transaction: UserTransaction;
+}): Promise<never> => {
+  const userTransactionError = new UserTransactionError({
+    status: error.transfer.status,
+    // TODO feat/transactions replace with balance from error.transfer when njord is updated
+    balance: {
+      amount: 0,
+    },
+    transaction,
+  });
+
+  await entityManager.getRepository(UserTransaction).update(
+    {
+      id: transaction.id,
+    },
+    {
+      status: error.transfer.status as number,
+      flags: updateFlagsStatement<UserTransaction>({
+        error: userTransactionError.message,
+      }),
     },
   );
 
-  return {
-    transactionId: transaction.id,
-    balance: {
-      amount: parseBigInt(transfer.senderBalance!.newBalance),
-    },
-  };
+  // commit transaction after updating the transaction status
+  await entityManager.queryRunner?.commitTransaction();
+
+  // throw error for client after committing the transaction in error state
+  throw userTransactionError;
 };

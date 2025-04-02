@@ -47,9 +47,10 @@ import {
   UserTransactionProcessor,
   UserTransactionStatus,
 } from '../../entity/user/UserTransaction';
-import { purchaseCores } from '../../common/njord';
+import { purchaseCores, throwUserTransactionError } from '../../common/njord';
 import { checkUserCoresAccess } from '../../common/user';
 import { CoresRole } from '../../types';
+import { TransferError } from '../../errors';
 
 export interface PaddleCustomData {
   user_id?: string;
@@ -669,9 +670,21 @@ export const processTransactionCompleted = async ({
           throw new Error('User does not have access to cores purchase');
         }
 
-        await purchaseCores({
-          transaction: userTransaction,
-        });
+        try {
+          await purchaseCores({
+            transaction: userTransaction,
+          });
+        } catch (error) {
+          if (error instanceof TransferError) {
+            await throwUserTransactionError({
+              entityManager,
+              error,
+              transaction: userTransaction,
+            });
+          }
+
+          throw error;
+        }
 
         return userTransaction;
       },
