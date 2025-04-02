@@ -26,6 +26,11 @@ import { logger } from '../src/logger';
 import { paddleInstance } from '../src/common/paddle';
 import * as redisFile from '../src/redis';
 import { ioRedisPool } from '../src/redis';
+import { ExperimentVariant } from '../src/entity';
+import {
+  PLUS_FEATURE_KEY,
+  DEFAULT_PLUS_METADATA,
+} from '../src/common/paddle/pricing';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -259,6 +264,269 @@ describe('pricing preview', () => {
 
     expect(result2.errors).toBeFalsy();
 
+    expect(getRedisObjectSpy).toHaveBeenCalledTimes(2);
+    expect(setRedisObjectWithExpirySpy).toHaveBeenCalledTimes(1);
+
+    expect(result).toEqual(result2);
+  });
+});
+
+describe('plus pricing metadata', () => {
+  const QUERY = `
+    query PlusPricingMetadata($variant: String) {
+      plusPricingMetadata(variant: $variant) {
+        appsId
+        title
+        caption {
+          copy
+          color
+        }
+        idMap {
+          paddle
+          ios
+        }
+      }
+    }
+  `;
+
+  const mockMetadata = [
+    {
+      appsId: 'monthly',
+      title: 'Monthly Plan',
+      caption: {
+        copy: 'Best for individuals',
+        color: 'bun',
+      },
+      idMap: {
+        paddle: 'pri_monthly',
+        ios: 'com.daily.dev.plus.monthly',
+      },
+    },
+    {
+      appsId: 'yearly',
+      title: 'Yearly Plan',
+      caption: {
+        copy: 'Best value',
+        color: 'success',
+      },
+      idMap: {
+        paddle: 'pri_yearly',
+        ios: 'com.daily.dev.plus.yearly',
+      },
+    },
+  ];
+
+  beforeEach(async () => {
+    await saveFixtures(con, ExperimentVariant, [
+      {
+        feature: PLUS_FEATURE_KEY,
+        variant: DEFAULT_PLUS_METADATA,
+        value: JSON.stringify(mockMetadata),
+      },
+    ]);
+  });
+
+  it('should return pricing metadata with default variant', async () => {
+    loggedUser = 'whp-1';
+    const result = await client.query(QUERY);
+    expect(result.data.plusPricingMetadata).toHaveLength(2);
+    expect(result.data.plusPricingMetadata[0].appsId).toBe('monthly');
+    expect(result.data.plusPricingMetadata[1].appsId).toBe('yearly');
+  });
+
+  it('should return pricing metadata with custom variant', async () => {
+    loggedUser = 'whp-1';
+    const customVariant = 'custom_variant';
+    const customMetadata = [
+      {
+        appsId: 'custom',
+        title: 'Custom Plan',
+        idMap: {
+          paddle: 'pri_custom',
+          ios: 'com.daily.dev.plus.custom',
+        },
+      },
+    ];
+
+    await saveFixtures(con, ExperimentVariant, [
+      {
+        feature: PLUS_FEATURE_KEY,
+        variant: customVariant,
+        value: JSON.stringify(customMetadata),
+      },
+    ]);
+
+    const result = await client.query(QUERY, {
+      variables: { variant: customVariant },
+    });
+    expect(result.data.plusPricingMetadata).toHaveLength(1);
+    expect(result.data.plusPricingMetadata[0].appsId).toBe('custom');
+  });
+
+  it('should throw error when experiment variant not found', async () => {
+    loggedUser = 'whp-1';
+    const result = await client.query(QUERY, {
+      variables: { variant: 'non_existent' },
+    });
+    expect(result.errors).toBeTruthy();
+    expect(result.errors?.[0].message).toContain('Entity not found');
+  });
+});
+
+describe('plus pricing preview', () => {
+  const QUERY = `
+    query PlusPricingPreview {
+      plusPricingPreview {
+        appsId
+        title
+        caption {
+          copy
+          color
+        }
+        idMap {
+          paddle
+          ios
+        }
+        productId
+        price {
+          amount
+          formatted
+          monthly {
+            amount
+            formatted
+          }
+        }
+        currency {
+          code
+          symbol
+        }
+        duration
+        trialPeriod {
+          interval
+          frequency
+        }
+      }
+    }
+  `;
+
+  const mockMetadata = [
+    {
+      appsId: 'monthly',
+      title: 'Monthly Plan',
+      caption: {
+        copy: 'Best for individuals',
+        color: '#000000',
+      },
+      idMap: {
+        paddle: 'pri_monthly',
+        ios: 'com.daily.dev.plus.monthly',
+      },
+    },
+  ];
+
+  const mockPreview = {
+    details: {
+      lineItems: [
+        {
+          price: {
+            id: 'pri_monthly',
+            productId: 'prod_monthly',
+            name: 'Monthly Subscription',
+            billingCycle: {
+              interval: 'month',
+              frequency: 1,
+            },
+            trialPeriod: {
+              interval: 'day',
+              frequency: 14,
+            },
+          },
+          formattedTotals: {
+            total: '$5.00',
+          },
+          totals: {
+            total: '5.00',
+          },
+        },
+      ],
+    },
+    currencyCode: 'USD',
+  };
+
+  beforeEach(async () => {
+    await ioRedisPool.execute((client) => client.flushall());
+    await saveFixtures(con, ExperimentVariant, [
+      {
+        feature: PLUS_FEATURE_KEY,
+        variant: DEFAULT_PLUS_METADATA,
+        value: JSON.stringify(mockMetadata),
+      },
+    ]);
+
+    const mockPreviewFn = jest.fn().mockResolvedValue(mockPreview);
+    jest
+      .spyOn(paddleInstance.pricingPreview, 'preview')
+      .mockImplementation(mockPreviewFn);
+  });
+
+  it('should return consolidated pricing preview data', async () => {
+    loggedUser = 'whp-1';
+    const result = await client.query(QUERY);
+    expect(result.data.plusPricingPreview).toHaveLength(1);
+    const preview = result.data.plusPricingPreview[0];
+    expect(preview.appsId).toBe('monthly');
+    expect(preview.title).toBe('Monthly Plan');
+    expect(preview.productId).toBe('prod_monthly');
+    expect(preview.price.amount).toBe(5);
+    expect(preview.price.formatted).toBe('$5.00');
+    expect(preview.currency.code).toBe('USD');
+    expect(preview.currency.symbol).toBe('$');
+    expect(preview.duration).toBe('monthly');
+    expect(preview.trialPeriod.interval).toBe('day');
+    expect(preview.trialPeriod.frequency).toBe(14);
+  });
+
+  it('should handle missing price items gracefully', async () => {
+    loggedUser = 'whp-1';
+    const mockPreviewWithMissingItem = {
+      ...mockPreview,
+      details: {
+        lineItems: [
+          {
+            price: {
+              id: 'pri_unknown',
+              productId: 'prod_unknown',
+              name: 'Unknown Plan',
+            },
+          },
+        ],
+      },
+    };
+
+    jest
+      .spyOn(paddleInstance.pricingPreview, 'preview')
+      .mockResolvedValue(mockPreviewWithMissingItem);
+
+    const result = await client.query(QUERY);
+    expect(result.data.plusPricingPreview).toHaveLength(0);
+  });
+
+  it('should cache pricing preview data', async () => {
+    const getRedisObjectSpy = jest.spyOn(redisFile, 'getRedisObject');
+    const setRedisObjectWithExpirySpy = jest.spyOn(
+      redisFile,
+      'setRedisObjectWithExpiry',
+    );
+
+    loggedUser = 'whp-1';
+    const result = await client.query(QUERY);
+
+    expect(result.errors).toBeFalsy();
+    expect(getRedisObjectSpy).toHaveBeenCalledTimes(1);
+    expect(setRedisObjectWithExpirySpy).toHaveBeenCalledTimes(1);
+
+    const result2 = await client.query(QUERY);
+    expect(result2.errors).toBeFalsy();
     expect(getRedisObjectSpy).toHaveBeenCalledTimes(2);
     expect(setRedisObjectWithExpirySpy).toHaveBeenCalledTimes(1);
 

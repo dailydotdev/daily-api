@@ -127,6 +127,133 @@ export const typeDefs = /* GraphQL */ `
   extend type Query {
     pricePreviews: PricePreviews! @auth
     corePricePreviews: PricePreviews! @auth
+    plusPricingMetadata(variant: String): [PlusPricingMetadata!]! @auth
+    plusPricingPreview: [PlusPricingPreview!]! @auth
+  }
+
+  """
+  Caption information for pricing metadata
+  """
+  type PricingCaption {
+    """
+    Caption text
+    """
+    copy: String!
+    """
+    Caption color
+    """
+    color: String!
+  }
+
+  """
+  ID mapping for different platforms
+  """
+  type PricingIdMap {
+    """
+    Paddle platform ID
+    """
+    paddle: String!
+    """
+    iOS platform ID
+    """
+    ios: String!
+  }
+
+  """
+  Plus pricing metadata information
+  """
+  type PlusPricingMetadata {
+    """
+    Application ID
+    """
+    appsId: String!
+    """
+    Title of the pricing option
+    """
+    title: String!
+    """
+    Optional caption information
+    """
+    caption: PricingCaption
+    """
+    Platform-specific IDs
+    """
+    idMap: PricingIdMap!
+  }
+
+  """
+  Price preview information
+  """
+  type PricePreview {
+    """
+    Price amount
+    """
+    amount: Float!
+    """
+    Formatted price string
+    """
+    formatted: String!
+
+    """
+    Monthly price amount
+    """
+    monthly: PricePreview
+  }
+
+  """
+  Currency information
+  """
+  type Currency {
+    """
+    Three letter currency code
+    """
+    code: String!
+    """
+    Currency symbol
+    """
+    symbol: String!
+  }
+
+  """
+  Extended pricing preview with additional information
+  """
+  type PlusPricingPreview {
+    """
+    Application ID
+    """
+    appsId: String!
+    """
+    Title of the pricing option
+    """
+    title: String!
+    """
+    Optional caption information
+    """
+    caption: PricingCaption
+    """
+    Platform-specific IDs
+    """
+    idMap: PricingIdMap!
+    """
+    Product ID
+    """
+    productId: String!
+    """
+    Price information
+    """
+    price: PricePreview!
+    """
+    Currency information
+    """
+    currency: Currency!
+    """
+    Subscription duration
+    """
+    duration: String!
+    """
+    Trial period information
+    """
+    trialPeriod: TrialPeriod
   }
 `;
 
