@@ -14,8 +14,17 @@ import { remoteConfig } from '../remoteConfig';
 import { getCurrencySymbol, ONE_HOUR_IN_SECONDS } from '../common';
 import { generateStorageKey, StorageKey, StorageTopic } from '../config';
 import { getRedisObject, setRedisObjectWithExpiry } from '../redis';
+import {
+  DEFAULT_PLUS_METADATA,
+  getPaddleMonthlyPrice,
+  getPlusPricePreview,
+  getPlusPricingMetadata,
+  PLUS_FEATURE_KEY,
+  PlusPricingMetadata,
+  PlusPricingPreview,
+} from '../common/paddle/pricing';
+import { PricingPreview } from '@paddle/paddle-node-sdk/dist/types/entities/pricing-preview';
 import { createHmac } from 'node:crypto';
-import type { PricingPreview } from '@paddle/paddle-node-sdk/dist/types/entities/pricing-preview';
 
 export const typeDefs = /* GraphQL */ `
   """
@@ -126,6 +135,10 @@ export interface GQLCustomData {
   label: string;
 }
 
+interface PlusMetadataArgs {
+  variant?: string;
+}
+
 export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
   unknown,
   AuthContext
@@ -230,6 +243,61 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
         currencyCode: pricePreview?.currencyCode as string,
         items,
       };
+    },
+    plusPricingMetadata: async (
+      _,
+      { variant = DEFAULT_PLUS_METADATA }: PlusMetadataArgs,
+      ctx: AuthContext,
+    ): Promise<PlusPricingMetadata[]> =>
+      await getPlusPricingMetadata(ctx.con, variant),
+    plusPricingPreview: async (_, __, ctx): Promise<PlusPricingPreview[]> => {
+      const gb = getUserGrowthBookInstace(ctx.userId);
+      const variant = gb.getFeatureValue(
+        PLUS_FEATURE_KEY,
+        DEFAULT_PLUS_METADATA,
+      );
+      const metadata = await getPlusPricingMetadata(ctx.con, variant);
+      const ids = metadata.map(({ idMap }) => idMap.paddle);
+      const preview = await getPlusPricePreview(ctx, ids);
+
+      // consolidate the preview data and metadata
+      const consolidated = metadata.map((meta) => {
+        const item = preview.details.lineItems.find(
+          (item) => item.price.id === meta.idMap.paddle,
+        );
+
+        if (!item) {
+          return null;
+        }
+
+        const isOneOff = !item.price.billingCycle?.interval;
+        const isYearly = item.price.billingCycle?.interval === 'year';
+        const duration =
+          isOneOff || isYearly
+            ? SubscriptionCycles.Yearly
+            : SubscriptionCycles.Monthly;
+        const baseAmount = getPriceFromPaddleItem(item);
+        const monthly = getPaddleMonthlyPrice(baseAmount, item);
+        const trialPeriod = item.price.trialPeriod;
+
+        return {
+          ...meta,
+          productId: item.price.productId,
+          price: {
+            monthly,
+            amount: baseAmount,
+            formatted: item.formattedTotals.total,
+          },
+          currency: {
+            code: preview.currencyCode,
+            symbol: item.formattedTotals.total.replace(/\d|\.|\s|,/g, ''),
+          },
+          duration,
+          trialPeriod,
+        } as PlusPricingPreview;
+      });
+
+      return consolidated.filter((item) => !!item);
     },
     corePricePreviews: async (_, __, ctx: AuthContext) => {
       const region = ctx.region;

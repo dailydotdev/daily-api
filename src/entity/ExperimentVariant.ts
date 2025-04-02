@@ -1,4 +1,5 @@
 import { Column, Entity, PrimaryColumn } from 'typeorm';
+import { ConnectionManager } from './posts';
 
 @Entity()
 export class ExperimentVariant {
@@ -14,3 +15,10 @@ export class ExperimentVariant {
   @Column({ type: 'text', default: null })
   value: string;
 }
+
+export const getExperimentVariant = (
+  con: ConnectionManager,
+  feature: string,
+  variant: string,
+) =>
+  con.getRepository(ExperimentVariant).findOne({ where: { feature, variant } });
