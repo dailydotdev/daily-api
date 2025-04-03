@@ -44,6 +44,7 @@
     "@fastify/rate-limit": "^10.2.2",
     "@google-cloud/bigquery": "^7.9.1",
     "@google-cloud/opentelemetry-resource-util": "^2.4.0",
+    "@google-cloud/pino-logging-gcp-config": "^1.0.2",
     "@google-cloud/pubsub": "^4.10.0",
     "@google-cloud/storage": "^7.15.1",
     "@graphql-tools/schema": "^10.0.18",
