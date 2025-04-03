@@ -80,6 +80,7 @@ config:
     pubsubProjectId: local
     redisHost: redis
     redisPort: 6379
+    serviceName: api
     submitArticleThreshold: 250
     typeormDatabase: api
     typeormHost: postgres
