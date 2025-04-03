@@ -1567,10 +1567,10 @@ describe('query transactionSummary', () => {
   });
 });
 
-describe('query productSummary', () => {
+describe('query userProductSummary', () => {
   const QUERY = `
-  query productSummary($userId: ID!, $limit: Int = 24, $type: ProductType!) {
-    productSummary(userId: $userId, limit: $limit, type: $type) {
+  query userProductSummary($userId: ID!, $limit: Int = 24, $type: ProductType!) {
+    userProductSummary(userId: $userId, limit: $limit, type: $type) {
       id
       name
       image
@@ -1709,7 +1709,7 @@ describe('query productSummary', () => {
 
     expect(res.errors).toBeFalsy();
 
-    expect(res.data.productSummary).toMatchObject([
+    expect(res.data.userProductSummary).toMatchObject([
       {
         id: '3f73343b-b1ae-45fc-bc3c-ded01d149596',
         name: 'Award 1',
@@ -1744,7 +1744,7 @@ describe('query productSummary', () => {
 
     expect(res.errors).toBeFalsy();
 
-    expect(res.data.productSummary).toMatchObject([
+    expect(res.data.userProductSummary).toMatchObject([
       {
         id: '3f73343b-b1ae-45fc-bc3c-ded01d149596',
         name: 'Award 1',

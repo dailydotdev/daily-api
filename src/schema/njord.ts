@@ -55,7 +55,7 @@ type GQLUserTransactionSummary = {
   spent: number;
 };
 
-type GQLProductSummary = Pick<Product, 'id' | 'name' | 'image'> & {
+type GQLUserProductSummary = Pick<Product, 'id' | 'name' | 'image'> & {
   count: number;
 };
 
@@ -149,7 +149,7 @@ export const typeDefs = /* GraphQL */ `
     edges: [UserTransactionEdge!]!
   }
 
-  type ProductSummary {
+  type UserProductSummary {
     id: ID!
     name: String!
     image: String!
@@ -217,9 +217,9 @@ export const typeDefs = /* GraphQL */ `
     ): UserTransactionConnection @auth
 
     """
-    Get awards summary
+    Get product summary for user
     """
-    productSummary(
+    userProductSummary(
       """
       User id (receiver of awards)
       """
@@ -234,7 +234,7 @@ export const typeDefs = /* GraphQL */ `
       Product type
       """
       type: ProductType!
-    ): [ProductSummary!] @auth
+    ): [UserProductSummary!] @auth
   }
 
   extend type Mutation {
@@ -417,7 +417,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         true,
       );
     },
-    productSummary: async (
+    userProductSummary: async (
       _,
       {
         userId,
@@ -425,7 +425,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         type,
       }: { userId: string; limit: number; type: ProductType },
       ctx: AuthContext,
-    ): Promise<GQLProductSummary[]> => {
+    ): Promise<GQLUserProductSummary[]> => {
       const result = await queryReadReplica(ctx.con, ({ queryRunner }) => {
         return queryRunner.manager
           .getRepository(UserTransaction)
