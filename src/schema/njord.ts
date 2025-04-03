@@ -13,7 +13,7 @@ import {
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { toGQLEnum } from '../common';
 import { z } from 'zod';
-import { type Product } from '../entity/Product';
+import { ProductType, type Product } from '../entity/Product';
 import type { Connection, ConnectionArguments } from 'graphql-relay';
 import { offsetPageGenerator } from './common';
 import graphorm from '../graphorm';
@@ -53,6 +53,10 @@ type GQLUserTransactionSummary = {
   purchased: number;
   received: number;
   spent: number;
+};
+
+type GQLProductSummary = Pick<Product, 'id' | 'name' | 'image'> & {
+  count: number;
 };
 
 export const typeDefs = /* GraphQL */ `
@@ -143,6 +147,13 @@ export const typeDefs = /* GraphQL */ `
     edges: [UserTransactionEdge!]!
   }
 
+  type ProductSummary {
+    id: ID!
+    name: String!
+    image: String!
+    count: Int!
+  }
+
   extend type Query {
     """
     List feeds
@@ -202,6 +213,16 @@ export const typeDefs = /* GraphQL */ `
       """
       last: Int
     ): UserTransactionConnection @auth
+
+    """
+    Get awards summary
+    """
+    productAwardSummary(
+      """
+      User id (receiver of awards)
+      """
+      userId: ID!
+    ): [ProductSummary!] @auth
   }
 
   extend type Mutation {
@@ -383,6 +404,31 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         undefined,
         true,
       );
+    },
+    productAwardSummary: async (
+      _,
+      { userId }: { userId: string },
+      ctx: AuthContext,
+    ): Promise<GQLProductSummary[]> => {
+      const result = await queryReadReplica(ctx.con, ({ queryRunner }) => {
+        return queryRunner.manager
+          .getRepository(UserTransaction)
+          .createQueryBuilder('ut')
+          .innerJoin('Product', 'p', 'p.id = ut.productId')
+          .select('p.id', 'id')
+          .addSelect('p.name', 'name')
+          .addSelect('p.image', 'image')
+          .addSelect('COUNT(p.id)', 'count')
+          .where('ut.receiverId = :receiverId', {
+            receiverId: userId,
+          })
+          .andWhere('p.type = :type', { type: ProductType.Award })
+          .groupBy('ut."productId"')
+          .addGroupBy('p.id')
+          .getRawMany();
+      });
+
+      return result;
     },
   },
   Mutation: {
