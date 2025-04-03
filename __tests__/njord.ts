@@ -1569,8 +1569,8 @@ describe('query transactionSummary', () => {
 
 describe('query productAwardSummary', () => {
   const QUERY = `
-  query ProductAwardSummary($userId: ID!) {
-    productAwardSummary(userId: $userId) {
+  query ProductAwardSummary($userId: ID!, $limit: Int = 24) {
+    productAwardSummary(userId: $userId, limit: $limit) {
       id
       name
       image
@@ -1725,6 +1725,34 @@ describe('query productAwardSummary', () => {
         name: 'Award 3',
         image: 'https://daily.dev/award.jpg',
         count: 1,
+      },
+    ]);
+  });
+
+  it('should return product award summary', async () => {
+    loggedUser = 't-pasq-2';
+
+    const res = await client.query(QUERY, {
+      variables: {
+        userId: 't-pasq-1',
+        limit: 2,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.productAwardSummary).toMatchObject([
+      {
+        id: '3f73343b-b1ae-45fc-bc3c-ded01d149596',
+        name: 'Award 1',
+        image: 'https://daily.dev/award.jpg',
+        count: 3,
+      },
+      {
+        id: '68089462-54f2-4dbd-9338-8983d142aef5',
+        name: 'Award 2',
+        image: 'https://daily.dev/award.jpg',
+        count: 2,
       },
     ]);
   });

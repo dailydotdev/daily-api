@@ -11,7 +11,7 @@ import {
   type TransactionCreated,
 } from '../common/njord';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
-import { toGQLEnum } from '../common';
+import { getLimit, toGQLEnum } from '../common';
 import { z } from 'zod';
 import { ProductType, type Product } from '../entity/Product';
 import type { Connection, ConnectionArguments } from 'graphql-relay';
@@ -222,6 +222,11 @@ export const typeDefs = /* GraphQL */ `
       User id (receiver of awards)
       """
       userId: ID!
+
+      """
+      Limit
+      """
+      limit: Int = 24
     ): [ProductSummary!] @auth
   }
 
@@ -407,7 +412,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     productAwardSummary: async (
       _,
-      { userId }: { userId: string },
+      { userId, limit }: { userId: string; limit: number },
       ctx: AuthContext,
     ): Promise<GQLProductSummary[]> => {
       const result = await queryReadReplica(ctx.con, ({ queryRunner }) => {
@@ -425,6 +430,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .andWhere('p.type = :type', { type: ProductType.Award })
           .groupBy('ut."productId"')
           .addGroupBy('p.id')
+          .limit(getLimit({ limit, max: 100 }))
           .getRawMany();
       });
 
