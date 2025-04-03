@@ -232,8 +232,8 @@ export const customerio = async (fastify: FastifyInstance): Promise<void> => {
           payload.notification,
         );
         return res.send({ success: true });
-      } catch (error) {
-        logger.error({ error }, 'Error sending generic push');
+      } catch (err) {
+        logger.error({ err }, 'Error sending generic push');
         return res.status(500).send({ success: false });
       }
     },

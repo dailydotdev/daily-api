@@ -133,8 +133,8 @@ export const calculateTopReaders: Cron = {
       logger.info(
         'calculateTopReaders: All done. So long and thanks for all the fish!',
       );
-    } catch (error) {
-      logger.error({ error }, 'Error during calculation of top readers');
+    } catch (err) {
+      logger.error({ err }, 'Error during calculation of top readers');
     }
   },
 };
