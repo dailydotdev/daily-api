@@ -101,6 +101,7 @@ const envVars: Record<string, Input<string>> = {
   redisHost,
   redisPass: redis.authString,
   redisPort: redis.port.apply((port) => port.toString()),
+  serviceVersion: imageTag,
 };
 
 createSubscriptionsFromWorkers(
@@ -260,7 +261,13 @@ if (isAdhocEnv) {
         'prometheus.io/scrape': 'true',
         'prometheus.io/port': '9464',
       },
-      env: [...jwtEnv],
+      env: [
+        {
+          name: 'SERVICE_NAME',
+          value: `${envVars.serviceName as string}-bg`
+        },
+        ...jwtEnv
+      ],
       ...vols,
     },
   ];
@@ -325,6 +332,10 @@ if (isAdhocEnv) {
       env: [
         nodeOptions(wsMemory),
         { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
+        {
+          name: 'SERVICE_NAME',
+          value: `${envVars.serviceName as string}-bg`
+        },
         ...jwtEnv,
       ],
       args: ['dumb-init', 'node', 'bin/cli', 'websocket'],
