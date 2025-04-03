@@ -1567,10 +1567,10 @@ describe('query transactionSummary', () => {
   });
 });
 
-describe('query productAwardSummary', () => {
+describe('query productSummary', () => {
   const QUERY = `
-  query ProductAwardSummary($userId: ID!, $limit: Int = 24) {
-    productAwardSummary(userId: $userId, limit: $limit) {
+  query productSummary($userId: ID!, $limit: Int = 24, $type: ProductType!) {
+    productSummary(userId: $userId, limit: $limit, type: $type) {
       id
       name
       image
@@ -1690,6 +1690,7 @@ describe('query productAwardSummary', () => {
         mutation: QUERY,
         variables: {
           userId: 't-pasq-1',
+          type: ProductType.Award,
         },
       },
       'UNAUTHENTICATED',
@@ -1702,12 +1703,13 @@ describe('query productAwardSummary', () => {
     const res = await client.query(QUERY, {
       variables: {
         userId: 't-pasq-1',
+        type: ProductType.Award,
       },
     });
 
     expect(res.errors).toBeFalsy();
 
-    expect(res.data.productAwardSummary).toMatchObject([
+    expect(res.data.productSummary).toMatchObject([
       {
         id: '3f73343b-b1ae-45fc-bc3c-ded01d149596',
         name: 'Award 1',
@@ -1736,12 +1738,13 @@ describe('query productAwardSummary', () => {
       variables: {
         userId: 't-pasq-1',
         limit: 2,
+        type: ProductType.Award,
       },
     });
 
     expect(res.errors).toBeFalsy();
 
-    expect(res.data.productAwardSummary).toMatchObject([
+    expect(res.data.productSummary).toMatchObject([
       {
         id: '3f73343b-b1ae-45fc-bc3c-ded01d149596',
         name: 'Award 1',

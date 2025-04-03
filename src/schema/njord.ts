@@ -62,6 +62,8 @@ type GQLProductSummary = Pick<Product, 'id' | 'name' | 'image'> & {
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(AwardType, 'AwardType')}
 
+  ${toGQLEnum(ProductType, 'ProductType')}
+
   type UserBalance {
     amount: Int!
   }
@@ -217,7 +219,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get awards summary
     """
-    productAwardSummary(
+    productSummary(
       """
       User id (receiver of awards)
       """
@@ -227,6 +229,11 @@ export const typeDefs = /* GraphQL */ `
       Limit
       """
       limit: Int = 24
+
+      """
+      Product type
+      """
+      type: ProductType!
     ): [ProductSummary!] @auth
   }
 
@@ -410,9 +417,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         true,
       );
     },
-    productAwardSummary: async (
+    productSummary: async (
       _,
-      { userId, limit }: { userId: string; limit: number },
+      {
+        userId,
+        limit,
+        type,
+      }: { userId: string; limit: number; type: ProductType },
       ctx: AuthContext,
     ): Promise<GQLProductSummary[]> => {
       const result = await queryReadReplica(ctx.con, ({ queryRunner }) => {
@@ -427,7 +438,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .where('ut.receiverId = :receiverId', {
             receiverId: userId,
           })
-          .andWhere('p.type = :type', { type: ProductType.Award })
+          .andWhere('p.type = :type', { type })
           .groupBy('ut."productId"')
           .addGroupBy('p.id')
           .limit(getLimit({ limit, max: 100 }))
