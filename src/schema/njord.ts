@@ -431,6 +431,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .groupBy('ut."productId"')
           .addGroupBy('p.id')
           .limit(getLimit({ limit, max: 100 }))
+          .orderBy('count', 'DESC')
           .getRawMany();
       });
 
