@@ -1067,14 +1067,12 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
             );
           }
         } catch (originalError) {
-          const error = originalError as Error;
+          const err = originalError as Error;
 
           logger.error(
             {
+              err,
               provider: SubscriptionProvider.Paddle,
-              err: {
-                message: error.message,
-              },
             },
             'Paddle generic error',
           );
