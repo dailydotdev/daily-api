@@ -104,6 +104,7 @@ export const getPlusPricePreview = async (ctx: AuthContext, ids: string[]) => {
 };
 
 const MONTHS_IN_YEAR = 12;
+const removeNumbers = (str: string) => str.replace(/\d|\.|\s|,/g, '');
 
 export const getPaddleMonthlyPrice = (
   baseAmount: number,
@@ -112,7 +113,7 @@ export const getPaddleMonthlyPrice = (
   const monthlyPrice = Number(
     (baseAmount / MONTHS_IN_YEAR).toString().match(/^-?\d+(?:\.\d{0,2})?/)?.[0],
   );
-  const currencySymbol = item.formattedTotals.total.replace(/\d|\.|\s|,/g, '');
+  const currencySymbol = removeNumbers(item.formattedTotals.total);
   const priceFormatter = new Intl.NumberFormat('en-US', {
     minimumFractionDigits: 2,
   });
