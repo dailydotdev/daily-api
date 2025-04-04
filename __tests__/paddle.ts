@@ -434,7 +434,7 @@ describe('plus pricing preview', () => {
         {
           price: {
             id: 'pri_monthly',
-            productId: 'prod_monthly',
+            productId: 'dailydev-plus',
             name: 'Monthly Subscription',
             billingCycle: {
               interval: 'month',
@@ -480,7 +480,7 @@ describe('plus pricing preview', () => {
     const preview = result.data.plusPricingPreview[0];
     expect(preview.metadata.appsId).toBe('monthly');
     expect(preview.metadata.title).toBe('Monthly Plan');
-    expect(preview.productId).toBe('prod_monthly');
+    expect(preview.productId).toBe('pri_monthly');
     expect(preview.price.amount).toBe(5);
     expect(preview.price.formatted).toBe('$5.00');
     expect(preview.currency.code).toBe('USD');
@@ -499,7 +499,7 @@ describe('plus pricing preview', () => {
           {
             price: {
               id: 'pri_unknown',
-              productId: 'prod_unknown',
+              productId: 'dailydev-plus',
               name: 'Unknown Plan',
             },
           },
