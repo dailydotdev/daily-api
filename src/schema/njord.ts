@@ -1,4 +1,4 @@
-import type { AuthContext, BaseContext } from '../Context';
+import type { AuthContext, BaseContext, Context } from '../Context';
 import type { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import {
@@ -234,7 +234,7 @@ export const typeDefs = /* GraphQL */ `
       Product type
       """
       type: ProductType!
-    ): [UserProductSummary!] @auth
+    ): [UserProductSummary!]
   }
 
   extend type Mutation {
@@ -424,7 +424,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         limit,
         type,
       }: { userId: string; limit: number; type: ProductType },
-      ctx: AuthContext,
+      ctx: Context,
     ): Promise<GQLUserProductSummary[]> => {
       const result = await queryReadReplica(ctx.con, ({ queryRunner }) => {
         return queryRunner.manager

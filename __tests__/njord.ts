@@ -1683,23 +1683,7 @@ describe('query userProductSummary', () => {
     ]);
   });
 
-  it('should not authorize when not logged in', async () => {
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: QUERY,
-        variables: {
-          userId: 't-pasq-1',
-          type: ProductType.Award,
-        },
-      },
-      'UNAUTHENTICATED',
-    );
-  });
-
   it('should return product award summary', async () => {
-    loggedUser = 't-pasq-2';
-
     const res = await client.query(QUERY, {
       variables: {
         userId: 't-pasq-1',
@@ -1732,8 +1716,6 @@ describe('query userProductSummary', () => {
   });
 
   it('should return limited product award summary', async () => {
-    loggedUser = 't-pasq-2';
-
     const res = await client.query(QUERY, {
       variables: {
         userId: 't-pasq-1',
