@@ -101,7 +101,6 @@ const envVars: Record<string, Input<string>> = {
   redisHost,
   redisPass: redis.authString,
   redisPort: redis.port.apply((port) => port.toString()),
-  serviceVersion: imageTag,
 };
 
 createSubscriptionsFromWorkers(
@@ -204,6 +203,10 @@ const jwtEnv = [
   { name: 'JWT_PRIVATE_KEY_PATH', value: '/opt/app/cert/key.pem' },
 ];
 
+const commonEnv = [
+  { name: 'SERVICE_VERSION', value: imageTag },
+]
+
 let appsArgs: ApplicationArgs[];
 if (isAdhocEnv) {
   appsArgs = [
@@ -220,6 +223,7 @@ if (isAdhocEnv) {
           value: 'true',
         },
         { name: 'ENABLE_PRIVATE_ROUTES', value: 'true' },
+        ...commonEnv,
         ...jwtEnv,
       ],
       minReplicas: 3,
@@ -269,6 +273,7 @@ if (isAdhocEnv) {
           name: 'SERVICE_NAME',
           value: `${envVars.serviceName as string}-bg`
         },
+        ...commonEnv,
         ...jwtEnv
       ],
       ...vols,
@@ -297,14 +302,14 @@ if (isAdhocEnv) {
         'prometheus.io/scrape': 'true',
         'prometheus.io/port': '9464',
       },
-      env: [...jwtEnv],
+      env: [...commonEnv, ...jwtEnv],
       ...vols,
     });
   }
 } else {
   appsArgs = [
     {
-      env: [nodeOptions(memory), ...jwtEnv],
+      env: [nodeOptions(memory), ...commonEnv, ...jwtEnv],
       minReplicas: 3,
       maxReplicas: 25,
       limits: apiLimits,
@@ -339,6 +344,7 @@ if (isAdhocEnv) {
           name: 'SERVICE_NAME',
           value: `${envVars.serviceName as string}-bg`
         },
+        ...commonEnv,
         ...jwtEnv,
       ],
       args: ['dumb-init', 'node', 'bin/cli', 'websocket'],
@@ -355,7 +361,7 @@ if (isAdhocEnv) {
     },
     {
       nameSuffix: 'bg',
-      env: [...jwtEnv],
+      env: [...commonEnv, ...jwtEnv],
       args: ['dumb-init', 'node', 'bin/cli', 'background'],
       minReplicas: 3,
       maxReplicas: 10,
@@ -376,7 +382,7 @@ if (isAdhocEnv) {
     },
     {
       nameSuffix: 'temporal',
-      env: [...jwtEnv],
+      env: [...commonEnv, ...jwtEnv],
       args: ['dumb-init', 'node', 'bin/cli', 'temporal'],
       minReplicas: 1,
       maxReplicas: 3,
@@ -391,7 +397,7 @@ if (isAdhocEnv) {
     {
       nameSuffix: 'private',
       port: 3000,
-      env: [{ name: 'ENABLE_PRIVATE_ROUTES', value: 'true' }, ...jwtEnv],
+      env: [{ name: 'ENABLE_PRIVATE_ROUTES', value: 'true' }, ...commonEnv, ...jwtEnv],
       minReplicas: 2,
       maxReplicas: 2,
       limits: {
@@ -411,7 +417,7 @@ if (isAdhocEnv) {
   if (isPersonalizedDigestEnabled) {
     appsArgs.push({
       nameSuffix: 'personalized-digest',
-      env: [...jwtEnv],
+      env: [...commonEnv, ...jwtEnv],
       args: ['dumb-init', 'node', 'bin/cli', 'personalized-digest'],
       minReplicas: 1,
       maxReplicas: 2,
