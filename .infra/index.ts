@@ -138,7 +138,7 @@ const apiLimits: pulumi.Input<{ memory: string }> = {
 
 const wsMemory = 1280;
 const wsRequests: pulumi.Input<{ cpu: string; memory: string }> = {
-  cpu: '300',
+  cpu: '300m',
   memory: '800Mi',
 };
 const wsLimits: pulumi.Input<{
