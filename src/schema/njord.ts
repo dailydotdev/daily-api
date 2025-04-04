@@ -439,6 +439,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             receiverId: userId,
           })
           .andWhere('p.type = :type', { type })
+          .andWhere('ut.status = :status', {
+            status: UserTransactionStatus.Success,
+          })
           .groupBy('ut."productId"')
           .addGroupBy('p.id')
           .limit(getLimit({ limit, max: 100 }))

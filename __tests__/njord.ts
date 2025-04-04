@@ -1698,13 +1698,13 @@ describe('query userProductSummary', () => {
         id: '3f73343b-b1ae-45fc-bc3c-ded01d149596',
         name: 'Award 1',
         image: 'https://daily.dev/award.jpg',
-        count: 3,
+        count: 2,
       },
       {
         id: '68089462-54f2-4dbd-9338-8983d142aef5',
         name: 'Award 2',
         image: 'https://daily.dev/award.jpg',
-        count: 2,
+        count: 1,
       },
       {
         id: '7d610a0e-8790-467f-81a8-fa2b7b727c6d',
@@ -1731,13 +1731,13 @@ describe('query userProductSummary', () => {
         id: '3f73343b-b1ae-45fc-bc3c-ded01d149596',
         name: 'Award 1',
         image: 'https://daily.dev/award.jpg',
-        count: 3,
+        count: 2,
       },
       {
         id: '68089462-54f2-4dbd-9338-8983d142aef5',
         name: 'Award 2',
         image: 'https://daily.dev/award.jpg',
-        count: 2,
+        count: 1,
       },
     ]);
   });
