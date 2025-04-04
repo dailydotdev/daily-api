@@ -101,6 +101,7 @@ const envVars: Record<string, Input<string>> = {
   redisHost,
   redisPass: redis.authString,
   redisPort: redis.port.apply((port) => port.toString()),
+  serviceVersion: imageTag,
 };
 
 createSubscriptionsFromWorkers(
@@ -135,11 +136,14 @@ const apiLimits: pulumi.Input<{ memory: string }> = {
   memory: `${memory}Mi`,
 };
 
-const wsMemory = 2048;
+const wsMemory = 1280;
+const wsRequests: pulumi.Input<{ cpu: string; memory: string }> = {
+  cpu: '300',
+  memory: '800Mi',
+};
 const wsLimits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = {
-  cpu: '300m',
   memory: `${wsMemory}Mi`,
 };
 
@@ -260,7 +264,13 @@ if (isAdhocEnv) {
         'prometheus.io/scrape': 'true',
         'prometheus.io/port': '9464',
       },
-      env: [...jwtEnv],
+      env: [
+        {
+          name: 'SERVICE_NAME',
+          value: `${envVars.serviceName as string}-bg`
+        },
+        ...jwtEnv
+      ],
       ...vols,
     },
   ];
@@ -325,12 +335,17 @@ if (isAdhocEnv) {
       env: [
         nodeOptions(wsMemory),
         { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
+        {
+          name: 'SERVICE_NAME',
+          value: `${envVars.serviceName as string}-bg`
+        },
         ...jwtEnv,
       ],
       args: ['dumb-init', 'node', 'bin/cli', 'websocket'],
       minReplicas: 3,
       maxReplicas: 10,
       limits: wsLimits,
+      requests: wsRequests,
       readinessProbe,
       livenessProbe,
       metric: { type: 'memory_cpu', cpu: 85 },

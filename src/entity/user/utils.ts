@@ -132,17 +132,17 @@ export const updateUserEmail = async (
 
     logger.info(`Updated email for user with ID: ${data.id}`);
     return { status: 'ok', userId: data.id };
-  } catch (error) {
+  } catch (err) {
     logger.error(
       {
         data,
         userId: data.id,
-        error,
+        err,
       },
       'failed to update user email',
     );
 
-    throw error;
+    throw err;
   }
 };
 

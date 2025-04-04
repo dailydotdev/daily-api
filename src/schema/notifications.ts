@@ -544,18 +544,32 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         source,
         args,
         ctx: SubscriptionContext,
-      ): Promise<AsyncIterator<{ newNotification: Notification }>> => {
-        const it = {
-          [Symbol.asyncIterator]: () =>
-            redisPubSub.asyncIterator<Notification>(
-              `events.notifications.${ctx.userId}.new`,
-            ),
+      ): Promise<AsyncIterable<{ newNotification: Notification }>> => {
+        const iterator = redisPubSub.asyncIterator<Notification>(
+          `events.notifications.${ctx.userId}.new`,
+        );
+
+        return {
+          [Symbol.asyncIterator]() {
+            return {
+              next: async () => {
+                const { done, value } = await iterator.next();
+                if (done) {
+                  return { done: true, value: undefined };
+                }
+                return { done: false, value: { newNotification: value } };
+              },
+              return: async () => {
+                await iterator.return?.();
+                return { done: true, value: undefined };
+              },
+              throw: async (error: Error) => {
+                await iterator.throw?.(error);
+                return { done: true, value: undefined };
+              },
+            };
+          },
         };
-        return (async function* () {
-          for await (const value of it) {
-            yield { newNotification: value };
-          }
-        })();
       },
     },
   },
