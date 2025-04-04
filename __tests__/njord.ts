@@ -1731,7 +1731,7 @@ describe('query userProductSummary', () => {
     ]);
   });
 
-  it('should return product award summary', async () => {
+  it('should return limited product award summary', async () => {
     loggedUser = 't-pasq-2';
 
     const res = await client.query(QUERY, {
