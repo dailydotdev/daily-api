@@ -80,27 +80,25 @@ export const getPlusPricePreview = async (ctx: AuthContext, ids: string[]) => {
     [pricesHash, region].join(':'),
   );
 
-  let pricePreview: PricingPreview;
-
   const redisResult = await getRedisObject(redisKey);
 
   if (redisResult) {
-    pricePreview = JSON.parse(redisResult);
-  } else {
-    pricePreview = await paddleInstance?.pricingPreview.preview({
-      items: sortedIds.map((priceId) => ({
-        priceId,
-        quantity: 1,
-      })),
-      address: region ? { countryCode: region as CountryCode } : undefined,
-    });
-
-    await setRedisObjectWithExpiry(
-      redisKey,
-      JSON.stringify(pricePreview),
-      ONE_HOUR_IN_SECONDS,
-    );
+    return JSON.parse(redisResult) as PricingPreview;
   }
+
+  const pricePreview = await paddleInstance?.pricingPreview.preview({
+    items: sortedIds.map((priceId) => ({
+      priceId,
+      quantity: 1,
+    })),
+    address: region ? { countryCode: region as CountryCode } : undefined,
+  });
+
+  await setRedisObjectWithExpiry(
+    redisKey,
+    JSON.stringify(pricePreview),
+    ONE_HOUR_IN_SECONDS,
+  );
 
   return pricePreview;
 };
