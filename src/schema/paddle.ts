@@ -412,7 +412,7 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
 
         return {
           metadata: meta,
-          productId: item.price.productId,
+          productId: item.price.id,
           price: {
             monthly,
             amount: baseAmount,
