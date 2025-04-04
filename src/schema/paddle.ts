@@ -412,7 +412,7 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
         } as PlusPricingPreview;
       });
 
-      return consolidated.filter((item) => !!item);
+      return consolidated.filter(Boolean);
     },
     corePricePreviews: async (_, __, ctx: AuthContext) => {
       const region = ctx.region;
