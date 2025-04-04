@@ -392,7 +392,10 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
             ? SubscriptionCycles.Yearly
             : SubscriptionCycles.Monthly;
         const baseAmount = getPriceFromPaddleItem(item);
-        const monthly = getPaddleMonthlyPrice(baseAmount, item);
+        const monthly =
+          item.price.billingCycle?.interval === 'year'
+            ? getPaddleMonthlyPrice(baseAmount, item)
+            : null;
         const trialPeriod = item.price.trialPeriod;
 
         return {
@@ -412,7 +415,7 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
         } as PlusPricingPreview;
       });
 
-      return consolidated.filter(Boolean);
+      return consolidated.filter(Boolean) as PlusPricingPreview[];
     },
     corePricePreviews: async (_, __, ctx: AuthContext) => {
       const region = ctx.region;

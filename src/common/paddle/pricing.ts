@@ -103,13 +103,14 @@ export const getPlusPricePreview = async (ctx: AuthContext, ids: string[]) => {
   return pricePreview;
 };
 
+const MONTHS_IN_YEAR = 12;
+
 export const getPaddleMonthlyPrice = (
   baseAmount: number,
   item: PricingPreviewLineItem,
 ): PricePreview => {
-  const months = item.price.billingCycle?.interval === 'year' ? 12 : 1;
   const monthlyPrice = Number(
-    (baseAmount / months).toString().match(/^-?\d+(?:\.\d{0,2})?/)?.[0],
+    (baseAmount / MONTHS_IN_YEAR).toString().match(/^-?\d+(?:\.\d{0,2})?/)?.[0],
   );
   const currencySymbol = item.formattedTotals.total.replace(/\d|\.|\s|,/g, '');
   const priceFormatter = new Intl.NumberFormat('en-US', {
