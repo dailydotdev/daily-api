@@ -3,7 +3,7 @@ import { updateFlagsStatement, User } from '../common';
 import { UserPersonalizedDigest } from '../entity';
 import {
   features,
-  getUserGrowthBookInstace,
+  getUserGrowthBookInstance,
   PersonalizedDigestFeatureConfig,
 } from '../growthbook';
 import { messageToJson, workerToExperimentWorker } from './worker';
@@ -22,7 +22,7 @@ const worker = workerToExperimentWorker({
       return;
     }
 
-    const growthbookClient = getUserGrowthBookInstace(user.id, {
+    const growthbookClient = getUserGrowthBookInstance(user.id, {
       enableDevMode: process.env.NODE_ENV !== 'production',
       subscribeToChanges: false,
       allocationClient,

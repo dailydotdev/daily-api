@@ -4,7 +4,7 @@ import { UserPersonalizedDigest } from '../src/entity';
 import {
   ExperimentAllocationClient,
   features,
-  getUserGrowthBookInstace,
+  getUserGrowthBookInstance,
   loadFeatures,
 } from '../src/growthbook';
 import pino from 'pino';
@@ -59,7 +59,7 @@ import pino from 'pino';
   personalizedDigestStream.on(
     'data',
     (personalizedDigest: UserPersonalizedDigest) => {
-      const gbClient = getUserGrowthBookInstace(personalizedDigest.userId, {
+      const gbClient = getUserGrowthBookInstance(personalizedDigest.userId, {
         allocationClient,
       });
 

@@ -52,7 +52,7 @@ jest.mock('../../src/integrations/analytics', () => ({
 
 jest.mock('../../src/growthbook', () => ({
   ...(jest.requireActual('../../src/growthbook') as Record<string, unknown>),
-  getUserGrowthBookInstace: (
+  getUserGrowthBookInstance: (
     _userId: string,
     { allocationClient }: { allocationClient: ExperimentAllocationClient },
   ) => {

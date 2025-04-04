@@ -61,7 +61,7 @@ export function getEncryptedFeatures(): string {
   return encryptedFeatures;
 }
 
-export function getUserGrowthBookInstace(
+export function getUserGrowthBookInstance(
   userId: string,
   params?: Omit<GrowthBookContext, 'features' | 'trackingCallback'> & {
     allocationClient?: ExperimentAllocationClient;
