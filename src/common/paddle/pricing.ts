@@ -1,5 +1,4 @@
 import { ConnectionManager } from '../../entity';
-import { getExperimentVariant } from '../../entity/ExperimentVariant';
 import { EntityNotFoundError } from 'typeorm';
 import { CountryCode, TimePeriod } from '@paddle/paddle-node-sdk';
 import { AuthContext } from '../../Context';
@@ -12,6 +11,7 @@ import {
 import { getRedisObject, setRedisObjectWithExpiry } from '../../redis';
 import { paddleInstance } from './index';
 import { ONE_HOUR_IN_SECONDS } from '../constants';
+import { getExperimentVariant } from '../experiment';
 
 export const PLUS_FEATURE_KEY = 'plus_pricing_ids';
 export const DEFAULT_PLUS_METADATA = 'plus_default';
