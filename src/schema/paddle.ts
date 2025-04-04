@@ -8,7 +8,10 @@ import {
 import type { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { SubscriptionCycles } from '../paddle';
-import { getUserGrowthBookInstance } from '../growthbook';
+import {
+  ExperimentAllocationClient,
+  getUserGrowthBookInstance,
+} from '../growthbook';
 import { User } from '../entity';
 import { remoteConfig } from '../remoteConfig';
 import { getCurrencySymbol, ONE_HOUR_IN_SECONDS } from '../common';
@@ -370,9 +373,11 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
         where: { id: ctx.userId },
         select: { createdAt: true },
       });
+      const allocationClient = new ExperimentAllocationClient();
       const gb = getUserGrowthBookInstance(ctx.userId, {
         subscribeToChanges: false,
         attributes: { registrationDate: user.createdAt.toISOString() },
+        allocationClient,
       });
       const variant = gb.getFeatureValue(
         PLUS_FEATURE_KEY,
