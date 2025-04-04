@@ -8,9 +8,13 @@ import {
 
 export type ProductFlags = Partial<{
   description: string;
+  imageGlow: string;
 }>;
 
-export type ProductFlagsPublic = Pick<ProductFlags, 'description'>;
+export type ProductFlagsPublic = Pick<
+  ProductFlags,
+  'description' | 'imageGlow'
+>;
 
 export enum ProductType {
   Award = 'award',

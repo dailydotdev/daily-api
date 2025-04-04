@@ -1,29 +1,23 @@
-import pino, { LoggerOptions } from 'pino';
+import { env } from 'node:process';
 
-// https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry#logseverity
-const PinoLevelToSeverityLookup = {
-  trace: 'DEBUG',
-  debug: 'DEBUG',
-  info: 'INFO',
-  warn: 'WARNING',
-  error: 'ERROR',
-  fatal: 'CRITICAL',
+import { createGcpLoggingPinoConfig } from '@google-cloud/pino-logging-gcp-config';
+import pino, { type LoggerOptions } from 'pino';
+
+const pinoLoggerOptions: LoggerOptions = {
+  level: env.LOG_LEVEL || 'info',
 };
 
-export const loggerConfig: LoggerOptions = {
-  level: process.env.LOG_LEVEL || 'info',
-  messageKey: 'message',
-  formatters: {
-    level(label, number) {
-      return {
-        severity:
-          PinoLevelToSeverityLookup[
-            label as keyof typeof PinoLevelToSeverityLookup
-          ] || PinoLevelToSeverityLookup['info'],
-        level: number,
-      };
-    },
-  },
-};
+export const loggerConfig: LoggerOptions =
+  env.NODE_ENV === 'production'
+    ? createGcpLoggingPinoConfig(
+        {
+          serviceContext: {
+            service: env.SERVICE_NAME || 'service',
+            version: env.SERVICE_VERSION || 'latest',
+          },
+        },
+        pinoLoggerOptions,
+      )
+    : pinoLoggerOptions;
 
 export const logger = pino(loggerConfig);

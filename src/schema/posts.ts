@@ -2525,19 +2525,34 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   Subscription: {
     postsEngaged: {
       subscribe: async (): Promise<
-        AsyncIterator<{ postsEngaged: GQLPostNotification }>
+        AsyncIterable<{ postsEngaged: GQLPostNotification }>
       > => {
-        const it = {
-          [Symbol.asyncIterator]: () =>
-            redisPubSub.asyncIterator<GQLPostNotification>('events.posts.*', {
-              pattern: true,
-            }),
+        const iterator = redisPubSub.asyncIterator<GQLPostNotification>(
+          'events.posts.*',
+          { pattern: true },
+        );
+
+        return {
+          [Symbol.asyncIterator]() {
+            return {
+              next: async () => {
+                const { done, value } = await iterator.next();
+                if (done) {
+                  return { done: true, value: undefined };
+                }
+                return { done: false, value: { postsEngaged: value } };
+              },
+              return: async () => {
+                await iterator.return?.();
+                return { done: true, value: undefined };
+              },
+              throw: async (error: Error) => {
+                await iterator.throw?.(error);
+                return { done: true, value: undefined };
+              },
+            };
+          },
         };
-        return (async function* () {
-          for await (const value of it) {
-            yield { postsEngaged: value };
-          }
-        })();
       },
     },
   },

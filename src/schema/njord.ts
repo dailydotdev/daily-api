@@ -1,4 +1,4 @@
-import type { AuthContext, BaseContext } from '../Context';
+import type { AuthContext, BaseContext, Context } from '../Context';
 import type { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import {
@@ -11,9 +11,9 @@ import {
   type TransactionCreated,
 } from '../common/njord';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
-import { toGQLEnum } from '../common';
+import { getLimit, toGQLEnum } from '../common';
 import { z } from 'zod';
-import { type Product } from '../entity/Product';
+import { ProductType, type Product } from '../entity/Product';
 import type { Connection, ConnectionArguments } from 'graphql-relay';
 import { offsetPageGenerator } from './common';
 import graphorm from '../graphorm';
@@ -55,8 +55,14 @@ type GQLUserTransactionSummary = {
   spent: number;
 };
 
+type GQLUserProductSummary = Pick<Product, 'id' | 'name' | 'image'> & {
+  count: number;
+};
+
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(AwardType, 'AwardType')}
+
+  ${toGQLEnum(ProductType, 'ProductType')}
 
   type UserBalance {
     amount: Int!
@@ -76,6 +82,7 @@ export const typeDefs = /* GraphQL */ `
 
   type ProductFlagsPublic {
     description: String
+    imageGlow: String
   }
 
   type Product {
@@ -142,6 +149,13 @@ export const typeDefs = /* GraphQL */ `
     edges: [UserTransactionEdge!]!
   }
 
+  type UserProductSummary {
+    id: ID!
+    name: String!
+    image: String!
+    count: Int!
+  }
+
   extend type Query {
     """
     List feeds
@@ -201,6 +215,26 @@ export const typeDefs = /* GraphQL */ `
       """
       last: Int
     ): UserTransactionConnection @auth
+
+    """
+    Get product summary for user
+    """
+    userProductSummary(
+      """
+      User id (receiver of awards)
+      """
+      userId: ID!
+
+      """
+      Limit
+      """
+      limit: Int = 24
+
+      """
+      Product type
+      """
+      type: ProductType!
+    ): [UserProductSummary!]
   }
 
   extend type Mutation {
@@ -382,6 +416,40 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         undefined,
         true,
       );
+    },
+    userProductSummary: async (
+      _,
+      {
+        userId,
+        limit,
+        type,
+      }: { userId: string; limit: number; type: ProductType },
+      ctx: Context,
+    ): Promise<GQLUserProductSummary[]> => {
+      const result = await queryReadReplica(ctx.con, ({ queryRunner }) => {
+        return queryRunner.manager
+          .getRepository(UserTransaction)
+          .createQueryBuilder('ut')
+          .innerJoin('Product', 'p', 'p.id = ut.productId')
+          .select('p.id', 'id')
+          .addSelect('p.name', 'name')
+          .addSelect('p.image', 'image')
+          .addSelect('COUNT(p.id)', 'count')
+          .where('ut.receiverId = :receiverId', {
+            receiverId: userId,
+          })
+          .andWhere('p.type = :type', { type })
+          .andWhere('ut.status = :status', {
+            status: UserTransactionStatus.Success,
+          })
+          .groupBy('ut."productId"')
+          .addGroupBy('p.id')
+          .limit(getLimit({ limit, max: 100 }))
+          .orderBy('count', 'DESC')
+          .getRawMany();
+      });
+
+      return result;
     },
   },
   Mutation: {

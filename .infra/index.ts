@@ -135,11 +135,14 @@ const apiLimits: pulumi.Input<{ memory: string }> = {
   memory: `${memory}Mi`,
 };
 
-const wsMemory = 2048;
+const wsMemory = 1280;
+const wsRequests: pulumi.Input<{ cpu: string; memory: string }> = {
+  cpu: '300m',
+  memory: '800Mi',
+};
 const wsLimits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = {
-  cpu: '300m',
   memory: `${wsMemory}Mi`,
 };
 
@@ -200,6 +203,10 @@ const jwtEnv = [
   { name: 'JWT_PRIVATE_KEY_PATH', value: '/opt/app/cert/key.pem' },
 ];
 
+const commonEnv = [
+  { name: 'SERVICE_VERSION', value: imageTag },
+]
+
 let appsArgs: ApplicationArgs[];
 if (isAdhocEnv) {
   appsArgs = [
@@ -216,6 +223,7 @@ if (isAdhocEnv) {
           value: 'true',
         },
         { name: 'ENABLE_PRIVATE_ROUTES', value: 'true' },
+        ...commonEnv,
         ...jwtEnv,
       ],
       minReplicas: 3,
@@ -260,7 +268,14 @@ if (isAdhocEnv) {
         'prometheus.io/scrape': 'true',
         'prometheus.io/port': '9464',
       },
-      env: [...jwtEnv],
+      env: [
+        {
+          name: 'SERVICE_NAME',
+          value: `${envVars.serviceName as string}-bg`
+        },
+        ...commonEnv,
+        ...jwtEnv
+      ],
       ...vols,
     },
   ];
@@ -287,14 +302,14 @@ if (isAdhocEnv) {
         'prometheus.io/scrape': 'true',
         'prometheus.io/port': '9464',
       },
-      env: [...jwtEnv],
+      env: [...commonEnv, ...jwtEnv],
       ...vols,
     });
   }
 } else {
   appsArgs = [
     {
-      env: [nodeOptions(memory), ...jwtEnv],
+      env: [nodeOptions(memory), ...commonEnv, ...jwtEnv],
       minReplicas: 3,
       maxReplicas: 25,
       limits: apiLimits,
@@ -325,22 +340,28 @@ if (isAdhocEnv) {
       env: [
         nodeOptions(wsMemory),
         { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
+        {
+          name: 'SERVICE_NAME',
+          value: `${envVars.serviceName as string}-bg`
+        },
+        ...commonEnv,
         ...jwtEnv,
       ],
       args: ['dumb-init', 'node', 'bin/cli', 'websocket'],
       minReplicas: 3,
       maxReplicas: 10,
       limits: wsLimits,
+      requests: wsRequests,
       readinessProbe,
       livenessProbe,
-      metric: { type: 'memory_cpu', cpu: 85 },
+      metric: { type: 'memory_cpu', cpu: 85, memory: 130 },
       disableLifecycle: true,
       spot: { enabled: true },
       ...vols,
     },
     {
       nameSuffix: 'bg',
-      env: [...jwtEnv],
+      env: [...commonEnv, ...jwtEnv],
       args: ['dumb-init', 'node', 'bin/cli', 'background'],
       minReplicas: 3,
       maxReplicas: 10,
@@ -361,7 +382,7 @@ if (isAdhocEnv) {
     },
     {
       nameSuffix: 'temporal',
-      env: [...jwtEnv],
+      env: [...commonEnv, ...jwtEnv],
       args: ['dumb-init', 'node', 'bin/cli', 'temporal'],
       minReplicas: 1,
       maxReplicas: 3,
@@ -376,7 +397,7 @@ if (isAdhocEnv) {
     {
       nameSuffix: 'private',
       port: 3000,
-      env: [{ name: 'ENABLE_PRIVATE_ROUTES', value: 'true' }, ...jwtEnv],
+      env: [{ name: 'ENABLE_PRIVATE_ROUTES', value: 'true' }, ...commonEnv, ...jwtEnv],
       minReplicas: 2,
       maxReplicas: 2,
       limits: {
@@ -396,7 +417,7 @@ if (isAdhocEnv) {
   if (isPersonalizedDigestEnabled) {
     appsArgs.push({
       nameSuffix: 'personalized-digest',
-      env: [...jwtEnv],
+      env: [...commonEnv, ...jwtEnv],
       args: ['dumb-init', 'node', 'bin/cli', 'personalized-digest'],
       minReplicas: 1,
       maxReplicas: 2,

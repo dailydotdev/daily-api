@@ -100,6 +100,7 @@ config:
     scraperUrl: http://scraper
     sendgridWebhookAnalyticsKey:
       secure: AAABAN93rTdOaHRB0LdcCsxtW0iEDhqNeUQaldjnx44gUVu2xjn0lR9bW1MgPZ8v6KBfAG8k8Uf2tqg2zWKiP9Dk1eDH7TR5v2XmKnvnP/rzCwhz0eZ0Yd3qoSJ8NUBhxcB/somueTshRZI2xfjtQf2aKyZ9KKIoPPs1U8D1fiyQPeQm2e7in0CouLbEGkS/FUpyHVLS6l2mUlq4
+    serviceName: api
     slackClientId:
       secure: AAABAMjNwZ4rF4TE1pfqO7HZxzT7v5SYQ7p+cuQqkrzjI3Gw2FfIUqSQQwdYBxJ+02HLuQQFT3MePKM=
     slackClientSecret:
