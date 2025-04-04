@@ -8,7 +8,7 @@ import {
 import type { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { SubscriptionCycles } from '../paddle';
-import { getUserGrowthBookInstace } from '../growthbook';
+import { getUserGrowthBookInstance } from '../growthbook';
 import { User } from '../entity';
 import { remoteConfig } from '../remoteConfig';
 import { getCurrencySymbol, ONE_HOUR_IN_SECONDS } from '../common';
@@ -269,7 +269,7 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
         },
       });
 
-      const growthbookClient = getUserGrowthBookInstace(ctx.userId, {
+      const growthbookClient = getUserGrowthBookInstance(ctx.userId, {
         enableDevMode: process.env.NODE_ENV !== 'production',
         subscribeToChanges: false,
         attributes: {
@@ -370,7 +370,7 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
         where: { id: ctx.userId },
         select: { createdAt: true },
       });
-      const gb = getUserGrowthBookInstace(ctx.userId, {
+      const gb = getUserGrowthBookInstance(ctx.userId, {
         subscribeToChanges: false,
         attributes: { registrationDate: user.createdAt.toISOString() },
       });

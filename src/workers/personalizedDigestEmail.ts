@@ -16,7 +16,7 @@ import {
   ExperimentAllocationClient,
   Feature,
   features,
-  getUserGrowthBookInstace,
+  getUserGrowthBookInstance,
   PersonalizedDigestFeatureConfig,
 } from '../growthbook';
 
@@ -92,7 +92,7 @@ const digestTypeToFunctionMap: Record<
     if (config) {
       featureValue = config;
     } else {
-      const growthbookClient = getUserGrowthBookInstace(user.id, {
+      const growthbookClient = getUserGrowthBookInstance(user.id, {
         enableDevMode: process.env.NODE_ENV !== 'production',
         subscribeToChanges: false,
         allocationClient,
