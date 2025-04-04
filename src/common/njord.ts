@@ -940,11 +940,12 @@ export const throwUserTransactionError = async ({
 }): Promise<never> => {
   // if user who is transfering cores is the same as sender
   // we pass in his new balance for clients to display and update state
-  const userBalance = error.transfer.results.find(
+  const userResult = error.transfer.results.find(
     (item) =>
       item.transferType === TransferType.TRANSFER &&
       item.senderId === ctx.userId,
-  )?.senderBalance?.newBalance;
+  );
+  const userBalance = userResult?.senderBalance?.newBalance;
 
   const userTransactionError = new UserTransactionError({
     status: error.transfer.status,
