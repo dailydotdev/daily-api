@@ -274,7 +274,7 @@ describe('pricing preview', () => {
 });
 
 describe('plus pricing metadata', () => {
-  const QUERY = `
+  const QUERY = /* GraphQL */ `
     query PlusPricingMetadata($variant: String) {
       plusPricingMetadata(variant: $variant) {
         appsId
