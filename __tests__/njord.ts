@@ -1566,3 +1566,179 @@ describe('query transactionSummary', () => {
     });
   });
 });
+
+describe('query userProductSummary', () => {
+  const QUERY = `
+  query userProductSummary($userId: ID!, $limit: Int = 24, $type: ProductType!) {
+    userProductSummary(userId: $userId, limit: $limit, type: $type) {
+      id
+      name
+      image
+      count
+    }
+  }
+`;
+
+  beforeEach(async () => {
+    await saveFixtures(
+      con,
+      User,
+      usersFixture.map((item) => {
+        return {
+          ...item,
+          id: `t-pasq-${item.id}`,
+          username: `t-pasq-${item.username}`,
+          github: undefined,
+        };
+      }),
+    );
+
+    const now = new Date();
+
+    await saveFixtures(con, Product, [
+      {
+        id: '3f73343b-b1ae-45fc-bc3c-ded01d149596',
+        name: 'Award 1',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 42,
+      },
+      {
+        id: '68089462-54f2-4dbd-9338-8983d142aef5',
+        name: 'Award 2',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 100,
+      },
+      {
+        id: '7d610a0e-8790-467f-81a8-fa2b7b727c6d',
+        name: 'Award 3',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 20,
+      },
+    ]);
+
+    await saveFixtures(con, UserTransaction, [
+      {
+        processor: UserTransactionProcessor.Njord,
+        receiverId: 't-pasq-1',
+        status: UserTransactionStatus.Success,
+        productId: '3f73343b-b1ae-45fc-bc3c-ded01d149596',
+        senderId: 't-pasq-2',
+        fee: 5,
+        value: 100,
+        createdAt: new Date(now.getTime() - 3000),
+      },
+      {
+        processor: UserTransactionProcessor.Njord,
+        receiverId: 't-pasq-1',
+        status: UserTransactionStatus.Success,
+        productId: '3f73343b-b1ae-45fc-bc3c-ded01d149596',
+        senderId: 't-pasq-2',
+        fee: 5,
+        value: 200,
+        createdAt: new Date(now.getTime() - 3000),
+      },
+      {
+        processor: UserTransactionProcessor.Njord,
+        receiverId: 't-pasq-1',
+        status: UserTransactionStatus.Error,
+        productId: '3f73343b-b1ae-45fc-bc3c-ded01d149596',
+        senderId: 't-pasq-2',
+        fee: 5,
+        value: 50,
+        createdAt: new Date(now.getTime() - 2000),
+      },
+      {
+        processor: UserTransactionProcessor.Njord,
+        receiverId: 't-pasq-1',
+        status: UserTransactionStatus.Success,
+        productId: '68089462-54f2-4dbd-9338-8983d142aef5',
+        senderId: 't-pasq-2',
+        fee: 5,
+        value: 200,
+        createdAt: new Date(now.getTime() - 3000),
+      },
+      {
+        processor: UserTransactionProcessor.Njord,
+        receiverId: 't-pasq-1',
+        status: UserTransactionStatus.Error,
+        productId: '68089462-54f2-4dbd-9338-8983d142aef5',
+        senderId: 't-pasq-2',
+        fee: 5,
+        value: 50,
+        createdAt: new Date(now.getTime() - 2000),
+      },
+      {
+        processor: UserTransactionProcessor.Njord,
+        receiverId: 't-pasq-1',
+        status: UserTransactionStatus.Success,
+        productId: '7d610a0e-8790-467f-81a8-fa2b7b727c6d',
+        senderId: 't-pasq-2',
+        fee: 5,
+        value: 200,
+        createdAt: new Date(now.getTime() - 3000),
+      },
+    ]);
+  });
+
+  it('should return product award summary', async () => {
+    const res = await client.query(QUERY, {
+      variables: {
+        userId: 't-pasq-1',
+        type: ProductType.Award,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.userProductSummary).toMatchObject([
+      {
+        id: '3f73343b-b1ae-45fc-bc3c-ded01d149596',
+        name: 'Award 1',
+        image: 'https://daily.dev/award.jpg',
+        count: 3,
+      },
+      {
+        id: '68089462-54f2-4dbd-9338-8983d142aef5',
+        name: 'Award 2',
+        image: 'https://daily.dev/award.jpg',
+        count: 2,
+      },
+      {
+        id: '7d610a0e-8790-467f-81a8-fa2b7b727c6d',
+        name: 'Award 3',
+        image: 'https://daily.dev/award.jpg',
+        count: 1,
+      },
+    ]);
+  });
+
+  it('should return limited product award summary', async () => {
+    const res = await client.query(QUERY, {
+      variables: {
+        userId: 't-pasq-1',
+        limit: 2,
+        type: ProductType.Award,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.userProductSummary).toMatchObject([
+      {
+        id: '3f73343b-b1ae-45fc-bc3c-ded01d149596',
+        name: 'Award 1',
+        image: 'https://daily.dev/award.jpg',
+        count: 3,
+      },
+      {
+        id: '68089462-54f2-4dbd-9338-8983d142aef5',
+        name: 'Award 2',
+        image: 'https://daily.dev/award.jpg',
+        count: 2,
+      },
+    ]);
+  });
+});
