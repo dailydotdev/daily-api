@@ -366,7 +366,14 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
     ): Promise<PlusPricingMetadata[]> =>
       await getPlusPricingMetadata(ctx.con, variant),
     plusPricingPreview: async (_, __, ctx): Promise<PlusPricingPreview[]> => {
-      const gb = getUserGrowthBookInstace(ctx.userId);
+      const user = await ctx.con.getRepository(User).findOneOrFail({
+        where: { id: ctx.userId },
+        select: { createdAt: true },
+      });
+      const gb = getUserGrowthBookInstace(ctx.userId, {
+        subscribeToChanges: false,
+        attributes: { registrationDate: user.createdAt.toISOString() },
+      });
       const variant = gb.getFeatureValue(
         PLUS_FEATURE_KEY,
         DEFAULT_PLUS_METADATA,
