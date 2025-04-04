@@ -376,7 +376,7 @@ describe('plus pricing metadata', () => {
 });
 
 describe('plus pricing preview', () => {
-  const QUERY = `
+  const QUERY = /* GraphQL */ `
     query PlusPricingPreview {
       plusPricingPreview {
         metadata {
