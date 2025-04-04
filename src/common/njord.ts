@@ -525,6 +525,7 @@ export const awardUser = async (
         } catch (error) {
           if (error instanceof TransferError) {
             await throwUserTransactionError({
+              ctx,
               entityManager,
               error,
               transaction,
@@ -694,6 +695,7 @@ export const awardPost = async (
             });
 
             await throwUserTransactionError({
+              ctx,
               entityManager,
               error,
               transaction,
@@ -864,6 +866,7 @@ export const awardComment = async (
             });
 
             await throwUserTransactionError({
+              ctx,
               entityManager,
               error,
               transaction,
@@ -906,7 +909,7 @@ const userTransactionErrorMessageMap: Partial<
 export class UserTransactionError extends GraphQLError {
   constructor(props: {
     status: UserTransactionStatus | TransferStatus;
-    balance: GetBalanceResult;
+    balance?: GetBalanceResult;
     transaction: UserTransaction;
   }) {
     const message =
@@ -925,20 +928,29 @@ export class UserTransactionError extends GraphQLError {
 }
 
 export const throwUserTransactionError = async ({
+  ctx,
   entityManager,
   error,
   transaction,
 }: {
+  ctx: AuthContext;
   entityManager: EntityManager;
   error: TransferError;
   transaction: UserTransaction;
 }): Promise<never> => {
+  const userBalance = error.transfer.results.find(
+    (item) =>
+      item.transferType === TransferType.TRANSFER &&
+      item.senderId === ctx.userId,
+  )?.senderBalance?.newBalance;
+
   const userTransactionError = new UserTransactionError({
     status: error.transfer.status,
-    // TODO feat/transactions replace with balance from error.transfer when njord is updated
-    balance: {
-      amount: 0,
-    },
+    balance: userBalance
+      ? {
+          amount: parseBigInt(userBalance),
+        }
+      : undefined,
     transaction,
   });
 
