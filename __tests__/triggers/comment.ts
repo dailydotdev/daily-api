@@ -82,6 +82,7 @@ describe('trigger user_comment_award_insert_trigger', () => {
       senderId: 'ucait-2',
       fee: 0,
       value: 100,
+      valueIncFees: 100,
     });
 
     await con.getRepository(UserComment).save({
@@ -149,6 +150,7 @@ describe('trigger user_comment_award_delete_trigger_function', () => {
       senderId: 'ucadt-2',
       fee: 0,
       value: 100,
+      valueIncFees: 100,
     });
 
     await con.getRepository(UserComment).save({
@@ -244,6 +246,7 @@ describe('trigger user_comment_award_update_trigger_function', () => {
       senderId: 'ucaut-2',
       fee: 0,
       value: 100,
+      valueIncFees: 100,
     });
 
     const userComment = await con.getRepository(UserComment).findOneByOrFail({
@@ -275,6 +278,7 @@ describe('trigger user_comment_award_update_trigger_function', () => {
       senderId: 'ucaut-2',
       fee: 0,
       value: 100,
+      valueIncFees: 100,
     });
 
     const userComment = await con.getRepository(UserComment).save({

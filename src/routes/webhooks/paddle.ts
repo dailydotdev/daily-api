@@ -739,6 +739,7 @@ export const updateUserTransaction = async ({
     productId: null, // no product user is buying cores directly
     senderId: null, // no sender, user is buying cores
     value: itemData.price.customData.cores,
+    valueIncFees: itemData.price.customData.cores,
     fee: 0, // no fee when buying cores
     request: {},
     flags: {

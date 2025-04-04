@@ -277,6 +277,7 @@ describe('trigger user_post_award_insert_trigger', () => {
       senderId: 'upait-2',
       fee: 0,
       value: 100,
+      valueIncFees: 100,
     });
 
     await con.getRepository(UserPost).save({
@@ -338,6 +339,7 @@ describe('trigger user_post_award_delete_trigger_function', () => {
       senderId: 'upadt-2',
       fee: 0,
       value: 100,
+      valueIncFees: 100,
     });
 
     await con.getRepository(UserPost).save({
@@ -426,6 +428,7 @@ describe('trigger user_post_award_update_trigger_function', () => {
       senderId: 'upaut-2',
       fee: 0,
       value: 100,
+      valueIncFees: 100,
     });
 
     const userPost = await con.getRepository(UserPost).findOneByOrFail({
@@ -457,6 +460,7 @@ describe('trigger user_post_award_update_trigger_function', () => {
       senderId: 'upaut-2',
       fee: 0,
       value: 100,
+      valueIncFees: 100,
     });
 
     const userPost = await con.getRepository(UserPost).save({

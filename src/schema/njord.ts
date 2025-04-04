@@ -44,6 +44,7 @@ export type GQLUserTransaction = Pick<
   | 'sender'
   | 'value'
   | 'createdAt'
+  | 'valueIncFees'
 > & {
   flags: UserTransactionFlagsPublic;
   balance: GetBalanceResult;
@@ -126,6 +127,7 @@ export const typeDefs = /* GraphQL */ `
     flags: UserTransactionFlagsPublic
     balance: UserBalance!
     createdAt: DateTime!
+    valueIncFees: Int!
   }
 
   type UserTransactionSummary {
@@ -158,7 +160,7 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Query {
     """
-    List feeds
+    List products
     """
     products(
       """
@@ -345,7 +347,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               .getRawOne(),
             queryRunner.manager
               .createQueryBuilder(UserTransaction, 'ut')
-              .select('COALESCE(SUM(ut.value), 0)', 'amount')
+              .select('COALESCE(SUM(ut.valueIncFees), 0)', 'amount')
               .where('ut."receiverId" = :userId', { userId: ctx.userId })
               .andWhere('ut."senderId" IS NOT NULL')
               .andWhere('ut."productId" IS NOT NULL')

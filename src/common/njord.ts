@@ -75,6 +75,7 @@ export const getNjordClient = (clientTransport = transport) => {
 export type TransferProps = {
   ctx: Pick<AuthContext, 'userId' | 'isTeamMember'>;
   transaction: UserTransaction;
+  entityManager: EntityManager;
 };
 
 export type TransactionProps = {
@@ -112,6 +113,7 @@ export const createTransaction = createAuthProtectedFn(
         productId: product.id,
         senderId,
         value: product.value,
+        valueIncFees: product.value,
         fee: remoteConfig.vars.fees?.transfer || 0,
         request: ctx.requestMeta,
         flags: {
@@ -152,7 +154,11 @@ const parseBalanceUpdate = ({
 };
 
 export const transferCores = createAuthProtectedFn(
-  async ({ ctx, transaction }: TransferProps): Promise<TransferResult> => {
+  async ({
+    ctx,
+    transaction,
+    entityManager,
+  }: TransferProps): Promise<TransferResult> => {
     // TODO feat/transactions check if user is team member, remove check when prod is ready
     if (!ctx.isTeamMember && isProd) {
       throw new ForbiddenError('Not allowed for you yet');
@@ -212,6 +218,18 @@ export const transferCores = createAuthProtectedFn(
 
     if (!result) {
       throw new Error('No transfer result');
+    }
+
+    // update transaction with received value after any fees are applied
+    if (typeof result.receiverBalance?.changeAmount === 'bigint') {
+      await entityManager.getRepository(UserTransaction).update(
+        {
+          id: transaction.id,
+        },
+        {
+          valueIncFees: parseBigInt(result.receiverBalance.changeAmount),
+        },
+      );
     }
 
     await Promise.allSettled([
@@ -519,6 +537,7 @@ export const awardUser = async (
           const transfer = await transferCores({
             ctx,
             transaction,
+            entityManager,
           });
 
           return { transaction, transfer };
@@ -679,6 +698,7 @@ export const awardPost = async (
           const transfer = await transferCores({
             ctx,
             transaction,
+            entityManager,
           });
 
           return { transaction, transfer };
@@ -850,6 +870,7 @@ export const awardComment = async (
           const transfer = await transferCores({
             ctx,
             transaction,
+            entityManager,
           });
 
           return { transaction, transfer };
