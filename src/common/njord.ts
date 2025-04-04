@@ -948,11 +948,12 @@ export const throwUserTransactionError = async ({
 
   const userTransactionError = new UserTransactionError({
     status: error.transfer.status,
-    balance: userBalance
-      ? {
-          amount: parseBigInt(userBalance),
-        }
-      : undefined,
+    balance:
+      typeof userBalance === 'bigint'
+        ? {
+            amount: parseBigInt(userBalance),
+          }
+        : undefined,
     transaction,
   });
 
