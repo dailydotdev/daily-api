@@ -367,7 +367,7 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
       { variant = DEFAULT_PLUS_METADATA }: PlusMetadataArgs,
       ctx: AuthContext,
     ): Promise<PlusPricingMetadata[]> =>
-      await getPlusPricingMetadata(ctx.con, variant),
+      getPlusPricingMetadata(ctx.con, variant),
     plusPricingPreview: async (_, __, ctx): Promise<PlusPricingPreview[]> => {
       const user = await ctx.con.getRepository(User).findOneOrFail({
         where: { id: ctx.userId },
