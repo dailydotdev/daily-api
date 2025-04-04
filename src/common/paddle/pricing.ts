@@ -77,7 +77,7 @@ export const getPlusPricePreview = async (ctx: AuthContext, ids: string[]) => {
   const redisKey = generateStorageKey(
     StorageTopic.Paddle,
     StorageKey.PricingPreviewPlus,
-    [pricesHash, region, ...sortedIds].join(':'),
+    [pricesHash, region].join(':'),
   );
 
   let pricePreview: PricingPreview;
