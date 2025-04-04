@@ -64,7 +64,15 @@ type PaddleSubscriptionEvent =
 const extractSubscriptionCycle = (
   items: PaddleSubscriptionEvent['data']['items'],
 ) => {
-  return items?.[0]?.price?.billingCycle?.interval;
+  const cycle = items?.[0]?.price?.billingCycle?.interval;
+
+  if (!cycle) {
+    return undefined;
+  }
+
+  return cycle === 'year'
+    ? SubscriptionCycles.Yearly
+    : SubscriptionCycles.Monthly;
 };
 
 export const updateUserSubscription = async ({
@@ -185,7 +193,7 @@ const planChanged = async ({ data }: SubscriptionUpdatedEvent) => {
 };
 
 interface AnalyticsExtra {
-  cycle: string;
+  cycle: SubscriptionCycles;
   cost: number;
   currency: string;
   payment: string;
