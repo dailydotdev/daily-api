@@ -464,11 +464,37 @@ export const createMockNjordErrorTransport = ({
         );
       },
       transfer: (transferRequest) => {
+        const [request] = transferRequest.transfers;
+
+        const receiverAccount = accounts[request.receiver!.id] || {
+          amount: BigInt(0),
+        };
+        const senderAccount = accounts[request.sender!.id] || {
+          amount: BigInt(0),
+        };
+
         return {
           idempotencyKey: transferRequest.idempotencyKey,
           status: errorStatus,
           errorMessage,
-          results: [],
+          results: [
+            {
+              senderId: request.sender?.id,
+              senderBalance: {
+                previousBalance: senderAccount.amount,
+                newBalance: senderAccount.amount,
+                changeAmount: -request.amount,
+              },
+              receiverId: request.receiver?.id,
+              receiverBalance: {
+                previousBalance: receiverAccount.amount,
+                newBalance: receiverAccount.amount,
+                changeAmount: request.amount,
+              },
+              timestamp: Date.now(),
+              transferType: TransferType.TRANSFER,
+            },
+          ],
           timestamp: Date.now(),
         };
       },
