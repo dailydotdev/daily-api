@@ -227,9 +227,9 @@ export const typeDefs = /* GraphQL */ `
     """
     metadata: PlusPricingMetadata!
     """
-    Product ID
+    Price ID
     """
-    productId: String!
+    priceId: String!
     """
     Price information
     """
@@ -413,7 +413,7 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
 
         return {
           metadata: meta,
-          productId: item.price.id,
+          priceId: item.price.id,
           price: {
             monthly,
             amount: baseAmount,

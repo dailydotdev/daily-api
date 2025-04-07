@@ -391,7 +391,7 @@ describe('plus pricing preview', () => {
             ios
           }
         }
-        productId
+        priceId
         price {
           amount
           formatted
@@ -480,7 +480,7 @@ describe('plus pricing preview', () => {
     const preview = result.data.plusPricingPreview[0];
     expect(preview.metadata.appsId).toBe('monthly');
     expect(preview.metadata.title).toBe('Monthly Plan');
-    expect(preview.productId).toBe('pri_monthly');
+    expect(preview.priceId).toBe('pri_monthly');
     expect(preview.price.amount).toBe(5);
     expect(preview.price.formatted).toBe('$5.00');
     expect(preview.currency.code).toBe('USD');

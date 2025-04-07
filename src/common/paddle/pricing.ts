@@ -36,7 +36,7 @@ export interface PricePreview {
 
 export interface PlusPricingPreview {
   metadata: PlusPricingMetadata;
-  productId: string;
+  priceId: string;
   price: PricePreview & { monthly: PricePreview };
   currency: {
     code: string;
