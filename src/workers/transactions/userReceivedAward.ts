@@ -55,8 +55,6 @@ export const userReceivedAward =
           return;
         }
 
-        logger.info({ transaction }, 'userReceivedAward');
-
         const sender = await transaction.sender;
         const receiver = await transaction.receiver;
 
