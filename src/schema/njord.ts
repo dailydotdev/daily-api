@@ -358,8 +358,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             queryRunner.manager
               .createQueryBuilder(UserTransaction, 'ut')
               .select('COALESCE(SUM(ut.value), 0)', 'amount')
-              .where('ut."senderId" = :userId', { userId: ctx.userId })
-              .andWhere('ut."receiverId" IS NOT NULL')
+              .where('ut."receiverId" IS NOT NULL')
+              .andWhere('ut."senderId" = :userId', { userId: ctx.userId })
               .andWhere('ut."productId" IS NOT NULL')
               .andWhere('ut.status = :status', {
                 status: UserTransactionStatus.Success,

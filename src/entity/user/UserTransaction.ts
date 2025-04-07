@@ -44,11 +44,15 @@ export enum UserTransactionProcessor {
 
 @Entity()
 @Index('IDX_user_transaction_flags_providerId', { synchronize: false })
+@Index('idx_user_transaction_receiverId_senderId_productId_status', {
+  synchronize: false,
+})
 export class UserTransaction {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({ type: 'uuid', nullable: true })
+  @Index('idx_user_transaction_productId')
   productId: string | null;
 
   @ManyToOne('Product', {
@@ -58,6 +62,7 @@ export class UserTransaction {
   product: Promise<Product>;
 
   @Column({ type: 'integer' })
+  @Index('idx_user_transaction_status')
   status: UserTransactionStatus;
 
   @CreateDateColumn()
@@ -67,6 +72,7 @@ export class UserTransaction {
   updatedAt: Date;
 
   @Column()
+  @Index('idx_user_transaction_receiverId')
   receiverId: string;
 
   @ManyToOne('User', {
@@ -77,6 +83,7 @@ export class UserTransaction {
   receiver: Promise<User>;
 
   @Column({ nullable: true })
+  @Index('idx_user_transaction_senderId')
   senderId: string | null;
 
   @ManyToOne('User', {
