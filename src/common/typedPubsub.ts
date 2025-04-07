@@ -21,6 +21,7 @@ import {
   type TransferResponse,
 } from '@dailydotdev/schema';
 import { SourcePostModeration } from '../entity/SourcePostModeration';
+import type { UserTransaction } from '../entity/user/UserTransaction';
 
 export type PubSubSchema = {
   'pub-request': {
@@ -120,6 +121,9 @@ export type PubSubSchema = {
     translations: PostTranslation;
   };
   'njord.v1.balance-log': TransferResponse;
+  'api.v1.user-transaction': {
+    transaction: ChangeObject<UserTransaction>;
+  };
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(
