@@ -2,7 +2,15 @@ import { invokeNotificationWorker, saveFixtures } from '../../helpers';
 import { userReceivedAward as worker } from '../../../src/workers/transactions/userReceivedAward';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
-import { Feature, FeatureType, User } from '../../../src/entity';
+import {
+  Comment,
+  Feature,
+  FeatureType,
+  Post,
+  Source,
+  User,
+  UserPost,
+} from '../../../src/entity';
 import { Product, ProductType } from '../../../src/entity/Product';
 import {
   UserTransaction,
@@ -14,6 +22,10 @@ import { usersFixture } from '../../fixture/user';
 import { NotificationType } from '../../../src/notifications/common';
 import type { ChangeObject } from '../../../src/types';
 import type { NotificationAwardContext } from '../../../src/notifications/types';
+import { sourcesFixture } from '../../fixture/source';
+import { postsFixture } from '../../fixture/post';
+import { randomUUID } from 'node:crypto';
+import { UserComment } from '../../../src/entity/user/UserComment';
 
 let con: DataSource;
 
@@ -25,6 +37,8 @@ describe('userReceivedAward worker', () => {
   beforeEach(async () => {
     jest.resetAllMocks();
     await saveFixtures(con, User, usersFixture);
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, Post, postsFixture);
 
     // Create Product fixture
     await saveFixtures(con, Product, [
@@ -36,6 +50,12 @@ describe('userReceivedAward worker', () => {
         value: 100,
       },
     ]);
+
+    await con.getRepository(Feature).save({
+      feature: FeatureType.Team,
+      userId: '1',
+      value: 1,
+    });
   });
 
   it('should be registered', () => {
@@ -56,7 +76,7 @@ describe('userReceivedAward worker', () => {
   });
 
   it('should do nothing if transaction has no productId', async () => {
-    const tx = con.getRepository(UserTransaction).create({
+    const transaction = await con.getRepository(UserTransaction).save({
       processor: UserTransactionProcessor.Njord,
       receiverId: '1',
       senderId: '2',
@@ -68,7 +88,6 @@ describe('userReceivedAward worker', () => {
       productId: null,
       status: UserTransactionStatus.Success,
     });
-    const transaction = await con.getRepository(UserTransaction).save(tx);
 
     const result = await invokeNotificationWorker(worker, {
       transaction: transaction as unknown as ChangeObject<UserTransaction>,
@@ -78,7 +97,7 @@ describe('userReceivedAward worker', () => {
   });
 
   it('should do nothing if processor is not Njord', async () => {
-    const tx = con.getRepository(UserTransaction).create({
+    const transaction = await con.getRepository(UserTransaction).save({
       processor: UserTransactionProcessor.Paddle,
       receiverId: '1',
       senderId: '2',
@@ -90,7 +109,6 @@ describe('userReceivedAward worker', () => {
       productId: '9104b834-6fac-4276-a168-0be1294ab371',
       status: UserTransactionStatus.Success,
     });
-    const transaction = await con.getRepository(UserTransaction).save(tx);
 
     const result = await invokeNotificationWorker(worker, {
       transaction: transaction as unknown as ChangeObject<UserTransaction>,
@@ -100,9 +118,9 @@ describe('userReceivedAward worker', () => {
   });
 
   it('should do nothing if recipient is not a team member', async () => {
-    const tx = con.getRepository(UserTransaction).create({
+    const transaction = await con.getRepository(UserTransaction).save({
       processor: UserTransactionProcessor.Njord,
-      receiverId: '1', // No Team feature for this user
+      receiverId: '2',
       senderId: '2',
       value: 100,
       valueIncFees: 100,
@@ -112,7 +130,6 @@ describe('userReceivedAward worker', () => {
       productId: '9104b834-6fac-4276-a168-0be1294ab371',
       status: UserTransactionStatus.Success,
     });
-    const transaction = await con.getRepository(UserTransaction).save(tx);
 
     const result = await invokeNotificationWorker(worker, {
       transaction: transaction as unknown as ChangeObject<UserTransaction>,
@@ -122,15 +139,7 @@ describe('userReceivedAward worker', () => {
   });
 
   it('should create notification for team member who received an award', async () => {
-    // Add Team feature for user 1
-    await con.getRepository(Feature).save({
-      feature: FeatureType.Team,
-      userId: '1',
-      value: 1,
-    });
-
-    // Create transaction
-    const tx = con.getRepository(UserTransaction).create({
+    const transaction = await con.getRepository(UserTransaction).save({
       processor: UserTransactionProcessor.Njord,
       receiverId: '1',
       senderId: '2',
@@ -142,7 +151,6 @@ describe('userReceivedAward worker', () => {
       productId: '9104b834-6fac-4276-a168-0be1294ab371',
       status: UserTransactionStatus.Success,
     });
-    const transaction = await con.getRepository(UserTransaction).save(tx);
 
     const result = await invokeNotificationWorker(worker, {
       transaction: transaction as unknown as ChangeObject<UserTransaction>,
@@ -157,5 +165,101 @@ describe('userReceivedAward worker', () => {
     ).toMatchObject(transaction);
     expect((result![0].ctx as NotificationAwardContext).sender).toBeTruthy();
     expect((result![0].ctx as NotificationAwardContext).receiver).toBeTruthy();
+    expect((result![0].ctx as NotificationAwardContext).targetUrl).toEqual(
+      '/idoshamun',
+    );
+  });
+
+  it('should create notification for team member who received an award on a post', async () => {
+    const transactionId = randomUUID();
+    const sender = '2';
+
+    const transaction = await con.getRepository(UserTransaction).save({
+      id: transactionId,
+      processor: UserTransactionProcessor.Njord,
+      receiverId: '1',
+      senderId: sender,
+      value: 100,
+      valueIncFees: 100,
+      fee: 0,
+      request: {},
+      flags: {},
+      productId: '9104b834-6fac-4276-a168-0be1294ab371',
+      status: UserTransactionStatus.Success,
+    });
+
+    await con.getRepository(UserPost).save({
+      postId: postsFixture[0].id,
+      userId: sender,
+      awardTransactionId: transactionId,
+    });
+
+    const result = await invokeNotificationWorker(worker, {
+      transaction: transaction as unknown as ChangeObject<UserTransaction>,
+    });
+
+    expect(result).toBeTruthy();
+    expect(result).toHaveLength(1);
+    expect(result![0].type).toEqual(NotificationType.UserReceivedAward);
+    expect(result![0].ctx.userIds).toEqual(['1']);
+    expect(
+      (result![0].ctx as NotificationAwardContext).transaction,
+    ).toMatchObject(transaction);
+    expect((result![0].ctx as NotificationAwardContext).sender).toBeTruthy();
+    expect((result![0].ctx as NotificationAwardContext).receiver).toBeTruthy();
+    expect((result![0].ctx as NotificationAwardContext).targetUrl).toEqual(
+      '/posts/p1',
+    );
+  });
+
+  it('should create notification for team member who received an award on a comment', async () => {
+    const transactionId = randomUUID();
+    const sender = '2';
+    const receiver = '1';
+
+    const transaction = await con.getRepository(UserTransaction).save({
+      id: transactionId,
+      processor: UserTransactionProcessor.Njord,
+      receiverId: receiver,
+      senderId: sender,
+      value: 100,
+      valueIncFees: 100,
+      fee: 0,
+      request: {},
+      flags: {},
+      productId: '9104b834-6fac-4276-a168-0be1294ab371',
+      status: UserTransactionStatus.Success,
+    });
+
+    await con.getRepository(Comment).save({
+      id: 'a-c-1',
+      postId: postsFixture[1].id,
+      userId: receiver,
+      content: 'Test comment',
+      awardTransactionId: transactionId,
+    });
+
+    await con.getRepository(UserComment).save({
+      commentId: 'a-c-1',
+      userId: sender,
+      awardTransactionId: transactionId,
+    });
+
+    const result = await invokeNotificationWorker(worker, {
+      transaction: transaction as unknown as ChangeObject<UserTransaction>,
+    });
+
+    expect(result).toBeTruthy();
+    expect(result).toHaveLength(1);
+    expect(result![0].type).toEqual(NotificationType.UserReceivedAward);
+    expect(result![0].ctx.userIds).toEqual(['1']);
+    expect(
+      (result![0].ctx as NotificationAwardContext).transaction,
+    ).toMatchObject(transaction);
+    expect((result![0].ctx as NotificationAwardContext).sender).toBeTruthy();
+    expect((result![0].ctx as NotificationAwardContext).receiver).toBeTruthy();
+    expect((result![0].ctx as NotificationAwardContext).targetUrl).toEqual(
+      '/posts/p2#c-a-c-1',
+    );
   });
 });
