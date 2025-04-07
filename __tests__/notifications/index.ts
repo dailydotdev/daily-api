@@ -1559,7 +1559,7 @@ describe('award notifications', () => {
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual(transaction.id);
     expect(actual.notification.description).toBeFalsy();
-    expect(actual.notification.targetUrl).toContain(notificationsLink);
+    expect(actual.notification.targetUrl).toEqual(`/${receiver.username}`);
     expect(actual.attachments!.length).toEqual(0);
   });
 });
