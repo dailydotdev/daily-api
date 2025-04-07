@@ -46,10 +46,62 @@ export interface PlusPricingPreview {
   trialPeriod?: TimePeriod | null;
 }
 
+// instead of storing a seed in the DB, having this here makes it easier to modify
+const devPricingMetadata: PlusPricingMetadata[] = [
+  {
+    appsId: 'early_adopter',
+    title: 'Annual Special',
+    caption: {
+      copy: '💜 Early bird',
+      color: 'help',
+    },
+    idMap: {
+      paddle: 'pri_01jkzypjstw7k6w82375mafc89',
+      ios: 'early_adopter',
+    },
+  },
+  {
+    appsId: 'annual',
+    title: 'Annual',
+    caption: {
+      copy: 'Save 2 months',
+      color: 'success',
+    },
+    idMap: {
+      paddle: 'pri_01jcdn6enr5ap3ekkddc6fv6tq',
+      ios: 'annual',
+    },
+  },
+  {
+    appsId: 'monthly',
+    title: 'Monthly',
+    idMap: {
+      paddle: 'pri_01jcdp5ef4yhv00p43hr2knrdg',
+      ios: 'monthly',
+    },
+  },
+  {
+    appsId: 'gift_one_year',
+    title: 'One year plan',
+    caption: {
+      copy: 'Save 50%',
+      color: 'success',
+    },
+    idMap: {
+      paddle: 'pri_01jjbwd5j7k0nm45k8e07yfmwr',
+      ios: 'gift_one_year',
+    },
+  },
+];
+
 export const getPlusPricingMetadata = async (
   con: ConnectionManager,
   variant: string,
 ): Promise<PlusPricingMetadata[]> => {
+  if (process.env.NODE_ENV === 'development') {
+    return devPricingMetadata;
+  }
+
   const experiment = await getExperimentVariant(con, PLUS_FEATURE_KEY, variant);
 
   if (!experiment) {
@@ -93,6 +145,10 @@ export const getPlusPricePreview = async (ctx: AuthContext, ids: string[]) => {
     })),
     address: region ? { countryCode: region as CountryCode } : undefined,
   });
+
+  if (process.env.NODE_ENV === 'development') {
+    return pricePreview;
+  }
 
   await setRedisObjectWithExpiry(
     redisKey,
