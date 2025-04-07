@@ -1,3 +1,4 @@
+import { Feature, FeatureType } from '../../entity';
 import {
   UserTransaction,
   UserTransactionProcessor,
@@ -22,6 +23,20 @@ export const userReceivedAward =
       }
 
       if (transaction.processor !== UserTransactionProcessor.Njord) {
+        return;
+      }
+
+      const isRecipientTeamMember = await con.getRepository(Feature).existsBy({
+        feature: FeatureType.Team,
+        userId: transaction.receiverId,
+        value: 1,
+      });
+
+      if (!isRecipientTeamMember) {
+        logger.info(
+          { transactionId: transaction.id },
+          'userReceivedAward: recipient is not a team member',
+        );
         return;
       }
 
