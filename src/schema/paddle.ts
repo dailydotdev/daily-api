@@ -25,6 +25,7 @@ import {
   PLUS_FEATURE_KEY,
   PlusPricingMetadata,
   PlusPricingPreview,
+  removeNumbers,
 } from '../common/paddle/pricing';
 import { PricingPreview } from '@paddle/paddle-node-sdk/dist/types/entities/pricing-preview';
 import { createHmac } from 'node:crypto';
@@ -420,7 +421,7 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
           },
           currency: {
             code: preview.currencyCode,
-            symbol: item.formattedTotals.total.replace(/\d|\.|\s|,/g, ''),
+            symbol: removeNumbers(item.formattedTotals.total),
           },
           duration,
           trialPeriod,
