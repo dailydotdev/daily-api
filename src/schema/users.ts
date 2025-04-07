@@ -595,7 +595,7 @@ export const typeDefs = /* GraphQL */ `
     """
     awardEmail: Boolean
     """
-    Whether the user wants to receives award push notifications
+    Whether the user wants to receive award push notifications
     """
     awardNotifications: Boolean
     """
