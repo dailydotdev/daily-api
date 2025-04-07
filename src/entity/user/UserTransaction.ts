@@ -66,6 +66,9 @@ export class UserTransaction {
   status: UserTransactionStatus;
 
   @CreateDateColumn()
+  @Index('idx_user_transaction_createdAt', {
+    synchronize: false,
+  })
   createdAt: Date;
 
   @UpdateDateColumn()
