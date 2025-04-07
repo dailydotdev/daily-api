@@ -14,8 +14,12 @@ export const userReceivedAward =
       queryReadReplica(con, async ({ queryRunner }) => {
         const transaction = await queryRunner.manager
           .getRepository(UserTransaction)
-          .findOneBy({
-            id: data.transaction.id,
+          .findOne({
+            where: { id: data.transaction.id },
+            relations: {
+              sender: true,
+              receiver: true,
+            },
           });
 
         if (!transaction) {
@@ -27,10 +31,6 @@ export const userReceivedAward =
         }
 
         if (!transaction.productId) {
-          logger.info(
-            { transactionId: transaction.id },
-            'userReceivedAward: transaction has no productId',
-          );
           return;
         }
 
@@ -38,7 +38,7 @@ export const userReceivedAward =
           return;
         }
 
-        const isRecipientTeamMember = await con
+        const isReceiverTeamMember = await queryRunner.manager
           .getRepository(Feature)
           .existsBy({
             feature: FeatureType.Team,
@@ -46,18 +46,18 @@ export const userReceivedAward =
             value: 1,
           });
 
-        if (!isRecipientTeamMember) {
-          logger.info(
+        if (!isReceiverTeamMember) {
+          logger.debug(
             { transactionId: transaction.id },
-            'userReceivedAward: recipient is not a team member',
+            'userReceivedAward: receiver is not a team member',
           );
           return;
         }
 
         logger.info({ transaction }, 'userReceivedAward');
 
-        const awarder = await transaction.sender;
-        const recipient = await transaction.receiver;
+        const sender = await transaction.sender;
+        const receiver = await transaction.receiver;
 
         return [
           {
@@ -65,8 +65,8 @@ export const userReceivedAward =
             ctx: {
               userIds: [transaction.receiverId],
               transaction,
-              awarder,
-              recipient,
+              sender,
+              receiver,
             },
           },
         ];

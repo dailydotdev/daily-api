@@ -34,6 +34,7 @@ import { checkHasMention } from '../common/markdown';
 import { NotificationType } from './common';
 import { format } from 'date-fns';
 import { rejectReason } from '../entity/SourcePostModeration';
+import { formatCoresCurrency } from '../common/number';
 
 const systemTitle = () => undefined;
 
@@ -150,8 +151,8 @@ export const notificationTitleMap: Record<
   user_gifted_plus: (ctx: NotificationGiftPlusContext) =>
     `Surprise! 🎁 ${ctx.gifter.username} thought of you and gifted you a one-year daily.dev Plus membership! How’s that for a thoughtful surprise?`,
   user_received_award: (ctx: NotificationAwardContext) => {
-    const coreAmount = Intl.NumberFormat('en-US').format(ctx.transaction.value);
-    return `You just received +${coreAmount} Cores from ${ctx.awarder.username} as an Award! Keep creating great content!`;
+    const coreAmount = formatCoresCurrency(ctx.transaction.value);
+    return `You just received +${coreAmount} Cores from ${ctx.sender.username} as an Award! Keep creating great content!`;
   },
 };
 
@@ -450,7 +451,7 @@ export const generateNotificationMap: Record<
   user_received_award: (builder, ctx: NotificationAwardContext) =>
     builder
       .icon(NotificationIcon.Core)
-      .avatarUser(ctx.awarder)
+      .avatarUser(ctx.sender)
       .targetUrl(notificationsLink)
       .referenceTransaction(ctx.transaction),
 };

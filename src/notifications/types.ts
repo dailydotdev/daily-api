@@ -78,8 +78,8 @@ export type NotificationGiftPlusContext = NotificationBaseContext & {
 
 export type NotificationAwardContext = NotificationBaseContext & {
   transaction: Reference<UserTransaction>;
-  awarder: Reference<User>;
-  recipient: Reference<User>;
+  sender: Reference<User>;
+  receiver: Reference<User>;
 };
 
 export type NotificationCommenterContext = NotificationCommentContext & {

@@ -49,6 +49,7 @@ import { counters } from '../telemetry';
 import { contentPreferenceNotificationTypes } from '../common/contentPreference';
 import { SourcePostModeration } from '../entity/SourcePostModeration';
 import { UserTransaction } from '../entity/user/UserTransaction';
+import { formatCoresCurrency } from '../common/number';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -888,12 +889,16 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
         id: notification.referenceId,
         receiverId: user.id,
       },
+      relations: {
+        sender: true,
+        product: true,
+      },
     });
 
     const sender = await transaction.sender;
     const product = await transaction.product;
 
-    const coreAmount = Intl.NumberFormat('en-US').format(transaction.value);
+    const coreAmount = formatCoresCurrency(transaction.value);
 
     return {
       core_amount: `+${coreAmount}`,
