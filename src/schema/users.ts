@@ -87,7 +87,7 @@ import {
   TypeORMQueryFailedError,
   TypeOrmError,
 } from '../errors';
-import { deleteUser } from '../common/user';
+import { deleteUser, getUserCoresRole } from '../common/user';
 import { randomInt } from 'crypto';
 import { ArrayContains, DataSource, In, IsNull, QueryRunner } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
@@ -122,6 +122,8 @@ import { isGiftedPlus } from '../paddle';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { logger } from '../logger';
 import { generateAppAccountToken } from '../common/storekit';
+import { UserAction, UserActionType } from '../entity/user/UserAction';
+import { insertOrIgnoreAction } from './actions';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -800,6 +802,10 @@ export const typeDefs = /* GraphQL */ `
     total: Int
   }
 
+  type CheckCoresRole {
+    coresRole: Int!
+  }
+
   extend type Query {
     """
     Get user based on logged in session
@@ -976,6 +982,11 @@ export const typeDefs = /* GraphQL */ `
     Get the plus gifter user
     """
     plusGifterUser: User @auth
+
+    """
+    Check and apply Cores role
+    """
+    checkCoresRole: CheckCoresRole! @auth
   }
 
   ${toGQLEnum(UploadPreset, 'UploadPreset')}
@@ -1942,6 +1953,63 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         User,
         true,
       );
+    },
+    checkCoresRole: async (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<Pick<User, 'coresRole'>> => {
+      const coresRoleAction: {
+        type: UserActionType;
+        user: Promise<Pick<User, 'coresRole'>>;
+      } | null = await ctx.con.getRepository(UserAction).findOne({
+        where: {
+          userId: ctx.userId,
+          type: UserActionType.CheckedCoresRole,
+        },
+        select: {
+          userId: true,
+          type: true,
+          user: {
+            coresRole: true,
+          },
+        },
+        relations: {
+          user: true,
+        },
+      });
+
+      if (coresRoleAction) {
+        const coresRoleUser = await coresRoleAction.user;
+
+        return {
+          coresRole: coresRoleUser.coresRole,
+        };
+      }
+
+      const userCoresRole = getUserCoresRole({
+        region: ctx.region,
+      });
+
+      await Promise.all([
+        ctx.con.getRepository(User).update(
+          {
+            id: ctx.userId,
+          },
+          {
+            coresRole: userCoresRole,
+          },
+        ),
+        insertOrIgnoreAction(
+          ctx.con,
+          ctx.userId,
+          UserActionType.CheckedCoresRole,
+        ),
+      ]);
+
+      return {
+        coresRole: userCoresRole,
+      };
     },
   },
   Mutation: {

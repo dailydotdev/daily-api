@@ -174,7 +174,7 @@ const getBootAlert = (data: Alerts): BootAlerts =>
 jest.mock('../src/growthbook', () => ({
   ...(jest.requireActual('../src/growthbook') as Record<string, unknown>),
   getEncryptedFeatures: () => 'enc',
-  getUserGrowthBookInstace: () => {
+  getUserGrowthBookInstance: () => {
     return {
       loadFeatures: jest.fn(),
       getFeatures: jest.fn(),

@@ -54,7 +54,7 @@ import { SourceMemberRoles } from '../roles';
 import {
   ExperimentAllocationClient,
   getEncryptedFeatures,
-  getUserGrowthBookInstace,
+  getUserGrowthBookInstance,
 } from '../growthbook';
 import { differenceInMinutes, isSameDay, subDays } from 'date-fns';
 import {
@@ -768,7 +768,7 @@ const COMPANION_QUERY = parse(`query Post($url: String) {
 const allocationClient = new ExperimentAllocationClient();
 // Uses Growthbook to resolve the funnel id
 const resolveDynamicFunnelId = (userId: string): string => {
-  const gbClient = getUserGrowthBookInstace(userId, {
+  const gbClient = getUserGrowthBookInstance(userId, {
     allocationClient,
   });
   return gbClient.getFeatureValue('web_funnel_id', 'off');

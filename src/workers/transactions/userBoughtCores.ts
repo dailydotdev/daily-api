@@ -1,4 +1,8 @@
-import { CioTransactionalMessageTemplateId, sendEmail } from '../../common';
+import {
+  CioTransactionalMessageTemplateId,
+  sendEmail,
+  updateFlagsStatement,
+} from '../../common';
 import { formatCoresCurrency } from '../../common/number';
 import {
   UserTransaction,
@@ -35,6 +39,10 @@ export const userBoughtCores: TypedWorker<'api.v1.user-transaction'> = {
       return;
     }
 
+    if (transaction.flags.emailSent) {
+      return;
+    }
+
     const user = await transaction.receiver;
 
     const coreAmount = formatCoresCurrency(transaction.value);
@@ -50,6 +58,12 @@ export const userBoughtCores: TypedWorker<'api.v1.user-transaction'> = {
         id: user.id,
       },
       to: user.email,
+    });
+
+    await con.getRepository(UserTransaction).update(transaction.id, {
+      flags: updateFlagsStatement({
+        emailSent: true,
+      }),
     });
   },
 };

@@ -29,6 +29,7 @@ export * from './Submission';
 export * from './notifications';
 export * from './Feature';
 export * from './Invite';
+export * from './ExperimentVariant';
 export * from './ContentImage';
 export * from './MarketingCta';
 export * from './SquadPublicRequest';
