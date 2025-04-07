@@ -32,7 +32,7 @@ export class TransactionIndexes1744037437681 implements MigrationInterface {
       `CREATE INDEX IF NOT EXISTS "idx_product_type" ON product ("type")`,
     );
 
-    await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "idx_comment_flags_awardId" ON "comment" (("flags"->>'awardId'))`);
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS "idx_comment_flags_awardId" ON "comment" (("flags"->>'awardId'))`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
