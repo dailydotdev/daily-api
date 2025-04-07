@@ -4,7 +4,7 @@ import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { GQLEmptyResponse } from './common';
 import graphorm from '../graphorm';
-import { DataSource } from 'typeorm';
+import { DataSource, type EntityManager } from 'typeorm';
 import { AuthContext, BaseContext } from '../Context';
 
 type GQLUserAction = Pick<UserAction, 'userId' | 'type' | 'completedAt'>;
@@ -50,7 +50,7 @@ export const typeDefs = /* GraphQL */ `
 `;
 
 export const insertOrIgnoreAction = (
-  con: DataSource,
+  con: DataSource | EntityManager,
   userId: string,
   type: UserActionType,
 ) =>

@@ -37,6 +37,8 @@ import { User } from './User';
 import { Feed } from '../Feed';
 import { remoteConfig } from '../../remoteConfig';
 import { getUserCoresRole } from '../../common/user';
+import { insertOrIgnoreAction } from '../../schema/actions';
+import { UserActionType } from './UserAction';
 
 export type AddUserData = Pick<
   User,
@@ -255,6 +257,12 @@ const safeInsertUser = async (
       const newUser = await entityManager.getRepository(User).insert(data);
       const newUserId = newUser.identifiers[0].id;
       const feedId = newUserId;
+
+      await insertOrIgnoreAction(
+        entityManager,
+        newUserId,
+        UserActionType.CheckedCoresRole,
+      );
 
       await entityManager.getRepository(Feed).upsert(
         {

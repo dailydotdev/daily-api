@@ -9,14 +9,14 @@ import {
   type TransactionReadyEvent,
   type TransactionUpdatedEvent,
 } from '@paddle/paddle-node-sdk';
-import { logger } from '../logger';
+import { logger } from '../../logger';
 import { PricingPreviewLineItem } from '@paddle/paddle-node-sdk/dist/types/entities/pricing-preview';
-import { remoteConfig } from '../remoteConfig';
+import { remoteConfig } from '../../remoteConfig';
 import { z } from 'zod';
-import { UserTransaction } from '../entity/user/UserTransaction';
+import { UserTransaction } from '../../entity/user/UserTransaction';
 import type { DataSource, EntityManager } from 'typeorm';
-import { SubscriptionProvider } from '../entity';
-import { isProd } from './utils';
+import { SubscriptionProvider } from '../../entity';
+import { isProd } from '../utils';
 
 export const paddleInstance = new Paddle(process.env.PADDLE_API_KEY, {
   environment: process.env.PADDLE_ENVIRONMENT as Environment,
