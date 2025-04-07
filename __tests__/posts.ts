@@ -5178,6 +5178,7 @@ describe('userState field', () => {
       senderId: '1',
       fee: 0,
       value: 100,
+      valueIncFees: 100,
     });
 
     await con.getRepository(UserPost).save({

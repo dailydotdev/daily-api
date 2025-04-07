@@ -47,6 +47,8 @@ import {
   SourceMember,
   SubscriptionProvider,
   User,
+  UserAction,
+  UserActionType,
   UserMarketingCta,
   UserPersonalizedDigest,
   UserPersonalizedDigestSendType,
@@ -151,7 +153,16 @@ jest.mock('../src/cio', () => ({
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    () => new MockContext(con, loggedUser),
+    () =>
+      new MockContext(
+        con,
+        loggedUser,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        'US',
+      ),
   );
   client = state.client;
   app = state.app;
@@ -6242,5 +6253,40 @@ describe('coresRole field on User', () => {
 
     expect(user.id).toEqual('2');
     expect(user.coresRole).toEqual(CoresRole.Creator);
+  });
+});
+
+describe('query checkCoresRole', () => {
+  const QUERY = /* GraphQL */ `
+    query checkCoresRole {
+      checkCoresRole {
+        coresRole
+      }
+    }
+  `;
+
+  it('should return coresRole', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.checkCoresRole.coresRole).toEqual(CoresRole.Creator);
+  });
+
+  it('should set UserAction for cores role', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+
+    const userAction = con.getRepository(UserAction).findOneBy({
+      userId: '1',
+      type: UserActionType.CheckedCoresRole,
+    });
+
+    expect(userAction).not.toBeNull();
   });
 });
