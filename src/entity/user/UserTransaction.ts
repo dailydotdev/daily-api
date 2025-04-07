@@ -91,6 +91,9 @@ export class UserTransaction {
   value: number;
 
   @Column()
+  valueIncFees: number;
+
+  @Column()
   fee: number;
 
   @Column({ type: 'jsonb', default: {} })

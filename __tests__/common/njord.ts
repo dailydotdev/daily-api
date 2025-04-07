@@ -85,6 +85,7 @@ describe('transferCores', () => {
             userId: undefined,
           } as unknown as AuthContext,
           transaction: con.getRepository(UserTransaction).create({}),
+          entityManager: con.manager,
         }),
     ).rejects.toThrow(new ForbiddenError('Auth is required'));
   });
@@ -105,6 +106,7 @@ describe('transferCores', () => {
         userId: 't-tc-1',
       } as unknown as AuthContext,
       transaction,
+      entityManager: con.manager,
     });
 
     expect(transaction).toMatchObject({
@@ -115,6 +117,7 @@ describe('transferCores', () => {
       productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
       senderId: 't-tc-1',
       value: 42,
+      valueIncFees: 42,
       fee: 5,
       createdAt: expect.any(Date),
       updatedAt: expect.any(Date),
@@ -128,7 +131,11 @@ describe('transferCores', () => {
       });
 
     expect(transactionAfter.id).toBe(transaction.id);
-    expect(transactionAfter).toMatchObject(transaction);
+    expect(transactionAfter).toMatchObject({
+      ...transaction,
+      valueIncFees: 42,
+      updatedAt: expect.any(Date),
+    });
   });
 
   it('should update balance cache', async () => {
@@ -149,6 +156,7 @@ describe('transferCores', () => {
         userId: 't-tc-1',
       } as unknown as AuthContext,
       transaction,
+      entityManager: con.manager,
     });
 
     [
@@ -200,6 +208,7 @@ describe('transferCores', () => {
             userId: 't-tc-1',
           } as unknown as AuthContext,
           transaction,
+          entityManager: con.manager,
         }),
     ).rejects.toBeInstanceOf(TransferError);
   });

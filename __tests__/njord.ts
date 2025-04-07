@@ -1289,6 +1289,7 @@ describe('query list transactions', () => {
             id
           }
           value
+          valueIncFees
         }
       }
     }
@@ -1321,6 +1322,7 @@ describe('query list transactions', () => {
         senderId: 't-tq-2',
         fee: 5,
         value: 100,
+        valueIncFees: 95,
         createdAt: new Date(now.getTime() - 3000),
       },
       {
@@ -1330,8 +1332,9 @@ describe('query list transactions', () => {
         status: UserTransactionStatus.Error,
         productId: null,
         senderId: 't-tq-2',
-        fee: 5,
+        fee: 10,
         value: 50,
+        valueIncFees: 45,
         createdAt: new Date(now.getTime() - 2000),
       },
       {
@@ -1343,6 +1346,7 @@ describe('query list transactions', () => {
         senderId: null,
         fee: 0,
         value: 350,
+        valueIncFees: 350,
         createdAt: new Date(now.getTime() - 1000),
       },
       {
@@ -1354,6 +1358,7 @@ describe('query list transactions', () => {
         senderId: null,
         fee: 0,
         value: 1200,
+        valueIncFees: 1200,
         createdAt: new Date(now.getTime() - 1000),
       },
       {
@@ -1365,6 +1370,7 @@ describe('query list transactions', () => {
         senderId: null,
         fee: 0,
         value: 1200,
+        valueIncFees: 1200,
         createdAt: new Date(now.getTime() - 1000),
       },
     ]);
@@ -1396,6 +1402,7 @@ describe('query list transactions', () => {
             receiver: { id: 't-tq-1' },
             sender: null,
             value: 1200,
+            valueIncFees: 1200,
           },
         },
         {
@@ -1405,6 +1412,7 @@ describe('query list transactions', () => {
             receiver: { id: 't-tq-1' },
             sender: { id: 't-tq-2' },
             value: 50,
+            valueIncFees: 45,
           },
         },
         {
@@ -1414,6 +1422,7 @@ describe('query list transactions', () => {
             receiver: { id: 't-tq-1' },
             sender: { id: 't-tq-2' },
             value: 100,
+            valueIncFees: 95,
           },
         },
       ],
@@ -1467,6 +1476,7 @@ describe('query transactionSummary', () => {
         senderId: 't-tsq-2',
         fee: 5,
         value: 100,
+        valueIncFees: 95,
         createdAt: new Date(now.getTime() - 3000),
       },
       {
@@ -1477,6 +1487,7 @@ describe('query transactionSummary', () => {
         senderId: 't-tsq-2',
         fee: 5,
         value: 200,
+        valueIncFees: 190,
         createdAt: new Date(now.getTime() - 3000),
       },
       {
@@ -1487,6 +1498,7 @@ describe('query transactionSummary', () => {
         senderId: 't-tsq-1',
         fee: 5,
         value: 200,
+        valueIncFees: 190,
         createdAt: new Date(now.getTime() - 3000),
       },
       {
@@ -1497,6 +1509,7 @@ describe('query transactionSummary', () => {
         senderId: 't-tsq-1',
         fee: 5,
         value: 200,
+        valueIncFees: 200,
         createdAt: new Date(now.getTime() - 3000),
       },
       {
@@ -1507,6 +1520,7 @@ describe('query transactionSummary', () => {
         senderId: 't-tsq-2',
         fee: 5,
         value: 50,
+        valueIncFees: 50,
         createdAt: new Date(now.getTime() - 2000),
       },
       {
@@ -1517,6 +1531,7 @@ describe('query transactionSummary', () => {
         senderId: null,
         fee: 0,
         value: 350,
+        valueIncFees: 350,
         createdAt: new Date(now.getTime() - 1000),
       },
       {
@@ -1527,6 +1542,7 @@ describe('query transactionSummary', () => {
         senderId: null,
         fee: 0,
         value: 1200,
+        valueIncFees: 1200,
         createdAt: new Date(now.getTime() - 1000),
       },
       {
@@ -1537,6 +1553,7 @@ describe('query transactionSummary', () => {
         senderId: null,
         fee: 0,
         value: 100,
+        valueIncFees: 100,
         createdAt: new Date(now.getTime() - 1000),
       },
     ]);
@@ -1561,7 +1578,7 @@ describe('query transactionSummary', () => {
 
     expect(res.data.transactionSummary).toMatchObject({
       purchased: 1300,
-      received: 300,
+      received: 285,
       spent: 200,
     });
   });
@@ -1628,6 +1645,7 @@ describe('query userProductSummary', () => {
         senderId: 't-pasq-2',
         fee: 5,
         value: 100,
+        valueIncFees: 95,
         createdAt: new Date(now.getTime() - 3000),
       },
       {
@@ -1638,6 +1656,7 @@ describe('query userProductSummary', () => {
         senderId: 't-pasq-2',
         fee: 5,
         value: 200,
+        valueIncFees: 190,
         createdAt: new Date(now.getTime() - 3000),
       },
       {
@@ -1648,6 +1667,7 @@ describe('query userProductSummary', () => {
         senderId: 't-pasq-2',
         fee: 5,
         value: 50,
+        valueIncFees: 50,
         createdAt: new Date(now.getTime() - 2000),
       },
       {
@@ -1658,6 +1678,7 @@ describe('query userProductSummary', () => {
         senderId: 't-pasq-2',
         fee: 5,
         value: 200,
+        valueIncFees: 190,
         createdAt: new Date(now.getTime() - 3000),
       },
       {
@@ -1668,6 +1689,7 @@ describe('query userProductSummary', () => {
         senderId: 't-pasq-2',
         fee: 5,
         value: 50,
+        valueIncFees: 50,
         createdAt: new Date(now.getTime() - 2000),
       },
       {
@@ -1678,6 +1700,7 @@ describe('query userProductSummary', () => {
         senderId: 't-pasq-2',
         fee: 5,
         value: 200,
+        valueIncFees: 190,
         createdAt: new Date(now.getTime() - 3000),
       },
     ]);
