@@ -129,8 +129,11 @@ let client: GraphQLTestClient;
 let loggedUser: string = null;
 const userTimezone = 'Pacific/Midway';
 
-jest.mock('../src/common/paddle.ts', () => ({
-  ...(jest.requireActual('../src/common/paddle.ts') as Record<string, unknown>),
+jest.mock('../src/common/paddle/index.ts', () => ({
+  ...(jest.requireActual('../src/common/paddle/index.ts') as Record<
+    string,
+    unknown
+  >),
   cancelSubscription: jest.fn(),
 }));
 

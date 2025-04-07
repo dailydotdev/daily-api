@@ -8,14 +8,27 @@ import {
 import type { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { SubscriptionCycles } from '../paddle';
-import { getUserGrowthBookInstace } from '../growthbook';
+import {
+  ExperimentAllocationClient,
+  getUserGrowthBookInstance,
+} from '../growthbook';
 import { User } from '../entity';
 import { remoteConfig } from '../remoteConfig';
 import { getCurrencySymbol, ONE_HOUR_IN_SECONDS } from '../common';
 import { generateStorageKey, StorageKey, StorageTopic } from '../config';
 import { getRedisObject, setRedisObjectWithExpiry } from '../redis';
+import {
+  DEFAULT_PLUS_METADATA,
+  getPaddleMonthlyPrice,
+  getPlusPricePreview,
+  getPlusPricingMetadata,
+  PLUS_FEATURE_KEY,
+  PlusPricingMetadata,
+  PlusPricingPreview,
+  removeNumbers,
+} from '../common/paddle/pricing';
+import { PricingPreview } from '@paddle/paddle-node-sdk/dist/types/entities/pricing-preview';
 import { createHmac } from 'node:crypto';
-import type { PricingPreview } from '@paddle/paddle-node-sdk/dist/types/entities/pricing-preview';
 
 export const typeDefs = /* GraphQL */ `
   """
@@ -118,12 +131,131 @@ export const typeDefs = /* GraphQL */ `
   extend type Query {
     pricePreviews: PricePreviews! @auth
     corePricePreviews: PricePreviews! @auth
+    plusPricingMetadata(variant: String): [PlusPricingMetadata!]! @auth
+    plusPricingPreview: [PlusPricingPreview!]! @auth
+  }
+
+  """
+  Caption information for pricing metadata
+  """
+  type PricingCaption {
+    """
+    Caption text
+    """
+    copy: String!
+    """
+    Caption color
+    """
+    color: String!
+  }
+
+  """
+  ID mapping for different platforms
+  """
+  type PricingIdMap {
+    """
+    Paddle platform ID
+    """
+    paddle: String!
+    """
+    iOS platform ID
+    """
+    ios: String!
+  }
+
+  """
+  Plus pricing metadata information
+  """
+  type PlusPricingMetadata {
+    """
+    Application ID
+    """
+    appsId: String!
+    """
+    Title of the pricing option
+    """
+    title: String!
+    """
+    Optional caption information
+    """
+    caption: PricingCaption
+    """
+    Platform-specific IDs
+    """
+    idMap: PricingIdMap!
+  }
+
+  """
+  Price preview information
+  """
+  type PricePreview {
+    """
+    Price amount
+    """
+    amount: Float!
+    """
+    Formatted price string
+    """
+    formatted: String!
+
+    """
+    Monthly price amount
+    """
+    monthly: PricePreview
+  }
+
+  """
+  Currency information
+  """
+  type Currency {
+    """
+    Three letter currency code
+    """
+    code: String!
+    """
+    Currency symbol
+    """
+    symbol: String!
+  }
+
+  """
+  Extended pricing preview with additional information
+  """
+  type PlusPricingPreview {
+    """
+    Metadata information
+    """
+    metadata: PlusPricingMetadata!
+    """
+    Price ID
+    """
+    priceId: String!
+    """
+    Price information
+    """
+    price: PricePreview!
+    """
+    Currency information
+    """
+    currency: Currency!
+    """
+    Subscription duration
+    """
+    duration: String!
+    """
+    Trial period information
+    """
+    trialPeriod: TrialPeriod
   }
 `;
 
 export interface GQLCustomData {
   appsId: string;
   label: string;
+}
+
+interface PlusMetadataArgs {
+  variant?: string;
 }
 
 export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
@@ -141,7 +273,7 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
         },
       });
 
-      const growthbookClient = getUserGrowthBookInstace(ctx.userId, {
+      const growthbookClient = getUserGrowthBookInstance(ctx.userId, {
         enableDevMode: process.env.NODE_ENV !== 'production',
         subscribeToChanges: false,
         attributes: {
@@ -230,6 +362,73 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
         currencyCode: pricePreview?.currencyCode as string,
         items,
       };
+    },
+    plusPricingMetadata: async (
+      _,
+      { variant = DEFAULT_PLUS_METADATA }: PlusMetadataArgs,
+      ctx: AuthContext,
+    ): Promise<PlusPricingMetadata[]> =>
+      getPlusPricingMetadata(ctx.con, variant),
+    plusPricingPreview: async (_, __, ctx): Promise<PlusPricingPreview[]> => {
+      const user = await ctx.con.getRepository(User).findOneOrFail({
+        where: { id: ctx.userId },
+        select: { createdAt: true },
+      });
+      const allocationClient = new ExperimentAllocationClient();
+      const gb = getUserGrowthBookInstance(ctx.userId, {
+        subscribeToChanges: false,
+        attributes: { registrationDate: user.createdAt.toISOString() },
+        allocationClient,
+      });
+      const variant = gb.getFeatureValue(
+        PLUS_FEATURE_KEY,
+        DEFAULT_PLUS_METADATA,
+      );
+      const metadata = await getPlusPricingMetadata(ctx.con, variant);
+      const ids = metadata.map(({ idMap }) => idMap.paddle);
+      const preview = await getPlusPricePreview(ctx, ids);
+
+      // consolidate the preview data and metadata
+      const consolidated = metadata.map((meta) => {
+        const item = preview.details.lineItems.find(
+          (item) => item.price.id === meta.idMap.paddle,
+        );
+
+        if (!item) {
+          return null;
+        }
+
+        const isOneOff = !item.price.billingCycle?.interval;
+        const isYearly = item.price.billingCycle?.interval === 'year';
+        const duration =
+          isOneOff || isYearly
+            ? SubscriptionCycles.Yearly
+            : SubscriptionCycles.Monthly;
+        const baseAmount = getPriceFromPaddleItem(item);
+        const monthly =
+          item.price.billingCycle?.interval === 'year'
+            ? getPaddleMonthlyPrice(baseAmount, item)
+            : null;
+        const trialPeriod = item.price.trialPeriod;
+
+        return {
+          metadata: meta,
+          priceId: item.price.id,
+          price: {
+            monthly,
+            amount: baseAmount,
+            formatted: item.formattedTotals.total,
+          },
+          currency: {
+            code: preview.currencyCode,
+            symbol: removeNumbers(item.formattedTotals.total),
+          },
+          duration,
+          trialPeriod,
+        } as PlusPricingPreview;
+      });
+
+      return consolidated.filter(Boolean) as PlusPricingPreview[];
     },
     corePricePreviews: async (_, __, ctx: AuthContext) => {
       const region = ctx.region;
