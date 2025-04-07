@@ -11,6 +11,7 @@ export type CommentFlags = Partial<{
 export type CommentFlagsPublic = Pick<CommentFlags, 'awardId'>;
 
 @Entity()
+@Index('idx_comment_flags_awardId', { synchronize: false })
 export class Comment {
   get awarded(): boolean {
     return !!this.awardTransactionId;
