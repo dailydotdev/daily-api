@@ -48,7 +48,7 @@ import { processStreamInBatches } from '../common/streaming';
 import { counters } from '../telemetry';
 import { contentPreferenceNotificationTypes } from '../common/contentPreference';
 import { SourcePostModeration } from '../entity/SourcePostModeration';
-import { logger } from '../logger';
+import { UserTransaction } from '../entity/user/UserTransaction';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -882,15 +882,25 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       gifter_image: gifter.image,
     };
   },
-  // @TODO: Implement this
   user_received_award: async (con, user, notification) => {
-    logger.info({ user, notification }, 'user_received_award');
+    const transaction = await con.getRepository(UserTransaction).findOneOrFail({
+      where: {
+        id: notification.referenceId,
+        receiverId: user.id,
+      },
+    });
+
+    const sender = await transaction.sender;
+    const product = await transaction.product;
+
+    const coreAmount = Intl.NumberFormat('en-US').format(transaction.value);
+
     return {
-      core_amount: null,
-      date: null,
-      sender: null,
-      sender_name: null,
-      award_image: null,
+      core_amount: `+${coreAmount}`,
+      date: formatMailDate(transaction.createdAt),
+      sender_image: sender.image,
+      sender_name: sender.name,
+      award_image: product.image,
     };
   },
 };
