@@ -26,6 +26,7 @@ import {
   NotificationSubmissionContext,
   NotificationUpvotersContext,
   NotificationUserContext,
+  type NotificationAwardContext,
   type NotificationUserTopReaderContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
@@ -148,6 +149,8 @@ export const notificationTitleMap: Record<
     `${ctx.user.name} just posted in ${ctx.source.name}. This post is waiting for your review before it gets published on the squad.`,
   user_gifted_plus: (ctx: NotificationGiftPlusContext) =>
     `Surprise! 🎁 ${ctx.gifter.username} thought of you and gifted you a one-year daily.dev Plus membership! How’s that for a thoughtful surprise?`,
+  user_received_award: (ctx: NotificationAwardContext) =>
+    `You just received ${ctx.transaction.value} Cores from ${ctx.awarder.username} as an Award! Keep creating great content!`,
 };
 
 export const generateNotificationMap: Record<
@@ -442,4 +445,10 @@ export const generateNotificationMap: Record<
       .avatarUser(ctx.gifter)
       .referenceSource(ctx.squad)
       .targetSource(ctx.squad),
+  user_received_award: (builder, ctx: NotificationAwardContext) =>
+    builder
+      .icon(NotificationIcon.Core)
+      .avatarUser(ctx.awarder)
+      .targetUrl(notificationsLink)
+      .referenceTransaction(ctx.transaction),
 };

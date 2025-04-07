@@ -48,6 +48,7 @@ import { processStreamInBatches } from '../common/streaming';
 import { counters } from '../telemetry';
 import { contentPreferenceNotificationTypes } from '../common/contentPreference';
 import { SourcePostModeration } from '../entity/SourcePostModeration';
+import { logger } from '../logger';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -92,6 +93,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   user_post_added: '58',
   user_given_top_reader: CioTransactionalMessageTemplateId.UserGivenTopReader,
   user_gifted_plus: CioTransactionalMessageTemplateId.UserReceivedPlusGift,
+  user_received_award: CioTransactionalMessageTemplateId.UserReceivedAward,
 };
 
 type TemplateData = Record<string, unknown>;
@@ -878,6 +880,17 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     return {
       gifter_name: gifter.name,
       gifter_image: gifter.image,
+    };
+  },
+  // @TODO: Implement this
+  user_received_award: async (con, user, notification) => {
+    logger.info({ user, notification }, 'user_received_award');
+    return {
+      core_amount: null,
+      date: null,
+      sender: null,
+      sender_name: null,
+      award_image: null,
     };
   },
 };

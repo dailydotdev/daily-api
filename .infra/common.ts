@@ -337,6 +337,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.user-transaction',
     subscription: 'api.user-bought-cores',
   },
+  {
+    topic: 'api.v1.user-transaction',
+    subscription: 'api.user-received-award',
+  }
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

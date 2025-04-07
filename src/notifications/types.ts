@@ -19,6 +19,7 @@ import { ChangeObject } from '../types';
 import { DeepPartial } from 'typeorm';
 import { SourceMemberRoles } from '../roles';
 import { SourcePostModeration } from '../entity/SourcePostModeration';
+import type { UserTransaction } from '../entity/user/UserTransaction';
 
 export type Reference<T> = ChangeObject<T> | T;
 
@@ -73,6 +74,12 @@ export type NotificationGiftPlusContext = NotificationBaseContext & {
   gifter: Reference<User>;
   recipient: Reference<User>;
   squad: Reference<SquadSource>;
+};
+
+export type NotificationAwardContext = NotificationBaseContext & {
+  transaction: Reference<UserTransaction>;
+  awarder: Reference<User>;
+  recipient: Reference<User>;
 };
 
 export type NotificationCommenterContext = NotificationCommentContext & {

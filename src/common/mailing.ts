@@ -27,6 +27,7 @@ export enum CioUnsubscribeTopic {
   Notifications = '7',
   Digest = '8',
   Follow = '9',
+  Award = '10',
 }
 
 export enum CioTransactionalMessageTemplateId {
@@ -35,6 +36,7 @@ export enum CioTransactionalMessageTemplateId {
   UserSentPlusGift = '65',
   UserReceivedPlusGift = '66',
   UserBoughtCores = '72',
+  UserReceivedAward = '73',
 }
 
 export const cioApi = new APIClient(process.env.CIO_APP_KEY);
