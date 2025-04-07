@@ -102,6 +102,27 @@ describe('userBoughtCores worker', () => {
     expect(sendEmail).not.toHaveBeenCalled();
   });
 
+  it('should do nothing if email was already sent', async () => {
+    const tx = con.getRepository(UserTransaction).create({
+      processor: UserTransactionProcessor.Paddle,
+      receiverId: '1',
+      status: UserTransactionStatus.Success,
+      value: 100,
+      valueIncFees: 100,
+      fee: 0,
+      request: {},
+      flags: { emailSent: true },
+      productId: null,
+    });
+    const transaction = await con.getRepository(UserTransaction).save(tx);
+
+    await expectSuccessfulTypedBackground(worker, {
+      transaction: transaction as unknown as ChangeObject<UserTransaction>,
+    });
+
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
   it('should send email for successful Paddle transaction', async () => {
     const tx = con.getRepository(UserTransaction).create({
       processor: UserTransactionProcessor.Paddle,
