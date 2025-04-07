@@ -1528,13 +1528,13 @@ describe('award notifications', () => {
   });
 
   it('should notify user when they are given an award', async () => {
-    const awarder = usersFixture[1] as Reference<User>;
-    const recipient = usersFixture[0] as Reference<User>;
+    const sender = usersFixture[1] as Reference<User>;
+    const receiver = usersFixture[0] as Reference<User>;
 
     const transaction = await con.getRepository(UserTransaction).save({
       processor: UserTransactionProcessor.Njord,
-      receiverId: recipient.id,
-      senderId: awarder.id,
+      receiverId: receiver.id,
+      senderId: sender.id,
       value: 100,
       valueIncFees: 100,
       fee: 0,
@@ -1546,15 +1546,16 @@ describe('award notifications', () => {
 
     const type = NotificationType.UserReceivedAward;
     const ctx: NotificationAwardContext = {
-      userIds: [recipient.id],
-      awarder,
-      recipient,
+      userIds: [receiver.id],
+      sender,
+      receiver,
       transaction,
+      targetUrl: `/${receiver.username}`,
     };
 
     const actual = generateNotificationV2(type, ctx);
     expect(actual.notification.type).toEqual(type);
-    expect(actual.userIds).toEqual([recipient.id]);
+    expect(actual.userIds).toEqual([receiver.id]);
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual(transaction.id);
     expect(actual.notification.description).toBeFalsy();

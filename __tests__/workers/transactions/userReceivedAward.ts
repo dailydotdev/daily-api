@@ -155,7 +155,7 @@ describe('userReceivedAward worker', () => {
     expect(
       (result![0].ctx as NotificationAwardContext).transaction,
     ).toMatchObject(transaction);
-    expect((result![0].ctx as NotificationAwardContext).awarder).toBeTruthy();
-    expect((result![0].ctx as NotificationAwardContext).recipient).toBeTruthy();
+    expect((result![0].ctx as NotificationAwardContext).sender).toBeTruthy();
+    expect((result![0].ctx as NotificationAwardContext).receiver).toBeTruthy();
   });
 });
