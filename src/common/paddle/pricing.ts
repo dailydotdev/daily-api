@@ -104,7 +104,7 @@ export const getPlusPricePreview = async (ctx: AuthContext, ids: string[]) => {
 };
 
 const MONTHS_IN_YEAR = 12;
-const removeNumbers = (str: string) => str.replace(/\d|\.|\s|,/g, '');
+export const removeNumbers = (str: string) => str.replace(/\d|\.|\s|,/g, '');
 
 export const getPaddleMonthlyPrice = (
   baseAmount: number,
