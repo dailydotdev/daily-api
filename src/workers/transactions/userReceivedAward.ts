@@ -1,5 +1,6 @@
 import { queryReadReplica } from '../../common/queryReadReplica';
-import { Feature, FeatureType } from '../../entity';
+import { Feature, FeatureType, UserPost } from '../../entity';
+import { UserComment } from '../../entity/user/UserComment';
 import {
   UserTransaction,
   UserTransactionProcessor,
@@ -59,6 +60,24 @@ export const userReceivedAward =
         const sender = await transaction.sender;
         const receiver = await transaction.receiver;
 
+        const [userPost, userComment] = await Promise.all([
+          queryRunner.manager.getRepository(UserPost).findOneBy({
+            awardTransactionId: transaction.id,
+          }),
+          queryRunner.manager.getRepository(UserComment).findOneBy({
+            awardTransactionId: transaction.id,
+          }),
+        ]);
+
+        let targetUrl = `/${receiver.username}`;
+
+        if (userPost) {
+          targetUrl = `/posts/${userPost.postId}`;
+        } else if (userComment) {
+          const comment = await userComment.comment;
+          targetUrl = `/posts/${comment.postId}#c-${userComment.commentId}`;
+        }
+
         return [
           {
             type: NotificationType.UserReceivedAward,
@@ -67,6 +86,7 @@ export const userReceivedAward =
               transaction,
               sender,
               receiver,
+              targetUrl,
             },
           },
         ];

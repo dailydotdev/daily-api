@@ -452,6 +452,6 @@ export const generateNotificationMap: Record<
     builder
       .icon(NotificationIcon.Core)
       .avatarUser(ctx.sender)
-      .targetUrl(notificationsLink)
+      .targetUrl(ctx.targetUrl)
       .referenceTransaction(ctx.transaction),
 };

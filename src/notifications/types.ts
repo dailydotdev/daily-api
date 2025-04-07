@@ -80,6 +80,7 @@ export type NotificationAwardContext = NotificationBaseContext & {
   transaction: Reference<UserTransaction>;
   sender: Reference<User>;
   receiver: Reference<User>;
+  targetUrl: string;
 };
 
 export type NotificationCommenterContext = NotificationCommentContext & {
