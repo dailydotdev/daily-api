@@ -46,6 +46,7 @@ export class MockContext extends Context {
   mockIsPlus: boolean;
   logger: FastifyLoggerInstance;
   contentLanguage: ContentLanguage;
+  mockRegion: string;
 
   constructor(
     con: DataSource,
@@ -54,6 +55,7 @@ export class MockContext extends Context {
     req?: FastifyRequest,
     isTeamMember = false,
     isPlus = false,
+    region = '',
   ) {
     super(mock<FastifyRequest>(), con);
     this.mockSpan = mock<opentelemetry.Span>();
@@ -65,6 +67,7 @@ export class MockContext extends Context {
     this.mockIsTeamMember = isTeamMember;
     this.mockIsPlus = isPlus;
     this.logger = mock<FastifyLoggerInstance>();
+    this.mockRegion = region;
 
     if (req?.headers['content-language']) {
       this.contentLanguage = req.headers['content-language'] as ContentLanguage;
@@ -97,6 +100,10 @@ export class MockContext extends Context {
 
   get isPlus(): boolean {
     return this.mockIsPlus;
+  }
+
+  get region(): string {
+    return this.mockRegion;
   }
 }
 
