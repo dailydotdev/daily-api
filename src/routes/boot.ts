@@ -468,6 +468,8 @@ const getUser = (
       'defaultFeedId',
       'flags',
       'coresRole',
+      'awardEmail',
+      'awardNotifications',
     ],
   });
 

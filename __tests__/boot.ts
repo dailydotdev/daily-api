@@ -123,6 +123,8 @@ const LOGGED_IN_BODY = {
     experienceLevel: null,
     followNotifications: true,
     followingEmail: true,
+    awardEmail: true,
+    awardNotifications: true,
     isTeamMember: false,
     bluesky: null,
     roadmap: null,
