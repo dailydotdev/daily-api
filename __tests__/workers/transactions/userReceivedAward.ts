@@ -3,6 +3,7 @@ import { userReceivedAward as worker } from '../../../src/workers/transactions/u
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
 import { Feature, FeatureType, User } from '../../../src/entity';
+import { Product, ProductType } from '../../../src/entity/Product';
 import {
   UserTransaction,
   UserTransactionProcessor,
@@ -12,6 +13,7 @@ import { workers as notificationWorkers } from '../../../src/workers/notificatio
 import { usersFixture } from '../../fixture/user';
 import { NotificationType } from '../../../src/notifications/common';
 import type { ChangeObject } from '../../../src/types';
+import type { NotificationAwardContext } from '../../../src/notifications/types';
 
 let con: DataSource;
 
@@ -23,6 +25,17 @@ describe('userReceivedAward worker', () => {
   beforeEach(async () => {
     jest.resetAllMocks();
     await saveFixtures(con, User, usersFixture);
+
+    // Create Product fixture
+    await saveFixtures(con, Product, [
+      {
+        id: '9104b834-6fac-4276-a168-0be1294ab371',
+        name: 'Test Award',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 100,
+      },
+    ]);
   });
 
   it('should be registered', () => {
@@ -42,6 +55,28 @@ describe('userReceivedAward worker', () => {
     expect(result).toBeUndefined();
   });
 
+  it('should do nothing if transaction has no productId', async () => {
+    const tx = con.getRepository(UserTransaction).create({
+      processor: UserTransactionProcessor.Njord,
+      receiverId: '1',
+      senderId: '2',
+      value: 100,
+      valueIncFees: 100,
+      fee: 0,
+      request: {},
+      flags: {},
+      productId: null,
+      status: UserTransactionStatus.Success,
+    });
+    const transaction = await con.getRepository(UserTransaction).save(tx);
+
+    const result = await invokeNotificationWorker(worker, {
+      transaction: transaction as unknown as ChangeObject<UserTransaction>,
+    });
+
+    expect(result).toBeUndefined();
+  });
+
   it('should do nothing if processor is not Njord', async () => {
     const tx = con.getRepository(UserTransaction).create({
       processor: UserTransactionProcessor.Paddle,
@@ -52,7 +87,7 @@ describe('userReceivedAward worker', () => {
       fee: 0,
       request: {},
       flags: {},
-      productId: null,
+      productId: '9104b834-6fac-4276-a168-0be1294ab371',
       status: UserTransactionStatus.Success,
     });
     const transaction = await con.getRepository(UserTransaction).save(tx);
@@ -74,7 +109,7 @@ describe('userReceivedAward worker', () => {
       fee: 0,
       request: {},
       flags: {},
-      productId: null,
+      productId: '9104b834-6fac-4276-a168-0be1294ab371',
       status: UserTransactionStatus.Success,
     });
     const transaction = await con.getRepository(UserTransaction).save(tx);
@@ -104,7 +139,7 @@ describe('userReceivedAward worker', () => {
       fee: 0,
       request: {},
       flags: {},
-      productId: null,
+      productId: '9104b834-6fac-4276-a168-0be1294ab371',
       status: UserTransactionStatus.Success,
     });
     const transaction = await con.getRepository(UserTransaction).save(tx);
@@ -117,8 +152,10 @@ describe('userReceivedAward worker', () => {
     expect(result).toHaveLength(1);
     expect(result![0].type).toEqual(NotificationType.UserReceivedAward);
     expect(result![0].ctx.userIds).toEqual(['1']);
-    expect(result![0].ctx.transaction).toMatchObject(transaction);
-    expect(result![0].ctx.awarder).toBeTruthy();
-    expect(result![0].ctx.recipient).toBeTruthy();
+    expect(
+      (result![0].ctx as NotificationAwardContext).transaction,
+    ).toMatchObject(transaction);
+    expect((result![0].ctx as NotificationAwardContext).awarder).toBeTruthy();
+    expect((result![0].ctx as NotificationAwardContext).recipient).toBeTruthy();
   });
 });

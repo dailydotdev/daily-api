@@ -22,6 +22,14 @@ export const userReceivedAward =
         return;
       }
 
+      if (!transaction.productId) {
+        logger.info(
+          { transactionId: transaction.id },
+          'userReceivedAward: transaction has no productId',
+        );
+        return;
+      }
+
       if (transaction.processor !== UserTransactionProcessor.Njord) {
         return;
       }
