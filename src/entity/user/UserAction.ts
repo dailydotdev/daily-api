@@ -11,6 +11,7 @@ export enum UserActionType {
   MyFeed = 'my_feed',
   EditWelcomePost = 'edit_welcome_post',
   FetchedSmartTitle = 'fetched_smart_title',
+  CheckedCoresRole = 'checked_cores_role',
 }
 
 @Entity()
