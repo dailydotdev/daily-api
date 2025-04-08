@@ -943,15 +943,32 @@ const worker: Worker = {
           const isFollowNotification =
             contentPreferenceNotificationTypes.includes(notification.type);
 
+          const isAwardNotification =
+            notification.type === NotificationType.UserReceivedAward;
+
           const users = await con.getRepository(User).find({
             select: ['id', 'username', 'email'],
             where: {
               id: In(batch.map((b) => b.userId)),
               email: Not(IsNull()),
               notificationEmail:
-                !isFollowNotification && notification.public ? true : undefined,
+                !isFollowNotification &&
+                !isAwardNotification &&
+                notification.public
+                  ? true
+                  : undefined,
               followingEmail:
-                isFollowNotification && notification.public ? true : undefined,
+                isFollowNotification &&
+                !isAwardNotification &&
+                notification.public
+                  ? true
+                  : undefined,
+              awardEmail:
+                !isFollowNotification &&
+                isAwardNotification &&
+                notification.public
+                  ? true
+                  : undefined,
             },
           });
           if (!users.length) {
