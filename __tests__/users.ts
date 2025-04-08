@@ -6252,7 +6252,7 @@ describe('coresRole field on User', () => {
     expect(res.errors).toBeFalsy();
 
     expect(user.id).toEqual('2');
-    expect(user.coresRole).toEqual(CoresRole.Creator);
+    expect(user.coresRole).toEqual(CoresRole.None);
   });
 });
 
