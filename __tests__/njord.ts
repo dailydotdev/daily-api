@@ -82,6 +82,7 @@ describe('award user mutation', () => {
           id: `t-awum-${item.id}`,
           username: `t-awum-${item.username}`,
           github: undefined,
+          coresRole: CoresRole.Creator,
         };
       }),
     );
@@ -304,6 +305,7 @@ describe('award post mutation', () => {
           id: `t-awpm-${item.id}`,
           username: `t-awpm-${item.username}`,
           github: undefined,
+          coresRole: CoresRole.Creator,
         };
       }),
     );
@@ -825,6 +827,7 @@ describe('award comment mutation', () => {
           id: `t-awcm-${item.id}`,
           username: `t-awcm-${item.username}`,
           github: undefined,
+          coresRole: CoresRole.Creator,
         };
       }),
     );
