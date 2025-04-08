@@ -156,11 +156,11 @@ export const typeDefs = /* GraphQL */ `
     """
     Paddle platform ID
     """
-    paddle: String!
+    paddle: String
     """
     iOS platform ID
     """
-    ios: String!
+    ios: String
   }
 
   """
