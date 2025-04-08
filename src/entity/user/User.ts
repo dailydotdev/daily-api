@@ -277,7 +277,7 @@ export class User {
   }
 
   @Index()
-  @Column({ type: 'smallint', default: CoresRole.Creator })
+  @Column({ type: 'smallint', default: CoresRole.None })
   coresRole: CoresRole;
 
   @Column({ type: 'boolean', default: true })
