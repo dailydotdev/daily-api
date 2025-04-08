@@ -129,7 +129,10 @@ import {
 } from '../../entity/SourcePostModeration';
 import { cleanupSourcePostModerationNotifications } from '../../notifications/common';
 import { UserReport } from '../../entity/UserReport';
-import { UserTransaction } from '../../entity/user/UserTransaction';
+import {
+  UserTransaction,
+  UserTransactionStatus,
+} from '../../entity/user/UserTransaction';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -1095,9 +1098,14 @@ const onUserTransactionChange = async (
     return;
   }
 
-  await triggerTypedEvent(logger, 'api.v1.user-transaction', {
-    transaction: data.payload.after!,
-  });
+  if (
+    data.payload.before?.status !== UserTransactionStatus.Success &&
+    data.payload.after?.status === UserTransactionStatus.Success
+  ) {
+    await triggerTypedEvent(logger, 'api.v1.user-transaction', {
+      transaction: data.payload.after!,
+    });
+  }
 };
 
 const onBookmarkChange = async (
