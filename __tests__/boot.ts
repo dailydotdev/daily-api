@@ -145,7 +145,7 @@ const LOGGED_IN_BODY = {
       amount: 0,
     },
     subscriptionFlags: {},
-    coresRole: CoresRole.Creator,
+    coresRole: CoresRole.None,
   },
   marketingCta: null,
   feeds: [],
