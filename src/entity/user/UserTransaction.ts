@@ -17,6 +17,7 @@ export type UserTransactionFlags = Partial<{
   note: string;
   providerId: string;
   error: string;
+  emailSent: boolean;
 }>;
 
 export type UserTransactionFlagsPublic = Pick<
