@@ -219,6 +219,7 @@ describe('users for reactivation', () => {
           'cio_subscription_preferences.topics.topic_7': true,
           'cio_subscription_preferences.topics.topic_8': true,
           'cio_subscription_preferences.topics.topic_9': true,
+          'cio_subscription_preferences.topics.topic_10': true,
           created_at: 1656427727,
           first_name: 'Ido',
           name: 'Ido',
