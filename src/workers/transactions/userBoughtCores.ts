@@ -46,11 +46,16 @@ export const userBoughtCores: TypedWorker<'api.v1.user-transaction'> = {
 
     const coreAmount = Intl.NumberFormat('en-US').format(transaction.value);
 
-    await con.getRepository(UserTransaction).update(transaction.id, {
-      flags: updateFlagsStatement({
-        emailSent: true,
-      }),
-    });
+    await con.getRepository(UserTransaction).update(
+      {
+        id: transaction.id,
+      },
+      {
+        flags: updateFlagsStatement({
+          emailSent: true,
+        }),
+      },
+    );
 
     try {
       await sendEmail({
@@ -71,11 +76,16 @@ export const userBoughtCores: TypedWorker<'api.v1.user-transaction'> = {
         { err, transactionId: transaction.id },
         'failed to send email for user bought cores',
       );
-      await con.getRepository(UserTransaction).update(transaction.id, {
-        flags: updateFlagsStatement({
-          emailSent: false,
-        }),
-      });
+      await con.getRepository(UserTransaction).update(
+        {
+          id: transaction.id,
+        },
+        {
+          flags: updateFlagsStatement({
+            emailSent: false,
+          }),
+        },
+      );
       throw err;
     }
   },
