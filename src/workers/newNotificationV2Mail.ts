@@ -915,6 +915,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       sender_image: sender.image,
       sender_name: sender.name,
       award_image: product.image,
+      award_description: product?.flags?.description,
     };
   },
 };
