@@ -47,23 +47,47 @@ export const userBoughtCores: TypedWorker<'api.v1.user-transaction'> = {
 
     const coreAmount = formatCoresCurrency(transaction.value);
 
-    await sendEmail({
-      send_to_unsubscribed: true,
-      transactional_message_id:
-        CioTransactionalMessageTemplateId.UserBoughtCores,
-      message_data: {
-        core_amount: `+${coreAmount}`,
+    await con.getRepository(UserTransaction).update(
+      {
+        id: transaction.id,
       },
-      identifiers: {
-        id: user.id,
+      {
+        flags: updateFlagsStatement({
+          emailSent: true,
+        }),
       },
-      to: user.email,
-    });
+    );
 
-    await con.getRepository(UserTransaction).update(transaction.id, {
-      flags: updateFlagsStatement({
-        emailSent: true,
-      }),
-    });
+    try {
+      await sendEmail({
+        send_to_unsubscribed: true,
+        transactional_message_id:
+          CioTransactionalMessageTemplateId.UserBoughtCores,
+        message_data: {
+          core_amount: `+${coreAmount}`,
+        },
+        identifiers: {
+          id: user.id,
+        },
+        to: user.email,
+      });
+    } catch (_err) {
+      const err = _err as Error;
+      logger.error(
+        { err, transactionId: transaction.id },
+        'failed to send email for user bought cores',
+      );
+      await con.getRepository(UserTransaction).update(
+        {
+          id: transaction.id,
+        },
+        {
+          flags: updateFlagsStatement({
+            emailSent: false,
+          }),
+        },
+      );
+      throw err;
+    }
   },
 };

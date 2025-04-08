@@ -748,16 +748,29 @@ export const updateUserTransaction = async ({
   });
 
   if (!transaction) {
-    const newTransaction = await con
+    const insertResult = await con
       .getRepository(UserTransaction)
-      .save(payload);
+      .createQueryBuilder()
+      .insert()
+      .values(payload)
+      .onConflict(
+        `((flags->>'providerId')) DO UPDATE SET status = EXCLUDED.status,
+            value = EXCLUDED.value,
+            "valueIncFees" = EXCLUDED."valueIncFees",
+            "updatedAt" = NOW()`,
+      )
+      .returning(['id'])
+      .execute();
 
-    return newTransaction;
+    payload.id = insertResult.raw[0].id;
+
+    return payload;
   } else {
     await con.getRepository(UserTransaction).update(
       { id: transaction.id },
       {
         value: itemData.price.customData.cores,
+        valueIncFees: itemData.price.customData.cores,
         status: nextStatus,
       },
     );
@@ -765,6 +778,7 @@ export const updateUserTransaction = async ({
     return con.getRepository(UserTransaction).create({
       ...transaction,
       value: itemData.price.customData.cores,
+      valueIncFees: itemData.price.customData.cores,
       status: transaction.status || nextStatus,
     });
   }

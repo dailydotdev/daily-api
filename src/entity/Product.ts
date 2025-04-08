@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -26,6 +27,7 @@ export class Product {
   id: string;
 
   @Column()
+  @Index('idx_product_type')
   type: ProductType;
 
   @Column()
