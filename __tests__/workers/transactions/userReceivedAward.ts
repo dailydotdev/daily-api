@@ -26,6 +26,7 @@ import { sourcesFixture } from '../../fixture/source';
 import { postsFixture } from '../../fixture/post';
 import { randomUUID } from 'node:crypto';
 import { UserComment } from '../../../src/entity/user/UserComment';
+import { env } from 'node:process';
 
 let con: DataSource;
 
@@ -166,7 +167,7 @@ describe('userReceivedAward worker', () => {
     expect((result![0].ctx as NotificationAwardContext).sender).toBeTruthy();
     expect((result![0].ctx as NotificationAwardContext).receiver).toBeTruthy();
     expect((result![0].ctx as NotificationAwardContext).targetUrl).toEqual(
-      '/idoshamun',
+      `${env.COMMENTS_PREFIX}/idoshamun`,
     );
   });
 
@@ -208,7 +209,7 @@ describe('userReceivedAward worker', () => {
     expect((result![0].ctx as NotificationAwardContext).sender).toBeTruthy();
     expect((result![0].ctx as NotificationAwardContext).receiver).toBeTruthy();
     expect((result![0].ctx as NotificationAwardContext).targetUrl).toEqual(
-      '/posts/p1',
+      `${env.COMMENTS_PREFIX}/posts/p1`,
     );
   });
 
@@ -259,7 +260,7 @@ describe('userReceivedAward worker', () => {
     expect((result![0].ctx as NotificationAwardContext).sender).toBeTruthy();
     expect((result![0].ctx as NotificationAwardContext).receiver).toBeTruthy();
     expect((result![0].ctx as NotificationAwardContext).targetUrl).toEqual(
-      '/posts/p2#c-a-c-1',
+      `${env.COMMENTS_PREFIX}/posts/p2#c-a-c-1`,
     );
   });
 });

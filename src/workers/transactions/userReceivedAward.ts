@@ -1,3 +1,4 @@
+import { env } from 'node:process';
 import { queryReadReplica } from '../../common/queryReadReplica';
 import { Feature, FeatureType, UserPost } from '../../entity';
 import { UserComment } from '../../entity/user/UserComment';
@@ -84,7 +85,7 @@ export const userReceivedAward =
               transaction,
               sender,
               receiver,
-              targetUrl,
+              targetUrl: `${env.COMMENTS_PREFIX}${targetUrl}`,
             },
           },
         ];
