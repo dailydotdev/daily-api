@@ -155,6 +155,8 @@ export interface GQLUpdateUserInput {
   language?: ContentLanguage;
   followingEmail?: boolean;
   followNotifications?: boolean;
+  awardEmail?: boolean;
+  awardNotifications?: boolean;
   defaultFeedId?: string;
   flags: UserFlagsPublic;
 }

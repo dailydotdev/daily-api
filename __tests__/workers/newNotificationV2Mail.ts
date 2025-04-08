@@ -1,5 +1,6 @@
 import {
   expectSuccessfulBackground,
+  saveFixtures,
   saveNotificationV2Fixture,
 } from '../helpers';
 import {
@@ -51,6 +52,7 @@ import {
   NotificationUpvotersContext,
   NotificationUserContext,
   Reference,
+  type NotificationAwardContext,
 } from '../../src/notifications';
 import { postsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture/source';
@@ -66,6 +68,13 @@ import {
   SourcePostModerationStatus,
 } from '../../src/entity/SourcePostModeration';
 import { ChangeObject } from '../../src/types';
+import {
+  UserTransaction,
+  UserTransactionProcessor,
+  UserTransactionStatus,
+} from '../../src/entity/user/UserTransaction';
+import { env } from 'node:process';
+import { Product, ProductType } from '../../src/entity/Product';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -717,6 +726,57 @@ it('should not send follow email notification if the user prefers not to receive
   const notificationId = await saveNotificationV2Fixture(
     con,
     NotificationType.UserPostAdded,
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId,
+    },
+  });
+  expect(sendEmail).toHaveBeenCalledTimes(0);
+});
+
+it('should not send award email notification if the user prefers not to receive them', async () => {
+  const userId = '1';
+  const repo = con.getRepository(User);
+  const receiver = await repo.findOneBy({ id: userId });
+  const sender = await repo.findOneBy({ id: '2' });
+  await repo.save({ ...receiver, awardEmail: false });
+
+  await saveFixtures(con, Product, [
+    {
+      id: '9104b834-6fac-4276-a168-0be1294ab371',
+      name: 'Test Award',
+      image: 'https://daily.dev/award.jpg',
+      type: ProductType.Award,
+      value: 100,
+    },
+  ]);
+
+  const transaction = await con.getRepository(UserTransaction).save({
+    processor: UserTransactionProcessor.Njord,
+    receiverId: '1',
+    senderId: '2',
+    value: 100,
+    valueIncFees: 100,
+    fee: 0,
+    request: {},
+    flags: {},
+    productId: '9104b834-6fac-4276-a168-0be1294ab371',
+    status: UserTransactionStatus.Success,
+  });
+  const ctx: NotificationAwardContext = {
+    userIds: ['1'],
+    transaction,
+    receiver: receiver as Reference<User>,
+    sender: sender as Reference<User>,
+    targetUrl: `${env.COMMENTS_PREFIX}/idoshamun`,
+  };
+
+  const notificationId = await saveNotificationV2Fixture(
+    con,
+    NotificationType.UserReceivedAward,
     ctx,
   );
   await expectSuccessfulBackground(worker, {

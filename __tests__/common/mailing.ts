@@ -43,6 +43,7 @@ describe('mailing', () => {
                   [`topic_${CioUnsubscribeTopic.Digest}`]: true,
                   [`topic_${CioUnsubscribeTopic.Notifications}`]: true,
                   [`topic_${CioUnsubscribeTopic.Follow}`]: false,
+                  [`topic_${CioUnsubscribeTopic.Award}`]: false,
                 },
               }),
             },
@@ -76,6 +77,7 @@ describe('mailing', () => {
           type: UserPersonalizedDigestType.Digest,
         });
         expect(user.followingEmail).toBe(false);
+        expect(user.awardEmail).toBe(false);
       });
     });
   });
