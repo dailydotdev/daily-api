@@ -1095,6 +1095,10 @@ const onUserTransactionChange = async (
     return;
   }
 
+  if (data.payload.after?.status !== UserTransactionStatus.Success) {
+    return;
+  }
+
   await triggerTypedEvent(logger, 'api.v1.user-transaction', {
     transaction: data.payload.after!,
   });
