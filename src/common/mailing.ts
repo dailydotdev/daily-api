@@ -27,6 +27,7 @@ export enum CioUnsubscribeTopic {
   Notifications = '7',
   Digest = '8',
   Follow = '9',
+  Award = '10',
 }
 
 export enum CioTransactionalMessageTemplateId {
@@ -34,6 +35,8 @@ export enum CioTransactionalMessageTemplateId {
   UserGivenTopReader = '52',
   UserSentPlusGift = '65',
   UserReceivedPlusGift = '66',
+  UserBoughtCores = '72',
+  UserReceivedAward = '73',
 }
 
 export const cioApi = new APIClient(process.env.CIO_APP_KEY);
@@ -129,6 +132,8 @@ export const syncSubscription = async function (
           isSubscribed(subs, CioUnsubscribeTopic.Digest) && !unsubscribed;
         const isFollowSubscribed =
           isSubscribed(subs, CioUnsubscribeTopic.Follow) && !unsubscribed;
+        const isAwardSubscribed =
+          isSubscribed(subs, CioUnsubscribeTopic.Award) && !unsubscribed;
 
         await manager.getRepository(User).update(
           { id: customer.id },
@@ -136,6 +141,7 @@ export const syncSubscription = async function (
             notificationEmail: notifications,
             acceptedMarketing: marketing,
             followingEmail: isFollowSubscribed,
+            awardEmail: isAwardSubscribed,
           },
         );
         if (!digest) {
@@ -275,6 +281,8 @@ export const syncSubscriptionsWithActiveState = async ({
               followingEmail: false,
               followNotifications: false,
               notificationEmail: false,
+              awardEmail: false,
+              awardNotifications: false,
             },
           ),
           manager

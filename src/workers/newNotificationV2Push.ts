@@ -7,6 +7,7 @@ import { processStreamInBatches } from '../common/streaming';
 import { User } from '../entity/user/User';
 import {
   getNotificationV2AndChildren,
+  NotificationType,
   streamNotificationUsers,
 } from '../notifications/common';
 import { counters } from '../telemetry';
@@ -34,6 +35,9 @@ const worker: Worker = {
           const isFollowNotification =
             contentPreferenceNotificationTypes.includes(notification.type);
 
+          const isAwardNotification =
+            notification.type === NotificationType.UserReceivedAward;
+
           const stream = await streamNotificationUsers(con, notification.id);
           await processStreamInBatches(
             stream,
@@ -47,6 +51,7 @@ const worker: Worker = {
                 where: {
                   id: In(disconnectedUsers),
                   followNotifications: isFollowNotification ? true : undefined,
+                  awardNotifications: isAwardNotification ? true : undefined,
                 },
               });
 

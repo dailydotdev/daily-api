@@ -62,6 +62,7 @@ describe('userUpdatedCio', () => {
     acceptedMarketing: true,
     followingEmail: true,
     emailConfirmed: true,
+    awardEmail: true,
   };
 
   it('should be registered', () => {
@@ -92,6 +93,7 @@ describe('userUpdatedCio', () => {
       'cio_subscription_preferences.topics.topic_7': true,
       'cio_subscription_preferences.topics.topic_8': false,
       'cio_subscription_preferences.topics.topic_9': true,
+      'cio_subscription_preferences.topics.topic_10': true,
     });
   });
 
@@ -149,6 +151,20 @@ describe('userUpdatedCio', () => {
       'cio_subscription_preferences.topics.topic_7': true,
       'cio_subscription_preferences.topics.topic_8': false,
       'cio_subscription_preferences.topics.topic_9': false,
+    });
+  });
+
+  it('should support award email false', async () => {
+    mocked(getShortGenericInviteLink).mockImplementation(async () => '');
+    await expectSuccessfulTypedBackground(worker, {
+      newProfile: { ...base, awardEmail: false },
+      user: base,
+    } as unknown as PubSubSchema['user-updated']);
+    expect(mocked(cio.identify).mock.calls[0][1]).toMatchObject({
+      'cio_subscription_preferences.topics.topic_4': true,
+      'cio_subscription_preferences.topics.topic_7': true,
+      'cio_subscription_preferences.topics.topic_8': false,
+      'cio_subscription_preferences.topics.topic_10': false,
     });
   });
 

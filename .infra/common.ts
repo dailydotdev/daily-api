@@ -333,6 +333,14 @@ export const workers: Worker[] = [
     topic: 'njord.v1.balance-log',
     subscription: 'api.transaction-balance-log'
   },
+  {
+    topic: 'api.v1.user-transaction',
+    subscription: 'api.user-bought-cores',
+  },
+  {
+    topic: 'api.v1.user-transaction',
+    subscription: 'api.user-received-award',
+  }
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

@@ -29,6 +29,7 @@ import sourcePostModerationApprovedNotification from './sourcePostModerationAppr
 import sourcePostModerationRejectedNotification from './sourcePostModerationRejectedNotification';
 import { postAddedUserNotification } from './postAddedUserNotification';
 import { userTopReaderAdded } from './userTopReaderAdded';
+import { userReceivedAward } from '../transactions/userReceivedAward';
 
 export function notificationWorkerToWorker(worker: NotificationWorker): Worker {
   return {
@@ -96,6 +97,7 @@ const notificationWorkers: NotificationWorker[] = [
   sourcePostModerationRejectedNotification,
   userTopReaderAdded,
   userGiftedPlusNotification,
+  userReceivedAward,
 ];
 
 export const workers = [...notificationWorkers.map(notificationWorkerToWorker)];

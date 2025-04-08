@@ -155,6 +155,8 @@ export interface GQLUpdateUserInput {
   language?: ContentLanguage;
   followingEmail?: boolean;
   followNotifications?: boolean;
+  awardEmail?: boolean;
+  awardNotifications?: boolean;
   defaultFeedId?: string;
   flags: UserFlagsPublic;
 }
@@ -592,6 +594,14 @@ export const typeDefs = /* GraphQL */ `
     Whether the user wants to receives following push notifications
     """
     followNotifications: Boolean
+    """
+    Whether the user wants to receive award email notifications
+    """
+    awardEmail: Boolean
+    """
+    Whether the user wants to receive award push notifications
+    """
+    awardNotifications: Boolean
     """
     Default feed id for the user
     """

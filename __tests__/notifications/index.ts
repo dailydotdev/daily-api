@@ -1,5 +1,6 @@
 import {
   generateNotificationV2,
+  type NotificationAwardContext,
   NotificationBaseContext,
   NotificationBookmarkContext,
   NotificationBundleV2,
@@ -65,6 +66,11 @@ import {
   SourcePostModerationStatus,
 } from '../../src/entity/SourcePostModeration';
 import { randomUUID } from 'crypto';
+import {
+  UserTransaction,
+  UserTransactionProcessor,
+  UserTransactionStatus,
+} from '../../src/entity/user/UserTransaction';
 
 const userId = '1';
 const commentFixture: Reference<Comment> = {
@@ -1511,6 +1517,49 @@ describe('storeNotificationBundle', () => {
         type: 'top_reader_badge',
       },
     ]);
+    expect(actual.attachments!.length).toEqual(0);
+  });
+});
+
+describe('award notifications', () => {
+  beforeEach(async () => {
+    jest.resetAllMocks();
+    await saveFixtures(con, User, usersFixture);
+  });
+
+  it('should notify user when they are given an award', async () => {
+    const sender = usersFixture[1] as Reference<User>;
+    const receiver = usersFixture[0] as Reference<User>;
+
+    const transaction = await con.getRepository(UserTransaction).save({
+      processor: UserTransactionProcessor.Njord,
+      receiverId: receiver.id,
+      senderId: sender.id,
+      value: 100,
+      valueIncFees: 100,
+      fee: 0,
+      request: {},
+      flags: {},
+      productId: null,
+      status: UserTransactionStatus.Success,
+    });
+
+    const type = NotificationType.UserReceivedAward;
+    const ctx: NotificationAwardContext = {
+      userIds: [receiver.id],
+      sender,
+      receiver,
+      transaction,
+      targetUrl: `/${receiver.username}`,
+    };
+
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([receiver.id]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual(transaction.id);
+    expect(actual.notification.description).toBeFalsy();
+    expect(actual.notification.targetUrl).toEqual(`/${receiver.username}`);
     expect(actual.attachments!.length).toEqual(0);
   });
 });

@@ -48,6 +48,8 @@ import { processStreamInBatches } from '../common/streaming';
 import { counters } from '../telemetry';
 import { contentPreferenceNotificationTypes } from '../common/contentPreference';
 import { SourcePostModeration } from '../entity/SourcePostModeration';
+import { UserTransaction } from '../entity/user/UserTransaction';
+import { formatCoresCurrency } from '../common/number';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -92,6 +94,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   user_post_added: '58',
   user_given_top_reader: CioTransactionalMessageTemplateId.UserGivenTopReader,
   user_gifted_plus: CioTransactionalMessageTemplateId.UserReceivedPlusGift,
+  user_received_award: CioTransactionalMessageTemplateId.UserReceivedAward,
 };
 
 type TemplateData = Record<string, unknown>;
@@ -880,6 +883,31 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       gifter_image: gifter.image,
     };
   },
+  user_received_award: async (con, user, notification) => {
+    const transaction = await con.getRepository(UserTransaction).findOneOrFail({
+      where: {
+        id: notification.referenceId,
+        receiverId: user.id,
+      },
+      relations: {
+        sender: true,
+        product: true,
+      },
+    });
+
+    const sender = await transaction.sender;
+    const product = await transaction.product;
+
+    const coreAmount = formatCoresCurrency(transaction.value);
+
+    return {
+      core_amount: `+${coreAmount}`,
+      date: formatMailDate(transaction.createdAt),
+      sender_image: sender.image,
+      sender_name: sender.name,
+      award_image: product.image,
+    };
+  },
 };
 
 const formatTemplateDate = <T extends TemplateData>(data: T): T => {
@@ -915,15 +943,32 @@ const worker: Worker = {
           const isFollowNotification =
             contentPreferenceNotificationTypes.includes(notification.type);
 
+          const isAwardNotification =
+            notification.type === NotificationType.UserReceivedAward;
+
           const users = await con.getRepository(User).find({
             select: ['id', 'username', 'email'],
             where: {
               id: In(batch.map((b) => b.userId)),
               email: Not(IsNull()),
               notificationEmail:
-                !isFollowNotification && notification.public ? true : undefined,
+                !isFollowNotification &&
+                !isAwardNotification &&
+                notification.public
+                  ? true
+                  : undefined,
               followingEmail:
-                isFollowNotification && notification.public ? true : undefined,
+                isFollowNotification &&
+                !isAwardNotification &&
+                notification.public
+                  ? true
+                  : undefined,
+              awardEmail:
+                !isFollowNotification &&
+                isAwardNotification &&
+                notification.public
+                  ? true
+                  : undefined,
             },
           });
           if (!users.length) {

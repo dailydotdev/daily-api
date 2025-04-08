@@ -13,4 +13,5 @@ export enum NotificationIcon {
   Timer = 'Timer',
   Streak = 'Streak',
   TopReaderBadge = 'TopReaderBadge',
+  Core = 'Core',
 }

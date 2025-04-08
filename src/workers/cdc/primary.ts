@@ -129,6 +129,10 @@ import {
 } from '../../entity/SourcePostModeration';
 import { cleanupSourcePostModerationNotifications } from '../../notifications/common';
 import { UserReport } from '../../entity/UserReport';
+import {
+  UserTransaction,
+  UserTransactionStatus,
+} from '../../entity/user/UserTransaction';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -1085,6 +1089,25 @@ const onUserTopReaderChange = async (
   });
 };
 
+const onUserTransactionChange = async (
+  _: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<UserTransaction>,
+) => {
+  if (data.payload.op === 'd') {
+    return;
+  }
+
+  if (
+    data.payload.before?.status !== UserTransactionStatus.Success &&
+    data.payload.after?.status === UserTransactionStatus.Success
+  ) {
+    await triggerTypedEvent(logger, 'api.v1.user-transaction', {
+      transaction: data.payload.after!,
+    });
+  }
+};
+
 const onBookmarkChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -1214,6 +1237,9 @@ const worker: Worker = {
           break;
         case getTableName(con, UserTopReader):
           await onUserTopReaderChange(con, logger, data);
+          break;
+        case getTableName(con, UserTransaction):
+          await onUserTransactionChange(con, logger, data);
           break;
       }
     } catch (err) {
