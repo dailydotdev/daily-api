@@ -36,6 +36,7 @@ import { SourceMemberRoles } from '../roles';
 import { NotificationType } from './common';
 import { SourcePostModeration } from '../entity/SourcePostModeration';
 import { fallbackImages } from '../config';
+import type { UserTransaction } from '../entity/user/UserTransaction';
 
 const MAX_COMMENT_LENGTH = 320;
 
@@ -172,6 +173,15 @@ export class NotificationBuilder {
     return this.enrichNotification({
       referenceId: userTopReader.id,
       referenceType: 'user_top_reader',
+    });
+  }
+
+  referenceTransaction(
+    transaction: Reference<UserTransaction>,
+  ): NotificationBuilder {
+    return this.enrichNotification({
+      referenceId: transaction.id,
+      referenceType: 'transaction',
     });
   }
 

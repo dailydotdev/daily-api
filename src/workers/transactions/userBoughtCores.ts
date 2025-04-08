@@ -3,6 +3,7 @@ import {
   sendEmail,
   updateFlagsStatement,
 } from '../../common';
+import { formatCoresCurrency } from '../../common/number';
 import {
   UserTransaction,
   UserTransactionProcessor,
@@ -44,7 +45,7 @@ export const userBoughtCores: TypedWorker<'api.v1.user-transaction'> = {
 
     const user = await transaction.receiver;
 
-    const coreAmount = Intl.NumberFormat('en-US').format(transaction.value);
+    const coreAmount = formatCoresCurrency(transaction.value);
 
     await con.getRepository(UserTransaction).update(
       {

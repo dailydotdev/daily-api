@@ -593,6 +593,14 @@ export const typeDefs = /* GraphQL */ `
     """
     followNotifications: Boolean
     """
+    Whether the user wants to receive award email notifications
+    """
+    awardEmail: Boolean
+    """
+    Whether the user wants to receive award push notifications
+    """
+    awardNotifications: Boolean
+    """
     Default feed id for the user
     """
     defaultFeedId: String
