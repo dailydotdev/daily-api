@@ -23,10 +23,10 @@ export interface PlusPricingMetadata {
     copy: string;
     color: string;
   };
-  idMap: {
+  idMap: Partial<{
     paddle: string;
     ios: string;
-  };
+  }>;
 }
 
 export interface PricePreview {
@@ -89,7 +89,6 @@ const devPricingMetadata: PlusPricingMetadata[] = [
     },
     idMap: {
       paddle: 'pri_01jjbwd5j7k0nm45k8e07yfmwr',
-      ios: 'gift_one_year',
     },
   },
 ];
