@@ -1,0 +1,8 @@
+[
+  {
+    "feature": "plus_pricing_ids",
+    "variant": "plus_default",
+    "createdAt": "2025-04-08T10:41:57.489Z",
+    "value": "[{\"appsId\":\"early_adopter\",\"title\":\"Annual Special\",\"caption\":{\"copy\":\"💜 Early bird\",\"color\":\"help\"},\"idMap\":{\"paddle\":\"pri_01jkzypjstw7k6w82375mafc89\",\"ios\":\"early_adopter\"}},{\"appsId\":\"annual\",\"title\":\"Annual\",\"caption\":{\"copy\":\"Save 2 months\",\"color\":\"success\"},\"idMap\":{\"paddle\":\"pri_01jcdn6enr5ap3ekkddc6fv6tq\",\"ios\":\"annual\"}},{\"appsId\":\"monthly\",\"title\":\"Monthly\",\"idMap\":{\"paddle\":\"pri_01jcdp5ef4yhv00p43hr2knrdg\",\"ios\":\"monthly\"}},{\"appsId\":\"gift_one_year\",\"title\":\"One year plan\",\"caption\":{\"copy\":\"Save 50%\",\"color\":\"success\"},\"idMap\":{\"paddle\":\"pri_01jjbwd5j7k0nm45k8e07yfmwr\"}}]"
+  }
+]

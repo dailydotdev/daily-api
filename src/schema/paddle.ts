@@ -385,7 +385,10 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
         DEFAULT_PLUS_METADATA,
       );
       const metadata = await getPlusPricingMetadata(ctx.con, variant);
-      const ids = metadata.map(({ idMap }) => idMap.paddle);
+      const ids = metadata
+        .map(({ idMap }) => idMap.paddle)
+        .filter(Boolean) as string[];
+
       const preview = await getPlusPricePreview(ctx, ids);
 
       // consolidate the preview data and metadata
