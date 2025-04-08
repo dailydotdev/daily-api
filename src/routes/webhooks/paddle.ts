@@ -800,7 +800,17 @@ export const processTransactionCreated = async ({
     });
 
     if (transaction) {
-      throw new Error('Transaction already exists');
+      logger.warn(
+        {
+          eventType: event.eventType,
+          provider: SubscriptionProvider.Paddle,
+          currentStatus: transaction.status,
+          data: transactionData,
+        },
+        'Transaction already exists',
+      );
+
+      return;
     }
 
     await updateUserTransaction({
