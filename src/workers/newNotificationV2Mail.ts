@@ -964,7 +964,11 @@ const worker: Worker = {
                   ? true
                   : undefined,
               awardEmail:
-                isAwardNotification && notification.public ? true : undefined,
+                !isFollowNotification &&
+                isAwardNotification &&
+                notification.public
+                  ? true
+                  : undefined,
             },
           });
           if (!users.length) {
