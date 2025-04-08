@@ -47,9 +47,10 @@ import {
   UserTransactionProcessor,
   UserTransactionStatus,
 } from '../../entity/user/UserTransaction';
-import { purchaseCores } from '../../common/njord';
+import { purchaseCores, UserTransactionError } from '../../common/njord';
 import { checkUserCoresAccess } from '../../common/user';
 import { CoresRole } from '../../types';
+import { TransferError } from '../../errors';
 
 export interface PaddleCustomData {
   user_id?: string;
@@ -643,52 +644,85 @@ export const processTransactionCompleted = async ({
     const transactionData = getPaddleTransactionData({ event });
     const con = await createOrGetConnection();
 
-    const transaction = await getTransactionForProviderId({
+    let transaction = await getTransactionForProviderId({
       con,
       providerId: transactionData.id,
     });
 
-    const completedTransaction = await con.transaction(
-      async (entityManager) => {
-        const userTransaction = await updateUserTransaction({
-          con: entityManager,
-          transaction,
-          nextStatus: UserTransactionStatus.Success,
-          data: transactionData,
-          event,
+    transaction = await con.transaction(async (entityManager) => {
+      const userTransaction = await updateUserTransaction({
+        con: entityManager,
+        transaction,
+        nextStatus: UserTransactionStatus.Success,
+        data: transactionData,
+        event,
+      });
+
+      const user: Pick<User, 'id' | 'coresRole'> = await entityManager
+        .getRepository(User)
+        .findOneOrFail({
+          select: ['id', 'coresRole'],
+          where: {
+            id: transactionData.customData.user_id,
+          },
         });
 
-        const user: Pick<User, 'id' | 'coresRole'> = await entityManager
-          .getRepository(User)
-          .findOneOrFail({
-            select: ['id', 'coresRole'],
-            where: {
-              id: transactionData.customData.user_id,
-            },
-          });
+      if (
+        checkUserCoresAccess({
+          user,
+          requiredRole: CoresRole.User,
+        }) === false
+      ) {
+        throw new Error('User does not have access to cores purchase');
+      }
 
-        if (
-          checkUserCoresAccess({
-            user,
-            requiredRole: CoresRole.User,
-          }) === false
-        ) {
-          throw new Error('User does not have access to cores purchase');
-        }
-
+      try {
         await purchaseCores({
           transaction: userTransaction,
         });
+      } catch (error) {
+        if (error instanceof TransferError) {
+          const userTransactionError = new UserTransactionError({
+            status: error.transfer.status,
+            transaction: userTransaction,
+          });
 
-        return userTransaction;
-      },
-    );
+          // update transaction status to error
+          await entityManager.getRepository(UserTransaction).update(
+            {
+              id: userTransaction.id,
+            },
+            {
+              status: error.transfer.status as number,
+              flags: updateFlagsStatement<UserTransaction>({
+                error: userTransactionError.message,
+              }),
+            },
+          );
 
-    await notifyNewPaddleCoresTransaction({
-      data: transactionData,
-      transaction: completedTransaction,
-      event,
+          return entityManager.getRepository(UserTransaction).create({
+            ...userTransaction,
+            status: error.transfer.status as number,
+            flags: {
+              ...userTransaction.flags,
+              error: userTransactionError.message,
+            },
+          });
+        }
+
+        throw error;
+      }
+
+      return userTransaction;
     });
+
+    if (transaction.status === UserTransactionStatus.Success) {
+      await notifyNewPaddleCoresTransaction({
+        data: transactionData,
+        transaction: transaction,
+        event,
+      });
+    }
 
     return;
   }
