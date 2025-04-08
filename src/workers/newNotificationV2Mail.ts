@@ -952,6 +952,11 @@ const worker: Worker = {
                 !isFollowNotification && notification.public ? true : undefined,
               followingEmail:
                 isFollowNotification && notification.public ? true : undefined,
+              awardEmail:
+                notification.type === NotificationType.UserReceivedAward &&
+                notification.public
+                  ? true
+                  : undefined,
             },
           });
           if (!users.length) {

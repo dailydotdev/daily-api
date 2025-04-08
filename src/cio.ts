@@ -46,6 +46,8 @@ const OMIT_FIELDS: (keyof ChangeObject<User>)[] = [
   'notificationEmail',
   'followingEmail',
   'followNotifications',
+  'awardEmail',
+  'awardNotifications',
 ];
 
 export const CIO_REQUIRED_FIELDS: (keyof ChangeObject<User>)[] = [
@@ -56,6 +58,7 @@ export const CIO_REQUIRED_FIELDS: (keyof ChangeObject<User>)[] = [
   'notificationEmail',
   'acceptedMarketing',
   'followingEmail',
+  'awardEmail',
 ];
 
 export async function identifyUserStreak({
@@ -147,6 +150,8 @@ export const getIdentifyAttributes = async (
       !!personalizedDigest,
     [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Follow}`]:
       user.followingEmail,
+    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Award}`]:
+      user.awardEmail,
   };
 };
 

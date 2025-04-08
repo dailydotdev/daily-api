@@ -132,6 +132,8 @@ export const syncSubscription = async function (
           isSubscribed(subs, CioUnsubscribeTopic.Digest) && !unsubscribed;
         const isFollowSubscribed =
           isSubscribed(subs, CioUnsubscribeTopic.Follow) && !unsubscribed;
+        const isAwardSubscribed =
+          isSubscribed(subs, CioUnsubscribeTopic.Award) && !unsubscribed;
 
         await manager.getRepository(User).update(
           { id: customer.id },
@@ -139,6 +141,7 @@ export const syncSubscription = async function (
             notificationEmail: notifications,
             acceptedMarketing: marketing,
             followingEmail: isFollowSubscribed,
+            awardEmail: isAwardSubscribed,
           },
         );
         if (!digest) {
@@ -278,6 +281,8 @@ export const syncSubscriptionsWithActiveState = async ({
               followingEmail: false,
               followNotifications: false,
               notificationEmail: false,
+              awardEmail: false,
+              awardNotifications: false,
             },
           ),
           manager
