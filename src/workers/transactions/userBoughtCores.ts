@@ -40,6 +40,10 @@ export const userBoughtCores: TypedWorker<'api.v1.user-transaction'> = {
     }
 
     if (transaction.flags.emailSent) {
+      logger.info(
+        { transactionId: transaction.id },
+        'Email already sent for this transaction',
+      );
       return;
     }
 
@@ -71,6 +75,11 @@ export const userBoughtCores: TypedWorker<'api.v1.user-transaction'> = {
         },
         to: user.email,
       });
+
+      logger.info(
+        { transactionId: transaction.id },
+        'Email sent for user bought cores',
+      );
     } catch (_err) {
       const err = _err as Error;
       logger.error(
