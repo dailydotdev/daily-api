@@ -3,6 +3,8 @@ import {
   LogLevel,
   Paddle,
   type Subscription,
+  type SubscriptionCanceledEvent,
+  type SubscriptionUpdatedEvent,
   type TransactionCompletedEvent,
   type TransactionCreatedEvent,
   type TransactionPaidEvent,
@@ -139,7 +141,9 @@ export const isCoreTransaction = ({
     | TransactionUpdatedEvent
     | TransactionPaidEvent
     | TransactionCompletedEvent
-    | TransactionPaymentFailedEvent;
+    | TransactionPaymentFailedEvent
+    | SubscriptionUpdatedEvent
+    | SubscriptionCanceledEvent;
 }): boolean => {
   return event.data.items.some(
     (item) =>
