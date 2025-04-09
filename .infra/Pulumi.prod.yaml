@@ -74,7 +74,7 @@ config:
     meiliOrigin:
       secure: AAABAEueTZvzwG4iG4mZtiCnTO/NJafye14NBJQUaOWcRSs5+kymF+LMYk/Muqragwku/+7ZMuohDZ2lFQZD4sES6HiNVfBVTIkqjFh53lk=
     meiliToken:
-      secure: AAABAJ5e87fPpLeYaHCcB/+3pKb2++FZC+asI1sVWQ1y3pSK8GT5koYWFMfdr2iEILpluqd2yKy5TLt8MhDMPefJWb4PzuaaZM7NH/c6f79peEqf6X4xJyLyfDBG6yuH
+      secure: AAABAFWxN1QA4d8grDNFMUZfYlk0ztgJVA/mAKVgiTDCZEVhrCsTGvAqURM+7LWK1FLdBbur6NP98Q6fuWn6r0Tf6O6H8Judjhm4lW/1xxqgjYGimf9jP/j7uCzqNei5
     metricsEnabled: true
     nodeEnv: production
     ogUrl: https://og.daily.dev
