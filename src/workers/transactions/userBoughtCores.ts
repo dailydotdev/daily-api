@@ -49,7 +49,7 @@ export const userBoughtCores: TypedWorker<'api.v1.user-transaction'> = {
 
     const user = await transaction.receiver;
 
-    const coreAmount = formatCoresCurrency(transaction.value);
+    const coreAmount = formatCoresCurrency(transaction.valueIncFees);
 
     await con.getRepository(UserTransaction).update(
       {
