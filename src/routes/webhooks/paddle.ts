@@ -276,6 +276,7 @@ const logPaddleAnalyticsEvent = async (
       app_platform: 'api',
       user_id: userId,
       extra: JSON.stringify(getAnalyticsExtra(data)),
+      target_type: isCoreTransaction({ event }) ? 'credits' : 'plus',
     },
   ]);
 };
