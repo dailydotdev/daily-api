@@ -880,7 +880,10 @@ export const processTransactionPaid = async ({
         event,
         transaction,
         nextStatus,
-        validStatus: [UserTransactionStatus.Created],
+        validStatus: [
+          UserTransactionStatus.Created,
+          UserTransactionStatus.Processing,
+        ],
         data: transactionData,
       })
     ) {
