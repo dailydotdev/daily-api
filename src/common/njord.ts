@@ -17,7 +17,6 @@ import {
   UserTransactionStatus,
 } from '../entity/user/UserTransaction';
 import {
-  isProd,
   isSpecialUser,
   parseBigInt,
   systemUser,
@@ -155,15 +154,9 @@ const parseBalanceUpdate = ({
 
 export const transferCores = createAuthProtectedFn(
   async ({
-    ctx,
     transaction,
     entityManager,
   }: TransferProps): Promise<TransferResult> => {
-    // TODO feat/transactions check if user is team member, remove check when prod is ready
-    if (!ctx.isTeamMember && isProd) {
-      throw new ForbiddenError('Not allowed for you yet');
-    }
-
     // TODO feat/transactions check if session is valid for real on whoami endpoint
 
     const njordClient = getNjordClient();

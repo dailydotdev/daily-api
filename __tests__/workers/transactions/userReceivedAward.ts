@@ -2,15 +2,7 @@ import { invokeNotificationWorker, saveFixtures } from '../../helpers';
 import { userReceivedAward as worker } from '../../../src/workers/transactions/userReceivedAward';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
-import {
-  Comment,
-  Feature,
-  FeatureType,
-  Post,
-  Source,
-  User,
-  UserPost,
-} from '../../../src/entity';
+import { Comment, Post, Source, User, UserPost } from '../../../src/entity';
 import { Product, ProductType } from '../../../src/entity/Product';
 import {
   UserTransaction,
@@ -51,12 +43,6 @@ describe('userReceivedAward worker', () => {
         value: 100,
       },
     ]);
-
-    await con.getRepository(Feature).save({
-      feature: FeatureType.Team,
-      userId: '1',
-      value: 1,
-    });
   });
 
   it('should be registered', () => {
@@ -118,28 +104,7 @@ describe('userReceivedAward worker', () => {
     expect(result).toBeUndefined();
   });
 
-  it('should do nothing if recipient is not a team member', async () => {
-    const transaction = await con.getRepository(UserTransaction).save({
-      processor: UserTransactionProcessor.Njord,
-      receiverId: '2',
-      senderId: '2',
-      value: 100,
-      valueIncFees: 100,
-      fee: 0,
-      request: {},
-      flags: {},
-      productId: '9104b834-6fac-4276-a168-0be1294ab371',
-      status: UserTransactionStatus.Success,
-    });
-
-    const result = await invokeNotificationWorker(worker, {
-      transaction: transaction as unknown as ChangeObject<UserTransaction>,
-    });
-
-    expect(result).toBeUndefined();
-  });
-
-  it('should create notification for team member who received an award', async () => {
+  it('should create notification for user who received an award', async () => {
     const transaction = await con.getRepository(UserTransaction).save({
       processor: UserTransactionProcessor.Njord,
       receiverId: '1',
@@ -171,7 +136,7 @@ describe('userReceivedAward worker', () => {
     );
   });
 
-  it('should create notification for team member who received an award on a post', async () => {
+  it('should create notification for user who received an award on a post', async () => {
     const transactionId = randomUUID();
     const sender = '2';
 
@@ -213,7 +178,7 @@ describe('userReceivedAward worker', () => {
     );
   });
 
-  it('should create notification for team member who received an award on a comment', async () => {
+  it('should create notification for user who received an award on a comment', async () => {
     const transactionId = randomUUID();
     const sender = '2';
     const receiver = '1';
