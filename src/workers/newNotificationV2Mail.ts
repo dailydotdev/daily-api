@@ -899,12 +899,12 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     const product = await transaction.product;
 
     const coreAmount =
-      transaction.value === 0
+      transaction.valueIncFees === 0
         ? 'Free'
-        : `+${formatCoresCurrency(transaction.value)}`;
+        : `+${formatCoresCurrency(transaction.valueIncFees)}`;
 
     const title =
-      transaction.value === 0
+      transaction.valueIncFees === 0
         ? 'You just received an Award!'
         : `You just received ${coreAmount} Cores!`;
 
