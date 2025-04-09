@@ -1,6 +1,6 @@
 import { env } from 'node:process';
 import { queryReadReplica } from '../../common/queryReadReplica';
-import { Feature, FeatureType, UserPost } from '../../entity';
+import { UserPost } from '../../entity';
 import { UserComment } from '../../entity/user/UserComment';
 import {
   UserTransaction,
@@ -37,22 +37,6 @@ export const userReceivedAward =
         }
 
         if (transaction.processor !== UserTransactionProcessor.Njord) {
-          return;
-        }
-
-        const isReceiverTeamMember = await queryRunner.manager
-          .getRepository(Feature)
-          .existsBy({
-            feature: FeatureType.Team,
-            userId: transaction.receiverId,
-            value: 1,
-          });
-
-        if (!isReceiverTeamMember) {
-          logger.debug(
-            { transactionId: transaction.id },
-            'userReceivedAward: receiver is not a team member',
-          );
           return;
         }
 
