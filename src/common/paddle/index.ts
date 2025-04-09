@@ -5,8 +5,8 @@ import {
   type Subscription,
   type TransactionCompletedEvent,
   type TransactionCreatedEvent,
+  type TransactionPaidEvent,
   TransactionPaymentFailedEvent,
-  type TransactionReadyEvent,
   type TransactionUpdatedEvent,
 } from '@paddle/paddle-node-sdk';
 import { logger } from '../../logger';
@@ -137,7 +137,7 @@ export const isCoreTransaction = ({
   event:
     | TransactionCreatedEvent
     | TransactionUpdatedEvent
-    | TransactionReadyEvent
+    | TransactionPaidEvent
     | TransactionCompletedEvent
     | TransactionPaymentFailedEvent;
 }): boolean => {
@@ -155,7 +155,7 @@ export const getPaddleTransactionData = ({
   event:
     | TransactionCreatedEvent
     | TransactionUpdatedEvent
-    | TransactionReadyEvent
+    | TransactionPaidEvent
     | TransactionCompletedEvent
     | TransactionPaymentFailedEvent;
 }): z.infer<typeof paddleTransactionSchema> => {

@@ -8,9 +8,9 @@ import {
   type SubscriptionCreatedEvent,
   type SubscriptionUpdatedEvent,
   type TransactionPaymentFailedEvent,
-  type TransactionReadyEvent,
   type TransactionUpdatedEvent,
   type TransactionPayoutTotalsNotification,
+  type TransactionPaidEvent,
 } from '@paddle/paddle-node-sdk';
 import createOrGetConnection from '../../db';
 import {
@@ -857,10 +857,10 @@ export const processTransactionCreated = async ({
   }
 };
 
-export const processTransactionReady = async ({
+export const processTransactionPaid = async ({
   event,
 }: {
-  event: TransactionReadyEvent;
+  event: TransactionPaidEvent;
 }) => {
   if (isCoreTransaction({ event })) {
     const transactionData = getPaddleTransactionData({ event });
@@ -989,8 +989,9 @@ export const processTransactionUpdated = async ({
 
       switch (event.data.status) {
         case 'draft':
-          return UserTransactionStatus.Created;
         case 'ready':
+          return UserTransactionStatus.Created;
+        case 'billed':
           return UserTransactionStatus.Processing;
         default:
           return undefined;
@@ -1049,8 +1050,8 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
                 });
 
                 break;
-              case EventName.TransactionReady:
-                await processTransactionReady({
+              case EventName.TransactionPaid:
+                await processTransactionPaid({
                   event: eventData,
                 });
 
