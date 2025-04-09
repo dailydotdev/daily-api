@@ -814,7 +814,7 @@ export const updateUserTransaction = async ({
       ...transaction,
       value: itemData.price.customData.cores,
       valueIncFees: itemData.price.customData.cores,
-      status: transaction.status || nextStatus,
+      status: nextStatus ?? transaction.status,
     });
   }
 };
@@ -948,7 +948,7 @@ export const processTransactionPaymentFailed = async ({
       {
         status: nextStatus,
         flags: updateFlagsStatement<UserTransaction>({
-          error: `Payment failed: ${event.data.payments[0]?.errorCode || 'unknown'}`,
+          error: `Payment failed: ${event.data.payments[0]?.errorCode ?? 'unknown'}`,
         }),
       },
     );
@@ -1004,12 +1004,12 @@ export const processTransactionUpdated = async ({
 
     const nextStatus = getUpdatedStatus();
 
-    if (!nextStatus) {
+    if (typeof nextStatus === 'undefined') {
       logger.warn(
         {
           eventType: event.eventType,
           provider: SubscriptionProvider.Paddle,
-          currentStatus: transaction?.status || 'unknown',
+          currentStatus: transaction?.status ?? 'unknown',
           data: transactionData,
         },
         'Transaction update skipped',
