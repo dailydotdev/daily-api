@@ -23,10 +23,10 @@ export interface PlusPricingMetadata {
     copy: string;
     color: string;
   };
-  idMap: {
+  idMap: Partial<{
     paddle: string;
     ios: string;
-  };
+  }>;
 }
 
 export interface PricePreview {

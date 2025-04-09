@@ -898,14 +898,24 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     const sender = await transaction.sender;
     const product = await transaction.product;
 
-    const coreAmount = formatCoresCurrency(transaction.value);
+    const coreAmount =
+      transaction.valueIncFees === 0
+        ? 'Free'
+        : `+${formatCoresCurrency(transaction.valueIncFees)}`;
+
+    const title =
+      transaction.valueIncFees === 0
+        ? 'You just received an Award!'
+        : `You just received ${coreAmount} Cores!`;
 
     return {
-      core_amount: `+${coreAmount}`,
+      title,
+      core_amount: coreAmount,
       date: formatMailDate(transaction.createdAt),
       sender_image: sender.image,
       sender_name: sender.name,
       award_image: product.image,
+      award_description: product?.flags?.description,
     };
   },
 };

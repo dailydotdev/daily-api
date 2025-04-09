@@ -8,9 +8,9 @@ import {
   type SubscriptionCreatedEvent,
   type SubscriptionUpdatedEvent,
   type TransactionPaymentFailedEvent,
-  type TransactionReadyEvent,
   type TransactionUpdatedEvent,
   type TransactionPayoutTotalsNotification,
+  type TransactionPaidEvent,
 } from '@paddle/paddle-node-sdk';
 import createOrGetConnection from '../../db';
 import {
@@ -47,9 +47,10 @@ import {
   UserTransactionProcessor,
   UserTransactionStatus,
 } from '../../entity/user/UserTransaction';
-import { purchaseCores } from '../../common/njord';
+import { purchaseCores, UserTransactionError } from '../../common/njord';
 import { checkUserCoresAccess } from '../../common/user';
 import { CoresRole } from '../../types';
+import { TransferError } from '../../errors';
 
 export interface PaddleCustomData {
   user_id?: string;
@@ -643,52 +644,85 @@ export const processTransactionCompleted = async ({
     const transactionData = getPaddleTransactionData({ event });
     const con = await createOrGetConnection();
 
-    const transaction = await getTransactionForProviderId({
+    let transaction = await getTransactionForProviderId({
       con,
       providerId: transactionData.id,
     });
 
-    const completedTransaction = await con.transaction(
-      async (entityManager) => {
-        const userTransaction = await updateUserTransaction({
-          con: entityManager,
-          transaction,
-          nextStatus: UserTransactionStatus.Success,
-          data: transactionData,
-          event,
+    transaction = await con.transaction(async (entityManager) => {
+      const userTransaction = await updateUserTransaction({
+        con: entityManager,
+        transaction,
+        nextStatus: UserTransactionStatus.Success,
+        data: transactionData,
+        event,
+      });
+
+      const user: Pick<User, 'id' | 'coresRole'> = await entityManager
+        .getRepository(User)
+        .findOneOrFail({
+          select: ['id', 'coresRole'],
+          where: {
+            id: transactionData.customData.user_id,
+          },
         });
 
-        const user: Pick<User, 'id' | 'coresRole'> = await entityManager
-          .getRepository(User)
-          .findOneOrFail({
-            select: ['id', 'coresRole'],
-            where: {
-              id: transactionData.customData.user_id,
-            },
-          });
+      if (
+        checkUserCoresAccess({
+          user,
+          requiredRole: CoresRole.User,
+        }) === false
+      ) {
+        throw new Error('User does not have access to cores purchase');
+      }
 
-        if (
-          checkUserCoresAccess({
-            user,
-            requiredRole: CoresRole.User,
-          }) === false
-        ) {
-          throw new Error('User does not have access to cores purchase');
-        }
-
+      try {
         await purchaseCores({
           transaction: userTransaction,
         });
+      } catch (error) {
+        if (error instanceof TransferError) {
+          const userTransactionError = new UserTransactionError({
+            status: error.transfer.status,
+            transaction: userTransaction,
+          });
 
-        return userTransaction;
-      },
-    );
+          // update transaction status to error
+          await entityManager.getRepository(UserTransaction).update(
+            {
+              id: userTransaction.id,
+            },
+            {
+              status: error.transfer.status as number,
+              flags: updateFlagsStatement<UserTransaction>({
+                error: userTransactionError.message,
+              }),
+            },
+          );
 
-    await notifyNewPaddleCoresTransaction({
-      data: transactionData,
-      transaction: completedTransaction,
-      event,
+          return entityManager.getRepository(UserTransaction).create({
+            ...userTransaction,
+            status: error.transfer.status as number,
+            flags: {
+              ...userTransaction.flags,
+              error: userTransactionError.message,
+            },
+          });
+        }
+
+        throw error;
+      }
+
+      return userTransaction;
     });
+
+    if (transaction.status === UserTransactionStatus.Success) {
+      await notifyNewPaddleCoresTransaction({
+        data: transactionData,
+        transaction: transaction,
+        event,
+      });
+    }
 
     return;
   }
@@ -823,10 +857,10 @@ export const processTransactionCreated = async ({
   }
 };
 
-export const processTransactionReady = async ({
+export const processTransactionPaid = async ({
   event,
 }: {
-  event: TransactionReadyEvent;
+  event: TransactionPaidEvent;
 }) => {
   if (isCoreTransaction({ event })) {
     const transactionData = getPaddleTransactionData({ event });
@@ -846,7 +880,10 @@ export const processTransactionReady = async ({
         event,
         transaction,
         nextStatus,
-        validStatus: [UserTransactionStatus.Created],
+        validStatus: [
+          UserTransactionStatus.Created,
+          UserTransactionStatus.Processing,
+        ],
         data: transactionData,
       })
     ) {
@@ -955,8 +992,9 @@ export const processTransactionUpdated = async ({
 
       switch (event.data.status) {
         case 'draft':
-          return UserTransactionStatus.Created;
         case 'ready':
+          return UserTransactionStatus.Created;
+        case 'billed':
           return UserTransactionStatus.Processing;
         default:
           return undefined;
@@ -1015,8 +1053,8 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
                 });
 
                 break;
-              case EventName.TransactionReady:
-                await processTransactionReady({
+              case EventName.TransactionPaid:
+                await processTransactionPaid({
                   event: eventData,
                 });
 
