@@ -25,6 +25,7 @@ type RemoteConfigValue = {
     regions: string[];
     role: CoresRole;
   }[];
+  kvasirRequirePlus: boolean;
 };
 
 class RemoteConfig {
