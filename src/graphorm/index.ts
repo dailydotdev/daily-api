@@ -99,7 +99,7 @@ const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
         return value;
       }
 
-      if (!ctx.isPlus) {
+      if (remoteConfig.vars.kvasirRequirePlus && !ctx.isPlus) {
         return value;
       }
 
