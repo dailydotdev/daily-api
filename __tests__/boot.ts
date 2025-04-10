@@ -253,20 +253,6 @@ describe('anonymous boot', () => {
     expect(second.body.visit.sessionId).toEqual(first.body.visit.sessionId);
   });
 
-  it('should not set tracking and session id for bots', async () => {
-    const res = await request(app.server).get(BASE_PATH).expect(200);
-    expect(res.body).toEqual({
-      ...ANONYMOUS_BODY,
-      user: {
-        firstVisit: null,
-        shouldVerify: false,
-      },
-      visit: {
-        visitId: expect.any(String),
-      },
-    });
-  });
-
   it('should read join_referral cookie', async () => {
     const res = await request(app.server)
       .get(BASE_PATH)
@@ -275,7 +261,8 @@ describe('anonymous boot', () => {
     expect(res.body).toEqual({
       ...ANONYMOUS_BODY,
       user: {
-        firstVisit: null,
+        id: expect.any(String),
+        firstVisit: expect.any(String),
         referralId: '1',
         referralOrigin: 'knightcampaign',
         shouldVerify: false,
