@@ -99,6 +99,10 @@ const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
         return value;
       }
 
+      if (!ctx.isPlus) {
+        return value;
+      }
+
       const typedParent = parent as {
         smartTitle: I18nRecord;
         clickbaitProbability?: string;
@@ -514,6 +518,10 @@ const obj = new GraphORM({
         select: 'titleHtml',
         transform: async (titleHtml: string, ctx: Context, parent) => {
           if (!ctx.userId) {
+            return titleHtml;
+          }
+
+          if (remoteConfig.vars.kvasirRequirePlus && !ctx.isPlus) {
             return titleHtml;
           }
 
