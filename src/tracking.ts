@@ -41,7 +41,7 @@ const plugin = async (fastify: FastifyInstance): Promise<void> => {
       req.trackingId = req.userId;
     } else if (trackingCookie) {
       req.trackingId = trackingCookie;
-    } else if (!req.isBot && !req.service) {
+    } else if (!req.service) {
       req.trackingId = await generateTrackingId(req, 'tracking middleware');
     }
     if (req.trackingId !== trackingCookie) {
