@@ -99,6 +99,10 @@ const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
         return value;
       }
 
+      if (remoteConfig.vars.kvasirRequirePlus && !ctx.isPlus) {
+        return value;
+      }
+
       const typedParent = parent as {
         smartTitle: I18nRecord;
         clickbaitProbability?: string;
@@ -517,6 +521,10 @@ const obj = new GraphORM({
             return titleHtml;
           }
 
+          if (remoteConfig.vars.kvasirRequirePlus && !ctx.isPlus) {
+            return titleHtml;
+          }
+
           const typedParent = parent as {
             translation: Partial<Record<ContentLanguage, PostTranslation>>;
           };
@@ -530,6 +538,28 @@ const obj = new GraphORM({
           }
 
           return titleHtml;
+        },
+      },
+      summary: {
+        select: 'summary',
+        transform: async (summary: string, ctx: Context, parent) => {
+          if (!ctx.userId || !ctx.isPlus) {
+            return summary;
+          }
+
+          const typedParent = parent as {
+            translation: Partial<Record<ContentLanguage, PostTranslation>>;
+          };
+
+          const i18nSummary = ctx.contentLanguage
+            ? typedParent.translation?.[ctx.contentLanguage]?.summary
+            : undefined;
+
+          if (i18nSummary) {
+            return i18nSummary;
+          }
+
+          return summary;
         },
       },
       translation: {
