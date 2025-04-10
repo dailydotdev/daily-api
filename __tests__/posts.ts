@@ -5902,6 +5902,153 @@ describe('query relatedPosts', () => {
   });
 });
 
+describe('posts summary field', () => {
+  const QUERY = /* GraphQL */ `
+    {
+      post(id: "p1") {
+        summary
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await con.getRepository(ArticlePost).update(
+      { id: 'p1' },
+      {
+        summary: 'P1 summary',
+      },
+    );
+  });
+
+  it('should return summary', async () => {
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.post).toEqual({
+      summary: 'P1 summary',
+    });
+  });
+
+  it('should return original summary when language is not set', async () => {
+    loggedUser = '1';
+    await con.getRepository(ArticlePost).update(
+      { id: 'p1' },
+      {
+        translation: {
+          en: {
+            summary: 'P1 English',
+          },
+        },
+      },
+    );
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.post).toEqual({
+      summary: 'P1 summary',
+    });
+  });
+
+  it('should return original summary if i18n exists but not plus', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        translation: {
+          de: {
+            summary: 'P1 german',
+          },
+        },
+      },
+    );
+
+    const res = await client.query(QUERY, {
+      headers: {
+        'content-language': 'de',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.post).toEqual({
+      summary: 'P1 summary',
+    });
+  });
+
+  it('should return i18n summary if exists', async () => {
+    loggedUser = '1';
+    isPlus = true;
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        translation: {
+          de: {
+            summary: 'P1 german',
+          },
+        },
+      },
+    );
+
+    const res = await client.query(QUERY, {
+      headers: {
+        'content-language': 'de',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.post).toEqual({
+      summary: 'P1 german',
+    });
+  });
+
+  it('should return default summary if i18n summary does not exist', async () => {
+    loggedUser = '1';
+    isPlus = true;
+    const res = await client.query(QUERY, {
+      headers: {
+        'content-language': 'fr',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.post).toEqual({
+      summary: 'P1 summary',
+    });
+  });
+
+  it('should return i18n summary for cased language codes', async () => {
+    loggedUser = '1';
+    isPlus = true;
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        translation: {
+          'pt-BR': {
+            summary: 'P1 Portugal Brazil',
+          },
+        },
+      },
+    );
+
+    const res = await client.query(QUERY, {
+      headers: {
+        'content-language': 'pt-BR',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.post).toEqual({
+      summary: 'P1 Portugal Brazil',
+    });
+  });
+});
+
 describe('posts title field', () => {
   const QUERY = /* GraphQL */ `
     {
