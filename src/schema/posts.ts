@@ -401,6 +401,7 @@ export const typeDefs = /* GraphQL */ `
     title: Boolean
     smartTitle: Boolean
     titleHtml: Boolean
+    summary: Boolean
   }
 
   """

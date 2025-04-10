@@ -532,6 +532,28 @@ const obj = new GraphORM({
           return titleHtml;
         },
       },
+      summary: {
+        select: 'summary',
+        transform: async (summary: string, ctx: Context, parent) => {
+          if (!ctx.userId || !ctx.isPlus) {
+            return summary;
+          }
+
+          const typedParent = parent as {
+            translation: Partial<Record<ContentLanguage, PostTranslation>>;
+          };
+
+          const i18nSummary = ctx.contentLanguage
+            ? typedParent.translation?.[ctx.contentLanguage]?.summary
+            : undefined;
+
+          if (i18nSummary) {
+            return i18nSummary;
+          }
+
+          return summary;
+        },
+      },
       translation: {
         jsonType: true,
         transform: (
