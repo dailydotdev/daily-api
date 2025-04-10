@@ -127,7 +127,6 @@ export async function getDevCardData(
       'reputation',
       'cover',
       'subscriptionFlags',
-      'coresRole',
     ],
   });
   const [articlesRead, tags, sources] = await Promise.all([

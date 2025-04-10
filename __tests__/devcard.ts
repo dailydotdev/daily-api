@@ -261,7 +261,6 @@ describe('query devCard(id)', () => {
     username
     bio
     reputation
-    coresRole
   }
 `;
 
@@ -303,7 +302,6 @@ describe('query devCard(id)', () => {
         permalink: 'http://localhost:5002/lee',
         reputation: 10,
         username: 'lee',
-        coresRole: 0,
       },
       createdAt: expect.any(String),
       theme: DevCardTheme.Default,
@@ -327,7 +325,6 @@ describe('query devCard(id)', () => {
         permalink: 'http://localhost:5002/ido',
         reputation: 10,
         username: 'ido',
-        coresRole: 0,
       },
       createdAt: expect.any(String),
       theme: DevCardTheme.Gold,

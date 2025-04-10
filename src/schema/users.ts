@@ -461,7 +461,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Role for Cores access
     """
-    coresRole: Int!
+    coresRole: Int
   }
 
   """
