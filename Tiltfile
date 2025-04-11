@@ -20,7 +20,7 @@ pulumi_resource(
   'api',
   stack='adhoc',
   dir='.infra/',
-  deps=['.infra/index.ts', '.infra/workers.ts'],
+  deps=['.infra/index.ts', '.infra/workers.ts', '.infra/.env'],
   image_deps=['api-image'],
   image_configs=['image'],
 )
