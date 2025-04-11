@@ -13,6 +13,7 @@ import {
   updateUserEmail,
 } from '../entity/user/utils';
 import { queryReadReplica } from '../common/queryReadReplica';
+import { kvasir } from './private/kvasir';
 
 interface SearchUsername {
   search: string;
@@ -173,4 +174,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       completedAt: action?.completedAt,
     });
   });
+
+  fastify.register(kvasir, { prefix: '/kvasir' });
 }
