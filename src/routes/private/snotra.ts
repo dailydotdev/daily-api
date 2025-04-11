@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
-import createOrGetConnection from '../db';
-import { Keyword, Source, Post } from '../entity';
+import createOrGetConnection from '../../db';
+import { Keyword, Source, Post } from '../../entity';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/all_tags', async (req, res) => {
