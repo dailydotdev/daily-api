@@ -19,7 +19,7 @@ export const kvasir = async (fastify: FastifyInstance): Promise<void> => {
 
   fastify.post<{
     Body: {
-      postIds?: Array<Post['id']>;
+      postIds: Array<Post['id']>;
     };
   }>('/posts', async (request, response): Promise<Array<Post>> => {
     const con = await createOrGetConnection();
