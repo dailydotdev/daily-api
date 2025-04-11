@@ -37,7 +37,7 @@ pulumi_resource(
 
 # Add a button to API to run pulumi up
 cmd_button(
-  name='pulumi_up',
+  name='api_pulumi_up',
   resource='api',
   text='Run pulumi up',
   icon_name='arrow_circle_up',
