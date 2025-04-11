@@ -1,18 +1,23 @@
-import { saveFixtures } from './helpers';
-import { ArticlePost, Source, SourceRequest, SourceType } from '../src/entity';
-import { sourcesFixture } from './fixture/source';
+import { saveFixtures } from '../../helpers';
+import {
+  ArticlePost,
+  Source,
+  SourceRequest,
+  SourceType,
+} from '../../../src/entity';
+import { sourcesFixture } from '../../fixture/source';
 import { DataSource } from 'typeorm';
-import createOrGetConnection from '../src/db';
+import createOrGetConnection from '../../../src/db';
 import { PostService, SourceRequestService } from '@dailydotdev/schema';
 import {
   CallOptions,
   Code,
   ConnectError,
-  createPromiseClient,
+  createClient,
   createRouterTransport,
 } from '@connectrpc/connect';
-import privateRpc from '../src/routes/privateRpc';
-import { baseRpcContext } from '../src/common/connectRpc';
+import privateRpc from '../../../src/routes/private/rpc';
+import { baseRpcContext } from '../../../src/common/connectRpc';
 
 let con: DataSource;
 
@@ -60,7 +65,7 @@ const defaultClientAuthOptions: CallOptions = {
 };
 
 describe('PostService', () => {
-  const mockClient = createPromiseClient(PostService, mockTransport);
+  const mockClient = createClient(PostService, mockTransport);
   it('should return not found when not authorized', async () => {
     baseRpcContext.defaultValue = {
       service: false,
@@ -269,7 +274,7 @@ describe('PostService', () => {
 });
 
 describe('SourceRequestService', () => {
-  const mockClient = createPromiseClient(SourceRequestService, mockTransport);
+  const mockClient = createClient(SourceRequestService, mockTransport);
   it('should return not found when not authorized', async () => {
     baseRpcContext.defaultValue = {
       service: false,

@@ -5,7 +5,6 @@ import alerts from './alerts';
 import redirector from './redirector';
 import devcards from './devcards';
 import privateRoutes from './private';
-import privateSnotraRoutes from './privateSnotra';
 import whoami from './whoami';
 import notifications from './notifications';
 import boot from './boot';
@@ -19,8 +18,6 @@ import createOrGetConnection from '../db';
 import { UserPersonalizedDigest, UserPersonalizedDigestType } from '../entity';
 import { notifyGeneratePersonalizedDigest } from '../common';
 import { PersonalizedDigestFeatureConfig } from '../growthbook';
-import privateRpc from './privateRpc';
-import { connectRpcPlugin } from '../common/connectRpc';
 import integrations from './integrations';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
@@ -31,11 +28,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(devcards, { prefix: '/devcards' });
   if (process.env.ENABLE_PRIVATE_ROUTES === 'true') {
     fastify.register(privateRoutes, { prefix: '/p' });
-    fastify.register(privateSnotraRoutes, { prefix: '/p/snotra' });
-    fastify.register(connectRpcPlugin, {
-      routes: privateRpc,
-      prefix: '/p/rpc',
-    });
   }
   fastify.register(whoami, { prefix: '/whoami' });
   fastify.register(boot, { prefix: '/boot' });
