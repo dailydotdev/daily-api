@@ -7,7 +7,7 @@ import { SourceMemberRoles } from '../../roles';
 import { z } from 'zod';
 
 const postsSchema = z.object({
-  postIds: z.array(z.string()),
+  postIds: z.array(z.string()).min(1),
 });
 
 export const kvasir = async (fastify: FastifyInstance): Promise<void> => {

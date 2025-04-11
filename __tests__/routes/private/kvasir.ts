@@ -91,9 +91,18 @@ describe('POST /p/kvasir/posts', () => {
     expect(res.body).toMatchObject({ error: 'Unauthorized' });
   });
 
-  it('should validate input', async () => {
+  it('should validate input has postIds', async () => {
     const res = await authorizeRequest(
       request(app.server).post('/p/kvasir/posts').send({ invalid: 'data' }),
+    );
+
+    expect(res.statusCode).toEqual(400);
+    expect(res.body.error).toHaveProperty('name', 'ZodError');
+  });
+
+  it('should validate postIds is not empty', async () => {
+    const res = await authorizeRequest(
+      request(app.server).post('/p/kvasir/posts').send({ postIds: [] }),
     );
 
     expect(res.statusCode).toEqual(400);
