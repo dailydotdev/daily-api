@@ -14,6 +14,9 @@ import {
 } from '../entity/user/utils';
 import { queryReadReplica } from '../common/queryReadReplica';
 
+import rpc from './private/rpc';
+import { connectRpcPlugin } from '../common/connectRpc';
+
 interface SearchUsername {
   search: string;
 }
@@ -172,5 +175,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       found: !!action,
       completedAt: action?.completedAt,
     });
+  });
+
+  fastify.register(connectRpcPlugin, {
+    routes: rpc,
+    prefix: '/rpc',
   });
 }
