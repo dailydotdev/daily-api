@@ -109,6 +109,24 @@ describe('POST /p/kvasir/posts', () => {
     expect(res.body.error).toHaveProperty('name', 'ZodError');
   });
 
+  it('should validate postIds does not exceed maximum length', async () => {
+    const longPostIds = Array.from({ length: 101 }, (_, i) => `p${i + 1}`);
+
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/p/kvasir/posts')
+        .send({ postIds: longPostIds }),
+    );
+
+    expect(res.statusCode).toEqual(400);
+    expect(res.body.error).toHaveProperty('name', 'ZodError');
+    expect(res.body.error.issues[0]).toMatchObject({
+      code: 'too_big',
+      maximum: 100,
+      type: 'array',
+    });
+  });
+
   it('should return public posts', async () => {
     const res = await authorizeRequest(
       request(app.server).post('/p/kvasir/posts').send({ postIds }),

@@ -7,7 +7,14 @@ import { SourceMemberRoles } from '../../roles';
 import { z } from 'zod';
 
 const postsSchema = z.object({
-  postIds: z.array(z.string()).min(1),
+  postIds: z
+    .array(z.string())
+    .min(1, {
+      message: 'No posts to translate',
+    })
+    .max(100, {
+      message: 'Too many posts to translate',
+    }),
 });
 
 export const kvasir = async (fastify: FastifyInstance): Promise<void> => {
