@@ -366,16 +366,17 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
     plusPricingMetadata: async (
       _,
       { variant = DEFAULT_PLUS_METADATA }: PlusMetadataArgs,
-      ctx: AuthContext,
+      { con }: AuthContext,
     ): Promise<PlusPricingMetadata[]> =>
-      getPlusPricingMetadata(ctx.con, variant),
+      getPlusPricingMetadata({ con, variant }),
     plusPricingPreview: async (_, __, ctx): Promise<PlusPricingPreview[]> => {
+      const { con, userId } = ctx;
       const user = await ctx.con.getRepository(User).findOneOrFail({
         where: { id: ctx.userId },
         select: { createdAt: true },
       });
       const allocationClient = new ExperimentAllocationClient();
-      const gb = getUserGrowthBookInstance(ctx.userId, {
+      const gb = getUserGrowthBookInstance(userId, {
         subscribeToChanges: false,
         attributes: { registrationDate: user.createdAt.toISOString() },
         allocationClient,
@@ -384,7 +385,7 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
         PLUS_FEATURE_KEY,
         DEFAULT_PLUS_METADATA,
       );
-      const metadata = await getPlusPricingMetadata(ctx.con, variant);
+      const metadata = await getPlusPricingMetadata({ con, variant });
       const ids = metadata
         .map(({ idMap }) => idMap.paddle)
         .filter(Boolean) as string[];

@@ -15,6 +15,8 @@ import { getExperimentVariant } from '../experiment';
 
 export const PLUS_FEATURE_KEY = 'plus_pricing_ids';
 export const DEFAULT_PLUS_METADATA = 'plus_default';
+export const CORES_FEATURE_KEY = 'cores_pricing_ids';
+export const DEFAULT_CORES_METADATA = 'cores_default';
 
 export interface PlusPricingMetadata {
   appsId: string;
@@ -46,11 +48,18 @@ export interface PlusPricingPreview {
   trialPeriod?: TimePeriod | null;
 }
 
-export const getPlusPricingMetadata = async (
-  con: ConnectionManager,
-  variant: string,
-): Promise<PlusPricingMetadata[]> => {
-  const experiment = await getExperimentVariant(con, PLUS_FEATURE_KEY, variant);
+interface GetMetadataProps {
+  con: ConnectionManager;
+  feature: string;
+  variant: string;
+}
+
+const getPaddleMetadata = async ({
+  con,
+  feature,
+  variant,
+}: GetMetadataProps) => {
+  const experiment = await getExperimentVariant(con, feature, variant);
 
   if (!experiment) {
     throw new EntityNotFoundError('ExperimentVariant not found', {
@@ -65,6 +74,18 @@ export const getPlusPricingMetadata = async (
     throw new Error('Invalid experiment JSON value');
   }
 };
+
+export const getPlusPricingMetadata = async ({
+  con,
+  variant,
+}: Omit<GetMetadataProps, 'feature'>): Promise<PlusPricingMetadata[]> =>
+  getPaddleMetadata({ con, feature: PLUS_FEATURE_KEY, variant });
+
+export const getCoresPricingMetadata = async ({
+  con,
+  variant,
+}: Omit<GetMetadataProps, 'feature'>): Promise<PlusPricingMetadata[]> =>
+  getPaddleMetadata({ con, feature: CORES_FEATURE_KEY, variant });
 
 export const getPlusPricePreview = async (ctx: AuthContext, ids: string[]) => {
   const region = ctx.region;
