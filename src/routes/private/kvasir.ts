@@ -10,7 +10,7 @@ const postsSchema = z.object({
   postIds: z
     .array(z.string())
     .min(1, {
-      message: 'No posts to translate',
+      message: 'No posts provided',
     })
     .max(100, {
       message: 'Too many posts to translate',
