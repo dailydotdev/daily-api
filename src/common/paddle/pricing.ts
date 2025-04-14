@@ -69,7 +69,7 @@ const getPaddleMetadata = async ({
 
   if (!experiment) {
     throw new EntityNotFoundError('ExperimentVariant not found', {
-      feature: PLUS_FEATURE_KEY,
+      feature,
       variant,
     });
   }
@@ -99,13 +99,13 @@ export enum PricingType {
 }
 
 const featureKey: Record<PricingType, string> = {
-  [PricingType.Plus]: DEFAULT_PLUS_METADATA,
-  [PricingType.Cores]: DEFAULT_CORES_METADATA,
+  [PricingType.Plus]: PLUS_FEATURE_KEY,
+  [PricingType.Cores]: CORES_FEATURE_KEY,
 };
 
 const defaultVariant: Record<PricingType, string> = {
-  [PricingType.Plus]: PLUS_FEATURE_KEY,
-  [PricingType.Cores]: CORES_FEATURE_KEY,
+  [PricingType.Plus]: DEFAULT_PLUS_METADATA,
+  [PricingType.Cores]: DEFAULT_CORES_METADATA,
 };
 
 export const getPricingDuration = (item: PricingPreviewLineItem) => {

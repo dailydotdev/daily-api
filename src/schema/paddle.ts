@@ -16,7 +16,7 @@ import { SubscriptionCycles } from '../paddle';
 import { getUserGrowthBookInstance } from '../growthbook';
 import { User } from '../entity';
 import { remoteConfig } from '../remoteConfig';
-import { getCurrencySymbol, ONE_HOUR_IN_SECONDS } from '../common';
+import { getCurrencySymbol, ONE_HOUR_IN_SECONDS, toGQLEnum } from '../common';
 import { generateStorageKey, StorageKey, StorageTopic } from '../config';
 import { getRedisObject, setRedisObjectWithExpiry } from '../redis';
 import {
@@ -130,9 +130,11 @@ export const typeDefs = /* GraphQL */ `
   extend type Query {
     pricePreviews: PricePreviews! @auth
     corePricePreviews: PricePreviews! @auth
-    plusPricingMetadata(variant: String): [PlusPricingMetadata!]! @auth
-    plusPricingPreview: [PlusPricingPreview!]! @auth
+    pricingMetadata(type: PricingType = Plus): [PlusPricingMetadata!]! @auth
+    pricingPreview(type: PricingType = Plus): [PlusPricingPreview!]! @auth
   }
+
+  ${toGQLEnum(PricingType, 'PricingType')}
 
   """
   Caption information for pricing metadata
@@ -362,12 +364,17 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
         items,
       };
     },
-    plusPricingMetadata: async (
+    pricingMetadata: async (
       _,
       { type = PricingType.Plus }: PaddlePricingPreviewArgs,
       ctx: AuthContext,
-    ): Promise<BasePricingMetadata[]> => getPricingMetadata(ctx, type),
-    plusPricingPreview: async (
+    ): Promise<BasePricingMetadata[]> => {
+      if (!Object.values(PricingType).includes(type)) {
+        throw new Error('Invalid pricing type');
+      }
+      return getPricingMetadata(ctx, type);
+    },
+    pricingPreview: async (
       _,
       { type = PricingType.Plus }: PaddlePricingPreviewArgs,
       ctx,
