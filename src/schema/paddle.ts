@@ -1,4 +1,8 @@
-import { getPricingMetadata, PricingType } from './../common/paddle/pricing';
+import {
+  getPricingDuration,
+  getPricingMetadata,
+  PricingType,
+} from './../common/paddle/pricing';
 import type { CountryCode } from '@paddle/paddle-node-sdk';
 import type { AuthContext } from '../Context';
 import {
@@ -18,8 +22,8 @@ import { getRedisObject, setRedisObjectWithExpiry } from '../redis';
 import {
   getPaddleMonthlyPrice,
   getPlusPricePreview,
-  PlusPricingMetadata,
-  PlusPricingPreview,
+  BasePricingMetadata,
+  BasePricingPreview,
   removeNumbers,
 } from '../common/paddle/pricing';
 import { PricingPreview } from '@paddle/paddle-node-sdk/dist/types/entities/pricing-preview';
@@ -362,12 +366,12 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
       _,
       { type = PricingType.Plus }: PaddlePricingPreviewArgs,
       ctx: AuthContext,
-    ): Promise<PlusPricingMetadata[]> => getPricingMetadata(ctx, type),
+    ): Promise<BasePricingMetadata[]> => getPricingMetadata(ctx, type),
     plusPricingPreview: async (
       _,
       { type = PricingType.Plus }: PaddlePricingPreviewArgs,
       ctx,
-    ): Promise<PlusPricingPreview[]> => {
+    ): Promise<BasePricingPreview[]> => {
       const metadata = await getPricingMetadata(ctx, type);
       const ids = metadata
         .map(({ idMap }) => idMap.paddle)
@@ -385,15 +389,11 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
           return null;
         }
 
-        const isOneOff = !item.price.billingCycle?.interval;
-        const isYearly = item.price.billingCycle?.interval === 'year';
         const duration =
-          isOneOff || isYearly
-            ? SubscriptionCycles.Yearly
-            : SubscriptionCycles.Monthly;
+          type === PricingType.Cores ? 'one-time' : getPricingDuration(item);
         const baseAmount = getPriceFromPaddleItem(item);
         const monthly =
-          item.price.billingCycle?.interval === 'year'
+          duration === SubscriptionCycles.Yearly
             ? getPaddleMonthlyPrice(baseAmount, item)
             : null;
         const trialPeriod = item.price.trialPeriod;
@@ -412,10 +412,10 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
           },
           duration,
           trialPeriod,
-        } as PlusPricingPreview;
+        } as BasePricingPreview;
       });
 
-      return consolidated.filter(Boolean) as PlusPricingPreview[];
+      return consolidated.filter(Boolean) as BasePricingPreview[];
     },
     corePricePreviews: async (_, __, ctx: AuthContext) => {
       const region = ctx.region;

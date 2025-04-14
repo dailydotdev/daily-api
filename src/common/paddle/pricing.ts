@@ -16,13 +16,14 @@ import {
   ExperimentAllocationClient,
   getUserGrowthBookInstance,
 } from '../../growthbook';
+import { SubscriptionCycles } from '../../paddle';
 
 export const PLUS_FEATURE_KEY = 'plus_pricing_ids';
 export const DEFAULT_PLUS_METADATA = 'plus_default';
 export const CORES_FEATURE_KEY = 'cores_pricing_ids';
 export const DEFAULT_CORES_METADATA = 'cores_default';
 
-export interface PlusPricingMetadata {
+export interface BasePricingMetadata {
   appsId: string;
   title: string;
   caption?: {
@@ -33,6 +34,7 @@ export interface PlusPricingMetadata {
     paddle: string;
     ios: string;
   }>;
+  cores?: number;
 }
 
 export interface PricePreview {
@@ -40,8 +42,8 @@ export interface PricePreview {
   formatted: string;
 }
 
-export interface PlusPricingPreview {
-  metadata: PlusPricingMetadata;
+export interface BasePricingPreview {
+  metadata: BasePricingMetadata;
   priceId: string;
   price: PricePreview & { monthly: PricePreview };
   currency: {
@@ -82,13 +84,13 @@ const getPaddleMetadata = async ({
 export const getPlusPricingMetadata = async ({
   con,
   variant,
-}: Omit<GetMetadataProps, 'feature'>): Promise<PlusPricingMetadata[]> =>
+}: Omit<GetMetadataProps, 'feature'>): Promise<BasePricingMetadata[]> =>
   getPaddleMetadata({ con, feature: PLUS_FEATURE_KEY, variant });
 
 export const getCoresPricingMetadata = async ({
   con,
   variant,
-}: Omit<GetMetadataProps, 'feature'>): Promise<PlusPricingMetadata[]> =>
+}: Omit<GetMetadataProps, 'feature'>): Promise<BasePricingMetadata[]> =>
   getPaddleMetadata({ con, feature: CORES_FEATURE_KEY, variant });
 
 export enum PricingType {
@@ -105,6 +107,17 @@ const defaultVariant: Record<PricingType, string> = {
   [PricingType.Plus]: PLUS_FEATURE_KEY,
   [PricingType.Cores]: CORES_FEATURE_KEY,
 };
+
+export const getPricingDuration = (item: PricingPreviewLineItem) => {
+  const isOneOff = !item.price.billingCycle?.interval;
+  const isYearly = item.price.billingCycle?.interval === 'year';
+
+  return isOneOff || isYearly
+    ? SubscriptionCycles.Yearly
+    : SubscriptionCycles.Monthly;
+};
+
+export const getCoresValue = () => {};
 
 export const getPricingMetadata = async (
   ctx: AuthContext,
