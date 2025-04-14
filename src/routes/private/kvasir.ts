@@ -19,6 +19,10 @@ const postsSchema = z.object({
 
 export const kvasir = async (fastify: FastifyInstance): Promise<void> => {
   fastify.addHook('preHandler', async (req, res) => {
+    if (!req.service) {
+      return res.status(404).send();
+    }
+
     if (!req.userId) {
       return res.code(401).send({ error: 'Unauthorized' });
     }

@@ -82,10 +82,20 @@ describe('POST /p/kvasir/posts', () => {
     ]);
   });
 
-  it('should require authentication', async () => {
+  it('should require service token', async () => {
     const res = await request(app.server)
       .post('/p/kvasir/posts')
       .send({ postIds });
+
+    expect(res.statusCode).toEqual(404);
+    expect(res.body).toMatchObject({});
+  });
+
+  it('should require authentication', async () => {
+    const res = await request(app.server)
+      .post('/p/kvasir/posts')
+      .send({ postIds })
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`);
 
     expect(res.statusCode).toEqual(401);
     expect(res.body).toMatchObject({ error: 'Unauthorized' });
