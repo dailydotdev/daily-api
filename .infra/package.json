@@ -7,7 +7,7 @@
     "@types/node": "22.13.x"
   },
   "dependencies": {
-    "@dailydotdev/pulumi-common": "github:dailydotdev/pulumi-common#8080d374d878d03a06c37361d50dd85a226e4f54",
+    "@dailydotdev/pulumi-common": "^2.7.0",
     "@pulumi/gcp": "^8.19.1",
     "@pulumi/kubernetes": "^4.21.1",
     "@pulumi/pulumi": "^3.150.0"
