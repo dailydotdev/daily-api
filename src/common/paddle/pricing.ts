@@ -1,4 +1,4 @@
-import { ConnectionManager } from '../../entity';
+import { ConnectionManager, User } from '../../entity';
 import { EntityNotFoundError } from 'typeorm';
 import { CountryCode, TimePeriod } from '@paddle/paddle-node-sdk';
 import { AuthContext } from '../../Context';
@@ -12,6 +12,10 @@ import { getRedisObject, setRedisObjectWithExpiry } from '../../redis';
 import { paddleInstance } from './index';
 import { ONE_HOUR_IN_SECONDS } from '../constants';
 import { getExperimentVariant } from '../experiment';
+import {
+  ExperimentAllocationClient,
+  getUserGrowthBookInstance,
+} from '../../growthbook';
 
 export const PLUS_FEATURE_KEY = 'plus_pricing_ids';
 export const DEFAULT_PLUS_METADATA = 'plus_default';
@@ -86,6 +90,48 @@ export const getCoresPricingMetadata = async ({
   variant,
 }: Omit<GetMetadataProps, 'feature'>): Promise<PlusPricingMetadata[]> =>
   getPaddleMetadata({ con, feature: CORES_FEATURE_KEY, variant });
+
+export enum PricingType {
+  Plus = 'plus',
+  Cores = 'cores',
+}
+
+const featureKey: Record<PricingType, string> = {
+  [PricingType.Plus]: DEFAULT_PLUS_METADATA,
+  [PricingType.Cores]: DEFAULT_CORES_METADATA,
+};
+
+const defaultVariant: Record<PricingType, string> = {
+  [PricingType.Plus]: PLUS_FEATURE_KEY,
+  [PricingType.Cores]: CORES_FEATURE_KEY,
+};
+
+export const getPricingMetadata = async (
+  ctx: AuthContext,
+  type: PricingType,
+) => {
+  const { con, userId } = ctx;
+  const user = await con.getRepository(User).findOneOrFail({
+    where: { id: ctx.userId },
+    select: { createdAt: true },
+  });
+  const allocationClient = new ExperimentAllocationClient();
+  const gb = getUserGrowthBookInstance(userId, {
+    subscribeToChanges: false,
+    attributes: { registrationDate: user.createdAt.toISOString() },
+    allocationClient,
+  });
+  const variant = gb.getFeatureValue(featureKey[type], defaultVariant[type]);
+
+  switch (type) {
+    case PricingType.Plus:
+      return getPlusPricingMetadata({ con, variant });
+    case PricingType.Cores:
+      return getCoresPricingMetadata({ con, variant });
+    default:
+      throw new Error('Invalid pricing type');
+  }
+};
 
 export const getPlusPricePreview = async (ctx: AuthContext, ids: string[]) => {
   const region = ctx.region;

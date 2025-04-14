@@ -1,3 +1,4 @@
+import { getPricingMetadata, PricingType } from './../common/paddle/pricing';
 import type { CountryCode } from '@paddle/paddle-node-sdk';
 import type { AuthContext } from '../Context';
 import {
@@ -8,10 +9,7 @@ import {
 import type { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { SubscriptionCycles } from '../paddle';
-import {
-  ExperimentAllocationClient,
-  getUserGrowthBookInstance,
-} from '../growthbook';
+import { getUserGrowthBookInstance } from '../growthbook';
 import { User } from '../entity';
 import { remoteConfig } from '../remoteConfig';
 import { getCurrencySymbol, ONE_HOUR_IN_SECONDS } from '../common';
@@ -22,7 +20,6 @@ import {
   getPaddleMonthlyPrice,
   getPlusPricePreview,
   getPlusPricingMetadata,
-  PLUS_FEATURE_KEY,
   PlusPricingMetadata,
   PlusPricingPreview,
   removeNumbers,
@@ -258,6 +255,10 @@ interface PlusMetadataArgs {
   variant?: string;
 }
 
+interface PaddlePricingPreviewArgs {
+  type?: PricingType;
+}
+
 export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
   unknown,
   AuthContext
@@ -369,23 +370,12 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
       { con }: AuthContext,
     ): Promise<PlusPricingMetadata[]> =>
       getPlusPricingMetadata({ con, variant }),
-    plusPricingPreview: async (_, __, ctx): Promise<PlusPricingPreview[]> => {
-      const { con, userId } = ctx;
-      const user = await ctx.con.getRepository(User).findOneOrFail({
-        where: { id: ctx.userId },
-        select: { createdAt: true },
-      });
-      const allocationClient = new ExperimentAllocationClient();
-      const gb = getUserGrowthBookInstance(userId, {
-        subscribeToChanges: false,
-        attributes: { registrationDate: user.createdAt.toISOString() },
-        allocationClient,
-      });
-      const variant = gb.getFeatureValue(
-        PLUS_FEATURE_KEY,
-        DEFAULT_PLUS_METADATA,
-      );
-      const metadata = await getPlusPricingMetadata({ con, variant });
+    plusPricingPreview: async (
+      _,
+      { type = PricingType.Plus }: PaddlePricingPreviewArgs,
+      ctx,
+    ): Promise<PlusPricingPreview[]> => {
+      const metadata = await getPricingMetadata(ctx, type);
       const ids = metadata
         .map(({ idMap }) => idMap.paddle)
         .filter(Boolean) as string[];
