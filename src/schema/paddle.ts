@@ -16,10 +16,8 @@ import { getCurrencySymbol, ONE_HOUR_IN_SECONDS } from '../common';
 import { generateStorageKey, StorageKey, StorageTopic } from '../config';
 import { getRedisObject, setRedisObjectWithExpiry } from '../redis';
 import {
-  DEFAULT_PLUS_METADATA,
   getPaddleMonthlyPrice,
   getPlusPricePreview,
-  getPlusPricingMetadata,
   PlusPricingMetadata,
   PlusPricingPreview,
   removeNumbers,
@@ -251,10 +249,6 @@ export interface GQLCustomData {
   label: string;
 }
 
-interface PlusMetadataArgs {
-  variant?: string;
-}
-
 interface PaddlePricingPreviewArgs {
   type?: PricingType;
 }
@@ -366,10 +360,9 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
     },
     plusPricingMetadata: async (
       _,
-      { variant = DEFAULT_PLUS_METADATA }: PlusMetadataArgs,
-      { con }: AuthContext,
-    ): Promise<PlusPricingMetadata[]> =>
-      getPlusPricingMetadata({ con, variant }),
+      { type = PricingType.Plus }: PaddlePricingPreviewArgs,
+      ctx: AuthContext,
+    ): Promise<PlusPricingMetadata[]> => getPricingMetadata(ctx, type),
     plusPricingPreview: async (
       _,
       { type = PricingType.Plus }: PaddlePricingPreviewArgs,
