@@ -149,7 +149,7 @@ const getEmailAd = async ({
   const digestAd = ad.value.digest;
 
   return {
-    type: ad.type,
+    type: 'dynamic_ad',
     ...digestAd,
   };
 };
