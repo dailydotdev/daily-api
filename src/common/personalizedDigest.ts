@@ -31,6 +31,7 @@ import { mapCloudinaryUrl } from './cloudinary';
 import { queryReadReplica } from './queryReadReplica';
 import { counters } from '../telemetry/metrics';
 import { SkadiAd, skadiClient } from '../integrations/skadi';
+import { skadiPersonalizedDigestClient } from '../integrations/skadi/clients';
 
 type TemplatePostData = Pick<
   ArticlePost,
@@ -142,7 +143,7 @@ const getEmailAd = async ({
     return null;
   }
 
-  const ad = await skadiClient.getAd('default_digest', {
+  const ad = await skadiPersonalizedDigestClient.getAd('default_digest', {
     USERID: user.id,
   });
 

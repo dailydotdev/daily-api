@@ -46,15 +46,26 @@ export class SkadiClient implements ISkadiClient {
   }
 }
 
-const garmrSkadiService = new GarmrService({
+const garmrSkadiPersonalizedDigestService = new GarmrService({
   service: SkadiClient.name,
   breakerOpts: {
     halfOpenAfter: 5 * 1000,
     threshold: 0.1,
     duration: 10 * 1000,
+    minimumRps: 1,
+  },
+  limits: {
+    maxRequests: 150,
+    queuedRequests: 100,
+  },
+  retryOpts: {
+    maxAttempts: 0,
   },
 });
 
-export const skadiClient = new SkadiClient(process.env.SKADI_ORIGIN, {
-  garmr: garmrSkadiService,
-});
+export const skadiPersonalizedDigestClient = new SkadiClient(
+  process.env.SKADI_ORIGIN,
+  {
+    garmr: garmrSkadiPersonalizedDigestService,
+  },
+);
