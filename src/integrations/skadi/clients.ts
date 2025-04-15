@@ -55,6 +55,6 @@ const garmrSkadiService = new GarmrService({
   },
 });
 
-export const skadiClient = new SkadiClient(process.env.SKADI_ORIGIN!, {
+export const skadiClient = new SkadiClient(process.env.SKADI_ORIGIN, {
   garmr: garmrSkadiService,
 });
