@@ -123,13 +123,17 @@ const getPostsTemplateData = ({
   });
 };
 
+type CIOSkadiAd = {
+  type: string;
+} & SkadiAd;
+
 const getEmailAd = async ({
   user,
   feature,
 }: {
   user: User;
   feature: PersonalizedDigestFeatureConfig;
-}): Promise<SkadiAd | null> => {
+}): Promise<CIOSkadiAd | null> => {
   // TODO: Temporary hardcode 75 check
   if (
     isPlusMember(user.subscriptionFlags?.cycle) ||
@@ -164,7 +168,7 @@ const getEmailVariation = async ({
   userStreak?: UserStreak;
   feature: PersonalizedDigestFeatureConfig;
   currentDate: Date;
-  adProps: DynamicAd | null;
+  adProps: CIOSkadiAd | null;
 }): Promise<
   Pick<SendEmailRequestWithTemplate, 'to' | 'message_data' | 'identifiers'>
 > => {
