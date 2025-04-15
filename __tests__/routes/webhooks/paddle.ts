@@ -54,6 +54,166 @@ describe('cores product', () => {
       .mockImplementation(() => createClient(Credits, mockTransport));
   });
 
+  it('purchase success', async () => {
+    await processTransactionCreated({
+      event: coresTransactionCreated,
+    });
+
+    let userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(201);
+
+    await processTransactionUpdated({
+      event: {
+        ...coresTransactionUpdated,
+        data: {
+          ...coresTransactionUpdated.data,
+          updatedAt: new Date(
+            userTransaction!.updatedAt.getTime() + 1000,
+          ).toISOString(),
+        },
+      },
+    });
+
+    userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(201);
+
+    await processTransactionPaid({
+      event: coresTransactionPaid,
+    });
+
+    userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(202);
+
+    await processTransactionCompleted({
+      event: coresTransactionCompleted,
+    });
+
+    userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(0);
+  });
+
+  it('purchase failure', async () => {
+    await processTransactionCreated({
+      event: coresTransactionCreated,
+    });
+
+    let userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(201);
+
+    await processTransactionUpdated({
+      event: {
+        ...coresTransactionUpdated,
+        data: {
+          ...coresTransactionUpdated.data,
+          updatedAt: new Date(
+            userTransaction!.updatedAt.getTime() + 1000,
+          ).toISOString(),
+        },
+      },
+    });
+
+    userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(201);
+
+    await processTransactionPaid({
+      event: coresTransactionPaid,
+    });
+
+    userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(202);
+
+    await processTransactionPaymentFailed({
+      event: coresTransactionPaymentFailed,
+    });
+
+    userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(501);
+  });
+
+  it('purchase success after failure', async () => {
+    await processTransactionCreated({
+      event: coresTransactionCreated,
+    });
+
+    let userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(201);
+
+    await processTransactionUpdated({
+      event: {
+        ...coresTransactionUpdated,
+        data: {
+          ...coresTransactionUpdated.data,
+          updatedAt: new Date(
+            userTransaction!.updatedAt.getTime() + 1000,
+          ).toISOString(),
+        },
+      },
+    });
+
+    userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(201);
+
+    await processTransactionPaid({
+      event: coresTransactionPaid,
+    });
+
+    userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(202);
+
+    await processTransactionPaymentFailed({
+      event: coresTransactionPaymentFailed,
+    });
+
+    userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(501);
+
+    await processTransactionCompleted({
+      event: coresTransactionCompleted,
+    });
+
+    userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(0);
+  });
+
   it('transaction created event', async () => {
     await processTransactionCreated({ event: coresTransactionCreated });
 
