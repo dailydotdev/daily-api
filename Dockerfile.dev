@@ -5,7 +5,10 @@ ADD https://www.apple.com/certificateauthority/AppleRootCA-G2.cer /usr/local/sha
 ADD https://www.apple.com/certificateauthority/AppleRootCA-G3.cer /usr/local/share/ca-certificates/AppleRootCA-G3.cer
 
 RUN apt-get update \
-    && apt-get install -y ca-certificates \
+    && apt-get install -y \
+      ca-certificates \
+      iputils-ping \
+      curl \
     && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
