@@ -18,7 +18,6 @@ type RemoteConfigValue = {
   fees: Partial<{
     transfer: number;
   }>;
-  enableBalance: boolean;
   approvedStoreKitSandboxUsers: string[];
   coreProductId: string;
   coresRoleRules: {
