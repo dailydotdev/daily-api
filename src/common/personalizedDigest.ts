@@ -30,7 +30,7 @@ import { isPlusMember } from '../paddle';
 import { mapCloudinaryUrl } from './cloudinary';
 import { queryReadReplica } from './queryReadReplica';
 import { counters } from '../telemetry/metrics';
-import { skadiClient } from '../integrations/skadi';
+import { SkadiAd, skadiClient } from '../integrations/skadi';
 
 type TemplatePostData = Pick<
   ArticlePost,
@@ -123,22 +123,13 @@ const getPostsTemplateData = ({
   });
 };
 
-type DynamicAd = {
-  type: string;
-  title: string;
-  link: string;
-  image: string;
-  company_name: string;
-  company_logo: string;
-  cta: string;
-};
 const getEmailAd = async ({
   user,
   feature,
 }: {
   user: User;
   feature: PersonalizedDigestFeatureConfig;
-}): Promise<DynamicAd | null> => {
+}): Promise<SkadiAd | null> => {
   // TODO: Temporary hardcode 75 check
   if (
     isPlusMember(user.subscriptionFlags?.cycle) ||
@@ -151,14 +142,11 @@ const getEmailAd = async ({
     USERID: user.id,
   });
 
+  const digestAd = ad.value.digest;
+
   return {
     type: ad.type,
-    title: ad.value.digest.title,
-    link: ad.value.digest.link,
-    image: ad.value.digest.image,
-    company_name: ad.value.digest.company_name,
-    company_logo: ad.value.digest.company_logo,
-    cta: ad.value.digest.call_to_action,
+    ...digestAd,
   };
 };
 
