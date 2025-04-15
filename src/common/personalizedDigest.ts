@@ -30,6 +30,7 @@ import { isPlusMember } from '../paddle';
 import { mapCloudinaryUrl } from './cloudinary';
 import { queryReadReplica } from './queryReadReplica';
 import { counters } from '../telemetry/metrics';
+import { skadiClient } from '../integrations/skadi';
 
 type TemplatePostData = Pick<
   ArticlePost,
@@ -122,12 +123,52 @@ const getPostsTemplateData = ({
   });
 };
 
+type DynamicAd = {
+  type: string;
+  title: string;
+  link: string;
+  image: string;
+  company_name: string;
+  company_logo: string;
+  cta: string;
+};
+const getEmailAd = async ({
+  user,
+  feature,
+}: {
+  user: User;
+  feature: PersonalizedDigestFeatureConfig;
+}): Promise<DynamicAd | null> => {
+  // TODO: Temporary hardcode 75 check
+  if (
+    isPlusMember(user.subscriptionFlags?.cycle) ||
+    feature.templateId != '75'
+  ) {
+    return null;
+  }
+
+  const ad = await skadiClient.getAd('default_digest', {
+    USERID: user.id,
+  });
+
+  return {
+    type: ad.type,
+    title: ad.value.digest.title,
+    link: ad.value.digest.link,
+    image: ad.value.digest.image,
+    company_name: ad.value.digest.company_name,
+    company_logo: ad.value.digest.company_logo,
+    cta: ad.value.digest.call_to_action,
+  };
+};
+
 const getEmailVariation = async ({
   personalizedDigest,
   posts: postsData,
   user,
   feature,
   currentDate,
+  adProps,
 }: {
   personalizedDigest: UserPersonalizedDigest;
   posts: TemplatePostData[];
@@ -135,6 +176,7 @@ const getEmailVariation = async ({
   userStreak?: UserStreak;
   feature: PersonalizedDigestFeatureConfig;
   currentDate: Date;
+  adProps: DynamicAd | null;
 }): Promise<
   Pick<SendEmailRequestWithTemplate, 'to' | 'message_data' | 'identifiers'>
 > => {
@@ -149,21 +191,22 @@ const getEmailVariation = async ({
     posts: postsData,
     feature,
   });
-  if (
-    posts.length >= feature.adIndex &&
-    !isPlusMember(user.subscriptionFlags?.cycle)
-  ) {
-    posts.splice(feature.adIndex, 0, {
-      // type: 'ad_image',
-      // link: `https://email.buysellads.net/?k=CW7DE23N&c=${user.id}`,
-      // image: `https://email.buysellads.net/?k=CW7DE23N&i=${user.id}`,
-      type: 'ad_plus',
-      post_link: addNotificationUtm(
-        'https://app.daily.dev/plus',
-        'email',
-        'digest',
-      ),
-    });
+  if (posts.length >= feature.adIndex) {
+    if (adProps) {
+      posts.splice(feature.adIndex, 0, adProps);
+    } else if (!isPlusMember(user.subscriptionFlags?.cycle)) {
+      posts.splice(feature.adIndex, 0, {
+        // type: 'ad_image',
+        // link: `https://email.buysellads.net/?k=CW7DE23N&c=${user.id}`,
+        // image: `https://email.buysellads.net/?k=CW7DE23N&i=${user.id}`,
+        type: 'ad_plus',
+        post_link: addNotificationUtm(
+          'https://app.daily.dev/plus',
+          'email',
+          'digest',
+        ),
+      });
+    }
   }
   const data = {
     day_name: dayName,
@@ -341,12 +384,18 @@ export const getPersonalizedDigestEmailPayload = async ({
     return undefined;
   }
 
+  const adProps = await getEmailAd({
+    user,
+    feature,
+  });
+
   const variationProps = await getEmailVariation({
     personalizedDigest,
     posts,
     user,
     feature,
     currentDate,
+    adProps,
   });
 
   return {
@@ -354,6 +403,7 @@ export const getPersonalizedDigestEmailPayload = async ({
     send_at: Math.floor(emailSendDate.getTime() / 1000),
     transactional_message_id: feature.templateId,
     ...variationProps,
+    ...(adProps && adProps),
   };
 };
 
