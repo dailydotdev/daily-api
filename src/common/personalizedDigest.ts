@@ -403,7 +403,6 @@ export const getPersonalizedDigestEmailPayload = async ({
     send_at: Math.floor(emailSendDate.getTime() / 1000),
     transactional_message_id: feature.templateId,
     ...variationProps,
-    ...(adProps && adProps),
   };
 };
 
