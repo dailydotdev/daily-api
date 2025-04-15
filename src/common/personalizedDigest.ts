@@ -30,8 +30,7 @@ import { isPlusMember } from '../paddle';
 import { mapCloudinaryUrl } from './cloudinary';
 import { queryReadReplica } from './queryReadReplica';
 import { counters } from '../telemetry/metrics';
-import { SkadiAd, skadiClient } from '../integrations/skadi';
-import { skadiPersonalizedDigestClient } from '../integrations/skadi/clients';
+import { SkadiAd, skadiPersonalizedDigestClient } from '../integrations/skadi';
 
 type TemplatePostData = Pick<
   ArticlePost,

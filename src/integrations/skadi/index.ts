@@ -1,2 +1,2 @@
 export * from './types';
-export { SkadiClient, skadiClient } from './clients';
+export { SkadiClient, skadiPersonalizedDigestClient } from './clients';
