@@ -769,7 +769,7 @@ const resolveDynamicFunnelId = (userId: string): string => {
 
 // Fetches the funnel data from Freyja
 const getFunnel = async (req: FastifyRequest, res: FastifyReply) => {
-  const userId = req?.userId || req?.trackingId;
+  const userId = req.userId || req.trackingId;
   const query = req.query as { id?: string; v?: string };
   const sessionId = req.cookies[cookies.funnel.key];
 
