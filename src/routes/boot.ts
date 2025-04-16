@@ -780,7 +780,7 @@ const getFunnel = async (req: FastifyRequest, res: FastifyReply) => {
   // If the session id is set, we should use it to fetch the funnel data
   if (sessionId) {
     const sessionFunnel = await freyjaClient.getSession(sessionId);
-    if (sessionFunnel?.session.userId === userId) {
+    if (sessionFunnel?.session?.userId === userId) {
       return sessionFunnel;
     }
   }
