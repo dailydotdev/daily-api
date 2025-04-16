@@ -15,6 +15,7 @@ import {
 import createOrGetConnection from '../../db';
 import {
   concatTextToNewline,
+  isProd,
   updateFlagsStatement,
   updateSubscriptionFlags,
   webhooks,
@@ -51,6 +52,7 @@ import { purchaseCores, UserTransactionError } from '../../common/njord';
 import { checkUserCoresAccess } from '../../common/user';
 import { CoresRole } from '../../types';
 import { TransferError } from '../../errors';
+import { remoteConfig } from '../../remoteConfig';
 
 export interface PaddleCustomData {
   user_id?: string;
@@ -1030,6 +1032,12 @@ export const processTransactionUpdated = async ({
 
 export const paddle = async (fastify: FastifyInstance): Promise<void> => {
   fastify.register(async (fastify: FastifyInstance): Promise<void> => {
+    fastify.addHook('onRequest', async (request, res) => {
+      if (isProd && !remoteConfig.vars.paddleIps?.includes(request.ip)) {
+        return res.status(403).send({ error: 'Forbidden' });
+      }
+    });
+
     fastify.post('/', {
       config: {
         rawBody: true,

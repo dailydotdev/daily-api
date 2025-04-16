@@ -25,6 +25,7 @@ type RemoteConfigValue = {
     role: CoresRole;
   }[];
   kvasirRequirePlus: boolean;
+  paddleIps: string[];
 };
 
 class RemoteConfig {
