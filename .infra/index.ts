@@ -146,10 +146,10 @@ const wsLimits: pulumi.Input<{
   memory: `${wsMemory}Mi`,
 };
 
-const bgLimits: pulumi.Input<{ memory: string }> = { memory: '256Mi' };
+const bgLimits: pulumi.Input<{ memory: string }> = { memory: '512Mi' };
 const bgRequests: pulumi.Input<{ cpu: string; memory: string }> = {
   cpu: '50m',
-  memory: '150Mi',
+  memory: '256Mi',
 };
 
 const temporalLimits: pulumi.Input<{ memory: string }> = { memory: '256Mi' };
