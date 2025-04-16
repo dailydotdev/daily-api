@@ -37,7 +37,6 @@ import { BrokenCircuitError } from 'cockatiel';
 import type { EntityManager } from 'typeorm';
 import { Product, ProductType } from '../entity/Product';
 import { remoteConfig } from '../remoteConfig';
-import { queryReadReplica } from './queryReadReplica';
 import { UserPost } from '../entity/user/UserPost';
 import { Post } from '../entity/posts/Post';
 import { Comment } from '../entity';
@@ -497,17 +496,14 @@ export const awardUser = async (
   try {
     await canAward({ ctx, receiverId: props.entityId });
 
-    const product = await queryReadReplica<Pick<Product, 'id' | 'type'>>(
-      ctx.con,
-      async ({ queryRunner }) => {
-        return queryRunner.manager.getRepository(Product).findOneOrFail({
-          select: ['id', 'type'],
-          where: {
-            id: props.productId,
-          },
-        });
-      },
-    );
+    const product: Pick<Product, 'id' | 'type'> = await ctx.con.manager
+      .getRepository(Product)
+      .findOneOrFail({
+        select: ['id', 'type'],
+        where: {
+          id: props.productId,
+        },
+      });
 
     if (product.type !== ProductType.Award) {
       throw new ForbiddenError('Can not award this product');
@@ -578,35 +574,31 @@ export const awardPost = async (
   const newTransactionId = randomUUID();
 
   try {
-    const [product, post, userPost] = await queryReadReplica<
-      [
-        Pick<Product, 'id' | 'type'>,
-        Pick<Post, 'id' | 'authorId' | 'sourceId'>,
-        Pick<UserPost, 'awardTransactionId'> | null,
-      ]
-    >(ctx.con, async ({ queryRunner }) => {
-      return Promise.all([
-        queryRunner.manager.getRepository(Product).findOneOrFail({
-          select: ['id', 'type'],
-          where: {
-            id: props.productId,
-          },
-        }),
-        queryRunner.manager.getRepository(Post).findOneOrFail({
-          select: ['id', 'authorId', 'sourceId'],
-          where: {
-            id: props.entityId,
-          },
-        }),
-        queryRunner.manager.getRepository(UserPost).findOne({
-          select: ['awardTransactionId'],
-          where: {
-            postId: props.entityId,
-            userId: ctx.userId,
-          },
-        }),
-      ]);
-    });
+    const [product, post, userPost]: [
+      Pick<Product, 'id' | 'type'>,
+      Pick<Post, 'id' | 'authorId' | 'sourceId'>,
+      Pick<UserPost, 'awardTransactionId'> | null,
+    ] = await Promise.all([
+      ctx.con.manager.getRepository(Product).findOneOrFail({
+        select: ['id', 'type'],
+        where: {
+          id: props.productId,
+        },
+      }),
+      ctx.con.manager.getRepository(Post).findOneOrFail({
+        select: ['id', 'authorId', 'sourceId'],
+        where: {
+          id: props.entityId,
+        },
+      }),
+      ctx.con.manager.getRepository(UserPost).findOne({
+        select: ['awardTransactionId'],
+        where: {
+          postId: props.entityId,
+          userId: ctx.userId,
+        },
+      }),
+    ]);
 
     await canAward({ ctx, receiverId: post.authorId });
 
@@ -749,38 +741,34 @@ export const awardComment = async (
   const newTransactionId = randomUUID();
 
   try {
-    const [product, comment, userComment] = await queryReadReplica<
-      [
-        Pick<Product, 'id' | 'type'>,
-        Pick<Comment, 'id' | 'userId' | 'postId' | 'post' | 'parentId'>,
-        Pick<UserComment, 'awardTransactionId'> | null,
-      ]
-    >(ctx.con, async ({ queryRunner }) => {
-      return Promise.all([
-        queryRunner.manager.getRepository(Product).findOneOrFail({
-          select: ['id', 'type'],
-          where: {
-            id: props.productId,
-          },
-        }),
-        queryRunner.manager.getRepository(Comment).findOneOrFail({
-          select: ['id', 'userId', 'postId', 'parentId'],
-          where: {
-            id: props.entityId,
-          },
-          relations: {
-            post: true,
-          },
-        }),
-        queryRunner.manager.getRepository(UserComment).findOne({
-          select: ['awardTransactionId'],
-          where: {
-            commentId: props.entityId,
-            userId: ctx.userId,
-          },
-        }),
-      ]);
-    });
+    const [product, comment, userComment]: [
+      Pick<Product, 'id' | 'type'>,
+      Pick<Comment, 'id' | 'userId' | 'postId' | 'post' | 'parentId'>,
+      Pick<UserComment, 'awardTransactionId'> | null,
+    ] = await Promise.all([
+      ctx.con.manager.getRepository(Product).findOneOrFail({
+        select: ['id', 'type'],
+        where: {
+          id: props.productId,
+        },
+      }),
+      ctx.con.manager.getRepository(Comment).findOneOrFail({
+        select: ['id', 'userId', 'postId', 'parentId'],
+        where: {
+          id: props.entityId,
+        },
+        relations: {
+          post: true,
+        },
+      }),
+      ctx.con.manager.getRepository(UserComment).findOne({
+        select: ['awardTransactionId'],
+        where: {
+          commentId: props.entityId,
+          userId: ctx.userId,
+        },
+      }),
+    ]);
 
     await canAward({ ctx, receiverId: comment.userId });
 
