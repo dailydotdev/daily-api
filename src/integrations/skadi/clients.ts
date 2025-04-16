@@ -3,6 +3,7 @@ import { ISkadiClient, SkadiResponse } from './types';
 import { GarmrNoopService, IGarmrService, GarmrService } from '../garmr';
 import { fetchOptions as globalFetchOptions } from '../../http';
 import { fetchParse } from '../retry';
+import { counters } from '../../telemetry';
 
 export class SkadiClient implements ISkadiClient {
   private readonly fetchOptions: RequestInit;
@@ -60,6 +61,28 @@ const garmrSkadiPersonalizedDigestService = new GarmrService({
   },
   retryOpts: {
     maxAttempts: 0,
+  },
+  events: {
+    onBreak: ({ meta }) => {
+      counters?.['personalized-digest']?.garmrBreak?.add(1, {
+        service: meta.service,
+      });
+    },
+    onHalfOpen: ({ meta }) => {
+      counters?.['personalized-digest']?.garmrHalfOpen?.add(1, {
+        service: meta.service,
+      });
+    },
+    onReset: ({ meta }) => {
+      counters?.['personalized-digest']?.garmrReset?.add(1, {
+        service: meta.service,
+      });
+    },
+    onRetry: ({ meta }) => {
+      counters?.['personalized-digest']?.garmrRetry?.add(1, {
+        service: meta.service,
+      });
+    },
   },
 });
 
