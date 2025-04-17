@@ -1,10 +1,16 @@
-import { createClient, type ConnectError } from '@connectrpc/connect';
+import {
+  createClient,
+  type CallOptions,
+  type ConnectError,
+} from '@connectrpc/connect';
 import { createGrpcTransport } from '@connectrpc/connect-node';
 import {
   Credits,
   Currency,
   EntityType,
+  GetBalanceRequest,
   GetBalanceResponse,
+  TransferRequest,
   TransferStatus,
   TransferType,
   type BalanceChange,
@@ -48,6 +54,9 @@ import { CoresRole } from '../types';
 import { GraphQLError } from 'graphql';
 import { randomUUID } from 'node:crypto';
 import { logger } from '../logger';
+import { signJwt } from '../auth';
+import crypto from 'node:crypto';
+import { Message } from '@bufbuild/protobuf';
 
 const transport = createGrpcTransport({
   baseUrl: process.env.NJORD_ORIGIN,
@@ -68,6 +77,34 @@ const garmNjordService = new GarmrService({
 
 export const getNjordClient = (clientTransport = transport) => {
   return createClient<typeof Credits>(Credits, clientTransport);
+};
+
+export type NjordJwtPayload = {
+  client_id: string;
+  message_hash: string;
+};
+
+const createNjordAuth = async (
+  payload: Message,
+): Promise<Pick<CallOptions, 'headers'>> => {
+  const authHeaders = new Headers();
+
+  const { token } = await signJwt<NjordJwtPayload>(
+    {
+      client_id: 'api',
+      message_hash: crypto
+        .createHash('sha256')
+        .update(payload.toBinary())
+        .digest('hex'),
+    },
+    0,
+  );
+
+  authHeaders.set('Authorization', `Bearer ${token}`);
+
+  return {
+    headers: authHeaders,
+  };
 };
 
 export type TransferProps = {
@@ -172,7 +209,7 @@ export const transferCores = createAuthProtectedFn(
     const receiverId = transaction.receiverId;
 
     const response = await garmNjordService.execute(async () => {
-      const response = await njordClient.transfer({
+      const payload = new TransferRequest({
         idempotencyKey: transaction.id,
         transfers: [
           {
@@ -193,6 +230,10 @@ export const transferCores = createAuthProtectedFn(
           },
         ],
       });
+      const response = await njordClient.transfer(
+        payload,
+        await createNjordAuth(payload),
+      );
 
       return response;
     });
@@ -274,7 +315,7 @@ export const purchaseCores = async ({
   const njordClient = getNjordClient();
 
   const response = await garmNjordService.execute(async () => {
-    const response = await njordClient.transfer({
+    const payload = new TransferRequest({
       idempotencyKey: transaction.id,
       transfers: [
         {
@@ -295,6 +336,10 @@ export const purchaseCores = async ({
         },
       ],
     });
+    const response = await njordClient.transfer(
+      payload,
+      await createNjordAuth(payload),
+    );
 
     return response;
   });
@@ -362,12 +407,16 @@ export const getFreshBalance = async ({
 
   const balance = await garmNjordService.execute(async () => {
     try {
-      const result = await njordClient.getBalance({
+      const payload = new GetBalanceRequest({
         account: {
           userId: userId,
           currency: Currency.CORES,
         },
       });
+      const result = await njordClient.getBalance(
+        payload,
+        await createNjordAuth(payload),
+      );
 
       return result;
     } catch (originalError) {
