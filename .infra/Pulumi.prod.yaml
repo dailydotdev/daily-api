@@ -150,6 +150,8 @@ config:
       secure: AAABALhGzHrnYkBOO1/PfTvOKlrPlMaHlDpNjoPK+0IZ9/MQy0oqdWeSJAAGdzFXbbhWHcqzL9IDtVmjIrNrF7/lPqQ8VCFSaGMlmDcc6l4fSm8uids7ug==
     openExchangeRatesAppId:
       secure: AAABAJ20yk+RUrbAx35TONTt4UrU1Of5VGd3+6BE09TkQxCzQzHmxUW/88bkeHRosM6zQzXYAZNyDmuC9AVP7w==
+    skadiOrigin:
+      secure: AAABABLCwunth2dfOS0NiPCe7YNKDpwt6C2ZRJvhwW51Ym8GBm39McgR6K/rm3kQ23K+idHeE5++cMmTKe/6bQjPhLfckNm49bwzOTwQOA==
   api:k8s:
     host: subs.daily.dev
     namespace: daily
