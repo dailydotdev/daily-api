@@ -380,6 +380,14 @@ export const getPersonalizedDigestEmailPayload = async ({
     user,
     feature,
   });
+  if (adProps) {
+    logger.info(
+      {
+        adProps,
+      },
+      'Got Skadi powered Ad',
+    );
+  }
 
   const variationProps = await getEmailVariation({
     personalizedDigest,
