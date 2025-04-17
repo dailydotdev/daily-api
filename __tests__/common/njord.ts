@@ -10,7 +10,13 @@ import { usersFixture } from '../fixture';
 import { Product, ProductType } from '../../src/entity/Product';
 import type { AuthContext } from '../../src/Context';
 import { createClient } from '@connectrpc/connect';
-import { Credits, EntityType, TransferStatus } from '@dailydotdev/schema';
+import {
+  Credits,
+  Currency,
+  EntityType,
+  GetBalanceRequest,
+  TransferStatus,
+} from '@dailydotdev/schema';
 import * as njordCommon from '../../src/common/njord';
 import { User } from '../../src/entity/user/User';
 import { ForbiddenError } from 'apollo-server-errors';
@@ -23,6 +29,7 @@ import * as redisFile from '../../src/redis';
 import { ioRedisPool } from '../../src/redis';
 import { parseBigInt } from '../../src/common';
 import { TransferError } from '../../src/errors';
+import { verifyJwt } from '../../src/auth';
 
 let con: DataSource;
 
@@ -212,6 +219,47 @@ describe('transferCores', () => {
         }),
     ).rejects.toBeInstanceOf(TransferError);
   });
+
+  it('should sign request', async () => {
+    const mockTransport = createMockNjordTransport();
+    const mockedClient = createClient(Credits, mockTransport);
+    const clientSpy = jest.spyOn(mockedClient, 'transfer');
+    jest
+      .spyOn(njordCommon, 'getNjordClient')
+      .mockImplementation(() => mockedClient);
+
+    const transaction = await njordCommon.createTransaction({
+      ctx: {
+        userId: 't-tc-1',
+      } as unknown as AuthContext,
+      entityManager: con.manager,
+      productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
+      receiverId: 't-tc-2',
+      note: 'Test test!',
+    });
+
+    await njordCommon.transferCores({
+      ctx: {
+        userId: 't-tc-1',
+      } as unknown as AuthContext,
+      transaction,
+      entityManager: con.manager,
+    });
+
+    expect(clientSpy).toHaveBeenCalledTimes(1);
+    expect(clientSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        idempotencyKey: transaction.id,
+        transfers: expect.toBeArrayOfSize(1),
+      }),
+      expect.objectContaining({
+        headers: expect.any(Headers),
+      }),
+    );
+    expect(
+      (clientSpy.mock.calls[0][1]!.headers as Headers).get('authorization'),
+    ).toStartWith('Bearer ');
+  });
 });
 
 describe('getBalance', () => {
@@ -392,6 +440,36 @@ describe('getBalance', () => {
 
     expect(result).toEqual({ amount: 0 });
   });
+
+  it('should sign request', async () => {
+    const mockTransport = createMockNjordTransport();
+    const mockedClient = createClient(Credits, mockTransport);
+    const clientSpy = jest.spyOn(mockedClient, 'getBalance');
+    jest
+      .spyOn(njordCommon, 'getNjordClient')
+      .mockImplementation(() => mockedClient);
+
+    const result = await njordCommon.getBalance({
+      userId: 't-gb-1',
+    });
+
+    expect(result).toEqual({ amount: 0 });
+    expect(clientSpy).toHaveBeenCalledTimes(1);
+    expect(clientSpy).toHaveBeenCalledWith(
+      {
+        account: {
+          userId: 't-gb-1',
+          currency: 0,
+        },
+      },
+      expect.objectContaining({
+        headers: expect.any(Headers),
+      }),
+    );
+    expect(
+      (clientSpy.mock.calls[0][1]!.headers as Headers).get('authorization'),
+    ).toStartWith('Bearer ');
+  });
 });
 
 describe('updatedBalanceCache', () => {
@@ -476,5 +554,241 @@ describe('expireBalanceCache', () => {
     });
 
     expect(getFreshBalanceSpy).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('purchaseCores', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+
+    const mockTransport = createMockNjordTransport();
+    jest
+      .spyOn(njordCommon, 'getNjordClient')
+      .mockImplementation(() => createClient(Credits, mockTransport));
+
+    await saveFixtures(
+      con,
+      User,
+      usersFixture.map((item) => {
+        return {
+          ...item,
+          id: `t-pc-${item.id}`,
+          username: `t-pc-${item.username}`,
+          github: undefined,
+        };
+      }),
+    );
+
+    await saveFixtures(con, Product, [
+      {
+        id: '5329e56b-b121-47cb-9c3c-58c086c1542b',
+        name: 'Award 1',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 42,
+      },
+    ]);
+  });
+
+  it('should purchase cores', async () => {
+    const transaction = await con.getRepository(UserTransaction).save({
+      processor: UserTransactionProcessor.Paddle,
+      receiverId: 't-pc-2',
+      status: UserTransactionStatus.Success,
+      productId: null,
+      senderId: null,
+      value: 42,
+      valueIncFees: 42,
+      fee: 0,
+      request: {},
+      flags: {
+        note: 'Test test!',
+      },
+    });
+
+    await njordCommon.purchaseCores({
+      transaction,
+    });
+
+    expect(transaction).toMatchObject({
+      id: expect.any(String),
+      processor: UserTransactionProcessor.Paddle,
+      receiverId: 't-pc-2',
+      status: UserTransactionStatus.Success,
+      productId: null,
+      senderId: null,
+      value: 42,
+      valueIncFees: 42,
+      fee: 0,
+      createdAt: expect.any(Date),
+      updatedAt: expect.any(Date),
+      flags: {
+        note: 'Test test!',
+      },
+    } as UserTransaction);
+
+    const transactionAfter = await con
+      .getRepository(UserTransaction)
+      .findOneByOrFail({
+        id: transaction.id,
+      });
+
+    expect(transactionAfter.id).toBe(transaction.id);
+    expect(transactionAfter).toMatchObject({
+      ...transaction,
+      valueIncFees: 42,
+      updatedAt: expect.any(Date),
+    });
+  });
+
+  it('should throw if transaction has no id', async () => {
+    const transaction = await con.getRepository(UserTransaction).create({
+      processor: UserTransactionProcessor.Paddle,
+      receiverId: 't-pc-2',
+      status: UserTransactionStatus.Success,
+      productId: null,
+      senderId: 't-pc-1',
+      value: 42,
+      valueIncFees: 42,
+      fee: 0,
+      request: {},
+      flags: {
+        note: 'Test test!',
+      },
+    });
+
+    await expect(() =>
+      njordCommon.purchaseCores({
+        transaction,
+      }),
+    ).rejects.toThrow(new Error('No transaction id'));
+  });
+
+  it('should throw if transaction has product', async () => {
+    const transaction = await con.getRepository(UserTransaction).save({
+      processor: UserTransactionProcessor.Paddle,
+      receiverId: 't-pc-2',
+      status: UserTransactionStatus.Success,
+      productId: '5329e56b-b121-47cb-9c3c-58c086c1542b',
+      senderId: null,
+      value: 42,
+      valueIncFees: 42,
+      fee: 0,
+      request: {},
+      flags: {
+        note: 'Test test!',
+      },
+    });
+
+    await expect(() =>
+      njordCommon.purchaseCores({
+        transaction,
+      }),
+    ).rejects.toThrow(
+      new Error('Purchase cores transaction can not have product'),
+    );
+  });
+
+  it('should throw if transaction has sender', async () => {
+    const transaction = await con.getRepository(UserTransaction).save({
+      processor: UserTransactionProcessor.Paddle,
+      receiverId: 't-pc-2',
+      status: UserTransactionStatus.Success,
+      productId: null,
+      senderId: 't-pc-1',
+      value: 42,
+      valueIncFees: 42,
+      fee: 0,
+      request: {},
+      flags: {
+        note: 'Test test!',
+      },
+    });
+
+    await expect(() =>
+      njordCommon.purchaseCores({
+        transaction,
+      }),
+    ).rejects.toThrow(
+      new Error('Purchase cores transaction can not have sender'),
+    );
+  });
+
+  it('should sign request', async () => {
+    const mockTransport = createMockNjordTransport();
+    const mockedClient = createClient(Credits, mockTransport);
+    const clientSpy = jest.spyOn(mockedClient, 'transfer');
+    jest
+      .spyOn(njordCommon, 'getNjordClient')
+      .mockImplementation(() => mockedClient);
+
+    const transaction = await con.getRepository(UserTransaction).save({
+      processor: UserTransactionProcessor.Paddle,
+      receiverId: 't-pc-2',
+      status: UserTransactionStatus.Success,
+      productId: null,
+      senderId: null,
+      value: 42,
+      valueIncFees: 42,
+      fee: 0,
+      request: {},
+      flags: {
+        note: 'Test test!',
+      },
+    });
+
+    await njordCommon.purchaseCores({
+      transaction,
+    });
+
+    expect(clientSpy).toHaveBeenCalledTimes(1);
+    expect(clientSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        idempotencyKey: transaction.id,
+        transfers: expect.toBeArrayOfSize(1),
+      }),
+      expect.objectContaining({
+        headers: expect.any(Headers),
+      }),
+    );
+    expect(
+      (clientSpy.mock.calls[0][1]!.headers as Headers).get('authorization'),
+    ).toStartWith('Bearer ');
+  });
+});
+
+describe('createNjordAuth', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+  });
+
+  it('should create auth', async () => {
+    const payload = new GetBalanceRequest({
+      account: {
+        userId: 't-cna-1',
+        currency: Currency.CORES,
+      },
+    });
+
+    const result = await njordCommon.createNjordAuth(payload);
+
+    expect(result.headers).toBeInstanceOf(Headers);
+
+    const headers = result.headers as Headers;
+
+    expect(headers.get('authorization')).toStartWith('Bearer ');
+
+    const jwt = await verifyJwt(
+      headers.get('authorization')!.replace('Bearer ', '')!,
+    );
+
+    expect(jwt).toMatchObject({
+      aud: 'Daily Staging',
+      client_id: 'api',
+      iat: expect.any(Number),
+      iss: 'Daily API Staging',
+      message_hash:
+        '87a33e6ae594147d8cd4d22b7b29f026f0ab4b45b66d9ff65ca7b456894f8871',
+    });
   });
 });

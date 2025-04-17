@@ -84,7 +84,7 @@ export type NjordJwtPayload = {
   message_hash: string;
 };
 
-const createNjordAuth = async (
+export const createNjordAuth = async (
   payload: Message,
 ): Promise<Pick<CallOptions, 'headers'>> => {
   const authHeaders = new Headers();
@@ -100,7 +100,7 @@ const createNjordAuth = async (
     0,
   );
 
-  authHeaders.set('Authorization', `Bearer ${token}`);
+  authHeaders.set('authorization', `Bearer ${token}`);
 
   return {
     headers: authHeaders,
