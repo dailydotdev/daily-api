@@ -70,8 +70,7 @@ const counterMap = {
     },
     deletedUserCollision: {
       name: 'deleted_user_collision',
-      description:
-        'How many times a deleted user collision happened on registration',
+      description: 'How many times a deleted user collision happened',
     },
   },
   background: {
