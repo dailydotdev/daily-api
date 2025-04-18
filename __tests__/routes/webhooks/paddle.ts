@@ -573,6 +573,7 @@ describe('cores product', () => {
       providerId: coresTransactionCreated.data.id,
     });
     expect(userTransaction!.status).toBe(501);
+    expect(userTransaction!.flags.error).toContain('Payment failed: declined');
 
     await processTransactionPaid({
       event: coresTransactionPaid,
@@ -583,5 +584,6 @@ describe('cores product', () => {
       providerId: coresTransactionCreated.data.id,
     });
     expect(userTransaction!.status).toBe(202);
+    expect(userTransaction!.flags.error).toBeNull();
   });
 });

@@ -809,6 +809,9 @@ export const updateUserTransaction = async ({
         value: itemData.price.customData.cores,
         valueIncFees: itemData.price.customData.cores,
         status: nextStatus,
+        flags: updateFlagsStatement<UserTransaction>({
+          error: null,
+        }),
       },
     );
 
@@ -817,6 +820,10 @@ export const updateUserTransaction = async ({
       value: itemData.price.customData.cores,
       valueIncFees: itemData.price.customData.cores,
       status: nextStatus ?? transaction.status,
+      flags: {
+        ...transaction.flags,
+        error: null,
+      },
     });
   }
 };
