@@ -72,6 +72,9 @@ const allowedIPs = [
   '192.168.0.0/16',
   '172.16.0.0/12',
   '10.0.0.0/8',
+
+  // Production IPs. These are the IPs that Apple uses to send notifications.
+  // https://developer.apple.com/documentation/appstoreservernotifications/enabling-app-store-server-notifications#Configure-an-allow-list
   '17.0.0.0/8',
 ];
 
