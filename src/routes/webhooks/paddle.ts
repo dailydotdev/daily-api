@@ -1033,7 +1033,11 @@ export const processTransactionUpdated = async ({
 export const paddle = async (fastify: FastifyInstance): Promise<void> => {
   fastify.register(async (fastify: FastifyInstance): Promise<void> => {
     fastify.addHook('onRequest', async (request, res) => {
-      if (isProd && !remoteConfig.vars.paddleIps?.includes(request.ip)) {
+      if (
+        isProd &&
+        remoteConfig.vars.paddleIps &&
+        !remoteConfig.vars.paddleIps.includes(request.ip)
+      ) {
         return res.status(403).send({ error: 'Forbidden' });
       }
     });
