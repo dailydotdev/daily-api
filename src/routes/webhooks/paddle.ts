@@ -886,6 +886,8 @@ export const processTransactionPaid = async ({
         validStatus: [
           UserTransactionStatus.Created,
           UserTransactionStatus.Processing,
+          UserTransactionStatus.Error,
+          UserTransactionStatus.ErrorRecoverable,
         ],
         data: transactionData,
       })
@@ -925,10 +927,7 @@ export const processTransactionPaymentFailed = async ({
     const paymentErrorCode = event.data.payments[0]?.errorCode;
 
     // for declined payments user can retry checkout
-    const nextStatus =
-      paymentErrorCode === 'declined'
-        ? UserTransactionStatus.ErrorRecoverable
-        : UserTransactionStatus.Error;
+    const nextStatus = UserTransactionStatus.ErrorRecoverable;
 
     if (
       !checkTransactionStatusValid({
@@ -938,6 +937,8 @@ export const processTransactionPaymentFailed = async ({
         validStatus: [
           UserTransactionStatus.Created,
           UserTransactionStatus.Processing,
+          UserTransactionStatus.Error,
+          UserTransactionStatus.ErrorRecoverable,
         ],
         data: transactionData,
       })
@@ -950,7 +951,7 @@ export const processTransactionPaymentFailed = async ({
       {
         status: nextStatus,
         flags: updateFlagsStatement<UserTransaction>({
-          error: `Payment failed: ${event.data.payments[0]?.errorCode ?? 'unknown'}`,
+          error: `Payment failed: ${paymentErrorCode ?? 'unknown'}`,
         }),
       },
     );
