@@ -1,4 +1,5 @@
 import {
+  DeletedUserCollisionError,
   TypeOrmError,
   UpdateUserFailErrorKeys,
   UserFailErrorKeys,
@@ -39,6 +40,7 @@ import { remoteConfig } from '../../remoteConfig';
 import { getUserCoresRole } from '../../common/user';
 import { insertOrIgnoreAction } from '../../schema/actions';
 import { UserActionType } from './UserAction';
+import { DeletedUser } from './DeletedUser';
 
 export type AddUserData = Pick<
   User,
@@ -242,6 +244,18 @@ const handleInsertError = async (
     }
   }
 
+  if (error instanceof DeletedUserCollisionError) {
+    counters?.api?.deletedUserCollision?.add(1);
+    if (shouldRetry) {
+      data.id = await generateTrackingId(req, 'deleted user collision');
+      return safeInsertUser(req, con, data, maxIterations, iteration + 1);
+    }
+    return {
+      status: 'failed',
+      reason: UserFailErrorKeys.DeletedUserCollision,
+    };
+  }
+
   throw error;
 };
 
@@ -254,6 +268,19 @@ const safeInsertUser = async (
 ): Promise<AddNewUserResult> => {
   try {
     await con.transaction(async (entityManager) => {
+      const deletedUser: Pick<DeletedUser, 'id'> | null = await entityManager
+        .getRepository(DeletedUser)
+        .findOne({
+          select: ['id'],
+          where: {
+            id: data.id,
+          },
+        });
+
+      if (deletedUser) {
+        throw new DeletedUserCollisionError();
+      }
+
       const newUser = await entityManager.getRepository(User).insert(data);
       const newUserId = newUser.identifiers[0].id;
       const feedId = newUserId;
