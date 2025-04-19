@@ -19,6 +19,7 @@ import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { DayOfWeek } from '../src/common';
 import { ContentLanguage, CoresRole } from '../src/types';
 import { postsFixture } from './fixture/post';
+import { DeletedUser } from '../src/entity/user/DeletedUser';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -725,6 +726,31 @@ describe('POST /p/newUser', () => {
     });
 
     expect(userAction).not.toBeNull();
+  });
+
+  it('should handle deleted user collision', async () => {
+    const deletedUser = await con.getRepository(DeletedUser).save({
+      id: 'deleted-user-1',
+    });
+
+    expect(deletedUser.userDeletedAt).toBeInstanceOf(Date);
+
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: deletedUser.id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: 'randomName21',
+        email: 'randomNewEmail21@gmail.com',
+        experienceLevel: 'LESS_THAN_1_YEAR',
+      })
+      .expect(200);
+
+    expect(body.status).toEqual('ok');
+    expect(body.userId).not.toEqual(deletedUser.id);
   });
 });
 

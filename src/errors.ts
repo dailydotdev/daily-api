@@ -9,6 +9,7 @@ export enum UserFailErrorKeys {
   MissingFields = 'MISSING_FIELDS',
   UserExists = 'USER_EXISTS',
   UsernameEmailExists = 'USERNAME_EMAIL_EXISTS',
+  DeletedUserCollision = 'DELETED_USER_COLLISION',
 }
 
 export enum UpdateUserFailErrorKeys {
@@ -176,5 +177,11 @@ export class TransferError extends Error {
     super(transfer.errorMessage || 'Transfer error');
 
     this.transfer = transfer;
+  }
+}
+
+export class DeletedUserCollisionError extends Error {
+  constructor(message: string = 'Deleted user collision error') {
+    super(message);
   }
 }
