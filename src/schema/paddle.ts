@@ -184,6 +184,10 @@ export const typeDefs = /* GraphQL */ `
     Platform-specific IDs
     """
     idMap: PricingIdMap!
+    """
+    Number of cores
+    """
+    cores: Int
   }
 
   """
