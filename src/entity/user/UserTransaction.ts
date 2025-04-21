@@ -16,7 +16,7 @@ import { TransferStatus } from '@dailydotdev/schema';
 export type UserTransactionFlags = Partial<{
   note: string;
   providerId: string;
-  error: string;
+  error: string | null;
   emailSent: boolean;
 }>;
 

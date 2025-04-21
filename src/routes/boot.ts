@@ -69,7 +69,6 @@ import { queryDataSource } from '../common/queryDataSource';
 import { isPlusMember } from '../paddle';
 import { Continent, countryCodeToContinent } from '../common/geo';
 import { getBalance, type GetBalanceResult } from '../common/njord';
-import { remoteConfig } from '../remoteConfig';
 import { logger } from '../logger';
 import { freyjaClient, type FunnelState } from '../integrations/freyja';
 
@@ -475,12 +474,6 @@ const getUser = (
 
 const getBalanceBoot: typeof getBalance = async ({ userId }) => {
   try {
-    if (!remoteConfig.vars.enableBalance) {
-      return {
-        amount: 0,
-      };
-    }
-
     const result = await getBalance({ userId });
 
     return result;
@@ -787,7 +780,7 @@ const getFunnel = async (req: FastifyRequest, res: FastifyReply) => {
   // If the session id is set, we should use it to fetch the funnel data
   if (sessionId) {
     const sessionFunnel = await freyjaClient.getSession(sessionId);
-    if (sessionFunnel?.session.userId === userId) {
+    if (sessionFunnel?.session?.userId === userId) {
       return sessionFunnel;
     }
   }

@@ -1,0 +1,589 @@
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../../../src/db';
+import { createMockNjordTransport, saveFixtures } from '../../helpers';
+import { SubscriptionProvider, User } from '../../../src/entity';
+import { usersFixture } from '../../fixture';
+
+import {
+  processTransactionCreated,
+  processTransactionUpdated,
+  processTransactionPaid,
+  processTransactionCompleted,
+  processTransactionPaymentFailed,
+} from '../../../src/routes/webhooks/paddle';
+import {
+  coresTransactionCreated,
+  coresTransactionUpdated,
+  coresTransactionPaid,
+  coresTransactionCompleted,
+  coresTransactionPaymentFailed,
+} from '../../fixture/paddle/transaction';
+import {
+  getPaddleTransactionData,
+  getTransactionForProviderId,
+} from '../../../src/common/paddle';
+import { logger } from '../../../src/logger';
+import { CoresRole } from '../../../src/types';
+import * as njordCommon from '../../../src/common/njord';
+import { createClient } from '@connectrpc/connect';
+import { Credits } from '@dailydotdev/schema';
+
+let con: DataSource;
+
+beforeAll(async () => {
+  con = await createOrGetConnection();
+});
+
+describe('cores product', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+
+    await saveFixtures(
+      con,
+      User,
+      [...usersFixture].map((user) => ({
+        ...user,
+        id: `whcp-${user.id}`,
+        coresRole: CoresRole.Creator,
+      })),
+    );
+
+    const mockTransport = createMockNjordTransport();
+    jest
+      .spyOn(njordCommon, 'getNjordClient')
+      .mockImplementation(() => createClient(Credits, mockTransport));
+  });
+
+  it('purchase success', async () => {
+    await processTransactionCreated({
+      event: coresTransactionCreated,
+    });
+
+    let userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(201);
+
+    await processTransactionUpdated({
+      event: {
+        ...coresTransactionUpdated,
+        data: {
+          ...coresTransactionUpdated.data,
+          updatedAt: new Date(
+            userTransaction!.updatedAt.getTime() + 1000,
+          ).toISOString(),
+        },
+      },
+    });
+
+    userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(201);
+
+    await processTransactionPaid({
+      event: coresTransactionPaid,
+    });
+
+    userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(202);
+
+    await processTransactionCompleted({
+      event: coresTransactionCompleted,
+    });
+
+    userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(0);
+  });
+
+  it('purchase failure', async () => {
+    await processTransactionCreated({
+      event: coresTransactionCreated,
+    });
+
+    let userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(201);
+
+    await processTransactionUpdated({
+      event: {
+        ...coresTransactionUpdated,
+        data: {
+          ...coresTransactionUpdated.data,
+          updatedAt: new Date(
+            userTransaction!.updatedAt.getTime() + 1000,
+          ).toISOString(),
+        },
+      },
+    });
+
+    userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(201);
+
+    await processTransactionPaid({
+      event: coresTransactionPaid,
+    });
+
+    userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(202);
+
+    await processTransactionPaymentFailed({
+      event: coresTransactionPaymentFailed,
+    });
+
+    userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(501);
+  });
+
+  it('purchase success after failure', async () => {
+    await processTransactionCreated({
+      event: coresTransactionCreated,
+    });
+
+    let userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(201);
+
+    await processTransactionUpdated({
+      event: {
+        ...coresTransactionUpdated,
+        data: {
+          ...coresTransactionUpdated.data,
+          updatedAt: new Date(
+            userTransaction!.updatedAt.getTime() + 1000,
+          ).toISOString(),
+        },
+      },
+    });
+
+    userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(201);
+
+    await processTransactionPaid({
+      event: coresTransactionPaid,
+    });
+
+    userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(202);
+
+    await processTransactionPaymentFailed({
+      event: coresTransactionPaymentFailed,
+    });
+
+    userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(501);
+
+    await processTransactionCompleted({
+      event: coresTransactionCompleted,
+    });
+
+    userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(0);
+  });
+
+  it('transaction created event', async () => {
+    await processTransactionCreated({ event: coresTransactionCreated });
+
+    const userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+
+    expect(userTransaction).not.toBeNull();
+
+    expect(userTransaction).toEqual({
+      id: expect.any(String),
+      createdAt: expect.any(Date),
+      fee: 0,
+      flags: {
+        providerId: 'txn_01jrwyswhztmre55nbd7d09qvp',
+      },
+      processor: 'paddle',
+      productId: null,
+      receiverId: 'whcp-1',
+      request: {},
+      senderId: null,
+      status: 201,
+      updatedAt: expect.any(Date),
+      value: 600,
+      valueIncFees: 600,
+    });
+  });
+
+  it('transaction already created should skip', async () => {
+    await processTransactionCreated({ event: coresTransactionCreated });
+
+    const userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+
+    expect(userTransaction).not.toBeNull();
+
+    const warnSpy = jest.spyOn(logger, 'warn');
+
+    await processTransactionCreated({ event: coresTransactionCreated });
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      {
+        eventType: coresTransactionCreated.eventType,
+        provider: SubscriptionProvider.Paddle,
+        currentStatus: userTransaction!.status,
+        data: getPaddleTransactionData({ event: coresTransactionCreated }),
+      },
+      'Transaction already exists',
+    );
+  });
+
+  it('transaction updated event', async () => {
+    await processTransactionUpdated({ event: coresTransactionUpdated });
+
+    const userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+
+    expect(userTransaction).not.toBeNull();
+
+    expect(userTransaction).toEqual({
+      id: expect.any(String),
+      createdAt: expect.any(Date),
+      fee: 0,
+      flags: {
+        providerId: 'txn_01jrwyswhztmre55nbd7d09qvp',
+      },
+      processor: 'paddle',
+      productId: null,
+      receiverId: 'whcp-1',
+      request: {},
+      senderId: null,
+      status: 201,
+      updatedAt: expect.any(Date),
+      value: 300,
+      valueIncFees: 300,
+    });
+  });
+
+  it('transaction updated product change', async () => {
+    await processTransactionCreated({ event: coresTransactionCreated });
+
+    let userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+
+    expect(userTransaction).not.toBeNull();
+    expect(userTransaction!.value).toEqual(600);
+    expect(userTransaction!.valueIncFees).toEqual(600);
+
+    expect(userTransaction!.flags.providerId).toEqual(
+      'txn_01jrwyswhztmre55nbd7d09qvp',
+    );
+
+    const updatedAt = new Date(userTransaction!.createdAt.getTime() + 1000);
+
+    await processTransactionUpdated({
+      event: {
+        ...coresTransactionUpdated,
+        data: {
+          ...coresTransactionUpdated.data,
+          updatedAt: updatedAt.toISOString(),
+        },
+      },
+    });
+
+    userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionUpdated.data.id,
+    });
+
+    expect(userTransaction).not.toBeNull();
+    expect(userTransaction!.value).toEqual(300);
+    expect(userTransaction!.valueIncFees).toEqual(300);
+
+    expect(userTransaction!.flags.providerId).toEqual(
+      'txn_01jrwyswhztmre55nbd7d09qvp',
+    );
+  });
+
+  it('transaction already updated should skip', async () => {
+    await processTransactionCreated({ event: coresTransactionCreated });
+
+    const userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+
+    expect(userTransaction).not.toBeNull();
+
+    const warnSpy = jest.spyOn(logger, 'warn');
+
+    await processTransactionUpdated({ event: coresTransactionUpdated });
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      {
+        eventType: coresTransactionUpdated.eventType,
+        provider: SubscriptionProvider.Paddle,
+        currentStatus: userTransaction!.status,
+        data: getPaddleTransactionData({ event: coresTransactionUpdated }),
+      },
+      'Transaction already updated',
+    );
+  });
+
+  it('transaction updated skip dedicated status', async () => {
+    const warnSpy = jest.spyOn(logger, 'warn');
+
+    await processTransactionUpdated({
+      event: {
+        ...coresTransactionUpdated,
+        data: {
+          ...coresTransactionUpdated.data,
+          status: 'completed',
+        },
+      },
+    });
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      {
+        eventType: coresTransactionUpdated.eventType,
+        provider: SubscriptionProvider.Paddle,
+        currentStatus: 'unknown',
+        data: getPaddleTransactionData({ event: coresTransactionUpdated }),
+      },
+      'Transaction update skipped',
+    );
+  });
+
+  it('transaction paid event', async () => {
+    const warnSpy = jest.spyOn(logger, 'warn');
+
+    await processTransactionPaid({ event: coresTransactionPaid });
+
+    const userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionPaid.data.id,
+    });
+
+    expect(userTransaction).not.toBeNull();
+    expect(userTransaction!.status).toEqual(202);
+    expect(userTransaction!.value).toEqual(600);
+
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('transaction completed event', async () => {
+    await processTransactionCompleted({ event: coresTransactionCompleted });
+
+    const userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCompleted.data.id,
+    });
+
+    expect(userTransaction).not.toBeNull();
+
+    expect(userTransaction).toEqual({
+      id: expect.any(String),
+      createdAt: expect.any(Date),
+      fee: 0,
+      flags: {
+        providerId: 'txn_01jrwyswhztmre55nbd7d09qvp',
+      },
+      processor: 'paddle',
+      productId: null,
+      receiverId: 'whcp-1',
+      request: {},
+      senderId: null,
+      status: 0,
+      updatedAt: expect.any(Date),
+      value: 600,
+      valueIncFees: 600,
+    });
+  });
+
+  it('transaction completed throw if user coresRole is none', async () => {
+    await con.getRepository(User).update(
+      { id: 'whcp-1' },
+      {
+        coresRole: CoresRole.None,
+      },
+    );
+
+    await expect(() =>
+      processTransactionCompleted({ event: coresTransactionCompleted }),
+    ).rejects.toThrow('User does not have access to cores purchase');
+  });
+
+  it('transaction completed throw if user coresRole is readonly', async () => {
+    await con.getRepository(User).update(
+      { id: 'whcp-1' },
+      {
+        coresRole: CoresRole.ReadOnly,
+      },
+    );
+
+    await expect(() =>
+      processTransactionCompleted({ event: coresTransactionCompleted }),
+    ).rejects.toThrow('User does not have access to cores purchase');
+  });
+
+  it('transaction completed throw if user id mismatch', async () => {
+    await processTransactionCreated({ event: coresTransactionCreated });
+
+    await expect(() =>
+      processTransactionCompleted({
+        event: {
+          ...coresTransactionCompleted,
+          data: {
+            ...coresTransactionCompleted.data,
+            customData: {
+              ...coresTransactionCompleted.data.customData,
+              user_id: 'whcp-2',
+            },
+          },
+        },
+      }),
+    ).rejects.toThrow('Transaction receiver does not match user ID');
+  });
+
+  it('transaction completed throw if value mismatch', async () => {
+    await processTransactionCompleted({
+      event: coresTransactionCompleted,
+    });
+
+    await expect(() =>
+      processTransactionUpdated({
+        event: {
+          ...coresTransactionUpdated,
+          data: {
+            ...coresTransactionUpdated.data,
+            updatedAt: new Date(Date.now() + 1000).toISOString(),
+          },
+        },
+      }),
+    ).rejects.toThrow('Transaction value changed after success');
+  });
+
+  it('transaction payment failed event', async () => {
+    await processTransactionCreated({
+      event: coresTransactionCreated,
+    });
+
+    const warnSpy = jest.spyOn(logger, 'warn');
+
+    await processTransactionPaymentFailed({
+      event: coresTransactionPaymentFailed,
+    });
+
+    const userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionPaymentFailed.data.id,
+    });
+
+    expect(userTransaction).not.toBeNull();
+    expect(userTransaction!.status).toEqual(501);
+    expect(userTransaction!.flags.error).toContain('Payment failed: declined');
+
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('transaction payment failed with invalid status', async () => {
+    await processTransactionCompleted({
+      event: coresTransactionCompleted,
+    });
+
+    const warnSpy = jest.spyOn(logger, 'warn');
+
+    await processTransactionPaymentFailed({
+      event: coresTransactionPaymentFailed,
+    });
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      {
+        eventType: coresTransactionPaymentFailed.eventType,
+        provider: SubscriptionProvider.Paddle,
+        currentStatus: 0,
+        nextStatus: 501,
+        data: getPaddleTransactionData({
+          event: coresTransactionPaymentFailed,
+        }),
+      },
+      'Transaction with invalid status',
+    );
+  });
+
+  it('transaction payment failed throws if no transaction exists', async () => {
+    await expect(() =>
+      processTransactionPaymentFailed({
+        event: coresTransactionPaymentFailed,
+      }),
+    ).rejects.toThrow('Transaction not found');
+  });
+
+  it('transaction paid after error', async () => {
+    await processTransactionCreated({
+      event: coresTransactionCreated,
+    });
+
+    let userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(201);
+
+    await processTransactionPaymentFailed({
+      event: coresTransactionPaymentFailed,
+    });
+
+    userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(501);
+    expect(userTransaction!.flags.error).toContain('Payment failed: declined');
+
+    await processTransactionPaid({
+      event: coresTransactionPaid,
+    });
+
+    userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(202);
+    expect(userTransaction!.flags.error).toBeNull();
+  });
+});

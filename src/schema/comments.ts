@@ -667,7 +667,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             }
             return builder;
           },
-          readReplica: true,
+          readReplica: false,
         },
       );
     },

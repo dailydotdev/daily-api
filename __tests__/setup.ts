@@ -30,13 +30,13 @@ jest.mock('../src/remoteConfig', () => ({
       fees: {
         transfer: 5,
       },
-      enableBalance: true,
       coresRoleRules: [
         {
           regions: ['RS'],
           role: 1,
         },
       ],
+      coreProductId: 'pro_01jn6djzggt2cwharv1r3hv9as',
     } as typeof remoteConfig.vars,
     validLanguages: {
       en: 'English',

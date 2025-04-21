@@ -18,7 +18,6 @@ type RemoteConfigValue = {
   fees: Partial<{
     transfer: number;
   }>;
-  enableBalance: boolean;
   approvedStoreKitSandboxUsers: string[];
   coreProductId: string;
   coresRoleRules: {
@@ -26,6 +25,7 @@ type RemoteConfigValue = {
     role: CoresRole;
   }[];
   kvasirRequirePlus: boolean;
+  paddleIps: string[];
 };
 
 class RemoteConfig {

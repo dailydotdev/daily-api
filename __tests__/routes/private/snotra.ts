@@ -1,13 +1,13 @@
-import appFunc from '../src';
+import appFunc from '../../../src';
 import { FastifyInstance } from 'fastify';
-import { saveFixtures } from './helpers';
-import { Keyword, Post, Source } from '../src/entity';
-import { sourcesFixture } from './fixture/source';
+import { saveFixtures } from '../../helpers';
+import { Keyword, Post, Source } from '../../../src/entity';
+import { sourcesFixture } from '../../fixture/source';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import createOrGetConnection from '../src/db';
-import { postsFixture } from './fixture/post';
-import { keywordsFixture } from './fixture/keywords';
+import createOrGetConnection from '../../../src/db';
+import { postsFixture } from '../../fixture/post';
+import { keywordsFixture } from '../../fixture/keywords';
 
 let app: FastifyInstance;
 let con: DataSource;
