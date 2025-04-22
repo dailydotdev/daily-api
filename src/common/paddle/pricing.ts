@@ -252,7 +252,10 @@ export const getProductPrice = (
   }
 
   if (interval === 'month') {
-    basePrice.monthly = basePrice;
+    basePrice.monthly = {
+      amount: basePrice.amount,
+      formatted: basePrice.formatted,
+    };
     basePrice.daily = getPrice({
       formatted: item.formattedTotals.total,
       divideBy: 30,
