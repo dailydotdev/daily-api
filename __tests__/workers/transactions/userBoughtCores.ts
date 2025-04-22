@@ -12,6 +12,7 @@ import { usersFixture } from '../../fixture/user';
 import { typedWorkers } from '../../../src/workers';
 import {
   CioTransactionalMessageTemplateId,
+  ghostUser,
   sendEmail,
 } from '../../../src/common';
 import type { ChangeObject } from '../../../src/types';
@@ -154,5 +155,26 @@ describe('userBoughtCores worker', () => {
       },
       to: user.email,
     });
+  });
+
+  it('should do nothing if receiver is ghost user', async () => {
+    const tx = con.getRepository(UserTransaction).create({
+      processor: UserTransactionProcessor.Paddle,
+      receiverId: ghostUser.id,
+      status: UserTransactionStatus.Success,
+      value: 100,
+      valueIncFees: 100,
+      fee: 0,
+      request: {},
+      flags: { emailSent: true },
+      productId: null,
+    });
+    const transaction = await con.getRepository(UserTransaction).save(tx);
+
+    await expectSuccessfulTypedBackground(worker, {
+      transaction: transaction as unknown as ChangeObject<UserTransaction>,
+    });
+
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 });

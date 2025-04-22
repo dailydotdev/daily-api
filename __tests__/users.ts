@@ -121,6 +121,11 @@ import type { GQLUser } from '../src/schema/users';
 import { cancelSubscription } from '../src/common/paddle';
 import { isPlusMember } from '../src/paddle';
 import { CoresRole } from '../src/types';
+import {
+  UserTransaction,
+  UserTransactionProcessor,
+  UserTransactionStatus,
+} from '../src/entity/user/UserTransaction';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -4144,6 +4149,51 @@ describe('mutation deleteUser', () => {
         .findOneBy({ id: 'sk-del-user-0' });
       expect(userOne).toEqual(null);
     });
+  });
+
+  it('should set user transactions to ghost', async () => {
+    loggedUser = '1';
+
+    const userTransactions = await con.getRepository(UserTransaction).save([
+      {
+        id: '962c880f-7523-426c-b02f-e5695e94d77f',
+        processor: UserTransactionProcessor.Njord,
+        receiverId: '1',
+        status: UserTransactionStatus.Success,
+        productId: null,
+        senderId: '2',
+        fee: 0,
+        value: 100,
+        valueIncFees: 100,
+      },
+      {
+        id: '4f2e8ff9-4489-466b-9296-87630839fdac',
+        processor: UserTransactionProcessor.Njord,
+        receiverId: '2',
+        status: UserTransactionStatus.Success,
+        productId: null,
+        senderId: '1',
+        fee: 0,
+        value: 100,
+        valueIncFees: 100,
+      },
+    ]);
+
+    await client.mutate(MUTATION);
+
+    const transactions = await con.getRepository(UserTransaction).findBy({
+      id: In(userTransactions.map((t) => t.id)),
+    });
+
+    expect(transactions.length).toEqual(2);
+    expect(
+      transactions.find((t) => t.id === '962c880f-7523-426c-b02f-e5695e94d77f')!
+        .receiverId,
+    ).toEqual(ghostUser.id);
+    expect(
+      transactions.find((t) => t.id === '4f2e8ff9-4489-466b-9296-87630839fdac')!
+        .senderId,
+    ).toEqual(ghostUser.id);
   });
 });
 
