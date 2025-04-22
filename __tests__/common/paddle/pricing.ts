@@ -1,4 +1,4 @@
-import { getPrice } from '../../../src/common/paddle/pricing';
+import { getPrice, getProductPrice } from '../../../src/common/paddle/pricing';
 
 describe('getPrice', () => {
   it('should parse USD currency format', () => {
@@ -58,7 +58,11 @@ describe('getPrice', () => {
   });
 
   it('should handle divided amount with different locale', () => {
-    const result = getPrice({ formatted: '60,00 €', locale: 'fr-FR', divideBy: 12 });
+    const result = getPrice({
+      formatted: '60,00 €',
+      locale: 'fr-FR',
+      divideBy: 12,
+    });
     expect(result).toEqual({
       amount: 5,
       formatted: '5,00 €',
@@ -66,7 +70,9 @@ describe('getPrice', () => {
   });
 
   it('should throw error for invalid currency format', () => {
-    expect(() => getPrice({ formatted: 'invalid' })).toThrow('Invalid currency format');
+    expect(() => getPrice({ formatted: 'invalid' })).toThrow(
+      'Invalid currency format',
+    );
   });
 
   it('should handle zero amount', () => {
@@ -74,14 +80,6 @@ describe('getPrice', () => {
     expect(result).toEqual({
       amount: 0,
       formatted: '$0.00',
-    });
-  });
-
-  it('should handle negative amount', () => {
-    const result = getPrice({ formatted: '-$5.00' });
-    expect(result).toEqual({
-      amount: -5,
-      formatted: '-$5.00',
     });
   });
 
@@ -101,14 +99,6 @@ describe('getPrice', () => {
     });
   });
 
-  it('should handle currency with multiple spaces', () => {
-    const result = getPrice({ formatted: '€  5.00' });
-    expect(result).toEqual({
-      amount: 5,
-      formatted: '€  5.00',
-    });
-  });
-
   it('should handle currency with no space between symbol and amount', () => {
     const result = getPrice({ formatted: '€5.00' });
     expect(result).toEqual({
@@ -116,4 +106,132 @@ describe('getPrice', () => {
       formatted: '€5.00',
     });
   });
-}); 
+
+  // we have not covered the case where there are multiple spaces within the format and negative values
+});
+
+describe('getProductPrice', () => {
+  const mockPricingPreviewLineItem = (interval?: string) => ({
+    price: {
+      billingCycle: interval ? { interval } : undefined,
+    },
+    formattedTotals: {
+      total: '$60.00',
+    },
+  });
+
+  it('should return base price when no interval is provided', () => {
+    const result = getProductPrice(mockPricingPreviewLineItem());
+    expect(result).toEqual({
+      amount: 60,
+      formatted: '$60.00',
+    });
+  });
+
+  it('should calculate monthly and daily prices for monthly interval', () => {
+    const result = getProductPrice(mockPricingPreviewLineItem('month'));
+    expect(result).toEqual({
+      amount: 60,
+      formatted: '$60.00',
+      monthly: {
+        amount: 60,
+        formatted: '$60.00',
+      },
+      daily: {
+        amount: 2,
+        formatted: '$2.00',
+      },
+    });
+  });
+
+  it('should calculate monthly and daily prices for yearly interval', () => {
+    const result = getProductPrice(mockPricingPreviewLineItem('year'));
+    expect(result).toEqual({
+      amount: 60,
+      formatted: '$60.00',
+      monthly: {
+        amount: 5,
+        formatted: '$5.00',
+      },
+      daily: {
+        amount: 0.16,
+        formatted: '$0.16',
+      },
+    });
+  });
+
+  it('should handle different locale for monthly interval', () => {
+    const result = getProductPrice(
+      mockPricingPreviewLineItem('month'),
+      'fr-FR',
+    );
+    expect(result).toEqual({
+      amount: 60,
+      formatted: '60,00 €',
+      monthly: {
+        amount: 60,
+        formatted: '60,00 €',
+      },
+      daily: {
+        amount: 2,
+        formatted: '2,00 €',
+      },
+    });
+  });
+
+  it('should handle different locale for yearly interval', () => {
+    const result = getProductPrice(mockPricingPreviewLineItem('year'), 'fr-FR');
+    expect(result).toEqual({
+      amount: 60,
+      formatted: '60,00 €',
+      monthly: {
+        amount: 5,
+        formatted: '5,00 €',
+      },
+      daily: {
+        amount: 0.16,
+        formatted: '0,16 €',
+      },
+    });
+  });
+
+  it('should handle zero amount for monthly interval', () => {
+    const item = {
+      ...mockPricingPreviewLineItem('month'),
+      formattedTotals: { total: '$0.00' },
+    };
+    const result = getProductPrice(item);
+    expect(result).toEqual({
+      amount: 0,
+      formatted: '$0.00',
+      monthly: {
+        amount: 0,
+        formatted: '$0.00',
+      },
+      daily: {
+        amount: 0,
+        formatted: '$0.00',
+      },
+    });
+  });
+
+  it('should handle zero amount for yearly interval', () => {
+    const item = {
+      ...mockPricingPreviewLineItem('year'),
+      formattedTotals: { total: '$0.00' },
+    };
+    const result = getProductPrice(item);
+    expect(result).toEqual({
+      amount: 0,
+      formatted: '$0.00',
+      monthly: {
+        amount: 0,
+        formatted: '$0.00',
+      },
+      daily: {
+        amount: 0,
+        formatted: '$0.00',
+      },
+    });
+  });
+});

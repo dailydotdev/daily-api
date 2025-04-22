@@ -201,7 +201,11 @@ interface GetPriceProps {
 
 const numericRegex = /[\d.,]+/;
 
-const getPrice = ({ formatted, locale = 'en-US', divideBy }: GetPriceProps) => {
+export const getPrice = ({
+  formatted,
+  locale = 'en-US',
+  divideBy,
+}: GetPriceProps) => {
   const parsed = parseCurrency(formatted);
 
   if (!parsed) {
