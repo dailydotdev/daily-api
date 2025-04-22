@@ -111,58 +111,52 @@ describe('getPrice', () => {
 });
 
 describe('getProductPrice', () => {
-  const mockPricingPreviewLineItem = (interval?: string) => ({
+  const mockPricingPreviewLineItem = (interval?: string, locale?: string) => ({
     price: {
       billingCycle: interval ? { interval } : undefined,
     },
     formattedTotals: {
-      total: '$60.00',
+      total: locale === 'fr-FR' ? '€60,00' : '$60.00',
     },
   });
 
   it('should return base price when no interval is provided', () => {
     const result = getProductPrice(mockPricingPreviewLineItem());
-    expect(result).toEqual({
-      amount: 60,
-      formatted: '$60.00',
-    });
+    expect(result.amount).toBe(60);
+    expect(result.formatted).toBe('$60.00');
   });
 
   it('should calculate monthly and daily prices for monthly interval', () => {
     const result = getProductPrice(mockPricingPreviewLineItem('month'));
-    expect(result).toEqual({
+    expect(result.amount).toBe(60);
+    expect(result.formatted).toBe('$60.00');
+    expect(result.monthly).toEqual({
       amount: 60,
       formatted: '$60.00',
-      monthly: {
-        amount: 60,
-        formatted: '$60.00',
-      },
-      daily: {
-        amount: 2,
-        formatted: '$2.00',
-      },
+    });
+    expect(result.daily).toEqual({
+      amount: 2,
+      formatted: '$2.00',
     });
   });
 
   it('should calculate monthly and daily prices for yearly interval', () => {
     const result = getProductPrice(mockPricingPreviewLineItem('year'));
-    expect(result).toEqual({
-      amount: 60,
-      formatted: '$60.00',
-      monthly: {
-        amount: 5,
-        formatted: '$5.00',
-      },
-      daily: {
-        amount: 0.16,
-        formatted: '$0.16',
-      },
+    expect(result.amount).toBe(60);
+    expect(result.formatted).toBe('$60.00');
+    expect(result.monthly).toEqual({
+      amount: 5,
+      formatted: '$5.00',
+    });
+    expect(result.daily).toEqual({
+      amount: 0.16,
+      formatted: '$0.16',
     });
   });
 
   it('should handle different locale for monthly interval', () => {
     const result = getProductPrice(
-      mockPricingPreviewLineItem('month'),
+      mockPricingPreviewLineItem('month', 'fr-FR'),
       'fr-FR',
     );
     expect(result.amount).toBe(60);
@@ -178,7 +172,10 @@ describe('getProductPrice', () => {
   });
 
   it('should handle different locale for yearly interval', () => {
-    const result = getProductPrice(mockPricingPreviewLineItem('year'), 'fr-FR');
+    const result = getProductPrice(
+      mockPricingPreviewLineItem('year', 'fr-FR'),
+      'fr-FR',
+    );
     expect(result.amount).toBe(60);
     expect(result.formatted).toBe('€60,00');
     expect(result.monthly).toEqual({

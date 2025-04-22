@@ -221,13 +221,13 @@ export const getPrice = ({
     const updatedFormat = formatter.format(parsed.value);
 
     return {
-      amount: parsed.value,
+      amount: Number(parsed.value.toFixed(2)),
       formatted: formatted.replace(numericRegex, updatedFormat),
     };
   }
 
-  const finalValue = formatter.format(parsed.value / divideBy);
-  const dividedAmount = parsed.value / divideBy;
+  const dividedAmount = Number((parsed.value / divideBy).toFixed(2));
+  const finalValue = formatter.format(dividedAmount);
   const updatedFormat = formatted.replace(numericRegex, finalValue);
 
   return {
@@ -240,8 +240,9 @@ export const getProductPrice = (
   item: PricingPreviewLineItem,
   locale?: string,
 ) => {
+  const formatted = item.formattedTotals.total;
   const basePrice: ProductPricing = getPrice({
-    formatted: item.formattedTotals.total,
+    formatted,
     locale,
   });
 
@@ -257,7 +258,7 @@ export const getProductPrice = (
       formatted: basePrice.formatted,
     };
     basePrice.daily = getPrice({
-      formatted: item.formattedTotals.total,
+      formatted,
       divideBy: 30,
       locale,
     });
@@ -266,13 +267,13 @@ export const getProductPrice = (
   }
 
   basePrice.monthly = getPrice({
-    formatted: item.formattedTotals.total,
+    formatted,
     divideBy: MONTHS_IN_YEAR,
     locale,
   });
 
   basePrice.daily = getPrice({
-    formatted: item.formattedTotals.total,
+    formatted,
     divideBy: DAYS_IN_YEAR,
     locale,
   });
