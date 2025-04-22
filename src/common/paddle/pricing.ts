@@ -17,6 +17,7 @@ import {
   getUserGrowthBookInstance,
 } from '../../growthbook';
 import { SubscriptionCycles } from '../../paddle';
+import parseCurrency from 'parsecurrency';
 
 export const PLUS_FEATURE_KEY = 'plus_pricing_ids';
 export const DEFAULT_PLUS_METADATA = 'plus_default';
@@ -42,10 +43,15 @@ export interface PricePreview {
   formatted: string;
 }
 
+interface ProductPricing extends PricePreview {
+  monthly?: PricePreview;
+  daily?: PricePreview;
+}
+
 export interface BasePricingPreview {
   metadata: BasePricingMetadata;
   priceId: string;
-  price: PricePreview & { monthly: PricePreview };
+  price: ProductPricing;
   currency: {
     code: string;
     symbol: string;
@@ -184,22 +190,85 @@ export const getPlusPricePreview = async (ctx: AuthContext, ids: string[]) => {
 };
 
 const MONTHS_IN_YEAR = 12;
+const DAYS_IN_YEAR = 365;
 export const removeNumbers = (str: string) => str.replace(/\d|\.|\s|,/g, '');
 
-export const getPaddleMonthlyPrice = (
-  baseAmount: number,
-  item: PricingPreviewLineItem,
-): PricePreview => {
-  const monthlyPrice = Number(
-    (baseAmount / MONTHS_IN_YEAR).toString().match(/^-?\d+(?:\.\d{0,2})?/)?.[0],
-  );
-  const currencySymbol = removeNumbers(item.formattedTotals.total);
-  const priceFormatter = new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: 2,
+interface GetPriceProps {
+  formatted: string;
+  locale?: string;
+  divideBy?: number;
+}
+
+const numericRegex = /[\d.,]+/;
+
+const getPrice = ({ formatted, locale = 'en-US', divideBy }: GetPriceProps) => {
+  const parsed = parseCurrency(formatted);
+
+  if (!parsed) {
+    throw new Error('Invalid currency format');
+  }
+
+  const formatter = new Intl.NumberFormat(locale, {
+    minimumFractionDigits: parsed.decimals ? parsed.decimals.length - 1 : 0,
+    maximumFractionDigits: parsed.decimals ? parsed.decimals.length - 1 : 0,
   });
 
+  if (!divideBy) {
+    const updatedFormat = formatter.format(parsed.value);
+
+    return {
+      amount: parsed.value,
+      formatted: formatted.replace(numericRegex, updatedFormat),
+    };
+  }
+
+  const finalValue = formatter.format(parsed.value / divideBy);
+  const dividedAmount = parsed.value / divideBy;
+  const updatedFormat = formatted.replace(numericRegex, finalValue);
+
   return {
-    amount: monthlyPrice,
-    formatted: `${currencySymbol}${priceFormatter.format(monthlyPrice)}`,
+    amount: dividedAmount,
+    formatted: updatedFormat,
   };
+};
+
+export const getProductPrice = (
+  item: PricingPreviewLineItem,
+  locale?: string,
+) => {
+  const basePrice: ProductPricing = getPrice({
+    formatted: item.formattedTotals.total,
+    locale,
+  });
+
+  const interval = item.price.billingCycle?.interval;
+
+  if (!interval) {
+    return basePrice;
+  }
+
+  if (interval === 'month') {
+    basePrice.monthly = basePrice;
+    basePrice.daily = getPrice({
+      formatted: item.formattedTotals.total,
+      divideBy: 30,
+      locale,
+    });
+
+    return basePrice;
+  }
+
+  basePrice.monthly = getPrice({
+    formatted: item.formattedTotals.total,
+    divideBy: MONTHS_IN_YEAR,
+    locale,
+  });
+
+  basePrice.daily = getPrice({
+    formatted: item.formattedTotals.total,
+    divideBy: DAYS_IN_YEAR,
+    locale,
+  });
+
+  return basePrice;
 };

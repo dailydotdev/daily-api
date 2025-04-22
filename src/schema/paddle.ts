@@ -1,6 +1,7 @@
 import {
   getPricingDuration,
   getPricingMetadata,
+  getProductPrice,
   PricingType,
 } from './../common/paddle/pricing';
 import type { CountryCode } from '@paddle/paddle-node-sdk';
@@ -20,7 +21,6 @@ import { getCurrencySymbol, ONE_HOUR_IN_SECONDS, toGQLEnum } from '../common';
 import { generateStorageKey, StorageKey, StorageTopic } from '../config';
 import { getRedisObject, setRedisObjectWithExpiry } from '../redis';
 import {
-  getPaddleMonthlyPrice,
   getPlusPricePreview,
   BasePricingMetadata,
   BasePricingPreview,
@@ -402,21 +402,12 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
 
         const duration =
           type === PricingType.Cores ? 'one-time' : getPricingDuration(item);
-        const baseAmount = getPriceFromPaddleItem(item);
-        const monthly =
-          duration === SubscriptionCycles.Yearly
-            ? getPaddleMonthlyPrice(baseAmount, item)
-            : null;
         const trialPeriod = item.price.trialPeriod;
 
         return {
           metadata: meta,
           priceId: item.price.id,
-          price: {
-            monthly,
-            amount: baseAmount,
-            formatted: item.formattedTotals.total,
-          },
+          price: getProductPrice(item),
           currency: {
             code: preview.currencyCode,
             symbol: removeNumbers(item.formattedTotals.total),
