@@ -372,12 +372,7 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
       _,
       { type = PricingType.Plus }: PaddlePricingPreviewArgs,
       ctx: AuthContext,
-    ): Promise<BasePricingMetadata[]> => {
-      if (!Object.values(PricingType).includes(type)) {
-        throw new Error('Invalid pricing type');
-      }
-      return getPricingMetadata(ctx, type);
-    },
+    ): Promise<BasePricingMetadata[]> => getPricingMetadata(ctx, type),
     pricingPreview: async (
       _,
       { type = PricingType.Plus }: PaddlePricingPreviewArgs,
