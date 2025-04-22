@@ -393,6 +393,10 @@ describe('plus pricing preview', () => {
             amount
             formatted
           }
+          daily {
+            amount
+            formatted
+          }
         }
         currency {
           code

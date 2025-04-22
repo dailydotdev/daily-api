@@ -202,11 +202,14 @@ export const typeDefs = /* GraphQL */ `
     Formatted price string
     """
     formatted: String!
-
     """
-    Monthly price amount
+    Monthly price information
     """
     monthly: PricePreview
+    """
+    Daily price information
+    """
+    daily: PricePreview
   }
 
   """
