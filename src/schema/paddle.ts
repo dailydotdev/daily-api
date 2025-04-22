@@ -202,6 +202,17 @@ export const typeDefs = /* GraphQL */ `
     Formatted price string
     """
     formatted: String!
+  }
+
+  type ProductPricePreview {
+    """
+    Price amount
+    """
+    amount: Float!
+    """
+    Formatted price string
+    """
+    formatted: String!
     """
     Monthly price information
     """
@@ -241,7 +252,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Price information
     """
-    price: PricePreview!
+    price: ProductPricePreview!
     """
     Currency information
     """
