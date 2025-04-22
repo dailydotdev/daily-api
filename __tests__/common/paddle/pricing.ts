@@ -165,33 +165,29 @@ describe('getProductPrice', () => {
       mockPricingPreviewLineItem('month'),
       'fr-FR',
     );
-    expect(result).toEqual({
+    expect(result.amount).toBe(60);
+    expect(result.formatted).toBe('€60,00');
+    expect(result.monthly).toEqual({
       amount: 60,
-      formatted: '60,00 €',
-      monthly: {
-        amount: 60,
-        formatted: '60,00 €',
-      },
-      daily: {
-        amount: 2,
-        formatted: '2,00 €',
-      },
+      formatted: '€60,00',
+    });
+    expect(result.daily).toEqual({
+      amount: 2,
+      formatted: '€2,00',
     });
   });
 
   it('should handle different locale for yearly interval', () => {
     const result = getProductPrice(mockPricingPreviewLineItem('year'), 'fr-FR');
-    expect(result).toEqual({
-      amount: 60,
-      formatted: '60,00 €',
-      monthly: {
-        amount: 5,
-        formatted: '5,00 €',
-      },
-      daily: {
-        amount: 0.16,
-        formatted: '0,16 €',
-      },
+    expect(result.amount).toBe(60);
+    expect(result.formatted).toBe('€60,00');
+    expect(result.monthly).toEqual({
+      amount: 5,
+      formatted: '€5,00',
+    });
+    expect(result.daily).toEqual({
+      amount: 0.16,
+      formatted: '€0,16',
     });
   });
 
@@ -201,17 +197,15 @@ describe('getProductPrice', () => {
       formattedTotals: { total: '$0.00' },
     };
     const result = getProductPrice(item);
-    expect(result).toEqual({
+    expect(result.amount).toBe(0);
+    expect(result.formatted).toBe('$0.00');
+    expect(result.monthly).toEqual({
       amount: 0,
       formatted: '$0.00',
-      monthly: {
-        amount: 0,
-        formatted: '$0.00',
-      },
-      daily: {
-        amount: 0,
-        formatted: '$0.00',
-      },
+    });
+    expect(result.daily).toEqual({
+      amount: 0,
+      formatted: '$0.00',
     });
   });
 
@@ -221,17 +215,15 @@ describe('getProductPrice', () => {
       formattedTotals: { total: '$0.00' },
     };
     const result = getProductPrice(item);
-    expect(result).toEqual({
+    expect(result.amount).toBe(0);
+    expect(result.formatted).toBe('$0.00');
+    expect(result.monthly).toEqual({
       amount: 0,
       formatted: '$0.00',
-      monthly: {
-        amount: 0,
-        formatted: '$0.00',
-      },
-      daily: {
-        amount: 0,
-        formatted: '$0.00',
-      },
+    });
+    expect(result.daily).toEqual({
+      amount: 0,
+      formatted: '$0.00',
     });
   });
 });
