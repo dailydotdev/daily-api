@@ -171,7 +171,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Application ID
     """
-    appsId: String!
+    appsId: String
     """
     Title of the pricing option
     """
