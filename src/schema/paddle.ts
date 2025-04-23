@@ -130,8 +130,8 @@ export const typeDefs = /* GraphQL */ `
   extend type Query {
     pricePreviews: PricePreviews! @auth
     corePricePreviews: PricePreviews! @auth
-    pricingMetadata(type: PricingType = Plus): [PlusPricingMetadata!]! @auth
-    pricingPreview(type: PricingType = Plus): [PlusPricingPreview!]! @auth
+    pricingMetadata(type: PricingType): [ProductPricingMetadata!]! @auth
+    pricingPreview(type: PricingType): [ProductPricingPreview!]! @auth
   }
 
   ${toGQLEnum(PricingType, 'PricingType')}
@@ -167,7 +167,7 @@ export const typeDefs = /* GraphQL */ `
   """
   Plus pricing metadata information
   """
-  type PlusPricingMetadata {
+  type ProductPricingMetadata {
     """
     Application ID
     """
@@ -240,11 +240,11 @@ export const typeDefs = /* GraphQL */ `
   """
   Extended pricing preview with additional information
   """
-  type PlusPricingPreview {
+  type ProductPricingPreview {
     """
     Metadata information
     """
-    metadata: PlusPricingMetadata!
+    metadata: ProductPricingMetadata!
     """
     Price ID
     """
