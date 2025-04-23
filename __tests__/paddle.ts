@@ -291,7 +291,7 @@ describe('plus pricing metadata', () => {
           paddle
           ios
         }
-        cores
+        coresValue
       }
     }
   `;
@@ -331,7 +331,7 @@ describe('plus pricing metadata', () => {
         paddle: 'pri_custom',
         ios: 'com.daily.dev.plus.custom',
       },
-      cores: 100,
+      coresValue: 100,
     },
   ];
 
@@ -365,7 +365,7 @@ describe('plus pricing metadata', () => {
     });
     expect(result.data.pricingMetadata).toHaveLength(1);
     expect(result.data.pricingMetadata[0].appsId).toBe('custom');
-    expect(result.data.pricingMetadata[0].cores).toBe(100);
+    expect(result.data.pricingMetadata[0].coresValue).toBe(100);
   });
 });
 

@@ -35,7 +35,7 @@ export interface BasePricingMetadata {
     paddle: string;
     ios: string;
   }>;
-  cores?: number;
+  coresValue?: number;
 }
 
 export interface PricePreview {

@@ -187,7 +187,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Number of cores
     """
-    cores: Int
+    coresValue: Int
   }
 
   """
