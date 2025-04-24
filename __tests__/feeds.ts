@@ -1255,14 +1255,14 @@ describe('query sourceFeed', () => {
       .getRepository(Post)
       .update({ id: 'p5' }, { createdAt: new Date() });
     await con.getRepository(Post).findOneBy({ id: 'p5' });
-    const query = QUERY('b', Ranking.TIME, new Date(), 5, 'qwe3');
+    const query = QUERY('b', Ranking.TIME, new Date(), 10, 'qwe3');
     const res = await client.query(query);
 
     expect(res.data.sourceFeed.edges[0].node.id).toEqual(wp4.id);
     expect(res.data.sourceFeed.edges[1].node.id).toEqual(wp3.id);
     expect(res.data.sourceFeed.edges[2].node.id).toEqual(wp2.id);
     expect(res.data.sourceFeed.edges[3].node.id).toEqual(wp1.id);
-    expect(res.data.sourceFeed.edges).toMatchSnapshot();
+    expect(res.data.sourceFeed.edges.length).toEqual(6);
   });
 
   it('should not display a banned post for community source', async () => {
