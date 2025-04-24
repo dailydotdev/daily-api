@@ -77,6 +77,9 @@ export type PostTranslation = {
   'pinnedAt',
   'createdAt',
 ])
+@Index('IDX_post_source_id_pinned_at_null_pinned_at_created_at', {
+  synchronize: false,
+})
 @Index('IDX_post_visible_metadatachanged', ['visible', 'metadataChangedAt'])
 @Index('IDX_post_visible_sourceid', ['visible', 'sourceId'])
 @Index('IDX_post_visible_type', ['visible', 'type'])
