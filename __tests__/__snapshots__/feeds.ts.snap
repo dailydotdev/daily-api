@@ -2747,8 +2747,8 @@ exports[`query sourceFeed should display return the right posts after the first 
 Array [
   Object {
     "node": Object {
-      "id": "p2",
-      "pinnedAt": null,
+      "id": "hu1MhwfNF",
+      "pinnedAt": "2025-04-24T18:46:24.362Z",
       "readTime": null,
       "source": Object {
         "id": "b",
@@ -2757,9 +2757,80 @@ Array [
         "public": true,
       },
       "tags": Array [],
-      "title": "P2",
+      "title": "Hello World! Start your squad journey here",
+      "type": "welcome",
+      "url": null,
+    },
+  },
+  Object {
+    "node": Object {
+      "id": "Si0dt4Xqf",
+      "pinnedAt": "2025-04-24T18:46:24.358Z",
+      "readTime": null,
+      "source": Object {
+        "id": "b",
+        "image": "http://image.com/b",
+        "name": "B",
+        "public": true,
+      },
+      "tags": Array [],
+      "title": "Hello World! Start your squad journey here",
+      "type": "welcome",
+      "url": null,
+    },
+  },
+  Object {
+    "node": Object {
+      "id": "YgVXIpAh8",
+      "pinnedAt": "2025-04-24T18:46:24.354Z",
+      "readTime": null,
+      "source": Object {
+        "id": "b",
+        "image": "http://image.com/b",
+        "name": "B",
+        "public": true,
+      },
+      "tags": Array [],
+      "title": "Hello World! Start your squad journey here",
+      "type": "welcome",
+      "url": null,
+    },
+  },
+  Object {
+    "node": Object {
+      "id": "5Tqau71TH",
+      "pinnedAt": "2025-04-24T18:46:24.349Z",
+      "readTime": null,
+      "source": Object {
+        "id": "b",
+        "image": "http://image.com/b",
+        "name": "B",
+        "public": true,
+      },
+      "tags": Array [],
+      "title": "Hello World! Start your squad journey here",
+      "type": "welcome",
+      "url": null,
+    },
+  },
+  Object {
+    "node": Object {
+      "id": "p5",
+      "pinnedAt": null,
+      "readTime": null,
+      "source": Object {
+        "id": "b",
+        "image": "http://image.com/b",
+        "name": "B",
+        "public": true,
+      },
+      "tags": Array [
+        "html",
+        "javascript",
+      ],
+      "title": "P5",
       "type": "article",
-      "url": "http://p2.com",
+      "url": "http://p5.com",
     },
   },
 ]
