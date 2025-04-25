@@ -552,4 +552,38 @@ describe('cores product', () => {
       }),
     ).rejects.toThrow('Transaction not found');
   });
+
+  it('transaction paid after error', async () => {
+    await processTransactionCreated({
+      event: coresTransactionCreated,
+    });
+
+    let userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(201);
+
+    await processTransactionPaymentFailed({
+      event: coresTransactionPaymentFailed,
+    });
+
+    userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(501);
+    expect(userTransaction!.flags.error).toContain('Payment failed: declined');
+
+    await processTransactionPaid({
+      event: coresTransactionPaid,
+    });
+
+    userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCreated.data.id,
+    });
+    expect(userTransaction!.status).toBe(202);
+    expect(userTransaction!.flags.error).toBeNull();
+  });
 });

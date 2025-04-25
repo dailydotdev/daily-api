@@ -15,6 +15,7 @@ import {
 import createOrGetConnection from '../../db';
 import {
   concatTextToNewline,
+  isProd,
   updateFlagsStatement,
   updateSubscriptionFlags,
   webhooks,
@@ -51,6 +52,7 @@ import { purchaseCores, UserTransactionError } from '../../common/njord';
 import { checkUserCoresAccess } from '../../common/user';
 import { CoresRole } from '../../types';
 import { TransferError } from '../../errors';
+import { remoteConfig } from '../../remoteConfig';
 
 export interface PaddleCustomData {
   user_id?: string;
@@ -807,6 +809,9 @@ export const updateUserTransaction = async ({
         value: itemData.price.customData.cores,
         valueIncFees: itemData.price.customData.cores,
         status: nextStatus,
+        flags: updateFlagsStatement<UserTransaction>({
+          error: null,
+        }),
       },
     );
 
@@ -815,6 +820,10 @@ export const updateUserTransaction = async ({
       value: itemData.price.customData.cores,
       valueIncFees: itemData.price.customData.cores,
       status: nextStatus ?? transaction.status,
+      flags: {
+        ...transaction.flags,
+        error: null,
+      },
     });
   }
 };
@@ -884,6 +893,8 @@ export const processTransactionPaid = async ({
         validStatus: [
           UserTransactionStatus.Created,
           UserTransactionStatus.Processing,
+          UserTransactionStatus.Error,
+          UserTransactionStatus.ErrorRecoverable,
         ],
         data: transactionData,
       })
@@ -923,10 +934,7 @@ export const processTransactionPaymentFailed = async ({
     const paymentErrorCode = event.data.payments[0]?.errorCode;
 
     // for declined payments user can retry checkout
-    const nextStatus =
-      paymentErrorCode === 'declined'
-        ? UserTransactionStatus.ErrorRecoverable
-        : UserTransactionStatus.Error;
+    const nextStatus = UserTransactionStatus.ErrorRecoverable;
 
     if (
       !checkTransactionStatusValid({
@@ -936,6 +944,8 @@ export const processTransactionPaymentFailed = async ({
         validStatus: [
           UserTransactionStatus.Created,
           UserTransactionStatus.Processing,
+          UserTransactionStatus.Error,
+          UserTransactionStatus.ErrorRecoverable,
         ],
         data: transactionData,
       })
@@ -948,7 +958,7 @@ export const processTransactionPaymentFailed = async ({
       {
         status: nextStatus,
         flags: updateFlagsStatement<UserTransaction>({
-          error: `Payment failed: ${event.data.payments[0]?.errorCode ?? 'unknown'}`,
+          error: `Payment failed: ${paymentErrorCode ?? 'unknown'}`,
         }),
       },
     );
@@ -1030,6 +1040,16 @@ export const processTransactionUpdated = async ({
 
 export const paddle = async (fastify: FastifyInstance): Promise<void> => {
   fastify.register(async (fastify: FastifyInstance): Promise<void> => {
+    fastify.addHook('onRequest', async (request, res) => {
+      if (
+        isProd &&
+        remoteConfig.vars.paddleIps &&
+        !remoteConfig.vars.paddleIps.includes(request.ip)
+      ) {
+        return res.status(403).send({ error: 'Forbidden' });
+      }
+    });
+
     fastify.post('/', {
       config: {
         rawBody: true,
@@ -1132,6 +1152,7 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
             {
               err,
               provider: SubscriptionProvider.Paddle,
+              payload: rawRequestBody,
             },
             'Paddle generic error',
           );

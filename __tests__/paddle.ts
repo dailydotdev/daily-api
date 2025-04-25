@@ -30,6 +30,9 @@ import { ExperimentVariant } from '../src/entity';
 import {
   PLUS_FEATURE_KEY,
   DEFAULT_PLUS_METADATA,
+  CORES_FEATURE_KEY,
+  DEFAULT_CORES_METADATA,
+  PricingType,
 } from '../src/common/paddle/pricing';
 
 let app: FastifyInstance;
@@ -141,6 +144,7 @@ const getSubscriptionData = (customData: PaddleCustomData) =>
             id: 'pricingGift',
             product_id: '1',
             name: 'Gift Subscription',
+            description: 'Gift subscription for Daily.dev Plus',
             tax_mode: 'internal',
             billing_cycle: {
               interval: 'year',
@@ -275,8 +279,8 @@ describe('pricing preview', () => {
 
 describe('plus pricing metadata', () => {
   const QUERY = /* GraphQL */ `
-    query PlusPricingMetadata($variant: String) {
-      plusPricingMetadata(variant: $variant) {
+    query PricingMetadata($type: PricingType) {
+      pricingMetadata(type: $type) {
         appsId
         title
         caption {
@@ -287,11 +291,12 @@ describe('plus pricing metadata', () => {
           paddle
           ios
         }
+        coresValue
       }
     }
   `;
 
-  const mockMetadata = [
+  const mockPlusMetadata = [
     {
       appsId: 'monthly',
       title: 'Monthly Plan',
@@ -318,67 +323,56 @@ describe('plus pricing metadata', () => {
     },
   ];
 
+  const mockCoresMetadata = [
+    {
+      appsId: 'custom',
+      title: 'Custom Plan',
+      idMap: {
+        paddle: 'pri_custom',
+        ios: 'com.daily.dev.plus.custom',
+      },
+      coresValue: 100,
+    },
+  ];
+
   beforeEach(async () => {
     await saveFixtures(con, ExperimentVariant, [
       {
         feature: PLUS_FEATURE_KEY,
         variant: DEFAULT_PLUS_METADATA,
-        value: JSON.stringify(mockMetadata),
+        value: JSON.stringify(mockPlusMetadata),
+      },
+      {
+        feature: CORES_FEATURE_KEY,
+        variant: DEFAULT_CORES_METADATA,
+        value: JSON.stringify(mockCoresMetadata),
       },
     ]);
   });
 
-  it('should return pricing metadata with default variant', async () => {
+  it('should return pricing metadata with default type', async () => {
     loggedUser = 'whp-1';
     const result = await client.query(QUERY);
-    expect(result.data.plusPricingMetadata).toHaveLength(2);
-    expect(result.data.plusPricingMetadata[0].appsId).toBe('monthly');
-    expect(result.data.plusPricingMetadata[1].appsId).toBe('yearly');
+    expect(result.data.pricingMetadata).toHaveLength(2);
+    expect(result.data.pricingMetadata[0].appsId).toBe('monthly');
+    expect(result.data.pricingMetadata[1].appsId).toBe('yearly');
   });
 
-  it('should return pricing metadata with custom variant', async () => {
-    loggedUser = 'whp-1';
-    const customVariant = 'custom_variant';
-    const customMetadata = [
-      {
-        appsId: 'custom',
-        title: 'Custom Plan',
-        idMap: {
-          paddle: 'pri_custom',
-          ios: 'com.daily.dev.plus.custom',
-        },
-      },
-    ];
-
-    await saveFixtures(con, ExperimentVariant, [
-      {
-        feature: PLUS_FEATURE_KEY,
-        variant: customVariant,
-        value: JSON.stringify(customMetadata),
-      },
-    ]);
-
-    const result = await client.query(QUERY, {
-      variables: { variant: customVariant },
-    });
-    expect(result.data.plusPricingMetadata).toHaveLength(1);
-    expect(result.data.plusPricingMetadata[0].appsId).toBe('custom');
-  });
-
-  it('should throw error when experiment variant not found', async () => {
+  it('should return pricing metadata for pricing type', async () => {
     loggedUser = 'whp-1';
     const result = await client.query(QUERY, {
-      variables: { variant: 'non_existent' },
+      variables: { type: PricingType.Cores },
     });
-    expect(result.errors).toBeTruthy();
-    expect(result.errors?.[0].message).toContain('Entity not found');
+    expect(result.data.pricingMetadata).toHaveLength(1);
+    expect(result.data.pricingMetadata[0].appsId).toBe('custom');
+    expect(result.data.pricingMetadata[0].coresValue).toBe(100);
   });
 });
 
 describe('plus pricing preview', () => {
   const QUERY = /* GraphQL */ `
-    query PlusPricingPreview {
-      plusPricingPreview {
+    query PricingPreview($type: PricingType) {
+      pricingPreview(type: $type) {
         metadata {
           appsId
           title
@@ -396,6 +390,10 @@ describe('plus pricing preview', () => {
           amount
           formatted
           monthly {
+            amount
+            formatted
+          }
+          daily {
             amount
             formatted
           }
@@ -429,6 +427,16 @@ describe('plus pricing preview', () => {
   ];
 
   const mockPreview = {
+    customerId: '1',
+    addressId: '1',
+    businessId: null,
+    discountId: null,
+    address: {
+      countryCode: 'US',
+      postalCode: '12345',
+    },
+    customerIpAddress: '127.0.0.1',
+    availablePaymentMethods: ['card'],
     details: {
       lineItems: [
         {
@@ -455,7 +463,32 @@ describe('plus pricing preview', () => {
       ],
     },
     currencyCode: 'USD',
-  };
+  } as const;
+
+  const mockPreviewWithMissingItem = {
+    customerId: '1',
+    addressId: '1',
+    businessId: null,
+    discountId: null,
+    address: {
+      countryCode: 'US',
+      postalCode: '12345',
+    },
+    customerIpAddress: '127.0.0.1',
+    availablePaymentMethods: ['card'],
+    details: {
+      lineItems: [
+        {
+          price: {
+            id: 'pri_unknown',
+            productId: 'dailydev-plus',
+            name: 'Unknown Plan',
+          },
+        },
+      ],
+    },
+    currencyCode: 'USD',
+  } as const;
 
   beforeEach(async () => {
     await ioRedisPool.execute((client) => client.flushall());
@@ -475,9 +508,11 @@ describe('plus pricing preview', () => {
 
   it('should return consolidated pricing preview data', async () => {
     loggedUser = 'whp-1';
-    const result = await client.query(QUERY);
-    expect(result.data.plusPricingPreview).toHaveLength(1);
-    const preview = result.data.plusPricingPreview[0];
+    const result = await client.query(QUERY, {
+      variables: { type: PricingType.Plus },
+    });
+    expect(result.data.pricingPreview).toHaveLength(1);
+    const preview = result.data.pricingPreview[0];
     expect(preview.metadata.appsId).toBe('monthly');
     expect(preview.metadata.title).toBe('Monthly Plan');
     expect(preview.priceId).toBe('pri_monthly');
@@ -492,27 +527,14 @@ describe('plus pricing preview', () => {
 
   it('should handle missing price items gracefully', async () => {
     loggedUser = 'whp-1';
-    const mockPreviewWithMissingItem = {
-      ...mockPreview,
-      details: {
-        lineItems: [
-          {
-            price: {
-              id: 'pri_unknown',
-              productId: 'dailydev-plus',
-              name: 'Unknown Plan',
-            },
-          },
-        ],
-      },
-    };
-
     jest
       .spyOn(paddleInstance.pricingPreview, 'preview')
       .mockResolvedValue(mockPreviewWithMissingItem);
 
-    const result = await client.query(QUERY);
-    expect(result.data.plusPricingPreview).toHaveLength(0);
+    const result = await client.query(QUERY, {
+      variables: { type: PricingType.Plus },
+    });
+    expect(result.data.pricingPreview).toHaveLength(0);
   });
 
   it('should cache pricing preview data', async () => {
@@ -523,13 +545,17 @@ describe('plus pricing preview', () => {
     );
 
     loggedUser = 'whp-1';
-    const result = await client.query(QUERY);
+    const result = await client.query(QUERY, {
+      variables: { type: PricingType.Plus },
+    });
 
     expect(result.errors).toBeFalsy();
     expect(getRedisObjectSpy).toHaveBeenCalledTimes(1);
     expect(setRedisObjectWithExpirySpy).toHaveBeenCalledTimes(1);
 
-    const result2 = await client.query(QUERY);
+    const result2 = await client.query(QUERY, {
+      variables: { type: PricingType.Plus },
+    });
     expect(result2.errors).toBeFalsy();
     expect(getRedisObjectSpy).toHaveBeenCalledTimes(2);
     expect(setRedisObjectWithExpirySpy).toHaveBeenCalledTimes(1);
