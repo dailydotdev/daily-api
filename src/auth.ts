@@ -72,20 +72,20 @@ export const signJwt = <T>(
   });
 
 export const loadAuthKeys = (): void => {
-  publicKey = fs.readFileSync(process.env.JWT_PUBLIC_KEY_PATH);
-  privateKey = fs.readFileSync(process.env.JWT_PRIVATE_KEY_PATH);
+  if (process.env.NODE_ENV === 'test') {
+    publicKey = Buffer.from('test');
+    privateKey = Buffer.from('test');
+  } else {
+    publicKey = fs.readFileSync(process.env.JWT_PUBLIC_KEY_PATH);
+    privateKey = fs.readFileSync(process.env.JWT_PRIVATE_KEY_PATH);
+  }
 };
 
 const plugin = async (
   fastify: FastifyInstance,
   opts: Options,
 ): Promise<void> => {
-  if (process.env.NODE_ENV === 'test') {
-    publicKey = Buffer.from('test');
-    privateKey = Buffer.from('test');
-  } else {
-    loadAuthKeys();
-  }
+  loadAuthKeys();
 
   fastify.decorateRequest('userId');
   fastify.decorateRequest('roles');

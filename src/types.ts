@@ -232,3 +232,5 @@ export enum CoresRole {
   User = 2,
   Creator = 3,
 }
+
+export const serviceClientId = 'api';

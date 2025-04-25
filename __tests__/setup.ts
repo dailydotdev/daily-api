@@ -2,6 +2,7 @@ import * as matchers from 'jest-extended';
 import '../src/config';
 import createOrGetConnection from '../src/db';
 import { remoteConfig } from '../src/remoteConfig';
+import { loadAuthKeys } from '../src/auth';
 
 expect.extend(matchers);
 
@@ -68,4 +69,8 @@ const cleanDatabase = async (): Promise<void> => {
   }
 };
 
-beforeEach(cleanDatabase);
+beforeEach(async () => {
+  loadAuthKeys();
+
+  await cleanDatabase();
+});
