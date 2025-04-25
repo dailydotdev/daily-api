@@ -2743,28 +2743,6 @@ Object {
 }
 `;
 
-exports[`query sourceFeed should display return the right posts after the first page being a mix of pinned and unpinned posts 1`] = `
-Array [
-  Object {
-    "node": Object {
-      "id": "p2",
-      "pinnedAt": null,
-      "readTime": null,
-      "source": Object {
-        "id": "b",
-        "image": "http://image.com/b",
-        "name": "B",
-        "public": true,
-      },
-      "tags": Array [],
-      "title": "P2",
-      "type": "article",
-      "url": "http://p2.com",
-    },
-  },
-]
-`;
-
 exports[`query sourceFeed should display return the right posts after the first page being pinned posts 1`] = `
 Array [
   Object {
