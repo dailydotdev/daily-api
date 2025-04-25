@@ -24,7 +24,6 @@ import { isTest } from '../utils';
 
 export const verifyAndDecodeAppleSignedData = async ({
   notification,
-  environment,
   verifier,
 }: {
   notification: ResponseBodyV2DecodedPayload;
@@ -48,15 +47,6 @@ export const verifyAndDecodeAppleSignedData = async ({
       notification.data.signedTransactionInfo,
     );
   }
-
-  logger.info(
-    {
-      environment,
-      notification,
-      provider: SubscriptionProvider.AppleStoreKit,
-    },
-    'Missing signed data in notification data',
-  );
 
   return {
     transactionInfo,
