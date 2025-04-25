@@ -1,4 +1,4 @@
-import { ConnectionManager } from '../../entity';
+import { ConnectionManager, User } from '../../entity';
 import { EntityNotFoundError } from 'typeorm';
 import { CountryCode, TimePeriod } from '@paddle/paddle-node-sdk';
 import { AuthContext } from '../../Context';
@@ -12,11 +12,19 @@ import { getRedisObject, setRedisObjectWithExpiry } from '../../redis';
 import { paddleInstance } from './index';
 import { ONE_HOUR_IN_SECONDS } from '../constants';
 import { getExperimentVariant } from '../experiment';
+import {
+  ExperimentAllocationClient,
+  getUserGrowthBookInstance,
+} from '../../growthbook';
+import { SubscriptionCycles } from '../../paddle';
+import parseCurrency from 'parsecurrency';
 
 export const PLUS_FEATURE_KEY = 'plus_pricing_ids';
 export const DEFAULT_PLUS_METADATA = 'plus_default';
+export const CORES_FEATURE_KEY = 'cores_pricing_ids';
+export const DEFAULT_CORES_METADATA = 'cores_default';
 
-export interface PlusPricingMetadata {
+export interface BasePricingMetadata {
   appsId: string;
   title: string;
   caption?: {
@@ -27,6 +35,7 @@ export interface PlusPricingMetadata {
     paddle: string;
     ios: string;
   }>;
+  coresValue?: number;
 }
 
 export interface PricePreview {
@@ -34,10 +43,15 @@ export interface PricePreview {
   formatted: string;
 }
 
-export interface PlusPricingPreview {
-  metadata: PlusPricingMetadata;
+interface ProductPricing extends PricePreview {
+  monthly?: PricePreview;
+  daily?: PricePreview;
+}
+
+export interface BasePricingPreview {
+  metadata: BasePricingMetadata;
   priceId: string;
-  price: PricePreview & { monthly: PricePreview };
+  price: ProductPricing;
   currency: {
     code: string;
     symbol: string;
@@ -46,15 +60,22 @@ export interface PlusPricingPreview {
   trialPeriod?: TimePeriod | null;
 }
 
-export const getPlusPricingMetadata = async (
-  con: ConnectionManager,
-  variant: string,
-): Promise<PlusPricingMetadata[]> => {
-  const experiment = await getExperimentVariant(con, PLUS_FEATURE_KEY, variant);
+interface GetMetadataProps {
+  con: ConnectionManager;
+  feature: string;
+  variant: string;
+}
+
+const getPaddleMetadata = async ({
+  con,
+  feature,
+  variant,
+}: GetMetadataProps) => {
+  const experiment = await getExperimentVariant(con, feature, variant);
 
   if (!experiment) {
     throw new EntityNotFoundError('ExperimentVariant not found', {
-      feature: PLUS_FEATURE_KEY,
+      feature,
       variant,
     });
   }
@@ -63,6 +84,71 @@ export const getPlusPricingMetadata = async (
     return JSON.parse(experiment.value);
   } catch (error) {
     throw new Error('Invalid experiment JSON value');
+  }
+};
+
+export const getPlusPricingMetadata = async ({
+  con,
+  variant,
+}: Omit<GetMetadataProps, 'feature'>): Promise<BasePricingMetadata[]> =>
+  getPaddleMetadata({ con, feature: PLUS_FEATURE_KEY, variant });
+
+export const getCoresPricingMetadata = async ({
+  con,
+  variant,
+}: Omit<GetMetadataProps, 'feature'>): Promise<BasePricingMetadata[]> =>
+  getPaddleMetadata({ con, feature: CORES_FEATURE_KEY, variant });
+
+export enum PricingType {
+  Plus = 'plus',
+  Cores = 'cores',
+}
+
+const featureKey: Record<PricingType, string> = {
+  [PricingType.Plus]: PLUS_FEATURE_KEY,
+  [PricingType.Cores]: CORES_FEATURE_KEY,
+};
+
+const defaultVariant: Record<PricingType, string> = {
+  [PricingType.Plus]: DEFAULT_PLUS_METADATA,
+  [PricingType.Cores]: DEFAULT_CORES_METADATA,
+};
+
+export const getPricingDuration = (item: PricingPreviewLineItem) => {
+  const isOneOff = !item.price.billingCycle?.interval;
+  const isYearly = item.price.billingCycle?.interval === 'year';
+
+  return isOneOff || isYearly
+    ? SubscriptionCycles.Yearly
+    : SubscriptionCycles.Monthly;
+};
+
+export const getCoresValue = () => {};
+
+export const getPricingMetadata = async (
+  ctx: AuthContext,
+  type: PricingType,
+) => {
+  const { con, userId } = ctx;
+  const user = await con.getRepository(User).findOneOrFail({
+    where: { id: ctx.userId },
+    select: { createdAt: true },
+  });
+  const allocationClient = new ExperimentAllocationClient();
+  const gb = getUserGrowthBookInstance(userId, {
+    subscribeToChanges: false,
+    attributes: { registrationDate: user.createdAt.toISOString() },
+    allocationClient,
+  });
+  const variant = gb.getFeatureValue(featureKey[type], defaultVariant[type]);
+
+  switch (type) {
+    case PricingType.Plus:
+      return getPlusPricingMetadata({ con, variant });
+    case PricingType.Cores:
+      return getCoresPricingMetadata({ con, variant });
+    default:
+      throw new Error('Invalid pricing type');
   }
 };
 
@@ -104,22 +190,93 @@ export const getPlusPricePreview = async (ctx: AuthContext, ids: string[]) => {
 };
 
 const MONTHS_IN_YEAR = 12;
+const DAYS_IN_YEAR = 365;
 export const removeNumbers = (str: string) => str.replace(/\d|\.|\s|,/g, '');
 
-export const getPaddleMonthlyPrice = (
-  baseAmount: number,
-  item: PricingPreviewLineItem,
-): PricePreview => {
-  const monthlyPrice = Number(
-    (baseAmount / MONTHS_IN_YEAR).toString().match(/^-?\d+(?:\.\d{0,2})?/)?.[0],
-  );
-  const currencySymbol = removeNumbers(item.formattedTotals.total);
-  const priceFormatter = new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: 2,
+interface GetPriceProps {
+  formatted: string;
+  locale?: string;
+  divideBy?: number;
+}
+
+const numericRegex = /[\d.,]+/;
+
+export const getPrice = ({
+  formatted,
+  locale = 'en-US',
+  divideBy,
+}: GetPriceProps) => {
+  const parsed = parseCurrency(formatted);
+
+  if (!parsed) {
+    throw new Error('Invalid currency format');
+  }
+
+  const formatter = new Intl.NumberFormat(locale, {
+    minimumFractionDigits: parsed.decimals ? parsed.decimals.length - 1 : 0,
+    maximumFractionDigits: parsed.decimals ? parsed.decimals.length - 1 : 0,
   });
 
+  if (!divideBy) {
+    const updatedFormat = formatter.format(parsed.value);
+
+    return {
+      amount: Number(parsed.value.toFixed(2)),
+      formatted: formatted.replace(numericRegex, updatedFormat),
+    };
+  }
+
+  const dividedAmount = Number((parsed.value / divideBy).toFixed(2));
+  const finalValue = formatter.format(dividedAmount);
+  const updatedFormat = formatted.replace(numericRegex, finalValue);
+
   return {
-    amount: monthlyPrice,
-    formatted: `${currencySymbol}${priceFormatter.format(monthlyPrice)}`,
+    amount: dividedAmount,
+    formatted: updatedFormat,
   };
+};
+
+export const getProductPrice = (
+  item: PricingPreviewLineItem,
+  locale?: string,
+) => {
+  const formatted = item.formattedTotals.total;
+  const basePrice: ProductPricing = getPrice({
+    formatted,
+    locale,
+  });
+
+  const interval = item.price.billingCycle?.interval;
+
+  if (!interval) {
+    return basePrice;
+  }
+
+  if (interval === 'month') {
+    basePrice.monthly = {
+      amount: basePrice.amount,
+      formatted: basePrice.formatted,
+    };
+    basePrice.daily = getPrice({
+      formatted,
+      divideBy: 30,
+      locale,
+    });
+
+    return basePrice;
+  }
+
+  basePrice.monthly = getPrice({
+    formatted,
+    divideBy: MONTHS_IN_YEAR,
+    locale,
+  });
+
+  basePrice.daily = getPrice({
+    formatted,
+    divideBy: DAYS_IN_YEAR,
+    locale,
+  });
+
+  return basePrice;
 };

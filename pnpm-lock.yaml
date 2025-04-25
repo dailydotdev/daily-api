@@ -166,6 +166,9 @@ importers:
       '@types/he':
         specifier: ^1.2.3
         version: 1.2.3
+      '@types/parsecurrency':
+        specifier: ^1.0.2
+        version: 1.0.2
       '@types/shortid':
         specifier: 0.0.32
         version: 0.0.32
@@ -307,6 +310,9 @@ importers:
       p-timeout:
         specifier: 4.1.0
         version: 4.1.0
+      parsecurrency:
+        specifier: ^1.1.1
+        version: 1.1.1
       pg:
         specifier: ^8.13.2
         version: 8.13.3
@@ -1584,6 +1590,9 @@ packages:
 
   '@types/object-path@0.11.2':
     resolution: {integrity: sha512-STkyj0IQkgbmohF1afXQN64KucE3w7EgSbNJxqkJoq0KHVBV4nU5Pyku+TM9UCiCLXhZlkEFd8zq38P8lDFi6g==}
+
+  '@types/parsecurrency@1.0.2':
+    resolution: {integrity: sha512-1YxKUYcrfIdCtuahtFl4RxuqZhkTaicqqWOUkgsid7zRbyZInKkFWT88kt5zKxm6ZaP+hb1NT51zTt5jmFqToQ==}
 
   '@types/pg-pool@2.0.6':
     resolution: {integrity: sha512-TaAUE5rq2VQYxab5Ts7WZhKNmuN78Q6PiFonTDdpbx8a1H0M1vhy3rhiMjl+e2iHmogyMw7jZF4FrE6eJUy5HQ==}
@@ -3760,6 +3769,9 @@ packages:
 
   parse5@6.0.1:
     resolution: {integrity: sha512-Ofn/CTFzRGTTxwpNEs9PP93gXShHcTq255nzRYSKe8AkVpZY7e1fpmTfOyoIvjP5HG7Z2ZM7VS9PPhQGW2pOpw==}
+
+  parsecurrency@1.1.1:
+    resolution: {integrity: sha512-IAw/8PSFgiko70KfZGv63rbEXhmVu+zpb42PvEtgHAm83Mze3eQJHWV1ZoOhPnrYeOyufvv0GS6hZDuQOdBH4Q==}
 
   path-exists@4.0.0:
     resolution: {integrity: sha512-ak9Qy5Q7jYb2Wwcey5Fpvg2KoAc/ZIhLSLOSBmRmygPsGwkVVt0fZa0qrtMz+m6tJTAHfZQ8FnmB4MG4LWy7/w==}
@@ -6294,6 +6306,8 @@ snapshots:
 
   '@types/object-path@0.11.2': {}
 
+  '@types/parsecurrency@1.0.2': {}
+
   '@types/pg-pool@2.0.6':
     dependencies:
       '@types/pg': 8.6.1
@@ -8757,6 +8771,8 @@ snapshots:
   parse5@5.1.1: {}
 
   parse5@6.0.1: {}
+
+  parsecurrency@1.1.1: {}
 
   path-exists@4.0.0: {}
 
