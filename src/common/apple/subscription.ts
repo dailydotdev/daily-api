@@ -3,6 +3,7 @@ import {
   Subtype,
   type Environment,
   type JWSRenewalInfoDecodedPayload,
+  type JWSTransactionDecodedPayload,
   type ResponseBodyV2DecodedPayload,
 } from '@apple/app-store-server-library';
 import { logger } from '../../logger';
@@ -84,12 +85,14 @@ const renewalInfoToSubscriptionFlags = (
 };
 
 export const handleAppleSubscription = async ({
-  decodedInfo,
+  transactionInfo,
+  renewalInfo,
   user,
   environment,
   notification,
 }: {
-  decodedInfo: JWSRenewalInfoDecodedPayload;
+  transactionInfo: JWSTransactionDecodedPayload;
+  renewalInfo: JWSRenewalInfoDecodedPayload;
   user: User;
   environment: Environment;
   notification: ResponseBodyV2DecodedPayload;
@@ -113,7 +116,7 @@ export const handleAppleSubscription = async ({
     notification.subtype,
   );
 
-  const subscriptionFlags = renewalInfoToSubscriptionFlags(decodedInfo);
+  const subscriptionFlags = renewalInfoToSubscriptionFlags(renewalInfo);
 
   await updateStoreKitUserSubscription({
     userId: user.id,
@@ -122,8 +125,8 @@ export const handleAppleSubscription = async ({
   });
 
   const currencyInUSD = await convertCurrencyToUSD(
-    (decodedInfo.renewalPrice || 0) / 1000,
-    decodedInfo.currency || 'USD',
+    (renewalInfo.renewalPrice || 0) / 1000,
+    renewalInfo.currency || 'USD',
   );
 
   const eventName = getAnalyticsEventFromAppleNotification(
@@ -132,10 +135,20 @@ export const handleAppleSubscription = async ({
   );
 
   if (eventName) {
-    await logAppleAnalyticsEvent(decodedInfo, eventName, user, currencyInUSD);
+    await logAppleAnalyticsEvent(
+      transactionInfo,
+      renewalInfo,
+      eventName,
+      user,
+      currencyInUSD,
+    );
   }
 
   if (notification.notificationType === NotificationTypeV2.SUBSCRIBED) {
-    await notifyNewStoreKitSubscription(decodedInfo, user, currencyInUSD);
+    await notifyNewStoreKitSubscription(renewalInfo, user, currencyInUSD);
+  }
+
+  if (notification.notificationType === NotificationTypeV2.ONE_TIME_CHARGE) {
+    // TODO feat/cores-iap handle one time charge
   }
 };

@@ -30,15 +30,21 @@ export const verifyAndDecodeAppleSignedData = async ({
   notification: ResponseBodyV2DecodedPayload;
   environment: Environment;
   verifier: SignedDataVerifier;
-}) => {
+}): Promise<{
+  transactionInfo?: JWSTransactionDecodedPayload;
+  renewalInfo?: JWSRenewalInfoDecodedPayload;
+}> => {
+  let renewalInfo: JWSRenewalInfoDecodedPayload | undefined = undefined;
+  let transactionInfo: JWSTransactionDecodedPayload | undefined = undefined;
+
   if (!isNullOrUndefined(notification.data?.signedRenewalInfo)) {
-    return await verifier.verifyAndDecodeTransaction(
+    renewalInfo = await verifier.verifyAndDecodeRenewalInfo(
       notification.data.signedRenewalInfo,
     );
   }
 
   if (!isNullOrUndefined(notification.data?.signedTransactionInfo)) {
-    return await verifier.verifyAndDecodeTransaction(
+    transactionInfo = await verifier.verifyAndDecodeTransaction(
       notification.data.signedTransactionInfo,
     );
   }
@@ -52,22 +58,28 @@ export const verifyAndDecodeAppleSignedData = async ({
     'Missing signed data in notification data',
   );
 
-  return null;
+  return {
+    transactionInfo,
+    renewalInfo,
+  };
 };
 
 export const logAppleAnalyticsEvent = async (
-  data: JWSRenewalInfoDecodedPayload,
+  transactionInfo: JWSTransactionDecodedPayload,
+  renewalInfo: JWSRenewalInfoDecodedPayload,
   eventName: AnalyticsEventName,
   user: User,
   currencyInUSD: number,
 ) => {
-  if (!data || isTest) {
+  if (!transactionInfo || isTest) {
     return;
   }
 
   const cycle =
-    productIdToCycle[data?.autoRenewProductId as keyof typeof productIdToCycle];
-  const cost = data?.renewalPrice;
+    productIdToCycle[
+      renewalInfo?.autoRenewProductId as keyof typeof productIdToCycle
+    ];
+  const cost = renewalInfo?.renewalPrice;
 
   const extra = {
     payment: SubscriptionProvider.AppleStoreKit,
@@ -75,7 +87,7 @@ export const logAppleAnalyticsEvent = async (
     cost: currencyInUSD,
     currency: 'USD',
     localCost: cost ? cost / 1000 : undefined,
-    localCurrency: data?.currency,
+    localCurrency: transactionInfo?.currency,
     payout: {
       total: currencyInUSD * 100,
       grandTotal: currencyInUSD * 100,
@@ -86,8 +98,8 @@ export const logAppleAnalyticsEvent = async (
   await sendAnalyticsEvent([
     {
       event_name: eventName,
-      event_timestamp: new Date(data?.signedDate || ''),
-      event_id: data.appTransactionId,
+      event_timestamp: new Date(transactionInfo?.signedDate || ''),
+      event_id: transactionInfo.appTransactionId,
       app_platform: 'api',
       user_id: user.id,
       extra: JSON.stringify(extra),
@@ -130,11 +142,11 @@ export const loadAppleRootCAs = async (): Promise<Buffer[]> => {
 };
 
 export const getAppleTransactionType = ({
-  decodedInfo,
+  transactionInfo,
 }: {
-  decodedInfo: JWSTransactionDecodedPayload;
+  transactionInfo: JWSTransactionDecodedPayload;
 }): AppleTransactionType | null => {
-  switch (decodedInfo.type) {
+  switch (transactionInfo.type) {
     case 'Auto-Renewable Subscription':
       return AppleTransactionType.AutoRenewableSubscription;
     case 'Non-Consumable':

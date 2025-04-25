@@ -72,13 +72,14 @@ const handleNotifcationRequest = async (
       return response.status(200).send({ received: true });
     }
 
-    const decodedInfo = await verifyAndDecodeAppleSignedData({
-      notification,
-      environment,
-      verifier,
-    });
+    const { transactionInfo, renewalInfo } =
+      await verifyAndDecodeAppleSignedData({
+        notification,
+        environment,
+        verifier,
+      });
 
-    if (!decodedInfo) {
+    if (!transactionInfo) {
       return response.status(400).send({ error: 'Invalid Payload' });
     }
 
@@ -87,7 +88,7 @@ const handleNotifcationRequest = async (
       select: ['id', 'subscriptionFlags'],
       where: {
         subscriptionFlags: JsonContains({
-          appAccountToken: decodedInfo.appAccountToken,
+          appAccountToken: transactionInfo.appAccountToken,
         }),
       },
     });
@@ -121,11 +122,11 @@ const handleNotifcationRequest = async (
       return response.status(403).send({ error: 'Invalid Payload' });
     }
 
-    switch (getAppleTransactionType({ decodedInfo })) {
+    switch (getAppleTransactionType({ transactionInfo })) {
       case AppleTransactionType.Consumable:
-        if (isCorePurchaseApple({ decodedInfo })) {
+        if (isCorePurchaseApple({ transactionInfo })) {
           await handleCoresPurchase({
-            decodedInfo,
+            transactionInfo,
             user,
             environment,
             notification,
@@ -135,8 +136,13 @@ const handleNotifcationRequest = async (
         }
         break;
       case AppleTransactionType.AutoRenewableSubscription:
+        if (!renewalInfo) {
+          throw new Error('Missing renewal info for subscription');
+        }
+
         await handleAppleSubscription({
-          decodedInfo,
+          transactionInfo,
+          renewalInfo,
           user,
           environment,
           notification,
@@ -148,7 +154,8 @@ const handleNotifcationRequest = async (
 
     logger.info(
       {
-        decodedInfo,
+        transactionInfo,
+        renewalInfo,
         user,
         environment,
         provider: SubscriptionProvider.AppleStoreKit,

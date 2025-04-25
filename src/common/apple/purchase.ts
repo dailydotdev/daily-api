@@ -14,38 +14,38 @@ import {
 import createOrGetConnection from '../../db';
 
 export const isCorePurchaseApple = ({
-  decodedInfo,
+  transactionInfo,
 }: {
-  decodedInfo: JWSTransactionDecodedPayload;
+  transactionInfo: JWSTransactionDecodedPayload;
 }) => {
   return (
-    getAppleTransactionType({ decodedInfo }) ===
+    getAppleTransactionType({ transactionInfo }) ===
       AppleTransactionType.Consumable &&
-    !!decodedInfo.productId?.startsWith('cores_')
+    !!transactionInfo.productId?.startsWith('cores_')
   );
 };
 
 export const handleCoresPurchase = async ({
-  decodedInfo,
+  transactionInfo,
   user,
 }: {
-  decodedInfo: JWSTransactionDecodedPayload;
+  transactionInfo: JWSTransactionDecodedPayload;
   user: User;
   environment: Environment;
   notification: ResponseBodyV2DecodedPayload;
 }): Promise<UserTransaction> => {
-  if (!decodedInfo.transactionId) {
-    throw new Error('Missing transactionId in decodedInfo');
+  if (!transactionInfo.transactionId) {
+    throw new Error('Missing transactionId in transactionInfo');
   }
 
-  if (!decodedInfo.productId) {
-    throw new Error('Missing productId in decodedInfo');
+  if (!transactionInfo.productId) {
+    throw new Error('Missing productId in transactionInfo');
   }
 
   const con = await createOrGetConnection();
 
   // TODO feat/cores-iap load from api metadata/new endpoint
-  const coresValue = Number(decodedInfo.productId.match(/\d+/)?.[0]);
+  const coresValue = Number(transactionInfo.productId.match(/\d+/)?.[0]);
 
   const payload = con.getRepository(UserTransaction).create({
     processor: UserTransactionProcessor.AppleStoreKit,
@@ -58,7 +58,7 @@ export const handleCoresPurchase = async ({
     fee: 0, // no fee when buying cores
     request: {},
     flags: {
-      providerId: decodedInfo.transactionId,
+      providerId: transactionInfo.transactionId,
     },
   });
 

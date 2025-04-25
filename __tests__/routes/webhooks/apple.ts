@@ -106,7 +106,7 @@ describe('POST /webhooks/apple/notifications', () => {
           transactionId: '23456',
           originalTransactionId: '12345',
           webOrderLineItemId: '34343',
-          bundleId: 'com.example',
+          bundleId: 'dev.fylla',
           productId: 'annual',
           subscriptionGroupIdentifier: '55555',
           purchaseDate: 1698148900000,
@@ -228,6 +228,9 @@ describe('POST /webhooks/apple/notifications', () => {
         signedPayload: signedPayload({
           notificationType: NotificationTypeV2.SUBSCRIBED,
           data: {
+            signedTransactionInfo: {
+              productId: 'non-existing',
+            },
             signedRenewalInfo: {
               autoRenewProductId: 'non-existing',
             },
@@ -244,6 +247,9 @@ describe('POST /webhooks/apple/notifications', () => {
         signedPayload: signedPayload({
           notificationType: NotificationTypeV2.SUBSCRIBED,
           data: {
+            signedTransactionInfo: {
+              appAccountToken: 'non-existing',
+            },
             signedRenewalInfo: {
               appAccountToken: 'non-existing',
             },
@@ -370,6 +376,9 @@ describe('POST /webhooks/apple/notifications', () => {
         signedPayload: signedPayload({
           notificationType: NotificationTypeV2.SUBSCRIBED,
           data: {
+            signedTransactionInfo: {
+              appAccountToken: '4b1d83a3-163e-4434-a502-96fb2a516a51',
+            },
             signedRenewalInfo: {
               appAccountToken: '4b1d83a3-163e-4434-a502-96fb2a516a51',
             },
