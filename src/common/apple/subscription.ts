@@ -65,7 +65,7 @@ const getSubscriptionStatus = (
 
 export const notifyNewStoreKitSubscription = async (
   data: JWSRenewalInfoDecodedPayload,
-  user: User,
+  user: Pick<User, 'id' | 'subscriptionFlags' | 'coresRole'>,
   currencyInUSD: number,
 ) => {
   if (isTest) {
@@ -188,7 +188,7 @@ export const handleAppleSubscription = async ({
 }: {
   transactionInfo: JWSTransactionDecodedPayload;
   renewalInfo: JWSRenewalInfoDecodedPayload;
-  user: User;
+  user: Pick<User, 'id' | 'subscriptionFlags' | 'coresRole'>;
   environment: Environment;
   notification: ResponseBodyV2DecodedPayload;
 }) => {

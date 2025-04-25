@@ -11,7 +11,7 @@ import {
   User,
   UserSubscriptionStatus,
 } from '../../../src/entity';
-import { saveFixtures } from '../../helpers';
+import { createMockNjordTransport, saveFixtures } from '../../helpers';
 import {
   NotificationTypeV2,
   Subtype,
@@ -23,6 +23,11 @@ import nock from 'nock';
 import { env } from 'process';
 import { deleteRedisKey, getRedisHash } from '../../../src/redis';
 import { StorageKey } from '../../../src/config';
+import { createClient } from '@connectrpc/connect';
+import { Credits } from '@dailydotdev/schema';
+import * as njordCommon from '../../..//src/common/njord';
+import { getTransactionForProviderId } from '../../../src/common/paddle';
+import { UserTransactionProcessor } from '../../../src/entity/user/UserTransaction';
 
 function createSignedData(payload): string {
   const keyPairOptions: ECKeyPairOptions<'pem', 'pem'> = {
@@ -405,6 +410,126 @@ describe('POST /webhooks/apple/notifications', () => {
       NOK: '10.5',
       EUR: '0.9',
       GBP: '0.8',
+    });
+  });
+
+  describe('cores', () => {
+    const mockTransport = createMockNjordTransport();
+
+    beforeEach(async () => {
+      jest
+        .spyOn(njordCommon, 'getNjordClient')
+        .mockImplementation(() => createClient(Credits, mockTransport));
+
+      await saveFixtures(con, User, [
+        {
+          id: 'storekit-user-c-1',
+          username: 'storekit-user-c-1',
+          subscriptionFlags: {
+            appAccountToken: '18138f83-b4d3-456a-831f-1f3f7bcbb0bd',
+          },
+          coresRole: 3,
+        },
+        {
+          id: 'storekit-user-c-2',
+          username: 'storekit-user-c-2',
+          subscriptionFlags: {
+            appAccountToken: 'd9db8906-9b8b-44bc-bc35-3ac0515bad0c',
+          },
+          coresRole: 0,
+        },
+        {
+          id: 'storekit-user-c-3',
+          username: 'storekit-user-c-3',
+          subscriptionFlags: {
+            appAccountToken: 'edd16b7c-9717-4a2b-8b51-13ed104d7296',
+          },
+          coresRole: 1,
+        },
+      ]);
+    });
+
+    it('should purchase cores', async () => {
+      await request(app.server)
+        .post('/webhooks/apple/notifications')
+        .send({
+          signedPayload: signedPayload({
+            notificationType: NotificationTypeV2.ONE_TIME_CHARGE,
+            data: {
+              signedTransactionInfo: {
+                productId: 'cores_100',
+                quantity: 1,
+                type: 'Consumable',
+                appAccountToken: '18138f83-b4d3-456a-831f-1f3f7bcbb0bd',
+                transactionId: '220698',
+              },
+            },
+          }),
+        })
+        .expect(200);
+
+      const userTransaction = await getTransactionForProviderId({
+        con,
+        providerId: '220698',
+      });
+
+      expect(userTransaction).toEqual({
+        id: expect.any(String),
+        createdAt: expect.any(Date),
+        fee: 0,
+        flags: {
+          providerId: '220698',
+        },
+        processor: UserTransactionProcessor.AppleStoreKit,
+        productId: null,
+        receiverId: 'storekit-user-c-1',
+        request: {},
+        senderId: null,
+        status: 0,
+        updatedAt: expect.any(Date),
+        value: 100,
+        valueIncFees: 100,
+      });
+    });
+
+    it('transaction completed throw if user coresRole is none', async () => {
+      await request(app.server)
+        .post('/webhooks/apple/notifications')
+        .send({
+          signedPayload: signedPayload({
+            notificationType: NotificationTypeV2.ONE_TIME_CHARGE,
+            data: {
+              signedTransactionInfo: {
+                productId: 'cores_100',
+                quantity: 1,
+                type: 'Consumable',
+                appAccountToken: 'd9db8906-9b8b-44bc-bc35-3ac0515bad0c',
+                transactionId: '220698',
+              },
+            },
+          }),
+        })
+        .expect(500);
+    });
+
+    it('transaction completed throw if user coresRole is readonly', async () => {
+      await request(app.server)
+        .post('/webhooks/apple/notifications')
+        .send({
+          signedPayload: signedPayload({
+            notificationType: NotificationTypeV2.ONE_TIME_CHARGE,
+            data: {
+              signedTransactionInfo: {
+                productId: 'cores_100',
+                quantity: 1,
+                type: 'Consumable',
+                appAccountToken: 'edd16b7c-9717-4a2b-8b51-13ed104d7296',
+                transactionId: '220698',
+              },
+            },
+          }),
+        })
+        .expect(500);
     });
   });
 });

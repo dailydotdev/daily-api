@@ -81,14 +81,15 @@ const handleNotifcationRequest = async (
     }
 
     const con = await createOrGetConnection();
-    const user = await con.getRepository(User).findOne({
-      select: ['id', 'subscriptionFlags'],
-      where: {
-        subscriptionFlags: JsonContains({
-          appAccountToken: transactionInfo.appAccountToken,
-        }),
-      },
-    });
+    const user: Pick<User, 'id' | 'subscriptionFlags' | 'coresRole'> | null =
+      await con.getRepository(User).findOne({
+        select: ['id', 'subscriptionFlags', 'coresRole'],
+        where: {
+          subscriptionFlags: JsonContains({
+            appAccountToken: transactionInfo.appAccountToken,
+          }),
+        },
+      });
 
     if (!user) {
       logger.error(

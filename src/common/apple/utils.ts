@@ -58,7 +58,7 @@ export const logAppleAnalyticsEvent = async (
   transactionInfo: JWSTransactionDecodedPayload,
   renewalInfo: JWSRenewalInfoDecodedPayload,
   eventName: AnalyticsEventName,
-  user: User,
+  user: Pick<User, 'id' | 'subscriptionFlags' | 'coresRole'>,
   currencyInUSD: number,
 ) => {
   if (!transactionInfo || isTest) {

@@ -22,6 +22,8 @@ import {
 } from '../utils';
 import type { Block, KnownBlock } from '@slack/web-api';
 import { webhooks } from '../slack';
+import { checkUserCoresAccess } from '../user';
+import { CoresRole } from '../../types';
 
 export const isCorePurchaseApple = ({
   transactionInfo,
@@ -43,7 +45,7 @@ export const notifyNewStoreKitPurchase = async ({
 }: {
   data: JWSTransactionDecodedPayload;
   transaction: UserTransaction;
-  user: User;
+  user: Pick<User, 'id' | 'subscriptionFlags' | 'coresRole'>;
   currencyInUSD: number;
 }) => {
   if (isTest) {
@@ -143,7 +145,7 @@ export const handleCoresPurchase = async ({
   user,
 }: {
   transactionInfo: JWSTransactionDecodedPayload;
-  user: User;
+  user: Pick<User, 'id' | 'subscriptionFlags' | 'coresRole'>;
   environment: Environment;
   notification: ResponseBodyV2DecodedPayload;
 }): Promise<UserTransaction> => {
@@ -153,6 +155,15 @@ export const handleCoresPurchase = async ({
 
   if (!transactionInfo.productId) {
     throw new Error('Missing productId in transactionInfo');
+  }
+
+  if (
+    checkUserCoresAccess({
+      user,
+      requiredRole: CoresRole.User,
+    }) === false
+  ) {
+    throw new Error('User does not have access to cores purchase');
   }
 
   const con = await createOrGetConnection();
