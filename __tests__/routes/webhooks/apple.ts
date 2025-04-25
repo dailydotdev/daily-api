@@ -450,6 +450,8 @@ describe('POST /webhooks/apple/notifications', () => {
     });
 
     it('should purchase cores', async () => {
+      const purchaseCoresSpy = jest.spyOn(njordCommon, 'purchaseCores');
+
       await request(app.server)
         .post('/webhooks/apple/notifications')
         .send({
@@ -467,6 +469,8 @@ describe('POST /webhooks/apple/notifications', () => {
           }),
         })
         .expect(200);
+
+      expect(purchaseCoresSpy).toHaveBeenCalledTimes(1);
 
       const userTransaction = await getTransactionForProviderId({
         con,
@@ -493,6 +497,8 @@ describe('POST /webhooks/apple/notifications', () => {
     });
 
     it('transaction completed throw if user coresRole is none', async () => {
+      const purchaseCoresSpy = jest.spyOn(njordCommon, 'purchaseCores');
+
       await request(app.server)
         .post('/webhooks/apple/notifications')
         .send({
@@ -510,9 +516,19 @@ describe('POST /webhooks/apple/notifications', () => {
           }),
         })
         .expect(500);
+
+      expect(purchaseCoresSpy).toHaveBeenCalledTimes(0);
+
+      const userTransaction = await getTransactionForProviderId({
+        con,
+        providerId: '220698',
+      });
+      expect(userTransaction).toBeNull();
     });
 
     it('transaction completed throw if user coresRole is readonly', async () => {
+      const purchaseCoresSpy = jest.spyOn(njordCommon, 'purchaseCores');
+
       await request(app.server)
         .post('/webhooks/apple/notifications')
         .send({
@@ -530,6 +546,14 @@ describe('POST /webhooks/apple/notifications', () => {
           }),
         })
         .expect(500);
+
+      expect(purchaseCoresSpy).toHaveBeenCalledTimes(0);
+
+      const userTransaction = await getTransactionForProviderId({
+        con,
+        providerId: '220698',
+      });
+      expect(userTransaction).toBeNull();
     });
   });
 });
