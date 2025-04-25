@@ -30,6 +30,7 @@ import { ioRedisPool } from '../../src/redis';
 import { parseBigInt } from '../../src/common';
 import { TransferError } from '../../src/errors';
 import { verifyJwt } from '../../src/auth';
+import { serviceClientId } from '../../src/types';
 
 let con: DataSource;
 
@@ -784,7 +785,7 @@ describe('createNjordAuth', () => {
 
     expect(jwt).toMatchObject({
       aud: 'Daily Staging',
-      client_id: 'api',
+      client_id: serviceClientId,
       iat: expect.any(Number),
       iss: 'Daily API Staging',
       message_hash:

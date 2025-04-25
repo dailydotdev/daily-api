@@ -50,7 +50,7 @@ import { UserComment } from '../entity/user/UserComment';
 import { saveComment } from '../schema/comments';
 import { generateShortId } from '../ids';
 import { checkWithVordr, VordrFilterType } from './vordr';
-import { CoresRole } from '../types';
+import { serviceClientId, CoresRole } from '../types';
 import { GraphQLError } from 'graphql';
 import { randomUUID } from 'node:crypto';
 import { logger } from '../logger';
@@ -91,7 +91,7 @@ export const createNjordAuth = async (
 
   const { token } = await signJwt<NjordJwtPayload>(
     {
-      client_id: 'api',
+      client_id: serviceClientId,
       message_hash: crypto
         .createHash('sha256')
         .update(payload.toBinary())
