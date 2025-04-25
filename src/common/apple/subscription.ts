@@ -20,8 +20,10 @@ import {
   getAnalyticsEventFromAppleNotification,
   logAppleAnalyticsEvent,
 } from './utils';
-import { notifyNewStoreKitSubscription } from '../../routes/webhooks/apple';
 import { productIdToCycle } from './types';
+import { concatTextToNewline, isTest } from '../utils';
+import type { Block, KnownBlock } from '@slack/web-api';
+import { webhooks } from '../slack';
 
 const getSubscriptionStatus = (
   notificationType: ResponseBodyV2DecodedPayload['notificationType'],
@@ -59,6 +61,99 @@ const getSubscriptionStatus = (
       );
       throw new Error('Unknown notification type');
   }
+};
+
+export const notifyNewStoreKitSubscription = async (
+  data: JWSRenewalInfoDecodedPayload,
+  user: User,
+  currencyInUSD: number,
+) => {
+  if (isTest) {
+    return;
+  }
+
+  const blocks: (KnownBlock | Block)[] = [
+    {
+      type: 'header',
+      text: {
+        type: 'plain_text',
+        text: 'New Plus subscriber :moneybag: :apple-ico:',
+        emoji: true,
+      },
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline('*Transaction ID:*', data.appTransactionId),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*App Account Token:*',
+            data.appAccountToken,
+          ),
+        },
+      ],
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline('*Type:*', data.autoRenewProductId),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*Purchased by:*',
+            `<https://app.daily.dev/${user.id}|${user.id}>`,
+          ),
+        },
+      ],
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*Cost:*',
+            new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: 'USD',
+            }).format(currencyInUSD || 0),
+          ),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline('*Currency:*', 'USD'),
+        },
+      ],
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*Cost (local):*',
+            new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: data.currency,
+            }).format((data.renewalPrice || 0) / 1000),
+          ),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline('*Currency (local):*', data.currency),
+        },
+      ],
+    },
+  ];
+
+  await webhooks.transactions.send({ blocks });
 };
 
 const renewalInfoToSubscriptionFlags = (
@@ -146,9 +241,5 @@ export const handleAppleSubscription = async ({
 
   if (notification.notificationType === NotificationTypeV2.SUBSCRIBED) {
     await notifyNewStoreKitSubscription(renewalInfo, user, currencyInUSD);
-  }
-
-  if (notification.notificationType === NotificationTypeV2.ONE_TIME_CHARGE) {
-    // TODO feat/cores-iap handle one time charge
   }
 };

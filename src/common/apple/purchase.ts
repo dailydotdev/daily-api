@@ -12,6 +12,16 @@ import {
   UserTransactionStatus,
 } from '../../entity/user/UserTransaction';
 import createOrGetConnection from '../../db';
+import { purchaseCores, UserTransactionError } from '../njord';
+import { TransferError } from '../../errors';
+import {
+  concatTextToNewline,
+  isProd,
+  isTest,
+  updateFlagsStatement,
+} from '../utils';
+import type { Block, KnownBlock } from '@slack/web-api';
+import { webhooks } from '../slack';
 
 export const isCorePurchaseApple = ({
   transactionInfo,
@@ -23,6 +33,109 @@ export const isCorePurchaseApple = ({
       AppleTransactionType.Consumable &&
     !!transactionInfo.productId?.startsWith('cores_')
   );
+};
+
+export const notifyNewStoreKitPurchase = async ({
+  data,
+  transaction,
+  user,
+  currencyInUSD,
+}: {
+  data: JWSTransactionDecodedPayload;
+  transaction: UserTransaction;
+  user: User;
+  currencyInUSD: number;
+}) => {
+  if (isTest) {
+    return;
+  }
+
+  const blocks: (KnownBlock | Block)[] = [
+    {
+      type: 'header',
+      text: {
+        type: 'plain_text',
+        text: 'Cores purchased :cores: :apple-ico:',
+        emoji: true,
+      },
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline('*Transaction ID:*', data.appTransactionId),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*App Account Token:*',
+            data.appAccountToken,
+          ),
+        },
+      ],
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline('*Product:*', data.productId),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline('*Cores:*', transaction.value.toString()),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*Purchased by:*',
+            `<https://app.daily.dev/${user.id}|${user.id}>`,
+          ),
+        },
+      ],
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*Cost:*',
+            new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: 'USD',
+            }).format(currencyInUSD || 0),
+          ),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline('*Currency:*', 'USD'),
+        },
+      ],
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*Cost (local):*',
+            new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: data.currency,
+            }).format((data.price || 0) / 1000),
+          ),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline('*Currency (local):*', data.currency),
+        },
+      ],
+    },
+  ];
+
+  await webhooks.transactions.send({ blocks });
 };
 
 export const handleCoresPurchase = async ({
@@ -62,9 +175,62 @@ export const handleCoresPurchase = async ({
     },
   });
 
-  const userTransaction = await con
-    .getRepository(UserTransaction)
-    .save(payload);
+  const transaction = await con.transaction(async (entityManager) => {
+    const userTransaction = await entityManager
+      .getRepository(UserTransaction)
+      .save(payload);
 
-  return userTransaction;
+    // TODO feat/cores-iap enable for production https://dailydotdev.slack.com/archives/C07VA1FJTDK/p1745580651217029
+    if (!isProd) {
+      try {
+        await purchaseCores({
+          transaction: userTransaction,
+        });
+      } catch (error) {
+        if (error instanceof TransferError) {
+          const userTransactionError = new UserTransactionError({
+            status: error.transfer.status,
+            transaction: userTransaction,
+          });
+
+          // update transaction status to error
+          await entityManager.getRepository(UserTransaction).update(
+            {
+              id: userTransaction.id,
+            },
+            {
+              status: error.transfer.status as number,
+              flags: updateFlagsStatement<UserTransaction>({
+                error: userTransactionError.message,
+              }),
+            },
+          );
+
+          return entityManager.getRepository(UserTransaction).create({
+            ...userTransaction,
+            status: error.transfer.status as number,
+            flags: {
+              ...userTransaction.flags,
+              error: userTransactionError.message,
+            },
+          });
+        }
+
+        throw error;
+      }
+    }
+
+    return userTransaction;
+  });
+
+  if (transaction.status === UserTransactionStatus.Success) {
+    await notifyNewStoreKitPurchase({
+      data: transactionInfo,
+      transaction,
+      user,
+      currencyInUSD: transaction.valueIncFees,
+    });
+  }
+
+  return transaction;
 };

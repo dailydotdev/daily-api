@@ -5,15 +5,12 @@ import {
   NotificationTypeV2,
   SignedDataVerifier,
   VerificationException,
-  type JWSRenewalInfoDecodedPayload,
 } from '@apple/app-store-server-library';
-import { concatTextToNewline, isTest, webhooks } from '../../common';
 import { isInSubnet } from 'is-in-subnet';
 import { isNullOrUndefined } from '../../common/object';
 import createOrGetConnection from '../../db';
 import { SubscriptionProvider, User } from '../../entity';
 import { JsonContains } from 'typeorm';
-import type { Block, KnownBlock } from '@slack/web-api';
 import { remoteConfig } from '../../remoteConfig';
 import {
   getAppleTransactionType,
@@ -194,99 +191,6 @@ const handleNotifcationRequest = async (
       return response.status(500).send({ error: 'Internal Server Error' });
     }
   }
-};
-
-export const notifyNewStoreKitSubscription = async (
-  data: JWSRenewalInfoDecodedPayload,
-  user: User,
-  currencyInUSD: number,
-) => {
-  if (isTest) {
-    return;
-  }
-
-  const blocks: (KnownBlock | Block)[] = [
-    {
-      type: 'header',
-      text: {
-        type: 'plain_text',
-        text: 'New Plus subscriber :moneybag: :apple-ico:',
-        emoji: true,
-      },
-    },
-    {
-      type: 'section',
-      fields: [
-        {
-          type: 'mrkdwn',
-          text: concatTextToNewline('*Transaction ID:*', data.appTransactionId),
-        },
-        {
-          type: 'mrkdwn',
-          text: concatTextToNewline(
-            '*App Account Token:*',
-            data.appAccountToken,
-          ),
-        },
-      ],
-    },
-    {
-      type: 'section',
-      fields: [
-        {
-          type: 'mrkdwn',
-          text: concatTextToNewline('*Type:*', data.autoRenewProductId),
-        },
-        {
-          type: 'mrkdwn',
-          text: concatTextToNewline(
-            '*Purchased by:*',
-            `<https://app.daily.dev/${user.id}|${user.id}>`,
-          ),
-        },
-      ],
-    },
-    {
-      type: 'section',
-      fields: [
-        {
-          type: 'mrkdwn',
-          text: concatTextToNewline(
-            '*Cost:*',
-            new Intl.NumberFormat('en-US', {
-              style: 'currency',
-              currency: 'USD',
-            }).format(currencyInUSD || 0),
-          ),
-        },
-        {
-          type: 'mrkdwn',
-          text: concatTextToNewline('*Currency:*', 'USD'),
-        },
-      ],
-    },
-    {
-      type: 'section',
-      fields: [
-        {
-          type: 'mrkdwn',
-          text: concatTextToNewline(
-            '*Cost (local):*',
-            new Intl.NumberFormat('en-US', {
-              style: 'currency',
-              currency: data.currency,
-            }).format((data.renewalPrice || 0) / 1000),
-          ),
-        },
-        {
-          type: 'mrkdwn',
-          text: concatTextToNewline('*Currency (local):*', data.currency),
-        },
-      ],
-    },
-  ];
-
-  await webhooks.transactions.send({ blocks });
 };
 
 export const apple = async (fastify: FastifyInstance): Promise<void> => {
