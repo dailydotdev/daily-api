@@ -62,6 +62,7 @@ export const ensurePostRateLimit = async (
     con.getRepository(Post).countBy({
       authorId: userId,
       createdAt: MoreThan(subDays(new Date(), 1)),
+      deleted: false,
     }),
     remoteConfig.vars?.postRateLimit ?? 0,
     `Take a break. You already posted enough`,
