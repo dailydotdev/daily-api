@@ -24,7 +24,6 @@ import { ForbiddenError } from 'apollo-server-errors';
 import { logger } from '../logger';
 import { CoresRole } from '../types';
 import { remoteConfig } from '../remoteConfig';
-import { DeletedUser } from '../entity/user/DeletedUser';
 import { UserTransaction } from '../entity/user/UserTransaction';
 
 export const deleteUser = async (
@@ -106,9 +105,6 @@ export const deleteUser = async (
         },
       );
       await entityManager.getRepository(User).delete(userId);
-      await entityManager.getRepository(DeletedUser).insert({
-        id: userId,
-      });
     });
     logger.info(
       {

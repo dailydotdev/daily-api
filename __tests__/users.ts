@@ -126,6 +126,7 @@ import {
   UserTransactionProcessor,
   UserTransactionStatus,
 } from '../src/entity/user/UserTransaction';
+import { DeletedUser } from '../src/entity/user/DeletedUser';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -4194,6 +4195,21 @@ describe('mutation deleteUser', () => {
       transactions.find((t) => t.id === '4f2e8ff9-4489-466b-9296-87630839fdac')!
         .senderId,
     ).toEqual(ghostUser.id);
+  });
+
+  it('should soft delete user', async () => {
+    loggedUser = '1';
+
+    const user = await con.getRepository(User).findOneBy({ id: '1' });
+
+    expect(user).not.toBeNull();
+
+    await client.mutate(MUTATION);
+
+    const deletedUser = await con
+      .getRepository(DeletedUser)
+      .findOneBy({ id: '1' });
+    expect(deletedUser).not.toBeNull();
   });
 });
 
