@@ -15,7 +15,7 @@ export class PostReport {
   @Column({ default: () => 'now()' })
   createdAt: Date;
 
-  @Column({ length: 12, type: 'varchar' })
+  @Column({ length: 30, type: 'varchar' })
   reason: ReportReason;
 
   @Column({ type: 'text', array: true, default: null })
