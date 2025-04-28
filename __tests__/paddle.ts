@@ -674,7 +674,7 @@ describe('plus pricing preview', () => {
 
     jest
       .spyOn(paddleInstance.pricingPreview, 'preview')
-      .mockResolvedValue(mockPreview as any);
+      .mockResolvedValue(mockPreview as never);
 
     const result = await client.query(QUERY, {
       variables: {
