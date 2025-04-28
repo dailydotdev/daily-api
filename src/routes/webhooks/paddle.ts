@@ -29,6 +29,7 @@ import { logger } from '../../logger';
 import {
   AnalyticsEventName,
   sendAnalyticsEvent,
+  TargetType,
 } from '../../integrations/analytics';
 import { JsonContains, type DataSource, type EntityManager } from 'typeorm';
 import {
@@ -278,7 +279,9 @@ const logPaddleAnalyticsEvent = async (
       app_platform: 'api',
       user_id: userId,
       extra: JSON.stringify(getAnalyticsExtra(data)),
-      target_type: isCoreTransaction({ event }) ? 'credits' : 'plus',
+      target_type: isCoreTransaction({ event })
+        ? TargetType.Credits
+        : TargetType.Plus,
     },
   ]);
 };

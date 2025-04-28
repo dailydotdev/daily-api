@@ -11,7 +11,11 @@ import {
   User,
   UserSubscriptionStatus,
 } from '../../../src/entity';
-import { createMockNjordTransport, saveFixtures } from '../../helpers';
+import {
+  createMockNjordErrorTransport,
+  createMockNjordTransport,
+  saveFixtures,
+} from '../../helpers';
 import {
   NotificationTypeV2,
   Subtype,
@@ -24,7 +28,7 @@ import { env } from 'process';
 import { deleteRedisKey, getRedisHash } from '../../../src/redis';
 import { StorageKey } from '../../../src/config';
 import { createClient } from '@connectrpc/connect';
-import { Credits } from '@dailydotdev/schema';
+import { Credits, TransferStatus } from '@dailydotdev/schema';
 import * as njordCommon from '../../..//src/common/njord';
 import { getTransactionForProviderId } from '../../../src/common/paddle';
 import { UserTransactionProcessor } from '../../../src/entity/user/UserTransaction';
@@ -554,6 +558,64 @@ describe('POST /webhooks/apple/notifications', () => {
         providerId: '220698',
       });
       expect(userTransaction).toBeNull();
+    });
+
+    it('should error cores purchase on njord error', async () => {
+      jest.spyOn(njordCommon, 'getNjordClient').mockImplementation(() =>
+        createClient(
+          Credits,
+          createMockNjordErrorTransport({
+            errorStatus: TransferStatus.INSUFFICIENT_FUNDS,
+            errorMessage: 'Insufficient funds',
+          }),
+        ),
+      );
+
+      const purchaseCoresSpy = jest.spyOn(njordCommon, 'purchaseCores');
+
+      await request(app.server)
+        .post('/webhooks/apple/notifications')
+        .send({
+          signedPayload: signedPayload({
+            notificationType: NotificationTypeV2.ONE_TIME_CHARGE,
+            data: {
+              signedTransactionInfo: {
+                productId: 'cores_100',
+                quantity: 1,
+                type: 'Consumable',
+                appAccountToken: '18138f83-b4d3-456a-831f-1f3f7bcbb0bd',
+                transactionId: '220698',
+              },
+            },
+          }),
+        })
+        .expect(200);
+
+      expect(purchaseCoresSpy).toHaveBeenCalledTimes(1);
+
+      const userTransaction = await getTransactionForProviderId({
+        con,
+        providerId: '220698',
+      });
+
+      expect(userTransaction).toEqual({
+        id: expect.any(String),
+        createdAt: expect.any(Date),
+        fee: 0,
+        flags: {
+          providerId: '220698',
+          error: 'Insufficient Cores balance.',
+        },
+        processor: UserTransactionProcessor.AppleStoreKit,
+        productId: null,
+        receiverId: 'storekit-user-c-1',
+        request: {},
+        senderId: null,
+        status: 1,
+        updatedAt: expect.any(Date),
+        value: 100,
+        valueIncFees: 100,
+      });
     });
   });
 });
