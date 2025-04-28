@@ -4,7 +4,11 @@ import type {
   ResponseBodyV2DecodedPayload,
 } from '@apple/app-store-server-library';
 import type { User } from '../../entity/user/User';
-import { getAppleTransactionType } from './utils';
+import {
+  getAnalyticsEventFromAppleNotification,
+  getAppleTransactionType,
+  logAppleAnalyticsEvent,
+} from './utils';
 import { AppleTransactionType } from './types';
 import {
   UserTransaction,
@@ -24,6 +28,7 @@ import type { Block, KnownBlock } from '@slack/web-api';
 import { webhooks } from '../slack';
 import { checkUserCoresAccess } from '../user';
 import { CoresRole } from '../../types';
+import { convertCurrencyToUSD } from '../../integrations/openExchangeRates';
 
 export const isCorePurchaseApple = ({
   transactionInfo,
@@ -143,6 +148,7 @@ export const notifyNewStoreKitPurchase = async ({
 export const handleCoresPurchase = async ({
   transactionInfo,
   user,
+  notification,
 }: {
   transactionInfo: JWSTransactionDecodedPayload;
   user: Pick<User, 'id' | 'subscriptionFlags' | 'coresRole'>;
@@ -234,12 +240,32 @@ export const handleCoresPurchase = async ({
     return userTransaction;
   });
 
+  const currencyInUSD = await convertCurrencyToUSD(
+    (transactionInfo.price || 0) / 1000,
+    transactionInfo.currency || 'USD',
+  );
+
+  const eventName = getAnalyticsEventFromAppleNotification(
+    notification.notificationType,
+    notification.subtype,
+  );
+
+  if (eventName) {
+    await logAppleAnalyticsEvent(
+      transactionInfo,
+      undefined,
+      eventName,
+      user,
+      currencyInUSD,
+    );
+  }
+
   if (transaction.status === UserTransactionStatus.Success) {
     await notifyNewStoreKitPurchase({
       data: transactionInfo,
       transaction,
       user,
-      currencyInUSD: transaction.valueIncFees,
+      currencyInUSD,
     });
   }
 

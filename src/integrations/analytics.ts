@@ -70,3 +70,8 @@ export async function sendExperimentAllocationEvent<
     { retries: 3 },
   );
 }
+
+export enum TargetType {
+  Plus = 'plus',
+  Credits = 'credits',
+}

@@ -13,6 +13,7 @@ import { isNullOrUndefined } from '../object';
 import {
   AnalyticsEventName,
   sendAnalyticsEvent,
+  TargetType,
 } from '../../integrations/analytics';
 import {
   AppleTransactionType,
@@ -21,6 +22,7 @@ import {
 } from './types';
 import { readFile } from 'fs/promises';
 import { isTest } from '../utils';
+import { isCorePurchaseApple } from './purchase';
 
 export const verifyAndDecodeAppleSignedData = async ({
   notification,
@@ -56,7 +58,7 @@ export const verifyAndDecodeAppleSignedData = async ({
 
 export const logAppleAnalyticsEvent = async (
   transactionInfo: JWSTransactionDecodedPayload,
-  renewalInfo: JWSRenewalInfoDecodedPayload,
+  renewalInfo: JWSRenewalInfoDecodedPayload | undefined,
   eventName: AnalyticsEventName,
   user: Pick<User, 'id' | 'subscriptionFlags' | 'coresRole'>,
   currencyInUSD: number,
@@ -93,6 +95,9 @@ export const logAppleAnalyticsEvent = async (
       app_platform: 'api',
       user_id: user.id,
       extra: JSON.stringify(extra),
+      target_type: isCorePurchaseApple({ transactionInfo })
+        ? TargetType.Credits
+        : TargetType.Plus,
     },
   ]);
 };
