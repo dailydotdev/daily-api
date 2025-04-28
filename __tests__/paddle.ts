@@ -34,6 +34,7 @@ import {
   DEFAULT_CORES_METADATA,
   PricingType,
 } from '../src/common/paddle/pricing';
+import { CountryCode, CurrencyCode } from '@paddle/paddle-node-sdk';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -45,7 +46,7 @@ beforeAll(async () => {
   con = await createOrGetConnection();
   app = await appFunc();
   state = await initializeGraphQLTesting(
-    () => new MockContext(con, loggedUser),
+    () => new MockContext(con, loggedUser || undefined),
   );
   client = state.client;
   return app.ready();
@@ -565,6 +566,116 @@ describe('plus pricing preview', () => {
 
   it('should format prices according to locale', async () => {
     loggedUser = 'whp-1';
+    const mockPreview = {
+      customerId: '1',
+      addressId: '1',
+      businessId: null,
+      discountId: null,
+      address: {
+        countryCode: 'DE' as CountryCode,
+        postalCode: '12345',
+      },
+      customerIpAddress: '127.0.0.1',
+      availablePaymentMethods: ['card' as const],
+      details: {
+        lineItems: [
+          {
+            price: {
+              id: 'pri_monthly',
+              productId: 'prod_123',
+              name: 'Monthly Subscription',
+              description: 'Monthly subscription for Daily.dev Plus',
+              type: 'standard' as const,
+              status: 'active' as const,
+              quantity: {
+                minimum: 1,
+                maximum: 1,
+              },
+              customData: {
+                label: 'Monthly',
+                appsId: 'monthly-sub',
+              },
+              billingCycle: {
+                interval: 'month' as const,
+                frequency: 1,
+              },
+              trialPeriod: null,
+              unitPrice: {
+                amount: '5.00',
+                currencyCode: 'EUR' as CurrencyCode,
+              },
+              unitPriceOverrides: [],
+              taxMode: 'internal' as const,
+              productTaxCategory: 'standard',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              importMeta: null,
+              product: {
+                id: 'prod_123',
+                name: 'Daily.dev Plus',
+                description: 'Daily.dev Plus Subscription',
+                type: 'standard' as const,
+                taxCategory: 'standard' as const,
+                imageUrl: 'https://daily.dev/plus.png',
+                customData: {},
+                status: 'active' as const,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                importMeta: null,
+                prices: [],
+              },
+            },
+            product: {
+              id: 'prod_123',
+              name: 'Daily.dev Plus',
+              description: 'Daily.dev Plus Subscription',
+              type: 'standard' as const,
+              taxCategory: 'standard' as const,
+              imageUrl: 'https://daily.dev/plus.png',
+              customData: {},
+              status: 'active' as const,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              importMeta: null,
+              prices: [],
+            },
+            quantity: 1,
+            taxRate: '0.00',
+            unitTotals: {
+              subtotal: '5.00',
+              discount: '0.00',
+              tax: '0.00',
+              total: '5.00',
+            },
+            formattedUnitTotals: {
+              subtotal: '€5,00',
+              discount: '€0,00',
+              tax: '€0,00',
+              total: '€5,00',
+            },
+            formattedTotals: {
+              subtotal: '€5,00',
+              discount: '€0,00',
+              tax: '€0,00',
+              total: '€5,00',
+            },
+            totals: {
+              subtotal: '5.00',
+              discount: '0.00',
+              tax: '0.00',
+              total: '5.00',
+            },
+            discounts: [],
+          },
+        ],
+      },
+      currencyCode: 'EUR' as CurrencyCode,
+    };
+
+    jest
+      .spyOn(paddleInstance.pricingPreview, 'preview')
+      .mockResolvedValue(mockPreview as any);
+
     const result = await client.query(QUERY, {
       variables: {
         type: PricingType.Plus,
@@ -573,7 +684,7 @@ describe('plus pricing preview', () => {
     });
     expect(result.data.pricingPreview).toHaveLength(1);
     const preview = result.data.pricingPreview[0];
-    expect(preview.price.formatted).toMatch(/€\d+,\d+/); // German format with € and comma
+    expect(preview.price.formatted).toBe('€5,00');
   });
 
   it('should use default locale when not specified', async () => {
@@ -585,7 +696,7 @@ describe('plus pricing preview', () => {
     });
     expect(result.data.pricingPreview).toHaveLength(1);
     const preview = result.data.pricingPreview[0];
-    expect(preview.price.formatted).toMatch(/\$\d+\.\d+/); // Default USD format
+    expect(preview.price.formatted).toBe('$5.00');
   });
 });
 
