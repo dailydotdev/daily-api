@@ -24,14 +24,21 @@ export enum ReportReason {
   Trolling = 'TROLLING',
   Impersonation = 'IMPERSONATION',
   Plagiarism = 'PLAGIARISM',
+  Paywall = 'PAYWALL',
 }
 
 export const postReportReasonsMap: Map<ReportReason, string> = new Map([
+  [ReportReason.Spam, '♻️ Spam or scam'],
+  [ReportReason.Hateful, '📛 Hateful speech or harassment'],
+  [ReportReason.Misinformation, '🚫 Misinformation or politically-oriented'],
+  [ReportReason.Copyright, '©️ Plagiarism or copyright violation'],
+  [ReportReason.Privacy, '📵 Privacy violation'],
   [ReportReason.Broken, '💔 Link is broken'],
   [ReportReason.Clickbait, '🎣 Clickbait!!!'],
   [ReportReason.Low, '💩 Low quality content'],
   [ReportReason.Nsfw, '🔞 Post is NSFW'],
   [ReportReason.Irrelevant, `Post's tags are irrelevant`],
+  [ReportReason.Paywall, '🔒 Paywalled content'],
   [ReportReason.Other, '🤔 Other'],
 ]);
 
