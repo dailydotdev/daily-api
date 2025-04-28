@@ -76,7 +76,7 @@ beforeAll(async () => {
 afterAll(() => app.close());
 
 beforeEach(async () => {
-  jest.resetAllMocks();
+  jest.clearAllMocks();
   nock.cleanAll();
   await deleteRedisKey(StorageKey.OpenExchangeRates);
 
@@ -560,7 +560,7 @@ describe('POST /webhooks/apple/notifications', () => {
       expect(userTransaction).toBeNull();
     });
 
-    it('should error cores purchase on njord error', async () => {
+    it('should error purchase on njord error', async () => {
       jest.spyOn(njordCommon, 'getNjordClient').mockImplementation(() =>
         createClient(
           Credits,
@@ -584,7 +584,7 @@ describe('POST /webhooks/apple/notifications', () => {
                 quantity: 1,
                 type: 'Consumable',
                 appAccountToken: '18138f83-b4d3-456a-831f-1f3f7bcbb0bd',
-                transactionId: '220698',
+                transactionId: '200166',
               },
             },
           }),
@@ -595,7 +595,7 @@ describe('POST /webhooks/apple/notifications', () => {
 
       const userTransaction = await getTransactionForProviderId({
         con,
-        providerId: '220698',
+        providerId: '200166',
       });
 
       expect(userTransaction).toEqual({
@@ -603,7 +603,7 @@ describe('POST /webhooks/apple/notifications', () => {
         createdAt: expect.any(Date),
         fee: 0,
         flags: {
-          providerId: '220698',
+          providerId: '200166',
           error: 'Insufficient Cores balance.',
         },
         processor: UserTransactionProcessor.AppleStoreKit,
