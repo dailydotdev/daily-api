@@ -25,7 +25,6 @@ const cron: Cron = {
       });
 
     const { affected } = await query.execute();
-
     logger.info({ count: affected }, 'zombies users cleaned! 🧟');
   },
 };
