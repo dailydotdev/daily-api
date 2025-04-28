@@ -131,10 +131,7 @@ export const typeDefs = /* GraphQL */ `
     pricePreviews: PricePreviews! @auth
     corePricePreviews: PricePreviews! @auth
     pricingMetadata(type: PricingType): [ProductPricingMetadata!]! @auth
-    pricingPreview(
-      type: PricingType
-      locale: String
-    ): [ProductPricingPreview!]! @auth
+    pricingPreview(type: PricingType, locale: String): [ProductPricingPreview!]!
   }
 
   ${toGQLEnum(PricingType, 'PricingType')}
