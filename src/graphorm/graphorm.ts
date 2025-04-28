@@ -573,7 +573,7 @@ export class GraphORM {
 
     try {
       builder.queryBuilder.comment(
-        `action='${(ctx.req.body as GraphqlPayload).operationName}'`,
+        `action='${(ctx?.req?.body as GraphqlPayload)?.operationName}'`,
       );
       res = await builder.queryBuilder.getRawMany();
     } catch (error) {
