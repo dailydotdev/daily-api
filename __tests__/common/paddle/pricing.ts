@@ -107,6 +107,34 @@ describe('getPrice', () => {
     });
   });
 
+  it('should handle Indian Rupee format', () => {
+    const result = getPrice({ formatted: '₹49.97', locale: 'en-IN' });
+    expect(result).toEqual({
+      amount: 49.97,
+      formatted: '₹49.97',
+    });
+  });
+
+  it('should handle Swedish Krona format with symbol after amount', () => {
+    const result = getPrice({
+      formatted: '1499,00 kr',
+      locale: 'sv-SE',
+      divideBy: 30, // Convert monthly to daily price
+    });
+    expect(result).toEqual({
+      amount: 49.97,
+      formatted: '49,97 kr',
+    });
+  });
+
+  it('should handle Brazilian Real format with specific spacing', () => {
+    const result = getPrice({ formatted: 'R$ 149,90', locale: 'pt-BR' });
+    expect(result).toEqual({
+      amount: 149.9,
+      formatted: 'R$ 149,90',
+    });
+  });
+
   // we have not covered the case where there are multiple spaces within the format and negative values
 });
 
