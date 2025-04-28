@@ -131,7 +131,10 @@ export const typeDefs = /* GraphQL */ `
     pricePreviews: PricePreviews! @auth
     corePricePreviews: PricePreviews! @auth
     pricingMetadata(type: PricingType): [ProductPricingMetadata!]! @auth
-    pricingPreview(type: PricingType): [ProductPricingPreview!]! @auth
+    pricingPreview(
+      type: PricingType
+      locale: String
+    ): [ProductPricingPreview!]! @auth
   }
 
   ${toGQLEnum(PricingType, 'PricingType')}
@@ -275,6 +278,7 @@ export interface GQLCustomData {
 
 interface PaddlePricingPreviewArgs {
   type?: PricingType;
+  locale?: string;
 }
 
 export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
@@ -389,7 +393,7 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
     ): Promise<BasePricingMetadata[]> => getPricingMetadata(ctx, type),
     pricingPreview: async (
       _,
-      { type = PricingType.Plus }: PaddlePricingPreviewArgs,
+      { type = PricingType.Plus, locale }: PaddlePricingPreviewArgs,
       ctx,
     ): Promise<BasePricingPreview[]> => {
       const metadata = await getPricingMetadata(ctx, type);
@@ -416,7 +420,7 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
         return {
           metadata: meta,
           priceId: item.price.id,
-          price: getProductPrice(item),
+          price: getProductPrice(item, locale),
           currency: {
             code: preview.currencyCode,
             symbol: removeNumbers(item.formattedTotals.total),

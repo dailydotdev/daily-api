@@ -371,8 +371,8 @@ describe('plus pricing metadata', () => {
 
 describe('plus pricing preview', () => {
   const QUERY = /* GraphQL */ `
-    query PricingPreview($type: PricingType) {
-      pricingPreview(type: $type) {
+    query PricingPreview($type: PricingType, $locale: String) {
+      pricingPreview(type: $type, locale: $locale) {
         metadata {
           appsId
           title
@@ -561,6 +561,31 @@ describe('plus pricing preview', () => {
     expect(setRedisObjectWithExpirySpy).toHaveBeenCalledTimes(1);
 
     expect(result).toEqual(result2);
+  });
+
+  it('should format prices according to locale', async () => {
+    loggedUser = 'whp-1';
+    const result = await client.query(QUERY, {
+      variables: {
+        type: PricingType.Plus,
+        locale: 'de-DE',
+      },
+    });
+    expect(result.data.pricingPreview).toHaveLength(1);
+    const preview = result.data.pricingPreview[0];
+    expect(preview.price.formatted).toMatch(/€\d+,\d+/); // German format with € and comma
+  });
+
+  it('should use default locale when not specified', async () => {
+    loggedUser = 'whp-1';
+    const result = await client.query(QUERY, {
+      variables: {
+        type: PricingType.Plus,
+      },
+    });
+    expect(result.data.pricingPreview).toHaveLength(1);
+    const preview = result.data.pricingPreview[0];
+    expect(preview.price.formatted).toMatch(/\$\d+\.\d+/); // Default USD format
   });
 });
 
