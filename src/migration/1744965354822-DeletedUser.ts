@@ -12,7 +12,9 @@ export class DeletedUser1744965354822 implements MigrationInterface {
       CREATE OR REPLACE FUNCTION soft_delete_user()
       RETURNS TRIGGER AS $$
       BEGIN
-          INSERT INTO deleted_user (id) VALUES (OLD.id);
+          INSERT INTO deleted_user (id) VALUES (OLD.id)
+          ON CONFLICT (id) DO NOTHING;
+
           RETURN NULL;
       END;
       $$ LANGUAGE plpgsql;
