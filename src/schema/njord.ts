@@ -350,7 +350,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               .select('COALESCE(SUM(ut.valueIncFees), 0)', 'amount')
               .where('ut."receiverId" = :userId', { userId: ctx.userId })
               .andWhere('ut."senderId" IS NOT NULL')
-              .andWhere('ut."productId" IS NOT NULL')
               .andWhere('ut.status = :status', {
                 status: UserTransactionStatus.Success,
               })
