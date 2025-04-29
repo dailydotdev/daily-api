@@ -43,9 +43,13 @@ export type PostFlags = Partial<{
   promoteToPublic: number | null;
   deletedBy: string;
   vordr: boolean;
+  coverVideo: string;
 }>;
 
-export type PostFlagsPublic = Pick<PostFlags, 'private' | 'promoteToPublic'>;
+export type PostFlagsPublic = Pick<
+  PostFlags,
+  'private' | 'promoteToPublic' | 'coverVideo'
+>;
 
 export type PostContentQuality = Partial<{
   is_ai_probability: number;
