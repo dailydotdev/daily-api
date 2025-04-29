@@ -24,6 +24,7 @@ import { ForbiddenError } from 'apollo-server-errors';
 import { logger } from '../logger';
 import { CoresRole } from '../types';
 import { remoteConfig } from '../remoteConfig';
+import { UserTransaction } from '../entity/user/UserTransaction';
 
 export const deleteUser = async (
   con: DataSource,
@@ -87,6 +88,22 @@ export const deleteUser = async (
       await entityManager
         .getRepository(Post)
         .update({ scoutId: userId }, { scoutId: null });
+      await entityManager.getRepository(UserTransaction).update(
+        {
+          senderId: userId,
+        },
+        {
+          senderId: ghostUser.id,
+        },
+      );
+      await entityManager.getRepository(UserTransaction).update(
+        {
+          receiverId: userId,
+        },
+        {
+          receiverId: ghostUser.id,
+        },
+      );
       await entityManager.getRepository(User).delete(userId);
     });
     logger.info(

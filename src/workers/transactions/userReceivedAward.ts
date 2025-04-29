@@ -7,6 +7,7 @@ import {
 } from '../../entity/user/UserTransaction';
 import { NotificationType } from '../../notifications/common';
 import { generateTypedNotificationWorker } from '../notifications/worker';
+import { isSpecialUser } from '../../common';
 
 export const userReceivedAward =
   generateTypedNotificationWorker<'api.v1.user-transaction'>({
@@ -33,6 +34,10 @@ export const userReceivedAward =
       }
 
       if (transaction.processor !== UserTransactionProcessor.Njord) {
+        return;
+      }
+
+      if (isSpecialUser({ userId: transaction.receiverId })) {
         return;
       }
 
