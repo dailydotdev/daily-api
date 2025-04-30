@@ -1,6 +1,10 @@
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
-import { createMockNjordTransport, saveFixtures } from '../../helpers';
+import {
+  createMockNjordErrorTransport,
+  createMockNjordTransport,
+  saveFixtures,
+} from '../../helpers';
 import { SubscriptionProvider, User } from '../../../src/entity';
 import { usersFixture } from '../../fixture';
 
@@ -26,7 +30,7 @@ import { logger } from '../../../src/logger';
 import { CoresRole } from '../../../src/types';
 import * as njordCommon from '../../../src/common/njord';
 import { createClient } from '@connectrpc/connect';
-import { Credits } from '@dailydotdev/schema';
+import { Credits, TransferStatus } from '@dailydotdev/schema';
 
 let con: DataSource;
 
@@ -585,5 +589,49 @@ describe('cores product', () => {
     });
     expect(userTransaction!.status).toBe(202);
     expect(userTransaction!.flags.error).toBeNull();
+  });
+
+  it('transaction njord error on completed', async () => {
+    jest.spyOn(njordCommon, 'getNjordClient').mockImplementation(() =>
+      createClient(
+        Credits,
+        createMockNjordErrorTransport({
+          errorStatus: TransferStatus.INSUFFICIENT_FUNDS,
+          errorMessage: 'Insufficient funds',
+        }),
+      ),
+    );
+
+    const purchaseCoresSpy = jest.spyOn(njordCommon, 'purchaseCores');
+
+    await processTransactionCompleted({ event: coresTransactionCompleted });
+
+    expect(purchaseCoresSpy).toHaveBeenCalledTimes(1);
+
+    const userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCompleted.data.id,
+    });
+
+    expect(userTransaction).not.toBeNull();
+
+    expect(userTransaction).toEqual({
+      id: expect.any(String),
+      createdAt: expect.any(Date),
+      fee: 0,
+      flags: {
+        providerId: 'txn_01jrwyswhztmre55nbd7d09qvp',
+        error: 'Insufficient Cores balance.',
+      },
+      processor: 'paddle',
+      productId: null,
+      receiverId: 'whcp-1',
+      request: {},
+      senderId: null,
+      status: 1,
+      updatedAt: expect.any(Date),
+      value: 600,
+      valueIncFees: 600,
+    });
   });
 });

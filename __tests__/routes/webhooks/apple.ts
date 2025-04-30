@@ -11,7 +11,11 @@ import {
   User,
   UserSubscriptionStatus,
 } from '../../../src/entity';
-import { saveFixtures } from '../../helpers';
+import {
+  createMockNjordErrorTransport,
+  createMockNjordTransport,
+  saveFixtures,
+} from '../../helpers';
 import {
   NotificationTypeV2,
   Subtype,
@@ -23,6 +27,11 @@ import nock from 'nock';
 import { env } from 'process';
 import { deleteRedisKey, getRedisHash } from '../../../src/redis';
 import { StorageKey } from '../../../src/config';
+import { createClient } from '@connectrpc/connect';
+import { Credits, TransferStatus } from '@dailydotdev/schema';
+import * as njordCommon from '../../..//src/common/njord';
+import { getTransactionForProviderId } from '../../../src/common/paddle';
+import { UserTransactionProcessor } from '../../../src/entity/user/UserTransaction';
 
 function createSignedData(payload): string {
   const keyPairOptions: ECKeyPairOptions<'pem', 'pem'> = {
@@ -67,7 +76,7 @@ beforeAll(async () => {
 afterAll(() => app.close());
 
 beforeEach(async () => {
-  jest.resetAllMocks();
+  jest.clearAllMocks();
   nock.cleanAll();
   await deleteRedisKey(StorageKey.OpenExchangeRates);
 
@@ -106,7 +115,7 @@ describe('POST /webhooks/apple/notifications', () => {
           transactionId: '23456',
           originalTransactionId: '12345',
           webOrderLineItemId: '34343',
-          bundleId: 'com.example',
+          bundleId: 'dev.fylla',
           productId: 'annual',
           subscriptionGroupIdentifier: '55555',
           purchaseDate: 1698148900000,
@@ -228,6 +237,9 @@ describe('POST /webhooks/apple/notifications', () => {
         signedPayload: signedPayload({
           notificationType: NotificationTypeV2.SUBSCRIBED,
           data: {
+            signedTransactionInfo: {
+              productId: 'non-existing',
+            },
             signedRenewalInfo: {
               autoRenewProductId: 'non-existing',
             },
@@ -244,6 +256,9 @@ describe('POST /webhooks/apple/notifications', () => {
         signedPayload: signedPayload({
           notificationType: NotificationTypeV2.SUBSCRIBED,
           data: {
+            signedTransactionInfo: {
+              appAccountToken: 'non-existing',
+            },
             signedRenewalInfo: {
               appAccountToken: 'non-existing',
             },
@@ -370,6 +385,9 @@ describe('POST /webhooks/apple/notifications', () => {
         signedPayload: signedPayload({
           notificationType: NotificationTypeV2.SUBSCRIBED,
           data: {
+            signedTransactionInfo: {
+              appAccountToken: '4b1d83a3-163e-4434-a502-96fb2a516a51',
+            },
             signedRenewalInfo: {
               appAccountToken: '4b1d83a3-163e-4434-a502-96fb2a516a51',
             },
@@ -396,6 +414,208 @@ describe('POST /webhooks/apple/notifications', () => {
       NOK: '10.5',
       EUR: '0.9',
       GBP: '0.8',
+    });
+  });
+
+  describe('cores', () => {
+    const mockTransport = createMockNjordTransport();
+
+    beforeEach(async () => {
+      jest
+        .spyOn(njordCommon, 'getNjordClient')
+        .mockImplementation(() => createClient(Credits, mockTransport));
+
+      await saveFixtures(con, User, [
+        {
+          id: 'storekit-user-c-1',
+          username: 'storekit-user-c-1',
+          subscriptionFlags: {
+            appAccountToken: '18138f83-b4d3-456a-831f-1f3f7bcbb0bd',
+          },
+          coresRole: 3,
+        },
+        {
+          id: 'storekit-user-c-2',
+          username: 'storekit-user-c-2',
+          subscriptionFlags: {
+            appAccountToken: 'd9db8906-9b8b-44bc-bc35-3ac0515bad0c',
+          },
+          coresRole: 0,
+        },
+        {
+          id: 'storekit-user-c-3',
+          username: 'storekit-user-c-3',
+          subscriptionFlags: {
+            appAccountToken: 'edd16b7c-9717-4a2b-8b51-13ed104d7296',
+          },
+          coresRole: 1,
+        },
+      ]);
+    });
+
+    it('should purchase cores', async () => {
+      const purchaseCoresSpy = jest.spyOn(njordCommon, 'purchaseCores');
+
+      await request(app.server)
+        .post('/webhooks/apple/notifications')
+        .send({
+          signedPayload: signedPayload({
+            notificationType: NotificationTypeV2.ONE_TIME_CHARGE,
+            data: {
+              signedTransactionInfo: {
+                productId: 'cores_100',
+                quantity: 1,
+                type: 'Consumable',
+                appAccountToken: '18138f83-b4d3-456a-831f-1f3f7bcbb0bd',
+                transactionId: '220698',
+              },
+            },
+          }),
+        })
+        .expect(200);
+
+      expect(purchaseCoresSpy).toHaveBeenCalledTimes(1);
+
+      const userTransaction = await getTransactionForProviderId({
+        con,
+        providerId: '220698',
+      });
+
+      expect(userTransaction).toEqual({
+        id: expect.any(String),
+        createdAt: expect.any(Date),
+        fee: 0,
+        flags: {
+          providerId: '220698',
+        },
+        processor: UserTransactionProcessor.AppleStoreKit,
+        productId: null,
+        receiverId: 'storekit-user-c-1',
+        request: {},
+        senderId: null,
+        status: 0,
+        updatedAt: expect.any(Date),
+        value: 100,
+        valueIncFees: 100,
+      });
+    });
+
+    it('transaction completed throw if user coresRole is none', async () => {
+      const purchaseCoresSpy = jest.spyOn(njordCommon, 'purchaseCores');
+
+      await request(app.server)
+        .post('/webhooks/apple/notifications')
+        .send({
+          signedPayload: signedPayload({
+            notificationType: NotificationTypeV2.ONE_TIME_CHARGE,
+            data: {
+              signedTransactionInfo: {
+                productId: 'cores_100',
+                quantity: 1,
+                type: 'Consumable',
+                appAccountToken: 'd9db8906-9b8b-44bc-bc35-3ac0515bad0c',
+                transactionId: '220698',
+              },
+            },
+          }),
+        })
+        .expect(500);
+
+      expect(purchaseCoresSpy).toHaveBeenCalledTimes(0);
+
+      const userTransaction = await getTransactionForProviderId({
+        con,
+        providerId: '220698',
+      });
+      expect(userTransaction).toBeNull();
+    });
+
+    it('transaction completed throw if user coresRole is readonly', async () => {
+      const purchaseCoresSpy = jest.spyOn(njordCommon, 'purchaseCores');
+
+      await request(app.server)
+        .post('/webhooks/apple/notifications')
+        .send({
+          signedPayload: signedPayload({
+            notificationType: NotificationTypeV2.ONE_TIME_CHARGE,
+            data: {
+              signedTransactionInfo: {
+                productId: 'cores_100',
+                quantity: 1,
+                type: 'Consumable',
+                appAccountToken: 'edd16b7c-9717-4a2b-8b51-13ed104d7296',
+                transactionId: '220698',
+              },
+            },
+          }),
+        })
+        .expect(500);
+
+      expect(purchaseCoresSpy).toHaveBeenCalledTimes(0);
+
+      const userTransaction = await getTransactionForProviderId({
+        con,
+        providerId: '220698',
+      });
+      expect(userTransaction).toBeNull();
+    });
+
+    it('should error purchase on njord error', async () => {
+      jest.spyOn(njordCommon, 'getNjordClient').mockImplementation(() =>
+        createClient(
+          Credits,
+          createMockNjordErrorTransport({
+            errorStatus: TransferStatus.INSUFFICIENT_FUNDS,
+            errorMessage: 'Insufficient funds',
+          }),
+        ),
+      );
+
+      const purchaseCoresSpy = jest.spyOn(njordCommon, 'purchaseCores');
+
+      await request(app.server)
+        .post('/webhooks/apple/notifications')
+        .send({
+          signedPayload: signedPayload({
+            notificationType: NotificationTypeV2.ONE_TIME_CHARGE,
+            data: {
+              signedTransactionInfo: {
+                productId: 'cores_100',
+                quantity: 1,
+                type: 'Consumable',
+                appAccountToken: '18138f83-b4d3-456a-831f-1f3f7bcbb0bd',
+                transactionId: '200166',
+              },
+            },
+          }),
+        })
+        .expect(200);
+
+      expect(purchaseCoresSpy).toHaveBeenCalledTimes(1);
+
+      const userTransaction = await getTransactionForProviderId({
+        con,
+        providerId: '200166',
+      });
+
+      expect(userTransaction).toEqual({
+        id: expect.any(String),
+        createdAt: expect.any(Date),
+        fee: 0,
+        flags: {
+          providerId: '200166',
+          error: 'Insufficient Cores balance.',
+        },
+        processor: UserTransactionProcessor.AppleStoreKit,
+        productId: null,
+        receiverId: 'storekit-user-c-1',
+        request: {},
+        senderId: null,
+        status: 1,
+        updatedAt: expect.any(Date),
+        value: 100,
+        valueIncFees: 100,
+      });
     });
   });
 });

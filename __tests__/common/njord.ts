@@ -756,6 +756,39 @@ describe('purchaseCores', () => {
       (clientSpy.mock.calls[0][1]!.headers as Headers).get('authorization'),
     ).toStartWith('Bearer ');
   });
+
+  it('should throw on njord error', async () => {
+    jest.spyOn(njordCommon, 'getNjordClient').mockImplementation(() =>
+      createClient(
+        Credits,
+        createMockNjordErrorTransport({
+          errorStatus: TransferStatus.INTERNAL_ERROR,
+        }),
+      ),
+    );
+
+    const transaction = await con.getRepository(UserTransaction).save({
+      processor: UserTransactionProcessor.Njord,
+      receiverId: 't-pc-2',
+      status: UserTransactionStatus.Success,
+      productId: null,
+      senderId: null,
+      value: 42,
+      valueIncFees: 42,
+      fee: 0,
+      request: {},
+      flags: {
+        note: 'Test test!',
+      },
+    });
+
+    await expect(
+      async () =>
+        await njordCommon.purchaseCores({
+          transaction,
+        }),
+    ).rejects.toBeInstanceOf(TransferError);
+  });
 });
 
 describe('createNjordAuth', () => {
