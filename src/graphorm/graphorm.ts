@@ -10,6 +10,7 @@ import { parseResolveInfo, ResolveTree } from 'graphql-parse-resolve-info';
 import { Context } from '../Context';
 import { Connection, Edge } from 'graphql-relay';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
+import type { GraphqlPayload } from '../compatibility/utils';
 
 export type QueryBuilder = SelectQueryBuilder<any>;
 
@@ -569,6 +570,13 @@ export class GraphORM {
     }
 
     let res: any[];
+
+    const body = ctx?.req?.body as GraphqlPayload;
+    if (!!body?.operationName) {
+      builder.queryBuilder.comment(
+        `action='${(ctx?.req?.body as GraphqlPayload)?.operationName}'`,
+      );
+    }
 
     try {
       res = await builder.queryBuilder.getRawMany();
