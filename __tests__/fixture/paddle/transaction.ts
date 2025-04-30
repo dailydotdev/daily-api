@@ -16,6 +16,7 @@ export const coresTransactionCreated = {
     status: 'draft',
     customerId: 'ctm_01jqy42s56qwrj14pfmaeav2f2',
     customData: { user_id: 'whcp-1' },
+    discountId: null,
     items: [
       {
         price: {
