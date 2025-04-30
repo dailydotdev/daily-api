@@ -634,4 +634,45 @@ describe('cores product', () => {
       valueIncFees: 600,
     });
   });
+
+  it('transaction skip njord if paddle test discount id', async () => {
+    const purchaseCoresSpy = jest.spyOn(njordCommon, 'purchaseCores');
+
+    await processTransactionCompleted({
+      event: {
+        ...coresTransactionCompleted,
+        data: {
+          ...coresTransactionCompleted.data,
+          discountId: 'dsc_test',
+        },
+      },
+    });
+
+    expect(purchaseCoresSpy).toHaveBeenCalledTimes(0);
+
+    const userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCompleted.data.id,
+    });
+
+    expect(userTransaction).not.toBeNull();
+
+    expect(userTransaction).toEqual({
+      id: expect.any(String),
+      createdAt: expect.any(Date),
+      fee: 0,
+      flags: {
+        providerId: 'txn_01jrwyswhztmre55nbd7d09qvp',
+      },
+      processor: 'paddle',
+      productId: null,
+      receiverId: 'whcp-1',
+      request: {},
+      senderId: null,
+      status: 0,
+      updatedAt: expect.any(Date),
+      value: 600,
+      valueIncFees: 600,
+    });
+  });
 });
