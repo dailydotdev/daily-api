@@ -571,10 +571,14 @@ export class GraphORM {
 
     let res: any[];
 
-    try {
+    const body = ctx?.req?.body as GraphqlPayload;
+    if (!!body?.operationName) {
       builder.queryBuilder.comment(
         `action='${(ctx?.req?.body as GraphqlPayload)?.operationName}'`,
       );
+    }
+
+    try {
       res = await builder.queryBuilder.getRawMany();
     } catch (error) {
       throw error;
