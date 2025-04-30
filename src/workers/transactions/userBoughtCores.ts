@@ -1,5 +1,6 @@
 import {
   CioTransactionalMessageTemplateId,
+  isSpecialUser,
   sendEmail,
   updateFlagsStatement,
 } from '../../common';
@@ -44,6 +45,10 @@ export const userBoughtCores: TypedWorker<'api.v1.user-transaction'> = {
         { transactionId: transaction.id },
         'Email already sent for this transaction',
       );
+      return;
+    }
+
+    if (isSpecialUser({ userId: transaction.receiverId })) {
       return;
     }
 

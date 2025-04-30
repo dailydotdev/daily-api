@@ -19,6 +19,7 @@ import { postsFixture } from '../../fixture/post';
 import { randomUUID } from 'node:crypto';
 import { UserComment } from '../../../src/entity/user/UserComment';
 import { env } from 'node:process';
+import { ghostUser } from '../../../src/common';
 
 let con: DataSource;
 
@@ -227,5 +228,26 @@ describe('userReceivedAward worker', () => {
     expect((result![0].ctx as NotificationAwardContext).targetUrl).toEqual(
       `${env.COMMENTS_PREFIX}/posts/p2#c-a-c-1`,
     );
+  });
+
+  it('should do nothing if receiver is ghost user', async () => {
+    const transaction = await con.getRepository(UserTransaction).save({
+      processor: UserTransactionProcessor.Paddle,
+      receiverId: ghostUser.id,
+      senderId: '2',
+      value: 100,
+      valueIncFees: 100,
+      fee: 0,
+      request: {},
+      flags: {},
+      productId: '9104b834-6fac-4276-a168-0be1294ab371',
+      status: UserTransactionStatus.Success,
+    });
+
+    const result = await invokeNotificationWorker(worker, {
+      transaction: transaction as unknown as ChangeObject<UserTransaction>,
+    });
+
+    expect(result).toBeUndefined();
   });
 });

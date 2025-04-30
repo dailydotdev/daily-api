@@ -1559,6 +1559,20 @@ describe('query transactionSummary', () => {
         valueIncFees: 100,
         createdAt: new Date(now.getTime() - 1000),
       },
+      {
+        processor: UserTransactionProcessor.Njord,
+        receiverId: 't-tsq-1',
+        status: UserTransactionStatus.Success,
+        productId: null,
+        senderId: 't-tsq-2',
+        fee: 0,
+        value: 1000,
+        valueIncFees: 1000,
+        createdAt: new Date(now.getTime() - 1000),
+        request: {
+          origin: 'marketing',
+        },
+      },
     ]);
   });
 
@@ -1581,7 +1595,7 @@ describe('query transactionSummary', () => {
 
     expect(res.data.transactionSummary).toMatchObject({
       purchased: 1300,
-      received: 285,
+      received: 1285,
       spent: 200,
     });
   });
