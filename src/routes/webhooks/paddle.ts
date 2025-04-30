@@ -682,11 +682,25 @@ export const processTransactionCompleted = async ({
         throw new Error('User does not have access to cores purchase');
       }
 
+      // skip njord if transaction has test discount
       const shouldSkipNjord =
         !!transactionData.discountId &&
         !!remoteConfig.vars.paddleTestDiscountIds?.includes(
           transactionData.discountId,
         );
+
+      if (shouldSkipNjord) {
+        await entityManager.getRepository(UserTransaction).update(
+          {
+            id: userTransaction.id,
+          },
+          {
+            flags: updateFlagsStatement<UserTransaction>({
+              note: 'NJORD_SKIPPED_FOR_TEST_DISCOUNT',
+            }),
+          },
+        );
+      }
 
       if (!shouldSkipNjord) {
         try {

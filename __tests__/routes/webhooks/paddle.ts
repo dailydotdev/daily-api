@@ -59,6 +59,8 @@ describe('cores product', () => {
   });
 
   it('purchase success', async () => {
+    const purchaseCoresSpy = jest.spyOn(njordCommon, 'purchaseCores');
+
     await processTransactionCreated({
       event: coresTransactionCreated,
     });
@@ -100,6 +102,8 @@ describe('cores product', () => {
     await processTransactionCompleted({
       event: coresTransactionCompleted,
     });
+
+    expect(purchaseCoresSpy).toHaveBeenCalledTimes(1);
 
     userTransaction = await getTransactionForProviderId({
       con,
@@ -159,6 +163,8 @@ describe('cores product', () => {
   });
 
   it('purchase success after failure', async () => {
+    const purchaseCoresSpy = jest.spyOn(njordCommon, 'purchaseCores');
+
     await processTransactionCreated({
       event: coresTransactionCreated,
     });
@@ -201,6 +207,8 @@ describe('cores product', () => {
       event: coresTransactionPaymentFailed,
     });
 
+    expect(purchaseCoresSpy).toHaveBeenCalledTimes(0);
+
     userTransaction = await getTransactionForProviderId({
       con,
       providerId: coresTransactionCreated.data.id,
@@ -210,6 +218,8 @@ describe('cores product', () => {
     await processTransactionCompleted({
       event: coresTransactionCompleted,
     });
+
+    expect(purchaseCoresSpy).toHaveBeenCalledTimes(1);
 
     userTransaction = await getTransactionForProviderId({
       con,
@@ -410,7 +420,11 @@ describe('cores product', () => {
   });
 
   it('transaction completed event', async () => {
+    const purchaseCoresSpy = jest.spyOn(njordCommon, 'purchaseCores');
+
     await processTransactionCompleted({ event: coresTransactionCompleted });
+
+    expect(purchaseCoresSpy).toHaveBeenCalledTimes(1);
 
     const userTransaction = await getTransactionForProviderId({
       con,
@@ -663,6 +677,7 @@ describe('cores product', () => {
       fee: 0,
       flags: {
         providerId: 'txn_01jrwyswhztmre55nbd7d09qvp',
+        note: 'NJORD_SKIPPED_FOR_TEST_DISCOUNT',
       },
       processor: 'paddle',
       productId: null,
