@@ -26,6 +26,7 @@ type RemoteConfigValue = {
   }[];
   kvasirRequirePlus: boolean;
   paddleIps: string[];
+  paddleTestDiscountIds: string[];
 };
 
 class RemoteConfig {

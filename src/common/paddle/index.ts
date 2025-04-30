@@ -131,6 +131,7 @@ const paddleTransactionSchema = z.object({
     )
     .max(1, 'Multiple items in transaction not supported yet'),
   customData: paddleNotificationCustomDataSchema,
+  discountId: z.string().optional(),
 });
 
 export const isCoreTransaction = ({

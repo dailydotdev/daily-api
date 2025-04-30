@@ -59,6 +59,8 @@ describe('cores product', () => {
   });
 
   it('purchase success', async () => {
+    const purchaseCoresSpy = jest.spyOn(njordCommon, 'purchaseCores');
+
     await processTransactionCreated({
       event: coresTransactionCreated,
     });
@@ -100,6 +102,8 @@ describe('cores product', () => {
     await processTransactionCompleted({
       event: coresTransactionCompleted,
     });
+
+    expect(purchaseCoresSpy).toHaveBeenCalledTimes(1);
 
     userTransaction = await getTransactionForProviderId({
       con,
@@ -159,6 +163,8 @@ describe('cores product', () => {
   });
 
   it('purchase success after failure', async () => {
+    const purchaseCoresSpy = jest.spyOn(njordCommon, 'purchaseCores');
+
     await processTransactionCreated({
       event: coresTransactionCreated,
     });
@@ -201,6 +207,8 @@ describe('cores product', () => {
       event: coresTransactionPaymentFailed,
     });
 
+    expect(purchaseCoresSpy).toHaveBeenCalledTimes(0);
+
     userTransaction = await getTransactionForProviderId({
       con,
       providerId: coresTransactionCreated.data.id,
@@ -210,6 +218,8 @@ describe('cores product', () => {
     await processTransactionCompleted({
       event: coresTransactionCompleted,
     });
+
+    expect(purchaseCoresSpy).toHaveBeenCalledTimes(1);
 
     userTransaction = await getTransactionForProviderId({
       con,
@@ -410,7 +420,11 @@ describe('cores product', () => {
   });
 
   it('transaction completed event', async () => {
+    const purchaseCoresSpy = jest.spyOn(njordCommon, 'purchaseCores');
+
     await processTransactionCompleted({ event: coresTransactionCompleted });
+
+    expect(purchaseCoresSpy).toHaveBeenCalledTimes(1);
 
     const userTransaction = await getTransactionForProviderId({
       con,
@@ -629,6 +643,48 @@ describe('cores product', () => {
       request: {},
       senderId: null,
       status: 1,
+      updatedAt: expect.any(Date),
+      value: 600,
+      valueIncFees: 600,
+    });
+  });
+
+  it('transaction skip njord if paddle test discount id', async () => {
+    const purchaseCoresSpy = jest.spyOn(njordCommon, 'purchaseCores');
+
+    await processTransactionCompleted({
+      event: {
+        ...coresTransactionCompleted,
+        data: {
+          ...coresTransactionCompleted.data,
+          discountId: 'dsc_test',
+        },
+      },
+    });
+
+    expect(purchaseCoresSpy).toHaveBeenCalledTimes(0);
+
+    const userTransaction = await getTransactionForProviderId({
+      con,
+      providerId: coresTransactionCompleted.data.id,
+    });
+
+    expect(userTransaction).not.toBeNull();
+
+    expect(userTransaction).toEqual({
+      id: expect.any(String),
+      createdAt: expect.any(Date),
+      fee: 0,
+      flags: {
+        providerId: 'txn_01jrwyswhztmre55nbd7d09qvp',
+        note: 'NJORD_SKIPPED_FOR_TEST_DISCOUNT',
+      },
+      processor: 'paddle',
+      productId: null,
+      receiverId: 'whcp-1',
+      request: {},
+      senderId: null,
+      status: 0,
       updatedAt: expect.any(Date),
       value: 600,
       valueIncFees: 600,

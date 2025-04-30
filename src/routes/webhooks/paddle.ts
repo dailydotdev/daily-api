@@ -682,41 +682,63 @@ export const processTransactionCompleted = async ({
         throw new Error('User does not have access to cores purchase');
       }
 
-      try {
-        await purchaseCores({
-          transaction: userTransaction,
-        });
-      } catch (error) {
-        if (error instanceof TransferError) {
-          const userTransactionError = new UserTransactionError({
-            status: error.transfer.status,
+      // skip njord if transaction has test discount
+      const shouldSkipNjord =
+        !!transactionData.discountId &&
+        !!remoteConfig.vars.paddleTestDiscountIds?.includes(
+          transactionData.discountId,
+        );
+
+      if (shouldSkipNjord) {
+        await entityManager.getRepository(UserTransaction).update(
+          {
+            id: userTransaction.id,
+          },
+          {
+            flags: updateFlagsStatement<UserTransaction>({
+              note: 'NJORD_SKIPPED_FOR_TEST_DISCOUNT',
+            }),
+          },
+        );
+      }
+
+      if (!shouldSkipNjord) {
+        try {
+          await purchaseCores({
             transaction: userTransaction,
           });
+        } catch (error) {
+          if (error instanceof TransferError) {
+            const userTransactionError = new UserTransactionError({
+              status: error.transfer.status,
+              transaction: userTransaction,
+            });
 
-          // update transaction status to error
-          await entityManager.getRepository(UserTransaction).update(
-            {
-              id: userTransaction.id,
-            },
-            {
+            // update transaction status to error
+            await entityManager.getRepository(UserTransaction).update(
+              {
+                id: userTransaction.id,
+              },
+              {
+                status: error.transfer.status as number,
+                flags: updateFlagsStatement<UserTransaction>({
+                  error: userTransactionError.message,
+                }),
+              },
+            );
+
+            return entityManager.getRepository(UserTransaction).create({
+              ...userTransaction,
               status: error.transfer.status as number,
-              flags: updateFlagsStatement<UserTransaction>({
+              flags: {
+                ...userTransaction.flags,
                 error: userTransactionError.message,
-              }),
-            },
-          );
+              },
+            });
+          }
 
-          return entityManager.getRepository(UserTransaction).create({
-            ...userTransaction,
-            status: error.transfer.status as number,
-            flags: {
-              ...userTransaction.flags,
-              error: userTransactionError.message,
-            },
-          });
+          throw error;
         }
-
-        throw error;
       }
 
       return userTransaction;
