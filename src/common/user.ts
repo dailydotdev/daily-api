@@ -47,16 +47,20 @@ export const deleteUser = async (
       }
 
       if (subscriptionFlags?.provider === SubscriptionProvider.Paddle) {
-        await cancelSubscription({
-          subscriptionId: subscriptionFlags.subscriptionId,
-        });
+        const isGifted = !!subscriptionFlags.giftExpirationDate;
+        // gifted subscription is a one-time payment hence not considered subscription in Paddle's terms
+        if (!isGifted) {
+          await cancelSubscription({
+            subscriptionId: subscriptionFlags.subscriptionId,
+          });
+        }
         logger.info(
           {
             provider: SubscriptionProvider.Paddle,
             userId,
             subscriptionId: subscriptionFlags.subscriptionId,
           },
-          'Subscription cancelled user deletion',
+          `Subscription${isGifted ? ' (gifted)' : ''} cancelled user deletion`,
         );
       }
     }
