@@ -58,9 +58,10 @@ export const deleteUser = async (
           {
             provider: SubscriptionProvider.Paddle,
             userId,
+            isGifted,
             subscriptionId: subscriptionFlags.subscriptionId,
           },
-          `Subscription${isGifted ? ' (gifted)' : ''} cancelled user deletion`,
+          'Subscription cancelled user deletion',
         );
       }
     }
