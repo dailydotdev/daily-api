@@ -4059,6 +4059,27 @@ describe('mutation deleteUser', () => {
     expect(userOne).toEqual(null);
   });
 
+  it('should not call cancel subscription for gifted subscription', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(User).update(
+      { id: '1' },
+      {
+        subscriptionFlags: updateSubscriptionFlags({
+          subscriptionId: '123',
+          provider: SubscriptionProvider.Paddle,
+          giftExpirationDate: new Date(Date.now() + 86400000), // 1 day from now
+        }),
+      },
+    );
+
+    await client.mutate(MUTATION);
+
+    expect(cancelSubscription).not.toHaveBeenCalled();
+    const userOne = await con.getRepository(User).findOneBy({ id: '1' });
+    expect(userOne).toEqual(null);
+  });
+
   describe('when user has a storekit subscription', () => {
     beforeEach(async () => {
       await saveFixtures(con, User, [
