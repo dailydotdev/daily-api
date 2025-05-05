@@ -68,7 +68,7 @@ const main = async () => {
       // which njord account to top up, it will appear on njord side
       njordSender: z.string().nonempty(),
 
-      // should be unique or specify why the Cores were sent, it is also used dedup
+      // should be unique or specify why the Cores were sent, it is also used for dedupe
       // in case of repeated script runs
       origin: z.string().min(4),
 

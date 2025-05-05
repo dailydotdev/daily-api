@@ -38,8 +38,8 @@ const main = async () => {
       // amount of Cores to top up
       cores: z.coerce.number().int().positive(),
 
-      // should be unique or specify why the Cores were sent, it is also used dedup
-      // in case of repeated script runs in assignCores script
+      // should be unique or specify why the Cores were sent, it is also used for dedupe
+      // in case of repeated script runs
       origin: z.string().min(4),
 
       // which njord account to top up
