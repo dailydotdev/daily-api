@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import uaParser from 'ua-parser-js';
+import { UAParser as uaParser } from 'ua-parser-js';
 import { URL } from 'node:url';
 import { DataSource } from 'typeorm';
 import { getBootData } from './boot';

@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { customAlphabet } from 'nanoid/async';
+import { customAlphabet } from 'nanoid';
 import { FastifyRequest } from 'fastify';
 import { counters } from './telemetry';
 
@@ -10,7 +10,7 @@ export const generateShortId = customAlphabet(alphabet, 9);
 export const generateVerifyCode = customAlphabet('1234567890', 6);
 export const generateUUID = () => randomUUID();
 
-export const generateTrackingId = (
+export const generateTrackingId = async (
   req: FastifyRequest,
   origin: string,
 ): Promise<string> => {
