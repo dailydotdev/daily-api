@@ -97,7 +97,7 @@ export const updateUserSubscription = async ({
   const userId = customData?.user_id;
   if (!userId) {
     logger.error(
-      { provider: SubscriptionProvider.Paddle },
+      { provider: SubscriptionProvider.Paddle, data: event },
       'User ID missing in payload',
     );
     return false;
@@ -105,7 +105,10 @@ export const updateUserSubscription = async ({
 
   const user = await con.getRepository(User).findOneBy({ id: userId });
   if (!user) {
-    logger.error({ provider: SubscriptionProvider.Paddle }, 'User not found');
+    logger.error(
+      { provider: SubscriptionProvider.Paddle, data: event },
+      'User not found',
+    );
     return false;
   }
 
@@ -287,10 +290,11 @@ const logPaddleAnalyticsEvent = async (
 };
 
 const notifyNewPaddleTransaction = async ({
-  event: { data },
+  event,
 }: {
   event: TransactionCompletedEvent;
 }) => {
+  const { data } = event;
   const { customData, subscriptionId } = data ?? {};
   const { user_id, gifter_id } = (customData ?? {}) as PaddleCustomData;
   const purchasedById = gifter_id ?? user_id;
@@ -308,7 +312,7 @@ const notifyNewPaddleTransaction = async ({
 
   if (gifter_id && !flags?.giftExpirationDate) {
     logger.error(
-      { provider: SubscriptionProvider.Paddle },
+      { provider: SubscriptionProvider.Paddle, data: event },
       'Gifted subscription without expiration date',
     );
   }
@@ -553,16 +557,17 @@ const notifyNewPaddleCoresTransaction = async ({
 };
 
 export const processGiftedPayment = async ({
-  event: { data },
+  event,
 }: {
   event: TransactionCompletedEvent;
 }) => {
+  const { data } = event;
   const con = await createOrGetConnection();
   const { gifter_id, user_id } = data.customData as PaddleCustomData;
 
   if (user_id === gifter_id) {
     logger.error(
-      { provider: SubscriptionProvider.Paddle, data },
+      { provider: SubscriptionProvider.Paddle, data: event },
       'User and gifter are the same',
     );
     return;
@@ -572,7 +577,7 @@ export const processGiftedPayment = async ({
 
   if (!gifterUser) {
     logger.error(
-      { provider: SubscriptionProvider.Paddle, data },
+      { provider: SubscriptionProvider.Paddle, data: event },
       'Gifter user not found',
     );
     return;
@@ -585,7 +590,7 @@ export const processGiftedPayment = async ({
 
   if (isPlusMember(targetUser?.subscriptionFlags?.cycle)) {
     logger.error(
-      { provider: SubscriptionProvider.Paddle, data },
+      { provider: SubscriptionProvider.Paddle, data: event },
       'User is already a Plus member',
     );
     return;
