@@ -400,6 +400,8 @@ export const typeDefs = /* GraphQL */ `
     post: Post!
 
     awarded: Boolean!
+
+    award: Product
   }
 
   type PostTranslation {
@@ -662,6 +664,11 @@ export const typeDefs = /* GraphQL */ `
     Language of the post
     """
     language: String
+
+    """
+    Featured award for the post, currently the most expensive one
+    """
+    featuredAward: UserPost
   }
 
   type PostConnection {

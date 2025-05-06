@@ -95,6 +95,7 @@ import {
   UserTransactionProcessor,
   UserTransactionStatus,
 } from '../src/entity/user/UserTransaction';
+import { Product, ProductType } from '../src/entity/Product';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -7582,5 +7583,168 @@ describe('field language', () => {
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.post.language).toEqual('en');
+  });
+});
+
+describe('featuredAward field', () => {
+  const QUERY = `
+  query Post($id: ID!) {
+    post(id: $id) {
+      featuredAward {
+        award {
+          id
+          name
+          image
+          value
+        }
+      }
+    }
+  }`;
+
+  beforeEach(async () => {
+    await saveFixtures(con, Product, [
+      {
+        id: '5978781a-0e22-4702-bb32-1c59a13023c4',
+        name: 'Award 1',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 42,
+      },
+      {
+        id: '03916c91-8030-499e-8d3d-ae0a4c065012',
+        name: 'Award 2',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 10,
+      },
+      {
+        id: '24d83ece-1f82-4a82-ae48-85e5b003c9af',
+        name: 'Award 3',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 20,
+      },
+    ]);
+  });
+
+  it('should return featuredAward', async () => {
+    const [transaction, transaction2, transaction3] = await con
+      .getRepository(UserTransaction)
+      .save([
+        {
+          processor: UserTransactionProcessor.Njord,
+          receiverId: '1',
+          status: UserTransactionStatus.Success,
+          productId: '03916c91-8030-499e-8d3d-ae0a4c065012',
+          senderId: '1',
+          fee: 0,
+          value: 10,
+          valueIncFees: 10,
+        },
+        {
+          processor: UserTransactionProcessor.Njord,
+          receiverId: '1',
+          status: UserTransactionStatus.Success,
+          productId: '24d83ece-1f82-4a82-ae48-85e5b003c9af',
+          senderId: '3',
+          fee: 0,
+          value: 20,
+          valueIncFees: 20,
+        },
+        {
+          processor: UserTransactionProcessor.Njord,
+          receiverId: '1',
+          status: UserTransactionStatus.Success,
+          productId: '5978781a-0e22-4702-bb32-1c59a13023c4',
+          senderId: '2',
+          fee: 0,
+          value: 42,
+          valueIncFees: 42,
+        },
+      ]);
+
+    await con.getRepository(UserPost).save([
+      {
+        postId: 'p1',
+        userId: transaction.senderId,
+        vote: UserVote.None,
+        hidden: false,
+        flags: {
+          awardId: transaction.productId,
+        },
+        awardTransactionId: transaction.id,
+      },
+      {
+        postId: 'p1',
+        userId: transaction2.senderId,
+        vote: UserVote.None,
+        hidden: false,
+        flags: {
+          awardId: transaction2.productId,
+        },
+        awardTransactionId: transaction2.id,
+      },
+      {
+        postId: 'p2',
+        userId: transaction3.senderId,
+        vote: UserVote.None,
+        hidden: false,
+        flags: {
+          awardId: transaction3.productId,
+        },
+        awardTransactionId: transaction3.id,
+      },
+    ]);
+
+    const res = await client.query(QUERY, {
+      variables: { id: 'p1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.post.featuredAward).toMatchObject({
+      award: {
+        id: '24d83ece-1f82-4a82-ae48-85e5b003c9af',
+        name: 'Award 3',
+        image: 'https://daily.dev/award.jpg',
+        value: 20,
+      },
+    });
+  });
+
+  it('should not return featuredAward if no awards', async () => {
+    const [transaction] = await con.getRepository(UserTransaction).save([
+      {
+        processor: UserTransactionProcessor.Njord,
+        receiverId: '1',
+        status: UserTransactionStatus.Success,
+        productId: '03916c91-8030-499e-8d3d-ae0a4c065012',
+        senderId: '1',
+        fee: 0,
+        value: 10,
+        valueIncFees: 10,
+      },
+    ]);
+
+    await con.getRepository(UserPost).save([
+      {
+        postId: 'p1',
+        userId: transaction.senderId,
+        vote: UserVote.None,
+        hidden: false,
+        flags: {
+          awardId: transaction.productId,
+        },
+        awardTransactionId: transaction.id,
+      },
+    ]);
+
+    const res = await client.query(QUERY, {
+      variables: { id: 'p2' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.post.featuredAward).toBeNull();
   });
 });

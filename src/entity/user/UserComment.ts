@@ -19,6 +19,7 @@ export type UserCommentFlags = Partial<{
 @Entity()
 @Index(['commentId', 'userId'], { unique: true })
 @Index(['userId', 'vote', 'votedAt'])
+@Index('idx_user_comment_flags_awardId', { synchronize: false })
 export class UserComment {
   get awarded(): boolean {
     return !!this.awardTransactionId;
