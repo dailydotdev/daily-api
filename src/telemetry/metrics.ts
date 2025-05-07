@@ -142,13 +142,15 @@ export const startMetrics = (serviceName: keyof typeof counterMap): void => {
     }),
   ];
 
-  const resource = new resources.Resource({
-    [ATTR_SERVICE_NAME]: serviceName,
-  }).merge(
-    resources.detectResourcesSync({
-      detectors: [containerDetector, gcpDetector, new GcpDetectorSync()],
-    }),
-  );
+  const resource = resources
+    .resourceFromAttributes({
+      [ATTR_SERVICE_NAME]: serviceName,
+    })
+    .merge(
+      resources.detectResources({
+        detectors: [containerDetector, gcpDetector, new GcpDetectorSync()],
+      }),
+    );
 
   const meterProvider = new metrics.MeterProvider({ resource, readers });
   api.metrics.setGlobalMeterProvider(meterProvider);
