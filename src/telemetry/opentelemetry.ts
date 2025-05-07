@@ -33,13 +33,13 @@ import {
   ATTR_MESSAGING_MESSAGE_BODY_SIZE,
   ATTR_MESSAGING_MESSAGE_ID,
   ATTR_MESSAGING_SYSTEM,
-} from './semconv';
+} from '@opentelemetry/semantic-conventions/incubating';
 
 const resourceDetectors = [
-  resources.envDetector,
-  resources.hostDetector,
-  resources.osDetector,
-  resources.processDetector,
+  resources.envDetectorSync,
+  resources.hostDetectorSync,
+  resources.osDetectorSync,
+  resources.processDetectorSync,
   containerDetector,
   gcpDetector,
   new GcpDetectorSync(),
