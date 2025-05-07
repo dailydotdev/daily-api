@@ -7,7 +7,9 @@
     "createdAt": "2025-03-05T13:13:01.035Z",
     "updatedAt": "2025-03-05T13:13:01.035Z",
     "value": 0,
-    "flags": "{\"imageGlow\": \"https:\/\/media.daily.dev\/image\/upload\/s--4sp12i70--\/f_auto\/v1743664360\/public\/HappyGlow\"}"
+    "flags": {
+      "imageGlow": "https://media.daily.dev/image/upload/s--4sp12i70--/f_auto/v1743664360/public/HappyGlow"
+    }
   },
   {
     "id": "ef2e2633-c9b9-401a-a372-0edce9fa6329",
@@ -17,7 +19,9 @@
     "createdAt": "2025-03-05T13:13:01.035Z",
     "updatedAt": "2025-03-05T13:13:01.035Z",
     "value": 0,
-    "flags": "{\"imageGlow\": \"https:\/\/media.daily.dev\/image\/upload\/s--erb0_uML--\/f_auto\/v1743664360\/public\/LolGlow\"}"
+    "flags": {
+      "imageGlow": "https://media.daily.dev/image/upload/s--erb0_uML--/f_auto/v1743664360/public/LolGlow"
+    }
   },
   {
     "id": "8aeb45ce-2e96-4dbf-826d-433c98047642",
@@ -27,7 +31,9 @@
     "createdAt": "2025-03-05T13:13:01.035Z",
     "updatedAt": "2025-03-05T13:13:01.035Z",
     "value": 50,
-    "flags": "{\"imageGlow\": \"https:\/\/media.daily.dev\/image\/upload\/s--zt3wqvzq--\/f_auto\/v1743664360\/public\/LoveGlow\"}"
+    "flags": {
+      "imageGlow": "https://media.daily.dev/image/upload/s--zt3wqvzq--/f_auto/v1743664360/public/LoveGlow"
+    }
   },
   {
     "id": "352f1e07-06af-4d5e-a843-b3e324a899a0",
@@ -37,7 +43,9 @@
     "createdAt": "2025-04-02T13:33:25.845Z",
     "updatedAt": "2025-04-02T13:33:25.845Z",
     "value": 75,
-    "flags": "{\"imageGlow\": \"https:\/\/media.daily.dev\/image\/upload\/s--wxgfqZWc--\/f_auto\/v1743664360\/public\/CoffeeGlow\"}"
+    "flags": {
+      "imageGlow": "https://media.daily.dev/image/upload/s--wxgfqZWc--/f_auto/v1743664360/public/CoffeeGlow"
+    }
   },
   {
     "id": "1b536ed1-3ab0-4780-a179-d0387d4c6d72",
@@ -47,7 +55,9 @@
     "createdAt": "2025-03-05T13:13:01.035Z",
     "updatedAt": "2025-03-05T13:13:01.035Z",
     "value": 100,
-    "flags": "{\"imageGlow\": \"https:\/\/media.daily.dev\/image\/upload\/s--QIKos1Qp--\/f_auto\/v1743664360\/public\/StarGlow\"}"
+    "flags": {
+      "imageGlow": "https://media.daily.dev/image/upload/s--QIKos1Qp--/f_auto/v1743664360/public/StarGlow"
+    }
   },
   {
     "id": "17432ba4-bba6-42f8-81dd-f325409e92bf",
@@ -57,7 +67,9 @@
     "createdAt": "2025-04-02T13:37:37.273Z",
     "updatedAt": "2025-04-02T13:37:37.273Z",
     "value": 150,
-    "flags": "{\"imageGlow\": \"https:\/\/media.daily.dev\/image\/upload\/s--kCGxTta---\/f_auto\/v1743664360\/public\/hotDogGlow\"}"
+    "flags": {
+      "imageGlow": "https://media.daily.dev/image/upload/s--kCGxTta---/f_auto/v1743664360/public/hotDogGlow"
+    }
   },
   {
     "id": "1ab1bc67-78d8-4e01-be2b-c262acc27053",
@@ -67,7 +79,9 @@
     "createdAt": "2025-04-02T13:38:22.097Z",
     "updatedAt": "2025-04-02T13:38:22.097Z",
     "value": 200,
-    "flags": "{\"imageGlow\": \"https:\/\/media.daily.dev\/image\/upload\/s--lCdAUh_q--\/f_auto\/v1743664360\/public\/PizzaGlow\"}"
+    "flags": {
+      "imageGlow": "https://media.daily.dev/image/upload/s--lCdAUh_q--/f_auto/v1743664360/public/PizzaGlow"
+    }
   },
   {
     "id": "c0d239b9-72de-4975-a1ac-97668068a310",
@@ -77,7 +91,9 @@
     "createdAt": "2025-04-02T13:39:18.432Z",
     "updatedAt": "2025-04-02T13:39:18.432Z",
     "value": 350,
-    "flags": "{\"imageGlow\": \"https:\/\/media.daily.dev\/image\/upload\/s--f6ygbzrB--\/f_auto\/v1743664360\/public\/CashGlow\"}"
+    "flags": {
+      "imageGlow": "https://media.daily.dev/image/upload/s--f6ygbzrB--/f_auto/v1743664360/public/CashGlow"
+    }
   },
   {
     "id": "0951d2c8-f045-425d-aa1d-0c72a153e939",
@@ -87,7 +103,9 @@
     "createdAt": "2025-04-02T13:39:52.435Z",
     "updatedAt": "2025-04-02T13:39:52.435Z",
     "value": 500,
-    "flags": "{\"imageGlow\": \"https:\/\/media.daily.dev\/image\/upload\/s--O2LYk0w3--\/f_auto\/v1743664360\/public\/TerminalGlow\"}"
+    "flags": {
+      "imageGlow": "https://media.daily.dev/image/upload/s--O2LYk0w3--/f_auto/v1743664360/public/TerminalGlow"
+    }
   },
   {
     "id": "7bd171f2-781f-400b-af45-1fc3bc02e7c0",
@@ -97,7 +115,9 @@
     "createdAt": "2025-04-02T13:40:24.278Z",
     "updatedAt": "2025-04-02T13:40:24.278Z",
     "value": 700,
-    "flags": "{\"imageGlow\": \"https:\/\/media.daily.dev\/image\/upload\/s--084HrC8k--\/f_auto\/v1743664360\/public\/DuckGlow\"}"
+    "flags": {
+      "imageGlow": "https://media.daily.dev/image/upload/s--084HrC8k--/f_auto/v1743664360/public/DuckGlow"
+    }
   },
   {
     "id": "e9dab194-6d2c-409d-b422-3e51d5ed673c",
@@ -107,7 +127,9 @@
     "createdAt": "2025-04-02T13:41:27.979Z",
     "updatedAt": "2025-04-02T13:41:27.979Z",
     "value": 1000,
-    "flags": "{\"imageGlow\": \"https:\/\/media.daily.dev\/image\/upload\/s--NJ3uuIQw--\/f_auto\/v1743664360\/public\/KeyboardGlow\"}"
+    "flags": {
+      "imageGlow": "https://media.daily.dev/image/upload/s--NJ3uuIQw--/f_auto/v1743664360/public/KeyboardGlow"
+    }
   },
   {
     "id": "ae8d3e70-0358-440d-93ba-9a76fd1dc4fd",
@@ -117,6 +139,8 @@
     "createdAt": "2025-04-02T13:41:27.981Z",
     "updatedAt": "2025-04-02T13:41:27.981Z",
     "value": 1500,
-    "flags": "{\"imageGlow\": \"https:\/\/media.daily.dev\/image\/upload\/s--NZ-1Is9I--\/f_auto\/v1743664360\/public\/fineDogGlow\"}"
+    "flags": {
+      "imageGlow": "https://media.daily.dev/image/upload/s--NZ-1Is9I--/f_auto/v1743664360/public/fineDogGlow"
+    }
   }
 ]
