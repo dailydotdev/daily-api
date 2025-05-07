@@ -118,6 +118,7 @@ export default async function app(
     credentials: true,
     cacheControl: 86400,
     maxAge: 86400,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
   });
   app.register(cookie, {
     secret: process.env.COOKIES_KEY,
