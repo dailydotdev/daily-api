@@ -30,6 +30,7 @@ export type UserTransactionRequest = RequestMeta;
 export enum UserTransactionStatus {
   Success = TransferStatus.SUCCESS,
   InsufficientFunds = TransferStatus.INSUFFICIENT_FUNDS,
+  RateLimited = TransferStatus.RATE_LIMITED,
   InternalErrorNjord = TransferStatus.INTERNAL_ERROR,
   Created = 201,
   Processing = 202,
