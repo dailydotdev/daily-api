@@ -50,6 +50,7 @@ import { isPlusMember } from '../paddle';
 import { remoteConfig } from '../remoteConfig';
 import { whereNotUserBlocked } from '../common/contentPreference';
 import { type GetBalanceResult } from '../common/njord';
+import { Product } from '../entity/Product';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -574,6 +575,23 @@ const obj = new GraphORM({
           });
         },
       },
+      featuredAward: {
+        relation: {
+          isMany: false,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder => {
+            return qb
+              .innerJoin(
+                Product,
+                'awardProduct',
+                `"awardProduct".id = ("${childAlias}".flags->>'awardId')::uuid`,
+              )
+              .where(`"${childAlias}"."postId" = "${parentAlias}".id`)
+              .andWhere(`"${childAlias}".flags->>'awardId' is not null`)
+              .orderBy('"awardProduct".value', 'DESC')
+              .limit(1);
+          },
+        },
+      },
     },
   },
   SourceCategory: {
@@ -822,6 +840,23 @@ const obj = new GraphORM({
               .limit(1),
         },
       },
+      featuredAward: {
+        relation: {
+          isMany: false,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder => {
+            return qb
+              .innerJoin(
+                Product,
+                'awardProduct',
+                `"awardProduct".id = ("${childAlias}".flags->>'awardId')::uuid`,
+              )
+              .where(`"${childAlias}"."commentId" = "${parentAlias}".id`)
+              .andWhere(`"${childAlias}".flags->>'awardId' is not null`)
+              .orderBy('"awardProduct".value', 'DESC')
+              .limit(1);
+          },
+        },
+      },
     },
   },
   FeedSettings: {
@@ -984,6 +1019,16 @@ const obj = new GraphORM({
         select: '"awardTransactionId" IS NOT NULL',
         rawSelect: true,
       },
+      award: {
+        relation: {
+          isMany: false,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder => {
+            return qb.where(
+              `${childAlias}.id = ("${parentAlias}".flags->>'awardId')::uuid`,
+            );
+          },
+        },
+      },
     },
   },
   PostQuestion: {
@@ -1028,6 +1073,16 @@ const obj = new GraphORM({
       awarded: {
         select: '"awardTransactionId" IS NOT NULL',
         rawSelect: true,
+      },
+      award: {
+        relation: {
+          isMany: false,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder => {
+            return qb.where(
+              `${childAlias}.id = ("${parentAlias}".flags->>'awardId')::uuid`,
+            );
+          },
+        },
       },
     },
   },
