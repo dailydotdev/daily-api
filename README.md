@@ -16,63 +16,80 @@
 </p>
 
 The project started as a monolith service for everything the extension needed (thus Daily API).
-Safely and slowly it was torn apart to other services to make every service have only one responsibility.
-The so called Daily API kept to itself the content domain. The feed you know very well is delivered from here,
+Safely and slowly, it was torn apart into other services to make every service have only one responsibility.
+The so-called Daily API kept to itself the content domain. The feed you know very well is delivered from here,
 along with other very useful endpoints.
 
 ## Stack
 
 - Node v22 (a `.nvmrc` is presented for [nvm](https://github.com/nvm-sh/nvm) users).
+
 - pnpm for managing dependencies.
+
 - Fastify as the web framework
+
 - Apollo for GraphQL
-- Typeorm as a database layer
+
+- TypeORM as a database layer
 
 ## Project structure
 
 - `__tests__` - There you can find all the tests and fixtures. Tests are written using `jest`.
+
 - `bin` - Folder with utilities and executables.
-- `helm` - The home of the service helm chart for easily deploying it to kubernetes.
+
+- `helm` - The home of the service helm chart for easily deploying it to Kubernetes.
+
 - `seeds` - JSON files with seed data for local development.
+
 - `src` - This is obviously the place where you can find the source files.
+
   - `common` - Utility functions that are used across the project.
+
   - `compatibility` - Fastify routes to keep backwards compatibility with API v1.
+
   - `cron` - Tasks that will be deployed as cron jobs.
+
   - `directive` - GraphQL schema directives.
+
   - `entity` - Typeorm entities that are used to communicate with the database and sync its schema.
+
   - `migration` - Typeorm migrations folder to update the database schema.
-  - `schema` - Apollo GraphQL resolvers, including also types.
+
+  - `schema` - Apollo GraphQL resolvers, including types.
+    
   - `workers` - Pub/Sub message handlers that are deployed as part of the background processor.
 
 ## Local environment
 
 Daily API requires a running instance of PostgreSQL, you can easily set it up using the provided [`docker-compose`](docker-compose.yml) file.
-[Check out this guide](https://docs.docker.com/compose/install/) of how to install Docker Compose. Once installed, you can run `docker-compose up -d` and viola!
+[Check out this guide](https://docs.docker.com/compose/install/) on how to install Docker Compose. Once installed, you can run `docker-compose up -d` and viola!
 
 Make sure to apply the latest migrations by running:
 `pnpm run db:migrate:latest`
 
 [.env](.env) is used to set the required environment variables. It is loaded automatically by the project.
 
-If you want some seed data you can run:
+If you want some seed data, you can run:
 `pnpm run db:seed:import`
 
-Finally run `pnpm run dev` to run the service and listen to port `5000`.
+Finally, run `pnpm run dev` to run the service and listen on port `5000`.
 
 ### Caveat
 
-Currently, there is no staging environment for Algolia so there is no search functionality for local development.
+Currently, there is no staging environment for Algolia, so there is no search functionality for local development.
 
 ## GraphORM
 
-We have an internal solution to tackle problems we have encountered along the way.
-The library is in its early stages so we are continually writing the documentation to provide better developer experience. Have a look at the link below:
+We have an internal solution to tackle the problems we have encountered along the way.
+The library is in its early stages, so we are continually writing the documentation to provide a better developer experience. Have a look at the link below:
 https://github.com/dailydotdev/daily-api/wiki/GraphORM
 
 ## Want to Help?
 
 So you want to contribute to Daily API and make an impact, we are glad to hear it. :heart_eyes:
 
-Before you proceed we have a few guidelines for contribution that will make everything much easier.
-We would appreciate if you dedicate the time and read them carefully:
+Before you proceed, we have a few guidelines for contribution that will make everything much easier.
+We would appreciate it if you could dedicate the time and read them carefully:
+
 https://github.com/dailydotdev/.github/blob/master/CONTRIBUTING.md
