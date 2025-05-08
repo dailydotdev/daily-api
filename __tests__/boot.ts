@@ -469,9 +469,19 @@ describe('logged in boot', () => {
   });
 
   it('should not re-issue JWT token when isPlus in payload is same as user', async () => {
+    await saveFixtures(con, User, [
+      {
+        ...usersFixture[0],
+        id: `${usersFixture[0].id}-lbnp`,
+        username: `${usersFixture[0].username}-lbnp`,
+        github: undefined,
+        subscriptionFlags: {},
+      },
+    ]);
+
     const accessToken = await signJwt(
       {
-        userId: '1',
+        userId: `${usersFixture[0].id}-lbnp`,
         roles: [],
         isPlus: false,
       },
@@ -491,9 +501,18 @@ describe('logged in boot', () => {
   });
 
   it('should re-issue JWT token when isPlus in payload is different from user', async () => {
+    await saveFixtures(con, User, [
+      {
+        ...usersFixture[0],
+        id: `${usersFixture[0].id}-lbp`,
+        username: `${usersFixture[0].username}-lbp`,
+        github: undefined,
+      },
+    ]);
+
     const accessToken = await signJwt(
       {
-        userId: '1',
+        userId: `${usersFixture[0].id}-lbp`,
         roles: [],
         isPlus: true,
       },
