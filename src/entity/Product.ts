@@ -22,6 +22,7 @@ export enum ProductType {
 }
 
 @Entity()
+@Index('idx_product_value_desc', { synchronize: false })
 export class Product {
   @PrimaryGeneratedColumn('uuid')
   id: string;

@@ -195,6 +195,11 @@ export const typeDefs = /* GraphQL */ `
     Awarded product
     """
     award: Product
+
+    """
+    Featured award for the comment, currently the most expensive one
+    """
+    featuredAward: UserComment
   }
 
   type CommentEdge {
@@ -271,6 +276,8 @@ export const typeDefs = /* GraphQL */ `
     comment: Comment!
 
     awarded: Boolean!
+
+    award: Product
   }
 
   extend type Query {
