@@ -1,6 +1,6 @@
 import { EventName, type EventEntity } from '@paddle/paddle-node-sdk';
 
-import { SubscriptionProvider } from '../../../entity/user/User';
+import { SubscriptionProvider } from '../../plus';
 import { logger } from '../../../logger';
 import { logPaddleAnalyticsEvent } from '../index';
 import { AnalyticsEventName } from '../../../integrations/analytics';

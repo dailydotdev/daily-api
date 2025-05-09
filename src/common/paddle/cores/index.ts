@@ -6,7 +6,7 @@ import {
 } from '../../../entity/user/UserTransaction';
 import type { getPaddleTransactionData } from '../index';
 import { logger } from '../../../logger';
-import { SubscriptionProvider } from '../../../entity';
+import { SubscriptionProvider } from '../../plus';
 import { updateFlagsStatement } from '../../utils';
 import type { DataSource, EntityManager } from 'typeorm';
 

@@ -12,7 +12,8 @@ import {
 } from '../index';
 import createOrGetConnection from '../../../db';
 import { logger } from '../../../logger';
-import { SubscriptionProvider, User } from '../../../entity/user/User';
+import { SubscriptionProvider } from '../../plus';
+import { User } from '../../../entity';
 import {
   UserTransaction,
   UserTransactionStatus,

@@ -25,12 +25,8 @@ import {
   type DataSource,
   type EntityManager,
 } from 'typeorm';
-import {
-  SubscriptionProvider,
-  User,
-  UserSubscriptionStatus,
-  type ConnectionManager,
-} from '../../entity';
+import { type ConnectionManager, User } from '../../entity';
+import { SubscriptionProvider, SubscriptionStatus } from '../plus';
 import { isProd } from '../utils';
 import { ClaimableItem, ClaimableItemTypes } from '../../entity/ClaimableItem';
 import {
@@ -260,7 +256,7 @@ export const updateClaimableItem = async (
       createdAt: data.startedAt,
       subscriptionId: data.id,
       provider: SubscriptionProvider.Paddle,
-      status: UserSubscriptionStatus.Active,
+      status: SubscriptionStatus.Active,
     },
   });
 

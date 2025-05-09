@@ -9,7 +9,7 @@ import {
 import { isInSubnet } from 'is-in-subnet';
 import { isNullOrUndefined } from '../../common/object';
 import createOrGetConnection from '../../db';
-import { SubscriptionProvider, User } from '../../entity';
+import { User } from '../../entity';
 import { JsonContains } from 'typeorm';
 import { remoteConfig } from '../../remoteConfig';
 import {
@@ -31,6 +31,7 @@ import {
 } from '../../common/apple/purchase';
 import { handleAppleSubscription } from '../../common/apple/subscription';
 import { loadAppleRootCAs } from '../../common/apple/utils';
+import { SubscriptionProvider } from '../../common/plus';
 
 const handleNotifcationRequest = async (
   verifier: SignedDataVerifier,

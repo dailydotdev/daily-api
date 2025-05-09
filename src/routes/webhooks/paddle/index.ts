@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { isProd } from '../../../common';
-import { SubscriptionProvider } from '../../../entity';
+import { SubscriptionProvider } from '../../../common/plus';
 import { logger } from '../../../logger';
 
 import { isCoreTransaction, paddleInstance } from '../../../common/paddle';

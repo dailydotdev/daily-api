@@ -7,11 +7,8 @@ import {
 } from '../index';
 import { updateFlagsStatement, updateSubscriptionFlags } from '../..//utils';
 import createOrGetConnection from '../../../db';
-import {
-  SubscriptionProvider,
-  User,
-  UserSubscriptionStatus,
-} from '../../../entity/user/User';
+import { User } from '../../../entity/user/User';
+import { SubscriptionProvider, SubscriptionStatus } from '../../plus';
 import { logger } from '../../../logger';
 import {
   isPlusMember,
@@ -91,7 +88,7 @@ export const updateUserSubscription = async ({
           createdAt: state ? data?.startedAt : null,
           subscriptionId: state ? data?.id : null,
           provider: state ? SubscriptionProvider.Paddle : null,
-          status: state ? UserSubscriptionStatus.Active : null,
+          status: state ? SubscriptionStatus.Active : null,
         }),
       },
     );

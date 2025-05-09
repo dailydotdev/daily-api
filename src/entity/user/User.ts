@@ -19,6 +19,10 @@ import type { UserCompany } from '../UserCompany';
 import type { UserTopReader } from './UserTopReader';
 import type { SubscriptionCycles } from '../../paddle';
 import type { Feed } from '../Feed';
+import type {
+  SubscriptionProvider,
+  SubscriptionStatus,
+} from '../../common/plus';
 
 export type UserFlags = Partial<{
   vordr: boolean;
@@ -27,17 +31,6 @@ export type UserFlags = Partial<{
 }>;
 
 export type UserFlagsPublic = Pick<UserFlags, 'showPlusGift'>;
-
-export enum SubscriptionProvider {
-  Paddle = 'paddle',
-  AppleStoreKit = 'storekit',
-}
-
-export enum UserSubscriptionStatus {
-  Active = 'active',
-  Expired = 'expired',
-  Cancelled = 'cancelled',
-}
 
 export type PaddleUserSubscriptionFlags = Partial<{
   gifterId?: string; // Currently only supported in Paddle
@@ -55,7 +48,7 @@ export type UserSubscriptionFlags = Partial<{
   cycle: SubscriptionCycles;
   createdAt: Date;
   provider: SubscriptionProvider;
-  status: UserSubscriptionStatus;
+  status: SubscriptionStatus;
 }> &
   PaddleUserSubscriptionFlags &
   StoreKitUserSubscriptionFlags;

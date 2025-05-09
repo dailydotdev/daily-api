@@ -5,7 +5,8 @@ import {
   createMockNjordTransport,
   saveFixtures,
 } from '../../helpers';
-import { SubscriptionProvider, User } from '../../../src/entity';
+import { SubscriptionProvider } from '../../../src/common/plus';
+import { User } from '../../../src/entity';
 import { usersFixture } from '../../fixture';
 
 import {

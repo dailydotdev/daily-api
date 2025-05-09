@@ -45,7 +45,6 @@ import {
   ReputationType,
   Source,
   SourceMember,
-  SubscriptionProvider,
   User,
   UserAction,
   UserActionType,
@@ -58,7 +57,6 @@ import {
   UserStreak,
   UserStreakAction,
   UserStreakActionType,
-  UserSubscriptionStatus,
   UserTopReader,
   View,
 } from '../src/entity';
@@ -131,6 +129,7 @@ import { randomUUID } from 'crypto';
 import { ClaimableItem, ClaimableItemTypes } from '../src/entity/ClaimableItem';
 import { addClaimableItemsToUser } from '../src/entity/user/utils';
 import { getGeo } from '../src/common/geo';
+import { SubscriptionProvider, SubscriptionStatus } from '../src/common/plus';
 
 jest.mock('../src/common/geo', () => ({
   ...(jest.requireActual('../src/common/geo') as Record<string, unknown>),
@@ -4121,7 +4120,7 @@ describe('mutation deleteUser', () => {
           subscriptionFlags: updateSubscriptionFlags({
             subscriptionId: '123',
             provider: SubscriptionProvider.AppleStoreKit,
-            status: UserSubscriptionStatus.Active,
+            status: SubscriptionStatus.Active,
           }),
         },
       );
@@ -4144,7 +4143,7 @@ describe('mutation deleteUser', () => {
           subscriptionFlags: updateSubscriptionFlags({
             subscriptionId: '123',
             provider: SubscriptionProvider.AppleStoreKit,
-            status: UserSubscriptionStatus.Cancelled,
+            status: SubscriptionStatus.Cancelled,
           }),
         },
       );
@@ -4167,7 +4166,7 @@ describe('mutation deleteUser', () => {
           subscriptionFlags: updateSubscriptionFlags({
             subscriptionId: '123',
             provider: SubscriptionProvider.AppleStoreKit,
-            status: UserSubscriptionStatus.Expired,
+            status: SubscriptionStatus.Expired,
           }),
         },
       );
