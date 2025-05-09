@@ -16,7 +16,10 @@ export class ContentPreferenceOrganization extends ContentPreference {
   organizationId: string;
 
   @ManyToOne('Organization', { lazy: true, onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'organizationId' })
+  @JoinColumn({
+    name: 'organizationId',
+    foreignKeyConstraintName: 'FK_content_preference_organization_id',
+  })
   organization: Promise<Organization>;
 
   @Column({ type: 'jsonb', default: {} })
