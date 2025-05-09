@@ -293,9 +293,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         (nodeSize) => pageGenerator.hasNextPage(page, nodeSize),
         (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
         (builder) => {
-          builder.queryBuilder.limit(page.limit);
-
-          builder.queryBuilder.orderBy(`${builder.alias}."value"`, 'ASC');
+          builder.queryBuilder
+            .limit(page.limit)
+            .offset(page.offset)
+            .addOrderBy(`${builder.alias}."value"`, 'ASC');
 
           return builder;
         },
@@ -408,9 +409,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               status: [UserTransactionStatus.Created],
             });
 
-          builder.queryBuilder.limit(page.limit).offset(page.offset);
-
-          builder.queryBuilder.orderBy(`${builder.alias}."createdAt"`, 'DESC');
+          builder.queryBuilder
+            .limit(page.limit)
+            .offset(page.offset)
+            .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
 
           return builder;
         },
