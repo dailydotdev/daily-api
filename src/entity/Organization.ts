@@ -20,7 +20,7 @@ export type OrganizationSubscriptionFlags = Partial<{
 export class Organization {
   @PrimaryColumn({
     type: 'text',
-    primaryKeyConstraintName: 'PK_organization_id',
+    primaryKeyConstraintName: 'PK_organization_organization_id',
   })
   id: string;
 
