@@ -120,6 +120,7 @@ import { remoteConfig } from '../remoteConfig';
 import { ensurePostRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
 import { UserTransaction } from '../entity/user/UserTransaction';
+import { Product } from '../entity/Product';
 
 export interface GQLPost {
   id: string;
@@ -1655,34 +1656,45 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       await ensureSourcePermissions(ctx, post.sourceId);
 
-      return queryPaginatedByDate(
+      const pageGenerator = offsetPageGenerator<GQLUserPost>(20, 100);
+      const page = pageGenerator.connArgsToPage(args);
+
+      return graphorm.queryPaginated(
         ctx,
         info,
-        args,
-        { key: 'updatedAt' } as GQLDatePageGeneratorConfig<
-          UserPost,
-          'updatedAt'
-        >,
-        {
-          queryBuilder: (builder) => {
-            builder.queryBuilder = builder.queryBuilder
-              .andWhere(`${builder.alias}.postId = :postId`, {
-                postId: args.id,
-              })
-              .andWhere(`${builder.alias}."awardTransactionId" IS NOT NULL`);
+        (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => pageGenerator.hasNextPage(page, nodeSize),
+        (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder.innerJoin(
+            Product,
+            'postAwardProduct',
+            `"postAwardProduct".id = (${builder.alias}.flags->>'awardId')::uuid`,
+          );
 
-            if (ctx.userId) {
-              builder.queryBuilder.andWhere(
-                whereNotUserBlocked(builder.queryBuilder, {
-                  userId: ctx.userId,
-                }),
-              );
-            }
+          builder.queryBuilder
+            .andWhere(`${builder.alias}.postId = :postId`, {
+              postId: args.id,
+            })
+            .andWhere(`${builder.alias}."awardTransactionId" IS NOT NULL`);
 
-            return builder;
-          },
-          orderByKey: 'DESC',
+          if (ctx.userId) {
+            builder.queryBuilder.andWhere(
+              whereNotUserBlocked(builder.queryBuilder, {
+                userId: ctx.userId,
+              }),
+            );
+          }
+
+          builder.queryBuilder
+            .limit(page.limit)
+            .offset(page.offset)
+            .addOrderBy(`"postAwardProduct"."value"`, 'DESC');
+
+          return builder;
         },
+        undefined,
+        true,
       );
     },
     postAwardsTotal: async (
