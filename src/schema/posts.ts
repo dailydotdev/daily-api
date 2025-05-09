@@ -810,7 +810,7 @@ export const typeDefs = /* GraphQL */ `
     node: UserPost!
 
     """
-    Used in \`before\` and \`after\` args
+    Used in before and after args
     """
     cursor: String!
   }
@@ -954,7 +954,7 @@ export const typeDefs = /* GraphQL */ `
     fetchSmartTitle(id: ID!): PostSmartTitle @auth
 
     """
-    Get Post's Upvotes by post id
+    Get Post's Awards by post id
     """
     postAwards(
       """
@@ -974,7 +974,7 @@ export const typeDefs = /* GraphQL */ `
     ): UserPostConnection!
 
     """
-    Get Post's Upvotes by post id
+    Get Post's Awards count
     """
     postAwardsTotal(
       """
