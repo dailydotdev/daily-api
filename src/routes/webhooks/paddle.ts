@@ -19,11 +19,7 @@ import {
   updateSubscriptionFlags,
   webhooks,
 } from '../../common';
-import {
-  SubscriptionProvider,
-  User,
-  UserSubscriptionStatus,
-} from '../../entity';
+import { User } from '../../entity';
 import { logger } from '../../logger';
 import {
   AnalyticsEventName,
@@ -57,6 +53,7 @@ import { checkUserCoresAccess } from '../../common/user';
 import { CoresRole } from '../../types';
 import { TransferError } from '../../errors';
 import { remoteConfig } from '../../remoteConfig';
+import { SubscriptionProvider, SubscriptionStatus } from '../../common/plus';
 
 export interface PaddleCustomData {
   user_id?: string;
@@ -132,7 +129,7 @@ export const updateUserSubscription = async ({
           createdAt: state ? data?.startedAt : null,
           subscriptionId: state ? data?.id : null,
           provider: state ? SubscriptionProvider.Paddle : null,
-          status: state ? UserSubscriptionStatus.Active : null,
+          status: state ? SubscriptionStatus.Active : null,
         }),
       },
     );

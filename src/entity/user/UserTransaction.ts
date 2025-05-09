@@ -8,10 +8,11 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { SubscriptionProvider, type User } from './User';
+import { type User } from './User';
 import type { Product } from '../Product';
 import type { RequestMeta } from '../../Context';
 import { TransferStatus } from '@dailydotdev/schema';
+import { SubscriptionProvider } from '../../common/plus';
 
 export type UserTransactionFlags = Partial<{
   note: string;
