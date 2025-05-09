@@ -18,7 +18,6 @@ export class ContentPreferenceSource extends ContentPreference {
   sourceId: string;
 
   @Column({ type: 'jsonb', default: {} })
-  @Index('IDX_content_preference_flags_referralToken', { synchronize: false })
   flags: ContentPreferenceSourceFlags;
 
   @ManyToOne('Source', { lazy: true, onDelete: 'CASCADE' })
