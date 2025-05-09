@@ -8,7 +8,7 @@ import {
   type SignedDataVerifier,
 } from '@apple/app-store-server-library';
 import { logger } from '../../logger';
-import { SubscriptionProvider, type User } from '../../entity/user/User';
+import { type User } from '../../entity/user/User';
 import { isNullOrUndefined } from '../object';
 import {
   AnalyticsEventName,
@@ -23,6 +23,7 @@ import {
 import { readFile } from 'fs/promises';
 import { isTest } from '../utils';
 import { isCorePurchaseApple } from './purchase';
+import { SubscriptionProvider } from '../plus';
 
 export const verifyAndDecodeAppleSignedData = async ({
   notification,

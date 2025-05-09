@@ -12,8 +12,6 @@ import {
   Settings,
   SourceDisplay,
   SourceRequest,
-  UserSubscriptionStatus,
-  SubscriptionProvider,
   User,
   View,
 } from '../entity';
@@ -25,6 +23,7 @@ import { logger } from '../logger';
 import { CoresRole } from '../types';
 import { remoteConfig } from '../remoteConfig';
 import { UserTransaction } from '../entity/user/UserTransaction';
+import { SubscriptionProvider, SubscriptionStatus } from './plus';
 
 export const deleteUser = async (
   con: DataSource,
@@ -39,7 +38,7 @@ export const deleteUser = async (
     if (subscriptionFlags?.subscriptionId) {
       if (
         subscriptionFlags?.provider === SubscriptionProvider.AppleStoreKit &&
-        subscriptionFlags?.status === UserSubscriptionStatus.Active
+        subscriptionFlags?.status === SubscriptionStatus.Active
       ) {
         throw new Error(
           'Apple subscriptions are not supported for user deletion',

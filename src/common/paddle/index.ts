@@ -17,7 +17,7 @@ import { remoteConfig } from '../../remoteConfig';
 import { z } from 'zod';
 import { UserTransaction } from '../../entity/user/UserTransaction';
 import type { DataSource, EntityManager } from 'typeorm';
-import { SubscriptionProvider } from '../../entity';
+import { SubscriptionProvider } from '../plus';
 import { isProd } from '../utils';
 
 export const paddleInstance = new Paddle(process.env.PADDLE_API_KEY, {
