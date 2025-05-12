@@ -2,7 +2,7 @@ import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import type { User } from './user';
 
 export enum ClaimableItemTypes {
-  Subscription = 'subscription',
+  Plus = 'plus',
 }
 
 @Entity()
