@@ -1644,85 +1644,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       );
     },
-    postAwards: async (
-      _,
-      args: GQLPostAwardArgs,
-      ctx: Context,
-      info,
-    ): Promise<ConnectionRelay<GQLUserPost>> => {
-      const post = await ctx.con
-        .getRepository(Post)
-        .findOneByOrFail({ id: args.id });
-
-      await ensureSourcePermissions(ctx, post.sourceId);
-
-      const pageGenerator = offsetPageGenerator<GQLUserPost>(20, 100);
-      const page = pageGenerator.connArgsToPage(args);
-
-      return graphorm.queryPaginated(
-        ctx,
-        info,
-        (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
-        (nodeSize) => pageGenerator.hasNextPage(page, nodeSize),
-        (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
-        (builder) => {
-          builder.queryBuilder.innerJoin(
-            Product,
-            'postAwardProduct',
-            `"postAwardProduct".id = (${builder.alias}.flags->>'awardId')::uuid`,
-          );
-
-          builder.queryBuilder
-            .andWhere(`${builder.alias}.postId = :postId`, {
-              postId: args.id,
-            })
-            .andWhere(`${builder.alias}."awardTransactionId" IS NOT NULL`);
-
-          if (ctx.userId) {
-            builder.queryBuilder.andWhere(
-              whereNotUserBlocked(builder.queryBuilder, {
-                userId: ctx.userId,
-              }),
-            );
-          }
-
-          builder.queryBuilder
-            .limit(page.limit)
-            .offset(page.offset)
-            .addOrderBy(`"postAwardProduct"."value"`, 'DESC');
-
-          return builder;
-        },
-        undefined,
-        true,
-      );
-    },
-    postAwardsTotal: async (
-      _,
-      args: GQLPostAwardArgs,
-      ctx: Context,
-    ): Promise<{ amount: number }> => {
-      const post: Pick<Post, 'id' | 'sourceId'> = await ctx.con
-        .getRepository(Post)
-        .findOneOrFail({
-          select: ['id', 'sourceId'],
-          where: {
-            id: args.id,
-          },
-        });
-
-      await ensureSourcePermissions(ctx, post.sourceId);
-
-      const result = await ctx.con
-        .getRepository(UserPost)
-        .createQueryBuilder('up')
-        .select('COALESCE(SUM(ut.value), 0)', 'amount')
-        .innerJoin(UserTransaction, 'ut', 'ut.id = up."awardTransactionId"')
-        .where('up."postId" = :postId', { postId: post.id })
-        .getRawOne();
-
-      return result;
-    },
     searchQuestionRecommendations: async (
       source,
       _,
@@ -1919,6 +1840,90 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           translation: translationRecord,
         };
       }),
+    postAwards: async (
+      _,
+      args: GQLPostAwardArgs,
+      ctx: Context,
+      info,
+    ): Promise<ConnectionRelay<GQLUserPost>> => {
+      const post: Pick<Post, 'id' | 'sourceId'> = await ctx.con
+        .getRepository(Post)
+        .findOneOrFail({
+          select: ['id', 'sourceId'],
+          where: {
+            id: args.id,
+          },
+        });
+
+      await ensureSourcePermissions(ctx, post.sourceId);
+
+      const pageGenerator = offsetPageGenerator<GQLUserPost>(20, 100);
+      const page = pageGenerator.connArgsToPage(args);
+
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => pageGenerator.hasNextPage(page, nodeSize),
+        (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder.innerJoin(
+            Product,
+            'postAwardProduct',
+            `"postAwardProduct".id = (${builder.alias}.flags->>'awardId')::uuid`,
+          );
+
+          builder.queryBuilder
+            .andWhere(`${builder.alias}.postId = :postId`, {
+              postId: args.id,
+            })
+            .andWhere(`${builder.alias}."awardTransactionId" IS NOT NULL`);
+
+          if (ctx.userId) {
+            builder.queryBuilder.andWhere(
+              whereNotUserBlocked(builder.queryBuilder, {
+                userId: ctx.userId,
+              }),
+            );
+          }
+
+          builder.queryBuilder
+            .limit(page.limit)
+            .offset(page.offset)
+            .addOrderBy(`"postAwardProduct"."value"`, 'DESC');
+
+          return builder;
+        },
+        undefined,
+        true,
+      );
+    },
+    postAwardsTotal: async (
+      _,
+      args: GQLPostAwardArgs,
+      ctx: Context,
+    ): Promise<{ amount: number }> => {
+      const post: Pick<Post, 'id' | 'sourceId'> = await ctx.con
+        .getRepository(Post)
+        .findOneOrFail({
+          select: ['id', 'sourceId'],
+          where: {
+            id: args.id,
+          },
+        });
+
+      await ensureSourcePermissions(ctx, post.sourceId);
+
+      const result = await ctx.con
+        .getRepository(UserPost)
+        .createQueryBuilder('up')
+        .select('COALESCE(SUM(ut.value), 0)', 'amount')
+        .innerJoin(UserTransaction, 'ut', 'ut.id = up."awardTransactionId"')
+        .where('up."postId" = :postId', { postId: post.id })
+        .getRawOne();
+
+      return result;
+    },
   },
   Mutation: {
     createSourcePostModeration: async (
