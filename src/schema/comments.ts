@@ -56,7 +56,6 @@ import { ensureCommentRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
 import type { GQLProduct } from './njord';
 import { Product } from '../entity/Product';
-import { UserTransaction } from '../entity/user/UserTransaction';
 
 export interface GQLComment {
   id: string;
@@ -970,7 +969,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .getRepository(UserComment)
         .createQueryBuilder('up')
         .select('COALESCE(SUM(ut.value), 0)', 'amount')
-        .innerJoin(UserTransaction, 'ut', 'ut.id = up."awardTransactionId"')
+        .innerJoin('UserTransaction', 'ut', 'ut.id = up."awardTransactionId"')
         .where('up."commentId" = :commentId', { commentId: comment.id })
         .getRawOne();
 

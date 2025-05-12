@@ -119,7 +119,6 @@ import { queryReadReplica } from '../common/queryReadReplica';
 import { remoteConfig } from '../remoteConfig';
 import { ensurePostRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
-import { UserTransaction } from '../entity/user/UserTransaction';
 import { Product } from '../entity/Product';
 
 export interface GQLPost {
@@ -1918,7 +1917,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .getRepository(UserPost)
         .createQueryBuilder('up')
         .select('COALESCE(SUM(ut.value), 0)', 'amount')
-        .innerJoin(UserTransaction, 'ut', 'ut.id = up."awardTransactionId"')
+        .innerJoin('UserTransaction', 'ut', 'ut.id = up."awardTransactionId"')
         .where('up."postId" = :postId', { postId: post.id })
         .getRawOne();
 
