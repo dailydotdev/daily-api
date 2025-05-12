@@ -25,7 +25,7 @@ import {
   TypeOrmError,
   TypeORMQueryFailedError,
 } from '../errors';
-import { GQLEmptyResponse } from './common';
+import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import { GQLUser } from './users';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import graphorm from '../graphorm';
@@ -55,6 +55,8 @@ import { toGQLEnum } from '../common/utils';
 import { ensureCommentRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
 import type { GQLProduct } from './njord';
+import { Product } from '../entity/Product';
+import { UserTransaction } from '../entity/user/UserTransaction';
 
 export interface GQLComment {
   id: string;
@@ -111,6 +113,8 @@ export enum SortCommentsBy {
   NewestFirst = 'newest',
   OldestFirst = 'oldest',
 }
+
+export type GQLCommentAwardArgs = GQLCommentUpvoteArgs;
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(SortCommentsBy, 'SortCommentsBy')}
@@ -280,6 +284,25 @@ export const typeDefs = /* GraphQL */ `
     award: Product
   }
 
+  type UserCommentEdge {
+    node: UserComment!
+    """
+    Used in before and after args
+    """
+    cursor: String!
+  }
+  type UserCommentConnection {
+    pageInfo: PageInfo!
+    edges: [UserCommentEdge!]!
+    """
+    The original query in case of a search operation
+    """
+    query: String
+  }
+  type CommentBalance {
+    amount: Int!
+  }
+
   extend type Query {
     """
     Get the comments feed
@@ -379,6 +402,34 @@ export const typeDefs = /* GraphQL */ `
     Fetch a comment by id
     """
     comment(id: ID!): Comment @auth
+
+    """
+    Get Comment's Awards by comment id
+    """
+    commentAwards(
+      """
+      Id of the relevant comment to return Awards
+      """
+      id: ID!
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+    ): UserCommentConnection!
+
+    """
+    Get Comment's Awards count
+    """
+    commentAwardsTotal(
+      """
+      Id of the relevant comment to return Awards
+      """
+      id: String!
+    ): CommentBalance!
   }
 
   extend type Mutation {
@@ -828,6 +879,102 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       await ensureSourcePermissions(ctx, post.sourceId);
 
       return comment;
+    },
+    commentAwards: async (
+      _,
+      args: GQLCommentAwardArgs,
+      ctx: Context,
+      info,
+    ): Promise<Connection<GQLUserComment>> => {
+      const comment: Pick<Comment, 'id' | 'postId' | 'post'> = await ctx.con
+        .getRepository(Comment)
+        .findOneOrFail({
+          select: {
+            id: true,
+            postId: true,
+            post: {
+              sourceId: true,
+            },
+          },
+          where: { id: args.id },
+          relations: ['post'],
+        });
+      const post: Pick<Post, 'sourceId'> = await comment.post;
+
+      await ensureSourcePermissions(ctx, post.sourceId);
+
+      const pageGenerator = offsetPageGenerator<GQLUserComment>(20, 100);
+      const page = pageGenerator.connArgsToPage(args);
+
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => pageGenerator.hasNextPage(page, nodeSize),
+        (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder.innerJoin(
+            Product,
+            'commentAwardProduct',
+            `"commentAwardProduct".id = (${builder.alias}.flags->>'awardId')::uuid`,
+          );
+
+          builder.queryBuilder
+            .andWhere(`${builder.alias}.commentId = :commentId`, {
+              commentId: args.id,
+            })
+            .andWhere(`${builder.alias}."awardTransactionId" IS NOT NULL`);
+
+          if (ctx.userId) {
+            builder.queryBuilder.andWhere(
+              whereNotUserBlocked(builder.queryBuilder, {
+                userId: ctx.userId,
+              }),
+            );
+          }
+
+          builder.queryBuilder
+            .limit(page.limit)
+            .offset(page.offset)
+            .addOrderBy(`"commentAwardProduct"."value"`, 'DESC');
+
+          return builder;
+        },
+        undefined,
+        true,
+      );
+    },
+    commentAwardsTotal: async (
+      _,
+      args: GQLCommentAwardArgs,
+      ctx: Context,
+    ): Promise<{ amount: number }> => {
+      const comment: Pick<Comment, 'id' | 'postId' | 'post'> = await ctx.con
+        .getRepository(Comment)
+        .findOneOrFail({
+          select: {
+            id: true,
+            postId: true,
+            post: {
+              sourceId: true,
+            },
+          },
+          where: { id: args.id },
+          relations: ['post'],
+        });
+      const post: Pick<Post, 'sourceId'> = await comment.post;
+
+      await ensureSourcePermissions(ctx, post.sourceId);
+
+      const result = await ctx.con
+        .getRepository(UserComment)
+        .createQueryBuilder('up')
+        .select('COALESCE(SUM(ut.value), 0)', 'amount')
+        .innerJoin(UserTransaction, 'ut', 'ut.id = up."awardTransactionId"')
+        .where('up."commentId" = :commentId', { commentId: comment.id })
+        .getRawOne();
+
+      return result;
     },
   },
   Mutation: {
