@@ -6746,7 +6746,6 @@ describe('query postCodeSnippets', () => {
       variables: { id: 'p1' },
     });
 
-    console.log(JSON.stringify(res.data, null, 2));
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchObject({
       postCodeSnippets: {
@@ -7746,5 +7745,216 @@ describe('featuredAward field', () => {
     expect(res.errors).toBeFalsy();
 
     expect(res.data.post.featuredAward).toBeNull();
+  });
+});
+
+describe('query post awards', () => {
+  const QUERY = `
+  query PostAwards($id: ID!) {
+    awards: postAwards(id: $id) {
+      edges {
+        node {
+          user {
+            id
+            name
+          }
+          award {
+            name
+            value
+          }
+        }
+      }
+    }
+    awardsTotal: postAwardsTotal(id: $id) {
+      amount
+    }
+  }
+  `;
+
+  beforeEach(async () => {
+    await saveFixtures(
+      con,
+      User,
+      usersFixture.map((item) => {
+        return {
+          ...item,
+          id: `${item.id}-paq`,
+          username: `${item.username}-paq`,
+        };
+      }),
+    );
+
+    await saveFixtures(con, Source, [
+      {
+        id: 'a-paq',
+        name: 'A-PAQ',
+        image: 'http://image.com/a/paq',
+        handle: 'a-paq',
+        type: SourceType.Machine,
+      },
+      {
+        id: 'b-paq',
+        name: 'B-PAQ',
+        image: 'http://image.com/b/paq',
+        handle: 'b-paq',
+        type: SourceType.Machine,
+        private: true,
+      },
+    ]);
+
+    await saveFixtures(con, ArticlePost, [
+      {
+        id: 'p1-paq',
+        shortId: 'sp1-paq',
+        title: 'P1-PAQ',
+        url: 'http://p1.com/paq',
+        canonicalUrl: 'http://p1c.com/paq',
+        image: 'https://daily.dev/image-paq.jpg',
+        score: 1,
+        sourceId: 'a-paq',
+        createdAt: new Date(),
+        tagsStr: 'javascript,webdev',
+        type: PostType.Article,
+        contentCuration: ['c1', 'c2'],
+        authorId: '1-paq',
+      },
+      {
+        id: 'p2-paq',
+        shortId: 'sp2-paq',
+        title: 'P2-PAQ',
+        url: 'http://p2.com/paq',
+        canonicalUrl: 'http://p2c.com/paq',
+        image: 'https://daily.dev/image2-paq.jpg',
+        score: 1,
+        sourceId: 'b-paq',
+        createdAt: new Date(),
+        tagsStr: 'javascript,webdev',
+        type: PostType.Article,
+        contentCuration: ['c1', 'c2'],
+      },
+    ]);
+
+    await saveFixtures(con, Product, [
+      {
+        id: '987cdf34-7d12-435d-87c1-1bbd4daa4480',
+        name: 'Award 1',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 42,
+      },
+      {
+        id: '777cfd3d-1359-416b-b52a-e229b230f024',
+        name: 'Award 2',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 10,
+      },
+      {
+        id: '7097b336-fefa-4d60-bb78-fbc676ae1abf',
+        name: 'Award 3',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 20,
+      },
+    ]);
+  });
+
+  it('should throw error when user cannot access', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { id: 'p2-paq' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should return awards', async () => {
+    loggedUser = '2-paq';
+
+    const [transaction, transaction2] = await con
+      .getRepository(UserTransaction)
+      .save([
+        {
+          processor: UserTransactionProcessor.Njord,
+          receiverId: '1-paq',
+          status: UserTransactionStatus.Success,
+          productId: '777cfd3d-1359-416b-b52a-e229b230f024',
+          senderId: '3-paq',
+          fee: 0,
+          value: 10,
+          valueIncFees: 10,
+        },
+        {
+          processor: UserTransactionProcessor.Njord,
+          receiverId: '1-paq',
+          status: UserTransactionStatus.Success,
+          productId: '7097b336-fefa-4d60-bb78-fbc676ae1abf',
+          senderId: '4-paq',
+          fee: 0,
+          value: 20,
+          valueIncFees: 20,
+        },
+      ]);
+
+    await con.getRepository(UserPost).save([
+      {
+        postId: 'p1-paq',
+        userId: transaction.senderId,
+        vote: UserVote.None,
+        hidden: false,
+        flags: {
+          awardId: transaction.productId,
+        },
+        awardTransactionId: transaction.id,
+      },
+      {
+        postId: 'p1-paq',
+        userId: transaction2.senderId,
+        vote: UserVote.None,
+        hidden: false,
+        flags: {
+          awardId: transaction2.productId,
+        },
+        awardTransactionId: transaction2.id,
+      },
+    ]);
+
+    const res = await client.query(QUERY, {
+      variables: { id: 'p1-paq' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.awardsTotal.amount).toEqual(30);
+    expect(res.data.awards.edges).toMatchObject([
+      {
+        node: {
+          user: {
+            id: '4-paq',
+            name: 'Lee',
+          },
+          award: {
+            name: 'Award 3',
+            value: 20,
+          },
+        },
+      },
+      {
+        node: {
+          user: {
+            id: '3-paq',
+            name: 'Nimrod',
+          },
+          award: {
+            name: 'Award 2',
+            value: 10,
+          },
+        },
+      },
+    ]);
   });
 });
