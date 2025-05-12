@@ -16,6 +16,7 @@ import {
   FeedType,
   Post,
   PostTag,
+  PostType,
   Source,
   SourceMember,
   SourceType,
@@ -2391,5 +2392,235 @@ describe('award field', () => {
         expect(edge.node.award).toBeNull();
       }
     });
+  });
+});
+
+describe('query comment awards', () => {
+  const QUERY = `
+  query CommentAwards($id: ID!) {
+    awards: commentAwards(id: $id) {
+      edges {
+        node {
+          user {
+            id
+            name
+          }
+          award {
+            name
+            value
+          }
+        }
+      }
+    }
+    awardsTotal: commentAwardsTotal(id: $id) {
+      amount
+    }
+  }
+  `;
+
+  beforeEach(async () => {
+    await saveFixtures(
+      con,
+      User,
+      usersFixture.map((item) => {
+        return {
+          ...item,
+          id: `${item.id}-caq`,
+          username: `${item.id}-caq`,
+        };
+      }),
+    );
+
+    await saveFixtures(con, Source, [
+      {
+        id: 'a-caq',
+        name: 'A-PAQ',
+        image: 'http://image.com/a/caq',
+        handle: 'a-caq',
+        type: SourceType.Machine,
+      },
+      {
+        id: 'b-caq',
+        name: 'B-PAQ',
+        image: 'http://image.com/b/caq',
+        handle: 'b-caq',
+        type: SourceType.Machine,
+        private: true,
+      },
+    ]);
+
+    await saveFixtures(con, ArticlePost, [
+      {
+        id: 'p1-caq',
+        shortId: 'sp1-caq',
+        title: 'P1-PAQ',
+        url: 'http://p1.com/caq',
+        canonicalUrl: 'http://p1c.com/caq',
+        image: 'https://daily.dev/image-caq.jpg',
+        score: 1,
+        sourceId: 'a-caq',
+        createdAt: new Date(),
+        tagsStr: 'javascript,webdev',
+        type: PostType.Article,
+        contentCuration: ['c1', 'c2'],
+        authorId: '1-caq',
+      },
+      {
+        id: 'p2-caq',
+        shortId: 'sp2-caq',
+        title: 'P2-PAQ',
+        url: 'http://p2.com/caq',
+        canonicalUrl: 'http://p2c.com/caq',
+        image: 'https://daily.dev/image2-caq.jpg',
+        score: 1,
+        sourceId: 'b-caq',
+        createdAt: new Date(),
+        tagsStr: 'javascript,webdev',
+        type: PostType.Article,
+        contentCuration: ['c1', 'c2'],
+      },
+    ]);
+
+    await saveFixtures(con, Comment, [
+      {
+        id: 'c1-caq',
+        postId: 'p1-caq',
+        userId: '1-caq',
+        content: 'comment',
+        contentHtml: '<p>comment</p>',
+        createdAt: new Date(),
+      },
+      {
+        id: 'c2-caq',
+        postId: 'p2-caq',
+        userId: '2-caq',
+        content: 'comment',
+        contentHtml: '<p>comment</p>',
+        createdAt: new Date(),
+      },
+    ]);
+
+    await saveFixtures(con, Product, [
+      {
+        id: 'd5a3720d-bef4-454a-ace6-c22dafcf1b02',
+        name: 'Award 1',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 42,
+      },
+      {
+        id: '080e0eb0-b366-423b-8d61-eff048b9140b',
+        name: 'Award 2',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 10,
+      },
+      {
+        id: '7009ba15-2df0-47be-bb34-5f38740a8842',
+        name: 'Award 3',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 20,
+      },
+    ]);
+  });
+
+  it('should throw error when user cannot access', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { id: 'c2-caq' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should return awards', async () => {
+    loggedUser = '2-caq';
+
+    const [transaction, transaction2] = await con
+      .getRepository(UserTransaction)
+      .save([
+        {
+          processor: UserTransactionProcessor.Njord,
+          receiverId: '1-caq',
+          status: UserTransactionStatus.Success,
+          productId: '080e0eb0-b366-423b-8d61-eff048b9140b',
+          senderId: '3-caq',
+          fee: 0,
+          value: 10,
+          valueIncFees: 10,
+        },
+        {
+          processor: UserTransactionProcessor.Njord,
+          receiverId: '1-caq',
+          status: UserTransactionStatus.Success,
+          productId: '7009ba15-2df0-47be-bb34-5f38740a8842',
+          senderId: '4-caq',
+          fee: 0,
+          value: 20,
+          valueIncFees: 20,
+        },
+      ]);
+
+    await con.getRepository(UserComment).save([
+      {
+        commentId: 'c1-caq',
+        userId: transaction.senderId,
+        vote: UserVote.None,
+        hidden: false,
+        flags: {
+          awardId: transaction.productId,
+        },
+        awardTransactionId: transaction.id,
+      },
+      {
+        commentId: 'c1-caq',
+        userId: transaction2.senderId,
+        vote: UserVote.None,
+        hidden: false,
+        flags: {
+          awardId: transaction2.productId,
+        },
+        awardTransactionId: transaction2.id,
+      },
+    ]);
+
+    const res = await client.query(QUERY, {
+      variables: { id: 'c1-caq' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.awardsTotal.amount).toEqual(30);
+    expect(res.data.awards.edges).toMatchObject([
+      {
+        node: {
+          user: {
+            id: '4-caq',
+            name: 'Lee',
+          },
+          award: {
+            name: 'Award 3',
+            value: 20,
+          },
+        },
+      },
+      {
+        node: {
+          user: {
+            id: '3-caq',
+            name: 'Nimrod',
+          },
+          award: {
+            name: 'Award 2',
+            value: 10,
+          },
+        },
+      },
+    ]);
   });
 });
