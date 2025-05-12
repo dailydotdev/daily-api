@@ -981,7 +981,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Id of the relevant post to return Awards
       """
-      id: String!
+      id: ID!
     ): PostBalance!
   }
 

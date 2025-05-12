@@ -428,7 +428,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Id of the relevant comment to return Awards
       """
-      id: String!
+      id: ID!
     ): CommentBalance!
   }
 
