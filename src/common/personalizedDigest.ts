@@ -127,12 +127,12 @@ type CIOSkadiAd = {
   type: string;
 } & SkadiAd;
 
-const getEmailAd = async ({
+export const getEmailAd = async ({
   user,
   feature,
 }: {
   user: User;
-  feature: PersonalizedDigestFeatureConfig;
+  feature: Pick<PersonalizedDigestFeatureConfig, 'templateId'>;
 }): Promise<CIOSkadiAd | null> => {
   // TODO: Temporary hardcode 75 check
   if (
@@ -146,7 +146,11 @@ const getEmailAd = async ({
     USERID: user.id,
   });
 
-  const digestAd = ad.value.digest;
+  const digestAd = ad.value?.digest;
+
+  if (!digestAd) {
+    return null;
+  }
 
   return {
     type: 'dynamic_ad',
