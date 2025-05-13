@@ -7,12 +7,14 @@ import {
   type GraphQLTestingState,
   type GraphQLTestClient,
 } from './helpers';
-import { SubscriptionProvider, User } from '../src/entity';
+import { SubscriptionProvider, User, UserSubscriptionStatus } from '../src/entity';
 import { plusUsersFixture, usersFixture } from './fixture';
 import {
   EventName,
   SubscriptionCreatedEvent,
   TransactionCompletedEvent,
+  Customer,
+  Subscription,
 } from '@paddle/paddle-node-sdk';
 import {
   PaddleCustomData,
@@ -35,6 +37,7 @@ import {
   PricingType,
 } from '../src/common/paddle/pricing';
 import { CountryCode, CurrencyCode } from '@paddle/paddle-node-sdk';
+import { ClaimableItem, ClaimableItemTypes } from '../src/entity/ClaimableItem';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -719,6 +722,63 @@ describe('plus subscription', () => {
     expect(isFinallyPlus).toBe(true);
     expect(updatedUser.subscriptionFlags?.provider).toEqual(
       SubscriptionProvider.Paddle,
+    );
+  });
+
+  it('should add an anonymous subscription to the claimable_items table', async () => {
+    // Mock Paddle API calls
+    const mockCustomer = { email: 'test@example.com' };
+    const mockSubscription = {
+      items: [
+        {
+          price: {
+            billingCycle: {
+              interval: 'month',
+              frequency: 1,
+            },
+          },
+        },
+      ],
+    };
+
+    jest
+      .spyOn(paddleInstance.customers, 'get')
+      .mockResolvedValue(mockCustomer as Customer);
+    jest
+      .spyOn(paddleInstance.subscriptions, 'get')
+      .mockResolvedValue(mockSubscription as Subscription);
+
+    // Create subscription event with anonymous user_id
+    const data = getSubscriptionData({
+      user_id: 'anonymous',
+    });
+
+    await updateUserSubscription({ event: data, state: true });
+
+    // Verify entry was added to ClaimableItem table
+    const claimableItem = await con
+      .getRepository(ClaimableItem)
+      .findOneByOrFail({ id: data.data.id });
+
+    expect(claimableItem).toBeTruthy();
+    expect(claimableItem.email).toBe('test@example.com');
+    expect(claimableItem.type).toBe(ClaimableItemTypes.Plus);
+    expect(claimableItem.flags).toHaveProperty(
+      'cycle',
+      SubscriptionCycles.Monthly,
+    );
+    expect(claimableItem.flags).toHaveProperty(
+      'createdAt',
+      data.data.startedAt,
+    );
+    expect(claimableItem.flags).toHaveProperty('subscriptionId', data.data.id);
+    expect(claimableItem.flags).toHaveProperty(
+      'provider',
+      SubscriptionProvider.Paddle,
+    );
+    expect(claimableItem.flags).toHaveProperty(
+      'status',
+      UserSubscriptionStatus.Active,
     );
   });
 });

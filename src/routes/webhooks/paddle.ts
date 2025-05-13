@@ -115,6 +115,10 @@ export const updateUserSubscription = async ({
       email: customer.email,
       flags: {
         cycle: extractSubscriptionCycle(subscription.items),
+        createdAt: data?.startedAt,
+        subscriptionId: data?.id,
+        provider: SubscriptionProvider.Paddle,
+        status: UserSubscriptionStatus.Active,
       },
     });
   } else {
