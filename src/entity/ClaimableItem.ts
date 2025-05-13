@@ -8,7 +8,7 @@ export enum ClaimableItemTypes {
 @Entity()
 export class ClaimableItem {
   @PrimaryColumn()
-  transactionId: string;
+  id: string;
 
   @Column({ type: 'text', nullable: false })
   @Index('IDX_claimable_item_email')
