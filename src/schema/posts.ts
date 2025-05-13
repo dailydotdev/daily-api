@@ -119,6 +119,7 @@ import { queryReadReplica } from '../common/queryReadReplica';
 import { remoteConfig } from '../remoteConfig';
 import { ensurePostRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
+import { Product } from '../entity/Product';
 
 export interface GQLPost {
   id: string;
@@ -207,6 +208,8 @@ export interface GQLUserPost {
 export interface GQLPostUpvoteArgs extends ConnectionArguments {
   id: string;
 }
+
+export type GQLPostAwardArgs = GQLPostUpvoteArgs;
 
 export const getPostNotification = async (
   con: DataSource,
@@ -803,6 +806,28 @@ export const typeDefs = /* GraphQL */ `
     COLLECTION
   }
 
+  type UserPostEdge {
+    node: UserPost!
+
+    """
+    Used in before and after args
+    """
+    cursor: String!
+  }
+
+  type UserPostConnection {
+    pageInfo: PageInfo!
+    edges: [UserPostEdge!]!
+    """
+    The original query in case of a search operation
+    """
+    query: String
+  }
+
+  type PostBalance {
+    amount: Int!
+  }
+
   extend type Query {
     """
     Get specific squad post moderation item
@@ -927,6 +952,36 @@ export const typeDefs = /* GraphQL */ `
     based on the settings of the user
     """
     fetchSmartTitle(id: ID!): PostSmartTitle @auth
+
+    """
+    Get Post's Awards by post id
+    """
+    postAwards(
+      """
+      Id of the relevant post to return Awards
+      """
+      id: ID!
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): UserPostConnection!
+
+    """
+    Get Post's Awards count
+    """
+    postAwardsTotal(
+      """
+      Id of the relevant post to return Awards
+      """
+      id: ID!
+    ): PostBalance!
   }
 
   extend type Mutation {
@@ -1784,6 +1839,90 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           translation: translationRecord,
         };
       }),
+    postAwards: async (
+      _,
+      args: GQLPostAwardArgs,
+      ctx: Context,
+      info,
+    ): Promise<ConnectionRelay<GQLUserPost>> => {
+      const post: Pick<Post, 'id' | 'sourceId'> = await ctx.con
+        .getRepository(Post)
+        .findOneOrFail({
+          select: ['id', 'sourceId'],
+          where: {
+            id: args.id,
+          },
+        });
+
+      await ensureSourcePermissions(ctx, post.sourceId);
+
+      const pageGenerator = offsetPageGenerator<GQLUserPost>(20, 100);
+      const page = pageGenerator.connArgsToPage(args);
+
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => pageGenerator.hasNextPage(page, nodeSize),
+        (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder.innerJoin(
+            Product,
+            'postAwardProduct',
+            `"postAwardProduct".id = (${builder.alias}.flags->>'awardId')::uuid`,
+          );
+
+          builder.queryBuilder
+            .andWhere(`${builder.alias}.postId = :postId`, {
+              postId: args.id,
+            })
+            .andWhere(`${builder.alias}."awardTransactionId" IS NOT NULL`);
+
+          if (ctx.userId) {
+            builder.queryBuilder.andWhere(
+              whereNotUserBlocked(builder.queryBuilder, {
+                userId: ctx.userId,
+              }),
+            );
+          }
+
+          builder.queryBuilder
+            .limit(page.limit)
+            .offset(page.offset)
+            .addOrderBy(`"postAwardProduct"."value"`, 'DESC');
+
+          return builder;
+        },
+        undefined,
+        true,
+      );
+    },
+    postAwardsTotal: async (
+      _,
+      args: GQLPostAwardArgs,
+      ctx: Context,
+    ): Promise<{ amount: number }> => {
+      const post: Pick<Post, 'id' | 'sourceId'> = await ctx.con
+        .getRepository(Post)
+        .findOneOrFail({
+          select: ['id', 'sourceId'],
+          where: {
+            id: args.id,
+          },
+        });
+
+      await ensureSourcePermissions(ctx, post.sourceId);
+
+      const result = await ctx.con
+        .getRepository(UserPost)
+        .createQueryBuilder('up')
+        .select('COALESCE(SUM(ut.value), 0)', 'amount')
+        .innerJoin('UserTransaction', 'ut', 'ut.id = up."awardTransactionId"')
+        .where('up."postId" = :postId', { postId: post.id })
+        .getRawOne();
+
+      return result;
+    },
   },
   Mutation: {
     createSourcePostModeration: async (
