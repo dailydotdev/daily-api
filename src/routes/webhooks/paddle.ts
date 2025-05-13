@@ -110,11 +110,11 @@ export const updateUserSubscription = async ({
       paddleInstance.subscriptions.get(data.id),
     ]);
     await con.getRepository(ClaimableItem).insert({
-      transactionId: data.id,
+      id: data.id,
       type: ClaimableItemTypes.Plus,
       email: customer.email,
       flags: {
-        cycle: subscription.items[0]?.price?.billingCycle?.interval,
+        cycle: extractSubscriptionCycle(subscription.items),
       },
     });
   } else {
