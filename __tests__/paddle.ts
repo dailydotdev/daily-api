@@ -7,7 +7,11 @@ import {
   type GraphQLTestingState,
   type GraphQLTestClient,
 } from './helpers';
-import { SubscriptionProvider, User, UserSubscriptionStatus } from '../src/entity';
+import {
+  SubscriptionProvider,
+  User,
+  UserSubscriptionStatus,
+} from '../src/entity';
 import { plusUsersFixture, usersFixture } from './fixture';
 import {
   EventName,
