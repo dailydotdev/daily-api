@@ -894,6 +894,12 @@ export const processTransactionCreated = async ({
       data: transactionData,
       event,
     });
+
+    await paddleInstance.transactions.update(transactionData.id, {
+      checkout: {
+        url: `${process.env.COMMENTS_PREFIX}/cores`,
+      },
+    });
   }
 };
 
