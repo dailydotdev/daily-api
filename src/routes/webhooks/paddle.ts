@@ -54,6 +54,7 @@ import { checkUserCoresAccess } from '../../common/user';
 import { CoresRole } from '../../types';
 import { TransferError } from '../../errors';
 import { remoteConfig } from '../../remoteConfig';
+import { ClaimableItem, ClaimableItemTypes } from '../../entity/ClaimableItem';
 
 export interface PaddleCustomData {
   user_id?: string;
@@ -103,54 +104,71 @@ export const updateUserSubscription = async ({
     return false;
   }
 
-  const user = await con.getRepository(User).findOneBy({ id: userId });
-  if (!user) {
-    logger.error(
-      { provider: SubscriptionProvider.Paddle, data: event },
-      'User not found',
-    );
-    return false;
-  }
-
-  if (user.subscriptionFlags?.provider === SubscriptionProvider.AppleStoreKit) {
-    logger.error(
-      {
-        user,
-        data: event,
-        provider: SubscriptionProvider.Paddle,
+  if (userId === 'anonymous') {
+    const [customer, subscription] = await Promise.all([
+      paddleInstance.customers.get(data.customerId),
+      paddleInstance.subscriptions.get(data.id),
+    ]);
+    await con.getRepository(ClaimableItem).insert({
+      transactionId: data.id,
+      type: ClaimableItemTypes.Plus,
+      email: customer.email,
+      flags: {
+        cycle: subscription.items[0]?.price?.billingCycle?.interval,
       },
-      'User already has a Apple subscription',
-    );
-    throw new Error('User already has a StoreKit subscription');
-  }
+    });
+  } else {
+    const user = await con.getRepository(User).findOneBy({ id: userId });
+    if (!user) {
+      logger.error(
+        { provider: SubscriptionProvider.Paddle, data: event },
+        'User not found',
+      );
+      return false;
+    }
 
-  const subscriptionType = extractSubscriptionCycle(data.items);
+    if (
+      user.subscriptionFlags?.provider === SubscriptionProvider.AppleStoreKit
+    ) {
+      logger.error(
+        {
+          user,
+          data: event,
+          provider: SubscriptionProvider.Paddle,
+        },
+        'User already has a Apple subscription',
+      );
+      throw new Error('User already has a StoreKit subscription');
+    }
 
-  if (!subscriptionType) {
-    logger.error(
+    const subscriptionType = extractSubscriptionCycle(data.items);
+
+    if (!subscriptionType) {
+      logger.error(
+        {
+          provider: SubscriptionProvider.Paddle,
+          data: event,
+        },
+        'Subscription type missing in payload',
+      );
+      return false;
+    }
+
+    await con.getRepository(User).update(
       {
-        provider: SubscriptionProvider.Paddle,
-        data: event,
+        id: userId,
       },
-      'Subscription type missing in payload',
+      {
+        subscriptionFlags: updateSubscriptionFlags({
+          cycle: state ? subscriptionType : null,
+          createdAt: state ? data?.startedAt : null,
+          subscriptionId: state ? data?.id : null,
+          provider: state ? SubscriptionProvider.Paddle : null,
+          status: state ? UserSubscriptionStatus.Active : null,
+        }),
+      },
     );
-    return false;
   }
-
-  await con.getRepository(User).update(
-    {
-      id: userId,
-    },
-    {
-      subscriptionFlags: updateSubscriptionFlags({
-        cycle: state ? subscriptionType : null,
-        createdAt: state ? data?.startedAt : null,
-        subscriptionId: state ? data?.id : null,
-        provider: state ? SubscriptionProvider.Paddle : null,
-        status: state ? UserSubscriptionStatus.Active : null,
-      }),
-    },
-  );
 };
 
 const getUserId = async ({
