@@ -29,6 +29,10 @@ import { webhooks } from '../slack';
 import { checkUserCoresAccess } from '../user';
 import { CoresRole } from '../../types';
 import { convertCurrencyToUSD } from '../../integrations/openExchangeRates';
+import {
+  DEFAULT_CORES_METADATA,
+  getCoresPricingMetadata,
+} from '../paddle/pricing';
 
 export const isCorePurchaseApple = ({
   transactionInfo,
@@ -174,8 +178,18 @@ export const handleCoresPurchase = async ({
 
   const con = await createOrGetConnection();
 
-  // TODO feat/cores-iap load from api metadata/new endpoint
-  const coresValue = Number(transactionInfo.productId.match(/\d+/)?.[0]);
+  const coresMetadata = await getCoresPricingMetadata({
+    con,
+    variant: DEFAULT_CORES_METADATA,
+  });
+
+  const coresValue = coresMetadata.find(
+    (item) => item.idMap.ios === transactionInfo.productId,
+  )?.coresValue;
+
+  if (typeof coresValue !== 'number') {
+    throw new Error('Could not resolve Cores value for product');
+  }
 
   const payload = con.getRepository(UserTransaction).create({
     processor: UserTransactionProcessor.AppleStoreKit,
