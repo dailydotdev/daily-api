@@ -1,4 +1,10 @@
-import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import type { User } from './user';
 
 export enum ClaimableItemTypes {
@@ -7,21 +13,21 @@ export enum ClaimableItemTypes {
 
 @Entity()
 export class ClaimableItem {
-  @PrimaryColumn()
+  @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'text', nullable: false })
+  @Column({ type: 'text' })
   @Index('IDX_claimable_item_email')
   email: string;
 
-  @Column({ nullable: false, default: () => 'now()' })
+  @Column({ default: () => 'now()' })
   createdAt: Date;
 
   @Column({ nullable: true })
   claimedAt?: Date;
 
-  @Column({ nullable: false })
-  type: string;
+  @Column()
+  type: ClaimableItemTypes;
 
   @Column({ type: 'jsonb', default: {} })
   flags = {};
