@@ -19,6 +19,8 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  jest.clearAllMocks();
+
   await saveFixtures(
     con,
     User,
