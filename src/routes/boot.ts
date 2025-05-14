@@ -1,4 +1,9 @@
-import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import {
+  FastifyInstance,
+  FastifyReply,
+  FastifyRequest,
+  RouteHandlerMethod,
+} from 'fastify';
 import createOrGetConnection from '../db';
 import { DataSource, Not, QueryRunner } from 'typeorm';
 import { clearAuthentication, dispatchWhoami } from '../kratos';
@@ -760,18 +765,22 @@ const COMPANION_QUERY = parse(`query Post($url: String) {
 
 const allocationClient = new ExperimentAllocationClient();
 // Uses Growthbook to resolve the funnel id
-const resolveDynamicFunnelId = (userId: string): string => {
+const resolveDynamicFunnelId = (featureKey: string, userId: string): string => {
   const gbClient = getUserGrowthBookInstance(userId, {
     allocationClient,
   });
-  return gbClient.getFeatureValue('web_funnel_id', 'off');
+  return gbClient.getFeatureValue(featureKey, 'off');
 };
 
 // Fetches the funnel data from Freyja
-const getFunnel = async (req: FastifyRequest, res: FastifyReply) => {
+const getFunnel = async (
+  req: FastifyRequest,
+  res: FastifyReply,
+  featureKey: string,
+  sessionId: string | undefined,
+) => {
   const userId = req.userId || req.trackingId;
   const query = req.query as { id?: string; v?: string };
-  const sessionId = req.cookies[cookies.funnel.key];
 
   if (!userId) {
     throw new Error('User ID is required');
@@ -780,14 +789,18 @@ const getFunnel = async (req: FastifyRequest, res: FastifyReply) => {
   // If the session id is set, we should use it to fetch the funnel data
   if (sessionId) {
     const sessionFunnel = await freyjaClient.getSession(sessionId);
-    if (sessionFunnel?.session?.userId === userId) {
+    if (
+      sessionFunnel?.session?.userId === userId &&
+      (!query?.id || sessionFunnel.funnel.id === query.id) &&
+      (!query.v || sessionFunnel.funnel.version === parseInt(query.v))
+    ) {
       return sessionFunnel;
     }
   }
 
   // If the funnel id is not set, we should resolve it using Growthbook
   if (!query.id) {
-    query.id = resolveDynamicFunnelId(userId);
+    query.id = resolveDynamicFunnelId(featureKey, userId);
     query.v = undefined;
   }
 
@@ -834,24 +847,49 @@ const getFunnelLoggedInData = async (
   return null;
 };
 
-// Fetches the funnel and logged-in user data (if available)
-const funnelBootMiddleware: BootMiddleware = async (
-  con,
-  req,
-  res,
-): Promise<Pick<FunnelBoot, 'funnelState'> & { user?: FunnelLoggedInUser }> => {
-  const [funnelState, user] = await Promise.all([
-    getFunnel(req, res),
-    getFunnelLoggedInData(con, req),
-  ]);
-  if (user) {
+/**
+ * Generate a funnel handler for different scenarios (paid users, organic, etc)
+ * @param con Database connection
+ * @param featureKey GrowthBook feature key used for experimentation
+ * @param sessionIdFn Function that returns the session ID
+ */
+const funnelHandler = (
+  con: DataSource,
+  featureKey: string,
+  sessionIdFn: (req: FastifyRequest) => string | undefined,
+): RouteHandlerMethod => {
+  // Fetches the funnel and logged-in user data (if available)
+  const funnelBootMiddleware: BootMiddleware = async (
+    con,
+    req,
+    res,
+  ): Promise<
+    Pick<FunnelBoot, 'funnelState'> & { user?: FunnelLoggedInUser }
+  > => {
+    const sessionId = sessionIdFn(req);
+    const [funnelState, user] = await Promise.all([
+      getFunnel(req, res, featureKey, sessionId),
+      getFunnelLoggedInData(con, req),
+    ]);
+    if (user) {
+      return {
+        user,
+        funnelState,
+      };
+    }
     return {
-      user,
       funnelState,
     };
-  }
-  return {
-    funnelState,
+  };
+
+  return async (req, res) => {
+    const data = (await anonymousBoot(
+      con,
+      req,
+      res,
+      funnelBootMiddleware,
+    )) as FunnelBoot;
+    return res.send(data);
   };
 };
 
@@ -883,13 +921,12 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   });
 
   // Used to get the boot data for the web funnels
-  fastify.get('/funnel', async (req, res) => {
-    const data = (await anonymousBoot(
+  fastify.get(
+    '/funnel',
+    funnelHandler(
       con,
-      req,
-      res,
-      funnelBootMiddleware,
-    )) as FunnelBoot;
-    return res.send(data);
-  });
+      'web_funnel_id',
+      (req) => req.cookies[cookies.funnel.key],
+    ),
+  );
 }
