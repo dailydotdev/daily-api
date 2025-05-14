@@ -7,6 +7,7 @@ import { generateKeyPairSync, type ECKeyPairOptions } from 'crypto';
 import { sign } from 'jsonwebtoken';
 import createOrGetConnection from '../../../src/db';
 import {
+  ExperimentVariant,
   SubscriptionProvider,
   User,
   UserSubscriptionStatus,
@@ -32,6 +33,10 @@ import { Credits, TransferStatus } from '@dailydotdev/schema';
 import * as njordCommon from '../../..//src/common/njord';
 import { getTransactionForProviderId } from '../../../src/common/paddle';
 import { UserTransactionProcessor } from '../../../src/entity/user/UserTransaction';
+import {
+  CORES_FEATURE_KEY,
+  DEFAULT_CORES_METADATA,
+} from '../../../src/common/paddle/pricing';
 
 function createSignedData(payload): string {
   const keyPairOptions: ECKeyPairOptions<'pem', 'pem'> = {
@@ -449,6 +454,24 @@ describe('POST /webhooks/apple/notifications', () => {
             appAccountToken: 'edd16b7c-9717-4a2b-8b51-13ed104d7296',
           },
           coresRole: 1,
+        },
+      ]);
+
+      await saveFixtures(con, ExperimentVariant, [
+        {
+          feature: CORES_FEATURE_KEY,
+          variant: DEFAULT_CORES_METADATA,
+          value: JSON.stringify([
+            {
+              appsId: 'custom',
+              title: 'Cores 100',
+              idMap: {
+                paddle: 'pri_custom',
+                ios: 'cores_100',
+              },
+              coresValue: 100,
+            },
+          ]),
         },
       ]);
     });
