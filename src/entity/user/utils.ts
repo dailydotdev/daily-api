@@ -41,6 +41,7 @@ import { getUserCoresRole } from '../../common/user';
 import { insertOrIgnoreAction } from '../../schema/actions';
 import { UserActionType } from './UserAction';
 import { DeletedUser } from './DeletedUser';
+import { ClaimableItem, ClaimableItemTypes } from '../ClaimableItem';
 
 export type AddUserData = Pick<
   User,
@@ -365,6 +366,39 @@ export const addNewUser = async (
       };
     }
     throw error;
+  }
+};
+
+export const addClaimableItemsToUser = async (
+  con: DataSource,
+  body: AddUserData,
+  req: FastifyRequest,
+) => {
+  try {
+    const claimableItems = await con
+      .getRepository(ClaimableItem)
+      .findBy({ email: body.email });
+    if (claimableItems.length > 0) {
+      const subscription = claimableItems.find(
+        (item) =>
+          item.type === ClaimableItemTypes.Plus && item.claimedById === null,
+      );
+
+      if (subscription) {
+        await con.getRepository(ClaimableItem).update(subscription.id, {
+          claimedById: body.id,
+          claimedAt: new Date(),
+        });
+        await con.getRepository(User).update(body.id, {
+          subscriptionFlags: subscription.flags,
+        });
+      }
+    }
+  } catch (err) {
+    req.log.error(
+      { err, userId: body.id },
+      'Error adding claimable items to user',
+    );
   }
 };
 
