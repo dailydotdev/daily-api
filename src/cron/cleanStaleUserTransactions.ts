@@ -9,16 +9,17 @@ import {
 export const cleanStaleUserTransactions: Cron = {
   name: 'clean-stale-user-transactions',
   handler: async (con, logger) => {
-    const cutoffDate = sub(new Date(), { days: 21 });
+    const cleanDate = sub(new Date(), { days: 21 });
 
     const result = await con.getRepository(UserTransaction).delete({
       status: UserTransactionStatus.Created,
-      updatedAt: LessThan(cutoffDate),
+      updatedAt: LessThan(cleanDate),
     });
 
     logger.info(
       {
         count: result.affected,
+        cleanDate,
       },
       'cleaned stale user transactions',
     );
