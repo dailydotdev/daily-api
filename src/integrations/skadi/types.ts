@@ -7,13 +7,13 @@ export type SkadiAd = {
   company_logo: string;
   call_to_action: string;
 };
-export type SkadiResponse = {
+export type SkadiResponse = Partial<{
   type: string;
   value: {
     digest: SkadiAd;
   };
   pixels: string[];
-};
+}>;
 
 export interface ISkadiClient {
   getAd(
