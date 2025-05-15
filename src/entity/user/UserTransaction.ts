@@ -49,6 +49,7 @@ export enum UserTransactionProcessor {
 @Index('idx_user_transaction_receiverId_senderId_productId_status', {
   synchronize: false,
 })
+@Index('idx_user_transaction_value_desc', { synchronize: false })
 export class UserTransaction {
   @PrimaryGeneratedColumn('uuid')
   id: string;
