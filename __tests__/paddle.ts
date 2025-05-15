@@ -730,7 +730,6 @@ describe('plus subscription', () => {
   });
 
   it('should add an anonymous subscription to the claimable_items table', async () => {
-    // Mock Paddle API calls
     const mockCustomer = { email: 'test@example.com' };
     const mockSubscription = {
       items: [
@@ -752,17 +751,15 @@ describe('plus subscription', () => {
       .spyOn(paddleInstance.subscriptions, 'get')
       .mockResolvedValue(mockSubscription as Subscription);
 
-    // Create subscription event with anonymous user_id
     const data = getSubscriptionData({
-      user_id: 'anonymous',
+      user_id: undefined,
     });
 
     await updateUserSubscription({ event: data, state: true });
 
-    // Verify entry was added to ClaimableItem table
     const claimableItem = await con
       .getRepository(ClaimableItem)
-      .findOneByOrFail({ id: data.data.id });
+      .findOneByOrFail({ email: mockCustomer.email });
 
     expect(claimableItem).toBeTruthy();
     expect(claimableItem.email).toBe('test@example.com');

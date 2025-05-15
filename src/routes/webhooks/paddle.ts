@@ -5,7 +5,6 @@ import {
   TransactionCreatedEvent,
   type EventEntity,
   type SubscriptionCanceledEvent,
-  type SubscriptionCreatedEvent,
   type SubscriptionUpdatedEvent,
   type TransactionPaymentFailedEvent,
   type TransactionUpdatedEvent,
@@ -33,8 +32,10 @@ import {
 } from '../../integrations/analytics';
 import { JsonContains, type DataSource, type EntityManager } from 'typeorm';
 import {
+  extractSubscriptionCycle,
   getPaddleTransactionData,
   getTransactionForProviderId,
+  insertClaimableItem,
   isCoreTransaction,
   paddleInstance,
 } from '../../common/paddle';
@@ -43,6 +44,7 @@ import {
   isPlusMember,
   plusGiftDuration,
   SubscriptionCycles,
+  type PaddleSubscriptionEvent,
 } from '../../paddle';
 import {
   UserTransaction,
@@ -54,31 +56,11 @@ import { checkUserCoresAccess } from '../../common/user';
 import { CoresRole } from '../../types';
 import { TransferError } from '../../errors';
 import { remoteConfig } from '../../remoteConfig';
-import { ClaimableItem, ClaimableItemTypes } from '../../entity/ClaimableItem';
 
 export interface PaddleCustomData {
   user_id?: string;
   gifter_id?: string;
 }
-
-type PaddleSubscriptionEvent =
-  | SubscriptionCreatedEvent
-  | SubscriptionCanceledEvent
-  | SubscriptionUpdatedEvent;
-
-const extractSubscriptionCycle = (
-  items: PaddleSubscriptionEvent['data']['items'],
-) => {
-  const cycle = items?.[0]?.price?.billingCycle?.interval;
-
-  if (!cycle) {
-    return undefined;
-  }
-
-  return cycle === 'year'
-    ? SubscriptionCycles.Yearly
-    : SubscriptionCycles.Monthly;
-};
 
 export const updateUserSubscription = async ({
   event,
@@ -96,31 +78,9 @@ export const updateUserSubscription = async ({
 
   const con = await createOrGetConnection();
   const userId = customData?.user_id;
-  if (!userId) {
-    logger.error(
-      { provider: SubscriptionProvider.Paddle, data: event },
-      'User ID missing in payload',
-    );
-    return false;
-  }
 
-  if (userId === 'anonymous') {
-    const [customer, subscription] = await Promise.all([
-      paddleInstance.customers.get(data.customerId),
-      paddleInstance.subscriptions.get(data.id),
-    ]);
-    await con.getRepository(ClaimableItem).insert({
-      id: data.id,
-      type: ClaimableItemTypes.Plus,
-      email: customer.email,
-      flags: {
-        cycle: extractSubscriptionCycle(subscription.items),
-        createdAt: data?.startedAt,
-        subscriptionId: data?.id,
-        provider: SubscriptionProvider.Paddle,
-        status: UserSubscriptionStatus.Active,
-      },
-    });
+  if (!userId) {
+    await insertClaimableItem(con, data);
   } else {
     const user = await con.getRepository(User).findOneBy({ id: userId });
     if (!user) {
