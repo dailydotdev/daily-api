@@ -7762,6 +7762,9 @@ describe('query post awards', () => {
             name
             value
           }
+          awardTransaction {
+            value
+          }
         }
       }
     }
@@ -7885,8 +7888,8 @@ describe('query post awards', () => {
           productId: '777cfd3d-1359-416b-b52a-e229b230f024',
           senderId: '3-paq',
           fee: 0,
-          value: 10,
-          valueIncFees: 10,
+          value: 50,
+          valueIncFees: 50,
         },
         {
           processor: UserTransactionProcessor.Njord,
@@ -7929,8 +7932,23 @@ describe('query post awards', () => {
 
     expect(res.errors).toBeFalsy();
 
-    expect(res.data.awardsTotal.amount).toEqual(30);
+    expect(res.data.awardsTotal.amount).toEqual(70);
     expect(res.data.awards.edges).toMatchObject([
+      {
+        node: {
+          user: {
+            id: '3-paq',
+            name: 'Nimrod',
+          },
+          award: {
+            name: 'Award 2',
+            value: 10,
+          },
+          awardTransaction: {
+            value: 50,
+          },
+        },
+      },
       {
         node: {
           user: {
@@ -7941,17 +7959,8 @@ describe('query post awards', () => {
             name: 'Award 3',
             value: 20,
           },
-        },
-      },
-      {
-        node: {
-          user: {
-            id: '3-paq',
-            name: 'Nimrod',
-          },
-          award: {
-            name: 'Award 2',
-            value: 10,
+          awardTransaction: {
+            value: 20,
           },
         },
       },

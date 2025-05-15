@@ -50,7 +50,6 @@ import { isPlusMember } from '../paddle';
 import { remoteConfig } from '../remoteConfig';
 import { whereNotUserBlocked } from '../common/contentPreference';
 import { type GetBalanceResult } from '../common/njord';
-import { Product } from '../entity/Product';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -581,13 +580,13 @@ const obj = new GraphORM({
           customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder => {
             return qb
               .innerJoin(
-                Product,
-                'awardProduct',
-                `"awardProduct".id = ("${childAlias}".flags->>'awardId')::uuid`,
+                'UserTransaction',
+                'awardUserTransaction',
+                `"awardUserTransaction".id = "${childAlias}"."awardTransactionId"`,
               )
               .where(`"${childAlias}"."postId" = "${parentAlias}".id`)
               .andWhere(`"${childAlias}".flags->>'awardId' is not null`)
-              .orderBy('"awardProduct".value', 'DESC')
+              .orderBy('"awardUserTransaction".value', 'DESC')
               .limit(1);
           },
         },
@@ -846,13 +845,13 @@ const obj = new GraphORM({
           customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder => {
             return qb
               .innerJoin(
-                Product,
-                'awardProduct',
-                `"awardProduct".id = ("${childAlias}".flags->>'awardId')::uuid`,
+                'UserTransaction',
+                'awardUserTransaction',
+                `"awardUserTransaction".id = "${childAlias}"."awardTransactionId"`,
               )
               .where(`"${childAlias}"."commentId" = "${parentAlias}".id`)
               .andWhere(`"${childAlias}".flags->>'awardId' is not null`)
-              .orderBy('"awardProduct".value', 'DESC')
+              .orderBy('"awardUserTransaction".value', 'DESC')
               .limit(1);
           },
         },
@@ -1151,6 +1150,9 @@ const obj = new GraphORM({
         },
       },
     },
+  },
+  UserTransactionPublic: {
+    from: 'UserTransaction',
   },
 });
 

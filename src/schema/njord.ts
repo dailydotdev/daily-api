@@ -158,6 +158,10 @@ export const typeDefs = /* GraphQL */ `
     count: Int!
   }
 
+  type UserTransactionPublic {
+    value: Int!
+  }
+
   extend type Query {
     """
     List products

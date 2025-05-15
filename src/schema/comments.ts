@@ -55,7 +55,6 @@ import { toGQLEnum } from '../common/utils';
 import { ensureCommentRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
 import type { GQLProduct } from './njord';
-import { Product } from '../entity/Product';
 
 export interface GQLComment {
   id: string;
@@ -281,6 +280,11 @@ export const typeDefs = /* GraphQL */ `
     awarded: Boolean!
 
     award: Product
+
+    """
+    The transaction that was created for the award
+    """
+    awardTransaction: UserTransactionPublic
   }
 
   type UserCommentEdge {
@@ -913,16 +917,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
         (builder) => {
           builder.queryBuilder.innerJoin(
-            Product,
-            'commentAwardProduct',
-            `"commentAwardProduct".id = (${builder.alias}.flags->>'awardId')::uuid`,
+            'UserTransaction',
+            'commentAwardUserTransaction',
+            `"commentAwardUserTransaction".id = ${builder.alias}."awardTransactionId"`,
           );
 
-          builder.queryBuilder
-            .andWhere(`${builder.alias}.commentId = :commentId`, {
+          builder.queryBuilder.andWhere(
+            `${builder.alias}.commentId = :commentId`,
+            {
               commentId: args.id,
-            })
-            .andWhere(`${builder.alias}."awardTransactionId" IS NOT NULL`);
+            },
+          );
 
           if (ctx.userId) {
             builder.queryBuilder.andWhere(
@@ -935,7 +940,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           builder.queryBuilder
             .limit(page.limit)
             .offset(page.offset)
-            .addOrderBy(`"commentAwardProduct"."value"`, 'DESC');
+            .addOrderBy(`"commentAwardUserTransaction"."value"`, 'DESC');
 
           return builder;
         },
