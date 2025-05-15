@@ -772,6 +772,31 @@ const resolveDynamicFunnelId = (featureKey: string, userId: string): string => {
   return gbClient.getFeatureValue(featureKey, 'off');
 };
 
+const shouldResumeSession = (
+  sessionFunnel: FunnelState,
+  userId?: string,
+  id?: string,
+  version?: string,
+): boolean => {
+  // If there's no session
+  if (!sessionFunnel?.session) {
+    return false;
+  }
+  // If session user and current user don't match
+  if (sessionFunnel.session.userId !== userId) {
+    return false;
+  }
+  // If the funnel id is set and doesn't match the session funnel id
+  if (id && sessionFunnel.funnel.id !== id) {
+    return false;
+  }
+  // If the funnel version is set and doesn't match the session funnel version
+  if (version && sessionFunnel.funnel.version !== parseInt(version)) {
+    return false;
+  }
+  return true;
+};
+
 // Fetches the funnel data from Freyja
 const getFunnel = async (
   req: FastifyRequest,
@@ -789,11 +814,7 @@ const getFunnel = async (
   // If the session id is set, we should use it to fetch the funnel data
   if (sessionId) {
     const sessionFunnel = await freyjaClient.getSession(sessionId);
-    if (
-      sessionFunnel?.session?.userId === userId &&
-      (!query?.id || sessionFunnel.funnel.id === query.id) &&
-      (!query.v || sessionFunnel.funnel.version === parseInt(query.v))
-    ) {
+    if (shouldResumeSession(sessionFunnel, userId, query.id, query.v)) {
       return sessionFunnel;
     }
   }
