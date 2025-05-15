@@ -214,15 +214,13 @@ export const insertClaimableItem = async (
   con: DataSource | EntityManager,
   data: SubscriptionNotification | SubscriptionCreatedNotification,
 ) => {
-  const [customer, subscription] = await Promise.all([
-    paddleInstance.customers.get(data.customerId),
-    paddleInstance.subscriptions.get(data.id),
-  ]);
+  const customer = await paddleInstance.customers.get(data.customerId);
+
   await con.getRepository(ClaimableItem).insert({
     type: ClaimableItemTypes.Plus,
     email: customer.email,
     flags: {
-      cycle: extractSubscriptionCycle(subscription.items),
+      cycle: extractSubscriptionCycle(data.items),
       createdAt: data?.startedAt,
       subscriptionId: data?.id,
       provider: SubscriptionProvider.Paddle,

@@ -18,7 +18,6 @@ import {
   SubscriptionCreatedEvent,
   TransactionCompletedEvent,
   Customer,
-  Subscription,
 } from '@paddle/paddle-node-sdk';
 import {
   PaddleCustomData,
@@ -731,25 +730,10 @@ describe('plus subscription', () => {
 
   it('should add an anonymous subscription to the claimable_items table', async () => {
     const mockCustomer = { email: 'test@example.com' };
-    const mockSubscription = {
-      items: [
-        {
-          price: {
-            billingCycle: {
-              interval: 'month',
-              frequency: 1,
-            },
-          },
-        },
-      ],
-    };
 
     jest
       .spyOn(paddleInstance.customers, 'get')
       .mockResolvedValue(mockCustomer as Customer);
-    jest
-      .spyOn(paddleInstance.subscriptions, 'get')
-      .mockResolvedValue(mockSubscription as Subscription);
 
     const data = getSubscriptionData({
       user_id: undefined,
@@ -766,7 +750,7 @@ describe('plus subscription', () => {
     expect(claimableItem.type).toBe(ClaimableItemTypes.Plus);
     expect(claimableItem.flags).toHaveProperty(
       'cycle',
-      SubscriptionCycles.Monthly,
+      SubscriptionCycles.Yearly,
     );
     expect(claimableItem.flags).toHaveProperty(
       'createdAt',
