@@ -25,6 +25,7 @@ import {
 import {
   getPaddleTransactionData,
   getTransactionForProviderId,
+  paddleInstance,
 } from '../../../src/common/paddle';
 import { logger } from '../../../src/logger';
 import { CoresRole } from '../../../src/types';
@@ -56,6 +57,10 @@ describe('cores product', () => {
     jest
       .spyOn(njordCommon, 'getNjordClient')
       .mockImplementation(() => createClient(Credits, mockTransport));
+
+    jest
+      .spyOn(paddleInstance.transactions, 'update')
+      .mockImplementationOnce(jest.fn().mockResolvedValue({}));
   });
 
   it('purchase success', async () => {

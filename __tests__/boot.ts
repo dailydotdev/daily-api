@@ -1625,7 +1625,7 @@ describe('funnel boot', () => {
       .reply(200, JSON.stringify(FUNNEL_DATA));
 
     const res = await request(app.server)
-      .get(`${BASE_PATH}/funnel?id=funnelId2`)
+      .get(`${BASE_PATH}/funnel?id=funnelId`)
       .set('User-Agent', TEST_UA)
       .set(
         'Cookie',
@@ -1655,6 +1655,26 @@ describe('funnel boot', () => {
       )
       .expect(200);
     expect(res.body.funnelState.session.userId).toEqual('2');
+  });
+
+  it('should ignore cookie when the funnel does not match', async () => {
+    nock(process.env.FREYJA_ORIGIN)
+      .get(`/api/sessions/${FUNNEL_DATA.session.id}`)
+      .reply(200, JSON.stringify(FUNNEL_DATA));
+
+    nock(process.env.FREYJA_ORIGIN)
+      .post('/api/sessions')
+      .reply(200, JSON.stringify(FUNNEL_DATA));
+
+    const res = await request(app.server)
+      .get(`${BASE_PATH}/funnel?id=funnelId2`)
+      .set('User-Agent', TEST_UA)
+      .set(
+        'Cookie',
+        `${cookies.tracking.key}=1;${cookies.funnel.key}=${FUNNEL_DATA.session.id};`,
+      )
+      .expect(200);
+    expect(res.body).toEqual(FUNNEL_BOOT_BODY);
   });
 
   it('should load funnel id from growthbook', async () => {
