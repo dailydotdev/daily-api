@@ -228,8 +228,8 @@ export const insertClaimableItem = async (
     email: customer.email,
     flags: {
       cycle: extractSubscriptionCycle(data.items),
-      createdAt: data?.startedAt,
-      subscriptionId: data?.id,
+      createdAt: data.startedAt,
+      subscriptionId: data.id,
       provider: SubscriptionProvider.Paddle,
       status: UserSubscriptionStatus.Active,
     },
