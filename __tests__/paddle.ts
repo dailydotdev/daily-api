@@ -18,7 +18,6 @@ import {
   SubscriptionCreatedEvent,
   TransactionCompletedEvent,
   Customer,
-  Subscription,
 } from '@paddle/paddle-node-sdk';
 import {
   PaddleCustomData,
@@ -730,46 +729,28 @@ describe('plus subscription', () => {
   });
 
   it('should add an anonymous subscription to the claimable_items table', async () => {
-    // Mock Paddle API calls
     const mockCustomer = { email: 'test@example.com' };
-    const mockSubscription = {
-      items: [
-        {
-          price: {
-            billingCycle: {
-              interval: 'month',
-              frequency: 1,
-            },
-          },
-        },
-      ],
-    };
 
     jest
       .spyOn(paddleInstance.customers, 'get')
       .mockResolvedValue(mockCustomer as Customer);
-    jest
-      .spyOn(paddleInstance.subscriptions, 'get')
-      .mockResolvedValue(mockSubscription as Subscription);
 
-    // Create subscription event with anonymous user_id
     const data = getSubscriptionData({
-      user_id: 'anonymous',
+      user_id: undefined,
     });
 
     await updateUserSubscription({ event: data, state: true });
 
-    // Verify entry was added to ClaimableItem table
     const claimableItem = await con
       .getRepository(ClaimableItem)
-      .findOneByOrFail({ id: data.data.id });
+      .findOneByOrFail({ email: mockCustomer.email });
 
     expect(claimableItem).toBeTruthy();
     expect(claimableItem.email).toBe('test@example.com');
     expect(claimableItem.type).toBe(ClaimableItemTypes.Plus);
     expect(claimableItem.flags).toHaveProperty(
       'cycle',
-      SubscriptionCycles.Monthly,
+      SubscriptionCycles.Yearly,
     );
     expect(claimableItem.flags).toHaveProperty(
       'createdAt',
