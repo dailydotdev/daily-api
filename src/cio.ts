@@ -240,3 +240,22 @@ export async function identifyUserPersonalizedDigest({
     throw err;
   }
 }
+
+export async function identifyAnonymousFunnelSubscription({
+  cio,
+  email,
+  claimedSub,
+}: {
+  cio: TrackClient;
+  email: string;
+  claimedSub: boolean;
+}): Promise<void> {
+  try {
+    await cio.identify(email, {
+      funnel: true,
+      claimed_sub: claimedSub,
+    });
+  } catch (err) {
+    logger.warn({ err }, 'failed to identify anonymous funnel subscription');
+  }
+}

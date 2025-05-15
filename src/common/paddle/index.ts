@@ -24,6 +24,7 @@ import { isProd } from '../utils';
 import { ClaimableItemTypes } from '../../entity/ClaimableItem';
 import { ClaimableItem } from '../../entity/ClaimableItem';
 import { SubscriptionCycles, type PaddleSubscriptionEvent } from '../../paddle';
+import { cio, identifyAnonymousFunnelSubscription } from '../../cio';
 
 export const paddleInstance = new Paddle(process.env.PADDLE_API_KEY, {
   environment: process.env.PADDLE_ENVIRONMENT as Environment,
@@ -226,5 +227,11 @@ export const insertClaimableItem = async (
       provider: SubscriptionProvider.Paddle,
       status: UserSubscriptionStatus.Active,
     },
+  });
+
+  await identifyAnonymousFunnelSubscription({
+    cio,
+    email: customer.email,
+    claimedSub: false,
   });
 };

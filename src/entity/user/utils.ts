@@ -42,6 +42,7 @@ import { insertOrIgnoreAction } from '../../schema/actions';
 import { UserActionType } from './UserAction';
 import { DeletedUser } from './DeletedUser';
 import { ClaimableItem, ClaimableItemTypes } from '../ClaimableItem';
+import { cio, identifyAnonymousFunnelSubscription } from '../../cio';
 
 export type AddUserData = Pick<
   User,
@@ -391,6 +392,12 @@ export const addClaimableItemsToUser = async (
         });
         await con.getRepository(User).update(body.id, {
           subscriptionFlags: subscription.flags,
+        });
+
+        await identifyAnonymousFunnelSubscription({
+          cio,
+          email: body.email,
+          claimedSub: true,
         });
       }
     }
