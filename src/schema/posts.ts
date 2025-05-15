@@ -119,7 +119,6 @@ import { queryReadReplica } from '../common/queryReadReplica';
 import { remoteConfig } from '../remoteConfig';
 import { ensurePostRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
-import { Product } from '../entity/Product';
 
 export interface GQLPost {
   id: string;
@@ -405,6 +404,11 @@ export const typeDefs = /* GraphQL */ `
     awarded: Boolean!
 
     award: Product
+
+    """
+    The transaction that was created for the award
+    """
+    awardTransaction: UserTransactionPublic
   }
 
   type PostTranslation {
@@ -1867,16 +1871,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
         (builder) => {
           builder.queryBuilder.innerJoin(
-            Product,
-            'postAwardProduct',
-            `"postAwardProduct".id = (${builder.alias}.flags->>'awardId')::uuid`,
+            'UserTransaction',
+            'postAwardUserTransaction',
+            `"postAwardUserTransaction".id = ${builder.alias}."awardTransactionId"`,
           );
 
-          builder.queryBuilder
-            .andWhere(`${builder.alias}.postId = :postId`, {
-              postId: args.id,
-            })
-            .andWhere(`${builder.alias}."awardTransactionId" IS NOT NULL`);
+          builder.queryBuilder.andWhere(`${builder.alias}.postId = :postId`, {
+            postId: args.id,
+          });
 
           if (ctx.userId) {
             builder.queryBuilder.andWhere(
@@ -1889,7 +1891,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           builder.queryBuilder
             .limit(page.limit)
             .offset(page.offset)
-            .addOrderBy(`"postAwardProduct"."value"`, 'DESC');
+            .addOrderBy(`"postAwardUserTransaction"."value"`, 'DESC');
 
           return builder;
         },
