@@ -18,7 +18,7 @@ import { PricingPreviewLineItem } from '@paddle/paddle-node-sdk/dist/types/entit
 import { remoteConfig } from '../../remoteConfig';
 import { z } from 'zod';
 import { UserTransaction } from '../../entity/user/UserTransaction';
-import type { DataSource, EntityManager } from 'typeorm';
+import { IsNull, type DataSource, type EntityManager } from 'typeorm';
 import { SubscriptionProvider, UserSubscriptionStatus } from '../../entity';
 import { isProd } from '../utils';
 import { ClaimableItemTypes } from '../../entity/ClaimableItem';
@@ -216,6 +216,13 @@ export const insertClaimableItem = async (
 ) => {
   const customer = await paddleInstance.customers.get(data.customerId);
 
+  const existingEntries = await con.getRepository(ClaimableItem).find({
+    where: {
+      email: customer.email,
+      claimedAt: IsNull(),
+    },
+  });
+
   await con.getRepository(ClaimableItem).insert({
     type: ClaimableItemTypes.Plus,
     email: customer.email,
@@ -227,4 +234,10 @@ export const insertClaimableItem = async (
       status: UserSubscriptionStatus.Active,
     },
   });
+
+  if (existingEntries.length > 0) {
+    throw new Error(
+      `User ${customer.email} already has a claimable subscription`,
+    );
+  }
 };
