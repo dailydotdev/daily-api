@@ -157,16 +157,14 @@ const getUserId = async ({
   });
 
   if (!user) {
-    logger.error(
-      { provider: SubscriptionProvider.Paddle, subscriptionId, userId },
-      'User not found',
-    );
+    // for anonymouse subs this will be empty
     return '';
   }
 
   return user.id;
 };
 
+// will always return false for anonymous subscriptions
 const planChanged = async ({ data }: SubscriptionUpdatedEvent) => {
   const customData = data?.customData as { user_id: string };
   const userId = await getUserId({
