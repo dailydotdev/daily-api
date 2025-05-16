@@ -793,9 +793,7 @@ it('should throw an error if the email already has a claimable subscription', as
 
   await expect(
     updateUserSubscription({ event: data, state: true }),
-  ).rejects.toThrow(
-    `User test@example.com already has a claimable subscription`,
-  );
+  ).rejects.toThrow(`User already has a claimable subscription`);
 });
 
 it('should not throw an error if the email has claimed a previously claimable subscription', async () => {
@@ -887,9 +885,7 @@ describe('anonymous subscription', () => {
 
     await expect(
       updateUserSubscription({ event: data, state: true }),
-    ).rejects.toThrow(
-      `User test@example.com already has a claimable subscription`,
-    );
+    ).rejects.toThrow(`User already has a claimable subscription`);
   });
 
   it('should not throw an error if the email has claimed a previously claimable subscription', async () => {
