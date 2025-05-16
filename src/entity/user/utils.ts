@@ -5,7 +5,7 @@ import {
   UserFailErrorKeys,
 } from '../../errors';
 import { ContentLanguage } from '../../types';
-import { DataSource, DeepPartial, EntityManager } from 'typeorm';
+import { DataSource, DeepPartial, EntityManager, IsNull } from 'typeorm';
 import { FastifyBaseLogger, FastifyRequest } from 'fastify';
 import { counters } from '../../telemetry';
 import { generateTrackingId } from '../../ids';
@@ -34,13 +34,15 @@ import { GQLUpdateUserInput } from '../../schema/users';
 import { validateValidTimeZone } from '../../common/timezone';
 import { nameRegex, validateRegex, ValidateRegex } from '../../common/object';
 import { logger } from '../../logger';
-import { User } from './User';
+import { User, type UserSubscriptionFlags } from './User';
 import { Feed } from '../Feed';
 import { remoteConfig } from '../../remoteConfig';
 import { getUserCoresRole } from '../../common/user';
 import { insertOrIgnoreAction } from '../../schema/actions';
 import { UserActionType } from './UserAction';
 import { DeletedUser } from './DeletedUser';
+import { ClaimableItem } from '../ClaimableItem';
+import { cio, identifyAnonymousFunnelSubscription } from '../../cio';
 
 export type AddUserData = Pick<
   User,
@@ -365,6 +367,41 @@ export const addNewUser = async (
       };
     }
     throw error;
+  }
+};
+
+export const addClaimableItemsToUser = async (
+  con: DataSource,
+  body: AddUserData,
+  req: FastifyRequest,
+) => {
+  try {
+    const subscription = await con
+      .getRepository(ClaimableItem)
+      .findOneBy({ email: body.email, claimedById: IsNull() });
+
+    if (subscription) {
+      await con.transaction(async (em) => {
+        await em.getRepository(ClaimableItem).update(subscription.id, {
+          claimedById: body.id,
+          claimedAt: new Date(),
+        });
+        await em.getRepository(User).update(body.id, {
+          subscriptionFlags: subscription.flags as UserSubscriptionFlags,
+        });
+      });
+
+      await identifyAnonymousFunnelSubscription({
+        cio,
+        email: body.email,
+        claimedSub: true,
+      });
+    }
+  } catch (err) {
+    req.log.error(
+      { err, userId: body.id },
+      'Error adding claimable items to user',
+    );
   }
 };
 

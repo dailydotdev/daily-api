@@ -32,10 +32,11 @@ import {
 } from '../../integrations/analytics';
 import { JsonContains, type DataSource, type EntityManager } from 'typeorm';
 import {
+  dropClaimableItem,
   extractSubscriptionCycle,
   getPaddleTransactionData,
   getTransactionForProviderId,
-  insertClaimableItem,
+  updateClaimableItem,
   isCoreTransaction,
   paddleInstance,
 } from '../../common/paddle';
@@ -91,9 +92,12 @@ export const updateUserSubscription = async ({
     );
     return false;
   }
-
   if (!userId) {
-    await insertClaimableItem(con, data);
+    if (state) {
+      await updateClaimableItem(con, data);
+    } else {
+      await dropClaimableItem(con, data);
+    }
   } else {
     const user = await con.getRepository(User).findOneBy({ id: userId });
     if (!user) {
