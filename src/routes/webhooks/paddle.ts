@@ -79,6 +79,19 @@ export const updateUserSubscription = async ({
   const con = await createOrGetConnection();
   const userId = customData?.user_id;
 
+  const subscriptionType = extractSubscriptionCycle(data.items);
+
+  if (!subscriptionType) {
+    logger.error(
+      {
+        provider: SubscriptionProvider.Paddle,
+        data: event,
+      },
+      'Subscription type missing in payload',
+    );
+    return false;
+  }
+
   if (!userId) {
     await insertClaimableItem(con, data);
   } else {
@@ -103,19 +116,6 @@ export const updateUserSubscription = async ({
         'User already has a Apple subscription',
       );
       throw new Error('User already has a StoreKit subscription');
-    }
-
-    const subscriptionType = extractSubscriptionCycle(data.items);
-
-    if (!subscriptionType) {
-      logger.error(
-        {
-          provider: SubscriptionProvider.Paddle,
-          data: event,
-        },
-        'Subscription type missing in payload',
-      );
-      return false;
     }
 
     await con.getRepository(User).update(

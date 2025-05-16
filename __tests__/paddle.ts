@@ -768,6 +768,57 @@ describe('plus subscription', () => {
   });
 });
 
+it('should throw an error if the email already has a claimable subscription', async () => {
+  const mockCustomer = { email: 'test@example.com' };
+
+  jest
+    .spyOn(paddleInstance.customers, 'get')
+    .mockResolvedValue(mockCustomer as Customer);
+
+  const data = getSubscriptionData({
+    user_id: undefined,
+  });
+
+  await con.getRepository(ClaimableItem).save({
+    email: 'test@example.com',
+    type: ClaimableItemTypes.Plus,
+    flags: {
+      cycle: SubscriptionCycles.Yearly,
+    },
+  });
+
+  await expect(
+    updateUserSubscription({ event: data, state: true }),
+  ).rejects.toThrow(
+    `User test@example.com already has a claimable subscription`,
+  );
+});
+
+it('should not throw an error if the email has claimed a previously claimable subscription', async () => {
+  const mockCustomer = { email: 'test@example.com' };
+
+  jest
+    .spyOn(paddleInstance.customers, 'get')
+    .mockResolvedValue(mockCustomer as Customer);
+
+  await con.getRepository(ClaimableItem).save({
+    email: 'test@example.com',
+    type: ClaimableItemTypes.Plus,
+    flags: {
+      cycle: SubscriptionCycles.Yearly,
+    },
+    claimedAt: new Date(),
+  });
+
+  const data = getSubscriptionData({
+    user_id: undefined,
+  });
+
+  await expect(
+    updateUserSubscription({ event: data, state: true }),
+  ).resolves.not.toThrow();
+});
+
 describe('gift', () => {
   const logError = jest.fn();
 

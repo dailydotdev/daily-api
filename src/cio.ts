@@ -259,3 +259,17 @@ export async function identifyAnonymousFunnelSubscription({
     logger.warn({ err }, 'failed to identify anonymous funnel subscription');
   }
 }
+
+export async function destroyAnonymousFunnelSubscription({
+  cio,
+  email,
+}: {
+  cio: TrackClient;
+  email: string;
+}): Promise<void> {
+  try {
+    await cio.destroy(email);
+  } catch (err) {
+    logger.warn({ err }, 'failed to destroy anonymous funnel subscription');
+  }
+}
