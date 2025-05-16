@@ -8,6 +8,7 @@ import type {
   UpdateUserEmailData,
 } from '../entity/user/utils';
 import {
+  addClaimableItemsToUser,
   addNewUser,
   confirmUserEmail,
   updateUserEmail,
@@ -41,6 +42,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
     const body = { ...rest, referralId, referralOrigin };
     const operationResult = await addNewUser(con, body, req);
+
+    await addClaimableItemsToUser(con, body);
+
     return res.status(200).send(operationResult);
   });
   fastify.post<{ Body: UpdateUserEmailData }>(

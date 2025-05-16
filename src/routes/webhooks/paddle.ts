@@ -5,7 +5,6 @@ import {
   TransactionCreatedEvent,
   type EventEntity,
   type SubscriptionCanceledEvent,
-  type SubscriptionCreatedEvent,
   type SubscriptionUpdatedEvent,
   type TransactionPaymentFailedEvent,
   type TransactionUpdatedEvent,
@@ -33,8 +32,11 @@ import {
 } from '../../integrations/analytics';
 import { JsonContains, type DataSource, type EntityManager } from 'typeorm';
 import {
+  dropClaimableItem,
+  extractSubscriptionCycle,
   getPaddleTransactionData,
   getTransactionForProviderId,
+  updateClaimableItem,
   isCoreTransaction,
   paddleInstance,
 } from '../../common/paddle';
@@ -43,6 +45,7 @@ import {
   isPlusMember,
   plusGiftDuration,
   SubscriptionCycles,
+  type PaddleSubscriptionEvent,
 } from '../../paddle';
 import {
   UserTransaction,
@@ -60,25 +63,6 @@ export interface PaddleCustomData {
   gifter_id?: string;
 }
 
-type PaddleSubscriptionEvent =
-  | SubscriptionCreatedEvent
-  | SubscriptionCanceledEvent
-  | SubscriptionUpdatedEvent;
-
-const extractSubscriptionCycle = (
-  items: PaddleSubscriptionEvent['data']['items'],
-) => {
-  const cycle = items?.[0]?.price?.billingCycle?.interval;
-
-  if (!cycle) {
-    return undefined;
-  }
-
-  return cycle === 'year'
-    ? SubscriptionCycles.Yearly
-    : SubscriptionCycles.Monthly;
-};
-
 export const updateUserSubscription = async ({
   event,
   state,
@@ -95,34 +79,6 @@ export const updateUserSubscription = async ({
 
   const con = await createOrGetConnection();
   const userId = customData?.user_id;
-  if (!userId) {
-    logger.error(
-      { provider: SubscriptionProvider.Paddle, data: event },
-      'User ID missing in payload',
-    );
-    return false;
-  }
-
-  const user = await con.getRepository(User).findOneBy({ id: userId });
-  if (!user) {
-    logger.error(
-      { provider: SubscriptionProvider.Paddle, data: event },
-      'User not found',
-    );
-    return false;
-  }
-
-  if (user.subscriptionFlags?.provider === SubscriptionProvider.AppleStoreKit) {
-    logger.error(
-      {
-        user,
-        data: event,
-        provider: SubscriptionProvider.Paddle,
-      },
-      'User already has a Apple subscription',
-    );
-    throw new Error('User already has a StoreKit subscription');
-  }
 
   const subscriptionType = extractSubscriptionCycle(data.items);
 
@@ -136,21 +92,51 @@ export const updateUserSubscription = async ({
     );
     return false;
   }
+  if (!userId) {
+    if (state) {
+      await updateClaimableItem(con, data);
+    } else {
+      await dropClaimableItem(con, data);
+    }
+  } else {
+    const user = await con.getRepository(User).findOneBy({ id: userId });
+    if (!user) {
+      logger.error(
+        { provider: SubscriptionProvider.Paddle, data: event },
+        'User not found',
+      );
+      return false;
+    }
 
-  await con.getRepository(User).update(
-    {
-      id: userId,
-    },
-    {
-      subscriptionFlags: updateSubscriptionFlags({
-        cycle: state ? subscriptionType : null,
-        createdAt: state ? data?.startedAt : null,
-        subscriptionId: state ? data?.id : null,
-        provider: state ? SubscriptionProvider.Paddle : null,
-        status: state ? UserSubscriptionStatus.Active : null,
-      }),
-    },
-  );
+    if (
+      user.subscriptionFlags?.provider === SubscriptionProvider.AppleStoreKit
+    ) {
+      logger.error(
+        {
+          user,
+          data: event,
+          provider: SubscriptionProvider.Paddle,
+        },
+        'User already has a Apple subscription',
+      );
+      throw new Error('User already has a StoreKit subscription');
+    }
+
+    await con.getRepository(User).update(
+      {
+        id: userId,
+      },
+      {
+        subscriptionFlags: updateSubscriptionFlags({
+          cycle: state ? subscriptionType : null,
+          createdAt: state ? data?.startedAt : null,
+          subscriptionId: state ? data?.id : null,
+          provider: state ? SubscriptionProvider.Paddle : null,
+          status: state ? UserSubscriptionStatus.Active : null,
+        }),
+      },
+    );
+  }
 };
 
 const getUserId = async ({
@@ -171,16 +157,14 @@ const getUserId = async ({
   });
 
   if (!user) {
-    logger.error(
-      { provider: SubscriptionProvider.Paddle, subscriptionId, userId },
-      'User not found',
-    );
+    // for anonymouse subs this will be empty
     return '';
   }
 
   return user.id;
 };
 
+// will always return false for anonymous subscriptions
 const planChanged = async ({ data }: SubscriptionUpdatedEvent) => {
   const customData = data?.customData as { user_id: string };
   const userId = await getUserId({

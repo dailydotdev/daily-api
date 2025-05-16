@@ -127,6 +127,9 @@ import {
   UserTransactionStatus,
 } from '../src/entity/user/UserTransaction';
 import { DeletedUser } from '../src/entity/user/DeletedUser';
+import { randomUUID } from 'crypto';
+import { ClaimableItem, ClaimableItemTypes } from '../src/entity/ClaimableItem';
+import { addClaimableItemsToUser } from '../src/entity/user/utils';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -6375,5 +6378,82 @@ describe('query checkCoresRole', () => {
     });
 
     expect(userAction).not.toBeNull();
+  });
+});
+
+describe('add claimable items to user', () => {
+  it('should add the claimable item to the user', async () => {
+    const userId = randomUUID();
+    const claimableItemUuid = randomUUID();
+
+    const flags = {
+      cycle: 'yearly',
+      status: 'active',
+      provider: 'paddle',
+      createdAt: new Date(),
+      customerId: 'ctm_01jktawy94f7ypbn7x8wdvtv86',
+      subscriptionId: 'sub_01jv95ymhjr71a700kpx8txt2j',
+    };
+
+    await con.getRepository(ClaimableItem).save({
+      id: claimableItemUuid,
+      type: ClaimableItemTypes.Plus,
+      email: 'john.doe@example.com',
+      flags,
+    });
+
+    await con.getRepository(User).save({
+      id: userId,
+      name: 'John Doe',
+      email: 'john.doe@example.com',
+    });
+
+    await addClaimableItemsToUser(con, {
+      id: userId,
+      email: 'john.doe@example.com',
+      createdAt: new Date(),
+      name: '',
+      infoConfirmed: false,
+      acceptedMarketing: false,
+      experienceLevel: null,
+      language: null,
+    });
+
+    const user = await con.getRepository(User).findOneBy({ id: userId });
+    expect(user).not.toBeNull();
+    expect(user?.subscriptionFlags).toBeDefined();
+    expect(user?.subscriptionFlags?.cycle).toEqual(flags.cycle);
+    expect(user?.subscriptionFlags?.status).toEqual(flags.status);
+    expect(user?.subscriptionFlags?.provider).toEqual(flags.provider);
+
+    const claimableItem = await con.getRepository(ClaimableItem).findOneBy({
+      id: claimableItemUuid,
+    });
+    expect(claimableItem).not.toBeNull();
+    expect(claimableItem?.claimedAt).not.toBeNull();
+  });
+
+  it('should create user but not add any claimable items if there were none found', async () => {
+    const userId = randomUUID();
+    await con.getRepository(User).save({
+      id: userId,
+      name: 'Clark Kent',
+      email: 'clark.kent@example.com',
+    });
+
+    await addClaimableItemsToUser(con, {
+      id: userId,
+      email: 'clark.kent@example.com',
+      createdAt: new Date(),
+      name: 'Clark Kent',
+      infoConfirmed: false,
+      acceptedMarketing: false,
+      experienceLevel: null,
+      language: null,
+    });
+
+    const user = await con.getRepository(User).findOneBy({ id: userId });
+    expect(user).not.toBeNull();
+    expect(user?.subscriptionFlags).toMatchObject({});
   });
 });

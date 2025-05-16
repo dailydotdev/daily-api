@@ -1,4 +1,14 @@
+import type {
+  SubscriptionCreatedEvent,
+  SubscriptionCanceledEvent,
+  SubscriptionUpdatedEvent,
+} from '@paddle/paddle-node-sdk';
 import { UserSubscriptionFlags } from './entity';
+
+export type PaddleSubscriptionEvent =
+  | SubscriptionCreatedEvent
+  | SubscriptionCanceledEvent
+  | SubscriptionUpdatedEvent;
 
 export enum SubscriptionCycles {
   Monthly = 'monthly',
