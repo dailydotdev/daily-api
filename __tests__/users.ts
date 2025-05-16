@@ -90,7 +90,7 @@ import {
 import { DataSource, In, IsNull } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import request from 'supertest';
-import { FastifyInstance, type FastifyRequest } from 'fastify';
+import { FastifyInstance } from 'fastify';
 import setCookieParser from 'set-cookie-parser';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { CampaignType, Invite } from '../src/entity/Invite';
@@ -6382,20 +6382,6 @@ describe('query checkCoresRole', () => {
 });
 
 describe('add claimable items to user', () => {
-  const mockRequest = {
-    headers: { 'user-agent': 'test-agent' },
-    query: { param: 'value' },
-    params: { id: '123' },
-    body: { data: 'test' },
-    user: { id: '1' },
-    log: { info: jest.fn(), error: jest.fn() },
-    ip: '127.0.0.1',
-    hostname: 'localhost',
-    protocol: 'http',
-    method: 'GET',
-    url: '/test-url',
-  } as unknown as FastifyRequest;
-
   it('should add the claimable item to the user', async () => {
     const userId = randomUUID();
     const claimableItemUuid = randomUUID();
@@ -6422,20 +6408,16 @@ describe('add claimable items to user', () => {
       email: 'john.doe@example.com',
     });
 
-    await addClaimableItemsToUser(
-      con,
-      {
-        id: userId,
-        email: 'john.doe@example.com',
-        createdAt: new Date(),
-        name: '',
-        infoConfirmed: false,
-        acceptedMarketing: false,
-        experienceLevel: null,
-        language: null,
-      },
-      mockRequest as FastifyRequest,
-    );
+    await addClaimableItemsToUser(con, {
+      id: userId,
+      email: 'john.doe@example.com',
+      createdAt: new Date(),
+      name: '',
+      infoConfirmed: false,
+      acceptedMarketing: false,
+      experienceLevel: null,
+      language: null,
+    });
 
     const user = await con.getRepository(User).findOneBy({ id: userId });
     expect(user).not.toBeNull();
@@ -6459,20 +6441,16 @@ describe('add claimable items to user', () => {
       email: 'clark.kent@example.com',
     });
 
-    await addClaimableItemsToUser(
-      con,
-      {
-        id: userId,
-        email: 'clark.kent@example.com',
-        createdAt: new Date(),
-        name: 'Clark Kent',
-        infoConfirmed: false,
-        acceptedMarketing: false,
-        experienceLevel: null,
-        language: null,
-      },
-      mockRequest as FastifyRequest,
-    );
+    await addClaimableItemsToUser(con, {
+      id: userId,
+      email: 'clark.kent@example.com',
+      createdAt: new Date(),
+      name: 'Clark Kent',
+      infoConfirmed: false,
+      acceptedMarketing: false,
+      experienceLevel: null,
+      language: null,
+    });
 
     const user = await con.getRepository(User).findOneBy({ id: userId });
     expect(user).not.toBeNull();
