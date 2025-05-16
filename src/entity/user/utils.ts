@@ -34,7 +34,7 @@ import { GQLUpdateUserInput } from '../../schema/users';
 import { validateValidTimeZone } from '../../common/timezone';
 import { nameRegex, validateRegex, ValidateRegex } from '../../common/object';
 import { logger } from '../../logger';
-import { User } from './User';
+import { User, type UserSubscriptionFlags } from './User';
 import { Feed } from '../Feed';
 import { remoteConfig } from '../../remoteConfig';
 import { getUserCoresRole } from '../../common/user';
@@ -386,7 +386,7 @@ export const addClaimableItemsToUser = async (
         claimedAt: new Date(),
       });
       await con.getRepository(User).update(body.id, {
-        subscriptionFlags: subscription.flags,
+        subscriptionFlags: subscription.flags as UserSubscriptionFlags,
       });
 
       await identifyAnonymousFunnelSubscription({
