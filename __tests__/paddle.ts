@@ -7,12 +7,17 @@ import {
   type GraphQLTestingState,
   type GraphQLTestClient,
 } from './helpers';
-import { SubscriptionProvider, User } from '../src/entity';
+import {
+  SubscriptionProvider,
+  User,
+  UserSubscriptionStatus,
+} from '../src/entity';
 import { plusUsersFixture, usersFixture } from './fixture';
 import {
   EventName,
   SubscriptionCreatedEvent,
   TransactionCompletedEvent,
+  Customer,
 } from '@paddle/paddle-node-sdk';
 import {
   PaddleCustomData,
@@ -35,6 +40,7 @@ import {
   PricingType,
 } from '../src/common/paddle/pricing';
 import { CountryCode, CurrencyCode } from '@paddle/paddle-node-sdk';
+import { ClaimableItem, ClaimableItemTypes } from '../src/entity/ClaimableItem';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -721,6 +727,96 @@ describe('plus subscription', () => {
       SubscriptionProvider.Paddle,
     );
   });
+
+  it('should add an anonymous subscription to the claimable_items table', async () => {
+    const mockCustomer = { email: 'test@example.com' };
+
+    jest
+      .spyOn(paddleInstance.customers, 'get')
+      .mockResolvedValue(mockCustomer as Customer);
+
+    const data = getSubscriptionData({
+      user_id: undefined,
+    });
+
+    await updateUserSubscription({ event: data, state: true });
+
+    const claimableItem = await con
+      .getRepository(ClaimableItem)
+      .findOneByOrFail({ email: mockCustomer.email });
+
+    expect(claimableItem).toBeTruthy();
+    expect(claimableItem.email).toBe('test@example.com');
+    expect(claimableItem.type).toBe(ClaimableItemTypes.Plus);
+    expect(claimableItem.flags).toHaveProperty(
+      'cycle',
+      SubscriptionCycles.Yearly,
+    );
+    expect(claimableItem.flags).toHaveProperty(
+      'createdAt',
+      data.data.startedAt,
+    );
+    expect(claimableItem.flags).toHaveProperty('subscriptionId', data.data.id);
+    expect(claimableItem.flags).toHaveProperty(
+      'provider',
+      SubscriptionProvider.Paddle,
+    );
+    expect(claimableItem.flags).toHaveProperty(
+      'status',
+      UserSubscriptionStatus.Active,
+    );
+  });
+});
+
+it('should throw an error if the email already has a claimable subscription', async () => {
+  const mockCustomer = { email: 'test@example.com' };
+
+  jest
+    .spyOn(paddleInstance.customers, 'get')
+    .mockResolvedValue(mockCustomer as Customer);
+
+  const data = getSubscriptionData({
+    user_id: undefined,
+  });
+
+  await con.getRepository(ClaimableItem).save({
+    email: 'test@example.com',
+    type: ClaimableItemTypes.Plus,
+    flags: {
+      cycle: SubscriptionCycles.Yearly,
+    },
+  });
+
+  await expect(
+    updateUserSubscription({ event: data, state: true }),
+  ).rejects.toThrow(
+    `User test@example.com already has a claimable subscription`,
+  );
+});
+
+it('should not throw an error if the email has claimed a previously claimable subscription', async () => {
+  const mockCustomer = { email: 'test@example.com' };
+
+  jest
+    .spyOn(paddleInstance.customers, 'get')
+    .mockResolvedValue(mockCustomer as Customer);
+
+  await con.getRepository(ClaimableItem).save({
+    email: 'test@example.com',
+    type: ClaimableItemTypes.Plus,
+    flags: {
+      cycle: SubscriptionCycles.Yearly,
+    },
+    claimedAt: new Date(),
+  });
+
+  const data = getSubscriptionData({
+    user_id: undefined,
+  });
+
+  await expect(
+    updateUserSubscription({ event: data, state: true }),
+  ).resolves.not.toThrow();
 });
 
 describe('gift', () => {

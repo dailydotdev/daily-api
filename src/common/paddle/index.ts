@@ -4,6 +4,8 @@ import {
   Paddle,
   type Subscription,
   type SubscriptionCanceledEvent,
+  SubscriptionCreatedNotification,
+  SubscriptionNotification,
   type SubscriptionUpdatedEvent,
   type TransactionCompletedEvent,
   type TransactionCreatedEvent,
@@ -16,9 +18,12 @@ import { PricingPreviewLineItem } from '@paddle/paddle-node-sdk/dist/types/entit
 import { remoteConfig } from '../../remoteConfig';
 import { z } from 'zod';
 import { UserTransaction } from '../../entity/user/UserTransaction';
-import type { DataSource, EntityManager } from 'typeorm';
-import { SubscriptionProvider } from '../../entity';
+import { IsNull, type DataSource, type EntityManager } from 'typeorm';
+import { SubscriptionProvider, UserSubscriptionStatus } from '../../entity';
 import { isProd } from '../utils';
+import { ClaimableItemTypes } from '../../entity/ClaimableItem';
+import { ClaimableItem } from '../../entity/ClaimableItem';
+import { SubscriptionCycles, type PaddleSubscriptionEvent } from '../../paddle';
 
 export const paddleInstance = new Paddle(process.env.PADDLE_API_KEY, {
   environment: process.env.PADDLE_ENVIRONMENT as Environment,
@@ -189,4 +194,50 @@ export const getTransactionForProviderId = async ({
       providerId,
     })
     .getOne();
+};
+
+export const extractSubscriptionCycle = (
+  items: PaddleSubscriptionEvent['data']['items'],
+) => {
+  const cycle = items?.[0]?.price?.billingCycle?.interval;
+
+  if (!cycle) {
+    return undefined;
+  }
+
+  return cycle === 'year'
+    ? SubscriptionCycles.Yearly
+    : SubscriptionCycles.Monthly;
+};
+
+export const insertClaimableItem = async (
+  con: DataSource | EntityManager,
+  data: SubscriptionNotification | SubscriptionCreatedNotification,
+) => {
+  const customer = await paddleInstance.customers.get(data.customerId);
+
+  const existingEntries = await con.getRepository(ClaimableItem).find({
+    where: {
+      email: customer.email,
+      claimedAt: IsNull(),
+    },
+  });
+
+  await con.getRepository(ClaimableItem).insert({
+    type: ClaimableItemTypes.Plus,
+    email: customer.email,
+    flags: {
+      cycle: extractSubscriptionCycle(data.items),
+      createdAt: data.startedAt,
+      subscriptionId: data.id,
+      provider: SubscriptionProvider.Paddle,
+      status: UserSubscriptionStatus.Active,
+    },
+  });
+
+  if (existingEntries.length > 0) {
+    throw new Error(
+      `User ${customer.email} already has a claimable subscription`,
+    );
+  }
 };
