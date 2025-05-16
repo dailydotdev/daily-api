@@ -18,6 +18,7 @@ import { updateSourcePublicThreshold } from './updateSourcePublicThreshold';
 import { cleanZombieUserCompany } from './cleanZombieUserCompany';
 import { calculateTopReaders } from './calculateTopReaders';
 import cleanGiftedPlus from './cleanGiftedPlus';
+import { cleanStaleUserTransactions } from './cleanStaleUserTransactions';
 
 export const crons: Cron[] = [
   updateViews,
@@ -39,4 +40,5 @@ export const crons: Cron[] = [
   calculateTopReaders,
   validateActiveUsers,
   cleanGiftedPlus,
+  cleanStaleUserTransactions,
 ];
