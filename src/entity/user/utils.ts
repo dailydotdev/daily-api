@@ -5,7 +5,7 @@ import {
   UserFailErrorKeys,
 } from '../../errors';
 import { ContentLanguage } from '../../types';
-import { DataSource, DeepPartial, EntityManager } from 'typeorm';
+import { DataSource, DeepPartial, EntityManager, IsNull } from 'typeorm';
 import { FastifyBaseLogger, FastifyRequest } from 'fastify';
 import { counters } from '../../telemetry';
 import { generateTrackingId } from '../../ids';
@@ -41,7 +41,7 @@ import { getUserCoresRole } from '../../common/user';
 import { insertOrIgnoreAction } from '../../schema/actions';
 import { UserActionType } from './UserAction';
 import { DeletedUser } from './DeletedUser';
-import { ClaimableItem, ClaimableItemTypes } from '../ClaimableItem';
+import { ClaimableItem } from '../ClaimableItem';
 import { cio, identifyAnonymousFunnelSubscription } from '../../cio';
 
 export type AddUserData = Pick<
@@ -376,30 +376,24 @@ export const addClaimableItemsToUser = async (
   req: FastifyRequest,
 ) => {
   try {
-    const claimableItems = await con
+    const subscription = await con
       .getRepository(ClaimableItem)
-      .findBy({ email: body.email });
-    if (claimableItems.length > 0) {
-      const subscription = claimableItems.find(
-        (item) =>
-          item.type === ClaimableItemTypes.Plus && item.claimedById === null,
-      );
+      .findOneBy({ email: body.email, claimedById: IsNull() });
 
-      if (subscription) {
-        await con.getRepository(ClaimableItem).update(subscription.id, {
-          claimedById: body.id,
-          claimedAt: new Date(),
-        });
-        await con.getRepository(User).update(body.id, {
-          subscriptionFlags: subscription.flags,
-        });
+    if (subscription) {
+      await con.getRepository(ClaimableItem).update(subscription.id, {
+        claimedById: body.id,
+        claimedAt: new Date(),
+      });
+      await con.getRepository(User).update(body.id, {
+        subscriptionFlags: subscription.flags,
+      });
 
-        await identifyAnonymousFunnelSubscription({
-          cio,
-          email: body.email,
-          claimedSub: true,
-        });
-      }
+      await identifyAnonymousFunnelSubscription({
+        cio,
+        email: body.email,
+        claimedSub: true,
+      });
     }
   } catch (err) {
     req.log.error(
