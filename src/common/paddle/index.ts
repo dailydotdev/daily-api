@@ -260,19 +260,20 @@ export const insertClaimableItem = async (
 
 export const dropClaimableItem = async (
   con: DataSource | EntityManager,
-  email: string,
-  subscriptionId: string,
+  data: SubscriptionNotification | SubscriptionCreatedNotification,
 ) => {
+  const customer = await paddleInstance.customers.get(data.customerId);
+
   await con.getRepository(ClaimableItem).delete({
-    email,
+    email: customer.email,
     claimedAt: IsNull(),
     flags: JsonContains({
-      subscriptionId,
+      subscriptionId: data.id,
     }),
   });
 
   await destroyAnonymousFunnelSubscription({
     cio,
-    email,
+    email: customer.email,
   });
 };
