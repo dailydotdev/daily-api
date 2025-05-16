@@ -19,6 +19,7 @@ import {
   type PostTranslation,
 } from '../entity';
 import {
+  OrganizationMemberRoles,
   SourceMemberRoles,
   rankToSourceRole,
   sourceRoleRank,
@@ -1153,6 +1154,32 @@ const obj = new GraphORM({
   },
   UserTransactionPublic: {
     from: 'UserTransaction',
+  },
+  UserOrganization: {
+    from: 'ContentPreference',
+    additionalQuery: (_, alias, qb) =>
+      qb.andWhere(
+        `"${alias}"."type" = '${ContentPreferenceType.Organization}'`,
+      ),
+    requiredColumns: ['createdAt', 'userId', 'flags'],
+    fields: {
+      referralToken: {
+        rawSelect: true,
+        select: (_, alias) => {
+          return `${alias}.flags->>'referralToken'`;
+        },
+        transform: (value: string, ctx: Context, parent) => {
+          const member = parent as ContentPreferenceSource;
+
+          return nullIfNotSameUser(value, ctx, { id: member.userId });
+        },
+      },
+      role: {
+        rawSelect: true,
+        select: (_, alias) =>
+          `COALESCE(${alias}.flags->>'role', '${OrganizationMemberRoles.Member}')`,
+      },
+    },
   },
 });
 
