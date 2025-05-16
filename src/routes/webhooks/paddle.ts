@@ -36,7 +36,7 @@ import {
   extractSubscriptionCycle,
   getPaddleTransactionData,
   getTransactionForProviderId,
-  insertClaimableItem,
+  updateClaimableItem,
   isCoreTransaction,
   paddleInstance,
 } from '../../common/paddle';
@@ -94,7 +94,7 @@ export const updateUserSubscription = async ({
   }
   if (!userId) {
     if (state) {
-      await insertClaimableItem(con, data);
+      await updateClaimableItem(con, data, state);
     } else {
       await dropClaimableItem(con, data);
     }

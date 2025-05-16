@@ -5,11 +5,24 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import type { User } from './user';
+import type {
+  SubscriptionProvider,
+  User,
+  UserSubscriptionStatus,
+} from './user';
+import type { SubscriptionCycles } from '../paddle';
 
 export enum ClaimableItemTypes {
   Plus = 'plus',
 }
+
+export type ClaimableItemFlags = {
+  cycle: SubscriptionCycles | null;
+  createdAt: Date | null;
+  subscriptionId: string | null;
+  provider: SubscriptionProvider | null;
+  status: UserSubscriptionStatus | null;
+};
 
 @Entity()
 export class ClaimableItem {
@@ -30,7 +43,7 @@ export class ClaimableItem {
   type: ClaimableItemTypes;
 
   @Column({ type: 'jsonb', default: {} })
-  flags = {};
+  flags: ClaimableItemFlags;
 
   @Column({ nullable: true })
   claimedById?: string;

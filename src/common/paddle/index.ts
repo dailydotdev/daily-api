@@ -30,8 +30,7 @@ import {
   type ConnectionManager,
 } from '../../entity';
 import { isProd } from '../utils';
-import { ClaimableItemTypes } from '../../entity/ClaimableItem';
-import { ClaimableItem } from '../../entity/ClaimableItem';
+import { ClaimableItem, ClaimableItemTypes } from '../../entity/ClaimableItem';
 import { SubscriptionCycles, type PaddleSubscriptionEvent } from '../../paddle';
 import {
   cio,
@@ -224,10 +223,13 @@ export const extractSubscriptionCycle = (
     : SubscriptionCycles.Monthly;
 };
 
-export const insertClaimableItem = async (
+export const updateClaimableItem = async (
   con: ConnectionManager,
   data: SubscriptionNotification | SubscriptionCreatedNotification,
+  state: boolean,
 ) => {
+  // If it's scheduled to cancel we do nothing. When the cancel event hits, it will delete the row in dropClaimableItem function.
+  if (data?.scheduledChange?.action === 'cancel') return;
   const customer = await paddleInstance.customers.get(data.customerId);
 
   const existingEntries = await con.getRepository(ClaimableItem).find({
@@ -237,17 +239,29 @@ export const insertClaimableItem = async (
     },
   });
 
-  await con.getRepository(ClaimableItem).insert({
-    type: ClaimableItemTypes.Plus,
-    email: customer.email,
-    flags: {
-      cycle: extractSubscriptionCycle(data.items),
-      createdAt: data.startedAt,
-      subscriptionId: data.id,
-      provider: SubscriptionProvider.Paddle,
-      status: UserSubscriptionStatus.Active,
-    },
-  });
+  const currentSubscription = existingEntries.find(
+    (entry) => entry.flags.subscriptionId === data.id,
+  );
+
+  const flags = {
+    cycle: state ? extractSubscriptionCycle(data.items) : null,
+    createdAt: state ? data.startedAt : null,
+    subscriptionId: state ? data.id : null,
+    provider: state ? SubscriptionProvider.Paddle : null,
+    status: state ? UserSubscriptionStatus.Active : null,
+  };
+
+  if (currentSubscription) {
+    await con.getRepository(ClaimableItem).update(currentSubscription.id, {
+      flags,
+    });
+  } else {
+    await con.getRepository(ClaimableItem).insert({
+      type: ClaimableItemTypes.Plus,
+      email: customer.email,
+      flags,
+    });
+  }
 
   if (existingEntries.length > 0) {
     throw new Error(
