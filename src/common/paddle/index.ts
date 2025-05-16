@@ -4,6 +4,8 @@ import {
   Paddle,
   type Subscription,
   type SubscriptionCanceledEvent,
+  SubscriptionCreatedNotification,
+  SubscriptionNotification,
   type SubscriptionUpdatedEvent,
   type TransactionCompletedEvent,
   type TransactionCreatedEvent,
@@ -16,9 +18,25 @@ import { PricingPreviewLineItem } from '@paddle/paddle-node-sdk/dist/types/entit
 import { remoteConfig } from '../../remoteConfig';
 import { z } from 'zod';
 import { UserTransaction } from '../../entity/user/UserTransaction';
-import type { DataSource, EntityManager } from 'typeorm';
-import { SubscriptionProvider } from '../../entity';
+import {
+  IsNull,
+  JsonContains,
+  type DataSource,
+  type EntityManager,
+} from 'typeorm';
+import {
+  SubscriptionProvider,
+  UserSubscriptionStatus,
+  type ConnectionManager,
+} from '../../entity';
 import { isProd } from '../utils';
+import { ClaimableItem, ClaimableItemTypes } from '../../entity/ClaimableItem';
+import { SubscriptionCycles, type PaddleSubscriptionEvent } from '../../paddle';
+import {
+  cio,
+  destroyAnonymousFunnelSubscription,
+  identifyAnonymousFunnelSubscription,
+} from '../../cio';
 
 export const paddleInstance = new Paddle(process.env.PADDLE_API_KEY, {
   environment: process.env.PADDLE_ENVIRONMENT as Environment,
@@ -189,4 +207,76 @@ export const getTransactionForProviderId = async ({
       providerId,
     })
     .getOne();
+};
+
+export const extractSubscriptionCycle = (
+  items: PaddleSubscriptionEvent['data']['items'],
+) => {
+  const cycle = items?.[0]?.price?.billingCycle?.interval;
+
+  if (!cycle) {
+    return undefined;
+  }
+
+  return cycle === 'year'
+    ? SubscriptionCycles.Yearly
+    : SubscriptionCycles.Monthly;
+};
+
+export const updateClaimableItem = async (
+  con: ConnectionManager,
+  data: SubscriptionNotification | SubscriptionCreatedNotification,
+) => {
+  if (data?.status === 'canceled' || data?.scheduledChange?.action === 'cancel')
+    return;
+  const customer = await paddleInstance.customers.get(data.customerId);
+
+  const existingEntries = await con.getRepository(ClaimableItem).find({
+    where: {
+      email: customer.email,
+      claimedAt: IsNull(),
+    },
+  });
+
+  if (existingEntries.length > 0) {
+    throw new Error(`User already has a claimable subscription`);
+  }
+
+  await con.getRepository(ClaimableItem).insert({
+    type: ClaimableItemTypes.Plus,
+    email: customer.email,
+    flags: {
+      cycle: extractSubscriptionCycle(data.items),
+      createdAt: data.startedAt,
+      subscriptionId: data.id,
+      provider: SubscriptionProvider.Paddle,
+      status: UserSubscriptionStatus.Active,
+    },
+  });
+
+  await identifyAnonymousFunnelSubscription({
+    cio,
+    email: customer.email,
+    claimedSub: false,
+  });
+};
+
+export const dropClaimableItem = async (
+  con: ConnectionManager,
+  data: SubscriptionNotification,
+) => {
+  const customer = await paddleInstance.customers.get(data.customerId);
+
+  await con.getRepository(ClaimableItem).delete({
+    email: customer.email,
+    claimedAt: IsNull(),
+    flags: JsonContains({
+      subscriptionId: data.id,
+    }),
+  });
+
+  await destroyAnonymousFunnelSubscription({
+    cio,
+    email: customer.email,
+  });
 };
