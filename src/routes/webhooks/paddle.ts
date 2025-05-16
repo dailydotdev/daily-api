@@ -92,9 +92,8 @@ export const updateUserSubscription = async ({
     );
     return false;
   }
-
   if (!userId) {
-    if (data.status === UserSubscriptionStatus.Active) {
+    if (state) {
       await insertClaimableItem(con, data);
     } else {
       await dropClaimableItem(con, data);
