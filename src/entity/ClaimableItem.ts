@@ -48,6 +48,6 @@ export class ClaimableItem {
   @Column({ nullable: true })
   claimedById?: string;
 
-  @ManyToOne('User', { lazy: true, onDelete: 'SET NULL' })
+  @ManyToOne('User', { lazy: true, onDelete: 'CASCADE' })
   claimedBy?: Promise<User>;
 }
