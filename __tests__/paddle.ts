@@ -18,6 +18,7 @@ import {
   SubscriptionCreatedEvent,
   TransactionCompletedEvent,
   type Customer,
+  type SubscriptionStatus,
 } from '@paddle/paddle-node-sdk';
 import {
   PaddleCustomData,
@@ -123,7 +124,10 @@ const getPricingPreviewData = () => ({
   currencyCode: 'USD',
 });
 
-const getSubscriptionData = (customData: PaddleCustomData) =>
+const getSubscriptionData = (
+  customData: PaddleCustomData,
+  status: SubscriptionStatus = 'active',
+) =>
   new SubscriptionCreatedEvent({
     event_id: '1',
     notification_id: '1',
@@ -131,7 +135,7 @@ const getSubscriptionData = (customData: PaddleCustomData) =>
     occurred_at: new Date().toISOString(),
     data: {
       id: '1',
-      status: 'active',
+      status,
       transaction_id: '1',
       customer_id: '1',
       address_id: '1',
@@ -826,7 +830,7 @@ describe('anonymous subscription', () => {
     ).resolves.not.toThrow();
   });
 
-  it('should drop a claimable item if the subscription is cancelled', async () => {
+  it('should drop a claimable item if the subscription is canceled', async () => {
     const mockCustomer = { email: 'test@example.com' };
 
     await con.getRepository(ClaimableItem).save({
@@ -844,9 +848,12 @@ describe('anonymous subscription', () => {
       .spyOn(paddleInstance.customers, 'get')
       .mockResolvedValue(mockCustomer as Customer);
 
-    const data = getSubscriptionData({
-      user_id: undefined,
-    });
+    const data = getSubscriptionData(
+      {
+        user_id: undefined,
+      },
+      'canceled',
+    );
 
     await updateUserSubscription({ event: data, state: false });
 
