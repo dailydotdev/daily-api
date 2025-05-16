@@ -24,7 +24,11 @@ import {
   type DataSource,
   type EntityManager,
 } from 'typeorm';
-import { SubscriptionProvider, UserSubscriptionStatus } from '../../entity';
+import {
+  SubscriptionProvider,
+  UserSubscriptionStatus,
+  type ConnectionManager,
+} from '../../entity';
 import { isProd } from '../utils';
 import { ClaimableItemTypes } from '../../entity/ClaimableItem';
 import { ClaimableItem } from '../../entity/ClaimableItem';
@@ -221,7 +225,7 @@ export const extractSubscriptionCycle = (
 };
 
 export const insertClaimableItem = async (
-  con: DataSource | EntityManager,
+  con: ConnectionManager,
   data: SubscriptionNotification | SubscriptionCreatedNotification,
 ) => {
   const customer = await paddleInstance.customers.get(data.customerId);
@@ -259,8 +263,8 @@ export const insertClaimableItem = async (
 };
 
 export const dropClaimableItem = async (
-  con: DataSource | EntityManager,
-  data: SubscriptionNotification | SubscriptionCreatedNotification,
+  con: ConnectionManager,
+  data: SubscriptionNotification,
 ) => {
   const customer = await paddleInstance.customers.get(data.customerId);
 
