@@ -373,35 +373,27 @@ export const addNewUser = async (
 export const addClaimableItemsToUser = async (
   con: DataSource,
   body: AddUserData,
-  req: FastifyRequest,
 ) => {
-  try {
-    const subscription = await con
-      .getRepository(ClaimableItem)
-      .findOneBy({ email: body.email, claimedById: IsNull() });
+  const subscription = await con
+    .getRepository(ClaimableItem)
+    .findOneBy({ email: body.email, claimedById: IsNull() });
 
-    if (subscription) {
-      await con.transaction(async (em) => {
-        await em.getRepository(ClaimableItem).update(subscription.id, {
-          claimedById: body.id,
-          claimedAt: new Date(),
-        });
-        await em.getRepository(User).update(body.id, {
-          subscriptionFlags: subscription.flags as UserSubscriptionFlags,
-        });
+  if (subscription) {
+    await con.transaction(async (em) => {
+      await em.getRepository(ClaimableItem).update(subscription.id, {
+        claimedById: body.id,
+        claimedAt: new Date(),
       });
+      await em.getRepository(User).update(body.id, {
+        subscriptionFlags: subscription.flags as UserSubscriptionFlags,
+      });
+    });
 
-      await identifyAnonymousFunnelSubscription({
-        cio,
-        email: body.email,
-        claimedSub: true,
-      });
-    }
-  } catch (err) {
-    req.log.error(
-      { err, userId: body.id },
-      'Error adding claimable items to user',
-    );
+    await identifyAnonymousFunnelSubscription({
+      cio,
+      email: body.email,
+      claimedSub: true,
+    });
   }
 };
 

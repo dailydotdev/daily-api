@@ -239,9 +239,7 @@ export const updateClaimableItem = async (
   });
 
   if (existingEntries.length > 0) {
-    throw new Error(
-      `User ${customer.email} already has a claimable subscription`,
-    );
+    throw new Error(`User already has a claimable subscription`);
   }
 
   await con.getRepository(ClaimableItem).insert({
