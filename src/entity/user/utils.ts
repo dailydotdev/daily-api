@@ -381,12 +381,14 @@ export const addClaimableItemsToUser = async (
       .findOneBy({ email: body.email, claimedById: IsNull() });
 
     if (subscription) {
-      await con.getRepository(ClaimableItem).update(subscription.id, {
-        claimedById: body.id,
-        claimedAt: new Date(),
-      });
-      await con.getRepository(User).update(body.id, {
-        subscriptionFlags: subscription.flags as UserSubscriptionFlags,
+      await con.transaction(async (em) => {
+        await em.getRepository(ClaimableItem).update(subscription.id, {
+          claimedById: body.id,
+          claimedAt: new Date(),
+        });
+        await em.getRepository(User).update(body.id, {
+          subscriptionFlags: subscription.flags as UserSubscriptionFlags,
+        });
       });
 
       await identifyAnonymousFunnelSubscription({
