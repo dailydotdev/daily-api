@@ -710,6 +710,395 @@ describe('plus pricing preview', () => {
   });
 });
 
+describe('pricing preview by ids', () => {
+  const QUERY = /* GraphQL */ `
+    query PricingPreviewByIds($ids: [String]!, $locale: String) {
+      pricingPreviewByIds(ids: $ids, locale: $locale) {
+        priceId
+        price {
+          amount
+          formatted
+          monthly {
+            amount
+            formatted
+          }
+          daily {
+            amount
+            formatted
+          }
+        }
+        currency {
+          code
+          symbol
+        }
+        duration
+        trialPeriod {
+          interval
+          frequency
+        }
+      }
+    }
+  `;
+
+  const mockPreview = {
+    customerId: '1',
+    addressId: '1',
+    businessId: null,
+    discountId: null,
+    address: {
+      countryCode: 'US',
+      postalCode: '12345',
+    },
+    customerIpAddress: '127.0.0.1',
+    availablePaymentMethods: ['card'],
+    details: {
+      lineItems: [
+        {
+          price: {
+            id: 'pri_monthly',
+            productId: 'dailydev-plus',
+            name: 'Monthly Subscription',
+            billingCycle: {
+              interval: 'month',
+              frequency: 1,
+            },
+            trialPeriod: {
+              interval: 'day',
+              frequency: 14,
+            },
+          },
+          formattedTotals: {
+            total: '$5.00',
+          },
+          totals: {
+            total: '5.00',
+          },
+        },
+        {
+          price: {
+            id: 'pri_yearly',
+            productId: 'dailydev-plus',
+            name: 'Yearly Subscription',
+            billingCycle: {
+              interval: 'year',
+              frequency: 1,
+            },
+            trialPeriod: null,
+          },
+          formattedTotals: {
+            total: '$50.00',
+          },
+          totals: {
+            total: '50.00',
+          },
+        },
+      ],
+    },
+    currencyCode: 'USD',
+  } as const;
+
+  beforeEach(async () => {
+    await ioRedisPool.execute((client) => client.flushall());
+
+    const mockPreviewFn = jest.fn().mockResolvedValue(mockPreview);
+    jest
+      .spyOn(paddleInstance.pricingPreview, 'preview')
+      .mockImplementation(mockPreviewFn);
+  });
+
+  it('should return pricing preview data for specific IDs', async () => {
+    loggedUser = 'whp-1';
+    const result = await client.query(QUERY, {
+      variables: { ids: ['pri_monthly', 'pri_yearly'] },
+    });
+
+    expect(result.data.pricingPreviewByIds).toHaveLength(2);
+
+    const monthlyPreview = result.data.pricingPreviewByIds.find(
+      (preview) => preview.priceId === 'pri_monthly',
+    );
+    const yearlyPreview = result.data.pricingPreviewByIds.find(
+      (preview) => preview.priceId === 'pri_yearly',
+    );
+
+    expect(monthlyPreview).toBeDefined();
+    expect(monthlyPreview.price.amount).toBe(5);
+    expect(monthlyPreview.price.formatted).toBe('$5.00');
+    expect(monthlyPreview.currency.code).toBe('USD');
+    expect(monthlyPreview.currency.symbol).toBe('$');
+    expect(monthlyPreview.duration).toBe('monthly');
+    expect(monthlyPreview.trialPeriod.interval).toBe('day');
+    expect(monthlyPreview.trialPeriod.frequency).toBe(14);
+
+    expect(yearlyPreview).toBeDefined();
+    expect(yearlyPreview.price.amount).toBe(50);
+    expect(yearlyPreview.price.formatted).toBe('$50.00');
+    expect(yearlyPreview.duration).toBe('yearly');
+    expect(yearlyPreview.trialPeriod).toBeNull();
+  });
+
+  it('should format prices according to locale', async () => {
+    loggedUser = 'whp-1';
+    const mockLocalizedPreview = {
+      ...mockPreview,
+      currencyCode: 'EUR' as CurrencyCode,
+      details: {
+        lineItems: [
+          {
+            price: {
+              id: 'pri_monthly',
+              productId: 'dailydev-plus',
+              name: 'Monthly Subscription',
+              billingCycle: {
+                interval: 'month',
+                frequency: 1,
+              },
+              trialPeriod: {
+                interval: 'day',
+                frequency: 14,
+              },
+            },
+            formattedTotals: {
+              total: '€5,00',
+            },
+            totals: {
+              total: '5.00',
+            },
+          },
+        ],
+      },
+    };
+
+    jest
+      .spyOn(paddleInstance.pricingPreview, 'preview')
+      .mockResolvedValue(mockLocalizedPreview as never);
+
+    const result = await client.query(QUERY, {
+      variables: {
+        ids: ['pri_monthly'],
+        locale: 'de-DE',
+      },
+    });
+
+    expect(result.data.pricingPreviewByIds).toHaveLength(1);
+    const preview = result.data.pricingPreviewByIds[0];
+    expect(preview.priceId).toBe('pri_monthly');
+    expect(preview.price.formatted).toBe('€5,00');
+    expect(preview.currency.code).toBe('EUR');
+    expect(preview.currency.symbol).toBe('€');
+  });
+
+  it('should handle empty ID list gracefully', async () => {
+    loggedUser = 'whp-1';
+
+    // Override the mock for this test to return an empty lineItems array
+    jest.spyOn(paddleInstance.pricingPreview, 'preview').mockResolvedValue({
+      ...mockPreview,
+      details: {
+        lineItems: [],
+      },
+    } as never);
+
+    const result = await client.query(QUERY, {
+      variables: { ids: [] },
+    });
+
+    expect(result.data.pricingPreviewByIds).toHaveLength(0);
+  });
+
+  it('should handle IDs that do not match any prices', async () => {
+    loggedUser = 'whp-1';
+
+    // Override the mock for this test to return an empty lineItems array
+    jest.spyOn(paddleInstance.pricingPreview, 'preview').mockResolvedValue({
+      ...mockPreview,
+      details: {
+        lineItems: [],
+      },
+    } as never);
+
+    const result = await client.query(QUERY, {
+      variables: { ids: ['non_existent_id'] },
+    });
+
+    expect(result.data.pricingPreviewByIds).toHaveLength(0);
+  });
+});
+
+describe('core pricing preview', () => {
+  const QUERY = /* GraphQL */ `
+    query CorePricingPreview($type: PricingType, $locale: String) {
+      corePricingPreview(type: $type, locale: $locale) {
+        metadata {
+          appsId
+          title
+          caption {
+            copy
+            color
+          }
+          idMap {
+            paddle
+            ios
+          }
+        }
+        priceId
+        price {
+          amount
+          formatted
+          monthly {
+            amount
+            formatted
+          }
+          daily {
+            amount
+            formatted
+          }
+        }
+        currency {
+          code
+          symbol
+        }
+        duration
+        trialPeriod {
+          interval
+          frequency
+        }
+      }
+    }
+  `;
+
+  const mockPreview = {
+    customerId: '1',
+    addressId: '1',
+    businessId: null,
+    discountId: null,
+    address: {
+      countryCode: 'US',
+      postalCode: '12345',
+    },
+    customerIpAddress: '127.0.0.1',
+    availablePaymentMethods: ['card'],
+    details: {
+      lineItems: [
+        {
+          price: {
+            id: 'pri_monthly',
+            productId: 'dailydev-plus',
+            name: 'Monthly Subscription',
+            billingCycle: {
+              interval: 'month',
+              frequency: 1,
+            },
+            trialPeriod: {
+              interval: 'day',
+              frequency: 14,
+            },
+          },
+          formattedTotals: {
+            total: '$5.00',
+          },
+          totals: {
+            total: '5.00',
+          },
+        },
+      ],
+    },
+    currencyCode: 'USD',
+  } as const;
+
+  beforeEach(async () => {
+    await ioRedisPool.execute((client) => client.flushall());
+
+    const mockPreviewFn = jest.fn().mockResolvedValue(mockPreview);
+    jest
+      .spyOn(paddleInstance.pricingPreview, 'preview')
+      .mockImplementation(mockPreviewFn);
+  });
+
+  it('should return core pricing preview data', async () => {
+    loggedUser = 'whp-1';
+    const result = await client.query(QUERY, {
+      variables: { type: PricingType.Plus },
+    });
+
+    expect(result.data.corePricingPreview).toHaveLength(1);
+    const preview = result.data.corePricingPreview[0];
+    expect(preview.metadata.appsId).toBe('monthly');
+    expect(preview.priceId).toBe('pri_monthly');
+    expect(preview.price.amount).toBe(5);
+    expect(preview.price.formatted).toBe('$5.00');
+    expect(preview.currency.code).toBe('USD');
+    expect(preview.currency.symbol).toBe('$');
+    expect(preview.duration).toBe('monthly');
+    expect(preview.trialPeriod.interval).toBe('day');
+    expect(preview.trialPeriod.frequency).toBe(14);
+  });
+
+  it('should format prices according to locale', async () => {
+    loggedUser = 'whp-1';
+    const mockLocalizedPreview = {
+      ...mockPreview,
+      currencyCode: 'EUR' as CurrencyCode,
+      details: {
+        lineItems: [
+          {
+            price: {
+              id: 'pri_monthly',
+              productId: 'dailydev-plus',
+              name: 'Monthly Subscription',
+              billingCycle: {
+                interval: 'month',
+                frequency: 1,
+              },
+              trialPeriod: {
+                interval: 'day',
+                frequency: 14,
+              },
+            },
+            formattedTotals: {
+              total: '€5,00',
+            },
+            totals: {
+              total: '5.00',
+            },
+          },
+        ],
+      },
+    };
+
+    jest
+      .spyOn(paddleInstance.pricingPreview, 'preview')
+      .mockResolvedValue(mockLocalizedPreview as never);
+
+    const result = await client.query(QUERY, {
+      variables: {
+        type: PricingType.Plus,
+        locale: 'de-DE',
+      },
+    });
+
+    expect(result.data.corePricingPreview).toHaveLength(1);
+    const preview = result.data.corePricingPreview[0];
+    expect(preview.priceId).toBe('pri_monthly');
+    expect(preview.price.formatted).toBe('€5,00');
+    expect(preview.currency.code).toBe('EUR');
+    expect(preview.currency.symbol).toBe('€');
+  });
+
+  it('should handle empty locale gracefully', async () => {
+    loggedUser = 'whp-1';
+    const result = await client.query(QUERY, {
+      variables: {
+        type: PricingType.Plus,
+      },
+    });
+
+    expect(result.data.corePricingPreview).toHaveLength(1);
+    const preview = result.data.corePricingPreview[0];
+    expect(preview.price.formatted).toBe('$5.00');
+  });
+});
+
 describe('plus subscription', () => {
   it('should add a plus subscription to a user', async () => {
     const userId = 'whp-1';

@@ -132,6 +132,10 @@ export const typeDefs = /* GraphQL */ `
     corePricePreviews: PricePreviews! @auth
     pricingMetadata(type: PricingType): [ProductPricingMetadata!]! @auth
     pricingPreview(type: PricingType, locale: String): [ProductPricingPreview!]!
+    pricingPreviewByIds(
+      ids: [String]!
+      locale: String
+    ): [BaseProductPricingPreview!]!
   }
 
   ${toGQLEnum(PricingType, 'PricingType')}
@@ -237,6 +241,29 @@ export const typeDefs = /* GraphQL */ `
     symbol: String!
   }
 
+  type BaseProductPricingPreview {
+    """
+    Price ID
+    """
+    priceId: String!
+    """
+    Price information
+    """
+    price: ProductPricePreview!
+    """
+    Currency information
+    """
+    currency: Currency!
+    """
+    Subscription duration
+    """
+    duration: String!
+    """
+    Trial period information
+    """
+    trialPeriod: TrialPeriod
+  }
+
   """
   Extended pricing preview with additional information
   """
@@ -277,6 +304,13 @@ interface PaddlePricingPreviewArgs {
   type?: PricingType;
   locale?: string;
 }
+
+interface PaddlePricingPreviewByIdsArgs {
+  ids: string[];
+  locale?: string;
+}
+
+type BasePricingWithoutMetadata = Omit<BasePricingPreview, 'metadata'>;
 
 export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
   unknown,
@@ -428,6 +462,24 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
       });
 
       return consolidated.filter(Boolean) as BasePricingPreview[];
+    },
+    pricingPreviewByIds: async (
+      _,
+      { ids, locale }: PaddlePricingPreviewByIdsArgs,
+      ctx,
+    ): Promise<BasePricingWithoutMetadata[]> => {
+      const preview = await getPlusPricePreview(ctx, ids);
+
+      return preview.details.lineItems.map((item) => ({
+        priceId: item.price.id,
+        price: getProductPrice(item, locale),
+        duration: getPricingDuration(item),
+        trialPeriod: item.price.trialPeriod,
+        currency: {
+          code: preview.currencyCode,
+          symbol: removeNumbers(item.formattedTotals.total),
+        },
+      }));
     },
     corePricePreviews: async (_, __, ctx: AuthContext) => {
       const region = ctx.region;
