@@ -799,15 +799,17 @@ describe('pricing preview by ids', () => {
 
   beforeEach(async () => {
     await ioRedisPool.execute((client) => client.flushall());
-
-    const mockPreviewFn = jest.fn().mockResolvedValue(mockPreview);
-    jest
-      .spyOn(paddleInstance.pricingPreview, 'preview')
-      .mockImplementation(mockPreviewFn);
+    // Reset mocks after each test
+    jest.resetAllMocks();
   });
 
   it('should return pricing preview data for specific IDs', async () => {
     loggedUser = 'whp-1';
+    const mockPreviewFn = jest.fn().mockResolvedValue(mockPreview);
+    jest
+      .spyOn(paddleInstance.pricingPreview, 'preview')
+      .mockImplementation(mockPreviewFn);
+
     const result = await client.query(QUERY, {
       variables: { ids: ['pri_monthly', 'pri_yearly'] },
     });
@@ -891,13 +893,17 @@ describe('pricing preview by ids', () => {
   it('should handle empty ID list gracefully', async () => {
     loggedUser = 'whp-1';
 
-    // Override the mock for this test to return an empty lineItems array
-    jest.spyOn(paddleInstance.pricingPreview, 'preview').mockResolvedValue({
+    // Use a mock with empty lineItems for this test
+    const emptyMockPreview = {
       ...mockPreview,
       details: {
         lineItems: [],
       },
-    } as never);
+    };
+
+    jest
+      .spyOn(paddleInstance.pricingPreview, 'preview')
+      .mockResolvedValue(emptyMockPreview as never);
 
     const result = await client.query(QUERY, {
       variables: { ids: [] },
@@ -909,13 +915,17 @@ describe('pricing preview by ids', () => {
   it('should handle IDs that do not match any prices', async () => {
     loggedUser = 'whp-1';
 
-    // Override the mock for this test to return an empty lineItems array
-    jest.spyOn(paddleInstance.pricingPreview, 'preview').mockResolvedValue({
+    // Use a mock with empty lineItems for this test
+    const emptyMockPreview = {
       ...mockPreview,
       details: {
         lineItems: [],
       },
-    } as never);
+    };
+
+    jest
+      .spyOn(paddleInstance.pricingPreview, 'preview')
+      .mockResolvedValue(emptyMockPreview as never);
 
     const result = await client.query(QUERY, {
       variables: { ids: ['non_existent_id'] },
