@@ -288,11 +288,21 @@ export const getGeo = ({ ip }: { ip: string }): GeoRecord => {
     throw new Error('Geo reader not initialized');
   }
 
-  const geo = geoReader.city(ip);
+  try {
+    const geo = geoReader.city(ip);
 
-  return {
-    country: geo.country?.isoCode || 'unknown',
-    continent: geo.continent?.code || 'unknown',
-    city: geo.city?.names?.en || 'unknown',
-  };
+    return {
+      country: geo.country?.isoCode || 'unknown',
+      continent: geo.continent?.code || 'unknown',
+      city: geo.city?.names?.en || 'unknown',
+    };
+  } catch (error) {
+    logger.warn({ err: error, ip }, 'Error fetching geo data');
+
+    return {
+      country: 'unknown',
+      continent: 'unknown',
+      city: 'unknown',
+    };
+  }
 };
