@@ -3,11 +3,16 @@ import { isProd } from '../../../common';
 import { SubscriptionProvider } from '../../../common/plus';
 import { logger } from '../../../logger';
 
-import { isCoreTransaction, paddleInstance } from '../../../common/paddle';
+import {
+  isCoreTransaction,
+  isOrganizationSubscription,
+  paddleInstance,
+} from '../../../common/paddle';
 
 import { remoteConfig } from '../../../remoteConfig';
 import { processCorePaddleEvent } from '../../../common/paddle/cores/eventHandler';
 import { processPlusPaddleEvent } from '../../../common/paddle/plus/eventHandler';
+import { processOrganizationPaddleEvent } from '../../../common/paddle/organization/eventHandler';
 
 export const paddle = async (fastify: FastifyInstance): Promise<void> => {
   fastify.register(async (fastify: FastifyInstance): Promise<void> => {
@@ -39,14 +44,15 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
             );
 
             switch (true) {
-              case isCoreTransaction({ event: eventData }): {
+              case isCoreTransaction({ event: eventData }):
                 await processCorePaddleEvent(eventData);
                 break;
-              }
-              default: {
+              case isOrganizationSubscription({ event: eventData }):
+                await processOrganizationPaddleEvent(eventData);
+                break;
+              default:
                 await processPlusPaddleEvent(eventData);
                 break;
-              }
             }
           } else {
             logger.error(

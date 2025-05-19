@@ -20,6 +20,7 @@ type RemoteConfigValue = {
   }>;
   approvedStoreKitSandboxUsers: string[];
   coreProductId: string;
+  plusOrganizationProductId: string;
   coresRoleRules: {
     regions: string[];
     role: CoresRole;
