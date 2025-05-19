@@ -21,6 +21,7 @@ COPY package.json .
 COPY pnpm-lock.yaml .
 COPY patches patches
 COPY queries queries
+COPY geodb geodb
 
 RUN npm install -g corepack@0.31.0
 
