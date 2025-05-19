@@ -10,6 +10,7 @@ import {
   type TransactionUpdatedEvent,
   type TransactionPayoutTotalsNotification,
   type TransactionPaidEvent,
+  type SubscriptionCreatedEvent,
 } from '@paddle/paddle-node-sdk';
 import createOrGetConnection from '../../db';
 import {
@@ -35,6 +36,7 @@ import {
   updateClaimableItem,
   isCoreTransaction,
   paddleInstance,
+  isOrganizationSubscription,
 } from '../../common/paddle';
 import { addMilliseconds } from 'date-fns';
 import {
@@ -1067,6 +1069,23 @@ export const processTransactionUpdated = async ({
   }
 };
 
+export const processSubscriptionCreated = async ({
+  event,
+}: {
+  event: SubscriptionCreatedEvent;
+}) => {
+  if (isOrganizationSubscription({ event })) {
+    console.log('Organization subscription created');
+    console.log(JSON.stringify(event, null, 2));
+    return;
+  }
+
+  await updateUserSubscription({
+    event,
+    state: true,
+  });
+};
+
 export const paddle = async (fastify: FastifyInstance): Promise<void> => {
   fastify.register(async (fastify: FastifyInstance): Promise<void> => {
     fastify.addHook('onRequest', async (request, res) => {
@@ -1110,9 +1129,8 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
 
                 break;
               case EventName.SubscriptionCreated:
-                await updateUserSubscription({
+                await processSubscriptionCreated({
                   event: eventData,
-                  state: true,
                 });
 
                 break;

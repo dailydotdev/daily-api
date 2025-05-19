@@ -4,6 +4,7 @@ import {
   Paddle,
   type Subscription,
   type SubscriptionCanceledEvent,
+  type SubscriptionCreatedEvent,
   SubscriptionCreatedNotification,
   SubscriptionNotification,
   type SubscriptionUpdatedEvent,
@@ -83,21 +84,28 @@ export const getPriceFromPaddleItem = (
 
 export enum ProductPurchaseType {
   Plus = 'plus',
+  PlusOrganization = 'plusOrganization',
   Core = 'core',
 }
 
 export const getProductPurchaseType = ({
   id,
 }: {
-  id: string;
+  id?: string;
 }): ProductPurchaseType => {
   if (!remoteConfig.vars.coreProductId) {
     throw new Error('Core product id is not set');
   }
 
+  if (!remoteConfig.vars.plusOrganizationProductId) {
+    throw new Error('Plus organization product id is not set');
+  }
+
   switch (id) {
     case remoteConfig.vars.coreProductId:
       return ProductPurchaseType.Core;
+    case remoteConfig.vars.plusOrganizationProductId:
+      return ProductPurchaseType.PlusOrganization;
     default:
       return ProductPurchaseType.Plus;
   }
@@ -166,6 +174,27 @@ export const isCoreTransaction = ({
       item.price?.productId &&
       getProductPurchaseType({ id: item.price.productId }) ===
         ProductPurchaseType.Core,
+  );
+};
+
+export const isOrganizationSubscription = ({
+  event,
+}: {
+  event:
+    | TransactionCreatedEvent
+    | TransactionUpdatedEvent
+    | TransactionPaidEvent
+    | TransactionCompletedEvent
+    | TransactionPaymentFailedEvent
+    | SubscriptionCreatedEvent
+    | SubscriptionUpdatedEvent
+    | SubscriptionCanceledEvent;
+}): boolean => {
+  return event.data.items.some(
+    (item) =>
+      item.price?.productId &&
+      getProductPurchaseType({ id: item.price.productId }) ===
+        ProductPurchaseType.PlusOrganization,
   );
 };
 
