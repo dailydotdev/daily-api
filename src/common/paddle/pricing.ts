@@ -23,6 +23,8 @@ export const PLUS_FEATURE_KEY = 'plus_pricing_ids';
 export const DEFAULT_PLUS_METADATA = 'plus_default';
 export const CORES_FEATURE_KEY = 'cores_pricing_ids';
 export const DEFAULT_CORES_METADATA = 'cores_default';
+export const PLUS_ORGANIZATION_FEATURE_KEY = 'plus_organization_pricing_ids';
+export const DEFAULT_PLUS_ORGANIZATION_METADATA = 'plus_organization_default';
 
 export interface BasePricingMetadata {
   appsId: string;
@@ -93,6 +95,12 @@ export const getPlusPricingMetadata = async ({
 }: Omit<GetMetadataProps, 'feature'>): Promise<BasePricingMetadata[]> =>
   getPaddleMetadata({ con, feature: PLUS_FEATURE_KEY, variant });
 
+export const getPlusOrganizationPricingMetadata = async ({
+  con,
+  variant,
+}: Omit<GetMetadataProps, 'feature'>): Promise<BasePricingMetadata[]> =>
+  getPaddleMetadata({ con, feature: PLUS_ORGANIZATION_FEATURE_KEY, variant });
+
 export const getCoresPricingMetadata = async ({
   con,
   variant,
@@ -101,16 +109,19 @@ export const getCoresPricingMetadata = async ({
 
 export enum PricingType {
   Plus = 'plus',
+  PlusOrganization = 'plus_organization',
   Cores = 'cores',
 }
 
 const featureKey: Record<PricingType, string> = {
   [PricingType.Plus]: PLUS_FEATURE_KEY,
+  [PricingType.PlusOrganization]: PLUS_ORGANIZATION_FEATURE_KEY,
   [PricingType.Cores]: CORES_FEATURE_KEY,
 };
 
 const defaultVariant: Record<PricingType, string> = {
   [PricingType.Plus]: DEFAULT_PLUS_METADATA,
+  [PricingType.PlusOrganization]: DEFAULT_PLUS_ORGANIZATION_METADATA,
   [PricingType.Cores]: DEFAULT_CORES_METADATA,
 };
 
@@ -145,6 +156,8 @@ export const getPricingMetadata = async (
   switch (type) {
     case PricingType.Plus:
       return getPlusPricingMetadata({ con, variant });
+    case PricingType.PlusOrganization:
+      return getPlusOrganizationPricingMetadata({ con, variant });
     case PricingType.Cores:
       return getCoresPricingMetadata({ con, variant });
     default:
