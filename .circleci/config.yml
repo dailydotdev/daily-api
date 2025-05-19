@@ -132,7 +132,8 @@ jobs:
 workflows:
   build:
     jobs:
-      - build
+      - build:
+          context: GCR
       - test:
           requires:
             - build
