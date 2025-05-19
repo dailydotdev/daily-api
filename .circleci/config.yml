@@ -21,7 +21,7 @@ jobs:
           command: wget "https://download.maxmind.com/app/geoip_download?edition_id=GeoIP2-City&license_key=$GEOIP_LICENSE_KEY&suffix=tar.gz" -O geoip.tar.gz
       - run:
           name: Untar
-          command: tar -xvzf geoip.tar.gz && mkdir geodb && mv */GeoIP2-City.mmdb geodb/
+          command: tar -xvzf geoip.tar.gz && mv */GeoIP2-City.mmdb geodb/
       - run:
           name: Build
           command: pnpm run build
