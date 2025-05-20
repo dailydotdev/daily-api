@@ -33,7 +33,7 @@ const debeziumTopicName = `${name}.changes`;
 const isPersonalizedDigestEnabled =
   config.require('enablePersonalizedDigest') === 'true';
 
-const { image, imageTag } = getImageAndTag(`us.gcr.io/daily-ops/daily-${name}`);
+const { image, imageTag } = getImageAndTag(`gcr.io/daily-ops/daily-${name}`);
 
 const { serviceAccount } = createServiceAccountAndGrantRoles(
   `${name}-sa`,
