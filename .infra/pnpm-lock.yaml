@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@dailydotdev/pulumi-common':
-        specifier: ^2.7.0
-        version: 2.7.0(encoding@0.1.13)
+        specifier: ^2.8.0
+        version: 2.8.0(encoding@0.1.13)
       '@pulumi/gcp':
         specifier: ^8.19.1
         version: 8.19.1
@@ -27,8 +27,8 @@ importers:
 
 packages:
 
-  '@dailydotdev/pulumi-common@2.7.0':
-    resolution: {integrity: sha512-eJKXBHVuy+x7ck9kg8hTxHX6ebf+u90eG1aVF4se/V7l6R5YQhZfI3xDEAV+Mbbck8oY9M9d6l8urhzWO7AbZQ==}
+  '@dailydotdev/pulumi-common@2.8.0':
+    resolution: {integrity: sha512-Furwja91GuF5SXHUUxDHyrPX6/3Y1lCcvdP4mHWbGfmkyBF4YGFs8EqRn13PhVIr+WY6eSsj3X5wo4K+LqH/oA==}
 
   '@google-cloud/paginator@5.0.2':
     resolution: {integrity: sha512-DJS3s0OVH4zFDB1PzjxAsHqJT6sKVbRwwML0ZBP9PbU7Yebtu/7SWMRzvO2J3nUi9pRNITCfu4LJeooM2w4pjg==}
@@ -1551,7 +1551,7 @@ packages:
 
 snapshots:
 
-  '@dailydotdev/pulumi-common@2.7.0(encoding@0.1.13)':
+  '@dailydotdev/pulumi-common@2.8.0(encoding@0.1.13)':
     dependencies:
       '@google-cloud/pubsub': 4.10.0(encoding@0.1.13)
       '@pulumi/gcp': 8.19.1
