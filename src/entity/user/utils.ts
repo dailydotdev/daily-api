@@ -43,7 +43,6 @@ import { UserActionType } from './UserAction';
 import { DeletedUser } from './DeletedUser';
 import { ClaimableItem } from '../ClaimableItem';
 import { cio, identifyAnonymousFunnelSubscription } from '../../cio';
-import { getGeo } from '../../common/geo';
 
 export type AddUserData = Pick<
   User,
@@ -358,7 +357,7 @@ export const addNewUser = async (
         trustScore: 1,
         vordr: false,
       },
-      coresRole: getUserCoresRole({ region: getGeo({ ip: req.ip }).country }),
+      coresRole: getUserCoresRole(data),
     });
   } catch (error) {
     if (error instanceof ValidationError) {

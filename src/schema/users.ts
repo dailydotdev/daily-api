@@ -124,7 +124,6 @@ import { logger } from '../logger';
 import { generateAppAccountToken } from '../common/storekit';
 import { UserAction, UserActionType } from '../entity/user/UserAction';
 import { insertOrIgnoreAction } from './actions';
-import { getGeo } from '../common/geo';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -1991,7 +1990,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       const userCoresRole = getUserCoresRole({
-        region: getGeo({ ip: ctx.req.ip }).country,
+        region: ctx.region,
       });
 
       await Promise.all([

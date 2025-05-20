@@ -20,12 +20,6 @@ import { DayOfWeek } from '../src/common';
 import { ContentLanguage, CoresRole } from '../src/types';
 import { postsFixture } from './fixture/post';
 import { DeletedUser } from '../src/entity/user/DeletedUser';
-import { getGeo } from '../src/common/geo';
-
-jest.mock('../src/common/geo', () => ({
-  ...(jest.requireActual('../src/common/geo') as Record<string, unknown>),
-  getGeo: jest.fn(),
-}));
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -47,10 +41,6 @@ afterAll(() => app.close());
 beforeEach(async () => {
   jest.resetAllMocks();
   await saveFixtures(con, Source, sourcesFixture);
-
-  (getGeo as jest.Mock).mockImplementation(() => {
-    return {};
-  });
 });
 
 describe('POST /p/newUser', () => {
@@ -644,12 +634,6 @@ describe('POST /p/newUser', () => {
   });
 
   it('should assign cores rule', async () => {
-    (getGeo as jest.Mock).mockImplementationOnce(() => {
-      return {
-        country: 'HR',
-      };
-    });
-
     const { body } = await request(app.server)
       .post('/p/newUser')
       .set('Content-type', 'application/json')
@@ -673,12 +657,6 @@ describe('POST /p/newUser', () => {
   });
 
   it('should respect region rule for cores role', async () => {
-    (getGeo as jest.Mock).mockImplementationOnce(() => {
-      return {
-        country: 'RS',
-      };
-    });
-
     const { body } = await request(app.server)
       .post('/p/newUser')
       .set('Content-type', 'application/json')

@@ -130,12 +130,6 @@ import { DeletedUser } from '../src/entity/user/DeletedUser';
 import { randomUUID } from 'crypto';
 import { ClaimableItem, ClaimableItemTypes } from '../src/entity/ClaimableItem';
 import { addClaimableItemsToUser } from '../src/entity/user/utils';
-import { getGeo } from '../src/common/geo';
-
-jest.mock('../src/common/geo', () => ({
-  ...(jest.requireActual('../src/common/geo') as Record<string, unknown>),
-  getGeo: jest.fn(),
-}));
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -6360,14 +6354,6 @@ describe('query checkCoresRole', () => {
       }
     }
   `;
-
-  beforeEach(() => {
-    (getGeo as jest.Mock).mockImplementation(() => {
-      return {
-        country: 'US',
-      };
-    });
-  });
 
   it('should return coresRole', async () => {
     loggedUser = '1';
