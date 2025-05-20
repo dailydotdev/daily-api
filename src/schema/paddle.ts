@@ -28,6 +28,8 @@ import {
 } from '../common/paddle/pricing';
 import { PricingPreview } from '@paddle/paddle-node-sdk/dist/types/entities/pricing-preview';
 import { createHmac } from 'node:crypto';
+import { ValidationError } from 'apollo-server-errors';
+import { logger } from '../logger';
 
 export const typeDefs = /* GraphQL */ `
   """
@@ -468,9 +470,12 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
       { ids, locale }: PaddlePricingPreviewByIdsArgs,
       ctx,
     ): Promise<BasePricingWithoutMetadata[]> => {
-      const preview = await getPlusPricePreview(ctx, ids);
+      if (!ids?.length) {
+        throw new ValidationError('No ids provided');
+      }
 
-      return preview.details.lineItems.map((item) => ({
+      const preview = await getPlusPricePreview(ctx, ids);
+      const pricing = preview.details.lineItems.map((item) => ({
         priceId: item.price.id,
         price: getProductPrice(item, locale),
         duration: getPricingDuration(item),
@@ -480,6 +485,13 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
           symbol: removeNumbers(item.formattedTotals.total),
         },
       }));
+
+      if (!pricing?.length) {
+        logger.error(`Pricing preview by ids ${ids} returned no items`); // to send an alert
+        throw new ValidationError('No pricing found');
+      }
+
+      return pricing;
     },
     corePricePreviews: async (_, __, ctx: AuthContext) => {
       const region = ctx.region;

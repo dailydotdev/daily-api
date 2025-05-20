@@ -19,6 +19,9 @@ import {
   TransactionCompletedEvent,
   type Customer,
   type SubscriptionStatus,
+  CountryCode,
+  CurrencyCode,
+  PricingPreview,
 } from '@paddle/paddle-node-sdk';
 import {
   PaddleCustomData,
@@ -40,8 +43,8 @@ import {
   DEFAULT_CORES_METADATA,
   PricingType,
 } from '../src/common/paddle/pricing';
-import { CountryCode, CurrencyCode } from '@paddle/paddle-node-sdk';
 import { ClaimableItem, ClaimableItemTypes } from '../src/entity/ClaimableItem';
+import type { PricingPreviewLineItem } from '@paddle/paddle-node-sdk/dist/types/entities/pricing-preview';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -740,13 +743,13 @@ describe('pricing preview by ids', () => {
     }
   `;
 
-  const mockPreview = {
+  const mockPreview: PricingPreview = {
     customerId: '1',
     addressId: '1',
     businessId: null,
     discountId: null,
     address: {
-      countryCode: 'US',
+      countryCode: 'US' as CountryCode,
       postalCode: '12345',
     },
     customerIpAddress: '127.0.0.1',
@@ -786,152 +789,149 @@ describe('pricing preview by ids', () => {
             trialPeriod: null,
           },
           formattedTotals: {
-            total: '$50.00',
+            total: '$60.00',
           },
           totals: {
-            total: '50.00',
+            total: '60.00',
           },
         },
-      ],
+      ] as PricingPreviewLineItem[],
     },
-    currencyCode: 'USD',
-  } as const;
+    currencyCode: 'USD' as CurrencyCode,
+  };
 
   beforeEach(async () => {
     await ioRedisPool.execute((client) => client.flushall());
-    // Reset mocks after each test
-    jest.resetAllMocks();
-  });
-
-  it('should return pricing preview data for specific IDs', async () => {
-    loggedUser = 'whp-1';
     const mockPreviewFn = jest.fn().mockResolvedValue(mockPreview);
     jest
       .spyOn(paddleInstance.pricingPreview, 'preview')
       .mockImplementation(mockPreviewFn);
+  });
 
+  it('should return pricing preview data for given ids', async () => {
+    loggedUser = 'whp-1';
     const result = await client.query(QUERY, {
       variables: { ids: ['pri_monthly', 'pri_yearly'] },
     });
 
-    expect(result.data.pricingPreviewByIds).toHaveLength(2);
+    expect(result.errors).toBeFalsy();
+    expect(result.data?.pricingPreviewByIds).toHaveLength(2);
 
-    const monthlyPreview = result.data.pricingPreviewByIds.find(
-      (preview) => preview.priceId === 'pri_monthly',
+    const monthlyPreview = result.data?.pricingPreviewByIds.find(
+      (p) => p.priceId === 'pri_monthly',
     );
-    const yearlyPreview = result.data.pricingPreviewByIds.find(
-      (preview) => preview.priceId === 'pri_yearly',
+    expect(monthlyPreview?.price.amount).toBe(5);
+    expect(monthlyPreview?.price.formatted).toBe('$5.00');
+    expect(monthlyPreview?.price.monthly.amount).toBe(5);
+    expect(monthlyPreview?.price.monthly.formatted).toBe('$5.00');
+    expect(monthlyPreview?.price.daily.amount).toBe(0.17);
+    expect(monthlyPreview?.price.daily.formatted).toBe('$0.17');
+    expect(monthlyPreview?.currency.code).toBe('USD');
+    expect(monthlyPreview?.currency.symbol).toBe('$');
+    expect(monthlyPreview?.duration).toBe('monthly');
+    expect(monthlyPreview?.trialPeriod?.interval).toBe('day');
+    expect(monthlyPreview?.trialPeriod?.frequency).toBe(14);
+
+    const yearlyPreview = result.data?.pricingPreviewByIds.find(
+      (p) => p.priceId === 'pri_yearly',
     );
-
-    expect(monthlyPreview).toBeDefined();
-    expect(monthlyPreview.price.amount).toBe(5);
-    expect(monthlyPreview.price.formatted).toBe('$5.00');
-    expect(monthlyPreview.currency.code).toBe('USD');
-    expect(monthlyPreview.currency.symbol).toBe('$');
-    expect(monthlyPreview.duration).toBe('monthly');
-    expect(monthlyPreview.trialPeriod.interval).toBe('day');
-    expect(monthlyPreview.trialPeriod.frequency).toBe(14);
-
-    expect(yearlyPreview).toBeDefined();
-    expect(yearlyPreview.price.amount).toBe(50);
-    expect(yearlyPreview.price.formatted).toBe('$50.00');
-    expect(yearlyPreview.duration).toBe('yearly');
-    expect(yearlyPreview.trialPeriod).toBeNull();
+    expect(yearlyPreview?.price.amount).toBe(60);
+    expect(yearlyPreview?.price.formatted).toBe('$60.00');
+    expect(yearlyPreview?.price.monthly.amount).toBe(5);
+    expect(yearlyPreview?.price.monthly.formatted).toBe('$5.00');
+    expect(yearlyPreview?.price.daily.amount).toBe(0.16);
+    expect(yearlyPreview?.price.daily.formatted).toBe('$0.16');
+    expect(yearlyPreview?.currency.code).toBe('USD');
+    expect(yearlyPreview?.currency.symbol).toBe('$');
+    expect(yearlyPreview?.duration).toBe('yearly');
+    expect(yearlyPreview?.trialPeriod).toBeNull();
   });
 
-  it('should format prices according to locale', async () => {
+  it('should throw error when no ids are provided', async () => {
     loggedUser = 'whp-1';
-    const mockLocalizedPreview = {
-      ...mockPreview,
-      currencyCode: 'EUR' as CurrencyCode,
-      details: {
-        lineItems: [
-          {
-            price: {
-              id: 'pri_monthly',
-              productId: 'dailydev-plus',
-              name: 'Monthly Subscription',
-              billingCycle: {
-                interval: 'month',
-                frequency: 1,
-              },
-              trialPeriod: {
-                interval: 'day',
-                frequency: 14,
-              },
-            },
-            formattedTotals: {
-              total: '€5,00',
-            },
-            totals: {
-              total: '5.00',
-            },
-          },
-        ],
-      },
-    };
-
-    jest
-      .spyOn(paddleInstance.pricingPreview, 'preview')
-      .mockResolvedValue(mockLocalizedPreview as never);
-
-    const result = await client.query(QUERY, {
-      variables: {
-        ids: ['pri_monthly'],
-        locale: 'de-DE',
-      },
-    });
-
-    expect(result.data.pricingPreviewByIds).toHaveLength(1);
-    const preview = result.data.pricingPreviewByIds[0];
-    expect(preview.priceId).toBe('pri_monthly');
-    expect(preview.price.formatted).toBe('€5,00');
-    expect(preview.currency.code).toBe('EUR');
-    expect(preview.currency.symbol).toBe('€');
-  });
-
-  it('should handle empty ID list gracefully', async () => {
-    loggedUser = 'whp-1';
-
-    // Use a mock with empty lineItems for this test
-    const emptyMockPreview = {
-      ...mockPreview,
-      details: {
-        lineItems: [],
-      },
-    };
-
-    jest
-      .spyOn(paddleInstance.pricingPreview, 'preview')
-      .mockResolvedValue(emptyMockPreview as never);
-
     const result = await client.query(QUERY, {
       variables: { ids: [] },
     });
 
-    expect(result.data.pricingPreviewByIds).toHaveLength(0);
+    expect(result.errors?.[0]?.message).toBe('No ids provided');
   });
 
-  it('should handle IDs that do not match any prices', async () => {
+  it('should throw error when no pricing data is found', async () => {
     loggedUser = 'whp-1';
-
-    // Use a mock with empty lineItems for this test
-    const emptyMockPreview = {
+    const emptyPreview: PricingPreview = {
       ...mockPreview,
-      details: {
-        lineItems: [],
-      },
+      details: { lineItems: [] },
     };
 
     jest
       .spyOn(paddleInstance.pricingPreview, 'preview')
-      .mockResolvedValue(emptyMockPreview as never);
+      .mockResolvedValue(emptyPreview);
 
     const result = await client.query(QUERY, {
-      variables: { ids: ['non_existent_id'] },
+      variables: { ids: ['pri_monthly'] },
     });
 
-    expect(result.data.pricingPreviewByIds).toHaveLength(0);
+    expect(result.errors?.[0]?.message).toBe('No pricing found');
+  });
+
+  it('should format prices according to locale', async () => {
+    loggedUser = 'whp-1';
+    const mockPreviewWithEuro: PricingPreview = {
+      ...mockPreview,
+      details: {
+        lineItems: [
+          {
+            ...mockPreview.details.lineItems[0],
+            formattedTotals: { total: '€5,00' },
+            totals: { total: '5.00' },
+          },
+        ] as PricingPreviewLineItem[],
+      },
+      currencyCode: 'EUR' as CurrencyCode,
+    };
+
+    jest
+      .spyOn(paddleInstance.pricingPreview, 'preview')
+      .mockResolvedValue(mockPreviewWithEuro);
+
+    const result = await client.query(QUERY, {
+      variables: { ids: ['pri_monthly'], locale: 'de-DE' },
+    });
+
+    expect(result.errors).toBeFalsy();
+    expect(result.data?.pricingPreviewByIds).toHaveLength(1);
+    const preview = result.data?.pricingPreviewByIds[0];
+    expect(preview?.price.formatted).toBe('€5,00');
+    expect(preview?.price.monthly.formatted).toBe('€5,00');
+    expect(preview?.price.daily.formatted).toBe('€0,17');
+    expect(preview?.currency.code).toBe('EUR');
+    expect(preview?.currency.symbol).toBe('€');
+  });
+
+  it('should cache pricing preview data', async () => {
+    const getRedisObjectSpy = jest.spyOn(redisFile, 'getRedisObject');
+    const setRedisObjectWithExpirySpy = jest.spyOn(
+      redisFile,
+      'setRedisObjectWithExpiry',
+    );
+
+    loggedUser = 'whp-1';
+    const result = await client.query(QUERY, {
+      variables: { ids: ['pri_monthly'] },
+    });
+
+    expect(result.errors).toBeFalsy();
+    expect(getRedisObjectSpy).toHaveBeenCalledTimes(1);
+    expect(setRedisObjectWithExpirySpy).toHaveBeenCalledTimes(1);
+
+    const result2 = await client.query(QUERY, {
+      variables: { ids: ['pri_monthly'] },
+    });
+
+    expect(result2.errors).toBeFalsy();
+    expect(getRedisObjectSpy).toHaveBeenCalledTimes(2);
+    expect(setRedisObjectWithExpirySpy).toHaveBeenCalledTimes(1);
+    expect(result).toEqual(result2);
   });
 });
 
