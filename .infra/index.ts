@@ -354,6 +354,7 @@ if (isAdhocEnv) {
         {
           name: 'geoip-data',
           mountPath: '/usr/share/geoip',
+          readOnly: true,
         },
       ]
     },
