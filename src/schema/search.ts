@@ -33,6 +33,7 @@ import { Brackets } from 'typeorm';
 import { whereVordrFilter } from '../common/vordr';
 import { ContentPreference } from '../entity/contentPreference/ContentPreference';
 import { ContentPreferenceType } from '../entity/contentPreference/types';
+import { mimirClient } from '../integrations/mimir';
 
 type GQLSearchSession = Pick<SearchSession, 'id' | 'prompt' | 'createdAt'>;
 
@@ -385,10 +386,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         limit: limit.toString(),
         offset: offset.toString(),
       });
+      let meilieSearchRes = {};
+      if (args.version >= 3) {
+        meilieSearchRes = await mimirClient.search({
+          query: args.query,
+          version: args.version,
+          limit,
+          offset,
+        });
+      }
       if (args.version === 2) {
         searchParams.append('attributesToSearchOn', 'title');
+        meilieSearchRes = await searchMeili(searchParams.toString());
       }
-      const meilieSearchRes = await searchMeili(searchParams.toString());
       const meilieArgs: FeedArgs & {
         ids: string[];
         pagination: MeiliPagination;
