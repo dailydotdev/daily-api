@@ -152,7 +152,6 @@ config:
       secure: AAABAJ20yk+RUrbAx35TONTt4UrU1Of5VGd3+6BE09TkQxCzQzHmxUW/88bkeHRosM6zQzXYAZNyDmuC9AVP7w==
     skadiOrigin:
       secure: AAABAAGKZsA3/LqmlAZ7MeAZyDGEGwfdD86ciWvHswqNhX3F1huMVUipcpSc/g//qBQHIhbDM/9yuHDlX+5Y7Fi6fjoR/LDkO7kFICjyYQ==
-    geoipPath: /usr/share/geoip
   api:k8s:
     host: subs.daily.dev
     namespace: daily

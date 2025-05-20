@@ -10,15 +10,12 @@ import { remoteConfig } from '../src/remoteConfig';
 import { initGeoReader } from '../src/common/geo';
 
 async function run(positionals: string[]) {
-  await remoteConfig.init();
+  await Promise.all([remoteConfig.init(), initGeoReader()]);
 
   switch (positionals[0]) {
     case 'api':
       tracer('api').start();
       startMetrics('api');
-
-      await initGeoReader();
-
       const app = await api();
       await app.listen({
         port: parseInt(process.env.PORT) || 3000,
