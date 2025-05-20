@@ -226,12 +226,16 @@ export const getPrice = ({
     };
   }
 
-  const dividedAmount = Number((parsed.value / divideBy).toFixed(2));
-  const finalValue = formatter.format(dividedAmount);
+  const dividedAmount = parsed.value / divideBy;
+  // Round to 3 decimal places first to handle floating point precision
+  const roundedAmount = Math.round(dividedAmount * 1000) / 1000;
+  // Then round down to 2 decimal places to preserve the original price's precision
+  const finalAmount = Math.floor(roundedAmount * 100) / 100;
+  const finalValue = formatter.format(finalAmount);
   const updatedFormat = formatted.replace(numericRegex, finalValue);
 
   return {
-    amount: dividedAmount,
+    amount: finalAmount,
     formatted: updatedFormat,
   };
 };
