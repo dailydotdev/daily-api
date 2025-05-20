@@ -18,6 +18,7 @@ import { kvasir } from './private/kvasir';
 import snotra from './private/snotra';
 import rpc from './private/rpc';
 import { connectRpcPlugin } from '../common/connectRpc';
+import { getGeo } from '../common/geo';
 
 interface SearchUsername {
   search: string;
@@ -187,5 +188,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(connectRpcPlugin, {
     routes: rpc,
     prefix: '/rpc',
+  });
+
+  fastify.get('/test-ip', (req, res) => {
+    return res.status(200).send(getGeo({ ip: req.ip }));
   });
 }

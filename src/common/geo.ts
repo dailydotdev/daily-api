@@ -1,3 +1,7 @@
+import { Reader, type ReaderModel } from '@maxmind/geoip2-node';
+import type { GeoRecord } from '../types';
+import { logger } from '../logger';
+
 export enum Continent {
   Africa = 'AF',
   Antarctica = 'AN',
@@ -256,4 +260,45 @@ export const countryCodeToContinent: Record<string, Continent> = {
   YE: Continent.Asia,
   ZM: Continent.Africa,
   ZW: Continent.Africa,
+};
+
+let geoReader: ReaderModel | null = null;
+
+export const initGeoReader = async (): Promise<ReaderModel | undefined> => {
+  try {
+    const reader = await Reader.open('/usr/share/geoip/GeoIP2-City.mmdb', {
+      cache: {
+        max: 10_000,
+      },
+      watchForUpdates: false, // db fetches on each deploy
+    });
+
+    geoReader = reader;
+
+    return reader;
+  } catch (error) {
+    const errorMessage = 'Error loading GeoIP2 database';
+
+    logger.error({ err: error }, errorMessage);
+  }
+};
+
+export const getGeo = ({ ip }: { ip: string }): GeoRecord => {
+  if (!geoReader) {
+    throw new Error('Geo reader not initialized');
+  }
+
+  try {
+    const geo = geoReader.city(ip);
+
+    return {
+      country: geo.country?.isoCode,
+      continent: geo.continent?.code,
+      city: geo.city?.names?.en,
+    };
+  } catch (error) {
+    logger.warn({ err: error, ip }, 'Error fetching geo data');
+
+    return {};
+  }
 };

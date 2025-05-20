@@ -332,7 +332,30 @@ if (isAdhocEnv) {
       backendConfig: {
         customRequestHeaders: ['X-Client-Region:{client_region}'],
       },
-      ...vols,
+      podAnnotations: {
+        'gke-gcsfuse/volumes': 'true',
+      },
+      volumes: [
+        ...vols.volumes,
+        // TODO: add this as an option app arg in pulumi-common
+        {
+          name: 'geoip-data',
+          csi: {
+            driver: 'gcsfuse.csi.storage.gke.io',
+            volumeAttributes: {
+              bucketName: `geoipupdate-storage`,
+              mountOptions: 'implicit-dirs',
+            },
+          },
+        },
+      ],
+      volumeMounts: [
+        ...vols.volumeMounts,
+        {
+          name: 'geoip-data',
+          mountPath: '/usr/share/geoip',
+        },
+      ]
     },
     {
       nameSuffix: 'ws',

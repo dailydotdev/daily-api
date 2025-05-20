@@ -234,3 +234,9 @@ export enum CoresRole {
 }
 
 export const serviceClientId = 'api';
+
+export type GeoRecord = Partial<{
+  country: string;
+  continent: string;
+  city: string;
+}>;

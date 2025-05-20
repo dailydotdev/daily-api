@@ -82,6 +82,9 @@ importers:
       '@mando75/typeorm-graphql-loader':
         specifier: ^0.3.0
         version: 0.3.0(typeorm@0.3.22(ioredis@5.6.1)(pg-query-stream@4.9.6(pg@8.15.6))(pg@8.15.6)(reflect-metadata@0.2.2)(ts-node@10.9.2(@swc/core@1.11.24)(@types/node@22.15.3)(typescript@5.8.3)))
+      '@maxmind/geoip2-node':
+        specifier: ^6.1.0
+        version: 6.1.0
       '@onesignal/node-onesignal':
         specifier: ^1.0.0-beta9
         version: 1.0.0-beta9
@@ -1010,6 +1013,9 @@ packages:
     resolution: {integrity: sha512-PyqTMsDMQl4XxmPxPqW/p30YPxzif2F9+TOVluHjZ/+vxg9sdD3vKSR/PXHSqGZ+/QMak9Ce8ASSU08DsGey8A==}
     peerDependencies:
       typeorm: '>=0.2.8'
+
+  '@maxmind/geoip2-node@6.1.0':
+    resolution: {integrity: sha512-yJWQNxKRqPaGKorzpDKZBAR+gLk80XnZ3w/fhLEdfGnqls+Rv3ui0qQSd3akpvAC2NX8cjn7VJ5xxrlVw7i6KA==}
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -3565,6 +3571,10 @@ packages:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
     engines: {node: '>= 0.4'}
 
+  maxmind@4.3.25:
+    resolution: {integrity: sha512-u7L6LrbXZUtpdoovTVHo/l4/EoWUT2eHfCKWDMNNTsW9BaLa7h0jCHjqVx5ZeS5aWorLGZSsZwqxcpoollBw1g==}
+    engines: {node: '>=12', npm: '>=6'}
+
   mdurl@2.0.0:
     resolution: {integrity: sha512-Lf+9+2r+Tdp5wXDXC4PcIBjTDtq4UKjCPMQhKIuzpJNW0b96kVqSwW0bT7FhRSfmAiFYgP+SCRvdrDozfh0U5w==}
 
@@ -3665,6 +3675,10 @@ packages:
     resolution: {integrity: sha512-vVqVZQyf3WLx2Shd0qJ9xuvqgAyKPLAiqITEtqW0oIUjzo3PePDd6fW9iFz30ef7Ysp/oiWqbhszeGWW2T6Gzw==}
     engines: {node: '>=10'}
     hasBin: true
+
+  mmdb-lib@2.2.0:
+    resolution: {integrity: sha512-V6DDh3v8tfZFWbeH6fsL5uBIlWL7SvRgGDaAZWFC5kjQ2xP5dl/mLpWwJQ1Ho6ZbEKVp/351QF1JXYTAmeZ/zA==}
+    engines: {node: '>=10', npm: '>=6'}
 
   mnemonist@0.39.8:
     resolution: {integrity: sha512-vyWo2K3fjrUw8YeeZ1zF0fy6Mu59RHokURlld8ymdUPjMlD9EC9ov1/YPqTgqRvUN9nTr3Gqfz29LYAmu0PHPQ==}
@@ -4466,6 +4480,10 @@ packages:
 
   thread-stream@3.1.0:
     resolution: {integrity: sha512-OqyPZ9u96VohAyMfJykzmivOrY2wfMSf3C5TtFJVgN+Hm6aj+voFhlK+kZEIv2FBh1X6Xp3DlnCOfEQ3B2J86A==}
+
+  tiny-lru@11.2.11:
+    resolution: {integrity: sha512-27BIW0dIWTYYoWNnqSmoNMKe5WIbkXsc0xaCQHd3/3xT2XMuMJrzHdrO9QBFR14emBz1Bu0dOAs2sCBBrvgPQA==}
+    engines: {node: '>=12'}
 
   tiny-lru@11.2.3:
     resolution: {integrity: sha512-mF9jPTrvN7UHk0bekOk3RlFdFwfyS4CJYVsGc7nInL3pVgUCYj5r9X6GpZBFQgLr0TKJo8Dp+F3oRvYzxU9xiA==}
@@ -5673,6 +5691,10 @@ snapshots:
   '@mando75/typeorm-graphql-loader@0.3.0(typeorm@0.3.22(ioredis@5.6.1)(pg-query-stream@4.9.6(pg@8.15.6))(pg@8.15.6)(reflect-metadata@0.2.2)(ts-node@10.9.2(@swc/core@1.11.24)(@types/node@22.15.3)(typescript@5.8.3)))':
     dependencies:
       typeorm: 0.3.22(ioredis@5.6.1)(pg-query-stream@4.9.6(pg@8.15.6))(pg@8.15.6)(reflect-metadata@0.2.2)(ts-node@10.9.2(@swc/core@1.11.24)(@types/node@22.15.3)(typescript@5.8.3))
+
+  '@maxmind/geoip2-node@6.1.0':
+    dependencies:
+      maxmind: 4.3.25
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
@@ -8687,6 +8709,11 @@ snapshots:
 
   math-intrinsics@1.1.0: {}
 
+  maxmind@4.3.25:
+    dependencies:
+      mmdb-lib: 2.2.0
+      tiny-lru: 11.2.11
+
   mdurl@2.0.0: {}
 
   memfs@4.15.3:
@@ -8790,6 +8817,8 @@ snapshots:
   minipass@7.1.2: {}
 
   mkdirp@1.0.4: {}
+
+  mmdb-lib@2.2.0: {}
 
   mnemonist@0.39.8:
     dependencies:
@@ -9602,6 +9631,8 @@ snapshots:
   thread-stream@3.1.0:
     dependencies:
       real-require: 0.2.0
+
+  tiny-lru@11.2.11: {}
 
   tiny-lru@11.2.3: {}
 
