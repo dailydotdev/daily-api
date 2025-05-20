@@ -1,6 +1,8 @@
 import { Reader, type ReaderModel } from '@maxmind/geoip2-node';
 import type { GeoRecord } from '../types';
 import { logger } from '../logger';
+import { isProd } from './utils';
+import { join } from 'path';
 
 export enum Continent {
   Africa = 'AF',
@@ -264,14 +266,30 @@ export const countryCodeToContinent: Record<string, Continent> = {
 
 let geoReader: ReaderModel | null = null;
 
-export const initGeoReader = async (): Promise<ReaderModel | undefined> => {
+export /**
+ * Loads the GeoIP2 database and returns a reader instance
+ * Requires the GEOIP_PATH environment variable to be set
+ * and file to be mounted, in prod it is mounted as a volume
+ * check .infra for more details
+ *
+ * @return {*}  {(Promise<ReaderModel | undefined>)}
+ */
+const initGeoReader = async (): Promise<ReaderModel | undefined> => {
   try {
-    const reader = await Reader.open('/usr/share/geoip/GeoIP2-City.mmdb', {
-      cache: {
-        max: 10_000,
+    if (!process.env.GEOIP_PATH) {
+      throw new Error('GEOIP_PATH not set');
+    }
+
+    const reader = await Reader.open(
+      join(process.env.GEOIP_PATH, 'GeoIP2-City.mmdb'),
+      {
+        cache: {
+          max: 10_000,
+        },
+        watchForUpdates: false, // db updates on each deploy
+        watchForUpdatesNonPersistent: true,
       },
-      watchForUpdates: false, // db fetches on each deploy
-    });
+    );
 
     geoReader = reader;
 
@@ -284,6 +302,14 @@ export const initGeoReader = async (): Promise<ReaderModel | undefined> => {
 };
 
 export const getGeo = ({ ip }: { ip: string }): GeoRecord => {
+  if (!isProd && !geoReader) {
+    return {
+      country: 'US',
+      continent: 'NA',
+      city: 'San Francisco',
+    };
+  }
+
   if (!geoReader) {
     throw new Error('Geo reader not initialized');
   }
