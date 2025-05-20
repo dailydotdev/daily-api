@@ -152,7 +152,7 @@ const bgRequests: pulumi.Input<{ cpu: string; memory: string }> = {
   memory: '256Mi',
 };
 
-const temporalLimits: pulumi.Input<{ memory: string }> = { memory: '256Mi' };
+const temporalLimits: pulumi.Input<{ memory: string }> = { memory: '512Mi' };
 const temporalRequests: pulumi.Input<{ cpu: string; memory: string }> = {
   cpu: '50m',
   memory: '150Mi',
@@ -427,9 +427,12 @@ if (isAdhocEnv) {
       env: [{ name: 'ENABLE_PRIVATE_ROUTES', value: 'true' }, ...commonEnv, ...jwtEnv],
       minReplicas: 2,
       maxReplicas: 2,
-      limits: {
+      requests: {
         memory: '256Mi',
         cpu: '25m',
+      },
+      limits: {
+        memory: '512Mi',
       },
       readinessProbe,
       livenessProbe,
