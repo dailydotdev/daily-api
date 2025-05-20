@@ -4,7 +4,7 @@
   "scripts": {
     "prebuild": "rm -rf build",
     "build": "tsc",
-    "postbuild": "cp -R ormconfig.js package.json pnpm-lock.yaml seeds geodb ./build",
+    "postbuild": "cp -R ormconfig.js package.json pnpm-lock.yaml seeds ./build",
     "cli": "node bin/cli",
     "db:migrate:create": "pnpm run typeorm migration:create",
     "db:migrate:latest": "pnpm run typeorm migration:run -d src/data-source.ts",
