@@ -292,17 +292,13 @@ export const getGeo = ({ ip }: { ip: string }): GeoRecord => {
     const geo = geoReader.city(ip);
 
     return {
-      country: geo.country?.isoCode || 'unknown',
-      continent: geo.continent?.code || 'unknown',
-      city: geo.city?.names?.en || 'unknown',
+      country: geo.country?.isoCode,
+      continent: geo.continent?.code,
+      city: geo.city?.names?.en,
     };
   } catch (error) {
     logger.warn({ err: error, ip }, 'Error fetching geo data');
 
-    return {
-      country: 'unknown',
-      continent: 'unknown',
-      city: 'unknown',
-    };
+    return {};
   }
 };
