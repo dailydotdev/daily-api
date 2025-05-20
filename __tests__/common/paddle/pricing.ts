@@ -122,8 +122,8 @@ describe('getPrice', () => {
       divideBy: 30, // Convert monthly to daily price
     });
     expect(result).toEqual({
-      amount: 49.97,
-      formatted: '49,97 kr',
+      amount: 49.96,
+      formatted: '49,96 kr',
     });
   });
 
@@ -132,6 +132,14 @@ describe('getPrice', () => {
     expect(result).toEqual({
       amount: 149.9,
       formatted: 'R$ 149,90',
+    });
+  });
+
+  it('should handle yearly to monthly price conversion with precise rounding', () => {
+    const result = getPrice({ formatted: '$89.99', divideBy: 12 });
+    expect(result).toEqual({
+      amount: 7.49, // Should be 7.49 not 7.50 to preserve original price precision
+      formatted: '$7.49',
     });
   });
 
