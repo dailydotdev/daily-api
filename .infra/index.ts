@@ -180,6 +180,8 @@ type VolsType = {
   volumeMounts: k8s.types.input.core.v1.VolumeMount[];
 }
 
+const podAnnotations: ApplicationArgs['podAnnotations'] = {};
+
 const vols: VolsType = {
   volumes: [
     {
@@ -218,6 +220,8 @@ if (!isAdhocEnv) {
     mountPath: '/usr/share/geoip',
     readOnly: true,
   });
+
+  podAnnotations['gke-gcsfuse/volumes'] = 'true';
 }
 
 const jwtEnv = [
@@ -234,6 +238,9 @@ const commonEnv = [
 
 let appsArgs: ApplicationArgs[];
 if (isAdhocEnv) {
+  podAnnotations['prometheus.io/scrape'] = 'true';
+  podAnnotations['prometheus.io/port'] = '9464';
+
   appsArgs = [
     {
       args: ['npm', 'run', 'dev'],
@@ -265,10 +272,7 @@ if (isAdhocEnv) {
         { targetPort: 3000, port: 80, name: 'http' },
         { targetPort: 9464, port: 9464, name: 'metrics' },
       ],
-      podAnnotations: {
-        'prometheus.io/scrape': 'true',
-        'prometheus.io/port': '9464',
-      },
+      podAnnotations: podAnnotations,
       createService: true,
       ...vols,
     },
@@ -289,10 +293,7 @@ if (isAdhocEnv) {
       },
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
-      podAnnotations: {
-        'prometheus.io/scrape': 'true',
-        'prometheus.io/port': '9464',
-      },
+      podAnnotations: podAnnotations,
       env: [
         {
           name: 'SERVICE_NAME',
@@ -323,10 +324,7 @@ if (isAdhocEnv) {
       },
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
-      podAnnotations: {
-        'prometheus.io/scrape': 'true',
-        'prometheus.io/port': '9464',
-      },
+      podAnnotations: podAnnotations,
       env: [...commonEnv, ...jwtEnv],
       ...vols,
     });
@@ -357,9 +355,7 @@ if (isAdhocEnv) {
       backendConfig: {
         customRequestHeaders: ['X-Client-Region:{client_region}'],
       },
-      podAnnotations: {
-        'gke-gcsfuse/volumes': 'true',
-      },
+      podAnnotations: podAnnotations,
       ...vols,
     },
     {
@@ -385,6 +381,7 @@ if (isAdhocEnv) {
       metric: { type: 'memory_cpu', cpu: 85, memory: 130 },
       disableLifecycle: true,
       spot: { enabled: true },
+      podAnnotations: podAnnotations,
       ...vols,
     },
     {
@@ -406,6 +403,7 @@ if (isAdhocEnv) {
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
       spot: { enabled: true },
+      podAnnotations: podAnnotations,
       ...vols,
     },
     {
@@ -420,6 +418,7 @@ if (isAdhocEnv) {
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
       spot: { enabled: true },
+      podAnnotations: podAnnotations,
       ...vols,
     },
     {
@@ -438,6 +437,7 @@ if (isAdhocEnv) {
       createService: true,
       serviceType: 'ClusterIP',
       disableLifecycle: true,
+      podAnnotations: podAnnotations,
       ...vols,
     },
   ];
@@ -466,6 +466,7 @@ if (isAdhocEnv) {
         enabled: true,
         weight: 70,
       },
+      podAnnotations: podAnnotations,
       ...vols,
     });
   }
@@ -545,6 +546,7 @@ const [apps] = deployApplicationSuite(
             enabled: true,
             weight: 70,
           },
+          podAnnotations: podAnnotations,
           ...vols,
         })),
     isAdhocEnv,
