@@ -175,7 +175,12 @@ const livenessProbe: k8s.types.input.core.v1.Probe = {
 
 const temporalCert = config.requireObject<Record<string, string>>('temporal');
 
-const vols = {
+type VolsType = {
+  volumes: k8s.types.input.core.v1.Volume[];
+  volumeMounts: k8s.types.input.core.v1.VolumeMount[];
+}
+
+const vols: VolsType = {
   volumes: [
     {
       name: 'cert',
@@ -195,6 +200,26 @@ const vols = {
     { name: 'temporal', mountPath: '/opt/app/temporal' },
   ],
 };
+
+if (!isAdhocEnv) {
+  vols.volumes.push({
+    name: 'geoip-data',
+    csi: {
+      driver: 'gcsfuse.csi.storage.gke.io',
+      volumeAttributes: {
+        bucketName: `geoipupdate-storage`,
+        mountOptions: 'implicit-dirs',
+      },
+    },
+  })
+
+  vols.volumeMounts.push({
+    name: 'geoip-data',
+    mountPath: '/usr/share/geoip',
+    readOnly: true,
+  });
+}
+
 const jwtEnv = [
   {
     name: 'JWT_PUBLIC_KEY_PATH',
@@ -335,28 +360,7 @@ if (isAdhocEnv) {
       podAnnotations: {
         'gke-gcsfuse/volumes': 'true',
       },
-      volumes: [
-        ...vols.volumes,
-        // TODO: add this as an option app arg in pulumi-common
-        {
-          name: 'geoip-data',
-          csi: {
-            driver: 'gcsfuse.csi.storage.gke.io',
-            volumeAttributes: {
-              bucketName: `geoipupdate-storage`,
-              mountOptions: 'implicit-dirs',
-            },
-          },
-        },
-      ],
-      volumeMounts: [
-        ...vols.volumeMounts,
-        {
-          name: 'geoip-data',
-          mountPath: '/usr/share/geoip',
-          readOnly: true,
-        },
-      ]
+      ...vols,
     },
     {
       nameSuffix: 'ws',
@@ -381,28 +385,7 @@ if (isAdhocEnv) {
       metric: { type: 'memory_cpu', cpu: 85, memory: 130 },
       disableLifecycle: true,
       spot: { enabled: true },
-      volumes: [
-        ...vols.volumes,
-        // TODO: add this as an option app arg in pulumi-common
-        {
-          name: 'geoip-data',
-          csi: {
-            driver: 'gcsfuse.csi.storage.gke.io',
-            volumeAttributes: {
-              bucketName: `geoipupdate-storage`,
-              mountOptions: 'implicit-dirs',
-            },
-          },
-        },
-      ],
-      volumeMounts: [
-        ...vols.volumeMounts,
-        {
-          name: 'geoip-data',
-          mountPath: '/usr/share/geoip',
-          readOnly: true,
-        },
-      ]
+      ...vols,
     },
     {
       nameSuffix: 'bg',
@@ -423,28 +406,7 @@ if (isAdhocEnv) {
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
       spot: { enabled: true },
-      volumes: [
-        ...vols.volumes,
-        // TODO: add this as an option app arg in pulumi-common
-        {
-          name: 'geoip-data',
-          csi: {
-            driver: 'gcsfuse.csi.storage.gke.io',
-            volumeAttributes: {
-              bucketName: `geoipupdate-storage`,
-              mountOptions: 'implicit-dirs',
-            },
-          },
-        },
-      ],
-      volumeMounts: [
-        ...vols.volumeMounts,
-        {
-          name: 'geoip-data',
-          mountPath: '/usr/share/geoip',
-          readOnly: true,
-        },
-      ]
+      ...vols,
     },
     {
       nameSuffix: 'temporal',
@@ -458,28 +420,7 @@ if (isAdhocEnv) {
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
       spot: { enabled: true },
-      volumes: [
-        ...vols.volumes,
-        // TODO: add this as an option app arg in pulumi-common
-        {
-          name: 'geoip-data',
-          csi: {
-            driver: 'gcsfuse.csi.storage.gke.io',
-            volumeAttributes: {
-              bucketName: `geoipupdate-storage`,
-              mountOptions: 'implicit-dirs',
-            },
-          },
-        },
-      ],
-      volumeMounts: [
-        ...vols.volumeMounts,
-        {
-          name: 'geoip-data',
-          mountPath: '/usr/share/geoip',
-          readOnly: true,
-        },
-      ]
+      ...vols,
     },
     {
       nameSuffix: 'private',
@@ -497,28 +438,7 @@ if (isAdhocEnv) {
       createService: true,
       serviceType: 'ClusterIP',
       disableLifecycle: true,
-      volumes: [
-        ...vols.volumes,
-        // TODO: add this as an option app arg in pulumi-common
-        {
-          name: 'geoip-data',
-          csi: {
-            driver: 'gcsfuse.csi.storage.gke.io',
-            volumeAttributes: {
-              bucketName: `geoipupdate-storage`,
-              mountOptions: 'implicit-dirs',
-            },
-          },
-        },
-      ],
-      volumeMounts: [
-        ...vols.volumeMounts,
-        {
-          name: 'geoip-data',
-          mountPath: '/usr/share/geoip',
-          readOnly: true,
-        },
-      ]
+      ...vols,
     },
   ];
 
@@ -546,28 +466,7 @@ if (isAdhocEnv) {
         enabled: true,
         weight: 70,
       },
-      volumes: [
-        ...vols.volumes,
-        // TODO: add this as an option app arg in pulumi-common
-        {
-          name: 'geoip-data',
-          csi: {
-            driver: 'gcsfuse.csi.storage.gke.io',
-            volumeAttributes: {
-              bucketName: `geoipupdate-storage`,
-              mountOptions: 'implicit-dirs',
-            },
-          },
-        },
-      ],
-      volumeMounts: [
-        ...vols.volumeMounts,
-        {
-          name: 'geoip-data',
-          mountPath: '/usr/share/geoip',
-          readOnly: true,
-        },
-      ]
+      ...vols,
     });
   }
 }
@@ -646,26 +545,7 @@ const [apps] = deployApplicationSuite(
             enabled: true,
             weight: 70,
           },
-          volumes: [
-            // TODO: add this as an option app arg in pulumi-common
-            {
-              name: 'geoip-data',
-              csi: {
-                driver: 'gcsfuse.csi.storage.gke.io',
-                volumeAttributes: {
-                  bucketName: `geoipupdate-storage`,
-                  mountOptions: 'implicit-dirs',
-                },
-              },
-            },
-          ],
-          volumeMounts: [
-            {
-              name: 'geoip-data',
-              mountPath: '/usr/share/geoip',
-              readOnly: true,
-            },
-          ]
+          ...vols,
         })),
     isAdhocEnv,
     dependsOn,
