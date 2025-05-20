@@ -266,7 +266,7 @@ let geoReader: ReaderModel | null = null;
 
 export const initGeoReader = async (): Promise<ReaderModel | undefined> => {
   try {
-    const reader = await Reader.open('/usr/share/GeoIP/GeoIP2-City.mmdb', {
+    const reader = await Reader.open('/usr/share/geoip/GeoIP2-City.mmdb', {
       cache: {
         max: 10_000,
       },

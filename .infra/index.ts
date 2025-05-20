@@ -353,7 +353,7 @@ if (isAdhocEnv) {
         ...vols.volumeMounts,
         {
           name: 'geoip-data',
-          mountPath: '/usr/share/GeoIP',
+          mountPath: '/usr/share/geoip',
         },
       ]
     },
