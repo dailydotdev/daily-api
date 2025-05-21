@@ -1,5 +1,6 @@
 import {
   type Environment,
+  type EventEntity,
   LogLevel,
   Paddle,
   type Subscription,
@@ -26,17 +27,28 @@ import {
 } from 'typeorm';
 import {
   SubscriptionProvider,
+  User,
   UserSubscriptionStatus,
   type ConnectionManager,
 } from '../../entity';
 import { isProd } from '../utils';
 import { ClaimableItem, ClaimableItemTypes } from '../../entity/ClaimableItem';
-import { SubscriptionCycles, type PaddleSubscriptionEvent } from '../../paddle';
+import {
+  SubscriptionCycles,
+  type PaddleAnalyticsExtra,
+  type PaddleSubscriptionEvent,
+} from '../../paddle';
 import {
   cio,
   destroyAnonymousFunnelSubscription,
   identifyAnonymousFunnelSubscription,
 } from '../../cio';
+import {
+  sendAnalyticsEvent,
+  TargetType,
+  type AnalyticsEventName,
+} from '../../integrations/analytics';
+import createOrGetConnection from '../../db';
 
 export const paddleInstance = new Paddle(process.env.PADDLE_API_KEY, {
   environment: process.env.PADDLE_ENVIRONMENT as Environment,
@@ -155,17 +167,15 @@ const paddleTransactionSchema = z.object({
 export const isCoreTransaction = ({
   event,
 }: {
-  event:
-    | TransactionCreatedEvent
-    | TransactionUpdatedEvent
-    | TransactionPaidEvent
-    | TransactionCompletedEvent
-    | TransactionPaymentFailedEvent
-    | SubscriptionUpdatedEvent
-    | SubscriptionCanceledEvent;
+  event: EventEntity;
 }): boolean => {
+  if ('items' in event.data === false) {
+    return false;
+  }
+
   return event.data.items.some(
     (item) =>
+      'price' in item &&
       item.price?.productId &&
       getProductPurchaseType({ id: item.price.productId }) ===
         ProductPurchaseType.Core,
@@ -280,3 +290,132 @@ export const dropClaimableItem = async (
     email: customer.email,
   });
 };
+
+const getAnalyticsExtra = (
+  data: (
+    | SubscriptionUpdatedEvent
+    | SubscriptionCanceledEvent
+    | TransactionCompletedEvent
+  )['data'],
+): Partial<PaddleAnalyticsExtra> => {
+  const cost = data.items?.[0]?.price?.unitPrice?.amount;
+  const currency = data.items?.[0]?.price?.unitPrice?.currencyCode;
+  const localCurrency = data.currencyCode;
+
+  // payments are only available on transaction events
+  if (!('payments' in data)) {
+    return {
+      cycle: extractSubscriptionCycle(data.items),
+      cost: cost ? parseInt(cost) / 100 : undefined,
+      currency,
+      localCurrency,
+    };
+  }
+
+  const transaction = data as TransactionCompletedEvent['data'];
+  const localCost = transaction?.details?.totals?.total;
+  const payout = transaction?.details?.payoutTotals;
+  const payment = transaction.payments?.reduce((acc, item) => {
+    if (item.status === 'captured') {
+      acc = item?.methodDetails?.type || '';
+    }
+    return acc;
+  }, '');
+
+  return {
+    cost: cost ? parseInt(cost) / 100 : undefined,
+    currency,
+    payment,
+    localCost: localCost ? parseInt(localCost) / 100 : undefined,
+    localCurrency,
+    payout,
+  };
+};
+
+export const getUserId = async ({
+  subscriptionId,
+  userId,
+}: {
+  subscriptionId?: false | string | null;
+  userId?: string | undefined;
+}): Promise<string> => {
+  if (userId) {
+    return userId;
+  }
+
+  const con = await createOrGetConnection();
+  const user = await con.getRepository(User).findOne({
+    where: { subscriptionFlags: JsonContains({ subscriptionId }) },
+    select: ['id'],
+  });
+
+  if (!user) {
+    // for anonymouse subs this will be empty
+    return '';
+  }
+
+  return user.id;
+};
+
+// will always return false for anonymous subscriptions
+export const planChanged = async ({ data }: SubscriptionUpdatedEvent) => {
+  const customData = data?.customData as { user_id: string };
+  const userId = await getUserId({
+    userId: customData?.user_id,
+    subscriptionId: data?.id,
+  });
+  const con = await createOrGetConnection();
+  const flags = await con.getRepository(User).findOne({
+    where: { id: userId },
+    select: ['subscriptionFlags'],
+  });
+
+  return (
+    (flags?.subscriptionFlags?.cycle as string) !==
+    extractSubscriptionCycle(data?.items)
+  );
+};
+
+export const logPaddleAnalyticsEvent = async (
+  event:
+    | SubscriptionUpdatedEvent
+    | SubscriptionCanceledEvent
+    | TransactionCompletedEvent
+    | undefined,
+  eventName: AnalyticsEventName,
+) => {
+  if (!event) {
+    return;
+  }
+
+  const { data, occurredAt, eventId } = event;
+  const customData = data.customData as { user_id: string };
+  const userId = await getUserId({
+    userId: customData?.user_id,
+    subscriptionId:
+      ('subscriptionId' in data && data.subscriptionId) || data.id,
+  });
+
+  if (!userId) {
+    return;
+  }
+
+  await sendAnalyticsEvent([
+    {
+      event_name: eventName,
+      event_timestamp: new Date(occurredAt),
+      event_id: eventId,
+      app_platform: 'api',
+      user_id: userId,
+      extra: JSON.stringify(getAnalyticsExtra(data)),
+      target_type: isCoreTransaction({ event })
+        ? TargetType.Credits
+        : TargetType.Plus,
+    },
+  ]);
+};
+
+export interface PaddleCustomData {
+  user_id?: string;
+  gifter_id?: string;
+}

@@ -1,0 +1,54 @@
+import { EventName, type EventEntity } from '@paddle/paddle-node-sdk';
+import {
+  processTransactionCompleted,
+  updateUserSubscription,
+} from './processing';
+import { SubscriptionProvider } from '../../../../entity/user/User';
+import { logger } from '../../../../logger';
+import {
+  logPaddleAnalyticsEvent,
+  planChanged,
+} from '../../../../common/paddle';
+import { AnalyticsEventName } from '../../../../integrations/analytics';
+
+export const processPlusPaddleEvent = async (event: EventEntity) => {
+  switch (event?.eventType) {
+    case EventName.SubscriptionCreated:
+      await updateUserSubscription({
+        event,
+        state: true,
+      });
+
+      break;
+    case EventName.SubscriptionCanceled:
+      Promise.all([
+        updateUserSubscription({
+          event,
+          state: false,
+        }),
+        logPaddleAnalyticsEvent(event, AnalyticsEventName.CancelSubscription),
+      ]);
+      break;
+    case EventName.SubscriptionUpdated:
+      const didPlanChange = await planChanged(event);
+      if (didPlanChange) {
+        await updateUserSubscription({
+          event,
+          state: true,
+        });
+        await logPaddleAnalyticsEvent(
+          event,
+          AnalyticsEventName.ChangeBillingCycle,
+        );
+      }
+      break;
+    case EventName.TransactionCompleted:
+      await Promise.all([
+        logPaddleAnalyticsEvent(event, AnalyticsEventName.ReceivePayment),
+        processTransactionCompleted({ event }),
+      ]);
+      break;
+    default:
+      logger.info({ provider: SubscriptionProvider.Paddle }, event?.eventType);
+  }
+};
