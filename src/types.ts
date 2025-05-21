@@ -72,6 +72,8 @@ declare global {
 
       APPLE_APP_APPLE_ID: string;
       APPLE_APP_BUNDLE_ID: string;
+
+      GEOIP_PATH?: string;
     }
   }
 }
@@ -238,5 +240,4 @@ export const serviceClientId = 'api';
 export type GeoRecord = Partial<{
   country: string;
   continent: string;
-  city: string;
 }>;
