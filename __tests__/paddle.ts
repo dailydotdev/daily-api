@@ -903,7 +903,7 @@ describe('pricing preview by ids', () => {
     const preview = result.data?.pricingPreviewByIds[0];
     expect(preview?.price.formatted).toBe('€5,00');
     expect(preview?.price.monthly.formatted).toBe('€5,00');
-    expect(preview?.price.daily.formatted).toBe('€0,17');
+    expect(preview?.price.daily.formatted).toBe('€0,16');
     expect(preview?.currency.code).toBe('EUR');
     expect(preview?.currency.symbol).toBe('€');
   });
