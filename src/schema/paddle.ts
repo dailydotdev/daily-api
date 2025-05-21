@@ -470,7 +470,7 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
       { ids, locale }: PaddlePricingPreviewByIdsArgs,
       ctx,
     ): Promise<BasePricingWithoutMetadata[]> => {
-      if (!ids?.length) {
+      if (!ids.length) {
         throw new ValidationError('No ids provided');
       }
 
