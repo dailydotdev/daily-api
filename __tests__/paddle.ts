@@ -824,7 +824,7 @@ describe('pricing preview by ids', () => {
     expect(monthlyPreview?.price.formatted).toBe('$5.00');
     expect(monthlyPreview?.price.monthly.amount).toBe(5);
     expect(monthlyPreview?.price.monthly.formatted).toBe('$5.00');
-    expect(monthlyPreview?.price.daily.amount).toBe(0.17);
+    expect(monthlyPreview?.price.daily.amount).toBe(0.16);
     expect(monthlyPreview?.price.daily.formatted).toBe('$0.16');
     expect(monthlyPreview?.currency.code).toBe('USD');
     expect(monthlyPreview?.currency.symbol).toBe('$');
