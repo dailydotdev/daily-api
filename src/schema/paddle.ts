@@ -487,7 +487,8 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
       }));
 
       if (!pricing?.length) {
-        logger.error(`Pricing preview by ids ${ids} returned no items`); // to send an alert
+        const err = new ValidationError('pricing returned no items')
+        logger.error({ err, ids  }, err.message); 
         throw new ValidationError('No pricing found');
       }
 
