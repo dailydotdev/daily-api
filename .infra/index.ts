@@ -152,7 +152,7 @@ const bgRequests: pulumi.Input<{ cpu: string; memory: string }> = {
   memory: '256Mi',
 };
 
-const temporalLimits: pulumi.Input<{ memory: string }> = { memory: '256Mi' };
+const temporalLimits: pulumi.Input<{ memory: string }> = { memory: '512Mi' };
 const temporalRequests: pulumi.Input<{ cpu: string; memory: string }> = {
   cpu: '50m',
   memory: '150Mi',
@@ -175,7 +175,14 @@ const livenessProbe: k8s.types.input.core.v1.Probe = {
 
 const temporalCert = config.requireObject<Record<string, string>>('temporal');
 
-const vols = {
+type VolsType = {
+  volumes: k8s.types.input.core.v1.Volume[];
+  volumeMounts: k8s.types.input.core.v1.VolumeMount[];
+}
+
+const podAnnotations: ApplicationArgs['podAnnotations'] = {};
+
+const vols: VolsType = {
   volumes: [
     {
       name: 'cert',
@@ -195,6 +202,28 @@ const vols = {
     { name: 'temporal', mountPath: '/opt/app/temporal' },
   ],
 };
+
+if (!isAdhocEnv) {
+  vols.volumes.push({
+    name: 'geoip-data',
+    csi: {
+      driver: 'gcsfuse.csi.storage.gke.io',
+      volumeAttributes: {
+        bucketName: `geoipupdate-storage`,
+        mountOptions: 'implicit-dirs',
+      },
+    },
+  })
+
+  vols.volumeMounts.push({
+    name: 'geoip-data',
+    mountPath: '/usr/share/geoip',
+    readOnly: true,
+  });
+
+  podAnnotations['gke-gcsfuse/volumes'] = 'true';
+}
+
 const jwtEnv = [
   {
     name: 'JWT_PUBLIC_KEY_PATH',
@@ -209,6 +238,9 @@ const commonEnv = [
 
 let appsArgs: ApplicationArgs[];
 if (isAdhocEnv) {
+  podAnnotations['prometheus.io/scrape'] = 'true';
+  podAnnotations['prometheus.io/port'] = '9464';
+
   appsArgs = [
     {
       args: ['npm', 'run', 'dev'],
@@ -240,10 +272,7 @@ if (isAdhocEnv) {
         { targetPort: 3000, port: 80, name: 'http' },
         { targetPort: 9464, port: 9464, name: 'metrics' },
       ],
-      podAnnotations: {
-        'prometheus.io/scrape': 'true',
-        'prometheus.io/port': '9464',
-      },
+      podAnnotations: podAnnotations,
       createService: true,
       ...vols,
     },
@@ -264,10 +293,7 @@ if (isAdhocEnv) {
       },
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
-      podAnnotations: {
-        'prometheus.io/scrape': 'true',
-        'prometheus.io/port': '9464',
-      },
+      podAnnotations: podAnnotations,
       env: [
         {
           name: 'SERVICE_NAME',
@@ -298,10 +324,7 @@ if (isAdhocEnv) {
       },
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
-      podAnnotations: {
-        'prometheus.io/scrape': 'true',
-        'prometheus.io/port': '9464',
-      },
+      podAnnotations: podAnnotations,
       env: [...commonEnv, ...jwtEnv],
       ...vols,
     });
@@ -332,6 +355,7 @@ if (isAdhocEnv) {
       backendConfig: {
         customRequestHeaders: ['X-Client-Region:{client_region}'],
       },
+      podAnnotations: podAnnotations,
       ...vols,
     },
     {
@@ -357,6 +381,7 @@ if (isAdhocEnv) {
       metric: { type: 'memory_cpu', cpu: 85, memory: 130 },
       disableLifecycle: true,
       spot: { enabled: true },
+      podAnnotations: podAnnotations,
       ...vols,
     },
     {
@@ -378,6 +403,7 @@ if (isAdhocEnv) {
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
       spot: { enabled: true },
+      podAnnotations: podAnnotations,
       ...vols,
     },
     {
@@ -392,6 +418,7 @@ if (isAdhocEnv) {
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
       spot: { enabled: true },
+      podAnnotations: podAnnotations,
       ...vols,
     },
     {
@@ -400,9 +427,12 @@ if (isAdhocEnv) {
       env: [{ name: 'ENABLE_PRIVATE_ROUTES', value: 'true' }, ...commonEnv, ...jwtEnv],
       minReplicas: 2,
       maxReplicas: 2,
-      limits: {
+      requests: {
         memory: '256Mi',
         cpu: '25m',
+      },
+      limits: {
+        memory: '512Mi',
       },
       readinessProbe,
       livenessProbe,
@@ -410,6 +440,7 @@ if (isAdhocEnv) {
       createService: true,
       serviceType: 'ClusterIP',
       disableLifecycle: true,
+      podAnnotations: podAnnotations,
       ...vols,
     },
   ];
@@ -438,6 +469,7 @@ if (isAdhocEnv) {
         enabled: true,
         weight: 70,
       },
+      podAnnotations: podAnnotations,
       ...vols,
     });
   }
@@ -517,6 +549,8 @@ const [apps] = deployApplicationSuite(
             enabled: true,
             weight: 70,
           },
+          podAnnotations: podAnnotations,
+          ...vols,
         })),
     isAdhocEnv,
     dependsOn,
