@@ -1,38 +1,39 @@
 import { EventName, type EventEntity } from '@paddle/paddle-node-sdk';
-import {
-  processTransactionCompleted,
-  processTransactionCreated,
-  processTransactionPaid,
-  processTransactionPaymentFailed,
-  processTransactionUpdated,
-} from './processing';
+
 import { SubscriptionProvider } from '../../../../entity/user/User';
 import { logger } from '../../../../logger';
 import { logPaddleAnalyticsEvent } from '../../../../common/paddle';
 import { AnalyticsEventName } from '../../../../integrations/analytics';
+import {
+  processCoresTransactionCompleted,
+  processCoresTransactionCreated,
+  processCoresTransactionPaid,
+  processCoresTransactionPaymentFailed,
+  processCoresTransactionUpdated,
+} from './processing';
 
 export const processCorePaddleEvent = async (event: EventEntity) => {
   switch (event?.eventType) {
     case EventName.TransactionCreated:
-      await processTransactionCreated({
+      await processCoresTransactionCreated({
         event,
       });
 
       break;
     case EventName.TransactionPaid:
-      await processTransactionPaid({
+      await processCoresTransactionPaid({
         event,
       });
 
       break;
     case EventName.TransactionPaymentFailed:
-      await processTransactionPaymentFailed({
+      await processCoresTransactionPaymentFailed({
         event,
       });
 
       break;
     case EventName.TransactionUpdated:
-      await processTransactionUpdated({
+      await processCoresTransactionUpdated({
         event,
       });
 
@@ -40,7 +41,7 @@ export const processCorePaddleEvent = async (event: EventEntity) => {
     case EventName.TransactionCompleted:
       await Promise.all([
         logPaddleAnalyticsEvent(event, AnalyticsEventName.ReceivePayment),
-        processTransactionCompleted({ event }),
+        processCoresTransactionCompleted({ event }),
       ]);
       break;
     default:

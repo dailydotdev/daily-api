@@ -101,7 +101,7 @@ export const updateUserSubscription = async ({
   }
 };
 
-const processGiftedPayment = async ({
+export const processGiftedPayment = async ({
   event,
 }: {
   event: TransactionCompletedEvent;
@@ -160,7 +160,7 @@ const processGiftedPayment = async ({
   );
 };
 
-export const processTransactionCompleted = async ({
+export const processPlusTransactionCompleted = async ({
   event,
 }: {
   event: TransactionCompletedEvent;

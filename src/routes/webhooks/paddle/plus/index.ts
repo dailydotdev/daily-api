@@ -1,6 +1,6 @@
 import { EventName, type EventEntity } from '@paddle/paddle-node-sdk';
 import {
-  processTransactionCompleted,
+  processPlusTransactionCompleted,
   updateUserSubscription,
 } from './processing';
 import { SubscriptionProvider } from '../../../../entity/user/User';
@@ -45,7 +45,7 @@ export const processPlusPaddleEvent = async (event: EventEntity) => {
     case EventName.TransactionCompleted:
       await Promise.all([
         logPaddleAnalyticsEvent(event, AnalyticsEventName.ReceivePayment),
-        processTransactionCompleted({ event }),
+        processPlusTransactionCompleted({ event }),
       ]);
       break;
     default:

@@ -9,13 +9,6 @@ import { SubscriptionProvider, User } from '../../../src/entity';
 import { usersFixture } from '../../fixture';
 
 import {
-  processTransactionCreated,
-  processTransactionUpdated,
-  processTransactionPaid,
-  processTransactionCompleted,
-  processTransactionPaymentFailed,
-} from '../../../src/routes/webhooks/paddle';
-import {
   coresTransactionCreated,
   coresTransactionUpdated,
   coresTransactionPaid,
@@ -32,6 +25,13 @@ import { CoresRole } from '../../../src/types';
 import * as njordCommon from '../../../src/common/njord';
 import { createClient } from '@connectrpc/connect';
 import { Credits, TransferStatus } from '@dailydotdev/schema';
+import {
+  processCoresTransactionCompleted,
+  processCoresTransactionCreated,
+  processCoresTransactionPaid,
+  processCoresTransactionPaymentFailed,
+  processCoresTransactionUpdated,
+} from '../../../src/routes/webhooks/paddle/cores/processing';
 
 let con: DataSource;
 
@@ -66,7 +66,7 @@ describe('cores product', () => {
   it('purchase success', async () => {
     const purchaseCoresSpy = jest.spyOn(njordCommon, 'purchaseCores');
 
-    await processTransactionCreated({
+    await processCoresTransactionCreated({
       event: coresTransactionCreated,
     });
 
@@ -76,7 +76,7 @@ describe('cores product', () => {
     });
     expect(userTransaction!.status).toBe(201);
 
-    await processTransactionUpdated({
+    await processCoresTransactionUpdated({
       event: {
         ...coresTransactionUpdated,
         data: {
@@ -94,7 +94,7 @@ describe('cores product', () => {
     });
     expect(userTransaction!.status).toBe(201);
 
-    await processTransactionPaid({
+    await processCoresTransactionPaid({
       event: coresTransactionPaid,
     });
 
@@ -104,7 +104,7 @@ describe('cores product', () => {
     });
     expect(userTransaction!.status).toBe(202);
 
-    await processTransactionCompleted({
+    await processCoresTransactionCompleted({
       event: coresTransactionCompleted,
     });
 
@@ -118,7 +118,7 @@ describe('cores product', () => {
   });
 
   it('purchase failure', async () => {
-    await processTransactionCreated({
+    await processCoresTransactionCreated({
       event: coresTransactionCreated,
     });
 
@@ -128,7 +128,7 @@ describe('cores product', () => {
     });
     expect(userTransaction!.status).toBe(201);
 
-    await processTransactionUpdated({
+    await processCoresTransactionUpdated({
       event: {
         ...coresTransactionUpdated,
         data: {
@@ -146,7 +146,7 @@ describe('cores product', () => {
     });
     expect(userTransaction!.status).toBe(201);
 
-    await processTransactionPaid({
+    await processCoresTransactionPaid({
       event: coresTransactionPaid,
     });
 
@@ -156,7 +156,7 @@ describe('cores product', () => {
     });
     expect(userTransaction!.status).toBe(202);
 
-    await processTransactionPaymentFailed({
+    await processCoresTransactionPaymentFailed({
       event: coresTransactionPaymentFailed,
     });
 
@@ -170,7 +170,7 @@ describe('cores product', () => {
   it('purchase success after failure', async () => {
     const purchaseCoresSpy = jest.spyOn(njordCommon, 'purchaseCores');
 
-    await processTransactionCreated({
+    await processCoresTransactionCreated({
       event: coresTransactionCreated,
     });
 
@@ -180,7 +180,7 @@ describe('cores product', () => {
     });
     expect(userTransaction!.status).toBe(201);
 
-    await processTransactionUpdated({
+    await processCoresTransactionUpdated({
       event: {
         ...coresTransactionUpdated,
         data: {
@@ -198,7 +198,7 @@ describe('cores product', () => {
     });
     expect(userTransaction!.status).toBe(201);
 
-    await processTransactionPaid({
+    await processCoresTransactionPaid({
       event: coresTransactionPaid,
     });
 
@@ -208,7 +208,7 @@ describe('cores product', () => {
     });
     expect(userTransaction!.status).toBe(202);
 
-    await processTransactionPaymentFailed({
+    await processCoresTransactionPaymentFailed({
       event: coresTransactionPaymentFailed,
     });
 
@@ -220,7 +220,7 @@ describe('cores product', () => {
     });
     expect(userTransaction!.status).toBe(501);
 
-    await processTransactionCompleted({
+    await processCoresTransactionCompleted({
       event: coresTransactionCompleted,
     });
 
@@ -234,7 +234,7 @@ describe('cores product', () => {
   });
 
   it('transaction created event', async () => {
-    await processTransactionCreated({ event: coresTransactionCreated });
+    await processCoresTransactionCreated({ event: coresTransactionCreated });
 
     const userTransaction = await getTransactionForProviderId({
       con,
@@ -263,7 +263,7 @@ describe('cores product', () => {
   });
 
   it('transaction already created should skip', async () => {
-    await processTransactionCreated({ event: coresTransactionCreated });
+    await processCoresTransactionCreated({ event: coresTransactionCreated });
 
     const userTransaction = await getTransactionForProviderId({
       con,
@@ -274,7 +274,7 @@ describe('cores product', () => {
 
     const warnSpy = jest.spyOn(logger, 'warn');
 
-    await processTransactionCreated({ event: coresTransactionCreated });
+    await processCoresTransactionCreated({ event: coresTransactionCreated });
 
     expect(warnSpy).toHaveBeenCalledWith(
       {
@@ -288,7 +288,7 @@ describe('cores product', () => {
   });
 
   it('transaction updated event', async () => {
-    await processTransactionUpdated({ event: coresTransactionUpdated });
+    await processCoresTransactionUpdated({ event: coresTransactionUpdated });
 
     const userTransaction = await getTransactionForProviderId({
       con,
@@ -317,7 +317,7 @@ describe('cores product', () => {
   });
 
   it('transaction updated product change', async () => {
-    await processTransactionCreated({ event: coresTransactionCreated });
+    await processCoresTransactionCreated({ event: coresTransactionCreated });
 
     let userTransaction = await getTransactionForProviderId({
       con,
@@ -334,7 +334,7 @@ describe('cores product', () => {
 
     const updatedAt = new Date(userTransaction!.createdAt.getTime() + 1000);
 
-    await processTransactionUpdated({
+    await processCoresTransactionUpdated({
       event: {
         ...coresTransactionUpdated,
         data: {
@@ -359,7 +359,7 @@ describe('cores product', () => {
   });
 
   it('transaction already updated should skip', async () => {
-    await processTransactionCreated({ event: coresTransactionCreated });
+    await processCoresTransactionCreated({ event: coresTransactionCreated });
 
     const userTransaction = await getTransactionForProviderId({
       con,
@@ -370,7 +370,7 @@ describe('cores product', () => {
 
     const warnSpy = jest.spyOn(logger, 'warn');
 
-    await processTransactionUpdated({ event: coresTransactionUpdated });
+    await processCoresTransactionUpdated({ event: coresTransactionUpdated });
 
     expect(warnSpy).toHaveBeenCalledWith(
       {
@@ -386,7 +386,7 @@ describe('cores product', () => {
   it('transaction updated skip dedicated status', async () => {
     const warnSpy = jest.spyOn(logger, 'warn');
 
-    await processTransactionUpdated({
+    await processCoresTransactionUpdated({
       event: {
         ...coresTransactionUpdated,
         data: {
@@ -410,7 +410,7 @@ describe('cores product', () => {
   it('transaction paid event', async () => {
     const warnSpy = jest.spyOn(logger, 'warn');
 
-    await processTransactionPaid({ event: coresTransactionPaid });
+    await processCoresTransactionPaid({ event: coresTransactionPaid });
 
     const userTransaction = await getTransactionForProviderId({
       con,
@@ -427,7 +427,9 @@ describe('cores product', () => {
   it('transaction completed event', async () => {
     const purchaseCoresSpy = jest.spyOn(njordCommon, 'purchaseCores');
 
-    await processTransactionCompleted({ event: coresTransactionCompleted });
+    await processCoresTransactionCompleted({
+      event: coresTransactionCompleted,
+    });
 
     expect(purchaseCoresSpy).toHaveBeenCalledTimes(1);
 
@@ -466,7 +468,7 @@ describe('cores product', () => {
     );
 
     await expect(() =>
-      processTransactionCompleted({ event: coresTransactionCompleted }),
+      processCoresTransactionCompleted({ event: coresTransactionCompleted }),
     ).rejects.toThrow('User does not have access to cores purchase');
   });
 
@@ -479,15 +481,15 @@ describe('cores product', () => {
     );
 
     await expect(() =>
-      processTransactionCompleted({ event: coresTransactionCompleted }),
+      processCoresTransactionCompleted({ event: coresTransactionCompleted }),
     ).rejects.toThrow('User does not have access to cores purchase');
   });
 
   it('transaction completed throw if user id mismatch', async () => {
-    await processTransactionCreated({ event: coresTransactionCreated });
+    await processCoresTransactionCreated({ event: coresTransactionCreated });
 
     await expect(() =>
-      processTransactionCompleted({
+      processCoresTransactionCompleted({
         event: {
           ...coresTransactionCompleted,
           data: {
@@ -503,12 +505,12 @@ describe('cores product', () => {
   });
 
   it('transaction completed throw if value mismatch', async () => {
-    await processTransactionCompleted({
+    await processCoresTransactionCompleted({
       event: coresTransactionCompleted,
     });
 
     await expect(() =>
-      processTransactionUpdated({
+      processCoresTransactionUpdated({
         event: {
           ...coresTransactionUpdated,
           data: {
@@ -521,13 +523,13 @@ describe('cores product', () => {
   });
 
   it('transaction payment failed event', async () => {
-    await processTransactionCreated({
+    await processCoresTransactionCreated({
       event: coresTransactionCreated,
     });
 
     const warnSpy = jest.spyOn(logger, 'warn');
 
-    await processTransactionPaymentFailed({
+    await processCoresTransactionPaymentFailed({
       event: coresTransactionPaymentFailed,
     });
 
@@ -544,13 +546,13 @@ describe('cores product', () => {
   });
 
   it('transaction payment failed with invalid status', async () => {
-    await processTransactionCompleted({
+    await processCoresTransactionCompleted({
       event: coresTransactionCompleted,
     });
 
     const warnSpy = jest.spyOn(logger, 'warn');
 
-    await processTransactionPaymentFailed({
+    await processCoresTransactionPaymentFailed({
       event: coresTransactionPaymentFailed,
     });
 
@@ -570,14 +572,14 @@ describe('cores product', () => {
 
   it('transaction payment failed throws if no transaction exists', async () => {
     await expect(() =>
-      processTransactionPaymentFailed({
+      processCoresTransactionPaymentFailed({
         event: coresTransactionPaymentFailed,
       }),
     ).rejects.toThrow('Transaction not found');
   });
 
   it('transaction paid after error', async () => {
-    await processTransactionCreated({
+    await processCoresTransactionCreated({
       event: coresTransactionCreated,
     });
 
@@ -587,7 +589,7 @@ describe('cores product', () => {
     });
     expect(userTransaction!.status).toBe(201);
 
-    await processTransactionPaymentFailed({
+    await processCoresTransactionPaymentFailed({
       event: coresTransactionPaymentFailed,
     });
 
@@ -598,7 +600,7 @@ describe('cores product', () => {
     expect(userTransaction!.status).toBe(501);
     expect(userTransaction!.flags.error).toContain('Payment failed: declined');
 
-    await processTransactionPaid({
+    await processCoresTransactionPaid({
       event: coresTransactionPaid,
     });
 
@@ -623,7 +625,9 @@ describe('cores product', () => {
 
     const purchaseCoresSpy = jest.spyOn(njordCommon, 'purchaseCores');
 
-    await processTransactionCompleted({ event: coresTransactionCompleted });
+    await processCoresTransactionCompleted({
+      event: coresTransactionCompleted,
+    });
 
     expect(purchaseCoresSpy).toHaveBeenCalledTimes(1);
 
@@ -657,7 +661,7 @@ describe('cores product', () => {
   it('transaction skip njord if paddle test discount id', async () => {
     const purchaseCoresSpy = jest.spyOn(njordCommon, 'purchaseCores');
 
-    await processTransactionCompleted({
+    await processCoresTransactionCompleted({
       event: {
         ...coresTransactionCompleted,
         data: {

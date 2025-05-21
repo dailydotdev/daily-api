@@ -26,7 +26,7 @@ import { CoresRole } from '../../../../types';
 import { remoteConfig } from '../../../../remoteConfig';
 import { notifyNewPaddleCoresTransaction } from './slack';
 
-export const processTransactionCreated = async ({
+export const processCoresTransactionCreated = async ({
   event,
 }: {
   event: TransactionCreatedEvent;
@@ -81,7 +81,7 @@ export const processTransactionCreated = async ({
   }
 };
 
-export const processTransactionPaid = async ({
+export const processCoresTransactionPaid = async ({
   event,
 }: {
   event: TransactionPaidEvent;
@@ -124,7 +124,7 @@ export const processTransactionPaid = async ({
   });
 };
 
-export const processTransactionPaymentFailed = async ({
+export const processCoresTransactionPaymentFailed = async ({
   event,
 }: {
   event: TransactionPaymentFailedEvent;
@@ -175,7 +175,7 @@ export const processTransactionPaymentFailed = async ({
   );
 };
 
-export const processTransactionUpdated = async ({
+export const processCoresTransactionUpdated = async ({
   event,
 }: {
   event: TransactionUpdatedEvent;
@@ -246,7 +246,7 @@ export const processTransactionUpdated = async ({
   });
 };
 
-export const processTransactionCompleted = async ({
+export const processCoresTransactionCompleted = async ({
   event,
 }: {
   event: TransactionCompletedEvent;
