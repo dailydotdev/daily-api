@@ -17,14 +17,17 @@ import {
   UserTransaction,
   UserTransactionStatus,
 } from '../../../../entity/user/UserTransaction';
-import { checkTransactionStatusValid, updateUserTransaction } from './utils';
 import { updateFlagsStatement } from '../../../../common/utils';
 import { purchaseCores, UserTransactionError } from '../../../../common/njord';
 import { TransferError } from '../../../../errors';
 import { checkUserCoresAccess } from '../../../../common/user';
 import { CoresRole } from '../../../../types';
 import { remoteConfig } from '../../../../remoteConfig';
-import { notifyNewPaddleCoresTransaction } from './slack';
+import {
+  checkTransactionStatusValid,
+  updateUserTransaction,
+} from '../../../../common/paddle/cores';
+import { notifyNewPaddleCoresTransaction } from '../../../../common/paddle/slack';
 
 export const processCoresTransactionCreated = async ({
   event,

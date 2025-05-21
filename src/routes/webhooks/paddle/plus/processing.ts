@@ -23,7 +23,7 @@ import {
   type PaddleSubscriptionEvent,
 } from '../../../../paddle';
 import { addMilliseconds } from 'date-fns';
-import { notifyNewPaddlePlusTransaction } from './slack';
+import { notifyNewPaddlePlusTransaction } from '../../../../common/paddle/slack';
 
 export const updateUserSubscription = async ({
   event,

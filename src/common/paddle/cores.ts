@@ -3,11 +3,11 @@ import {
   UserTransaction,
   UserTransactionProcessor,
   UserTransactionStatus,
-} from '../../../../entity/user/UserTransaction';
-import type { getPaddleTransactionData } from '../../../../common/paddle';
-import { logger } from '../../../../logger';
-import { SubscriptionProvider } from '../../../../entity';
-import { updateFlagsStatement } from '../../../../common/utils';
+} from '../../entity/user/UserTransaction';
+import type { getPaddleTransactionData } from '../../common/paddle';
+import { logger } from '../../logger';
+import { SubscriptionProvider } from '../../entity';
+import { updateFlagsStatement } from '../../common/utils';
 import type { DataSource, EntityManager } from 'typeorm';
 
 export const checkTransactionStatusValid = ({
