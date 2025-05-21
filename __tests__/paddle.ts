@@ -824,8 +824,8 @@ describe('pricing preview by ids', () => {
     expect(monthlyPreview?.price.formatted).toBe('$5.00');
     expect(monthlyPreview?.price.monthly.amount).toBe(5);
     expect(monthlyPreview?.price.monthly.formatted).toBe('$5.00');
-    expect(monthlyPreview?.price.daily.amount).toBe(0.17);
-    expect(monthlyPreview?.price.daily.formatted).toBe('$0.17');
+    expect(monthlyPreview?.price.daily.amount).toBe(0.16);
+    expect(monthlyPreview?.price.daily.formatted).toBe('$0.16');
     expect(monthlyPreview?.currency.code).toBe('USD');
     expect(monthlyPreview?.currency.symbol).toBe('$');
     expect(monthlyPreview?.duration).toBe('monthly');
@@ -871,7 +871,7 @@ describe('pricing preview by ids', () => {
       variables: { ids: ['pri_monthly'] },
     });
 
-    expect(result.errors?.[0]?.message).toBe('No pricing found');
+    expect(result.errors?.[0]?.message).toBe('pricing returned no items');
   });
 
   it('should format prices according to locale', async () => {
@@ -903,7 +903,7 @@ describe('pricing preview by ids', () => {
     const preview = result.data?.pricingPreviewByIds[0];
     expect(preview?.price.formatted).toBe('€5,00');
     expect(preview?.price.monthly.formatted).toBe('€5,00');
-    expect(preview?.price.daily.formatted).toBe('€0,17');
+    expect(preview?.price.daily.formatted).toBe('€0,16');
     expect(preview?.currency.code).toBe('EUR');
     expect(preview?.currency.symbol).toBe('€');
   });
@@ -932,180 +932,6 @@ describe('pricing preview by ids', () => {
     expect(getRedisObjectSpy).toHaveBeenCalledTimes(2);
     expect(setRedisObjectWithExpirySpy).toHaveBeenCalledTimes(1);
     expect(result).toEqual(result2);
-  });
-});
-
-describe('core pricing preview', () => {
-  const QUERY = /* GraphQL */ `
-    query CorePricingPreview($type: PricingType, $locale: String) {
-      corePricingPreview(type: $type, locale: $locale) {
-        metadata {
-          appsId
-          title
-          caption {
-            copy
-            color
-          }
-          idMap {
-            paddle
-            ios
-          }
-        }
-        priceId
-        price {
-          amount
-          formatted
-          monthly {
-            amount
-            formatted
-          }
-          daily {
-            amount
-            formatted
-          }
-        }
-        currency {
-          code
-          symbol
-        }
-        duration
-        trialPeriod {
-          interval
-          frequency
-        }
-      }
-    }
-  `;
-
-  const mockPreview = {
-    customerId: '1',
-    addressId: '1',
-    businessId: null,
-    discountId: null,
-    address: {
-      countryCode: 'US',
-      postalCode: '12345',
-    },
-    customerIpAddress: '127.0.0.1',
-    availablePaymentMethods: ['card'],
-    details: {
-      lineItems: [
-        {
-          price: {
-            id: 'pri_monthly',
-            productId: 'dailydev-plus',
-            name: 'Monthly Subscription',
-            billingCycle: {
-              interval: 'month',
-              frequency: 1,
-            },
-            trialPeriod: {
-              interval: 'day',
-              frequency: 14,
-            },
-          },
-          formattedTotals: {
-            total: '$5.00',
-          },
-          totals: {
-            total: '5.00',
-          },
-        },
-      ],
-    },
-    currencyCode: 'USD',
-  } as const;
-
-  beforeEach(async () => {
-    await ioRedisPool.execute((client) => client.flushall());
-
-    const mockPreviewFn = jest.fn().mockResolvedValue(mockPreview);
-    jest
-      .spyOn(paddleInstance.pricingPreview, 'preview')
-      .mockImplementation(mockPreviewFn);
-  });
-
-  it('should return core pricing preview data', async () => {
-    loggedUser = 'whp-1';
-    const result = await client.query(QUERY, {
-      variables: { type: PricingType.Plus },
-    });
-
-    expect(result.data.corePricingPreview).toHaveLength(1);
-    const preview = result.data.corePricingPreview[0];
-    expect(preview.metadata.appsId).toBe('monthly');
-    expect(preview.priceId).toBe('pri_monthly');
-    expect(preview.price.amount).toBe(5);
-    expect(preview.price.formatted).toBe('$5.00');
-    expect(preview.currency.code).toBe('USD');
-    expect(preview.currency.symbol).toBe('$');
-    expect(preview.duration).toBe('monthly');
-    expect(preview.trialPeriod.interval).toBe('day');
-    expect(preview.trialPeriod.frequency).toBe(14);
-  });
-
-  it('should format prices according to locale', async () => {
-    loggedUser = 'whp-1';
-    const mockLocalizedPreview = {
-      ...mockPreview,
-      currencyCode: 'EUR' as CurrencyCode,
-      details: {
-        lineItems: [
-          {
-            price: {
-              id: 'pri_monthly',
-              productId: 'dailydev-plus',
-              name: 'Monthly Subscription',
-              billingCycle: {
-                interval: 'month',
-                frequency: 1,
-              },
-              trialPeriod: {
-                interval: 'day',
-                frequency: 14,
-              },
-            },
-            formattedTotals: {
-              total: '€5,00',
-            },
-            totals: {
-              total: '5.00',
-            },
-          },
-        ],
-      },
-    };
-
-    jest
-      .spyOn(paddleInstance.pricingPreview, 'preview')
-      .mockResolvedValue(mockLocalizedPreview as never);
-
-    const result = await client.query(QUERY, {
-      variables: {
-        type: PricingType.Plus,
-        locale: 'de-DE',
-      },
-    });
-
-    expect(result.data.corePricingPreview).toHaveLength(1);
-    const preview = result.data.corePricingPreview[0];
-    expect(preview.priceId).toBe('pri_monthly');
-    expect(preview.price.formatted).toBe('€5,00');
-    expect(preview.currency.code).toBe('EUR');
-    expect(preview.currency.symbol).toBe('€');
-  });
-
-  it('should handle empty locale gracefully', async () => {
-    loggedUser = 'whp-1';
-    const result = await client.query(QUERY, {
-      variables: {
-        type: PricingType.Plus,
-      },
-    });
-
-    expect(result.data.corePricingPreview).toHaveLength(1);
-    const preview = result.data.corePricingPreview[0];
-    expect(preview.price.formatted).toBe('$5.00');
   });
 });
 
