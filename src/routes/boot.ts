@@ -950,4 +950,14 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       (req) => req.cookies[cookies.funnel.key],
     ),
   );
+
+  // Used to get the boot data for onboarding funnels
+  fastify.get(
+    '/onboarding',
+    funnelHandler(
+      con,
+      'onboarding_funnel_id',
+      (req) => req.cookies[cookies.onboarding.key],
+    ),
+  );
 }
