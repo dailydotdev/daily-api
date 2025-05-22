@@ -38,6 +38,7 @@ jest.mock('../src/remoteConfig', () => ({
         },
       ],
       coreProductId: 'pro_01jn6djzggt2cwharv1r3hv9as',
+      plusOrganizationProductId: 'pro_01jvm22wepxc0x539bc4w6jybx',
       paddleTestDiscountIds: ['dsc_test'],
     } as typeof remoteConfig.vars,
     validLanguages: {
