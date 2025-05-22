@@ -22,10 +22,18 @@ export const typeDefs = /* GraphQL */ `
 
   type UserOrganization {
     """
-    Date when the record was created
+    Role of the user in the organization
     """
     role: String!
+
+    """
+    Referral token for the user
+    """
     referralToken: String
+
+    """
+    The organization
+    """
     organization: Organization!
   }
 
