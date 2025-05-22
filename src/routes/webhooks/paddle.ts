@@ -164,7 +164,7 @@ const getUserId = async ({
 };
 
 // will always return false for anonymous subscriptions
-const planChanged = async ({ data }: SubscriptionUpdatedEvent) => {
+const userPlanChanged = async ({ data }: SubscriptionUpdatedEvent) => {
   const customData = data?.customData as { user_id: string };
   const userId = await getUserId({
     userId: customData?.user_id,
@@ -1159,8 +1159,8 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
                 ]);
                 break;
               case EventName.SubscriptionUpdated:
-                const didPlanChange = await planChanged(eventData);
-                if (didPlanChange) {
+                const didUserPlanChange = await userPlanChanged(eventData);
+                if (didUserPlanChange) {
                   await updateUserSubscription({
                     event: eventData,
                     state: true,
