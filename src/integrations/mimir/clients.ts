@@ -2,7 +2,8 @@ import { RequestInit } from 'node-fetch';
 import { GarmrNoopService, IGarmrService, GarmrService } from '../garmr';
 import { fetchOptions as globalFetchOptions } from '../../http';
 import { fetchParse } from '../retry';
-import { IMimirClient, MimirResponse } from './types';
+import { IMimirClient } from './types';
+import { SearchRequest, SearchResponse } from '@dailydotdev/schema';
 
 export class MimirClient implements IMimirClient {
   private readonly fetchOptions: RequestInit;
@@ -29,13 +30,7 @@ export class MimirClient implements IMimirClient {
     version,
     offset = 0,
     limit = 10,
-  }: {
-    query: string;
-    version: number;
-    offset: number;
-    limit: number;
-  }): Promise<MimirResponse> {
-    console.log('searching mimir', query);
+  }: SearchRequest): Promise<SearchResponse> {
     return this.garmr.execute(() => {
       return fetchParse(`${this.url}/v1/search`, {
         ...this.fetchOptions,

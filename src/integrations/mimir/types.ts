@@ -1,7 +1,5 @@
 // Keep the type flexible to allow for future changes
-export type MimirResponse = Partial<{
-  type: string;
-}>;
+import { SearchRequest, SearchResponse } from '@dailydotdev/schema';
 
 export interface IMimirClient {
   search({
@@ -9,10 +7,5 @@ export interface IMimirClient {
     version,
     offset = 0,
     limit = 10,
-  }: {
-    query: string;
-    version: number;
-    offset: number;
-    limit: number;
-  }): Promise<MimirResponse>;
+  }: SearchRequest): Promise<SearchResponse>;
 }
