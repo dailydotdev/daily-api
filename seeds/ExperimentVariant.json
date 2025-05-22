@@ -14,7 +14,7 @@
   {
     "feature": "plus_organization_pricing_ids",
     "variant": "plus_organization_default",
-    "createdAt": "2025-04-08 10:41:57.489",
+    "createdAt": "2025-04-08T10:41:57.489Z",
     "value": "[{\"appsId\":\"annual\",\"title\":\"Annual\",\"caption\":{\"copy\":\"Save 25%\",\"color\":\"success\"},\"idMap\":{\"paddle\":\"pri_01jvm26zgvd5djwd0wjzz9np4s\"}},{\"appsId\":\"monthly\",\"title\":\"Monthly\",\"idMap\":{\"paddle\":\"pri_01jvm24pryx74g1pq0tn6bvamb\"}}]"
   }
 ]

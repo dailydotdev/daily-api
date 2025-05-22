@@ -18,7 +18,7 @@ type PaddleCustomData = {
   user_id?: string;
 };
 
-// If the user provides bussiness information during the checkout, we will use it
+// If the user provides business information during the checkout, we will use it
 // otherwise we will use the default business name
 const getBusinessName = async (
   user: User,
