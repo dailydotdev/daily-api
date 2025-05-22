@@ -1177,7 +1177,12 @@ export const typeDefs = /* GraphQL */ `
     """
     Restore user's streak
     """
-    recoverStreak: UserStreak @auth
+    recoverStreak(
+      """
+      If client accepts streak recovery with Cores instead of deprecated reputation
+      """
+      cores: Boolean
+    ): UserStreak @auth
 
     """
     Request an app account token that is used for StoreKit
@@ -2534,10 +2539,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     recoverStreak: async (
       _,
-      __,
+      { cores }: { cores: boolean },
       ctx: AuthContext,
       info,
     ): Promise<GQLUserStreak> => {
+      if (!cores) {
+        throw new ForbiddenError(
+          'Streak recovery is not available for your app/extension version, please update to the latest version',
+        );
+      }
+
       const { userId } = ctx;
 
       const oldStreakLength = await getRestoreStreakCache({ userId });
