@@ -21,7 +21,7 @@ export const processPlusPaddleEvent = async (event: EventEntity) => {
 
       break;
     case EventName.SubscriptionCanceled:
-      Promise.all([
+      await Promise.all([
         updateUserSubscription({
           event,
           state: false,
