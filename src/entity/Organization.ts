@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -17,6 +18,7 @@ export type OrganizationSubscriptionFlags = Partial<{
 }>;
 
 @Entity()
+@Index('IDX_organization_subflags_subscriptionid', { synchronize: false })
 export class Organization {
   @PrimaryColumn({
     type: 'text',
