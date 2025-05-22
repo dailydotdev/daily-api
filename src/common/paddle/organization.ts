@@ -8,7 +8,7 @@ import { extractSubscriptionCycle, paddleInstance } from '.';
 import { Organization, User } from '../../entity';
 import { ContentPreferenceOrganization } from '../../entity/contentPreference/ContentPreferenceOrganization';
 import { ContentPreferenceStatus } from '../../entity/contentPreference/types';
-import { OrganizationMemberRoles } from '../../roles';
+import { OrganizationMemberRole } from '../../roles';
 import { SubscriptionProvider, SubscriptionStatus } from '../plus';
 import { logger } from '../../logger';
 import { isPlusMember } from '../../paddle';
@@ -93,7 +93,7 @@ export const createOrganizationSubscription = async ({
       feedId: userId,
       status: ContentPreferenceStatus.Follow,
       flags: {
-        role: OrganizationMemberRoles.Owner,
+        role: OrganizationMemberRole.Owner,
         referralToken: randomUUID(),
       },
     }),

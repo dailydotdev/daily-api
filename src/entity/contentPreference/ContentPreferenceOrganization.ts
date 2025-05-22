@@ -2,10 +2,10 @@ import { ChildEntity, Column, Index, JoinColumn, ManyToOne } from 'typeorm';
 import { ContentPreference } from './ContentPreference';
 import { ContentPreferenceType } from './types';
 import type { Organization } from '../Organization';
-import type { OrganizationMemberRoles } from '../../roles';
+import type { OrganizationMemberRole } from '../../roles';
 
 export type ContentPreferenceOrganizationFlags = Partial<{
-  role: OrganizationMemberRoles;
+  role: OrganizationMemberRole;
   referralToken: string;
 }>;
 
