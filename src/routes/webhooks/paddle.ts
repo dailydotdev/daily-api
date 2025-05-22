@@ -1147,6 +1147,14 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
 
                 break;
               case EventName.SubscriptionCanceled:
+                if (isOrganizationSubscription({ event: eventData })) {
+                  // TODO: implement - AS-1123
+                  logger.info(
+                    { provider: SubscriptionProvider.Paddle },
+                    'Organization subscription canceled',
+                  );
+                  return;
+                }
                 Promise.all([
                   updateUserSubscription({
                     event: eventData,
@@ -1159,6 +1167,14 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
                 ]);
                 break;
               case EventName.SubscriptionUpdated:
+                if (isOrganizationSubscription({ event: eventData })) {
+                  // TODO: implement - AS-1118
+                  logger.info(
+                    { provider: SubscriptionProvider.Paddle },
+                    'Organization subscription updated',
+                  );
+                  return;
+                }
                 const didUserPlanChange = await userPlanChanged(eventData);
                 if (didUserPlanChange) {
                   await updateUserSubscription({
