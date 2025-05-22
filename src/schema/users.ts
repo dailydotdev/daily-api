@@ -85,16 +85,20 @@ import {
   TypeORMQueryFailedError,
   TypeOrmError,
 } from '../errors';
-import { deleteUser, getUserCoresRole } from '../common/user';
+import {
+  checkUserCoresAccess,
+  deleteUser,
+  getUserCoresRole,
+} from '../common/user';
 import { randomInt, randomUUID } from 'crypto';
 import { ArrayContains, DataSource, In, IsNull, QueryRunner } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
 import {
   ContentLanguage,
+  CoresRole,
   StreakRestoreCoresPrice,
   UserVote,
   UserVoteEntity,
-  type CoresRole,
 } from '../types';
 import { markdown } from '../common/markdown';
 import { deleteRedisKey, getRedisObject, RedisMagicValues } from '../redis';
@@ -1620,14 +1624,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const { userId } = ctx;
 
       const [streak, oldStreakLength] = await Promise.all([
-        await ctx.con.getRepository(UserStreak).findOneBy({
-          userId,
+        ctx.con.getRepository(UserStreak).findOne({
+          where: { userId },
+          relations: {
+            user: true,
+          },
         }),
-        await getRestoreStreakCache({ userId }),
+        getRestoreStreakCache({ userId }),
       ]);
       const timeForRecoveryPassed = !!streak && streak.currentStreak > 1;
 
-      if (!oldStreakLength || timeForRecoveryPassed) {
+      if (!streak || !oldStreakLength || timeForRecoveryPassed) {
         logger.info(
           { streak, today: new Date(), oldStreakLength },
           `streak restore not possible`,
@@ -1648,8 +1655,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ? StreakRestoreCoresPrice.Regular
         : StreakRestoreCoresPrice.First;
 
+      const user = await streak.user;
+
       return {
-        canRecover: true,
+        canRecover: checkUserCoresAccess({
+          user,
+          requiredRole: CoresRole.User,
+        }),
         oldStreakLength,
         cost,
         regularCost: StreakRestoreCoresPrice.Regular,
