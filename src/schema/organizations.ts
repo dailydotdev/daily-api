@@ -5,8 +5,18 @@ import { Organization } from '../entity/Organization';
 import { OrganizationMemberRole } from '../roles';
 import graphorm from '../graphorm';
 import { toGQLEnum } from '../common';
+import type { GQLUser } from './users';
 
-export type GQLOrganization = Omit<Organization, 'subscriptionFlags'>;
+export type GQLOrganizationMember = {
+  role: OrganizationMemberRole;
+  user: GQLUser;
+};
+export type GQLOrganization = Omit<
+  Organization,
+  'subscriptionFlags' | 'members'
+> & {
+  members: GQLOrganizationMember[];
+};
 export type GQLUserOrganization = {
   createdAt: Date;
   role: OrganizationMemberRole;
