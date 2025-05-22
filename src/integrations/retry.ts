@@ -9,7 +9,6 @@ import {
   ATTR_HTTP_RESPONSE_STATUS_CODE,
   ATTR_URL_FULL,
 } from '@opentelemetry/semantic-conventions';
-import { SearchResponse } from '@dailydotdev/schema';
 import { Message } from '@bufbuild/protobuf';
 
 export class AbortError extends Error {
