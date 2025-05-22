@@ -5,7 +5,7 @@ export interface IMimirClient {
   search({
     query,
     version,
-    offset = 0,
-    limit = 10,
+    offset,
+    limit,
   }: SearchRequest): Promise<SearchResponse>;
 }

@@ -1,10 +1,9 @@
 import { RequestInit } from 'node-fetch';
 import { GarmrNoopService, IGarmrService, GarmrService } from '../garmr';
 import { fetchOptions as globalFetchOptions } from '../../http';
-import { fetchParse, fetchParseBinary, fetchParseProtobuf } from '../retry';
+import { fetchParseBinary } from '../retry';
 import { IMimirClient } from './types';
 import { SearchRequest, SearchResponse } from '@dailydotdev/schema';
-import { Message } from '@bufbuild/protobuf';
 
 export class MimirClient implements IMimirClient {
   private readonly fetchOptions: RequestInit;

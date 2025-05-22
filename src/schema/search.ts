@@ -328,6 +328,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         attributesToRetrieve: 'post_id,title',
       });
       let idsStr;
+      let idsArr: string[] = [];
       if (version >= 3) {
         const searchReq = new SearchRequest({
           query: query,
@@ -340,6 +341,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         idsStr = mimirSearchRes.result?.length
           ? mimirSearchRes.result.map((id) => `'${id.postId}'`).join(',')
           : `'nosuchid'`;
+        idsArr = mimirSearchRes.result?.length
+          ? mimirSearchRes.result.map((id) => id.postId)
+          : ['nosuchid'];
       }
       if (version === 2) {
         searchParams.append('attributesToSearchOn', 'title');
@@ -348,6 +352,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         idsStr = hits.length
           ? hits.map((id) => `'${id.post_id}'`).join(',')
           : `'nosuchid'`;
+        idsArr = hits.length ? hits.map((id) => id.post_id) : ['nosuchid'];
       }
 
       let newBuilder = ctx.con
@@ -361,7 +366,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           { sourceId: 'unknown' },
         )
         .where('post.id IN (:...ids)', {
-          ids: hits.length ? hits.map((x) => x.post_id) : ['nosuchid'],
+          ids: idsArr,
         })
         .andWhere('post.deleted = FALSE')
         .andWhere('post.private = FALSE')
@@ -416,6 +421,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           {
             ...args,
             ids: mimirSearchRes.result.map((x) => x.postId),
+            pagination: {
+              limit,
+              offset,
+              total: mimirSearchRes.result.length,
+              current: offset + mimirSearchRes.result.length,
+            },
           },
           ctx,
           info,
@@ -424,8 +435,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           ...res,
           query: args.query,
         };
-      }
-      if (args.version === 2) {
+      } else {
         searchParams.append('attributesToSearchOn', 'title');
         const meilieSearchRes = await searchMeili(searchParams.toString());
         const meilieArgs: FeedArgs & {
