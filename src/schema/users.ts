@@ -72,6 +72,7 @@ import {
   updateFlagsStatement,
   updateSubscriptionFlags,
   systemUser,
+  parseBigInt,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -131,6 +132,7 @@ import {
   getBalance,
   throwUserTransactionError,
   transferCores,
+  type TransactionCreated,
 } from '../common/njord';
 import {
   UserTransaction,
@@ -753,6 +755,8 @@ export const typeDefs = /* GraphQL */ `
     lastViewAtTz: DateTime
 
     weekStart: Int
+
+    balance: UserBalance
   }
 
   ${toGQLEnum(UserPersonalizedDigestType, 'DigestType')}
@@ -2542,7 +2546,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { cores }: { cores: boolean },
       ctx: AuthContext,
       info,
-    ): Promise<GQLUserStreak> => {
+    ): Promise<GQLUserStreak & Pick<TransactionCreated, 'balance'>> => {
       if (!cores) {
         throw new ForbiddenError(
           'Streak recovery is not available for your app/extension version, please update to the latest version',
@@ -2583,7 +2587,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const currentStreak = oldStreakLength + streak.current;
       const maxStreak = Math.max(currentStreak, streak.max ?? 0);
 
-      await ctx.con.transaction(async (entityManager) => {
+      const { transfer } = await ctx.con.transaction(async (entityManager) => {
         const userTransaction = await entityManager
           .getRepository(UserTransaction)
           .save(
@@ -2623,11 +2627,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               .update({ userId }, { showRecoverStreak: false }),
           ]);
 
-          await transferCores({
+          const transfer = await transferCores({
             ctx,
             transaction: userTransaction,
             entityManager,
           });
+
+          return { transfer };
         } catch (error) {
           if (error instanceof TransferError) {
             await throwUserTransactionError({
@@ -2649,7 +2655,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       );
       await deleteRedisKey(cacheKey);
 
-      return { ...streak, current: currentStreak, max: maxStreak };
+      return {
+        ...streak,
+        current: currentStreak,
+        max: maxStreak,
+        balance: {
+          amount: parseBigInt(transfer.senderBalance!.newBalance),
+        },
+      };
     },
     sendReport: async (
       _,

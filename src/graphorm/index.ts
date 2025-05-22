@@ -306,6 +306,9 @@ const obj = new GraphORM({
       max: { select: 'maxStreak' },
       total: { select: 'totalStreak' },
       current: { select: 'currentStreak' },
+      balance: {
+        jsonType: true,
+      },
     },
   },
   Post: {
