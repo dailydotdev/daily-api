@@ -15,6 +15,7 @@ import { usersFixture } from './fixture/user';
 import { ContentPreferenceOrganization } from '../src/entity/contentPreference/ContentPreferenceOrganization';
 import { ContentPreferenceStatus } from '../src/entity/contentPreference/types';
 import { OrganizationMemberRole } from '../src/roles';
+import type { GQLUserOrganization } from '../src/schema/organizations';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -131,6 +132,13 @@ describe('query organization', () => {
           name
           image
           seats
+          members {
+            role
+            user {
+              id
+              username
+            }
+          }
         }
       }
     }
@@ -197,5 +205,58 @@ describe('query organization', () => {
         },
       },
     });
+  });
+
+  it('should return members of organization but omit current user', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(Feed).save([
+      {
+        id: loggedUser,
+        userId: loggedUser,
+      },
+      {
+        id: '2',
+        userId: '2',
+      },
+    ]);
+
+    await con.getRepository(ContentPreferenceOrganization).save([
+      {
+        userId: loggedUser,
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: loggedUser,
+        status: ContentPreferenceStatus.Follow,
+        flags: {
+          role: OrganizationMemberRole.Owner,
+          referralToken: 'ref-token-1',
+        },
+      },
+      {
+        userId: '2',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '2',
+        status: ContentPreferenceStatus.Follow,
+        flags: {
+          role: OrganizationMemberRole.Member,
+          referralToken: 'ref-token-2',
+        },
+      },
+    ]);
+
+    const { data } = await client.query(QUERY, { variables: { id: 'org-1' } });
+    const { organization } = data.organization as GQLUserOrganization;
+
+    expect(organization.members).toEqual([
+      {
+        role: 'member',
+        user: {
+          id: '2',
+          username: 'tsahidaily',
+        },
+      },
+    ]);
   });
 });

@@ -2,11 +2,21 @@ import type { IResolvers } from '@graphql-tools/utils';
 import type { AuthContext, BaseContext } from '../Context';
 import { traceResolvers } from './trace';
 import { Organization } from '../entity/Organization';
-import type { OrganizationMemberRole } from '../roles';
+import { OrganizationMemberRole } from '../roles';
 import graphorm from '../graphorm';
 import { toGQLEnum } from '../common';
+import type { GQLUser } from './users';
 
-export type GQLOrganization = Omit<Organization, 'subscriptionFlags'>;
+export type GQLOrganizationMember = {
+  role: OrganizationMemberRole;
+  user: GQLUser;
+};
+export type GQLOrganization = Omit<
+  Organization,
+  'subscriptionFlags' | 'members'
+> & {
+  members: GQLOrganizationMember[];
+};
 export type GQLUserOrganization = {
   createdAt: Date;
   role: OrganizationMemberRole;
@@ -15,6 +25,19 @@ export type GQLUserOrganization = {
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(OrganizationMemberRole, 'OrganizationMemberRole')}
+
+  type OrganizationMember {
+    """
+    Role of the user in the organization
+    """
+    role: OrganizationMemberRole!
+
+    """
+    The user in the organization
+    """
+    user: User!
+  }
+
   type Organization {
     """
     The ID of the organization
@@ -35,6 +58,11 @@ export const typeDefs = /* GraphQL */ `
     The number of seats in the organization
     """
     seats: Int
+
+    """
+    The members of the organization
+    """
+    members: [OrganizationMember!]!
   }
 
   type UserOrganization {
