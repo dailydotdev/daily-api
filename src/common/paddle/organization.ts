@@ -18,6 +18,8 @@ type PaddleCustomData = {
   user_id?: string;
 };
 
+// If the user provides bussiness information during the checkout, we will use it
+// otherwise we will use the default business name
 const getBusinessName = async (
   user: User,
   data: SubscriptionCreatedNotification,
@@ -95,12 +97,15 @@ export const createOrganizationSubscription = async ({
         referralToken: randomUUID(),
       },
     }),
+    // Update the paddle subscription with the organization id
+    // This is needed to be able to update the subscription later
     paddleInstance.subscriptions.update(data.id, {
       customData: {
         user_id: userId,
         organization_id: organization.id,
       },
     }),
+    // Give the user plus access if they are not already a plus member
     !isPlusMember(user.subscriptionFlags?.cycle) &&
       con.getRepository(User).update(
         { id: userId },
