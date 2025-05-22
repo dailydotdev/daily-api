@@ -101,7 +101,7 @@ export enum ProductPurchaseType {
 export const getProductPurchaseType = ({
   id,
 }: {
-  id?: string;
+  id: string;
 }): ProductPurchaseType => {
   if (!remoteConfig.vars.coreProductId) {
     throw new Error('Core product id is not set');
