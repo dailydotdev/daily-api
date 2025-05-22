@@ -2,12 +2,12 @@ import { EventName, type EventEntity } from '@paddle/paddle-node-sdk';
 
 import { SubscriptionProvider } from '../../plus';
 import { logger } from '../../../logger';
+import { createOrganizationSubscription } from '../organization';
 
 export const processOrganizationPaddleEvent = async (event: EventEntity) => {
   switch (event?.eventType) {
     case EventName.SubscriptionCreated:
-      console.log('Organization subscription created');
-      console.log(JSON.stringify(event, null, 2));
+      await createOrganizationSubscription({ event });
       break;
     case EventName.SubscriptionUpdated:
       logger.info(
