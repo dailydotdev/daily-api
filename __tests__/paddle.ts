@@ -7,11 +7,7 @@ import {
   type GraphQLTestingState,
   type GraphQLTestClient,
 } from './helpers';
-import {
-  SubscriptionProvider,
-  User,
-  UserSubscriptionStatus,
-} from '../src/entity';
+import { User } from '../src/entity';
 import { plusUsersFixture, usersFixture } from './fixture';
 import {
   EventName,
@@ -45,6 +41,10 @@ import {
 } from '../src/common/paddle/pricing';
 import { ClaimableItem, ClaimableItemTypes } from '../src/entity/ClaimableItem';
 import type { PricingPreviewLineItem } from '@paddle/paddle-node-sdk/dist/types/entities/pricing-preview';
+import {
+  SubscriptionProvider,
+  SubscriptionStatus as UserSubscriptionStatus,
+} from '../src/common/plus';
 
 let app: FastifyInstance;
 let con: DataSource;

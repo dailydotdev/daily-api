@@ -5,7 +5,7 @@ import {
   createMockNjordTransport,
   saveFixtures,
 } from '../../helpers';
-import { SubscriptionProvider, User } from '../../../src/entity';
+import { User } from '../../../src/entity';
 import { usersFixture } from '../../fixture';
 
 import {
@@ -32,6 +32,7 @@ import { CoresRole } from '../../../src/types';
 import * as njordCommon from '../../../src/common/njord';
 import { createClient } from '@connectrpc/connect';
 import { Credits, TransferStatus } from '@dailydotdev/schema';
+import { SubscriptionProvider } from '../../../src/common/plus';
 
 let con: DataSource;
 

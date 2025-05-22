@@ -8,11 +8,13 @@ import {
   UserStreak,
   Comment,
   ArticlePost,
-  UserSubscriptionStatus,
-  SubscriptionProvider,
 } from '../../src/entity';
 import { sourcesFixture } from '../fixture';
 import { postsFixture } from '../fixture/post';
+import {
+  SubscriptionProvider,
+  SubscriptionStatus,
+} from '../../src/common/plus';
 
 let con: DataSource;
 
@@ -69,7 +71,7 @@ describe('user', () => {
         {
           subscriptionFlags: {
             provider: SubscriptionProvider.AppleStoreKit,
-            status: UserSubscriptionStatus.Active,
+            status: SubscriptionStatus.Active,
           },
         },
       );
@@ -87,7 +89,7 @@ describe('user', () => {
         {
           subscriptionFlags: {
             provider: SubscriptionProvider.AppleStoreKit,
-            status: UserSubscriptionStatus.Cancelled,
+            status: SubscriptionStatus.Cancelled,
           },
         },
       );
@@ -106,7 +108,7 @@ describe('user', () => {
         {
           subscriptionFlags: {
             provider: SubscriptionProvider.AppleStoreKit,
-            status: UserSubscriptionStatus.Expired,
+            status: SubscriptionStatus.Expired,
           },
         },
       );
