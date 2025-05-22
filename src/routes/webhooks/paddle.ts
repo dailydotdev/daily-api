@@ -56,6 +56,7 @@ import { CoresRole } from '../../types';
 import { TransferError } from '../../errors';
 import { remoteConfig } from '../../remoteConfig';
 import { SubscriptionProvider, SubscriptionStatus } from '../../common/plus';
+import { createOrganizationSubscription } from '../../common/paddle/organization';
 
 export interface PaddleCustomData {
   user_id?: string;
@@ -1075,8 +1076,7 @@ export const processSubscriptionCreated = async ({
   event: SubscriptionCreatedEvent;
 }) => {
   if (isOrganizationSubscription({ event })) {
-    console.log('Organization subscription created');
-    console.log(JSON.stringify(event, null, 2));
+    await createOrganizationSubscription({ event });
     return;
   }
 

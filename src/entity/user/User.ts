@@ -35,6 +35,8 @@ export type UserFlagsPublic = Pick<UserFlags, 'showPlusGift'>;
 export type PaddleUserSubscriptionFlags = Partial<{
   gifterId?: string; // Currently only supported in Paddle
   giftExpirationDate?: Date; // Currently only supported in Paddle
+
+  organizationId?: string;
 }>;
 
 export type StoreKitUserSubscriptionFlags = Partial<{
