@@ -3,11 +3,13 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  OneToMany,
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import type { SubscriptionCycles } from '../paddle';
 import type { SubscriptionProvider, SubscriptionStatus } from '../common/plus';
+import type { ContentPreferenceOrganization } from './contentPreference/ContentPreferenceOrganization';
 
 export type OrganizationSubscriptionFlags = Partial<{
   subscriptionId: string;
@@ -43,4 +45,11 @@ export class Organization {
 
   @Column({ type: 'jsonb', default: {} })
   subscriptionFlags?: OrganizationSubscriptionFlags;
+
+  @OneToMany(
+    'ContentPreferenceOrganization',
+    (sm: ContentPreferenceOrganization) => sm.organization,
+    { lazy: true },
+  )
+  members: Promise<ContentPreferenceOrganization[]>;
 }
