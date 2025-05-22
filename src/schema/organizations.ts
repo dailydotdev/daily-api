@@ -42,6 +42,11 @@ export const typeDefs = /* GraphQL */ `
     Get the organizations of the user
     """
     organizations: [UserOrganization] @auth
+
+    """
+    Get the organization by ID
+    """
+    organization(id: ID!): UserOrganization @auth
   }
 `;
 
@@ -68,6 +73,24 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
         true,
       );
+    },
+    organization: async (
+      _,
+      { id },
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLUserOrganization> => {
+      return graphorm.queryOneOrFail(ctx, info, (builder) => {
+        builder.queryBuilder
+          .andWhere(`${builder.alias}."userId" = :userId`, {
+            userId: ctx.userId,
+          })
+          .andWhere(`${builder.alias}."organizationId" = :organizationId`, {
+            organizationId: id,
+          });
+
+        return builder;
+      });
     },
   },
 });
