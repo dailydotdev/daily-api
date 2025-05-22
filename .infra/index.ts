@@ -152,10 +152,10 @@ const bgRequests: pulumi.Input<{ cpu: string; memory: string }> = {
   memory: '256Mi',
 };
 
-const temporalLimits: pulumi.Input<{ memory: string }> = { memory: '512Mi' };
+const temporalLimits: pulumi.Input<{ memory: string }> = { memory: '320Mi' };
 const temporalRequests: pulumi.Input<{ cpu: string; memory: string }> = {
-  cpu: '50m',
-  memory: '150Mi',
+  cpu: '10m',
+  memory: '256Mi',
 };
 
 const initialDelaySeconds = 20;
@@ -428,11 +428,11 @@ if (isAdhocEnv) {
       minReplicas: 2,
       maxReplicas: 2,
       requests: {
-        memory: '256Mi',
-        cpu: '25m',
+        memory: '192Mi',
+        cpu: '10m',
       },
       limits: {
-        memory: '512Mi',
+        memory: '256Mi',
       },
       readinessProbe,
       livenessProbe,
