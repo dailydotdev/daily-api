@@ -1,9 +1,10 @@
 import { RequestInit } from 'node-fetch';
 import { GarmrNoopService, IGarmrService, GarmrService } from '../garmr';
 import { fetchOptions as globalFetchOptions } from '../../http';
-import { fetchParse } from '../retry';
+import { fetchParse, fetchParseBinary, fetchParseProtobuf } from '../retry';
 import { IMimirClient } from './types';
 import { SearchRequest, SearchResponse } from '@dailydotdev/schema';
+import { Message } from '@bufbuild/protobuf';
 
 export class MimirClient implements IMimirClient {
   private readonly fetchOptions: RequestInit;
@@ -25,26 +26,20 @@ export class MimirClient implements IMimirClient {
     this.garmr = garmr;
   }
 
-  search({
-    query,
-    version,
-    offset = 0,
-    limit = 10,
-  }: SearchRequest): Promise<SearchResponse> {
+  search(searchRequest: SearchRequest): Promise<SearchResponse> {
     return this.garmr.execute(() => {
-      return fetchParse(`${this.url}/v1/search`, {
-        ...this.fetchOptions,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      return fetchParseBinary(
+        `${this.url}/v1/search`,
+        {
+          ...this.fetchOptions,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-protobuf',
+          },
+          body: searchRequest.toBinary(),
         },
-        body: JSON.stringify({
-          query,
-          version,
-          offset,
-          limit,
-        }),
-      });
+        new SearchResponse(),
+      );
     });
   }
 }

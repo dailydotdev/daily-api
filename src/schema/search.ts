@@ -34,6 +34,7 @@ import { whereVordrFilter } from '../common/vordr';
 import { ContentPreference } from '../entity/contentPreference/ContentPreference';
 import { ContentPreferenceType } from '../entity/contentPreference/types';
 import { mimirClient } from '../integrations/mimir';
+import { SearchRequest } from '@dailydotdev/schema';
 
 type GQLSearchSession = Pick<SearchSession, 'id' | 'prompt' | 'createdAt'>;
 
@@ -326,14 +327,29 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         q: query,
         attributesToRetrieve: 'post_id,title',
       });
+      let idsStr;
+      if (version >= 3) {
+        const searchReq = new SearchRequest({
+          query: query,
+          version: version,
+          offset: 0,
+          limit: 10,
+        });
+
+        const mimirSearchRes = await mimirClient.search(searchReq);
+        idsStr = mimirSearchRes.result?.length
+          ? mimirSearchRes.result.map((id) => `'${id.postId}'`).join(',')
+          : `'nosuchid'`;
+      }
       if (version === 2) {
         searchParams.append('attributesToSearchOn', 'title');
+        const { hits } = await searchMeili(searchParams.toString());
+        // In case ids is empty make sure the query does not fail
+        idsStr = hits.length
+          ? hits.map((id) => `'${id.post_id}'`).join(',')
+          : `'nosuchid'`;
       }
-      const { hits } = await searchMeili(searchParams.toString());
-      // In case ids is empty make sure the query does not fail
-      const idsStr = hits.length
-        ? hits.map((id) => `'${id.post_id}'`).join(',')
-        : `'nosuchid'`;
+
       let newBuilder = ctx.con
         .createQueryBuilder()
         .select('post.id, post.title')
@@ -386,33 +402,47 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         limit: limit.toString(),
         offset: offset.toString(),
       });
-      let meilieSearchRes = {};
       if (args.version >= 3) {
-        meilieSearchRes = await mimirClient.search({
+        const searchReq = new SearchRequest({
           query: args.query,
           version: args.version,
-          limit,
           offset,
+          limit,
         });
+
+        const mimirSearchRes = await mimirClient.search(searchReq);
+        const res = await meiliSearchResolver(
+          source,
+          {
+            ...args,
+            ids: mimirSearchRes.result.map((x) => x.postId),
+          },
+          ctx,
+          info,
+        );
+        return {
+          ...res,
+          query: args.query,
+        };
       }
       if (args.version === 2) {
         searchParams.append('attributesToSearchOn', 'title');
-        meilieSearchRes = await searchMeili(searchParams.toString());
-      }
-      const meilieArgs: FeedArgs & {
-        ids: string[];
-        pagination: MeiliPagination;
-      } = {
-        ...args,
-        ids: meilieSearchRes.hits.map((x) => x.post_id),
-        pagination: meilieSearchRes.pagination,
-      };
+        const meilieSearchRes = await searchMeili(searchParams.toString());
+        const meilieArgs: FeedArgs & {
+          ids: string[];
+          pagination: MeiliPagination;
+        } = {
+          ...args,
+          ids: meilieSearchRes.hits.map((x) => x.post_id),
+          pagination: meilieSearchRes.pagination,
+        };
 
-      const res = await meiliSearchResolver(source, meilieArgs, ctx, info);
-      return {
-        ...res,
-        query: args.query,
-      };
+        const res = await meiliSearchResolver(source, meilieArgs, ctx, info);
+        return {
+          ...res,
+          query: args.query,
+        };
+      }
     },
     searchTagSuggestions: async (
       source,
