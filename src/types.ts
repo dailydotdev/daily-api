@@ -241,3 +241,8 @@ export type GeoRecord = Partial<{
   country: string;
   continent: string;
 }>;
+
+export enum StreakRestoreCoresPrice {
+  First = 0,
+  Regular = 100,
+}

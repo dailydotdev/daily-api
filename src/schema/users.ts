@@ -10,9 +10,6 @@ import {
   MarketingCta,
   Post,
   PostStats,
-  ReputationEvent,
-  ReputationReason,
-  ReputationType,
   User,
   UserMarketingCta,
   View,
@@ -27,10 +24,9 @@ import {
   UserStreakAction,
   UserStreakActionType,
   getAuthorPostStats,
-  Alerts,
-  reputationReasonAmount,
   ConnectionManager,
   UserFlagsPublic,
+  Alerts,
 } from '../entity';
 import {
   AuthenticationError,
@@ -75,6 +71,7 @@ import {
   clearFile,
   updateFlagsStatement,
   updateSubscriptionFlags,
+  systemUser,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -84,15 +81,17 @@ import {
   ConflictError,
   NotFoundError,
   SubmissionFailErrorKeys,
+  TransferError,
   TypeORMQueryFailedError,
   TypeOrmError,
 } from '../errors';
 import { deleteUser, getUserCoresRole } from '../common/user';
-import { randomInt } from 'crypto';
+import { randomInt, randomUUID } from 'crypto';
 import { ArrayContains, DataSource, In, IsNull, QueryRunner } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
 import {
   ContentLanguage,
+  StreakRestoreCoresPrice,
   UserVote,
   UserVoteEntity,
   type CoresRole,
@@ -115,7 +114,6 @@ import { validateUserUpdate } from '../entity/user/utils';
 import { getRestoreStreakCache } from '../workers/cdc/primary';
 import { ReportEntity, ReportReason } from '../entity/common';
 import { reportFunctionMap } from '../common/reporting';
-import { format } from 'date-fns';
 import { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 import { isGiftedPlus } from '../paddle';
@@ -125,6 +123,16 @@ import { generateAppAccountToken } from '../common/storekit';
 import { UserAction, UserActionType } from '../entity/user/UserAction';
 import { insertOrIgnoreAction } from './actions';
 import { getGeo } from '../common/geo';
+import {
+  getBalance,
+  throwUserTransactionError,
+  transferCores,
+} from '../common/njord';
+import {
+  UserTransaction,
+  UserTransactionProcessor,
+  UserTransactionStatus,
+} from '../entity/user/UserTransaction';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -643,6 +651,7 @@ export const typeDefs = /* GraphQL */ `
     canRecover: Boolean!
     cost: Int!
     oldStreakLength: Int!
+    regularCost: Int!
   }
 
   type MostReadTag {
@@ -1627,6 +1636,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           canRecover: false,
           cost: 0,
           oldStreakLength: 0,
+          regularCost: StreakRestoreCoresPrice.Regular,
         };
       }
 
@@ -1635,13 +1645,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         type: UserStreakActionType.Recover,
       });
       const cost = hasRecord
-        ? reputationReasonAmount[ReputationReason.StreakRecover]
-        : reputationReasonAmount[ReputationReason.StreakFirstRecovery];
+        ? StreakRestoreCoresPrice.Regular
+        : StreakRestoreCoresPrice.First;
 
       return {
         canRecover: true,
         oldStreakLength,
-        cost: Math.abs(cost),
+        cost,
+        regularCost: StreakRestoreCoresPrice.Regular,
       };
     },
     userReads: async (): Promise<number> => {
@@ -2529,64 +2540,91 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('Time to recover streak has passed');
       }
 
-      const [user, hasRecord] = await Promise.all([
+      const [user, hasRecord, userBalance] = await Promise.all([
         ctx.con.getRepository(User).findOneByOrFail({ id: userId }),
         ctx.con.getRepository(UserStreakAction).existsBy({
           userId,
           type: UserStreakActionType.Recover,
         }),
+        getBalance(ctx),
       ]);
       const recoverCost = hasRecord
-        ? reputationReasonAmount[ReputationReason.StreakRecover]
-        : reputationReasonAmount[ReputationReason.StreakFirstRecovery];
-      const userCanAfford = user.reputation >= Math.abs(recoverCost);
+        ? StreakRestoreCoresPrice.Regular
+        : StreakRestoreCoresPrice.First;
+      const userCanAfford = userBalance.amount >= recoverCost;
 
       if (!userCanAfford) {
-        throw new ConflictError('Not enough reputation to recover streak');
+        throw new ConflictError('Not enough Cores to recover streak');
       }
-
-      const reputationEvent = {
-        grantToId: userId,
-        targetId: format(new Date(), 'dd-MM-yyyy'),
-        targetType: ReputationType.Streak,
-        reason: hasRecord
-          ? ReputationReason.StreakRecover
-          : ReputationReason.StreakFirstRecovery,
-        amount: recoverCost,
-      };
 
       const currentStreak = oldStreakLength + streak.current;
       const maxStreak = Math.max(currentStreak, streak.max ?? 0);
 
-      await ctx.con.transaction(async (manager) => {
-        const transactions = [
-          manager.getRepository(ReputationEvent).save(reputationEvent),
-          manager.getRepository(UserStreakAction).save({
-            userId,
-            type: UserStreakActionType.Recover,
-          }),
-          manager.getRepository(UserStreak).update(
-            { userId },
-            {
-              currentStreak,
-              maxStreak,
-              updatedAt: new Date(),
-            },
-          ),
-          manager
-            .getRepository(Alerts)
-            .update({ userId }, { showRecoverStreak: false }),
-        ];
+      await ctx.con.transaction(async (entityManager) => {
+        const userTransaction = await entityManager
+          .getRepository(UserTransaction)
+          .save(
+            entityManager.getRepository(UserTransaction).create({
+              id: randomUUID(),
+              processor: UserTransactionProcessor.Njord,
+              receiverId: systemUser.id,
+              status: UserTransactionStatus.Success,
+              productId: null,
+              senderId: user.id,
+              value: recoverCost,
+              valueIncFees: recoverCost,
+              fee: 0,
+              request: ctx.requestMeta,
+              flags: {
+                note: 'Streak restore',
+              },
+            }),
+          );
 
-        await Promise.all(transactions);
+        try {
+          await Promise.all([
+            entityManager.getRepository(UserStreakAction).save({
+              userId,
+              type: UserStreakActionType.Recover,
+            }),
+            entityManager.getRepository(UserStreak).update(
+              { userId },
+              {
+                currentStreak,
+                maxStreak,
+                updatedAt: new Date(),
+              },
+            ),
+            entityManager
+              .getRepository(Alerts)
+              .update({ userId }, { showRecoverStreak: false }),
+          ]);
 
-        const cacheKey = generateStorageKey(
-          StorageTopic.Streak,
-          StorageKey.Reset,
-          userId,
-        );
-        await deleteRedisKey(cacheKey);
+          await transferCores({
+            ctx,
+            transaction: userTransaction,
+            entityManager,
+          });
+        } catch (error) {
+          if (error instanceof TransferError) {
+            await throwUserTransactionError({
+              ctx,
+              entityManager,
+              error,
+              transaction: userTransaction,
+            });
+          }
+
+          throw error;
+        }
       });
+
+      const cacheKey = generateStorageKey(
+        StorageTopic.Streak,
+        StorageKey.Reset,
+        userId,
+      );
+      await deleteRedisKey(cacheKey);
 
       return { ...streak, current: currentStreak, max: maxStreak };
     },
