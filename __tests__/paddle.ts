@@ -7,18 +7,15 @@ import {
   type GraphQLTestingState,
   type GraphQLTestClient,
 } from './helpers';
-import {
-  SubscriptionProvider,
-  User,
-  UserSubscriptionStatus,
-} from '../src/entity';
+import { User } from '../src/entity';
+import { SubscriptionProvider, SubscriptionStatus } from '../src/common/plus';
 import { plusUsersFixture, usersFixture } from './fixture';
 import {
   EventName,
   SubscriptionCreatedEvent,
   TransactionCompletedEvent,
   type Customer,
-  type SubscriptionStatus,
+  type SubscriptionStatus as PaddleSubscriptionStatus,
   CountryCode,
   CurrencyCode,
   PricingPreview,
@@ -128,7 +125,7 @@ const getPricingPreviewData = () => ({
 
 const getSubscriptionData = (
   customData: PaddleCustomData,
-  status: SubscriptionStatus = 'active',
+  status: PaddleSubscriptionStatus = 'active',
 ) =>
   new SubscriptionCreatedEvent({
     event_id: '1',
@@ -991,7 +988,7 @@ describe('plus subscription', () => {
     );
     expect(claimableItem.flags).toHaveProperty(
       'status',
-      UserSubscriptionStatus.Active,
+      SubscriptionStatus.Active,
     );
   });
 });
@@ -1081,7 +1078,7 @@ describe('anonymous subscription', () => {
     );
     expect(claimableItem.flags).toHaveProperty(
       'status',
-      UserSubscriptionStatus.Active,
+      SubscriptionStatus.Active,
     );
   });
 
@@ -1100,7 +1097,7 @@ describe('anonymous subscription', () => {
       email: 'test@example.com',
       type: ClaimableItemTypes.Plus,
       flags: {
-        status: UserSubscriptionStatus.Active,
+        status: SubscriptionStatus.Active,
         provider: SubscriptionProvider.Paddle,
         cycle: SubscriptionCycles.Yearly,
         subscriptionId: '1',
@@ -1123,7 +1120,7 @@ describe('anonymous subscription', () => {
       email: 'test@example.com',
       type: ClaimableItemTypes.Plus,
       flags: {
-        status: UserSubscriptionStatus.Active,
+        status: SubscriptionStatus.Active,
         provider: SubscriptionProvider.Paddle,
         cycle: SubscriptionCycles.Yearly,
         subscriptionId: '1',
@@ -1147,7 +1144,7 @@ describe('anonymous subscription', () => {
       email: 'test@example.com',
       type: ClaimableItemTypes.Plus,
       flags: {
-        status: UserSubscriptionStatus.Active,
+        status: SubscriptionStatus.Active,
         provider: SubscriptionProvider.Paddle,
         cycle: SubscriptionCycles.Yearly,
         subscriptionId: '1',

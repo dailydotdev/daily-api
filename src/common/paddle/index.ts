@@ -25,12 +25,8 @@ import {
   type DataSource,
   type EntityManager,
 } from 'typeorm';
-import {
-  SubscriptionProvider,
-  User,
-  UserSubscriptionStatus,
-  type ConnectionManager,
-} from '../../entity';
+import { type ConnectionManager, User } from '../../entity';
+import { SubscriptionProvider, SubscriptionStatus } from '../plus';
 import { isProd } from '../utils';
 import { ClaimableItem, ClaimableItemTypes } from '../../entity/ClaimableItem';
 import {
@@ -98,6 +94,7 @@ export const getPriceFromPaddleItem = (
 
 export enum ProductPurchaseType {
   Plus = 'plus',
+  PlusOrganization = 'plusOrganization',
   Core = 'core',
 }
 
@@ -110,9 +107,15 @@ export const getProductPurchaseType = ({
     throw new Error('Core product id is not set');
   }
 
+  if (!remoteConfig.vars.plusOrganizationProductId) {
+    throw new Error('Plus organization product id is not set');
+  }
+
   switch (id) {
     case remoteConfig.vars.coreProductId:
       return ProductPurchaseType.Core;
+    case remoteConfig.vars.plusOrganizationProductId:
+      return ProductPurchaseType.PlusOrganization;
     default:
       return ProductPurchaseType.Plus;
   }
@@ -179,6 +182,23 @@ export const isCoreTransaction = ({
       item.price?.productId &&
       getProductPurchaseType({ id: item.price.productId }) ===
         ProductPurchaseType.Core,
+  );
+};
+
+export const isOrganizationSubscription = ({
+  event,
+}: {
+  event: EventEntity;
+}): boolean => {
+  if ('items' in event.data === false) {
+    return false;
+  }
+  return event.data.items.some(
+    (item) =>
+      'price' in item &&
+      item.price?.productId &&
+      getProductPurchaseType({ id: item.price.productId }) ===
+        ProductPurchaseType.PlusOrganization,
   );
 };
 
@@ -260,7 +280,7 @@ export const updateClaimableItem = async (
       createdAt: data.startedAt,
       subscriptionId: data.id,
       provider: SubscriptionProvider.Paddle,
-      status: UserSubscriptionStatus.Active,
+      status: SubscriptionStatus.Active,
     },
   });
 

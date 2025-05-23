@@ -8,7 +8,8 @@ import type { UserTransaction } from '../../entity/user/UserTransaction';
 import { concatTextToNewline } from '../../common/utils';
 import { webhooks } from '../../common/slack';
 import createOrGetConnection from '../../db';
-import { SubscriptionProvider, User } from '../../entity/user/User';
+import { User } from '../../entity/user/User';
+import { SubscriptionProvider } from '../plus';
 import { logger } from '../../logger';
 
 export const notifyNewPaddleCoresTransaction = async ({

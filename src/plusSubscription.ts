@@ -1,10 +1,7 @@
 import { updateSubscriptionFlags } from './common';
+import { SubscriptionStatus } from './common/plus';
 import createOrGetConnection from './db';
-import {
-  UserSubscriptionStatus,
-  User,
-  type UserSubscriptionFlags,
-} from './entity';
+import { User, type UserSubscriptionFlags } from './entity';
 
 export const updateStoreKitUserSubscription = async ({
   userId,
@@ -13,7 +10,7 @@ export const updateStoreKitUserSubscription = async ({
 }: {
   userId: string;
   data?: Omit<UserSubscriptionFlags, 'status'>;
-  status?: UserSubscriptionStatus;
+  status?: SubscriptionStatus;
 }) => {
   if (!data) {
     return;
@@ -30,7 +27,7 @@ export const updateStoreKitUserSubscription = async ({
 
   // Convert all keys in data to null when status is expired
   const subscriptionFlags =
-    status === UserSubscriptionStatus.Expired
+    status === SubscriptionStatus.Expired
       ? { status, appAccountToken: data.appAccountToken }
       : updateSubscriptionFlags({ ...clone, status });
 

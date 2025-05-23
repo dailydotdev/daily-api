@@ -30,7 +30,6 @@ import {
   SourceType,
   SQUAD_IMAGE_PLACEHOLDER,
   SquadSource,
-  SubscriptionProvider,
   User,
   UserMarketingCta,
   UserNotification,
@@ -74,6 +73,7 @@ import * as njordCommon from '../src/common/njord';
 import { Credits, EntityType } from '@dailydotdev/schema';
 import { createClient } from '@connectrpc/connect';
 import { FunnelState } from '../src/integrations/freyja';
+import { SubscriptionProvider } from '../src/common/plus';
 
 let app: FastifyInstance;
 let con: DataSource;

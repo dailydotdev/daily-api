@@ -34,3 +34,4 @@ export * from './ContentImage';
 export * from './MarketingCta';
 export * from './SquadPublicRequest';
 export * from './UserCompany';
+export * from './Organization';

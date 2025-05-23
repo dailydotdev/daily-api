@@ -6,12 +6,7 @@ import type { DataSource } from 'typeorm';
 import { generateKeyPairSync, type ECKeyPairOptions } from 'crypto';
 import { sign } from 'jsonwebtoken';
 import createOrGetConnection from '../../../src/db';
-import {
-  ExperimentVariant,
-  SubscriptionProvider,
-  User,
-  UserSubscriptionStatus,
-} from '../../../src/entity';
+import { ExperimentVariant, User } from '../../../src/entity';
 import {
   createMockNjordErrorTransport,
   createMockNjordTransport,
@@ -37,6 +32,10 @@ import {
   CORES_FEATURE_KEY,
   DEFAULT_CORES_METADATA,
 } from '../../../src/common/paddle/pricing';
+import {
+  SubscriptionProvider,
+  SubscriptionStatus,
+} from '../../../src/common/plus';
 
 function createSignedData(payload): string {
   const keyPairOptions: ECKeyPairOptions<'pem', 'pem'> = {
@@ -193,7 +192,7 @@ describe('POST /webhooks/apple/notifications', () => {
         subscriptionFlags: {
           subscriptionId: 'paddle-subscription-id',
           provider: SubscriptionProvider.Paddle,
-          status: UserSubscriptionStatus.Active,
+          status: SubscriptionStatus.Active,
           appAccountToken: '4b1d83a3-163e-4434-a502-96fb2a516a51',
         },
       },
@@ -299,9 +298,7 @@ describe('POST /webhooks/apple/notifications', () => {
       .findOneByOrFail({ id: 'storekit-user-0' });
 
     expect(user.subscriptionFlags?.cycle).toEqual(SubscriptionCycles.Yearly);
-    expect(user.subscriptionFlags?.status).toEqual(
-      UserSubscriptionStatus.Active,
-    );
+    expect(user.subscriptionFlags?.status).toEqual(SubscriptionStatus.Active);
     expect(user.subscriptionFlags?.provider).toEqual(
       SubscriptionProvider.AppleStoreKit,
     );
@@ -328,9 +325,7 @@ describe('POST /webhooks/apple/notifications', () => {
       .findOneByOrFail({ id: 'storekit-user-0' });
 
     expect(user.subscriptionFlags?.cycle).toEqual(SubscriptionCycles.Yearly);
-    expect(user.subscriptionFlags?.status).toEqual(
-      UserSubscriptionStatus.Active,
-    );
+    expect(user.subscriptionFlags?.status).toEqual(SubscriptionStatus.Active);
     expect(user.subscriptionFlags?.provider).toEqual(
       SubscriptionProvider.AppleStoreKit,
     );
@@ -355,7 +350,7 @@ describe('POST /webhooks/apple/notifications', () => {
 
     expect(user.subscriptionFlags?.cycle).toEqual(SubscriptionCycles.Yearly);
     expect(user.subscriptionFlags?.status).toEqual(
-      UserSubscriptionStatus.Cancelled,
+      SubscriptionStatus.Cancelled,
     );
     expect(user.subscriptionFlags?.provider).toEqual(
       SubscriptionProvider.AppleStoreKit,
@@ -377,9 +372,7 @@ describe('POST /webhooks/apple/notifications', () => {
       .findOneByOrFail({ id: 'storekit-user-0' });
 
     expect(user.subscriptionFlags?.cycle).toBeUndefined();
-    expect(user.subscriptionFlags?.status).toEqual(
-      UserSubscriptionStatus.Expired,
-    );
+    expect(user.subscriptionFlags?.status).toEqual(SubscriptionStatus.Expired);
     expect(user.subscriptionFlags?.provider).toBeUndefined();
   });
 
