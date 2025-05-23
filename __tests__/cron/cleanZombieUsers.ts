@@ -31,7 +31,7 @@ describe('cleanZombieUsers', () => {
 
     await expectSuccessfulCron(cron);
     const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
-    expect(users.length).toEqual(3);
+    expect(users.length).toEqual(4);
     expect(users[0].id).toEqual('1');
     expect(users[1].id).toEqual('2');
   });
@@ -46,7 +46,7 @@ describe('cleanZombieUsers', () => {
 
     await expectSuccessfulCron(cron);
     const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
-    expect(users.length).toEqual(3);
+    expect(users.length).toEqual(4);
     expect(users[0].id).toEqual('1');
     expect(users[1].id).toEqual('2');
   });
@@ -61,7 +61,7 @@ describe('cleanZombieUsers', () => {
 
     await expectSuccessfulCron(cron);
     const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
-    expect(users.length).toEqual(5);
+    expect(users.length).toEqual(6);
     expect(users[0].id).toEqual('1');
     expect(users[1].id).toEqual('2');
   });
@@ -76,7 +76,7 @@ describe('cleanZombieUsers', () => {
 
     await expectSuccessfulCron(cron);
     const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
-    expect(users.length).toEqual(3);
+    expect(users.length).toEqual(4);
 
     const deletedUsers = await con.getRepository(DeletedUser).find();
     expect(deletedUsers.length).toEqual(2);

@@ -4024,7 +4024,7 @@ describe('mutation deleteUser', () => {
     await client.mutate(MUTATION);
 
     const users = await con.getRepository(User).find();
-    expect(users.length).toEqual(3);
+    expect(users.length).toEqual(4);
 
     const userOne = await con.getRepository(User).findOneBy({ id: '1' });
     expect(userOne).toEqual(null);
@@ -4276,7 +4276,7 @@ describe('DELETE /v1/users/me', () => {
     await authorizeRequest(request(app.server).delete(BASE_PATH)).expect(204);
 
     const users = await con.getRepository(User).find();
-    expect(users.length).toEqual(3);
+    expect(users.length).toEqual(4);
 
     const userOne = await con.getRepository(User).findOneBy({ id: '1' });
     expect(userOne).toEqual(null);
