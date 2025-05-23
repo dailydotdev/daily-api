@@ -4156,6 +4156,42 @@ describe('user streak change', () => {
         .findOneBy({ userId: '1-cusc' });
       expect(alert.showRecoverStreak).toEqual(true);
     });
+
+    it('should not set cache of previous streak for recovery if user does not have Cores access', async () => {
+      await con
+        .getRepository(User)
+        .update({ id: '4-cusc' }, { coresRole: CoresRole.None });
+
+      const spy = jest.spyOn(redisFile, 'setRedisObjectWithExpiry');
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        ...dates,
+        userId: '4-cusc',
+        currentStreak: 0,
+      };
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: { ...base, ...dates, userId: '4-cusc', currentStreak: 3 },
+          op: 'u',
+          table: 'user_streak',
+        }),
+      );
+
+      const lastStreak = await getRestoreStreakCache({ userId: after.userId });
+      expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+      expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+        'api.v1.user-streak-updated',
+        { streak: after },
+      ]);
+      expect(lastStreak).toBeNull();
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '4-cusc' });
+      expect(alert!.showRecoverStreak).toEqual(false);
+      expect(spy).not.toHaveBeenCalled();
+    });
   });
 
   describe('streak recovery with Sunday as start of the week', () => {
