@@ -19,7 +19,11 @@ import { productIdToCycle } from './types';
 import { concatTextToNewline, isTest } from '../utils';
 import type { Block, KnownBlock } from '@slack/web-api';
 import { webhooks } from '../slack';
-import { SubscriptionProvider, SubscriptionStatus } from '../plus';
+import {
+  SubscriptionProcessor,
+  SubscriptionProvider,
+  SubscriptionStatus,
+} from '../plus';
 
 const getSubscriptionStatus = (
   notificationType: ResponseBodyV2DecodedPayload['notificationType'],
@@ -52,6 +56,7 @@ const getSubscriptionStatus = (
           notificationType,
           subtype,
           provider: SubscriptionProvider.AppleStoreKit,
+          processor: SubscriptionProcessor.Plus,
         },
         'Unknown notification type',
       );
@@ -160,7 +165,11 @@ const renewalInfoToSubscriptionFlags = (
 
   if (isNullOrUndefined(cycle)) {
     logger.error(
-      { data, provider: SubscriptionProvider.AppleStoreKit },
+      {
+        data,
+        provider: SubscriptionProvider.AppleStoreKit,
+        processor: SubscriptionProcessor.Plus,
+      },
       'Invalid auto renew product ID',
     );
     throw new Error('Invalid auto renew product ID');
@@ -196,6 +205,7 @@ export const handleAppleSubscription = async ({
         environment,
         notification,
         provider: SubscriptionProvider.AppleStoreKit,
+        processor: SubscriptionProcessor.Plus,
       },
       'User already has a Paddle subscription',
     );

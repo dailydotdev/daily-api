@@ -9,7 +9,11 @@ import { Organization, User } from '../../../entity';
 import { ContentPreferenceOrganization } from '../../../entity/contentPreference/ContentPreferenceOrganization';
 import { ContentPreferenceStatus } from '../../../entity/contentPreference/types';
 import { OrganizationMemberRoles } from '../../../roles';
-import { SubscriptionProvider, SubscriptionStatus } from '../../plus';
+import {
+  SubscriptionProcessor,
+  SubscriptionProvider,
+  SubscriptionStatus,
+} from '../../plus';
 import { logger } from '../../../logger';
 import { isPlusMember } from '../../../paddle';
 import { updateSubscriptionFlags } from '../../utils';
@@ -56,6 +60,7 @@ export const createOrganizationSubscription = async ({
     logger.error(
       {
         provider: SubscriptionProvider.Paddle,
+        processor: SubscriptionProcessor.Organization,
         data: event,
       },
       'Subscription type missing in payload',

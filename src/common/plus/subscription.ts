@@ -3,6 +3,12 @@ export enum SubscriptionProvider {
   AppleStoreKit = 'storekit',
 }
 
+export enum SubscriptionProcessor {
+  Cores = 'cores',
+  Plus = 'plus',
+  Organization = 'organization',
+}
+
 export enum SubscriptionStatus {
   Active = 'active',
   Expired = 'expired',
