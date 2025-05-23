@@ -498,7 +498,10 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
     corePricePreviews: async (_, __, ctx: AuthContext) => {
       const region = ctx.region;
 
-      const corePaddleProductId = remoteConfig.vars.coreProductId;
+      const corePaddleProductId = remoteConfig.vars.paddleProductIds?.cores;
+      if (!corePaddleProductId) {
+        throw new Error('Core product id is not set in remote config');
+      }
 
       const redisKey = generateStorageKey(
         StorageTopic.Paddle,
@@ -512,10 +515,6 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
         const cachedResult = JSON.parse(redisResult);
 
         return cachedResult;
-      }
-
-      if (!corePaddleProductId) {
-        throw new Error('Core product id is not set in remote config');
       }
 
       const paddleProduct = await paddleInstance?.products.get(

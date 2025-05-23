@@ -185,3 +185,13 @@ export class DeletedUserCollisionError extends Error {
     super(message);
   }
 }
+
+export class PurchaseTypeError extends Error {
+  type?: string;
+
+  constructor(message: string = 'Purchase type error', type?: string) {
+    super(message);
+
+    this.type = type;
+  }
+}

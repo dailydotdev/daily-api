@@ -1,13 +1,9 @@
 import { FastifyInstance } from 'fastify';
 import { isProd } from '../../../common';
-import { SubscriptionProvider } from '../../../common/plus';
+import { PurchaseType, SubscriptionProvider } from '../../../common/plus';
 import { logger } from '../../../logger';
 
-import {
-  isCoreTransaction,
-  isOrganizationSubscription,
-  paddleInstance,
-} from '../../../common/paddle';
+import { isPurchaseType, paddleInstance } from '../../../common/paddle';
 
 import { remoteConfig } from '../../../remoteConfig';
 import { processCorePaddleEvent } from '../../../common/paddle/cores/eventHandler';
@@ -37,22 +33,24 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
 
         try {
           if (signature && rawRequestBody) {
-            const eventData = await paddleInstance.webhooks.unmarshal(
+            const event = await paddleInstance.webhooks.unmarshal(
               rawRequestBody,
               secretKey,
               signature,
             );
 
             switch (true) {
-              case isCoreTransaction({ event: eventData }):
-                await processCorePaddleEvent(eventData);
+              case isPurchaseType(PurchaseType.Cores, event):
+                await processCorePaddleEvent(event);
                 break;
-              case isOrganizationSubscription({ event: eventData }):
-                await processOrganizationPaddleEvent(eventData);
+              case isPurchaseType(PurchaseType.Organization, event):
+                await processOrganizationPaddleEvent(event);
+                break;
+              case isPurchaseType(PurchaseType.Plus, event):
+                await processPlusPaddleEvent(event);
                 break;
               default:
-                await processPlusPaddleEvent(eventData);
-                break;
+                throw new Error('Could not identify purchase type for event');
             }
           } else {
             logger.error(
