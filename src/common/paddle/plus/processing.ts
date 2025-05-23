@@ -4,26 +4,23 @@ import {
   extractSubscriptionCycle,
   updateClaimableItem,
   type PaddleCustomData,
-} from '../../../../common/paddle';
-import {
-  updateFlagsStatement,
-  updateSubscriptionFlags,
-} from '../../../../common/utils';
-import createOrGetConnection from '../../../../db';
+} from '../index';
+import { updateFlagsStatement, updateSubscriptionFlags } from '../..//utils';
+import createOrGetConnection from '../../../db';
 import {
   SubscriptionProvider,
   User,
   UserSubscriptionStatus,
-} from '../../../../entity/user/User';
-import { logger } from '../../../../logger';
+} from '../../../entity/user/User';
+import { logger } from '../../../logger';
 import {
   isPlusMember,
   plusGiftDuration,
   SubscriptionCycles,
   type PaddleSubscriptionEvent,
-} from '../../../../paddle';
+} from '../../../paddle';
 import { addMilliseconds } from 'date-fns';
-import { notifyNewPaddlePlusTransaction } from '../../../../common/paddle/slack';
+import { notifyNewPaddlePlusTransaction } from '../slack';
 
 export const updateUserSubscription = async ({
   event,

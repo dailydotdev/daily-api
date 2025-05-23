@@ -6,8 +6,8 @@ import { logger } from '../../../logger';
 import { isCoreTransaction, paddleInstance } from '../../../common/paddle';
 
 import { remoteConfig } from '../../../remoteConfig';
-import { processCorePaddleEvent } from './cores';
-import { processPlusPaddleEvent } from './plus';
+import { processCorePaddleEvent } from '../../../common/paddle/cores/eventHandler';
+import { processPlusPaddleEvent } from '../../../common/paddle/plus/eventHandler';
 
 export const paddle = async (fastify: FastifyInstance): Promise<void> => {
   fastify.register(async (fastify: FastifyInstance): Promise<void> => {

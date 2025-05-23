@@ -31,7 +31,7 @@ import {
   processCoresTransactionPaid,
   processCoresTransactionPaymentFailed,
   processCoresTransactionUpdated,
-} from '../../../src/routes/webhooks/paddle/cores/processing';
+} from '../../../src/common/paddle/cores/processing';
 
 let con: DataSource;
 

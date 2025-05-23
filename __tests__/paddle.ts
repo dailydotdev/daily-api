@@ -43,7 +43,7 @@ import type { PricingPreviewLineItem } from '@paddle/paddle-node-sdk/dist/types/
 import {
   processGiftedPayment,
   updateUserSubscription,
-} from '../src/routes/webhooks/paddle/plus/processing';
+} from '../src/common/paddle/plus/processing';
 
 let app: FastifyInstance;
 let con: DataSource;

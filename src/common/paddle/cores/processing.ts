@@ -9,25 +9,22 @@ import {
   getPaddleTransactionData,
   getTransactionForProviderId,
   paddleInstance,
-} from '../../../../common/paddle';
-import createOrGetConnection from '../../../../db';
-import { logger } from '../../../../logger';
-import { SubscriptionProvider, User } from '../../../../entity/user/User';
+} from '../index';
+import createOrGetConnection from '../../../db';
+import { logger } from '../../../logger';
+import { SubscriptionProvider, User } from '../../../entity/user/User';
 import {
   UserTransaction,
   UserTransactionStatus,
-} from '../../../../entity/user/UserTransaction';
-import { updateFlagsStatement } from '../../../../common/utils';
-import { purchaseCores, UserTransactionError } from '../../../../common/njord';
-import { TransferError } from '../../../../errors';
-import { checkUserCoresAccess } from '../../../../common/user';
-import { CoresRole } from '../../../../types';
-import { remoteConfig } from '../../../../remoteConfig';
-import {
-  checkTransactionStatusValid,
-  updateUserTransaction,
-} from '../../../../common/paddle/cores';
-import { notifyNewPaddleCoresTransaction } from '../../../../common/paddle/slack';
+} from '../../../entity/user/UserTransaction';
+import { updateFlagsStatement } from '../../utils';
+import { purchaseCores, UserTransactionError } from '../../njord';
+import { TransferError } from '../../../errors';
+import { checkUserCoresAccess } from '../../user';
+import { CoresRole } from '../../../types';
+import { remoteConfig } from '../../../remoteConfig';
+import { checkTransactionStatusValid, updateUserTransaction } from '../cores';
+import { notifyNewPaddleCoresTransaction } from '../slack';
 
 export const processCoresTransactionCreated = async ({
   event,

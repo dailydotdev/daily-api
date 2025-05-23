@@ -3,13 +3,10 @@ import {
   processPlusTransactionCompleted,
   updateUserSubscription,
 } from './processing';
-import { SubscriptionProvider } from '../../../../entity/user/User';
-import { logger } from '../../../../logger';
-import {
-  logPaddleAnalyticsEvent,
-  planChanged,
-} from '../../../../common/paddle';
-import { AnalyticsEventName } from '../../../../integrations/analytics';
+import { SubscriptionProvider } from '../../../entity/user/User';
+import { logger } from '../../../logger';
+import { logPaddleAnalyticsEvent, planChanged } from '../index';
+import { AnalyticsEventName } from '../../../integrations/analytics';
 
 export const processPlusPaddleEvent = async (event: EventEntity) => {
   switch (event?.eventType) {
