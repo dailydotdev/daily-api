@@ -4,8 +4,10 @@ import { NotificationStreakContext } from '../../notifications';
 import { generateStorageKey, StorageKey, StorageTopic } from '../../config';
 import { getRedisObject } from '../../redis';
 import { isNumber } from '../../common';
-import { Settings } from '../../entity';
+import { Settings, User } from '../../entity';
 import { queryReadReplica } from '../../common/queryReadReplica';
+import { checkUserCoresAccess } from '../../common/user';
+import { CoresRole } from '../../types';
 
 const worker = generateTypedNotificationWorker<'api.v1.user-streak-updated'>({
   subscription: 'api.user-streak-reset-notification',
@@ -17,7 +19,15 @@ const worker = generateTypedNotificationWorker<'api.v1.user-streak-updated'>({
       userId,
     );
 
-    const [settings, lastStreak] = await Promise.all([
+    const [user, settings, lastStreak] = await Promise.all([
+      queryReadReplica(con, ({ queryRunner }) => {
+        return queryRunner.manager.getRepository(User).findOneOrFail({
+          select: ['id', 'coresRole'],
+          where: {
+            id: userId,
+          },
+        });
+      }),
       queryReadReplica(con, ({ queryRunner }) => {
         return queryRunner.manager
           .getRepository(Settings)
@@ -25,6 +35,14 @@ const worker = generateTypedNotificationWorker<'api.v1.user-streak-updated'>({
       }),
       getRedisObject(key),
     ]);
+
+    if (!user) {
+      return;
+    }
+
+    if (!checkUserCoresAccess({ user, requiredRole: CoresRole.User })) {
+      return;
+    }
 
     if (settings?.optOutReadingStreak || !lastStreak || !isNumber(lastStreak)) {
       return;
