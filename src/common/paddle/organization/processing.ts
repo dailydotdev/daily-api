@@ -39,7 +39,7 @@ const getBusinessName = async (
       data.businessId,
     );
     return business.name;
-  } catch (
+  } catch {
     return defaultBusinessName;
   }
 };
