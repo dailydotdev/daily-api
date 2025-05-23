@@ -1139,8 +1139,6 @@ describe('on post create', () => {
         yggdrasilId: uuid,
       });
 
-      console.log({ uuid });
-
       expect(createdPost).not.toBeNull();
       expect(createdPost?.translation).toEqual({
         en: {
