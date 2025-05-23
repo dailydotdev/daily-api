@@ -12,6 +12,7 @@ import {
   CioUnsubscribeTopic,
   ghostUser,
   syncSubscription,
+  systemUser,
 } from '../../src/common';
 
 let con: DataSource;
@@ -58,7 +59,7 @@ describe('mailing', () => {
 
       const users = await con.getRepository(User).find({
         where: {
-          id: Not(ghostUser.id),
+          id: Not(In([ghostUser.id, systemUser.id])),
         },
       });
 
