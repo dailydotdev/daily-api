@@ -1,6 +1,6 @@
 import { EventName, type EventEntity } from '@paddle/paddle-node-sdk';
 
-import { SubscriptionProcessor, SubscriptionProvider } from '../../plus';
+import { PurchaseType, SubscriptionProvider } from '../../plus';
 import { logger } from '../../../logger';
 import { createOrganizationSubscription } from './processing';
 
@@ -13,7 +13,7 @@ export const processOrganizationPaddleEvent = async (event: EventEntity) => {
       logger.info(
         {
           provider: SubscriptionProvider.Paddle,
-          processor: SubscriptionProcessor.Organization,
+          purchaseType: PurchaseType.Organization,
         },
         'Subscription updated',
       );
@@ -22,7 +22,7 @@ export const processOrganizationPaddleEvent = async (event: EventEntity) => {
       logger.info(
         {
           provider: SubscriptionProvider.Paddle,
-          processor: SubscriptionProcessor.Organization,
+          purchaseType: PurchaseType.Organization,
         },
         'Subscription canceled',
       );
@@ -31,7 +31,7 @@ export const processOrganizationPaddleEvent = async (event: EventEntity) => {
       logger.info(
         {
           provider: SubscriptionProvider.Paddle,
-          processor: SubscriptionProcessor.Organization,
+          purchaseType: PurchaseType.Organization,
         },
         event?.eventType,
       );

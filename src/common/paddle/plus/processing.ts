@@ -9,7 +9,7 @@ import { updateFlagsStatement, updateSubscriptionFlags } from '../..//utils';
 import createOrGetConnection from '../../../db';
 import { User } from '../../../entity/user/User';
 import {
-  SubscriptionProcessor,
+  PurchaseType,
   SubscriptionProvider,
   SubscriptionStatus,
 } from '../../plus';
@@ -46,7 +46,7 @@ export const updateUserSubscription = async ({
     logger.error(
       {
         provider: SubscriptionProvider.Paddle,
-        processor: SubscriptionProcessor.Plus,
+        purchaseType: PurchaseType.Plus,
         data: event,
       },
       'Subscription type missing in payload',
@@ -65,7 +65,7 @@ export const updateUserSubscription = async ({
       logger.error(
         {
           provider: SubscriptionProvider.Paddle,
-          processor: SubscriptionProcessor.Plus,
+          purchaseType: PurchaseType.Plus,
           data: event,
         },
         'User not found',
@@ -81,7 +81,7 @@ export const updateUserSubscription = async ({
           user,
           data: event,
           provider: SubscriptionProvider.Paddle,
-          processor: SubscriptionProcessor.Plus,
+          purchaseType: PurchaseType.Plus,
         },
         'User already has a Apple subscription',
       );
@@ -118,7 +118,7 @@ export const processGiftedPayment = async ({
     logger.error(
       {
         provider: SubscriptionProvider.Paddle,
-        processor: SubscriptionProcessor.Plus,
+        purchaseType: PurchaseType.Plus,
         data: event,
       },
       'User and gifter are the same',
@@ -132,7 +132,7 @@ export const processGiftedPayment = async ({
     logger.error(
       {
         provider: SubscriptionProvider.Paddle,
-        processor: SubscriptionProcessor.Plus,
+        purchaseType: PurchaseType.Plus,
         data: event,
       },
       'Gifter user not found',
@@ -149,7 +149,7 @@ export const processGiftedPayment = async ({
     logger.error(
       {
         provider: SubscriptionProvider.Paddle,
-        processor: SubscriptionProcessor.Plus,
+        purchaseType: PurchaseType.Plus,
         data: event,
       },
       'User is already a Plus member',

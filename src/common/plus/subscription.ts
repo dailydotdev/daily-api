@@ -3,7 +3,7 @@ export enum SubscriptionProvider {
   AppleStoreKit = 'storekit',
 }
 
-export enum SubscriptionProcessor {
+export enum PurchaseType {
   Cores = 'cores',
   Plus = 'plus',
   Organization = 'organization',

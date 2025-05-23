@@ -10,7 +10,7 @@ import { ContentPreferenceOrganization } from '../../../entity/contentPreference
 import { ContentPreferenceStatus } from '../../../entity/contentPreference/types';
 import { OrganizationMemberRoles } from '../../../roles';
 import {
-  SubscriptionProcessor,
+  PurchaseType,
   SubscriptionProvider,
   SubscriptionStatus,
 } from '../../plus';
@@ -60,7 +60,7 @@ export const createOrganizationSubscription = async ({
     logger.error(
       {
         provider: SubscriptionProvider.Paddle,
-        processor: SubscriptionProcessor.Organization,
+        purchaseType: PurchaseType.Organization,
         data: event,
       },
       'Subscription type missing in payload',

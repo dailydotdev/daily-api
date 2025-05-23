@@ -20,7 +20,7 @@ import { concatTextToNewline, isTest } from '../utils';
 import type { Block, KnownBlock } from '@slack/web-api';
 import { webhooks } from '../slack';
 import {
-  SubscriptionProcessor,
+  PurchaseType,
   SubscriptionProvider,
   SubscriptionStatus,
 } from '../plus';
@@ -56,7 +56,7 @@ const getSubscriptionStatus = (
           notificationType,
           subtype,
           provider: SubscriptionProvider.AppleStoreKit,
-          processor: SubscriptionProcessor.Plus,
+          purchaseType: PurchaseType.Plus,
         },
         'Unknown notification type',
       );
@@ -168,7 +168,7 @@ const renewalInfoToSubscriptionFlags = (
       {
         data,
         provider: SubscriptionProvider.AppleStoreKit,
-        processor: SubscriptionProcessor.Plus,
+        purchaseType: PurchaseType.Plus,
       },
       'Invalid auto renew product ID',
     );
@@ -205,7 +205,7 @@ export const handleAppleSubscription = async ({
         environment,
         notification,
         provider: SubscriptionProvider.AppleStoreKit,
-        processor: SubscriptionProcessor.Plus,
+        purchaseType: PurchaseType.Plus,
       },
       'User already has a Paddle subscription',
     );

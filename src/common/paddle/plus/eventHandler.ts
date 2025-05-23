@@ -3,7 +3,7 @@ import {
   processPlusTransactionCompleted,
   updateUserSubscription,
 } from './processing';
-import { SubscriptionProcessor, SubscriptionProvider } from '../../plus';
+import { PurchaseType, SubscriptionProvider } from '../../plus';
 import { logger } from '../../../logger';
 import { logPaddleAnalyticsEvent, planChanged } from '../index';
 import { AnalyticsEventName } from '../../../integrations/analytics';
@@ -49,7 +49,7 @@ export const processPlusPaddleEvent = async (event: EventEntity) => {
       logger.info(
         {
           provider: SubscriptionProvider.Paddle,
-          processor: SubscriptionProcessor.Plus,
+          purchaseType: PurchaseType.Plus,
         },
         event?.eventType,
       );

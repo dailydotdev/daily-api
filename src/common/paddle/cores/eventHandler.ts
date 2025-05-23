@@ -1,6 +1,6 @@
 import { EventName, type EventEntity } from '@paddle/paddle-node-sdk';
 
-import { SubscriptionProcessor, SubscriptionProvider } from '../../plus';
+import { PurchaseType, SubscriptionProvider } from '../../plus';
 import { logger } from '../../../logger';
 import { logPaddleAnalyticsEvent } from '../index';
 import { AnalyticsEventName } from '../../../integrations/analytics';
@@ -48,7 +48,7 @@ export const processCorePaddleEvent = async (event: EventEntity) => {
       logger.info(
         {
           provider: SubscriptionProvider.Paddle,
-          processor: SubscriptionProcessor.Cores,
+          purchaseType: PurchaseType.Cores,
         },
         event?.eventType,
       );
