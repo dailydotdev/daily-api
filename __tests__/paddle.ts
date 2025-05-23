@@ -8,7 +8,11 @@ import {
   type GraphQLTestClient,
 } from './helpers';
 import { User } from '../src/entity';
-import { SubscriptionProvider, SubscriptionStatus } from '../src/common/plus';
+import {
+  PurchaseType,
+  SubscriptionProvider,
+  SubscriptionStatus,
+} from '../src/common/plus';
 import { plusUsersFixture, usersFixture } from './fixture';
 import {
   EventName,
@@ -33,7 +37,6 @@ import {
   DEFAULT_PLUS_METADATA,
   CORES_FEATURE_KEY,
   DEFAULT_CORES_METADATA,
-  PricingType,
 } from '../src/common/paddle/pricing';
 import { ClaimableItem, ClaimableItemTypes } from '../src/entity/ClaimableItem';
 import type { PricingPreviewLineItem } from '@paddle/paddle-node-sdk/dist/types/entities/pricing-preview';
@@ -371,7 +374,7 @@ describe('plus pricing metadata', () => {
   it('should return pricing metadata for pricing type', async () => {
     loggedUser = 'whp-1';
     const result = await client.query(QUERY, {
-      variables: { type: PricingType.Cores },
+      variables: { type: PurchaseType.Cores },
     });
     expect(result.data.pricingMetadata).toHaveLength(1);
     expect(result.data.pricingMetadata[0].appsId).toBe('custom');
@@ -519,7 +522,7 @@ describe('plus pricing preview', () => {
   it('should return consolidated pricing preview data', async () => {
     loggedUser = 'whp-1';
     const result = await client.query(QUERY, {
-      variables: { type: PricingType.Plus },
+      variables: { type: PurchaseType.Plus },
     });
     expect(result.data.pricingPreview).toHaveLength(1);
     const preview = result.data.pricingPreview[0];
@@ -542,7 +545,7 @@ describe('plus pricing preview', () => {
       .mockResolvedValue(mockPreviewWithMissingItem);
 
     const result = await client.query(QUERY, {
-      variables: { type: PricingType.Plus },
+      variables: { type: PurchaseType.Plus },
     });
     expect(result.data.pricingPreview).toHaveLength(0);
   });
@@ -556,7 +559,7 @@ describe('plus pricing preview', () => {
 
     loggedUser = 'whp-1';
     const result = await client.query(QUERY, {
-      variables: { type: PricingType.Plus },
+      variables: { type: PurchaseType.Plus },
     });
 
     expect(result.errors).toBeFalsy();
@@ -564,7 +567,7 @@ describe('plus pricing preview', () => {
     expect(setRedisObjectWithExpirySpy).toHaveBeenCalledTimes(1);
 
     const result2 = await client.query(QUERY, {
-      variables: { type: PricingType.Plus },
+      variables: { type: PurchaseType.Plus },
     });
     expect(result2.errors).toBeFalsy();
     expect(getRedisObjectSpy).toHaveBeenCalledTimes(2);
@@ -687,7 +690,7 @@ describe('plus pricing preview', () => {
 
     const result = await client.query(QUERY, {
       variables: {
-        type: PricingType.Plus,
+        type: PurchaseType.Plus,
         locale: 'de-DE',
       },
     });
@@ -700,7 +703,7 @@ describe('plus pricing preview', () => {
     loggedUser = 'whp-1';
     const result = await client.query(QUERY, {
       variables: {
-        type: PricingType.Plus,
+        type: PurchaseType.Plus,
       },
     });
     expect(result.data.pricingPreview).toHaveLength(1);

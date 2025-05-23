@@ -18,6 +18,7 @@ import {
 } from '../../growthbook';
 import { SubscriptionCycles } from '../../paddle';
 import parseCurrency from 'parsecurrency';
+import { PurchaseType } from '../plus';
 
 export const PLUS_FEATURE_KEY = 'plus_pricing_ids';
 export const DEFAULT_PLUS_METADATA = 'plus_default';
@@ -107,22 +108,16 @@ export const getCoresPricingMetadata = async ({
 }: Omit<GetMetadataProps, 'feature'>): Promise<BasePricingMetadata[]> =>
   getPaddleMetadata({ con, feature: CORES_FEATURE_KEY, variant });
 
-export enum PricingType {
-  Plus = 'plus',
-  PlusOrganization = 'plus_organization',
-  Cores = 'cores',
-}
-
-const featureKey: Record<PricingType, string> = {
-  [PricingType.Plus]: PLUS_FEATURE_KEY,
-  [PricingType.PlusOrganization]: PLUS_ORGANIZATION_FEATURE_KEY,
-  [PricingType.Cores]: CORES_FEATURE_KEY,
+const featureKey: Record<PurchaseType, string> = {
+  [PurchaseType.Plus]: PLUS_FEATURE_KEY,
+  [PurchaseType.Organization]: PLUS_ORGANIZATION_FEATURE_KEY,
+  [PurchaseType.Cores]: CORES_FEATURE_KEY,
 };
 
-const defaultVariant: Record<PricingType, string> = {
-  [PricingType.Plus]: DEFAULT_PLUS_METADATA,
-  [PricingType.PlusOrganization]: DEFAULT_PLUS_ORGANIZATION_METADATA,
-  [PricingType.Cores]: DEFAULT_CORES_METADATA,
+const defaultVariant: Record<PurchaseType, string> = {
+  [PurchaseType.Plus]: DEFAULT_PLUS_METADATA,
+  [PurchaseType.Organization]: DEFAULT_PLUS_ORGANIZATION_METADATA,
+  [PurchaseType.Cores]: DEFAULT_CORES_METADATA,
 };
 
 export const getPricingDuration = (item: PricingPreviewLineItem) => {
@@ -138,7 +133,7 @@ export const getCoresValue = () => {};
 
 export const getPricingMetadata = async (
   ctx: AuthContext,
-  type: PricingType,
+  type: PurchaseType,
 ) => {
   const { con, userId } = ctx;
   const user = await con.getRepository(User).findOneOrFail({
@@ -154,11 +149,11 @@ export const getPricingMetadata = async (
   const variant = gb.getFeatureValue(featureKey[type], defaultVariant[type]);
 
   switch (type) {
-    case PricingType.Plus:
+    case PurchaseType.Plus:
       return getPlusPricingMetadata({ con, variant });
-    case PricingType.PlusOrganization:
+    case PurchaseType.Organization:
       return getPlusOrganizationPricingMetadata({ con, variant });
-    case PricingType.Cores:
+    case PurchaseType.Cores:
       return getCoresPricingMetadata({ con, variant });
     default:
       throw new Error('Invalid pricing type');

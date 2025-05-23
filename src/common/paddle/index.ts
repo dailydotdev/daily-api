@@ -26,7 +26,11 @@ import {
   type EntityManager,
 } from 'typeorm';
 import { type ConnectionManager, User } from '../../entity';
-import { SubscriptionProvider, SubscriptionStatus } from '../plus';
+import {
+  PurchaseType,
+  SubscriptionProvider,
+  SubscriptionStatus,
+} from '../plus';
 import { isProd } from '../utils';
 import { ClaimableItem, ClaimableItemTypes } from '../../entity/ClaimableItem';
 import {
@@ -92,17 +96,11 @@ export const getPriceFromPaddleItem = (
   return priceAmount / 100;
 };
 
-export enum ProductPurchaseType {
-  Plus = 'plus',
-  PlusOrganization = 'plusOrganization',
-  Core = 'core',
-}
-
 export const getProductPurchaseType = ({
   id,
 }: {
   id: string;
-}): ProductPurchaseType => {
+}): PurchaseType => {
   if (!remoteConfig.vars.coreProductId) {
     throw new Error('Core product id is not set');
   }
@@ -113,9 +111,9 @@ export const getProductPurchaseType = ({
 
   switch (id) {
     case remoteConfig.vars.coreProductId:
-      return ProductPurchaseType.Core;
+      return PurchaseType.Cores;
     case remoteConfig.vars.plusOrganizationProductId:
-      return ProductPurchaseType.PlusOrganization;
+      return PurchaseType.Organization;
     default:
       return ProductPurchaseType.Plus;
   }
@@ -181,7 +179,7 @@ export const isCoreTransaction = ({
       'price' in item &&
       item.price?.productId &&
       getProductPurchaseType({ id: item.price.productId }) ===
-        ProductPurchaseType.Core,
+        PurchaseType.Cores,
   );
 };
 
@@ -198,7 +196,7 @@ export const isOrganizationSubscription = ({
       'price' in item &&
       item.price?.productId &&
       getProductPurchaseType({ id: item.price.productId }) ===
-        ProductPurchaseType.PlusOrganization,
+        PurchaseType.Organization,
   );
 };
 
