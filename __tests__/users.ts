@@ -1124,12 +1124,15 @@ describe('streak recovery mutation', () => {
         current
         lastViewAt
         max
+        balance {
+          amount
+        }
       }
     }
   `;
 
   beforeEach(async () => {
-    const mockTransport = await createMockNjordTransport();
+    const mockTransport = createMockNjordTransport();
 
     jest
       .spyOn(njordCommon, 'getNjordClient')
@@ -1278,6 +1281,7 @@ describe('streak recovery mutation', () => {
     expect(errors).toBeFalsy();
     expect(recoverStreak).toBeTruthy();
     expect(recoverStreak.current).toEqual(oldLength);
+    expect(recoverStreak.balance.amount).toEqual(100);
 
     const redisCache = await getRestoreStreakCache({ userId: loggedUser });
     expect(redisCache).toBeNull();
@@ -1457,6 +1461,7 @@ describe('streak recovery mutation', () => {
     expect(recoverStreak).toBeTruthy();
     expect(recoverStreak.current).toEqual(21);
     expect(recoverStreak.max).toEqual(21);
+    expect(recoverStreak.balance.amount).toEqual(100);
 
     const recoverAction = await con.getRepository(UserStreakAction).findOneBy({
       userId: loggedUser,
@@ -1530,6 +1535,7 @@ describe('streak recovery mutation', () => {
     expect(recoverStreak.max).toEqual(21);
     const redisCache = await getRestoreStreakCache({ userId: loggedUser });
     expect(redisCache).toBeNull();
+    expect(recoverStreak.balance.amount).toEqual(0);
 
     const userTransaction = await con.getRepository(UserTransaction).findOne({
       where: {
