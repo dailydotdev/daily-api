@@ -1195,7 +1195,7 @@ describe('streak recovery mutation', () => {
   });
 
   it('should not recover if user has not enough Cores', async () => {
-    loggedUser = '1';
+    loggedUser = '1-srm';
     await con.getRepository(UserStreak).update(
       { userId: loggedUser },
       {
