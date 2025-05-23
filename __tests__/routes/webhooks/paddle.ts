@@ -5,7 +5,10 @@ import {
   createMockNjordTransport,
   saveFixtures,
 } from '../../helpers';
-import { SubscriptionProvider } from '../../../src/common/plus';
+import {
+  SubscriptionProcessor,
+  SubscriptionProvider,
+} from '../../../src/common/plus';
 import { User } from '../../../src/entity';
 import { usersFixture } from '../../fixture';
 
@@ -281,6 +284,7 @@ describe('cores product', () => {
       {
         eventType: coresTransactionCreated.eventType,
         provider: SubscriptionProvider.Paddle,
+        processor: SubscriptionProcessor.Cores,
         currentStatus: userTransaction!.status,
         data: getPaddleTransactionData({ event: coresTransactionCreated }),
       },
@@ -377,6 +381,7 @@ describe('cores product', () => {
       {
         eventType: coresTransactionUpdated.eventType,
         provider: SubscriptionProvider.Paddle,
+        processor: SubscriptionProcessor.Cores,
         currentStatus: userTransaction!.status,
         data: getPaddleTransactionData({ event: coresTransactionUpdated }),
       },
@@ -401,6 +406,7 @@ describe('cores product', () => {
       {
         eventType: coresTransactionUpdated.eventType,
         provider: SubscriptionProvider.Paddle,
+        processor: SubscriptionProcessor.Cores,
         currentStatus: 'unknown',
         data: getPaddleTransactionData({ event: coresTransactionUpdated }),
       },
@@ -561,6 +567,7 @@ describe('cores product', () => {
       {
         eventType: coresTransactionPaymentFailed.eventType,
         provider: SubscriptionProvider.Paddle,
+        processor: SubscriptionProcessor.Cores,
         currentStatus: 0,
         nextStatus: 501,
         data: getPaddleTransactionData({
