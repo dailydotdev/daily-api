@@ -1551,8 +1551,45 @@ describe('streak recovery mutation', () => {
     expect(userTransaction!.flags.note).toEqual('Streak restore');
   });
 
+  it('should throw when user does not have access to Cores', async () => {
+    loggedUser = '4-srm';
+
+    await con.getRepository(UserStreak).update(
+      { userId: loggedUser },
+      {
+        currentStreak: 1,
+        maxStreak: 20,
+        lastViewAt: subDays(new Date(), 2),
+      },
+    );
+
+    // insert redis key with old streak length
+    const oldLength = 20;
+    const redisKey = generateStorageKey(
+      StorageTopic.Streak,
+      StorageKey.Reset,
+      loggedUser,
+    );
+    await setRedisObjectWithExpiry(
+      redisKey,
+      oldLength,
+      addDays(new Date(), 1).getTime(),
+    );
+
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { coresRole: CoresRole.None });
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION },
+      'FORBIDDEN',
+      'You do not have access to Cores',
+    );
+  });
+
   it('should throw when non Cores client tries to recover', async () => {
-    loggedUser = '1';
+    loggedUser = '1-srm';
 
     const MUTATION_NON_CORES = `
     mutation RecoverStreak {

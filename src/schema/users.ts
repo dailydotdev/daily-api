@@ -2567,8 +2567,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('Time to recover streak has passed');
       }
 
-      const [user, hasRecord, userBalance] = await Promise.all([
-        ctx.con.getRepository(User).findOneByOrFail({ id: userId }),
+      const user = await ctx.con
+        .getRepository(User)
+        .findOneByOrFail({ id: userId });
+
+      if (
+        !checkUserCoresAccess({
+          user,
+          requiredRole: CoresRole.User,
+        })
+      ) {
+        throw new ForbiddenError('You do not have access to Cores');
+      }
+
+      const [hasRecord, userBalance] = await Promise.all([
         ctx.con.getRepository(UserStreakAction).existsBy({
           userId,
           type: UserStreakActionType.Recover,
