@@ -63,58 +63,60 @@ export const createOrganizationSubscription = async ({
     return false;
   }
 
-  const user = await con.getRepository(User).findOneByOrFail({
-    id: userId,
-  });
+  await con.transaction(async (manager) => {
+    const user = await manager.getRepository(User).findOneByOrFail({
+      id: userId,
+    });
 
-  const businessName = await getBusinessName(user, data);
+    const businessName = await getBusinessName(user, data);
 
-  const subscriptionFlags = {
-    cycle: subscriptionType,
-    createdAt: data.startedAt ?? undefined,
-    subscriptionId: data.id,
-    provider: SubscriptionProvider.Paddle,
-    status: SubscriptionStatus.Active,
-  };
+    const subscriptionFlags = {
+      cycle: subscriptionType,
+      createdAt: data.startedAt ?? undefined,
+      subscriptionId: data.id,
+      provider: SubscriptionProvider.Paddle,
+      status: SubscriptionStatus.Active,
+    };
 
-  const organization = await con.getRepository(Organization).save({
-    id: organizationId,
-    name: businessName,
-    seats: data.items[0].quantity,
-    subscriptionFlags: subscriptionFlags,
-  });
+    const organization = await manager.getRepository(Organization).save({
+      id: organizationId,
+      name: businessName,
+      seats: data.items[0].quantity,
+      subscriptionFlags: subscriptionFlags,
+    });
 
-  await Promise.all([
-    // Add the user to the organization
-    con.getRepository(ContentPreferenceOrganization).save({
-      userId: userId,
-      referenceId: organization.id,
-      organizationId: organization.id,
-      feedId: userId,
-      status: ContentPreferenceStatus.Follow,
-      flags: {
-        role: OrganizationMemberRoles.Owner,
-        referralToken: randomUUID(),
-      },
-    }),
-    // Update the paddle subscription with the organization id
-    // This is needed to be able to update the subscription later
-    paddleInstance.subscriptions.update(data.id, {
-      customData: {
-        user_id: userId,
-        organization_id: organization.id,
-      },
-    }),
-    // Give the user plus access if they are not already a plus member
-    !isPlusMember(user.subscriptionFlags?.cycle) &&
-      con.getRepository(User).update(
-        { id: userId },
-        {
-          subscriptionFlags: updateSubscriptionFlags({
-            ...subscriptionFlags,
-            organizationId: organization.id,
-          }),
+    await Promise.all([
+      // Add the user to the organization
+      manager.getRepository(ContentPreferenceOrganization).save({
+        userId: userId,
+        referenceId: organization.id,
+        organizationId: organization.id,
+        feedId: userId,
+        status: ContentPreferenceStatus.Follow,
+        flags: {
+          role: OrganizationMemberRoles.Owner,
+          referralToken: randomUUID(),
         },
-      ),
-  ]);
+      }),
+      // Update the paddle subscription with the organization id
+      // This is needed to be able to update the subscription later
+      paddleInstance.subscriptions.update(data.id, {
+        customData: {
+          user_id: userId,
+          organization_id: organization.id,
+        },
+      }),
+      // Give the user plus access if they are not already a plus member
+      !isPlusMember(user.subscriptionFlags?.cycle) &&
+        con.getRepository(User).update(
+          { id: userId },
+          {
+            subscriptionFlags: updateSubscriptionFlags({
+              ...subscriptionFlags,
+              organizationId: organization.id,
+            }),
+          },
+        ),
+    ]);
+  });
 };
