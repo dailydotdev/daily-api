@@ -428,13 +428,13 @@ export const createMockNjordTransport = () => {
               senderId: request.sender?.id,
               senderBalance: {
                 previousBalance: 0,
-                newBalance: -request.amount,
+                newBalance: senderAccount.amount,
                 changeAmount: -request.amount,
               },
               receiverId: request.receiver?.id,
               receiverBalance: {
                 previousBalance: 0,
-                newBalance: request.amount,
+                newBalance: receiverAccount.amount,
                 changeAmount: request.amount,
               },
               timestamp: Date.now(),

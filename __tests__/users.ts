@@ -7,7 +7,6 @@ import {
   addHours,
   addSeconds,
   addYears,
-  format,
   startOfDay,
   startOfISOWeek,
   subDays,
@@ -16,6 +15,7 @@ import {
 } from 'date-fns';
 import {
   authorizeRequest,
+  createMockNjordTransport,
   disposeGraphQLTesting,
   GraphQLTestClient,
   GraphQLTestingState,
@@ -39,10 +39,6 @@ import {
   MarketingCta,
   Post,
   PostReport,
-  ReputationEvent,
-  ReputationReason,
-  reputationReasonAmount,
-  ReputationType,
   Source,
   SourceMember,
   SubscriptionProvider,
@@ -86,6 +82,7 @@ import {
   updateSubscriptionFlags,
   bskySocialUrlMatch,
   updateFlagsStatement,
+  systemUser,
 } from '../src/common';
 import { DataSource, In, IsNull } from 'typeorm';
 import createOrGetConnection from '../src/db';
@@ -120,7 +117,7 @@ import { identifyUserPersonalizedDigest } from '../src/cio';
 import type { GQLUser } from '../src/schema/users';
 import { cancelSubscription } from '../src/common/paddle';
 import { isPlusMember } from '../src/paddle';
-import { CoresRole } from '../src/types';
+import { CoresRole, StreakRestoreCoresPrice } from '../src/types';
 import {
   UserTransaction,
   UserTransactionProcessor,
@@ -131,6 +128,9 @@ import { randomUUID } from 'crypto';
 import { ClaimableItem, ClaimableItemTypes } from '../src/entity/ClaimableItem';
 import { addClaimableItemsToUser } from '../src/entity/user/utils';
 import { getGeo } from '../src/common/geo';
+import * as njordCommon from '../src/common/njord';
+import { createClient } from '@connectrpc/connect';
+import { Credits, EntityType } from '@dailydotdev/schema';
 
 jest.mock('../src/common/geo', () => ({
   ...(jest.requireActual('../src/common/geo') as Record<string, unknown>),
@@ -948,16 +948,28 @@ describe('streak recover query', () => {
       canRecover
       cost
       oldStreakLength
+      regularCost
     }
   }`;
 
   beforeEach(async () => {
     await ioRedisPool.execute((client) => client.flushall());
+
+    await saveFixtures(
+      con,
+      User,
+      usersFixture.map((item) => ({
+        ...item,
+        id: `${item.id}-sr`,
+        username: `${item.username}-sr`,
+        coresRole: CoresRole.User,
+      })),
+    );
   });
 
   it('should return recover data when user fetch query', async () => {
     nock('http://localhost:5000').post('/e').reply(204);
-    loggedUser = '1';
+    loggedUser = '1-sr';
 
     const { data, errors } = await client.query(QUERY);
     expect(errors).toBeFalsy();
@@ -973,14 +985,14 @@ describe('streak recover query', () => {
   });
 
   it('should disallow recover when user has no streak', async () => {
-    loggedUser = '2';
+    loggedUser = '2-sr';
     const { data, errors } = await client.query(QUERY);
     expect(errors).toBeFalsy();
     expect(data.streakRecover.canRecover).toBeFalsy();
   });
 
   it('should allow recover when user has streak', async () => {
-    loggedUser = '1';
+    loggedUser = '1-sr';
     const oldLength = 5;
     await con.getRepository(UserStreak).save({
       userId: loggedUser,
@@ -1005,10 +1017,13 @@ describe('streak recover query', () => {
     expect(data.streakRecover.canRecover).toBeTruthy();
     expect(data.streakRecover.oldStreakLength).toBe(oldLength);
     expect(data.streakRecover.cost).toBe(0);
+    expect(data.streakRecover.regularCost).toBe(
+      StreakRestoreCoresPrice.Regular,
+    );
   });
 
   it('should allow recover when user has streak but greater value on the second time', async () => {
-    loggedUser = '1';
+    loggedUser = '1-sr';
     const oldLength = 5;
     await con.getRepository(UserStreak).save({
       userId: loggedUser,
@@ -1039,7 +1054,10 @@ describe('streak recover query', () => {
     expect(errors).toBeFalsy();
     expect(data.streakRecover.canRecover).toBeTruthy();
     expect(data.streakRecover.oldStreakLength).toBe(oldLength);
-    expect(data.streakRecover.cost).toBe(25);
+    expect(data.streakRecover.cost).toBe(StreakRestoreCoresPrice.Regular);
+    expect(data.streakRecover.regularCost).toBe(
+      StreakRestoreCoresPrice.Regular,
+    );
   });
 });
 
@@ -1102,16 +1120,36 @@ describe('clearImage mutation', () => {
 describe('streak recovery mutation', () => {
   const MUTATION = `
     mutation RecoverStreak {
-      recoverStreak {
+      recoverStreak(cores: true) {
         current
         lastViewAt
         max
+        balance {
+          amount
+        }
       }
     }
   `;
 
   beforeEach(async () => {
+    const mockTransport = createMockNjordTransport();
+
+    jest
+      .spyOn(njordCommon, 'getNjordClient')
+      .mockImplementation(() => createClient(Credits, mockTransport));
+
     await ioRedisPool.execute((client) => client.flushall());
+
+    await saveFixtures(
+      con,
+      User,
+      usersFixture.map((item) => ({
+        ...item,
+        id: `${item.id}-srm`,
+        username: `${item.username}-srm`,
+        coresRole: CoresRole.User,
+      })),
+    );
   });
 
   it('should not authorize when not logged in', async () =>
@@ -1122,7 +1160,7 @@ describe('streak recovery mutation', () => {
     ));
 
   it('should not recover if old streak has expired', async () => {
-    loggedUser = '1';
+    loggedUser = '1-srm';
     await con.getRepository(UserStreak).update(
       { userId: loggedUser },
       {
@@ -1137,9 +1175,18 @@ describe('streak recovery mutation', () => {
         createdAt: subDays(new Date(), 4),
       },
     ]);
-    await con
-      .getRepository(User)
-      .update({ id: loggedUser }, { reputation: 500 });
+
+    const testNjordClient = njordCommon.getNjordClient();
+    await testNjordClient.transfer({
+      idempotencyKey: crypto.randomUUID(),
+      transfers: [
+        {
+          sender: { id: 'system', type: EntityType.SYSTEM },
+          receiver: { id: '1-srm', type: EntityType.USER },
+          amount: 500,
+        },
+      ],
+    });
 
     await testMutationError(client, { mutation: MUTATION }, (errors) => {
       expect(errors).toBeDefined();
@@ -1147,8 +1194,8 @@ describe('streak recovery mutation', () => {
     });
   });
 
-  it('should not recover if user has not enough reputation', async () => {
-    loggedUser = '1';
+  it('should not recover if user has not enough Cores', async () => {
+    loggedUser = '1-srm';
     await con.getRepository(UserStreak).update(
       { userId: loggedUser },
       {
@@ -1163,9 +1210,18 @@ describe('streak recovery mutation', () => {
         createdAt: subDays(new Date(), 4),
       },
     ]);
-    await con
-      .getRepository(User)
-      .update({ id: loggedUser }, { reputation: 24 });
+
+    const testNjordClient = njordCommon.getNjordClient();
+    await testNjordClient.transfer({
+      idempotencyKey: crypto.randomUUID(),
+      transfers: [
+        {
+          sender: { id: 'system', type: EntityType.SYSTEM },
+          receiver: { id: '1-srm', type: EntityType.USER },
+          amount: 50,
+        },
+      ],
+    });
 
     const oldLength = 10;
     const redisKey = generateStorageKey(
@@ -1181,14 +1237,12 @@ describe('streak recovery mutation', () => {
 
     await testMutationError(client, { mutation: MUTATION }, (errors) => {
       expect(errors).toBeDefined();
-      expect(errors[0].message).toEqual(
-        'Not enough reputation to recover streak',
-      );
+      expect(errors[0].message).toEqual('Not enough Cores to recover streak');
     });
   });
 
-  it('should recover the streak if user has enough reputation', async () => {
-    loggedUser = '1';
+  it('should recover the streak if user has enough Cores', async () => {
+    loggedUser = '1-srm';
     await con.getRepository(UserStreak).update(
       { userId: loggedUser },
       {
@@ -1196,9 +1250,18 @@ describe('streak recovery mutation', () => {
         lastViewAt: subDays(new Date(), 2),
       },
     );
-    await con
-      .getRepository(User)
-      .update({ id: loggedUser }, { reputation: 25 });
+
+    const testNjordClient = njordCommon.getNjordClient();
+    await testNjordClient.transfer({
+      idempotencyKey: crypto.randomUUID(),
+      transfers: [
+        {
+          sender: { id: systemUser.id, type: EntityType.SYSTEM },
+          receiver: { id: loggedUser, type: EntityType.USER },
+          amount: 100,
+        },
+      ],
+    });
 
     // insert redis key with old streak length
     const oldLength = 10;
@@ -1218,24 +1281,27 @@ describe('streak recovery mutation', () => {
     expect(errors).toBeFalsy();
     expect(recoverStreak).toBeTruthy();
     expect(recoverStreak.current).toEqual(oldLength);
+    expect(recoverStreak.balance.amount).toEqual(100);
 
     const redisCache = await getRestoreStreakCache({ userId: loggedUser });
     expect(redisCache).toBeNull();
 
-    const reputationEvent = await con.getRepository(ReputationEvent).findOne({
-      select: ['amount', 'targetId'],
+    const userTransaction = await con.getRepository(UserTransaction).findOne({
       where: {
-        targetType: ReputationType.Streak,
-        reason: ReputationReason.StreakFirstRecovery,
+        senderId: loggedUser,
+        receiverId: systemUser.id,
       },
     });
-    expect(reputationEvent).toBeTruthy();
-    expect(reputationEvent!.amount).toEqual(0);
-    expect(reputationEvent!.targetId).toEqual(format(new Date(), 'dd-MM-yyyy'));
+    expect(userTransaction).toBeTruthy();
+    expect(userTransaction!.value).toEqual(StreakRestoreCoresPrice.First);
+    expect(userTransaction!.valueIncFees).toEqual(
+      StreakRestoreCoresPrice.First,
+    );
+    expect(userTransaction!.flags.note).toEqual('Streak restore');
   });
 
   it('should not update maxStreak if the recovered streak is less than the current maxStreak', async () => {
-    loggedUser = '1';
+    loggedUser = '1-srm';
     await con.getRepository(UserStreak).update(
       { userId: loggedUser },
       {
@@ -1244,9 +1310,18 @@ describe('streak recovery mutation', () => {
         lastViewAt: subDays(new Date(), 2),
       },
     );
-    await con
-      .getRepository(User)
-      .update({ id: loggedUser }, { reputation: 25 });
+
+    const testNjordClient = njordCommon.getNjordClient();
+    await testNjordClient.transfer({
+      idempotencyKey: crypto.randomUUID(),
+      transfers: [
+        {
+          sender: { id: systemUser.id, type: EntityType.SYSTEM },
+          receiver: { id: loggedUser, type: EntityType.USER },
+          amount: 100,
+        },
+      ],
+    });
 
     // insert redis key with old streak length
     const oldLength = 10;
@@ -1267,10 +1342,23 @@ describe('streak recovery mutation', () => {
     expect(recoverStreak).toBeTruthy();
     expect(recoverStreak.current).toEqual(oldLength);
     expect(recoverStreak.max).toEqual(20);
+
+    const userTransaction = await con.getRepository(UserTransaction).findOne({
+      where: {
+        senderId: loggedUser,
+        receiverId: systemUser.id,
+      },
+    });
+    expect(userTransaction).toBeTruthy();
+    expect(userTransaction!.value).toEqual(StreakRestoreCoresPrice.First);
+    expect(userTransaction!.valueIncFees).toEqual(
+      StreakRestoreCoresPrice.First,
+    );
+    expect(userTransaction!.flags.note).toEqual('Streak restore');
   });
 
   it('should update maxStreak if the recovered streak is more than the current maxStreak', async () => {
-    loggedUser = '1';
+    loggedUser = '1-srm';
     await con.getRepository(UserStreak).update(
       { userId: loggedUser },
       {
@@ -1279,9 +1367,18 @@ describe('streak recovery mutation', () => {
         lastViewAt: subDays(new Date(), 2),
       },
     );
-    await con
-      .getRepository(User)
-      .update({ id: loggedUser }, { reputation: 25 });
+
+    const testNjordClient = njordCommon.getNjordClient();
+    await testNjordClient.transfer({
+      idempotencyKey: crypto.randomUUID(),
+      transfers: [
+        {
+          sender: { id: systemUser.id, type: EntityType.SYSTEM },
+          receiver: { id: loggedUser, type: EntityType.USER },
+          amount: 100,
+        },
+      ],
+    });
 
     // insert redis key with old streak length
     const oldLength = 20;
@@ -1302,13 +1399,26 @@ describe('streak recovery mutation', () => {
     expect(recoverStreak).toBeTruthy();
     expect(recoverStreak.current).toEqual(21);
     expect(recoverStreak.max).toEqual(21);
+
+    const userTransaction = await con.getRepository(UserTransaction).findOne({
+      where: {
+        senderId: loggedUser,
+        receiverId: systemUser.id,
+      },
+    });
+    expect(userTransaction).toBeTruthy();
+    expect(userTransaction!.value).toEqual(StreakRestoreCoresPrice.First);
+    expect(userTransaction!.valueIncFees).toEqual(
+      StreakRestoreCoresPrice.First,
+    );
+    expect(userTransaction!.flags.note).toEqual('Streak restore');
   });
 
   it('should recover streak with 0 points on the first time', async () => {
-    loggedUser = '1';
-    const missing = await con.getRepository(ReputationEvent).findOneBy({
-      targetType: ReputationType.Streak,
-      reason: ReputationReason.StreakFirstRecovery,
+    loggedUser = '1-srm';
+    const missing = await con.getRepository(UserStreakAction).findOneBy({
+      userId: loggedUser,
+      type: UserStreakActionType.Recover,
     });
     expect(missing).toBeNull();
     await con.getRepository(UserStreak).update(
@@ -1319,9 +1429,18 @@ describe('streak recovery mutation', () => {
         lastViewAt: subDays(new Date(), 2),
       },
     );
-    await con
-      .getRepository(User)
-      .update({ id: loggedUser }, { reputation: 25 });
+
+    const testNjordClient = njordCommon.getNjordClient();
+    await testNjordClient.transfer({
+      idempotencyKey: crypto.randomUUID(),
+      transfers: [
+        {
+          sender: { id: systemUser.id, type: EntityType.SYSTEM },
+          receiver: { id: loggedUser, type: EntityType.USER },
+          amount: 100,
+        },
+      ],
+    });
 
     // insert redis key with old streak length
     const oldLength = 20;
@@ -1342,25 +1461,31 @@ describe('streak recovery mutation', () => {
     expect(recoverStreak).toBeTruthy();
     expect(recoverStreak.current).toEqual(21);
     expect(recoverStreak.max).toEqual(21);
-    const reputationEvent = await con.getRepository(ReputationEvent).findOneBy({
-      targetType: ReputationType.Streak,
-      reason: ReputationReason.StreakFirstRecovery,
+    expect(recoverStreak.balance.amount).toEqual(100);
+
+    const recoverAction = await con.getRepository(UserStreakAction).findOneBy({
+      userId: loggedUser,
+      type: UserStreakActionType.Recover,
     });
-    expect(reputationEvent).toBeTruthy();
-    expect(reputationEvent!.amount).toEqual(0);
+    expect(recoverAction).toBeTruthy();
+
+    const userTransaction = await con.getRepository(UserTransaction).findOne({
+      where: {
+        senderId: loggedUser,
+        receiverId: systemUser.id,
+      },
+    });
+    expect(userTransaction).toBeTruthy();
+    expect(userTransaction!.value).toEqual(StreakRestoreCoresPrice.First);
+    expect(userTransaction!.valueIncFees).toEqual(
+      StreakRestoreCoresPrice.First,
+    );
+    expect(userTransaction!.flags.note).toEqual('Streak restore');
   });
 
-  it('should recover streak with 25 points on the second time', async () => {
-    loggedUser = '1';
+  it('should recover streak with 100 points on the second time', async () => {
+    loggedUser = '1-srm';
     const yesterday = subDays(new Date(), 1);
-    await con.getRepository(ReputationEvent).save({
-      targetType: ReputationType.Streak,
-      reason: ReputationReason.StreakFirstRecovery,
-      timestamp: yesterday,
-      grantToId: '1',
-      targetId: format(yesterday, 'dd-MM-yyyy'),
-      amount: reputationReasonAmount.streak_recover_for_free,
-    });
     await con.getRepository(UserStreakAction).save([
       {
         userId: loggedUser,
@@ -1376,9 +1501,18 @@ describe('streak recovery mutation', () => {
         lastViewAt: subDays(new Date(), 2),
       },
     );
-    await con
-      .getRepository(User)
-      .update({ id: loggedUser }, { reputation: 25 });
+
+    const testNjordClient = njordCommon.getNjordClient();
+    await testNjordClient.transfer({
+      idempotencyKey: crypto.randomUUID(),
+      transfers: [
+        {
+          sender: { id: systemUser.id, type: EntityType.SYSTEM },
+          receiver: { id: loggedUser, type: EntityType.USER },
+          amount: 100,
+        },
+      ],
+    });
 
     // insert redis key with old streak length
     const oldLength = 20;
@@ -1401,53 +1535,25 @@ describe('streak recovery mutation', () => {
     expect(recoverStreak.max).toEqual(21);
     const redisCache = await getRestoreStreakCache({ userId: loggedUser });
     expect(redisCache).toBeNull();
+    expect(recoverStreak.balance.amount).toEqual(0);
 
-    const reputationEvent = await con.getRepository(ReputationEvent).findOne({
-      select: ['amount', 'targetId'],
+    const userTransaction = await con.getRepository(UserTransaction).findOne({
       where: {
-        targetType: ReputationType.Streak,
-        reason: ReputationReason.StreakRecover,
+        senderId: loggedUser,
+        receiverId: systemUser.id,
       },
     });
-    expect(reputationEvent).toBeTruthy();
-    expect(reputationEvent!.amount).toEqual(-25);
-    expect(reputationEvent!.targetId).toEqual(format(new Date(), 'dd-MM-yyyy'));
+    expect(userTransaction).toBeTruthy();
+    expect(userTransaction!.value).toEqual(StreakRestoreCoresPrice.Regular);
+    expect(userTransaction!.valueIncFees).toEqual(
+      StreakRestoreCoresPrice.Regular,
+    );
+    expect(userTransaction!.flags.note).toEqual('Streak restore');
   });
 
-  it('should recover streak with 25 points on the third time', async () => {
-    loggedUser = '1';
-    const yesterday = subDays(new Date(), 1);
-    const twoDaysAgo = subDays(yesterday, 1);
-    await con.getRepository(ReputationEvent).save([
-      {
-        targetType: ReputationType.Streak,
-        reason: ReputationReason.StreakFirstRecovery,
-        timestamp: yesterday,
-        grantToId: '1',
-        targetId: format(twoDaysAgo, 'dd-MM-yyyy'),
-        amount: reputationReasonAmount.streak_recover_for_free,
-      },
-      {
-        targetType: ReputationType.Streak,
-        reason: ReputationReason.StreakRecover,
-        timestamp: yesterday,
-        grantToId: '1',
-        targetId: format(yesterday, 'dd-MM-yyyy'),
-        amount: reputationReasonAmount.streak_recover,
-      },
-    ]);
-    await con.getRepository(UserStreakAction).save([
-      {
-        userId: loggedUser,
-        type: UserStreakActionType.Recover,
-        createdAt: twoDaysAgo,
-      },
-      {
-        userId: loggedUser,
-        type: UserStreakActionType.Recover,
-        createdAt: yesterday,
-      },
-    ]);
+  it('should throw when user does not have access to Cores', async () => {
+    loggedUser = '4-srm';
+
     await con.getRepository(UserStreak).update(
       { userId: loggedUser },
       {
@@ -1456,9 +1562,6 @@ describe('streak recovery mutation', () => {
         lastViewAt: subDays(new Date(), 2),
       },
     );
-    await con
-      .getRepository(User)
-      .update({ id: loggedUser }, { reputation: 25 });
 
     // insert redis key with old streak length
     const oldLength = 20;
@@ -1473,25 +1576,36 @@ describe('streak recovery mutation', () => {
       addDays(new Date(), 1).getTime(),
     );
 
-    const { data, errors } = await client.mutate(MUTATION);
-    const { recoverStreak } = data;
-    expect(errors).toBeFalsy();
-    expect(recoverStreak).toBeTruthy();
-    expect(recoverStreak.current).toEqual(21);
-    expect(recoverStreak.max).toEqual(21);
-    const redisCache = await getRestoreStreakCache({ userId: loggedUser });
-    expect(redisCache).toBeNull();
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { coresRole: CoresRole.None });
 
-    const reputationEvents = await con.getRepository(ReputationEvent).find({
-      select: ['amount'],
-      where: {
-        targetType: ReputationType.Streak,
-        reason: ReputationReason.StreakRecover,
-      },
-    });
-    expect(reputationEvents.length).toEqual(2);
-    const sameAmounts = reputationEvents.every(({ amount }) => amount === -25);
-    expect(sameAmounts).toBeTruthy();
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION },
+      'FORBIDDEN',
+      'You do not have access to Cores',
+    );
+  });
+
+  it('should throw when non Cores client tries to recover', async () => {
+    loggedUser = '1-srm';
+
+    const MUTATION_NON_CORES = `
+    mutation RecoverStreak {
+      recoverStreak {
+        current
+        lastViewAt
+        max
+      }
+    }
+  `;
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION_NON_CORES },
+      'FORBIDDEN',
+    );
   });
 });
 
