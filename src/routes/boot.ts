@@ -914,6 +914,22 @@ const funnelHandler = (
   };
 };
 
+type FunnelBootConfig = {
+  featureKey: string;
+  cookieKey: string;
+};
+
+const funnelBoots: Record<string, FunnelBootConfig> = {
+  funnel: {
+    featureKey: 'web_funnel_id',
+    cookieKey: cookies.funnel.key,
+  },
+  onboarding: {
+    featureKey: 'onboarding_funnel_id',
+    cookieKey: cookies.onboarding.key,
+  },
+};
+
 export default async function (fastify: FastifyInstance): Promise<void> {
   const con = await createOrGetConnection();
 
@@ -942,12 +958,16 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   });
 
   // Used to get the boot data for the web funnels
-  fastify.get(
-    '/funnel',
-    funnelHandler(
+  fastify.get('/:id', function (req, res) {
+    const { id } = req.params as { id: string };
+    const funnel = funnelBoots[id];
+    if (!funnel) {
+      return res.status(404).send({ error: 'Funnel not found' });
+    }
+    return funnelHandler(
       con,
-      'web_funnel_id',
-      (req) => req.cookies[cookies.funnel.key],
-    ),
-  );
+      funnel.featureKey,
+      (req) => req.cookies[funnel.cookieKey],
+    ).call(this, req, res);
+  });
 }

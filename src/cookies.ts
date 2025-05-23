@@ -46,6 +46,16 @@ export const cookies: {
     },
     key: 'da4',
   },
+  onboarding: {
+    opts: {
+      maxAge: 1000 * 60 * 30,
+      httpOnly: true,
+      signed: false,
+      secure: env === 'production',
+      sameSite: 'lax',
+    },
+    key: 'da5',
+  },
   kratos: {
     key: 'ory_kratos_session',
     opts: {
