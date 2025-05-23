@@ -2,7 +2,7 @@ import { EventName, type EventEntity } from '@paddle/paddle-node-sdk';
 
 import { SubscriptionProvider } from '../../plus';
 import { logger } from '../../../logger';
-import { createOrganizationSubscription } from '../organization';
+import { createOrganizationSubscription } from './processing';
 
 export const processOrganizationPaddleEvent = async (event: EventEntity) => {
   switch (event?.eventType) {

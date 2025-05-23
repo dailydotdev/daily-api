@@ -3,16 +3,16 @@ import type {
   SubscriptionCreatedNotification,
 } from '@paddle/paddle-node-sdk';
 import { randomUUID } from 'crypto';
-import createOrGetConnection from '../../db';
-import { extractSubscriptionCycle, paddleInstance } from '.';
-import { Organization, User } from '../../entity';
-import { ContentPreferenceOrganization } from '../../entity/contentPreference/ContentPreferenceOrganization';
-import { ContentPreferenceStatus } from '../../entity/contentPreference/types';
-import { OrganizationMemberRoles } from '../../roles';
-import { SubscriptionProvider, SubscriptionStatus } from '../plus';
-import { logger } from '../../logger';
-import { isPlusMember } from '../../paddle';
-import { updateSubscriptionFlags } from '../utils';
+import createOrGetConnection from '../../../db';
+import { extractSubscriptionCycle, paddleInstance } from '..';
+import { Organization, User } from '../../../entity';
+import { ContentPreferenceOrganization } from '../../../entity/contentPreference/ContentPreferenceOrganization';
+import { ContentPreferenceStatus } from '../../../entity/contentPreference/types';
+import { OrganizationMemberRoles } from '../../../roles';
+import { SubscriptionProvider, SubscriptionStatus } from '../../plus';
+import { logger } from '../../../logger';
+import { isPlusMember } from '../../../paddle';
+import { updateSubscriptionFlags } from '../../utils';
 
 type PaddleCustomData = {
   user_id?: string;
