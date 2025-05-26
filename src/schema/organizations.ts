@@ -58,6 +58,11 @@ export const typeDefs = /* GraphQL */ `
     The user in the organization
     """
     user: User!
+
+    """
+    The organization the user is a member of
+    """
+    organization: Organization
   }
 
   type Organization {
@@ -113,7 +118,27 @@ export const typeDefs = /* GraphQL */ `
     """
     Get the organization by ID
     """
-    organization(id: ID!): UserOrganization @auth
+    organization(
+      """
+      The ID of the organization to get
+      """
+      id: ID!
+    ): UserOrganization @auth
+
+    """
+    Get the organization by ID and invite token
+    """
+    getOrganizationByIdAndInviteToken(
+      """
+      The ID of the organization to get
+      """
+      id: ID!
+
+      """
+      Referral token of the admin who invited the user
+      """
+      token: String!
+    ): OrganizationMember
   }
 
   extend type Mutation {
@@ -202,6 +227,39 @@ export const ensureOrganizationRole = async (
   return true;
 };
 
+const verifyOrganizationInviter = async (
+  ctx: Context,
+  organizationId: string,
+  token: string,
+): Promise<ContentPreferenceOrganization> => {
+  const inviter = await ctx.con
+    .getRepository(ContentPreferenceOrganization)
+    .findOneBy({
+      organizationId,
+      flags: JsonContains({
+        referralToken: token,
+      }),
+    });
+
+  if (!inviter) {
+    throw new ForbiddenError('Invalid invitation token');
+  }
+
+  if (
+    !isRoleAtLeast(
+      inviter.flags?.role || OrganizationMemberRole.Member,
+      OrganizationMemberRole.Admin,
+      organizationRoleHierarchy,
+    )
+  ) {
+    throw new ForbiddenError(
+      'The person who invited you does not have permission to invite you to this organization.',
+    );
+  }
+
+  return inviter;
+};
+
 const getOrganizationById = async (
   ctx: Context,
   info: GraphQLResolveInfo,
@@ -261,6 +319,30 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
       return getOrganizationById(ctx, info, organizationId);
     },
+    getOrganizationByIdAndInviteToken: async (
+      _,
+      { id: organizationId, token },
+      ctx: AuthContext,
+      info,
+    ) => {
+      await verifyOrganizationInviter(ctx, organizationId, token);
+
+      return graphorm.queryOneOrFail<GQLOrganizationMember>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .andWhere(`${builder.alias}."organizationId" = :organizationId`, {
+              organizationId,
+            })
+            .andWhere(`${builder.alias}.flags->>'referralToken' = :token`, {
+              token,
+            });
+
+          return builder;
+        },
+      );
+    },
   },
   Mutation: {
     updateOrganization: async (
@@ -312,30 +394,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLUserOrganization> => {
-      const inviter = await ctx.con
-        .getRepository(ContentPreferenceOrganization)
-        .findOneBy({
-          organizationId,
-          flags: JsonContains({
-            referralToken: token,
-          }),
-        });
-
-      if (!inviter) {
-        throw new ForbiddenError('Invalid invitation token');
-      }
-
-      if (
-        !isRoleAtLeast(
-          inviter.flags?.role || OrganizationMemberRole.Member,
-          OrganizationMemberRole.Admin,
-          organizationRoleHierarchy,
-        )
-      ) {
-        throw new ForbiddenError(
-          'The person who invited you does not have permission to invite you to this organization.',
-        );
-      }
+      await verifyOrganizationInviter(ctx, organizationId, token);
 
       try {
         await ctx.con.transaction(async (manager) => {

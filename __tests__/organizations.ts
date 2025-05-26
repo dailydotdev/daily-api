@@ -510,7 +510,7 @@ describe('mutation joinOrganization', () => {
         variables: { id: 'org-1', token: 'ref-token-2' },
       },
       'FORBIDDEN',
-      'The person who invited you, does not have permission to invite you to this organization.',
+      'The person who invited you does not have permission to invite you to this organization.',
     );
   });
 
@@ -547,6 +547,131 @@ describe('mutation joinOrganization', () => {
 
     expect(user.subscriptionFlags?.organizationId).toBe('org-1');
     expect(user.subscriptionFlags?.cycle).toBe(SubscriptionCycles.Yearly);
+  });
+});
+
+describe('query getOrganizationByIdAndInviteToken', () => {
+  const QUERY = /* GraphQL */ `
+    query GetOrganizationByIdAndInviteToken($id: ID!, $token: String!) {
+      getOrganizationByIdAndInviteToken(id: $id, token: $token) {
+        user {
+          id
+          name
+        }
+        organization {
+          id
+          name
+        }
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await con.getRepository(Feed).save([
+      {
+        id: '1',
+        userId: '1',
+      },
+      {
+        id: '2',
+        userId: '2',
+      },
+      {
+        id: '3',
+        userId: '3',
+      },
+    ]);
+
+    await con.getRepository(ContentPreferenceOrganization).save([
+      {
+        userId: '1',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '1',
+        status: ContentPreferenceStatus.Follow,
+        flags: {
+          role: OrganizationMemberRole.Owner,
+          referralToken: 'ref-token-1',
+        },
+      },
+      {
+        userId: '2',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '2',
+        status: ContentPreferenceStatus.Follow,
+        flags: {
+          role: OrganizationMemberRole.Member,
+          referralToken: 'ref-token-2',
+        },
+      },
+    ]);
+  });
+
+  it('should return forbidden if token and organization do not match', async () => {
+    loggedUser = '3';
+
+    testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { id: 'non-existing', token: 'ref-token-1' },
+      },
+      'FORBIDDEN',
+      'Invalid invitation token',
+    );
+  });
+
+  it('should return forbidden if inviter does not have permission to invite', async () => {
+    loggedUser = '3';
+
+    testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { id: 'org-1', token: 'ref-token-2' },
+      },
+      'FORBIDDEN',
+      'The person who invited you does not have permission to invite you to this organization.',
+    );
+  });
+
+  it('should return organization and user who invited', async () => {
+    loggedUser = '3';
+
+    const res = await client.query(QUERY, {
+      variables: { id: 'org-1', token: 'ref-token-1' },
+    });
+    expect(res.data).toMatchObject({
+      getOrganizationByIdAndInviteToken: {
+        user: {
+          id: '1',
+          name: 'Ido',
+        },
+        organization: {
+          id: 'org-1',
+          name: 'Organization 1',
+        },
+      },
+    });
+  });
+
+  it('should return organization and user who invited when not logged in', async () => {
+    const res = await client.query(QUERY, {
+      variables: { id: 'org-1', token: 'ref-token-1' },
+    });
+    expect(res.data).toMatchObject({
+      getOrganizationByIdAndInviteToken: {
+        user: {
+          id: '1',
+          name: 'Ido',
+        },
+        organization: {
+          id: 'org-1',
+          name: 'Organization 1',
+        },
+      },
+    });
   });
 });
 
