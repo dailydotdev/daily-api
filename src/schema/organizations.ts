@@ -5,7 +5,11 @@ import { ForbiddenError } from 'apollo-server-errors';
 import type { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import { Organization } from '../entity/Organization';
-import { OrganizationMemberRole, organizationRoleHierarchy } from '../roles';
+import {
+  isRoleAtLeast,
+  OrganizationMemberRole,
+  organizationRoleHierarchy,
+} from '../roles';
 import graphorm from '../graphorm';
 import {
   toGQLEnum,
@@ -16,9 +20,13 @@ import type { GQLUser } from './users';
 import type { GraphQLResolveInfo } from 'graphql';
 import { isNullOrUndefined } from '../common/object';
 import { ContentPreferenceOrganization } from '../entity/contentPreference/ContentPreferenceOrganization';
-import { type TypeORMQueryFailedError } from '../errors';
+import { TypeOrmError, type TypeORMQueryFailedError } from '../errors';
 import type { GQLEmptyResponse } from './common';
+import { ContentPreferenceStatus } from '../entity/contentPreference/types';
+import { randomUUID } from 'node:crypto';
+import { JsonContains } from 'typeorm';
 import { User } from '../entity';
+import { isPlusMember } from '../paddle';
 
 export type GQLOrganizationMember = {
   role: OrganizationMemberRole;
@@ -130,6 +138,21 @@ export const typeDefs = /* GraphQL */ `
     ): UserOrganization! @auth
 
     """
+    Adds the logged-in user as a member of the organization
+    """
+    joinOrganization(
+      """
+      The ID of the organization to join
+      """
+      id: ID!
+
+      """
+      Referral token of the admin who invited the user
+      """
+      token: String!
+    ): UserOrganization! @auth
+
+    """
     Removes the logged-in user from a organization
     """
     leaveOrganization(
@@ -170,15 +193,7 @@ export const ensureOrganizationRole = async (
     throw new ForbiddenError('Access denied! No role assigned.');
   }
 
-  const userRoleIndex = organizationRoleHierarchy.indexOf(userRole);
-  const requiredRoleIndex = organizationRoleHierarchy.indexOf(requiredRole);
-
-  // If either role is not found in the hierarchy, or the user's role is below the required role
-  if (
-    userRoleIndex === -1 ||
-    requiredRoleIndex === -1 ||
-    userRoleIndex > requiredRoleIndex
-  ) {
+  if (!isRoleAtLeast(userRole, requiredRole, organizationRoleHierarchy)) {
     throw new ForbiddenError(
       `Access denied! You need to be a ${requiredRole.toLowerCase()} or higher to perform this action.`,
     );
@@ -290,6 +305,84 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         );
         throw err;
       }
+    },
+    joinOrganization: async (
+      _,
+      { id: organizationId, token },
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLUserOrganization> => {
+      const inviter = await ctx.con
+        .getRepository(ContentPreferenceOrganization)
+        .findOneBy({
+          organizationId,
+          flags: JsonContains({
+            referralToken: token,
+          }),
+        });
+
+      if (!inviter) {
+        throw new ForbiddenError('Invalid invitation token');
+      }
+
+      if (
+        !isRoleAtLeast(
+          inviter.flags?.role || OrganizationMemberRole.Member,
+          OrganizationMemberRole.Admin,
+          organizationRoleHierarchy,
+        )
+      ) {
+        throw new ForbiddenError(
+          'The person who invited you does not have permission to invite you to this organization.',
+        );
+      }
+
+      try {
+        await ctx.con.transaction(async (manager) => {
+          const member = await manager.getRepository(User).findOneByOrFail({
+            id: ctx.userId,
+          });
+
+          const organization = await manager
+            .getRepository(Organization)
+            .findOneByOrFail({
+              id: organizationId,
+            });
+
+          await Promise.all([
+            manager.getRepository(ContentPreferenceOrganization).save({
+              userId: member.id,
+              referenceId: organizationId,
+              organizationId: organizationId,
+              feedId: member.id,
+              status: ContentPreferenceStatus.Follow,
+              flags: {
+                role: OrganizationMemberRole.Member,
+                referralToken: randomUUID(),
+              },
+            }),
+            // Give the user plus access if they are not already a plus member
+            !isPlusMember(member.subscriptionFlags?.cycle) &&
+              manager.getRepository(User).update(
+                { id: member.id },
+                {
+                  subscriptionFlags: updateSubscriptionFlags({
+                    ...organization.subscriptionFlags,
+                    organizationId: organizationId,
+                  }),
+                },
+              ),
+          ]);
+        });
+      } catch (_err) {
+        const err = _err as TypeORMQueryFailedError;
+
+        if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
+          throw err;
+        }
+      }
+
+      return getOrganizationById(ctx, info, organizationId);
     },
     leaveOrganization: async (
       _,
