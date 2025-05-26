@@ -124,18 +124,25 @@ export const typeDefs = /* GraphQL */ `
 
 export const ensureOrganizationRole = async (
   ctx: Context,
-  id?: string,
-  requiredRole: OrganizationMemberRole = OrganizationMemberRole.Member,
+  {
+    organizationId,
+    requiredRole = OrganizationMemberRole.Member,
+    userId,
+  }: {
+    organizationId?: string;
+    requiredRole?: OrganizationMemberRole;
+    userId?: string;
+  },
 ) => {
-  if (!id || isNullOrUndefined(requiredRole)) {
+  if (!organizationId || isNullOrUndefined(requiredRole)) {
     throw new ForbiddenError('Access denied!');
   }
 
   const res = await ctx.con
     .getRepository(ContentPreferenceOrganization)
     .findOneByOrFail({
-      organizationId: id,
-      userId: ctx.userId,
+      organizationId: organizationId,
+      userId: userId || ctx.userId,
     });
 
   if (!res) {
@@ -208,12 +215,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     organization: async (
       _,
-      { id },
+      { id: organizationId },
       ctx: AuthContext,
       info,
     ): Promise<GQLUserOrganization> => {
-      await ensureOrganizationRole(ctx, id, OrganizationMemberRole.Member);
-      return getOrganizationById(ctx, info, id);
+      await ensureOrganizationRole(ctx, {
+        organizationId,
+        requiredRole: OrganizationMemberRole.Member,
+      });
+      return getOrganizationById(ctx, info, organizationId);
     },
   },
   Mutation: {
@@ -223,7 +233,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLUserOrganization> => {
-      await ensureOrganizationRole(ctx, id, OrganizationMemberRole.Admin);
+      await ensureOrganizationRole(ctx, {
+        organizationId: id,
+        requiredRole: OrganizationMemberRole.Admin,
+      });
+
       try {
         const editedOrganizationId = await ctx.con.transaction(
           async (manager) => {
