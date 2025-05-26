@@ -50,7 +50,11 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
                 await processPlusPaddleEvent(event);
                 break;
               default:
-                throw new Error('Could not identify purchase type for event');
+                logger.info(
+                  { eventType: event.eventType },
+                  'Unhandled Paddle event type',
+                );
+                break;
             }
           } else {
             logger.error(
