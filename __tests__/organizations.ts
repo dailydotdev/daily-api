@@ -4,6 +4,7 @@ import {
   initializeGraphQLTesting,
   MockContext,
   saveFixtures,
+  testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
 import { Feed, Organization, User } from '../src/entity';
@@ -258,5 +259,119 @@ describe('query organization', () => {
         },
       },
     ]);
+  });
+});
+
+describe('mutation updateOrganization', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation UpdateOrganization($id: ID!, $name: String, $image: Upload) {
+      updateOrganization(id: $id, name: $name, image: $image) {
+        organization {
+          id
+          name
+          image
+        }
+      }
+    }
+  `;
+  beforeEach(async () => {
+    await con.getRepository(Feed).save([
+      {
+        id: '1',
+        userId: '1',
+      },
+      {
+        id: '2',
+        userId: '2',
+      },
+    ]);
+
+    await con.getRepository(ContentPreferenceOrganization).save([
+      {
+        userId: '1',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '1',
+        status: ContentPreferenceStatus.Follow,
+        flags: {
+          role: OrganizationMemberRole.Owner,
+          referralToken: 'ref-token-1',
+        },
+      },
+      {
+        userId: '2',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '2',
+        status: ContentPreferenceStatus.Follow,
+        flags: {
+          role: OrganizationMemberRole.Member,
+          referralToken: 'ref-token-2',
+        },
+      },
+    ]);
+  });
+
+  it('should not authorize when not logged-in', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { id: 'org-1', name: 'New org name' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return not found when organization does not exist', async () => {
+    loggedUser = '1';
+
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'non-existing', name: 'New org name' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return not found when user is not member of organization', async () => {
+    loggedUser = '1';
+
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { id: 'org-2', name: 'New org name' } },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should not allow user to update organization when not admin', async () => {
+    loggedUser = '2';
+
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { id: 'org-1', name: 'New org name' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should allow user to update organization when admin', async () => {
+    loggedUser = '1';
+
+    const { data } = await client.mutate(MUTATION, {
+      variables: { id: 'org-1', name: 'New org name' },
+    });
+
+    expect(data).toEqual({
+      updateOrganization: {
+        organization: {
+          id: 'org-1',
+          name: 'New org name',
+          image: null,
+        },
+      },
+    });
+
+    const updatedOrg = await con.getRepository(Organization).findOneByOrFail({
+      id: 'org-1',
+    });
+    expect(updatedOrg.name).toBe('New org name');
   });
 });
