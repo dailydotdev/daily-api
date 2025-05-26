@@ -171,10 +171,7 @@ export const meiliOffsetGenerator = <
   },
   nodeToCursor: (page, { ids }, node): string =>
     offsetToCursor(page.offset + ids.findIndex((postId) => postId === node.id)),
-  hasNextPage: (page): boolean => {
-    console.log('page', page.current, page.limit, page.current! < page.limit);
-    return page.current! < page.limit;
-  },
+  hasNextPage: (page): boolean => page.current! < page.limit,
   hasPreviousPage: (page): boolean => page.offset > 0,
 });
 

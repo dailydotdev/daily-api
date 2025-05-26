@@ -416,11 +416,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         });
 
         const mimirSearchRes = await mimirClient.search(searchReq);
-        console.log(
-          'search',
-          mimirSearchRes.result.map((x) => x.postId),
-          mimirSearchRes.result.length,
-        );
 
         const res = await meiliSearchResolver(
           source,
