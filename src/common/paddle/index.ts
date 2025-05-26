@@ -427,6 +427,12 @@ export const paddleSubscriptionSchema = z.object({
           productId: z.string({
             message: 'Subscription product id is required',
           }),
+          billingCycle: z.object({
+            interval: z.enum(['month', 'year'], {
+              message: 'Subscription cycle is required',
+            }),
+            frequency: z.number().int(),
+          }),
         }),
         quantity: z.number(),
       }),
