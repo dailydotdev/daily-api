@@ -2,17 +2,19 @@ import type { IResolvers } from '@graphql-tools/utils';
 import type { AuthContext, BaseContext } from '../Context';
 import { traceResolvers } from './trace';
 import { Organization } from '../entity/Organization';
-import type { OrganizationMemberRoles } from '../roles';
+import type { OrganizationMemberRole } from '../roles';
 import graphorm from '../graphorm';
+import { toGQLEnum } from '../common';
 
 export type GQLOrganization = Omit<Organization, 'subscriptionFlags'>;
 export type GQLUserOrganization = {
   createdAt: Date;
-  role: OrganizationMemberRoles;
+  role: OrganizationMemberRole;
   organization: GQLOrganization;
 };
 
 export const typeDefs = /* GraphQL */ `
+  ${toGQLEnum(OrganizationMemberRole, 'OrganizationMemberRole')}
   type Organization {
     """
     The ID of the organization
@@ -39,7 +41,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Role of the user in the organization
     """
-    role: String!
+    role: OrganizationMemberRole!
 
     """
     Referral token for the user

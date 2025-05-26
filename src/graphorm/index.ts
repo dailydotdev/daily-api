@@ -19,7 +19,7 @@ import {
   type PostTranslation,
 } from '../entity';
 import {
-  OrganizationMemberRoles,
+  OrganizationMemberRole,
   SourceMemberRoles,
   rankToSourceRole,
   sourceRoleRank,
@@ -1180,7 +1180,7 @@ const obj = new GraphORM({
       role: {
         rawSelect: true,
         select: (_, alias) =>
-          `COALESCE(${alias}.flags->>'role', '${OrganizationMemberRoles.Member}')`,
+          `COALESCE(${alias}.flags->>'role', '${OrganizationMemberRole.Member}')`,
       },
     },
   },

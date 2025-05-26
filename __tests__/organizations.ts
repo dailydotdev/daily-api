@@ -14,7 +14,7 @@ import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
 import { ContentPreferenceOrganization } from '../src/entity/contentPreference/ContentPreferenceOrganization';
 import { ContentPreferenceStatus } from '../src/entity/contentPreference/types';
-import { OrganizationMemberRoles } from '../src/roles';
+import { OrganizationMemberRole } from '../src/roles';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -97,7 +97,7 @@ describe('query organizations', () => {
       feedId: loggedUser,
       status: ContentPreferenceStatus.Follow,
       flags: {
-        role: OrganizationMemberRoles.Owner,
+        role: OrganizationMemberRole.Owner,
         referralToken: 'ref-token-1',
       },
     });
@@ -178,7 +178,7 @@ describe('query organization', () => {
       feedId: loggedUser,
       status: ContentPreferenceStatus.Follow,
       flags: {
-        role: OrganizationMemberRoles.Owner,
+        role: OrganizationMemberRole.Owner,
         referralToken: 'ref-token-1',
       },
     });
