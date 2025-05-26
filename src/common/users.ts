@@ -118,6 +118,7 @@ export interface StreakRecoverQueryResult {
   canRecover: boolean;
   cost: number;
   oldStreakLength: number;
+  regularCost: number;
 }
 
 const V1_STEPS_PER_RANK = [3, 4, 5, 6, 7];

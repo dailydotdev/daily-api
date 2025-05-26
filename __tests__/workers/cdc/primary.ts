@@ -106,7 +106,7 @@ import {
   UserStateKey,
   ContentImage,
 } from '../../../src/entity';
-import { ChangeObject, UserVote } from '../../../src/types';
+import { ChangeObject, CoresRole, UserVote } from '../../../src/types';
 import { sourcesFixture } from '../../fixture/source';
 import {
   contentUpdatedPost,
@@ -3538,9 +3538,23 @@ describe('post content updated', () => {
 });
 
 describe('user streak change', () => {
+  beforeEach(async () => {
+    await saveFixtures(
+      con,
+      User,
+      usersFixture.map((item) => ({
+        ...item,
+        id: `${item.id}-cusc`,
+        username: `${item.username}-cusc`,
+        coresRole: CoresRole.User,
+        github: item.github ? `${item.github}-cusc` : undefined,
+      })),
+    );
+  });
+
   type ObjectType = UserStreak;
   const base: ChangeObject<ObjectType> = {
-    userId: '1',
+    userId: '1-cusc',
     currentStreak: 2,
     totalStreak: 3,
     maxStreak: 4,
@@ -3588,7 +3602,6 @@ describe('user streak change', () => {
 
     beforeEach(async () => {
       await ioRedisPool.execute((client) => client.flushall());
-      await saveFixtures(con, User, [usersFixture[0]]);
       await con.getRepository(UserStreak).save({
         ...base,
         lastViewAt: new Date(base.lastViewAt as never),
@@ -3623,7 +3636,9 @@ describe('user streak change', () => {
         'api.v1.user-streak-updated',
         { streak: after },
       ]);
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '1-cusc' });
       expect(alert.showRecoverStreak).toEqual(false);
     });
 
@@ -3653,7 +3668,9 @@ describe('user streak change', () => {
         'api.v1.user-streak-updated',
         { streak: after },
       ]);
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '1-cusc' });
       expect(alert.showRecoverStreak).toEqual(false);
     });
 
@@ -3681,9 +3698,11 @@ describe('user streak change', () => {
         { streak: after },
       ]);
       expect(lastStreak).toEqual(3);
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '1-cusc' });
       expect(alert!.showRecoverStreak).toEqual(true);
-      expect(spy).toHaveBeenCalledWith('streak:reset:1', 3, 43200); // 12 hours
+      expect(spy).toHaveBeenCalledWith('streak:reset:1-cusc', 3, 43200); // 12 hours
     });
 
     it('should set cache until next weekday as expiry', async () => {
@@ -3699,7 +3718,7 @@ describe('user streak change', () => {
       };
       await con
         .getRepository(UserStreak)
-        .update({ userId: '1' }, { lastViewAt });
+        .update({ userId: '1-cusc' }, { lastViewAt });
       await expectSuccessfulBackground(
         worker,
         mockChangeMessage<ObjectType>({
@@ -3720,9 +3739,11 @@ describe('user streak change', () => {
         { streak: after },
       ]);
       expect(lastStreak).toEqual(3);
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '1-cusc' });
       expect(alert!.showRecoverStreak).toEqual(true);
-      expect(spy).toHaveBeenCalledWith('streak:reset:1', 3, 216000); // 60 hours --- 2 days = 48 hours + 12 hours
+      expect(spy).toHaveBeenCalledWith('streak:reset:1-cusc', 3, 216000); // 60 hours --- 2 days = 48 hours + 12 hours
     });
 
     it('should set cache of previous streak even when weekend had passed if it has only been 2 valid days', async () => {
@@ -3737,7 +3758,7 @@ describe('user streak change', () => {
       };
       await con
         .getRepository(UserStreak)
-        .update({ userId: '1' }, { lastViewAt });
+        .update({ userId: '1-cusc' }, { lastViewAt });
       await expectSuccessfulBackground(
         worker,
         mockChangeMessage<ObjectType>({
@@ -3758,7 +3779,9 @@ describe('user streak change', () => {
         { streak: after },
       ]);
       expect(lastStreak).toEqual(3);
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '1-cusc' });
       expect(alert.showRecoverStreak).toEqual(true);
     });
 
@@ -3774,7 +3797,7 @@ describe('user streak change', () => {
       };
       await con
         .getRepository(UserStreak)
-        .update({ userId: '1' }, { lastViewAt });
+        .update({ userId: '1-cusc' }, { lastViewAt });
       await expectSuccessfulBackground(
         worker,
         mockChangeMessage<ObjectType>({
@@ -3795,7 +3818,9 @@ describe('user streak change', () => {
         { streak: after },
       ]);
       expect(lastStreak).toEqual(3);
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '1-cusc' });
       expect(alert.showRecoverStreak).toEqual(true);
     });
 
@@ -3811,7 +3836,7 @@ describe('user streak change', () => {
       };
       await con
         .getRepository(UserStreak)
-        .update({ userId: '1' }, { lastViewAt });
+        .update({ userId: '1-cusc' }, { lastViewAt });
       await expectSuccessfulBackground(
         worker,
         mockChangeMessage<ObjectType>({
@@ -3832,7 +3857,9 @@ describe('user streak change', () => {
         { streak: after },
       ]);
       expect(lastStreak).toEqual(3);
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '1-cusc' });
       expect(alert.showRecoverStreak).toEqual(true);
     });
 
@@ -3848,7 +3875,7 @@ describe('user streak change', () => {
       };
       await con
         .getRepository(UserStreak)
-        .update({ userId: '1' }, { lastViewAt });
+        .update({ userId: '1-cusc' }, { lastViewAt });
       await expectSuccessfulBackground(
         worker,
         mockChangeMessage<ObjectType>({
@@ -3869,7 +3896,9 @@ describe('user streak change', () => {
         { streak: after },
       ]);
       expect(lastStreak).toEqual(3);
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '1-cusc' });
       expect(alert.showRecoverStreak).toEqual(true);
     });
 
@@ -3885,7 +3914,7 @@ describe('user streak change', () => {
       };
       await con
         .getRepository(UserStreak)
-        .update({ userId: '1' }, { lastViewAt });
+        .update({ userId: '1-cusc' }, { lastViewAt });
       await expectSuccessfulBackground(
         worker,
         mockChangeMessage<ObjectType>({
@@ -3906,7 +3935,9 @@ describe('user streak change', () => {
         { streak: after },
       ]);
       expect(lastStreak).toEqual(3);
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '1-cusc' });
       expect(alert.showRecoverStreak).toEqual(true);
     });
 
@@ -3922,7 +3953,7 @@ describe('user streak change', () => {
       };
       await con
         .getRepository(UserStreak)
-        .update({ userId: '1' }, { lastViewAt });
+        .update({ userId: '1-cusc' }, { lastViewAt });
       await expectSuccessfulBackground(
         worker,
         mockChangeMessage<ObjectType>({
@@ -3943,7 +3974,9 @@ describe('user streak change', () => {
         { streak: after },
       ]);
       expect(lastStreak).toBeFalsy();
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '1-cusc' });
       expect(alert.showRecoverStreak).toEqual(false);
     });
 
@@ -3961,13 +3994,13 @@ describe('user streak change', () => {
         currentStreak: 0,
       };
       await con.getRepository(UserStreakAction).save({
-        userId: '1',
+        userId: '1-cusc',
         type: UserStreakActionType.Recover,
         createdAt: lastRecoveryAt,
       });
       await con
         .getRepository(UserStreak)
-        .update({ userId: '1' }, { lastViewAt });
+        .update({ userId: '1-cusc' }, { lastViewAt });
       await expectSuccessfulBackground(
         worker,
         mockChangeMessage<ObjectType>({
@@ -3988,7 +4021,9 @@ describe('user streak change', () => {
         { streak: after },
       ]);
       expect(lastStreak).toEqual(3);
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '1-cusc' });
       expect(alert.showRecoverStreak).toEqual(true);
     });
 
@@ -4005,13 +4040,13 @@ describe('user streak change', () => {
         currentStreak: 0,
       };
       await con.getRepository(UserStreakAction).save({
-        userId: '1',
+        userId: '1-cusc',
         type: UserStreakActionType.Recover,
         createdAt: lastRecoveryAt,
       });
       await con
         .getRepository(UserStreak)
-        .update({ userId: '1' }, { lastViewAt });
+        .update({ userId: '1-cusc' }, { lastViewAt });
       await expectSuccessfulBackground(
         worker,
         mockChangeMessage<ObjectType>({
@@ -4032,7 +4067,9 @@ describe('user streak change', () => {
         { streak: after },
       ]);
       expect(lastStreak).toEqual(3);
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '1-cusc' });
       expect(alert.showRecoverStreak).toEqual(true);
     });
 
@@ -4049,7 +4086,7 @@ describe('user streak change', () => {
       };
       await con
         .getRepository(User)
-        .update({ id: '1' }, { timezone: 'Asia/Manila' });
+        .update({ id: '1-cusc' }, { timezone: 'Asia/Manila' });
       await expectSuccessfulBackground(
         worker,
         mockChangeMessage<ObjectType>({
@@ -4072,9 +4109,11 @@ describe('user streak change', () => {
         { streak: after },
       ]);
       expect(lastStreak).toEqual(3);
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '1-cusc' });
       expect(alert.showRecoverStreak).toEqual(true);
-      expect(spy).toHaveBeenCalledWith('streak:reset:1', 3, 77227);
+      expect(spy).toHaveBeenCalledWith('streak:reset:1-cusc', 3, 77227);
     });
 
     it('should set cache of previous streak for recovery considering the timezone earlier than UTC', async () => {
@@ -4089,7 +4128,7 @@ describe('user streak change', () => {
       };
       await con
         .getRepository(User)
-        .update({ id: '1' }, { timezone: 'Pacific/Easter' }); // UTC-6
+        .update({ id: '1-cusc' }, { timezone: 'Pacific/Easter' }); // UTC-6
       await expectSuccessfulBackground(
         worker,
         mockChangeMessage<ObjectType>({
@@ -4112,8 +4151,46 @@ describe('user streak change', () => {
         { streak: after },
       ]);
       expect(lastStreak).toEqual(3);
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '1-cusc' });
       expect(alert.showRecoverStreak).toEqual(true);
+    });
+
+    it('should not set cache of previous streak for recovery if user does not have Cores access', async () => {
+      await con
+        .getRepository(User)
+        .update({ id: '4-cusc' }, { coresRole: CoresRole.None });
+
+      const spy = jest.spyOn(redisFile, 'setRedisObjectWithExpiry');
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        ...dates,
+        userId: '4-cusc',
+        currentStreak: 0,
+      };
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: { ...base, ...dates, userId: '4-cusc', currentStreak: 3 },
+          op: 'u',
+          table: 'user_streak',
+        }),
+      );
+
+      const lastStreak = await getRestoreStreakCache({ userId: after.userId });
+      expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+      expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+        'api.v1.user-streak-updated',
+        { streak: after },
+      ]);
+      expect(lastStreak).toBeNull();
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '4-cusc' });
+      expect(alert!.showRecoverStreak).toEqual(false);
+      expect(spy).not.toHaveBeenCalled();
     });
   });
 
@@ -4126,7 +4203,10 @@ describe('user streak change', () => {
     beforeEach(async () => {
       await ioRedisPool.execute((client) => client.flushall());
       await saveFixtures(con, User, [
-        { ...usersFixture[0], weekStart: DayOfWeek.Sunday },
+        {
+          id: '1-cusc',
+          weekStart: DayOfWeek.Sunday,
+        },
       ]);
       await con.getRepository(UserStreak).save({
         ...base,
@@ -4162,7 +4242,9 @@ describe('user streak change', () => {
         'api.v1.user-streak-updated',
         { streak: after },
       ]);
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '1-cusc' });
       expect(alert.showRecoverStreak).toEqual(false);
     });
 
@@ -4192,7 +4274,9 @@ describe('user streak change', () => {
         'api.v1.user-streak-updated',
         { streak: after },
       ]);
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '1-cusc' });
       expect(alert.showRecoverStreak).toEqual(false);
     });
 
@@ -4219,7 +4303,9 @@ describe('user streak change', () => {
         { streak: after },
       ]);
       expect(lastStreak).toEqual(3);
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '1-cusc' });
       expect(alert.showRecoverStreak).toEqual(true);
     });
 
@@ -4235,7 +4321,7 @@ describe('user streak change', () => {
       };
       await con
         .getRepository(UserStreak)
-        .update({ userId: '1' }, { lastViewAt });
+        .update({ userId: '1-cusc' }, { lastViewAt });
       await expectSuccessfulBackground(
         worker,
         mockChangeMessage<ObjectType>({
@@ -4256,7 +4342,9 @@ describe('user streak change', () => {
         { streak: after },
       ]);
       expect(lastStreak).toEqual(3);
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '1-cusc' });
       expect(alert.showRecoverStreak).toEqual(true);
     });
 
@@ -4272,7 +4360,7 @@ describe('user streak change', () => {
       };
       await con
         .getRepository(UserStreak)
-        .update({ userId: '1' }, { lastViewAt });
+        .update({ userId: '1-cusc' }, { lastViewAt });
       await expectSuccessfulBackground(
         worker,
         mockChangeMessage<ObjectType>({
@@ -4293,7 +4381,9 @@ describe('user streak change', () => {
         { streak: after },
       ]);
       expect(lastStreak).toEqual(3);
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '1-cusc' });
       expect(alert.showRecoverStreak).toEqual(true);
     });
 
@@ -4309,7 +4399,7 @@ describe('user streak change', () => {
       };
       await con
         .getRepository(UserStreak)
-        .update({ userId: '1' }, { lastViewAt });
+        .update({ userId: '1-cusc' }, { lastViewAt });
       await expectSuccessfulBackground(
         worker,
         mockChangeMessage<ObjectType>({
@@ -4330,7 +4420,9 @@ describe('user streak change', () => {
         { streak: after },
       ]);
       expect(lastStreak).toEqual(3);
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '1-cusc' });
       expect(alert.showRecoverStreak).toEqual(true);
     });
 
@@ -4346,7 +4438,7 @@ describe('user streak change', () => {
       };
       await con
         .getRepository(UserStreak)
-        .update({ userId: '1' }, { lastViewAt });
+        .update({ userId: '1-cusc' }, { lastViewAt });
       await expectSuccessfulBackground(
         worker,
         mockChangeMessage<ObjectType>({
@@ -4367,7 +4459,9 @@ describe('user streak change', () => {
         { streak: after },
       ]);
       expect(lastStreak).toEqual(3);
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '1-cusc' });
       expect(alert.showRecoverStreak).toEqual(true);
     });
 
@@ -4383,7 +4477,7 @@ describe('user streak change', () => {
       };
       await con
         .getRepository(UserStreak)
-        .update({ userId: '1' }, { lastViewAt });
+        .update({ userId: '1-cusc' }, { lastViewAt });
       await expectSuccessfulBackground(
         worker,
         mockChangeMessage<ObjectType>({
@@ -4404,7 +4498,9 @@ describe('user streak change', () => {
         { streak: after },
       ]);
       expect(lastStreak).toBeFalsy();
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '1-cusc' });
       expect(alert.showRecoverStreak).toEqual(false);
     });
 
@@ -4422,13 +4518,13 @@ describe('user streak change', () => {
         currentStreak: 0,
       };
       await con.getRepository(UserStreakAction).save({
-        userId: '1',
+        userId: '1-cusc',
         type: UserStreakActionType.Recover,
         createdAt: lastRecoveryAt,
       });
       await con
         .getRepository(UserStreak)
-        .update({ userId: '1' }, { lastViewAt });
+        .update({ userId: '1-cusc' }, { lastViewAt });
       await expectSuccessfulBackground(
         worker,
         mockChangeMessage<ObjectType>({
@@ -4449,7 +4545,9 @@ describe('user streak change', () => {
         { streak: after },
       ]);
       expect(lastStreak).toEqual(3);
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '1-cusc' });
       expect(alert.showRecoverStreak).toEqual(true);
     });
 
@@ -4466,13 +4564,13 @@ describe('user streak change', () => {
         currentStreak: 0,
       };
       await con.getRepository(UserStreakAction).save({
-        userId: '1',
+        userId: '1-cusc',
         type: UserStreakActionType.Recover,
         createdAt: lastRecoveryAt,
       });
       await con
         .getRepository(UserStreak)
-        .update({ userId: '1' }, { lastViewAt });
+        .update({ userId: '1-cusc' }, { lastViewAt });
       await expectSuccessfulBackground(
         worker,
         mockChangeMessage<ObjectType>({
@@ -4493,7 +4591,9 @@ describe('user streak change', () => {
         { streak: after },
       ]);
       expect(lastStreak).toEqual(3);
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      const alert = await con
+        .getRepository(Alerts)
+        .findOneBy({ userId: '1-cusc' });
       expect(alert.showRecoverStreak).toEqual(true);
     });
   });
@@ -4527,7 +4627,7 @@ describe('user company approved', () => {
   });
 
   it('should notify on creation when company id is set', async () => {
-    const after: ChangeObject<ObjectType> = { ...base, companyId: '1' };
+    const after: ChangeObject<ObjectType> = { ...base, companyId: '1-cusc' };
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<ObjectType>({
