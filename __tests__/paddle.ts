@@ -23,16 +23,11 @@ import {
   CurrencyCode,
   PricingPreview,
 } from '@paddle/paddle-node-sdk';
-import {
-  PaddleCustomData,
-  processGiftedPayment,
-  updateUserSubscription,
-} from '../src/routes/webhooks/paddle';
 import { isPlusMember, SubscriptionCycles } from '../src/paddle';
 import { FastifyInstance } from 'fastify';
 import appFunc from '../src';
 import { logger } from '../src/logger';
-import { paddleInstance } from '../src/common/paddle';
+import { paddleInstance, type PaddleCustomData } from '../src/common/paddle';
 import * as redisFile from '../src/redis';
 import { ioRedisPool } from '../src/redis';
 import { ExperimentVariant } from '../src/entity';
@@ -45,6 +40,10 @@ import {
 } from '../src/common/paddle/pricing';
 import { ClaimableItem, ClaimableItemTypes } from '../src/entity/ClaimableItem';
 import type { PricingPreviewLineItem } from '@paddle/paddle-node-sdk/dist/types/entities/pricing-preview';
+import {
+  processGiftedPayment,
+  updateUserSubscription,
+} from '../src/common/paddle/plus/processing';
 
 let app: FastifyInstance;
 let con: DataSource;

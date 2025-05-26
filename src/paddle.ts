@@ -2,6 +2,7 @@ import type {
   SubscriptionCreatedEvent,
   SubscriptionCanceledEvent,
   SubscriptionUpdatedEvent,
+  TransactionPayoutTotalsNotification,
 } from '@paddle/paddle-node-sdk';
 import { UserSubscriptionFlags } from './entity';
 
@@ -27,3 +28,13 @@ export const isGiftedPlus = (
   Required<Pick<UserSubscriptionFlags, 'gifterId' | 'cycle'>> =>
   (!!subscriptionFlags?.gifterId || false) &&
   isPlusMember(subscriptionFlags.cycle);
+
+export interface PaddleAnalyticsExtra {
+  cycle: SubscriptionCycles;
+  cost: number;
+  currency: string;
+  payment: string;
+  localCost: number;
+  localCurrency: string;
+  payout: TransactionPayoutTotalsNotification | null;
+}

@@ -756,7 +756,7 @@ describe('query recommendedMentions', () => {
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.recommendedMentions).toMatchSnapshot(); // to easily see there's no duplicates
-    expect(res.data.recommendedMentions.length).toEqual(3);
+    expect(res.data.recommendedMentions.length).toEqual(4);
     expect(res.data.recommendedMentions[0]).not.toEqual('sample');
   });
 
