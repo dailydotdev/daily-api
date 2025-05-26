@@ -416,6 +416,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         });
 
         const mimirSearchRes = await mimirClient.search(searchReq);
+        console.log(
+          'search',
+          mimirSearchRes.result.map((x) => x.postId),
+          mimirSearchRes.result.length,
+        );
+
         const res = await meiliSearchResolver(
           source,
           {
@@ -424,8 +430,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             pagination: {
               limit,
               offset,
-              total: mimirSearchRes.result.length,
-              current: offset + mimirSearchRes.result.length,
+              total: limit + 1,
+              current: mimirSearchRes.result.length,
             },
           },
           ctx,
