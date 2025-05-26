@@ -1,10 +1,12 @@
-import type {
-  SubscriptionCreatedEvent,
-  SubscriptionCreatedNotification,
-} from '@paddle/paddle-node-sdk';
+import type { SubscriptionCreatedEvent } from '@paddle/paddle-node-sdk';
 import { randomUUID } from 'crypto';
 import createOrGetConnection from '../../../db';
-import { extractSubscriptionCycle, paddleInstance } from '..';
+import {
+  extractSubscriptionCycle,
+  getPaddleSubscriptionData,
+  paddleInstance,
+  type paddleSubscriptionSchema,
+} from '..';
 import { Organization, User } from '../../../entity';
 import { ContentPreferenceOrganization } from '../../../entity/contentPreference/ContentPreferenceOrganization';
 import { ContentPreferenceStatus } from '../../../entity/contentPreference/types';
@@ -15,18 +17,15 @@ import {
   SubscriptionStatus,
 } from '../../plus';
 import { logger } from '../../../logger';
-import { isPlusMember } from '../../../paddle';
+import { isPlusMember, type PaddleSubscriptionEvent } from '../../../paddle';
 import { updateSubscriptionFlags } from '../../utils';
-
-type PaddleCustomData = {
-  user_id?: string;
-};
+import type { z } from 'zod';
 
 // If the user provides business information during the checkout, we will use it
 // otherwise we will use the default business name
 const getBusinessName = async (
   user: User,
-  data: SubscriptionCreatedNotification,
+  data: z.infer<typeof paddleSubscriptionSchema>,
 ) => {
   const defaultBusinessName = `${user.name}'s new Organization`;
   if (!data.businessId) {
@@ -49,13 +48,16 @@ export const createOrganizationSubscription = async ({
 }: {
   event: SubscriptionCreatedEvent;
 }) => {
+  const data = getPaddleSubscriptionData({ event });
   const organizationId = randomUUID();
   const con = await createOrGetConnection();
 
-  const { data } = event;
-  const { user_id: userId }: PaddleCustomData = data?.customData || {};
+  const { user_id: userId } = data.customData;
 
-  const subscriptionType = extractSubscriptionCycle(data.items);
+  const subscriptionType = extractSubscriptionCycle(
+    data.items as PaddleSubscriptionEvent['data']['items'],
+  );
+
   if (!subscriptionType) {
     logger.error(
       {

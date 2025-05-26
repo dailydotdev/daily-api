@@ -409,3 +409,52 @@ export interface PaddleCustomData {
   user_id?: string;
   gifter_id?: string;
 }
+
+export const paddleSubscriptionSchema = z.object({
+  id: z.string({ message: 'Subscription id is required' }),
+  updatedAt: z.preprocess(
+    (value) => new Date(value as string),
+    z.date({ message: 'Subscription updated at is required' }),
+  ),
+  startedAt: z.preprocess(
+    (value) => new Date(value as string),
+    z.date().optional().nullable(),
+  ),
+  items: z
+    .array(
+      z.object({
+        price: z.object({
+          productId: z.string({
+            message: 'Subscription product id is required',
+          }),
+        }),
+        quantity: z.number(),
+      }),
+      {
+        message: 'Subscription items are required',
+      },
+    )
+    .max(1, 'Multiple items in subscription not supported yet'),
+  customerId: z.string({
+    message: 'Subscription customer id is required',
+  }),
+  customData: paddleNotificationCustomDataSchema,
+  discountId: z.string().optional().nullable(),
+  businessId: z.string().optional().nullable(),
+});
+
+export const getPaddleSubscriptionData = ({
+  event,
+}: {
+  event: PaddleSubscriptionEvent | TransactionCompletedEvent;
+}): z.infer<typeof paddleSubscriptionSchema> => {
+  const subscriptionDataResult = paddleSubscriptionSchema.safeParse(event.data);
+
+  if (subscriptionDataResult.error) {
+    throw new Error(subscriptionDataResult.error.errors[0].message);
+  }
+
+  const subscriptionData = subscriptionDataResult.data;
+
+  return subscriptionData;
+};
