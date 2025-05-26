@@ -919,16 +919,16 @@ type FunnelBootConfig = {
   cookieKey: string;
 };
 
-const funnelBoots: Record<string, FunnelBootConfig> = {
-  funnel: {
+const funnelBoots = {
+  paid: {
     featureKey: 'web_funnel_id',
     cookieKey: cookies.funnel.key,
-  },
+  } satisfies FunnelBootConfig,
   onboarding: {
     featureKey: 'onboarding_funnel_id',
     cookieKey: cookies.onboarding.key,
-  },
-};
+  } satisfies FunnelBootConfig,
+} as const;
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   const con = await createOrGetConnection();
@@ -957,17 +957,29 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     return res.send(data);
   });
 
-  // Used to get the boot data for the web funnels
-  fastify.get('/:id', function (req, res) {
-    const { id } = req.params as { id: string };
-    const funnel = funnelBoots[id];
-    if (!funnel) {
-      return res.status(404).send({ error: 'Funnel not found' });
-    }
-    return funnelHandler(
+  // legacy endpoint for web funnel
+  fastify.get(
+    '/funnel',
+    funnelHandler(
       con,
-      funnel.featureKey,
-      (req) => req.cookies[funnel.cookieKey],
-    ).call(this, req, res);
+      funnelBoots.paid.featureKey,
+      (req) => req.cookies[funnelBoots.paid.cookieKey],
+    ),
+  );
+
+  // Used to get the boot data for the web funnels
+  fastify.get('/funnels/:id', function (req, res) {
+    const { id } = req.params as { id: keyof typeof funnelBoots };
+
+    if (id in funnelBoots) {
+      const funnel = funnelBoots[id];
+      return funnelHandler(
+        con,
+        funnel.featureKey,
+        (req) => req.cookies[funnel.cookieKey],
+      ).call(this, req, res);
+    }
+
+    return res.status(404).send({ error: 'Funnel not found' });
   });
 }
