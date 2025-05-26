@@ -14,9 +14,24 @@ export type GQLUserOrganization = {
 
 export const typeDefs = /* GraphQL */ `
   type Organization {
+    """
+    The ID of the organization
+    """
     id: ID!
+
+    """
+    The name of the organization
+    """
     name: String!
+
+    """
+    The image of the organization
+    """
     image: String
+
+    """
+    The number of seats in the organization
+    """
     seats: Int
   }
 
