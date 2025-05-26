@@ -1,11 +1,15 @@
 import type { IResolvers } from '@graphql-tools/utils';
-import type { AuthContext, BaseContext } from '../Context';
+import type { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import { Organization } from '../entity/Organization';
-import { OrganizationMemberRole } from '../roles';
+import { OrganizationMemberRole, organizationRoleHierarchy } from '../roles';
 import graphorm from '../graphorm';
-import { toGQLEnum } from '../common';
+import { toGQLEnum, uploadOrganizationImage } from '../common';
 import type { GQLUser } from './users';
+import type { GraphQLResolveInfo } from 'graphql';
+import { ForbiddenError } from 'apollo-server-errors';
+import { isNullOrUndefined } from '../common/object';
+import { ContentPreferenceOrganization } from '../entity/contentPreference/ContentPreferenceOrganization';
 
 export type GQLOrganizationMember = {
   role: OrganizationMemberRole;
@@ -20,6 +24,7 @@ export type GQLOrganization = Omit<
 export type GQLUserOrganization = {
   createdAt: Date;
   role: OrganizationMemberRole;
+  referralToken?: string;
   organization: GQLOrganization;
 };
 
@@ -93,7 +98,89 @@ export const typeDefs = /* GraphQL */ `
     """
     organization(id: ID!): UserOrganization @auth
   }
+
+  extend type Mutation {
+    """
+    Update the organization
+    """
+    updateOrganization(
+      """
+      The ID of the organization to update
+      """
+      id: ID!
+
+      """
+      The name of the organization
+      """
+      name: String
+
+      """
+      Avatar image for the organization
+      """
+      image: Upload
+    ): UserOrganization! @auth
+  }
 `;
+
+export const ensureOrganizationRole = async (
+  ctx: Context,
+  id?: string,
+  requiredRole: OrganizationMemberRole = OrganizationMemberRole.Member,
+) => {
+  if (!id || isNullOrUndefined(requiredRole)) {
+    throw new ForbiddenError('Access denied!');
+  }
+
+  const res = await ctx.con
+    .getRepository(ContentPreferenceOrganization)
+    .findOneByOrFail({
+      organizationId: id,
+      userId: ctx.userId,
+    });
+
+  if (!res) {
+    throw new ForbiddenError('Access denied!');
+  }
+
+  const userRole = res.flags?.role;
+
+  if (isNullOrUndefined(userRole)) {
+    throw new ForbiddenError('Access denied! No role assigned.');
+  }
+
+  const userRoleIndex = organizationRoleHierarchy.indexOf(userRole);
+  const requiredRoleIndex = organizationRoleHierarchy.indexOf(requiredRole);
+
+  // If either role is not found in the hierarchy, or the user's role is below the required role
+  if (
+    userRoleIndex === -1 ||
+    requiredRoleIndex === -1 ||
+    userRoleIndex > requiredRoleIndex
+  ) {
+    throw new ForbiddenError(
+      `Access denied! You need to be a ${requiredRole.toLowerCase()} or higher to perform this action.`,
+    );
+  }
+
+  return true;
+};
+
+const getOrganizationById = async (
+  ctx: Context,
+  info: GraphQLResolveInfo,
+  id: string,
+): Promise<GQLUserOrganization> =>
+  graphorm.queryOneOrFail<GQLUserOrganization>(ctx, info, (builder) => {
+    builder.queryBuilder
+      .andWhere(`${builder.alias}."userId" = :userId`, {
+        userId: ctx.userId,
+      })
+      .andWhere(`${builder.alias}."organizationId" = :organizationId`, {
+        organizationId: id,
+      });
+
+    return builder;
+  });
 
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
@@ -105,7 +192,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       __,
       ctx: AuthContext,
       info,
-    ): Promise<GQLOrganization[]> => {
+    ): Promise<GQLUserOrganization[]> => {
       return graphorm.query(
         ctx,
         info,
@@ -125,17 +212,54 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLUserOrganization> => {
-      return graphorm.queryOneOrFail(ctx, info, (builder) => {
-        builder.queryBuilder
-          .andWhere(`${builder.alias}."userId" = :userId`, {
-            userId: ctx.userId,
-          })
-          .andWhere(`${builder.alias}."organizationId" = :organizationId`, {
-            organizationId: id,
-          });
+      await ensureOrganizationRole(ctx, id, OrganizationMemberRole.Member);
+      return getOrganizationById(ctx, info, id);
+    },
+  },
+  Mutation: {
+    updateOrganization: async (
+      _,
+      { id, name, image },
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLUserOrganization> => {
+      await ensureOrganizationRole(ctx, id, OrganizationMemberRole.Admin);
+      try {
+        const editedOrganizationId = await ctx.con.transaction(
+          async (manager) => {
+            const repo = manager.getRepository(Organization);
 
-        return builder;
-      });
+            await repo.update(id, {
+              name: name,
+            });
+
+            if (image) {
+              const { createReadStream } = await image;
+
+              const stream = createReadStream();
+              const { url: imageUrl } = await uploadOrganizationImage(
+                id,
+                stream,
+              );
+
+              await repo.update(id, {
+                image: imageUrl,
+              });
+            }
+
+            return id;
+          },
+        );
+
+        return getOrganizationById(ctx, info, editedOrganizationId);
+      } catch (_err) {
+        const err = _err as Error;
+        ctx.log.error(
+          { err, organizationId: id },
+          'Failed to update organization',
+        );
+        throw new Error('Failed to update organization');
+      }
     },
   },
 });

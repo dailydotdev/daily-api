@@ -15,6 +15,12 @@ export enum OrganizationMemberRole {
   Member = 'member',
 }
 
+export const organizationRoleHierarchy = [
+  OrganizationMemberRole.Owner,
+  OrganizationMemberRole.Admin,
+  OrganizationMemberRole.Member,
+];
+
 export const sourceRoleRank: Record<SourceMemberRoles, number> = {
   admin: 10,
   moderator: 5,
