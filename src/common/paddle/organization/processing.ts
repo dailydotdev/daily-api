@@ -103,14 +103,6 @@ export const createOrganizationSubscription = async ({
           referralToken: randomUUID(),
         },
       }),
-      // Update the paddle subscription with the organization id
-      // This is needed to be able to update the subscription later
-      paddleInstance.subscriptions.update(data.id, {
-        customData: {
-          user_id: userId,
-          organization_id: organization.id,
-        },
-      }),
       // Give the user plus access if they are not already a plus member
       !isPlusMember(user.subscriptionFlags?.cycle) &&
         con.getRepository(User).update(
@@ -124,4 +116,26 @@ export const createOrganizationSubscription = async ({
         ),
     ]);
   });
+
+  try {
+    // Update the paddle subscription with the organization id
+    // This is needed to be able to update the subscription later
+    await paddleInstance.subscriptions.update(data.id, {
+      customData: {
+        user_id: userId,
+        organization_id: organizationId,
+      },
+    });
+  } catch (_err) {
+    const err = _err as Error;
+    logger.error(
+      {
+        err,
+        provider: SubscriptionProvider.Paddle,
+        purchaseType: PurchaseType.Organization,
+        data: event,
+      },
+      'Failed to update subscription with organization id',
+    );
+  }
 };
