@@ -507,7 +507,7 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
           code: preview.currencyCode,
           symbol: removeNumbers(item.formattedTotals.total),
         },
-        metadata: priceMetadata?.[item.price.id],
+        metadata: priceMetadata?.[item.price.id] ?? null,
       }));
 
       if (!pricing.length) {
