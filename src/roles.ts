@@ -9,7 +9,7 @@ export enum SourceMemberRoles {
   Blocked = 'blocked',
 }
 
-export enum OrganizationMemberRoles {
+export enum OrganizationMemberRole {
   Owner = 'owner',
   Admin = 'admin',
   Member = 'member',
