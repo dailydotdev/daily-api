@@ -19,6 +19,7 @@ export enum AnalyticsEventName {
   ChangeBillingCycle = 'change billing cycle',
   CancelSubscription = 'cancel subscription',
   ReceivePayment = 'receive payment',
+  ClaimSubscription = 'claim subscription',
 }
 
 export async function sendAnalyticsEvent<T extends AnalyticsEvent>(
