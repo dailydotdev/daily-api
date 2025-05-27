@@ -375,11 +375,28 @@ describe('mutation updateOrganization', () => {
     expect(updatedOrg.name).toBe('New org name');
   });
 
-  it('should throw error when updating organization with invalid name', async () => {
+  it('should throw error when updating organization with null name', async () => {
     loggedUser = '1';
 
     const res = await client.mutate(MUTATION, {
-      variables: { id: 'org-1', name: '' },
+      variables: { id: 'org-1', name: null },
+    });
+
+    const errors = res.errors!;
+
+    expect(errors?.length || 0).toEqual(1);
+    expect(errors[0].extensions?.code).toEqual('ZOD_VALIDATION_ERROR');
+    expect(errors[0].extensions?.issues?.[0].code).toEqual('invalid_type');
+    expect(errors[0].extensions?.issues?.[0].message).toEqual(
+      'Expected string, received null',
+    );
+  });
+
+  it('should throw error when updating organization with name as just spaces', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'org-1', name: '    ' },
     });
 
     const errors = res.errors!;
@@ -387,5 +404,8 @@ describe('mutation updateOrganization', () => {
     expect(errors?.length || 0).toEqual(1);
     expect(errors[0].extensions?.code).toEqual('ZOD_VALIDATION_ERROR');
     expect(errors[0].extensions?.issues?.[0].code).toEqual('too_small');
+    expect(errors[0].extensions?.issues?.[0].message).toEqual(
+      'Organization name is required',
+    );
   });
 });
