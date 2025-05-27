@@ -9,6 +9,7 @@ import {
   ATTR_HTTP_RESPONSE_STATUS_CODE,
   ATTR_URL_FULL,
 } from '@opentelemetry/semantic-conventions';
+import { Message } from '@bufbuild/protobuf';
 
 export class AbortError extends Error {
   public originalError: Error;
@@ -133,4 +134,16 @@ export async function fetchParse<T>(
 ): Promise<T> {
   const res = await fetch(url, fetchOpts);
   return res.json() as T;
+}
+
+export async function fetchParseBinary<T extends Message<T>>(
+  url: RequestInfo,
+  fetchOpts: RequestInit,
+  parser: T,
+): Promise<T> {
+  const res = await fetch(url, fetchOpts);
+
+  const binaryResult = new Uint8Array(await res.arrayBuffer());
+
+  return parser.fromBinary(binaryResult);
 }

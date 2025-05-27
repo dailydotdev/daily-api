@@ -49,7 +49,7 @@ import {
 } from '../../src/notifications/common';
 import { createSquadWelcomePost, NotificationReason } from '../../src/common';
 import { randomUUID } from 'crypto';
-import { UserVote } from '../../src/types';
+import { CoresRole, UserVote } from '../../src/types';
 import { UserComment } from '../../src/entity/user/UserComment';
 import { workers } from '../../src/workers';
 import { generateStorageKey, StorageKey, StorageTopic } from '../../src/config';
@@ -836,6 +836,18 @@ describe('post bookmark reminder', () => {
 describe('streak reset restore', () => {
   beforeEach(async () => {
     await ioRedisPool.execute((client) => client.flushall());
+
+    await saveFixtures(
+      con,
+      User,
+      usersFixture.map((item) => ({
+        ...item,
+        id: `${item.id}-srrn`,
+        username: `${item.username}-srrn`,
+        coresRole: CoresRole.User,
+        github: item.github ? `${item.github}-srrn` : undefined,
+      })),
+    );
   });
 
   it('should be registered', async () => {
@@ -858,7 +870,7 @@ describe('streak reset restore', () => {
     const lastStreak = 10;
     const streak = await con
       .getRepository(UserStreak)
-      .save({ userId: '1', currentStreak: 0, lastViewAt });
+      .save({ userId: '1-srrn', currentStreak: 0, lastViewAt });
     const key = generateStorageKey(
       StorageTopic.Streak,
       StorageKey.Reset,
@@ -884,7 +896,7 @@ describe('streak reset restore', () => {
     const lastViewAt = new Date();
     const streak = await con
       .getRepository(UserStreak)
-      .save({ userId: '1', currentStreak: 0, lastViewAt });
+      .save({ userId: '1-srrn', currentStreak: 0, lastViewAt });
     const actual = await invokeNotificationWorker(worker.default, { streak });
     expect(actual).toBeUndefined();
   });
@@ -897,7 +909,7 @@ describe('streak reset restore', () => {
     const lastStreak = 10;
     const streak = await con
       .getRepository(UserStreak)
-      .save({ userId: '1', currentStreak: 0, lastViewAt });
+      .save({ userId: '1-srrn', currentStreak: 0, lastViewAt });
     const key = generateStorageKey(
       StorageTopic.Streak,
       StorageKey.Reset,
@@ -906,7 +918,7 @@ describe('streak reset restore', () => {
     await setRedisObject(key, lastStreak.toString());
     await con
       .getRepository(Settings)
-      .save({ userId: '1', optOutReadingStreak: true });
+      .save({ userId: '1-srrn', optOutReadingStreak: true });
     const actual = await invokeNotificationWorker(worker.default, { streak });
     expect(actual).toBeUndefined();
   });
@@ -918,14 +930,44 @@ describe('streak reset restore', () => {
     const lastViewAt = new Date();
     const streak = await con
       .getRepository(UserStreak)
-      .save({ userId: '1', currentStreak: 0, lastViewAt });
+      .save({ userId: '1-srrn', currentStreak: 0, lastViewAt });
     const key = generateStorageKey(
       StorageTopic.Streak,
       StorageKey.Reset,
       streak.userId,
     );
-    await setRedisObject(key, '1test');
+    await setRedisObject(key, '1-srrntest');
     const actual = await invokeNotificationWorker(worker.default, { streak });
+    expect(actual).toBeUndefined();
+  });
+
+  it('should not add notification if user does not have Cores access', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/userStreakResetNotification'
+    );
+    const lastViewAt = new Date();
+    const lastStreak = 10;
+
+    const streak = await con
+      .getRepository(UserStreak)
+      .save({ userId: '4-srrn', currentStreak: 0, lastViewAt });
+
+    await con
+      .getRepository(User)
+      .update({ id: '4-srrn' }, { coresRole: CoresRole.None });
+
+    const key = generateStorageKey(
+      StorageTopic.Streak,
+      StorageKey.Reset,
+      streak.userId,
+    );
+    const debeziumTime = streak.lastViewAt.getTime();
+    await setRedisObject(key, lastStreak.toString());
+
+    const actual = await invokeNotificationWorker(worker.default, {
+      streak: { ...streak, lastViewAt: debeziumTime },
+    });
+
     expect(actual).toBeUndefined();
   });
 });

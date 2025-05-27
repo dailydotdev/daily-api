@@ -440,6 +440,12 @@ Array [
     "username": "Solevilla",
   },
   Object {
+    "id": "system",
+    "image": "https://cdn.daily.dev/assets/maskable_icon.png",
+    "name": "daily.dev system user",
+    "username": "system",
+  },
+  Object {
     "id": "sample",
     "image": "sample/image",
     "name": "sample",
