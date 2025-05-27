@@ -2,7 +2,7 @@ import {
   FastifyInstance,
   FastifyReply,
   FastifyRequest,
-  RouteHandlerMethod,
+  RouteHandler,
 } from 'fastify';
 import createOrGetConnection from '../db';
 import { DataSource, Not, QueryRunner } from 'typeorm';
@@ -869,27 +869,24 @@ const getFunnelLoggedInData = async (
 };
 
 /**
- * Generate a funnel handler for different scenarios (paid users, organic, etc)
- * @param con Database connection
- * @param featureKey GrowthBook feature key used for experimentation
- * @param sessionIdFn Function that returns the session ID
+ * Generates middleware for handling funnel boot processing in a web application.
+ *
+ * @param {FunnelBootConfig} funnel - The configuration object containing settings
+ *                                    for the funnel, such as cookie key and feature key.
+ * @returns {BootMiddleware} An async middleware function that processes the request,
+ *                           retrieves the funnel state, and optionally user-related data.
  */
-const funnelHandler = (
-  con: DataSource,
-  featureKey: string,
-  sessionIdFn: (req: FastifyRequest) => string | undefined,
-): RouteHandlerMethod => {
-  // Fetches the funnel and logged-in user data (if available)
-  const funnelBootMiddleware: BootMiddleware = async (
+const generateFunnelBootMiddle = (funnel: FunnelBootConfig): BootMiddleware => {
+  return async (
     con,
     req,
     res,
   ): Promise<
     Pick<FunnelBoot, 'funnelState'> & { user?: FunnelLoggedInUser }
   > => {
-    const sessionId = sessionIdFn(req);
+    const sessionId = req.cookies[funnel.cookieKey];
     const [funnelState, user] = await Promise.all([
-      getFunnel(req, res, featureKey, sessionId),
+      getFunnel(req, res, funnel.featureKey, sessionId),
       getFunnelLoggedInData(con, req),
     ]);
     if (user) {
@@ -902,16 +899,50 @@ const funnelHandler = (
       funnelState,
     };
   };
+};
 
-  return async (req, res) => {
+type FunnelBootConfig = {
+  featureKey: string;
+  cookieKey: string;
+};
+
+const funnelBoots = {
+  paid: {
+    featureKey: 'web_funnel_id',
+    cookieKey: cookies.funnel.key,
+  } satisfies FunnelBootConfig,
+  onboarding: {
+    featureKey: 'onboarding_funnel_id',
+    cookieKey: cookies.onboarding.key,
+  } satisfies FunnelBootConfig,
+} as const;
+
+/**
+ * Handles incoming requests for funnel-related boot endpoints.
+ * This function retrieves the funnel data for a specific funnel type, identified by the `id` parameter.
+ * If not provided, it defaults to the 'paid' funnel configuration from {funnelBoots}.
+ *
+ * @type {RouteHandler}
+ * @param {Request} req
+ * @param {Response} res
+ * @throws {Error} May throw errors related to database connection or request processing.
+ */
+const funnelHandler: RouteHandler = async (req, res) => {
+  const con = await createOrGetConnection();
+  const { id = 'paid' } = req.params as { id: keyof typeof funnelBoots };
+
+  if (id in funnelBoots) {
+    const funnel = funnelBoots[id];
     const data = (await anonymousBoot(
       con,
       req,
       res,
-      funnelBootMiddleware,
+      generateFunnelBootMiddle(funnel),
     )) as FunnelBoot;
     return res.send(data);
-  };
+  }
+
+  return res.status(404).send({ error: 'Funnel not found' });
 };
 
 export default async function (fastify: FastifyInstance): Promise<void> {
@@ -941,13 +972,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     return res.send(data);
   });
 
+  // legacy endpoint for web funnel
+  fastify.get('/funnel', funnelHandler);
+
   // Used to get the boot data for the web funnels
-  fastify.get(
-    '/funnel',
-    funnelHandler(
-      con,
-      'web_funnel_id',
-      (req) => req.cookies[cookies.funnel.key],
-    ),
-  );
+  fastify.get('/funnels/:id', funnelHandler);
 }
