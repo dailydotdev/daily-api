@@ -25,12 +25,12 @@ import {
   type DataSource,
   type EntityManager,
 } from 'typeorm';
+import { type ConnectionManager, User } from '../../entity';
 import {
+  PurchaseType,
   SubscriptionProvider,
-  User,
-  UserSubscriptionStatus,
-  type ConnectionManager,
-} from '../../entity';
+  SubscriptionStatus,
+} from '../plus';
 import { isProd } from '../utils';
 import { ClaimableItem, ClaimableItemTypes } from '../../entity/ClaimableItem';
 import {
@@ -49,6 +49,7 @@ import {
   type AnalyticsEventName,
 } from '../../integrations/analytics';
 import createOrGetConnection from '../../db';
+import { PurchaseTypeError } from '../../errors';
 
 export const paddleInstance = new Paddle(process.env.PADDLE_API_KEY, {
   environment: process.env.PADDLE_ENVIRONMENT as Environment,
@@ -96,26 +97,33 @@ export const getPriceFromPaddleItem = (
   return priceAmount / 100;
 };
 
-export enum ProductPurchaseType {
-  Plus = 'plus',
-  Core = 'core',
-}
-
-export const getProductPurchaseType = ({
-  id,
-}: {
-  id: string;
-}): ProductPurchaseType => {
-  if (!remoteConfig.vars.coreProductId) {
-    throw new Error('Core product id is not set');
-  }
-
+export const getPurchaseType = ({ id }: { id: string }): PurchaseType => {
   switch (id) {
-    case remoteConfig.vars.coreProductId:
-      return ProductPurchaseType.Core;
+    case remoteConfig.vars.paddleProductIds?.cores:
+      return PurchaseType.Cores;
+    case remoteConfig.vars.paddleProductIds?.organization:
+      return PurchaseType.Organization;
+    case remoteConfig.vars.paddleProductIds?.plus:
+      return PurchaseType.Plus;
     default:
-      return ProductPurchaseType.Plus;
+      throw new PurchaseTypeError('Product purchase type not found', id);
   }
+};
+
+export const isPurchaseType = (
+  type: PurchaseType,
+  event: EventEntity,
+): boolean => {
+  if ('items' in event.data === false) {
+    return false;
+  }
+
+  return event.data.items.some(
+    (item) =>
+      'price' in item &&
+      item.price?.productId &&
+      getPurchaseType({ id: item.price.productId }) === type,
+  );
 };
 
 const paddleNotificationCustomDataSchema = z.object(
@@ -163,24 +171,6 @@ const paddleTransactionSchema = z.object({
   customData: paddleNotificationCustomDataSchema,
   discountId: z.string().optional().nullable(),
 });
-
-export const isCoreTransaction = ({
-  event,
-}: {
-  event: EventEntity;
-}): boolean => {
-  if ('items' in event.data === false) {
-    return false;
-  }
-
-  return event.data.items.some(
-    (item) =>
-      'price' in item &&
-      item.price?.productId &&
-      getProductPurchaseType({ id: item.price.productId }) ===
-        ProductPurchaseType.Core,
-  );
-};
 
 export const getPaddleTransactionData = ({
   event,
@@ -260,7 +250,7 @@ export const updateClaimableItem = async (
       createdAt: data.startedAt,
       subscriptionId: data.id,
       provider: SubscriptionProvider.Paddle,
-      status: UserSubscriptionStatus.Active,
+      status: SubscriptionStatus.Active,
     },
   });
 
@@ -408,7 +398,7 @@ export const logPaddleAnalyticsEvent = async (
       app_platform: 'api',
       user_id: userId,
       extra: JSON.stringify(getAnalyticsExtra(data)),
-      target_type: isCoreTransaction({ event })
+      target_type: isPurchaseType(PurchaseType.Cores, event)
         ? TargetType.Credits
         : TargetType.Plus,
     },
@@ -419,3 +409,58 @@ export interface PaddleCustomData {
   user_id?: string;
   gifter_id?: string;
 }
+
+export const paddleSubscriptionSchema = z.object({
+  id: z.string({ message: 'Subscription id is required' }),
+  updatedAt: z.preprocess(
+    (value) => new Date(value as string),
+    z.date({ message: 'Subscription updated at is required' }),
+  ),
+  startedAt: z.preprocess(
+    (value) => new Date(value as string),
+    z.date().optional().nullable(),
+  ),
+  items: z
+    .array(
+      z.object({
+        price: z.object({
+          productId: z.string({
+            message: 'Subscription product id is required',
+          }),
+          billingCycle: z.object({
+            interval: z.enum(['month', 'year'], {
+              message: 'Subscription cycle is required',
+            }),
+            frequency: z.number().int(),
+          }),
+        }),
+        quantity: z.number(),
+      }),
+      {
+        message: 'Subscription items are required',
+      },
+    )
+    .max(1, 'Multiple items in subscription not supported yet'),
+  customerId: z.string({
+    message: 'Subscription customer id is required',
+  }),
+  customData: paddleNotificationCustomDataSchema,
+  discountId: z.string().optional().nullable(),
+  businessId: z.string().optional().nullable(),
+});
+
+export const getPaddleSubscriptionData = ({
+  event,
+}: {
+  event: PaddleSubscriptionEvent | TransactionCompletedEvent;
+}): z.infer<typeof paddleSubscriptionSchema> => {
+  const subscriptionDataResult = paddleSubscriptionSchema.safeParse(event.data);
+
+  if (subscriptionDataResult.error) {
+    throw new Error(subscriptionDataResult.error.errors[0].message);
+  }
+
+  const subscriptionData = subscriptionDataResult.data;
+
+  return subscriptionData;
+};

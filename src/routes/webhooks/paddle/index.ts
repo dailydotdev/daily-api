@@ -1,13 +1,14 @@
 import { FastifyInstance } from 'fastify';
 import { isProd } from '../../../common';
-import { SubscriptionProvider } from '../../../entity';
+import { PurchaseType, SubscriptionProvider } from '../../../common/plus';
 import { logger } from '../../../logger';
 
-import { isCoreTransaction, paddleInstance } from '../../../common/paddle';
+import { isPurchaseType, paddleInstance } from '../../../common/paddle';
 
 import { remoteConfig } from '../../../remoteConfig';
 import { processCorePaddleEvent } from '../../../common/paddle/cores/eventHandler';
 import { processPlusPaddleEvent } from '../../../common/paddle/plus/eventHandler';
+import { processOrganizationPaddleEvent } from '../../../common/paddle/organization/eventHandler';
 
 export const paddle = async (fastify: FastifyInstance): Promise<void> => {
   fastify.register(async (fastify: FastifyInstance): Promise<void> => {
@@ -32,21 +33,28 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
 
         try {
           if (signature && rawRequestBody) {
-            const eventData = await paddleInstance.webhooks.unmarshal(
+            const event = await paddleInstance.webhooks.unmarshal(
               rawRequestBody,
               secretKey,
               signature,
             );
 
             switch (true) {
-              case isCoreTransaction({ event: eventData }): {
-                await processCorePaddleEvent(eventData);
+              case isPurchaseType(PurchaseType.Cores, event):
+                await processCorePaddleEvent(event);
                 break;
-              }
-              default: {
-                await processPlusPaddleEvent(eventData);
+              case isPurchaseType(PurchaseType.Organization, event):
+                await processOrganizationPaddleEvent(event);
                 break;
-              }
+              case isPurchaseType(PurchaseType.Plus, event):
+                await processPlusPaddleEvent(event);
+                break;
+              default:
+                logger.info(
+                  { eventType: event.eventType },
+                  'Unhandled Paddle event type',
+                );
+                break;
             }
           } else {
             logger.error(

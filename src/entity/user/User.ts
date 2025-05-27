@@ -19,6 +19,10 @@ import type { UserCompany } from '../UserCompany';
 import type { UserTopReader } from './UserTopReader';
 import type { SubscriptionCycles } from '../../paddle';
 import type { Feed } from '../Feed';
+import type {
+  SubscriptionProvider,
+  SubscriptionStatus,
+} from '../../common/plus';
 
 export type UserFlags = Partial<{
   vordr: boolean;
@@ -28,20 +32,11 @@ export type UserFlags = Partial<{
 
 export type UserFlagsPublic = Pick<UserFlags, 'showPlusGift'>;
 
-export enum SubscriptionProvider {
-  Paddle = 'paddle',
-  AppleStoreKit = 'storekit',
-}
-
-export enum UserSubscriptionStatus {
-  Active = 'active',
-  Expired = 'expired',
-  Cancelled = 'cancelled',
-}
-
 export type PaddleUserSubscriptionFlags = Partial<{
   gifterId?: string; // Currently only supported in Paddle
   giftExpirationDate?: Date; // Currently only supported in Paddle
+
+  organizationId?: string;
 }>;
 
 export type StoreKitUserSubscriptionFlags = Partial<{
@@ -55,7 +50,7 @@ export type UserSubscriptionFlags = Partial<{
   cycle: SubscriptionCycles;
   createdAt: Date;
   provider: SubscriptionProvider;
-  status: UserSubscriptionStatus;
+  status: SubscriptionStatus;
 }> &
   PaddleUserSubscriptionFlags &
   StoreKitUserSubscriptionFlags;
@@ -70,6 +65,7 @@ export type UserSubscriptionFlags = Partial<{
 @Index('IDX_user_subflags_subscriptionid', { synchronize: false })
 @Index('IDX_user_info_email_unconfirmed', { synchronize: false })
 @Index('IDX_user_app_account_token_unique', { synchronize: false })
+@Index('IDX_user_subflags_organizationid', { synchronize: false })
 export class User {
   @PrimaryColumn({ length: 36 })
   id: string;

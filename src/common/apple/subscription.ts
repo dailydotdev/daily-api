@@ -7,12 +7,7 @@ import {
   type ResponseBodyV2DecodedPayload,
 } from '@apple/app-store-server-library';
 import { logger } from '../../logger';
-import {
-  SubscriptionProvider,
-  UserSubscriptionStatus,
-  type User,
-  type UserSubscriptionFlags,
-} from '../../entity/user/User';
+import { type User, type UserSubscriptionFlags } from '../../entity/user/User';
 import { convertCurrencyToUSD } from '../../integrations/openExchangeRates';
 import { updateStoreKitUserSubscription } from '../../plusSubscription';
 import { isNullOrUndefined } from '../object';
@@ -24,38 +19,44 @@ import { productIdToCycle } from './types';
 import { concatTextToNewline, isTest } from '../utils';
 import type { Block, KnownBlock } from '@slack/web-api';
 import { webhooks } from '../slack';
+import {
+  PurchaseType,
+  SubscriptionProvider,
+  SubscriptionStatus,
+} from '../plus';
 
 const getSubscriptionStatus = (
   notificationType: ResponseBodyV2DecodedPayload['notificationType'],
   subtype?: ResponseBodyV2DecodedPayload['subtype'],
-): UserSubscriptionStatus => {
+): SubscriptionStatus => {
   switch (notificationType) {
     case NotificationTypeV2.SUBSCRIBED:
     case NotificationTypeV2.DID_RENEW:
     case NotificationTypeV2.DID_CHANGE_RENEWAL_PREF: // Upgrade/Downgrade
     case NotificationTypeV2.REFUND_REVERSED:
-      return UserSubscriptionStatus.Active;
+      return SubscriptionStatus.Active;
     case NotificationTypeV2.DID_CHANGE_RENEWAL_STATUS: // Disable/Enable Auto-Renew
       return subtype === Subtype.AUTO_RENEW_ENABLED
-        ? UserSubscriptionStatus.Active
-        : UserSubscriptionStatus.Cancelled;
+        ? SubscriptionStatus.Active
+        : SubscriptionStatus.Cancelled;
     case NotificationTypeV2.DID_FAIL_TO_RENEW:
       // When user fails to renew and there is no grace period
       if (isNullOrUndefined(subtype)) {
-        return UserSubscriptionStatus.Cancelled;
+        return SubscriptionStatus.Cancelled;
       }
     case NotificationTypeV2.GRACE_PERIOD_EXPIRED:
-      return UserSubscriptionStatus.Cancelled;
+      return SubscriptionStatus.Cancelled;
     case NotificationTypeV2.REFUND:
     case NotificationTypeV2.EXPIRED:
     case NotificationTypeV2.REVOKE: // We don't support Family Sharing, but to be on the safe side
-      return UserSubscriptionStatus.Expired;
+      return SubscriptionStatus.Expired;
     default:
       logger.error(
         {
           notificationType,
           subtype,
           provider: SubscriptionProvider.AppleStoreKit,
+          purchaseType: PurchaseType.Plus,
         },
         'Unknown notification type',
       );
@@ -164,7 +165,11 @@ const renewalInfoToSubscriptionFlags = (
 
   if (isNullOrUndefined(cycle)) {
     logger.error(
-      { data, provider: SubscriptionProvider.AppleStoreKit },
+      {
+        data,
+        provider: SubscriptionProvider.AppleStoreKit,
+        purchaseType: PurchaseType.Plus,
+      },
       'Invalid auto renew product ID',
     );
     throw new Error('Invalid auto renew product ID');
@@ -200,6 +205,7 @@ export const handleAppleSubscription = async ({
         environment,
         notification,
         provider: SubscriptionProvider.AppleStoreKit,
+        purchaseType: PurchaseType.Plus,
       },
       'User already has a Paddle subscription',
     );

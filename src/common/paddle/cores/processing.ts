@@ -12,7 +12,8 @@ import {
 } from '../index';
 import createOrGetConnection from '../../../db';
 import { logger } from '../../../logger';
-import { SubscriptionProvider, User } from '../../../entity/user/User';
+import { PurchaseType, SubscriptionProvider } from '../../plus';
+import { User } from '../../../entity';
 import {
   UserTransaction,
   UserTransactionStatus,
@@ -45,6 +46,7 @@ export const processCoresTransactionCreated = async ({
       {
         eventType: event.eventType,
         provider: SubscriptionProvider.Paddle,
+        purchaseType: PurchaseType.Cores,
         currentStatus: transaction.status,
         data: transactionData,
       },
@@ -74,6 +76,7 @@ export const processCoresTransactionCreated = async ({
       {
         err: error,
         provider: SubscriptionProvider.Paddle,
+        purchaseType: PurchaseType.Cores,
         transactionId: transactionData.id,
       },
       'Failed to update checkout url',
@@ -194,6 +197,7 @@ export const processCoresTransactionUpdated = async ({
       {
         eventType: event.eventType,
         provider: SubscriptionProvider.Paddle,
+        purchaseType: PurchaseType.Cores,
         currentStatus: transaction.status,
         data: transactionData,
       },
@@ -228,6 +232,7 @@ export const processCoresTransactionUpdated = async ({
       {
         eventType: event.eventType,
         provider: SubscriptionProvider.Paddle,
+        purchaseType: PurchaseType.Cores,
         currentStatus: transaction?.status ?? 'unknown',
         data: transactionData,
       },

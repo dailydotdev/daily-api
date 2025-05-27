@@ -71,6 +71,7 @@ export const entityToNotificationTypeMap: Record<
     NotificationType.SquadMemberJoined,
   ],
   [ContentPreferenceType.Word]: [],
+  [ContentPreferenceType.Organization]: [],
 };
 
 // TODO fix api.new-notification-mail condition to handle all types when follow phase 3 is implemented

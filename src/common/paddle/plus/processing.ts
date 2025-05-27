@@ -7,11 +7,12 @@ import {
 } from '../index';
 import { updateFlagsStatement, updateSubscriptionFlags } from '../..//utils';
 import createOrGetConnection from '../../../db';
+import { User } from '../../../entity/user/User';
 import {
+  PurchaseType,
   SubscriptionProvider,
-  User,
-  UserSubscriptionStatus,
-} from '../../../entity/user/User';
+  SubscriptionStatus,
+} from '../../plus';
 import { logger } from '../../../logger';
 import {
   isPlusMember,
@@ -45,6 +46,7 @@ export const updateUserSubscription = async ({
     logger.error(
       {
         provider: SubscriptionProvider.Paddle,
+        purchaseType: PurchaseType.Plus,
         data: event,
       },
       'Subscription type missing in payload',
@@ -61,7 +63,11 @@ export const updateUserSubscription = async ({
     const user = await con.getRepository(User).findOneBy({ id: userId });
     if (!user) {
       logger.error(
-        { provider: SubscriptionProvider.Paddle, data: event },
+        {
+          provider: SubscriptionProvider.Paddle,
+          purchaseType: PurchaseType.Plus,
+          data: event,
+        },
         'User not found',
       );
       return false;
@@ -75,6 +81,7 @@ export const updateUserSubscription = async ({
           user,
           data: event,
           provider: SubscriptionProvider.Paddle,
+          purchaseType: PurchaseType.Plus,
         },
         'User already has a Apple subscription',
       );
@@ -91,7 +98,7 @@ export const updateUserSubscription = async ({
           createdAt: state ? data?.startedAt : null,
           subscriptionId: state ? data?.id : null,
           provider: state ? SubscriptionProvider.Paddle : null,
-          status: state ? UserSubscriptionStatus.Active : null,
+          status: state ? SubscriptionStatus.Active : null,
         }),
       },
     );
@@ -109,7 +116,11 @@ export const processGiftedPayment = async ({
 
   if (user_id === gifter_id) {
     logger.error(
-      { provider: SubscriptionProvider.Paddle, data: event },
+      {
+        provider: SubscriptionProvider.Paddle,
+        purchaseType: PurchaseType.Plus,
+        data: event,
+      },
       'User and gifter are the same',
     );
     return;
@@ -119,7 +130,11 @@ export const processGiftedPayment = async ({
 
   if (!gifterUser) {
     logger.error(
-      { provider: SubscriptionProvider.Paddle, data: event },
+      {
+        provider: SubscriptionProvider.Paddle,
+        purchaseType: PurchaseType.Plus,
+        data: event,
+      },
       'Gifter user not found',
     );
     return;
@@ -132,7 +147,11 @@ export const processGiftedPayment = async ({
 
   if (isPlusMember(targetUser?.subscriptionFlags?.cycle)) {
     logger.error(
-      { provider: SubscriptionProvider.Paddle, data: event },
+      {
+        provider: SubscriptionProvider.Paddle,
+        purchaseType: PurchaseType.Plus,
+        data: event,
+      },
       'User is already a Plus member',
     );
     return;
