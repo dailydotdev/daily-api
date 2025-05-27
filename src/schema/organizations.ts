@@ -249,40 +249,29 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       try {
-        const editedOrganizationId = await ctx.con.transaction(
-          async (manager) => {
-            const repo = manager.getRepository(Organization);
+        const updatePayload: Partial<Pick<Organization, 'name' | 'image'>> = {
+          name,
+        };
 
-            await repo.update(id, {
-              name: name,
-            });
+        if (image) {
+          const { createReadStream } = await image;
 
-            if (image) {
-              const { createReadStream } = await image;
+          const stream = createReadStream();
+          const { url: imageUrl } = await uploadOrganizationImage(id, stream);
 
-              const stream = createReadStream();
-              const { url: imageUrl } = await uploadOrganizationImage(
-                id,
-                stream,
-              );
+          updatePayload.image = imageUrl;
+        }
 
-              await repo.update(id, {
-                image: imageUrl,
-              });
-            }
+        await ctx.con.getRepository(Organization).update(id, updatePayload);
 
-            return id;
-          },
-        );
-
-        return getOrganizationById(ctx, info, editedOrganizationId);
+        return getOrganizationById(ctx, info, id);
       } catch (_err) {
         const err = _err as Error;
         ctx.log.error(
           { err, organizationId: id },
           'Failed to update organization',
         );
-        throw new Error('Failed to update organization');
+        throw err;
       }
     },
   },
