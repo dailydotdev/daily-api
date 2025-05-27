@@ -912,7 +912,14 @@ const funnelBoots = {
 } as const;
 
 /**
- * Generate a funnel handler for different scenarios (paid users, organic, etc)
+ * Handles incoming requests for funnel-related boot endpoints.
+ * This function retrieves the funnel data for a specific funnel type, identified by the `id` parameter.
+ * If not provided, it defaults to the 'paid' funnel configuration from {funnelBoots}.
+ *
+ * @type {RouteHandler}
+ * @param {Request} req
+ * @param {Response} res
+ * @throws {Error} May throw errors related to database connection or request processing.
  */
 const funnelHandler: RouteHandler = async (req, res) => {
   const con = await createOrGetConnection();
