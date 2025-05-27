@@ -7,7 +7,7 @@ import {
   type GraphQLTestingState,
   type GraphQLTestClient,
 } from './helpers';
-import { ExperimentVariantType, User } from '../src/entity';
+import { ExperimentVariant, ExperimentVariantType, User } from '../src/entity';
 import {
   PurchaseType,
   SubscriptionProvider,
@@ -31,7 +31,6 @@ import { logger } from '../src/logger';
 import { paddleInstance, type PaddleCustomData } from '../src/common/paddle';
 import * as redisFile from '../src/redis';
 import { ioRedisPool } from '../src/redis';
-import { ExperimentVariant } from '../src/entity';
 import {
   PLUS_FEATURE_KEY,
   DEFAULT_PLUS_METADATA,
@@ -354,11 +353,13 @@ describe('plus pricing metadata', () => {
         feature: PLUS_FEATURE_KEY,
         variant: DEFAULT_PLUS_METADATA,
         value: JSON.stringify(mockPlusMetadata),
+        type: ExperimentVariantType.ProductPricing,
       },
       {
         feature: CORES_FEATURE_KEY,
         variant: DEFAULT_CORES_METADATA,
         value: JSON.stringify(mockCoresMetadata),
+        type: ExperimentVariantType.ProductPricing,
       },
     ]);
   });
@@ -510,6 +511,7 @@ describe('plus pricing preview', () => {
         feature: PLUS_FEATURE_KEY,
         variant: DEFAULT_PLUS_METADATA,
         value: JSON.stringify(mockMetadata),
+        type: ExperimentVariantType.ProductPricing,
       },
     ]);
 
