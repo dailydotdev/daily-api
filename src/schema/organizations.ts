@@ -145,10 +145,6 @@ export const ensureOrganizationRole = async (
       userId: userId || ctx.userId,
     });
 
-  if (!res) {
-    throw new ForbiddenError('Access denied!');
-  }
-
   const userRole = res.flags?.role;
 
   if (isNullOrUndefined(userRole)) {
