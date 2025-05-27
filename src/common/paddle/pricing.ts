@@ -1,8 +1,15 @@
-import { ConnectionManager, User } from '../../entity';
+import { createHmac } from 'node:crypto';
 import { EntityNotFoundError } from 'typeorm';
+import { z } from 'zod';
+import parseCurrency from 'parsecurrency';
+import {
+  ConnectionManager,
+  ExperimentVariant,
+  ExperimentVariantType,
+  User,
+} from '../../entity';
 import { CountryCode, TimePeriod } from '@paddle/paddle-node-sdk';
 import { AuthContext } from '../../Context';
-import { createHmac } from 'node:crypto';
 import { generateStorageKey, StorageKey, StorageTopic } from '../../config';
 import {
   PricingPreview,
@@ -17,7 +24,6 @@ import {
   getUserGrowthBookInstance,
 } from '../../growthbook';
 import { SubscriptionCycles } from '../../paddle';
-import parseCurrency from 'parsecurrency';
 import { PurchaseType } from '../plus';
 
 export const PLUS_FEATURE_KEY = 'plus_pricing_ids';
@@ -158,6 +164,34 @@ export const getPricingMetadata = async (
     default:
       throw new Error('Invalid pricing type');
   }
+};
+
+export const getPricingMetadataByPriceIds = async (
+  ctx: AuthContext,
+  ids: string[],
+): Promise<Record<string, BasePricingMetadata>> => {
+  // Because we disable escaping, we need to ensure that the ids are valid
+  // strings, just to be safe.
+  const pricingIds = z.array(z.string()).safeParse(ids);
+  if (pricingIds.error) {
+    return {};
+  }
+
+  const items = await ctx.con
+    .createQueryBuilder()
+    .select('item')
+    .from(ExperimentVariant, 'ev')
+    .addFrom('jsonb_array_elements(ev.value::jsonb)', 'item')
+    .disableEscaping()
+    .where("item -> 'idMap' ->> 'paddle' IN (:...pricingIds)", {
+      pricingIds: pricingIds.data,
+    })
+    .andWhere('ev.type = :type', {
+      type: ExperimentVariantType.ProductPricing,
+    })
+    .getRawMany<{ item: BasePricingMetadata }>();
+
+  return Object.fromEntries(items.map(({ item }) => [item.idMap.paddle, item]));
 };
 
 export const getPlusPricePreview = async (ctx: AuthContext, ids: string[]) => {
