@@ -19,7 +19,7 @@ import {
   type PostTranslation,
 } from '../entity';
 import {
-  OrganizationMemberRoles,
+  OrganizationMemberRole,
   SourceMemberRoles,
   rankToSourceRole,
   sourceRoleRank,
@@ -51,6 +51,7 @@ import { isPlusMember } from '../paddle';
 import { remoteConfig } from '../remoteConfig';
 import { whereNotUserBlocked } from '../common/contentPreference';
 import { type GetBalanceResult } from '../common/njord';
+import type { ContentPreferenceOrganization } from '../entity/contentPreference/ContentPreferenceOrganization';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -1159,7 +1160,7 @@ const obj = new GraphORM({
     from: 'UserTransaction',
   },
   UserOrganization: {
-    from: 'ContentPreference',
+    from: 'ContentPreferenceOrganization',
     additionalQuery: (_, alias, qb) =>
       qb.andWhere(
         `"${alias}"."type" = '${ContentPreferenceType.Organization}'`,
@@ -1172,15 +1173,38 @@ const obj = new GraphORM({
           return `${alias}.flags->>'referralToken'`;
         },
         transform: (value: string, ctx: Context, parent) => {
-          const member = parent as ContentPreferenceSource;
-
+          const member = parent as ContentPreferenceOrganization;
           return nullIfNotSameUser(value, ctx, { id: member.userId });
         },
       },
       role: {
         rawSelect: true,
         select: (_, alias) =>
-          `COALESCE(${alias}.flags->>'role', '${OrganizationMemberRoles.Member}')`,
+          `COALESCE(${alias}.flags->>'role', '${OrganizationMemberRole.Member}')`,
+      },
+    },
+  },
+  Organization: {
+    fields: {
+      members: {
+        customQuery: (ctx, alias, qb) =>
+          qb.andWhere(`${alias}."userId" != :userId`, {
+            userId: ctx.userId,
+          }),
+      },
+    },
+  },
+  OrganizationMember: {
+    from: 'ContentPreferenceOrganization',
+    additionalQuery: (_, alias, qb) =>
+      qb.andWhere(
+        `"${alias}"."type" = '${ContentPreferenceType.Organization}'`,
+      ),
+    fields: {
+      role: {
+        rawSelect: true,
+        select: (_, alias) =>
+          `COALESCE(${alias}.flags->>'role', '${OrganizationMemberRole.Member}')`,
       },
     },
   },
