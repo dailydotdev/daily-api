@@ -168,12 +168,12 @@ export const getPricingMetadata = async (
 
 export const getPricingMetadataByPriceIds = async (
   ctx: AuthContext,
-  ids: string[],
+  pricingIds: string[],
 ): Promise<Record<string, BasePricingMetadata>> => {
   // Because we disable escaping, we need to ensure that the ids are valid
   // strings, just to be safe.
-  const pricingIds = z.array(z.string()).safeParse(ids);
-  if (pricingIds.error) {
+  const parsedPricingIds = z.array(z.string()).safeParse(pricingIds);
+  if (parsedPricingIds.error) {
     return {};
   }
 
@@ -183,8 +183,8 @@ export const getPricingMetadataByPriceIds = async (
     .from(ExperimentVariant, 'ev')
     .addFrom('jsonb_array_elements(ev.value::jsonb)', 'item')
     .disableEscaping()
-    .where("item -> 'idMap' ->> 'paddle' IN (:...pricingIds)", {
-      pricingIds: pricingIds.data,
+    .where("item -> 'idMap' ->> 'paddle' IN (:...ids)", {
+      ids: parsedPricingIds.data,
     })
     .andWhere('ev.type = :type', {
       type: ExperimentVariantType.ProductPricing,
