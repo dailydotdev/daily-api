@@ -868,8 +868,16 @@ const getFunnelLoggedInData = async (
   return null;
 };
 
+/**
+ * Generates middleware for handling funnel boot processing in a web application.
+ *
+ * @param {FunnelBootConfig} funnel - The configuration object containing settings
+ *                                    for the funnel, such as cookie key and feature key.
+ * @returns {BootMiddleware} An async middleware function that processes the request,
+ *                           retrieves the funnel state, and optionally user-related data.
+ */
 const generateFunnelBootMiddle = (
-  funnel: FunnelBootConfig, // Fetches the funnel and logged-in user data (if available)
+  funnel: FunnelBootConfig,
 ): BootMiddleware => {
   return async (
     con,
