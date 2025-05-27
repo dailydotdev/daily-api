@@ -6,7 +6,7 @@ import {
 } from '../../../entity/user/UserTransaction';
 import type { getPaddleTransactionData } from '../index';
 import { logger } from '../../../logger';
-import { SubscriptionProvider } from '../../../entity';
+import { PurchaseType, SubscriptionProvider } from '../../plus';
 import { updateFlagsStatement } from '../../utils';
 import type { DataSource, EntityManager } from 'typeorm';
 
@@ -28,6 +28,7 @@ export const checkTransactionStatusValid = ({
       {
         eventType: event.eventType,
         provider: SubscriptionProvider.Paddle,
+        purchaseType: PurchaseType.Cores,
         currentStatus: transaction.status,
         nextStatus,
         data,

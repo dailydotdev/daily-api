@@ -9,6 +9,12 @@ export enum SourceMemberRoles {
   Blocked = 'blocked',
 }
 
+export enum OrganizationMemberRole {
+  Owner = 'owner',
+  Admin = 'admin',
+  Member = 'member',
+}
+
 export const sourceRoleRank: Record<SourceMemberRoles, number> = {
   admin: 10,
   moderator: 5,

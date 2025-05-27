@@ -5,12 +5,9 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import type {
-  SubscriptionProvider,
-  User,
-  UserSubscriptionStatus,
-} from './user';
+import type { User } from './user';
 import type { SubscriptionCycles } from '../paddle';
+import type { SubscriptionProvider, SubscriptionStatus } from '../common/plus';
 
 export enum ClaimableItemTypes {
   Plus = 'plus',
@@ -21,7 +18,7 @@ export type ClaimableItemFlags = {
   createdAt: Date | null;
   subscriptionId: string | null;
   provider: SubscriptionProvider | null;
-  status: UserSubscriptionStatus | null;
+  status: SubscriptionStatus | null;
 };
 
 @Entity()

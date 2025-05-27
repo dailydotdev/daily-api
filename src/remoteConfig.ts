@@ -2,6 +2,7 @@ import { GrowthBook } from '@growthbook/growthbook';
 import { logger } from './logger';
 import { isProd } from './common/utils';
 import type { CoresRole } from './types';
+import type { PurchaseType } from './common/plus';
 
 type RemoteConfigValue = {
   inc: number;
@@ -19,7 +20,6 @@ type RemoteConfigValue = {
     transfer: number;
   }>;
   approvedStoreKitSandboxUsers: string[];
-  coreProductId: string;
   coresRoleRules: {
     regions: string[];
     role: CoresRole;
@@ -27,6 +27,7 @@ type RemoteConfigValue = {
   kvasirRequirePlus: boolean;
   paddleIps: string[];
   paddleTestDiscountIds: string[];
+  paddleProductIds: Record<PurchaseType, string>;
 };
 
 class RemoteConfig {
