@@ -1,3 +1,4 @@
+import type { FileHandle } from 'node:fs/promises';
 import type { IResolvers } from '@graphql-tools/utils';
 import type { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
@@ -10,6 +11,7 @@ import type { GraphQLResolveInfo } from 'graphql';
 import { ForbiddenError } from 'apollo-server-errors';
 import { isNullOrUndefined } from '../common/object';
 import { ContentPreferenceOrganization } from '../entity/contentPreference/ContentPreferenceOrganization';
+import { z } from 'zod';
 
 export type GQLOrganizationMember = {
   role: OrganizationMemberRole;
@@ -185,6 +187,12 @@ const getOrganizationById = async (
     return builder;
   });
 
+export const updateOrganizationSchema = z.object({
+  id: z.string({ message: 'Organization ID is required' }),
+  name: z.string().min(1, 'Organization name is required'),
+  image: z.instanceof(Promise<FileHandle>).optional(),
+});
+
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
   BaseContext
@@ -225,10 +233,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   Mutation: {
     updateOrganization: async (
       _,
-      { id, name, image },
+      updateData: z.infer<typeof updateOrganizationSchema>,
       ctx: AuthContext,
       info,
     ): Promise<GQLUserOrganization> => {
+      const parseResult = updateOrganizationSchema.safeParse(updateData);
+      if (!parseResult.success) {
+        throw new Error(parseResult.error.message);
+      }
+      const { id, name, image } = parseResult.data;
+
       await ensureOrganizationRole(ctx, {
         organizationId: id,
         requiredRole: OrganizationMemberRole.Admin,
