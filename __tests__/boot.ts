@@ -1691,4 +1691,31 @@ describe('funnel boot', () => {
       .set('Cookie', `${cookies.tracking.key}=1;`)
       .expect(200);
   });
+
+  describe('funnels/:id route', () => {
+    it('should return the funnel data for "onboarding" funnel', async () => {
+      nock(process.env.FREYJA_ORIGIN)
+        .post('/api/sessions', {
+          userId: '1',
+          funnelId: 'gbId',
+        })
+        .reply(200, JSON.stringify(FUNNEL_DATA));
+
+      await request(app.server)
+        .get(`${BASE_PATH}/funnels/onboarding`)
+        .set('User-Agent', TEST_UA)
+        .set('Cookie', `${cookies.tracking.key}=1;`)
+        .expect(200);
+    });
+
+    it('should return 404 for invalid funnel id', async () => {
+      const res = await request(app.server)
+        .get(`${BASE_PATH}/funnels/invalid`)
+        .set('User-Agent', TEST_UA)
+        .set('Cookie', `${cookies.tracking.key}=1;`)
+        .expect(404);
+
+      expect(res.body).toEqual({ error: 'Funnel not found' });
+    });
+  });
 });
