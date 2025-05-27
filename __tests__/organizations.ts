@@ -374,4 +374,18 @@ describe('mutation updateOrganization', () => {
     });
     expect(updatedOrg.name).toBe('New org name');
   });
+
+  it('should throw error when updating organization with invalid name', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'org-1', name: '' },
+    });
+
+    const errors = res.errors!;
+
+    expect(errors?.length || 0).toEqual(1);
+    expect(errors[0].extensions?.code).toEqual('ZOD_VALIDATION_ERROR');
+    expect(errors[0].extensions?.issues?.[0].code).toEqual('too_small');
+  });
 });
