@@ -1,6 +1,5 @@
 import { CookieSerializeOptions } from '@fastify/cookie';
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { isProd } from './common';
 
 const env = process.env.NODE_ENV;
 
@@ -42,7 +41,7 @@ export const cookies: {
       maxAge: 1000 * 60 * 30,
       httpOnly: true,
       signed: false,
-      secure: isProd,
+      secure: env === 'production',
       sameSite: 'lax',
     },
     key: 'da4',
@@ -52,7 +51,7 @@ export const cookies: {
       maxAge: 1000 * 60 * 30,
       httpOnly: true,
       signed: false,
-      secure: isProd,
+      secure: env === 'production',
       sameSite: 'lax',
     },
     key: 'da5',
