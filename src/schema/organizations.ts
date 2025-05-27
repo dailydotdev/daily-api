@@ -238,8 +238,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<GQLUserOrganization> => {
       const parseResult = updateOrganizationSchema.safeParse(updateData);
-      if (!parseResult.success) {
-        throw new Error(parseResult.error.message);
+      if (parseResult.error) {
+        throw parseResult.error;
       }
       const { id, name, image } = parseResult.data;
 

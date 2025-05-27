@@ -35,6 +35,7 @@ import { loggerConfig } from './logger';
 import { getTemporalClient } from './temporal/client';
 import { BrokenCircuitError } from 'cockatiel';
 import { remoteConfig } from './remoteConfig';
+import { ZodError } from 'zod';
 
 type Mutable<Type> = {
   -readonly [Key in keyof Type]: Type[Key];
@@ -203,6 +204,12 @@ export default async function app(
                 newError.message = 'Garmr broken error';
                 newError.extensions = {
                   code: 'GARMR_BROKEN_ERROR',
+                };
+              } else if (error.originalError instanceof ZodError) {
+                newError.message = 'Zod validation error';
+                newError.extensions = {
+                  code: 'ZOD_VALIDATION_ERROR',
+                  issues: error.originalError.issues,
                 };
               } else if (!error.extensions?.code) {
                 app.log.warn(
