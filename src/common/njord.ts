@@ -22,12 +22,7 @@ import {
   UserTransactionProcessor,
   UserTransactionStatus,
 } from '../entity/user/UserTransaction';
-import {
-  isSpecialUser,
-  parseBigInt,
-  systemUser,
-  updateFlagsStatement,
-} from './utils';
+import { isSpecialUser, parseBigInt, systemUser } from './utils';
 import { ForbiddenError } from 'apollo-server-errors';
 import { checkCoresAccess, createAuthProtectedFn } from './user';
 import {
@@ -738,16 +733,6 @@ export const awardPost = async (
           return { transaction, transfer };
         } catch (error) {
           if (error instanceof TransferError) {
-            if (newComment) {
-              await entityManager.getRepository(Comment).delete({
-                id: newComment.id,
-              });
-            }
-
-            await entityManager.getRepository(UserPost).delete({
-              awardTransactionId: transaction.id,
-            });
-
             await throwUserTransactionError({
               ctx,
               entityManager,
@@ -906,16 +891,6 @@ export const awardComment = async (
           return { transaction, transfer };
         } catch (error) {
           if (error instanceof TransferError) {
-            if (newComment) {
-              await entityManager.getRepository(Comment).delete({
-                id: newComment.id,
-              });
-            }
-
-            await entityManager.getRepository(UserComment).delete({
-              awardTransactionId: transaction.id,
-            });
-
             await throwUserTransactionError({
               ctx,
               entityManager,
@@ -1009,21 +984,18 @@ export const throwUserTransactionError = async ({
     transaction,
   });
 
-  await entityManager.getRepository(UserTransaction).update(
-    {
-      id: transaction.id,
-    },
-    {
-      status: error.transfer.status as number,
-      flags: updateFlagsStatement<UserTransaction>({
-        error: userTransactionError.message,
-      }),
-    },
-  );
+  await entityManager.queryRunner?.rollbackTransaction();
 
-  // commit transaction after updating the transaction status
-  await entityManager.queryRunner?.commitTransaction();
+  // save outside of entity manager to escape rollback
+  await ctx.con.getRepository(UserTransaction).save({
+    ...transaction,
+    status: error.transfer.status as number,
+    flags: {
+      ...transaction.flags,
+      error: userTransactionError.message,
+    },
+  });
 
-  // throw error for client after committing the transaction in error state
+  // throw error for client after saving the transaction in error state
   throw userTransactionError;
 };

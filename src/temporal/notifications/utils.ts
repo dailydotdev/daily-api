@@ -31,7 +31,7 @@ export const runReminderWorkflow = async (params: ReminderWorkflowParams) => {
   const delay = params.remindAt - Date.now();
   const description = await getWorkflowDescription(workflowId);
 
-  if (description?.status.name === 'RUNNING') {
+  if (description?.status.name === 'RUNNING' || delay <= 0) {
     return;
   }
 

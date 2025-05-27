@@ -243,7 +243,6 @@ describe('mutation addBookmarks', () => {
       });
       expect(res.errors).toBeFalsy();
       expect(res.data.addBookmarks).toHaveLength(1);
-      console.log(res.data.addBookmarks);
       expect(res.data.addBookmarks[0].list.id).toEqual(listId);
 
       const actual = await con

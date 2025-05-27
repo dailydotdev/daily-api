@@ -89,7 +89,7 @@ import {
   processApprovedModeratedPost,
   notifyReportUser,
 } from '../../common';
-import { ChangeMessage, ChangeObject, UserVote } from '../../types';
+import { ChangeMessage, ChangeObject, CoresRole, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import { PostReport, ContentImage } from '../../entity';
@@ -133,6 +133,7 @@ import {
   UserTransaction,
   UserTransactionStatus,
 } from '../../entity/user/UserTransaction';
+import { checkUserCoresAccess } from '../../common/user';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -1014,10 +1015,17 @@ const setRestoreStreakCache = async (
   const key = generateStorageKey(StorageTopic.Streak, StorageKey.Reset, userId);
   const differenceInSeconds = getNextWeekdayInSeconds(user);
 
-  await Promise.all([
-    setRedisObjectWithExpiry(key, previousStreak, differenceInSeconds),
-    con.getRepository(Alerts).update({ userId }, { showRecoverStreak: true }),
-  ]);
+  if (
+    checkUserCoresAccess({
+      user,
+      requiredRole: CoresRole.User,
+    })
+  ) {
+    await Promise.all([
+      setRedisObjectWithExpiry(key, previousStreak, differenceInSeconds),
+      con.getRepository(Alerts).update({ userId }, { showRecoverStreak: true }),
+    ]);
+  }
 };
 
 export const getRestoreStreakCache = async ({
