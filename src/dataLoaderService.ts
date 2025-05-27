@@ -130,6 +130,31 @@ export class DataLoaderService {
     });
   }
 
+  get organizationReferralUrl() {
+    return this.getLoader<
+      {
+        organizationId: string;
+        referralToken: string;
+      },
+      string
+    >({
+      type: 'organizationReferralUrl',
+      loadFn: async ({ organizationId, referralToken }) => {
+        const referralUrl = new URL(
+          `/join/organization`,
+          process.env.COMMENTS_PREFIX,
+        );
+
+        referralUrl.searchParams.append('token', referralToken);
+        referralUrl.searchParams.append('orgId', organizationId);
+
+        return this.shortUrl.load(referralUrl.toString());
+      },
+      cacheKeyFn: ({ organizationId, referralToken }) =>
+        defaultCacheKeyFn({ organizationId, referralToken }),
+    });
+  }
+
   get userBalance() {
     return this.getLoader<
       {

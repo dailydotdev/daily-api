@@ -43,6 +43,7 @@ export type GQLUserOrganization = {
   role: OrganizationMemberRole;
   referralToken?: string;
   organization: GQLOrganization;
+  referralUrl?: string;
 };
 
 export const typeDefs = /* GraphQL */ `
@@ -107,6 +108,11 @@ export const typeDefs = /* GraphQL */ `
     The organization
     """
     organization: Organization!
+
+    """
+    URL for inviting and referring new users
+    """
+    referralUrl: String
   }
 
   extend type Query {

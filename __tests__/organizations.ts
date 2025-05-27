@@ -141,6 +141,7 @@ describe('query organization', () => {
       organization(id: $id) {
         role
         referralToken
+        referralUrl
         organization {
           id
           name
@@ -212,6 +213,7 @@ describe('query organization', () => {
       organization: {
         role: 'owner',
         referralToken: 'ref-token-1',
+        referralUrl: `${process.env.COMMENTS_PREFIX}/join/organization?token=ref-token-1&orgId=org-1`,
         organization: {
           id: 'org-1',
           name: 'Organization 1',
