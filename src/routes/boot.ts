@@ -876,9 +876,7 @@ const getFunnelLoggedInData = async (
  * @returns {BootMiddleware} An async middleware function that processes the request,
  *                           retrieves the funnel state, and optionally user-related data.
  */
-const generateFunnelBootMiddle = (
-  funnel: FunnelBootConfig,
-): BootMiddleware => {
+const generateFunnelBootMiddle = (funnel: FunnelBootConfig): BootMiddleware => {
   return async (
     con,
     req,
