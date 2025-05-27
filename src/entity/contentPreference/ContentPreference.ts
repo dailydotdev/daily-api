@@ -35,6 +35,7 @@ import type { Feed } from '../Feed';
   'userId',
   'status',
 ])
+@Index('IDX_content_preference_flags_referralToken', { synchronize: false })
 export class ContentPreference {
   @PrimaryColumn({ type: 'text' })
   referenceId: string;

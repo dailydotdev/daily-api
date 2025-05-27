@@ -2,7 +2,6 @@ import {
   getPricingDuration,
   getPricingMetadata,
   getProductPrice,
-  PricingType,
 } from './../common/paddle/pricing';
 import type { CountryCode } from '@paddle/paddle-node-sdk';
 import type { AuthContext } from '../Context';
@@ -30,6 +29,7 @@ import { PricingPreview } from '@paddle/paddle-node-sdk/dist/types/entities/pric
 import { createHmac } from 'node:crypto';
 import { ValidationError } from 'apollo-server-errors';
 import { logger } from '../logger';
+import { PurchaseType } from '../common/plus';
 
 export const typeDefs = /* GraphQL */ `
   """
@@ -140,7 +140,8 @@ export const typeDefs = /* GraphQL */ `
     ): [BaseProductPricingPreview!]!
   }
 
-  ${toGQLEnum(PricingType, 'PricingType')}
+  ${toGQLEnum(PurchaseType, 'PricingType')}
+  ${toGQLEnum(PurchaseType, 'PurchaseType')}
 
   """
   Caption information for pricing metadata
@@ -303,7 +304,7 @@ export interface GQLCustomData {
 }
 
 interface PaddlePricingPreviewArgs {
-  type?: PricingType;
+  type?: PurchaseType;
   locale?: string;
 }
 
@@ -421,12 +422,12 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
     },
     pricingMetadata: async (
       _,
-      { type = PricingType.Plus }: PaddlePricingPreviewArgs,
+      { type = PurchaseType.Plus }: PaddlePricingPreviewArgs,
       ctx: AuthContext,
     ): Promise<BasePricingMetadata[]> => getPricingMetadata(ctx, type),
     pricingPreview: async (
       _,
-      { type = PricingType.Plus, locale }: PaddlePricingPreviewArgs,
+      { type = PurchaseType.Plus, locale }: PaddlePricingPreviewArgs,
       ctx,
     ): Promise<BasePricingPreview[]> => {
       const metadata = await getPricingMetadata(ctx, type);
@@ -447,7 +448,7 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
         }
 
         const duration =
-          type === PricingType.Cores ? 'one-time' : getPricingDuration(item);
+          type === PurchaseType.Cores ? 'one-time' : getPricingDuration(item);
         const trialPeriod = item.price.trialPeriod;
 
         return {
@@ -497,7 +498,10 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
     corePricePreviews: async (_, __, ctx: AuthContext) => {
       const region = ctx.region;
 
-      const corePaddleProductId = remoteConfig.vars.coreProductId;
+      const corePaddleProductId = remoteConfig.vars.paddleProductIds?.cores;
+      if (!corePaddleProductId) {
+        throw new Error('Core product id is not set in remote config');
+      }
 
       const redisKey = generateStorageKey(
         StorageTopic.Paddle,
@@ -511,10 +515,6 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
         const cachedResult = JSON.parse(redisResult);
 
         return cachedResult;
-      }
-
-      if (!corePaddleProductId) {
-        throw new Error('Core product id is not set in remote config');
       }
 
       const paddleProduct = await paddleInstance?.products.get(
