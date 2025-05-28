@@ -47,15 +47,11 @@ export const isRoleAtLeast = (
   const userRoleIndex = hierarchy.indexOf(userRole);
   const requiredRoleIndex = hierarchy.indexOf(requiredRole);
 
-  // If either role is not found in the hierarchy, or the user's role is below the required role
-  if (
-    userRoleIndex === -1 ||
-    requiredRoleIndex === -1 ||
-    userRoleIndex > requiredRoleIndex
-  ) {
-    return false;
+  const roleNotFound = userRoleIndex === -1 || requiredRoleIndex === -1;
+  if (roleNotFound) {
+    return false; // If either role is not found, we cannot determine the hierarchy
   }
 
-  // User's role is at or above the required role
-  return true;
+  const isPermitted = userRoleIndex <= requiredRoleIndex;
+  return isPermitted;
 };
