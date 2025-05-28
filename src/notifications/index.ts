@@ -207,7 +207,9 @@ export async function generateAndStoreNotificationsV2(
 
     for (const chunk of userIdChunks) {
       const preferences = await entityManager
-        .getRepository(ContentPreference)
+        .getRepository<
+          ContentPreference<ContentPreferenceStatus>
+        >(ContentPreference)
         .find({
           where: {
             feedId: In(chunk),
