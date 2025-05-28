@@ -296,6 +296,16 @@ export const typeDefs = /* GraphQL */ `
       """
       quantity: Int!
     ): UserOrganization @auth
+
+    """
+    Delete the organization
+    """
+    deleteOrganization(
+      """
+      The ID of the organization to delete
+      """
+      id: ID!
+    ): EmptyResponse @auth
   }
 `;
 
@@ -778,6 +788,58 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       return getOrganizationById(ctx, info, id);
+    },
+    deleteOrganization: async (_, { id }, ctx: AuthContext) => {
+      await ensureOrganizationRole(ctx, {
+        organizationId: id,
+        requiredRole: OrganizationMemberRole.Owner,
+      });
+
+      const organization = await ctx.con
+        .getRepository<
+          Pick<Organization, 'id' | 'subscriptionFlags' | 'members'>
+        >(Organization)
+        .findOneOrFail({
+          select: {
+            id: true,
+            subscriptionFlags: true,
+            members: {
+              userId: true,
+              status: true,
+            },
+          },
+          where: { id },
+          relations: {
+            members: true,
+          },
+        });
+
+      if (
+        organization.subscriptionFlags?.status === SubscriptionStatus.Active
+      ) {
+        throw new ForbiddenError(
+          'Cannot delete organization with an active subscription. Please cancel the subscription first.',
+        );
+      }
+
+      const members: Pick<
+        ContentPreferenceOrganization,
+        'userId' | 'status'
+      >[] = await organization.members;
+
+      if (
+        members.some(
+          (m) => m.status === ContentPreferenceOrganizationStatus.Plus,
+        )
+      ) {
+        throw new ForbiddenError(
+          'Cannot delete organization with Plus members. Please remove all Plus members first.',
+        );
+      }
+
+      await ctx.con.getRepository(Organization).delete(id);
+
+      return { _: true };
     },
   },
 });

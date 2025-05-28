@@ -23,6 +23,7 @@ import { OrganizationMemberRole } from '../src/roles';
 import type { GQLUserOrganization } from '../src/schema/organizations';
 import { updateSubscriptionFlags } from '../src/common';
 import { SubscriptionCycles } from '../src/paddle';
+import { SubscriptionStatus } from '../src/common/plus';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -50,6 +51,7 @@ beforeEach(async () => {
       name: 'Organization 1',
       subscriptionFlags: {
         cycle: SubscriptionCycles.Yearly,
+        status: SubscriptionStatus.Active,
       },
     },
     {
@@ -58,6 +60,7 @@ beforeEach(async () => {
       name: 'Organization 2',
       subscriptionFlags: {
         cycle: SubscriptionCycles.Yearly,
+        status: SubscriptionStatus.Cancelled,
       },
     },
     {
@@ -66,6 +69,7 @@ beforeEach(async () => {
       name: 'Organization 3',
       subscriptionFlags: {
         cycle: SubscriptionCycles.Yearly,
+        status: SubscriptionStatus.Cancelled,
       },
     },
   ]);
@@ -862,5 +866,169 @@ describe('mutation leaveOrganization', () => {
     assert(user.subscriptionFlags);
     expect(user.subscriptionFlags.organizationId).toBeUndefined();
     expect(user.subscriptionFlags.cycle).toBe('yearly');
+  });
+});
+
+describe('mutation deleteOrganization', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation DeleteOrganization($id: ID!) {
+      deleteOrganization(id: $id) {
+        _
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await con.getRepository(Feed).save([
+      {
+        id: '1',
+        userId: '1',
+      },
+      {
+        id: '2',
+        userId: '2',
+      },
+      {
+        id: '3',
+        userId: '3',
+      },
+    ]);
+
+    await con.getRepository(ContentPreferenceOrganization).save([
+      {
+        userId: '1',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '1',
+        status: ContentPreferenceOrganizationStatus.Plus,
+        flags: {
+          role: OrganizationMemberRole.Owner,
+          referralToken: 'ref-token-1',
+        },
+      },
+      {
+        userId: '1',
+        referenceId: 'org-2',
+        organizationId: 'org-2',
+        feedId: '1',
+        status: ContentPreferenceOrganizationStatus.Plus,
+        flags: {
+          role: OrganizationMemberRole.Owner,
+          referralToken: 'ref-token-1',
+        },
+      },
+      {
+        userId: '1',
+        referenceId: 'org-3',
+        organizationId: 'org-3',
+        feedId: '1',
+        status: ContentPreferenceOrganizationStatus.Free,
+        flags: {
+          role: OrganizationMemberRole.Owner,
+          referralToken: 'ref-token-1',
+        },
+      },
+      {
+        userId: '2',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '2',
+        status: ContentPreferenceOrganizationStatus.Plus,
+        flags: {
+          role: OrganizationMemberRole.Admin,
+          referralToken: 'ref-token-2',
+        },
+      },
+    ]);
+  });
+
+  it('should not authorize when not logged-in', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { id: 'org-1' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return forbidden logged user not part of organization', async () => {
+    loggedUser = '3';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'org-1' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return forbidden logged user is admin of organization', async () => {
+    loggedUser = '2';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'org-1' },
+      },
+      'FORBIDDEN',
+      'Access denied! You need to be a owner or higher to perform this action.',
+    );
+  });
+
+  it('should return forbidden when trying to delete organization with active subscription', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'org-1' },
+      },
+      'FORBIDDEN',
+      'Cannot delete organization with an active subscription. Please cancel the subscription first.',
+    );
+  });
+
+  it('should return forbidden when trying to delete organization with active seats', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'org-2' },
+      },
+      'FORBIDDEN',
+      'Cannot delete organization with Plus members. Please remove all Plus members first.',
+    );
+  });
+
+  it('should delete organization when user is owner and organization has no active subscription or seats', async () => {
+    loggedUser = '1';
+
+    const { data, errors } = await client.mutate(MUTATION, {
+      variables: { id: 'org-3' },
+    });
+
+    expect(errors).toBeUndefined();
+    expect(data).toEqual({
+      deleteOrganization: {
+        _: true,
+      },
+    });
+
+    const org = await con.getRepository(Organization).findOneBy({
+      id: 'org-3',
+    });
+    expect(org).toBeNull();
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceOrganization)
+      .findOneBy({
+        userId: loggedUser,
+        organizationId: 'org-3',
+      });
+    expect(contentPreference).toBeNull();
   });
 });
