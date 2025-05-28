@@ -1165,7 +1165,7 @@ const obj = new GraphORM({
       qb.andWhere(
         `"${alias}"."type" = '${ContentPreferenceType.Organization}'`,
       ),
-    requiredColumns: ['createdAt', 'userId', 'flags'],
+    requiredColumns: ['userId', 'flags', 'organizationId'],
     fields: {
       referralToken: {
         rawSelect: true,
@@ -1175,6 +1175,24 @@ const obj = new GraphORM({
         transform: (value: string, ctx: Context, parent) => {
           const member = parent as ContentPreferenceOrganization;
           return nullIfNotSameUser(value, ctx, { id: member.userId });
+        },
+      },
+      referralUrl: {
+        rawSelect: true,
+        select: (_, alias) => {
+          return `${alias}.flags->>'referralToken'`;
+        },
+        transform: async (value: string, ctx: Context, parent) => {
+          const member = parent as ContentPreferenceOrganization;
+          const referralUrl = await ctx.dataLoader.organizationReferralUrl.load(
+            {
+              organizationId: member.organizationId,
+              referralToken: value,
+            },
+          );
+          return nullIfNotSameUser(referralUrl, ctx, {
+            id: member.userId,
+          });
         },
       },
       role: {
