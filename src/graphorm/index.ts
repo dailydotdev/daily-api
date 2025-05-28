@@ -1217,6 +1217,10 @@ const obj = new GraphORM({
             userId: ctx.userId,
           }),
       },
+      status: {
+        rawSelect: true,
+        select: (_, alias) => `${alias}."subscriptionFlags"->>'status'`,
+      },
       activeSeats: {
         rawSelect: true,
         select: (_, alias, qb) =>

@@ -40,6 +40,7 @@ import {
   previewSubscriptionUpdateSchema,
 } from '../common/paddle/organization';
 import { parsePaddlePriceInCents } from '../common/paddle';
+import { SubscriptionStatus } from '../common/plus';
 
 export type GQLOrganizationMember = {
   role: OrganizationMemberRole;
@@ -61,6 +62,7 @@ export type GQLUserOrganization = {
 };
 
 export const typeDefs = /* GraphQL */ `
+  ${toGQLEnum(SubscriptionStatus, 'SubscriptionStatus')}
   ${toGQLEnum(OrganizationMemberRole, 'OrganizationMemberRole')}
   ${toGQLEnum(
     ContentPreferenceOrganizationStatus,
@@ -108,17 +110,22 @@ export const typeDefs = /* GraphQL */ `
     """
     The number of seats in the organization
     """
-    seats: Int
+    seats: Int!
 
     """
     The number of active seats in the organization
     """
-    activeSeats: Int
+    activeSeats: Int!
 
     """
     The members of the organization
     """
     members: [OrganizationMember!]!
+
+    """
+    The subscription status of the organization
+    """
+    status: SubscriptionStatus!
   }
 
   type ProratedPricePreview {
@@ -128,11 +135,6 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type OrganizationSubscription {
-    """
-    Status of the subscription
-    """
-    status: String!
-
     """
     Preview of the updated pricing details of the subscription
     """
