@@ -1,11 +1,16 @@
 import type { IResolvers } from '@graphql-tools/utils';
+import { ForbiddenError } from 'apollo-server-errors';
 import type { AuthContext, BaseContext } from '../Context';
 import { traceResolvers } from './trace';
 import { Organization } from '../entity/Organization';
 import { OrganizationMemberRole } from '../roles';
 import graphorm from '../graphorm';
-import { toGQLEnum } from '../common';
+import { toGQLEnum, updateSubscriptionFlags } from '../common';
 import type { GQLUser } from './users';
+import type { GQLEmptyResponse } from './common';
+import { User } from '../entity';
+import { ContentPreferenceOrganization } from '../entity/contentPreference/ContentPreferenceOrganization';
+import type { TypeORMQueryFailedError } from '../errors';
 
 export type GQLOrganizationMember = {
   role: OrganizationMemberRole;
@@ -93,6 +98,18 @@ export const typeDefs = /* GraphQL */ `
     """
     organization(id: ID!): UserOrganization @auth
   }
+
+  extend type Mutation {
+    """
+    Removes the logged-in user from a organization
+    """
+    leaveOrganization(
+      """
+      The ID of the organization to leave
+      """
+      id: ID!
+    ): EmptyResponse @auth
+  }
 `;
 
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
@@ -136,6 +153,63 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
         return builder;
       });
+    },
+  },
+  Mutation: {
+    leaveOrganization: async (
+      _,
+      { id: organizationId },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      try {
+        await ctx.con.transaction(async (manager) => {
+          const member = await manager.getRepository(User).findOneByOrFail({
+            id: ctx.userId,
+          });
+
+          const { flags } = await manager
+            .getRepository(ContentPreferenceOrganization)
+            .findOneOrFail({
+              select: ['flags'],
+              where: {
+                organizationId,
+                userId: member.id,
+              },
+            });
+
+          if (flags?.role === OrganizationMemberRole.Owner) {
+            throw new ForbiddenError(`Access denied! Owner can't be removed`);
+          }
+
+          const organizationSeatUser =
+            member.subscriptionFlags?.organizationId === organizationId;
+
+          await Promise.all([
+            manager.getRepository(ContentPreferenceOrganization).delete({
+              userId: member.id,
+              organizationId,
+            }),
+            organizationSeatUser &&
+              manager.getRepository(User).update(
+                { id: member.id },
+                {
+                  subscriptionFlags: updateSubscriptionFlags({
+                    subscriptionId: null,
+                    cycle: null,
+                    createdAt: null,
+                    provider: null,
+                    status: null,
+                    organizationId: null,
+                  }),
+                },
+              ),
+          ]);
+        });
+      } catch (_err) {
+        const err = _err as TypeORMQueryFailedError;
+        throw err;
+      }
+      return { _: true };
     },
   },
 });

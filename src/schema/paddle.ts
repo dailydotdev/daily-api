@@ -1,6 +1,7 @@
 import {
   getPricingDuration,
   getPricingMetadata,
+  getPricingMetadataByPriceIds,
   getProductPrice,
 } from './../common/paddle/pricing';
 import type { CountryCode } from '@paddle/paddle-node-sdk';
@@ -135,8 +136,19 @@ export const typeDefs = /* GraphQL */ `
     pricingMetadata(type: PricingType): [ProductPricingMetadata!]! @auth
     pricingPreview(type: PricingType, locale: String): [ProductPricingPreview!]!
     pricingPreviewByIds(
+      """
+      The IDs of the prices to preview
+      """
       ids: [String]!
+
+      """
+      The locale to use for formatting prices
+      """
       locale: String
+      """
+      Load metadata for the pricing previews
+      """
+      loadMetadata: Boolean
     ): [BaseProductPricingPreview!]!
   }
 
@@ -265,6 +277,11 @@ export const typeDefs = /* GraphQL */ `
     Trial period information
     """
     trialPeriod: TrialPeriod
+
+    """
+    Price metadata information
+    """
+    metadata: ProductPricingMetadata
   }
 
   """
@@ -311,6 +328,7 @@ interface PaddlePricingPreviewArgs {
 interface PaddlePricingPreviewByIdsArgs {
   ids: string[];
   locale?: string;
+  loadMetadata?: boolean;
 }
 
 type BasePricingWithoutMetadata = Omit<BasePricingPreview, 'metadata'>;
@@ -468,12 +486,16 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
     },
     pricingPreviewByIds: async (
       _,
-      { ids, locale }: PaddlePricingPreviewByIdsArgs,
+      { ids, locale, loadMetadata }: PaddlePricingPreviewByIdsArgs,
       ctx,
     ): Promise<BasePricingWithoutMetadata[]> => {
       if (!ids.length) {
         throw new ValidationError('No ids provided');
       }
+
+      const priceMetadata: Record<string, BasePricingMetadata> = loadMetadata
+        ? await getPricingMetadataByPriceIds(ctx, ids)
+        : {};
 
       const preview = await getPlusPricePreview(ctx, ids);
       const pricing = preview.details.lineItems.map((item) => ({
@@ -485,6 +507,7 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
           code: preview.currencyCode,
           symbol: removeNumbers(item.formattedTotals.total),
         },
+        metadata: priceMetadata?.[item.price.id] ?? null,
       }));
 
       if (!pricing.length) {
