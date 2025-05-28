@@ -12,6 +12,7 @@ import {
   CountryCode,
   TimePeriod,
   type Interval,
+  type SubscriptionItem,
 } from '@paddle/paddle-node-sdk';
 import { AuthContext } from '../../Context';
 import { generateStorageKey, StorageKey, StorageTopic } from '../../config';
@@ -130,7 +131,9 @@ const defaultVariant: Record<PurchaseType, string> = {
   [PurchaseType.Cores]: DEFAULT_CORES_METADATA,
 };
 
-export const getPricingDuration = (item: PricingPreviewLineItem) => {
+export const getPricingDuration = (
+  item: PricingPreviewLineItem | SubscriptionItem,
+) => {
   const isOneOff = !item.price.billingCycle?.interval;
   const isYearly = item.price.billingCycle?.interval === 'year';
 
