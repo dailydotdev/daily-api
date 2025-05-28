@@ -44,6 +44,12 @@ import { DeletedUser } from './DeletedUser';
 import { ClaimableItem } from '../ClaimableItem';
 import { cio, identifyAnonymousFunnelSubscription } from '../../cio';
 import { getGeo } from '../../common/geo';
+import {
+  AnalyticsEventName,
+  sendAnalyticsEvent,
+  TargetType,
+} from '../../integrations/analytics';
+import { paddleInstance } from '../../common/paddle';
 
 export type AddUserData = Pick<
   User,
@@ -380,6 +386,15 @@ export const addClaimableItemsToUser = async (
     .findOneBy({ email: body.email, claimedById: IsNull() });
 
   if (subscription) {
+    await paddleInstance.subscriptions.update(
+      subscription.flags.subscriptionId!,
+      {
+        customData: {
+          user_id: body.id,
+        },
+      },
+    );
+
     await con.transaction(async (em) => {
       await em.getRepository(ClaimableItem).update(subscription.id, {
         claimedById: body.id,
@@ -389,13 +404,34 @@ export const addClaimableItemsToUser = async (
         subscriptionFlags: subscription.flags as UserSubscriptionFlags,
       });
     });
+  }
 
-    await identifyAnonymousFunnelSubscription({
+  await Promise.allSettled([
+    sendAnalyticsEvent([
+      {
+        event_name: AnalyticsEventName.ClaimSubscription,
+        event_timestamp: new Date(),
+        user_id: body.id,
+        app_platform: 'api',
+        target_type: TargetType.Plus,
+      },
+    ]).catch((error) => {
+      logger.warn(
+        { error },
+        'Failed to send analytics event for claimed subscription',
+      );
+    }),
+    identifyAnonymousFunnelSubscription({
       cio,
       email: body.email,
       claimedSub: true,
-    });
-  }
+    }).catch((error) => {
+      logger.warn(
+        { error },
+        'Failed to identify anonymous funnel subscription',
+      );
+    }),
+  ]);
 };
 
 export const validateUserUpdate = async (

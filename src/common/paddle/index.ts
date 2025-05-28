@@ -379,14 +379,19 @@ export const logPaddleAnalyticsEvent = async (
   }
 
   const { data, occurredAt, eventId } = event;
-  const customData = data.customData as { user_id: string };
+  const customData = data.customData as {
+    user_id: string;
+    tracking_id?: string;
+  };
   const userId = await getUserId({
     userId: customData?.user_id,
     subscriptionId:
       ('subscriptionId' in data && data.subscriptionId) || data.id,
   });
 
-  if (!userId) {
+  const analyticsId = userId || customData?.tracking_id;
+
+  if (!analyticsId) {
     return;
   }
 
@@ -396,7 +401,7 @@ export const logPaddleAnalyticsEvent = async (
       event_timestamp: new Date(occurredAt),
       event_id: eventId,
       app_platform: 'api',
-      user_id: userId,
+      user_id: analyticsId,
       extra: JSON.stringify(getAnalyticsExtra(data)),
       target_type: isPurchaseType(PurchaseType.Cores, event)
         ? TargetType.Credits

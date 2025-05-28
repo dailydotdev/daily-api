@@ -149,6 +149,11 @@ jest.mock('../src/common/paddle/index.ts', () => ({
     unknown
   >),
   cancelSubscription: jest.fn(),
+  paddleInstance: {
+    subscriptions: {
+      update: jest.fn().mockResolvedValue({}),
+    },
+  },
 }));
 
 jest.mock('../src/common/mailing.ts', () => ({
