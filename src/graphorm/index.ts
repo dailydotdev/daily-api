@@ -51,7 +51,10 @@ import { isPlusMember } from '../paddle';
 import { remoteConfig } from '../remoteConfig';
 import { whereNotUserBlocked } from '../common/contentPreference';
 import { type GetBalanceResult } from '../common/njord';
-import type { ContentPreferenceOrganization } from '../entity/contentPreference/ContentPreferenceOrganization';
+import {
+  ContentPreferenceOrganization,
+  ContentPreferenceOrganizationStatus,
+} from '../entity/contentPreference/ContentPreferenceOrganization';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -1206,12 +1209,27 @@ const obj = new GraphORM({
     },
   },
   Organization: {
+    requiredColumns: ['id'],
     fields: {
       members: {
         customQuery: (ctx, alias, qb) =>
           qb.andWhere(`${alias}."userId" != :userId`, {
             userId: ctx.userId,
           }),
+      },
+      activeSeats: {
+        rawSelect: true,
+        select: (_, alias, qb) =>
+          qb
+            .select('count(*)')
+            .from(ContentPreference, 'cpo')
+            .where(`"cpo"."organizationId" = ${alias}.id`)
+            .andWhere(`"cpo"."type" = :type`)
+            .andWhere(`"cpo"."status" = :status`)
+            .setParameters({
+              type: ContentPreferenceType.Organization,
+              status: ContentPreferenceOrganizationStatus.Plus,
+            }),
       },
     },
   },

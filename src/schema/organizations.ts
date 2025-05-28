@@ -39,6 +39,7 @@ export type GQLOrganization = Omit<
   'subscriptionFlags' | 'members'
 > & {
   members: GQLOrganizationMember[];
+  activeSeats: number;
 };
 export type GQLUserOrganization = {
   createdAt: Date;
@@ -97,6 +98,11 @@ export const typeDefs = /* GraphQL */ `
     The number of seats in the organization
     """
     seats: Int
+
+    """
+    The number of active seats in the organization
+    """
+    activeSeats: Int
 
     """
     The members of the organization
