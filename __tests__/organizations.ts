@@ -1032,3 +1032,163 @@ describe('mutation deleteOrganization', () => {
     expect(contentPreference).toBeNull();
   });
 });
+
+describe('mutation removeOrganizationMember', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation RemoveOrganizationMember($id: ID!, $memberId: String!) {
+      removeOrganizationMember(id: $id, memberId: $memberId) {
+        organization {
+          seats
+          activeSeats
+          members {
+            user {
+              id
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await con.getRepository(Feed).save([
+      {
+        id: '1',
+        userId: '1',
+      },
+      {
+        id: '2',
+        userId: '2',
+      },
+      {
+        id: '3',
+        userId: '3',
+      },
+    ]);
+
+    await con.getRepository(ContentPreferenceOrganization).save([
+      {
+        userId: '1',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '1',
+        status: ContentPreferenceOrganizationStatus.Plus,
+        flags: {
+          role: OrganizationMemberRole.Owner,
+          referralToken: 'ref-token-1',
+        },
+      },
+      {
+        userId: '2',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '2',
+        status: ContentPreferenceOrganizationStatus.Plus,
+        flags: {
+          role: OrganizationMemberRole.Admin,
+          referralToken: 'ref-token-2',
+        },
+      },
+      {
+        userId: '3',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '3',
+        status: ContentPreferenceOrganizationStatus.Plus,
+        flags: {
+          role: OrganizationMemberRole.Member,
+          referralToken: 'ref-token-3',
+        },
+      },
+    ]);
+  });
+
+  it('should not authorize when not logged-in', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { id: 'org-1', memberId: '2' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return forbidden logged user not part of organization', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'org-2', memberId: '2' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return forbidden logged when user is not correct role', async () => {
+    loggedUser = '3';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'org-1', memberId: '2' },
+      },
+      'FORBIDDEN',
+      'Access denied! You need to be a admin or higher to perform this action.',
+    );
+  });
+
+  it('should return forbidden logged when trying to remove yourself', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'org-1', memberId: '1' },
+      },
+      'FORBIDDEN',
+      'You cannot remove yourself from the organization.',
+    );
+  });
+
+  it('should return forbidden logged when trying to remove owner', async () => {
+    loggedUser = '2';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'org-1', memberId: '1' },
+      },
+      'FORBIDDEN',
+      'You cannot remove the owner of the organization.',
+    );
+  });
+
+  it('should remove member from organization', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(User).update('3', {
+      subscriptionFlags: {
+        organizationId: 'org-1',
+      },
+    });
+
+    const { data, errors } = await client.mutate<
+      {
+        removeOrganizationMember: GQLUserOrganization;
+      },
+      { id: string; memberId: string }
+    >(MUTATION, {
+      variables: { id: 'org-1', memberId: '3' },
+    });
+
+    expect(errors).toBeUndefined();
+    expect(data.removeOrganizationMember.organization.activeSeats).toEqual(2);
+    expect(data.removeOrganizationMember.organization.members[0]).toEqual({
+      user: {
+        id: '2',
+      },
+    });
+  });
+});

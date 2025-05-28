@@ -306,6 +306,21 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): EmptyResponse @auth
+
+    """
+    Remove a member from the organization
+    """
+    removeOrganizationMember(
+      """
+      The ID of the organization to remove the member from
+      """
+      id: ID!
+
+      """
+      The ID of the member to remove
+      """
+      memberId: String!
+    ): UserOrganization! @auth
   }
 `;
 
@@ -840,6 +855,71 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       await ctx.con.getRepository(Organization).delete(id);
 
       return { _: true };
+    },
+    removeOrganizationMember: async (
+      _,
+      { id: organizationId, memberId },
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLUserOrganization> => {
+      await ensureOrganizationRole(ctx, {
+        organizationId,
+        requiredRole: OrganizationMemberRole.Admin,
+      });
+
+      if (memberId === ctx.userId) {
+        throw new ForbiddenError(
+          'You cannot remove yourself from the organization.',
+        );
+      }
+
+      await ctx.con.transaction(async (manager) => {
+        const member = await manager
+          .getRepository(ContentPreferenceOrganization)
+          .findOneOrFail({
+            where: {
+              organizationId,
+              userId: memberId,
+            },
+            relations: {
+              user: true,
+            },
+          });
+
+        if (member.flags?.role === OrganizationMemberRole.Owner) {
+          throw new ForbiddenError(
+            'You cannot remove the owner of the organization.',
+          );
+        }
+
+        const memberUser = await member.user;
+
+        const organizationSeatUser =
+          memberUser.subscriptionFlags?.organizationId === organizationId;
+
+        await Promise.all([
+          manager.getRepository(ContentPreferenceOrganization).delete({
+            userId: memberId,
+            organizationId,
+          }),
+          organizationSeatUser &&
+            manager.getRepository(User).update(
+              { id: memberId },
+              {
+                subscriptionFlags: updateSubscriptionFlags({
+                  subscriptionId: null,
+                  cycle: null,
+                  createdAt: null,
+                  provider: null,
+                  status: null,
+                  organizationId: null,
+                }),
+              },
+            ),
+        ]);
+      });
+
+      return getOrganizationById(ctx, info, organizationId);
     },
   },
 });
