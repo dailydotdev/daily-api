@@ -447,6 +447,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
       const { id, quantity, locale } = safeParams.data;
 
+      await ensureOrganizationRole(ctx, {
+        organizationId: id,
+        requiredRole: OrganizationMemberRole.Admin,
+      });
+
       const organization = await ctx.con
         .getRepository(Organization)
         .findOneByOrFail({
