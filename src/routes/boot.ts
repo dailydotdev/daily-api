@@ -830,7 +830,14 @@ const getFunnel = async (
     query.id,
     query.v ? Number(query.v) : undefined,
   );
-  setCookie(req, res, 'funnel', funnel.session.id);
+
+  const getCookieKeyFromFeatureKey = (featureKey: string) => {
+    return Object.entries(funnelBoots).find(
+      ([, value]) => value.featureKey === featureKey,
+    )?.[0];
+  };
+  const cookieKey = getCookieKeyFromFeatureKey(featureKey) || 'funnel';
+  setCookie(req, res, cookieKey, funnel.session.id);
 
   return funnel;
 };
