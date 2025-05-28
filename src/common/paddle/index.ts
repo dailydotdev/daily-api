@@ -50,6 +50,7 @@ import {
 } from '../../integrations/analytics';
 import createOrGetConnection from '../../db';
 import { PurchaseTypeError } from '../../errors';
+import { isNullOrUndefined } from '../object';
 
 export const paddleInstance = new Paddle(process.env.PADDLE_API_KEY, {
   environment: process.env.PADDLE_ENVIRONMENT as Environment,
@@ -469,4 +470,16 @@ export const getPaddleSubscriptionData = ({
   const subscriptionData = subscriptionDataResult.data;
 
   return subscriptionData;
+};
+
+export const parsePaddlePriceInCents = (
+  price: string = '0',
+  max?: number,
+): string => {
+  const parsedPrice = parseInt(price, 10) / 100;
+  console.log(parsedPrice, max);
+  if (!isNullOrUndefined(max) && !isNaN(max)) {
+    return Math.max(parsedPrice, max).toString();
+  }
+  return parsedPrice.toString();
 };

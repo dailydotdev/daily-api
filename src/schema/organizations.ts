@@ -39,6 +39,7 @@ import {
   fetchSubscriptionUpdatePreview,
   previewSubscriptionUpdateSchema,
 } from '../common/paddle/organization';
+import { parsePaddlePriceInCents } from '../common/paddle';
 
 export type GQLOrganizationMember = {
   role: OrganizationMemberRole;
@@ -120,6 +121,12 @@ export const typeDefs = /* GraphQL */ `
     members: [OrganizationMember!]!
   }
 
+  type ProratedPricePreview {
+    subTotal: PricePreview
+    tax: PricePreview
+    total: PricePreview
+  }
+
   type OrganizationSubscription {
     """
     Status of the subscription
@@ -139,7 +146,7 @@ export const typeDefs = /* GraphQL */ `
     """
     The prorated price of the subscription update
     """
-    prorated: ProductPricePreview
+    prorated: ProratedPricePreview
 
     """
     The total price of the subscription update
@@ -492,22 +499,41 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         };
       });
 
+      const prorated = preview.immediateTransaction && {
+        total: getPrice({
+          formatted: parsePaddlePriceInCents(
+            preview.immediateTransaction.details.totals.total,
+            0,
+          ),
+          locale,
+        }),
+        subTotal: getPrice({
+          formatted: parsePaddlePriceInCents(
+            preview.immediateTransaction.details.totals.subtotal,
+            0,
+          ),
+          locale,
+        }),
+        tax: getPrice({
+          formatted: parsePaddlePriceInCents(
+            preview.immediateTransaction.details.totals.tax,
+            0,
+          ),
+          locale,
+        }),
+      };
+
       return {
         status: preview.status,
         pricing,
         nextBilling: preview.nextBilledAt,
-        prorated:
-          preview.updateSummary?.charge.amount &&
-          getPrice({
-            formatted: `${parseInt(preview.updateSummary.charge.amount) / 100}`,
-            locale,
-          }),
-        total:
-          preview.recurringTransactionDetails?.totals.total &&
-          getPrice({
-            formatted: `${parseInt(preview.recurringTransactionDetails.totals.total) / 100}`,
-            locale,
-          }),
+        prorated,
+        total: getPrice({
+          formatted: parsePaddlePriceInCents(
+            preview.recurringTransactionDetails?.totals.total,
+          ),
+          locale,
+        }),
       };
     },
   },
