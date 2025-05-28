@@ -253,7 +253,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Currency symbol
     """
-    symbol: String!
+    symbol: String
   }
 
   type BaseProductPricingPreview {
