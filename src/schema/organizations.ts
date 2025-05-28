@@ -508,7 +508,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           priceId: item.price.id,
           price: getProductPrice(
             {
-              total: `${parseInt(lineItem.unitTotals.total) / 100}`,
+              total: parsePaddlePriceInCents(lineItem.unitTotals.total),
               interval: preview.billingCycle?.interval,
             },
             locale,
