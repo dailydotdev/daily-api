@@ -15,8 +15,10 @@ import { Feed, Organization, User } from '../src/entity';
 import createOrGetConnection from '../src/db';
 
 import { userCreatedDate, usersFixture } from './fixture/user';
-import { ContentPreferenceOrganization } from '../src/entity/contentPreference/ContentPreferenceOrganization';
-import { ContentPreferenceStatus } from '../src/entity/contentPreference/types';
+import {
+  ContentPreferenceOrganization,
+  ContentPreferenceOrganizationStatus,
+} from '../src/entity/contentPreference/ContentPreferenceOrganization';
 import { OrganizationMemberRole } from '../src/roles';
 import type { GQLUserOrganization } from '../src/schema/organizations';
 import { updateSubscriptionFlags } from '../src/common';
@@ -110,7 +112,7 @@ describe('query organizations', () => {
       referenceId: 'org-1',
       organizationId: 'org-1',
       feedId: loggedUser,
-      status: ContentPreferenceStatus.Follow,
+      status: ContentPreferenceOrganizationStatus.Plus,
       flags: {
         role: OrganizationMemberRole.Owner,
         referralToken: 'ref-token-1',
@@ -199,7 +201,7 @@ describe('query organization', () => {
       referenceId: 'org-1',
       organizationId: 'org-1',
       feedId: loggedUser,
-      status: ContentPreferenceStatus.Follow,
+      status: ContentPreferenceOrganizationStatus.Plus,
       flags: {
         role: OrganizationMemberRole.Owner,
         referralToken: 'ref-token-1',
@@ -243,7 +245,7 @@ describe('query organization', () => {
         referenceId: 'org-1',
         organizationId: 'org-1',
         feedId: loggedUser,
-        status: ContentPreferenceStatus.Follow,
+        status: ContentPreferenceOrganizationStatus.Plus,
         flags: {
           role: OrganizationMemberRole.Owner,
           referralToken: 'ref-token-1',
@@ -254,7 +256,7 @@ describe('query organization', () => {
         referenceId: 'org-1',
         organizationId: 'org-1',
         feedId: '2',
-        status: ContentPreferenceStatus.Follow,
+        status: ContentPreferenceOrganizationStatus.Plus,
         flags: {
           role: OrganizationMemberRole.Member,
           referralToken: 'ref-token-2',
@@ -307,7 +309,7 @@ describe('mutation updateOrganization', () => {
         referenceId: 'org-1',
         organizationId: 'org-1',
         feedId: '1',
-        status: ContentPreferenceStatus.Follow,
+        status: ContentPreferenceOrganizationStatus.Plus,
         flags: {
           role: OrganizationMemberRole.Owner,
           referralToken: 'ref-token-1',
@@ -318,7 +320,7 @@ describe('mutation updateOrganization', () => {
         referenceId: 'org-1',
         organizationId: 'org-1',
         feedId: '2',
-        status: ContentPreferenceStatus.Follow,
+        status: ContentPreferenceOrganizationStatus.Plus,
         flags: {
           role: OrganizationMemberRole.Member,
           referralToken: 'ref-token-2',
@@ -461,7 +463,7 @@ describe('mutation joinOrganization', () => {
         referenceId: 'org-1',
         organizationId: 'org-1',
         feedId: '1',
-        status: ContentPreferenceStatus.Follow,
+        status: ContentPreferenceOrganizationStatus.Plus,
         flags: {
           role: OrganizationMemberRole.Owner,
           referralToken: 'ref-token-1',
@@ -472,7 +474,7 @@ describe('mutation joinOrganization', () => {
         referenceId: 'org-1',
         organizationId: 'org-1',
         feedId: '2',
-        status: ContentPreferenceStatus.Follow,
+        status: ContentPreferenceOrganizationStatus.Plus,
         flags: {
           role: OrganizationMemberRole.Member,
           referralToken: 'ref-token-2',
@@ -604,7 +606,7 @@ describe('query getOrganizationByIdAndInviteToken', () => {
         referenceId: 'org-1',
         organizationId: 'org-1',
         feedId: '1',
-        status: ContentPreferenceStatus.Follow,
+        status: ContentPreferenceOrganizationStatus.Plus,
         flags: {
           role: OrganizationMemberRole.Owner,
           referralToken: 'ref-token-1',
@@ -615,7 +617,7 @@ describe('query getOrganizationByIdAndInviteToken', () => {
         referenceId: 'org-1',
         organizationId: 'org-1',
         feedId: '2',
-        status: ContentPreferenceStatus.Follow,
+        status: ContentPreferenceOrganizationStatus.Plus,
         flags: {
           role: OrganizationMemberRole.Member,
           referralToken: 'ref-token-2',
@@ -735,7 +737,7 @@ describe('mutation leaveOrganization', () => {
         referenceId: 'org-1',
         organizationId: 'org-1',
         feedId: '1',
-        status: ContentPreferenceStatus.Follow,
+        status: ContentPreferenceOrganizationStatus.Plus,
         flags: {
           role: OrganizationMemberRole.Owner,
           referralToken: 'ref-token-1',
@@ -746,7 +748,7 @@ describe('mutation leaveOrganization', () => {
         referenceId: 'org-1',
         organizationId: 'org-1',
         feedId: 'org-rem-2',
-        status: ContentPreferenceStatus.Follow,
+        status: ContentPreferenceOrganizationStatus.Plus,
         flags: {
           role: OrganizationMemberRole.Member,
           referralToken: 'ref-token-2',
