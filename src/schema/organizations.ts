@@ -1,17 +1,24 @@
 import type { FileHandle } from 'node:fs/promises';
+import type { IResolvers } from '@graphql-tools/utils';
 import { z } from 'zod';
 import { ForbiddenError } from 'apollo-server-errors';
-import type { IResolvers } from '@graphql-tools/utils';
 import type { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import { Organization } from '../entity/Organization';
 import { OrganizationMemberRole, organizationRoleHierarchy } from '../roles';
 import graphorm from '../graphorm';
-import { toGQLEnum, uploadOrganizationImage } from '../common';
+import {
+  toGQLEnum,
+  updateSubscriptionFlags,
+  uploadOrganizationImage,
+} from '../common';
 import type { GQLUser } from './users';
 import type { GraphQLResolveInfo } from 'graphql';
 import { isNullOrUndefined } from '../common/object';
 import { ContentPreferenceOrganization } from '../entity/contentPreference/ContentPreferenceOrganization';
+import { type TypeORMQueryFailedError } from '../errors';
+import type { GQLEmptyResponse } from './common';
+import { User } from '../entity';
 
 export type GQLOrganizationMember = {
   role: OrganizationMemberRole;
