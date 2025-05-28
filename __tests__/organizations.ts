@@ -488,7 +488,7 @@ describe('mutation joinOrganization', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should return forbidden if token and organization do not match', async () => {
+  it('should return forbidden if organization do not match', async () => {
     loggedUser = '3';
 
     testMutationErrorCode(
@@ -496,6 +496,20 @@ describe('mutation joinOrganization', () => {
       {
         mutation: MUTATION,
         variables: { id: 'non-existing', token: 'ref-token-1' },
+      },
+      'FORBIDDEN',
+      'Invalid invitation token',
+    );
+  });
+
+  it('should return forbidden if token do not match', async () => {
+    loggedUser = '3';
+
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'org-1', token: 'non-existing' },
       },
       'FORBIDDEN',
       'Invalid invitation token',
