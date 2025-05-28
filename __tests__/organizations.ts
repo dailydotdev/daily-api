@@ -1,3 +1,6 @@
+import assert from 'node:assert';
+import { DataSource } from 'typeorm';
+
 import {
   GraphQLTestClient,
   GraphQLTestingState,
@@ -9,14 +12,14 @@ import {
 } from './helpers';
 import { Feed, Organization, User } from '../src/entity';
 
-import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 
-import { usersFixture } from './fixture/user';
+import { userCreatedDate, usersFixture } from './fixture/user';
 import { ContentPreferenceOrganization } from '../src/entity/contentPreference/ContentPreferenceOrganization';
 import { ContentPreferenceStatus } from '../src/entity/contentPreference/types';
 import { OrganizationMemberRole } from '../src/roles';
 import type { GQLUserOrganization } from '../src/schema/organizations';
+import { updateSubscriptionFlags } from '../src/common';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -407,5 +410,177 @@ describe('mutation updateOrganization', () => {
     expect(errors[0].extensions?.issues?.[0].message).toEqual(
       'Organization name is required',
     );
+  });
+});
+
+describe('mutation leaveOrganization', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation LeaveOrganization($id: ID!) {
+      leaveOrganization(id: $id) {
+        _
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await con.getRepository(User).save({
+      id: 'org-rem-2',
+      bio: null,
+      github: 'orgrem2',
+      hashnode: null,
+      name: 'Ido',
+      image: 'https://daily.dev/ido.jpg',
+      email: 'org-rem-2@daily.dev',
+      createdAt: new Date(userCreatedDate),
+      twitter: null,
+      username: 'org-rem-2',
+      infoConfirmed: true,
+    });
+    await con.getRepository(Feed).save([
+      {
+        id: '1',
+        userId: '1',
+      },
+      {
+        id: 'org-rem-2',
+        userId: 'org-rem-2',
+      },
+      {
+        id: '3',
+        userId: '3',
+      },
+    ]);
+
+    await con.getRepository(ContentPreferenceOrganization).save([
+      {
+        userId: '1',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '1',
+        status: ContentPreferenceStatus.Follow,
+        flags: {
+          role: OrganizationMemberRole.Owner,
+          referralToken: 'ref-token-1',
+        },
+      },
+      {
+        userId: 'org-rem-2',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: 'org-rem-2',
+        status: ContentPreferenceStatus.Follow,
+        flags: {
+          role: OrganizationMemberRole.Member,
+          referralToken: 'ref-token-2',
+        },
+      },
+    ]);
+  });
+
+  it('should not authorize when not logged-in', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { id: 'org-1' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return forbidden logged user not part of organization', async () => {
+    loggedUser = '3';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'org-1' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return forbidden logged user is admin of organization', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'org-1' },
+      },
+      'FORBIDDEN',
+      "Access denied! Owner can't be removed",
+    );
+  });
+
+  it('should remove user from organization and reset their plus if seat user', async () => {
+    loggedUser = 'org-rem-2';
+
+    await con.getRepository(User).update(
+      {
+        id: loggedUser,
+      },
+      {
+        subscriptionFlags: updateSubscriptionFlags({
+          organizationId: 'org-1',
+          cycle: 'yearly',
+        }),
+      },
+    );
+
+    await client.mutate(MUTATION, {
+      variables: { id: 'org-1' },
+    });
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceOrganization)
+      .findOneBy({
+        userId: loggedUser,
+        organizationId: 'org-1',
+      });
+
+    expect(contentPreference).toBeNull();
+
+    const user = await con.getRepository(User).findOneByOrFail({
+      id: loggedUser,
+    });
+
+    assert(user.subscriptionFlags);
+    expect(user.subscriptionFlags.organizationId).toBeNull();
+    expect(user.subscriptionFlags.cycle).toBeNull();
+  });
+
+  it('should remove user from organization but keep their plus subscription it not a seat user', async () => {
+    loggedUser = 'org-rem-2';
+
+    await con.getRepository(User).update(
+      {
+        id: loggedUser,
+      },
+      {
+        subscriptionFlags: updateSubscriptionFlags({
+          cycle: 'yearly',
+        }),
+      },
+    );
+
+    await client.mutate(MUTATION, {
+      variables: { id: 'org-1' },
+    });
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceOrganization)
+      .findOneBy({
+        userId: loggedUser,
+        organizationId: 'org-1',
+      });
+
+    expect(contentPreference).toBeNull();
+
+    const user = await con.getRepository(User).findOneByOrFail({
+      id: loggedUser,
+    });
+
+    assert(user.subscriptionFlags);
+    expect(user.subscriptionFlags.organizationId).toBeUndefined();
+    expect(user.subscriptionFlags.cycle).toBe('yearly');
   });
 });
