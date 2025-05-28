@@ -1192,3 +1192,242 @@ describe('mutation removeOrganizationMember', () => {
     });
   });
 });
+
+describe('mutation updateOrganizationMemberRole', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation UpdateOrganizationMemberRole(
+      $id: ID!
+      $memberId: String!
+      $role: OrganizationMemberRole!
+    ) {
+      updateOrganizationMemberRole(id: $id, memberId: $memberId, role: $role) {
+        organization {
+          members {
+            role
+            user {
+              id
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await con.getRepository(Feed).save([
+      {
+        id: '1',
+        userId: '1',
+      },
+      {
+        id: '2',
+        userId: '2',
+      },
+      {
+        id: '3',
+        userId: '3',
+      },
+      {
+        id: '4',
+        userId: '4',
+      },
+    ]);
+
+    await con.getRepository(ContentPreferenceOrganization).save([
+      {
+        userId: '1',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '1',
+        status: ContentPreferenceOrganizationStatus.Plus,
+        flags: {
+          role: OrganizationMemberRole.Owner,
+          referralToken: 'ref-token-1',
+        },
+      },
+      {
+        userId: '2',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '2',
+        status: ContentPreferenceOrganizationStatus.Plus,
+        flags: {
+          role: OrganizationMemberRole.Admin,
+          referralToken: 'ref-token-2',
+        },
+      },
+      {
+        userId: '3',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '3',
+        status: ContentPreferenceOrganizationStatus.Plus,
+        flags: {
+          role: OrganizationMemberRole.Member,
+          referralToken: 'ref-token-3',
+        },
+      },
+      {
+        userId: '4',
+        referenceId: 'org-2',
+        organizationId: 'org-2',
+        feedId: '4',
+        status: ContentPreferenceOrganizationStatus.Plus,
+        flags: {
+          role: OrganizationMemberRole.Member,
+          referralToken: 'ref-token-4',
+        },
+      },
+    ]);
+  });
+
+  it('should not authorize when not logged-in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'org-1', memberId: '2', role: 'admin' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return forbidden logged user not part of organization', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'org-2', memberId: '2', role: 'admin' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return forbidden when trying to update role of member not in organization', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'org-1', memberId: '4', role: 'admin' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return forbidden logged when user is not correct role', async () => {
+    loggedUser = '3';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'org-1', memberId: '2', role: 'admin' },
+      },
+      'FORBIDDEN',
+      'Access denied! You need to be a admin or higher to perform this action.',
+    );
+  });
+
+  it('should return forbidden logged when trying to update yourself', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'org-1', memberId: '1', role: 'admin' },
+      },
+      'FORBIDDEN',
+      'You cannot change your own role in the organization.',
+    );
+  });
+
+  it('should return forbidden logged when trying to update owner role', async () => {
+    loggedUser = '2';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'org-1', memberId: '1', role: 'admin' },
+      },
+      'FORBIDDEN',
+      'You cannot change the role of the owner of the organization.',
+    );
+  });
+
+  it('should return forbidden when trying to assign owner role to member', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'org-1', memberId: '3', role: 'owner' },
+      },
+      'FORBIDDEN',
+      'You cannot assign the owner role to a member at this time.',
+    );
+  });
+
+  it('should update member role to admin', async () => {
+    loggedUser = '1';
+
+    const { data, errors } = await client.mutate<
+      { updateOrganizationMemberRole: GQLUserOrganization },
+      { id: string; memberId: string; role: string }
+    >(MUTATION, {
+      variables: { id: 'org-1', memberId: '3', role: 'admin' },
+    });
+
+    expect(errors).toBeUndefined();
+    expect(data.updateOrganizationMemberRole.organization.members).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: 'admin',
+          user: {
+            id: '3',
+          },
+        }),
+        expect.objectContaining({
+          role: 'admin',
+          user: {
+            id: '2',
+          },
+        }),
+      ]),
+    );
+  });
+
+  it('should update member role to member', async () => {
+    loggedUser = '1';
+
+    const { data, errors } = await client.mutate<
+      { updateOrganizationMemberRole: GQLUserOrganization },
+      { id: string; memberId: string; role: string }
+    >(MUTATION, {
+      variables: { id: 'org-1', memberId: '2', role: 'member' },
+    });
+
+    expect(errors).toBeUndefined();
+    expect(data.updateOrganizationMemberRole.organization.members).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: 'member',
+          user: {
+            id: '2',
+          },
+        }),
+        expect.objectContaining({
+          role: 'member',
+          user: {
+            id: '2',
+          },
+        }),
+      ]),
+    );
+  });
+});

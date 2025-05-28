@@ -13,6 +13,7 @@ import {
 import graphorm from '../graphorm';
 import {
   toGQLEnum,
+  updateFlagsStatement,
   updateSubscriptionFlags,
   uploadOrganizationImage,
 } from '../common';
@@ -320,6 +321,24 @@ export const typeDefs = /* GraphQL */ `
       The ID of the member to remove
       """
       memberId: String!
+    ): UserOrganization! @auth
+
+    """
+    Update the role of a member in the organization
+    """
+    updateOrganizationMemberRole(
+      """
+      The ID of the organization to update the member role in
+      """
+      id: ID!
+      """
+      The ID of the member to update the role for
+      """
+      memberId: String!
+      """
+      The new role to assign to the member
+      """
+      role: OrganizationMemberRole!
     ): UserOrganization! @auth
   }
 `;
@@ -917,6 +936,62 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               },
             ),
         ]);
+      });
+
+      return getOrganizationById(ctx, info, organizationId);
+    },
+    updateOrganizationMemberRole: async (
+      _,
+      {
+        id: organizationId,
+        memberId,
+        role,
+      }: { id: string; memberId: string; role: OrganizationMemberRole },
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLUserOrganization> => {
+      await ensureOrganizationRole(ctx, {
+        organizationId,
+        requiredRole: OrganizationMemberRole.Admin,
+      });
+
+      await ctx.con.transaction(async (manager) => {
+        if (role === OrganizationMemberRole.Owner) {
+          throw new ForbiddenError(
+            'You cannot assign the owner role to a member at this time.',
+          );
+        }
+
+        if (memberId === ctx.userId) {
+          throw new ForbiddenError(
+            'You cannot change your own role in the organization.',
+          );
+        }
+
+        const member = await manager
+          .getRepository(ContentPreferenceOrganization)
+          .findOneByOrFail({
+            organizationId,
+            userId: memberId,
+          });
+
+        if (member.flags?.role === OrganizationMemberRole.Owner) {
+          throw new ForbiddenError(
+            'You cannot change the role of the owner of the organization.',
+          );
+        }
+
+        await manager.getRepository(ContentPreferenceOrganization).update(
+          {
+            userId: memberId,
+            organizationId,
+          },
+          {
+            flags: updateFlagsStatement({
+              role,
+            }),
+          },
+        );
       });
 
       return getOrganizationById(ctx, info, organizationId);
