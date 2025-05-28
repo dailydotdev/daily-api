@@ -29,6 +29,16 @@ import { randomUUID } from 'node:crypto';
 import { JsonContains } from 'typeorm';
 import { User } from '../entity';
 import { isPlusMember } from '../paddle';
+import {
+  getPrice,
+  getPricingDuration,
+  getPricingMetadataByPriceIds,
+  getProductPrice,
+} from '../common/paddle/pricing';
+import {
+  fetchSubscriptionUpdatePreview,
+  previewSubscriptionUpdateSchema,
+} from '../common/paddle/organization';
 
 export type GQLOrganizationMember = {
   role: OrganizationMemberRole;
@@ -110,6 +120,33 @@ export const typeDefs = /* GraphQL */ `
     members: [OrganizationMember!]!
   }
 
+  type OrganizationSubscription {
+    """
+    Status of the subscription
+    """
+    status: String!
+
+    """
+    Preview of the updated pricing details of the subscription
+    """
+    pricing: [BaseProductPricingPreview!]!
+
+    """
+    The next billing date of the subscription
+    """
+    nextBilling: DateTime
+
+    """
+    The prorated price of the subscription update
+    """
+    prorated: ProductPricePreview
+
+    """
+    The total price of the subscription update
+    """
+    total: ProductPricePreview
+  }
+
   type UserOrganization {
     """
     Role of the user in the organization
@@ -167,6 +204,26 @@ export const typeDefs = /* GraphQL */ `
       """
       token: String!
     ): OrganizationMember
+
+    """
+    Preview the organization subscription update
+    """
+    previewOrganizationSubscriptionUpdate(
+      """
+      The ID of the organization
+      """
+      id: ID!
+
+      """
+      The number of seats to update to
+      """
+      quantity: Int!
+
+      """
+      The locale to use for formatting prices
+      """
+      locale: String
+    ): OrganizationSubscription @auth
   }
 
   extend type Mutation {
@@ -370,6 +427,88 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return builder;
         },
       );
+    },
+    previewOrganizationSubscriptionUpdate: async (
+      _,
+      params: z.infer<typeof previewSubscriptionUpdateSchema>,
+      ctx: AuthContext,
+    ) => {
+      const safeParams = previewSubscriptionUpdateSchema.safeParse(params);
+
+      if (safeParams.error) {
+        throw safeParams.error;
+      }
+      const { id, quantity, locale } = safeParams.data;
+
+      const organization = await ctx.con
+        .getRepository(Organization)
+        .findOneByOrFail({
+          id,
+        });
+
+      if (!organization.subscriptionFlags?.subscriptionId) {
+        throw new Error('Missing subscription ID for organization');
+      }
+
+      if (!organization.subscriptionFlags?.priceId) {
+        throw new Error('Missing price ID for organization subscription');
+      }
+
+      const preview = await fetchSubscriptionUpdatePreview({
+        subscriptionId: organization.subscriptionFlags.subscriptionId,
+        priceId: organization.subscriptionFlags.priceId,
+        quantity,
+      });
+
+      const priceMetadata = await getPricingMetadataByPriceIds(
+        ctx,
+        preview.items.map((item) => item.price.id),
+      );
+
+      const pricing = preview.items.map((item) => {
+        const lineItem = preview.recurringTransactionDetails?.lineItems.find(
+          (lineItem) => lineItem.priceId === item.price.id,
+        );
+
+        if (!lineItem) {
+          return {};
+        }
+
+        return {
+          priceId: item.price.id,
+          price: getProductPrice(
+            {
+              total: `${parseInt(lineItem.unitTotals.total) / 100}`,
+              interval: preview.billingCycle?.interval,
+            },
+            locale,
+          ),
+          duration: getPricingDuration(item),
+          trialPeriod: item.price.trialPeriod,
+          currency: {
+            code: preview.currencyCode,
+          },
+          metadata: priceMetadata?.[item.price.id] ?? null,
+        };
+      });
+
+      return {
+        status: preview.status,
+        pricing,
+        nextBilling: preview.nextBilledAt,
+        prorated:
+          preview.updateSummary?.charge.amount &&
+          getPrice({
+            formatted: `${parseInt(preview.updateSummary.charge.amount) / 100}`,
+            locale,
+          }),
+        total:
+          preview.recurringTransactionDetails?.totals.total &&
+          getPrice({
+            formatted: `${parseInt(preview.recurringTransactionDetails.totals.total) / 100}`,
+            locale,
+          }),
+      };
     },
   },
   Mutation: {
