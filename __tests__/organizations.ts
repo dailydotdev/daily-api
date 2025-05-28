@@ -24,6 +24,7 @@ import type { GQLUserOrganization } from '../src/schema/organizations';
 import { updateSubscriptionFlags } from '../src/common';
 import { SubscriptionCycles } from '../src/paddle';
 import { SubscriptionStatus } from '../src/common/plus';
+import { addHours } from 'date-fns';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -280,6 +281,92 @@ describe('query organization', () => {
         },
       },
     ]);
+  });
+
+  it('should order the members by role and createdAt', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(Feed).save([
+      {
+        id: '1',
+        userId: '1',
+      },
+      {
+        id: '2',
+        userId: '2',
+      },
+      {
+        id: '3',
+        userId: '3',
+      },
+      {
+        id: '4',
+        userId: '4',
+      },
+    ]);
+
+    const now = new Date();
+
+    await con.getRepository(ContentPreferenceOrganization).save([
+      {
+        userId: '1',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '1',
+        status: ContentPreferenceOrganizationStatus.Plus,
+        createdAt: now,
+        flags: {
+          role: OrganizationMemberRole.Member,
+          referralToken: 'ref-token-1',
+        },
+      },
+      {
+        userId: '2',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '2',
+        status: ContentPreferenceOrganizationStatus.Plus,
+        createdAt: addHours(now, 1),
+        flags: {
+          role: OrganizationMemberRole.Admin,
+          referralToken: 'ref-token-2',
+        },
+      },
+      {
+        userId: '3',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '3',
+        status: ContentPreferenceOrganizationStatus.Plus,
+        createdAt: addHours(now, 2),
+        flags: {
+          role: OrganizationMemberRole.Member,
+          referralToken: 'ref-token-3',
+        },
+      },
+      {
+        userId: '4',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '4',
+        status: ContentPreferenceOrganizationStatus.Plus,
+        createdAt: now,
+        flags: {
+          role: OrganizationMemberRole.Owner,
+          referralToken: 'ref-token-4',
+        },
+      },
+    ]);
+
+    const { data, errors } = await client.query<
+      { organization: GQLUserOrganization },
+      { id: string }
+    >(QUERY, { variables: { id: 'org-1' } });
+
+    expect(errors).toBeUndefined();
+    expect(
+      data.organization.organization.members.map((m) => m.user.id),
+    ).toEqual(['4', '2', '3']);
   });
 });
 
