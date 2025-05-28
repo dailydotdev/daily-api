@@ -1,5 +1,9 @@
 import { Column, Entity, PrimaryColumn } from 'typeorm';
 
+export enum ExperimentVariantType {
+  ProductPricing = 'productPricing',
+}
+
 @Entity()
 export class ExperimentVariant {
   @PrimaryColumn({ type: 'text' })
@@ -13,4 +17,7 @@ export class ExperimentVariant {
 
   @Column({ type: 'text', default: null })
   value: string;
+
+  @Column({ type: 'text' })
+  type: ExperimentVariantType;
 }

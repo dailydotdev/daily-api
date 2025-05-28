@@ -6,7 +6,11 @@ import type { DataSource } from 'typeorm';
 import { generateKeyPairSync, type ECKeyPairOptions } from 'crypto';
 import { sign } from 'jsonwebtoken';
 import createOrGetConnection from '../../../src/db';
-import { ExperimentVariant, User } from '../../../src/entity';
+import {
+  ExperimentVariant,
+  ExperimentVariantType,
+  User,
+} from '../../../src/entity';
 import {
   createMockNjordErrorTransport,
   createMockNjordTransport,
@@ -465,6 +469,7 @@ describe('POST /webhooks/apple/notifications', () => {
               coresValue: 100,
             },
           ]),
+          type: ExperimentVariantType.ProductPricing,
         },
       ]);
     });
