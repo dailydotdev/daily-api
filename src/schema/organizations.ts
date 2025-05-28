@@ -37,7 +37,8 @@ import {
 } from '../common/paddle/pricing';
 import {
   fetchSubscriptionUpdatePreview,
-  previewSubscriptionUpdateSchema,
+  subscriptionUpdateSchema,
+  updateOrganizationSubscription,
 } from '../common/paddle/organization';
 import { parsePaddlePriceInCents } from '../common/paddle';
 import { SubscriptionStatus } from '../common/plus';
@@ -280,6 +281,21 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): EmptyResponse @auth
+
+    """
+    Update the organization subscription
+    """
+    updateOrganizationSubscription(
+      """
+      The ID of the organization to update
+      """
+      id: ID!
+
+      """
+      The number of seats to update to
+      """
+      quantity: Int!
+    ): UserOrganization @auth
   }
 `;
 
@@ -439,10 +455,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     previewOrganizationSubscriptionUpdate: async (
       _,
-      params: z.infer<typeof previewSubscriptionUpdateSchema>,
+      params: z.infer<typeof subscriptionUpdateSchema>,
       ctx: AuthContext,
     ) => {
-      const safeParams = previewSubscriptionUpdateSchema.safeParse(params);
+      const safeParams = subscriptionUpdateSchema.safeParse(params);
 
       if (safeParams.error) {
         throw safeParams.error;
@@ -506,24 +522,24 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         };
       });
 
-      const prorated = preview.immediateTransaction && {
+      const prorated = {
         total: getPrice({
           formatted: parsePaddlePriceInCents(
-            preview.immediateTransaction.details.totals.total,
+            preview.immediateTransaction?.details.totals.total,
             0,
           ),
           locale,
         }),
         subTotal: getPrice({
           formatted: parsePaddlePriceInCents(
-            preview.immediateTransaction.details.totals.subtotal,
+            preview.immediateTransaction?.details.totals.subtotal,
             0,
           ),
           locale,
         }),
         tax: getPrice({
           formatted: parsePaddlePriceInCents(
-            preview.immediateTransaction.details.totals.tax,
+            preview.immediateTransaction?.details.totals.tax,
             0,
           ),
           locale,
@@ -701,6 +717,67 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw err;
       }
       return { _: true };
+    },
+    updateOrganizationSubscription: async (
+      _,
+      params: z.infer<typeof subscriptionUpdateSchema>,
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLUserOrganization> => {
+      const safeParams = subscriptionUpdateSchema.safeParse(params);
+
+      if (safeParams.error) {
+        throw safeParams.error;
+      }
+      const { id, quantity } = safeParams.data;
+
+      await ensureOrganizationRole(ctx, {
+        organizationId: id,
+        requiredRole: OrganizationMemberRole.Owner,
+      });
+
+      const organization = await ctx.con
+        .getRepository(Organization)
+        .findOneByOrFail({
+          id,
+        });
+
+      if (!organization.subscriptionFlags?.subscriptionId) {
+        throw new Error('Missing subscription ID for organization');
+      }
+
+      if (!organization.subscriptionFlags?.priceId) {
+        throw new Error('Missing price ID for organization subscription');
+      }
+
+      if (
+        organization.subscriptionFlags?.status !== SubscriptionStatus.Active
+      ) {
+        throw new Error(
+          'Organization subscription is not active. Cannot update subscription.',
+        );
+      }
+
+      try {
+        const updateResult = await updateOrganizationSubscription({
+          subscriptionId: organization.subscriptionFlags.subscriptionId,
+          priceId: organization.subscriptionFlags.priceId,
+          quantity,
+        });
+
+        await ctx.con.getRepository(Organization).update(id, {
+          seats: updateResult.items[0].quantity,
+        });
+      } catch (_err) {
+        const err = _err as Error;
+        ctx.log.error(
+          { err, organizationId: id, quantity },
+          'Failed to update organization subscription',
+        );
+        throw err;
+      }
+
+      return getOrganizationById(ctx, info, id);
     },
   },
 });

@@ -1,7 +1,11 @@
 import { createHmac } from 'node:crypto';
 import { paddleInstance } from '..';
 import { generateStorageKey, StorageKey, StorageTopic } from '../../../config';
-import { getRedisObject, setRedisObjectWithExpiry } from '../../../redis';
+import {
+  deleteRedisKey,
+  getRedisObject,
+  setRedisObjectWithExpiry,
+} from '../../../redis';
 import type { SubscriptionPreview } from '@paddle/paddle-node-sdk';
 import { ONE_HOUR_IN_SECONDS } from '../../constants';
 import { z } from 'zod';
@@ -12,7 +16,7 @@ export type FetchSubscriptionUpdatePreview = {
   quantity: number;
 };
 
-export const previewSubscriptionUpdateSchema = z.object({
+export const subscriptionUpdateSchema = z.object({
   id: z.string({ message: 'Subscription ID is required' }),
   locale: z.string().trim().optional(),
   quantity: z
@@ -21,11 +25,11 @@ export const previewSubscriptionUpdateSchema = z.object({
     .positive({ message: 'Quantity must be a positive integer' }),
 });
 
-export const fetchSubscriptionUpdatePreview = async ({
+const generateKey = ({
   subscriptionId,
   priceId,
   quantity,
-}: FetchSubscriptionUpdatePreview): Promise<SubscriptionPreview> => {
+}: FetchSubscriptionUpdatePreview) => {
   const hmac = createHmac('sha1', StorageTopic.Paddle);
   hmac.update(subscriptionId);
   hmac.update(priceId);
@@ -38,30 +42,65 @@ export const fetchSubscriptionUpdatePreview = async ({
     pricesHash,
   );
 
+  return redisKey;
+};
+
+export const fetchSubscriptionUpdatePreview = async (
+  params: FetchSubscriptionUpdatePreview,
+): Promise<SubscriptionPreview> => {
+  const { subscriptionId, priceId, quantity } = params;
+
+  const redisKey = generateKey(params);
+
   const redisResult = await getRedisObject(redisKey);
 
   if (redisResult) {
     return JSON.parse(redisResult) as SubscriptionPreview;
   }
 
-  const preview = await paddleInstance.subscriptions.previewUpdate(
+  const previewResult = await paddleInstance.subscriptions.previewUpdate(
     subscriptionId,
     {
+      prorationBillingMode: 'prorated_immediately',
       items: [
         {
           priceId,
           quantity,
         },
       ],
-      prorationBillingMode: 'prorated_immediately',
     },
   );
 
   await setRedisObjectWithExpiry(
     redisKey,
-    JSON.stringify(preview),
+    JSON.stringify(previewResult),
     ONE_HOUR_IN_SECONDS,
   );
 
-  return preview;
+  return previewResult;
+};
+
+export const updateOrganizationSubscription = async (
+  params: FetchSubscriptionUpdatePreview,
+) => {
+  const { subscriptionId, priceId, quantity } = params;
+
+  const redisKey = generateKey(params);
+
+  const updateResult = await paddleInstance.subscriptions.update(
+    subscriptionId,
+    {
+      prorationBillingMode: 'prorated_immediately',
+      items: [
+        {
+          priceId,
+          quantity,
+        },
+      ],
+    },
+  );
+
+  await deleteRedisKey(redisKey);
+
+  return updateResult;
 };
