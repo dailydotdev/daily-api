@@ -477,7 +477,6 @@ export const parsePaddlePriceInCents = (
   max?: number,
 ): string => {
   const parsedPrice = parseInt(price, 10) / 100;
-  console.log(parsedPrice, max);
   if (!isNullOrUndefined(max) && !isNaN(max)) {
     return Math.max(parsedPrice, max).toString();
   }
