@@ -8,8 +8,10 @@ import {
   type paddleSubscriptionSchema,
 } from '..';
 import { Organization, User } from '../../../entity';
-import { ContentPreferenceOrganization } from '../../../entity/contentPreference/ContentPreferenceOrganization';
-import { ContentPreferenceStatus } from '../../../entity/contentPreference/types';
+import {
+  ContentPreferenceOrganization,
+  ContentPreferenceOrganizationStatus,
+} from '../../../entity/contentPreference/ContentPreferenceOrganization';
 import { OrganizationMemberRole } from '../../../roles';
 import {
   PurchaseType,
@@ -93,6 +95,8 @@ export const createOrganizationSubscription = async ({
       subscriptionFlags: subscriptionFlags,
     });
 
+    const isPlus = isPlusMember(user.subscriptionFlags?.cycle);
+
     await Promise.all([
       // Add the user to the organization
       manager.getRepository(ContentPreferenceOrganization).save({
@@ -100,14 +104,16 @@ export const createOrganizationSubscription = async ({
         referenceId: organization.id,
         organizationId: organization.id,
         feedId: userId,
-        status: ContentPreferenceStatus.Follow,
+        status: isPlus
+          ? ContentPreferenceOrganizationStatus.Free
+          : ContentPreferenceOrganizationStatus.Plus,
         flags: {
           role: OrganizationMemberRole.Owner,
           referralToken: randomUUID(),
         },
       }),
       // Give the user plus access if they are not already a plus member
-      !isPlusMember(user.subscriptionFlags?.cycle) &&
+      !isPlus &&
         con.getRepository(User).update(
           { id: userId },
           {

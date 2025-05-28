@@ -19,10 +19,12 @@ import {
 import type { GQLUser } from './users';
 import type { GraphQLResolveInfo } from 'graphql';
 import { isNullOrUndefined } from '../common/object';
-import { ContentPreferenceOrganization } from '../entity/contentPreference/ContentPreferenceOrganization';
+import {
+  ContentPreferenceOrganization,
+  ContentPreferenceOrganizationStatus,
+} from '../entity/contentPreference/ContentPreferenceOrganization';
 import { TypeOrmError, type TypeORMQueryFailedError } from '../errors';
 import type { GQLEmptyResponse } from './common';
-import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 import { randomUUID } from 'node:crypto';
 import { JsonContains } from 'typeorm';
 import { User } from '../entity';
@@ -48,12 +50,21 @@ export type GQLUserOrganization = {
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(OrganizationMemberRole, 'OrganizationMemberRole')}
+  ${toGQLEnum(
+    ContentPreferenceOrganizationStatus,
+    'OrganizationMemberSeatType',
+  )}
 
   type OrganizationMember {
     """
     Role of the user in the organization
     """
     role: OrganizationMemberRole!
+
+    """
+    The seat type of the user in the organization
+    """
+    seatType: OrganizationMemberSeatType!
 
     """
     The user in the organization
@@ -113,6 +124,11 @@ export const typeDefs = /* GraphQL */ `
     URL for inviting and referring new users
     """
     referralUrl: String
+
+    """
+    The seat type of the user in the organization
+    """
+    seatType: OrganizationMemberSeatType!
   }
 
   extend type Query {
@@ -414,20 +430,24 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               id: organizationId,
             });
 
+          const isPlus = isPlusMember(member.subscriptionFlags?.cycle);
+
           await Promise.all([
             manager.getRepository(ContentPreferenceOrganization).save({
               userId: member.id,
               referenceId: organizationId,
               organizationId: organizationId,
               feedId: member.id,
-              status: ContentPreferenceStatus.Follow,
+              status: isPlus
+                ? ContentPreferenceOrganizationStatus.Free
+                : ContentPreferenceOrganizationStatus.Plus,
               flags: {
                 role: OrganizationMemberRole.Member,
                 referralToken: randomUUID(),
               },
             }),
             // Give the user plus access if they are not already a plus member
-            !isPlusMember(member.subscriptionFlags?.cycle) &&
+            !isPlus &&
               manager.getRepository(User).update(
                 { id: member.id },
                 {

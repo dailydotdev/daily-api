@@ -1200,6 +1200,9 @@ const obj = new GraphORM({
         select: (_, alias) =>
           `COALESCE(${alias}.flags->>'role', '${OrganizationMemberRole.Member}')`,
       },
+      seatType: {
+        alias: { field: 'status', type: 'string' },
+      },
     },
   },
   Organization: {
@@ -1223,6 +1226,9 @@ const obj = new GraphORM({
         rawSelect: true,
         select: (_, alias) =>
           `COALESCE(${alias}.flags->>'role', '${OrganizationMemberRole.Member}')`,
+      },
+      seatType: {
+        alias: { field: 'status', type: 'string' },
       },
     },
   },
