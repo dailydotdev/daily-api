@@ -472,7 +472,13 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
         return {
           metadata: meta,
           priceId: item.price.id,
-          price: getProductPrice(item, locale),
+          price: getProductPrice(
+            {
+              total: item.formattedTotals.total,
+              interval: item.price.billingCycle?.interval,
+            },
+            locale,
+          ),
           currency: {
             code: preview.currencyCode,
             symbol: removeNumbers(item.formattedTotals.total),
@@ -500,7 +506,13 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
       const preview = await getPlusPricePreview(ctx, ids);
       const pricing = preview.details.lineItems.map((item) => ({
         priceId: item.price.id,
-        price: getProductPrice(item, locale),
+        price: getProductPrice(
+          {
+            total: item.formattedTotals.total,
+            interval: item.price.billingCycle?.interval,
+          },
+          locale,
+        ),
         duration: getPricingDuration(item),
         trialPeriod: item.price.trialPeriod,
         currency: {

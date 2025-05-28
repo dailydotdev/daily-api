@@ -8,7 +8,11 @@ import {
   ExperimentVariantType,
   User,
 } from '../../entity';
-import { CountryCode, TimePeriod } from '@paddle/paddle-node-sdk';
+import {
+  CountryCode,
+  TimePeriod,
+  type Interval,
+} from '@paddle/paddle-node-sdk';
 import { AuthContext } from '../../Context';
 import { generateStorageKey, StorageKey, StorageTopic } from '../../config';
 import {
@@ -283,16 +287,19 @@ export const getPrice = ({
 };
 
 export const getProductPrice = (
-  item: PricingPreviewLineItem,
+  {
+    total,
+    interval,
+  }: {
+    total: string;
+    interval?: Interval;
+  },
   locale?: string,
 ) => {
-  const formatted = item.formattedTotals.total;
   const basePrice: ProductPricing = getPrice({
-    formatted,
+    formatted: total,
     locale,
   });
-
-  const interval = item.price.billingCycle?.interval;
 
   if (!interval) {
     return basePrice;
@@ -304,7 +311,7 @@ export const getProductPrice = (
       formatted: basePrice.formatted,
     };
     basePrice.daily = getPrice({
-      formatted,
+      formatted: total,
       divideBy: 30,
       locale,
     });
@@ -313,13 +320,13 @@ export const getProductPrice = (
   }
 
   basePrice.monthly = getPrice({
-    formatted,
+    formatted: total,
     divideBy: MONTHS_IN_YEAR,
     locale,
   });
 
   basePrice.daily = getPrice({
-    formatted,
+    formatted: total,
     divideBy: DAYS_IN_YEAR,
     locale,
   });
