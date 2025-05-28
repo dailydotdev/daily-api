@@ -81,6 +81,7 @@ export const createOrganizationSubscription = async ({
       cycle: subscriptionType,
       createdAt: data.startedAt ?? undefined,
       subscriptionId: data.id,
+      priceId: data.items[0].price.id,
       provider: SubscriptionProvider.Paddle,
       status: SubscriptionStatus.Active,
     };

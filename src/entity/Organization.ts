@@ -13,6 +13,7 @@ import type { ContentPreferenceOrganization } from './contentPreference/ContentP
 
 export type OrganizationSubscriptionFlags = Partial<{
   subscriptionId: string;
+  priceId: string;
   cycle: SubscriptionCycles;
   createdAt: Date;
   provider: SubscriptionProvider;

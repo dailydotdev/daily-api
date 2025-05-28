@@ -429,6 +429,7 @@ export const paddleSubscriptionSchema = z.object({
     .array(
       z.object({
         price: z.object({
+          id: z.string({ message: 'Subscription price id is required' }),
           productId: z.string({
             message: 'Subscription product id is required',
           }),
