@@ -7,7 +7,7 @@ import {
   type GraphQLTestingState,
   type GraphQLTestClient,
 } from './helpers';
-import { User } from '../src/entity';
+import { ExperimentVariant, ExperimentVariantType, User } from '../src/entity';
 import {
   PurchaseType,
   SubscriptionProvider,
@@ -31,7 +31,6 @@ import { logger } from '../src/logger';
 import { paddleInstance, type PaddleCustomData } from '../src/common/paddle';
 import * as redisFile from '../src/redis';
 import { ioRedisPool } from '../src/redis';
-import { ExperimentVariant } from '../src/entity';
 import {
   PLUS_FEATURE_KEY,
   DEFAULT_PLUS_METADATA,
@@ -354,11 +353,13 @@ describe('plus pricing metadata', () => {
         feature: PLUS_FEATURE_KEY,
         variant: DEFAULT_PLUS_METADATA,
         value: JSON.stringify(mockPlusMetadata),
+        type: ExperimentVariantType.ProductPricing,
       },
       {
         feature: CORES_FEATURE_KEY,
         variant: DEFAULT_CORES_METADATA,
         value: JSON.stringify(mockCoresMetadata),
+        type: ExperimentVariantType.ProductPricing,
       },
     ]);
   });
@@ -510,6 +511,7 @@ describe('plus pricing preview', () => {
         feature: PLUS_FEATURE_KEY,
         variant: DEFAULT_PLUS_METADATA,
         value: JSON.stringify(mockMetadata),
+        type: ExperimentVariantType.ProductPricing,
       },
     ]);
 
@@ -714,8 +716,16 @@ describe('plus pricing preview', () => {
 
 describe('pricing preview by ids', () => {
   const QUERY = /* GraphQL */ `
-    query PricingPreviewByIds($ids: [String]!, $locale: String) {
-      pricingPreviewByIds(ids: $ids, locale: $locale) {
+    query PricingPreviewByIds(
+      $ids: [String]!
+      $locale: String
+      $loadMetadata: Boolean
+    ) {
+      pricingPreviewByIds(
+        ids: $ids
+        locale: $locale
+        loadMetadata: $loadMetadata
+      ) {
         priceId
         price {
           amount
@@ -737,6 +747,12 @@ describe('pricing preview by ids', () => {
         trialPeriod {
           interval
           frequency
+        }
+        metadata {
+          title
+          caption {
+            copy
+          }
         }
       }
     }
@@ -830,6 +846,7 @@ describe('pricing preview by ids', () => {
     expect(monthlyPreview?.duration).toBe('monthly');
     expect(monthlyPreview?.trialPeriod?.interval).toBe('day');
     expect(monthlyPreview?.trialPeriod?.frequency).toBe(14);
+    expect(monthlyPreview?.metadata).toBeNull();
 
     const yearlyPreview = result.data?.pricingPreviewByIds.find(
       (p) => p.priceId === 'pri_yearly',
@@ -844,6 +861,7 @@ describe('pricing preview by ids', () => {
     expect(yearlyPreview?.currency.symbol).toBe('$');
     expect(yearlyPreview?.duration).toBe('yearly');
     expect(yearlyPreview?.trialPeriod).toBeNull();
+    expect(yearlyPreview?.metadata).toBeNull();
   });
 
   it('should throw error when no ids are provided', async () => {
@@ -931,6 +949,125 @@ describe('pricing preview by ids', () => {
     expect(getRedisObjectSpy).toHaveBeenCalledTimes(2);
     expect(setRedisObjectWithExpirySpy).toHaveBeenCalledTimes(1);
     expect(result).toEqual(result2);
+  });
+
+  it('should return metadata when requested', async () => {
+    loggedUser = 'whp-1';
+    await con.getRepository(ExperimentVariant).save([
+      {
+        feature: 'featureKey1',
+        variant: 'featureVariant1',
+        type: ExperimentVariantType.ProductPricing,
+        value: JSON.stringify([
+          {
+            idMap: {
+              paddle: 'pri_monthly',
+            },
+            title: 'Plus Subscription',
+            caption: {
+              copy: 'Get access to exclusive features',
+            },
+          },
+        ]),
+      },
+      {
+        feature: 'featureKey2',
+        variant: 'featureVariant2',
+        type: ExperimentVariantType.ProductPricing,
+        value: JSON.stringify([
+          {
+            idMap: {
+              paddle: 'pri_yearly',
+            },
+            title: 'Variant Plus Subscription',
+            caption: {
+              copy: '50% off',
+            },
+          },
+        ]),
+      },
+    ]);
+
+    const result = await client.query(QUERY, {
+      variables: {
+        ids: ['pri_monthly', 'pri_yearly'],
+        loadMetadata: true,
+      },
+    });
+
+    expect(result.errors).toBeFalsy();
+    expect(result.data?.pricingPreviewByIds).toHaveLength(2);
+
+    const monthlyPreview = result.data?.pricingPreviewByIds.find(
+      (p) => p.priceId === 'pri_monthly',
+    );
+
+    expect(monthlyPreview?.metadata).toMatchObject({
+      title: 'Plus Subscription',
+      caption: {
+        copy: 'Get access to exclusive features',
+      },
+    });
+
+    const yearlyPreview = result.data?.pricingPreviewByIds.find(
+      (p) => p.priceId === 'pri_yearly',
+    );
+
+    expect(yearlyPreview?.metadata).toMatchObject({
+      title: 'Variant Plus Subscription',
+      caption: {
+        copy: '50% off',
+      },
+    });
+  });
+
+  it('should return null metadata when price id is not found', async () => {
+    loggedUser = 'whp-1';
+    await con.getRepository(ExperimentVariant).save([
+      {
+        feature: 'featureKey1',
+        variant: 'featureVariant1',
+        type: ExperimentVariantType.ProductPricing,
+        value: JSON.stringify([
+          {
+            idMap: {
+              paddle: 'pri_monthly',
+            },
+            title: 'Plus Subscription',
+            caption: {
+              copy: 'Get access to exclusive features',
+            },
+          },
+        ]),
+      },
+    ]);
+
+    const result = await client.query(QUERY, {
+      variables: {
+        ids: ['pri_monthly', 'pri_yearly'],
+        loadMetadata: true,
+      },
+    });
+
+    expect(result.errors).toBeFalsy();
+    expect(result.data?.pricingPreviewByIds).toHaveLength(2);
+
+    const monthlyPreview = result.data?.pricingPreviewByIds.find(
+      (p) => p.priceId === 'pri_monthly',
+    );
+
+    expect(monthlyPreview?.metadata).toMatchObject({
+      title: 'Plus Subscription',
+      caption: {
+        copy: 'Get access to exclusive features',
+      },
+    });
+
+    const yearlyPreview = result.data?.pricingPreviewByIds.find(
+      (p) => p.priceId === 'pri_yearly',
+    );
+
+    expect(yearlyPreview?.metadata).toBeNull();
   });
 });
 
