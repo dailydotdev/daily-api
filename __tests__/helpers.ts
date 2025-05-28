@@ -189,10 +189,14 @@ export const testQueryErrorCode = async (
   client: GraphQLTestClient,
   query: Query,
   code: string,
+  message?: string,
 ): Promise<void> =>
   testQueryError(client, query, (errors) => {
     expect(errors?.length || 0).toEqual(1);
     expect(errors[0].extensions?.code).toEqual(code);
+    if (message) {
+      expect(errors[0].message).toEqual(message);
+    }
   });
 
 export async function saveFixtures<Entity>(

@@ -20,6 +20,7 @@ import { ContentPreferenceStatus } from '../src/entity/contentPreference/types';
 import { OrganizationMemberRole } from '../src/roles';
 import type { GQLUserOrganization } from '../src/schema/organizations';
 import { updateSubscriptionFlags } from '../src/common';
+import { SubscriptionCycles } from '../src/paddle';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -45,16 +46,25 @@ beforeEach(async () => {
       id: 'org-1',
       seats: 1,
       name: 'Organization 1',
+      subscriptionFlags: {
+        cycle: SubscriptionCycles.Yearly,
+      },
     },
     {
       id: 'org-2',
       seats: 2,
       name: 'Organization 2',
+      subscriptionFlags: {
+        cycle: SubscriptionCycles.Yearly,
+      },
     },
     {
       id: 'org-3',
       seats: 5,
       name: 'Organization 3',
+      subscriptionFlags: {
+        cycle: SubscriptionCycles.Yearly,
+      },
     },
   ]);
 });
@@ -131,6 +141,7 @@ describe('query organization', () => {
       organization(id: $id) {
         role
         referralToken
+        referralUrl
         organization {
           id
           name
@@ -202,6 +213,7 @@ describe('query organization', () => {
       organization: {
         role: 'owner',
         referralToken: 'ref-token-1',
+        referralUrl: `${process.env.COMMENTS_PREFIX}/join/organization?token=ref-token-1&orgId=org-1`,
         organization: {
           id: 'org-1',
           name: 'Organization 1',
@@ -410,6 +422,272 @@ describe('mutation updateOrganization', () => {
     expect(errors[0].extensions?.issues?.[0].message).toEqual(
       'Organization name is required',
     );
+  });
+});
+
+describe('mutation joinOrganization', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation JoinOrganization($id: ID!, $token: String!) {
+      joinOrganization(id: $id, token: $token) {
+        role
+        referralToken
+        organization {
+          id
+          name
+        }
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await con.getRepository(Feed).save([
+      {
+        id: '1',
+        userId: '1',
+      },
+      {
+        id: '2',
+        userId: '2',
+      },
+      {
+        id: '3',
+        userId: '3',
+      },
+    ]);
+
+    await con.getRepository(ContentPreferenceOrganization).save([
+      {
+        userId: '1',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '1',
+        status: ContentPreferenceStatus.Follow,
+        flags: {
+          role: OrganizationMemberRole.Owner,
+          referralToken: 'ref-token-1',
+        },
+      },
+      {
+        userId: '2',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '2',
+        status: ContentPreferenceStatus.Follow,
+        flags: {
+          role: OrganizationMemberRole.Member,
+          referralToken: 'ref-token-2',
+        },
+      },
+    ]);
+  });
+
+  it('should not authorize when not logged-in', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { id: 'org-1', token: 'ref-token-1' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return forbidden if organization do not match', async () => {
+    loggedUser = '3';
+
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'non-existing', token: 'ref-token-1' },
+      },
+      'FORBIDDEN',
+      'Invalid invitation token',
+    );
+  });
+
+  it('should return forbidden if token do not match', async () => {
+    loggedUser = '3';
+
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'org-1', token: 'non-existing' },
+      },
+      'FORBIDDEN',
+      'Invalid invitation token',
+    );
+  });
+
+  it('should return forbidden if inviter does not have permission to invite', async () => {
+    loggedUser = '3';
+
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'org-1', token: 'ref-token-2' },
+      },
+      'FORBIDDEN',
+      'The person who invited you does not have permission to invite you to this organization.',
+    );
+  });
+
+  it('should allow user to join organization when invited', async () => {
+    loggedUser = '3';
+
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'org-1', token: 'ref-token-1' },
+    });
+    expect(res.data).toMatchObject({
+      joinOrganization: {
+        role: 'member',
+        organization: {
+          id: 'org-1',
+          name: 'Organization 1',
+        },
+      },
+    });
+
+    const contentPreference = await con
+      .getRepository(ContentPreferenceOrganization)
+      .findOneByOrFail({
+        userId: loggedUser,
+        organizationId: 'org-1',
+      });
+
+    expect(contentPreference).not.toBeNull();
+    expect(contentPreference.organizationId).toBe('org-1');
+    expect(contentPreference.flags?.role).toBe(OrganizationMemberRole.Member);
+
+    const user = await con.getRepository(User).findOneByOrFail({
+      id: loggedUser,
+    });
+
+    expect(user.subscriptionFlags?.organizationId).toBe('org-1');
+    expect(user.subscriptionFlags?.cycle).toBe(SubscriptionCycles.Yearly);
+  });
+});
+
+describe('query getOrganizationByIdAndInviteToken', () => {
+  const QUERY = /* GraphQL */ `
+    query GetOrganizationByIdAndInviteToken($id: ID!, $token: String!) {
+      getOrganizationByIdAndInviteToken(id: $id, token: $token) {
+        user {
+          id
+          name
+        }
+        organization {
+          id
+          name
+        }
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await con.getRepository(Feed).save([
+      {
+        id: '1',
+        userId: '1',
+      },
+      {
+        id: '2',
+        userId: '2',
+      },
+      {
+        id: '3',
+        userId: '3',
+      },
+    ]);
+
+    await con.getRepository(ContentPreferenceOrganization).save([
+      {
+        userId: '1',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '1',
+        status: ContentPreferenceStatus.Follow,
+        flags: {
+          role: OrganizationMemberRole.Owner,
+          referralToken: 'ref-token-1',
+        },
+      },
+      {
+        userId: '2',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '2',
+        status: ContentPreferenceStatus.Follow,
+        flags: {
+          role: OrganizationMemberRole.Member,
+          referralToken: 'ref-token-2',
+        },
+      },
+    ]);
+  });
+
+  it('should return forbidden if token and organization do not match', async () => {
+    loggedUser = '3';
+
+    testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { id: 'non-existing', token: 'ref-token-1' },
+      },
+      'FORBIDDEN',
+      'Invalid invitation token',
+    );
+  });
+
+  it('should return forbidden if inviter does not have permission to invite', async () => {
+    loggedUser = '3';
+
+    testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { id: 'org-1', token: 'ref-token-2' },
+      },
+      'FORBIDDEN',
+      'The person who invited you does not have permission to invite you to this organization.',
+    );
+  });
+
+  it('should return organization and user who invited', async () => {
+    loggedUser = '3';
+
+    const res = await client.query(QUERY, {
+      variables: { id: 'org-1', token: 'ref-token-1' },
+    });
+    expect(res.data).toMatchObject({
+      getOrganizationByIdAndInviteToken: {
+        user: {
+          id: '1',
+          name: 'Ido',
+        },
+        organization: {
+          id: 'org-1',
+          name: 'Organization 1',
+        },
+      },
+    });
+  });
+
+  it('should return organization and user who invited when not logged in', async () => {
+    const res = await client.query(QUERY, {
+      variables: { id: 'org-1', token: 'ref-token-1' },
+    });
+    expect(res.data).toMatchObject({
+      getOrganizationByIdAndInviteToken: {
+        user: {
+          id: '1',
+          name: 'Ido',
+        },
+        organization: {
+          id: 'org-1',
+          name: 'Organization 1',
+        },
+      },
+    });
   });
 });
 

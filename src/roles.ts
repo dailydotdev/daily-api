@@ -38,3 +38,26 @@ export const rankToSourceRole = Object.entries(sourceRoleRank).reduce(
   },
   {} as Record<number, SourceMemberRoles>,
 );
+
+export const isRoleAtLeast = (
+  userRole: string,
+  requiredRole: string,
+  hierarchy: string[],
+): boolean => {
+  const userRoleIndex = hierarchy.indexOf(userRole);
+  const requiredRoleIndex = hierarchy.indexOf(requiredRole);
+
+  const roleNotFound = userRoleIndex === -1 || requiredRoleIndex === -1;
+
+  // If either role is not found, we cannot determine the hierarchy,
+  // and must deny access
+  if (roleNotFound) {
+    return false;
+  }
+
+  // If the user role is found, we check if it is at least the required role
+  // by comparing their indices in the hierarchy
+  const isPermitted = userRoleIndex <= requiredRoleIndex;
+
+  return isPermitted;
+};
