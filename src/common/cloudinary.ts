@@ -32,6 +32,7 @@ export enum UploadPreset {
   FreeformGif = 'freeform_gif',
   ProfileCover = 'cover',
   TopReaderBadge = 'top_reader_badge',
+  Organization = 'organization',
 }
 
 interface OptionalProps {
@@ -88,6 +89,9 @@ export const uploadDevCardBackground: UploadFn = (name, stream) =>
 
 export const uploadSquadImage: UploadFn = (name, stream) =>
   uploadFile(name, UploadPreset.SquadImage, stream);
+
+export const uploadOrganizationImage: UploadFn = (name, stream) =>
+  uploadFile(name, UploadPreset.Organization, stream);
 
 export const uploadAvatar: UploadFn = (userId, stream) =>
   uploadFile(`${UploadPreset.Avatar}_${userId}`, UploadPreset.Avatar, stream);
