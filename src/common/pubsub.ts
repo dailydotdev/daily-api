@@ -442,8 +442,13 @@ export const notifyReputationIncrease = async (
 
 export const notifyOrganizationUserJoined = async (
   log: EventLogger,
-  memberId: User['id'],
-  organizationId: Organization['id'],
+  {
+    memberId,
+    organizationId,
+  }: {
+    memberId: User['id'];
+    organizationId: Organization['id'];
+  },
 ): Promise<void> =>
   publishEvent(log, organizationUserJoinedTopic, {
     memberId,
@@ -452,8 +457,13 @@ export const notifyOrganizationUserJoined = async (
 
 export const notifyOrganizationUserLeft = async (
   log: EventLogger,
-  memberId: User['id'],
-  organizationId: Organization['id'],
+  {
+    memberId,
+    organizationId,
+  }: {
+    memberId: User['id'];
+    organizationId: Organization['id'];
+  },
 ): Promise<void> => {
   return publishEvent(log, organizationUserLeftTopic, {
     memberId,
@@ -463,8 +473,13 @@ export const notifyOrganizationUserLeft = async (
 
 export const notifyOrganizationUserRemoved = async (
   log: EventLogger,
-  memberId: User['id'],
-  organizationId: Organization['id'],
+  {
+    memberId,
+    organizationId,
+  }: {
+    memberId: User['id'];
+    organizationId: Organization['id'];
+  },
 ): Promise<void> =>
   publishEvent(log, organizationUserRemovedTopic, {
     memberId,

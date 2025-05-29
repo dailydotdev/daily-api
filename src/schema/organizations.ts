@@ -715,7 +715,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               ),
           ]);
 
-          notifyOrganizationUserJoined(ctx.log, member.id, organization.id);
+          notifyOrganizationUserJoined(ctx.log, {
+            memberId: member.id,
+            organizationId: organization.id,
+          });
         });
       } catch (_err) {
         const err = _err as TypeORMQueryFailedError;
@@ -776,7 +779,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               ),
           ]);
 
-          notifyOrganizationUserLeft(ctx.log, member.id, organizationId);
+          notifyOrganizationUserLeft(ctx.log, {
+            memberId: member.id,
+            organizationId,
+          });
         });
       } catch (_err) {
         const err = _err as TypeORMQueryFailedError;
@@ -960,7 +966,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ]);
       });
 
-      notifyOrganizationUserRemoved(ctx.log, memberId, organizationId);
+      notifyOrganizationUserRemoved(ctx.log, { memberId, organizationId });
       return getOrganizationById(ctx, info, organizationId);
     },
     updateOrganizationMemberRole: async (
