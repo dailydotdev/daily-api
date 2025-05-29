@@ -29,6 +29,7 @@ import {
   basicHtmlStrip,
   CioTransactionalMessageTemplateId,
   formatMailDate,
+  getOrganizationPermalink,
   getSourceLink,
   mapCloudinaryUrl,
   pickImageUrl,
@@ -50,6 +51,7 @@ import { contentPreferenceNotificationTypes } from '../common/contentPreference'
 import { SourcePostModeration } from '../entity/SourcePostModeration';
 import { UserTransaction } from '../entity/user/UserTransaction';
 import { formatCoresCurrency } from '../common/number';
+import { ContentPreferenceOrganization } from '../entity/contentPreference/ContentPreferenceOrganization';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -95,6 +97,8 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   user_given_top_reader: CioTransactionalMessageTemplateId.UserGivenTopReader,
   user_gifted_plus: CioTransactionalMessageTemplateId.UserReceivedPlusGift,
   user_received_award: CioTransactionalMessageTemplateId.UserReceivedAward,
+  organization_member_joined:
+    CioTransactionalMessageTemplateId.OrganizationMemberJoined,
 };
 
 type TemplateData = Record<string, unknown>;
@@ -916,6 +920,34 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       sender_name: sender.name,
       award_image: product.image,
       award_description: product?.flags?.description,
+    };
+  },
+  organization_member_joined: async (con, user, notification) => {
+    const organizationMember = await con
+      .getRepository(ContentPreferenceOrganization)
+      .findOneOrFail({
+        where: {
+          userId: user.id,
+          organizationId: notification.referenceId,
+        },
+        relations: {
+          user: true,
+          organization: true,
+        },
+      });
+
+    const organization = await organizationMember.organization;
+    const member = await organizationMember.user;
+
+    return {
+      organization: {
+        name: organization.name,
+        href: getOrganizationPermalink(organization),
+      },
+      member: {
+        name: member.name,
+        image: member.image,
+      },
     };
   },
 };

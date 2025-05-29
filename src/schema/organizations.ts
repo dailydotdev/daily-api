@@ -12,6 +12,7 @@ import {
 } from '../roles';
 import graphorm from '../graphorm';
 import {
+  notifyOrganizationUserJoined,
   toGQLEnum,
   updateFlagsStatement,
   updateSubscriptionFlags,
@@ -669,7 +670,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLUserOrganization> => {
-      await verifyOrganizationInviter(ctx, organizationId, token);
+      const inviter = await verifyOrganizationInviter(
+        ctx,
+        organizationId,
+        token,
+      );
 
       try {
         await ctx.con.transaction(async (manager) => {
@@ -710,6 +715,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                   }),
                 },
               ),
+            notifyOrganizationUserJoined(ctx.log, member.id, organization.id),
           ]);
         });
       } catch (_err) {

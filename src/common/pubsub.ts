@@ -18,6 +18,7 @@ import {
   CollectionPost,
   NotificationV2,
   UserPersonalizedDigest,
+  type Organization,
 } from '../entity';
 import { ChangeMessage, ChangeObject } from '../types';
 import { SourceMemberRoles } from '../roles';
@@ -78,6 +79,9 @@ const postCollectionUpdatedTopic = pubsub.topic(
 );
 const userReadmeUpdatedTopic = pubsub.topic('api.v1.user-readme-updated');
 const userReputationUpdatedTopic = pubsub.topic('user-reputation-updated');
+const organizationUserJoinedTopic = pubsub.topic(
+  'api.v1.organization-user-joined',
+);
 
 export enum NotificationReason {
   New = 'new',
@@ -430,6 +434,16 @@ export const notifyReputationIncrease = async (
   publishEvent(log, userReputationUpdatedTopic, {
     user,
     userAfter,
+  });
+
+export const notifyOrganizationUserJoined = async (
+  log: EventLogger,
+  memberId: User['id'],
+  organizationId: Organization['id'],
+): Promise<void> =>
+  publishEvent(log, organizationUserJoinedTopic, {
+    memberId,
+    organizationId,
   });
 
 export const workerSubscribe = (
