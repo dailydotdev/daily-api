@@ -22,7 +22,7 @@ export const organizationUserRemoved: TypedWorker<'api.v1.organization-user-remo
       const user = await member.user;
 
       await sendEmail({
-        send_to_unsubscribed: true,
+        send_to_unsubscribed: false,
         transactional_message_id:
           CioTransactionalMessageTemplateId.OrganizationMemberRemoved,
         message_data: {

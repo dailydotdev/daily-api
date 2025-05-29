@@ -50,7 +50,7 @@ export const organizationUserLeft: TypedWorker<'api.v1.organization-user-left'> 
       const ownerUser = await owner.user;
 
       await sendEmail({
-        send_to_unsubscribed: true,
+        send_to_unsubscribed: false,
         transactional_message_id:
           CioTransactionalMessageTemplateId.OrganizationMemberLeft,
         message_data: {
