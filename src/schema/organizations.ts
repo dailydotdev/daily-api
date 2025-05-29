@@ -15,7 +15,11 @@ import {
 } from '../roles';
 import graphorm from '../graphorm';
 import {
+  notifyOrganizationUserJoined,
+  notifyOrganizationUserLeft,
+  notifyOrganizationUserRemoved,
   toGQLEnum,
+  updateFlagsStatement,
   updateSubscriptionFlags,
   uploadOrganizationImage,
 } from '../common';
@@ -48,6 +52,7 @@ import { SubscriptionStatus } from '../common/plus';
 
 export type GQLOrganizationMember = {
   role: OrganizationMemberRole;
+  seatType: ContentPreferenceOrganizationStatus;
   user: GQLUser;
 };
 export type GQLOrganization = Omit<
@@ -299,6 +304,63 @@ export const typeDefs = /* GraphQL */ `
       """
       quantity: Int!
     ): UserOrganization @auth
+
+    """
+    Delete the organization
+    """
+    deleteOrganization(
+      """
+      The ID of the organization to delete
+      """
+      id: ID!
+    ): EmptyResponse @auth
+
+    """
+    Remove a member from the organization
+    """
+    removeOrganizationMember(
+      """
+      The ID of the organization to remove the member from
+      """
+      id: ID!
+
+      """
+      The ID of the member to remove
+      """
+      memberId: String!
+    ): UserOrganization! @auth
+
+    """
+    Update the role of a member in the organization
+    """
+    updateOrganizationMemberRole(
+      """
+      The ID of the organization to update the member role in
+      """
+      id: ID!
+      """
+      The ID of the member to update the role for
+      """
+      memberId: String!
+      """
+      The new role to assign to the member
+      """
+      role: OrganizationMemberRole!
+    ): UserOrganization! @auth
+
+    """
+    Toggle the seat of a member in the organization
+    """
+    toggleOrganizationMemberSeat(
+      """
+      The ID of the organization to toggle the member seat in
+      """
+      id: ID!
+      """
+      The ID of the member to update the role for
+      """
+      memberId: String!
+    ): UserOrganization! @auth
   }
 `;
 
@@ -660,6 +722,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 },
               ),
           ]);
+
+          notifyOrganizationUserJoined(ctx.log, {
+            memberId: member.id,
+            organizationId: organization.id,
+          });
         });
       } catch (_err) {
         const err = _err as TypeORMQueryFailedError;
@@ -719,6 +786,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 },
               ),
           ]);
+
+          notifyOrganizationUserLeft(ctx.log, {
+            memberId: member.id,
+            organizationId,
+          });
         });
       } catch (_err) {
         const err = _err as TypeORMQueryFailedError;
@@ -791,6 +863,280 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       return getOrganizationById(ctx, info, id);
+    },
+    deleteOrganization: async (_, { id }, ctx: AuthContext) => {
+      await ensureOrganizationRole(ctx, {
+        organizationId: id,
+        requiredRole: OrganizationMemberRole.Owner,
+      });
+
+      const organization = await ctx.con
+        .getRepository<
+          Pick<Organization, 'id' | 'subscriptionFlags' | 'members'>
+        >(Organization)
+        .findOneOrFail({
+          select: {
+            id: true,
+            subscriptionFlags: true,
+            members: {
+              userId: true,
+              status: true,
+            },
+          },
+          where: { id },
+          relations: {
+            members: true,
+          },
+        });
+
+      if (
+        organization.subscriptionFlags?.status === SubscriptionStatus.Active
+      ) {
+        throw new ForbiddenError(
+          'Cannot delete organization with an active subscription. Please cancel the subscription first.',
+        );
+      }
+
+      const members: Pick<
+        ContentPreferenceOrganization,
+        'userId' | 'status'
+      >[] = await organization.members;
+
+      if (
+        members.some(
+          (m) => m.status === ContentPreferenceOrganizationStatus.Plus,
+        )
+      ) {
+        throw new ForbiddenError(
+          'Cannot delete organization with Plus members. Please remove all Plus members first.',
+        );
+      }
+
+      await ctx.con.getRepository(Organization).delete(id);
+
+      return { _: true };
+    },
+    removeOrganizationMember: async (
+      _,
+      { id: organizationId, memberId },
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLUserOrganization> => {
+      await ensureOrganizationRole(ctx, {
+        organizationId,
+        requiredRole: OrganizationMemberRole.Admin,
+      });
+
+      if (memberId === ctx.userId) {
+        throw new ForbiddenError(
+          'You cannot remove yourself from the organization.',
+        );
+      }
+
+      await ctx.con.transaction(async (manager) => {
+        const member = await manager
+          .getRepository(ContentPreferenceOrganization)
+          .findOneOrFail({
+            where: {
+              organizationId,
+              userId: memberId,
+            },
+            relations: {
+              user: true,
+            },
+          });
+
+        if (member.flags?.role === OrganizationMemberRole.Owner) {
+          throw new ForbiddenError(
+            'You cannot remove the owner of the organization.',
+          );
+        }
+
+        const memberUser = await member.user;
+
+        const organizationSeatUser =
+          memberUser.subscriptionFlags?.organizationId === organizationId;
+
+        await Promise.all([
+          manager.getRepository(ContentPreferenceOrganization).delete({
+            userId: memberId,
+            organizationId,
+          }),
+          organizationSeatUser &&
+            manager.getRepository(User).update(
+              { id: memberId },
+              {
+                subscriptionFlags: updateSubscriptionFlags({
+                  subscriptionId: null,
+                  cycle: null,
+                  createdAt: null,
+                  provider: null,
+                  status: null,
+                  organizationId: null,
+                }),
+              },
+            ),
+        ]);
+      });
+
+      notifyOrganizationUserRemoved(ctx.log, { memberId, organizationId });
+      return getOrganizationById(ctx, info, organizationId);
+    },
+    updateOrganizationMemberRole: async (
+      _,
+      {
+        id: organizationId,
+        memberId,
+        role,
+      }: { id: string; memberId: string; role: OrganizationMemberRole },
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLUserOrganization> => {
+      await ensureOrganizationRole(ctx, {
+        organizationId,
+        requiredRole: OrganizationMemberRole.Admin,
+      });
+
+      await ctx.con.transaction(async (manager) => {
+        if (role === OrganizationMemberRole.Owner) {
+          throw new ForbiddenError(
+            'You cannot assign the owner role to a member at this time.',
+          );
+        }
+
+        if (memberId === ctx.userId) {
+          throw new ForbiddenError(
+            'You cannot change your own role in the organization.',
+          );
+        }
+
+        const member = await manager
+          .getRepository(ContentPreferenceOrganization)
+          .findOneByOrFail({
+            organizationId,
+            userId: memberId,
+          });
+
+        if (member.flags?.role === OrganizationMemberRole.Owner) {
+          throw new ForbiddenError(
+            'You cannot change the role of the owner of the organization.',
+          );
+        }
+
+        await manager.getRepository(ContentPreferenceOrganization).update(
+          {
+            userId: memberId,
+            organizationId,
+          },
+          {
+            flags: updateFlagsStatement({
+              role,
+            }),
+          },
+        );
+      });
+
+      return getOrganizationById(ctx, info, organizationId);
+    },
+    toggleOrganizationMemberSeat: async (
+      _,
+      { id: organizationId, memberId },
+      ctx: AuthContext,
+      info,
+    ) => {
+      await ensureOrganizationRole(ctx, {
+        organizationId,
+        requiredRole: OrganizationMemberRole.Admin,
+      });
+
+      try {
+        await ctx.con.transaction(async (manager) => {
+          const member = await manager
+            .getRepository(ContentPreferenceOrganization)
+            .findOneOrFail({
+              where: {
+                organizationId,
+                userId: memberId,
+              },
+              relations: {
+                user: true,
+                organization: true,
+              },
+            });
+
+          const activeSeats = await manager
+            .getRepository(ContentPreferenceOrganization)
+            .count({
+              where: {
+                organizationId,
+                status: ContentPreferenceOrganizationStatus.Plus,
+              },
+            });
+
+          const user = await member.user;
+          const organization = await member.organization;
+
+          const isPlus = isPlusMember(user.subscriptionFlags?.cycle);
+          const hasPlusSeat =
+            member.status === ContentPreferenceOrganizationStatus.Plus;
+
+          if (isPlus && !hasPlusSeat) {
+            throw new ForbiddenError(
+              'You cannot toggle the seat of a member who has a Plus subscription from outside the organization.',
+            );
+          }
+
+          if (!isPlus && !hasPlusSeat && activeSeats >= organization.seats) {
+            throw new ForbiddenError(
+              'You cannot assign a seat to a member when the organization has reached its maximum number of seats.',
+            );
+          }
+
+          await Promise.all([
+            manager.getRepository(User).update(
+              { id: memberId },
+              {
+                subscriptionFlags: updateSubscriptionFlags(
+                  isPlus && hasPlusSeat
+                    ? {
+                        subscriptionId: null,
+                        cycle: null,
+                        createdAt: null,
+                        provider: null,
+                        status: null,
+                        organizationId: null,
+                      }
+                    : {
+                        ...organization.subscriptionFlags,
+                        organizationId: organizationId,
+                      },
+                ),
+              },
+            ),
+            manager.getRepository(ContentPreferenceOrganization).update(
+              {
+                userId: memberId,
+                organizationId,
+              },
+              {
+                status:
+                  isPlus && hasPlusSeat
+                    ? ContentPreferenceOrganizationStatus.Free
+                    : ContentPreferenceOrganizationStatus.Plus,
+              },
+            ),
+          ]);
+        });
+
+        return getOrganizationById(ctx, info, organizationId);
+      } catch (_err) {
+        const err = _err as Error;
+        ctx.log.error(
+          { err, organizationId, memberId },
+          'Failed to toggle organization member seat',
+        );
+        throw err;
+      }
     },
   },
 });
