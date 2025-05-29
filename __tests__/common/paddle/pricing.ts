@@ -1,3 +1,4 @@
+import type { Interval } from '@paddle/paddle-node-sdk';
 import { getPrice, getProductPrice } from '../../../src/common/paddle/pricing';
 
 describe('getPrice', () => {
@@ -147,14 +148,12 @@ describe('getPrice', () => {
 });
 
 describe('getProductPrice', () => {
-  const mockPricingPreviewLineItem = (interval?: string, locale?: string) => ({
-    price: {
-      billingCycle: interval ? { interval } : undefined,
-    },
-    formattedTotals: {
+  const mockPricingPreviewLineItem = (interval?: Interval, locale?: string) => {
+    return {
+      interval,
       total: locale === 'fr-FR' ? '€60,00' : '$60.00',
-    },
-  });
+    };
+  };
 
   it('should return base price when no interval is provided', () => {
     const result = getProductPrice(mockPricingPreviewLineItem());
@@ -225,10 +224,7 @@ describe('getProductPrice', () => {
   });
 
   it('should handle zero amount for monthly interval', () => {
-    const item = {
-      ...mockPricingPreviewLineItem('month'),
-      formattedTotals: { total: '$0.00' },
-    };
+    const item = { ...mockPricingPreviewLineItem('month'), total: '$0.00' };
     const result = getProductPrice(item);
     expect(result.amount).toBe(0);
     expect(result.formatted).toBe('$0.00');
@@ -243,10 +239,7 @@ describe('getProductPrice', () => {
   });
 
   it('should handle zero amount for yearly interval', () => {
-    const item = {
-      ...mockPricingPreviewLineItem('year'),
-      formattedTotals: { total: '$0.00' },
-    };
+    const item = { ...mockPricingPreviewLineItem('year'), total: '$0.00' };
     const result = getProductPrice(item);
     expect(result.amount).toBe(0);
     expect(result.formatted).toBe('$0.00');

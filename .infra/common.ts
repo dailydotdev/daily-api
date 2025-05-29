@@ -340,6 +340,18 @@ export const workers: Worker[] = [
   {
     topic: 'api.v1.user-transaction',
     subscription: 'api.user-received-award',
+  },
+  {
+    topic: 'api.v1.organization-user-joined',
+    subscription: 'api.organization-user-joined',
+  },
+  {
+    topic: 'api.v1.organization-user-left',
+    subscription: 'api.organization-user-left'
+  },
+  {
+    topic: 'api.v1.organization-user-removed',
+    subscription: 'api.organization-user-removed'
   }
 ];
 

@@ -8,7 +8,12 @@ import {
   ExperimentVariantType,
   User,
 } from '../../entity';
-import { CountryCode, TimePeriod } from '@paddle/paddle-node-sdk';
+import {
+  CountryCode,
+  TimePeriod,
+  type Interval,
+  type SubscriptionItem,
+} from '@paddle/paddle-node-sdk';
 import { AuthContext } from '../../Context';
 import { generateStorageKey, StorageKey, StorageTopic } from '../../config';
 import {
@@ -126,7 +131,9 @@ const defaultVariant: Record<PurchaseType, string> = {
   [PurchaseType.Cores]: DEFAULT_CORES_METADATA,
 };
 
-export const getPricingDuration = (item: PricingPreviewLineItem) => {
+export const getPricingDuration = (
+  item: PricingPreviewLineItem | SubscriptionItem,
+) => {
   const isOneOff = !item.price.billingCycle?.interval;
   const isYearly = item.price.billingCycle?.interval === 'year';
 
@@ -283,16 +290,19 @@ export const getPrice = ({
 };
 
 export const getProductPrice = (
-  item: PricingPreviewLineItem,
+  {
+    total,
+    interval,
+  }: {
+    total: string;
+    interval?: Interval;
+  },
   locale?: string,
 ) => {
-  const formatted = item.formattedTotals.total;
   const basePrice: ProductPricing = getPrice({
-    formatted,
+    formatted: total,
     locale,
   });
-
-  const interval = item.price.billingCycle?.interval;
 
   if (!interval) {
     return basePrice;
@@ -304,7 +314,7 @@ export const getProductPrice = (
       formatted: basePrice.formatted,
     };
     basePrice.daily = getPrice({
-      formatted,
+      formatted: total,
       divideBy: 30,
       locale,
     });
@@ -313,13 +323,13 @@ export const getProductPrice = (
   }
 
   basePrice.monthly = getPrice({
-    formatted,
+    formatted: total,
     divideBy: MONTHS_IN_YEAR,
     locale,
   });
 
   basePrice.daily = getPrice({
-    formatted,
+    formatted: total,
     divideBy: DAYS_IN_YEAR,
     locale,
   });

@@ -3,6 +3,7 @@ import { NotificationBuilder } from './builder';
 import { NotificationIcon } from './icons';
 import {
   generateDevCard,
+  getOrganizationPermalink,
   notificationsLink,
   scoutArticleLink,
   squadsFeaturedPage,
@@ -27,6 +28,7 @@ import {
   NotificationUpvotersContext,
   NotificationUserContext,
   type NotificationAwardContext,
+  type NotificationOrganizationContext,
   type NotificationUserTopReaderContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
@@ -157,6 +159,12 @@ export const notificationTitleMap: Record<
 
     const coreAmount = formatCoresCurrency(ctx.transaction.valueIncFees);
     return `You just received +${coreAmount} Cores from ${ctx.sender.username} as an Award! Keep creating great content!`;
+  },
+  organization_member_joined: ({
+    user,
+    organization,
+  }: NotificationOrganizationContext) => {
+    return `<strong>Your team is growing!</strong> ${user.name} just joined your organization ${organization.name}. They now have access to daily.dev Plus ✧`;
   },
 };
 
@@ -458,4 +466,11 @@ export const generateNotificationMap: Record<
       .avatarUser(ctx.sender)
       .targetUrl(ctx.targetUrl)
       .referenceTransaction(ctx.transaction),
+  organization_member_joined: (builder, ctx: NotificationOrganizationContext) =>
+    builder
+      .uniqueKey([ctx.user.id, ctx.organization.id].join('-'))
+      .referenceOrganization(ctx.organization)
+      .targetUrl(getOrganizationPermalink(ctx.organization))
+      .icon(NotificationIcon.Bell)
+      .avatarOrganization(ctx.organization),
 };
