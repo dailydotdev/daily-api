@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import {
   Column,
   CreateDateColumn,
@@ -7,18 +8,27 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import type { SubscriptionCycles } from '../paddle';
-import type { SubscriptionProvider, SubscriptionStatus } from '../common/plus';
+import { SubscriptionCycles } from '../paddle';
+import { SubscriptionProvider, SubscriptionStatus } from '../common/plus';
 import type { ContentPreferenceOrganization } from './contentPreference/ContentPreferenceOrganization';
 
-export type OrganizationSubscriptionFlags = Partial<{
-  subscriptionId: string;
-  priceId: string;
-  cycle: SubscriptionCycles;
-  createdAt: Date;
-  provider: SubscriptionProvider;
-  status: SubscriptionStatus;
-}>;
+export const organizationSubscriptionFlagsSchema = z.object({
+  subscriptionId: z.string({ message: 'Subscription ID is required' }),
+  priceId: z.string({ message: 'Price ID is required' }),
+  cycle: z.nativeEnum(SubscriptionCycles, {
+    message: 'Invalid subscription cycle',
+  }),
+  createdAt: z.preprocess(
+    (value) => new Date(value as string),
+    z.date().optional(),
+  ),
+  provider: z.nativeEnum(SubscriptionProvider, {
+    message: 'Invalid subscription provider',
+  }),
+  status: z.nativeEnum(SubscriptionStatus, {
+    message: 'Invalid subscription status',
+  }),
+});
 
 @Entity()
 @Index('IDX_organization_subflags_subscriptionid', { synchronize: false })
@@ -45,7 +55,7 @@ export class Organization {
   seats: number;
 
   @Column({ type: 'jsonb', default: {} })
-  subscriptionFlags?: OrganizationSubscriptionFlags;
+  subscriptionFlags: z.infer<typeof organizationSubscriptionFlagsSchema>;
 
   @OneToMany(
     'ContentPreferenceOrganization',

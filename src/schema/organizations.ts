@@ -4,7 +4,10 @@ import { z } from 'zod';
 import { ForbiddenError } from 'apollo-server-errors';
 import type { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
-import { Organization } from '../entity/Organization';
+import {
+  Organization,
+  organizationSubscriptionFlagsSchema,
+} from '../entity/Organization';
 import {
   isRoleAtLeast,
   OrganizationMemberRole,
@@ -538,17 +541,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           id,
         });
 
-      if (!organization.subscriptionFlags?.subscriptionId) {
-        throw new Error('Missing subscription ID for organization');
-      }
+      const safeSubscriptionFlags =
+        organizationSubscriptionFlagsSchema.safeParse(
+          organization.subscriptionFlags,
+        );
 
-      if (!organization.subscriptionFlags?.priceId) {
-        throw new Error('Missing price ID for organization subscription');
+      if (safeSubscriptionFlags.error) {
+        ctx.log.error(
+          { err: safeSubscriptionFlags.error, organizationId: id },
+          'Invalid organization subscription flags',
+        );
+        throw safeSubscriptionFlags.error;
       }
 
       const preview = await fetchSubscriptionUpdatePreview({
-        subscriptionId: organization.subscriptionFlags.subscriptionId,
-        priceId: organization.subscriptionFlags.priceId,
+        subscriptionId: safeSubscriptionFlags.data.subscriptionId,
+        priceId: safeSubscriptionFlags.data.priceId,
         quantity,
       });
 
@@ -814,17 +822,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           id,
         });
 
-      if (!organization.subscriptionFlags?.subscriptionId) {
-        throw new Error('Missing subscription ID for organization');
+      const safeSubscriptionFlags =
+        organizationSubscriptionFlagsSchema.safeParse(
+          organization.subscriptionFlags,
+        );
+
+      if (safeSubscriptionFlags.error) {
+        ctx.log.error(
+          { err: safeSubscriptionFlags.error, organizationId: id },
+          'Invalid organization subscription flags',
+        );
+        throw safeSubscriptionFlags.error;
       }
 
-      if (!organization.subscriptionFlags?.priceId) {
-        throw new Error('Missing price ID for organization subscription');
-      }
+      const { data: subscriptionFlags } = safeSubscriptionFlags;
 
-      if (
-        organization.subscriptionFlags?.status !== SubscriptionStatus.Active
-      ) {
+      if (subscriptionFlags.status !== SubscriptionStatus.Active) {
         throw new Error(
           'Organization subscription is not active. Cannot update subscription.',
         );
@@ -832,8 +845,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       try {
         const updateResult = await updateOrganizationSubscription({
-          subscriptionId: organization.subscriptionFlags.subscriptionId,
-          priceId: organization.subscriptionFlags.priceId,
+          subscriptionId: subscriptionFlags.subscriptionId,
+          priceId: subscriptionFlags.priceId,
           quantity,
         });
 
