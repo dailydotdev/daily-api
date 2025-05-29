@@ -672,11 +672,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLUserOrganization> => {
-      const inviter = await verifyOrganizationInviter(
-        ctx,
-        organizationId,
-        token,
-      );
+      await verifyOrganizationInviter(ctx, organizationId, token);
 
       try {
         await ctx.con.transaction(async (manager) => {
@@ -717,8 +713,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                   }),
                 },
               ),
-            notifyOrganizationUserJoined(ctx.log, member.id, organization.id),
           ]);
+
+          notifyOrganizationUserJoined(ctx.log, member.id, organization.id);
         });
       } catch (_err) {
         const err = _err as TypeORMQueryFailedError;
@@ -777,8 +774,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                   }),
                 },
               ),
-            notifyOrganizationUserLeft(ctx.log, member.id, organizationId),
           ]);
+
+          notifyOrganizationUserLeft(ctx.log, member.id, organizationId);
         });
       } catch (_err) {
         const err = _err as TypeORMQueryFailedError;
@@ -959,10 +957,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 }),
               },
             ),
-          notifyOrganizationUserRemoved(ctx.log, memberId, organizationId),
         ]);
       });
 
+      notifyOrganizationUserRemoved(ctx.log, memberId, organizationId);
       return getOrganizationById(ctx, info, organizationId);
     },
     updateOrganizationMemberRole: async (
