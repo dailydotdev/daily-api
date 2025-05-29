@@ -455,7 +455,6 @@ export const notifyOrganizationUserLeft = async (
   memberId: User['id'],
   organizationId: Organization['id'],
 ): Promise<void> => {
-  console.log('notifyOrganizationUserLeft', memberId, organizationId);
   return publishEvent(log, organizationUserLeftTopic, {
     memberId,
     organizationId,
