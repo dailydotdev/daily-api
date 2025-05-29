@@ -13,6 +13,7 @@ import {
 import graphorm from '../graphorm';
 import {
   notifyOrganizationUserJoined,
+  notifyOrganizationUserLeft,
   toGQLEnum,
   updateFlagsStatement,
   updateSubscriptionFlags,
@@ -775,6 +776,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                   }),
                 },
               ),
+            notifyOrganizationUserLeft(ctx.log, member.id, organizationId),
           ]);
         });
       } catch (_err) {

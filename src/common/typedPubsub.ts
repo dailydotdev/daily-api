@@ -129,6 +129,10 @@ export type PubSubSchema = {
     organizationId: Organization['id'];
     memberId: User['id'];
   };
+  'api.v1.organization-user-left': {
+    organizationId: Organization['id'];
+    memberId: User['id'];
+  };
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(

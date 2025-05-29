@@ -58,6 +58,7 @@ import { postTranslated } from './postTranslated';
 import postDeletedSharedPostCleanup from './postDeletedSharedPostCleanup';
 import { transactionBalanceLogWorker } from './transactionBalanceLog';
 import { userBoughtCores } from './transactions/userBoughtCores';
+import { organizationUserLeft } from './organization/organizationUserLeft';
 
 export { Worker } from './worker';
 
@@ -119,6 +120,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   postTranslated,
   transactionBalanceLogWorker,
   userBoughtCores,
+  organizationUserLeft,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
