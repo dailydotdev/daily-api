@@ -347,7 +347,7 @@ export const typeDefs = /* GraphQL */ `
     """
     toggleOrganizationMemberSeat(
       """
-      The ID of the organization to update the member role in
+      The ID of the organization to toggle the member seat in
       """
       id: ID!
       """
