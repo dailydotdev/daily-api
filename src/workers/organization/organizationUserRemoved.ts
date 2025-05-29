@@ -1,25 +1,30 @@
-import { ContentPreferenceOrganization } from '../../entity/contentPreference/ContentPreferenceOrganization';
 import type { TypedWorker } from '../worker';
 import { CioTransactionalMessageTemplateId, sendEmail } from '../../common';
+import { Organization, User } from '../../entity';
 
 export const organizationUserRemoved: TypedWorker<'api.v1.organization-user-removed'> =
   {
     subscription: 'api.organization-user-removed',
-    handler: async ({ data }, con) => {
+    handler: async ({ data }, con, logger) => {
       const { organizationId, memberId } = data;
 
-      const member = await con
-        .getRepository(ContentPreferenceOrganization)
-        .findOneOrFail({
-          where: { organizationId, userId: memberId },
-          relations: {
-            organization: true,
-            user: true,
-          },
-        });
+      const [organization, user] = await Promise.all([
+        con.getRepository(Organization).findOneBy({
+          id: organizationId,
+        }),
+        con.getRepository(User).findOneBy({
+          id: memberId,
+        }),
+      ]);
 
-      const organization = await member.organization;
-      const user = await member.user;
+      if (!organization) {
+        logger.error({ organizationId }, 'Organization not found');
+        return;
+      }
+      if (!user) {
+        logger.error({ userId: memberId }, 'User not found');
+        return;
+      }
 
       await sendEmail({
         send_to_unsubscribed: false,
