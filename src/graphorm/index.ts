@@ -1213,9 +1213,20 @@ const obj = new GraphORM({
     fields: {
       members: {
         customQuery: (ctx, alias, qb) =>
-          qb.andWhere(`${alias}."userId" != :userId`, {
-            userId: ctx.userId,
-          }),
+          qb
+            .andWhere(`${alias}."userId" != :userId`, {
+              userId: ctx.userId,
+            })
+            .orderBy(
+              `CASE (${alias}."flags"->>'role')
+              WHEN 'owner' THEN 1
+              WHEN 'admin' THEN 2
+              WHEN 'member' THEN 3
+              ELSE 4
+            END`,
+              'ASC',
+            )
+            .addOrderBy(`"${alias}"."createdAt"`, 'ASC'),
       },
       status: {
         rawSelect: true,

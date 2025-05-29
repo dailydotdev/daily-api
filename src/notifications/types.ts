@@ -14,6 +14,7 @@ import {
   type Keyword,
   type UserTopReader,
   SquadSource,
+  type Organization,
 } from '../entity';
 import { ChangeObject } from '../types';
 import { DeepPartial } from 'typeorm';
@@ -121,6 +122,10 @@ export type NotificationUserContext = NotificationBaseContext & {
 export type NotificationUserTopReaderContext = NotificationBaseContext & {
   userTopReader: Reference<UserTopReader>;
   keyword: Reference<Keyword>;
+};
+
+export type NotificationOrganizationContext = NotificationUserContext & {
+  organization: Reference<Organization>;
 };
 
 declare module 'fs' {

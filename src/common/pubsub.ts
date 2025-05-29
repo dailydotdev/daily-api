@@ -18,6 +18,7 @@ import {
   CollectionPost,
   NotificationV2,
   UserPersonalizedDigest,
+  type Organization,
 } from '../entity';
 import { ChangeMessage, ChangeObject } from '../types';
 import { SourceMemberRoles } from '../roles';
@@ -78,6 +79,13 @@ const postCollectionUpdatedTopic = pubsub.topic(
 );
 const userReadmeUpdatedTopic = pubsub.topic('api.v1.user-readme-updated');
 const userReputationUpdatedTopic = pubsub.topic('user-reputation-updated');
+const organizationUserJoinedTopic = pubsub.topic(
+  'api.v1.organization-user-joined',
+);
+const organizationUserLeftTopic = pubsub.topic('api.v1.organization-user-left');
+const organizationUserRemovedTopic = pubsub.topic(
+  'api.v1.organization-user-removed',
+);
 
 export enum NotificationReason {
   New = 'new',
@@ -430,6 +438,52 @@ export const notifyReputationIncrease = async (
   publishEvent(log, userReputationUpdatedTopic, {
     user,
     userAfter,
+  });
+
+export const notifyOrganizationUserJoined = async (
+  log: EventLogger,
+  {
+    memberId,
+    organizationId,
+  }: {
+    memberId: User['id'];
+    organizationId: Organization['id'];
+  },
+): Promise<void> =>
+  publishEvent(log, organizationUserJoinedTopic, {
+    memberId,
+    organizationId,
+  });
+
+export const notifyOrganizationUserLeft = async (
+  log: EventLogger,
+  {
+    memberId,
+    organizationId,
+  }: {
+    memberId: User['id'];
+    organizationId: Organization['id'];
+  },
+): Promise<void> => {
+  return publishEvent(log, organizationUserLeftTopic, {
+    memberId,
+    organizationId,
+  });
+};
+
+export const notifyOrganizationUserRemoved = async (
+  log: EventLogger,
+  {
+    memberId,
+    organizationId,
+  }: {
+    memberId: User['id'];
+    organizationId: Organization['id'];
+  },
+): Promise<void> =>
+  publishEvent(log, organizationUserRemovedTopic, {
+    memberId,
+    organizationId,
   });
 
 export const workerSubscribe = (
