@@ -212,7 +212,7 @@ export interface GQLUser {
   language?: ContentLanguage | null;
   topReader?: GQLUserTopReader;
   coresRole: CoresRole;
-  isPlus: boolean;
+  isPlus?: boolean;
 }
 
 export interface GQLView {
