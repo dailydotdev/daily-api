@@ -12,7 +12,8 @@ export type NotificationReferenceType =
   | 'submission'
   | 'comment'
   | 'source'
-  | 'system';
+  | 'system'
+  | 'organization';
 
 @Entity()
 @Index('ID_notification_v2_reference', ['referenceId', 'referenceType'])

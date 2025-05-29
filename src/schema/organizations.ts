@@ -12,6 +12,9 @@ import {
 } from '../roles';
 import graphorm from '../graphorm';
 import {
+  notifyOrganizationUserJoined,
+  notifyOrganizationUserLeft,
+  notifyOrganizationUserRemoved,
   toGQLEnum,
   updateFlagsStatement,
   updateSubscriptionFlags,
@@ -711,6 +714,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 },
               ),
           ]);
+
+          notifyOrganizationUserJoined(ctx.log, {
+            memberId: member.id,
+            organizationId: organization.id,
+          });
         });
       } catch (_err) {
         const err = _err as TypeORMQueryFailedError;
@@ -770,6 +778,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 },
               ),
           ]);
+
+          notifyOrganizationUserLeft(ctx.log, {
+            memberId: member.id,
+            organizationId,
+          });
         });
       } catch (_err) {
         const err = _err as TypeORMQueryFailedError;
@@ -953,6 +966,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ]);
       });
 
+      notifyOrganizationUserRemoved(ctx.log, { memberId, organizationId });
       return getOrganizationById(ctx, info, organizationId);
     },
     updateOrganizationMemberRole: async (

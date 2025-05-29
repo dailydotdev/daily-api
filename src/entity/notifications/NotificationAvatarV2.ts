@@ -1,6 +1,10 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
-export type NotificationAvatarType = 'source' | 'user' | 'top_reader_badge';
+export type NotificationAvatarType =
+  | 'source'
+  | 'user'
+  | 'top_reader_badge'
+  | 'organization';
 
 @Entity()
 @Index(
