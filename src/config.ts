@@ -7,7 +7,9 @@ dotenv.config({ path: '.env' });
 
 export const fallbackImages = {
   avatar:
-    'https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile',
+    'https://media.daily.dev/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile',
+  organization:
+    'https://media.daily.dev/image/upload/s--yc7EcfBs--/f_auto,q_auto/v1/public/organization_fallback',
 };
 
 export const REDIS_BANNER_KEY = 'boot:latest_banner';
@@ -41,6 +43,7 @@ export enum StorageKey {
   OpenExchangeRates = 'open_exchange_rates',
   PricingPreviewPlus = 'pricing_preview_plus',
   PricingPreviewCores = 'pricing_preview_cores',
+  OrganizationSubscriptionUpdatePreview = 'organization_subscription_update_preview',
 }
 
 export const generateStorageKey = (

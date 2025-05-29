@@ -20,6 +20,7 @@ import {
 import {
   emptyImage,
   getDiscussionLink,
+  getOrganizationPermalink,
   getSourceLink,
   getUserPermalink,
   pickImageUrl,
@@ -29,6 +30,7 @@ import {
   NotificationBundleV2,
   NotificationStreakContext,
   Reference,
+  type NotificationOrganizationContext,
   type NotificationUserTopReaderContext,
 } from './types';
 import { NotificationIcon } from './icons';
@@ -185,6 +187,15 @@ export class NotificationBuilder {
     });
   }
 
+  referenceOrganization(
+    organization: NotificationOrganizationContext['organization'],
+  ): NotificationBuilder {
+    return this.enrichNotification({
+      referenceId: organization.id,
+      referenceType: 'organization',
+    });
+  }
+
   icon(icon: NotificationIcon): NotificationBuilder {
     return this.enrichNotification({ icon });
   }
@@ -292,6 +303,19 @@ export class NotificationBuilder {
       targetUrl: getUserPermalink(user),
     });
 
+    return this;
+  }
+
+  avatarOrganization(
+    organization: NotificationOrganizationContext['organization'],
+  ): NotificationBuilder {
+    this.avatars.push({
+      type: 'organization',
+      referenceId: organization.id,
+      image: organization.image ?? fallbackImages.organization,
+      name: organization.name,
+      targetUrl: getOrganizationPermalink(organization),
+    });
     return this;
   }
 

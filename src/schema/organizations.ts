@@ -4,7 +4,10 @@ import { z } from 'zod';
 import { ForbiddenError } from 'apollo-server-errors';
 import type { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
-import { Organization } from '../entity/Organization';
+import {
+  Organization,
+  organizationSubscriptionFlagsSchema,
+} from '../entity/Organization';
 import {
   isRoleAtLeast,
   OrganizationMemberRole,
@@ -12,24 +15,44 @@ import {
 } from '../roles';
 import graphorm from '../graphorm';
 import {
+  notifyOrganizationUserJoined,
+  notifyOrganizationUserLeft,
+  notifyOrganizationUserRemoved,
   toGQLEnum,
+  updateFlagsStatement,
   updateSubscriptionFlags,
   uploadOrganizationImage,
 } from '../common';
 import type { GQLUser } from './users';
 import type { GraphQLResolveInfo } from 'graphql';
 import { isNullOrUndefined } from '../common/object';
-import { ContentPreferenceOrganization } from '../entity/contentPreference/ContentPreferenceOrganization';
+import {
+  ContentPreferenceOrganization,
+  ContentPreferenceOrganizationStatus,
+} from '../entity/contentPreference/ContentPreferenceOrganization';
 import { TypeOrmError, type TypeORMQueryFailedError } from '../errors';
 import type { GQLEmptyResponse } from './common';
-import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 import { randomUUID } from 'node:crypto';
 import { JsonContains } from 'typeorm';
 import { User } from '../entity';
 import { isPlusMember } from '../paddle';
+import {
+  getPrice,
+  getPricingDuration,
+  getPricingMetadataByPriceIds,
+  getProductPrice,
+} from '../common/paddle/pricing';
+import {
+  fetchSubscriptionUpdatePreview,
+  subscriptionUpdateSchema,
+  updateOrganizationSubscription,
+} from '../common/paddle/organization';
+import { parsePaddlePriceInCents } from '../common/paddle';
+import { SubscriptionStatus } from '../common/plus';
 
 export type GQLOrganizationMember = {
   role: OrganizationMemberRole;
+  seatType: ContentPreferenceOrganizationStatus;
   user: GQLUser;
 };
 export type GQLOrganization = Omit<
@@ -37,6 +60,7 @@ export type GQLOrganization = Omit<
   'subscriptionFlags' | 'members'
 > & {
   members: GQLOrganizationMember[];
+  activeSeats: number;
 };
 export type GQLUserOrganization = {
   createdAt: Date;
@@ -47,13 +71,23 @@ export type GQLUserOrganization = {
 };
 
 export const typeDefs = /* GraphQL */ `
+  ${toGQLEnum(SubscriptionStatus, 'SubscriptionStatus')}
   ${toGQLEnum(OrganizationMemberRole, 'OrganizationMemberRole')}
+  ${toGQLEnum(
+    ContentPreferenceOrganizationStatus,
+    'OrganizationMemberSeatType',
+  )}
 
   type OrganizationMember {
     """
     Role of the user in the organization
     """
     role: OrganizationMemberRole!
+
+    """
+    The seat type of the user in the organization
+    """
+    seatType: OrganizationMemberSeatType!
 
     """
     The user in the organization
@@ -85,12 +119,50 @@ export const typeDefs = /* GraphQL */ `
     """
     The number of seats in the organization
     """
-    seats: Int
+    seats: Int!
+
+    """
+    The number of active seats in the organization
+    """
+    activeSeats: Int!
 
     """
     The members of the organization
     """
     members: [OrganizationMember!]!
+
+    """
+    The subscription status of the organization
+    """
+    status: SubscriptionStatus!
+  }
+
+  type ProratedPricePreview {
+    subTotal: PricePreview
+    tax: PricePreview
+    total: PricePreview
+  }
+
+  type OrganizationSubscription {
+    """
+    Preview of the updated pricing details of the subscription
+    """
+    pricing: [BaseProductPricingPreview!]!
+
+    """
+    The next billing date of the subscription
+    """
+    nextBilling: DateTime
+
+    """
+    The prorated price of the subscription update
+    """
+    prorated: ProratedPricePreview
+
+    """
+    The total price of the subscription update
+    """
+    total: ProductPricePreview
   }
 
   type UserOrganization {
@@ -113,6 +185,11 @@ export const typeDefs = /* GraphQL */ `
     URL for inviting and referring new users
     """
     referralUrl: String
+
+    """
+    The seat type of the user in the organization
+    """
+    seatType: OrganizationMemberSeatType!
   }
 
   extend type Query {
@@ -145,6 +222,26 @@ export const typeDefs = /* GraphQL */ `
       """
       token: String!
     ): OrganizationMember
+
+    """
+    Preview the organization subscription update
+    """
+    previewOrganizationSubscriptionUpdate(
+      """
+      The ID of the organization
+      """
+      id: ID!
+
+      """
+      The number of seats to update to
+      """
+      quantity: Int!
+
+      """
+      The locale to use for formatting prices
+      """
+      locale: String
+    ): OrganizationSubscription @auth
   }
 
   extend type Mutation {
@@ -192,6 +289,78 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): EmptyResponse @auth
+
+    """
+    Update the organization subscription
+    """
+    updateOrganizationSubscription(
+      """
+      The ID of the organization to update
+      """
+      id: ID!
+
+      """
+      The number of seats to update to
+      """
+      quantity: Int!
+    ): UserOrganization @auth
+
+    """
+    Delete the organization
+    """
+    deleteOrganization(
+      """
+      The ID of the organization to delete
+      """
+      id: ID!
+    ): EmptyResponse @auth
+
+    """
+    Remove a member from the organization
+    """
+    removeOrganizationMember(
+      """
+      The ID of the organization to remove the member from
+      """
+      id: ID!
+
+      """
+      The ID of the member to remove
+      """
+      memberId: String!
+    ): UserOrganization! @auth
+
+    """
+    Update the role of a member in the organization
+    """
+    updateOrganizationMemberRole(
+      """
+      The ID of the organization to update the member role in
+      """
+      id: ID!
+      """
+      The ID of the member to update the role for
+      """
+      memberId: String!
+      """
+      The new role to assign to the member
+      """
+      role: OrganizationMemberRole!
+    ): UserOrganization! @auth
+
+    """
+    Toggle the seat of a member in the organization
+    """
+    toggleOrganizationMemberSeat(
+      """
+      The ID of the organization to toggle the member seat in
+      """
+      id: ID!
+      """
+      The ID of the member to update the role for
+      """
+      memberId: String!
+    ): UserOrganization! @auth
   }
 `;
 
@@ -349,6 +518,117 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       );
     },
+    previewOrganizationSubscriptionUpdate: async (
+      _,
+      params: z.infer<typeof subscriptionUpdateSchema>,
+      ctx: AuthContext,
+    ) => {
+      const safeParams = subscriptionUpdateSchema.safeParse(params);
+
+      if (safeParams.error) {
+        throw safeParams.error;
+      }
+      const { id, quantity, locale } = safeParams.data;
+
+      await ensureOrganizationRole(ctx, {
+        organizationId: id,
+        requiredRole: OrganizationMemberRole.Admin,
+      });
+
+      const organization = await ctx.con
+        .getRepository(Organization)
+        .findOneByOrFail({
+          id,
+        });
+
+      const safeSubscriptionFlags =
+        organizationSubscriptionFlagsSchema.safeParse(
+          organization.subscriptionFlags,
+        );
+
+      if (safeSubscriptionFlags.error) {
+        ctx.log.error(
+          { err: safeSubscriptionFlags.error, organizationId: id },
+          'Invalid organization subscription flags',
+        );
+        throw safeSubscriptionFlags.error;
+      }
+
+      const preview = await fetchSubscriptionUpdatePreview({
+        subscriptionId: safeSubscriptionFlags.data.subscriptionId,
+        priceId: safeSubscriptionFlags.data.priceId,
+        quantity,
+      });
+
+      const priceMetadata = await getPricingMetadataByPriceIds(
+        ctx,
+        preview.items.map((item) => item.price.id),
+      );
+
+      const pricing = preview.items.map((item) => {
+        const lineItem = preview.recurringTransactionDetails?.lineItems.find(
+          (lineItem) => lineItem.priceId === item.price.id,
+        );
+
+        if (!lineItem) {
+          return {};
+        }
+
+        return {
+          priceId: item.price.id,
+          price: getProductPrice(
+            {
+              total: parsePaddlePriceInCents(lineItem.unitTotals.total),
+              interval: preview.billingCycle?.interval,
+            },
+            locale,
+          ),
+          duration: getPricingDuration(item),
+          trialPeriod: item.price.trialPeriod,
+          currency: {
+            code: preview.currencyCode,
+          },
+          metadata: priceMetadata?.[item.price.id] ?? null,
+        };
+      });
+
+      const prorated = {
+        total: getPrice({
+          formatted: parsePaddlePriceInCents(
+            preview.immediateTransaction?.details.totals.total,
+            0,
+          ),
+          locale,
+        }),
+        subTotal: getPrice({
+          formatted: parsePaddlePriceInCents(
+            preview.immediateTransaction?.details.totals.subtotal,
+            0,
+          ),
+          locale,
+        }),
+        tax: getPrice({
+          formatted: parsePaddlePriceInCents(
+            preview.immediateTransaction?.details.totals.tax,
+            0,
+          ),
+          locale,
+        }),
+      };
+
+      return {
+        status: preview.status,
+        pricing,
+        nextBilling: preview.nextBilledAt,
+        prorated,
+        total: getPrice({
+          formatted: parsePaddlePriceInCents(
+            preview.recurringTransactionDetails?.totals.total,
+          ),
+          locale,
+        }),
+      };
+    },
   },
   Mutation: {
     updateOrganization: async (
@@ -414,20 +694,24 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               id: organizationId,
             });
 
+          const isPlus = isPlusMember(member.subscriptionFlags?.cycle);
+
           await Promise.all([
             manager.getRepository(ContentPreferenceOrganization).save({
               userId: member.id,
               referenceId: organizationId,
               organizationId: organizationId,
               feedId: member.id,
-              status: ContentPreferenceStatus.Follow,
+              status: isPlus
+                ? ContentPreferenceOrganizationStatus.Free
+                : ContentPreferenceOrganizationStatus.Plus,
               flags: {
                 role: OrganizationMemberRole.Member,
                 referralToken: randomUUID(),
               },
             }),
             // Give the user plus access if they are not already a plus member
-            !isPlusMember(member.subscriptionFlags?.cycle) &&
+            !isPlus &&
               manager.getRepository(User).update(
                 { id: member.id },
                 {
@@ -438,6 +722,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 },
               ),
           ]);
+
+          notifyOrganizationUserJoined(ctx.log, {
+            memberId: member.id,
+            organizationId: organization.id,
+          });
         });
       } catch (_err) {
         const err = _err as TypeORMQueryFailedError;
@@ -497,12 +786,357 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 },
               ),
           ]);
+
+          notifyOrganizationUserLeft(ctx.log, {
+            memberId: member.id,
+            organizationId,
+          });
         });
       } catch (_err) {
         const err = _err as TypeORMQueryFailedError;
         throw err;
       }
       return { _: true };
+    },
+    updateOrganizationSubscription: async (
+      _,
+      params: z.infer<typeof subscriptionUpdateSchema>,
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLUserOrganization> => {
+      const safeParams = subscriptionUpdateSchema.safeParse(params);
+
+      if (safeParams.error) {
+        throw safeParams.error;
+      }
+      const { id, quantity } = safeParams.data;
+
+      await ensureOrganizationRole(ctx, {
+        organizationId: id,
+        requiredRole: OrganizationMemberRole.Owner,
+      });
+
+      const organization = await ctx.con
+        .getRepository(Organization)
+        .findOneByOrFail({
+          id,
+        });
+
+      const safeSubscriptionFlags =
+        organizationSubscriptionFlagsSchema.safeParse(
+          organization.subscriptionFlags,
+        );
+
+      if (safeSubscriptionFlags.error) {
+        ctx.log.error(
+          { err: safeSubscriptionFlags.error, organizationId: id },
+          'Invalid organization subscription flags',
+        );
+        throw safeSubscriptionFlags.error;
+      }
+
+      const { data: subscriptionFlags } = safeSubscriptionFlags;
+
+      if (subscriptionFlags.status !== SubscriptionStatus.Active) {
+        throw new Error(
+          'Organization subscription is not active. Cannot update subscription.',
+        );
+      }
+
+      try {
+        const updateResult = await updateOrganizationSubscription({
+          subscriptionId: subscriptionFlags.subscriptionId,
+          priceId: subscriptionFlags.priceId,
+          quantity,
+        });
+
+        await ctx.con.getRepository(Organization).update(id, {
+          seats: updateResult.items[0].quantity,
+        });
+      } catch (_err) {
+        const err = _err as Error;
+        ctx.log.error(
+          { err, organizationId: id, quantity },
+          'Failed to update organization subscription',
+        );
+        throw err;
+      }
+
+      return getOrganizationById(ctx, info, id);
+    },
+    deleteOrganization: async (_, { id }, ctx: AuthContext) => {
+      await ensureOrganizationRole(ctx, {
+        organizationId: id,
+        requiredRole: OrganizationMemberRole.Owner,
+      });
+
+      const organization = await ctx.con
+        .getRepository<
+          Pick<Organization, 'id' | 'subscriptionFlags' | 'members'>
+        >(Organization)
+        .findOneOrFail({
+          select: {
+            id: true,
+            subscriptionFlags: true,
+            members: {
+              userId: true,
+              status: true,
+            },
+          },
+          where: { id },
+          relations: {
+            members: true,
+          },
+        });
+
+      if (
+        organization.subscriptionFlags?.status === SubscriptionStatus.Active
+      ) {
+        throw new ForbiddenError(
+          'Cannot delete organization with an active subscription. Please cancel the subscription first.',
+        );
+      }
+
+      const members: Pick<
+        ContentPreferenceOrganization,
+        'userId' | 'status'
+      >[] = await organization.members;
+
+      if (
+        members.some(
+          (m) => m.status === ContentPreferenceOrganizationStatus.Plus,
+        )
+      ) {
+        throw new ForbiddenError(
+          'Cannot delete organization with Plus members. Please remove all Plus members first.',
+        );
+      }
+
+      await ctx.con.getRepository(Organization).delete(id);
+
+      return { _: true };
+    },
+    removeOrganizationMember: async (
+      _,
+      { id: organizationId, memberId },
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLUserOrganization> => {
+      await ensureOrganizationRole(ctx, {
+        organizationId,
+        requiredRole: OrganizationMemberRole.Admin,
+      });
+
+      if (memberId === ctx.userId) {
+        throw new ForbiddenError(
+          'You cannot remove yourself from the organization.',
+        );
+      }
+
+      await ctx.con.transaction(async (manager) => {
+        const member = await manager
+          .getRepository(ContentPreferenceOrganization)
+          .findOneOrFail({
+            where: {
+              organizationId,
+              userId: memberId,
+            },
+            relations: {
+              user: true,
+            },
+          });
+
+        if (member.flags?.role === OrganizationMemberRole.Owner) {
+          throw new ForbiddenError(
+            'You cannot remove the owner of the organization.',
+          );
+        }
+
+        const memberUser = await member.user;
+
+        const organizationSeatUser =
+          memberUser.subscriptionFlags?.organizationId === organizationId;
+
+        await Promise.all([
+          manager.getRepository(ContentPreferenceOrganization).delete({
+            userId: memberId,
+            organizationId,
+          }),
+          organizationSeatUser &&
+            manager.getRepository(User).update(
+              { id: memberId },
+              {
+                subscriptionFlags: updateSubscriptionFlags({
+                  subscriptionId: null,
+                  cycle: null,
+                  createdAt: null,
+                  provider: null,
+                  status: null,
+                  organizationId: null,
+                }),
+              },
+            ),
+        ]);
+      });
+
+      notifyOrganizationUserRemoved(ctx.log, { memberId, organizationId });
+      return getOrganizationById(ctx, info, organizationId);
+    },
+    updateOrganizationMemberRole: async (
+      _,
+      {
+        id: organizationId,
+        memberId,
+        role,
+      }: { id: string; memberId: string; role: OrganizationMemberRole },
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLUserOrganization> => {
+      await ensureOrganizationRole(ctx, {
+        organizationId,
+        requiredRole: OrganizationMemberRole.Admin,
+      });
+
+      await ctx.con.transaction(async (manager) => {
+        if (role === OrganizationMemberRole.Owner) {
+          throw new ForbiddenError(
+            'You cannot assign the owner role to a member at this time.',
+          );
+        }
+
+        if (memberId === ctx.userId) {
+          throw new ForbiddenError(
+            'You cannot change your own role in the organization.',
+          );
+        }
+
+        const member = await manager
+          .getRepository(ContentPreferenceOrganization)
+          .findOneByOrFail({
+            organizationId,
+            userId: memberId,
+          });
+
+        if (member.flags?.role === OrganizationMemberRole.Owner) {
+          throw new ForbiddenError(
+            'You cannot change the role of the owner of the organization.',
+          );
+        }
+
+        await manager.getRepository(ContentPreferenceOrganization).update(
+          {
+            userId: memberId,
+            organizationId,
+          },
+          {
+            flags: updateFlagsStatement({
+              role,
+            }),
+          },
+        );
+      });
+
+      return getOrganizationById(ctx, info, organizationId);
+    },
+    toggleOrganizationMemberSeat: async (
+      _,
+      { id: organizationId, memberId },
+      ctx: AuthContext,
+      info,
+    ) => {
+      await ensureOrganizationRole(ctx, {
+        organizationId,
+        requiredRole: OrganizationMemberRole.Admin,
+      });
+
+      try {
+        await ctx.con.transaction(async (manager) => {
+          const member = await manager
+            .getRepository(ContentPreferenceOrganization)
+            .findOneOrFail({
+              where: {
+                organizationId,
+                userId: memberId,
+              },
+              relations: {
+                user: true,
+                organization: true,
+              },
+            });
+
+          const activeSeats = await manager
+            .getRepository(ContentPreferenceOrganization)
+            .count({
+              where: {
+                organizationId,
+                status: ContentPreferenceOrganizationStatus.Plus,
+              },
+            });
+
+          const user = await member.user;
+          const organization = await member.organization;
+
+          const isPlus = isPlusMember(user.subscriptionFlags?.cycle);
+          const hasPlusSeat =
+            member.status === ContentPreferenceOrganizationStatus.Plus;
+
+          if (isPlus && !hasPlusSeat) {
+            throw new ForbiddenError(
+              'You cannot toggle the seat of a member who has a Plus subscription from outside the organization.',
+            );
+          }
+
+          if (!isPlus && !hasPlusSeat && activeSeats >= organization.seats) {
+            throw new ForbiddenError(
+              'You cannot assign a seat to a member when the organization has reached its maximum number of seats.',
+            );
+          }
+
+          await Promise.all([
+            manager.getRepository(User).update(
+              { id: memberId },
+              {
+                subscriptionFlags: updateSubscriptionFlags(
+                  isPlus && hasPlusSeat
+                    ? {
+                        subscriptionId: null,
+                        cycle: null,
+                        createdAt: null,
+                        provider: null,
+                        status: null,
+                        organizationId: null,
+                      }
+                    : {
+                        ...organization.subscriptionFlags,
+                        organizationId: organizationId,
+                      },
+                ),
+              },
+            ),
+            manager.getRepository(ContentPreferenceOrganization).update(
+              {
+                userId: memberId,
+                organizationId,
+              },
+              {
+                status:
+                  isPlus && hasPlusSeat
+                    ? ContentPreferenceOrganizationStatus.Free
+                    : ContentPreferenceOrganizationStatus.Plus,
+              },
+            ),
+          ]);
+        });
+
+        return getOrganizationById(ctx, info, organizationId);
+      } catch (_err) {
+        const err = _err as Error;
+        ctx.log.error(
+          { err, organizationId, memberId },
+          'Failed to toggle organization member seat',
+        );
+        throw err;
+      }
     },
   },
 });

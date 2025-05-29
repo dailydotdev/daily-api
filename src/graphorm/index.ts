@@ -51,7 +51,10 @@ import { isPlusMember } from '../paddle';
 import { remoteConfig } from '../remoteConfig';
 import { whereNotUserBlocked } from '../common/contentPreference';
 import { type GetBalanceResult } from '../common/njord';
-import type { ContentPreferenceOrganization } from '../entity/contentPreference/ContentPreferenceOrganization';
+import {
+  ContentPreferenceOrganization,
+  ContentPreferenceOrganizationStatus,
+} from '../entity/contentPreference/ContentPreferenceOrganization';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -1200,15 +1203,48 @@ const obj = new GraphORM({
         select: (_, alias) =>
           `COALESCE(${alias}.flags->>'role', '${OrganizationMemberRole.Member}')`,
       },
+      seatType: {
+        alias: { field: 'status', type: 'string' },
+      },
     },
   },
   Organization: {
+    requiredColumns: ['id'],
     fields: {
       members: {
         customQuery: (ctx, alias, qb) =>
-          qb.andWhere(`${alias}."userId" != :userId`, {
-            userId: ctx.userId,
-          }),
+          qb
+            .andWhere(`${alias}."userId" != :userId`, {
+              userId: ctx.userId,
+            })
+            .orderBy(
+              `CASE (${alias}."flags"->>'role')
+              WHEN 'owner' THEN 1
+              WHEN 'admin' THEN 2
+              WHEN 'member' THEN 3
+              ELSE 4
+            END`,
+              'ASC',
+            )
+            .addOrderBy(`"${alias}"."createdAt"`, 'ASC'),
+      },
+      status: {
+        rawSelect: true,
+        select: (_, alias) => `${alias}."subscriptionFlags"->>'status'`,
+      },
+      activeSeats: {
+        rawSelect: true,
+        select: (_, alias, qb) =>
+          qb
+            .select('count(*)')
+            .from(ContentPreference, 'cpo')
+            .where(`"cpo"."organizationId" = ${alias}.id`)
+            .andWhere(`"cpo"."type" = :type`)
+            .andWhere(`"cpo"."status" = :status`)
+            .setParameters({
+              type: ContentPreferenceType.Organization,
+              status: ContentPreferenceOrganizationStatus.Plus,
+            }),
       },
     },
   },
@@ -1223,6 +1259,9 @@ const obj = new GraphORM({
         rawSelect: true,
         select: (_, alias) =>
           `COALESCE(${alias}.flags->>'role', '${OrganizationMemberRole.Member}')`,
+      },
+      seatType: {
+        alias: { field: 'status', type: 'string' },
       },
     },
   },

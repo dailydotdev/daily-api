@@ -9,6 +9,7 @@ import type {
   UserCompany,
   UserTopReader,
   PostTranslation,
+  Organization,
 } from '../entity';
 import {
   type EventLogger,
@@ -123,6 +124,18 @@ export type PubSubSchema = {
   'njord.v1.balance-log': TransferResponse;
   'api.v1.user-transaction': {
     transaction: ChangeObject<UserTransaction>;
+  };
+  'api.v1.organization-user-joined': {
+    organizationId: Organization['id'];
+    memberId: User['id'];
+  };
+  'api.v1.organization-user-left': {
+    organizationId: Organization['id'];
+    memberId: User['id'];
+  };
+  'api.v1.organization-user-removed': {
+    organizationId: Organization['id'];
+    memberId: User['id'];
   };
 };
 

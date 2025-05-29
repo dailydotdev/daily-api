@@ -5,6 +5,7 @@ import {
   UserStreak,
   UserStreakAction,
   UserStreakActionType,
+  type Organization,
 } from '../entity';
 import { differenceInDays, isSameDay, max, startOfDay } from 'date-fns';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
@@ -89,6 +90,11 @@ export const getUserPermalink = (user: Pick<User, 'id' | 'username'>): string =>
 
 export const getUserProfileUrl = (username: string): string =>
   `${process.env.COMMENTS_PREFIX}/${username}`;
+
+export const getOrganizationPermalink = (
+  organization: Pick<Organization, 'id'>,
+): string =>
+  `${process.env.COMMENTS_PREFIX}/settings/organization/${organization.id}`;
 
 export interface TagsReadingStatus {
   tag: string;

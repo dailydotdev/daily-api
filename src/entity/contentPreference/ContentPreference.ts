@@ -36,7 +36,7 @@ import type { Feed } from '../Feed';
   'status',
 ])
 @Index('IDX_content_preference_flags_referralToken', { synchronize: false })
-export class ContentPreference {
+export class ContentPreference<TStatus = ContentPreferenceStatus> {
   @PrimaryColumn({ type: 'text' })
   referenceId: string;
 
@@ -53,7 +53,7 @@ export class ContentPreference {
   createdAt: Date;
 
   @Column({ type: 'text' })
-  status: ContentPreferenceStatus;
+  status: TStatus;
 
   @ManyToOne('User', {
     lazy: true,
