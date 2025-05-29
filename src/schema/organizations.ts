@@ -46,6 +46,7 @@ import { SubscriptionStatus } from '../common/plus';
 
 export type GQLOrganizationMember = {
   role: OrganizationMemberRole;
+  seatType: ContentPreferenceOrganizationStatus;
   user: GQLUser;
 };
 export type GQLOrganization = Omit<
@@ -339,6 +340,20 @@ export const typeDefs = /* GraphQL */ `
       The new role to assign to the member
       """
       role: OrganizationMemberRole!
+    ): UserOrganization! @auth
+
+    """
+    Toggle the seat of a member in the organization
+    """
+    toggleOrganizationMemberSeat(
+      """
+      The ID of the organization to update the member role in
+      """
+      id: ID!
+      """
+      The ID of the member to update the role for
+      """
+      memberId: String!
     ): UserOrganization! @auth
   }
 `;
@@ -995,6 +1010,106 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       return getOrganizationById(ctx, info, organizationId);
+    },
+    toggleOrganizationMemberSeat: async (
+      _,
+      { id: organizationId, memberId },
+      ctx: AuthContext,
+      info,
+    ) => {
+      await ensureOrganizationRole(ctx, {
+        organizationId,
+        requiredRole: OrganizationMemberRole.Admin,
+      });
+
+      try {
+        await ctx.con.transaction(async (manager) => {
+          const member = await manager
+            .getRepository(ContentPreferenceOrganization)
+            .findOneOrFail({
+              where: {
+                organizationId,
+                userId: memberId,
+              },
+              relations: {
+                user: true,
+                organization: true,
+              },
+            });
+
+          const activeSeats = await manager
+            .getRepository(ContentPreferenceOrganization)
+            .count({
+              where: {
+                organizationId,
+                status: ContentPreferenceOrganizationStatus.Plus,
+              },
+            });
+
+          const user = await member.user;
+          const organization = await member.organization;
+
+          const isPlus = isPlusMember(user.subscriptionFlags?.cycle);
+          const hasPlusSeat =
+            member.status === ContentPreferenceOrganizationStatus.Plus;
+
+          if (isPlus && !hasPlusSeat) {
+            throw new ForbiddenError(
+              'You cannot toggle the seat of a member who has a Plus subscription from outside the organization.',
+            );
+          }
+
+          if (!isPlus && !hasPlusSeat && activeSeats >= organization.seats) {
+            throw new ForbiddenError(
+              'You cannot assign a seat to a member when the organization has reached its maximum number of seats.',
+            );
+          }
+
+          await Promise.all([
+            manager.getRepository(User).update(
+              { id: memberId },
+              {
+                subscriptionFlags: updateSubscriptionFlags(
+                  isPlus && hasPlusSeat
+                    ? {
+                        subscriptionId: null,
+                        cycle: null,
+                        createdAt: null,
+                        provider: null,
+                        status: null,
+                        organizationId: null,
+                      }
+                    : {
+                        ...organization.subscriptionFlags,
+                        organizationId: organizationId,
+                      },
+                ),
+              },
+            ),
+            manager.getRepository(ContentPreferenceOrganization).update(
+              {
+                userId: memberId,
+                organizationId,
+              },
+              {
+                status:
+                  isPlus && hasPlusSeat
+                    ? ContentPreferenceOrganizationStatus.Free
+                    : ContentPreferenceOrganizationStatus.Plus,
+              },
+            ),
+          ]);
+        });
+
+        return getOrganizationById(ctx, info, organizationId);
+      } catch (_err) {
+        const err = _err as Error;
+        ctx.log.error(
+          { err, organizationId, memberId },
+          'Failed to toggle organization member seat',
+        );
+        throw err;
+      }
     },
   },
 });
