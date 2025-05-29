@@ -83,6 +83,9 @@ const organizationUserJoinedTopic = pubsub.topic(
   'api.v1.organization-user-joined',
 );
 const organizationUserLeftTopic = pubsub.topic('api.v1.organization-user-left');
+const organizationUserRemovedTopic = pubsub.topic(
+  'api.v1.organization-user-removed',
+);
 
 export enum NotificationReason {
   New = 'new',
@@ -458,6 +461,16 @@ export const notifyOrganizationUserLeft = async (
     organizationId,
   });
 };
+
+export const notifyOrganizationUserRemoved = async (
+  log: EventLogger,
+  memberId: User['id'],
+  organizationId: Organization['id'],
+): Promise<void> =>
+  publishEvent(log, organizationUserRemovedTopic, {
+    memberId,
+    organizationId,
+  });
 
 export const workerSubscribe = (
   logger: pino.Logger,

@@ -14,6 +14,7 @@ import graphorm from '../graphorm';
 import {
   notifyOrganizationUserJoined,
   notifyOrganizationUserLeft,
+  notifyOrganizationUserRemoved,
   toGQLEnum,
   updateFlagsStatement,
   updateSubscriptionFlags,
@@ -958,6 +959,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 }),
               },
             ),
+          notifyOrganizationUserRemoved(ctx.log, memberId, organizationId),
         ]);
       });
 
