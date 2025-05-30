@@ -1717,5 +1717,56 @@ describe('funnel boot', () => {
 
       expect(res.body).toEqual({ error: 'Funnel not found' });
     });
+
+    it('should set different cookies for legacy funnel and onboarding funnel', async () => {
+      // Mock responses for both funnel types
+      nock(process.env.FREYJA_ORIGIN)
+        .post('/api/sessions')
+        .twice()
+        .reply(200, JSON.stringify(FUNNEL_DATA));
+
+      // Request legacy funnel
+      const legacyRes = await request(app.server)
+        .get(`${BASE_PATH}/funnel?id=funnelId`)
+        .set('User-Agent', TEST_UA)
+        .set('Cookie', `${cookies.tracking.key}=1;`)
+        .expect(200);
+
+      // Request onboarding funnel
+      const onboardingRes = await request(app.server)
+        .get(`${BASE_PATH}/funnels/onboarding`)
+        .set('User-Agent', TEST_UA)
+        .set('Cookie', `${cookies.tracking.key}=1;`)
+        .expect(200);
+
+      // Extract cookies from responses
+      const legacyCookies = setCookieParser.parse(
+        legacyRes.get('set-cookie') as unknown as string[],
+      );
+      const onboardingCookies = setCookieParser.parse(
+        onboardingRes.get('set-cookie') as unknown as string[],
+      );
+
+      // Find the funnel cookies
+      const legacyFunnelCookie = legacyCookies.find(
+        (c) => c.name === cookies.funnel.key,
+      );
+      const onboardingFunnelCookie = onboardingCookies.find(
+        (c) => c.name === cookies.onboarding.key,
+      );
+
+      // Verify both cookies exist
+      expect(legacyFunnelCookie).toBeDefined();
+      expect(onboardingFunnelCookie).toBeDefined();
+
+      // Verify cookies have different names
+      expect(legacyFunnelCookie?.name).not.toEqual(
+        onboardingFunnelCookie?.name,
+      );
+
+      // Verify cookie values
+      expect(legacyFunnelCookie?.value).toEqual(FUNNEL_DATA.session.id);
+      expect(onboardingFunnelCookie?.value).toEqual(FUNNEL_DATA.session.id);
+    });
   });
 });

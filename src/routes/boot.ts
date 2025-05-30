@@ -832,7 +832,20 @@ const getFunnel = async (
     query.id,
     query.v ? Number(query.v) : undefined,
   );
-  setCookie(req, res, 'funnel', funnel.session.id);
+
+  const getCookieKeyFromFeatureKey = (featureKey: string) => {
+    return Object.entries(funnelBoots).reduce(
+      (acc, [funnelKey, funnelConfig]) => {
+        if (funnelConfig.featureKey === featureKey) {
+          return funnelKey;
+        }
+        return acc;
+      },
+      'funnel',
+    );
+  };
+  const cookieKey = getCookieKeyFromFeatureKey(featureKey);
+  setCookie(req, res, cookieKey, funnel.session.id);
 
   return funnel;
 };
@@ -909,7 +922,7 @@ type FunnelBootConfig = {
 };
 
 const funnelBoots = {
-  paid: {
+  funnel: {
     featureKey: 'web_funnel_id',
     cookieKey: cookies.funnel.key,
   } satisfies FunnelBootConfig,
@@ -922,7 +935,7 @@ const funnelBoots = {
 /**
  * Handles incoming requests for funnel-related boot endpoints.
  * This function retrieves the funnel data for a specific funnel type, identified by the `id` parameter.
- * If not provided, it defaults to the 'paid' funnel configuration from {funnelBoots}.
+ * If not provided, it defaults to the 'funnel' funnel configuration from {funnelBoots}.
  *
  * @type {RouteHandler}
  * @param {Request} req
@@ -931,7 +944,7 @@ const funnelBoots = {
  */
 const funnelHandler: RouteHandler = async (req, res) => {
   const con = await createOrGetConnection();
-  const { id = 'paid' } = req.params as { id: keyof typeof funnelBoots };
+  const { id = 'funnel' } = req.params as { id: keyof typeof funnelBoots };
 
   if (id in funnelBoots) {
     const funnel = funnelBoots[id];
