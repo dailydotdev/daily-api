@@ -44,6 +44,7 @@ export enum StorageKey {
   PricingPreviewPlus = 'pricing_preview_plus',
   PricingPreviewCores = 'pricing_preview_cores',
   OrganizationSubscriptionUpdatePreview = 'organization_subscription_update_preview',
+  UserLastOnline = 'ulo',
 }
 
 export const generateStorageKey = (

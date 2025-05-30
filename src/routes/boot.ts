@@ -40,6 +40,7 @@ import {
   FEED_SURVEY_INTERVAL,
   generateStorageKey,
   REDIS_BANNER_KEY,
+  StorageKey,
   StorageTopic,
 } from '../config';
 import {
@@ -960,6 +961,20 @@ const funnelHandler: RouteHandler = async (req, res) => {
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   const con = await createOrGetConnection();
+
+  fastify.addHook('onResponse', async (req, res) => {
+    if (!req.userId || res.statusCode !== 200) {
+      return;
+    }
+    await setRedisObject(
+      generateStorageKey(
+        StorageTopic.Boot,
+        StorageKey.UserLastOnline,
+        req.userId,
+      ),
+      Date.now().toString(),
+    );
+  });
 
   fastify.get('/', async (req, res) => {
     const data = await getBootData(con, req, res);
