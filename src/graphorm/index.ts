@@ -1249,6 +1249,7 @@ const obj = new GraphORM({
     },
   },
   OrganizationMember: {
+    requiredColumns: ['userId'],
     from: 'ContentPreferenceOrganization',
     additionalQuery: (_, alias, qb) =>
       qb.andWhere(

@@ -7,6 +7,7 @@ import { GQLSource } from './schema/sources';
 import { getBalance, type GetBalanceResult } from './common/njord';
 import { queryReadReplica } from './common/queryReadReplica';
 import type { FindOneOptions } from 'typeorm';
+import { getRedisObject } from './redis';
 
 export const defaultCacheKeyFn = <K extends object | string>(key: K) => {
   if (typeof key === 'object') {
@@ -55,6 +56,23 @@ export class DataLoaderService {
     }
 
     return this.loaders[type] as DataLoader<K, V>;
+  }
+
+  get userLastActive() {
+    return this.getLoader<{ userId: string }, Date>({
+      type: 'userLastActive',
+      loadFn: async ({ userId }) => {
+        if (!userId) {
+          return null;
+        }
+        const redisDate = await getRedisObject(`user:lo:${userId}`);
+        if (!redisDate) {
+          return null;
+        }
+        return new Date(parseInt(redisDate as string));
+      },
+      cacheKeyFn: ({ userId }) => defaultCacheKeyFn({ userId }),
+    });
   }
 
   get userSettings() {

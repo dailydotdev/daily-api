@@ -41,6 +41,7 @@ import {
   generateStorageKey,
   REDIS_BANNER_KEY,
   StorageTopic,
+  USER_LAST_ONLINE_KEY,
 } from '../config';
 import {
   ONE_DAY_IN_SECONDS,
@@ -947,6 +948,10 @@ const funnelHandler: RouteHandler = async (req, res) => {
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   const con = await createOrGetConnection();
+
+  fastify.addHook('onResponse', async (req) => {
+    await setRedisObject(`${USER_LAST_ONLINE_KEY}${req.userId}`, Date.now());
+  });
 
   fastify.get('/', async (req, res) => {
     const data = await getBootData(con, req, res);
