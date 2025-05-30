@@ -60,7 +60,7 @@ export class DataLoaderService {
   }
 
   get userLastActive() {
-    return this.getLoader<{ userId: string }, Date>({
+    return this.getLoader<{ userId: string }, Date | null>({
       type: 'userLastActive',
       loadFn: async ({ userId }) => {
         if (!userId) {
