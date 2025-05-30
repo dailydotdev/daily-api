@@ -8,6 +8,7 @@ import { getBalance, type GetBalanceResult } from './common/njord';
 import { queryReadReplica } from './common/queryReadReplica';
 import type { FindOneOptions } from 'typeorm';
 import { getRedisObject } from './redis';
+import { generateStorageKey, StorageKey, StorageTopic } from './config';
 
 export const defaultCacheKeyFn = <K extends object | string>(key: K) => {
   if (typeof key === 'object') {
@@ -65,7 +66,13 @@ export class DataLoaderService {
         if (!userId) {
           return null;
         }
-        const redisDate = await getRedisObject(`user:lo:${userId}`);
+        const redisDate = await getRedisObject(
+          generateStorageKey(
+            StorageTopic.Boot,
+            StorageKey.UserLastOnline,
+            userId,
+          ),
+        );
         if (!redisDate) {
           return null;
         }

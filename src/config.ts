@@ -12,7 +12,6 @@ export const fallbackImages = {
     'https://media.daily.dev/image/upload/s--yc7EcfBs--/f_auto,q_auto/v1/public/organization_fallback',
 };
 
-export const USER_LAST_ONLINE_KEY = 'user:lo:';
 export const REDIS_BANNER_KEY = 'boot:latest_banner';
 
 export const DEFAULT_SUBMISSION_LIMIT = '3';
@@ -45,6 +44,7 @@ export enum StorageKey {
   PricingPreviewPlus = 'pricing_preview_plus',
   PricingPreviewCores = 'pricing_preview_cores',
   OrganizationSubscriptionUpdatePreview = 'organization_subscription_update_preview',
+  UserLastOnline = 'ulo',
 }
 
 export const generateStorageKey = (

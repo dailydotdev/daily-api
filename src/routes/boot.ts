@@ -40,6 +40,7 @@ import {
   FEED_SURVEY_INTERVAL,
   generateStorageKey,
   REDIS_BANNER_KEY,
+  StorageKey,
   StorageTopic,
   USER_LAST_ONLINE_KEY,
 } from '../config';
@@ -950,7 +951,17 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   const con = await createOrGetConnection();
 
   fastify.addHook('onResponse', async (req) => {
-    await setRedisObject(`${USER_LAST_ONLINE_KEY}${req.userId}`, Date.now());
+    if (!req.userId) {
+      return;
+    }
+    await setRedisObject(
+      generateStorageKey(
+        StorageTopic.Boot,
+        StorageKey.UserLastOnline,
+        req.userId,
+      ),
+      Date.now(),
+    );
   });
 
   fastify.get('/', async (req, res) => {

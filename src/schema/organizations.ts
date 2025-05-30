@@ -53,7 +53,7 @@ import { SubscriptionStatus } from '../common/plus';
 export type GQLOrganizationMember = {
   role: OrganizationMemberRole;
   seatType: ContentPreferenceOrganizationStatus;
-  lastActive: Date;
+  lastActive: Date | null;
   user: GQLUser;
   userId?: string;
 };
