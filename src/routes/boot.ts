@@ -962,8 +962,8 @@ const funnelHandler: RouteHandler = async (req, res) => {
 export default async function (fastify: FastifyInstance): Promise<void> {
   const con = await createOrGetConnection();
 
-  fastify.addHook('onResponse', async (req) => {
-    if (!req.userId) {
+  fastify.addHook('onResponse', async (req, res) => {
+    if (!req.userId || res.statusCode !== 200) {
       return;
     }
     await setRedisObject(
@@ -972,7 +972,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         StorageKey.UserLastOnline,
         req.userId,
       ),
-      Date.now(),
+      Date.now().toString(),
     );
   });
 
