@@ -42,7 +42,6 @@ import {
   REDIS_BANNER_KEY,
   StorageKey,
   StorageTopic,
-  USER_LAST_ONLINE_KEY,
 } from '../config';
 import {
   ONE_DAY_IN_SECONDS,
