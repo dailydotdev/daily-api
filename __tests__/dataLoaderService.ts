@@ -2,7 +2,7 @@ import { MockContext, MockDataLoaderService } from './helpers';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { Context } from '../src/Context';
-import { ioRedisPool, RedisMagicValues, setRedisObject } from '../src/redis';
+import { ioRedisPool, setRedisObject } from '../src/redis';
 import { generateStorageKey, StorageKey, StorageTopic } from '../src/config';
 
 let con: DataSource;
