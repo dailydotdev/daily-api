@@ -570,6 +570,19 @@ describe('logged in boot', () => {
     expect(res.body.user.defaultFeedId).toEqual('1');
   });
 
+  it('should set last activity in redis', async () => {
+    const userId = '1';
+    mockLoggedIn(userId);
+    await request(app.server)
+      .get(BASE_PATH)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+    const storesRedisValue = await getRedisObject(
+      generateStorageKey(StorageTopic.Boot, StorageKey.UserLastOnline, userId),
+    );
+    expect(new Date(parseInt(storesRedisValue))).toBeInstanceOf(Date);
+  });
+
   it('should not return default feed id if not plus', async () => {
     await con.getRepository(Feed).save({
       id: '1',

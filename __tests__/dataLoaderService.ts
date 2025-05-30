@@ -2,6 +2,8 @@ import { MockContext, MockDataLoaderService } from './helpers';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { Context } from '../src/Context';
+import { ioRedisPool, setRedisObject } from '../src/redis';
+import { generateStorageKey, StorageKey, StorageTopic } from '../src/config';
 
 let con: DataSource;
 let ctx: MockContext;
@@ -86,5 +88,39 @@ describe('DataLoaderService', () => {
     const dataLoader = dataLoaderService.shortUrl;
     const shortUrl = await dataLoader.load('https://daily.dev/test/1');
     expect(shortUrl).toBe('https://daily.dev/test/1');
+  });
+
+  describe('userLastActive', () => {
+    beforeEach(async () => {
+      await ioRedisPool.execute((client) => client.flushall());
+    });
+    it('should return null if no userId set', async () => {
+      const dataLoaderService = new MockDataLoaderService({
+        ctx: ctx as Context,
+      });
+      const dataLoader = dataLoaderService.userLastActive;
+      const lastActive = await dataLoader.load({ userId: null });
+      expect(lastActive).toBeNull();
+    });
+    it('should return null if no redis object set', async () => {
+      const dataLoaderService = new MockDataLoaderService({
+        ctx: ctx as Context,
+      });
+      const dataLoader = dataLoaderService.userLastActive;
+      const lastActive = await dataLoader.load({ userId: '1' });
+      expect(lastActive).toBeNull();
+    });
+    it('should return date if redis object set', async () => {
+      await setRedisObject(
+        generateStorageKey(StorageTopic.Boot, StorageKey.UserLastOnline, '1'),
+        '1748588810000',
+      );
+      const dataLoaderService = new MockDataLoaderService({
+        ctx: ctx as Context,
+      });
+      const dataLoader = dataLoaderService.userLastActive;
+      const lastActive = await dataLoader.load({ userId: '1' });
+      expect(lastActive).toBeInstanceOf(Date);
+    });
   });
 });

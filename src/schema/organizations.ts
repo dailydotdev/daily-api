@@ -53,7 +53,9 @@ import { SubscriptionStatus } from '../common/plus';
 export type GQLOrganizationMember = {
   role: OrganizationMemberRole;
   seatType: ContentPreferenceOrganizationStatus;
+  lastActive: Date | null;
   user: GQLUser;
+  userId?: string;
 };
 export type GQLOrganization = Omit<
   Organization,
@@ -98,6 +100,11 @@ export const typeDefs = /* GraphQL */ `
     The organization the user is a member of
     """
     organization: Organization
+
+    """
+    The date user was last active
+    """
+    lastActive: DateTime
   }
 
   type Organization {
@@ -1137,6 +1144,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         );
         throw err;
       }
+    },
+  },
+  OrganizationMember: {
+    lastActive: async (
+      organizationMember: GQLOrganizationMember,
+      _,
+      ctx: Context,
+    ) => {
+      if (!organizationMember.userId) {
+        return null;
+      }
+      return await ctx.dataLoader.userLastActive.load({
+        userId: organizationMember.userId,
+      });
     },
   },
 });

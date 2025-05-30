@@ -25,6 +25,8 @@ import { updateSubscriptionFlags } from '../src/common';
 import { SubscriptionCycles } from '../src/paddle';
 import { SubscriptionStatus } from '../src/common/plus';
 import { addHours } from 'date-fns';
+import { ioRedisPool, setRedisObject } from '../src/redis';
+import { generateStorageKey, StorageKey, StorageTopic } from '../src/config';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -42,6 +44,8 @@ beforeAll(async () => {
 beforeEach(async () => {
   loggedUser = null;
   jest.clearAllMocks();
+
+  await ioRedisPool.execute((client) => client.flushall());
 
   await saveFixtures(con, User, usersFixture);
 
@@ -160,6 +164,7 @@ describe('query organization', () => {
               id
               username
             }
+            lastActive
           }
         }
       }
@@ -274,6 +279,7 @@ describe('query organization', () => {
 
     expect(organization.members).toEqual([
       {
+        lastActive: null,
         role: 'member',
         user: {
           id: '2',
@@ -367,6 +373,156 @@ describe('query organization', () => {
     expect(
       data.organization.organization.members.map((m) => m.user.id),
     ).toEqual(['4', '2', '3']);
+  });
+
+  it('should return lastActive as null if no redis value is set for member', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(Feed).save([
+      { id: '1', userId: '1' },
+      { id: '2', userId: '2' },
+    ]);
+
+    await con.getRepository(ContentPreferenceOrganization).save([
+      {
+        userId: '1',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '1',
+        status: ContentPreferenceOrganizationStatus.Plus,
+        flags: {
+          role: OrganizationMemberRole.Owner,
+          referralToken: 'ref-token-1',
+        },
+      },
+      {
+        userId: '2',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '2',
+        status: ContentPreferenceOrganizationStatus.Plus,
+        flags: {
+          role: OrganizationMemberRole.Member,
+          referralToken: 'ref-token-2',
+        },
+      },
+    ]);
+
+    const { data } = await client.query(QUERY, { variables: { id: 'org-1' } });
+    const { organization } = data.organization as GQLUserOrganization;
+    expect(organization.members[0].lastActive).toBeNull();
+  });
+
+  it('should return lastActive as a date if redis value is set for member', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(Feed).save([
+      { id: '1', userId: '1' },
+      { id: '2', userId: '2' },
+    ]);
+
+    await con.getRepository(ContentPreferenceOrganization).save([
+      {
+        userId: '1',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '1',
+        status: ContentPreferenceOrganizationStatus.Plus,
+        flags: {
+          role: OrganizationMemberRole.Owner,
+          referralToken: 'ref-token-1',
+        },
+      },
+      {
+        userId: '2',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '2',
+        status: ContentPreferenceOrganizationStatus.Plus,
+        flags: {
+          role: OrganizationMemberRole.Member,
+          referralToken: 'ref-token-2',
+        },
+      },
+    ]);
+
+    // Set redis last activity for user 2
+    const lastActiveTimestamp = Date.now();
+    await setRedisObject(
+      generateStorageKey(StorageTopic.Boot, StorageKey.UserLastOnline, '2'),
+      lastActiveTimestamp.toString(),
+    );
+
+    const { data } = await client.query(QUERY, { variables: { id: 'org-1' } });
+    const { organization } = data.organization as GQLUserOrganization;
+    expect(organization.members[0].lastActive).toBe(
+      new Date(lastActiveTimestamp).toISOString(),
+    );
+  });
+
+  it('should handle multiple members with mixed lastActive redis states', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(Feed).save([
+      { id: '1', userId: '1' },
+      { id: '2', userId: '2' },
+      { id: '3', userId: '3' },
+    ]);
+
+    await con.getRepository(ContentPreferenceOrganization).save([
+      {
+        userId: '1',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '1',
+        status: ContentPreferenceOrganizationStatus.Plus,
+        flags: {
+          role: OrganizationMemberRole.Owner,
+          referralToken: 'ref-token-1',
+        },
+      },
+      {
+        userId: '2',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '2',
+        status: ContentPreferenceOrganizationStatus.Plus,
+        flags: {
+          role: OrganizationMemberRole.Member,
+          referralToken: 'ref-token-2',
+        },
+      },
+      {
+        userId: '3',
+        referenceId: 'org-1',
+        organizationId: 'org-1',
+        feedId: '3',
+        status: ContentPreferenceOrganizationStatus.Plus,
+        flags: {
+          role: OrganizationMemberRole.Admin,
+          referralToken: 'ref-token-3',
+        },
+      },
+    ]);
+
+    // Set redis last activity for user 2 only
+    const lastActiveTimestamp = Date.now();
+    await setRedisObject(
+      generateStorageKey(StorageTopic.Boot, StorageKey.UserLastOnline, '2'),
+      lastActiveTimestamp.toString(),
+    );
+
+    const { data } = await client.query(QUERY, { variables: { id: 'org-1' } });
+    const { organization } = data.organization as GQLUserOrganization;
+    // Find by user id for clarity
+    const member2 = organization.members.find((m) => m.user.id === '2');
+    const member3 = organization.members.find((m) => m.user.id === '3');
+    expect(member2).toBeDefined();
+    expect(member3).toBeDefined();
+    expect(member2!.lastActive).toBe(
+      new Date(lastActiveTimestamp).toISOString(),
+    );
+    expect(member3!.lastActive).toBeNull();
   });
 });
 
