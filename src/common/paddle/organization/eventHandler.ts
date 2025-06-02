@@ -3,6 +3,8 @@ import { EventName, type EventEntity } from '@paddle/paddle-node-sdk';
 import { PurchaseType, SubscriptionProvider } from '../../plus';
 import { logger } from '../../../logger';
 import { createOrganizationSubscription } from './processing';
+import { logPaddleAnalyticsEvent } from '..';
+import { AnalyticsEventName } from '../../../integrations/analytics';
 import { notifyNewPaddleOrganizationTransaction } from '../slack';
 
 export const processOrganizationPaddleEvent = async (event: EventEntity) => {
@@ -27,9 +29,16 @@ export const processOrganizationPaddleEvent = async (event: EventEntity) => {
         },
         'Subscription canceled',
       );
+      await logPaddleAnalyticsEvent(
+        event,
+        AnalyticsEventName.CancelSubscription,
+      );
       break;
     case EventName.TransactionCompleted:
-      await notifyNewPaddleOrganizationTransaction({ event });
+      await Promise.all([
+        logPaddleAnalyticsEvent(event, AnalyticsEventName.ReceivePayment),
+        notifyNewPaddleOrganizationTransaction({ event }),
+      ]);
       break;
     default:
       logger.info(

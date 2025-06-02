@@ -27,6 +27,7 @@ import {
 } from 'typeorm';
 import { type ConnectionManager, User } from '../../entity';
 import {
+  PlusPlanType,
   PurchaseType,
   SubscriptionProvider,
   SubscriptionStatus,
@@ -130,6 +131,8 @@ export const isPurchaseType = (
 const paddleNotificationCustomDataSchema = z.object(
   {
     user_id: z.string({ message: 'Transaction user id is required' }),
+    gifter_id: z.string().optional(),
+    organization_id: z.string().optional(),
   },
   {
     message: 'Transaction custom data is required',
@@ -283,15 +286,25 @@ export const dropClaimableItem = async (
 };
 
 const getAnalyticsExtra = (
-  data: (
+  event:
     | SubscriptionUpdatedEvent
     | SubscriptionCanceledEvent
-    | TransactionCompletedEvent
-  )['data'],
+    | TransactionCompletedEvent,
 ): Partial<PaddleAnalyticsExtra> => {
+  const data = event.data;
   const cost = data.items?.[0]?.price?.unitPrice?.amount;
   const currency = data.items?.[0]?.price?.unitPrice?.currencyCode;
   const localCurrency = data.currencyCode;
+
+  const isOrganization = isPurchaseType(PurchaseType.Organization, event);
+  const isPlus = isPurchaseType(PurchaseType.Plus, event);
+
+  const planExtra = (isOrganization || isPlus) && {
+    plan_type: isOrganization
+      ? PlusPlanType.Organization
+      : PlusPlanType.Personal,
+    team_size: isOrganization ? data.items?.[0]?.quantity : undefined,
+  };
 
   // payments are only available on transaction events
   if (!('payments' in data)) {
@@ -300,6 +313,7 @@ const getAnalyticsExtra = (
       cost: cost ? parseInt(cost) / 100 : undefined,
       currency,
       localCurrency,
+      ...planExtra,
     };
   }
 
@@ -320,6 +334,7 @@ const getAnalyticsExtra = (
     localCost: localCost ? parseInt(localCost) / 100 : undefined,
     localCurrency,
     payout,
+    ...planExtra,
   };
 };
 
@@ -403,7 +418,7 @@ export const logPaddleAnalyticsEvent = async (
       event_id: eventId,
       app_platform: 'api',
       user_id: analyticsId,
-      extra: JSON.stringify(getAnalyticsExtra(data)),
+      extra: JSON.stringify(getAnalyticsExtra(event)),
       target_type: isPurchaseType(PurchaseType.Cores, event)
         ? TargetType.Credits
         : TargetType.Plus,
@@ -414,6 +429,7 @@ export const logPaddleAnalyticsEvent = async (
 export interface PaddleCustomData {
   user_id?: string;
   gifter_id?: string;
+  organization_id?: string;
 }
 
 export const paddleSubscriptionSchema = z.object({
