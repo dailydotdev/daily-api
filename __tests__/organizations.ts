@@ -1457,7 +1457,7 @@ describe('mutation updateOrganizationMemberRole', () => {
   `;
 
   beforeEach(async () => {
-    await con.getRepository(Feed).save([
+    await saveFixtures(con, Feed, [
       {
         id: '1',
         userId: '1',
@@ -1476,7 +1476,7 @@ describe('mutation updateOrganizationMemberRole', () => {
       },
     ]);
 
-    await con.getRepository(ContentPreferenceOrganization).save([
+    await saveFixtures(con, ContentPreferenceOrganization, [
       {
         userId: '1',
         referenceId: 'org-1',

@@ -1,3 +1,4 @@
+import { setTimeout } from 'node:timers/promises';
 import { FastifyInstance } from 'fastify';
 import request from 'supertest';
 import {
@@ -22,6 +23,7 @@ import {
   MarketingCta,
   MarketingCtaStatus,
   NotificationV2,
+  Organization,
   Post,
   Settings,
   SETTINGS_DEFAULT,
@@ -34,7 +36,11 @@ import {
   UserMarketingCta,
   UserNotification,
 } from '../src/entity';
-import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
+import {
+  OrganizationMemberRole,
+  SourceMemberRoles,
+  sourceRoleRank,
+} from '../src/roles';
 import { notificationV2Fixture } from './fixture/notifications';
 import { usersFixture } from './fixture/user';
 import {
@@ -75,7 +81,11 @@ import * as njordCommon from '../src/common/njord';
 import { Credits, EntityType } from '@dailydotdev/schema';
 import { createClient } from '@connectrpc/connect';
 import { FunnelState } from '../src/integrations/freyja';
-import { SubscriptionProvider } from '../src/common/plus';
+import { SubscriptionProvider, SubscriptionStatus } from '../src/common/plus';
+import {
+  ContentPreferenceOrganization,
+  ContentPreferenceOrganizationStatus,
+} from '../src/entity/contentPreference/ContentPreferenceOrganization';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -321,7 +331,7 @@ describe('anonymous boot', () => {
     );
 
     const firstTTL = await ioRedisPool.execute((client) => client.ttl(key));
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await setTimeout(1000);
     await request(app.server)
       .get(BASE_PATH)
       .set('User-Agent', TEST_UA)
@@ -572,31 +582,6 @@ describe('logged in boot', () => {
     expect(res.body.user.defaultFeedId).toEqual('1');
   });
 
-  it('should set last activity in redis', async () => {
-    const userId = '1';
-    mockLoggedIn(userId);
-    await request(app.server)
-      .get(BASE_PATH)
-      .set('Cookie', 'ory_kratos_session=value;')
-      .expect(200);
-    const redisKey = generateStorageKey(
-      StorageTopic.Boot,
-      StorageKey.UserLastOnline,
-      userId,
-    );
-    const storesRedisValue = await getRedisObject(redisKey);
-    expect(storesRedisValue).not.toBeNull();
-    expect(new Date(parseInt(storesRedisValue!))).toBeInstanceOf(Date);
-
-    // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
-    expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(
-      THREE_MONTHS_IN_SECONDS,
-    );
-    expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(
-      THREE_MONTHS_IN_SECONDS - 10,
-    );
-  });
-
   it('should not return default feed id if not plus', async () => {
     await con.getRepository(Feed).save({
       id: '1',
@@ -723,6 +708,93 @@ describe('logged in boot', () => {
       expect(res.body.user.balance).toEqual({
         amount: 100,
       });
+    });
+  });
+
+  describe('last activity', () => {
+    it('should set last activity in redis if user is part of organization', async () => {
+      await saveFixtures(con, Organization, [
+        {
+          id: 'org-1',
+          seats: 1,
+          name: 'Organization 1',
+          subscriptionFlags: {
+            cycle: SubscriptionCycles.Yearly,
+            status: SubscriptionStatus.Active,
+          },
+        },
+      ]);
+
+      await saveFixtures(con, Feed, [
+        {
+          id: '1',
+          userId: '1',
+        },
+      ]);
+
+      await saveFixtures(con, ContentPreferenceOrganization, [
+        {
+          userId: '1',
+          referenceId: 'org-1',
+          organizationId: 'org-1',
+          feedId: '1',
+          status: ContentPreferenceOrganizationStatus.Plus,
+          flags: {
+            role: OrganizationMemberRole.Owner,
+            referralToken: 'ref-token-1',
+          },
+        },
+      ]);
+
+      const userId = '1';
+      mockLoggedIn(userId);
+      await request(app.server)
+        .get(BASE_PATH)
+        .set('Cookie', 'ory_kratos_session=value;')
+        .expect(200);
+
+      // Wait for the onResponse hook to finish
+      await setTimeout(50);
+
+      const redisKey = generateStorageKey(
+        StorageTopic.Boot,
+        StorageKey.UserLastOnline,
+        userId,
+      );
+      const storesRedisValue = await getRedisObject(redisKey);
+      console.log(
+        '@@@@@@@' + storesRedisValue,
+        redisKey,
+        storesRedisValue,
+        new Date().toISOString(),
+      );
+
+      expect(storesRedisValue).not.toBeNull();
+      expect(new Date(parseInt(storesRedisValue!))).toBeInstanceOf(Date);
+
+      // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
+      expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(
+        THREE_MONTHS_IN_SECONDS,
+      );
+      expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(
+        THREE_MONTHS_IN_SECONDS - 10,
+      );
+    });
+
+    it('should not set last activity in redis if user is not part of organization', async () => {
+      const userId = '1';
+      mockLoggedIn(userId);
+      await request(app.server)
+        .get(BASE_PATH)
+        .set('Cookie', 'ory_kratos_session=value;')
+        .expect(200);
+      const redisKey = generateStorageKey(
+        StorageTopic.Boot,
+        StorageKey.UserLastOnline,
+        userId,
+      );
+      const storesRedisValue = await getRedisObject(redisKey);
+      expect(storesRedisValue).toBeNull();
     });
   });
 });
