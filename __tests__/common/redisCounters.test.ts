@@ -1,9 +1,5 @@
 import { RedisCounter } from '../../src/common/redis/redisCounters';
-import {
-  deleteRedisKey,
-  getRedisObjectExpiry,
-  ioRedisPool,
-} from '../../src/redis';
+import { getRedisObjectExpiry, ioRedisPool } from '../../src/redis';
 import { StorageTopic, generateStorageKey } from '../../src/config';
 
 describe('RedisCounter', () => {

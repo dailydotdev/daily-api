@@ -72,7 +72,6 @@ import {
   PostRelation,
   deletePost,
   SubmitExternalLinkArgs,
-  UserAction,
   Settings,
   type PostTranslation,
   determineSharedPostId,

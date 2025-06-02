@@ -34,8 +34,6 @@ import {
   SquadSource,
   UNKNOWN_SOURCE,
   User,
-  UserAction,
-  UserActionType,
   UserPost,
   View,
   WelcomePost,

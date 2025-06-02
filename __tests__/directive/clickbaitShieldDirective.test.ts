@@ -1,13 +1,10 @@
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import { graphql } from 'graphql';
-import { deleteRedisKey, ioRedisPool } from '../../src/redis';
+import { ioRedisPool } from '../../src/redis';
 import {
   typeDefs as clickbaitShieldTypeDefs,
   transformer as clickbaitShieldTransformer,
 } from '../../src/directive/clickbaitShield';
-
-const keyPrefix = 'clickbait-shield';
-const getCurrentKey = (userId: string) => `${keyPrefix}:${userId}`;
 
 const baseTypeDefs = `
   type Mutation {
