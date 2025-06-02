@@ -49,6 +49,7 @@ import {
   getSourceLink,
   submitArticleThreshold,
   mapCloudinaryUrl,
+  THREE_MONTHS_IN_SECONDS,
 } from '../common';
 import { AccessToken, signJwt } from '../auth';
 import { cookies, setCookie, setRawCookie } from '../cookies';
@@ -77,6 +78,7 @@ import { Continent, countryCodeToContinent } from '../common/geo';
 import { getBalance, type GetBalanceResult } from '../common/njord';
 import { logger } from '../logger';
 import { freyjaClient, type FunnelState } from '../integrations/freyja';
+import { isUserPartOfOrganization } from '../common/plus';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -966,14 +968,18 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     if (!req.userId || res.statusCode !== 200) {
       return;
     }
-    await setRedisObject(
-      generateStorageKey(
-        StorageTopic.Boot,
-        StorageKey.UserLastOnline,
-        req.userId,
-      ),
-      Date.now().toString(),
-    );
+
+    if (await isUserPartOfOrganization(con, req.userId)) {
+      await setRedisObjectWithExpiry(
+        generateStorageKey(
+          StorageTopic.Boot,
+          StorageKey.UserLastOnline,
+          req.userId,
+        ),
+        Date.now().toString(),
+        THREE_MONTHS_IN_SECONDS,
+      );
+    }
   });
 
   fastify.get('/', async (req, res) => {
