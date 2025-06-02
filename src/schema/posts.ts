@@ -955,7 +955,7 @@ export const typeDefs = /* GraphQL */ `
     Gets the Smart Title or the original title of a post,
     based on the settings of the user
     """
-    fetchSmartTitle(id: ID!): PostSmartTitle @auth
+    fetchSmartTitle(id: ID!): PostSmartTitle @auth @clickbaitShield
 
     """
     Get Post's Awards by post id
@@ -1797,25 +1797,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         });
 
         if (!ctx.isPlus) {
-          const hasUsedFreeTrial = await ctx.con
-            .getRepository(UserAction)
-            .findOneBy({
-              userId: ctx.userId,
-              type: UserActionType.FetchedSmartTitle,
-            });
-
-          if (hasUsedFreeTrial) {
-            throw new ForbiddenError(
-              'Free trial has been used! Please upgrade to Plus to continue using this feature.',
-            );
-          }
-
-          await ctx.con.getRepository(UserAction).save({
-            userId: ctx.userId,
-            type: UserActionType.FetchedSmartTitle,
-          });
-
-          // We always want to return the smart title for non-plus users who have not used the free trial, as it is part of the try before you buy experience
           return {
             title: getPostSmartTitle(post, ctx.contentLanguage),
             translation: translationRecord,

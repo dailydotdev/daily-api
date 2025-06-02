@@ -70,6 +70,7 @@ import {
   getRedisObjectExpiry,
   ioRedisPool,
   setRedisObject,
+  deleteRedisKey,
 } from '../src/redis';
 import { checkHasMention, markdown } from '../src/common/markdown';
 import { generateStorageKey, StorageTopic } from '../src/config';
@@ -7445,47 +7446,6 @@ describe('query fetchSmartTitle', () => {
       expect(res.data.fetchSmartTitle.title).toEqual('Alt Title');
     });
 
-    it('should not be able to get the smart title twice', async () => {
-      loggedUser = '2';
-      const res = await client.query<
-        { fetchSmartTitle: GQLPostSmartTitle },
-        { id: string }
-      >(QUERY, {
-        variables: { id: 'p1' },
-      });
-
-      expect(res.errors).toBeFalsy();
-      expect(res.data.fetchSmartTitle.title).toEqual('Alt Title');
-
-      const res2 = await client.query<
-        { fetchSmartTitle: GQLPostSmartTitle },
-        { id: string }
-      >(QUERY, {
-        variables: { id: 'p1' },
-      });
-
-      expect(res2.errors?.length || 0).toEqual(1);
-      expect(res2.errors[0].extensions?.code).toEqual('FORBIDDEN');
-    });
-
-    it('should not be able to get the smart title if they have used free trial', async () => {
-      loggedUser = '2';
-      await con.getRepository(UserAction).save({
-        userId: loggedUser,
-        type: UserActionType.FetchedSmartTitle,
-      });
-
-      const res = await client.query<
-        { fetchSmartTitle: GQLPostSmartTitle },
-        { id: string }
-      >(QUERY, {
-        variables: { id: 'p1' },
-      });
-
-      expect(res.errors?.length || 0).toEqual(1);
-      expect(res.errors[0].extensions?.code).toEqual('FORBIDDEN');
-    });
-
     it('should return translate field', async () => {
       loggedUser = '1';
       isPlus = true;
@@ -7504,6 +7464,52 @@ describe('query fetchSmartTitle', () => {
         smartTitle: false,
       });
     });
+  });
+
+  const keyPrefix = 'clickbait-shield';
+  const getShieldKey = (userId: string) => `${keyPrefix}:${userId}`;
+
+  it('should block after 5 fetchSmartTitle queries for non-Plus user', async () => {
+    loggedUser = '1';
+    isPlus = false;
+    await deleteRedisKey(getShieldKey(loggedUser));
+    for (let i = 0; i < 5; i++) {
+      const res = await client.query<
+        { fetchSmartTitle: GQLPostSmartTitle },
+        { id: string }
+      >(QUERY, {
+        variables: { id: 'p1' },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.fetchSmartTitle).toBeDefined();
+    }
+    // 6th call should be blocked
+    const res = await client.query<
+      { fetchSmartTitle: GQLPostSmartTitle },
+      { id: string }
+    >(QUERY, {
+      variables: { id: 'p1' },
+    });
+    expect(res.errors).toBeDefined();
+    expect(res.errors?.[0].message).toMatch(/monthly limit/);
+    await deleteRedisKey(getShieldKey(loggedUser));
+  });
+
+  it('should never block fetchSmartTitle for Plus user', async () => {
+    loggedUser = '1';
+    isPlus = true;
+    await deleteRedisKey(getShieldKey(loggedUser));
+    for (let i = 0; i < 10; i++) {
+      const res = await client.query<
+        { fetchSmartTitle: GQLPostSmartTitle },
+        { id: string }
+      >(QUERY, {
+        variables: { id: 'p1' },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.fetchSmartTitle).toBeDefined();
+    }
+    await deleteRedisKey(getShieldKey(loggedUser));
   });
 });
 
