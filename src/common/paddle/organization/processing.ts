@@ -212,7 +212,7 @@ export const cancelOrganizationSubscription = async ({
         },
       ),
 
-      // Set all seats to free
+      // Set seats of all members to Free.
       manager.getRepository(ContentPreferenceOrganization).update(
         {
           organizationId: organization.id,
@@ -222,7 +222,7 @@ export const cancelOrganizationSubscription = async ({
         },
       ),
 
-      // Downgrade all members with Plus access to Free
+      // Update subscription flags for members with Plus access to remove subscription metadata
       manager.getRepository(User).update(
         {
           id: In(membersIdsToDowngrade),
