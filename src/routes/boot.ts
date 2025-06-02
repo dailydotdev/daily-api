@@ -49,6 +49,7 @@ import {
   getSourceLink,
   submitArticleThreshold,
   mapCloudinaryUrl,
+  THREE_MONTHS_IN_SECONDS,
 } from '../common';
 import { AccessToken, signJwt } from '../auth';
 import { cookies, setCookie, setRawCookie } from '../cookies';
@@ -966,13 +967,14 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     if (!req.userId || res.statusCode !== 200) {
       return;
     }
-    await setRedisObject(
+    await setRedisObjectWithExpiry(
       generateStorageKey(
         StorageTopic.Boot,
         StorageKey.UserLastOnline,
         req.userId,
       ),
       Date.now().toString(),
+      THREE_MONTHS_IN_SECONDS,
     );
   });
 

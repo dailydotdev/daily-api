@@ -40,6 +40,7 @@ import { usersFixture } from './fixture/user';
 import {
   deleteKeysByPattern,
   getRedisObject,
+  getRedisObjectExpiry,
   ioRedisPool,
   RedisMagicValues,
   setRedisObject,
@@ -63,6 +64,7 @@ import { signJwt } from '../src/auth';
 import {
   DEFAULT_TIMEZONE,
   submitArticleThreshold,
+  THREE_MONTHS_IN_SECONDS,
   updateFlagsStatement,
 } from '../src/common';
 import { saveReturnAlerts } from '../src/schema/alerts';
@@ -577,10 +579,22 @@ describe('logged in boot', () => {
       .get(BASE_PATH)
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
-    const storesRedisValue = await getRedisObject(
-      generateStorageKey(StorageTopic.Boot, StorageKey.UserLastOnline, userId),
+    const redisKey = generateStorageKey(
+      StorageTopic.Boot,
+      StorageKey.UserLastOnline,
+      userId,
     );
-    expect(new Date(parseInt(storesRedisValue))).toBeInstanceOf(Date);
+    const storesRedisValue = await getRedisObject(redisKey);
+    expect(storesRedisValue).not.toBeNull();
+    expect(new Date(parseInt(storesRedisValue!))).toBeInstanceOf(Date);
+
+    // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
+    expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(
+      THREE_MONTHS_IN_SECONDS,
+    );
+    expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(
+      THREE_MONTHS_IN_SECONDS - 10,
+    );
   });
 
   it('should not return default feed id if not plus', async () => {
