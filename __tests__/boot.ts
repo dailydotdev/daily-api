@@ -158,6 +158,7 @@ const LOGGED_IN_BODY = {
     },
     subscriptionFlags: {},
     coresRole: CoresRole.None,
+    clickbaitTries: null,
   },
   marketingCta: null,
   feeds: [],
@@ -1671,6 +1672,7 @@ describe('funnel boot', () => {
         'language',
         'roles',
         'subscriptionFlags',
+        'clickbaitTries',
       ]),
     });
   });

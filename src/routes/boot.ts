@@ -173,6 +173,15 @@ const geoSection = (req: FastifyRequest): BaseBoot['geo'] => {
   };
 };
 
+const getClickbaitTries = async ({ userId }: { userId: string }) => {
+  const key = generateStorageKey(
+    StorageTopic.RedisCounter,
+    'fetchSmartTitle',
+    userId,
+  );
+  return await getRedisObject(key);
+};
+
 const visitSection = async (
   req: FastifyRequest,
   res: FastifyReply,
@@ -523,6 +532,7 @@ const loggedInBoot = async ({
       [alerts, settings, marketingCta],
       [user, squads, lastBanner, exp, feeds, unreadNotificationsCount],
       balance,
+      clickbaitTries,
     ] = await Promise.all([
       visitSection(req, res),
       getRoles(userId),
@@ -545,6 +555,7 @@ const loggedInBoot = async ({
         ]);
       }),
       getBalanceBoot({ userId }),
+      getClickbaitTries({ userId }),
     ]);
     if (!user) {
       return handleNonExistentUser(con, req, res, middleware);
@@ -593,6 +604,7 @@ const loggedInBoot = async ({
           appAccountToken: user.subscriptionFlags?.appAccountToken,
           status: user.subscriptionFlags?.status,
         },
+        clickbaitTries,
       },
       visit,
       alerts: {
