@@ -34,11 +34,11 @@ import {
   rateLimitTypeDefs,
   rateLimiterTransformers,
 } from './directive/rateLimit';
-import * as clickbaitShieldDirective from './directive/clickbaitShield';
+import * as rateLimitCounterDirective from './directive/rateLimitCounter';
 
 export const schema = urlDirective.transformer(
   feedPlusDirective.transformer(
-    clickbaitShieldDirective.transformer(
+    rateLimitCounterDirective.transformer(
       authDirective.transformer(
         rateLimiterTransformers(
           makeExecutableSchema({
@@ -47,7 +47,7 @@ export const schema = urlDirective.transformer(
               common.typeDefs,
               urlDirective.typeDefs,
               feedPlusDirective.typeDefs,
-              clickbaitShieldDirective.typeDefs,
+              rateLimitCounterDirective.typeDefs,
               authDirective.typeDefs,
               comments.typeDefs,
               compatibility.typeDefs,

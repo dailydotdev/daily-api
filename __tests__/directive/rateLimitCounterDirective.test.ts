@@ -2,13 +2,13 @@ import { makeExecutableSchema } from '@graphql-tools/schema';
 import { graphql } from 'graphql';
 import { ioRedisPool } from '../../src/redis';
 import {
-  typeDefs as clickbaitShieldTypeDefs,
-  transformer as clickbaitShieldTransformer,
-} from '../../src/directive/clickbaitShield';
+  typeDefs as rateLimitCounterTypeDefs,
+  transformer as rateLimitCounterTransformer,
+} from '../../src/directive/rateLimitCounter';
 
 const baseTypeDefs = `
   type Mutation {
-    doAction: String @clickbaitShield
+    doAction: String @rateLimitCounter(maxTries: 5, period: "P7D", key: "test-key")
   }
   type Query {
     _empty: String
@@ -21,12 +21,12 @@ const resolvers = {
   },
 };
 
-describe('clickbaitShield directive', () => {
+describe('rateLimitCounter directive', () => {
   const userId = 'test-directive-user';
   const plusUserId = 'test-directive-plus-user';
-  const schema = clickbaitShieldTransformer(
+  const schema = rateLimitCounterTransformer(
     makeExecutableSchema({
-      typeDefs: [baseTypeDefs, clickbaitShieldTypeDefs],
+      typeDefs: [baseTypeDefs, rateLimitCounterTypeDefs],
       resolvers,
     }),
   );
@@ -53,7 +53,7 @@ describe('clickbaitShield directive', () => {
       contextValue: { userId, isPlus: false },
     });
     expect(result.errors).toBeDefined();
-    expect(result.errors?.[0].message).toMatch(/monthly limit/);
+    expect(result.errors?.[0].message).toMatch(/limit/);
   });
 
   it('should never block Plus user', async () => {

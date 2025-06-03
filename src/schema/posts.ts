@@ -954,7 +954,9 @@ export const typeDefs = /* GraphQL */ `
     Gets the Smart Title or the original title of a post,
     based on the settings of the user
     """
-    fetchSmartTitle(id: ID!): PostSmartTitle @auth @clickbaitShield
+    fetchSmartTitle(id: ID!): PostSmartTitle
+      @auth
+      @rateLimitCounter(maxTries: 5, period: "monthly", key: "fetchSmartTitle")
 
     """
     Get Post's Awards by post id
