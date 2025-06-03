@@ -7489,7 +7489,7 @@ describe('query fetchSmartTitle', () => {
       variables: { id: 'p1' },
     });
     expect(res.errors).toBeDefined();
-    expect(res.errors?.[0].message).toMatch(/monthly limit/);
+    expect(res.errors?.[0].message).toMatch(/You have reached your limit/);
     await deleteRedisKey(getShieldKey(loggedUser));
   });
 
