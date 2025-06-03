@@ -69,10 +69,7 @@ import {
   SEMATTRS_DAILY_APPS_USER_ID,
   SEMATTRS_DAILY_STAFF,
 } from '../telemetry';
-import {
-  getClickbaitTries,
-  getUnreadNotificationsCount,
-} from '../notifications/common';
+import { getUnreadNotificationsCount } from '../notifications/common';
 import { maxFeedsPerUser, type CoresRole } from '../types';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { queryDataSource } from '../common/queryDataSource';
