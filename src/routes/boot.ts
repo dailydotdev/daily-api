@@ -69,7 +69,10 @@ import {
   SEMATTRS_DAILY_APPS_USER_ID,
   SEMATTRS_DAILY_STAFF,
 } from '../telemetry';
-import { getUnreadNotificationsCount } from '../notifications/common';
+import {
+  getClickbaitTries,
+  getUnreadNotificationsCount,
+} from '../notifications/common';
 import { maxFeedsPerUser, type CoresRole } from '../types';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { queryDataSource } from '../common/queryDataSource';
@@ -171,6 +174,15 @@ const geoSection = (req: FastifyRequest): BaseBoot['geo'] => {
     region,
     continent: countryCodeToContinent[region],
   };
+};
+
+const getClickbaitTries = async ({ userId }: { userId: string }) => {
+  const key = generateStorageKey(
+    StorageTopic.RedisCounter,
+    'fetchSmartTitle',
+    userId,
+  );
+  return await getRedisObject(key);
 };
 
 const visitSection = async (
@@ -523,6 +535,7 @@ const loggedInBoot = async ({
       [alerts, settings, marketingCta],
       [user, squads, lastBanner, exp, feeds, unreadNotificationsCount],
       balance,
+      clickbaitTries,
     ] = await Promise.all([
       visitSection(req, res),
       getRoles(userId),
@@ -545,6 +558,7 @@ const loggedInBoot = async ({
         ]);
       }),
       getBalanceBoot({ userId }),
+      getClickbaitTries({ userId }),
     ]);
     if (!user) {
       return handleNonExistentUser(con, req, res, middleware);
@@ -593,6 +607,7 @@ const loggedInBoot = async ({
           appAccountToken: user.subscriptionFlags?.appAccountToken,
           status: user.subscriptionFlags?.status,
         },
+        clickbaitTries,
       },
       visit,
       alerts: {
