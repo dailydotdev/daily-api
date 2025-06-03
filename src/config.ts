@@ -33,6 +33,7 @@ export enum StorageTopic {
   Streak = 'streak',
   Njord = 'njord',
   Paddle = 'paddle',
+  RedisCounter = 'redis_counter',
 }
 
 export enum StorageKey {
