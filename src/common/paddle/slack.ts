@@ -12,6 +12,7 @@ import { User } from '../../entity/user/User';
 import { SubscriptionProvider } from '../plus';
 import { logger } from '../../logger';
 import { Organization } from '../../entity';
+import { JsonContains } from 'typeorm';
 
 export const notifyNewPaddleCoresTransaction = async ({
   data,
@@ -290,10 +291,11 @@ export const notifyNewPaddleOrganizationTransaction = async ({
   const { data } = event;
   const { customData } = data ?? {};
 
-  const { user_id, organization_id } = (customData ?? {}) as PaddleCustomData;
-  const purchasedById = user_id;
+  const { user_id: purchasedById } = (customData ?? {}) as PaddleCustomData;
   const organization = await con.getRepository(Organization).findOneByOrFail({
-    id: organization_id,
+    subscriptionFlags: JsonContains({
+      subscriptionId: data.subscriptionId,
+    }),
   });
   const flags = organization?.subscriptionFlags;
 
