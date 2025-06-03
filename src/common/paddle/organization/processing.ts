@@ -1,4 +1,7 @@
-import type { SubscriptionCreatedEvent } from '@paddle/paddle-node-sdk';
+import type {
+  SubscriptionCanceledEvent,
+  SubscriptionCreatedEvent,
+} from '@paddle/paddle-node-sdk';
 import { randomUUID } from 'crypto';
 import createOrGetConnection from '../../../db';
 import {
@@ -22,6 +25,7 @@ import { logger } from '../../../logger';
 import { isPlusMember, type PaddleSubscriptionEvent } from '../../../paddle';
 import { updateSubscriptionFlags } from '../../utils';
 import type { z } from 'zod';
+import { In } from 'typeorm';
 
 // If the user provides business information during the checkout, we will use it
 // otherwise we will use the default business name
@@ -147,4 +151,93 @@ export const createOrganizationSubscription = async ({
       'Failed to update subscription with organization id',
     );
   }
+};
+
+export const cancelOrganizationSubscription = async ({
+  event,
+}: {
+  event: SubscriptionCanceledEvent;
+}) => {
+  const data = getPaddleSubscriptionData({ event });
+  const con = await createOrGetConnection();
+
+  await con.transaction(async (manager) => {
+    const organization = await manager.getRepository(Organization).findOne({
+      where: {
+        id: data.customData.organization_id,
+      },
+      relations: {
+        members: true,
+      },
+      select: {
+        members: {
+          userId: true,
+          status: true,
+        },
+      },
+    });
+
+    if (!organization) {
+      logger.error(
+        {
+          provider: SubscriptionProvider.Paddle,
+          purchaseType: PurchaseType.Organization,
+          data: event,
+        },
+        'Organization not found for subscription cancellation',
+      );
+      return;
+    }
+
+    const members = await organization.members;
+    const membersIdsToDowngrade = members
+      .filter(
+        (member) => member.status === ContentPreferenceOrganizationStatus.Plus,
+      )
+      .map((member) => member.userId);
+
+    const subscriptionFlags = {
+      cycle: null,
+      status: SubscriptionStatus.Expired,
+    };
+
+    await Promise.all([
+      // Update the organization subscription flags to mark it as expired
+      manager.getRepository(Organization).update(
+        {
+          id: organization.id,
+        },
+        {
+          subscriptionFlags: updateSubscriptionFlags(subscriptionFlags),
+        },
+      ),
+
+      // Set seats of all members to Free.
+      manager.getRepository(ContentPreferenceOrganization).update(
+        {
+          organizationId: organization.id,
+        },
+        {
+          status: ContentPreferenceOrganizationStatus.Free,
+        },
+      ),
+
+      // Update subscription flags for members with Plus access to remove subscription metadata
+      manager.getRepository(User).update(
+        {
+          id: In(membersIdsToDowngrade),
+        },
+        {
+          subscriptionFlags: updateSubscriptionFlags({
+            ...subscriptionFlags,
+            subscriptionId: null,
+            createdAt: null,
+            provider: null,
+            organizationId: null,
+            priceId: null,
+          }),
+        },
+      ),
+    ]);
+  });
 };
