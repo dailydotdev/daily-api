@@ -26,16 +26,15 @@ export const processOrganizationPaddleEvent = async (event: EventEntity) => {
       );
       break;
     case EventName.SubscriptionCanceled:
-      await cancelOrganizationSubscription({ event });
-      await logPaddleAnalyticsEvent(
-        event,
-        AnalyticsEventName.CancelSubscription,
-      );
+      await Promise.all([
+        cancelOrganizationSubscription({ event }),
+        logPaddleAnalyticsEvent(event, AnalyticsEventName.CancelSubscription),
+      ]);
       break;
     case EventName.TransactionCompleted:
       await Promise.all([
-        logPaddleAnalyticsEvent(event, AnalyticsEventName.ReceivePayment),
         notifyNewPaddleOrganizationTransaction({ event }),
+        logPaddleAnalyticsEvent(event, AnalyticsEventName.ReceivePayment),
       ]);
       break;
     default:
