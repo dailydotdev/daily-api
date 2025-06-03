@@ -9,6 +9,11 @@ export enum PurchaseType {
   Organization = 'organization',
 }
 
+export enum PlusPlanType {
+  Organization = 'organization',
+  Personal = 'personal',
+}
+
 export enum SubscriptionStatus {
   Active = 'active',
   Expired = 'expired',

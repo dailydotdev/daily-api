@@ -11,6 +11,7 @@ import createOrGetConnection from '../../db';
 import { User } from '../../entity/user/User';
 import { SubscriptionProvider } from '../plus';
 import { logger } from '../../logger';
+import { Organization } from '../../entity';
 
 export const notifyNewPaddleCoresTransaction = async ({
   data,
@@ -275,6 +276,140 @@ export const notifyNewPaddlePlusTransaction = async ({
       ],
     });
   }
+
+  await webhooks.transactions.send({ blocks });
+};
+
+export const notifyNewPaddleOrganizationTransaction = async ({
+  event,
+}: {
+  event: TransactionCompletedEvent;
+}) => {
+  const con = await createOrGetConnection();
+
+  const { data } = event;
+  const { customData } = data ?? {};
+
+  const { user_id, organization_id } = (customData ?? {}) as PaddleCustomData;
+  const purchasedById = user_id;
+  const organization = await con.getRepository(Organization).findOneByOrFail({
+    id: organization_id,
+  });
+  const flags = organization?.subscriptionFlags;
+
+  const origin = data?.origin;
+  const productId = data?.items?.[0].price?.productId;
+
+  const total = data?.items?.[0]?.price?.unitPrice?.amount || '0';
+  const currencyCode =
+    data?.items?.[0]?.price?.unitPrice?.currencyCode || 'USD';
+
+  const localTotal = data?.details?.totals?.total || '0';
+  const localCurrencyCode = data?.currencyCode || 'USD';
+
+  if (origin === 'subscription_recurring') {
+    return;
+  }
+
+  const blocks = [
+    {
+      type: 'header',
+      text: {
+        type: 'plain_text',
+        text: 'New Organization subscription :office: :paddle:',
+        emoji: true,
+      },
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*Transaction ID:*',
+            `<https://vendors.paddle.com/transactions-v2/${data.id}|${data.id}>`,
+          ),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*Customer ID:*',
+            `<https://vendors.paddle.com/customers-v2/${data.customerId}|${data.customerId}>`,
+          ),
+        },
+      ],
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*Type:*',
+            `<https://vendors.paddle.com/products-v2/${productId}|${flags?.cycle}>`,
+          ),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*Purchased by:*',
+            `<https://app.daily.dev/${purchasedById}|${purchasedById}>`,
+          ),
+        },
+      ],
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline('*Organization:*', organization.name),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline('*Seats:*', organization.seats.toString()),
+        },
+      ],
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*Cost:*',
+            new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: currencyCode,
+            }).format((parseFloat(total) || 0) / 100),
+          ),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline('*Currency:*', currencyCode),
+        },
+      ],
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*Cost (local):*',
+            new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: localCurrencyCode,
+            }).format((parseFloat(localTotal) || 0) / 100),
+          ),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline('*Currency (local):*', localCurrencyCode),
+        },
+      ],
+    },
+  ];
 
   await webhooks.transactions.send({ blocks });
 };
