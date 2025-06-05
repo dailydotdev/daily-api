@@ -5126,7 +5126,7 @@ describe('mutation updateReadme', () => {
 
 describe('user_create_alerts_trigger after insert trigger', () => {
   it('should insert default alerts', async () => {
-    await con.getRepository(User).clear();
+    await con.getRepository(User).createQueryBuilder().delete().execute();
     const repo = con.getRepository(Alerts);
     await repo.clear();
     const [user] = usersFixture;

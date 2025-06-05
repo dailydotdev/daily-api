@@ -65,16 +65,17 @@ describe('users for downgrade', () => {
       downgradeUsers,
     });
 
-    await con.getRepository(UserPersonalizedDigest).update(
-      {},
-      {
+    await con
+      .getRepository(UserPersonalizedDigest)
+      .createQueryBuilder()
+      .update({
         preferredDay: 1,
         preferredHour: 4,
         flags: updateFlagsStatement({
           digestSendType: UserPersonalizedDigestSendType.workdays,
         }),
-      },
-    );
+      })
+      .execute();
     await expectSuccessfulCron(cron);
 
     const digests = await con.getRepository(UserPersonalizedDigest).find({
