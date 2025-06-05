@@ -59,6 +59,10 @@ export class UserTransaction {
   @Index('idx_user_transaction_productId')
   productId: string | null;
 
+  @Column({ type: 'text', nullable: true })
+  @Index('idx_user_transaction_referenceId')
+  referenceId: string | null;
+
   @ManyToOne('Product', {
     lazy: true,
     onDelete: 'CASCADE',
