@@ -27,7 +27,7 @@ type RemoteConfigValue = {
   kvasirRequirePlus: boolean;
   paddleIps: string[];
   paddleTestDiscountIds: string[];
-  paddleProductIds: Record<PurchaseType, string>;
+  paddleProductIds: Partial<Record<PurchaseType, string>>;
 };
 
 class RemoteConfig {
