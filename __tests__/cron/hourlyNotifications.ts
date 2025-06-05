@@ -362,7 +362,9 @@ describe('hourlyNotifications cron', () => {
       beforeEach(async () => {
         await con
           .getRepository(User)
-          .update({}, { weekStart: DayOfWeek.Sunday });
+          .createQueryBuilder()
+          .update({ weekStart: DayOfWeek.Sunday })
+          .execute();
       });
 
       it('should not schedule send time on Friday', async () => {
