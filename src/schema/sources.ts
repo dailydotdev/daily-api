@@ -3,8 +3,10 @@ import { IResolvers } from '@graphql-tools/utils';
 import { ConnectionArguments } from 'graphql-relay';
 import { AuthContext, BaseContext, Context } from '../Context';
 import {
+  Comment,
   createSharePost,
   NotificationPreferenceSource,
+  Post,
   REPUTATION_THRESHOLD,
   Source,
   SourceFeed,
@@ -75,6 +77,7 @@ import { ContentPreferenceSource } from '../entity/contentPreference/ContentPref
 import {
   cleanContentNotificationPreference,
   entityToNotificationTypeMap,
+  whereNotUserBlocked,
 } from '../common/contentPreference';
 import { MIN_SEARCH_QUERY_LENGTH } from './tags';
 import { getSearchLimit } from '../common/search';
@@ -83,6 +86,9 @@ import {
   SourcePostModerationStatus,
 } from '../entity/SourcePostModeration';
 import { remoteConfig } from '../remoteConfig';
+import { GQLCommentAwardArgs, GQLUserComment } from './comments';
+import { UserComment } from '../entity/user/UserComment';
+import { UserTransaction } from '../entity/user/UserTransaction';
 
 export interface GQLSourceCategory {
   id: string;
@@ -141,6 +147,7 @@ export const typeDefs = /* GraphQL */ `
     totalPosts: Int
     totalUpvotes: Int
     totalMembers: Int
+    totalAwards: Int
   }
 
   type SourceCategory {
@@ -365,6 +372,26 @@ export const typeDefs = /* GraphQL */ `
   }
 
   ${toGQLEnum(SourceType, 'SourceType')}
+
+  type UserSourceEdge {
+    node: UserTransaction!
+    """
+    Used in before and after args
+    """
+    cursor: String!
+  }
+  type UserSourceConnection {
+    pageInfo: PageInfo!
+    edges: [UserSourceEdge!]!
+    """
+    The original query in case of a search operation
+    """
+    query: String
+  }
+
+  type SourceBalance {
+    amount: Int!
+  }
 
   extend type Query {
     """
@@ -636,6 +663,34 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): SourceCategoryConnection!
+
+    """
+    Get Source Awards by source id
+    """
+    sourceAwards(
+      """
+      Id of the relevant source to return Awards
+      """
+      id: ID!
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+    ): UserSourceConnection!
+
+    """
+    Get Source Awards count
+    """
+    sourceAwardsTotal(
+      """
+      Id of the relevant source to return Awards
+      """
+      id: ID!
+    ): SourceBalance!
   }
 
   extend type Mutation {
@@ -1480,6 +1535,65 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         undefined,
         true,
       );
+    },
+    sourceAwards: async (
+      _,
+      args: GQLCommentAwardArgs,
+      ctx: Context,
+      info,
+    ): Promise<Connection<any>> => {
+      await ctx.con.getRepository(Source).findOneOrFail({
+        select: {
+          id: true,
+        },
+        where: { id: args.id },
+      });
+
+      const pageGenerator = offsetPageGenerator<GQLUserComment>(20, 100);
+      const page = pageGenerator.connArgsToPage(args);
+
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => pageGenerator.hasNextPage(page, nodeSize),
+        (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder.andWhere(
+            `${builder.alias}.flags->>'sourceId' = :commentId`,
+            {
+              commentId: args.id,
+            },
+          );
+
+          builder.queryBuilder.limit(page.limit).offset(page.offset);
+
+          return builder;
+        },
+        undefined,
+        true,
+      );
+    },
+    sourceAwardsTotal: async (
+      _,
+      args: GQLCommentAwardArgs,
+      ctx: Context,
+    ): Promise<{ amount: number }> => {
+      await ctx.con.getRepository(Source).findOneOrFail({
+        select: {
+          id: true,
+        },
+        where: { id: args.id },
+      });
+
+      const result = await ctx.con
+        .getRepository(UserTransaction)
+        .createQueryBuilder()
+        .select('COALESCE(SUM(value), 0)', 'amount')
+        .where(`flags->>'sourceId' = :sourceId`, { sourceId: args.id })
+        .getRawOne();
+
+      return result;
     },
     sources: async (
       _,

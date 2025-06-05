@@ -40,7 +40,7 @@ import { Product, ProductType } from '../entity/Product';
 import { remoteConfig } from '../remoteConfig';
 import { UserPost } from '../entity/user/UserPost';
 import { Post } from '../entity/posts/Post';
-import { Comment } from '../entity';
+import { Comment, Source } from '../entity';
 import { UserComment } from '../entity/user/UserComment';
 import { saveComment } from '../schema/comments';
 import { generateShortId } from '../ids';
@@ -113,6 +113,7 @@ export type TransactionProps = {
   productId: string;
   receiverId: string;
   note?: string;
+  flags?: object;
 };
 
 export const createTransaction = createAuthProtectedFn(
@@ -123,6 +124,7 @@ export const createTransaction = createAuthProtectedFn(
     productId,
     receiverId,
     note,
+    flags,
   }: TransactionProps & {
     id?: string;
     entityManager: EntityManager;
@@ -148,6 +150,7 @@ export const createTransaction = createAuthProtectedFn(
         request: ctx.requestMeta,
         flags: {
           note,
+          ...flags,
         },
       });
 
@@ -489,9 +492,13 @@ export enum AwardType {
   Post = 'POST',
   User = 'USER',
   Comment = 'COMMENT',
+  Squad = 'SQUAD',
 }
 
-export type AwardInput = Pick<TransactionProps, 'productId' | 'note'> & {
+export type AwardInput = Pick<
+  TransactionProps,
+  'productId' | 'note' | 'flags'
+> & {
   entityId: string;
   type: AwardType;
 };
@@ -531,6 +538,38 @@ const canAward = async ({
   }
 };
 
+export const awardSquad = async (
+  props: AwardInput,
+  ctx: AuthContext,
+): Promise<TransactionCreated> => {
+  const sourceId = props.flags?.sourceId;
+  if (!sourceId) {
+    throw new ForbiddenError('You can not award this Squad');
+  }
+  try {
+    await ctx.con.manager.getRepository(Source).findOneOrFail({
+      select: ['id'],
+      where: {
+        id: sourceId,
+      },
+    });
+    return awardUser(props, ctx);
+  } catch (error) {
+    logger.error(
+      {
+        context: 'award',
+        err: error,
+        props,
+        userId: ctx.userId,
+        transactionId: newTransactionId,
+      },
+      'Award error',
+    );
+
+    throw error;
+  }
+};
+
 export const awardUser = async (
   props: AwardInput,
   ctx: AuthContext,
@@ -555,7 +594,7 @@ export const awardUser = async (
 
     const { transaction, transfer } = await ctx.con.transaction(
       async (entityManager) => {
-        const { entityId: receiverId, note } = props;
+        const { entityId: receiverId, note, flags } = props;
 
         const transaction = await createTransaction({
           ctx,
@@ -564,6 +603,7 @@ export const awardUser = async (
           productId: product.id,
           receiverId,
           note,
+          flags,
         });
 
         try {

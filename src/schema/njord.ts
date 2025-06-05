@@ -3,17 +3,18 @@ import type { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import {
   awardComment,
+  type AwardInput,
   awardPost,
+  awardSquad,
   AwardType,
   awardUser,
-  type AwardInput,
   type GetBalanceResult,
   type TransactionCreated,
 } from '../common/njord';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { getLimit, toGQLEnum } from '../common';
 import { z } from 'zod';
-import { ProductType, type Product } from '../entity/Product';
+import { type Product, ProductType } from '../entity/Product';
 import type { Connection, ConnectionArguments } from 'graphql-relay';
 import { offsetPageGenerator } from './common';
 import graphorm from '../graphorm';
@@ -267,6 +268,11 @@ export const typeDefs = /* GraphQL */ `
       Note for the receiver
       """
       note: String
+
+      """
+      Extra flags for the transaction
+      """
+      flags: JSONObject
     ): TransactionCreated @auth
   }
 `;
@@ -499,6 +505,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return awardUser(props, ctx);
         case AwardType.Comment:
           return awardComment(props, ctx);
+        case AwardType.Squad:
+          return awardSquad(props, ctx);
         default:
           throw new ForbiddenError('Can not award this entity');
       }

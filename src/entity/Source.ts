@@ -30,6 +30,7 @@ export interface SourceFlagsPublic {
   totalPosts: number;
   totalUpvotes: number;
   totalMembers: number;
+  totalAwards: number;
 }
 
 export interface SourceFlagsPrivate {
