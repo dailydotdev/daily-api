@@ -159,7 +159,7 @@ describe('trigger decrement_squad_members_count', () => {
     const decrement = await repo.findOneByOrFail({ id: 'a' });
     expect(decrement.flags.totalMembers).toEqual(0);
 
-    await con.getRepository(SourceMember).delete({});
+    await con.getRepository(SourceMember).clear();
 
     const unchanged = await repo.findOneByOrFail({ id: 'a' });
     expect(unchanged.flags.totalMembers).toEqual(0);

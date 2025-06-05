@@ -49,7 +49,7 @@ describe('users for downgrade', () => {
       downgradeUsers: ['4', '1'],
     });
 
-    await con.getRepository(UserPersonalizedDigest).delete({});
+    await con.getRepository(UserPersonalizedDigest).clear();
     await expectSuccessfulCron(cron);
 
     const digests = await con.getRepository(UserPersonalizedDigest).find();
