@@ -18,12 +18,7 @@ import {
 import createOrGetConnection from '../../db';
 import { purchaseCores, UserTransactionError } from '../njord';
 import { TransferError } from '../../errors';
-import {
-  concatTextToNewline,
-  isProd,
-  isTest,
-  updateFlagsStatement,
-} from '../utils';
+import { concatTextToNewline, isTest, updateFlagsStatement } from '../utils';
 import type { Block, KnownBlock } from '@slack/web-api';
 import { webhooks } from '../slack';
 import { checkUserCoresAccess } from '../user';
@@ -211,44 +206,41 @@ export const handleCoresPurchase = async ({
       .getRepository(UserTransaction)
       .save(payload);
 
-    // TODO feat/cores-iap enable for production https://dailydotdev.slack.com/archives/C07VA1FJTDK/p1745580651217029
-    if (!isProd) {
-      try {
-        await purchaseCores({
+    try {
+      await purchaseCores({
+        transaction: userTransaction,
+      });
+    } catch (error) {
+      if (error instanceof TransferError) {
+        const userTransactionError = new UserTransactionError({
+          status: error.transfer.status,
           transaction: userTransaction,
         });
-      } catch (error) {
-        if (error instanceof TransferError) {
-          const userTransactionError = new UserTransactionError({
-            status: error.transfer.status,
-            transaction: userTransaction,
-          });
 
-          // update transaction status to error
-          await entityManager.getRepository(UserTransaction).update(
-            {
-              id: userTransaction.id,
-            },
-            {
-              status: error.transfer.status as number,
-              flags: updateFlagsStatement<UserTransaction>({
-                error: userTransactionError.message,
-              }),
-            },
-          );
-
-          return entityManager.getRepository(UserTransaction).create({
-            ...userTransaction,
+        // update transaction status to error
+        await entityManager.getRepository(UserTransaction).update(
+          {
+            id: userTransaction.id,
+          },
+          {
             status: error.transfer.status as number,
-            flags: {
-              ...userTransaction.flags,
+            flags: updateFlagsStatement<UserTransaction>({
               error: userTransactionError.message,
-            },
-          });
-        }
+            }),
+          },
+        );
 
-        throw error;
+        return entityManager.getRepository(UserTransaction).create({
+          ...userTransaction,
+          status: error.transfer.status as number,
+          flags: {
+            ...userTransaction.flags,
+            error: userTransactionError.message,
+          },
+        });
       }
+
+      throw error;
     }
 
     return userTransaction;
