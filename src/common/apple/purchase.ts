@@ -1,4 +1,4 @@
-import type {
+import {
   Environment,
   JWSTransactionDecodedPayload,
   ResponseBodyV2DecodedPayload,
@@ -148,6 +148,7 @@ export const handleCoresPurchase = async ({
   transactionInfo,
   user,
   notification,
+  environment,
 }: {
   transactionInfo: JWSTransactionDecodedPayload;
   user: Pick<User, 'id' | 'subscriptionFlags' | 'coresRole'>;
@@ -206,41 +207,44 @@ export const handleCoresPurchase = async ({
       .getRepository(UserTransaction)
       .save(payload);
 
-    try {
-      await purchaseCores({
-        transaction: userTransaction,
-      });
-    } catch (error) {
-      if (error instanceof TransferError) {
-        const userTransactionError = new UserTransactionError({
-          status: error.transfer.status,
+    // skip assigning Cores in sandbox environment
+    if (environment !== Environment.SANDBOX) {
+      try {
+        await purchaseCores({
           transaction: userTransaction,
         });
+      } catch (error) {
+        if (error instanceof TransferError) {
+          const userTransactionError = new UserTransactionError({
+            status: error.transfer.status,
+            transaction: userTransaction,
+          });
 
-        // update transaction status to error
-        await entityManager.getRepository(UserTransaction).update(
-          {
-            id: userTransaction.id,
-          },
-          {
+          // update transaction status to error
+          await entityManager.getRepository(UserTransaction).update(
+            {
+              id: userTransaction.id,
+            },
+            {
+              status: error.transfer.status as number,
+              flags: updateFlagsStatement<UserTransaction>({
+                error: userTransactionError.message,
+              }),
+            },
+          );
+
+          return entityManager.getRepository(UserTransaction).create({
+            ...userTransaction,
             status: error.transfer.status as number,
-            flags: updateFlagsStatement<UserTransaction>({
+            flags: {
+              ...userTransaction.flags,
               error: userTransactionError.message,
-            }),
-          },
-        );
+            },
+          });
+        }
 
-        return entityManager.getRepository(UserTransaction).create({
-          ...userTransaction,
-          status: error.transfer.status as number,
-          flags: {
-            ...userTransaction.flags,
-            error: userTransactionError.message,
-          },
-        });
+        throw error;
       }
-
-      throw error;
     }
 
     return userTransaction;
