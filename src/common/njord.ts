@@ -41,7 +41,7 @@ import { Product, ProductType } from '../entity/Product';
 import { remoteConfig } from '../remoteConfig';
 import { UserPost } from '../entity/user/UserPost';
 import { Post } from '../entity/posts/Post';
-import { Comment, Source } from '../entity';
+import { Comment, Source, SourceMember } from '../entity';
 import { UserComment } from '../entity/user/UserComment';
 import { saveComment } from '../schema/comments';
 import { generateShortId } from '../ids';
@@ -53,6 +53,7 @@ import { logger } from '../logger';
 import { signJwt } from '../auth';
 import crypto from 'node:crypto';
 import { Message } from '@bufbuild/protobuf';
+import { ensureSourcePermissions } from '../schema/sources';
 
 const transport = createGrpcTransport({
   baseUrl: process.env.NJORD_ORIGIN,
@@ -547,10 +548,13 @@ export const awardSquad = async (
   if (!sourceId) {
     throw new ForbiddenError('You can not award this Squad');
   }
-  await ctx.con.manager.getRepository(Source).findOneOrFail({
-    select: ['id'],
+  await ensureSourcePermissions(ctx, sourceId);
+  // Ensure the receiving user is actually part of this source
+  await ctx.con.manager.getRepository(SourceMember).findOneOrFail({
+    select: ['userId'],
     where: {
-      id: sourceId,
+      sourceId,
+      userId: props.entityId,
     },
   });
   return awardUser(props, ctx);
