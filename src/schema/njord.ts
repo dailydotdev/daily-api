@@ -114,6 +114,7 @@ export const typeDefs = /* GraphQL */ `
     note: String
     error: String
     sourceId: String
+    sourceName: String
   }
 
   type UserTransaction {
@@ -162,6 +163,10 @@ export const typeDefs = /* GraphQL */ `
 
   type UserTransactionPublic {
     value: Int!
+  }
+
+  input AwardSquadFlagsInput {
+    sourceId: String
   }
 
   extend type Query {
@@ -273,7 +278,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Extra flags for the transaction
       """
-      flags: UserTransactionFlagsPublic
+      flags: AwardSquadFlagsInput
     ): TransactionCreated @auth
   }
 `;
