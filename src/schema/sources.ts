@@ -3,10 +3,8 @@ import { IResolvers } from '@graphql-tools/utils';
 import { ConnectionArguments } from 'graphql-relay';
 import { AuthContext, BaseContext, Context } from '../Context';
 import {
-  Comment,
   createSharePost,
   NotificationPreferenceSource,
-  Post,
   REPUTATION_THRESHOLD,
   Source,
   SourceFeed,
@@ -77,7 +75,6 @@ import { ContentPreferenceSource } from '../entity/contentPreference/ContentPref
 import {
   cleanContentNotificationPreference,
   entityToNotificationTypeMap,
-  whereNotUserBlocked,
 } from '../common/contentPreference';
 import { MIN_SEARCH_QUERY_LENGTH } from './tags';
 import { getSearchLimit } from '../common/search';
@@ -86,9 +83,9 @@ import {
   SourcePostModerationStatus,
 } from '../entity/SourcePostModeration';
 import { remoteConfig } from '../remoteConfig';
-import { GQLCommentAwardArgs, GQLUserComment } from './comments';
-import { UserComment } from '../entity/user/UserComment';
+import { GQLCommentAwardArgs } from './comments';
 import { UserTransaction } from '../entity/user/UserTransaction';
+import { UserVote } from '../types';
 
 export interface GQLSourceCategory {
   id: string;
@@ -96,6 +93,12 @@ export interface GQLSourceCategory {
   enabled: boolean;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface GQLUserReward {
+  vote: UserVote;
+  votedAt: Date | null;
+  awarded: boolean;
 }
 
 export interface GQLSource {
@@ -1541,7 +1544,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: GQLCommentAwardArgs,
       ctx: Context,
       info,
-    ): Promise<Connection<any>> => {
+    ): Promise<Connection<GQLUserReward>> => {
       await ensureSourcePermissions(ctx, args.id);
       await ctx.con.getRepository(Source).findOneOrFail({
         select: {
@@ -1550,7 +1553,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         where: { id: args.id },
       });
 
-      const pageGenerator = offsetPageGenerator<GQLUserComment>(20, 100);
+      const pageGenerator = offsetPageGenerator<GQLUserReward>(20, 100);
       const page = pageGenerator.connArgsToPage(args);
 
       return graphorm.queryPaginated(

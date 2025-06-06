@@ -53,7 +53,6 @@ import { logger } from '../logger';
 import { signJwt } from '../auth';
 import crypto from 'node:crypto';
 import { Message } from '@bufbuild/protobuf';
-import { ensureSourcePermissions } from '../schema/sources';
 
 const transport = createGrpcTransport({
   baseUrl: process.env.NJORD_ORIGIN,
