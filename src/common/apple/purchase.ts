@@ -70,7 +70,7 @@ export const notifyNewStoreKitPurchase = async ({
       fields: [
         {
           type: 'mrkdwn',
-          text: concatTextToNewline('*Transaction ID:*', data.appTransactionId),
+          text: concatTextToNewline('*Transaction ID:*', data.transactionId),
         },
         {
           type: 'mrkdwn',

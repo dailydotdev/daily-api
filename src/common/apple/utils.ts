@@ -92,7 +92,7 @@ export const logAppleAnalyticsEvent = async (
     {
       event_name: eventName,
       event_timestamp: new Date(transactionInfo?.signedDate || ''),
-      event_id: transactionInfo.appTransactionId,
+      event_id: transactionInfo.transactionId,
       app_platform: 'api',
       user_id: user.id,
       extra: JSON.stringify(extra),
