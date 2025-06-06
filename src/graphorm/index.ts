@@ -1145,22 +1145,18 @@ const obj = new GraphORM({
     fields: {
       flags: {
         jsonType: true,
-        transform: async (
-          value: SourceFlagsPublic,
-          ctx,
-        ): Promise<SourceFlagsPublic> => {
-          if (value?.sourceId) {
-            const source = await ctx.getRepository(Source).findOne({
-              select: ['name'],
-              where: { id: value.sourceId },
-            });
-            return {
-              ...value,
-              ...(source && { sourceName: source.name }),
-            };
-          }
-
-          return value;
+      },
+      sourceName: {
+        rawSelect: true,
+        select: (_, alias) => {
+          return `${alias}.flags->>'sourceId'`;
+        },
+        transform: async (value: string, ctx: Context, parent) => {
+          const source = await ctx.getRepository(Source).findOne({
+            select: ['name'],
+            where: { id: value },
+          });
+          return source?.name;
         },
       },
       balance: {

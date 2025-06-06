@@ -131,6 +131,7 @@ export const typeDefs = /* GraphQL */ `
     balance: UserBalance!
     createdAt: DateTime!
     valueIncFees: Int!
+    sourceName: String
   }
 
   type UserTransactionSummary {
