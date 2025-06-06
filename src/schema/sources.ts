@@ -95,7 +95,7 @@ export interface GQLSourceCategory {
   updatedAt: Date;
 }
 
-export interface GQLUserReward {
+export interface GQLUserAward {
   vote: UserVote;
   votedAt: Date | null;
   awarded: boolean;
@@ -1544,7 +1544,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: GQLCommentAwardArgs,
       ctx: Context,
       info,
-    ): Promise<Connection<GQLUserReward>> => {
+    ): Promise<Connection<GQLUserAward>> => {
       await ensureSourcePermissions(ctx, args.id);
       await ctx.con.getRepository(Source).findOneOrFail({
         select: {
@@ -1553,7 +1553,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         where: { id: args.id },
       });
 
-      const pageGenerator = offsetPageGenerator<GQLUserReward>(20, 100);
+      const pageGenerator = offsetPageGenerator<GQLUserAward>(20, 100);
       const page = pageGenerator.connArgsToPage(args);
 
       return graphorm.queryPaginated(
@@ -1564,9 +1564,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
         (builder) => {
           builder.queryBuilder.andWhere(
-            `${builder.alias}.flags->>'sourceId' = :commentId`,
+            `${builder.alias}.flags->>'sourceId' = :sourceId`,
             {
-              commentId: args.id,
+              sourceId: args.id,
             },
           );
 

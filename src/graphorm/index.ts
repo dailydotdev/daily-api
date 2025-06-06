@@ -1152,6 +1152,9 @@ const obj = new GraphORM({
           return `${alias}.flags->>'sourceId'`;
         },
         transform: async (value: string, ctx: Context) => {
+          if (!value) {
+            return;
+          }
           const source = await ctx.getRepository(Source).findOne({
             select: ['name'],
             where: { id: value },
