@@ -24,7 +24,7 @@ export type UserTransactionFlags = Partial<{
 
 export type UserTransactionFlagsPublic = Pick<
   UserTransactionFlags,
-  'note' | 'error' | 'sourceId' | 'sourceName'
+  'note' | 'error' | 'sourceId'
 >;
 
 export type UserTransactionRequest = RequestMeta;

@@ -31,8 +31,6 @@ export interface SourceFlagsPublic {
   totalUpvotes: number;
   totalMembers: number;
   totalAwards: number;
-  sourceId: string;
-  sourceName: string;
 }
 
 export interface SourceFlagsPrivate {
