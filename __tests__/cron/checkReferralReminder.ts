@@ -35,20 +35,32 @@ const expectReferralValue = async (before: boolean, after: boolean) => {
 describe('newly registered users', () => {
   it('should not update reminder when it is already true', async () => {
     const threeWeeksAgo = subWeeks(new Date(), 3);
-    await con.getRepository(User).update({}, { createdAt: threeWeeksAgo });
+    await con
+      .getRepository(User)
+      .createQueryBuilder()
+      .update({ createdAt: threeWeeksAgo })
+      .execute();
     await repo.update({ userId: '1' }, { showGenericReferral: true });
     await expectReferralValue(true, true);
   });
 
   it('should not update reminder to true when user is less than 2 weeks', async () => {
     const oneWeeksAgo = subWeeks(new Date(), 1);
-    await con.getRepository(User).update({}, { createdAt: oneWeeksAgo });
+    await con
+      .getRepository(User)
+      .createQueryBuilder()
+      .update({ createdAt: oneWeeksAgo })
+      .execute();
     await expectReferralValue(false, false);
   });
 
   it('should update reminder to true when user has registered more than two weeks', async () => {
     const twoWeeksAgo = subWeeks(new Date(), 2);
-    await con.getRepository(User).update({}, { createdAt: twoWeeksAgo });
+    await con
+      .getRepository(User)
+      .createQueryBuilder()
+      .update({ createdAt: twoWeeksAgo })
+      .execute();
     await expectReferralValue(false, true);
   });
 });
