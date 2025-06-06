@@ -155,10 +155,10 @@ export const notificationTitleMap: Record<
   user_received_award: (ctx: NotificationAwardContext) => {
     if (ctx.source) {
       if (ctx.transaction.valueIncFees === 0) {
-        return `Your ${ctx.source.name} Squad just received an Award from ${ctx.sender.username}! Keep creating great content!`;
+        return `Your ${ctx.source.name} Squad just received an Award from ${ctx.sender.username}!`;
       }
       const coreAmount = formatCoresCurrency(ctx.transaction.valueIncFees);
-      return `Your ${ctx.source.name} Squad just received +${coreAmount} Cores from ${ctx.sender.username} as an Award! Keep creating great content!`;
+      return `Your ${ctx.source.name} Squad just received +${coreAmount} Cores from ${ctx.sender.username} as an Award!`;
     }
 
     if (ctx.transaction.valueIncFees === 0) {
