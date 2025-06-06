@@ -101,6 +101,12 @@ interface ReportCommentArgs {
   reason: ReportReason;
 }
 
+export interface GQLUserComment {
+  vote: UserVote;
+  votedAt: Date | null;
+  awarded: boolean;
+}
+
 export enum SortCommentsBy {
   NewestFirst = 'newest',
   OldestFirst = 'oldest',
