@@ -13,7 +13,7 @@ import {
 import type { TypedWorker } from '../worker';
 
 const purchaseProcessors = [
-  // UserTransactionProcessor.AppleStoreKit,
+  UserTransactionProcessor.AppleStoreKit,
   UserTransactionProcessor.Paddle,
 ];
 
