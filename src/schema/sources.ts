@@ -1542,6 +1542,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: Context,
       info,
     ): Promise<Connection<any>> => {
+      await ensureSourcePermissions(ctx, args.id);
       await ctx.con.getRepository(Source).findOneOrFail({
         select: {
           id: true,
@@ -1579,6 +1580,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: GQLCommentAwardArgs,
       ctx: Context,
     ): Promise<{ amount: number }> => {
+      await ensureSourcePermissions(ctx, args.id);
       await ctx.con.getRepository(Source).findOneOrFail({
         select: {
           id: true,

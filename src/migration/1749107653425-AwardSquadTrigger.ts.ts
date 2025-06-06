@@ -28,9 +28,15 @@ export class AwardSquadTrigger1749107653425 implements MigrationInterface {
         EXECUTE PROCEDURE increment_squad_awards_count()
       `,
     );
+    await queryRunner.query(
+      `CREATE INDEX IF NOT EXISTS "idx_user_transaction_flags_sourceId" ON "user_transaction" (("flags"->>'sourceId'))`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "idx_user_transaction_flags_sourceId"`,
+    );
     queryRunner.query(
       'DROP TRIGGER IF EXISTS increment_squad_awards_count ON user_transaction',
     );

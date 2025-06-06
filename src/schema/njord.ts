@@ -113,6 +113,7 @@ export const typeDefs = /* GraphQL */ `
   type UserTransactionFlagsPublic {
     note: String
     error: String
+    sourceId: String
   }
 
   type UserTransaction {
@@ -272,7 +273,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Extra flags for the transaction
       """
-      flags: JSONObject
+      flags: UserTransactionFlagsPublic
     ): TransactionCreated @auth
   }
 `;

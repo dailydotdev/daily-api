@@ -19,6 +19,7 @@ import {
 import type { AuthContext } from '../Context';
 import {
   UserTransaction,
+  UserTransactionFlags,
   UserTransactionProcessor,
   UserTransactionStatus,
 } from '../entity/user/UserTransaction';
@@ -52,6 +53,7 @@ import { logger } from '../logger';
 import { signJwt } from '../auth';
 import crypto from 'node:crypto';
 import { Message } from '@bufbuild/protobuf';
+import { ensureSourcePermissions } from '../schema/sources';
 
 const transport = createGrpcTransport({
   baseUrl: process.env.NJORD_ORIGIN,
@@ -113,7 +115,7 @@ export type TransactionProps = {
   productId: string;
   receiverId: string;
   note?: string;
-  flags?: object;
+  flags?: Pick<UserTransactionFlags, 'sourceId'>;
 };
 
 export const createTransaction = createAuthProtectedFn(
@@ -546,28 +548,13 @@ export const awardSquad = async (
   if (!sourceId) {
     throw new ForbiddenError('You can not award this Squad');
   }
-  try {
-    await ctx.con.manager.getRepository(Source).findOneOrFail({
-      select: ['id'],
-      where: {
-        id: sourceId,
-      },
-    });
-    return awardUser(props, ctx);
-  } catch (error) {
-    logger.error(
-      {
-        context: 'award',
-        err: error,
-        props,
-        userId: ctx.userId,
-        transactionId: newTransactionId,
-      },
-      'Award error',
-    );
-
-    throw error;
-  }
+  await ctx.con.manager.getRepository(Source).findOneOrFail({
+    select: ['id'],
+    where: {
+      id: sourceId,
+    },
+  });
+  return awardUser(props, ctx);
 };
 
 export const awardUser = async (
