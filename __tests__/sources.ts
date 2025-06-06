@@ -49,6 +49,12 @@ import {
   SourcePostModeration,
   SourcePostModerationStatus,
 } from '../src/entity/SourcePostModeration';
+import {
+  UserTransaction,
+  UserTransactionProcessor,
+  UserTransactionStatus,
+} from '../src/entity/user/UserTransaction';
+import { Product, ProductType } from '../src/entity/Product';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -4074,5 +4080,121 @@ describe('Source flags field', () => {
     await con.getRepository(Source).update({ id: 'a' }, { flags: {} });
     const res = await client.query(QUERY);
     expect(res.data.source.flags).toEqual(defaultPublicSourceFlags);
+  });
+});
+
+describe('sourceAwards query', () => {
+  let sourceId: string;
+  beforeEach(async () => {
+    await saveFixtures(con, Product, [
+      {
+        id: '9104b834-6fac-4276-a168-0be1294ab371',
+        name: 'Award 1',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 42,
+      },
+    ]);
+    // Create a source and a user transaction (award)
+    const source = await con.getRepository(Source).save({
+      id: 'awardSource',
+      name: 'Award Source',
+      handle: 'award-source',
+      private: false,
+      type: SourceType.Squad,
+      active: true,
+    });
+    sourceId = source.id;
+    await con.getRepository(UserTransaction).save({
+      productId: '9104b834-6fac-4276-a168-0be1294ab371',
+      senderId: usersFixture[0].id,
+      receiverId: usersFixture[1].id,
+      processor: UserTransactionProcessor.Njord,
+      fee: 0,
+      value: 100,
+      valueIncFees: 100,
+      flags: { sourceId: sourceId },
+      createdAt: new Date(),
+      status: UserTransactionStatus.Success,
+    });
+  });
+
+  it('should return source awards connection', async () => {
+    loggedUser = usersFixture[0].id;
+    const QUERY = `
+      query SourceAwards($id: ID!) {
+        sourceAwards(id: $id) {
+          edges { node { sender { id } product { name } value } cursor }
+          pageInfo { hasNextPage hasPreviousPage endCursor }
+        }
+      }
+    `;
+    const res = await client.query(QUERY, { variables: { id: sourceId } });
+    expect(res.errors).toBeFalsy();
+    console.log(res.data.sourceAwards.edges[0]);
+    expect(res.data.sourceAwards.edges.length).toBeGreaterThanOrEqual(1);
+    expect(res.data.sourceAwards.edges[0].node.sender).toHaveProperty('id');
+    expect(res.data.sourceAwards.pageInfo).toHaveProperty('hasNextPage');
+  });
+});
+
+describe('sourceAwardsTotal query', () => {
+  let sourceId: string;
+  beforeEach(async () => {
+    await saveFixtures(con, Product, [
+      {
+        id: '9104b834-6fac-4276-a168-0be1294ab371',
+        name: 'Award 1',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 42,
+      },
+    ]);
+    // Create a source and a user transaction (award)
+    const source = await con.getRepository(Source).save({
+      id: 'awardSourceTotal',
+      name: 'Award Source Total',
+      handle: 'award-source-total',
+      private: false,
+      type: SourceType.Machine,
+      active: true,
+    });
+    sourceId = source.id;
+    await con.getRepository(UserTransaction).save({
+      productId: '9104b834-6fac-4276-a168-0be1294ab371',
+      senderId: usersFixture[0].id,
+      receiverId: usersFixture[1].id,
+      processor: UserTransactionProcessor.Njord,
+      fee: 0,
+      value: 100,
+      valueIncFees: 100,
+      flags: { sourceId: sourceId },
+      createdAt: new Date(),
+      status: UserTransactionStatus.Success,
+    });
+  });
+
+  it('should return source awards total', async () => {
+    loggedUser = usersFixture[0].id;
+    const QUERY = `
+      query SourceAwardsTotal($id: ID!) {
+        sourceAwardsTotal(id: $id) { amount }
+      }
+    `;
+    const res = await client.query(QUERY, { variables: { id: sourceId } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.sourceAwardsTotal.amount).toBeGreaterThanOrEqual(10);
+  });
+
+  it('should return 0 for source awards total if no awards', async () => {
+    loggedUser = usersFixture[0].id;
+    const QUERY = `
+      query SourceAwardsTotal($id: ID!) {
+        sourceAwardsTotal(id: $id) { amount }
+      }
+    `;
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.sourceAwardsTotal.amount).toBe(0);
   });
 });

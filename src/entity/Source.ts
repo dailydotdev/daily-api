@@ -30,6 +30,7 @@ export interface SourceFlagsPublic {
   totalPosts: number;
   totalUpvotes: number;
   totalMembers: number;
+  totalAwards: number;
 }
 
 export interface SourceFlagsPrivate {
@@ -43,6 +44,7 @@ export const defaultPublicSourceFlags: SourceFlagsPublic = {
   totalPosts: 0,
   totalUpvotes: 0,
   totalMembers: 0,
+  totalAwards: 0,
 };
 
 export const UNKNOWN_SOURCE = 'unknown';

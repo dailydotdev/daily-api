@@ -1,5 +1,5 @@
 import { env } from 'node:process';
-import { UserPost } from '../../entity';
+import { Source, UserPost } from '../../entity';
 import { UserComment } from '../../entity/user/UserComment';
 import {
   UserTransaction,
@@ -44,13 +44,18 @@ export const userReceivedAward =
       const sender = await transaction.sender;
       const receiver = await transaction.receiver;
 
-      const [userPost, userComment] = await Promise.all([
+      const [userPost, userComment, source] = await Promise.all([
         con.manager.getRepository(UserPost).findOneBy({
           awardTransactionId: transaction.id,
         }),
         con.manager.getRepository(UserComment).findOneBy({
           awardTransactionId: transaction.id,
         }),
+        transaction.flags?.sourceId
+          ? con.manager.getRepository(Source).findOneBy({
+              id: transaction.flags.sourceId,
+            })
+          : undefined,
       ]);
 
       let targetUrl = `/${receiver.username}`;
@@ -71,6 +76,7 @@ export const userReceivedAward =
             sender,
             receiver,
             targetUrl: `${env.COMMENTS_PREFIX}${targetUrl}`,
+            source,
           },
         },
       ];

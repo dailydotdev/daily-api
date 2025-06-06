@@ -19,6 +19,7 @@ import {
 import type { AuthContext } from '../Context';
 import {
   UserTransaction,
+  UserTransactionFlags,
   UserTransactionProcessor,
   UserTransactionStatus,
 } from '../entity/user/UserTransaction';
@@ -40,7 +41,7 @@ import { Product, ProductType } from '../entity/Product';
 import { remoteConfig } from '../remoteConfig';
 import { UserPost } from '../entity/user/UserPost';
 import { Post } from '../entity/posts/Post';
-import { Comment } from '../entity';
+import { Comment, SourceMember } from '../entity';
 import { UserComment } from '../entity/user/UserComment';
 import { saveComment } from '../schema/comments';
 import { generateShortId } from '../ids';
@@ -52,6 +53,7 @@ import { logger } from '../logger';
 import { signJwt } from '../auth';
 import crypto from 'node:crypto';
 import { Message } from '@bufbuild/protobuf';
+import { ensureSourcePermissions } from '../schema/sources';
 
 const transport = createGrpcTransport({
   baseUrl: process.env.NJORD_ORIGIN,
@@ -113,6 +115,7 @@ export type TransactionProps = {
   productId: string;
   receiverId: string;
   note?: string;
+  flags?: Pick<UserTransactionFlags, 'sourceId'>;
 };
 
 export const createTransaction = createAuthProtectedFn(
@@ -123,6 +126,7 @@ export const createTransaction = createAuthProtectedFn(
     productId,
     receiverId,
     note,
+    flags,
   }: TransactionProps & {
     id?: string;
     entityManager: EntityManager;
@@ -148,6 +152,7 @@ export const createTransaction = createAuthProtectedFn(
         request: ctx.requestMeta,
         flags: {
           note,
+          ...flags,
         },
       });
 
@@ -489,9 +494,13 @@ export enum AwardType {
   Post = 'POST',
   User = 'USER',
   Comment = 'COMMENT',
+  Squad = 'SQUAD',
 }
 
-export type AwardInput = Pick<TransactionProps, 'productId' | 'note'> & {
+export type AwardInput = Pick<
+  TransactionProps,
+  'productId' | 'note' | 'flags'
+> & {
   entityId: string;
   type: AwardType;
 };
@@ -531,6 +540,26 @@ const canAward = async ({
   }
 };
 
+export const awardSquad = async (
+  props: AwardInput,
+  ctx: AuthContext,
+): Promise<TransactionCreated> => {
+  const sourceId = props.flags?.sourceId;
+  if (!sourceId) {
+    throw new ForbiddenError('You can not award this Squad');
+  }
+  await ensureSourcePermissions(ctx, sourceId);
+  // Ensure the receiving user is actually part of this source
+  await ctx.con.manager.getRepository(SourceMember).findOneOrFail({
+    select: ['userId'],
+    where: {
+      sourceId,
+      userId: props.entityId,
+    },
+  });
+  return awardUser(props, ctx);
+};
+
 export const awardUser = async (
   props: AwardInput,
   ctx: AuthContext,
@@ -555,7 +584,7 @@ export const awardUser = async (
 
     const { transaction, transfer } = await ctx.con.transaction(
       async (entityManager) => {
-        const { entityId: receiverId, note } = props;
+        const { entityId: receiverId, note, flags } = props;
 
         const transaction = await createTransaction({
           ctx,
@@ -564,6 +593,7 @@ export const awardUser = async (
           productId: product.id,
           receiverId,
           note,
+          flags,
         });
 
         try {
