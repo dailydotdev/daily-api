@@ -230,6 +230,44 @@ describe('userReceivedAward worker', () => {
     );
   });
 
+  it('should create notification for user who received an award on a squad', async () => {
+    const transactionId = randomUUID();
+    const sender = '2';
+    const receiver = '1';
+
+    const transaction = await con.getRepository(UserTransaction).save({
+      id: transactionId,
+      processor: UserTransactionProcessor.Njord,
+      receiverId: receiver,
+      senderId: sender,
+      value: 100,
+      valueIncFees: 100,
+      fee: 0,
+      request: {},
+      flags: { sourceId: 'm' },
+      productId: '9104b834-6fac-4276-a168-0be1294ab371',
+      status: UserTransactionStatus.Success,
+    });
+
+    const result = await invokeNotificationWorker(worker, {
+      transaction: transaction as unknown as ChangeObject<UserTransaction>,
+    });
+
+    expect(result).toBeTruthy();
+    expect(result).toHaveLength(1);
+    expect(result![0].type).toEqual(NotificationType.UserReceivedAward);
+    expect(result![0].ctx.userIds).toEqual(['1']);
+    expect(
+      (result![0].ctx as NotificationAwardContext).transaction,
+    ).toMatchObject(transaction);
+    expect((result![0].ctx as NotificationAwardContext).sender).toBeTruthy();
+    expect((result![0].ctx as NotificationAwardContext).receiver).toBeTruthy();
+    expect((result![0].ctx as NotificationAwardContext).targetUrl).toEqual(
+      `${env.COMMENTS_PREFIX}/idoshamun`,
+    );
+    expect((result![0].ctx as NotificationAwardContext).source).toBeTruthy();
+  });
+
   it('should do nothing if receiver is ghost user', async () => {
     const transaction = await con.getRepository(UserTransaction).save({
       processor: UserTransactionProcessor.Paddle,

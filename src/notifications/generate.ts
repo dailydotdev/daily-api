@@ -153,6 +153,14 @@ export const notificationTitleMap: Record<
   user_gifted_plus: (ctx: NotificationGiftPlusContext) =>
     `Surprise! 🎁 ${ctx.gifter.username} thought of you and gifted you a one-year daily.dev Plus membership! How’s that for a thoughtful surprise?`,
   user_received_award: (ctx: NotificationAwardContext) => {
+    if (ctx.source) {
+      if (ctx.transaction.valueIncFees === 0) {
+        return `Your ${ctx.source.name} Squad just received an Award from ${ctx.sender.username}! Keep creating great content!`;
+      }
+      const coreAmount = formatCoresCurrency(ctx.transaction.valueIncFees);
+      return `Your ${ctx.source.name} Squad just received +${coreAmount} Cores from ${ctx.sender.username} as an Award! Keep creating great content!`;
+    }
+
     if (ctx.transaction.valueIncFees === 0) {
       return `You just received an Award from ${ctx.sender.username}! Keep creating great content!`;
     }
