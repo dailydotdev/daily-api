@@ -41,7 +41,7 @@ import { Product, ProductType } from '../entity/Product';
 import { remoteConfig } from '../remoteConfig';
 import { UserPost } from '../entity/user/UserPost';
 import { Post } from '../entity/posts/Post';
-import { Comment, Source, SourceMember } from '../entity';
+import { Comment, SourceMember } from '../entity';
 import { UserComment } from '../entity/user/UserComment';
 import { saveComment } from '../schema/comments';
 import { generateShortId } from '../ids';
