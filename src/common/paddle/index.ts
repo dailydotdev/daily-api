@@ -53,13 +53,10 @@ import createOrGetConnection from '../../db';
 import { PurchaseTypeError } from '../../errors';
 import { isNullOrUndefined } from '../object';
 
-export const paddleInstance = new Paddle(
-  'be2aa9f8db1192da162e71cfd1e86124286b522b57235dfb31',
-  {
-    environment: 'sandbox',
-    logLevel: isProd ? LogLevel.error : LogLevel.verbose,
-  },
-);
+export const paddleInstance = new Paddle(process.env.PADDLE_API_KEY, {
+  environment: process.env.PADDLE_ENVIRONMENT as Environment,
+  logLevel: isProd ? LogLevel.error : LogLevel.verbose,
+});
 
 type CancelSubscriptionProps = {
   subscriptionId: string;
