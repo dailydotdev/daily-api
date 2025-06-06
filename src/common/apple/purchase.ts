@@ -1,4 +1,4 @@
-import type {
+import {
   Environment,
   JWSTransactionDecodedPayload,
   ResponseBodyV2DecodedPayload,
@@ -18,12 +18,7 @@ import {
 import createOrGetConnection from '../../db';
 import { purchaseCores, UserTransactionError } from '../njord';
 import { TransferError } from '../../errors';
-import {
-  concatTextToNewline,
-  isProd,
-  isTest,
-  updateFlagsStatement,
-} from '../utils';
+import { concatTextToNewline, isTest, updateFlagsStatement } from '../utils';
 import type { Block, KnownBlock } from '@slack/web-api';
 import { webhooks } from '../slack';
 import { checkUserCoresAccess } from '../user';
@@ -153,6 +148,7 @@ export const handleCoresPurchase = async ({
   transactionInfo,
   user,
   notification,
+  environment,
 }: {
   transactionInfo: JWSTransactionDecodedPayload;
   user: Pick<User, 'id' | 'subscriptionFlags' | 'coresRole'>;
@@ -211,8 +207,8 @@ export const handleCoresPurchase = async ({
       .getRepository(UserTransaction)
       .save(payload);
 
-    // TODO feat/cores-iap enable for production https://dailydotdev.slack.com/archives/C07VA1FJTDK/p1745580651217029
-    if (!isProd) {
+    // skip assigning Cores in sandbox environment
+    if (environment !== Environment.SANDBOX) {
       try {
         await purchaseCores({
           transaction: userTransaction,
