@@ -177,4 +177,37 @@ describe('userBoughtCores worker', () => {
 
     expect(sendEmail).not.toHaveBeenCalled();
   });
+
+  it('should send email for successful Apple transaction', async () => {
+    const tx = con.getRepository(UserTransaction).create({
+      processor: UserTransactionProcessor.AppleStoreKit,
+      receiverId: '1',
+      status: UserTransactionStatus.Success,
+      value: 100,
+      valueIncFees: 100,
+      fee: 0,
+      request: {},
+      flags: {},
+      productId: null,
+    });
+    const transaction = await con.getRepository(UserTransaction).save(tx);
+
+    await expectSuccessfulTypedBackground(worker, {
+      transaction: transaction as unknown as ChangeObject<UserTransaction>,
+    });
+
+    const user = usersFixture[0];
+    expect(sendEmail).toHaveBeenCalledWith({
+      send_to_unsubscribed: true,
+      transactional_message_id:
+        CioTransactionalMessageTemplateId.UserBoughtCores,
+      message_data: {
+        core_amount: '+100',
+      },
+      identifiers: {
+        id: user.id,
+      },
+      to: user.email,
+    });
+  });
 });
