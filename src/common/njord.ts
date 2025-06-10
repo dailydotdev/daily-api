@@ -25,7 +25,11 @@ import {
 } from '../entity/user/UserTransaction';
 import { isSpecialUser, parseBigInt, systemUser } from './utils';
 import { ForbiddenError } from 'apollo-server-errors';
-import { checkCoresAccess, createAuthProtectedFn } from './user';
+import {
+  checkCoresAccess,
+  checkUserCoresAccess,
+  createAuthProtectedFn,
+} from './user';
 import {
   deleteRedisKey,
   getRedisObject,
@@ -557,7 +561,11 @@ export const awardSquad = async (
         sourceId,
         role: SourceMemberRoles.Admin,
       },
+      relations: {
+        user: true,
+      },
       order: { createdAt: 'ASC' },
+      take: 10,
     });
   if (!privilegedMembers) {
     throw new ForbiddenError(`Couldn't find users to award for this Squad`);
@@ -566,9 +574,8 @@ export const awardSquad = async (
   let firstAdminUser: SourceMember | undefined;
   for (const pm of privilegedMembers) {
     const specialUser = { userId: pm.userId };
-    const canAward = await checkCoresAccess({
-      ctx,
-      userId: pm.userId,
+    const canAward = checkUserCoresAccess({
+      user: await pm.user,
       requiredRole: CoresRole.Creator,
     });
     if (!specialUser && canAward) {
