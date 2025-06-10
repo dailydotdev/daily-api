@@ -550,13 +550,13 @@ export const awardSquad = async (
     throw new ForbiddenError('You can not award this Squad');
   }
   await ensureSourcePermissions(ctx, sourceId);
-  // Extract the first eligble admin for this squad.
+  // Extract the first eligible admin for this squad.
   const privilegedMembers = await ctx.con.manager
     .getRepository(SourceMember)
     .find({
       where: {
         sourceId,
-        role: In([SourceMemberRoles.Admin, SourceMemberRoles.Moderator]),
+        role: SourceMemberRoles.Admin,
       },
       order: { createdAt: 'ASC' },
     });
