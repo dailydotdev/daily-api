@@ -1546,12 +1546,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<Connection<GQLUserAward>> => {
       await ensureSourcePermissions(ctx, args.id);
-      await ctx.con.getRepository(Source).findOneOrFail({
-        select: {
-          id: true,
-        },
-        where: { id: args.id },
-      });
 
       const pageGenerator = offsetPageGenerator<GQLUserAward>(20, 100);
       const page = pageGenerator.connArgsToPage(args);
@@ -1584,12 +1578,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: Context,
     ): Promise<{ amount: number }> => {
       await ensureSourcePermissions(ctx, args.id);
-      await ctx.con.getRepository(Source).findOneOrFail({
-        select: {
-          id: true,
-        },
-        where: { id: args.id },
-      });
 
       const result = await ctx.con
         .getRepository(UserTransaction)
