@@ -564,15 +564,19 @@ export const awardSquad = async (
     throw new ForbiddenError(`Couldn't find users to award for this Squad`);
   }
 
-  const firstAdminUser = privilegedMembers.find(async (pm) => {
+  let firstAdminUser: SourceMember | undefined;
+  for (const pm of privilegedMembers) {
     const specialUser = { userId: pm.userId };
     const canAward = await checkCoresAccess({
       ctx,
       userId: pm.userId,
       requiredRole: CoresRole.Creator,
     });
-    return !specialUser && canAward;
-  });
+    if (!specialUser && canAward) {
+      firstAdminUser = pm;
+      break;
+    }
+  }
 
   if (!firstAdminUser?.userId) {
     throw new ForbiddenError(`Couldn't find users to award for this Squad`);
