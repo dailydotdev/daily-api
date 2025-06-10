@@ -573,7 +573,7 @@ export const awardSquad = async (
 
   let firstAdminUser: SourceMember | undefined;
   for (const pm of privilegedMembers) {
-    const specialUser = { userId: pm.userId };
+    const specialUser = isSpecialUser({ userId: pm.userId });
     const canAward = checkUserCoresAccess({
       user: await pm.user,
       requiredRole: CoresRole.Creator,
