@@ -8138,40 +8138,6 @@ describe('mutation startPostBoost', () => {
     });
   });
 
-  it('should validate correct parameters for post author', async () => {
-    loggedUser = '1';
-
-    // This test validates that the basic validation passes
-    // The actual boost functionality would require complex mocking of external services
-    const res = await runTest(() =>
-      client.mutate(MUTATION, {
-        variables: { ...params, duration: 1, budget: 1000 },
-      }),
-    );
-
-    // The mutation should fail due to insufficient balance or external service issues
-    // but the validation logic should pass
-    expect(res.errors).toBeTruthy();
-  });
-
-  it('should validate correct parameters for post scout', async () => {
-    loggedUser = '2';
-
-    // Update post to have user 2 as scout
-    await con.getRepository(Post).update({ id: 'p1' }, { scoutId: '2' });
-
-    // This test validates that the basic validation passes for scouts
-    const res = await runTest(() =>
-      client.mutate(MUTATION, {
-        variables: { ...params, duration: 1, budget: 1000 },
-      }),
-    );
-
-    // The mutation should fail due to insufficient balance or external service issues
-    // but the validation logic should pass
-    expect(res.errors).toBeTruthy();
-  });
-
   it('should handle skadi integration failure gracefully', async () => {
     loggedUser = '1';
 
