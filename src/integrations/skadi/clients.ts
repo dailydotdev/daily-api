@@ -45,6 +45,28 @@ export class SkadiClient implements ISkadiClient {
       });
     });
   }
+
+  startPostCampaign(params: {
+    postId: string;
+    userId: string;
+    duration: number;
+    budget: number;
+  }): Promise<{ campaignId: string }> {
+    // TODO: once Ad Server is ready, we should update this.
+    return this.garmr.execute(() => {
+      // return fetchParse(`${this.url}/private/campaign`, {
+      //   ...this.fetchOptions,
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //   },
+      //   body: JSON.stringify(params),
+      // });
+      return Promise.resolve({
+        campaignId: 'mock-campaign-id', // Mock response for testing
+      });
+    });
+  }
 }
 
 const garmrSkadiPersonalizedDigestService = new GarmrService({

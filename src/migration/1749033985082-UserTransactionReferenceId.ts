@@ -7,6 +7,9 @@ export class UserTransactionReferenceId1749033985082
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
+      `ALTER TABLE "user_transaction" ADD "referenceType" text`,
+    );
+    await queryRunner.query(
       `ALTER TABLE "user_transaction" ADD "referenceId" text`,
     );
     await queryRunner.query(
@@ -15,6 +18,9 @@ export class UserTransactionReferenceId1749033985082
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `ALTER TABLE "user_transaction" DROP COLUMN "referenceType"`,
+    );
     await queryRunner.query(
       `DROP INDEX "public"."idx_user_transaction_referenceId"`,
     );

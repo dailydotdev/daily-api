@@ -45,6 +45,10 @@ export enum UserTransactionProcessor {
   AppleStoreKit = SubscriptionProvider.AppleStoreKit,
 }
 
+export enum UserTransactionType {
+  PostBoost = 'post_boost',
+}
+
 @Entity()
 @Index('IDX_user_transaction_flags_providerId', { synchronize: false })
 @Index('idx_user_transaction_receiverId_senderId_productId_status', {
@@ -62,6 +66,9 @@ export class UserTransaction {
   @Column({ type: 'text', nullable: true })
   @Index('idx_user_transaction_referenceId')
   referenceId: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  referenceType: string | null;
 
   @ManyToOne('Product', {
     lazy: true,

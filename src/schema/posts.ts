@@ -47,6 +47,7 @@ import {
   type SourcePostModerationArgs,
   getAllModerationItemsAsAdmin,
   getTranslationRecord,
+  systemUser,
 } from '../common';
 import {
   ArticlePost,
@@ -80,6 +81,7 @@ import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
   NotFoundError,
   SubmissionFailErrorMessage,
+  TransferError,
   TypeOrmError,
   TypeORMQueryFailedError,
 } from '../errors';
@@ -118,6 +120,21 @@ import { queryReadReplica } from '../common/queryReadReplica';
 import { remoteConfig } from '../remoteConfig';
 import { ensurePostRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
+import type { StartPostBoostArgs } from '../common/post/boost';
+import {
+  coresToUsd,
+  getBalance,
+  throwUserTransactionError,
+  transferCores,
+} from '../common/njord';
+import { skadiPersonalizedDigestClient } from '../integrations/skadi';
+import { randomUUID } from 'crypto';
+import {
+  UserTransaction,
+  UserTransactionProcessor,
+  UserTransactionStatus,
+  UserTransactionType,
+} from '../entity/user/UserTransaction';
 
 export interface GQLPost {
   id: string;
@@ -1209,6 +1226,24 @@ export const typeDefs = /* GraphQL */ `
     Toggles post's title between clickbait and non-clickbait
     """
     clickbaitPost(id: ID!): EmptyResponse @auth(requires: [MODERATOR])
+
+    """
+    Start a post boost campaign
+    """
+    startPostBoost(
+      """
+      ID of the post to boost
+      """
+      postId: ID!
+      """
+      Duration of the boost in days (1-30)
+      """
+      duration: Int!
+      """
+      Budget for the boost in cores (1000-100000, must be divisible by 1000)
+      """
+      budget: Int!
+    ): EmptyResponse @auth
 
     """
     Fetch external link's title and image preview
@@ -2313,6 +2348,109 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           contentQuality,
         },
       );
+    },
+    startPostBoost: async (
+      _,
+      { postId, duration, budget }: Omit<StartPostBoostArgs, 'userId'>,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      if (duration < 1 || duration > 30 || duration % 1 !== 0) {
+        throw new ValidationError(
+          'Boost duration must be between 1 and 30 days',
+        );
+      }
+
+      if (budget < 1000 || budget > 100000 || budget % 1000 !== 0) {
+        throw new ValidationError(
+          'Boost budget must be between 1000 and 1000000',
+        );
+      }
+
+      const { userId, con } = ctx;
+      const [post, balance] = await Promise.all([
+        con.getRepository(Post).findOneOrFail({
+          select: ['id', 'flags'],
+          where: [
+            { id: postId, authorId: userId },
+            { id: postId, scoutId: userId },
+          ],
+        }),
+        getBalance({ userId }),
+      ]);
+
+      const total = budget * duration;
+
+      if (post.flags?.boosted) {
+        throw new ValidationError('Post is already boosted');
+      }
+
+      if (total > balance.amount) {
+        throw new ValidationError(
+          `Insufficient balance. You have ${balance.amount} available.`,
+        );
+      }
+
+      await ctx.con.transaction(async (entityManager) => {
+        const { campaignId } =
+          await skadiPersonalizedDigestClient.startPostCampaign({
+            postId,
+            duration,
+            budget: coresToUsd(budget),
+            userId,
+          });
+
+        const userTransaction = await entityManager
+          .getRepository(UserTransaction)
+          .save(
+            entityManager.getRepository(UserTransaction).create({
+              id: randomUUID(),
+              processor: UserTransactionProcessor.Njord,
+              receiverId: systemUser.id,
+              status: UserTransactionStatus.Success,
+              productId: null,
+              senderId: userId,
+              value: total,
+              valueIncFees: 0,
+              fee: 0,
+              request: ctx.requestMeta,
+              flags: { note: 'Post boost' },
+              referenceId: campaignId,
+              referenceType: UserTransactionType.PostBoost,
+            }),
+          );
+
+        await entityManager
+          .getRepository(Post)
+          .update(
+            { id: postId },
+            { flags: updateFlagsStatement<Post>({ boosted: true }) },
+          );
+
+        try {
+          const transfer = await transferCores({
+            ctx,
+            transaction: userTransaction,
+            entityManager,
+          });
+
+          return { transfer };
+        } catch (error) {
+          if (error instanceof TransferError) {
+            await throwUserTransactionError({
+              ctx,
+              entityManager,
+              error,
+              transaction: userTransaction,
+            });
+          }
+
+          throw error;
+        }
+      });
+
+      // write cores transaction and reduce user balance
+
+      return { _: true };
     },
     checkLinkPreview: async (
       _,

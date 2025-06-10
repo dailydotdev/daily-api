@@ -22,4 +22,12 @@ export interface ISkadiClient {
       USERID: string;
     },
   ): Promise<SkadiResponse>;
+  startPostCampaign(params: {
+    postId: string;
+    userId: string;
+    duration: number;
+    budget: number;
+  }): Promise<{
+    campaignId: string;
+  }>;
 }
