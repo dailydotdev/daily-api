@@ -83,6 +83,9 @@ import {
   SourcePostModerationStatus,
 } from '../entity/SourcePostModeration';
 import { remoteConfig } from '../remoteConfig';
+import { GQLCommentAwardArgs } from './comments';
+import { UserTransaction } from '../entity/user/UserTransaction';
+import { UserVote } from '../types';
 
 export interface GQLSourceCategory {
   id: string;
@@ -90,6 +93,12 @@ export interface GQLSourceCategory {
   enabled: boolean;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface GQLUserAward {
+  vote: UserVote;
+  votedAt: Date | null;
+  awarded: boolean;
 }
 
 export interface GQLSource {
@@ -141,6 +150,7 @@ export const typeDefs = /* GraphQL */ `
     totalPosts: Int
     totalUpvotes: Int
     totalMembers: Int
+    totalAwards: Int
   }
 
   type SourceCategory {
@@ -365,6 +375,26 @@ export const typeDefs = /* GraphQL */ `
   }
 
   ${toGQLEnum(SourceType, 'SourceType')}
+
+  type UserSourceEdge {
+    node: UserTransaction!
+    """
+    Used in before and after args
+    """
+    cursor: String!
+  }
+  type UserSourceConnection {
+    pageInfo: PageInfo!
+    edges: [UserSourceEdge!]!
+    """
+    The original query in case of a search operation
+    """
+    query: String
+  }
+
+  type SourceBalance {
+    amount: Int!
+  }
 
   extend type Query {
     """
@@ -636,6 +666,34 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): SourceCategoryConnection!
+
+    """
+    Get Source Awards by source id
+    """
+    sourceAwards(
+      """
+      Id of the relevant source to return Awards
+      """
+      id: ID!
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+    ): UserSourceConnection!
+
+    """
+    Get Source Awards count
+    """
+    sourceAwardsTotal(
+      """
+      Id of the relevant source to return Awards
+      """
+      id: ID!
+    ): SourceBalance!
   }
 
   extend type Mutation {
@@ -1480,6 +1538,55 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         undefined,
         true,
       );
+    },
+    sourceAwards: async (
+      _,
+      args: GQLCommentAwardArgs,
+      ctx: Context,
+      info,
+    ): Promise<Connection<GQLUserAward>> => {
+      await ensureSourcePermissions(ctx, args.id);
+
+      const pageGenerator = offsetPageGenerator<GQLUserAward>(20, 100);
+      const page = pageGenerator.connArgsToPage(args);
+
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => pageGenerator.hasNextPage(page, nodeSize),
+        (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder.andWhere(
+            `${builder.alias}.flags->>'sourceId' = :sourceId`,
+            {
+              sourceId: args.id,
+            },
+          );
+
+          builder.queryBuilder.limit(page.limit).offset(page.offset);
+
+          return builder;
+        },
+        undefined,
+        true,
+      );
+    },
+    sourceAwardsTotal: async (
+      _,
+      args: GQLCommentAwardArgs,
+      ctx: Context,
+    ): Promise<{ amount: number }> => {
+      await ensureSourcePermissions(ctx, args.id);
+
+      const result = await ctx.con
+        .getRepository(UserTransaction)
+        .createQueryBuilder()
+        .select('COALESCE(SUM(value), 0)', 'amount')
+        .where(`flags->>'sourceId' = :sourceId`, { sourceId: args.id })
+        .getRawOne();
+
+      return result;
     },
     sources: async (
       _,

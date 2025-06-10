@@ -109,7 +109,7 @@ describe('GET /rss/b/:slug', () => {
 
   it('should fail when user does not exist', async () => {
     await con.getRepository(Settings).save({ userId: '1', bookmarkSlug: slug });
-    await con.getRepository(User).delete({});
+    await con.getRepository(User).createQueryBuilder().delete().execute();
     return request(app.server).get(path).expect(404);
   });
 

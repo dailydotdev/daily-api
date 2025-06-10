@@ -19,11 +19,12 @@ export type UserTransactionFlags = Partial<{
   providerId: string;
   error: string | null;
   emailSent: boolean;
+  sourceId: string;
 }>;
 
 export type UserTransactionFlagsPublic = Pick<
   UserTransactionFlags,
-  'note' | 'error'
+  'note' | 'error' | 'sourceId'
 >;
 
 export type UserTransactionRequest = RequestMeta;
@@ -55,6 +56,7 @@ export enum UserTransactionType {
   synchronize: false,
 })
 @Index('idx_user_transaction_value_desc', { synchronize: false })
+@Index('idx_user_transaction_flags_sourceId', { synchronize: false })
 export class UserTransaction {
   @PrimaryGeneratedColumn('uuid')
   id: string;

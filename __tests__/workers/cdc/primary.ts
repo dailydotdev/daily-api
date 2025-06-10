@@ -2170,7 +2170,9 @@ describe('source', () => {
       .update({ type: SourceType.Machine }, { type: SourceType.Squad });
     await con
       .getRepository(SquadSource)
-      .update({}, { moderationRequired: true });
+      .createQueryBuilder()
+      .update({ moderationRequired: true })
+      .execute();
     await con.getRepository(SourcePostModeration).save([
       {
         sourceId: 'a',

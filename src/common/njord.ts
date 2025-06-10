@@ -1,30 +1,35 @@
 import {
-  createClient,
   type CallOptions,
   type ConnectError,
+  createClient,
 } from '@connectrpc/connect';
 import { createGrpcTransport } from '@connectrpc/connect-node';
 import {
+  type BalanceChange,
   Credits,
   Currency,
   EntityType,
   GetBalanceRequest,
   GetBalanceResponse,
   TransferRequest,
+  type TransferResult,
   TransferStatus,
   TransferType,
-  type BalanceChange,
-  type TransferResult,
 } from '@dailydotdev/schema';
 import type { AuthContext } from '../Context';
 import {
   UserTransaction,
+  UserTransactionFlags,
   UserTransactionProcessor,
   UserTransactionStatus,
 } from '../entity/user/UserTransaction';
 import { isSpecialUser, parseBigInt, systemUser } from './utils';
 import { ForbiddenError } from 'apollo-server-errors';
-import { checkCoresAccess, createAuthProtectedFn } from './user';
+import {
+  checkCoresAccess,
+  checkUserCoresAccess,
+  createAuthProtectedFn,
+} from './user';
 import {
   deleteRedisKey,
   getRedisObject,
@@ -40,18 +45,19 @@ import { Product, ProductType } from '../entity/Product';
 import { remoteConfig } from '../remoteConfig';
 import { UserPost } from '../entity/user/UserPost';
 import { Post } from '../entity/posts/Post';
-import { Comment } from '../entity';
+import { Comment, SourceMember } from '../entity';
 import { UserComment } from '../entity/user/UserComment';
 import { saveComment } from '../schema/comments';
 import { generateShortId } from '../ids';
 import { checkWithVordr, VordrFilterType } from './vordr';
-import { serviceClientId, CoresRole } from '../types';
+import { CoresRole, serviceClientId } from '../types';
 import { GraphQLError } from 'graphql';
-import { randomUUID } from 'node:crypto';
+import crypto, { randomUUID } from 'node:crypto';
 import { logger } from '../logger';
 import { signJwt } from '../auth';
-import crypto from 'node:crypto';
 import { Message } from '@bufbuild/protobuf';
+import { ensureSourcePermissions } from '../schema/sources';
+import { SourceMemberRoles } from '../roles';
 
 const transport = createGrpcTransport({
   baseUrl: process.env.NJORD_ORIGIN,
@@ -113,6 +119,7 @@ export type TransactionProps = {
   productId: string;
   receiverId: string;
   note?: string;
+  flags?: Pick<UserTransactionFlags, 'sourceId'>;
 };
 
 export const createTransaction = createAuthProtectedFn(
@@ -123,6 +130,7 @@ export const createTransaction = createAuthProtectedFn(
     productId,
     receiverId,
     note,
+    flags,
   }: TransactionProps & {
     id?: string;
     entityManager: EntityManager;
@@ -148,6 +156,7 @@ export const createTransaction = createAuthProtectedFn(
         request: ctx.requestMeta,
         flags: {
           note,
+          ...flags,
         },
       });
 
@@ -489,9 +498,13 @@ export enum AwardType {
   Post = 'POST',
   User = 'USER',
   Comment = 'COMMENT',
+  Squad = 'SQUAD',
 }
 
-export type AwardInput = Pick<TransactionProps, 'productId' | 'note'> & {
+export type AwardInput = Pick<
+  TransactionProps,
+  'productId' | 'note' | 'flags'
+> & {
   entityId: string;
   type: AwardType;
 };
@@ -531,6 +544,60 @@ const canAward = async ({
   }
 };
 
+export const awardSquad = async (
+  props: AwardInput,
+  ctx: AuthContext,
+): Promise<TransactionCreated> => {
+  const sourceId = props.entityId;
+  if (!sourceId) {
+    throw new ForbiddenError('You can not award this Squad');
+  }
+  await ensureSourcePermissions(ctx, sourceId);
+  // Extract the first eligible admin for this squad.
+  const privilegedMembers = await ctx.con.manager
+    .getRepository(SourceMember)
+    .find({
+      where: {
+        sourceId,
+        role: SourceMemberRoles.Admin,
+      },
+      relations: {
+        user: true,
+      },
+      order: { createdAt: 'ASC' },
+      take: 10,
+    });
+  if (!privilegedMembers) {
+    throw new ForbiddenError(`Couldn't find users to award for this Squad`);
+  }
+
+  let firstAdminUser: SourceMember | undefined;
+  for (const pm of privilegedMembers) {
+    const specialUser = isSpecialUser({ userId: pm.userId });
+    const canAward = checkUserCoresAccess({
+      user: await pm.user,
+      requiredRole: CoresRole.Creator,
+    });
+    if (!specialUser && canAward) {
+      firstAdminUser = pm;
+      break;
+    }
+  }
+
+  if (!firstAdminUser?.userId) {
+    throw new ForbiddenError(`Couldn't find users to award for this Squad`);
+  }
+
+  return awardUser(
+    {
+      ...props,
+      entityId: firstAdminUser.userId,
+      flags: { sourceId: props.entityId },
+    },
+    ctx,
+  );
+};
+
 export const awardUser = async (
   props: AwardInput,
   ctx: AuthContext,
@@ -555,7 +622,7 @@ export const awardUser = async (
 
     const { transaction, transfer } = await ctx.con.transaction(
       async (entityManager) => {
-        const { entityId: receiverId, note } = props;
+        const { entityId: receiverId, note, flags } = props;
 
         const transaction = await createTransaction({
           ctx,
@@ -564,6 +631,7 @@ export const awardUser = async (
           productId: product.id,
           receiverId,
           note,
+          flags,
         });
 
         try {
