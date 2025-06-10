@@ -122,7 +122,6 @@ import { ensurePostRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
 import type { StartPostBoostArgs } from '../common/post/boost';
 import {
-  coresToUsd,
   getBalance,
   throwUserTransactionError,
   transferCores,
@@ -2391,13 +2390,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       await ctx.con.transaction(async (entityManager) => {
-        const { campaignId } =
-          await skadiPersonalizedDigestClient.startPostCampaign({
-            postId,
-            duration,
-            budget: coresToUsd(budget),
-            userId,
-          });
+        const { campaignId } = await skadiPersonalizedDigestClient
+          .startPostCampaign
+          //   {
+          //   postId,
+          //   duration,
+          //   budget: coresToUsd(budget),
+          //   userId,
+          // }
+          ();
 
         const userTransaction = await entityManager
           .getRepository(UserTransaction)
