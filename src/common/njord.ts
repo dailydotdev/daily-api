@@ -578,7 +578,14 @@ export const awardSquad = async (
     throw new ForbiddenError(`Couldn't find users to award for this Squad`);
   }
 
-  return awardUser({ ...props, entityId: firstAdminUser.userId }, ctx);
+  return awardUser(
+    {
+      ...props,
+      entityId: firstAdminUser.userId,
+      flags: { sourceId: props.entityId },
+    },
+    ctx,
+  );
 };
 
 export const awardUser = async (
