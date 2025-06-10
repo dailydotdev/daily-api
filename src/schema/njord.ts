@@ -166,10 +166,6 @@ export const typeDefs = /* GraphQL */ `
     value: Int!
   }
 
-  input AwardSquadFlagsInput {
-    sourceId: String
-  }
-
   extend type Query {
     """
     List products
@@ -275,11 +271,6 @@ export const typeDefs = /* GraphQL */ `
       Note for the receiver
       """
       note: String
-
-      """
-      Extra flags for the transaction
-      """
-      flags: AwardSquadFlagsInput
     ): TransactionCreated @auth
   }
 `;

@@ -1,20 +1,20 @@
 import {
-  createClient,
   type CallOptions,
   type ConnectError,
+  createClient,
 } from '@connectrpc/connect';
 import { createGrpcTransport } from '@connectrpc/connect-node';
 import {
+  type BalanceChange,
   Credits,
   Currency,
   EntityType,
   GetBalanceRequest,
   GetBalanceResponse,
   TransferRequest,
+  type TransferResult,
   TransferStatus,
   TransferType,
-  type BalanceChange,
-  type TransferResult,
 } from '@dailydotdev/schema';
 import type { AuthContext } from '../Context';
 import {
@@ -37,6 +37,7 @@ import { ConflictError, NjordErrorMessages, TransferError } from '../errors';
 import { GarmrService } from '../integrations/garmr';
 import { BrokenCircuitError } from 'cockatiel';
 import type { EntityManager } from 'typeorm';
+import { In } from 'typeorm';
 import { Product, ProductType } from '../entity/Product';
 import { remoteConfig } from '../remoteConfig';
 import { UserPost } from '../entity/user/UserPost';
@@ -46,14 +47,14 @@ import { UserComment } from '../entity/user/UserComment';
 import { saveComment } from '../schema/comments';
 import { generateShortId } from '../ids';
 import { checkWithVordr, VordrFilterType } from './vordr';
-import { serviceClientId, CoresRole } from '../types';
+import { CoresRole, serviceClientId } from '../types';
 import { GraphQLError } from 'graphql';
-import { randomUUID } from 'node:crypto';
+import crypto, { randomUUID } from 'node:crypto';
 import { logger } from '../logger';
 import { signJwt } from '../auth';
-import crypto from 'node:crypto';
 import { Message } from '@bufbuild/protobuf';
 import { ensureSourcePermissions } from '../schema/sources';
+import { SourceMemberRoles } from '../roles';
 
 const transport = createGrpcTransport({
   baseUrl: process.env.NJORD_ORIGIN,
@@ -544,20 +545,40 @@ export const awardSquad = async (
   props: AwardInput,
   ctx: AuthContext,
 ): Promise<TransactionCreated> => {
-  const sourceId = props.flags?.sourceId;
+  const sourceId = props.entityId;
   if (!sourceId) {
     throw new ForbiddenError('You can not award this Squad');
   }
   await ensureSourcePermissions(ctx, sourceId);
-  // Ensure the receiving user is actually part of this source
-  await ctx.con.manager.getRepository(SourceMember).findOneOrFail({
-    select: ['userId'],
-    where: {
-      sourceId,
-      userId: props.entityId,
-    },
+  // Extract the first eligble admin for this squad.
+  const privilegedMembers = await ctx.con.manager
+    .getRepository(SourceMember)
+    .find({
+      where: {
+        sourceId,
+        role: In([SourceMemberRoles.Admin, SourceMemberRoles.Moderator]),
+      },
+      order: { createdAt: 'ASC' },
+    });
+  if (!privilegedMembers) {
+    throw new ForbiddenError(`Couldn't find users to award for this Squad`);
+  }
+
+  const firstAdminUser = privilegedMembers.find(async (pm) => {
+    const specialUser = { userId: pm.userId };
+    const canAward = await checkCoresAccess({
+      ctx,
+      userId: pm.userId,
+      requiredRole: CoresRole.Creator,
+    });
+    return !specialUser && canAward;
   });
-  return awardUser(props, ctx);
+
+  if (!firstAdminUser?.userId) {
+    throw new ForbiddenError(`Couldn't find users to award for this Squad`);
+  }
+
+  return awardUser({ ...props, entityId: firstAdminUser.userId }, ctx);
 };
 
 export const awardUser = async (
