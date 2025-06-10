@@ -3140,7 +3140,6 @@ const disallowHandles = [
   'additional-aws-regions',
   'apidocumentation',
   'api-documentation',
-  'apollographql',
   'apollo-graphql',
   'applitools',
   'appstream',
