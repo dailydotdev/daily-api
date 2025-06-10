@@ -2448,8 +2448,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }
       });
 
-      // write cores transaction and reduce user balance
-
       return { _: true };
     },
     checkLinkPreview: async (
