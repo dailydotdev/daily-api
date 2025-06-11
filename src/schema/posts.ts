@@ -137,7 +137,12 @@ import {
   UserTransactionType,
 } from '../entity/user/UserTransaction';
 import { skadiBoostClient } from '../integrations/skadi/clients';
-import { z } from 'zod';
+import {
+  validatePostBoostArgs,
+  validatePostBoostPermissions,
+  checkPostAlreadyBoosted,
+} from '../common/post/boost';
+import type { PostBoostReach } from '../integrations/skadi';
 
 export interface GQLPost {
   id: string;
@@ -851,6 +856,15 @@ export const typeDefs = /* GraphQL */ `
     amount: Int!
   }
 
+  type Reach {
+    min: Int!
+    max: Int!
+  }
+
+  type PostBoostEstimate {
+    estimatedReach: Reach!
+  }
+
   extend type Query {
     """
     Get specific squad post moderation item
@@ -1007,6 +1021,24 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): PostBalance!
+
+    """
+    Estimate the reach for a post boost campaign
+    """
+    boostEstimatedReach(
+      """
+      ID of the post to boost
+      """
+      postId: ID!
+      """
+      Duration of the boost in days (1-30)
+      """
+      duration: Int!
+      """
+      Budget for the boost in cores (1000-100000, must be divisible by 1000)
+      """
+      budget: Int!
+    ): PostBoostEstimate! @auth
   }
 
   extend type Mutation {
@@ -1945,6 +1977,25 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return result;
     },
+    boostEstimatedReach: async (
+      _,
+      args: Omit<StartPostBoostArgs, 'userId'>,
+      ctx: AuthContext,
+    ): Promise<PostBoostReach> => {
+      const { postId, duration, budget } = args;
+      validatePostBoostArgs(args);
+      const post = await validatePostBoostPermissions(ctx, postId);
+      checkPostAlreadyBoosted(post);
+
+      const { estimatedReach } = await skadiBoostClient.estimatePostBoostReach({
+        postId,
+        userId: ctx.userId,
+        duration,
+        budget,
+      });
+
+      return { estimatedReach };
+    },
   },
   Mutation: {
     createSourcePostModeration: async (
@@ -2357,47 +2408,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: Omit<StartPostBoostArgs, 'userId'>,
       ctx: AuthContext,
     ): Promise<TransactionCreated> => {
-      // TODO: remove this once we are ready for production
-      if (!ctx.isTeamMember) {
-        throw new ForbiddenError('You must be a team member to boost posts');
-      }
-
       const { postId, duration, budget } = args;
-      const validationSchema = z.object({
-        budget: z
-          .number()
-          .int()
-          .min(1000)
-          .max(100000)
-          .refine((value) => value % 1000 === 0),
-        duration: z
-          .number()
-          .int()
-          .min(1)
-          .max(30)
-          .refine((value) => value % 1 === 0),
-      });
+      validatePostBoostArgs(args);
+      const post = await validatePostBoostPermissions(ctx, postId);
+      checkPostAlreadyBoosted(post);
 
-      const result = validationSchema.safeParse(args);
-
-      if (result.error) {
-        throw new ValidationError(result.error.errors[0].message);
-      }
-
-      const { userId, con } = ctx;
-      const post = await con.getRepository(Post).findOneOrFail({
-        select: ['id', 'flags'],
-        where: [
-          { id: postId, authorId: userId },
-          { id: postId, scoutId: userId },
-        ],
-      });
-
+      const { userId } = ctx;
       const total = budget * duration;
-
-      if (post.flags?.boosted) {
-        throw new ValidationError('Post is already boosted');
-      }
 
       const request = await ctx.con.transaction(async (entityManager) => {
         const { campaignId } = await skadiBoostClient
