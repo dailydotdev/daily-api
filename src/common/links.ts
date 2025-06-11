@@ -42,11 +42,12 @@ export const squadsFeaturedPage = `${process.env.COMMENTS_PREFIX}/squads/discove
 
 export const standardizeURL = (url: string): string => {
   const domain = subtractDomain(url);
-  if (!isExcluded(domain)) {
-    return url.split('?')[0];
+
+  if (isExcluded(domain)) {
+    return url;
   }
 
-  return url;
+  return url.split('?')[0];
 };
 
 export function isValidHttpUrl(link: string): boolean {
