@@ -8315,3 +8315,130 @@ describe('mutation startPostBoost', () => {
     expect(post?.flags?.boosted).toBe(true);
   });
 });
+
+describe('query boostEstimatedReach', () => {
+  const QUERY = `
+    query BoostEstimatedReach($postId: ID!, $duration: Int!, $budget: Int!) {
+      boostEstimatedReach(postId: $postId, duration: $duration, budget: $budget) {
+        estimatedReach {
+          min
+          max
+        }
+      }
+    }
+  `;
+
+  const params = { postId: 'p1', duration: 7, budget: 5000 };
+
+  beforeEach(async () => {
+    isTeamMember = true; // TODO: remove when we are about to run production
+    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: params },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return an error if duration is less than 1', async () => {
+    loggedUser = '1';
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { ...params, duration: 0 } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should return an error if duration is greater than 30', async () => {
+    loggedUser = '1';
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { ...params, duration: 31 } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should return an error if budget is less than 1000', async () => {
+    loggedUser = '1';
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { ...params, budget: 999 } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should return an error if budget is greater than 100000', async () => {
+    loggedUser = '1';
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { ...params, budget: 100001 } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should return an error if budget is not divisible by 1000', async () => {
+    loggedUser = '1';
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { ...params, budget: 1500 } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should return an error if post does not exist', async () => {
+    loggedUser = '1';
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { ...params, postId: 'nonexistent' } },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return an error if user is not the author or scout of the post', async () => {
+    loggedUser = '2'; // User 2 is not the author or scout of post p1
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: params },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return an error if post is already boosted', async () => {
+    loggedUser = '1';
+    // Set the post as already boosted
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement<Post>({ boosted: true }),
+      },
+    );
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: params },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should the response returned by skadi client', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { ...params, duration: 1, budget: 1000 },
+    });
+
+    expect(res.data.boostEstimatedReach.estimatedReach).toEqual({
+      max: 120,
+      min: 80,
+    });
+  });
+});
