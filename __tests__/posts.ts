@@ -7976,7 +7976,10 @@ describe('mutation startPostBoost', () => {
   const MUTATION = `
     mutation StartPostBoost($postId: ID!, $duration: Int!, $budget: Int!) {
       startPostBoost(postId: $postId, duration: $duration, budget: $budget) {
-        _
+        transactionId
+        balance {
+          amount
+        }
       }
     }
   `;

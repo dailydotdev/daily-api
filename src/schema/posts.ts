@@ -48,6 +48,7 @@ import {
   getAllModerationItemsAsAdmin,
   getTranslationRecord,
   systemUser,
+  parseBigInt,
 } from '../common';
 import {
   ArticlePost,
@@ -121,7 +122,11 @@ import { remoteConfig } from '../remoteConfig';
 import { ensurePostRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
 import type { StartPostBoostArgs } from '../common/post/boost';
-import { throwUserTransactionError, transferCores } from '../common/njord';
+import {
+  throwUserTransactionError,
+  transferCores,
+  type TransactionCreated,
+} from '../common/njord';
 import { randomUUID } from 'crypto';
 import {
   UserTransaction,
@@ -1239,7 +1244,7 @@ export const typeDefs = /* GraphQL */ `
       Budget for the boost in cores (1000-100000, must be divisible by 1000)
       """
       budget: Int!
-    ): EmptyResponse @auth
+    ): TransactionCreated @auth
 
     """
     Fetch external link's title and image preview
@@ -2349,7 +2354,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       _,
       args: Omit<StartPostBoostArgs, 'userId'>,
       ctx: AuthContext,
-    ): Promise<GQLEmptyResponse> => {
+    ): Promise<TransactionCreated> => {
       const { postId, duration, budget } = args;
       const validationSchema = z.object({
         budget: z
@@ -2387,7 +2392,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('Post is already boosted');
       }
 
-      await ctx.con.transaction(async (entityManager) => {
+      const request = await ctx.con.transaction(async (entityManager) => {
         const { campaignId } = await skadiBoostClient
           .startPostCampaign
           //   {
@@ -2432,7 +2437,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             entityManager,
           });
 
-          return { transfer };
+          return {
+            transfer,
+            transaction: {
+              transactionId: transfer.id,
+              balance: {
+                amount: parseBigInt(transfer.senderBalance!.newBalance),
+              },
+            },
+          };
         } catch (error) {
           if (error instanceof TransferError) {
             await throwUserTransactionError({
@@ -2447,7 +2460,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }
       });
 
-      return { _: true };
+      return request.transaction;
     },
     checkLinkPreview: async (
       _,
