@@ -2355,6 +2355,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: Omit<StartPostBoostArgs, 'userId'>,
       ctx: AuthContext,
     ): Promise<TransactionCreated> => {
+      // TODO: remove this once we are ready for production
+      if (!ctx.isTeamMember) {
+        throw new ForbiddenError('You must be a team member to boost posts');
+      }
+
       const { postId, duration, budget } = args;
       const validationSchema = z.object({
         budget: z
