@@ -7987,6 +7987,7 @@ describe('mutation startPostBoost', () => {
   const params = { postId: 'p1', duration: 7, budget: 5000 };
 
   beforeEach(async () => {
+    isTeamMember = true; // TODO: remove when we are about to run production
     await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
   });
 
