@@ -287,7 +287,7 @@ export const createExternalLink = async ({
   args,
 }: CreateExternalLinkArgs): Promise<Post> => {
   const { title, url, image, authorId, sourceId, commentary } = args;
-  await validateCommentary(commentary!);
+  validateCommentary(commentary!);
   const id = await generateShortId();
   const isVisible = !!title;
 
