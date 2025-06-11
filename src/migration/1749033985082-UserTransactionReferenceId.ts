@@ -13,7 +13,7 @@ export class UserTransactionReferenceId1749033985082
       `ALTER TABLE "user_transaction" ADD "referenceId" text`,
     );
     await queryRunner.query(
-      `CREATE INDEX "idx_user_transaction_referenceId" ON "user_transaction" ("referenceId") `,
+      `CREATE INDEX IF NOT EXISTS "idx_user_transaction_referenceId" ON "user_transaction" ("referenceId") `,
     );
   }
 
