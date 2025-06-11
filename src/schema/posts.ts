@@ -49,6 +49,7 @@ import {
   getTranslationRecord,
   systemUser,
   parseBigInt,
+  isProd,
 } from '../common';
 import {
   ArticlePost,
@@ -123,6 +124,7 @@ import { ensurePostRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
 import type { StartPostBoostArgs } from '../common/post/boost';
 import {
+  getBalance,
   throwUserTransactionError,
   transferCores,
   type TransactionCreated,
@@ -2436,6 +2438,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           );
 
         try {
+          if (isProd) {
+            return {
+              transaction: {
+                transactionId: userTransaction.id,
+                balance: { amount: (await getBalance({ userId })).amount },
+              },
+            };
+          }
+
           const transfer = await transferCores({
             ctx,
             transaction: userTransaction,
