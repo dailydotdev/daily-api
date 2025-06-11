@@ -22,7 +22,7 @@ export class UserTransactionReferenceId1749033985082
       `ALTER TABLE "user_transaction" DROP COLUMN "referenceType"`,
     );
     await queryRunner.query(
-      `DROP INDEX "public"."idx_user_transaction_referenceId"`,
+      `DROP INDEX IF EXISTS "public"."idx_user_transaction_referenceId"`,
     );
     await queryRunner.query(
       `ALTER TABLE "user_transaction" DROP COLUMN "referenceId"`,
