@@ -116,6 +116,18 @@ export const skadiPersonalizedDigestClient = new SkadiClient(
   },
 );
 
+const garmBoostService = new GarmrService({
+  service: SkadiClient.name,
+  breakerOpts: {
+    halfOpenAfter: 5 * 1000,
+    threshold: 0.1,
+    duration: 10 * 1000,
+  },
+  retryOpts: {
+    maxAttempts: 1,
+  },
+});
+
 export const skadiBoostClient = new SkadiClient(process.env.SKADI_ORIGIN, {
-  garmr: garmrSkadiPersonalizedDigestService,
+  garmr: garmBoostService,
 });
