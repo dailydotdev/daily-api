@@ -69,10 +69,9 @@ import {
   ioRedisPool,
   setRedisObject,
   deleteRedisKey,
-  setRedisObjectWithExpiry,
 } from '../src/redis';
 import { checkHasMention, markdown } from '../src/common/markdown';
-import { generateStorageKey, StorageKey, StorageTopic } from '../src/config';
+import { generateStorageKey, StorageTopic } from '../src/config';
 import { UserVote, UserVoteEntity } from '../src/types';
 import { rateLimiterName } from '../src/directive/rateLimit';
 import { badUsersFixture, usersFixture } from './fixture/user';
@@ -7984,112 +7983,84 @@ describe('mutation startPostBoost', () => {
 
   const params = { postId: 'p1', duration: 7, budget: 5000 };
 
-  const runTest = async <T = unknown>(execute: () => Promise<T>) => {
+  beforeEach(async () => {
     await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
-    const redisKey = generateStorageKey(
-      StorageTopic.Njord,
-      StorageKey.CoresBalance,
-      loggedUser,
-    );
-    await setRedisObjectWithExpiry(
-      redisKey,
-      JSON.stringify({ amount: 1000000 }),
-      120,
-    );
-
-    return execute();
-  };
+  });
 
   it('should not authorize when not logged in', () =>
-    runTest(() =>
-      testMutationErrorCode(
-        client,
-        { mutation: MUTATION, variables: params },
-        'UNAUTHENTICATED',
-      ),
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'UNAUTHENTICATED',
     ));
 
   it('should return an error if duration is less than 1', async () => {
     loggedUser = '1';
 
-    return runTest(() =>
-      testMutationErrorCode(
-        client,
-        { mutation: MUTATION, variables: { ...params, duration: 0 } },
-        'GRAPHQL_VALIDATION_FAILED',
-      ),
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...params, duration: 0 } },
+      'GRAPHQL_VALIDATION_FAILED',
     );
   });
 
   it('should return an error if duration is greater than 30', async () => {
     loggedUser = '1';
 
-    return runTest(() =>
-      testMutationErrorCode(
-        client,
-        { mutation: MUTATION, variables: { ...params, duration: 31 } },
-        'GRAPHQL_VALIDATION_FAILED',
-      ),
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...params, duration: 31 } },
+      'GRAPHQL_VALIDATION_FAILED',
     );
   });
 
   it('should return an error if budget is less than 1000', async () => {
     loggedUser = '1';
 
-    return runTest(() =>
-      testMutationErrorCode(
-        client,
-        { mutation: MUTATION, variables: { ...params, budget: 999 } },
-        'GRAPHQL_VALIDATION_FAILED',
-      ),
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...params, budget: 999 } },
+      'GRAPHQL_VALIDATION_FAILED',
     );
   });
 
   it('should return an error if budget is greater than 100000', async () => {
     loggedUser = '1';
 
-    return runTest(() =>
-      testMutationErrorCode(
-        client,
-        { mutation: MUTATION, variables: { ...params, budget: 100001 } },
-        'GRAPHQL_VALIDATION_FAILED',
-      ),
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...params, budget: 100001 } },
+      'GRAPHQL_VALIDATION_FAILED',
     );
   });
 
   it('should return an error if budget is not divisible by 1000', async () => {
     loggedUser = '1';
 
-    return runTest(() =>
-      testMutationErrorCode(
-        client,
-        { mutation: MUTATION, variables: { ...params, budget: 1500 } },
-        'GRAPHQL_VALIDATION_FAILED',
-      ),
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...params, budget: 1500 } },
+      'GRAPHQL_VALIDATION_FAILED',
     );
   });
 
   it('should return an error if post does not exist', async () => {
     loggedUser = '1';
 
-    return runTest(() =>
-      testMutationErrorCode(
-        client,
-        { mutation: MUTATION, variables: { ...params, postId: 'nonexistent' } },
-        'NOT_FOUND',
-      ),
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...params, postId: 'nonexistent' } },
+      'NOT_FOUND',
     );
   });
 
   it('should return an error if user is not the author or scout of the post', async () => {
     loggedUser = '2'; // User 2 is not the author or scout of post p1
 
-    return runTest(() =>
-      testMutationErrorCode(
-        client,
-        { mutation: MUTATION, variables: params },
-        'NOT_FOUND',
-      ),
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'NOT_FOUND',
     );
   });
 
@@ -8103,39 +8074,11 @@ describe('mutation startPostBoost', () => {
       },
     );
 
-    return runTest(() =>
-      testMutationErrorCode(
-        client,
-        { mutation: MUTATION, variables: params },
-        'GRAPHQL_VALIDATION_FAILED',
-      ),
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'GRAPHQL_VALIDATION_FAILED',
     );
-  });
-
-  it('should return an error if user has insufficient balance', async () => {
-    loggedUser = '1';
-
-    // This test will fail at the balance check since we can't easily mock the njord functions
-    // The validation logic is still tested above
-    return runTest(async () => {
-      const redisKey = generateStorageKey(
-        StorageTopic.Njord,
-        StorageKey.CoresBalance,
-        loggedUser,
-      );
-
-      await setRedisObjectWithExpiry(
-        redisKey,
-        JSON.stringify({ amount: 0 }),
-        120,
-      );
-
-      return testMutationErrorCode(
-        client,
-        { mutation: MUTATION, variables: params },
-        'GRAPHQL_VALIDATION_FAILED',
-      );
-    });
   });
 
   it('should handle skadi integration failure gracefully', async () => {
@@ -8158,54 +8101,9 @@ describe('mutation startPostBoost', () => {
 
     // This test validates that the mutation handles external service failures
     // In a real scenario, this would test the error handling when skadi service is down
-    const res = await runTest(() =>
-      client.mutate(MUTATION, {
-        variables: { ...params, duration: 1, budget: 1000 },
-      }),
-    );
-
-    // The mutation should fail due to external service issues
-    // but the validation logic should pass
-    expect(res.errors).toBeTruthy();
-
-    // Verify no new transactions were created
-    const finalTransactionCount = await con
-      .getRepository(UserTransaction)
-      .count({
-        where: { senderId: '1', referenceType: 'PostBoost' },
-      });
-    expect(finalTransactionCount).toBe(initialTransactionCount);
-
-    // Verify the boosted flag is still false
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.flags?.boosted).toBe(false);
-  });
-
-  it('should handle njord balance check failure gracefully', async () => {
-    loggedUser = '1';
-
-    // Ensure the post is not boosted initially
-    await con.getRepository(Post).update(
-      { id: 'p1' },
-      {
-        flags: updateFlagsStatement<Post>({ boosted: false }),
-      },
-    );
-
-    // Get initial transaction count
-    const initialTransactionCount = await con
-      .getRepository(UserTransaction)
-      .count({
-        where: { senderId: '1', referenceType: 'PostBoost' },
-      });
-
-    // This test validates that the mutation handles balance check failures
-    // In a real scenario, this would test the error handling when njord service is down
-    const res = await runTest(() =>
-      client.mutate(MUTATION, {
-        variables: { ...params, duration: 1, budget: 1000 },
-      }),
-    );
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, duration: 1, budget: 1000 },
+    });
 
     // The mutation should fail due to external service issues
     // but the validation logic should pass
@@ -8244,11 +8142,9 @@ describe('mutation startPostBoost', () => {
 
     // This test validates that the mutation handles transfer failures
     // In a real scenario, this would test the error handling when transfer fails
-    const res = await runTest(() =>
-      client.mutate(MUTATION, {
-        variables: { ...params, duration: 1, budget: 1000 },
-      }),
-    );
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, duration: 1, budget: 1000 },
+    });
 
     // The mutation should fail due to external service issues
     // but the validation logic should pass
@@ -8286,11 +8182,9 @@ describe('mutation startPostBoost', () => {
       });
 
     // Try to boost with invalid parameters
-    const res = await runTest(() =>
-      client.mutate(MUTATION, {
-        variables: { ...params, duration: 0 }, // Invalid duration
-      }),
-    );
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, duration: 0 }, // Invalid duration
+    });
 
     // Should fail validation
     expect(res.errors).toBeTruthy();
@@ -8319,11 +8213,9 @@ describe('mutation startPostBoost', () => {
       });
 
     // Try to boost a non-existent post
-    const res = await runTest(() =>
-      client.mutate(MUTATION, {
-        variables: { ...params, postId: 'nonexistent' },
-      }),
-    );
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, postId: 'nonexistent' },
+    });
 
     // Should fail with not found error
     expect(res.errors).toBeTruthy();
@@ -8360,11 +8252,9 @@ describe('mutation startPostBoost', () => {
       });
 
     // Try to boost without authorization
-    const res = await runTest(() =>
-      client.mutate(MUTATION, {
-        variables: params,
-      }),
-    );
+    const res = await client.mutate(MUTATION, {
+      variables: params,
+    });
 
     // Should fail with not found error
     expect(res.errors).toBeTruthy();
@@ -8401,11 +8291,9 @@ describe('mutation startPostBoost', () => {
       });
 
     // Try to boost an already boosted post
-    const res = await runTest(() =>
-      client.mutate(MUTATION, {
-        variables: params,
-      }),
-    );
+    const res = await client.mutate(MUTATION, {
+      variables: params,
+    });
 
     // Should fail with validation error
     expect(res.errors).toBeTruthy();

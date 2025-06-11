@@ -121,11 +121,7 @@ import { remoteConfig } from '../remoteConfig';
 import { ensurePostRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
 import type { StartPostBoostArgs } from '../common/post/boost';
-import {
-  getBalance,
-  throwUserTransactionError,
-  transferCores,
-} from '../common/njord';
+import { throwUserTransactionError, transferCores } from '../common/njord';
 import { randomUUID } from 'crypto';
 import {
   UserTransaction,
@@ -134,6 +130,7 @@ import {
   UserTransactionType,
 } from '../entity/user/UserTransaction';
 import { skadiBoostClient } from '../integrations/skadi/clients';
+import { z } from 'zod';
 
 export interface GQLPost {
   id: string;
@@ -2350,43 +2347,44 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     startPostBoost: async (
       _,
-      { postId, duration, budget }: Omit<StartPostBoostArgs, 'userId'>,
+      args: Omit<StartPostBoostArgs, 'userId'>,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      if (duration < 1 || duration > 30 || duration % 1 !== 0) {
-        throw new ValidationError(
-          'Boost duration must be between 1 and 30 days',
-        );
-      }
+      const { postId, duration, budget } = args;
+      const validationSchema = z.object({
+        budget: z
+          .number()
+          .int()
+          .min(1000)
+          .max(100000)
+          .refine((value) => value % 1000 === 0),
+        duration: z
+          .number()
+          .int()
+          .min(1)
+          .max(30)
+          .refine((value) => value % 1 === 0),
+      });
 
-      if (budget < 1000 || budget > 100000 || budget % 1000 !== 0) {
-        throw new ValidationError(
-          'Boost budget must be between 1000 and 1000000',
-        );
+      const result = validationSchema.safeParse(args);
+
+      if (result.error) {
+        throw new ValidationError(result.error.errors[0].message);
       }
 
       const { userId, con } = ctx;
-      const [post, balance] = await Promise.all([
-        con.getRepository(Post).findOneOrFail({
-          select: ['id', 'flags'],
-          where: [
-            { id: postId, authorId: userId },
-            { id: postId, scoutId: userId },
-          ],
-        }),
-        getBalance({ userId }),
-      ]);
+      const post = await con.getRepository(Post).findOneOrFail({
+        select: ['id', 'flags'],
+        where: [
+          { id: postId, authorId: userId },
+          { id: postId, scoutId: userId },
+        ],
+      });
 
       const total = budget * duration;
 
       if (post.flags?.boosted) {
         throw new ValidationError('Post is already boosted');
-      }
-
-      if (total > balance.amount) {
-        throw new ValidationError(
-          `Insufficient balance. You have ${balance.amount} available.`,
-        );
       }
 
       await ctx.con.transaction(async (entityManager) => {
