@@ -4,15 +4,15 @@ import { Headers } from 'node-fetch';
 import { FastifyBaseLogger } from 'fastify';
 import { retryFetchParse } from '../integrations/retry';
 
-export const excludeFromStandardization = [
+export const excludeFromStandardization = new Set([
   'youtube.com',
   'developer.apple.com',
   'news.ycombinator.com',
   'play.google.com',
-];
+]);
 
 const isExcluded = (url: string | null) =>
-  excludeFromStandardization.some((e) => url?.includes(e));
+  url && excludeFromStandardization.has(url);
 
 const subtractDomain = (url: string): string | null => {
   const matches = url.match(
