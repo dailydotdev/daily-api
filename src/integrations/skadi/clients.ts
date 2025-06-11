@@ -115,3 +115,7 @@ export const skadiPersonalizedDigestClient = new SkadiClient(
     garmr: garmrSkadiPersonalizedDigestService,
   },
 );
+
+export const skadiBoostClient = new SkadiClient(process.env.SKADI_ORIGIN, {
+  garmr: garmrSkadiPersonalizedDigestService,
+});

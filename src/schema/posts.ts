@@ -126,7 +126,6 @@ import {
   throwUserTransactionError,
   transferCores,
 } from '../common/njord';
-import { skadiPersonalizedDigestClient } from '../integrations/skadi';
 import { randomUUID } from 'crypto';
 import {
   UserTransaction,
@@ -134,6 +133,7 @@ import {
   UserTransactionStatus,
   UserTransactionType,
 } from '../entity/user/UserTransaction';
+import { skadiBoostClient } from '../integrations/skadi/clients';
 
 export interface GQLPost {
   id: string;
@@ -2390,7 +2390,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       await ctx.con.transaction(async (entityManager) => {
-        const { campaignId } = await skadiPersonalizedDigestClient
+        const { campaignId } = await skadiBoostClient
           .startPostCampaign
           //   {
           //   postId,
