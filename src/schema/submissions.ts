@@ -1,9 +1,9 @@
 import { DataSource } from 'typeorm';
-import { ArticlePost, Submission, User } from './../entity';
+import { Submission, User } from './../entity';
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, Context } from '../Context';
-import { isValidHttpUrl, standardizeURL } from '../common';
+import { getExistingPost, isValidHttpUrl, standardizeURL } from '../common';
 import { getPostByUrl, GQLPost } from './posts';
 import { SubmissionFailErrorMessage } from '../errors';
 import { checkWithVordr, VordrFilterType } from '../common/vordr';
@@ -151,7 +151,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         };
       }
 
-      const cleanUrl = standardizeURL(url);
+      const { url: cleanUrl, canonicalUrl } = standardizeURL(url);
 
       if (!isValidHttpUrl(cleanUrl)) {
         return {
@@ -160,9 +160,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         };
       }
 
-      const existingPost = await ctx
-        .getRepository(ArticlePost)
-        .findOneBy([{ url }, { canonicalUrl: url }]);
+      const existingPost = await getExistingPost(ctx.con, {
+        url: cleanUrl,
+        canonicalUrl,
+      });
+
       if (existingPost) {
         if (existingPost.deleted || !existingPost.visible) {
           return {
@@ -173,7 +175,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
         return {
           result: 'exists',
-          post: await getPostByUrl(cleanUrl, ctx, info),
+          post: await getPostByUrl(ctx, info, {
+            url: cleanUrl,
+            canonicalUrl,
+          }),
         };
       }
 

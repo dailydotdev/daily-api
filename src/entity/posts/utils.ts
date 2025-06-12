@@ -275,9 +275,11 @@ interface CreateExternalLinkArgs {
     title?: string | null;
     commentary?: string | null;
     url: string;
+    canonicalUrl?: string;
     image?: string | null;
     authorId: string;
     sourceId: string;
+    originalUrl: string;
   };
 }
 
@@ -286,7 +288,16 @@ export const createExternalLink = async ({
   ctx,
   args,
 }: CreateExternalLinkArgs): Promise<Post> => {
-  const { title, url, image, authorId, sourceId, commentary } = args;
+  const {
+    title,
+    url,
+    canonicalUrl,
+    image,
+    authorId,
+    sourceId,
+    commentary,
+    originalUrl,
+  } = args;
   validateCommentary(commentary!);
   const id = await generateShortId();
   const isVisible = !!title;
@@ -298,7 +309,7 @@ export const createExternalLink = async ({
       createdAt: new Date(),
       sourceId: UNKNOWN_SOURCE,
       url,
-      canonicalUrl: url,
+      canonicalUrl: canonicalUrl || url,
       title,
       image,
       sentAnalyticsReport: true,
@@ -309,6 +320,7 @@ export const createExternalLink = async ({
         sentAnalyticsReport: true,
         private: true,
         visible: isVisible,
+        originalUrl: originalUrl,
       },
     });
     const post = await createSharePost({
