@@ -12,19 +12,11 @@ export class SourceMemberFollowers1749656464598 implements MigrationInterface {
             $$
             DECLARE
                 source_id_to_update TEXT;
-                old_is_follower BOOLEAN := FALSE;
-                new_is_follower BOOLEAN := FALSE;
             BEGIN
                 IF TG_OP = 'DELETE' THEN
                     source_id_to_update := OLD."sourceId";
-                    old_is_follower := (OLD.type = 'source' AND OLD.status IN ('follow', 'subscribed'));
                 ELSE
                     source_id_to_update := NEW."sourceId";
-                    new_is_follower := (NEW.type = 'source' AND NEW.status IN ('follow', 'subscribed'));
-                END IF;
-
-                IF TG_OP = 'UPDATE' THEN
-                    old_is_follower := (OLD.type = 'source' AND OLD.status IN ('follow', 'subscribed'));
                 END IF;
 
                 IF (TG_OP = 'DELETE' AND OLD.type = 'source') OR 
