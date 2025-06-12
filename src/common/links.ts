@@ -4,14 +4,14 @@ import { Headers } from 'node-fetch';
 import { FastifyBaseLogger } from 'fastify';
 import { retryFetchParse } from '../integrations/retry';
 
-export const domainAllowedSeachParams = {
+export const domainAllowedSearchParams = {
   'youtube.com': new Set(['v']), // YouTube video ID
   'developer.apple.com': new Set(['id']), // Apple App Store app ID
   'news.ycombinator.com': new Set(['id']), // Hacker News item ID
   'play.google.com': new Set(['id']), // Google Play Store app ID
 };
 
-type AllowedDomain = keyof typeof domainAllowedSeachParams;
+type AllowedDomain = keyof typeof domainAllowedSearchParams;
 
 export const genericAllowedSearchParams = new Set([
   'sk', // Medium Friend link
@@ -82,10 +82,10 @@ export const standardizeURL = (
 ): { url: string; canonicalUrl: string } => {
   const url = new URL(inputUrl);
 
-  const isAllowedDomain = url.hostname in domainAllowedSeachParams;
+  const isAllowedDomain = url.hostname in domainAllowedSearchParams;
 
   const allowedSearchParams = isAllowedDomain
-    ? domainAllowedSeachParams[url.hostname as AllowedDomain]
+    ? domainAllowedSearchParams[url.hostname as AllowedDomain]
     : genericAllowedSearchParams;
 
   const filteredParams = filterExcludedURLSearchParams(
