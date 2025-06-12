@@ -1587,9 +1587,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           ...builder,
           queryBuilder: builder.queryBuilder
             .where(
-              `("${builder.alias}"."canonicalUrl" = :url OR "${builder.alias}"."url" = :url) AND "${builder.alias}"."deleted" = false AND "${builder.alias}"."visible" = true`,
+              `("${builder.alias}"."canonicalUrl" = :url OR "${builder.alias}"."url" = :url)`,
               { url: standardizedUrl },
             )
+            .andWhere(`"${builder.alias}"."deleted" = false`)
+            .andWhere(`"${builder.alias}"."visible" = true`)
             .limit(1),
         }),
         true,
