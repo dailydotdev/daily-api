@@ -8316,6 +8316,168 @@ describe('mutation startPostBoost', () => {
   });
 });
 
+describe('mutation cancelPostBoost', () => {
+  const MUTATION = `
+    mutation CancelPostBoost($postId: ID!) {
+      cancelPostBoost(postId: $postId) {
+        _
+      }
+    }
+  `;
+
+  const params = { postId: 'p1' };
+
+  beforeEach(async () => {
+    isTeamMember = true; // TODO: remove when we are about to run production
+    await con
+      .getRepository(Post)
+      .update(
+        { id: 'p1' },
+        { authorId: '1', flags: updateFlagsStatement<Post>({ boosted: true }) },
+      );
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return an error if post does not exist', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { postId: 'nonexistent' } },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return an error if user is not the author or scout of the post', async () => {
+    loggedUser = '2'; // User 2 is not the author or scout of post p1
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return an error if post is not currently boosted', async () => {
+    loggedUser = '1';
+    // Ensure the post is not boosted
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement<Post>({ boosted: false }),
+      },
+    );
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should successfully cancel post boost when post is boosted', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: params,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.cancelPostBoost._).toBe(true);
+
+    // Verify the boosted flag is now false
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.boosted).toBe(false);
+  });
+
+  it('should verify boosted flag remains unchanged when validation fails', async () => {
+    loggedUser = '1';
+
+    // Ensure the post is not boosted initially
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement<Post>({ boosted: false }),
+      },
+    );
+
+    // Try to cancel boost on a non-boosted post
+    const res = await client.mutate(MUTATION, {
+      variables: params,
+    });
+
+    // Should fail validation
+    expect(res.errors).toBeTruthy();
+
+    // Verify the boosted flag remains false (unchanged)
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.boosted).toBe(false);
+  });
+
+  it('should verify boosted flag remains unchanged when post does not exist', async () => {
+    loggedUser = '1';
+
+    // Try to cancel boost on a non-existent post
+    const res = await client.mutate(MUTATION, {
+      variables: { postId: 'nonexistent' },
+    });
+
+    // Should fail with not found error
+    expect(res.errors).toBeTruthy();
+
+    // Verify the original post's boosted flag is unchanged
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    // The boosted flag should be whatever it was before (false by default)
+    expect(post?.flags?.boosted).toBeTruthy();
+  });
+
+  it('should verify boosted flag remains unchanged when user is not authorized', async () => {
+    loggedUser = '2'; // User 2 is not the author or scout of post p1
+
+    // Try to cancel boost without authorization
+    const res = await client.mutate(MUTATION, {
+      variables: params,
+    });
+
+    // Should fail with not found error
+    expect(res.errors).toBeTruthy();
+
+    // Verify the boosted flag remains true (unchanged)
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.boosted).toBe(true);
+  });
+
+  it('should work for post scout as well as author', async () => {
+    loggedUser = '1';
+
+    // Set user as scout instead of author
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        authorId: '2', // Different author
+        scoutId: '1', // Current user is scout
+      },
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: params,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.cancelPostBoost._).toBe(true);
+
+    // Verify the boosted flag is now false
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.boosted).toBe(false);
+  });
+});
+
 describe('query boostEstimatedReach', () => {
   const QUERY = `
     query BoostEstimatedReach($postId: ID!, $duration: Int!, $budget: Int!) {
