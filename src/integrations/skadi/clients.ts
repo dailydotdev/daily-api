@@ -69,6 +69,29 @@ export class SkadiClient implements ISkadiClient {
     });
   }
 
+  cancelPostCampaign(params: {
+    postId: string;
+    userId: string;
+  }): Promise<{ success: boolean }> {
+    // TODO: once Ad Server is ready, we should update this.
+    return this.garmr.execute(() => {
+      // return fetchParse(`${this.url}/private/campaign/${params.postId}/cancel`, {
+      //   ...this.fetchOptions,
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //   },
+      //   body: JSON.stringify({ userId: params.userId }),
+      // });
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { postId, userId } = params;
+      return Promise.resolve({
+        success: true, // Mock response for testing
+      });
+    });
+  }
+
   estimatePostBoostReach(params: {
     postId: string;
     userId: string;

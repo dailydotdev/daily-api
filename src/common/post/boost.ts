@@ -42,7 +42,7 @@ export const validatePostBoostArgs = (
 export const validatePostBoostPermissions = async (
   ctx: AuthContext,
   postId: string,
-) => {
+): Promise<Pick<Post, 'id' | 'flags'>> => {
   // TODO: remove this once we are ready for production
   if (!ctx.isTeamMember) {
     throw new ForbiddenError('You must be a team member to boost posts');

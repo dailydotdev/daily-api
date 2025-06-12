@@ -1281,6 +1281,16 @@ export const typeDefs = /* GraphQL */ `
     ): TransactionCreated @auth
 
     """
+    Cancel an existing post boost campaign
+    """
+    cancelPostBoost(
+      """
+      ID of the post to cancel boost for
+      """
+      postId: ID!
+    ): EmptyResponse @auth
+
+    """
     Fetch external link's title and image preview
     """
     checkLinkPreview(
@@ -2494,6 +2504,35 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       return request.transaction;
+    },
+    cancelPostBoost: async (
+      _,
+      { postId }: { postId: string },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const post = await validatePostBoostPermissions(ctx, postId);
+
+      if (!post.flags?.boosted) {
+        throw new ValidationError('Post is not currently boosted');
+      }
+
+      const { userId } = ctx;
+
+      await ctx.con.transaction(async (entityManager) => {
+        await skadiBoostClient.cancelPostCampaign({
+          postId,
+          userId,
+        });
+
+        await entityManager
+          .getRepository(Post)
+          .update(
+            { id: postId },
+            { flags: updateFlagsStatement<Post>({ boosted: false }) },
+          );
+      });
+
+      return { _: true };
     },
     checkLinkPreview: async (
       _,
