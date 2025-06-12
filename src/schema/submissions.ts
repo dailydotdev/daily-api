@@ -151,14 +151,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         };
       }
 
-      const { url: cleanUrl, canonicalUrl } = standardizeURL(url);
-
-      if (!isValidHttpUrl(cleanUrl)) {
+      if (!isValidHttpUrl(url)) {
         return {
           result: 'rejected',
           reason: SubmissionFailErrorMessage.INVALID_URL,
         };
       }
+
+      const { url: cleanUrl, canonicalUrl } = standardizeURL(url);
 
       const existingPost = await getExistingPost(ctx.con, {
         url: cleanUrl,

@@ -1579,6 +1579,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: Context,
       info,
     ): Promise<GQLPost> => {
+      if (!isValidHttpUrl(url)) {
+        throw new ValidationError('Invalid URL provided');
+      }
+
       const { url: cleanUrl, canonicalUrl } = standardizeURL(url);
       const res = await graphorm.query(
         ctx,
@@ -2321,6 +2325,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { url }: SubmitExternalLinkArgs,
       ctx: AuthContext,
     ): Promise<ExternalLinkPreview> => {
+      if (!isValidHttpUrl(url)) {
+        throw new ValidationError('Invalid URL provided');
+      }
+
       const { url: cleanUrl, canonicalUrl } = standardizeURL(url);
       const post = await ctx.con
         .getRepository(ArticlePost)
@@ -2341,15 +2349,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { sourceId, commentary, url, title, image }: SubmitExternalLinkArgs,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
+      if (!isValidHttpUrl(url)) {
+        throw new ValidationError('Invalid URL provided');
+      }
+
       await Promise.all([
         ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
         ensurePostRateLimit(ctx.con, ctx.userId),
       ]);
       await ctx.con.transaction(async (manager) => {
         const { url: cleanUrl, canonicalUrl } = standardizeURL(url);
-        if (!isValidHttpUrl(cleanUrl)) {
-          throw new ValidationError('URL is not valid');
-        }
 
         const existingPost = await getExistingPost(manager, {
           url: cleanUrl,

@@ -561,6 +561,10 @@ export const processApprovedModeratedPost = async (
   }
 
   if (externalLink) {
+    if (!isValidHttpUrl(externalLink)) {
+      throw new ValidationError('Invalid external link URL');
+    }
+
     const { url, canonicalUrl } = standardizeURL(externalLink);
     const existingPost = await getExistingPost(con, { url, canonicalUrl });
 
