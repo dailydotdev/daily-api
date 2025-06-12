@@ -48,23 +48,5 @@ import createOrGetConnection from '../src/db';
     console.log(`Updated ${result[1]} non-squad sources`);
   });
 
-  const totalSources = await con.query(`
-    SELECT COUNT(*) as total 
-    FROM source 
-    WHERE type != 'squad'
-  `);
-
-  console.log(`Total non-squad sources: ${totalSources[0].total}`);
-  console.log(`Processed: ${offset + limit} sources`);
-
-  if (offset + limit < parseInt(totalSources[0].total)) {
-    console.log(`\nTo continue processing, run:`);
-    console.log(
-      `pnpm exec ts-node bin/syncMembersForNonSquadSources.ts ${limit} ${offset + limit}`,
-    );
-  } else {
-    console.log('\n✅ All non-squad sources have been processed!');
-  }
-
   process.exit();
 })();
