@@ -498,14 +498,12 @@ export const updateModeratedPost = async (
 
 export const getExistingPost = async (
   manager: ConnectionManager,
-  cleanUrl: string,
-): Promise<Post | null> =>
-  await manager
+  { url, canonicalUrl }: { url: string; canonicalUrl: string },
+): Promise<Pick<Post, 'id' | 'deleted' | 'visible'> | null> =>
+  manager
     .createQueryBuilder(Post, 'post')
     .select(['post.id', 'post.deleted', 'post.visible'])
-    .where('post.url = :url OR post.canonicalUrl = :url', {
-      url: cleanUrl,
-    })
+    .where([{ canonicalUrl: canonicalUrl }, { url: url }])
     .getOne();
 
 export const processApprovedModeratedPost = async (
@@ -563,8 +561,12 @@ export const processApprovedModeratedPost = async (
   }
 
   if (externalLink) {
-    const cleanUrl = standardizeURL(externalLink);
-    const existingPost = await getExistingPost(con, cleanUrl);
+    if (!isValidHttpUrl(externalLink)) {
+      throw new ValidationError('Invalid external link URL');
+    }
+
+    const { url, canonicalUrl } = standardizeURL(externalLink);
+    const existingPost = await getExistingPost(con, { url, canonicalUrl });
 
     if (existingPost) {
       const post = await createSharePost({
@@ -586,10 +588,12 @@ export const processApprovedModeratedPost = async (
       args: {
         title,
         image,
-        url: cleanUrl,
+        url,
+        canonicalUrl,
         sourceId,
         authorId: createdById,
         commentary: content,
+        originalUrl: externalLink,
       },
     });
     return { ...moderated, postId: post.id };

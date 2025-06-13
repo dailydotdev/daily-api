@@ -31,6 +31,10 @@ Array [
     "tagsStr": null,
   },
   Post {
+    "id": "p8",
+    "tagsStr": null,
+  },
+  Post {
     "id": "squadP1",
     "tagsStr": null,
   },

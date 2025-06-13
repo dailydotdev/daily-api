@@ -44,6 +44,7 @@ export type PostFlags = Partial<{
   deletedBy: string;
   vordr: boolean;
   coverVideo: string;
+  originalUrl: string;
 }>;
 
 export type PostFlagsPublic = Pick<

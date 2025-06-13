@@ -139,6 +139,20 @@ export const postsFixture: DeepPartial<ArticlePost | SharePost>[] = [
     yggdrasilId: 'd1053f05-4d41-4fc7-885c-c0f7c841a7b6',
     private: true,
   },
+  {
+    id: 'p8',
+    shortId: 'sp8',
+    title: 'P8',
+    url: 'http://p8.com?sk=wololo',
+    canonicalUrl: 'http://p8.com',
+    image: 'https://daily.dev/image.jpg',
+    score: 10,
+    sourceId: 'p',
+    createdAt: new Date(now.getTime() - 5000),
+    type: PostType.Article,
+    private: true,
+    contentCuration: ['c1', 'c2'],
+  },
 ];
 
 export const vordrPostsFixture: DeepPartial<ArticlePost>[] = [

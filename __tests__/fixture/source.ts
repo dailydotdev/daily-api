@@ -1,5 +1,10 @@
 import { DeepPartial } from 'typeorm';
-import { MachineSource, Source, SourceType } from '../../src/entity';
+import {
+  MachineSource,
+  Source,
+  SourceType,
+  UNKNOWN_SOURCE,
+} from '../../src/entity';
 
 export const createSource = (
   id: string,
@@ -77,5 +82,14 @@ export const sourcesFixture: DeepPartial<MachineSource>[] = [
     type: SourceType.Squad,
     active: true,
     private: false,
+  },
+  {
+    id: UNKNOWN_SOURCE,
+    name: UNKNOWN_SOURCE,
+    image: 'http//image.com/unknown',
+    handle: UNKNOWN_SOURCE,
+    type: SourceType.Machine,
+    active: true,
+    private: true,
   },
 ];

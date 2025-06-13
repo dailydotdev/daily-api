@@ -4,22 +4,18 @@ import { Headers } from 'node-fetch';
 import { FastifyBaseLogger } from 'fastify';
 import { retryFetchParse } from '../integrations/retry';
 
-export const excludeFromStandardization = [
-  'youtube.com',
-  'developer.apple.com',
-  'news.ycombinator.com',
-  'play.google.com',
-];
-
-const isExcluded = (url: string | null) =>
-  excludeFromStandardization.some((e) => url?.includes(e));
-
-const subtractDomain = (url: string): string | null => {
-  const matches = url.match(
-    /^(?:https?:\/\/)?(?:[^@/\n]+@)?(?:www\.)?([^:/?\n]+)/i,
-  );
-  return matches && matches[1];
+export const domainAllowedSearchParams = {
+  'youtube.com': new Set(['v']), // YouTube video ID
+  'developer.apple.com': new Set(['id']), // Apple App Store app ID
+  'news.ycombinator.com': new Set(['id']), // Hacker News item ID
+  'play.google.com': new Set(['id']), // Google Play Store app ID
 };
+
+type AllowedDomain = keyof typeof domainAllowedSearchParams;
+
+export const genericAllowedSearchParams = new Set([
+  'sk', // Medium Friend link
+]);
 
 export const getDiscussionLink = (postSlug: string, commentId = ''): string =>
   `${process.env.COMMENTS_PREFIX}/posts/${postSlug}${
@@ -40,13 +36,83 @@ export const subscribeNotificationsLink = `${process.env.COMMENTS_PREFIX}?notify
 export const generateDevCard = `${process.env.COMMENTS_PREFIX}/devcard`;
 export const squadsFeaturedPage = `${process.env.COMMENTS_PREFIX}/squads/discover/featured`;
 
-export const standardizeURL = (url: string): string => {
-  const domain = subtractDomain(url);
-  if (!isExcluded(domain)) {
-    return url.split('?')[0];
+export const filterExcludedURLSearchParams = (
+  params: URLSearchParams,
+  allowedSearchParams: Set<string> = genericAllowedSearchParams,
+): URLSearchParams => {
+  const filteredParams = new URLSearchParams();
+
+  for (const [key, value] of params.entries()) {
+    // If the key IS in our set of allowed keys, append it
+    if (allowedSearchParams.has(key)) {
+      filteredParams.append(key, value);
+    }
   }
 
-  return url;
+  return filteredParams;
+};
+
+export const deduplicateURLSearchParams = (
+  params: URLSearchParams,
+): URLSearchParams => {
+  const dedupedParams = new URLSearchParams();
+  const seenValues = new Map<string, Set<string>>();
+
+  for (const [key, value] of params.entries()) {
+    if (!seenValues.has(key)) {
+      seenValues.set(key, new Set());
+    }
+
+    const currentValue = seenValues.get(key)!;
+
+    // To make sure we remove skip key-value pairs,
+    if (currentValue.has(value)) {
+      continue;
+    }
+
+    currentValue.add(value);
+    dedupedParams.append(key, value);
+  }
+
+  return dedupedParams;
+};
+
+const subtractDomain = (url: string): string | null => {
+  const matches = url.match(
+    /^(?:https?:\/\/)?(?:[^@/\n]+@)?(?:www\.)?([^:/?\n]+)/i,
+  );
+  return matches && matches[1];
+};
+
+export const standardizeURL = (
+  inputUrl: string,
+): { url: string; canonicalUrl: string } => {
+  const domain = subtractDomain(inputUrl);
+
+  const [canonicalUrl, params] = inputUrl.split('?');
+  const searchParams = new URLSearchParams(params);
+
+  const isAllowedDomain = domain && domain in domainAllowedSearchParams;
+
+  const allowedSearchParams = isAllowedDomain
+    ? domainAllowedSearchParams[domain as AllowedDomain]
+    : genericAllowedSearchParams;
+
+  const filteredParams = filterExcludedURLSearchParams(
+    searchParams,
+    allowedSearchParams,
+  );
+  const dedupedParams = deduplicateURLSearchParams(filteredParams);
+
+  let url = canonicalUrl;
+  if (dedupedParams.size > 0) {
+    url += `?${dedupedParams.toString()}`;
+  }
+
+  return {
+    url: url,
+    canonicalUrl: isAllowedDomain ? url : canonicalUrl,
+  };
 };
 
 export function isValidHttpUrl(link: string): boolean {

@@ -72,7 +72,7 @@ export default function (router: ConnectRouter) {
     const con = await createOrGetConnection();
 
     try {
-      req.url = standardizeURL(req.url);
+      req.url = standardizeURL(req.url).url;
 
       validateCreatePostRequest(req);
 
@@ -130,7 +130,7 @@ export default function (router: ConnectRouter) {
       const con = await createOrGetConnection();
 
       try {
-        req.url = standardizeURL(req.url);
+        req.url = standardizeURL(req.url).canonicalUrl;
         if (!isValidHttpUrl(req.url)) {
           throw new ConnectError('invalid url', Code.InvalidArgument);
         }

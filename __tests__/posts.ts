@@ -32,7 +32,6 @@ import {
   SourceMember,
   SourceType,
   SquadSource,
-  UNKNOWN_SOURCE,
   User,
   UserPost,
   View,
@@ -1309,8 +1308,20 @@ describe('query postByUrl', () => {
     }
   }`;
 
+  it('should throw not found when not valid url', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY('notfound') },
+      'GRAPHQL_VALIDATION_FAILED',
+      'Invalid URL provided',
+    ));
+
   it('should throw not found when cannot find post', () =>
-    testQueryErrorCode(client, { query: QUERY('notfound') }, 'NOT_FOUND'));
+    testQueryErrorCode(
+      client,
+      { query: QUERY('http://notfound.com') },
+      'NOT_FOUND',
+    ));
 
   it('should throw not found when post was soft deleted #2', async () => {
     await saveFixtures(con, ArticlePost, [
@@ -1318,8 +1329,8 @@ describe('query postByUrl', () => {
         id: 'pdeleted',
         shortId: 'spdeleted',
         title: 'PDeleted',
-        url: 'http://p8.com',
-        canonicalUrl: 'http://p8.com',
+        url: 'http://pdelp8.com',
+        canonicalUrl: 'http://pdelp8.com',
         score: 0,
         sourceId: 'a',
         createdAt: new Date('2021-09-22T07:15:51.247Z'),
@@ -1330,7 +1341,7 @@ describe('query postByUrl', () => {
 
     return testQueryErrorCode(
       client,
-      { query: QUERY('http://p8.com') },
+      { query: QUERY('http://pdelp8.com') },
       'NOT_FOUND',
     );
   });
@@ -1341,8 +1352,8 @@ describe('query postByUrl', () => {
         id: 'pnotvisible',
         shortId: 'pnotvisible',
         title: 'pnotvisible',
-        url: 'http://p8.com',
-        canonicalUrl: 'http://p8.com',
+        url: 'http://pdelp8.com',
+        canonicalUrl: 'http://pdelp8.com',
         score: 0,
         sourceId: 'a',
         createdAt: new Date('2021-09-22T07:15:51.247Z'),
@@ -1354,7 +1365,7 @@ describe('query postByUrl', () => {
 
     return testQueryErrorCode(
       client,
-      { query: QUERY('http://p8.com') },
+      { query: QUERY('http://pdelp8.com') },
       'NOT_FOUND',
     );
   });
@@ -2857,11 +2868,6 @@ describe('mutation submitExternalLink', () => {
 
   it('should bypass moderation because user is a moderator', async () => {
     loggedUser = '3';
-    await con.getRepository(Source).insert({
-      id: UNKNOWN_SOURCE,
-      handle: UNKNOWN_SOURCE,
-      name: UNKNOWN_SOURCE,
-    });
     const res = await client.mutate(MUTATION, {
       variables: { ...variables, sourceId: 'm' },
     });
@@ -2905,21 +2911,11 @@ describe('mutation submitExternalLink', () => {
   };
 
   it('should share to squad without title to support backwards compatibility', async () => {
-    await con.getRepository(Source).insert({
-      id: UNKNOWN_SOURCE,
-      handle: UNKNOWN_SOURCE,
-      name: UNKNOWN_SOURCE,
-    });
     loggedUser = '1';
     await checkSharedPostExpectation(false);
   });
 
   it('should share to squad and be visible automatically when title is available', async () => {
-    await con.getRepository(Source).insert({
-      id: UNKNOWN_SOURCE,
-      handle: UNKNOWN_SOURCE,
-      name: UNKNOWN_SOURCE,
-    });
     loggedUser = '1';
     variables.title = 'Sample external link title';
     await checkSharedPostExpectation(true);
@@ -2933,7 +2929,7 @@ describe('mutation submitExternalLink', () => {
     expect(res.errors).toBeFalsy();
     const articlePost = await con
       .getRepository(ArticlePost)
-      .findOneBy({ url: 'http://p6.com' });
+      .findOneByOrFail({ url: 'http://p6.com' });
     expect(articlePost.url).toEqual('http://p6.com');
     expect(articlePost.visible).toEqual(true);
     expect(articlePost.id).toEqual('p6');
@@ -2942,7 +2938,63 @@ describe('mutation submitExternalLink', () => {
 
     const sharedPost = await con
       .getRepository(SharePost)
-      .findOneBy({ sharedPostId: articlePost.id });
+      .findOneByOrFail({ sharedPostId: articlePost.id });
+    expect(sharedPost.authorId).toEqual('1');
+    expect(sharedPost.title).toEqual('My comment');
+    expect(sharedPost.visible).toEqual(true);
+  });
+
+  it('should share existing post to squad when URL has allowed search params', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, url: 'http://p8.com?sk=wololo&foo=bar' },
+    });
+    expect(res.errors).toBeFalsy();
+    const articlePost = await con
+      .getRepository(ArticlePost)
+      .findOneByOrFail({ url: 'http://p8.com?sk=wololo' });
+    expect(articlePost.url).toEqual('http://p8.com?sk=wololo');
+    expect(articlePost.canonicalUrl).toEqual('http://p8.com');
+    expect(articlePost.visible).toEqual(true);
+    expect(articlePost.id).toEqual('p8');
+
+    expect(notifyContentRequested).toHaveBeenCalledTimes(0);
+
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneByOrFail({ sharedPostId: articlePost.id });
+    expect(sharedPost.authorId).toEqual('1');
+    expect(sharedPost.title).toEqual('My comment');
+    expect(sharedPost.visible).toEqual(true);
+  });
+
+  it('should share new post to squad when URL has allowed search params', async () => {
+    loggedUser = '1';
+    expect(
+      await con
+        .getRepository(ArticlePost)
+        .findOneBy({ url: 'http://brand.new.com?sk=wololo' }),
+    ).toBeFalsy();
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        url: 'http://brand.new.com?sk=wololo&foo=bar',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const articlePost = await con
+      .getRepository(ArticlePost)
+      .findOneByOrFail({ url: 'http://brand.new.com?sk=wololo' });
+    expect(articlePost.url).toEqual('http://brand.new.com?sk=wololo');
+    expect(articlePost.canonicalUrl).toEqual('http://brand.new.com');
+    expect(articlePost.visible).toEqual(true);
+
+    expect(notifyContentRequested).toHaveBeenCalledTimes(1);
+
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneByOrFail({ sharedPostId: articlePost.id });
     expect(sharedPost.authorId).toEqual('1');
     expect(sharedPost.title).toEqual('My comment');
     expect(sharedPost.visible).toEqual(true);
@@ -3236,13 +3288,6 @@ describe('mutation submitExternalLink', () => {
 
   describe('vordr', () => {
     describe('new post', () => {
-      beforeEach(async () => {
-        await con.getRepository(Source).insert({
-          id: UNKNOWN_SOURCE,
-          handle: UNKNOWN_SOURCE,
-          name: UNKNOWN_SOURCE,
-        });
-      });
       it('should set the correct vordr flags on new post by a good user', async () => {
         loggedUser = '1';
 
@@ -3282,13 +3327,6 @@ describe('mutation submitExternalLink', () => {
     });
 
     describe('existing post', () => {
-      beforeEach(async () => {
-        await con.getRepository(Source).insert({
-          id: UNKNOWN_SOURCE,
-          handle: UNKNOWN_SOURCE,
-          name: UNKNOWN_SOURCE,
-        });
-      });
       it('should set the correct vordr flags on existing post by good user', async () => {
         loggedUser = '1';
 

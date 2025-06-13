@@ -31,6 +31,10 @@ Array [
     "trending": null,
   },
   Post {
+    "id": "p8",
+    "trending": null,
+  },
+  Post {
     "id": "squadP1",
     "trending": null,
   },
