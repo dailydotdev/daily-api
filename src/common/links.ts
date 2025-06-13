@@ -105,7 +105,7 @@ export const standardizeURL = (
   const dedupedParams = deduplicateURLSearchParams(filteredParams);
 
   let url = canonicalUrl;
-  if (dedupedParams.values.length > 0) {
+  if (dedupedParams.size > 0) {
     url += `?${dedupedParams.toString()}`;
   }
 
