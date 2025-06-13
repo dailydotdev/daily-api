@@ -1309,8 +1309,20 @@ describe('query postByUrl', () => {
     }
   }`;
 
+  it('should throw not found when not valid url', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY('notfound') },
+      'GRAPHQL_VALIDATION_FAILED',
+      'Invalid URL provided',
+    ));
+
   it('should throw not found when cannot find post', () =>
-    testQueryErrorCode(client, { query: QUERY('notfound') }, 'NOT_FOUND'));
+    testQueryErrorCode(
+      client,
+      { query: QUERY('http://notfound.com') },
+      'NOT_FOUND',
+    ));
 
   it('should throw not found when post was soft deleted #2', async () => {
     await saveFixtures(con, ArticlePost, [
