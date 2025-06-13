@@ -77,28 +77,38 @@ export const deduplicateURLSearchParams = (
   return dedupedParams;
 };
 
+const subtractDomain = (url: string): string | null => {
+  const matches = url.match(
+    /^(?:https?:\/\/)?(?:[^@/\n]+@)?(?:www\.)?([^:/?\n]+)/i,
+  );
+  return matches && matches[1];
+};
+
 export const standardizeURL = (
   inputUrl: string,
 ): { url: string; canonicalUrl: string } => {
-  const url = new URL(inputUrl);
+  const domain = subtractDomain(inputUrl);
 
-  const isAllowedDomain = url.hostname in domainAllowedSearchParams;
+  const [canonicalUrl, params] = inputUrl.split('?');
+  const searchParams = new URLSearchParams(params);
+
+  const isAllowedDomain = domain && domain in domainAllowedSearchParams;
 
   const allowedSearchParams = isAllowedDomain
-    ? domainAllowedSearchParams[url.hostname as AllowedDomain]
+    ? domainAllowedSearchParams[domain as AllowedDomain]
     : genericAllowedSearchParams;
 
   const filteredParams = filterExcludedURLSearchParams(
-    url.searchParams,
+    searchParams,
     allowedSearchParams,
   );
   const dedupedParams = deduplicateURLSearchParams(filteredParams);
 
-  url.search = dedupedParams.toString();
+  const url = `${canonicalUrl}?${dedupedParams.toString()}`;
 
   return {
-    url: url.href,
-    canonicalUrl: isAllowedDomain ? url.href : url.origin + url.pathname,
+    url: url,
+    canonicalUrl: isAllowedDomain ? url : canonicalUrl,
   };
 };
 
