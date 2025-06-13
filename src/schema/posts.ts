@@ -2517,20 +2517,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('Post is not currently boosted');
       }
 
-      const { userId } = ctx;
-
       await ctx.con.transaction(async (entityManager) => {
-        await skadiBoostClient.cancelPostCampaign({
-          postId,
-          userId,
-        });
-
         await entityManager
           .getRepository(Post)
           .update(
             { id: postId },
             { flags: updateFlagsStatement<Post>({ boosted: false }) },
           );
+
+        await skadiBoostClient.cancelPostCampaign({
+          postId,
+          userId: ctx.userId,
+        });
       });
 
       return { _: true };
