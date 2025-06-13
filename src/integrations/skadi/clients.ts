@@ -1,5 +1,5 @@
 import { RequestInit } from 'node-fetch';
-import { ISkadiClient, SkadiResponse } from './types';
+import { ISkadiClient, SkadiResponse, type PostBoostReach } from './types';
 import { GarmrNoopService, IGarmrService, GarmrService } from '../garmr';
 import { fetchOptions as globalFetchOptions } from '../../http';
 import { fetchParse } from '../retry';
@@ -65,6 +65,59 @@ export class SkadiClient implements ISkadiClient {
       // });
       return Promise.resolve({
         campaignId: 'mock-campaign-id', // Mock response for testing
+      });
+    });
+  }
+
+  cancelPostCampaign(params: {
+    postId: string;
+    userId: string;
+  }): Promise<{ success: boolean }> {
+    // TODO: once Ad Server is ready, we should update this.
+    return this.garmr.execute(() => {
+      // return fetchParse(`${this.url}/private/campaign/${params.postId}/cancel`, {
+      //   ...this.fetchOptions,
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //   },
+      //   body: JSON.stringify({ userId: params.userId }),
+      // });
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { postId, userId } = params;
+      return Promise.resolve({
+        success: true, // Mock response for testing
+      });
+    });
+  }
+
+  estimatePostBoostReach(params: {
+    postId: string;
+    userId: string;
+    duration: number;
+    budget: number;
+  }): Promise<PostBoostReach> {
+    // TODO: once Ad Server is ready, we should update this.
+    return this.garmr.execute(() => {
+      // return fetchParse(`${this.url}/private/campaign/estimate`, {
+      //   ...this.fetchOptions,
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //   },
+      //   body: JSON.stringify(params),
+      // });
+
+      // Mocking the response for testing purposes
+      const baseReach = Math.floor(params.budget * params.duration * 0.1);
+      const variance = Math.floor(baseReach * 0.2); // 20% variance
+
+      return Promise.resolve({
+        estimatedReach: {
+          min: Math.max(0, baseReach - variance),
+          max: baseReach + variance,
+        },
       });
     });
   }

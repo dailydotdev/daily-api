@@ -15,6 +15,10 @@ export type SkadiResponse = Partial<{
   pixels: string[];
 }>;
 
+export interface PostBoostReach {
+  estimatedReach: { min: number; max: number };
+}
+
 export interface ISkadiClient {
   getAd(
     placement: string,
@@ -30,4 +34,13 @@ export interface ISkadiClient {
   }): Promise<{
     campaignId: string;
   }>;
+  cancelPostCampaign(params: { postId: string; userId: string }): Promise<{
+    success: boolean;
+  }>;
+  estimatePostBoostReach(params: {
+    postId: string;
+    userId: string;
+    duration: number;
+    budget: number;
+  }): Promise<PostBoostReach>;
 }
