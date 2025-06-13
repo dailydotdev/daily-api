@@ -1329,8 +1329,8 @@ describe('query postByUrl', () => {
         id: 'pdeleted',
         shortId: 'spdeleted',
         title: 'PDeleted',
-        url: 'http://p8.com',
-        canonicalUrl: 'http://p8.com',
+        url: 'http://pdelp8.com',
+        canonicalUrl: 'http://pdelp8.com',
         score: 0,
         sourceId: 'a',
         createdAt: new Date('2021-09-22T07:15:51.247Z'),
@@ -1341,7 +1341,7 @@ describe('query postByUrl', () => {
 
     return testQueryErrorCode(
       client,
-      { query: QUERY('http://p8.com') },
+      { query: QUERY('http://pdelp8.com') },
       'NOT_FOUND',
     );
   });
@@ -1352,8 +1352,8 @@ describe('query postByUrl', () => {
         id: 'pnotvisible',
         shortId: 'pnotvisible',
         title: 'pnotvisible',
-        url: 'http://p8.com',
-        canonicalUrl: 'http://p8.com',
+        url: 'http://pdelp8.com',
+        canonicalUrl: 'http://pdelp8.com',
         score: 0,
         sourceId: 'a',
         createdAt: new Date('2021-09-22T07:15:51.247Z'),
@@ -1365,7 +1365,7 @@ describe('query postByUrl', () => {
 
     return testQueryErrorCode(
       client,
-      { query: QUERY('http://p8.com') },
+      { query: QUERY('http://pdelp8.com') },
       'NOT_FOUND',
     );
   });
