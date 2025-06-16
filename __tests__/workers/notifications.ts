@@ -798,7 +798,7 @@ describe('post boost completed', () => {
     expect(actual.length).toEqual(1);
     const bundle = actual[0];
     const ctx = bundle.ctx as NotificationBoostContext;
-    expect(bundle.type).toEqual('post_bookmark_reminder');
+    expect(bundle.type).toEqual('post_boost_completed');
     expect(ctx.campaignId).toEqual('tmp-campaign');
     expect(ctx.user.id).toEqual('1');
   });
