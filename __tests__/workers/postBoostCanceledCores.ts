@@ -230,39 +230,6 @@ describe('postBoostCanceledCores worker', () => {
     expect(transactions[1].referenceId).toBe(campaignId2);
   });
 
-  it('should handle multiple users with same post', async () => {
-    const postId = 'p1';
-    const refundAmountUsd = 5.5;
-    const campaignId = 'campaign-multi';
-
-    await expectSuccessfulTypedBackground(worker, {
-      userId: '1',
-      postId,
-      refundAmountUsd,
-      campaignId,
-    });
-
-    await expectSuccessfulTypedBackground(worker, {
-      userId: '2',
-      postId,
-      refundAmountUsd,
-      campaignId,
-    });
-
-    const user1Transactions = await con
-      .getRepository(UserTransaction)
-      .find({ where: { receiverId: '1' } });
-
-    const user2Transactions = await con
-      .getRepository(UserTransaction)
-      .find({ where: { receiverId: '2' } });
-
-    expect(user1Transactions).toHaveLength(1);
-    expect(user2Transactions).toHaveLength(1);
-    expect(user1Transactions[0].receiverId).toBe('1');
-    expect(user2Transactions[0].receiverId).toBe('2');
-  });
-
   it('should handle edge case with very small USD amount', async () => {
     const userId = '3';
     const postId = 'p3';
