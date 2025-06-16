@@ -331,7 +331,7 @@ export const workers: Worker[] = [
   },
   {
     topic: 'njord.v1.balance-log',
-    subscription: 'api.transaction-balance-log'
+    subscription: 'api.transaction-balance-log',
   },
   {
     topic: 'api.v1.user-transaction',
@@ -347,12 +347,20 @@ export const workers: Worker[] = [
   },
   {
     topic: 'api.v1.organization-user-left',
-    subscription: 'api.organization-user-left'
+    subscription: 'api.organization-user-left',
   },
   {
     topic: 'api.v1.organization-user-removed',
-    subscription: 'api.organization-user-removed'
-  }
+    subscription: 'api.organization-user-removed',
+  },
+  {
+    topic: 'api.v1.post-boost-completed',
+    subscription: 'api.post-boost-completed-notification',
+  },
+  {
+    topic: 'api.v1.post-boost-canceled',
+    subscription: 'api.post-boost-canceled-cores',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

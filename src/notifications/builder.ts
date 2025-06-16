@@ -30,6 +30,7 @@ import {
   NotificationBundleV2,
   NotificationStreakContext,
   Reference,
+  type NotificationBoostContext,
   type NotificationOrganizationContext,
   type NotificationUserTopReaderContext,
 } from './types';
@@ -193,6 +194,13 @@ export class NotificationBuilder {
     return this.enrichNotification({
       referenceId: organization.id,
       referenceType: 'organization',
+    });
+  }
+
+  referenceBoost(ctx: NotificationBoostContext): NotificationBuilder {
+    return this.enrichNotification({
+      referenceId: ctx.campaignId,
+      referenceType: 'boost',
     });
   }
 
