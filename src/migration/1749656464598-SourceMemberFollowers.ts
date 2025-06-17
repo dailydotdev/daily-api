@@ -4,59 +4,101 @@ export class SourceMemberFollowers1749656464598 implements MigrationInterface {
     name = 'SourceMemberFollowers1749656464598'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
+        await queryRunner.query(`DROP TRIGGER IF EXISTS increment_squad_members_count ON "source_member"`);
+        await queryRunner.query(`DROP FUNCTION IF EXISTS increment_squad_members_count()`);
+        await queryRunner.query(`DROP TRIGGER IF EXISTS blocked_squad_members_count ON "source_member"`);
+        await queryRunner.query(`DROP FUNCTION IF EXISTS blocked_squad_members_count()`);
+        await queryRunner.query(`DROP TRIGGER IF EXISTS decrement_squad_members_count ON "source_member"`);
+        await queryRunner.query(`DROP FUNCTION IF EXISTS decrement_squad_members_count()`);
+
         await queryRunner.query(`
             CREATE OR REPLACE FUNCTION increment_source_members_count()
                 RETURNS TRIGGER
                 LANGUAGE PLPGSQL
                 AS
             $$
-            DECLARE
-                source_id_to_update TEXT;
             BEGIN
-                IF TG_OP = 'DELETE' THEN
-                    source_id_to_update := OLD."sourceId";
-                ELSE
-                    source_id_to_update := NEW."sourceId";
-                END IF;
-
-                IF (TG_OP = 'DELETE' AND OLD.type = 'source') OR 
-                   (TG_OP != 'DELETE' AND NEW.type = 'source') THEN
-                    
-                    UPDATE source
-                    SET flags = jsonb_set(
-                                  flags,
-                                  '{totalMembers}',
-                                  to_jsonb((
-                                      SELECT COUNT(DISTINCT "userId")
-                                      FROM content_preference
-                                      WHERE "sourceId" = source_id_to_update
-                                      AND type = 'source'
-                                      AND status IN ('follow', 'subscribed')
-                                  ))
-                                )
-                    WHERE id = source_id_to_update
-                    AND type != 'squad';
-                END IF;
-                
-                IF TG_OP = 'DELETE' THEN
-                    RETURN OLD;
-                ELSE
-                    RETURN NEW;
-                END IF;
+                UPDATE source
+                SET flags = jsonb_set(
+                              flags,
+                              '{totalMembers}',
+                              to_jsonb(COALESCE(CAST(flags->>'totalMembers' AS INTEGER), 0) + 1)
+                            )
+                WHERE id = NEW."sourceId";
+                RETURN NEW;
             END;
             $$
         `);
 
         await queryRunner.query(`
             CREATE OR REPLACE TRIGGER increment_source_members_count
-            AFTER INSERT OR UPDATE OR DELETE ON "content_preference"
+            AFTER INSERT ON "content_preference"
             FOR EACH ROW
+            WHEN (NEW.type = 'source' AND NEW.status IN ('follow', 'subscribed'))
             EXECUTE PROCEDURE increment_source_members_count()
+        `);
+
+        await queryRunner.query(`
+            CREATE OR REPLACE FUNCTION blocked_source_members_count()
+                RETURNS TRIGGER
+                LANGUAGE PLPGSQL
+                AS
+            $$
+            BEGIN
+                UPDATE source
+                SET flags = jsonb_set(
+                              flags,
+                              '{totalMembers}',
+                              to_jsonb(COALESCE(CAST(flags->>'totalMembers' AS INTEGER), 0) - 1)
+                            )
+                WHERE id = NEW."sourceId";
+                RETURN NEW;
+            END;
+            $$
+            `);
+
+        await queryRunner.query(`
+            CREATE OR REPLACE TRIGGER blocked_source_members_count
+            AFTER UPDATE ON "content_preference"
+            FOR EACH ROW
+            WHEN (NEW.type = 'source' AND NEW.status = 'blocked' AND OLD.status IN ('follow', 'subscribed'))
+            EXECUTE PROCEDURE blocked_source_members_count()
+        `);
+
+        await queryRunner.query(`
+            CREATE OR REPLACE FUNCTION decrement_source_members_count()
+                RETURNS TRIGGER
+                LANGUAGE PLPGSQL
+                AS
+            $$
+            BEGIN
+                UPDATE source
+                SET flags = jsonb_set(
+                              flags,
+                              '{totalMembers}',
+                              to_jsonb(COALESCE(CAST(flags->>'totalMembers' AS INTEGER), 0) - 1)
+                            )
+                WHERE id = OLD."sourceId";
+                RETURN OLD;
+            END;
+            $$
+        `);
+
+        await queryRunner.query(`
+            CREATE OR REPLACE TRIGGER decrement_source_members_count
+            AFTER DELETE ON "content_preference"
+            FOR EACH ROW
+            WHEN (OLD.type = 'source' AND OLD.status IN ('follow', 'subscribed'))
+            EXECUTE PROCEDURE decrement_source_members_count()
         `);
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`DROP TRIGGER IF EXISTS increment_source_members_count ON "content_preference"`);
         await queryRunner.query(`DROP FUNCTION IF EXISTS increment_source_members_count()`);
+        await queryRunner.query(`DROP TRIGGER IF EXISTS blocked_source_members_count ON "content_preference"`);
+        await queryRunner.query(`DROP FUNCTION IF EXISTS blocked_source_members_count()`);
+        await queryRunner.query(`DROP TRIGGER IF EXISTS decrement_source_members_count ON "content_preference"`);
+        await queryRunner.query(`DROP FUNCTION IF EXISTS decrement_source_members_count()`);
     }
 }

@@ -19,7 +19,7 @@ import createOrGetConnection from '../src/db';
   const con = await createOrGetConnection();
 
   console.log(
-    `Syncing members count for non-squad sources with limit: ${limit}, offset: ${offset}`,
+    `Syncing members count for sources with limit: ${limit}, offset: ${offset}`,
   );
 
   await con.transaction(async (manager) => {
@@ -36,16 +36,14 @@ import createOrGetConnection from '../src/db';
           AND cp.status IN ('follow', 'subscribed')
         ))
       )
-      WHERE source.type != 'squad'
-      AND source.id IN (
+      WHERE source.id IN (
         SELECT id FROM source 
-        WHERE type != 'squad'
         ORDER BY id
         LIMIT ${limit} OFFSET ${offset}
       )
     `);
 
-    console.log(`Updated ${result[1]} non-squad sources`);
+    console.log(`Updated ${result[1]} sources`);
   });
 
   process.exit();
