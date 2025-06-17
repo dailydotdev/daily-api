@@ -10,6 +10,7 @@ export class SourceMemberFollowers1749656464598 implements MigrationInterface {
         await queryRunner.query(`DROP FUNCTION IF EXISTS blocked_squad_members_count()`);
         await queryRunner.query(`DROP TRIGGER IF EXISTS decrement_squad_members_count ON "source_member"`);
         await queryRunner.query(`DROP FUNCTION IF EXISTS decrement_squad_members_count()`);
+        await queryRunner.query(`DROP TRIGGER IF EXISTS removed_squad_members_count ON "source_member"`);
 
         await queryRunner.query(`
             CREATE OR REPLACE FUNCTION increment_source_members_count()
