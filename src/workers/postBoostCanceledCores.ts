@@ -26,7 +26,6 @@ const worker: TypedWorker<'api.v1.post-boost-canceled'> = {
           return {};
         }
 
-        const total = Math.floor(usdToCores(refundAmountUsd));
         const userTransaction = await entityManager
           .getRepository(UserTransaction)
           .save(
@@ -37,7 +36,7 @@ const worker: TypedWorker<'api.v1.post-boost-canceled'> = {
               status: UserTransactionStatus.Success,
               productId: null,
               senderId: systemUser.id,
-              value: total,
+              value: usdToCores(refundAmountUsd),
               valueIncFees: 0,
               fee: 0,
               flags: { note: 'Post boost canceled' },

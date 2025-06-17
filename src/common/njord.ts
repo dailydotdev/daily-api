@@ -1077,5 +1077,5 @@ export const coresToUsd = (cores: number): number => {
 };
 
 export const usdToCores = (usd: number): number => {
-  return usd * 100; // 1 USD = 100 Cores
+  return Math.floor(usd * 100); // 1 USD = 100 Cores
 };
