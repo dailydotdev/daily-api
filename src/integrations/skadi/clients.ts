@@ -1,5 +1,11 @@
 import { RequestInit } from 'node-fetch';
-import { ISkadiClient, SkadiResponse, type PostBoostReach } from './types';
+import {
+  ISkadiClient,
+  SkadiResponse,
+  type GetCampaignByIdProps,
+  type PostBoostReach,
+  type PromotedPost,
+} from './types';
 import { GarmrNoopService, IGarmrService, GarmrService } from '../garmr';
 import { fetchOptions as globalFetchOptions } from '../../http';
 import { fetchParse } from '../retry';
@@ -119,6 +125,27 @@ export class SkadiClient implements ISkadiClient {
           max: baseReach + variance,
         },
       });
+    });
+  }
+
+  // TODO: once Ad Server is ready, we should update this.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  getCampaignById(props: GetCampaignByIdProps): Promise<PromotedPost> {
+    // return this.garmr.execute(() => {
+    // return fetchParse(`${this.url}/private/campaign/${id}`, {
+    //   ...this.fetchOptions,
+    // });
+    // });
+    return Promise.resolve({
+      campaignId: 'mock-campaign-id',
+      postId: 'mock-post-id',
+      status: 'mock-status',
+      budget: 'mock-budget',
+      currentBudget: 'mock-current-budget',
+      startedAt: new Date(),
+      endedAt: new Date(),
+      impressions: 100,
+      clicks: 92,
     });
   }
 }

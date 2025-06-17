@@ -1,3 +1,5 @@
+import type { User } from '../../entity';
+
 // Keep the type flexible to allow for future changes
 export type SkadiAd = {
   title: string;
@@ -17,6 +19,23 @@ export type SkadiResponse = Partial<{
 
 export interface PostBoostReach {
   estimatedReach: { min: number; max: number };
+}
+
+export interface PromotedPost {
+  campaignId: string;
+  postId: string;
+  status: string;
+  budget: string;
+  currentBudget: string;
+  startedAt: Date;
+  endedAt?: Date;
+  impressions: number;
+  clicks: number;
+}
+
+export interface GetCampaignByIdProps {
+  campaignId: PromotedPost['campaignId'];
+  userId: User['id'];
 }
 
 export interface ISkadiClient {
@@ -43,4 +62,5 @@ export interface ISkadiClient {
     duration: number;
     budget: number;
   }): Promise<PostBoostReach>;
+  getCampaignById: (params: GetCampaignByIdProps) => Promise<PromotedPost>;
 }

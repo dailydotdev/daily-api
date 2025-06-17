@@ -142,7 +142,7 @@ import {
   validatePostBoostPermissions,
   checkPostAlreadyBoosted,
 } from '../common/post/boost';
-import type { PostBoostReach } from '../integrations/skadi';
+import type { PostBoostReach, PromotedPost } from '../integrations/skadi';
 
 export interface GQLPost {
   id: string;
@@ -257,6 +257,11 @@ interface ReportPostArgs {
 export interface GQLPostRelationArgs extends ConnectionArguments {
   id: string;
   relationType: PostRelationType;
+}
+
+interface GQLBoostedPost {
+  campaign: PromotedPost;
+  post: GQLPost;
 }
 
 export type GQLPostCodeSnippet = Pick<
@@ -865,6 +870,23 @@ export const typeDefs = /* GraphQL */ `
     estimatedReach: Reach!
   }
 
+  type CampaignPost {
+    campaignId: String!
+    postId: String!
+    status: String!
+    budget: String!
+    currentBudget: String!
+    startedAt: DateTime!
+    endedAt: DateTime
+    impressions: Int!
+    clicks: Int!
+  }
+
+  type BoostedPost {
+    campaign: CampaignPost!
+    post: Post!
+  }
+
   extend type Query {
     """
     Get specific squad post moderation item
@@ -1039,6 +1061,13 @@ export const typeDefs = /* GraphQL */ `
       """
       budget: Int!
     ): PostBoostEstimate! @auth
+
+    postCampaignById(
+      """
+      ID of the campaign to fetch
+      """
+      id: ID!
+    ): BoostedPost! @auth
   }
 
   extend type Mutation {
@@ -2005,6 +2034,35 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       return { estimatedReach };
+    },
+    postCampaignById: async (
+      _,
+      { campaignId }: { campaignId: string },
+      ctx: Context,
+      info,
+    ): Promise<GQLBoostedPost> => {
+      const campaign = await skadiBoostClient.getCampaignById({
+        campaignId,
+        userId: ctx.userId!,
+      });
+
+      if (!campaign) {
+        throw new NotFoundError('Campaign does not exist!');
+      }
+
+      const post = await graphorm.queryOneOrFail<GQLPost>(
+        ctx,
+        info,
+        (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder.where(
+            `${builder.alias}".id = :id`,
+            { id: campaign.postId },
+          ),
+        }),
+      );
+
+      return { campaign, post };
     },
   },
   Mutation: {
