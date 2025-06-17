@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { systemUser } from '../common';
-import { transferCoresRaw, usdToCores } from '../common/njord';
+import { transferCores, usdToCores } from '../common/njord';
 import { Post } from '../entity';
 import {
   UserTransaction,
@@ -45,7 +45,8 @@ const worker: TypedWorker<'api.v1.post-boost-canceled'> = {
             }),
           );
 
-        await transferCoresRaw({
+        await transferCores({
+          ctx: { userId },
           transaction: userTransaction,
           entityManager,
         });
