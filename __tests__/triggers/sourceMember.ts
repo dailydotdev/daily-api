@@ -84,6 +84,83 @@ describe('trigger increment_source_members_count', () => {
     const unchanged = await repo.findOneByOrFail({ id: 'a' });
     expect(unchanged.flags.totalMembers).toEqual(undefined);
   });
+
+  it('should not change count when user switches between follow and subscribed', async () => {
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, { type: SourceType.Squad });
+    const source = await repo.findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalMembers).toEqual(undefined);
+
+    await con.getRepository(ContentPreferenceSource).insert({
+      referenceId: 'a',
+      userId: '1',
+      type: ContentPreferenceType.Source,
+      feedId: '1',
+      sourceId: 'a',
+      status: ContentPreferenceStatus.Follow,
+    });
+
+    const afterFollow = await repo.findOneByOrFail({ id: 'a' });
+    expect(afterFollow.flags.totalMembers).toEqual(1);
+
+    await con.getRepository(ContentPreferenceSource).update(
+      {
+        referenceId: 'a',
+        userId: '1',
+        type: ContentPreferenceType.Source,
+        feedId: '1',
+      },
+      { status: ContentPreferenceStatus.Subscribed },
+    );
+
+    const afterSubscribed = await repo.findOneByOrFail({ id: 'a' });
+    expect(afterSubscribed.flags.totalMembers).toEqual(1);
+
+    await con.getRepository(ContentPreferenceSource).update(
+      {
+        referenceId: 'a',
+        userId: '1',
+        type: ContentPreferenceType.Source,
+        feedId: '1',
+      },
+      { status: ContentPreferenceStatus.Follow },
+    );
+
+    const backToFollow = await repo.findOneByOrFail({ id: 'a' });
+    expect(backToFollow.flags.totalMembers).toEqual(1);
+  });
+
+  it('should increment count when user changes from blocked to follow', async () => {
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, { type: SourceType.Squad });
+    const source = await repo.findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalMembers).toEqual(undefined);
+
+    await con.getRepository(ContentPreferenceSource).insert({
+      referenceId: 'a',
+      userId: '1',
+      type: ContentPreferenceType.Source,
+      feedId: '1',
+      sourceId: 'a',
+      status: ContentPreferenceStatus.Blocked,
+    });
+
+    const afterBlocked = await repo.findOneByOrFail({ id: 'a' });
+    expect(afterBlocked.flags.totalMembers).toEqual(undefined);
+
+    await con.getRepository(ContentPreferenceSource).update(
+      {
+        referenceId: 'a',
+        userId: '1',
+        type: ContentPreferenceType.Source,
+        feedId: '1',
+      },
+      { status: ContentPreferenceStatus.Follow },
+    );
+
+    const afterFollow = await repo.findOneByOrFail({ id: 'a' });
+    expect(afterFollow.flags.totalMembers).toEqual(1);
+  });
 });
 
 describe('trigger blocked_source_members_count', () => {
@@ -288,5 +365,37 @@ describe('trigger decrement_source_members_count', () => {
 
     const decrementAll = await repo.findOneByOrFail({ id: 'a' });
     expect(decrementAll.flags.totalMembers).toEqual(0);
+  });
+
+  it('should increment count when user changes from blocked to subscribed', async () => {
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, { type: SourceType.Squad });
+    const source = await repo.findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalMembers).toEqual(undefined);
+
+    await con.getRepository(ContentPreferenceSource).insert({
+      referenceId: 'a',
+      userId: '1',
+      type: ContentPreferenceType.Source,
+      feedId: '1',
+      sourceId: 'a',
+      status: ContentPreferenceStatus.Blocked,
+    });
+
+    const afterBlocked = await repo.findOneByOrFail({ id: 'a' });
+    expect(afterBlocked.flags.totalMembers).toEqual(undefined);
+
+    await con.getRepository(ContentPreferenceSource).update(
+      {
+        referenceId: 'a',
+        userId: '1',
+        type: ContentPreferenceType.Source,
+        feedId: '1',
+      },
+      { status: ContentPreferenceStatus.Subscribed },
+    );
+
+    const afterSubscribed = await repo.findOneByOrFail({ id: 'a' });
+    expect(afterSubscribed.flags.totalMembers).toEqual(1);
   });
 });

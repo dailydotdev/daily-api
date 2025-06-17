@@ -92,10 +92,19 @@ export class SourceMemberFollowers1749656464598 implements MigrationInterface {
             WHEN (OLD.type = 'source' AND OLD.status IN ('follow', 'subscribed'))
             EXECUTE PROCEDURE decrement_source_members_count()
         `);
+
+        await queryRunner.query(`
+            CREATE OR REPLACE TRIGGER increment_source_members_count_unblock
+            AFTER UPDATE ON "content_preference"
+            FOR EACH ROW
+            WHEN (NEW.type = 'source' AND NEW.status IN ('follow', 'subscribed') AND OLD.status = 'blocked')
+            EXECUTE PROCEDURE increment_source_members_count()
+        `);
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`DROP TRIGGER IF EXISTS increment_source_members_count ON "content_preference"`);
+        await queryRunner.query(`DROP TRIGGER IF EXISTS increment_source_members_count_unblock ON "content_preference"`);
         await queryRunner.query(`DROP FUNCTION IF EXISTS increment_source_members_count()`);
         await queryRunner.query(`DROP TRIGGER IF EXISTS blocked_source_members_count ON "content_preference"`);
         await queryRunner.query(`DROP FUNCTION IF EXISTS blocked_source_members_count()`);
