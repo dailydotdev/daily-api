@@ -42,6 +42,7 @@ import {
   NotificationStreakContext,
   NotificationUpvotersContext,
   NotificationUserContext,
+  type NotificationBoostContext,
 } from '../../src/notifications';
 import {
   NotificationPreferenceStatus,
@@ -769,6 +770,37 @@ describe('post added notifications', () => {
     expect((bundle.ctx as NotificationPostContext).post.id).toEqual('p1');
     expect((bundle.ctx as NotificationPostContext).source.id).toEqual('a');
     expect(bundle.ctx.userIds).toEqual(['3']);
+  });
+});
+
+describe('post boost completed', () => {
+  it('should be registered', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/postBoostCompleted'
+    );
+
+    const registeredWorker = workers.find(
+      (item) => item.subscription === worker.default.subscription,
+    );
+
+    expect(registeredWorker).toBeDefined();
+  });
+
+  it('should add notification for the user sent to the worker', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/postBoostCompleted'
+    );
+    const actual = await invokeNotificationWorker(worker.default, {
+      userId: '1',
+      postId: 'p1',
+      campaignId: 'tmp-campaign',
+    });
+    expect(actual.length).toEqual(1);
+    const bundle = actual[0];
+    const ctx = bundle.ctx as NotificationBoostContext;
+    expect(bundle.type).toEqual('post_boost_completed');
+    expect(ctx.campaignId).toEqual('tmp-campaign');
+    expect(ctx.user.id).toEqual('1');
   });
 });
 

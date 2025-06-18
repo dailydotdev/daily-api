@@ -63,6 +63,7 @@ export enum NotificationType {
   UserGiftedPlus = 'user_gifted_plus',
   UserReceivedAward = 'user_received_award',
   OrganizationMemberJoined = 'organization_member_joined',
+  PostBoostCompleted = 'post_boost_completed',
 }
 
 export enum NotificationPreferenceType {
