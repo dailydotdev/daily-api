@@ -62,7 +62,7 @@ export class SourceMemberFollowers1749656464598 implements MigrationInterface {
             CREATE OR REPLACE TRIGGER blocked_source_members_count
             AFTER UPDATE ON "content_preference"
             FOR EACH ROW
-            WHEN (NEW.type = 'source' AND NEW.status = 'blocked' AND OLD.status IN ('follow', 'subscribed'))
+            WHEN (NEW.type = 'source' AND NEW.status IN ('blocked') AND OLD.status NOT IN ('blocked'))
             EXECUTE PROCEDURE blocked_source_members_count()
         `);
 
@@ -97,7 +97,7 @@ export class SourceMemberFollowers1749656464598 implements MigrationInterface {
             CREATE OR REPLACE TRIGGER increment_source_members_count_unblock
             AFTER UPDATE ON "content_preference"
             FOR EACH ROW
-            WHEN (NEW.type = 'source' AND NEW.status IN ('follow', 'subscribed') AND OLD.status = 'blocked')
+            WHEN (NEW.type = 'source' AND NEW.status IN ('follow', 'subscribed') AND OLD.status NOT IN ('follow', 'subscribed'))
             EXECUTE PROCEDURE increment_source_members_count()
         `);
     }
