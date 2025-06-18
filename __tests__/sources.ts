@@ -182,6 +182,76 @@ beforeEach(async () => {
     },
   ]);
 
+  // Create corresponding ContentPreferenceSource records to trigger the database triggers
+  await con.getRepository(ContentPreferenceSource).save([
+    {
+      userId: '1',
+      sourceId: 'a',
+      referenceId: 'a',
+      feedId: '1',
+      status: ContentPreferenceStatus.Subscribed,
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: 'rt',
+      },
+    },
+    {
+      userId: '2',
+      sourceId: 'a',
+      referenceId: 'a',
+      feedId: '2',
+      status: ContentPreferenceStatus.Subscribed,
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
+    },
+    {
+      userId: '2',
+      sourceId: 'b',
+      referenceId: 'b',
+      feedId: '2',
+      status: ContentPreferenceStatus.Subscribed,
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
+    },
+    {
+      userId: '3',
+      sourceId: 'b',
+      referenceId: 'b',
+      feedId: '3',
+      status: ContentPreferenceStatus.Subscribed,
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
+    },
+    {
+      userId: '1',
+      sourceId: 'squad',
+      referenceId: 'squad',
+      feedId: '1',
+      status: ContentPreferenceStatus.Subscribed,
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
+    },
+    {
+      userId: '1',
+      sourceId: 'm',
+      referenceId: 'm',
+      feedId: '1',
+      status: ContentPreferenceStatus.Subscribed,
+      flags: {
+        role: SourceMemberRoles.Admin,
+        referralToken: randomUUID(),
+      },
+    },
+  ]);
+
   await con.getRepository(SourceMember).update(
     {
       userId: '1',
@@ -191,6 +261,20 @@ beforeEach(async () => {
   await con
     .getRepository(SourceMember)
     .update({ userId: '2', sourceId: 'b' }, { role: SourceMemberRoles.Admin });
+
+  // Also update the corresponding content preferences to keep them in sync
+  await con
+    .getRepository(ContentPreferenceSource)
+    .update(
+      { userId: '1' },
+      { flags: updateFlagsStatement({ role: SourceMemberRoles.Admin }) },
+    );
+  await con
+    .getRepository(ContentPreferenceSource)
+    .update(
+      { userId: '2', sourceId: 'b' },
+      { flags: updateFlagsStatement({ role: SourceMemberRoles.Admin }) },
+    );
 });
 
 afterAll(() => disposeGraphQLTesting(state));
@@ -549,7 +633,7 @@ describe('query sources', () => {
     );
   });
 
-  const saveMembers = (sourceId: string, users: string[]) => {
+  const saveMembers = async (sourceId: string, users: string[]) => {
     const repo = con.getRepository(SourceMember);
     const now = new Date();
 
@@ -563,13 +647,31 @@ describe('query sources', () => {
       }),
     );
 
-    return repo.save(members);
+    await repo.save(members);
+
+    // Also create ContentPreferenceSource records to trigger the database triggers
+    const contentPreferences = users.map((userId) => ({
+      userId,
+      sourceId,
+      referenceId: sourceId,
+      feedId: userId,
+      status: ContentPreferenceStatus.Subscribed,
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
+    }));
+
+    await con.getRepository(ContentPreferenceSource).save(contentPreferences);
   };
 
   it('should return public squads ordered by members count', async () => {
     await prepareSquads();
     await saveFixtures(con, Source, [sourcesFixture[2]]);
     await con.getRepository(SourceMember).delete({ sourceId: Not('null') });
+    await con
+      .getRepository(ContentPreferenceSource)
+      .delete({ sourceId: Not('null') });
     await con.getRepository(Source).update(
       { id: Not('null') },
       {
@@ -596,6 +698,9 @@ describe('query sources', () => {
     await prepareSquads();
     await saveFixtures(con, Source, [sourcesFixture[2]]);
     await con.getRepository(SourceMember).delete({ sourceId: Not('null') });
+    await con
+      .getRepository(ContentPreferenceSource)
+      .delete({ sourceId: Not('null') });
     await saveMembers('a', ['3']);
     await saveMembers('b', ['1']);
     await saveMembers('c', ['1', '2', '3', '4']);
@@ -1447,6 +1552,14 @@ query Source($id: ID!) {
 }
   `;
 
+  const UPDATE_MEMBER_ROLE = `
+mutation UpdateMemberRole($sourceId: ID!, $memberId: ID!, $role: String!) {
+  updateMemberRole(sourceId: $sourceId, memberId: $memberId, role: $role) {
+    _
+  }
+} 
+`;
+
   it('should return number of members', async () => {
     loggedUser = '1';
     const res = await client.query(QUERY, { variables: { id: 'a' } });
@@ -1458,10 +1571,14 @@ query Source($id: ID!) {
   });
 
   it('should return number of members excluding blocked members', async () => {
-    await con
-      .getRepository(SourceMember)
-      .update({ userId: '2' }, { role: SourceMemberRoles.Blocked });
     loggedUser = '1';
+    await client.mutate(UPDATE_MEMBER_ROLE, {
+      variables: {
+        sourceId: 'a',
+        memberId: '2',
+        role: SourceMemberRoles.Blocked,
+      },
+    });
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.source.membersCount).toEqual(1);
