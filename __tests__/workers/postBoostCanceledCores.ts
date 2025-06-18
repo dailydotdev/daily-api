@@ -258,7 +258,6 @@ describe('postBoostCanceledCores worker', () => {
     const postId = 'p4';
     const refundAmountUsd = -1.5;
     const campaignId = 'campaign-negative';
-    const expectedCores = Math.floor(usdToCores(refundAmountUsd));
 
     await expectSuccessfulTypedBackground(worker, {
       userId,
@@ -271,8 +270,7 @@ describe('postBoostCanceledCores worker', () => {
       .getRepository(UserTransaction)
       .find({ where: { receiverId: userId } });
 
-    expect(transactions).toHaveLength(1);
-    const transaction = transactions[0];
-    expect(transaction.value).toBe(expectedCores);
+    // Should not create a transaction for negative refund amounts
+    expect(transactions).toHaveLength(0);
   });
 });

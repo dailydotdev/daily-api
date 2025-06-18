@@ -16,6 +16,17 @@ const worker: TypedWorker<'api.v1.post-boost-canceled'> = {
     const { data } = message;
     const { userId, postId, refundAmountUsd, campaignId } = data;
 
+    if (refundAmountUsd < 0) {
+      logger.error(
+        {
+          data,
+          messageId: message.messageId,
+        },
+        'Cannot accept negative value for refund',
+      );
+      return;
+    }
+
     try {
       const { transactionId } = await con.transaction(async (entityManager) => {
         const post = await entityManager
