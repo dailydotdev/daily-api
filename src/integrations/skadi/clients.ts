@@ -163,6 +163,7 @@ export class SkadiClient implements ISkadiClient {
         impressions: 0,
         clicks: 0,
         totalSpend: 0,
+        postIds: [],
       });
     });
   }
