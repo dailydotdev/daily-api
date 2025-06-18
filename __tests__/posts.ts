@@ -6837,7 +6837,7 @@ describe('Source post moderation approve/reject', () => {
     await saveSquadFixtures();
     await con.getRepository(SourcePostModeration).save([
       {
-        id: pendingId as string,
+        id: pendingId,
         sourceId: 'm',
         createdById: '4',
         title: 'Title',
@@ -6846,7 +6846,7 @@ describe('Source post moderation approve/reject', () => {
         type: PostType.Article,
       },
       {
-        id: pendingId2 as string,
+        id: pendingId2,
         sourceId: 'm2',
         createdById: '4',
         title: 'Title',
@@ -6855,7 +6855,7 @@ describe('Source post moderation approve/reject', () => {
         type: PostType.Article,
       },
       {
-        id: rejectedId as string,
+        id: rejectedId,
         sourceId: 'm',
         createdById: '4',
         title: 'Title',
@@ -7079,7 +7079,7 @@ describe('Source post moderation edit/delete', () => {
     ]);
     await con.getRepository(SourcePostModeration).save([
       {
-        id: pendingId as string,
+        id: pendingId,
         sourceId: 'm',
         createdById: '4',
         title: 'Title',
@@ -7088,7 +7088,7 @@ describe('Source post moderation edit/delete', () => {
         type: PostType.Share,
       },
       {
-        id: rejectedId as string,
+        id: rejectedId,
         sourceId: 'm',
         createdById: '4',
         title: 'Title',
