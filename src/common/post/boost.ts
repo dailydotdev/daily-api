@@ -118,19 +118,20 @@ export const getTotalEngagements = async (
   con: ConnectionManager,
   postIds: string[],
 ): Promise<number> => {
-  const engagements = await con
-    .getRepository(Post)
+  const builder = con.getRepository(Post).createQueryBuilder();
+  const bookmarks = builder
+    .subQuery()
     .createQueryBuilder()
+    .select('COUNT(b.*)', 'bookmarks')
+    .from(Bookmark, 'b')
+    .where({ postId: In(postIds) })
+    .getQuery();
+
+  const engagements = await builder
     .select('SUM(upvotes)', 'upvotes')
     .addSelect('SUM(comments)', 'comments')
     .addSelect('SUM(views)', 'views')
-    .addSelect((qb) =>
-      qb
-        .subQuery()
-        .select('SUM(b.*)', 'bookmarks')
-        .from(Bookmark, 'b')
-        .where({ postId: In(postIds) }),
-    )
+    .addSelect(`(${bookmarks})`, 'bookmarks')
     .where({ id: In(postIds) })
     .getRawOne<TotalEngagements>();
 

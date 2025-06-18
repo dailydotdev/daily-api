@@ -1105,7 +1105,7 @@ export const typeDefs = /* GraphQL */ `
       Paginate first
       """
       first: Int
-    ): BoostedPost! @auth
+    ): BoostedPostConnection! @auth
   }
 
   extend type Mutation {
@@ -2135,6 +2135,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             offset,
             limit: first!,
           });
+
+          if (!campaigns?.promotedPosts?.length) {
+            return [];
+          }
 
           if (isFirstRequest && stats) {
             stats.clicks = campaigns.clicks;
