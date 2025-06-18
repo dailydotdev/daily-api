@@ -8,8 +8,6 @@ export class SourceMemberFollowers1749656464598 implements MigrationInterface {
         await queryRunner.query(`DROP FUNCTION IF EXISTS increment_squad_members_count()`);
         await queryRunner.query(`DROP TRIGGER IF EXISTS blocked_squad_members_count ON "source_member"`);
         await queryRunner.query(`DROP FUNCTION IF EXISTS blocked_squad_members_count()`);
-        await queryRunner.query(`DROP TRIGGER IF EXISTS decrement_squad_members_count ON "source_member"`);
-        await queryRunner.query(`DROP FUNCTION IF EXISTS decrement_squad_members_count()`);
         await queryRunner.query(`DROP TRIGGER IF EXISTS removed_squad_members_count ON "source_member"`);
 
         await queryRunner.query(`
@@ -110,5 +108,93 @@ export class SourceMemberFollowers1749656464598 implements MigrationInterface {
         await queryRunner.query(`DROP FUNCTION IF EXISTS blocked_source_members_count()`);
         await queryRunner.query(`DROP TRIGGER IF EXISTS decrement_source_members_count ON "content_preference"`);
         await queryRunner.query(`DROP FUNCTION IF EXISTS decrement_source_members_count()`);
+
+
+    await queryRunner.query(`
+      CREATE OR REPLACE FUNCTION increment_squad_members_count()
+        RETURNS TRIGGER
+        LANGUAGE PLPGSQL
+        AS
+      $$
+      BEGIN
+        UPDATE  source
+        SET     flags = jsonb_set(
+                          flags,
+                          '{totalMembers}',
+                          to_jsonb(COALESCE(CAST(flags->>'totalMembers' AS INTEGER), 0) + 1)
+                        )
+        WHERE   id = NEW."sourceId"
+        AND     type = 'squad';
+        RETURN NEW;
+      END;
+      $$
+    `);
+    await queryRunner.query(
+      `
+      CREATE OR REPLACE TRIGGER increment_squad_members_count
+      AFTER INSERT ON "source_member"
+      FOR EACH ROW
+      WHEN (NEW.role != 'blocked')
+      EXECUTE PROCEDURE increment_squad_members_count()
+    `,
+    );
+
+    await queryRunner.query(`
+        CREATE OR REPLACE FUNCTION blocked_squad_members_count()
+          RETURNS TRIGGER
+          LANGUAGE PLPGSQL
+          AS
+        $$
+        BEGIN
+          UPDATE  source
+          SET     flags = jsonb_set(
+                            flags,
+                            '{totalMembers}',
+                            to_jsonb(COALESCE(CAST(flags->>'totalMembers' AS INTEGER), 0) - 1)
+                          )
+          WHERE   id = NEW."sourceId"
+          AND     type = 'squad';
+          RETURN NEW;
+        END;
+        $$
+      `);
+    await queryRunner.query(
+      `
+        CREATE TRIGGER blocked_squad_members_count
+        AFTER UPDATE ON "source_member"
+        FOR EACH ROW
+        WHEN (NEW.role = 'blocked' and OLD.role != 'blocked')
+        EXECUTE PROCEDURE blocked_squad_members_count()
+      `,
+    );
+
+    await queryRunner.query(`
+      CREATE OR REPLACE FUNCTION removed_squad_members_count()
+        RETURNS TRIGGER
+        LANGUAGE PLPGSQL
+        AS
+      $$
+      BEGIN
+        UPDATE  source
+        SET     flags = jsonb_set(
+                          flags,
+                          '{totalMembers}',
+                          to_jsonb(COALESCE(CAST(flags->>'totalMembers' AS INTEGER), 0) - 1)
+                        )
+        WHERE   id = OLD."sourceId"
+        AND     type = 'squad';
+        RETURN OLD;
+      END;
+      $$
+    `);
+    await queryRunner.query(
+      `
+      CREATE TRIGGER removed_squad_members_count
+      AFTER DELETE ON "source_member"
+      FOR EACH ROW
+      WHEN (OLD.role != 'blocked')
+      EXECUTE PROCEDURE removed_squad_members_count()
+    `,
+    );
     }
 }
