@@ -109,7 +109,7 @@ export const createNjordAuth = async (
 };
 
 export type TransferProps = {
-  ctx: Pick<AuthContext, 'userId' | 'isTeamMember'>;
+  ctx: Pick<AuthContext, 'userId'>;
   transaction: UserTransaction;
   entityManager: EntityManager;
 };
@@ -1070,4 +1070,8 @@ export const throwUserTransactionError = async ({
 
 export const coresToUsd = (cores: number): number => {
   return cores / 100; // 100 Cores = 1 USD
+};
+
+export const usdToCores = (usd: number): number => {
+  return Math.floor(usd * 100); // 1 USD = 100 Cores
 };

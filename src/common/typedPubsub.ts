@@ -137,6 +137,17 @@ export type PubSubSchema = {
     organizationId: Organization['id'];
     memberId: User['id'];
   };
+  'api.v1.post-boost-canceled': {
+    postId: Post['id'];
+    userId: User['id'];
+    campaignId: string;
+    refundAmountUsd: number;
+  };
+  'api.v1.post-boost-completed': {
+    postId: Post['id'];
+    userId: User['id'];
+    campaignId: string;
+  };
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(
