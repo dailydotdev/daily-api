@@ -45,6 +45,7 @@ export type PostFlags = Partial<{
   vordr: boolean;
   coverVideo: string;
   boosted: boolean;
+  originalUrl: string;
 }>;
 
 export type PostFlagsPublic = Pick<

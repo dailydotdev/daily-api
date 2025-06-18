@@ -1481,9 +1481,9 @@ export const getPostPermalink = (post: Pick<GQLPost, 'shortId'>): string =>
   `${process.env.URL_PREFIX}/r/${post.shortId}`;
 
 export const getPostByUrl = async (
-  url: string,
   ctx: Context,
   info: GraphQLResolveInfo,
+  { url, canonicalUrl }: { url: string; canonicalUrl: string },
 ): Promise<GQLPost> => {
   const res = await graphorm.queryByHierarchy<GQLPost>(
     ctx,
@@ -1494,8 +1494,8 @@ export const getPostByUrl = async (
       queryBuilder: builder.queryBuilder
         .addSelect(`"${builder.alias}"."deleted"`)
         .where(
-          `("${builder.alias}"."canonicalUrl" = :url OR "${builder.alias}"."url" = :url)`,
-          { url },
+          `("${builder.alias}"."canonicalUrl" = :canonicalUrl OR "${builder.alias}"."url" = :url)`,
+          { canonicalUrl, url },
         )
         .limit(1),
     }),
@@ -1659,7 +1659,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: Context,
       info,
     ): Promise<GQLPost> => {
-      const standardizedUrl = standardizeURL(url);
+      if (!isValidHttpUrl(url)) {
+        throw new ValidationError('Invalid URL provided');
+      }
+
+      const { url: cleanUrl, canonicalUrl } = standardizeURL(url);
       const res = await graphorm.query(
         ctx,
         info,
@@ -1667,9 +1671,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           ...builder,
           queryBuilder: builder.queryBuilder
             .where(
-              `("${builder.alias}"."canonicalUrl" = :url OR "${builder.alias}"."url" = :url) AND "${builder.alias}"."deleted" = false AND "${builder.alias}"."visible" = true`,
-              { url: standardizedUrl },
+              `("${builder.alias}"."canonicalUrl" = :canonicalUrl OR "${builder.alias}"."url" = :url)`,
+              { canonicalUrl, url: cleanUrl },
             )
+            .andWhere(`"${builder.alias}"."deleted" = false`)
+            .andWhere(`"${builder.alias}"."visible" = true`)
             .limit(1),
         }),
         true,
@@ -2538,17 +2544,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { url }: SubmitExternalLinkArgs,
       ctx: AuthContext,
     ): Promise<ExternalLinkPreview> => {
-      const standardizedUrl = standardizeURL(url);
+      if (!isValidHttpUrl(url)) {
+        throw new ValidationError('Invalid URL provided');
+      }
+
+      const { url: cleanUrl, canonicalUrl } = standardizeURL(url);
       const post = await ctx.con
         .getRepository(ArticlePost)
         .createQueryBuilder()
         .select('id, title, image')
-        .where([{ canonicalUrl: standardizedUrl }, { url: standardizedUrl }])
+        .where([{ canonicalUrl: canonicalUrl }, { url: cleanUrl }])
         .andWhere({ deleted: false })
         .getRawOne();
 
       if (!post) {
-        return fetchLinkPreview(standardizedUrl);
+        return fetchLinkPreview(cleanUrl);
       }
 
       return post;
@@ -2558,17 +2568,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { sourceId, commentary, url, title, image }: SubmitExternalLinkArgs,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
+      if (!isValidHttpUrl(url)) {
+        throw new ValidationError('Invalid URL provided');
+      }
+
       await Promise.all([
         ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
         ensurePostRateLimit(ctx.con, ctx.userId),
       ]);
       await ctx.con.transaction(async (manager) => {
-        const cleanUrl = standardizeURL(url);
-        if (!isValidHttpUrl(cleanUrl)) {
-          throw new ValidationError('URL is not valid');
-        }
+        const { url: cleanUrl, canonicalUrl } = standardizeURL(url);
 
-        const existingPost = await getExistingPost(manager, cleanUrl);
+        const existingPost = await getExistingPost(manager, {
+          url: cleanUrl,
+          canonicalUrl,
+        });
 
         if (existingPost) {
           if (existingPost.deleted) {
@@ -2596,9 +2610,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             authorId: ctx.userId,
             sourceId,
             url: cleanUrl,
+            canonicalUrl,
             title,
             image,
             commentary,
+            originalUrl: url,
           },
         });
       });
