@@ -38,6 +38,7 @@ export interface PromotedPostList {
   impressions: number;
   clicks: number;
   totalSpend: number;
+  postIds: string[];
 }
 
 export interface GetCampaignByIdProps {

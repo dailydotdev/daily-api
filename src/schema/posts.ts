@@ -125,6 +125,7 @@ import { ensurePostRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
 import type {
   BoostedPostConnection,
+  BoostedPostStats,
   GQLBoostedPost,
   StartPostBoostArgs,
 } from '../common/post/boost';
@@ -148,6 +149,7 @@ import {
   validatePostBoostPermissions,
   checkPostAlreadyBoosted,
   consolidateCampaignsWithPosts,
+  getTotalEngagements,
 } from '../common/post/boost';
 import type { PostBoostReach } from '../integrations/skadi';
 import graphorm from '../graphorm';
@@ -885,6 +887,13 @@ export const typeDefs = /* GraphQL */ `
     clicks: Int!
   }
 
+  type CampaignData {
+    impressions: Int!
+    engagements: Int!
+    clicks: Int!
+    totalSpend: Int!
+  }
+
   type BoostedPost {
     campaign: CampaignPost!
     post: Post!
@@ -901,9 +910,7 @@ export const typeDefs = /* GraphQL */ `
   type BoostedPostConnection {
     pageInfo: PageInfo!
     edges: [BoostedPostEdge]!
-    impressions: Int!
-    clicks: Int!
-    totalSpend: Int!
+    stats: CampaignData
   }
 
   extend type Query {
@@ -2108,25 +2115,48 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<BoostedPostConnection> => {
       const { first, after } = args;
+      const isFirstRequest = !after;
+      const stats: BoostedPostStats | undefined = isFirstRequest
+        ? {
+            impressions: 0,
+            clicks: 0,
+            totalSpend: 0,
+            engagements: 0,
+          }
+        : undefined;
       const offset = after ? cursorToOffset(after) : 0;
-      const campaigns = await skadiBoostClient.getCampaigns({
-        userId: ctx.userId!,
-        offset,
-        limit: first!,
-      });
       const paginated = await graphorm.queryPaginatedIntegration(
         () => !!after,
         (nodeSize) => nodeSize === first,
         (_, i) => offsetToCursor(offset + i + 1),
-        async () =>
-          consolidateCampaignsWithPosts(campaigns.promotedPosts, ctx, info),
+        async () => {
+          const campaigns = await skadiBoostClient.getCampaigns({
+            userId: ctx.userId!,
+            offset,
+            limit: first!,
+          });
+
+          if (isFirstRequest && stats) {
+            stats.clicks = campaigns.clicks;
+            stats.impressions = campaigns.impressions;
+            stats.totalSpend = usdToCores(campaigns.totalSpend);
+
+            const sum = await getTotalEngagements(ctx.con, campaigns.postIds);
+
+            stats.engagements = sum + campaigns.clicks + campaigns.impressions;
+          }
+
+          return consolidateCampaignsWithPosts(
+            campaigns.promotedPosts,
+            ctx,
+            info,
+          );
+        },
       );
 
       return {
         ...paginated,
-        impressions: campaigns.impressions,
-        totalSpend: usdToCores(campaigns.totalSpend),
-        clicks: campaigns.clicks,
+        stats,
       };
     },
   },

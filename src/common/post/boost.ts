@@ -1,12 +1,13 @@
 import { z } from 'zod';
 import { ValidationError, ForbiddenError } from 'apollo-server-errors';
 import { AuthContext, type Context } from '../../Context';
-import { Post } from '../../entity';
+import { Bookmark, Post, type ConnectionManager } from '../../entity';
 import graphorm from '../../graphorm';
 import type { GQLPost } from '../../schema/posts';
 import type { GraphQLResolveInfo } from 'graphql';
 import type { PromotedPost, PromotedPostList } from '../../integrations/skadi';
 import type { Connection } from 'graphql-relay';
+import { In } from 'typeorm';
 
 export interface StartPostBoostArgs {
   postId: string;
@@ -75,8 +76,14 @@ export interface GQLBoostedPost {
   post: GQLPost;
 }
 
-export type BoostedPostConnection = Connection<GQLBoostedPost> &
-  Omit<PromotedPostList, 'promotedPosts'>;
+export interface BoostedPostStats
+  extends Pick<PromotedPostList, 'clicks' | 'impressions' | 'totalSpend'> {
+  engagements: number;
+}
+
+export interface BoostedPostConnection extends Connection<GQLBoostedPost> {
+  stats?: BoostedPostStats;
+}
 
 export const consolidateCampaignsWithPosts = async (
   campaigns: PromotedPost[],
@@ -100,4 +107,32 @@ export const consolidateCampaignsWithPosts = async (
     campaign,
     post: mapped[campaign.postId],
   }));
+};
+
+interface TotalEngagements
+  extends Pick<Post, 'views' | 'comments' | 'upvotes'> {
+  bookmarks: number;
+}
+
+export const getTotalEngagements = async (
+  con: ConnectionManager,
+  postIds: string[],
+): Promise<number> => {
+  const engagements = await con
+    .getRepository(Post)
+    .createQueryBuilder()
+    .select('SUM(upvotes)', 'upvotes')
+    .addSelect('SUM(comments)', 'comments')
+    .addSelect('SUM(views)', 'views')
+    .addSelect((qb) =>
+      qb
+        .subQuery()
+        .select('SUM(b.*)', 'bookmarks')
+        .from(Bookmark, 'b')
+        .where({ postId: In(postIds) }),
+    )
+    .where({ id: In(postIds) })
+    .getRawOne<TotalEngagements>();
+
+  return Object.values(engagements!).reduce((total, stat) => total + stat, 0);
 };
