@@ -169,6 +169,9 @@ export const notifyNewPaddlePlusTransaction = async ({
     return 'New Plus subscriber :moneybag: :paddle:';
   })();
 
+  const subscriptionCycle =
+    flags?.cycle || data.billingDetails?.paymentTerms.interval;
+
   const blocks = [
     {
       type: 'header',
@@ -204,14 +207,16 @@ export const notifyNewPaddlePlusTransaction = async ({
           type: 'mrkdwn',
           text: concatTextToNewline(
             '*Type:*',
-            `<https://vendors.paddle.com/products-v2/${productId}|${flags?.cycle}>`,
+            `<https://vendors.paddle.com/products-v2/${productId}|${subscriptionCycle}>`,
           ),
         },
         {
           type: 'mrkdwn',
           text: concatTextToNewline(
             '*Purchased by:*',
-            `<https://app.daily.dev/${purchasedById}|${purchasedById}>`,
+            purchasedById
+              ? `<https://app.daily.dev/${purchasedById}|${purchasedById}>`
+              : 'anonymous',
           ),
         },
       ],
@@ -313,6 +318,9 @@ export const notifyNewPaddleOrganizationTransaction = async ({
     return;
   }
 
+  const subscriptionCycle =
+    flags?.cycle || data.billingDetails?.paymentTerms.interval;
+
   const blocks = [
     {
       type: 'header',
@@ -348,7 +356,7 @@ export const notifyNewPaddleOrganizationTransaction = async ({
           type: 'mrkdwn',
           text: concatTextToNewline(
             '*Type:*',
-            `<https://vendors.paddle.com/products-v2/${productId}|${flags?.cycle}>`,
+            `<https://vendors.paddle.com/products-v2/${productId}|${subscriptionCycle}>`,
           ),
         },
         {
