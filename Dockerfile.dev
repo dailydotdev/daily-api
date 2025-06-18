@@ -15,7 +15,7 @@ RUN apt-get update \
 RUN mkdir -p /opt/app
 WORKDIR /opt/app
 
-RUN npm install -g corepack
+RUN npm install -g corepack@0.31.0
 
 COPY .npmrc .
 COPY package.json .
