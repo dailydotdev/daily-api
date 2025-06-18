@@ -160,7 +160,7 @@ export class SourceMemberFollowers1749656464598 implements MigrationInterface {
       `);
     await queryRunner.query(
       `
-        CREATE TRIGGER blocked_squad_members_count
+        CREATE OR REPLACE TRIGGER blocked_squad_members_count
         AFTER UPDATE ON "source_member"
         FOR EACH ROW
         WHEN (NEW.role = 'blocked' and OLD.role != 'blocked')
