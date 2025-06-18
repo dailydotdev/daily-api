@@ -1,6 +1,8 @@
 import {
   Connection as ConnectionRelay,
   ConnectionArguments,
+  cursorToOffset,
+  offsetToCursor,
 } from 'graphql-relay';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
@@ -89,7 +91,6 @@ import {
 } from '../errors';
 import { GQLBookmarkList } from './bookmarks';
 import { getMentions } from './comments';
-import graphorm from '../graphorm';
 import { GQLUser } from './users';
 import {
   getRedisObject,
@@ -122,11 +123,16 @@ import { queryReadReplica } from '../common/queryReadReplica';
 import { remoteConfig } from '../remoteConfig';
 import { ensurePostRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
-import type { StartPostBoostArgs } from '../common/post/boost';
+import type {
+  BoostedPostConnection,
+  GQLBoostedPost,
+  StartPostBoostArgs,
+} from '../common/post/boost';
 import {
   getBalance,
   throwUserTransactionError,
   transferCores,
+  usdToCores,
   type TransactionCreated,
 } from '../common/njord';
 import { randomUUID } from 'crypto';
@@ -141,8 +147,10 @@ import {
   validatePostBoostArgs,
   validatePostBoostPermissions,
   checkPostAlreadyBoosted,
+  consolidateCampaignsWithPosts,
 } from '../common/post/boost';
-import type { PostBoostReach, PromotedPost } from '../integrations/skadi';
+import type { PostBoostReach } from '../integrations/skadi';
+import graphorm from '../graphorm';
 
 export interface GQLPost {
   id: string;
@@ -257,11 +265,6 @@ interface ReportPostArgs {
 export interface GQLPostRelationArgs extends ConnectionArguments {
   id: string;
   relationType: PostRelationType;
-}
-
-interface GQLBoostedPost {
-  campaign: PromotedPost;
-  post: GQLPost;
 }
 
 export type GQLPostCodeSnippet = Pick<
@@ -887,6 +890,22 @@ export const typeDefs = /* GraphQL */ `
     post: Post!
   }
 
+  type BoostedPostEdge {
+    node: BoostedPost!
+    """
+    Used in before and after args
+    """
+    cursor: String!
+  }
+
+  type BoostedPostConnection {
+    pageInfo: PageInfo!
+    edges: [BoostedPostEdge]!
+    impressions: Int!
+    clicks: Int!
+    totalSpend: Int!
+  }
+
   extend type Query {
     """
     Get specific squad post moderation item
@@ -1067,6 +1086,18 @@ export const typeDefs = /* GraphQL */ `
       ID of the campaign to fetch
       """
       id: ID!
+    ): BoostedPost! @auth
+
+    postCampaigns(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
     ): BoostedPost! @auth
   }
 
@@ -2063,6 +2094,34 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       );
 
       return { campaign, post };
+    },
+    postCampaigns: async (
+      _,
+      args: ConnectionArguments,
+      ctx: Context,
+      info,
+    ): Promise<BoostedPostConnection> => {
+      const { first, after } = args;
+      const offset = after ? cursorToOffset(after) : 0;
+      const campaigns = await skadiBoostClient.getCampaigns({
+        userId: ctx.userId!,
+        offset,
+        limit: first!,
+      });
+      const paginated = await graphorm.queryPaginatedIntegration(
+        () => !!after,
+        (nodeSize) => nodeSize === first,
+        (_, i) => offsetToCursor(offset + i + 1),
+        async () =>
+          consolidateCampaignsWithPosts(campaigns.promotedPosts, ctx, info),
+      );
+
+      return {
+        ...paginated,
+        impressions: campaigns.impressions,
+        totalSpend: usdToCores(campaigns.totalSpend),
+        clicks: campaigns.clicks,
+      };
     },
   },
   Mutation: {

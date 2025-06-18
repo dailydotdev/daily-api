@@ -3,8 +3,10 @@ import {
   ISkadiClient,
   SkadiResponse,
   type GetCampaignByIdProps,
+  type GetCampaignsProps,
   type PostBoostReach,
   type PromotedPost,
+  type PromotedPostList,
 } from './types';
 import { GarmrNoopService, IGarmrService, GarmrService } from '../garmr';
 import { fetchOptions as globalFetchOptions } from '../../http';
@@ -146,6 +148,22 @@ export class SkadiClient implements ISkadiClient {
       endedAt: new Date(),
       impressions: 100,
       clicks: 92,
+    });
+  }
+
+  // TODO: once Ad Server is ready, we should update this.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  getCampaigns(params: GetCampaignsProps): Promise<PromotedPostList> {
+    return this.garmr.execute(() => {
+      // return fetchParse(`${this.url}/private/campaigns`, {
+      //   ...this.fetchOptions,
+      // });
+      return Promise.resolve({
+        promotedPosts: [],
+        impressions: 0,
+        clicks: 0,
+        totalSpend: 0,
+      });
     });
   }
 }

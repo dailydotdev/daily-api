@@ -33,9 +33,22 @@ export interface PromotedPost {
   clicks: number;
 }
 
+export interface PromotedPostList {
+  promotedPosts: PromotedPost[];
+  impressions: number;
+  clicks: number;
+  totalSpend: number;
+}
+
 export interface GetCampaignByIdProps {
   campaignId: PromotedPost['campaignId'];
   userId: User['id'];
+}
+
+export interface GetCampaignsProps {
+  userId: User['id'];
+  offset: number;
+  limit: number;
 }
 
 export interface ISkadiClient {
@@ -63,4 +76,5 @@ export interface ISkadiClient {
     budget: number;
   }): Promise<PostBoostReach>;
   getCampaignById: (params: GetCampaignByIdProps) => Promise<PromotedPost>;
+  getCampaigns: (params: GetCampaignsProps) => Promise<PromotedPostList>;
 }

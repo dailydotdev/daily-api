@@ -1,7 +1,12 @@
 import { z } from 'zod';
 import { ValidationError, ForbiddenError } from 'apollo-server-errors';
-import { AuthContext } from '../../Context';
+import { AuthContext, type Context } from '../../Context';
 import { Post } from '../../entity';
+import graphorm from '../../graphorm';
+import type { GQLPost } from '../../schema/posts';
+import type { GraphQLResolveInfo } from 'graphql';
+import type { PromotedPost, PromotedPostList } from '../../integrations/skadi';
+import type { Connection } from 'graphql-relay';
 
 export interface StartPostBoostArgs {
   postId: string;
@@ -63,4 +68,36 @@ export const checkPostAlreadyBoosted = (post: Pick<Post, 'flags'>): void => {
   if (post.flags?.boosted) {
     throw new ValidationError('Post is already boosted');
   }
+};
+
+export interface GQLBoostedPost {
+  campaign: PromotedPost;
+  post: GQLPost;
+}
+
+export type BoostedPostConnection = Connection<GQLBoostedPost> &
+  Omit<PromotedPostList, 'promotedPosts'>;
+
+export const consolidateCampaignsWithPosts = async (
+  campaigns: PromotedPost[],
+  ctx: Context,
+  info: GraphQLResolveInfo,
+) => {
+  const ids = campaigns.map(({ postId }) => postId);
+  const posts = await graphorm.query<GQLPost>(ctx, info, (builder) => ({
+    ...builder,
+    queryBuilder: builder.queryBuilder.where(
+      `${builder.alias}".id IN (...:ids)`,
+      { ids },
+    ),
+  }));
+  const mapped = posts.reduce(
+    (map, post) => ({ ...map, [post.id]: post }),
+    {} as Record<string, GQLPost>,
+  );
+
+  return campaigns.map((campaign) => ({
+    campaign,
+    post: mapped[campaign.postId],
+  }));
 };
