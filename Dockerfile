@@ -1,4 +1,4 @@
-FROM node:22.13-bookworm-slim
+FROM node:22.16-bookworm-slim
 
 ADD https://www.apple.com/appleca/AppleIncRootCertificate.cer /usr/local/share/ca-certificates/AppleIncRootCertificate.cer
 ADD https://www.apple.com/certificateauthority/AppleRootCA-G2.cer /usr/local/share/ca-certificates/AppleRootCA-G2.cer
@@ -16,13 +16,13 @@ RUN apt-get update \
 RUN mkdir -p /opt/app
 WORKDIR /opt/app
 
+RUN npm install -g corepack
+
 COPY .npmrc .
 COPY package.json .
 COPY pnpm-lock.yaml .
 COPY patches patches
 COPY queries queries
-
-RUN npm install -g corepack@0.31.0
 
 RUN pnpm install --frozen-lockfile
 
