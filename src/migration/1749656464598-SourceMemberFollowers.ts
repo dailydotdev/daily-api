@@ -189,7 +189,7 @@ export class SourceMemberFollowers1749656464598 implements MigrationInterface {
     `);
     await queryRunner.query(
       `
-      CREATE TRIGGER removed_squad_members_count
+      CREATE OR REPLACE TRIGGER removed_squad_members_count
       AFTER DELETE ON "source_member"
       FOR EACH ROW
       WHEN (OLD.role != 'blocked')
