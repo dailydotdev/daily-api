@@ -109,7 +109,7 @@ export const createNjordAuth = async (
 };
 
 export type TransferProps = {
-  ctx: Pick<AuthContext, 'userId' | 'isTeamMember'>;
+  ctx: Pick<AuthContext, 'userId'>;
   transaction: UserTransaction;
   entityManager: EntityManager;
 };
@@ -192,115 +192,111 @@ const parseBalanceUpdate = ({
   };
 };
 
-type TransferPropsRaw = Pick<TransferProps, 'transaction' | 'entityManager'>;
+export const transferCores = createAuthProtectedFn(
+  async ({
+    transaction,
+    entityManager,
+  }: TransferProps): Promise<TransferResult> => {
+    // TODO feat/transactions check if session is valid for real on whoami endpoint
 
-export const transferCoresRaw = async ({
-  transaction,
-  entityManager,
-}: TransferPropsRaw): Promise<TransferResult> => {
-  // TODO feat/transactions check if session is valid for real on whoami endpoint
+    const njordClient = getNjordClient();
 
-  const njordClient = getNjordClient();
+    if (!transaction.id) {
+      throw new Error('No transaction id');
+    }
 
-  if (!transaction.id) {
-    throw new Error('No transaction id');
-  }
+    if (!transaction.senderId) {
+      throw new Error('No sender id');
+    }
 
-  if (!transaction.senderId) {
-    throw new Error('No sender id');
-  }
+    const senderId = transaction.senderId;
+    const receiverId = transaction.receiverId;
 
-  const senderId = transaction.senderId;
-  const receiverId = transaction.receiverId;
-
-  const response = await garmNjordService.execute(async () => {
-    const payload = new TransferRequest({
-      idempotencyKey: transaction.id,
-      transfers: [
-        {
-          transferType: TransferType.TRANSFER,
-          currency: Currency.CORES,
-          sender: {
-            id: senderId,
-            type: EntityType.USER,
+    const response = await garmNjordService.execute(async () => {
+      const payload = new TransferRequest({
+        idempotencyKey: transaction.id,
+        transfers: [
+          {
+            transferType: TransferType.TRANSFER,
+            currency: Currency.CORES,
+            sender: {
+              id: senderId,
+              type: EntityType.USER,
+            },
+            receiver: {
+              id: receiverId,
+              type: EntityType.USER,
+            },
+            amount: transaction.value,
+            fee: {
+              percentage: transaction.fee,
+            },
           },
-          receiver: {
-            id: receiverId,
-            type: EntityType.USER,
-          },
-          amount: transaction.value,
-          fee: {
-            percentage: transaction.fee,
-          },
-        },
-      ],
-    });
-    const response = await njordClient.transfer(
-      payload,
-      await createNjordAuth(payload),
-    );
-
-    return response;
-  });
-
-  if (response.status !== TransferStatus.SUCCESS) {
-    throw new TransferError(response);
-  }
-
-  const { results } = response;
-
-  // we always have single transfer
-  const result = results.find(
-    (item) => item.transferType === TransferType.TRANSFER,
-  );
-
-  if (!result) {
-    throw new Error('No transfer result');
-  }
-
-  // update transaction with received value after any fees are applied
-  if (typeof result.receiverBalance?.changeAmount === 'bigint') {
-    await entityManager.getRepository(UserTransaction).update(
-      {
-        id: transaction.id,
-      },
-      {
-        valueIncFees: parseBigInt(result.receiverBalance.changeAmount),
-      },
-    );
-  }
-
-  await Promise.allSettled([
-    [
-      parseBalanceUpdate({
-        balance: result.senderBalance,
-        userId: transaction.senderId,
-      }),
-      parseBalanceUpdate({
-        balance: result.receiverBalance,
-        userId: transaction.receiverId,
-      }),
-    ].map(async (balanceUpdate) => {
-      if (!balanceUpdate) {
-        return;
-      }
-
-      await updateBalanceCache({
-        ctx: {
-          userId: balanceUpdate.userId,
-        },
-        value: {
-          amount: parseBigInt(balanceUpdate.balance.newBalance),
-        },
+        ],
       });
-    }),
-  ]);
+      const response = await njordClient.transfer(
+        payload,
+        await createNjordAuth(payload),
+      );
 
-  return result;
-};
+      return response;
+    });
 
-export const transferCores = createAuthProtectedFn((params: TransferProps) =>
-  transferCoresRaw(params),
+    if (response.status !== TransferStatus.SUCCESS) {
+      throw new TransferError(response);
+    }
+
+    const { results } = response;
+
+    // we always have single transfer
+    const result = results.find(
+      (item) => item.transferType === TransferType.TRANSFER,
+    );
+
+    if (!result) {
+      throw new Error('No transfer result');
+    }
+
+    // update transaction with received value after any fees are applied
+    if (typeof result.receiverBalance?.changeAmount === 'bigint') {
+      await entityManager.getRepository(UserTransaction).update(
+        {
+          id: transaction.id,
+        },
+        {
+          valueIncFees: parseBigInt(result.receiverBalance.changeAmount),
+        },
+      );
+    }
+
+    await Promise.allSettled([
+      [
+        parseBalanceUpdate({
+          balance: result.senderBalance,
+          userId: transaction.senderId,
+        }),
+        parseBalanceUpdate({
+          balance: result.receiverBalance,
+          userId: transaction.receiverId,
+        }),
+      ].map(async (balanceUpdate) => {
+        if (!balanceUpdate) {
+          return;
+        }
+
+        await updateBalanceCache({
+          ctx: {
+            userId: balanceUpdate.userId,
+          },
+          value: {
+            amount: parseBigInt(balanceUpdate.balance.newBalance),
+          },
+        });
+      }),
+    ]);
+
+    return result;
+  },
 );
 
 export const purchaseCores = async ({

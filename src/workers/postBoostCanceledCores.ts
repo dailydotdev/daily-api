@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { systemUser } from '../common';
-import { transferCoresRaw, usdToCores } from '../common/njord';
+import { transferCores, usdToCores } from '../common/njord';
 import { Post } from '../entity';
 import {
   UserTransaction,
@@ -15,6 +15,17 @@ const worker: TypedWorker<'api.v1.post-boost-canceled'> = {
   handler: async (message, con, logger): Promise<void> => {
     const { data } = message;
     const { userId, postId, refundAmountUsd, campaignId } = data;
+
+    if (refundAmountUsd < 0) {
+      logger.error(
+        {
+          data,
+          messageId: message.messageId,
+        },
+        'Cannot accept negative value for refund',
+      );
+      return;
+    }
 
     try {
       const { transactionId } = await con.transaction(async (entityManager) => {
@@ -45,7 +56,8 @@ const worker: TypedWorker<'api.v1.post-boost-canceled'> = {
             }),
           );
 
-        await transferCoresRaw({
+        await transferCores({
+          ctx: { userId },
           transaction: userTransaction,
           entityManager,
         });

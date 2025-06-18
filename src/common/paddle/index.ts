@@ -63,8 +63,22 @@ type CancelSubscriptionProps = {
 };
 export const cancelSubscription = async ({
   subscriptionId,
-}: CancelSubscriptionProps): Promise<Subscription | undefined> => {
+}: CancelSubscriptionProps): Promise<Subscription> => {
   try {
+    const subscription = await paddleInstance.subscriptions.get(subscriptionId);
+
+    if (subscription.status === 'canceled') {
+      logger.info(
+        {
+          provider: SubscriptionProvider.Paddle,
+          subscriptionId,
+        },
+        'Subscription already canceled',
+      );
+
+      return subscription;
+    }
+
     return await paddleInstance.subscriptions.cancel(subscriptionId, {
       effectiveFrom: null,
     });

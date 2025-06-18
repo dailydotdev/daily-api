@@ -5214,9 +5214,6 @@ describe('source_post_moderation', () => {
     });
 
     it('should not create share post if link is not found', async () => {
-      await con
-        .getRepository(Source)
-        .update({ id: 'b' }, { id: UNKNOWN_SOURCE });
       const repo = con.getRepository(Post);
       const before = await repo.find();
       expect(before.length).toEqual(1);
@@ -5235,9 +5232,6 @@ describe('source_post_moderation', () => {
     });
 
     it('should create share post from external link', async () => {
-      await con
-        .getRepository(Source)
-        .update({ id: 'b' }, { id: UNKNOWN_SOURCE });
       const repo = con.getRepository(Post);
       const before = await repo.find();
       expect(before.length).toEqual(1);
@@ -5252,7 +5246,7 @@ describe('source_post_moderation', () => {
         externalLink: 'https://daily.dev/blog-post/sauron',
       };
       await mockUpdate(after);
-      const unknown = await repo.findOneBy({
+      const unknown = await repo.findOneByOrFail({
         sourceId: UNKNOWN_SOURCE,
         id: Not('404'),
       });
@@ -5272,9 +5266,6 @@ describe('source_post_moderation', () => {
     });
 
     it('should create share post from external link which is now available internally', async () => {
-      await con
-        .getRepository(Source)
-        .update({ id: 'b' }, { id: UNKNOWN_SOURCE });
       const repo = con.getRepository(Post);
       await repo.save([
         {
