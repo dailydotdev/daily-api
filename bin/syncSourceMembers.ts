@@ -24,21 +24,21 @@ import createOrGetConnection from '../src/db';
 
   await con.transaction(async (manager) => {
     const result = await manager.query(`
-      UPDATE source 
+      UPDATE source
       SET flags = jsonb_set(
         COALESCE(flags, '{}'),
         '{totalMembers}',
         to_jsonb((
           SELECT COUNT(DISTINCT cp."userId")
           FROM content_preference cp
-          WHERE cp."sourceId" = source.id
+          WHERE cp."referenceId" = source.id
           AND cp.type = 'source'
           AND cp.status IN ('follow', 'subscribed')
         ))
       )
       WHERE source.id IN (
-        SELECT id FROM source 
-        ORDER BY id
+        SELECT id FROM source
+        ORDER BY "createdAt" ASC
         LIMIT ${limit} OFFSET ${offset}
       )
     `);
