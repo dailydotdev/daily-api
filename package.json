@@ -151,7 +151,7 @@
     "@types/jsonwebtoken": "^9.0.9",
     "@types/lodash": "^4.17.17",
     "@types/markdown-it": "14.1.2",
-    "@types/node": "22.15.29",
+    "@types/node": "22.15.x",
     "@types/node-fetch": "^2.6.12",
     "@types/retry": "^0.12.5",
     "@types/rss": "0.0.32",
@@ -185,7 +185,7 @@
     }
   },
   "volta": {
-    "node": "22.13.1"
+    "node": "22.16.0"
   },
   "packageManager": "pnpm@9.14.4+sha256.26a726b633b629a3fabda006f696ae4260954a3632c8054112d7ae89779e5f9a",
   "pnpm": {
