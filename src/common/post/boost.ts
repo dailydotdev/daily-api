@@ -1,9 +1,17 @@
 import { z } from 'zod';
 import { ValidationError, ForbiddenError } from 'apollo-server-errors';
 import { AuthContext, type Context } from '../../Context';
-import { Bookmark, Post, type ConnectionManager } from '../../entity';
+import {
+  Bookmark,
+  Post,
+  PostType,
+  type ArticlePost,
+  type ConnectionManager,
+  type FreeformPost,
+  type SharePost,
+} from '../../entity';
 import graphorm from '../../graphorm';
-import type { GQLPost } from '../../schema/posts';
+import { getPostPermalink, type GQLPost } from '../../schema/posts';
 import type { GraphQLResolveInfo } from 'graphql';
 import type { PromotedPost, PromotedPostList } from '../../integrations/skadi';
 import type { Connection } from 'graphql-relay';
@@ -73,8 +81,36 @@ export const checkPostAlreadyBoosted = (post: Pick<Post, 'flags'>): void => {
 
 export interface GQLBoostedPost {
   campaign: PromotedPost;
-  post: GQLPost;
+  post: Pick<Post, 'id' | 'shortId' | 'title'> & {
+    image: string;
+    permalink: string;
+  };
 }
+
+export const getFormattedBoostedPost = async (
+  post: Post,
+): Promise<GQLBoostedPost['post']> => {
+  const { id, shortId } = post;
+  let image: string = '';
+  let title = post.title;
+
+  if (post.type === PostType.Share) {
+    const sharedPost = await (post as SharePost).sharedPost;
+    image = (sharedPost as ArticlePost).image!;
+    title = title || sharedPost.title;
+  } else {
+    const otherPost = post as FreeformPost;
+    image = otherPost.image!;
+  }
+
+  return {
+    id,
+    shortId,
+    title,
+    image,
+    permalink: getPostPermalink({ shortId }),
+  };
+};
 
 export interface BoostedPostStats
   extends Pick<PromotedPostList, 'clicks' | 'impressions' | 'totalSpend'> {

@@ -148,10 +148,10 @@ import {
   validatePostBoostArgs,
   validatePostBoostPermissions,
   checkPostAlreadyBoosted,
-  consolidateCampaignsWithPosts,
   getTotalEngagements,
+  getFormattedBoostedPost,
 } from '../common/post/boost';
-import type { PostBoostReach } from '../integrations/skadi';
+import type { PostBoostReach, PromotedPost } from '../integrations/skadi';
 import graphorm from '../graphorm';
 
 export interface GQLPost {
@@ -199,6 +199,7 @@ export interface GQLPost {
   userState?: GQLUserPost;
   slug?: string;
   translation?: Partial<Record<keyof PostTranslation, boolean>>;
+  campaign?: PromotedPost;
 }
 
 interface PinPostArgs {
@@ -895,8 +896,8 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type BoostedPost {
-    campaign: CampaignPost!
     post: Post!
+    campaign: CampaignPost!
   }
 
   type BoostedPostEdge {
@@ -2081,12 +2082,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     postCampaignById: async (
       _,
-      { campaignId }: { campaignId: string },
+      { id }: { id: string },
       ctx: Context,
-      info,
     ): Promise<GQLBoostedPost> => {
       const campaign = await skadiBoostClient.getCampaignById({
-        campaignId,
+        campaignId: id,
         userId: ctx.userId!,
       });
 
@@ -2094,25 +2094,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new NotFoundError('Campaign does not exist!');
       }
 
-      const post = await graphorm.queryOneOrFail<GQLPost>(
-        ctx,
-        info,
-        (builder) => ({
-          ...builder,
-          queryBuilder: builder.queryBuilder.where(
-            `${builder.alias}".id = :id`,
-            { id: campaign.postId },
-          ),
-        }),
-      );
+      const post = await ctx.con
+        .getRepository(Post)
+        .findOneByOrFail({ id: campaign.postId });
 
-      return { campaign, post };
+      return {
+        campaign,
+        post: await getFormattedBoostedPost(post),
+      };
     },
     postCampaigns: async (
       _,
       args: ConnectionArguments,
       ctx: Context,
-      info,
+      // info,
     ): Promise<BoostedPostConnection> => {
       const { first, after } = args;
       const isFirstRequest = !after;
@@ -2150,11 +2145,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             stats.engagements = sum + campaigns.clicks + campaigns.impressions;
           }
 
-          return consolidateCampaignsWithPosts(
-            campaigns.promotedPosts,
-            ctx,
-            info,
-          );
+          // return consolidateCampaignsWithPosts(
+          //   campaigns.promotedPosts,
+          //   ctx,
+          //   info,
+          // );
+
+          return [];
         },
       );
 

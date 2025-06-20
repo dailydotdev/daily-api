@@ -140,7 +140,7 @@ export class SkadiClient implements ISkadiClient {
     // });
     return Promise.resolve({
       campaignId: 'mock-campaign-id',
-      postId: 'mock-post-id',
+      postId: 'p1',
       status: 'mock-status',
       budget: 'mock-budget',
       currentBudget: 'mock-current-budget',
