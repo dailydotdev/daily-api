@@ -150,6 +150,7 @@ import {
   checkPostAlreadyBoosted,
   getTotalEngagements,
   getFormattedBoostedPost,
+  getBoostedPost,
 } from '../common/post/boost';
 import type { PostBoostReach, PromotedPost } from '../integrations/skadi';
 import graphorm from '../graphorm';
@@ -880,8 +881,8 @@ export const typeDefs = /* GraphQL */ `
     campaignId: String!
     postId: String!
     status: String!
-    budget: String!
-    currentBudget: String!
+    budget: Int!
+    currentBudget: Int!
     startedAt: DateTime!
     endedAt: DateTime
     impressions: Int!
@@ -2094,12 +2095,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new NotFoundError('Campaign does not exist!');
       }
 
-      const post = await ctx.con
-        .getRepository(Post)
-        .findOneByOrFail({ id: campaign.postId });
+      const post = await getBoostedPost(ctx.con, campaign.postId);
 
       return {
-        campaign,
+        campaign: {
+          ...campaign,
+          budget: usdToCores(campaign.budget),
+          currentBudget: usdToCores(campaign.currentBudget),
+        },
         post: await getFormattedBoostedPost(post),
       };
     },

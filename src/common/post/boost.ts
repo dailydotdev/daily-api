@@ -1,21 +1,16 @@
 import { z } from 'zod';
 import { ValidationError, ForbiddenError } from 'apollo-server-errors';
 import { AuthContext, type Context } from '../../Context';
-import {
-  Bookmark,
-  Post,
-  PostType,
-  type ArticlePost,
-  type ConnectionManager,
-  type FreeformPost,
-  type SharePost,
-} from '../../entity';
+import { Bookmark, Post, PostType, type ConnectionManager } from '../../entity';
 import graphorm from '../../graphorm';
 import { getPostPermalink, type GQLPost } from '../../schema/posts';
 import type { GraphQLResolveInfo } from 'graphql';
 import type { PromotedPost, PromotedPostList } from '../../integrations/skadi';
 import type { Connection } from 'graphql-relay';
 import { In } from 'typeorm';
+import { mapCloudinaryUrl } from '../cloudinary';
+import { pickImageUrl } from '../post';
+import { NotFoundError } from '../../errors';
 
 export interface StartPostBoostArgs {
   postId: string;
@@ -79,35 +74,64 @@ export const checkPostAlreadyBoosted = (post: Pick<Post, 'flags'>): void => {
   }
 };
 
-export interface GQLBoostedPost {
-  campaign: PromotedPost;
-  post: Pick<Post, 'id' | 'shortId' | 'title'> & {
-    image: string;
-    permalink: string;
-  };
+interface CampaignBoostedPost extends Pick<Post, 'id' | 'shortId' | 'title'> {
+  image: string;
+  permalink: string;
 }
 
+export interface GQLBoostedPost {
+  campaign: PromotedPost;
+  post: CampaignBoostedPost;
+}
+
+interface GetBoostedPost extends CampaignBoostedPost {
+  type: PostType;
+  sharedTitle?: string;
+  sharedImage?: string;
+}
+
+export const getBoostedPost = async (
+  con: ConnectionManager,
+  id: string,
+): Promise<GetBoostedPost> => {
+  const result = await con
+    .getRepository(Post)
+    .createQueryBuilder('p1')
+    .select('p1.id', 'id')
+    .addSelect('p1."shortId"', 'shortId')
+    .addSelect('p1.image', 'image')
+    .addSelect('p1.title', 'title')
+    .addSelect('p1.type', 'type')
+    .addSelect('p2.title', 'sharedTitle')
+    .addSelect('p2.image', 'sharedImage')
+    .leftJoin(Post, 'p2', `p1."sharedPostId" = p2.id`)
+    .where('p1.id = :id', { id })
+    .getRawOne();
+
+  if (!result) {
+    throw new NotFoundError('Post does not exist');
+  }
+
+  return result;
+};
+
 export const getFormattedBoostedPost = async (
-  post: Post,
+  post: GetBoostedPost,
 ): Promise<GQLBoostedPost['post']> => {
-  const { id, shortId } = post;
-  let image: string = '';
+  const { id, shortId, sharedImage, sharedTitle } = post;
+  let image: string | undefined = post.image;
   let title = post.title;
 
   if (post.type === PostType.Share) {
-    const sharedPost = await (post as SharePost).sharedPost;
-    image = (sharedPost as ArticlePost).image!;
-    title = title || sharedPost.title;
-  } else {
-    const otherPost = post as FreeformPost;
-    image = otherPost.image!;
+    image = sharedImage;
+    title = title || sharedTitle;
   }
 
   return {
     id,
     shortId,
     title,
-    image,
+    image: mapCloudinaryUrl(image) ?? pickImageUrl({ createdAt: new Date() }),
     permalink: getPostPermalink({ shortId }),
   };
 };

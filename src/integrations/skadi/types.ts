@@ -25,8 +25,8 @@ export interface PromotedPost {
   campaignId: string;
   postId: string;
   status: string;
-  budget: string;
-  currentBudget: string;
+  budget: number;
+  currentBudget: number;
   startedAt: Date;
   endedAt?: Date;
   impressions: number;
