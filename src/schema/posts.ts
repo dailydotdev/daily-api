@@ -1,6 +1,8 @@
 import {
   Connection as ConnectionRelay,
   ConnectionArguments,
+  cursorToOffset,
+  offsetToCursor,
 } from 'graphql-relay';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
@@ -89,7 +91,6 @@ import {
 } from '../errors';
 import { GQLBookmarkList } from './bookmarks';
 import { getMentions } from './comments';
-import graphorm from '../graphorm';
 import { GQLUser } from './users';
 import {
   getRedisObject,
@@ -122,11 +123,17 @@ import { queryReadReplica } from '../common/queryReadReplica';
 import { remoteConfig } from '../remoteConfig';
 import { ensurePostRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
-import type { StartPostBoostArgs } from '../common/post/boost';
+import type {
+  BoostedPostConnection,
+  BoostedPostStats,
+  GQLBoostedPost,
+  StartPostBoostArgs,
+} from '../common/post/boost';
 import {
   getBalance,
   throwUserTransactionError,
   transferCores,
+  usdToCores,
   type TransactionCreated,
 } from '../common/njord';
 import { randomUUID } from 'crypto';
@@ -141,8 +148,12 @@ import {
   validatePostBoostArgs,
   validatePostBoostPermissions,
   checkPostAlreadyBoosted,
+  getTotalEngagements,
+  getFormattedBoostedPost,
+  getBoostedPost,
 } from '../common/post/boost';
-import type { PostBoostReach } from '../integrations/skadi';
+import type { PostBoostReach, PromotedPost } from '../integrations/skadi';
+import graphorm from '../graphorm';
 
 export interface GQLPost {
   id: string;
@@ -189,6 +200,7 @@ export interface GQLPost {
   userState?: GQLUserPost;
   slug?: string;
   translation?: Partial<Record<keyof PostTranslation, boolean>>;
+  campaign?: PromotedPost;
 }
 
 interface PinPostArgs {
@@ -865,6 +877,44 @@ export const typeDefs = /* GraphQL */ `
     estimatedReach: Reach!
   }
 
+  type CampaignPost {
+    campaignId: String!
+    postId: String!
+    status: String!
+    budget: Int!
+    currentBudget: Int!
+    startedAt: DateTime!
+    endedAt: DateTime
+    impressions: Int!
+    clicks: Int!
+  }
+
+  type CampaignData {
+    impressions: Int!
+    engagements: Int!
+    clicks: Int!
+    totalSpend: Int!
+  }
+
+  type BoostedPost {
+    post: Post!
+    campaign: CampaignPost!
+  }
+
+  type BoostedPostEdge {
+    node: BoostedPost!
+    """
+    Used in before and after args
+    """
+    cursor: String!
+  }
+
+  type BoostedPostConnection {
+    pageInfo: PageInfo!
+    edges: [BoostedPostEdge]!
+    stats: CampaignData
+  }
+
   extend type Query {
     """
     Get specific squad post moderation item
@@ -1039,6 +1089,25 @@ export const typeDefs = /* GraphQL */ `
       """
       budget: Int!
     ): PostBoostEstimate! @auth
+
+    postCampaignById(
+      """
+      ID of the campaign to fetch
+      """
+      id: ID!
+    ): BoostedPost! @auth
+
+    postCampaigns(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): BoostedPostConnection! @auth
   }
 
   extend type Mutation {
@@ -2011,6 +2080,88 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       return { estimatedReach };
+    },
+    postCampaignById: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLBoostedPost> => {
+      const campaign = await skadiBoostClient.getCampaignById({
+        campaignId: id,
+        userId: ctx.userId!,
+      });
+
+      if (!campaign) {
+        throw new NotFoundError('Campaign does not exist!');
+      }
+
+      const post = await getBoostedPost(ctx.con, campaign.postId);
+
+      return {
+        campaign: {
+          ...campaign,
+          budget: usdToCores(campaign.budget),
+          currentBudget: usdToCores(campaign.currentBudget),
+        },
+        post: await getFormattedBoostedPost(post),
+      };
+    },
+    postCampaigns: async (
+      _,
+      args: ConnectionArguments,
+      ctx: Context,
+      // info,
+    ): Promise<BoostedPostConnection> => {
+      const { first, after } = args;
+      const isFirstRequest = !after;
+      const stats: BoostedPostStats | undefined = isFirstRequest
+        ? {
+            impressions: 0,
+            clicks: 0,
+            totalSpend: 0,
+            engagements: 0,
+          }
+        : undefined;
+      const offset = after ? cursorToOffset(after) : 0;
+      const paginated = await graphorm.queryPaginatedIntegration(
+        () => !!after,
+        (nodeSize) => nodeSize === first,
+        (_, i) => offsetToCursor(offset + i + 1),
+        async () => {
+          const campaigns = await skadiBoostClient.getCampaigns({
+            userId: ctx.userId!,
+            offset,
+            limit: first!,
+          });
+
+          if (!campaigns?.promotedPosts?.length) {
+            return [];
+          }
+
+          if (isFirstRequest && stats) {
+            stats.clicks = campaigns.clicks;
+            stats.impressions = campaigns.impressions;
+            stats.totalSpend = usdToCores(campaigns.totalSpend);
+
+            const sum = await getTotalEngagements(ctx.con, campaigns.postIds);
+
+            stats.engagements = sum + campaigns.clicks + campaigns.impressions;
+          }
+
+          // return consolidateCampaignsWithPosts(
+          //   campaigns.promotedPosts,
+          //   ctx,
+          //   info,
+          // );
+
+          return [];
+        },
+      );
+
+      return {
+        ...paginated,
+        stats,
+      };
     },
   },
   Mutation: {
