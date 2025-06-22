@@ -151,8 +151,9 @@ import {
   getTotalEngagements,
   getFormattedBoostedPost,
   getBoostedPost,
+  consolidateCampaignsWithPosts,
 } from '../common/post/boost';
-import type { PostBoostReach, PromotedPost } from '../integrations/skadi';
+import type { PostBoostReach } from '../integrations/skadi';
 import graphorm from '../graphorm';
 
 export interface GQLPost {
@@ -200,7 +201,7 @@ export interface GQLPost {
   userState?: GQLUserPost;
   slug?: string;
   translation?: Partial<Record<keyof PostTranslation, boolean>>;
-  campaign?: PromotedPost;
+  permalink?: string;
 }
 
 interface PinPostArgs {
@@ -2103,15 +2104,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           budget: usdToCores(campaign.budget),
           currentBudget: usdToCores(campaign.currentBudget),
         },
-        post: await getFormattedBoostedPost(post),
+        post: getFormattedBoostedPost(post),
       };
     },
     postCampaigns: async (
       _,
       args: ConnectionArguments,
-      ctx: Context,
-      // info,
+      ctx: AuthContext,
     ): Promise<BoostedPostConnection> => {
+      const { con, userId } = ctx;
       const { first, after } = args;
       const isFirstRequest = !after;
       const stats: BoostedPostStats | undefined = isFirstRequest
@@ -2129,7 +2130,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         (_, i) => offsetToCursor(offset + i + 1),
         async () => {
           const campaigns = await skadiBoostClient.getCampaigns({
-            userId: ctx.userId!,
+            userId,
             offset,
             limit: first!,
           });
@@ -2143,18 +2144,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             stats.impressions = campaigns.impressions;
             stats.totalSpend = usdToCores(campaigns.totalSpend);
 
-            const sum = await getTotalEngagements(ctx.con, campaigns.postIds);
+            const sum = await getTotalEngagements(con, campaigns.postIds);
 
             stats.engagements = sum + campaigns.clicks + campaigns.impressions;
           }
 
-          // return consolidateCampaignsWithPosts(
-          //   campaigns.promotedPosts,
-          //   ctx,
-          //   info,
-          // );
-
-          return [];
+          return consolidateCampaignsWithPosts(campaigns.promotedPosts, con);
         },
       );
 

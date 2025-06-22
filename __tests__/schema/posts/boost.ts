@@ -900,3 +900,641 @@ describe('query postCampaignById', () => {
     });
   });
 });
+
+describe('query postCampaigns', () => {
+  const QUERY = `
+    query PostCampaigns($first: Int, $after: String) {
+      postCampaigns(first: $first, after: $after) {
+        pageInfo {
+          hasNextPage
+          hasPreviousPage
+          startCursor
+          endCursor
+        }
+        edges {
+          cursor
+          node {
+            post {
+              id
+              title
+              image
+              shortId
+              permalink
+            }
+            campaign {
+              campaignId
+              postId
+              status
+              budget
+              currentBudget
+              impressions
+              clicks
+            }
+          }
+        }
+        stats {
+          impressions
+          clicks
+          totalSpend
+          engagements
+        }
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    isTeamMember = true; // TODO: remove when we are about to run production
+    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { first: 10 } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return empty connection when no campaigns exist', async () => {
+    loggedUser = '1';
+
+    // Mock the skadi client to return empty campaigns
+    (skadiBoostClient.getCampaigns as jest.Mock).mockResolvedValue({
+      promotedPosts: [],
+      impressions: 0,
+      clicks: 0,
+      totalSpend: 0,
+      postIds: [],
+    });
+
+    const res = await client.query(QUERY, { variables: { first: 10 } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.postCampaigns).toEqual({
+      pageInfo: {
+        hasNextPage: false,
+        hasPreviousPage: false,
+        startCursor: null,
+        endCursor: null,
+      },
+      edges: [],
+      stats: {
+        impressions: 0,
+        clicks: 0,
+        totalSpend: 0,
+        engagements: 0,
+      },
+    });
+  });
+
+  it('should return campaigns with posts and stats on first request', async () => {
+    loggedUser = '1';
+
+    // Create test posts
+    await con.getRepository(ArticlePost).save([
+      {
+        id: 'post-1',
+        shortId: 'p1',
+        title: 'Test Post 1',
+        image: 'https://test-post-1.jpg',
+        url: 'http://test-post-1.com',
+        sourceId: 'a',
+        type: PostType.Article,
+        createdAt: new Date(),
+        authorId: '1',
+        views: 100,
+        upvotes: 50,
+        comments: 25,
+      },
+      {
+        id: 'post-2',
+        shortId: 'p2',
+        title: 'Test Post 2',
+        image: 'https://test-post-2.jpg',
+        url: 'http://test-post-2.com',
+        sourceId: 'a',
+        type: PostType.Article,
+        createdAt: new Date(),
+        authorId: '1',
+        views: 200,
+        upvotes: 75,
+        comments: 30,
+      },
+    ]);
+
+    // Mock the skadi client to return campaigns
+    (skadiBoostClient.getCampaigns as jest.Mock).mockResolvedValue({
+      promotedPosts: [
+        {
+          campaignId: 'campaign-1',
+          postId: 'post-1',
+          status: 'active',
+          budget: 10.5, // 10.5 USD = 1050 cores
+          currentBudget: 5.25, // 5.25 USD = 525 cores
+          startedAt: new Date('2024-01-01'),
+          endedAt: null,
+          impressions: 1000,
+          clicks: 50,
+        },
+        {
+          campaignId: 'campaign-2',
+          postId: 'post-2',
+          status: 'active',
+          budget: 20.0, // 20 USD = 2000 cores
+          currentBudget: 10.0, // 10 USD = 1000 cores
+          startedAt: new Date('2024-01-02'),
+          endedAt: null,
+          impressions: 2000,
+          clicks: 100,
+        },
+      ],
+      impressions: 3000,
+      clicks: 150,
+      totalSpend: 30.5, // 30.5 USD = 3050 cores
+      postIds: ['post-1', 'post-2'],
+    });
+
+    const res = await client.query(QUERY, { variables: { first: 10 } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.postCampaigns.pageInfo).toEqual({
+      hasNextPage: false,
+      hasPreviousPage: false,
+      startCursor: 'YXJyYXljb25uZWN0aW9uOjE=',
+      endCursor: 'YXJyYXljb25uZWN0aW9uOjI=',
+    });
+    expect(res.data.postCampaigns.edges).toHaveLength(2);
+    expect(res.data.postCampaigns.edges[0]).toEqual({
+      cursor: 'YXJyYXljb25uZWN0aW9uOjE=',
+      node: {
+        post: {
+          id: 'post-1',
+          title: 'Test Post 1',
+          image: 'https://test-post-1.jpg',
+          shortId: 'p1',
+          permalink: 'http://localhost:4000/r/p1',
+        },
+        campaign: {
+          campaignId: 'campaign-1',
+          postId: 'post-1',
+          status: 'active',
+          budget: 1050, // Converted from USD to cores
+          currentBudget: 525, // Converted from USD to cores
+          impressions: 1000,
+          clicks: 50,
+        },
+      },
+    });
+    expect(res.data.postCampaigns.edges[1]).toEqual({
+      cursor: 'YXJyYXljb25uZWN0aW9uOjI=',
+      node: {
+        post: {
+          id: 'post-2',
+          title: 'Test Post 2',
+          image: 'https://test-post-2.jpg',
+          shortId: 'p2',
+          permalink: 'http://localhost:4000/r/p2',
+        },
+        campaign: {
+          campaignId: 'campaign-2',
+          postId: 'post-2',
+          status: 'active',
+          budget: 2000, // Converted from USD to cores
+          currentBudget: 1000, // Converted from USD to cores
+          impressions: 2000,
+          clicks: 100,
+        },
+      },
+    });
+    expect(res.data.postCampaigns.stats).toEqual({
+      impressions: 3000,
+      clicks: 150,
+      totalSpend: 3050, // Converted from USD to cores
+      engagements: 3630, // 100+50+25+200+75+30+150+3000 = 3630
+    });
+  });
+
+  it('should not include stats on subsequent requests (with after cursor)', async () => {
+    loggedUser = '1';
+
+    // Create test post
+    await con.getRepository(ArticlePost).save({
+      id: 'post-3',
+      shortId: 'p3',
+      title: 'Test Post 3',
+      image: 'https://test-post-3.jpg',
+      url: 'http://test-post-3.com',
+      sourceId: 'a',
+      type: PostType.Article,
+      createdAt: new Date(),
+      authorId: '1',
+    });
+
+    // Mock the skadi client to return campaigns
+    (skadiBoostClient.getCampaigns as jest.Mock).mockResolvedValue({
+      promotedPosts: [
+        {
+          campaignId: 'campaign-3',
+          postId: 'post-3',
+          status: 'active',
+          budget: 15.0,
+          currentBudget: 7.5,
+          startedAt: new Date('2024-01-03'),
+          endedAt: null,
+          impressions: 1500,
+          clicks: 75,
+        },
+      ],
+      impressions: 1500,
+      clicks: 75,
+      totalSpend: 15.0,
+      postIds: ['post-3'],
+    });
+
+    const res = await client.query(QUERY, {
+      variables: { first: 10, after: '2' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.postCampaigns.stats).toBeNull();
+    expect(res.data.postCampaigns.edges).toHaveLength(1);
+    expect(res.data.postCampaigns.edges[0].cursor).toBe(
+      'YXJyYXljb25uZWN0aW9uOk5hTg==',
+    );
+  });
+
+  it('should handle pagination correctly', async () => {
+    loggedUser = '1';
+
+    // Create multiple test posts
+    const posts: Array<{
+      id: string;
+      shortId: string;
+      title: string;
+      image: string;
+      url: string;
+      sourceId: string;
+      type: PostType;
+      createdAt: Date;
+      authorId: string;
+    }> = [];
+    for (let i = 1; i <= 5; i++) {
+      posts.push({
+        id: `post-${i}`,
+        shortId: `p${i}`,
+        title: `Test Post ${i}`,
+        image: `https://test-post-${i}.jpg`,
+        url: `http://test-post-${i}.com`,
+        sourceId: 'a',
+        type: PostType.Article,
+        createdAt: new Date(),
+        authorId: '1',
+      });
+    }
+    await con.getRepository(ArticlePost).save(posts);
+
+    // Mock the skadi client to return campaigns for first page (limit 2)
+    (skadiBoostClient.getCampaigns as jest.Mock).mockResolvedValueOnce({
+      promotedPosts: posts.slice(0, 2).map((post, index) => ({
+        campaignId: `campaign-${index + 1}`,
+        postId: post.id,
+        status: 'active',
+        budget: 10.0,
+        currentBudget: 5.0,
+        startedAt: new Date(`2024-01-0${index + 1}`),
+        endedAt: null,
+        impressions: 1000 + index * 100,
+        clicks: 50 + index * 10,
+      })),
+      impressions: 2100,
+      clicks: 60,
+      totalSpend: 20.0,
+      postIds: posts.slice(0, 2).map((p) => p.id),
+    });
+
+    // Mock the skadi client to return campaigns for second page (offset 2, limit 2)
+    (skadiBoostClient.getCampaigns as jest.Mock).mockResolvedValueOnce({
+      promotedPosts: posts.slice(2, 4).map((post, index) => ({
+        campaignId: `campaign-${index + 3}`,
+        postId: post.id,
+        status: 'active',
+        budget: 10.0,
+        currentBudget: 5.0,
+        startedAt: new Date(`2024-01-0${index + 3}`),
+        endedAt: null,
+        impressions: 1000 + (index + 2) * 100,
+        clicks: 50 + (index + 2) * 10,
+      })),
+      impressions: 2300,
+      clicks: 80,
+      totalSpend: 20.0,
+      postIds: posts.slice(2, 4).map((p) => p.id),
+    });
+
+    // First request - limit to 2
+    const res1 = await client.query(QUERY, { variables: { first: 2 } });
+
+    expect(res1.errors).toBeFalsy();
+    expect(res1.data.postCampaigns.edges).toHaveLength(2);
+    expect(res1.data.postCampaigns.pageInfo.hasNextPage).toBe(true);
+    expect(res1.data.postCampaigns.pageInfo.endCursor).toBe(
+      'YXJyYXljb25uZWN0aW9uOjI=',
+    );
+    expect(res1.data.postCampaigns.stats).toEqual({
+      impressions: 2100,
+      clicks: 60,
+      totalSpend: 2000, // Converted from USD to cores
+      engagements: 2160, // 0+0+0+0+0+0+60+2100 = 2160 (no post engagements since posts have no views/upvotes/comments)
+    });
+
+    // Second request - get next 2 (offset 2)
+    const res2 = await client.query(QUERY, {
+      variables: { first: 2, after: 'YXJyYXljb25uZWN0aW9uOjI=' },
+    });
+
+    expect(res2.errors).toBeFalsy();
+    expect(res2.data.postCampaigns.edges).toHaveLength(2);
+    expect(res2.data.postCampaigns.pageInfo.hasNextPage).toBe(true);
+    expect(res2.data.postCampaigns.pageInfo.startCursor).toBe(
+      'YXJyYXljb25uZWN0aW9uOjM=',
+    );
+    expect(res2.data.postCampaigns.pageInfo.endCursor).toBe(
+      'YXJyYXljb25uZWN0aW9uOjQ=',
+    );
+    expect(res2.data.postCampaigns.stats).toBeNull(); // No stats on subsequent requests
+
+    // Verify that the correct offset was sent to Skadi for the second request
+    expect(skadiBoostClient.getCampaigns).toHaveBeenCalledWith({
+      userId: '1',
+      offset: 2, // cursorToOffset('YXJyYXljb25uZWN0aW9uOjI=') = 2
+      limit: 2,
+    });
+  });
+
+  it('should handle different post types correctly', async () => {
+    loggedUser = '1';
+
+    // Create different types of posts
+    await con.getRepository(ArticlePost).save({
+      id: 'article-post',
+      shortId: 'ap',
+      title: 'Article Post',
+      image: 'https://article-post.jpg',
+      url: 'http://article-post.com',
+      sourceId: 'a',
+      type: PostType.Article,
+      createdAt: new Date(),
+      authorId: '1',
+    });
+
+    await con.getRepository(FreeformPost).save({
+      id: 'freeform-post',
+      shortId: 'fp',
+      title: 'Freeform Post',
+      image: 'https://freeform-post.jpg',
+      content: 'Freeform content',
+      sourceId: 'a',
+      type: PostType.Freeform,
+      createdAt: new Date(),
+      authorId: '1',
+    } as unknown as Partial<FreeformPost>);
+
+    // Create a shared post for share post test
+    await con.getRepository(ArticlePost).save({
+      id: 'shared-post',
+      shortId: 'sp',
+      title: 'Shared Post Title',
+      image: 'https://shared-post.jpg',
+      url: 'http://shared-post.com',
+      sourceId: 'a',
+      type: PostType.Article,
+      createdAt: new Date(),
+    });
+
+    await con.getRepository(SharePost).save({
+      id: 'share-post',
+      shortId: 'share',
+      title: 'Share Post Title',
+      sharedPostId: 'shared-post',
+      sourceId: 'a',
+      type: PostType.Share,
+      createdAt: new Date(),
+      authorId: '1',
+    });
+
+    // Mock the skadi client to return campaigns for different post types
+    (skadiBoostClient.getCampaigns as jest.Mock).mockResolvedValue({
+      promotedPosts: [
+        {
+          campaignId: 'campaign-1',
+          postId: 'article-post',
+          status: 'active',
+          budget: 10.0,
+          currentBudget: 5.0,
+          startedAt: new Date('2024-01-01'),
+          endedAt: null,
+          impressions: 1000,
+          clicks: 50,
+        },
+        {
+          campaignId: 'campaign-2',
+          postId: 'freeform-post',
+          status: 'active',
+          budget: 10.0,
+          currentBudget: 5.0,
+          startedAt: new Date('2024-01-02'),
+          endedAt: null,
+          impressions: 1000,
+          clicks: 50,
+        },
+        {
+          campaignId: 'campaign-3',
+          postId: 'share-post',
+          status: 'active',
+          budget: 10.0,
+          currentBudget: 5.0,
+          startedAt: new Date('2024-01-03'),
+          endedAt: null,
+          impressions: 1000,
+          clicks: 50,
+        },
+      ],
+      impressions: 3000,
+      clicks: 150,
+      totalSpend: 30.0,
+      postIds: ['article-post', 'freeform-post', 'share-post'],
+    });
+
+    const res = await client.query(QUERY, { variables: { first: 10 } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.postCampaigns.edges).toHaveLength(3);
+
+    // Check article post
+    expect(res.data.postCampaigns.edges[0].node.post).toEqual({
+      id: 'article-post',
+      title: 'Article Post',
+      image: 'https://article-post.jpg',
+      shortId: 'ap',
+      permalink: 'http://localhost:4000/r/ap',
+    });
+    expect(res.data.postCampaigns.edges[0].cursor).toBe(
+      'YXJyYXljb25uZWN0aW9uOjE=',
+    );
+
+    // Check freeform post
+    expect(res.data.postCampaigns.edges[1].node.post).toEqual({
+      id: 'freeform-post',
+      title: 'Freeform Post',
+      image: 'https://freeform-post.jpg',
+      shortId: 'fp',
+      permalink: 'http://localhost:4000/r/fp',
+    });
+    expect(res.data.postCampaigns.edges[1].cursor).toBe(
+      'YXJyYXljb25uZWN0aW9uOjI=',
+    );
+
+    // Check share post (should use shared post image)
+    expect(res.data.postCampaigns.edges[2].node.post).toEqual({
+      id: 'share-post',
+      title: 'Share Post Title',
+      image: 'https://shared-post.jpg', // From shared post
+      shortId: 'share',
+      permalink: 'http://localhost:4000/r/share',
+    });
+    expect(res.data.postCampaigns.edges[2].cursor).toBe(
+      'YXJyYXljb25uZWN0aW9uOjM=',
+    );
+
+    // Check stats
+    expect(res.data.postCampaigns.stats).toEqual({
+      impressions: 3000,
+      clicks: 150,
+      totalSpend: 3000, // Converted from USD to cores
+      engagements: 3150, // 0+0+0+0+0+0+0+0+0+150+3000 = 3150 (no post engagements since posts have no views/upvotes/comments)
+    });
+  });
+
+  it('should handle edge cases with zero values', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(ArticlePost).save({
+      id: 'zero-post',
+      shortId: 'zp',
+      title: 'Zero Post',
+      image: 'https://zero-post.jpg',
+      url: 'http://zero-post.com',
+      sourceId: 'a',
+      type: PostType.Article,
+      createdAt: new Date(),
+      authorId: '1',
+      views: 0,
+      upvotes: 0,
+      comments: 0,
+    });
+
+    // Mock the skadi client to return campaigns with zero values
+    (skadiBoostClient.getCampaigns as jest.Mock).mockResolvedValue({
+      promotedPosts: [
+        {
+          campaignId: 'campaign-zero',
+          postId: 'zero-post',
+          status: 'active',
+          budget: 0.0,
+          currentBudget: 0.0,
+          startedAt: new Date('2024-01-01'),
+          endedAt: null,
+          impressions: 0,
+          clicks: 0,
+        },
+      ],
+      impressions: 0,
+      clicks: 0,
+      totalSpend: 0.0,
+      postIds: ['zero-post'],
+    });
+
+    const res = await client.query(QUERY, { variables: { first: 10 } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.postCampaigns.edges).toHaveLength(1);
+    expect(res.data.postCampaigns.edges[0].node.campaign).toEqual({
+      campaignId: 'campaign-zero',
+      postId: 'zero-post',
+      status: 'active',
+      budget: 0, // Converted from USD to cores
+      currentBudget: 0, // Converted from USD to cores
+      impressions: 0,
+      clicks: 0,
+    });
+    expect(res.data.postCampaigns.edges[0].cursor).toBe(
+      'YXJyYXljb25uZWN0aW9uOjE=',
+    );
+    expect(res.data.postCampaigns.stats).toEqual({
+      impressions: 0,
+      clicks: 0,
+      totalSpend: 0, // Converted from USD to cores
+      engagements: 0, // 0+0+0+0+0 = 0
+    });
+  });
+
+  it('should handle decimal USD amounts correctly', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(ArticlePost).save({
+      id: 'decimal-post',
+      shortId: 'dp',
+      title: 'Decimal Post',
+      image: 'https://decimal-post.jpg',
+      url: 'http://decimal-post.com',
+      sourceId: 'a',
+      type: PostType.Article,
+      createdAt: new Date(),
+      authorId: '1',
+    });
+
+    // Mock the skadi client to return campaigns with decimal USD amounts
+    (skadiBoostClient.getCampaigns as jest.Mock).mockResolvedValue({
+      promotedPosts: [
+        {
+          campaignId: 'campaign-decimal',
+          postId: 'decimal-post',
+          status: 'active',
+          budget: 15.75, // 15.75 USD = 1575 cores
+          currentBudget: 7.875, // 7.875 USD = 787 cores
+          startedAt: new Date('2024-01-01'),
+          endedAt: null,
+          impressions: 1000,
+          clicks: 50,
+        },
+      ],
+      impressions: 1000,
+      clicks: 50,
+      totalSpend: 15.75, // 15.75 USD = 1575 cores
+      postIds: ['decimal-post'],
+    });
+
+    const res = await client.query(QUERY, { variables: { first: 10 } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.postCampaigns.edges).toHaveLength(1);
+    expect(res.data.postCampaigns.edges[0].node.campaign).toEqual({
+      campaignId: 'campaign-decimal',
+      postId: 'decimal-post',
+      status: 'active',
+      budget: 1575, // 15.75 * 100 = 1575
+      currentBudget: 787, // 7.875 * 100 = 787
+      impressions: 1000,
+      clicks: 50,
+    });
+    expect(res.data.postCampaigns.edges[0].cursor).toBe(
+      'YXJyYXljb25uZWN0aW9uOjE=',
+    );
+    expect(res.data.postCampaigns.stats.totalSpend).toBe(1575); // 15.75 * 100 = 1575
+    expect(res.data.postCampaigns.stats).toEqual({
+      impressions: 1000,
+      clicks: 50,
+      totalSpend: 1575, // Converted from USD to cores
+      engagements: 1050, // 0+0+0+50+1000 = 1050 (no post engagements since post has no views/upvotes/comments)
+    });
+  });
+});

@@ -1,16 +1,15 @@
 import { z } from 'zod';
 import { ValidationError, ForbiddenError } from 'apollo-server-errors';
-import { AuthContext, type Context } from '../../Context';
+import { AuthContext } from '../../Context';
 import { Bookmark, Post, PostType, type ConnectionManager } from '../../entity';
-import graphorm from '../../graphorm';
-import { getPostPermalink, type GQLPost } from '../../schema/posts';
-import type { GraphQLResolveInfo } from 'graphql';
+import { getPostPermalink } from '../../schema/posts';
 import type { PromotedPost, PromotedPostList } from '../../integrations/skadi';
 import type { Connection } from 'graphql-relay';
 import { In } from 'typeorm';
 import { mapCloudinaryUrl } from '../cloudinary';
 import { pickImageUrl } from '../post';
 import { NotFoundError } from '../../errors';
+import { usdToCores } from '../njord';
 
 export interface StartPostBoostArgs {
   postId: string;
@@ -90,21 +89,24 @@ interface GetBoostedPost extends CampaignBoostedPost {
   sharedImage?: string;
 }
 
+const getBoostedPostBuilder = (con: ConnectionManager, alias = 'p1') =>
+  con
+    .getRepository(Post)
+    .createQueryBuilder('p1')
+    .select(`"${alias}".id`, 'id')
+    .addSelect(`"${alias}"."shortId"`, 'shortId')
+    .addSelect(`"${alias}".image`, 'image')
+    .addSelect(`"${alias}".title`, 'title')
+    .addSelect(`"${alias}".type`, 'type')
+    .addSelect('p2.title', 'sharedTitle')
+    .addSelect('p2.image', 'sharedImage')
+    .leftJoin(Post, 'p2', `"${alias}"."sharedPostId" = p2.id`);
+
 export const getBoostedPost = async (
   con: ConnectionManager,
   id: string,
 ): Promise<GetBoostedPost> => {
-  const result = await con
-    .getRepository(Post)
-    .createQueryBuilder('p1')
-    .select('p1.id', 'id')
-    .addSelect('p1."shortId"', 'shortId')
-    .addSelect('p1.image', 'image')
-    .addSelect('p1.title', 'title')
-    .addSelect('p1.type', 'type')
-    .addSelect('p2.title', 'sharedTitle')
-    .addSelect('p2.image', 'sharedImage')
-    .leftJoin(Post, 'p2', `p1."sharedPostId" = p2.id`)
+  const result = await getBoostedPostBuilder(con)
     .where('p1.id = :id', { id })
     .getRawOne();
 
@@ -115,9 +117,9 @@ export const getBoostedPost = async (
   return result;
 };
 
-export const getFormattedBoostedPost = async (
+export const getFormattedBoostedPost = (
   post: GetBoostedPost,
-): Promise<GQLBoostedPost['post']> => {
+): GQLBoostedPost['post'] => {
   const { id, shortId, sharedImage, sharedTitle } = post;
   let image: string | undefined = post.image;
   let title = post.title;
@@ -147,25 +149,24 @@ export interface BoostedPostConnection extends Connection<GQLBoostedPost> {
 
 export const consolidateCampaignsWithPosts = async (
   campaigns: PromotedPost[],
-  ctx: Context,
-  info: GraphQLResolveInfo,
-) => {
+  con: ConnectionManager,
+): Promise<GQLBoostedPost[]> => {
   const ids = campaigns.map(({ postId }) => postId);
-  const posts = await graphorm.query<GQLPost>(ctx, info, (builder) => ({
-    ...builder,
-    queryBuilder: builder.queryBuilder.where(
-      `${builder.alias}".id IN (...:ids)`,
-      { ids },
-    ),
-  }));
+  const posts = await getBoostedPostBuilder(con)
+    .where('p1.id IN (:...ids)', { ids })
+    .getRawMany<GetBoostedPost>();
   const mapped = posts.reduce(
     (map, post) => ({ ...map, [post.id]: post }),
-    {} as Record<string, GQLPost>,
+    {} as Record<string, GetBoostedPost>,
   );
 
   return campaigns.map((campaign) => ({
-    campaign,
-    post: mapped[campaign.postId],
+    campaign: {
+      ...campaign,
+      budget: usdToCores(campaign.budget),
+      currentBudget: usdToCores(campaign.currentBudget),
+    },
+    post: getFormattedBoostedPost(mapped[campaign.postId]),
   }));
 };
 
@@ -188,10 +189,10 @@ export const getTotalEngagements = async (
     .getQuery();
 
   const engagements = await builder
-    .select('SUM(upvotes)', 'upvotes')
-    .addSelect('SUM(comments)', 'comments')
-    .addSelect('SUM(views)', 'views')
-    .addSelect(`(${bookmarks})`, 'bookmarks')
+    .select('SUM(upvotes)::int', 'upvotes')
+    .addSelect('SUM(comments)::int', 'comments')
+    .addSelect('SUM(views)::int', 'views')
+    .addSelect(`(${bookmarks})::int`, 'bookmarks')
     .where({ id: In(postIds) })
     .getRawOne<TotalEngagements>();
 
