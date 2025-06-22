@@ -138,6 +138,12 @@ export const getFormattedBoostedPost = (
   };
 };
 
+export const getFormattedCampaign = (campaign: PromotedPost): PromotedPost => ({
+  ...campaign,
+  budget: usdToCores(campaign.budget),
+  currentBudget: usdToCores(campaign.currentBudget),
+});
+
 export interface BoostedPostStats
   extends Pick<PromotedPostList, 'clicks' | 'impressions' | 'totalSpend'> {
   engagements: number;
@@ -161,11 +167,7 @@ export const consolidateCampaignsWithPosts = async (
   );
 
   return campaigns.map((campaign) => ({
-    campaign: {
-      ...campaign,
-      budget: usdToCores(campaign.budget),
-      currentBudget: usdToCores(campaign.currentBudget),
-    },
+    campaign: getFormattedCampaign(campaign),
     post: getFormattedBoostedPost(mapped[campaign.postId]),
   }));
 };

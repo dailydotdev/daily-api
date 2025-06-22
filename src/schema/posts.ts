@@ -152,6 +152,7 @@ import {
   getFormattedBoostedPost,
   getBoostedPost,
   consolidateCampaignsWithPosts,
+  getFormattedCampaign,
 } from '../common/post/boost';
 import type { PostBoostReach } from '../integrations/skadi';
 import graphorm from '../graphorm';
@@ -2099,11 +2100,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const post = await getBoostedPost(ctx.con, campaign.postId);
 
       return {
-        campaign: {
-          ...campaign,
-          budget: usdToCores(campaign.budget),
-          currentBudget: usdToCores(campaign.currentBudget),
-        },
+        campaign: getFormattedCampaign(campaign),
         post: getFormattedBoostedPost(post),
       };
     },
