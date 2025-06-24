@@ -92,7 +92,7 @@ interface GetBoostedPost extends CampaignBoostedPost {
 const getBoostedPostBuilder = (con: ConnectionManager, alias = 'p1') =>
   con
     .getRepository(Post)
-    .createQueryBuilder('p1')
+    .createQueryBuilder(alias)
     .select(`"${alias}".id`, 'id')
     .addSelect(`"${alias}"."shortId"`, 'shortId')
     .addSelect(`"${alias}".image`, 'image')
