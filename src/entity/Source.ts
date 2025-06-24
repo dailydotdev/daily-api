@@ -179,8 +179,8 @@ export class SquadSource extends Source {
 
 @ChildEntity(SourceType.User)
 export class SourceUser extends Source {
-  @Column({ type: 'text' })
-  userId: string;
+  @Column({ type: 'text', default: null })
+  userId: string | null;
 
   @OneToOne('User', { lazy: true, onDelete: 'CASCADE' })
   @JoinColumn({
