@@ -3,8 +3,10 @@ import {
   Column,
   Entity,
   Index,
+  JoinColumn,
   ManyToOne,
   OneToMany,
+  OneToOne,
   PrimaryColumn,
   TableInheritance,
 } from 'typeorm';
@@ -13,6 +15,7 @@ import type { SourceFeed } from './SourceFeed';
 import type { Post } from './posts';
 import type { SourceMember } from './SourceMember';
 import type { SourceCategory } from './sources/SourceCategory';
+import type { User } from './user';
 
 export const COMMUNITY_PICKS_SOURCE = 'community';
 
@@ -22,6 +25,7 @@ export const SQUAD_IMAGE_PLACEHOLDER =
 export enum SourceType {
   Machine = 'machine',
   Squad = 'squad',
+  User = 'user',
 }
 
 export interface SourceFlagsPublic {
@@ -171,4 +175,17 @@ export class SquadSource extends Source {
 
   @Column({ default: false })
   moderationRequired: boolean;
+}
+
+@ChildEntity(SourceType.User)
+export class SourceUser extends Source {
+  @Column({ type: 'text' })
+  userId: string;
+
+  @OneToOne('User', { lazy: true, onDelete: 'CASCADE' })
+  @JoinColumn({
+    name: 'userId',
+    foreignKeyConstraintName: 'FK_source_user_id',
+  })
+  user: Promise<User>;
 }
