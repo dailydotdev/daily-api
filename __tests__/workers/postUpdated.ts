@@ -2476,18 +2476,20 @@ describe('on collection post', () => {
       postId: collection!.id,
     });
     expect(postRelations.length).toEqual(2);
-    expect(postRelations).toMatchObject([
-      {
-        relatedPostId: 'cp1',
-        postId: collection!.id,
-        type: PostRelationType.Collection,
-      },
-      {
-        relatedPostId: 'cp2',
-        postId: collection!.id,
-        type: PostRelationType.Collection,
-      },
-    ]);
+    expect(postRelations).toEqual(
+      expect.arrayContaining([
+        {
+          relatedPostId: 'cp1',
+          postId: collection!.id,
+          type: PostRelationType.Collection,
+        },
+        {
+          relatedPostId: 'cp2',
+          postId: collection!.id,
+          type: PostRelationType.Collection,
+        },
+      ]),
+    );
   });
 
   it('should update post relations to existing collection', async () => {
