@@ -2478,16 +2478,16 @@ describe('on collection post', () => {
     expect(postRelations.length).toEqual(2);
     expect(postRelations).toEqual(
       expect.arrayContaining([
-        {
+        expect.objectContaining({
           relatedPostId: 'cp1',
           postId: collection!.id,
           type: PostRelationType.Collection,
-        },
-        {
+        }),
+        expect.objectContaining({
           relatedPostId: 'cp2',
           postId: collection!.id,
           type: PostRelationType.Collection,
-        },
+        }),
       ]),
     );
   });
