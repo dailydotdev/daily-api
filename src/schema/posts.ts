@@ -719,6 +719,11 @@ export const typeDefs = /* GraphQL */ `
     Featured award for the post, currently the most expensive one
     """
     featuredAward: UserPost
+
+    """
+    The amount of total engagements for the post
+    """
+    engagements: Int
   }
 
   type PostConnection {

@@ -110,8 +110,8 @@ const getBoostedPostBuilder = (con: ConnectionManager, alias = 'p1') =>
     .addSelect(`"${alias}".image`, 'image')
     .addSelect(`"${alias}".title`, 'title')
     .addSelect(`"${alias}".type`, 'type')
-    .addSelect(`"${alias}"."numUpvotes"::int`, 'upvotes')
-    .addSelect(`"${alias}"."numComments"::int`, 'comments')
+    .addSelect(`"${alias}".upvotes::int`, 'upvotes')
+    .addSelect(`"${alias}".comments::int`, 'comments')
     .addSelect(`"${alias}".views::int`, 'views')
     .addSelect('p2.title', 'sharedTitle')
     .addSelect('p2.image', 'sharedImage')
@@ -125,7 +125,7 @@ export const getBoostedPost = async (
   const bookmarks = getBookmarksCountBuilder(builder).where({ postId: id });
   const result = await getBoostedPostBuilder(con)
     .addSelect(`(${bookmarks.getQuery()})::int`, 'bookmarks')
-    .where('p1.id = :id', { id })
+    .where({ id })
     .getRawOne();
 
   if (!result) {
