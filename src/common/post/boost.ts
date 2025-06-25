@@ -5,7 +5,7 @@ import { Bookmark, Post, PostType, type ConnectionManager } from '../../entity';
 import { getPostPermalink } from '../../schema/posts';
 import type { PromotedPost, PromotedPostList } from '../../integrations/skadi';
 import type { Connection } from 'graphql-relay';
-import { In } from 'typeorm';
+import { In, type SelectQueryBuilder } from 'typeorm';
 import { mapCloudinaryUrl } from '../cloudinary';
 import { pickImageUrl } from '../post';
 import { NotFoundError } from '../../errors';
@@ -76,6 +76,7 @@ export const checkPostAlreadyBoosted = (post: Pick<Post, 'flags'>): void => {
 interface CampaignBoostedPost extends Pick<Post, 'id' | 'shortId' | 'title'> {
   image: string;
   permalink: string;
+  engagements: number;
 }
 
 export interface GQLBoostedPost {
@@ -87,7 +88,18 @@ interface GetBoostedPost extends CampaignBoostedPost {
   type: PostType;
   sharedTitle?: string;
   sharedImage?: string;
+  views: number;
+  upvotes: number;
+  comments: number;
+  bookmarks: number;
 }
+
+const getBookmarksCountBuilder = (builder: SelectQueryBuilder<Post>) =>
+  builder
+    .subQuery()
+    .createQueryBuilder()
+    .select('COUNT(b.*)', 'bookmarks')
+    .from(Bookmark, 'b');
 
 const getBoostedPostBuilder = (con: ConnectionManager, alias = 'p1') =>
   con
@@ -98,6 +110,9 @@ const getBoostedPostBuilder = (con: ConnectionManager, alias = 'p1') =>
     .addSelect(`"${alias}".image`, 'image')
     .addSelect(`"${alias}".title`, 'title')
     .addSelect(`"${alias}".type`, 'type')
+    .addSelect(`"${alias}"."numUpvotes"::int`, 'upvotes')
+    .addSelect(`"${alias}"."numComments"::int`, 'comments')
+    .addSelect(`"${alias}".views::int`, 'views')
     .addSelect('p2.title', 'sharedTitle')
     .addSelect('p2.image', 'sharedImage')
     .leftJoin(Post, 'p2', `"${alias}"."sharedPostId" = p2.id`);
@@ -106,7 +121,10 @@ export const getBoostedPost = async (
   con: ConnectionManager,
   id: string,
 ): Promise<GetBoostedPost> => {
+  const builder = getBoostedPostBuilder(con);
+  const bookmarks = getBookmarksCountBuilder(builder).where({ postId: id });
   const result = await getBoostedPostBuilder(con)
+    .addSelect(`(${bookmarks.getQuery()})::int`, 'bookmarks')
     .where('p1.id = :id', { id })
     .getRawOne();
 
@@ -119,6 +137,7 @@ export const getBoostedPost = async (
 
 export const getFormattedBoostedPost = (
   post: GetBoostedPost,
+  campaign: PromotedPost,
 ): GQLBoostedPost['post'] => {
   const { id, shortId, sharedImage, sharedTitle } = post;
   let image: string | undefined = post.image;
@@ -135,6 +154,13 @@ export const getFormattedBoostedPost = (
     title,
     image: mapCloudinaryUrl(image) ?? pickImageUrl({ createdAt: new Date() }),
     permalink: getPostPermalink({ shortId }),
+    engagements:
+      post.bookmarks +
+      post.comments +
+      post.upvotes +
+      post.views +
+      campaign.impressions +
+      campaign.clicks,
   };
 };
 
@@ -168,7 +194,7 @@ export const consolidateCampaignsWithPosts = async (
 
   return campaigns.map((campaign) => ({
     campaign: getFormattedCampaign(campaign),
-    post: getFormattedBoostedPost(mapped[campaign.postId]),
+    post: getFormattedBoostedPost(mapped[campaign.postId], campaign),
   }));
 };
 

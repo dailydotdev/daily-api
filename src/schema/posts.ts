@@ -2106,7 +2106,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return {
         campaign: getFormattedCampaign(campaign),
-        post: getFormattedBoostedPost(post),
+        post: getFormattedBoostedPost(post, campaign),
       };
     },
     postCampaigns: async (
