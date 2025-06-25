@@ -94,12 +94,15 @@ interface GetBoostedPost extends CampaignBoostedPost {
   bookmarks: number;
 }
 
-const getBookmarksCountBuilder = (builder: SelectQueryBuilder<Post>) =>
+const getBookmarksCountBuilder = (
+  builder: SelectQueryBuilder<Post>,
+  alias = 'b',
+) =>
   builder
     .subQuery()
     .createQueryBuilder()
-    .select('COUNT(b.*)', 'bookmarks')
-    .from(Bookmark, 'b');
+    .select(`COUNT("${alias}".*)`, 'bookmarks')
+    .from(Bookmark, alias);
 
 const getBoostedPostBuilder = (con: ConnectionManager, alias = 'p1') =>
   con
@@ -184,8 +187,15 @@ export const consolidateCampaignsWithPosts = async (
   con: ConnectionManager,
 ): Promise<GQLBoostedPost[]> => {
   const ids = campaigns.map(({ postId }) => postId);
-  const posts = await getBoostedPostBuilder(con)
-    .where('p1.id IN (:...ids)', { ids })
+  const builder = getBoostedPostBuilder(con);
+  const postAlias = 'p1';
+  const bookmarkAlias = 'b';
+  const bookmarks = getBookmarksCountBuilder(builder).where(
+    `"${bookmarkAlias}"."postId" = "${postAlias}".id`,
+  );
+  const posts = await builder
+    .addSelect(`(${bookmarks.getQuery()})::int`, 'bookmarks')
+    .where(`"${postAlias}".id IN (:...ids)`, { ids })
     .getRawMany<GetBoostedPost>();
   const mapped = posts.reduce(
     (map, post) => ({ ...map, [post.id]: post }),

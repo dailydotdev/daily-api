@@ -994,6 +994,7 @@ describe('query postCampaigns', () => {
               image
               shortId
               permalink
+              engagements
             }
             campaign {
               campaignId
@@ -1146,6 +1147,7 @@ describe('query postCampaigns', () => {
           image: 'https://test-post-1.jpg',
           shortId: 'p1',
           permalink: 'http://localhost:4000/r/p1',
+          engagements: 1225, // 100 views + 50 upvotes + 25 comments + 1000 impressions + 50 clicks
         },
         campaign: {
           campaignId: 'campaign-1',
@@ -1167,6 +1169,7 @@ describe('query postCampaigns', () => {
           image: 'https://test-post-2.jpg',
           shortId: 'p2',
           permalink: 'http://localhost:4000/r/p2',
+          engagements: 2405, // 200 views + 75 upvotes + 30 comments + 2000 impressions + 100 clicks
         },
         campaign: {
           campaignId: 'campaign-2',
@@ -1326,7 +1329,7 @@ describe('query postCampaigns', () => {
       impressions: 2100,
       clicks: 60,
       totalSpend: 2000, // Converted from USD to cores
-      engagements: 2160, // 0+0+0+0+0+0+60+2100 = 2160 (no post engagements since posts have no views/upvotes/comments)
+      engagements: 2381, // 60+30+12+70+35+14+60+2100 = 2381
     });
 
     // Second request - get next 2 (offset 2)
@@ -1471,6 +1474,7 @@ describe('query postCampaigns', () => {
       image: 'https://article-post.jpg',
       shortId: 'ap',
       permalink: 'http://localhost:4000/r/ap',
+      engagements: 1255, // 120 views + 60 upvotes + 25 comments + 1000 impressions + 50 clicks
     });
     expect(res.data.postCampaigns.edges[0].cursor).toBe(
       'YXJyYXljb25uZWN0aW9uOjE=',
@@ -1483,6 +1487,7 @@ describe('query postCampaigns', () => {
       image: 'https://freeform-post.jpg',
       shortId: 'fp',
       permalink: 'http://localhost:4000/r/fp',
+      engagements: 1213, // 95 views + 48 upvotes + 20 comments + 1000 impressions + 50 clicks
     });
     expect(res.data.postCampaigns.edges[1].cursor).toBe(
       'YXJyYXljb25uZWN0aW9uOjI=',
@@ -1495,6 +1500,7 @@ describe('query postCampaigns', () => {
       image: 'https://shared-post.jpg', // From shared post
       shortId: 'share',
       permalink: 'http://localhost:4000/r/share',
+      engagements: 1178, // 75 views + 38 upvotes + 15 comments + 1000 impressions + 50 clicks
     });
     expect(res.data.postCampaigns.edges[2].cursor).toBe(
       'YXJyYXljb25uZWN0aW9uOjM=',
@@ -1505,7 +1511,7 @@ describe('query postCampaigns', () => {
       impressions: 3000,
       clicks: 150,
       totalSpend: 3000, // Converted from USD to cores
-      engagements: 3150, // 0+0+0+0+0+0+0+0+0+150+3000 = 3150 (no post engagements since posts have no views/upvotes/comments)
+      engagements: 3646, // 205+163+128+3000+150 = 3646 (post engagements + campaign metrics)
     });
   });
 
@@ -1632,7 +1638,7 @@ describe('query postCampaigns', () => {
       impressions: 1000,
       clicks: 50,
       totalSpend: 1575, // Converted from USD to cores
-      engagements: 1050, // 0+0+0+50+1000 = 1050 (no post engagements since post has no views/upvotes/comments)
+      engagements: 1159, // 65+32+12+50+1000 = 1159
     });
   });
 });
