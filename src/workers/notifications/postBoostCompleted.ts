@@ -12,7 +12,7 @@ const worker = generateTypedNotificationWorker<'api.v1.post-boost-completed'>({
       .getRepository(Post)
       .update(
         { id: postId },
-        { flags: updateFlagsStatement<Post>({ boosted: false }) },
+        { flags: updateFlagsStatement<Post>({ campaignId: null }) },
       );
 
     const user = await queryReadReplica(con, ({ queryRunner }) => {

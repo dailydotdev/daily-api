@@ -8112,7 +8112,7 @@ describe('mutation startPostBoost', () => {
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
-        flags: updateFlagsStatement<Post>({ boosted: true }),
+        flags: updateFlagsStatement<Post>({ campaignId: 'mock-id' }),
       },
     );
 
@@ -8130,7 +8130,7 @@ describe('mutation startPostBoost', () => {
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
-        flags: updateFlagsStatement<Post>({ boosted: false }),
+        flags: updateFlagsStatement<Post>({ campaignId: null }),
       },
     );
 
@@ -8161,7 +8161,7 @@ describe('mutation startPostBoost', () => {
 
     // Verify the boosted flag is still false
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.flags?.boosted).toBe(false);
+    expect(post?.flags?.campaignId).toBeFalsy();
   });
 
   it('should handle transfer failure gracefully', async () => {
@@ -8171,7 +8171,7 @@ describe('mutation startPostBoost', () => {
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
-        flags: updateFlagsStatement<Post>({ boosted: false }),
+        flags: updateFlagsStatement<Post>({ campaignId: null }),
       },
     );
 
@@ -8202,7 +8202,7 @@ describe('mutation startPostBoost', () => {
 
     // Verify the boosted flag is still false
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.flags?.boosted).toBe(false);
+    expect(post?.flags?.campaignId).toBeFalsy();
   });
 
   it('should verify no transactions are created when validation fails', async () => {
@@ -8212,7 +8212,7 @@ describe('mutation startPostBoost', () => {
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
-        flags: updateFlagsStatement<Post>({ boosted: false }),
+        flags: updateFlagsStatement<Post>({ campaignId: null }),
       },
     );
 
@@ -8241,7 +8241,7 @@ describe('mutation startPostBoost', () => {
 
     // Verify the boosted flag is still false
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.flags?.boosted).toBe(false);
+    expect(post?.flags?.campaignId).toBeFalsy();
   });
 
   it('should verify no transactions are created when post does not exist', async () => {
@@ -8272,7 +8272,7 @@ describe('mutation startPostBoost', () => {
 
     // Verify the original post's boosted flag is unchanged
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.flags?.boosted).toBeFalsy();
+    expect(post?.flags?.campaignId).toBeFalsy();
   });
 
   it('should verify no transactions are created when user is not authorized', async () => {
@@ -8282,7 +8282,7 @@ describe('mutation startPostBoost', () => {
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
-        flags: updateFlagsStatement<Post>({ boosted: false }),
+        flags: updateFlagsStatement<Post>({ campaignId: null }),
       },
     );
 
@@ -8311,7 +8311,7 @@ describe('mutation startPostBoost', () => {
 
     // Verify the boosted flag is still false
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.flags?.boosted).toBe(false);
+    expect(post?.flags?.campaignId).toBeFalsy();
   });
 
   it('should verify no transactions are created when post is already boosted', async () => {
@@ -8321,7 +8321,7 @@ describe('mutation startPostBoost', () => {
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
-        flags: updateFlagsStatement<Post>({ boosted: true }),
+        flags: updateFlagsStatement<Post>({ campaignId: 'mock-id' }),
       },
     );
 
@@ -8350,7 +8350,7 @@ describe('mutation startPostBoost', () => {
 
     // Verify the boosted flag remains true (unchanged)
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.flags?.boosted).toBe(true);
+    expect(post?.flags?.campaignId).toBe('mock-id');
   });
 });
 
@@ -8367,12 +8367,13 @@ describe('mutation cancelPostBoost', () => {
 
   beforeEach(async () => {
     isTeamMember = true; // TODO: remove when we are about to run production
-    await con
-      .getRepository(Post)
-      .update(
-        { id: 'p1' },
-        { authorId: '1', flags: updateFlagsStatement<Post>({ boosted: true }) },
-      );
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        authorId: '1',
+        flags: updateFlagsStatement<Post>({ campaignId: 'mock-id' }),
+      },
+    );
   });
 
   it('should not authorize when not logged in', () =>
@@ -8408,7 +8409,7 @@ describe('mutation cancelPostBoost', () => {
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
-        flags: updateFlagsStatement<Post>({ boosted: false }),
+        flags: updateFlagsStatement<Post>({ campaignId: null }),
       },
     );
 
@@ -8431,7 +8432,7 @@ describe('mutation cancelPostBoost', () => {
 
     // Verify the boosted flag is now false
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.flags?.boosted).toBe(false);
+    expect(post?.flags?.campaignId).toBeFalsy();
   });
 
   it('should verify boosted flag remains unchanged when validation fails', async () => {
@@ -8441,7 +8442,7 @@ describe('mutation cancelPostBoost', () => {
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
-        flags: updateFlagsStatement<Post>({ boosted: false }),
+        flags: updateFlagsStatement<Post>({ campaignId: null }),
       },
     );
 
@@ -8455,7 +8456,7 @@ describe('mutation cancelPostBoost', () => {
 
     // Verify the boosted flag remains false (unchanged)
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.flags?.boosted).toBe(false);
+    expect(post?.flags?.campaignId).toBeFalsy();
   });
 
   it('should verify boosted flag remains unchanged when post does not exist', async () => {
@@ -8472,7 +8473,7 @@ describe('mutation cancelPostBoost', () => {
     // Verify the original post's boosted flag is unchanged
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     // The boosted flag should be whatever it was before (false by default)
-    expect(post?.flags?.boosted).toBeTruthy();
+    expect(post?.flags?.campaignId).toBe('mock-id');
   });
 
   it('should verify boosted flag remains unchanged when user is not authorized', async () => {
@@ -8488,7 +8489,7 @@ describe('mutation cancelPostBoost', () => {
 
     // Verify the boosted flag remains true (unchanged)
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.flags?.boosted).toBe(true);
+    expect(post?.flags?.campaignId).toBe('mock-id');
   });
 
   it('should work for post scout as well as author', async () => {
@@ -8512,7 +8513,7 @@ describe('mutation cancelPostBoost', () => {
 
     // Verify the boosted flag is now false
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.flags?.boosted).toBe(false);
+    expect(post?.flags?.campaignId).toBeFalsy();
   });
 });
 
@@ -8618,7 +8619,7 @@ describe('query boostEstimatedReach', () => {
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
-        flags: updateFlagsStatement<Post>({ boosted: true }),
+        flags: updateFlagsStatement<Post>({ campaignId: 'mock-id' }),
       },
     );
 
