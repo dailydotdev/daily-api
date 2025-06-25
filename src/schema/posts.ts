@@ -405,6 +405,11 @@ export const typeDefs = /* GraphQL */ `
     Cover video
     """
     coverVideo: String
+
+    """
+    The current campaign running for the post
+    """
+    campaignId: String
   }
 
   type UserPostFlagsPublic {
@@ -2610,7 +2615,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .getRepository(Post)
           .update(
             { id: postId },
-            { flags: updateFlagsStatement<Post>({ boosted: true }) },
+            { flags: updateFlagsStatement<Post>({ campaignId }) },
           );
 
         try {
@@ -2662,7 +2667,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<GQLEmptyResponse> => {
       const post = await validatePostBoostPermissions(ctx, postId);
 
-      if (!post.flags?.boosted) {
+      if (!post.flags?.campaignId) {
         throw new ValidationError('Post is not currently boosted');
       }
 
@@ -2671,7 +2676,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .getRepository(Post)
           .update(
             { id: postId },
-            { flags: updateFlagsStatement<Post>({ boosted: false }) },
+            { flags: updateFlagsStatement<Post>({ campaignId: null }) },
           );
 
         await skadiBoostClient.cancelPostCampaign({
