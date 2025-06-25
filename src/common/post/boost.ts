@@ -60,7 +60,7 @@ export const validatePostBoostPermissions = async (
 };
 
 export const checkPostAlreadyBoosted = (post: Pick<Post, 'flags'>): void => {
-  if (post.flags?.boosted) {
+  if (!!post.flags?.campaignId) {
     throw new ValidationError('Post is already boosted');
   }
 };

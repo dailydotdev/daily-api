@@ -44,7 +44,7 @@ export type PostFlags = Partial<{
   deletedBy: string;
   vordr: boolean;
   coverVideo: string;
-  boosted: boolean;
+  campaignId: string | null;
   originalUrl: string;
 }>;
 
