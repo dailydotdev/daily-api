@@ -192,6 +192,7 @@ describe('query postCampaignById', () => {
           image
           shortId
           permalink
+          engagements
         }
         campaign {
           campaignId
@@ -210,7 +211,15 @@ describe('query postCampaignById', () => {
 
   beforeEach(async () => {
     isTeamMember = true; // TODO: remove when we are about to run production
-    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        authorId: '1',
+        views: 150,
+        upvotes: 75,
+        comments: 25,
+      },
+    );
   });
 
   it('should not authorize when not logged in', () =>
@@ -267,6 +276,7 @@ describe('query postCampaignById', () => {
         title: 'P1',
         shortId: 'sp1',
         permalink: 'http://localhost:4000/r/sp1',
+        engagements: 310, // 150 views + 75 upvotes + 25 comments + 50 impressions + 10 clicks
       },
     });
   });
@@ -289,6 +299,9 @@ describe('query postCampaignById', () => {
           sourceId: 'a',
           type: PostType.Article,
           createdAt: new Date(),
+          views: 200,
+          upvotes: 100,
+          comments: 30,
         });
 
         // Create a share post that references the shared post
@@ -301,6 +314,9 @@ describe('query postCampaignById', () => {
           type: PostType.Share,
           createdAt: new Date(),
           authorId: '1',
+          views: 80,
+          upvotes: 40,
+          comments: 15,
         });
 
         // Mock the skadi client to return the share post campaign
@@ -327,6 +343,7 @@ describe('query postCampaignById', () => {
           title: 'Shared Post Title', // From shared post
           shortId: 'share1',
           permalink: 'http://localhost:4000/r/share1',
+          engagements: 195, // 80 views + 40 upvotes + 15 comments + 50 impressions + 10 clicks
         });
       });
 
@@ -341,6 +358,9 @@ describe('query postCampaignById', () => {
           sourceId: 'a',
           type: PostType.Article,
           createdAt: new Date(),
+          views: 120,
+          upvotes: 60,
+          comments: 20,
         });
 
         // Create a share post with its own title
@@ -353,6 +373,9 @@ describe('query postCampaignById', () => {
           type: PostType.Share,
           createdAt: new Date(),
           authorId: '1',
+          views: 90,
+          upvotes: 45,
+          comments: 18,
         });
 
         // Mock the skadi client to return the share post campaign
@@ -379,6 +402,7 @@ describe('query postCampaignById', () => {
           title: 'Share Post Custom Title', // From share post (not shared post)
           shortId: 'share2',
           permalink: 'http://localhost:4000/r/share2',
+          engagements: 213, // 90 views + 45 upvotes + 18 comments + 50 impressions + 10 clicks
         });
       });
 
@@ -393,6 +417,9 @@ describe('query postCampaignById', () => {
           sourceId: 'a',
           type: PostType.Article,
           createdAt: new Date(),
+          views: 180,
+          upvotes: 90,
+          comments: 35,
         });
 
         // Create a share post with empty title
@@ -405,6 +432,9 @@ describe('query postCampaignById', () => {
           type: PostType.Share,
           createdAt: new Date(),
           authorId: '1',
+          views: 70,
+          upvotes: 35,
+          comments: 12,
         });
 
         // Mock the skadi client to return the share post campaign
@@ -431,6 +461,7 @@ describe('query postCampaignById', () => {
           title: 'Shared Post Title for Empty', // From shared post (empty string is falsy)
           shortId: 'share3',
           permalink: 'http://localhost:4000/r/share3',
+          engagements: 177, // 70 views + 35 upvotes + 12 comments + 50 impressions + 10 clicks
         });
       });
     });
@@ -448,6 +479,9 @@ describe('query postCampaignById', () => {
           type: PostType.Freeform,
           createdAt: new Date(),
           authorId: '1',
+          views: 250,
+          upvotes: 125,
+          comments: 45,
         } as unknown as Partial<FreeformPost>);
 
         // Mock the skadi client to return the freeform post campaign
@@ -474,6 +508,7 @@ describe('query postCampaignById', () => {
           title: 'Freeform Post Title',
           shortId: 'freeform1',
           permalink: 'http://localhost:4000/r/freeform1',
+          engagements: 480, // 250 views + 125 upvotes + 45 comments + 50 impressions + 10 clicks
         });
       });
 
@@ -490,6 +525,9 @@ describe('query postCampaignById', () => {
           type: PostType.Freeform,
           createdAt,
           authorId: '1',
+          views: 95,
+          upvotes: 48,
+          comments: 22,
         } as unknown as Partial<FreeformPost>);
 
         // Mock the skadi client to return the freeform post campaign
@@ -519,6 +557,7 @@ describe('query postCampaignById', () => {
           title: 'Freeform Post No Image',
           shortId: 'freeform2',
           permalink: 'http://localhost:4000/r/freeform2',
+          engagements: 225, // 95 views + 48 upvotes + 22 comments + 50 impressions + 10 clicks
         });
         const image = res.data.postCampaignById.post.image;
         const fallback = pickImageUrl({ createdAt });
@@ -542,6 +581,9 @@ describe('query postCampaignById', () => {
           type: PostType.Article,
           createdAt: new Date(),
           authorId: '1',
+          views: 300,
+          upvotes: 150,
+          comments: 60,
         });
 
         // Mock the skadi client to return the article post campaign
@@ -568,6 +610,7 @@ describe('query postCampaignById', () => {
           title: 'Article Post Title',
           shortId: 'article1',
           permalink: 'http://localhost:4000/r/article1',
+          engagements: 570, // 300 views + 150 upvotes + 60 comments + 50 impressions + 10 clicks
         });
       });
 
@@ -584,6 +627,9 @@ describe('query postCampaignById', () => {
           type: PostType.Article,
           createdAt,
           authorId: '1',
+          views: 110,
+          upvotes: 55,
+          comments: 28,
         });
 
         // Mock the skadi client to return the article post campaign
@@ -613,6 +659,7 @@ describe('query postCampaignById', () => {
           title: 'Article Post No Image',
           shortId: 'article2',
           permalink: 'http://localhost:4000/r/article2',
+          engagements: 253, // 110 views + 55 upvotes + 28 comments + 50 impressions + 10 clicks
         });
         const image = res.data.postCampaignById.post.image;
         const fallback = pickImageUrl({ createdAt });
@@ -636,6 +683,9 @@ describe('query postCampaignById', () => {
           type: PostType.Welcome,
           createdAt: new Date(),
           authorId: '1',
+          views: 85,
+          upvotes: 42,
+          comments: 18,
         });
 
         // Mock the skadi client to return the welcome post campaign
@@ -662,6 +712,7 @@ describe('query postCampaignById', () => {
           title: 'Welcome Post Title',
           shortId: 'welcome1',
           permalink: 'http://localhost:4000/r/welcome1',
+          engagements: 205, // 85 views + 42 upvotes + 18 comments + 50 impressions + 10 clicks
         });
       });
     });
@@ -679,6 +730,9 @@ describe('query postCampaignById', () => {
           type: PostType.Collection,
           createdAt: new Date(),
           authorId: '1',
+          views: 160,
+          upvotes: 80,
+          comments: 32,
         });
 
         // Mock the skadi client to return the collection post campaign
@@ -705,6 +759,7 @@ describe('query postCampaignById', () => {
           title: 'Collection Post Title',
           shortId: 'collect1',
           permalink: 'http://localhost:4000/r/collect1',
+          engagements: 332, // 160 views + 80 upvotes + 32 comments + 50 impressions + 10 clicks
         });
       });
     });
@@ -723,6 +778,9 @@ describe('query postCampaignById', () => {
           type: PostType.VideoYouTube,
           createdAt: new Date(),
           authorId: '1',
+          views: 220,
+          upvotes: 110,
+          comments: 38,
         });
 
         // Mock the skadi client to return the YouTube post campaign
@@ -749,6 +807,7 @@ describe('query postCampaignById', () => {
           title: 'YouTube Post Title',
           shortId: 'youtube1',
           permalink: 'http://localhost:4000/r/youtube1',
+          engagements: 428, // 220 views + 110 upvotes + 38 comments + 50 impressions + 10 clicks
         });
       });
     });
@@ -766,6 +825,9 @@ describe('query postCampaignById', () => {
           sourceId: 'a',
           type: PostType.Article,
           createdAt,
+          views: 75,
+          upvotes: 38,
+          comments: 15,
         });
 
         // Create a share post that references the shared post
@@ -778,6 +840,9 @@ describe('query postCampaignById', () => {
           type: PostType.Share,
           createdAt: new Date(),
           authorId: '1',
+          views: 65,
+          upvotes: 32,
+          comments: 14,
         });
 
         // Mock the skadi client to return the share post campaign
@@ -807,6 +872,7 @@ describe('query postCampaignById', () => {
           title: 'Share Post with Shared Post No Image', // Uses share post title
           shortId: 'sharenoimg',
           permalink: 'http://localhost:4000/r/sharenoimg',
+          engagements: 171, // 65 views + 32 upvotes + 14 comments + 50 impressions + 10 clicks
         });
         const image = res.data.postCampaignById.post.image;
         const fallback = pickImageUrl({ createdAt });
@@ -828,6 +894,9 @@ describe('query postCampaignById', () => {
           type: PostType.Article,
           createdAt: new Date(),
           authorId: '1',
+          views: 45,
+          upvotes: 22,
+          comments: 8,
         });
 
         // Mock the skadi client to return the post campaign
@@ -854,6 +923,7 @@ describe('query postCampaignById', () => {
           title: null, // Preserves null title
           shortId: 'nulltitle',
           permalink: 'http://localhost:4000/r/nulltitle',
+          engagements: 135, // 45 views + 22 upvotes + 8 comments + 50 impressions + 10 clicks
         });
       });
 
@@ -869,6 +939,9 @@ describe('query postCampaignById', () => {
           type: PostType.Article,
           createdAt: new Date(),
           authorId: '1',
+          views: 55,
+          upvotes: 28,
+          comments: 12,
         });
 
         // Mock the skadi client to return the post campaign
@@ -895,6 +968,7 @@ describe('query postCampaignById', () => {
           title: null, // Preserves undefined title
           shortId: 'undeftitle',
           permalink: 'http://localhost:4000/r/undeftitle',
+          engagements: 155, // 55 views + 28 upvotes + 12 comments + 50 impressions + 10 clicks
         });
       });
     });
@@ -1127,6 +1201,9 @@ describe('query postCampaigns', () => {
       type: PostType.Article,
       createdAt: new Date(),
       authorId: '1',
+      views: 85,
+      upvotes: 42,
+      comments: 18,
     });
 
     // Mock the skadi client to return campaigns
@@ -1176,6 +1253,9 @@ describe('query postCampaigns', () => {
       type: PostType;
       createdAt: Date;
       authorId: string;
+      views: number;
+      upvotes: number;
+      comments: number;
     }> = [];
     for (let i = 1; i <= 5; i++) {
       posts.push({
@@ -1188,6 +1268,9 @@ describe('query postCampaigns', () => {
         type: PostType.Article,
         createdAt: new Date(),
         authorId: '1',
+        views: 50 + i * 10,
+        upvotes: 25 + i * 5,
+        comments: 10 + i * 2,
       });
     }
     await con.getRepository(ArticlePost).save(posts);
@@ -1284,6 +1367,9 @@ describe('query postCampaigns', () => {
       type: PostType.Article,
       createdAt: new Date(),
       authorId: '1',
+      views: 120,
+      upvotes: 60,
+      comments: 25,
     });
 
     await con.getRepository(FreeformPost).save({
@@ -1296,6 +1382,9 @@ describe('query postCampaigns', () => {
       type: PostType.Freeform,
       createdAt: new Date(),
       authorId: '1',
+      views: 95,
+      upvotes: 48,
+      comments: 20,
     } as unknown as Partial<FreeformPost>);
 
     // Create a shared post for share post test
@@ -1308,6 +1397,9 @@ describe('query postCampaigns', () => {
       sourceId: 'a',
       type: PostType.Article,
       createdAt: new Date(),
+      views: 180,
+      upvotes: 90,
+      comments: 35,
     });
 
     await con.getRepository(SharePost).save({
@@ -1319,6 +1411,9 @@ describe('query postCampaigns', () => {
       type: PostType.Share,
       createdAt: new Date(),
       authorId: '1',
+      views: 75,
+      upvotes: 38,
+      comments: 15,
     });
 
     // Mock the skadi client to return campaigns for different post types
@@ -1490,6 +1585,9 @@ describe('query postCampaigns', () => {
       type: PostType.Article,
       createdAt: new Date(),
       authorId: '1',
+      views: 65,
+      upvotes: 32,
+      comments: 12,
     });
 
     // Mock the skadi client to return campaigns with decimal USD amounts
