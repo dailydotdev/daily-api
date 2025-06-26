@@ -2,11 +2,11 @@ import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, Context } from '../Context';
 import {
+  getSession,
   getSessions,
   postFeedback,
-  SearchResultFeedback,
   Search,
-  getSession,
+  SearchResultFeedback,
   SearchSession,
 } from '../integrations';
 import { ValidationError } from 'apollo-server-errors';
@@ -19,14 +19,15 @@ import {
   feedResolver,
   fixedIdsFeedBuilder,
   ghostUser,
+  toGQLEnum,
 } from '../common';
 import { GQLPost } from './posts';
 import { MeiliPagination, searchMeili } from '../integrations/meilisearch';
 import { Keyword, Post, Source, SourceType, UserPost } from '../entity';
 import {
-  SearchSuggestionArgs,
   defaultSearchLimit,
   getSearchLimit,
+  SearchSuggestionArgs,
 } from '../common/search';
 import { getOffsetWithDefault } from 'graphql-relay';
 import { Brackets } from 'typeorm';
@@ -34,7 +35,14 @@ import { whereVordrFilter } from '../common/vordr';
 import { ContentPreference } from '../entity/contentPreference/ContentPreference';
 import { ContentPreferenceType } from '../entity/contentPreference/types';
 import { mimirClient } from '../integrations/mimir';
-import { SearchRequest } from '@dailydotdev/schema';
+import {
+  BoolFilter,
+  Operation,
+  Quantifier,
+  SearchRequest,
+  StringListFilter,
+  TimeRangeFilter,
+} from '@dailydotdev/schema';
 
 type GQLSearchSession = Pick<SearchSession, 'id' | 'prompt' | 'createdAt'>;
 
@@ -46,12 +54,25 @@ interface GQLSearchSuggestion {
   contentPreference?: ContentPreference;
 }
 
+export enum SearchTime {
+  AllTime = 'AllTime',
+  Today = 'Today',
+  Yesterday = 'Yesterday',
+  LastSevenDays = 'LastSevenDays',
+  LastThirtyDays = 'LastThirtyDays',
+  LastMonth = 'LastMonth',
+  ThisYear = 'ThisYear',
+  LastYear = 'LastYear',
+}
+
 export interface GQLSearchSuggestionsResults {
   query: string;
   hits: GQLSearchSuggestion[];
 }
 
 export const typeDefs = /* GraphQL */ `
+  ${toGQLEnum(SearchTime, 'SearchTime')}
+
   type SearchSession {
     id: String!
     prompt: String!
@@ -180,6 +201,16 @@ export const typeDefs = /* GraphQL */ `
       supportedTypes: [String!]
 
       """
+      Array of support content curation types
+      """
+      contentCuration: [String]
+
+      """
+      Time filter (SearchTime)
+      """
+      time: SearchTime
+
+      """
       Version of the search algorithm
       """
       version: Int = 2
@@ -290,6 +321,47 @@ const meiliSearchResolver = feedResolver(
   },
 );
 
+const mimirFilterBuilder = ({
+  contentCuration,
+  time,
+}: {
+  contentCuration?: string[];
+  time?: SearchTime;
+}) => {
+  return [
+    {
+      field: 'content_curation',
+      condition: {
+        value: new StringListFilter({
+          value: contentCuration,
+          quantifier: Quantifier.ANY,
+          operation: Operation.INCLUDE,
+        }),
+        case: 'stringListFilter',
+      },
+    },
+    {
+      field: 'time',
+      condition: {
+        value: new TimeRangeFilter({
+          startTimestamp: BigInt(1750939985931),
+          endTimestamp: BigInt(1750939985931),
+        }),
+        case: 'timeRangeFilter',
+      },
+    },
+    {
+      field: 'private',
+      condition: {
+        value: new BoolFilter({
+          value: false,
+        }),
+        case: 'boolFilter',
+      },
+    },
+  ];
+};
+
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
   BaseContext
@@ -320,40 +392,40 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<Search> => getSession(ctx.userId, id),
     searchPostSuggestions: async (
       source,
-      { query, version }: { query: string; version: number },
+      {
+        query,
+        version,
+      }: {
+        query: string;
+        version: number;
+      },
       ctx: Context,
     ): Promise<GQLSearchSuggestionsResults> => {
-      const searchParams = new URLSearchParams({
-        q: query,
-        attributesToRetrieve: 'post_id,title',
+      const searchReq = new SearchRequest({
+        query: query,
+        version: version,
+        offset: 0,
+        limit: 10,
+        filter: mimirFilterBuilder({}),
       });
-      let idsStr;
-      let idsArr: string[] = [];
-      if (version >= 3) {
-        const searchReq = new SearchRequest({
-          query: query,
-          version: version,
-          offset: 0,
-          limit: 10,
-        });
 
-        const mimirSearchRes = await mimirClient.search(searchReq);
-        idsStr = mimirSearchRes.result?.length
-          ? mimirSearchRes.result.map((id) => `'${id.postId}'`).join(',')
-          : `'nosuchid'`;
-        idsArr = mimirSearchRes.result?.length
-          ? mimirSearchRes.result.map((id) => id.postId)
-          : ['nosuchid'];
-      }
-      if (version === 2) {
-        searchParams.append('attributesToSearchOn', 'title');
-        const { hits } = await searchMeili(searchParams.toString());
-        // In case ids is empty make sure the query does not fail
-        idsStr = hits.length
-          ? hits.map((id) => `'${id.post_id}'`).join(',')
-          : `'nosuchid'`;
-        idsArr = hits.length ? hits.map((id) => id.post_id) : ['nosuchid'];
-      }
+      const mimirSearchRes = await mimirClient.search(searchReq);
+      const idsStr = mimirSearchRes.result?.length
+        ? mimirSearchRes.result.map((id) => `'${id.postId}'`).join(',')
+        : `'nosuchid'`;
+      const idsArr = mimirSearchRes.result?.length
+        ? mimirSearchRes.result.map((id) => id.postId)
+        : ['nosuchid'];
+
+      // if (version === 2) {
+      //   searchParams.append('attributesToSearchOn', 'title');
+      //   const { hits } = await searchMeili(searchParams.toString());
+      //   // In case ids is empty make sure the query does not fail
+      //   idsStr = hits.length
+      //     ? hits.map((id) => `'${id.post_id}'`).join(',')
+      //     : `'nosuchid'`;
+      //   idsArr = hits.length ? hits.map((id) => id.post_id) : ['nosuchid'];
+      // }
 
       let newBuilder = ctx.con
         .createQueryBuilder()
@@ -396,64 +468,45 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         version: number;
         first: number;
         after: string;
+        contentCuration: string[];
+        time: SearchTime;
       },
       ctx: Context,
       info,
     ): Promise<ConnectionRelay<GQLPost> & { query: string }> => {
+      const { contentCuration, time } = args;
       const limit = Math.min(args.first || 10);
       const offset = getOffsetWithDefault(args.after, -1) + 1;
-      const searchParams = new URLSearchParams({
-        q: args.query,
-        limit: limit.toString(),
-        offset: offset.toString(),
+      const searchReq = new SearchRequest({
+        query: args.query,
+        version: args.version,
+        offset,
+        limit,
+        filters: mimirFilterBuilder({ contentCuration, time }),
       });
-      if (args.version >= 3) {
-        const searchReq = new SearchRequest({
-          query: args.query,
-          version: args.version,
-          offset,
-          limit,
-        });
+      console.log('searchRequest', searchReq);
 
-        const mimirSearchRes = await mimirClient.search(searchReq);
+      const mimirSearchRes = await mimirClient.search(searchReq);
 
-        const res = await meiliSearchResolver(
-          source,
-          {
-            ...args,
-            ids: mimirSearchRes.result.map((x) => x.postId),
-            pagination: {
-              limit,
-              offset,
-              total: limit + 1,
-              current: mimirSearchRes.result.length,
-            },
-          },
-          ctx,
-          info,
-        );
-        return {
-          ...res,
-          query: args.query,
-        };
-      } else {
-        searchParams.append('attributesToSearchOn', 'title');
-        const meilieSearchRes = await searchMeili(searchParams.toString());
-        const meilieArgs: FeedArgs & {
-          ids: string[];
-          pagination: MeiliPagination;
-        } = {
+      const res = await meiliSearchResolver(
+        source,
+        {
           ...args,
-          ids: meilieSearchRes.hits.map((x) => x.post_id),
-          pagination: meilieSearchRes.pagination,
-        };
-
-        const res = await meiliSearchResolver(source, meilieArgs, ctx, info);
-        return {
-          ...res,
-          query: args.query,
-        };
-      }
+          ids: mimirSearchRes.result.map((x) => x.postId),
+          pagination: {
+            limit,
+            offset,
+            total: limit + 1,
+            current: mimirSearchRes.result.length,
+          },
+        },
+        ctx,
+        info,
+      );
+      return {
+        ...res,
+        query: args.query,
+      };
     },
     searchTagSuggestions: async (
       source,
