@@ -37,6 +37,7 @@ import { markdown } from '../common/markdown';
 import { counters } from '../telemetry';
 import { I18nRecord } from '../types';
 import { insertCodeSnippetsFromUrl } from '../common/post';
+import { BriefPost } from '../entity/posts/BriefPost';
 
 interface Data {
   id: string;
@@ -348,6 +349,7 @@ const contentTypeFromPostType: Record<PostType, typeof Post> = {
   [PostType.Welcome]: WelcomePost,
   [PostType.Collection]: CollectionPost,
   [PostType.VideoYouTube]: YouTubePost,
+  [PostType.Brief]: BriefPost,
 };
 
 type UpdatePostProps = {

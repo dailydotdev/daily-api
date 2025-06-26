@@ -352,6 +352,14 @@ export const workers: Worker[] = [
   {
     topic: 'api.v1.organization-user-removed',
     subscription: 'api.organization-user-removed'
+  },
+  {
+    topic: 'api.v1.brief-generate',
+    subscription: 'api.user-generate-brief',
+  },
+  {
+    topic: 'api.v1.brief-ready',
+    subscription: 'api.user-brief-ready',
   }
 ];
 

@@ -126,3 +126,34 @@ export type FeedFlagsFilters = {
   };
   min_day_range?: FeedFlags['minDayRange'];
 };
+
+export enum BriefingType {
+  Daily = 'daily',
+  Weekly = 'weekly',
+}
+
+export enum BriefingModel {
+  Default = 'ai_briefing',
+}
+
+// TODO feat-brief replace with schema
+export type UserBriefingRequest = {
+  userId: string;
+  frequency: BriefingType;
+  modelName: string;
+};
+
+export type BriefingItem = {
+  title: string;
+  body: string;
+};
+
+export type BriefingSection = {
+  title: string;
+  items: BriefingItem[];
+};
+
+export type Briefing = {
+  sections: BriefingSection[];
+  limitationsUncertainties?: string;
+};

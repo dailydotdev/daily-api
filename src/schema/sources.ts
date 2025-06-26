@@ -5,6 +5,7 @@ import { AuthContext, BaseContext, Context } from '../Context';
 import {
   createSharePost,
   NotificationPreferenceSource,
+  PostType,
   REPUTATION_THRESHOLD,
   Source,
   SourceFeed,
@@ -13,8 +14,9 @@ import {
   SourceMemberFlagsPublic,
   SquadSource,
   User,
+  type Post,
 } from '../entity';
-import { SourceType } from '../entity/Source';
+import { SourceType, UNKNOWN_SOURCE } from '../entity/Source';
 import {
   SourceMemberRoles,
   sourceRoleRank,
@@ -1172,11 +1174,22 @@ export const ensureSourcePermissions = async (
   sourceId: string | undefined,
   permission: SourcePermissions = SourcePermissions.View,
   validateRankAgainstId?: string,
+  post?: Pick<Post, 'type' | 'authorId' | 'private' | 'sourceId'>,
 ): Promise<Source> => {
   if (sourceId) {
     const source = await ctx.con
       .getRepository(Source)
       .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
+
+    if (
+      source.id === UNKNOWN_SOURCE &&
+      ctx.userId &&
+      post?.type === PostType.Brief &&
+      post.authorId === ctx.userId
+    ) {
+      return source;
+    }
+
     const sourceMember = ctx.userId
       ? await ctx.con
           .getRepository(SourceMember)

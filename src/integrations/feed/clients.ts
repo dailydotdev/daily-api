@@ -1,4 +1,11 @@
-import { FeedConfig, FeedResponse, IFeedClient } from './types';
+import {
+  FeedConfig,
+  FeedResponse,
+  IFeedClient,
+  BriefingModel,
+  type Briefing,
+  type UserBriefingRequest,
+} from './types';
 import { RequestInit } from 'node-fetch';
 import { fetchOptions as globalFetchOptions } from '../../http';
 import { fetchParse } from '../retry';
@@ -71,6 +78,32 @@ export class FeedClient implements IFeedClient, IGarmrClient {
         ];
       }),
       cursor: res.cursor,
+    };
+  }
+
+  async getUserBrief({
+    userId,
+    frequency,
+    modelName = BriefingModel.Default,
+  }: UserBriefingRequest): Promise<Briefing> {
+    const result = await this.garmr.execute(() => {
+      // TODO feat-brief move to env and set type from schema
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return fetchParse<any>(`${this.url}/api/user/briefing`, {
+        ...this.fetchOptions,
+        method: 'POST',
+        body: JSON.stringify({
+          user_id: userId,
+          frequency,
+          model_name: modelName,
+        }),
+      });
+    });
+
+    return {
+      sections: result.sections,
+      limitationsUncertainties:
+        result.limitations || result.limitations_uncertainties,
     };
   }
 }
