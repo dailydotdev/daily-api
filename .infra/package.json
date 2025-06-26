@@ -4,16 +4,16 @@
     "prepare": "corepack enable || true"
   },
   "devDependencies": {
-    "@types/node": "22.13.x"
+    "@types/node": "22.15.x"
   },
   "dependencies": {
-    "@dailydotdev/pulumi-common": "^2.8.0",
-    "@pulumi/gcp": "^8.19.1",
-    "@pulumi/kubernetes": "^4.21.1",
-    "@pulumi/pulumi": "^3.150.0"
+    "@dailydotdev/pulumi-common": "^2.10.2",
+    "@pulumi/gcp": "^8.35.0",
+    "@pulumi/kubernetes": "^4.23.0",
+    "@pulumi/pulumi": "^3.177.0"
   },
   "packageManager": "pnpm@9.14.4+sha256.26a726b633b629a3fabda006f696ae4260954a3632c8054112d7ae89779e5f9a",
   "volta": {
-    "node": "22.13.1"
+    "node": "22.16.0"
   }
 }

@@ -289,7 +289,7 @@ describe('query userFollowers', () => {
   });
 
   it('should return empty list when user has no followers', async () => {
-    await con.getRepository(ContentPreferenceUser).delete({});
+    await con.getRepository(ContentPreferenceUser).clear();
 
     const res = await client.query(QUERY, {
       variables: {
@@ -540,7 +540,7 @@ describe('query userFollowing', () => {
   });
 
   it('should return empty list when user is not following anyone', async () => {
-    await con.getRepository(ContentPreferenceUser).delete({});
+    await con.getRepository(ContentPreferenceUser).clear();
 
     const res = await client.query(QUERY, {
       variables: {

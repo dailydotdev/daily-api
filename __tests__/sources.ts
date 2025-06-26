@@ -49,6 +49,12 @@ import {
   SourcePostModeration,
   SourcePostModerationStatus,
 } from '../src/entity/SourcePostModeration';
+import {
+  UserTransaction,
+  UserTransactionProcessor,
+  UserTransactionStatus,
+} from '../src/entity/user/UserTransaction';
+import { Product, ProductType } from '../src/entity/Product';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -176,6 +182,76 @@ beforeEach(async () => {
     },
   ]);
 
+  // Create corresponding ContentPreferenceSource records to trigger the database triggers
+  await con.getRepository(ContentPreferenceSource).save([
+    {
+      userId: '1',
+      sourceId: 'a',
+      referenceId: 'a',
+      feedId: '1',
+      status: ContentPreferenceStatus.Subscribed,
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: 'rt',
+      },
+    },
+    {
+      userId: '2',
+      sourceId: 'a',
+      referenceId: 'a',
+      feedId: '2',
+      status: ContentPreferenceStatus.Subscribed,
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
+    },
+    {
+      userId: '2',
+      sourceId: 'b',
+      referenceId: 'b',
+      feedId: '2',
+      status: ContentPreferenceStatus.Subscribed,
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
+    },
+    {
+      userId: '3',
+      sourceId: 'b',
+      referenceId: 'b',
+      feedId: '3',
+      status: ContentPreferenceStatus.Subscribed,
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
+    },
+    {
+      userId: '1',
+      sourceId: 'squad',
+      referenceId: 'squad',
+      feedId: '1',
+      status: ContentPreferenceStatus.Subscribed,
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
+    },
+    {
+      userId: '1',
+      sourceId: 'm',
+      referenceId: 'm',
+      feedId: '1',
+      status: ContentPreferenceStatus.Subscribed,
+      flags: {
+        role: SourceMemberRoles.Admin,
+        referralToken: randomUUID(),
+      },
+    },
+  ]);
+
   await con.getRepository(SourceMember).update(
     {
       userId: '1',
@@ -185,6 +261,20 @@ beforeEach(async () => {
   await con
     .getRepository(SourceMember)
     .update({ userId: '2', sourceId: 'b' }, { role: SourceMemberRoles.Admin });
+
+  // Also update the corresponding content preferences to keep them in sync
+  await con
+    .getRepository(ContentPreferenceSource)
+    .update(
+      { userId: '1' },
+      { flags: updateFlagsStatement({ role: SourceMemberRoles.Admin }) },
+    );
+  await con
+    .getRepository(ContentPreferenceSource)
+    .update(
+      { userId: '2', sourceId: 'b' },
+      { flags: updateFlagsStatement({ role: SourceMemberRoles.Admin }) },
+    );
 });
 
 afterAll(() => disposeGraphQLTesting(state));
@@ -543,7 +633,7 @@ describe('query sources', () => {
     );
   });
 
-  const saveMembers = (sourceId: string, users: string[]) => {
+  const saveMembers = async (sourceId: string, users: string[]) => {
     const repo = con.getRepository(SourceMember);
     const now = new Date();
 
@@ -557,13 +647,31 @@ describe('query sources', () => {
       }),
     );
 
-    return repo.save(members);
+    await repo.save(members);
+
+    // Also create ContentPreferenceSource records to trigger the database triggers
+    const contentPreferences = users.map((userId) => ({
+      userId,
+      sourceId,
+      referenceId: sourceId,
+      feedId: userId,
+      status: ContentPreferenceStatus.Subscribed,
+      flags: {
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
+    }));
+
+    await con.getRepository(ContentPreferenceSource).save(contentPreferences);
   };
 
   it('should return public squads ordered by members count', async () => {
     await prepareSquads();
     await saveFixtures(con, Source, [sourcesFixture[2]]);
     await con.getRepository(SourceMember).delete({ sourceId: Not('null') });
+    await con
+      .getRepository(ContentPreferenceSource)
+      .delete({ sourceId: Not('null') });
     await con.getRepository(Source).update(
       { id: Not('null') },
       {
@@ -590,6 +698,9 @@ describe('query sources', () => {
     await prepareSquads();
     await saveFixtures(con, Source, [sourcesFixture[2]]);
     await con.getRepository(SourceMember).delete({ sourceId: Not('null') });
+    await con
+      .getRepository(ContentPreferenceSource)
+      .delete({ sourceId: Not('null') });
     await saveMembers('a', ['3']);
     await saveMembers('b', ['1']);
     await saveMembers('c', ['1', '2', '3', '4']);
@@ -1441,6 +1552,14 @@ query Source($id: ID!) {
 }
   `;
 
+  const UPDATE_MEMBER_ROLE = `
+mutation UpdateMemberRole($sourceId: ID!, $memberId: ID!, $role: String!) {
+  updateMemberRole(sourceId: $sourceId, memberId: $memberId, role: $role) {
+    _
+  }
+} 
+`;
+
   it('should return number of members', async () => {
     loggedUser = '1';
     const res = await client.query(QUERY, { variables: { id: 'a' } });
@@ -1452,10 +1571,14 @@ query Source($id: ID!) {
   });
 
   it('should return number of members excluding blocked members', async () => {
-    await con
-      .getRepository(SourceMember)
-      .update({ userId: '2' }, { role: SourceMemberRoles.Blocked });
     loggedUser = '1';
+    await client.mutate(UPDATE_MEMBER_ROLE, {
+      variables: {
+        sourceId: 'a',
+        memberId: '2',
+        role: SourceMemberRoles.Blocked,
+      },
+    });
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.source.membersCount).toEqual(1);
@@ -4046,6 +4169,7 @@ describe('Source flags field', () => {
         totalPosts
         totalUpvotes
         totalMembers
+        totalAwards
       }
     }
   }`;
@@ -4074,5 +4198,121 @@ describe('Source flags field', () => {
     await con.getRepository(Source).update({ id: 'a' }, { flags: {} });
     const res = await client.query(QUERY);
     expect(res.data.source.flags).toEqual(defaultPublicSourceFlags);
+  });
+});
+
+describe('sourceAwards query', () => {
+  let sourceId: string;
+  beforeEach(async () => {
+    await saveFixtures(con, Product, [
+      {
+        id: '9104b834-6fac-4276-a168-0be1294ab371',
+        name: 'Award 1',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 42,
+      },
+    ]);
+    // Create a source and a user transaction (award)
+    const source = await con.getRepository(Source).save({
+      id: 'awardSource',
+      name: 'Award Source',
+      handle: 'award-source',
+      private: false,
+      type: SourceType.Squad,
+      active: true,
+    });
+    sourceId = source.id;
+    await con.getRepository(UserTransaction).save({
+      productId: '9104b834-6fac-4276-a168-0be1294ab371',
+      senderId: usersFixture[0].id,
+      receiverId: usersFixture[1].id,
+      processor: UserTransactionProcessor.Njord,
+      fee: 0,
+      value: 100,
+      valueIncFees: 100,
+      flags: { sourceId: sourceId },
+      createdAt: new Date(),
+      status: UserTransactionStatus.Success,
+    });
+  });
+
+  it('should return source awards connection', async () => {
+    loggedUser = usersFixture[0].id;
+    const QUERY = `
+      query SourceAwards($id: ID!) {
+        sourceAwards(id: $id) {
+          edges { node { sender { id } product { name } value } cursor }
+          pageInfo { hasNextPage hasPreviousPage endCursor }
+        }
+      }
+    `;
+    const res = await client.query(QUERY, { variables: { id: sourceId } });
+    expect(res.errors).toBeFalsy();
+    console.log(res.data.sourceAwards.edges[0]);
+    expect(res.data.sourceAwards.edges.length).toBeGreaterThanOrEqual(1);
+    expect(res.data.sourceAwards.edges[0].node.sender).toHaveProperty('id');
+    expect(res.data.sourceAwards.pageInfo).toHaveProperty('hasNextPage');
+  });
+});
+
+describe('sourceAwardsTotal query', () => {
+  let sourceId: string;
+  beforeEach(async () => {
+    await saveFixtures(con, Product, [
+      {
+        id: '9104b834-6fac-4276-a168-0be1294ab371',
+        name: 'Award 1',
+        image: 'https://daily.dev/award.jpg',
+        type: ProductType.Award,
+        value: 42,
+      },
+    ]);
+    // Create a source and a user transaction (award)
+    const source = await con.getRepository(Source).save({
+      id: 'awardSourceTotal',
+      name: 'Award Source Total',
+      handle: 'award-source-total',
+      private: false,
+      type: SourceType.Machine,
+      active: true,
+    });
+    sourceId = source.id;
+    await con.getRepository(UserTransaction).save({
+      productId: '9104b834-6fac-4276-a168-0be1294ab371',
+      senderId: usersFixture[0].id,
+      receiverId: usersFixture[1].id,
+      processor: UserTransactionProcessor.Njord,
+      fee: 0,
+      value: 100,
+      valueIncFees: 100,
+      flags: { sourceId: sourceId },
+      createdAt: new Date(),
+      status: UserTransactionStatus.Success,
+    });
+  });
+
+  it('should return source awards total', async () => {
+    loggedUser = usersFixture[0].id;
+    const QUERY = `
+      query SourceAwardsTotal($id: ID!) {
+        sourceAwardsTotal(id: $id) { amount }
+      }
+    `;
+    const res = await client.query(QUERY, { variables: { id: sourceId } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.sourceAwardsTotal.amount).toBeGreaterThanOrEqual(10);
+  });
+
+  it('should return 0 for source awards total if no awards', async () => {
+    loggedUser = usersFixture[0].id;
+    const QUERY = `
+      query SourceAwardsTotal($id: ID!) {
+        sourceAwardsTotal(id: $id) { amount }
+      }
+    `;
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.sourceAwardsTotal.amount).toBe(0);
   });
 });

@@ -63,13 +63,22 @@ const existsByUserAndPost =
       .select('1')
       .from(entity, 'a')
       .where(`a."userId" = :userId`, { userId: ctx.userId })
-      .andWhere(`a."postId" = ${alias}.id`);
+      .andWhere(`a."postId" = ${alias}.id`)
+      .limit(1);
 
     if (typeof build === 'function') {
       query = build(query);
     }
 
-    return `EXISTS${query.getQuery()}`;
+    return /*sql*/ `CASE
+      WHEN
+        ${query.getQuery()}
+        IS NOT NULL
+      THEN
+        TRUE
+      ELSE
+        FALSE
+    END`;
   };
 
 const nullIfNotLoggedIn = <T>(value: T, ctx: Context): T | null =>
@@ -616,6 +625,7 @@ const obj = new GraphORM({
             totalUpvotes,
             totalMembers,
             featured,
+            totalAwards,
           } = defaultPublicSourceFlags;
 
           return {
@@ -624,6 +634,7 @@ const obj = new GraphORM({
             totalUpvotes: value?.totalUpvotes ?? totalUpvotes,
             totalMembers: value?.totalMembers ?? totalMembers,
             featured: value?.featured ?? featured,
+            totalAwards: value?.totalAwards ?? totalAwards,
           };
         },
       },
@@ -1144,6 +1155,22 @@ const obj = new GraphORM({
     fields: {
       flags: {
         jsonType: true,
+      },
+      sourceName: {
+        rawSelect: true,
+        select: (_, alias) => {
+          return `${alias}.flags->>'sourceId'`;
+        },
+        transform: async (value: string, ctx: Context) => {
+          if (!value) {
+            return;
+          }
+          const source = await ctx.getRepository(Source).findOne({
+            select: ['name'],
+            where: { id: value },
+          });
+          return source?.name;
+        },
       },
       balance: {
         jsonType: true,

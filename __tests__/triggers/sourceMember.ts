@@ -1,10 +1,14 @@
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { saveFixtures } from '../helpers';
-import { Source, SourceMember, SourceType, User } from '../../src/entity';
+import { Source, SourceType, User, Feed } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
-import { SourceMemberRoles } from '../../src/roles';
 import { usersFixture } from '../fixture/user';
+import { ContentPreferenceSource } from '../../src/entity/contentPreference/ContentPreferenceSource';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../../src/entity/contentPreference/types';
 
 let con: DataSource;
 
@@ -16,152 +20,380 @@ beforeEach(async () => {
   jest.resetAllMocks();
   await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, Source, sourcesFixture);
+
+  await con.getRepository(Feed).save([
+    { id: '1', userId: '1' },
+    { id: '2', userId: '2' },
+  ]);
 });
 
-describe('trigger increment_squad_members_count', () => {
-  it('should increment squad members count', async () => {
+describe('increment source members count', () => {
+  it('should increment source members count when user follows source', async () => {
     const repo = con.getRepository(Source);
     await repo.update({ id: 'a' }, { type: SourceType.Squad });
     const source = await repo.findOneByOrFail({ id: 'a' });
     expect(source.flags.totalMembers).toEqual(undefined);
 
-    await con.getRepository(SourceMember).insert({
-      sourceId: 'a',
+    await con.getRepository(ContentPreferenceSource).insert({
+      referenceId: 'a',
       userId: '1',
-      role: SourceMemberRoles.Member,
-      referralToken: 'tk1',
+      type: ContentPreferenceType.Source,
+      feedId: '1',
+      sourceId: 'a',
+      status: ContentPreferenceStatus.Follow,
     });
 
     const increment = await repo.findOneByOrFail({ id: 'a' });
     expect(increment.flags.totalMembers).toEqual(1);
   });
 
-  // reason being, in the future we might start doing approvals for members, and the status can become `pending`
-  // also that, before becoming an admin, user starts as a member when joining
-  it('should not increment squad members count on new user if role not a `member`', async () => {
+  it('should increment source members count when user subscribes to source', async () => {
     const repo = con.getRepository(Source);
     await repo.update({ id: 'a' }, { type: SourceType.Squad });
     const source = await repo.findOneByOrFail({ id: 'a' });
     expect(source.flags.totalMembers).toEqual(undefined);
 
-    await con.getRepository(SourceMember).insert({
-      sourceId: 'a',
+    await con.getRepository(ContentPreferenceSource).insert({
+      referenceId: 'a',
       userId: '1',
-      role: SourceMemberRoles.Member,
-      referralToken: 'tk1',
+      type: ContentPreferenceType.Source,
+      feedId: '1',
+      sourceId: 'a',
+      status: ContentPreferenceStatus.Subscribed,
     });
 
     const increment = await repo.findOneByOrFail({ id: 'a' });
     expect(increment.flags.totalMembers).toEqual(1);
+  });
 
-    await con.getRepository(SourceMember).insert({
+  it('should not increment source members count when user blocks source on insert', async () => {
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, { type: SourceType.Squad });
+    const source = await repo.findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalMembers).toEqual(undefined);
+
+    await con.getRepository(ContentPreferenceSource).insert({
+      referenceId: 'a',
+      userId: '1',
+      type: ContentPreferenceType.Source,
+      feedId: '1',
       sourceId: 'a',
-      userId: '2',
-      role: SourceMemberRoles.Blocked,
-      referralToken: 'tk2',
+      status: ContentPreferenceStatus.Blocked,
     });
 
     const unchanged = await repo.findOneByOrFail({ id: 'a' });
-    expect(unchanged.flags.totalMembers).toEqual(1);
+    expect(unchanged.flags.totalMembers).toEqual(undefined);
   });
 
-  it('should not increment squad members count when user just switched roles', async () => {
+  it('should not change count when user switches between follow and subscribed', async () => {
     const repo = con.getRepository(Source);
     await repo.update({ id: 'a' }, { type: SourceType.Squad });
     const source = await repo.findOneByOrFail({ id: 'a' });
     expect(source.flags.totalMembers).toEqual(undefined);
 
-    await con.getRepository(SourceMember).insert({
-      sourceId: 'a',
+    await con.getRepository(ContentPreferenceSource).insert({
+      referenceId: 'a',
       userId: '1',
-      role: SourceMemberRoles.Member,
-      referralToken: 'tk1',
+      type: ContentPreferenceType.Source,
+      feedId: '1',
+      sourceId: 'a',
+      status: ContentPreferenceStatus.Follow,
     });
 
-    const increment = await repo.findOneByOrFail({ id: 'a' });
-    expect(increment.flags.totalMembers).toEqual(1);
+    const afterFollow = await repo.findOneByOrFail({ id: 'a' });
+    expect(afterFollow.flags.totalMembers).toEqual(1);
 
-    await con.getRepository(SourceMember).update(
+    await con.getRepository(ContentPreferenceSource).update(
       {
-        sourceId: 'a',
+        referenceId: 'a',
         userId: '1',
+        type: ContentPreferenceType.Source,
+        feedId: '1',
       },
-      { role: SourceMemberRoles.Admin },
+      { status: ContentPreferenceStatus.Subscribed },
     );
 
-    const unchanged = await repo.findOneByOrFail({ id: 'a' });
-    expect(unchanged.flags.totalMembers).toEqual(1);
+    const afterSubscribed = await repo.findOneByOrFail({ id: 'a' });
+    expect(afterSubscribed.flags.totalMembers).toEqual(1);
+
+    await con.getRepository(ContentPreferenceSource).update(
+      {
+        referenceId: 'a',
+        userId: '1',
+        type: ContentPreferenceType.Source,
+        feedId: '1',
+      },
+      { status: ContentPreferenceStatus.Follow },
+    );
+
+    const backToFollow = await repo.findOneByOrFail({ id: 'a' });
+    expect(backToFollow.flags.totalMembers).toEqual(1);
+  });
+
+  it('should increment count when user changes from blocked to follow', async () => {
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, { type: SourceType.Squad });
+    const source = await repo.findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalMembers).toEqual(undefined);
+
+    await con.getRepository(ContentPreferenceSource).insert({
+      referenceId: 'a',
+      userId: '1',
+      type: ContentPreferenceType.Source,
+      feedId: '1',
+      sourceId: 'a',
+      status: ContentPreferenceStatus.Blocked,
+    });
+
+    const afterBlocked = await repo.findOneByOrFail({ id: 'a' });
+    expect(afterBlocked.flags.totalMembers).toEqual(undefined);
+
+    await con.getRepository(ContentPreferenceSource).update(
+      {
+        referenceId: 'a',
+        userId: '1',
+        type: ContentPreferenceType.Source,
+        feedId: '1',
+      },
+      { status: ContentPreferenceStatus.Follow },
+    );
+
+    const afterFollow = await repo.findOneByOrFail({ id: 'a' });
+    expect(afterFollow.flags.totalMembers).toEqual(1);
   });
 });
 
-describe('trigger decrement_squad_members_count', () => {
-  it('should decrement squad members count when row is deleted', async () => {
+describe('decrement source members count', () => {
+  it('should decrement source members count when follow preference is deleted', async () => {
     const repo = con.getRepository(Source);
     await repo.update({ id: 'a' }, { type: SourceType.Squad });
-    await con.getRepository(SourceMember).insert({
-      sourceId: 'a',
+
+    await con.getRepository(ContentPreferenceSource).insert({
+      referenceId: 'a',
       userId: '1',
-      role: SourceMemberRoles.Member,
-      referralToken: 'tk1',
+      type: ContentPreferenceType.Source,
+      feedId: '1',
+      sourceId: 'a',
+      status: ContentPreferenceStatus.Follow,
     });
 
     const increment = await repo.findOneByOrFail({ id: 'a' });
     expect(increment.flags.totalMembers).toEqual(1);
 
-    await con.getRepository(SourceMember).delete({ sourceId: 'a' });
+    await con.getRepository(ContentPreferenceSource).delete({
+      referenceId: 'a',
+      userId: '1',
+      type: ContentPreferenceType.Source,
+      feedId: '1',
+    });
 
     const decrement = await repo.findOneByOrFail({ id: 'a' });
     expect(decrement.flags.totalMembers).toEqual(0);
   });
 
-  it('should decrement squad members count when a user becomes blocked', async () => {
+  it('should decrement source members count when subscribed preference is deleted', async () => {
     const repo = con.getRepository(Source);
     await repo.update({ id: 'a' }, { type: SourceType.Squad });
-    await con.getRepository(SourceMember).insert({
-      sourceId: 'a',
+
+    await con.getRepository(ContentPreferenceSource).insert({
+      referenceId: 'a',
       userId: '1',
-      role: SourceMemberRoles.Member,
-      referralToken: 'tk1',
+      type: ContentPreferenceType.Source,
+      feedId: '1',
+      sourceId: 'a',
+      status: ContentPreferenceStatus.Subscribed,
     });
 
     const increment = await repo.findOneByOrFail({ id: 'a' });
     expect(increment.flags.totalMembers).toEqual(1);
 
-    await con
-      .getRepository(SourceMember)
-      .update(
-        { sourceId: 'a', userId: '1' },
-        { role: SourceMemberRoles.Blocked },
-      );
+    await con.getRepository(ContentPreferenceSource).delete({
+      referenceId: 'a',
+      userId: '1',
+      type: ContentPreferenceType.Source,
+      feedId: '1',
+    });
+
     const decrement = await repo.findOneByOrFail({ id: 'a' });
     expect(decrement.flags.totalMembers).toEqual(0);
   });
 
-  it('should not decrement squad members count when row is deleted when user was blocked already', async () => {
+  it('should not decrement source members count when blocked preference is deleted', async () => {
     const repo = con.getRepository(Source);
     await repo.update({ id: 'a' }, { type: SourceType.Squad });
-    await con.getRepository(SourceMember).insert({
-      sourceId: 'a',
+
+    await con.getRepository(ContentPreferenceSource).insert({
+      referenceId: 'a',
       userId: '1',
-      role: SourceMemberRoles.Member,
-      referralToken: 'tk1',
+      type: ContentPreferenceType.Source,
+      feedId: '1',
+      sourceId: 'a',
+      status: ContentPreferenceStatus.Follow,
     });
 
     const increment = await repo.findOneByOrFail({ id: 'a' });
     expect(increment.flags.totalMembers).toEqual(1);
 
-    await con
-      .getRepository(SourceMember)
-      .update(
-        { sourceId: 'a', userId: '1' },
-        { role: SourceMemberRoles.Blocked },
-      );
-    const decrement = await repo.findOneByOrFail({ id: 'a' });
-    expect(decrement.flags.totalMembers).toEqual(0);
+    await con.getRepository(ContentPreferenceSource).update(
+      {
+        referenceId: 'a',
+        userId: '1',
+        type: ContentPreferenceType.Source,
+        feedId: '1',
+      },
+      { status: ContentPreferenceStatus.Blocked },
+    );
 
-    await con.getRepository(SourceMember).delete({});
+    const blocked = await repo.findOneByOrFail({ id: 'a' });
+    expect(blocked.flags.totalMembers).toEqual(0);
+
+    await con.getRepository(ContentPreferenceSource).delete({
+      referenceId: 'a',
+      userId: '1',
+      type: ContentPreferenceType.Source,
+      feedId: '1',
+    });
 
     const unchanged = await repo.findOneByOrFail({ id: 'a' });
     expect(unchanged.flags.totalMembers).toEqual(0);
+  });
+
+  it('should handle multiple users correctly', async () => {
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, { type: SourceType.Squad });
+
+    await con.getRepository(ContentPreferenceSource).insert([
+      {
+        referenceId: 'a',
+        userId: '1',
+        type: ContentPreferenceType.Source,
+        feedId: '1',
+        sourceId: 'a',
+        status: ContentPreferenceStatus.Follow,
+      },
+      {
+        referenceId: 'a',
+        userId: '2',
+        type: ContentPreferenceType.Source,
+        feedId: '2',
+        sourceId: 'a',
+        status: ContentPreferenceStatus.Subscribed,
+      },
+    ]);
+
+    const increment = await repo.findOneByOrFail({ id: 'a' });
+    expect(increment.flags.totalMembers).toEqual(2);
+
+    await con.getRepository(ContentPreferenceSource).delete({
+      referenceId: 'a',
+      userId: '1',
+      type: ContentPreferenceType.Source,
+      feedId: '1',
+    });
+
+    const decrementOne = await repo.findOneByOrFail({ id: 'a' });
+    expect(decrementOne.flags.totalMembers).toEqual(1);
+
+    await con.getRepository(ContentPreferenceSource).delete({
+      referenceId: 'a',
+      userId: '2',
+      type: ContentPreferenceType.Source,
+      feedId: '2',
+    });
+
+    const decrementAll = await repo.findOneByOrFail({ id: 'a' });
+    expect(decrementAll.flags.totalMembers).toEqual(0);
+  });
+
+  it('should increment count when user changes from blocked to subscribed', async () => {
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, { type: SourceType.Squad });
+    const source = await repo.findOneByOrFail({ id: 'a' });
+    expect(source.flags.totalMembers).toEqual(undefined);
+
+    await con.getRepository(ContentPreferenceSource).insert({
+      referenceId: 'a',
+      userId: '1',
+      type: ContentPreferenceType.Source,
+      feedId: '1',
+      sourceId: 'a',
+      status: ContentPreferenceStatus.Blocked,
+    });
+
+    const afterBlocked = await repo.findOneByOrFail({ id: 'a' });
+    expect(afterBlocked.flags.totalMembers).toEqual(undefined);
+
+    await con.getRepository(ContentPreferenceSource).update(
+      {
+        referenceId: 'a',
+        userId: '1',
+        type: ContentPreferenceType.Source,
+        feedId: '1',
+      },
+      { status: ContentPreferenceStatus.Subscribed },
+    );
+
+    const afterSubscribed = await repo.findOneByOrFail({ id: 'a' });
+    expect(afterSubscribed.flags.totalMembers).toEqual(1);
+  });
+
+  it('should decrement source members count when user changes from follow to blocked', async () => {
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, { type: SourceType.Squad });
+
+    await con.getRepository(ContentPreferenceSource).insert({
+      referenceId: 'a',
+      userId: '1',
+      type: ContentPreferenceType.Source,
+      feedId: '1',
+      sourceId: 'a',
+      status: ContentPreferenceStatus.Follow,
+    });
+
+    const increment = await repo.findOneByOrFail({ id: 'a' });
+    expect(increment.flags.totalMembers).toEqual(1);
+
+    await con.getRepository(ContentPreferenceSource).update(
+      {
+        referenceId: 'a',
+        userId: '1',
+        type: ContentPreferenceType.Source,
+        feedId: '1',
+      },
+      { status: ContentPreferenceStatus.Blocked },
+    );
+
+    const decrement = await repo.findOneByOrFail({ id: 'a' });
+    expect(decrement.flags.totalMembers).toEqual(0);
+  });
+
+  it('should decrement source members count when user changes from subscribed to blocked', async () => {
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, { type: SourceType.Squad });
+
+    await con.getRepository(ContentPreferenceSource).insert({
+      referenceId: 'a',
+      userId: '1',
+      type: ContentPreferenceType.Source,
+      feedId: '1',
+      sourceId: 'a',
+      status: ContentPreferenceStatus.Subscribed,
+    });
+
+    const increment = await repo.findOneByOrFail({ id: 'a' });
+    expect(increment.flags.totalMembers).toEqual(1);
+
+    await con.getRepository(ContentPreferenceSource).update(
+      {
+        referenceId: 'a',
+        userId: '1',
+        type: ContentPreferenceType.Source,
+        feedId: '1',
+      },
+      { status: ContentPreferenceStatus.Blocked },
+    );
+
+    const decrement = await repo.findOneByOrFail({ id: 'a' });
+    expect(decrement.flags.totalMembers).toEqual(0);
   });
 });

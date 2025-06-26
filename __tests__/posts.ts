@@ -32,7 +32,6 @@ import {
   SourceMember,
   SourceType,
   SquadSource,
-  UNKNOWN_SOURCE,
   User,
   UserPost,
   View,
@@ -77,6 +76,7 @@ import { rateLimiterName } from '../src/directive/rateLimit';
 import { badUsersFixture, usersFixture } from './fixture/user';
 import { PostCodeSnippet } from '../src/entity/posts/PostCodeSnippet';
 import {
+  PostModerationReason,
   SourcePostModeration,
   SourcePostModerationStatus,
 } from '../src/entity/SourcePostModeration';
@@ -931,11 +931,11 @@ describe('translation field', () => {
         translation: {
           es: {
             title: 'Hola',
-            body: 'Cuerpo',
+            summary: 'Cuerpo',
           },
           de: {
             title: 'Hallo',
-            body: 'Körper',
+            summary: 'Körper',
           },
         },
       });
@@ -948,10 +948,10 @@ describe('translation field', () => {
 
       expect(post.translation).toEqual({
         es: {
-          body: 'Cuerpo',
+          summary: 'Cuerpo',
         },
         de: {
-          body: 'Körper',
+          summary: 'Körper',
         },
       });
     });
@@ -971,6 +971,7 @@ describe('translation field', () => {
     it('should not fail when translation contains scalar value', async () => {
       await con.getRepository(ArticlePost).update('p1-tf', {
         translation: {
+          // @ts-expect-error we're testing against scalar value
           some: 'value',
         },
       });
@@ -1042,7 +1043,7 @@ describe('welcomePost type', () => {
   });
 
   it('should add welcome post with showOnFeed as false by default', async () => {
-    const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+    const source = await con.getRepository(Source).findOneByOrFail({ id: 'a' });
     const post = await createSquadWelcomePost(con, source, '1');
     expect(post.showOnFeed).toEqual(false);
     expect(post.flags.showOnFeed).toEqual(false);
@@ -1050,17 +1051,17 @@ describe('welcomePost type', () => {
 
   it('should add welcome post and increment squad total posts', async () => {
     const repo = con.getRepository(Source);
-    const sourceToCount = await repo.findOneBy({ id: 'a' });
+    const sourceToCount = await repo.findOneByOrFail({ id: 'a' });
     expect(sourceToCount.flags.totalPosts).toEqual(3);
     const posts = await con.getRepository(Post).countBy({ sourceId: 'a' });
     expect(posts).toEqual(3);
     await repo.update({ id: 'a' }, { type: SourceType.Squad });
-    const source = await repo.findOneBy({ id: 'a' });
+    const source = await repo.findOneByOrFail({ id: 'a' });
     const post = await createSquadWelcomePost(con, source, '1');
     expect(post.showOnFeed).toEqual(false);
     expect(post.flags.showOnFeed).toEqual(false);
 
-    const updatedSource = await repo.findOneBy({ id: 'a' });
+    const updatedSource = await repo.findOneByOrFail({ id: 'a' });
     expect(updatedSource.flags.totalPosts).toEqual(posts + 1);
   });
 
@@ -1068,12 +1069,12 @@ describe('welcomePost type', () => {
     const repo = con.getRepository(Source);
     const posts = await con.getRepository(Post).countBy({ sourceId: 'a' });
     expect(posts).toEqual(3);
-    const source = await repo.findOneBy({ id: 'a' });
+    const source = await repo.findOneByOrFail({ id: 'a' });
     const post = await createSquadWelcomePost(con, source, '1');
     expect(post.showOnFeed).toEqual(false);
     expect(post.flags.showOnFeed).toEqual(false);
 
-    const updatedSource = await repo.findOneBy({ id: 'a' });
+    const updatedSource = await repo.findOneByOrFail({ id: 'a' });
     expect(updatedSource.flags.totalPosts).toEqual(posts + 1);
   });
 });
@@ -1309,8 +1310,20 @@ describe('query postByUrl', () => {
     }
   }`;
 
+  it('should throw not found when not valid url', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY('notfound') },
+      'GRAPHQL_VALIDATION_FAILED',
+      'Invalid URL provided',
+    ));
+
   it('should throw not found when cannot find post', () =>
-    testQueryErrorCode(client, { query: QUERY('notfound') }, 'NOT_FOUND'));
+    testQueryErrorCode(
+      client,
+      { query: QUERY('http://notfound.com') },
+      'NOT_FOUND',
+    ));
 
   it('should throw not found when post was soft deleted #2', async () => {
     await saveFixtures(con, ArticlePost, [
@@ -1318,8 +1331,8 @@ describe('query postByUrl', () => {
         id: 'pdeleted',
         shortId: 'spdeleted',
         title: 'PDeleted',
-        url: 'http://p8.com',
-        canonicalUrl: 'http://p8.com',
+        url: 'http://pdelp8.com',
+        canonicalUrl: 'http://pdelp8.com',
         score: 0,
         sourceId: 'a',
         createdAt: new Date('2021-09-22T07:15:51.247Z'),
@@ -1330,7 +1343,7 @@ describe('query postByUrl', () => {
 
     return testQueryErrorCode(
       client,
-      { query: QUERY('http://p8.com') },
+      { query: QUERY('http://pdelp8.com') },
       'NOT_FOUND',
     );
   });
@@ -1341,8 +1354,8 @@ describe('query postByUrl', () => {
         id: 'pnotvisible',
         shortId: 'pnotvisible',
         title: 'pnotvisible',
-        url: 'http://p8.com',
-        canonicalUrl: 'http://p8.com',
+        url: 'http://pdelp8.com',
+        canonicalUrl: 'http://pdelp8.com',
         score: 0,
         sourceId: 'a',
         createdAt: new Date('2021-09-22T07:15:51.247Z'),
@@ -1354,7 +1367,7 @@ describe('query postByUrl', () => {
 
     return testQueryErrorCode(
       client,
-      { query: QUERY('http://p8.com') },
+      { query: QUERY('http://pdelp8.com') },
       'NOT_FOUND',
     );
   });
@@ -1827,7 +1840,7 @@ describe('mutation deletePost', () => {
   const verifyPostDeleted = async (id: string, user: string) => {
     const res = await client.mutate(MUTATION, { variables: { id } });
     expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(Post).findOneBy({ id });
+    const actual = await con.getRepository(Post).findOneByOrFail({ id });
     expect(actual.deleted).toBeTruthy();
     expect(actual.flags.deleted).toBeTruthy();
     expect(actual.flags.deletedBy).toBe(user);
@@ -1835,7 +1848,7 @@ describe('mutation deletePost', () => {
 
   it('should allow member to delete their own freeform post', async () => {
     loggedUser = '2';
-    const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+    const source = await con.getRepository(Source).findOneByOrFail({ id: 'a' });
     const post = await createSquadWelcomePost(con, source, '2');
     await con
       .getRepository(Post)
@@ -1851,7 +1864,7 @@ describe('mutation deletePost', () => {
       role: SourceMemberRoles.Moderator,
       referralToken: randomUUID(),
     });
-    const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+    const source = await con.getRepository(Source).findOneByOrFail({ id: 'a' });
     const post = await createSquadWelcomePost(con, source, '2');
     await verifyPostDeleted(post.id, loggedUser);
     await con
@@ -1940,7 +1953,7 @@ describe('mutation banPost', () => {
     roles = [Roles.Moderator];
     const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
     expect(res.errors).toBeFalsy();
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
     expect(post.banned).toEqual(true);
     expect(post.flags.banned).toEqual(true);
   });
@@ -2312,7 +2325,9 @@ describe('mutation sharePost', () => {
     const res = await client.mutate(MUTATION, { variables });
     expect(res.errors).toBeFalsy();
     const newId = res.data.sharePost.id;
-    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    const post = await con
+      .getRepository(SharePost)
+      .findOneByOrFail({ id: newId });
     expect(post.authorId).toEqual('1');
     expect(post.sharedPostId).toEqual('p1');
     expect(post.title).toEqual('My comment');
@@ -2337,7 +2352,9 @@ describe('mutation sharePost', () => {
     });
     expect(res.errors).toBeFalsy();
     const newId = res.data.sharePost.id;
-    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    const post = await con
+      .getRepository(SharePost)
+      .findOneByOrFail({ id: newId });
     expect(post.authorId).toEqual('1');
     expect(post.sharedPostId).toEqual('sp-1');
     expect(post.title).toEqual('My comment');
@@ -2362,7 +2379,9 @@ describe('mutation sharePost', () => {
     });
     expect(res.errors).toBeFalsy();
     const newId = res.data.sharePost.id;
-    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    const post = await con
+      .getRepository(SharePost)
+      .findOneByOrFail({ id: newId });
     expect(post.authorId).toEqual('1');
     expect(post.sharedPostId).toEqual('p1');
     expect(post.title).toEqual('My comment');
@@ -2373,7 +2392,9 @@ describe('mutation sharePost', () => {
     const res = await client.mutate(MUTATION, { variables });
     expect(res.errors).toBeFalsy();
     const newId = res.data.sharePost.id;
-    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    const post = await con
+      .getRepository(SharePost)
+      .findOneByOrFail({ id: newId });
     const source = await post.source;
     expect(source.flags.totalPosts).toEqual(1);
   });
@@ -2385,7 +2406,9 @@ describe('mutation sharePost', () => {
     });
     expect(res.errors).toBeFalsy();
     const newId = res.data.sharePost.id;
-    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    const post = await con
+      .getRepository(SharePost)
+      .findOneByOrFail({ id: newId });
     expect(post.authorId).toEqual('1');
     expect(post.sharedPostId).toEqual('p1');
     expect(post.title).toEqual('My comment');
@@ -2398,7 +2421,9 @@ describe('mutation sharePost', () => {
     });
     expect(res.errors).toBeFalsy();
     const newId = res.data.sharePost.id;
-    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    const post = await con
+      .getRepository(SharePost)
+      .findOneByOrFail({ id: newId });
     expect(post.authorId).toEqual('1');
     expect(post.sharedPostId).toEqual('p1');
     expect(post.title).toBeNull();
@@ -2413,13 +2438,13 @@ describe('mutation sharePost', () => {
     expect(res.errors).toBeFalsy();
     const post = await con
       .getRepository(SharePost)
-      .findOneBy({ id: res.data.sharePost.id });
+      .findOneByOrFail({ id: res.data.sharePost.id });
     expect(post.authorId).toEqual('1');
     expect(post.sharedPostId).toEqual('p1');
     expect(post.titleHtml).toMatchSnapshot();
     const mentions = await con
       .getRepository(PostMention)
-      .findOneBy({ mentionedUserId: '2', mentionedByUserId: '1' });
+      .findOneByOrFail({ mentionedUserId: '2', mentionedByUserId: '1' });
     expect(mentions).toBeTruthy();
   });
 
@@ -2432,7 +2457,7 @@ describe('mutation sharePost', () => {
     expect(res.errors).toBeFalsy();
     const post = await con
       .getRepository(SharePost)
-      .findOneBy({ id: res.data.sharePost.id });
+      .findOneByOrFail({ id: res.data.sharePost.id });
     expect(post.authorId).toEqual('1');
     expect(post.sharedPostId).toEqual('p1');
     expect(post.titleHtml).toMatch(
@@ -2501,7 +2526,9 @@ describe('mutation sharePost', () => {
     const res = await client.mutate(MUTATION, { variables });
     expect(res.errors).toBeFalsy();
     const newId = res.data.sharePost.id;
-    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    const post = await con
+      .getRepository(SharePost)
+      .findOneByOrFail({ id: newId });
     expect(post.authorId).toEqual('1');
     expect(post.sharedPostId).toEqual('p1');
     expect(post.title).toEqual('My comment');
@@ -2522,7 +2549,9 @@ describe('mutation sharePost', () => {
     const res = await client.mutate(MUTATION, { variables });
     expect(res.errors).toBeFalsy();
     const newId = res.data.sharePost.id;
-    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    const post = await con
+      .getRepository(SharePost)
+      .findOneByOrFail({ id: newId });
     expect(post.authorId).toEqual('1');
     expect(post.sharedPostId).toEqual('p1');
     expect(post.title).toEqual('My comment');
@@ -2666,7 +2695,7 @@ describe('mutation editSharePost', () => {
     expect(res.errors).toBeFalsy();
     const post = await con
       .getRepository(SharePost)
-      .findOneBy({ id: variables.id });
+      .findOneByOrFail({ id: variables.id });
     expect(post.title).toEqual('My comment');
   });
 
@@ -2678,7 +2707,7 @@ describe('mutation editSharePost', () => {
     expect(res.errors).toBeFalsy();
     const post = await con
       .getRepository(SharePost)
-      .findOneBy({ id: variables.id });
+      .findOneByOrFail({ id: variables.id });
     expect(post.title).toBeNull();
   });
 
@@ -2691,7 +2720,7 @@ describe('mutation editSharePost', () => {
     expect(res.errors).toBeFalsy();
     const post = await con
       .getRepository(SharePost)
-      .findOneBy({ id: variables.id });
+      .findOneByOrFail({ id: variables.id });
     expect(post.authorId).toEqual('1');
     expect(post.titleHtml).toMatchSnapshot();
     const mentions = await con
@@ -2709,7 +2738,7 @@ describe('mutation editSharePost', () => {
     expect(res.errors).toBeFalsy();
     const post = await con
       .getRepository(SharePost)
-      .findOneBy({ id: variables.id });
+      .findOneByOrFail({ id: variables.id });
     expect(post.titleHtml).toMatch(
       markdown.utils.escapeHtml(
         `<style>html { color: red !important; }</style>`,
@@ -2857,11 +2886,6 @@ describe('mutation submitExternalLink', () => {
 
   it('should bypass moderation because user is a moderator', async () => {
     loggedUser = '3';
-    await con.getRepository(Source).insert({
-      id: UNKNOWN_SOURCE,
-      handle: UNKNOWN_SOURCE,
-      name: UNKNOWN_SOURCE,
-    });
     const res = await client.mutate(MUTATION, {
       variables: { ...variables, sourceId: 'm' },
     });
@@ -2887,7 +2911,7 @@ describe('mutation submitExternalLink', () => {
     expect(res.errors).toBeFalsy();
     const articlePost = await con
       .getRepository(ArticlePost)
-      .findOneBy({ url: variables.url });
+      .findOneByOrFail({ url: variables.url });
     expect(articlePost.url).toEqual('https://daily.dev');
     expect(articlePost.visible).toEqual(visible);
 
@@ -2898,28 +2922,18 @@ describe('mutation submitExternalLink', () => {
 
     const sharedPost = await con
       .getRepository(SharePost)
-      .findOneBy({ sharedPostId: articlePost.id });
+      .findOneByOrFail({ sharedPostId: articlePost.id });
     expect(sharedPost.authorId).toEqual('1');
     expect(sharedPost.title).toEqual('My comment');
     expect(sharedPost.visible).toEqual(visible);
   };
 
   it('should share to squad without title to support backwards compatibility', async () => {
-    await con.getRepository(Source).insert({
-      id: UNKNOWN_SOURCE,
-      handle: UNKNOWN_SOURCE,
-      name: UNKNOWN_SOURCE,
-    });
     loggedUser = '1';
     await checkSharedPostExpectation(false);
   });
 
   it('should share to squad and be visible automatically when title is available', async () => {
-    await con.getRepository(Source).insert({
-      id: UNKNOWN_SOURCE,
-      handle: UNKNOWN_SOURCE,
-      name: UNKNOWN_SOURCE,
-    });
     loggedUser = '1';
     variables.title = 'Sample external link title';
     await checkSharedPostExpectation(true);
@@ -2933,7 +2947,7 @@ describe('mutation submitExternalLink', () => {
     expect(res.errors).toBeFalsy();
     const articlePost = await con
       .getRepository(ArticlePost)
-      .findOneBy({ url: 'http://p6.com' });
+      .findOneByOrFail({ url: 'http://p6.com' });
     expect(articlePost.url).toEqual('http://p6.com');
     expect(articlePost.visible).toEqual(true);
     expect(articlePost.id).toEqual('p6');
@@ -2942,7 +2956,63 @@ describe('mutation submitExternalLink', () => {
 
     const sharedPost = await con
       .getRepository(SharePost)
-      .findOneBy({ sharedPostId: articlePost.id });
+      .findOneByOrFail({ sharedPostId: articlePost.id });
+    expect(sharedPost.authorId).toEqual('1');
+    expect(sharedPost.title).toEqual('My comment');
+    expect(sharedPost.visible).toEqual(true);
+  });
+
+  it('should share existing post to squad when URL has allowed search params', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, url: 'http://p8.com?sk=wololo&foo=bar' },
+    });
+    expect(res.errors).toBeFalsy();
+    const articlePost = await con
+      .getRepository(ArticlePost)
+      .findOneByOrFail({ url: 'http://p8.com?sk=wololo' });
+    expect(articlePost.url).toEqual('http://p8.com?sk=wololo');
+    expect(articlePost.canonicalUrl).toEqual('http://p8.com');
+    expect(articlePost.visible).toEqual(true);
+    expect(articlePost.id).toEqual('p8');
+
+    expect(notifyContentRequested).toHaveBeenCalledTimes(0);
+
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneByOrFail({ sharedPostId: articlePost.id });
+    expect(sharedPost.authorId).toEqual('1');
+    expect(sharedPost.title).toEqual('My comment');
+    expect(sharedPost.visible).toEqual(true);
+  });
+
+  it('should share new post to squad when URL has allowed search params', async () => {
+    loggedUser = '1';
+    expect(
+      await con
+        .getRepository(ArticlePost)
+        .findOneBy({ url: 'http://brand.new.com?sk=wololo' }),
+    ).toBeFalsy();
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        url: 'http://brand.new.com?sk=wololo&foo=bar',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const articlePost = await con
+      .getRepository(ArticlePost)
+      .findOneByOrFail({ url: 'http://brand.new.com?sk=wololo' });
+    expect(articlePost.url).toEqual('http://brand.new.com?sk=wololo');
+    expect(articlePost.canonicalUrl).toEqual('http://brand.new.com');
+    expect(articlePost.visible).toEqual(true);
+
+    expect(notifyContentRequested).toHaveBeenCalledTimes(1);
+
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneByOrFail({ sharedPostId: articlePost.id });
     expect(sharedPost.authorId).toEqual('1');
     expect(sharedPost.title).toEqual('My comment');
     expect(sharedPost.visible).toEqual(true);
@@ -2956,7 +3026,7 @@ describe('mutation submitExternalLink', () => {
     expect(res.errors).toBeFalsy();
     const youtubePost = await con
       .getRepository(YouTubePost)
-      .findOneBy({ url: 'https://youtu.be/T_AbQGe7fuU' });
+      .findOneByOrFail({ url: 'https://youtu.be/T_AbQGe7fuU' });
     expect(youtubePost.url).toEqual('https://youtu.be/T_AbQGe7fuU');
     expect(youtubePost.visible).toEqual(true);
     expect(youtubePost.id).toEqual('yt1');
@@ -2965,7 +3035,7 @@ describe('mutation submitExternalLink', () => {
 
     const sharedPost = await con
       .getRepository(SharePost)
-      .findOneBy({ sharedPostId: youtubePost.id });
+      .findOneByOrFail({ sharedPostId: youtubePost.id });
     expect(sharedPost.authorId).toEqual('1');
     expect(sharedPost.title).toEqual('My comment');
     expect(sharedPost.visible).toEqual(true);
@@ -2979,7 +3049,7 @@ describe('mutation submitExternalLink', () => {
     expect(res.errors).toBeFalsy();
     const articlePost = await con
       .getRepository(ArticlePost)
-      .findOneBy({ url: 'http://p6.com' });
+      .findOneByOrFail({ url: 'http://p6.com' });
     expect(articlePost.url).toEqual('http://p6.com');
     expect(articlePost.visible).toEqual(true);
     expect(articlePost.id).toEqual('p6');
@@ -2988,7 +3058,7 @@ describe('mutation submitExternalLink', () => {
 
     const sharedPost = await con
       .getRepository(SharePost)
-      .findOneBy({ sharedPostId: articlePost.id });
+      .findOneByOrFail({ sharedPostId: articlePost.id });
     expect(sharedPost.authorId).toEqual('1');
     expect(sharedPost.title).toBeNull();
     expect(sharedPost.visible).toEqual(true);
@@ -3066,7 +3136,7 @@ describe('mutation submitExternalLink', () => {
     expect(res.errors).toBeFalsy();
     const articlePost = await con
       .getRepository(ArticlePost)
-      .findOneBy({ url: 'http://p6.com' });
+      .findOneByOrFail({ url: 'http://p6.com' });
     expect(articlePost.url).toEqual('http://p6.com');
     expect(articlePost.visible).toEqual(true);
     expect(articlePost.id).toEqual('p6');
@@ -3075,7 +3145,7 @@ describe('mutation submitExternalLink', () => {
 
     const sharedPost = await con
       .getRepository(SharePost)
-      .findOneBy({ sharedPostId: articlePost.id });
+      .findOneByOrFail({ sharedPostId: articlePost.id });
     expect(sharedPost.authorId).toEqual('1');
     expect(sharedPost.title).toEqual('My comment');
     expect(sharedPost.visible).toEqual(true);
@@ -3099,7 +3169,7 @@ describe('mutation submitExternalLink', () => {
     expect(res.errors).toBeFalsy();
     const articlePost = await con
       .getRepository(ArticlePost)
-      .findOneBy({ url: 'http://p6.com' });
+      .findOneByOrFail({ url: 'http://p6.com' });
     expect(articlePost.url).toEqual('http://p6.com');
     expect(articlePost.visible).toEqual(true);
     expect(articlePost.id).toEqual('p6');
@@ -3108,7 +3178,7 @@ describe('mutation submitExternalLink', () => {
 
     const sharedPost = await con
       .getRepository(SharePost)
-      .findOneBy({ sharedPostId: articlePost.id });
+      .findOneByOrFail({ sharedPostId: articlePost.id });
     expect(sharedPost.authorId).toEqual('1');
     expect(sharedPost.title).toEqual('My comment');
     expect(sharedPost.visible).toEqual(true);
@@ -3236,13 +3306,6 @@ describe('mutation submitExternalLink', () => {
 
   describe('vordr', () => {
     describe('new post', () => {
-      beforeEach(async () => {
-        await con.getRepository(Source).insert({
-          id: UNKNOWN_SOURCE,
-          handle: UNKNOWN_SOURCE,
-          name: UNKNOWN_SOURCE,
-        });
-      });
       it('should set the correct vordr flags on new post by a good user', async () => {
         loggedUser = '1';
 
@@ -3282,13 +3345,6 @@ describe('mutation submitExternalLink', () => {
     });
 
     describe('existing post', () => {
-      beforeEach(async () => {
-        await con.getRepository(Source).insert({
-          id: UNKNOWN_SOURCE,
-          handle: UNKNOWN_SOURCE,
-          name: UNKNOWN_SOURCE,
-        });
-      });
       it('should set the correct vordr flags on existing post by good user', async () => {
         loggedUser = '1';
 
@@ -3468,7 +3524,7 @@ describe('mutation checkLinkPreview', () => {
     const url = 'http://p1c.com';
     const foundPost = await con
       .getRepository(ArticlePost)
-      .findOneBy({ canonicalUrl: url });
+      .findOneByOrFail({ canonicalUrl: url });
     const res = await client.mutate(MUTATION, { variables: { url } });
     expect(res.data.checkLinkPreview).toBeTruthy();
     expect(res.data.checkLinkPreview.id).toEqual(foundPost.id);
@@ -3477,7 +3533,9 @@ describe('mutation checkLinkPreview', () => {
   it('should return post by url', async () => {
     loggedUser = '1';
     const url = 'http://p1.com';
-    const foundPost = await con.getRepository(ArticlePost).findOneBy({ url });
+    const foundPost = await con
+      .getRepository(ArticlePost)
+      .findOneByOrFail({ url });
     const res = await client.mutate(MUTATION, { variables: { url } });
     expect(res.data.checkLinkPreview).toBeTruthy();
     expect(res.data.checkLinkPreview.id).toEqual(foundPost.id);
@@ -4695,7 +4753,7 @@ describe('mutation promoteToPublic', () => {
       variables: params,
     });
 
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
     const sixDays = new Date();
     sixDays.setDate(sixDays.getDate() + 6);
     const timeToSeconds = Math.floor(sixDays.valueOf() / 1000);
@@ -4749,7 +4807,7 @@ describe('mutation demoteFromPublic', () => {
       variables: params,
     });
 
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
     expect(post.flags.promoteToPublic).toEqual(null);
   });
 });
@@ -4793,7 +4851,7 @@ describe('mutation updatePinPost', () => {
       .getRepository(SourceMember)
       .update({ userId: '1' }, { role: SourceMemberRoles.Admin });
 
-    const getPost = () => con.getRepository(Post).findOneBy({ id: 'p1' });
+    const getPost = () => con.getRepository(Post).findOneByOrFail({ id: 'p1' });
 
     const unpinned = await getPost();
     expect(unpinned.pinnedAt).toBeNull();
@@ -4883,6 +4941,7 @@ describe('mutation swapPinnedPosts', () => {
     it('should throw a validation error if posts are not pinned', async () => {
       loggedUser = '1';
 
+      // @ts-expect-error pinnedAt default value is null
       await con.getRepository(Post).update({ id: 'p1' }, { pinnedAt: null });
 
       return testMutationError(
@@ -4950,7 +5009,7 @@ describe('mutation swapPinnedPosts', () => {
       // to assert that the first pinned post pinnedAt timestamp is changed
       const firstPostBefore = await con
         .getRepository(Post)
-        .findOneBy({ id: 'p2' });
+        .findOneByOrFail({ id: 'p2' });
 
       await client.mutate(MUTATION, {
         variables: { id: 'p3', swapWithId: 'p1' },
@@ -4958,10 +5017,10 @@ describe('mutation swapPinnedPosts', () => {
 
       const firstPostAfter = await con
         .getRepository(Post)
-        .findOneBy({ id: 'p2' });
+        .findOneByOrFail({ id: 'p2' });
 
-      expect(firstPostAfter.pinnedAt.getTime()).toEqual(
-        firstPostBefore.pinnedAt.getTime() + 1000,
+      expect(firstPostAfter.pinnedAt?.getTime()).toEqual(
+        (firstPostBefore.pinnedAt?.getTime() as number) + 1000,
       );
     });
 
@@ -4982,7 +5041,7 @@ describe('mutation swapPinnedPosts', () => {
 
       const firstPostBefore = await con
         .getRepository(Post)
-        .findOneBy({ id: 'p2' });
+        .findOneByOrFail({ id: 'p2' });
 
       await client.mutate(MUTATION, {
         variables: { id: 'p3', swapWithId: 'p1' },
@@ -4990,10 +5049,10 @@ describe('mutation swapPinnedPosts', () => {
 
       const firstPostAfter = await con
         .getRepository(Post)
-        .findOneBy({ id: 'p2' });
+        .findOneByOrFail({ id: 'p2' });
 
-      expect(firstPostAfter.pinnedAt.getTime()).toEqual(
-        firstPostBefore.pinnedAt.getTime(),
+      expect(firstPostAfter.pinnedAt?.getTime()).toEqual(
+        firstPostBefore.pinnedAt?.getTime(),
       );
     });
   });
@@ -5109,8 +5168,8 @@ describe('posts flags field', () => {
   });
 
   it('should contain all default values in db query', async () => {
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.flags).toEqual({
+    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
+    expect(post.flags).toEqual({
       sentAnalyticsReport: true,
       visible: true,
       showOnFeed: true,
@@ -6802,7 +6861,7 @@ describe('Source post moderation approve/reject', () => {
         title: 'Title',
         content: 'Content',
         status: SourcePostModerationStatus.Rejected,
-        rejectionReason: 'Spam',
+        rejectionReason: PostModerationReason.Spam,
         moderatorMessage: 'This is spam',
         type: PostType.Article,
         moderatedById: '3',
@@ -7035,7 +7094,7 @@ describe('Source post moderation edit/delete', () => {
         title: 'Title',
         content: 'Content',
         status: SourcePostModerationStatus.Rejected,
-        rejectionReason: 'Spam',
+        rejectionReason: PostModerationReason.Spam,
         moderatorMessage: 'This is spam',
         type: PostType.Share,
         moderatedById: '3',

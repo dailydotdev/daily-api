@@ -257,7 +257,7 @@ describe('postAddedSlackChannelSend worker', () => {
   });
 
   it('should not send a message to the slack channel if the post source has no slack integrations', async () => {
-    await con.getRepository(UserSourceIntegrationSlack).delete({});
+    await con.getRepository(UserSourceIntegrationSlack).clear();
 
     expect(conversationsJoin).toHaveBeenCalledTimes(0);
     expect(chatPostMessage).toHaveBeenCalledTimes(0);
