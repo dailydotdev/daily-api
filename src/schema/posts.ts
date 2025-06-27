@@ -130,6 +130,7 @@ import type {
   StartPostBoostArgs,
 } from '../common/post/boost';
 import {
+  coresToUsd,
   getBalance,
   throwUserTransactionError,
   transferCores,
@@ -2586,15 +2587,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const total = budget * duration;
 
       const request = await ctx.con.transaction(async (entityManager) => {
-        const { campaignId } = await skadiBoostClient
-          .startPostCampaign
-          //   {
-          //   postId,
-          //   duration,
-          //   budget: coresToUsd(budget),
-          //   userId,
-          // }
-          ();
+        const { campaignId } = await skadiBoostClient.startPostCampaign({
+          postId,
+          duration,
+          budget: coresToUsd(budget),
+          userId,
+        });
 
         const userTransaction = await entityManager
           .getRepository(UserTransaction)
