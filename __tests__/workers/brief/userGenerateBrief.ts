@@ -6,7 +6,7 @@ import { Source, User } from '../../../src/entity';
 
 import { usersFixture } from '../../fixture/user';
 import { typedWorkers } from '../../../src/workers';
-import { BriefingType } from '../../../src/integrations/feed';
+import { BriefingModel, BriefingType } from '../../../src/integrations/feed';
 import { BriefPost } from '../../../src/entity/posts/BriefPost';
 import { sourcesFixture } from '../../fixture';
 import { generateShortId } from '../../../src/ids';
@@ -83,7 +83,7 @@ describe('userGenerateBrief worker', () => {
       userId: '1',
       postId,
       frequency: BriefingType.Daily,
-      modelName: 'default',
+      modelName: BriefingModel.Default,
     });
 
     const briefPost = await con.getRepository(BriefPost).findOne({

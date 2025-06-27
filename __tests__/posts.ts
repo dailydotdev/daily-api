@@ -8053,15 +8053,16 @@ describe('mutation generateBriefing', () => {
     type: BriefingType.Daily,
   };
 
-  it('should not authorize when not logged in', () =>
-    testMutationErrorCode(
+  it('should not authorize when not logged in', async () => {
+    await testMutationErrorCode(
       client,
       {
         mutation: MUTATION,
         variables,
       },
       'UNAUTHENTICATED',
-    ));
+    );
+  });
 
   it('should start briefing generation', async () => {
     loggedUser = '1';
@@ -8091,7 +8092,7 @@ describe('mutation generateBriefing', () => {
 
     expect(res.errors).toBeFalsy();
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       {
         mutation: MUTATION,
