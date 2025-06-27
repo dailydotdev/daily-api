@@ -230,8 +230,6 @@ https://app.daily.dev`,
             ],
           },
         ],
-        limitations:
-          'The brief relies on the provided curated and isolated stories, and may not capture all relevant tech news from external sources.',
       });
     });
   }

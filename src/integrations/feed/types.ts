@@ -155,5 +155,4 @@ export type BriefingSection = {
 
 export type Briefing = {
   sections: BriefingSection[];
-  limitationsUncertainties?: string;
 };

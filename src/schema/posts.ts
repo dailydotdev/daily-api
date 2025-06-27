@@ -987,6 +987,20 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): PostBalance!
+
+    """
+    Get user briefing posts
+    """
+    briefingPosts(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+    ): PostConnection! @auth
   }
 
   extend type Mutation {
@@ -1924,6 +1938,33 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .getRawOne();
 
       return result;
+    },
+    briefingPosts: async (
+      _,
+      args: ConnectionArguments,
+      ctx: AuthContext,
+      info,
+    ): Promise<ConnectionRelay<GQLPost>> => {
+      return queryPaginatedByDate(
+        ctx,
+        info,
+        args,
+        { key: 'createdAt' },
+        {
+          queryBuilder: (builder) => {
+            builder.queryBuilder = builder.queryBuilder
+              .andWhere(`${builder.alias}.authorId = :briefingUserId`, {
+                briefingUserId: ctx.userId,
+              })
+              .andWhere(`${builder.alias}.type = :type`, {
+                type: PostType.Brief,
+              });
+
+            return builder;
+          },
+          orderByKey: 'DESC',
+        },
+      );
     },
   },
   Mutation: {

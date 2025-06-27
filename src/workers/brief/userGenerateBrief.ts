@@ -37,11 +37,6 @@ const generateMarkdown = (data: Briefing): string => {
     }
   }
 
-  if (data.limitationsUncertainties) {
-    markdown += '## Limitations\n\n';
-    markdown += `${data.limitationsUncertainties}\n`;
-  }
-
   return markdown;
 };
 

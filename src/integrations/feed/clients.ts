@@ -102,8 +102,6 @@ export class FeedClient implements IFeedClient, IGarmrClient {
 
     return {
       sections: result.sections,
-      limitationsUncertainties:
-        result.limitations || result.limitations_uncertainties,
     };
   }
 }
