@@ -54,116 +54,100 @@ export class SkadiClient implements ISkadiClient {
     });
   }
 
-  startPostCampaign() // params: {
-  //   postId: string;
-  //   userId: string;
-  //   duration: number;
-  //   budget: number;
-  // }
-  : Promise<{ campaignId: string }> {
-    // TODO: once Ad Server is ready, we should update this.
+  startPostCampaign({
+    postId,
+    userId,
+    duration,
+    budget,
+  }: {
+    postId: string;
+    userId: string;
+    duration: number;
+    budget: number;
+  }): Promise<{ campaignId: string }> {
     return this.garmr.execute(() => {
-      // return fetchParse(`${this.url}/private/campaign`, {
-      //   ...this.fetchOptions,
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify(params),
-      // });
-      return Promise.resolve({
-        campaignId: 'mock-campaign-id', // Mock response for testing
+      return fetchParse(`${this.url}/promote/post/create`, {
+        ...this.fetchOptions,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ postId, userId, duration, budget }),
       });
     });
   }
 
-  cancelPostCampaign(params: {
+  cancelPostCampaign({
+    postId,
+    userId,
+  }: {
     postId: string;
     userId: string;
   }): Promise<{ success: boolean }> {
-    // TODO: once Ad Server is ready, we should update this.
     return this.garmr.execute(() => {
-      // return fetchParse(`${this.url}/private/campaign/${params.postId}/cancel`, {
-      //   ...this.fetchOptions,
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify({ userId: params.userId }),
-      // });
-
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { postId, userId } = params;
-      return Promise.resolve({
-        success: true, // Mock response for testing
+      return fetchParse(`${this.url}/promote/post/cancel`, {
+        ...this.fetchOptions,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ postId, userId }),
       });
     });
   }
 
-  estimatePostBoostReach(params: {
+  estimatePostBoostReach({
+    postId,
+    userId,
+    duration,
+    budget,
+  }: {
     postId: string;
     userId: string;
     duration: number;
     budget: number;
   }): Promise<PostBoostReach> {
-    // TODO: once Ad Server is ready, we should update this.
     return this.garmr.execute(() => {
-      // return fetchParse(`${this.url}/private/campaign/estimate`, {
-      //   ...this.fetchOptions,
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify(params),
-      // });
-
-      // Mocking the response for testing purposes
-      const baseReach = Math.floor(params.budget * params.duration * 0.1);
-      const variance = Math.floor(baseReach * 0.2); // 20% variance
-
-      return Promise.resolve({
-        estimatedReach: {
-          min: Math.max(0, baseReach - variance),
-          max: baseReach + variance,
+      return fetchParse(`${this.url}/promote/post/reach`, {
+        ...this.fetchOptions,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ postId, userId, duration, budget }),
       });
     });
   }
 
-  // TODO: once Ad Server is ready, we should update this.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getCampaignById(props: GetCampaignByIdProps): Promise<PromotedPost> {
-    // return this.garmr.execute(() => {
-    // return fetchParse(`${this.url}/private/campaign/${id}`, {
-    //   ...this.fetchOptions,
-    // });
-    // });
-    return Promise.resolve({
-      campaignId: 'mock-campaign-id',
-      postId: 'p1',
-      status: 'mock-status',
-      budget: 1000,
-      currentBudget: 500,
-      startedAt: new Date(),
-      endedAt: new Date(),
-      impressions: 100,
-      clicks: 92,
+  getCampaignById({
+    campaignId,
+    userId,
+  }: GetCampaignByIdProps): Promise<PromotedPost> {
+    return this.garmr.execute(() => {
+      return fetchParse(`${this.url}/promote/post/get`, {
+        ...this.fetchOptions,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ campaignId, userId }),
+      });
     });
   }
 
-  // TODO: once Ad Server is ready, we should update this.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getCampaigns(params: GetCampaignsProps): Promise<PromotedPostList> {
+  getCampaigns({
+    limit,
+    offset,
+    userId,
+  }: GetCampaignsProps): Promise<PromotedPostList> {
     return this.garmr.execute(() => {
-      // return fetchParse(`${this.url}/private/campaigns`, {
-      //   ...this.fetchOptions,
-      // });
-      return Promise.resolve({
-        promotedPosts: [],
-        impressions: 0,
-        clicks: 0,
-        totalSpend: 0,
-        postIds: [],
+      return fetchParse(`${this.url}/promote/post/list`, {
+        ...this.fetchOptions,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ limit, offset, userId }),
       });
     });
   }
