@@ -1,5 +1,6 @@
 import {
   disposeGraphQLTesting,
+  expectTypedEvent,
   GraphQLTestClient,
   GraphQLTestingState,
   initializeGraphQLTesting,
@@ -95,11 +96,20 @@ import {
   UserTransactionStatus,
 } from '../src/entity/user/UserTransaction';
 import { Product, ProductType } from '../src/entity/Product';
+import { BriefingModel, BriefingType } from '../src/integrations/feed';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
   notifyView: jest.fn(),
   notifyContentRequested: jest.fn(),
+}));
+
+jest.mock('../src/common/typedPubsub', () => ({
+  ...(jest.requireActual('../src/common/typedPubsub') as Record<
+    string,
+    unknown
+  >),
+  triggerTypedEvent: jest.fn(),
 }));
 
 let con: DataSource;
@@ -8028,5 +8038,66 @@ describe('query post awards', () => {
         },
       },
     ]);
+  });
+});
+
+describe('mutation generateBriefing', () => {
+  const MUTATION = `
+  mutation GenerateBriefing($type: BriefingType!) {
+  generateBriefing(type: $type) {
+    postId
+  }
+}`;
+
+  const variables = {
+    type: BriefingType.Daily,
+  };
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should start briefing generation', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables,
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.generateBriefing.postId).toBeDefined();
+
+    expectTypedEvent('api.v1.brief-generate', {
+      userId: loggedUser,
+      frequency: variables.type,
+      postId: res.data.generateBriefing.postId,
+      modelName: BriefingModel.Default,
+    });
+  });
+
+  it('should not start briefing generation if already generating', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables,
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'CONFLICT',
+    );
   });
 });
