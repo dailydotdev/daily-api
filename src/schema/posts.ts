@@ -47,6 +47,8 @@ import {
   type SourcePostModerationArgs,
   getAllModerationItemsAsAdmin,
   getTranslationRecord,
+  triggerTypedEvent,
+  isProd,
 } from '../common';
 import {
   ArticlePost,
@@ -78,6 +80,7 @@ import {
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
+  ConflictError,
   NotFoundError,
   SubmissionFailErrorMessage,
   TypeOrmError,
@@ -118,6 +121,8 @@ import { queryReadReplica } from '../common/queryReadReplica';
 import { remoteConfig } from '../remoteConfig';
 import { ensurePostRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
+import { BriefingModel, BriefingType } from '../integrations/feed';
+import { BriefPost } from '../entity/posts/BriefPost';
 
 export interface GQLPost {
   id: string;
@@ -240,6 +245,8 @@ export type GQLPostCodeSnippet = Pick<
 >;
 
 export const typeDefs = /* GraphQL */ `
+  ${toGQLEnum(BriefingType, 'BriefingType')}
+
   """
   Post moderation item
   """
@@ -831,6 +838,10 @@ export const typeDefs = /* GraphQL */ `
     amount: Int!
   }
 
+  type GenerateBriefingResponse {
+    postId: String!
+  }
+
   extend type Query {
     """
     Get specific squad post moderation item
@@ -1393,6 +1404,11 @@ export const typeDefs = /* GraphQL */ `
       """
       externalLink: String
     ): SourcePostModeration! @auth
+
+    """
+    Generate new briefing for the user
+    """
+    generateBriefing(type: BriefingType!): GenerateBriefingResponse! @auth
   }
 
   extend type Subscription {
@@ -2731,6 +2747,52 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           ),
         }),
       );
+    },
+    generateBriefing: async (
+      _,
+      { type }: { type: BriefingType },
+      ctx: AuthContext,
+    ): Promise<{ postId: string }> => {
+      if (isProd && !ctx.isTeamMember) {
+        throw new ForbiddenError('Not allowed for you yet');
+      }
+
+      const pendingBrief = await queryReadReplica(
+        ctx.con,
+        async ({ queryRunner }) => {
+          return queryRunner.manager.getRepository(BriefPost).findOne({
+            select: ['id'],
+            where: { visible: false },
+          });
+        },
+      );
+
+      if (pendingBrief) {
+        throw new ConflictError('There is already a briefing being generated');
+      }
+
+      const postId = await generateShortId();
+
+      const post = ctx.con.getRepository(BriefPost).create({
+        id: postId,
+        shortId: postId,
+        authorId: ctx.userId,
+        private: true,
+        visible: false,
+      });
+
+      await ctx.con.getRepository(BriefPost).save(post);
+
+      triggerTypedEvent(logger, 'api.v1.brief-generate', {
+        userId: ctx.userId,
+        postId,
+        frequency: type,
+        modelName: BriefingModel.Default,
+      });
+
+      return {
+        postId,
+      };
     },
   },
   Subscription: {

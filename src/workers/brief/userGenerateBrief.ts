@@ -1,10 +1,10 @@
 import { format } from 'date-fns';
 import { markdown } from '../../common/markdown';
 import { BriefPost } from '../../entity/posts/BriefPost';
-import { generateShortId } from '../../ids';
 import { FeedClient, type Briefing } from '../../integrations/feed';
 import { GarmrService } from '../../integrations/garmr';
 import type { TypedWorker } from '../worker';
+import { getPostVisible } from '../../entity';
 
 const feedClient = new FeedClient(process.env.BRIEFING_FEED, {
   garmr: new GarmrService({
@@ -51,22 +51,34 @@ export const userGenerateBriefWorker: TypedWorker<'api.v1.brief-generate'> = {
         'start generating user brief',
       );
 
+      const { postId } = data;
+
+      const pendingPost = await con.getRepository(BriefPost).findOne({
+        where: {
+          id: postId,
+        },
+      });
+
+      if (!pendingPost) {
+        logger.error({ data }, 'brief post not found, skipping generation');
+
+        return;
+      }
+
       const brief = await feedClient.getUserBrief(data);
 
-      const postId = await generateShortId();
       const content = generateMarkdown(brief);
-      const title = `Presidential briefing ${format(new Date(), 'MMM d')}`;
+      const title = format(new Date(), 'MMM d');
 
       const post = con.getRepository(BriefPost).create({
         id: postId,
         title,
         titleHtml: title,
-        shortId: postId,
         content,
         contentHtml: markdown.render(content),
-        authorId: data.userId,
-        private: true,
+        visible: true,
       });
+      post.visible = getPostVisible({ post });
 
       await con.getRepository(BriefPost).save(post);
     } catch (originalError) {
