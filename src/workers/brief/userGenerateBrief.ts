@@ -37,7 +37,7 @@ const generateMarkdown = (data: Briefing): string => {
     }
   }
 
-  return markdown;
+  return markdown.trim();
 };
 
 export const userGenerateBriefWorker: TypedWorker<'api.v1.brief-generate'> = {
