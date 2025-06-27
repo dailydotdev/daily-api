@@ -2753,6 +2753,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { type }: { type: BriefingType },
       ctx: AuthContext,
     ): Promise<{ postId: string }> => {
+      // TODO feat-brief replace with check, if user generated single brief on demand generation
+      // is no longer available
       if (isProd && !ctx.isTeamMember) {
         throw new ForbiddenError('Not allowed for you yet');
       }
