@@ -155,6 +155,8 @@ config:
     geoipPath: /usr/share/geoip
     mimirOrigin:
       secure: AAABACPC/WLJuAHpqC3oE43YKjEzcFSXYSLfAx69vvRnC5xsOj2Md4tHo3RAAeVfrFaLRwugIQ7bPEZ4VBJnwJPem1NW0Nkm
+    briefingFeed:
+      secure: AAABAJWDkWAezGM15dk8xXwDdav6cmPwS/2x+tKvSwql/JUzFadVDpmlRRTSOGIh7WA++s+D7C6wdyy35Cg2FQ==
   api:k8s:
     host: subs.daily.dev
     namespace: daily

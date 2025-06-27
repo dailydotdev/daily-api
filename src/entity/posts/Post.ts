@@ -22,6 +22,7 @@ export enum PostType {
   Welcome = 'welcome',
   Collection = 'collection',
   VideoYouTube = 'video:youtube',
+  Brief = 'brief',
 }
 
 export const postTypes: string[] = Object.values(PostType);
