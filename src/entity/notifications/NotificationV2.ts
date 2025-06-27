@@ -13,7 +13,8 @@ export type NotificationReferenceType =
   | 'comment'
   | 'source'
   | 'system'
-  | 'organization';
+  | 'organization'
+  | 'boost';
 
 @Entity()
 @Index('ID_notification_v2_reference', ['referenceId', 'referenceType'])

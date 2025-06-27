@@ -99,6 +99,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   user_received_award: CioTransactionalMessageTemplateId.UserReceivedAward,
   organization_member_joined:
     CioTransactionalMessageTemplateId.OrganizationMemberJoined,
+  post_boost_completed: '', // TODO: check with product
 };
 
 type TemplateData = Record<string, unknown>;
@@ -111,6 +112,7 @@ type TemplateDataFunc = (
   avatars: NotificationAvatarV2[],
 ) => Promise<TemplateData | null>;
 const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
+  post_boost_completed: async () => ({}),
   source_post_approved: async (con, user, notification) => {
     const post = await con.getRepository(Post).findOne({
       where: { id: notification.referenceId },

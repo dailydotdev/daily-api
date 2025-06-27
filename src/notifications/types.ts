@@ -129,6 +129,10 @@ export type NotificationOrganizationContext = NotificationUserContext & {
   organization: Reference<Organization>;
 };
 
+export type NotificationBoostContext = NotificationUserContext & {
+  campaignId: string;
+};
+
 declare module 'fs' {
   interface ReadStream {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
