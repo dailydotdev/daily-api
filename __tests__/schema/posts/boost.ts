@@ -43,6 +43,7 @@ import { skadiBoostClient } from '../../../src/integrations/skadi/clients';
 import { pickImageUrl } from '../../../src/common/post';
 import { updateFlagsStatement } from '../../../src/common';
 import { UserTransaction } from '../../../src/entity/user/UserTransaction';
+import { getBalance } from '../../../src/common/njord';
 
 jest.mock('../../../src/common/pubsub', () => ({
   ...(jest.requireActual('../../../src/common/pubsub') as Record<
@@ -63,6 +64,15 @@ jest.mock('../../../src/integrations/skadi/clients', () => ({
     getCampaigns: jest.fn(),
     getAd: jest.fn(),
   },
+}));
+
+// Mock the getBalance function
+jest.mock('../../../src/common/njord', () => ({
+  ...(jest.requireActual('../../../src/common/njord') as Record<
+    string,
+    unknown
+  >),
+  getBalance: jest.fn(),
 }));
 
 let con: DataSource;
@@ -1770,6 +1780,11 @@ describe('mutation startPostBoost', () => {
       },
     );
 
+    // Mock skadi client to throw an error
+    (skadiBoostClient.startPostCampaign as jest.Mock).mockRejectedValue(
+      new Error('Skadi service unavailable'),
+    );
+
     // Get initial transaction count
     const initialTransactionCount = await con
       .getRepository(UserTransaction)
@@ -1810,6 +1825,11 @@ describe('mutation startPostBoost', () => {
         flags: updateFlagsStatement<Post>({ campaignId: null }),
       },
     );
+
+    // Mock skadi client to succeed but transfer to fail
+    (skadiBoostClient.startPostCampaign as jest.Mock).mockResolvedValue({
+      campaignId: 'mock-campaign-id',
+    });
 
     // Get initial transaction count
     const initialTransactionCount = await con
@@ -1988,6 +2008,97 @@ describe('mutation startPostBoost', () => {
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.flags?.campaignId).toBe('mock-id');
   });
+
+  it('should successfully start post boost campaign', async () => {
+    loggedUser = '1';
+
+    // Ensure the post is not boosted initially
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement<Post>({ campaignId: null }),
+      },
+    );
+
+    // Mock skadi client to succeed
+    (skadiBoostClient.startPostCampaign as jest.Mock).mockResolvedValue({
+      campaignId: 'mock-campaign-id',
+    });
+
+    // Mock getBalance to return a balance
+    (getBalance as jest.Mock).mockResolvedValue({
+      amount: 10000, // 10000 cores balance
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, duration: 1, budget: 1000 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.startPostBoost.transactionId).toBeDefined();
+    expect(res.data.startPostBoost.balance.amount).toBe(10000);
+
+    // Verify the boosted flag is now set
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.campaignId).toBe('mock-campaign-id');
+
+    // Verify the skadi client was called with correct parameters
+    expect(skadiBoostClient.startPostCampaign).toHaveBeenCalledWith({
+      postId: 'p1',
+      userId: '1',
+      duration: 1,
+      budget: 10, // Converted from cores to USD (1000 cores = 10 USD)
+    });
+
+    // Verify getBalance was called
+    expect(getBalance).toHaveBeenCalledWith({ userId: '1' });
+  });
+
+  it('should handle skadi integration failure gracefully', async () => {
+    loggedUser = '1';
+
+    // Ensure the post is not boosted initially
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement<Post>({ campaignId: null }),
+      },
+    );
+
+    // Mock skadi client to throw an error
+    (skadiBoostClient.startPostCampaign as jest.Mock).mockRejectedValue(
+      new Error('Skadi service unavailable'),
+    );
+
+    // Get initial transaction count
+    const initialTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { senderId: '1', referenceType: 'PostBoost' },
+      });
+
+    // This test validates that the mutation handles external service failures
+    // In a real scenario, this would test the error handling when skadi service is down
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, duration: 1, budget: 1000 },
+    });
+
+    // The mutation should fail due to external service issues
+    // but the validation logic should pass
+    expect(res.errors).toBeTruthy();
+
+    // Verify no new transactions were created
+    const finalTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { senderId: '1', referenceType: 'PostBoost' },
+      });
+    expect(finalTransactionCount).toBe(initialTransactionCount);
+
+    // Verify the boosted flag is still false
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.campaignId).toBeFalsy();
+  });
 });
 
 describe('mutation cancelPostBoost', () => {
@@ -2058,6 +2169,11 @@ describe('mutation cancelPostBoost', () => {
 
   it('should successfully cancel post boost when post is boosted', async () => {
     loggedUser = '1';
+
+    // Mock skadi client to succeed
+    (skadiBoostClient.cancelPostCampaign as jest.Mock).mockResolvedValue({
+      success: true,
+    });
 
     const res = await client.mutate(MUTATION, {
       variables: params,
@@ -2139,6 +2255,11 @@ describe('mutation cancelPostBoost', () => {
         scoutId: '1', // Current user is scout
       },
     );
+
+    // Mock skadi client to succeed
+    (skadiBoostClient.cancelPostCampaign as jest.Mock).mockResolvedValue({
+      success: true,
+    });
 
     const res = await client.mutate(MUTATION, {
       variables: params,
@@ -2269,13 +2390,30 @@ describe('query boostEstimatedReach', () => {
   it('should the response returned by skadi client', async () => {
     loggedUser = '1';
 
+    // Mock the skadi client to return estimated reach
+    (skadiBoostClient.estimatePostBoostReach as jest.Mock).mockResolvedValue({
+      estimatedReach: {
+        min: 80,
+        max: 120,
+      },
+    });
+
     const res = await client.query(QUERY, {
       variables: { ...params, duration: 1, budget: 1000 },
     });
 
+    expect(res.errors).toBeFalsy();
     expect(res.data.boostEstimatedReach.estimatedReach).toEqual({
       max: 120,
       min: 80,
+    });
+
+    // Verify the skadi client was called with correct parameters
+    expect(skadiBoostClient.estimatePostBoostReach).toHaveBeenCalledWith({
+      postId: 'p1',
+      userId: '1',
+      duration: 1,
+      budget: 1000,
     });
   });
 });
