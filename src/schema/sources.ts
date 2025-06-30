@@ -1892,12 +1892,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       await ensureSourcePermissions(ctx, id);
       const source = await getSourceById(ctx, info, id);
 
-      if (source.type === SourceType.User) {
-        throw new ForbiddenError(
-          'Access denied! Use sourceUser query to access user sources.',
-        );
-      }
-
       if (!source.moderationRequired || !source.currentMember) {
         return source;
       }
