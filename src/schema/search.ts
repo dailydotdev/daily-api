@@ -487,6 +487,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .createQueryBuilder()
         .select(`id, name as title, handle as subtitle, image`)
         .where(`private = false`)
+        .andWhere('type != :sourceType', {
+          sourceType: SourceType.User,
+        })
         .andWhere(
           `(type != '${SourceType.Squad}' OR (flags->>'publicThreshold')::boolean IS TRUE)`,
         )
