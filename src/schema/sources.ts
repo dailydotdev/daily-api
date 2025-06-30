@@ -1227,10 +1227,10 @@ export const ensureUserSourceExists = async (
   const user = await con.getRepository(User).findOneByOrFail({ id: userId });
 
   await con.getRepository(SourceUser).insert({
-    id: userId,
-    userId,
-    handle: userId,
-    name: userId,
+    id: user.id,
+    userId: user.id,
+    handle: user.username,
+    name: user.username,
     type: SourceType.User,
     private: false,
     flags: {
