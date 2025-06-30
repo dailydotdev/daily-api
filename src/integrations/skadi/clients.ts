@@ -1,13 +1,5 @@
 import { RequestInit } from 'node-fetch';
-import {
-  ISkadiClient,
-  SkadiResponse,
-  type GetCampaignByIdProps,
-  type GetCampaignsProps,
-  type PostBoostReach,
-  type PromotedPost,
-  type PromotedPostList,
-} from './types';
+import { ISkadiClient, SkadiResponse } from './types';
 import { GarmrNoopService, IGarmrService, GarmrService } from '../garmr';
 import { fetchOptions as globalFetchOptions } from '../../http';
 import { fetchParse } from '../retry';
@@ -50,104 +42,6 @@ export class SkadiClient implements ISkadiClient {
           placement,
           metadata,
         }),
-      });
-    });
-  }
-
-  startPostCampaign({
-    postId,
-    userId,
-    duration,
-    budget,
-  }: {
-    postId: string;
-    userId: string;
-    duration: number;
-    budget: number;
-  }): Promise<{ campaignId: string }> {
-    return this.garmr.execute(() => {
-      return fetchParse(`${this.url}/promote/post/create`, {
-        ...this.fetchOptions,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ postId, userId, duration, budget }),
-      });
-    });
-  }
-
-  cancelPostCampaign({
-    postId,
-    userId,
-  }: {
-    postId: string;
-    userId: string;
-  }): Promise<{ success: boolean }> {
-    return this.garmr.execute(() => {
-      return fetchParse(`${this.url}/promote/post/cancel`, {
-        ...this.fetchOptions,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ postId, userId }),
-      });
-    });
-  }
-
-  estimatePostBoostReach({
-    postId,
-    userId,
-    duration,
-    budget,
-  }: {
-    postId: string;
-    userId: string;
-    duration: number;
-    budget: number;
-  }): Promise<PostBoostReach> {
-    return this.garmr.execute(() => {
-      return fetchParse(`${this.url}/promote/post/reach`, {
-        ...this.fetchOptions,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ postId, userId, duration, budget }),
-      });
-    });
-  }
-
-  getCampaignById({
-    campaignId,
-    userId,
-  }: GetCampaignByIdProps): Promise<PromotedPost> {
-    return this.garmr.execute(() => {
-      return fetchParse(`${this.url}/promote/post/get`, {
-        ...this.fetchOptions,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ campaignId, userId }),
-      });
-    });
-  }
-
-  getCampaigns({
-    limit,
-    offset,
-    userId,
-  }: GetCampaignsProps): Promise<PromotedPostList> {
-    return this.garmr.execute(() => {
-      return fetchParse(`${this.url}/promote/post/list`, {
-        ...this.fetchOptions,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ limit, offset, userId }),
       });
     });
   }
@@ -198,19 +92,3 @@ export const skadiPersonalizedDigestClient = new SkadiClient(
     garmr: garmrSkadiPersonalizedDigestService,
   },
 );
-
-const garmBoostService = new GarmrService({
-  service: SkadiClient.name,
-  breakerOpts: {
-    halfOpenAfter: 5 * 1000,
-    threshold: 0.1,
-    duration: 10 * 1000,
-  },
-  retryOpts: {
-    maxAttempts: 1,
-  },
-});
-
-export const skadiBoostClient = new SkadiClient(process.env.SKADI_ORIGIN, {
-  garmr: garmBoostService,
-});

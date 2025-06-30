@@ -142,7 +142,6 @@ const garmBoostService = new GarmrService({
   },
 });
 
-export const skadiBoostClient = new SkadiApiClient(
-  process.env.SKADI_API_ORIGIN,
-  { garmr: garmBoostService },
-);
+export const skadiApiClient = new SkadiApiClient(process.env.SKADI_API_ORIGIN, {
+  garmr: garmBoostService,
+});
