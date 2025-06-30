@@ -18,6 +18,7 @@ import {
   Feed,
   Keyword,
   Source,
+  SourceUser,
   User,
   UserPost,
 } from '../src/entity';
@@ -703,6 +704,22 @@ describe('query searchSourceSuggestions', () => {
         contentPreference: null,
       },
     ]);
+  });
+
+  it('should not return user source', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).save({ ...usersFixture[1] });
+    await con.getRepository(SourceUser).save({
+      id: loggedUser,
+      name: 'user-source',
+      handle: 'user-source',
+      userId: loggedUser,
+    });
+    const res = await client.query(QUERY('user-source', '2'));
+
+    expect(res.data.searchSourceSuggestions).toBeTruthy();
+    expect(res.data.searchSourceSuggestions.query).toBe('user-source');
+    expect(res.data.searchSourceSuggestions.hits).toHaveLength(0);
   });
 });
 
