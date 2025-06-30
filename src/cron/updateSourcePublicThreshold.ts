@@ -29,10 +29,11 @@ export const updateSourcePublicThreshold: Cron = {
             from "content_preference" cp
             join "user" u on cp."userId" = u.id
             where cp."referenceId" = "source".id and cp.type = 'source'
-                and cp.flags->>'role' = 'admin' and u.reputation >= ${REPUTATION_THRESHOLD}::int
+                and cp.flags->>'role' = 'admin' and u.reputation >= :threshold
                 and (u.flags->>'vordr')::boolean IS NOT TRUE
           ))
       `,
+        { threshold: REPUTATION_THRESHOLD },
       )
       .execute();
     logger.info(
