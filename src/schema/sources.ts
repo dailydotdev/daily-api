@@ -1215,37 +1215,39 @@ export const ensureSourcePermissions = async (
 
 export const ensureUserSourceExists = async (userId: string, con: DataSource) =>
   con.transaction(async (entityManager) => {
-    const source = await entityManager.getRepository(SourceUser).findOne({
-      where: { userId },
-    });
-    if (source) {
-      return;
-    }
-
     const user = await entityManager
       .getRepository(User)
       .findOneByOrFail({ id: userId });
 
-    await entityManager.getRepository(SourceUser).insert({
-      id: user.id,
-      userId: user.id,
-      handle: user.username,
-      name: user.username,
-      type: SourceType.User,
-      private: false,
-      flags: {
-        publicThreshold:
-          user.reputation >= REPUTATION_THRESHOLD && !user.flags.vordr,
-        vordr: user.flags.vordr ?? false,
+    await entityManager.getRepository(SourceUser).upsert(
+      {
+        id: user.id,
+        userId: user.id,
+        handle: user.username,
+        name: user.username,
+        type: SourceType.User,
+        private: false,
+        flags: {
+          publicThreshold:
+            user.reputation >= REPUTATION_THRESHOLD && !user.flags.vordr,
+          vordr: user.flags.vordr ?? false,
+        },
       },
+      ['id']
+    );
+
+    const sourceMemberExists = await entityManager.getRepository(SourceMember).findOne({
+      where: { sourceId: user.id, userId: user.id },
     });
 
-    await entityManager.getRepository(SourceMember).insert({
-      sourceId: user.id,
-      userId: user.id,
-      role: SourceMemberRoles.Admin,
-      referralToken: randomUUID(),
-    });
+    if (!sourceMemberExists) {
+      await entityManager.getRepository(SourceMember).insert({
+        sourceId: user.id,
+        userId: user.id,
+        role: SourceMemberRoles.Admin,
+        referralToken: randomUUID(),
+      });
+    }
   });
 
 const sourceByFeed = async (
