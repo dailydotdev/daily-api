@@ -12,6 +12,7 @@ import {
   PostType,
   Source,
   SourceMember,
+  SourceType,
   SquadSource,
   translateablePostFields,
   User,
@@ -241,9 +242,10 @@ export const createFreeformPost = async ({
   args,
   ctx,
 }: CreateFreeformPostArgs) => {
-  const { private: privacy } = await con
-    .getRepository(Source)
-    .findOneByOrFail({ id: args.sourceId });
+  const { private: privacy } = await con.getRepository(Source).findOneByOrFail({
+    id: args.sourceId,
+    type: In([SourceType.Squad, SourceType.User]),
+  });
 
   const createdPost = con.getRepository(FreeformPost).create({
     ...args,
