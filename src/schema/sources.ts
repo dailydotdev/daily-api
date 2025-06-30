@@ -1240,9 +1240,9 @@ export const ensureUserSourceExists = async (userId: string, con: DataSource) =>
       },
     });
 
-    await con.getRepository(SourceMember).insert({
-      sourceId: userId,
-      userId,
+    await entityManager.getRepository(SourceMember).insert({
+      sourceId: user.id,
+      userId: user.id,
       role: SourceMemberRoles.Admin,
       referralToken: randomUUID(),
     });
