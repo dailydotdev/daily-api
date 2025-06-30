@@ -1,5 +1,9 @@
 import { Cron } from './cron';
-import { Source, SQUAD_IMAGE_PLACEHOLDER } from '../entity';
+import {
+  REPUTATION_THRESHOLD,
+  Source,
+  SQUAD_IMAGE_PLACEHOLDER,
+} from '../entity';
 import { updateFlagsStatement } from '../common';
 
 export const updateSourcePublicThreshold: Cron = {
@@ -25,7 +29,7 @@ export const updateSourcePublicThreshold: Cron = {
             from "content_preference" cp
             join "user" u on cp."userId" = u.id
             where cp."referenceId" = "source".id and cp.type = 'source'
-                and cp.flags->>'role' = 'admin' and u.reputation >= 250
+                and cp.flags->>'role' = 'admin' and u.reputation >= ${REPUTATION_THRESHOLD}::int
                 and (u.flags->>'vordr')::boolean IS NOT TRUE
           ))
       `,

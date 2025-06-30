@@ -14,7 +14,7 @@ import {
   SquadSource,
   User,
 } from '../entity';
-import { SourceType } from '../entity/Source';
+import { SourceType, SourceUser } from '../entity/Source';
 import {
   SourceMemberRoles,
   sourceRoleRank,
@@ -1211,6 +1211,41 @@ export const ensureSourcePermissions = async (
     return source;
   }
   throw new ForbiddenError('Access denied!');
+};
+
+export const ensureUserSourceExists = async (
+  userId: string,
+  con: DataSource,
+) => {
+  const source = await con.getRepository(SourceUser).findOne({
+    where: { userId },
+  });
+  if (source) {
+    return;
+  }
+
+  const user = await con.getRepository(User).findOneByOrFail({ id: userId });
+
+  await con.getRepository(SourceUser).insert({
+    id: userId,
+    userId,
+    handle: userId,
+    name: userId,
+    type: SourceType.User,
+    private: false,
+    flags: {
+      publicThreshold:
+        user.reputation >= REPUTATION_THRESHOLD && !user.flags.vordr,
+      vordr: user.flags.vordr ?? false,
+    },
+  });
+
+  await con.getRepository(SourceMember).insert({
+    sourceId: userId,
+    userId,
+    role: SourceMemberRoles.Admin,
+    referralToken: randomUUID(),
+  });
 };
 
 const sourceByFeed = async (

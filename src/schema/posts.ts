@@ -12,6 +12,7 @@ import {
   canModeratePosts,
   SourcePermissions,
   sourceTypesWithMembers,
+  ensureUserSourceExists,
 } from './sources';
 import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
@@ -2351,6 +2352,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<GQLEmptyResponse> => {
       if (!isValidHttpUrl(url)) {
         throw new ValidationError('Invalid URL provided');
+      }
+
+      if (sourceId === ctx.userId) {
+        await ensureUserSourceExists(ctx.userId, ctx.con);
       }
 
       await Promise.all([
