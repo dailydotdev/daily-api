@@ -1,7 +1,14 @@
 import type { User } from '../../../entity';
 
 export interface PostBoostReach {
-  estimatedReach: { min: number; max: number };
+  min: number;
+  max: number;
+}
+
+export interface PostEstimatedReach {
+  impressions: number;
+  clicks: number;
+  users: number;
 }
 
 export interface PromotedPost {
@@ -52,7 +59,7 @@ export interface ISkadiApiClient {
     userId: string;
     duration: number;
     budget: number;
-  }): Promise<PostBoostReach>;
+  }): Promise<PostEstimatedReach>;
   getCampaignById: (params: GetCampaignByIdProps) => Promise<PromotedPost>;
   getCampaigns: (params: GetCampaignsProps) => Promise<PromotedPostList>;
 }

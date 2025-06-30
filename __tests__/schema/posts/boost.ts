@@ -2390,12 +2390,11 @@ describe('query boostEstimatedReach', () => {
   it('should the response returned by skadi client', async () => {
     loggedUser = '1';
 
-    // Mock the skadi client to return estimated reach
+    // Mock the skadi client to return impressions
     (skadiApiClient.estimatePostBoostReach as jest.Mock).mockResolvedValue({
-      estimatedReach: {
-        min: 80,
-        max: 120,
-      },
+      impressions: 100,
+      clicks: 10,
+      users: 50,
     });
 
     const res = await client.query(QUERY, {
@@ -2404,8 +2403,8 @@ describe('query boostEstimatedReach', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.boostEstimatedReach.estimatedReach).toEqual({
-      max: 120,
-      min: 80,
+      max: 108, // 100 + (100 * 0.08) = 108
+      min: 92, // 100 - (100 * 0.08) = 92
     });
 
     // Verify the skadi client was called with correct parameters

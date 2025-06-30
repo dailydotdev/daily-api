@@ -3,7 +3,7 @@ import {
   ISkadiApiClient,
   type GetCampaignByIdProps,
   type GetCampaignsProps,
-  type PostBoostReach,
+  type PostEstimatedReach,
   type PromotedPost,
   type PromotedPostList,
 } from './types';
@@ -83,7 +83,7 @@ export class SkadiApiClient implements ISkadiApiClient {
     userId: string;
     duration: number;
     budget: number;
-  }): Promise<PostBoostReach> {
+  }): Promise<PostEstimatedReach> {
     return this.garmr.execute(() => {
       return fetchParse(`${this.url}/promote/post/reach`, {
         ...this.fetchOptions,
