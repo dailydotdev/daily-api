@@ -1213,40 +1213,40 @@ export const ensureSourcePermissions = async (
   throw new ForbiddenError('Access denied!');
 };
 
-export const ensureUserSourceExists = async (
-  userId: string,
-  con: DataSource,
-) => {
-  const source = await con.getRepository(SourceUser).findOne({
-    where: { userId },
-  });
-  if (source) {
-    return;
-  }
+export const ensureUserSourceExists = async (userId: string, con: DataSource) =>
+  con.transaction(async (entityManager) => {
+    const source = await entityManager.getRepository(SourceUser).findOne({
+      where: { userId },
+    });
+    if (source) {
+      return;
+    }
 
-  const user = await con.getRepository(User).findOneByOrFail({ id: userId });
+    const user = await entityManager
+      .getRepository(User)
+      .findOneByOrFail({ id: userId });
 
-  await con.getRepository(SourceUser).insert({
-    id: user.id,
-    userId: user.id,
-    handle: user.username,
-    name: user.username,
-    type: SourceType.User,
-    private: false,
-    flags: {
-      publicThreshold:
-        user.reputation >= REPUTATION_THRESHOLD && !user.flags.vordr,
-      vordr: user.flags.vordr ?? false,
-    },
-  });
+    await entityManager.getRepository(SourceUser).insert({
+      id: user.id,
+      userId: user.id,
+      handle: user.username,
+      name: user.username,
+      type: SourceType.User,
+      private: false,
+      flags: {
+        publicThreshold:
+          user.reputation >= REPUTATION_THRESHOLD && !user.flags.vordr,
+        vordr: user.flags.vordr ?? false,
+      },
+    });
 
-  await con.getRepository(SourceMember).insert({
-    sourceId: userId,
-    userId,
-    role: SourceMemberRoles.Admin,
-    referralToken: randomUUID(),
+    await con.getRepository(SourceMember).insert({
+      sourceId: userId,
+      userId,
+      role: SourceMemberRoles.Admin,
+      referralToken: randomUUID(),
+    });
   });
-};
 
 const sourceByFeed = async (
   feed: string,
@@ -1891,6 +1891,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<GQLSource> => {
       await ensureSourcePermissions(ctx, id);
       const source = await getSourceById(ctx, info, id);
+
+      if (source.type === SourceType.User) {
+        throw new ForbiddenError(
+          'Access denied! Use sourceUser query to access user sources.',
+        );
+      }
 
       if (!source.moderationRequired || !source.currentMember) {
         return source;
