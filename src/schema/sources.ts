@@ -1233,12 +1233,14 @@ export const ensureUserSourceExists = async (userId: string, con: DataSource) =>
           vordr: user.flags.vordr ?? false,
         },
       },
-      ['id']
+      ['id'],
     );
 
-    const sourceMemberExists = await entityManager.getRepository(SourceMember).findOne({
-      where: { sourceId: user.id, userId: user.id },
-    });
+    const sourceMemberExists = await entityManager
+      .getRepository(SourceMember)
+      .findOne({
+        where: { sourceId: user.id, userId: user.id },
+      });
 
     if (!sourceMemberExists) {
       await entityManager.getRepository(SourceMember).insert({
@@ -1631,7 +1633,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: Context,
       info,
     ): Promise<Connection<GQLSource>> => {
-      const filter: FindOptionsWhere<Source> = { active: true };
+      const filter: FindOptionsWhere<Source> = {
+        active: true,
+        type: Not(SourceType.User),
+      };
 
       if (args.filterOpenSquads) {
         filter.type = SourceType.Squad;
