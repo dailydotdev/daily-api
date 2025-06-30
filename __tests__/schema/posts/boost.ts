@@ -2278,10 +2278,8 @@ describe('query boostEstimatedReach', () => {
   const QUERY = `
     query BoostEstimatedReach($postId: ID!, $duration: Int!, $budget: Int!) {
       boostEstimatedReach(postId: $postId, duration: $duration, budget: $budget) {
-        estimatedReach {
-          min
-          max
-        }
+        min
+        max
       }
     }
   `;
