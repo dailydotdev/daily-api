@@ -3621,9 +3621,19 @@ describe('mutation checkLinkPreview', () => {
 });
 
 describe('mutation createFreeformPost', () => {
-  const MUTATION = `
-    mutation CreateFreeformPost($sourceId: ID!, $title: String!, $content: String!, $image: Upload) {
-      createFreeformPost(sourceId: $sourceId, title: $title, content: $content, image: $image) {
+  const MUTATION = /* GraphQL */ `
+    mutation CreateFreeformPost(
+      $sourceId: ID!
+      $title: String!
+      $content: String!
+      $image: Upload
+    ) {
+      createFreeformPost(
+        sourceId: $sourceId
+        title: $title
+        content: $content
+        image: $image
+      ) {
         id
         author {
           id
@@ -4026,6 +4036,70 @@ describe('mutation createFreeformPost', () => {
         .findOneByOrFail({ id: res.data.createFreeformPost.id });
 
       expect(post.flags.vordr).toEqual(true);
+    });
+  });
+
+  describe('user source', () => {
+    it('should create user source if it does not already exist when sharing', async () => {
+      loggedUser = '1';
+
+      expect(
+        await con
+          .getRepository(SourceUser)
+          .findOneBy({ id: loggedUser, userId: loggedUser }),
+      ).toBeFalsy();
+
+      const res = await client.mutate(MUTATION, {
+        variables: { ...params, sourceId: loggedUser },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const source = await con
+        .getRepository(SourceUser)
+        .findOneByOrFail({ id: loggedUser, userId: loggedUser });
+
+      expect(source).toBeTruthy();
+    });
+
+    it('should allow user to share to their own source', async () => {
+      loggedUser = '1';
+
+      const res = await client.mutate(MUTATION, {
+        variables: { ...params, sourceId: loggedUser },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const post = await con
+        .getRepository(FreeformPost)
+        .findOneByOrFail({ sourceId: loggedUser, authorId: loggedUser });
+
+      expect(post).toBeTruthy();
+      expect(res.data.createFreeformPost.title).toEqual(params.title);
+      expect(res.data.createFreeformPost.content).toEqual(params.content);
+      expect(post.sourceId).toEqual(loggedUser);
+    });
+
+    it('should not allow other users to share to another user source', async () => {
+      loggedUser = '2';
+
+      await con.getRepository(SourceUser).save({
+        id: '1',
+        userId: '1',
+        name: 'User 1',
+        handle: 'user1',
+        private: false,
+      });
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: { ...params, sourceId: '1' },
+        },
+        'FORBIDDEN',
+      );
     });
   });
 });
