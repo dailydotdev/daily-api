@@ -31,6 +31,7 @@ import {
   Source,
   SourceMember,
   SourceType,
+  SourceUser,
   SquadSource,
   User,
   UserPost,
@@ -2831,12 +2832,25 @@ describe('mutation viewPost', () => {
 });
 
 describe('mutation submitExternalLink', () => {
-  const MUTATION = `
-  mutation SubmitExternalLink($sourceId: ID!, $url: String!, $commentary: String, $title: String, $image: String) {
-  submitExternalLink(sourceId: $sourceId, url: $url, commentary: $commentary, title: $title, image: $image) {
-    _
-  }
-}`;
+  const MUTATION = /* GraphQL */ `
+    mutation SubmitExternalLink(
+      $sourceId: ID!
+      $url: String!
+      $commentary: String
+      $title: String
+      $image: String
+    ) {
+      submitExternalLink(
+        sourceId: $sourceId
+        url: $url
+        commentary: $commentary
+        title: $title
+        image: $image
+      ) {
+        _
+      }
+    }
+  `;
 
   const variables: Record<string, string> = {
     sourceId: 's1',
@@ -3381,6 +3395,70 @@ describe('mutation submitExternalLink', () => {
 
         expect(post.flags.vordr).toEqual(true);
       });
+    });
+  });
+
+  describe('user source', () => {
+    it('should create user source if it does not already exist when sharing', async () => {
+      loggedUser = '1';
+
+      expect(
+        await con
+          .getRepository(SourceUser)
+          .findOneBy({ id: loggedUser, userId: loggedUser }),
+      ).toBeFalsy();
+
+      const res = await client.mutate(MUTATION, {
+        variables: { ...variables, sourceId: loggedUser, url: 'http://p6.com' },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const source = await con
+        .getRepository(SourceUser)
+        .findOneByOrFail({ id: loggedUser, userId: loggedUser });
+
+      expect(source).toBeTruthy();
+    });
+
+    it('should allow user to share to their own source', async () => {
+      loggedUser = '1';
+
+      const res = await client.mutate(MUTATION, {
+        variables: { ...variables, sourceId: loggedUser, url: 'http://p6.com' },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const post = await con
+        .getRepository(SharePost)
+        .findOneByOrFail({ sourceId: loggedUser, authorId: loggedUser });
+
+      expect(post).toBeTruthy();
+      expect(post.sharedPostId).toEqual('p6');
+      expect(post.title).toEqual('My comment');
+      expect(post.sourceId).toEqual(loggedUser);
+    });
+
+    it('should not allow other users to share to another user source', async () => {
+      loggedUser = '2';
+
+      await con.getRepository(SourceUser).save({
+        id: '1',
+        userId: '1',
+        name: 'User 1',
+        handle: 'user1',
+        private: false,
+      });
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: { ...variables, sourceId: '1' },
+        },
+        'FORBIDDEN',
+      );
     });
   });
 });
