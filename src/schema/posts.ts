@@ -12,6 +12,7 @@ import {
   canModeratePosts,
   SourcePermissions,
   sourceTypesWithMembers,
+  ensureUserSourceExists,
 } from './sources';
 import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
@@ -2215,6 +2216,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('Title can not be an empty string!');
       }
 
+      if (sourceId === userId) {
+        await ensureUserSourceExists(userId, con);
+      }
+
       await Promise.all([
         ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
         ensurePostRateLimit(ctx.con, ctx.userId),
@@ -2420,6 +2425,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<GQLEmptyResponse> => {
       if (!isValidHttpUrl(url)) {
         throw new ValidationError('Invalid URL provided');
+      }
+
+      if (sourceId === ctx.userId) {
+        await ensureUserSourceExists(ctx.userId, ctx.con);
       }
 
       await Promise.all([

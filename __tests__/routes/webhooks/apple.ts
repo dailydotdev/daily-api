@@ -419,6 +419,36 @@ describe('POST /webhooks/apple/notifications', () => {
     });
   });
 
+  it('should leave subscription in current state when consumption request is received', async () => {
+    await request(app.server)
+      .post('/webhooks/apple/notifications')
+      .send({
+        signedPayload: signedPayload({
+          notificationType: NotificationTypeV2.SUBSCRIBED,
+        }),
+      })
+      .expect(200);
+
+    await request(app.server)
+      .post('/webhooks/apple/notifications')
+      .send({
+        signedPayload: signedPayload({
+          notificationType: NotificationTypeV2.CONSUMPTION_REQUEST,
+        }),
+      })
+      .expect(200);
+
+    const user = await con
+      .getRepository(User)
+      .findOneByOrFail({ id: 'storekit-user-0' });
+
+    expect(user.subscriptionFlags?.cycle).toEqual(SubscriptionCycles.Yearly);
+    expect(user.subscriptionFlags?.status).toEqual(SubscriptionStatus.Active);
+    expect(user.subscriptionFlags?.provider).toEqual(
+      SubscriptionProvider.AppleStoreKit,
+    );
+  });
+
   describe('cores', () => {
     const mockTransport = createMockNjordTransport();
 

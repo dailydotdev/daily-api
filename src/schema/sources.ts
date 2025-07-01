@@ -16,7 +16,7 @@ import {
   User,
   type Post,
 } from '../entity';
-import { SourceType, UNKNOWN_SOURCE } from '../entity/Source';
+import { SourceType, SourceUser, UNKNOWN_SOURCE } from '../entity/Source';
 import {
   SourceMemberRoles,
   sourceRoleRank,
@@ -1224,6 +1224,78 @@ export const ensureSourcePermissions = async (
     return source;
   }
   throw new ForbiddenError('Access denied!');
+};
+
+export const ensureUserSourceExists = async (
+  userId: string,
+  con: DataSource,
+) => {
+  const source = await con.getRepository(SourceUser).findOneBy({
+    id: userId,
+    userId,
+  });
+  if (source) {
+    return;
+  }
+
+  return con.transaction(async (entityManager) => {
+    const user = await entityManager
+      .getRepository(User)
+      .findOneByOrFail({ id: userId });
+
+    await entityManager
+      .createQueryBuilder()
+      .insert()
+      .into(SourceUser)
+      .values({
+        id: user.id,
+        userId: user.id,
+        handle: user.id,
+        name: user.id,
+        type: SourceType.User,
+        private: false,
+        flags: {
+          publicThreshold:
+            user.reputation >= REPUTATION_THRESHOLD && !user.flags.vordr,
+          vordr: user.flags.vordr ?? false,
+        },
+      })
+      .orIgnore()
+      .execute();
+
+    const referralToken = randomUUID();
+
+    await entityManager
+      .createQueryBuilder()
+      .insert()
+      .into(SourceMember)
+      .values({
+        sourceId: user.id,
+        userId: user.id,
+        role: SourceMemberRoles.Admin,
+        referralToken: referralToken,
+      })
+      .orIgnore()
+      .execute();
+
+    await entityManager
+      .createQueryBuilder()
+      .insert()
+      .into(ContentPreferenceSource)
+      .values({
+        referenceId: user.id,
+        userId: user.id,
+        status: ContentPreferenceStatus.Subscribed,
+        feedId: user.id,
+        sourceId: user.id,
+        flags: {
+          role: SourceMemberRoles.Admin,
+          referralToken: referralToken,
+        },
+      })
+      .orIgnore()
+      .execute();
+  });
 };
 
 const sourceByFeed = async (
