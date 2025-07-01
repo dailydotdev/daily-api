@@ -1633,10 +1633,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: Context,
       info,
     ): Promise<Connection<GQLSource>> => {
-      const filter: FindOptionsWhere<Source> = {
-        active: true,
-        type: Not(SourceType.User),
-      };
+      const filter: FindOptionsWhere<Source> = { active: true };
 
       if (args.filterOpenSquads) {
         filter.type = SourceType.Squad;
