@@ -1213,8 +1213,19 @@ export const ensureSourcePermissions = async (
   throw new ForbiddenError('Access denied!');
 };
 
-export const ensureUserSourceExists = async (userId: string, con: DataSource) =>
-  con.transaction(async (entityManager) => {
+export const ensureUserSourceExists = async (
+  userId: string,
+  con: DataSource,
+) => {
+  const source = await con.getRepository(SourceUser).findOneBy({
+    id: userId,
+    userId,
+  });
+  if (source) {
+    return;
+  }
+
+  return con.transaction(async (entityManager) => {
     const user = await entityManager
       .getRepository(User)
       .findOneByOrFail({ id: userId });
@@ -1272,6 +1283,7 @@ export const ensureUserSourceExists = async (userId: string, con: DataSource) =>
       .orIgnore()
       .execute();
   });
+};
 
 const sourceByFeed = async (
   feed: string,
