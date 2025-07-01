@@ -361,6 +361,14 @@ export const workers: Worker[] = [
     topic: 'api.v1.post-boost-canceled',
     subscription: 'api.post-boost-canceled-cores',
   },
+  {
+    topic: 'api.v1.brief-generate',
+    subscription: 'api.user-generate-brief',
+  },
+  {
+    topic: 'api.v1.brief-ready',
+    subscription: 'api.user-brief-ready',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
