@@ -2625,6 +2625,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           );
 
         try {
+          // TODO: remove this once we move past testing phase
           if (isProd || ctx.isTeamMember) {
             return {
               transaction: {
