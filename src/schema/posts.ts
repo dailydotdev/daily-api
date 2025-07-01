@@ -124,6 +124,7 @@ import { ensurePostRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
 import { BriefingModel, BriefingType } from '../integrations/feed';
 import { BriefPost } from '../entity/posts/BriefPost';
+import { UserBriefingRequest } from '@dailydotdev/schema';
 
 export interface GQLPost {
   id: string;
@@ -2815,10 +2816,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       await ctx.con.getRepository(BriefPost).save(post);
 
       triggerTypedEvent(logger, 'api.v1.brief-generate', {
-        userId: ctx.userId,
+        payload: new UserBriefingRequest({
+          userId: ctx.userId,
+          frequency: type,
+          modelName: BriefingModel.Default,
+        }),
         postId,
-        frequency: type,
-        modelName: BriefingModel.Default,
       });
 
       return {

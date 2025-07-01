@@ -11,6 +11,7 @@ import { BriefPost } from '../../../src/entity/posts/BriefPost';
 import { sourcesFixture } from '../../fixture';
 import { generateShortId } from '../../../src/ids';
 import nock from 'nock';
+import { UserBriefingRequest } from '@dailydotdev/schema';
 
 let con: DataSource;
 
@@ -34,10 +35,12 @@ describe('userGenerateBrief worker', () => {
 
   it('should skip if post not found', async () => {
     await expectSuccessfulTypedBackground(worker, {
-      userId: '1',
+      payload: new UserBriefingRequest({
+        userId: '1',
+        frequency: BriefingType.Daily,
+        modelName: 'default',
+      }),
       postId: 'not-exist-brief-id',
-      frequency: BriefingType.Daily,
-      modelName: 'default',
     });
   });
 
@@ -84,10 +87,12 @@ describe('userGenerateBrief worker', () => {
       });
 
     await expectSuccessfulTypedBackground(worker, {
-      userId: '1',
+      payload: new UserBriefingRequest({
+        userId: '1',
+        frequency: BriefingType.Daily,
+        modelName: BriefingModel.Default,
+      }),
       postId,
-      frequency: BriefingType.Daily,
-      modelName: BriefingModel.Default,
     });
 
     const briefPost = await con.getRepository(BriefPost).findOne({

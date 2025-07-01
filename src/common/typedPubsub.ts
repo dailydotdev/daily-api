@@ -138,10 +138,12 @@ export type PubSubSchema = {
     organizationId: Organization['id'];
     memberId: User['id'];
   };
-  'api.v1.brief-generate': UserBriefingRequest & {
+  'api.v1.brief-generate': {
+    payload: UserBriefingRequest;
     postId: string;
   };
-  'api.v1.brief-ready': UserBriefingRequest & {
+  'api.v1.brief-ready': {
+    payload: UserBriefingRequest;
     postId: string;
   };
 };

@@ -55,7 +55,7 @@ export const userGenerateBriefWorker: TypedWorker<'api.v1.brief-generate'> = {
         'start generating user brief',
       );
 
-      const { postId } = data;
+      const { postId, payload: briefRequest } = data;
 
       const pendingPost = await con.getRepository(BriefPost).findOne({
         where: {
@@ -69,7 +69,7 @@ export const userGenerateBriefWorker: TypedWorker<'api.v1.brief-generate'> = {
         return;
       }
 
-      const brief = await feedClient.getUserBrief(data);
+      const brief = await feedClient.getUserBrief(briefRequest);
 
       const content = generateMarkdown(brief);
       const title = format(new Date(), 'MMM d');
