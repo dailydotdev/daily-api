@@ -38,9 +38,9 @@ config:
       6S+tkxhzAgWZNOhtqvSTFxKH9c51/jTCLDrPvHNlzNoeqhvaowUmvOrRoT1TZ8hs
       7QIDAQAB
       -----END PUBLIC KEY-----
-  api:debeziumDbPass: '12345'
+  api:debeziumDbPass: "12345"
   api:debeziumDbUser: postgres
-  api:enablePersonalizedDigest: 'false'
+  api:enablePersonalizedDigest: "false"
   api:env:
     accessSecret: topsecret
     analyticsUrl: http://localhost:3000
