@@ -23,6 +23,8 @@ import {
 } from '@dailydotdev/schema';
 import { SourcePostModeration } from '../entity/SourcePostModeration';
 import type { UserTransaction } from '../entity/user/UserTransaction';
+import type { UserBriefingRequest } from '../integrations/feed';
+import type { BriefPost } from '../entity/posts/BriefPost';
 
 export type PubSubSchema = {
   'pub-request': {
@@ -147,6 +149,12 @@ export type PubSubSchema = {
     postId: Post['id'];
     userId: User['id'];
     campaignId: string;
+  };
+  'api.v1.brief-generate': UserBriefingRequest & {
+    postId: string;
+  };
+  'api.v1.brief-ready': {
+    post: BriefPost;
   };
 };
 
