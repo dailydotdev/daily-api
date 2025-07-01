@@ -74,7 +74,7 @@ export class SkadiApiClient implements ISkadiApiClient {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ postId, userId }),
+        body: JSON.stringify({ post_id: postId, user_id: userId }),
       });
     });
   }
@@ -98,8 +98,8 @@ export class SkadiApiClient implements ISkadiApiClient {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          postId,
-          userId,
+          post_id: postId,
+          user_id: userId,
           duration: durationInDays * ONE_DAY_IN_SECONDS,
           budget,
         }),
@@ -118,7 +118,7 @@ export class SkadiApiClient implements ISkadiApiClient {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ campaignId, userId }),
+        body: JSON.stringify({ campaign_id: campaignId, user_id: userId }),
       });
     });
   }
@@ -135,7 +135,7 @@ export class SkadiApiClient implements ISkadiApiClient {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ limit, offset, userId }),
+        body: JSON.stringify({ limit, offset, user_id: userId }),
       });
     });
   }
