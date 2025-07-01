@@ -1239,6 +1239,8 @@ export const ensureUserSourceExists = async (userId: string, con: DataSource) =>
       .orIgnore()
       .execute();
 
+    const referralToken = randomUUID();
+
     await entityManager
       .createQueryBuilder()
       .insert()
@@ -1247,7 +1249,25 @@ export const ensureUserSourceExists = async (userId: string, con: DataSource) =>
         sourceId: user.id,
         userId: user.id,
         role: SourceMemberRoles.Admin,
-        referralToken: randomUUID(),
+        referralToken: referralToken,
+      })
+      .orIgnore()
+      .execute();
+
+    await entityManager
+      .createQueryBuilder()
+      .insert()
+      .into(ContentPreferenceSource)
+      .values({
+        referenceId: user.id,
+        userId: user.id,
+        status: ContentPreferenceStatus.Subscribed,
+        feedId: user.id,
+        sourceId: user.id,
+        flags: {
+          role: SourceMemberRoles.Admin,
+          referralToken: referralToken,
+        },
       })
       .orIgnore()
       .execute();
