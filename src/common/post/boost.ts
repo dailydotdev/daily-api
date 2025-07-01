@@ -13,11 +13,7 @@ import { mapCloudinaryUrl } from '../cloudinary';
 import { pickImageUrl } from '../post';
 import { NotFoundError } from '../../errors';
 import { usdToCores } from '../njord';
-import {
-  convertObjectKeysToCamelCase,
-  debeziumTimeToDate,
-  type ObjectSnakeToCamelCase,
-} from '../utils';
+import { debeziumTimeToDate, type ObjectSnakeToCamelCase } from '../utils';
 
 export interface GQLPromotedPost
   extends ObjectSnakeToCamelCase<
@@ -190,14 +186,26 @@ export const getFormattedBoostedPost = (
   };
 };
 
-export const getFormattedCampaign = (
-  campaign: PromotedPost,
-): GQLPromotedPost => ({
-  ...convertObjectKeysToCamelCase(campaign),
-  budget: usdToCores(parseFloat(campaign.budget)),
-  currentBudget: usdToCores(parseFloat(campaign.current_budget)),
-  startedAt: debeziumTimeToDate(campaign.started_at),
-  endedAt: debeziumTimeToDate(campaign.ended_at),
+export const getFormattedCampaign = ({
+  campaign_id,
+  budget,
+  current_budget,
+  clicks,
+  started_at,
+  ended_at,
+  status,
+  impressions,
+  post_id,
+}: PromotedPost): GQLPromotedPost => ({
+  campaignId: campaign_id,
+  budget: usdToCores(parseFloat(budget)),
+  currentBudget: usdToCores(parseFloat(current_budget)),
+  startedAt: debeziumTimeToDate(started_at),
+  endedAt: debeziumTimeToDate(ended_at),
+  clicks,
+  status,
+  impressions,
+  postId: post_id,
 });
 
 export interface BoostedPostStats
