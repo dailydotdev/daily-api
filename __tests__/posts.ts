@@ -3768,6 +3768,19 @@ describe('mutation createFreeformPost', () => {
     );
   });
 
+  it('should return error if source is machine type', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Machine });
+
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...params, sourceId: 'a' } },
+      'NOT_FOUND',
+    );
+  });
+
   it('should create a freeform post if all parameters have passed', async () => {
     loggedUser = '1';
 
