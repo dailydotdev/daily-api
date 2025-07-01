@@ -194,8 +194,8 @@ export const getFormattedCampaign = (
   campaign: PromotedPost,
 ): GQLPromotedPost => ({
   ...convertObjectKeysToCamelCase(campaign),
-  budget: usdToCores(parseInt(campaign.budget)),
-  currentBudget: usdToCores(parseInt(campaign.current_budget)),
+  budget: usdToCores(parseFloat(campaign.budget)),
+  currentBudget: usdToCores(parseFloat(campaign.current_budget)),
   startedAt: debeziumTimeToDate(campaign.started_at),
   endedAt: debeziumTimeToDate(campaign.ended_at),
 });

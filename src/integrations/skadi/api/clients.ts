@@ -42,7 +42,7 @@ export class SkadiApiClient implements ISkadiApiClient {
     userId: string;
     durationInDays: number;
     budget: number;
-  }): Promise<{ campaignId: string }> {
+  }): Promise<{ campaign_id: string }> {
     return this.garmr.execute(() => {
       return fetchParse(`${this.url}/promote/post/create`, {
         ...this.fetchOptions,
@@ -66,7 +66,7 @@ export class SkadiApiClient implements ISkadiApiClient {
   }: {
     postId: string;
     userId: string;
-  }): Promise<{ success: boolean }> {
+  }): Promise<{ current_budget: string }> {
     return this.garmr.execute(() => {
       return fetchParse(`${this.url}/promote/post/cancel`, {
         ...this.fetchOptions,

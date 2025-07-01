@@ -49,10 +49,10 @@ export interface ISkadiApiClient {
     durationInDays: number;
     budget: number;
   }): Promise<{
-    campaignId: string;
+    campaign_id: string;
   }>;
   cancelPostCampaign(params: { postId: string; userId: string }): Promise<{
-    success: boolean;
+    current_budget: string;
   }>;
   estimatePostBoostReach(params: {
     postId: string;

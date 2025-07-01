@@ -2146,8 +2146,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             limit: first!,
           });
 
-          console.log(':campaigns:', campaigns);
-
           if (!campaigns?.promoted_posts?.length) {
             return [];
           }
@@ -2155,7 +2153,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           if (isFirstRequest && stats) {
             stats.clicks = campaigns.clicks;
             stats.impressions = campaigns.impressions;
-            stats.totalSpend = usdToCores(parseInt(campaigns.total_spend));
+            stats.totalSpend = usdToCores(parseFloat(campaigns.total_spend));
 
             const sum = await getTotalEngagements(con, campaigns.post_ids);
 
@@ -2592,14 +2590,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const total = budget * duration;
 
       const request = await ctx.con.transaction(async (entityManager) => {
-        const result = await skadiApiClient.startPostCampaign({
-          postId,
-          durationInDays: duration,
-          budget: coresToUsd(budget),
-          userId,
-        });
+        const { campaign_id: campaignId } =
+          await skadiApiClient.startPostCampaign({
+            postId,
+            durationInDays: duration,
+            budget: coresToUsd(budget),
+            userId,
+          });
 
-        const { campaignId } = result;
         const userTransaction = await entityManager
           .getRepository(UserTransaction)
           .save(
