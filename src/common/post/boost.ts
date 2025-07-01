@@ -3,13 +3,36 @@ import { ValidationError, ForbiddenError } from 'apollo-server-errors';
 import { AuthContext } from '../../Context';
 import { Bookmark, Post, PostType, type ConnectionManager } from '../../entity';
 import { getPostPermalink } from '../../schema/posts';
-import type { PromotedPost, PromotedPostList } from '../../integrations/skadi';
+import {
+  type PromotedPost,
+  type PromotedPostList,
+} from '../../integrations/skadi';
 import type { Connection } from 'graphql-relay';
 import { In, type SelectQueryBuilder } from 'typeorm';
 import { mapCloudinaryUrl } from '../cloudinary';
 import { pickImageUrl } from '../post';
 import { NotFoundError } from '../../errors';
 import { usdToCores } from '../njord';
+import {
+  convertObjectKeysToCamelCase,
+  debeziumTimeToDate,
+  type ObjectSnakeToCamelCase,
+} from '../utils';
+
+export interface GQLPromotedPost
+  extends ObjectSnakeToCamelCase<
+    Omit<PromotedPost, 'budget' | 'current_budget' | 'started_at' | 'ended_at'>
+  > {
+  budget: number;
+  currentBudget: number;
+  startedAt: Date;
+  endedAt: Date;
+}
+
+export interface GQLPromotedPostList
+  extends ObjectSnakeToCamelCase<Omit<PromotedPostList, 'total_spend'>> {
+  totalSpend: number;
+}
 
 export interface StartPostBoostArgs {
   postId: string;
@@ -80,7 +103,7 @@ interface CampaignBoostedPost extends Pick<Post, 'id' | 'shortId' | 'title'> {
 }
 
 export interface GQLBoostedPost {
-  campaign: PromotedPost;
+  campaign: GQLPromotedPost;
   post: CampaignBoostedPost;
 }
 
@@ -167,14 +190,18 @@ export const getFormattedBoostedPost = (
   };
 };
 
-export const getFormattedCampaign = (campaign: PromotedPost): PromotedPost => ({
-  ...campaign,
-  budget: usdToCores(campaign.budget),
-  currentBudget: usdToCores(campaign.currentBudget),
+export const getFormattedCampaign = (
+  campaign: PromotedPost,
+): GQLPromotedPost => ({
+  ...convertObjectKeysToCamelCase(campaign),
+  budget: usdToCores(parseInt(campaign.budget)),
+  currentBudget: usdToCores(parseInt(campaign.current_budget)),
+  startedAt: debeziumTimeToDate(campaign.started_at),
+  endedAt: debeziumTimeToDate(campaign.ended_at),
 });
 
 export interface BoostedPostStats
-  extends Pick<PromotedPostList, 'clicks' | 'impressions' | 'totalSpend'> {
+  extends Pick<GQLPromotedPostList, 'clicks' | 'impressions' | 'totalSpend'> {
   engagements: number;
 }
 
@@ -186,7 +213,7 @@ export const consolidateCampaignsWithPosts = async (
   campaigns: PromotedPost[],
   con: ConnectionManager,
 ): Promise<GQLBoostedPost[]> => {
-  const ids = campaigns.map(({ postId }) => postId);
+  const ids = campaigns.map(({ post_id: postId }) => postId);
   const builder = getBoostedPostBuilder(con);
   const postAlias = 'p1';
   const bookmarkAlias = 'b';
@@ -204,7 +231,7 @@ export const consolidateCampaignsWithPosts = async (
 
   return campaigns.map((campaign) => ({
     campaign: getFormattedCampaign(campaign),
-    post: getFormattedBoostedPost(mapped[campaign.postId], campaign),
+    post: getFormattedBoostedPost(mapped[campaign.post_id], campaign),
   }));
 };
 

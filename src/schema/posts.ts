@@ -2111,7 +2111,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new NotFoundError('Campaign does not exist!');
       }
 
-      const post = await getBoostedPost(ctx.con, campaign.postId);
+      const post = await getBoostedPost(ctx.con, campaign.post_id);
 
       return {
         campaign: getFormattedCampaign(campaign),
@@ -2146,21 +2146,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             limit: first!,
           });
 
-          if (!campaigns?.promotedPosts?.length) {
+          console.log(':campaigns:', campaigns);
+
+          if (!campaigns?.promoted_posts?.length) {
             return [];
           }
 
           if (isFirstRequest && stats) {
             stats.clicks = campaigns.clicks;
             stats.impressions = campaigns.impressions;
-            stats.totalSpend = usdToCores(campaigns.totalSpend);
+            stats.totalSpend = usdToCores(parseInt(campaigns.total_spend));
 
-            const sum = await getTotalEngagements(con, campaigns.postIds);
+            const sum = await getTotalEngagements(con, campaigns.post_ids);
 
             stats.engagements = sum + campaigns.clicks + campaigns.impressions;
           }
 
-          return consolidateCampaignsWithPosts(campaigns.promotedPosts, con);
+          return consolidateCampaignsWithPosts(campaigns.promoted_posts, con);
         },
       );
 
@@ -2590,13 +2592,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const total = budget * duration;
 
       const request = await ctx.con.transaction(async (entityManager) => {
-        const { campaignId } = await skadiApiClient.startPostCampaign({
+        const result = await skadiApiClient.startPostCampaign({
           postId,
           durationInDays: duration,
           budget: coresToUsd(budget),
           userId,
         });
 
+        const { campaignId } = result;
         const userTransaction = await entityManager
           .getRepository(UserTransaction)
           .save(

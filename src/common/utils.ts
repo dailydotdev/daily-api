@@ -279,3 +279,29 @@ export const getCurrencySymbol = ({
 
 export const concatTextToNewline = (...args: Array<string | undefined>) =>
   args.filter(Boolean).join(`\n`);
+
+export function snakeToCamel<S extends string>(str: S): CamelCasedKey<S> {
+  return str.replace(/_([a-z])/g, (_, letter) =>
+    letter.toUpperCase(),
+  ) as CamelCasedKey<S>;
+}
+
+type CamelCasedKey<S extends string> = S extends `${infer Head}_${infer Tail}`
+  ? `${Head}${Capitalize<CamelCasedKey<Tail>>}`
+  : S;
+
+export type ObjectSnakeToCamelCase<T extends object> = {
+  [K in keyof T as K extends string ? CamelCasedKey<K> : never]: T[K];
+};
+
+export function convertObjectKeysToCamelCase<T extends object>(
+  obj: T,
+): ObjectSnakeToCamelCase<T> {
+  const entries = Object.entries(obj) as [keyof T & string, T[keyof T]][];
+  const mapped = entries.map(([key, value]) => [snakeToCamel(key), value]) as [
+    keyof ObjectSnakeToCamelCase<T>,
+    T[keyof T],
+  ][];
+
+  return Object.fromEntries(mapped) as ObjectSnakeToCamelCase<T>;
+}

@@ -12,27 +12,27 @@ export interface PostEstimatedReach {
 }
 
 export interface PromotedPost {
-  campaignId: string;
-  postId: string;
+  campaign_id: string;
+  post_id: string;
   status: string;
-  budget: number;
-  currentBudget: number;
-  startedAt: Date;
-  endedAt?: Date;
+  budget: string;
+  current_budget: string;
+  started_at: number;
+  ended_at: number;
   impressions: number;
   clicks: number;
 }
 
 export interface PromotedPostList {
-  promotedPosts: PromotedPost[];
+  promoted_posts: PromotedPost[];
   impressions: number;
   clicks: number;
-  totalSpend: number;
-  postIds: string[];
+  total_spend: string;
+  post_ids: string[];
 }
 
 export interface GetCampaignByIdProps {
-  campaignId: PromotedPost['campaignId'];
+  campaignId: PromotedPost['campaign_id'];
   userId: User['id'];
 }
 
