@@ -61,10 +61,10 @@ export class SkadiApiClient implements ISkadiApiClient {
   }
 
   cancelPostCampaign({
-    postId,
+    campaignId,
     userId,
   }: {
-    postId: string;
+    campaignId: string;
     userId: string;
   }): Promise<{ current_budget: string }> {
     return this.garmr.execute(() => {
@@ -74,7 +74,7 @@ export class SkadiApiClient implements ISkadiApiClient {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ post_id: postId, user_id: userId }),
+        body: JSON.stringify({ campaign_id: campaignId, user_id: userId }),
       });
     });
   }

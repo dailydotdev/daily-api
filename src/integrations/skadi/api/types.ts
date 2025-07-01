@@ -51,7 +51,7 @@ export interface ISkadiApiClient {
   }): Promise<{
     campaign_id: string;
   }>;
-  cancelPostCampaign(params: { postId: string; userId: string }): Promise<{
+  cancelPostCampaign(params: { campaignId: string; userId: string }): Promise<{
     current_budget: string;
   }>;
   estimatePostBoostReach(params: {
