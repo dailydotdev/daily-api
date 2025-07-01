@@ -2046,7 +2046,7 @@ describe('mutation startPostBoost', () => {
     expect(skadiApiClient.startPostCampaign).toHaveBeenCalledWith({
       postId: 'p1',
       userId: '1',
-      duration: 1,
+      durationInDays: 1,
       budget: 10, // Converted from cores to USD (1000 cores = 10 USD)
     });
 
@@ -2400,7 +2400,7 @@ describe('query boostEstimatedReach', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.boostEstimatedReach.estimatedReach).toEqual({
+    expect(res.data.boostEstimatedReach).toEqual({
       max: 108, // 100 + (100 * 0.08) = 108
       min: 92, // 100 - (100 * 0.08) = 92
     });
@@ -2409,7 +2409,7 @@ describe('query boostEstimatedReach', () => {
     expect(skadiApiClient.estimatePostBoostReach).toHaveBeenCalledWith({
       postId: 'p1',
       userId: '1',
-      duration: 1,
+      durationInDays: 1,
       budget: 1000,
     });
   });
