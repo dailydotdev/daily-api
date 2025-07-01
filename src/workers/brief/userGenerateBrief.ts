@@ -82,7 +82,7 @@ export const userGenerateBriefWorker: TypedWorker<'api.v1.brief-generate'> = {
 
       await con.getRepository(BriefPost).save(post);
     } catch (originalError) {
-      // for now catch error and stop, in the future retry and add dead letter after X attempts
+      // TODO feat-brief for now catch error and stop, in the future retry and add dead letter after X attempts
       const err = originalError as Error;
 
       logger.error({ err, data }, 'failed to generate user brief');
