@@ -10,6 +10,7 @@ import {
 import { GarmrNoopService, IGarmrService, GarmrService } from '../../garmr';
 import { fetchOptions as globalFetchOptions } from '../../../http';
 import { fetchParse } from '../../retry';
+import { ONE_DAY_IN_SECONDS } from '../../../common';
 
 export class SkadiApiClient implements ISkadiApiClient {
   private readonly fetchOptions: RequestInit;
@@ -34,12 +35,12 @@ export class SkadiApiClient implements ISkadiApiClient {
   startPostCampaign({
     postId,
     userId,
-    duration,
+    durationInDays,
     budget,
   }: {
     postId: string;
     userId: string;
-    duration: number;
+    durationInDays: number;
     budget: number;
   }): Promise<{ campaignId: string }> {
     return this.garmr.execute(() => {
@@ -49,7 +50,12 @@ export class SkadiApiClient implements ISkadiApiClient {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ postId, userId, duration, budget }),
+        body: JSON.stringify({
+          post_id: postId,
+          user_id: userId,
+          duration: durationInDays * ONE_DAY_IN_SECONDS,
+          budget,
+        }),
       });
     });
   }
@@ -76,12 +82,12 @@ export class SkadiApiClient implements ISkadiApiClient {
   estimatePostBoostReach({
     postId,
     userId,
-    duration,
+    durationInDays,
     budget,
   }: {
     postId: string;
     userId: string;
-    duration: number;
+    durationInDays: number;
     budget: number;
   }): Promise<PostEstimatedReach> {
     return this.garmr.execute(() => {
@@ -91,7 +97,12 @@ export class SkadiApiClient implements ISkadiApiClient {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ postId, userId, duration, budget }),
+        body: JSON.stringify({
+          postId,
+          userId,
+          duration: durationInDays * ONE_DAY_IN_SECONDS,
+          budget,
+        }),
       });
     });
   }

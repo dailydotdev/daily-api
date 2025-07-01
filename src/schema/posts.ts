@@ -2084,7 +2084,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const { impressions } = await skadiApiClient.estimatePostBoostReach({
         postId,
         userId: ctx.userId,
-        duration,
+        durationInDays: duration,
         budget,
       });
 
@@ -2592,7 +2592,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const request = await ctx.con.transaction(async (entityManager) => {
         const { campaignId } = await skadiApiClient.startPostCampaign({
           postId,
-          duration,
+          durationInDays: duration,
           budget: coresToUsd(budget),
           userId,
         });

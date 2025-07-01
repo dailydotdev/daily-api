@@ -46,7 +46,7 @@ export interface ISkadiApiClient {
   startPostCampaign(params: {
     postId: string;
     userId: string;
-    duration: number;
+    durationInDays: number;
     budget: number;
   }): Promise<{
     campaignId: string;
@@ -57,7 +57,7 @@ export interface ISkadiApiClient {
   estimatePostBoostReach(params: {
     postId: string;
     userId: string;
-    duration: number;
+    durationInDays: number;
     budget: number;
   }): Promise<PostEstimatedReach>;
   getCampaignById: (params: GetCampaignByIdProps) => Promise<PromotedPost>;
