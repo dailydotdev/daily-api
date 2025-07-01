@@ -48,6 +48,8 @@ import {
   type SourcePostModerationArgs,
   getAllModerationItemsAsAdmin,
   getTranslationRecord,
+  triggerTypedEvent,
+  isProd,
 } from '../common';
 import {
   ArticlePost,
@@ -79,6 +81,7 @@ import {
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
+  ConflictError,
   NotFoundError,
   SubmissionFailErrorMessage,
   TypeOrmError,
@@ -119,6 +122,8 @@ import { queryReadReplica } from '../common/queryReadReplica';
 import { remoteConfig } from '../remoteConfig';
 import { ensurePostRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
+import { BriefingModel, BriefingType } from '../integrations/feed';
+import { BriefPost } from '../entity/posts/BriefPost';
 
 export interface GQLPost {
   id: string;
@@ -241,6 +246,8 @@ export type GQLPostCodeSnippet = Pick<
 >;
 
 export const typeDefs = /* GraphQL */ `
+  ${toGQLEnum(BriefingType, 'BriefingType')}
+
   """
   Post moderation item
   """
@@ -832,6 +839,10 @@ export const typeDefs = /* GraphQL */ `
     amount: Int!
   }
 
+  type GenerateBriefingResponse {
+    postId: String!
+  }
+
   extend type Query {
     """
     Get specific squad post moderation item
@@ -988,6 +999,20 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): PostBalance!
+
+    """
+    Get user briefing posts
+    """
+    briefingPosts(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+    ): PostConnection! @auth
   }
 
   extend type Mutation {
@@ -1380,6 +1405,11 @@ export const typeDefs = /* GraphQL */ `
       """
       externalLink: String
     ): SourcePostModeration! @auth
+
+    """
+    Generate new briefing for the user
+    """
+    generateBriefing(type: BriefingType!): GenerateBriefingResponse! @auth
   }
 
   extend type Subscription {
@@ -1542,7 +1572,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<GQLPost> => {
       const partialPost = await ctx.con.getRepository(Post).findOneOrFail({
-        select: ['id', 'sourceId', 'private'],
+        select: ['id', 'sourceId', 'private', 'authorId', 'type'],
         relations: ['source'],
         where: [{ id }, { slug: id }],
       });
@@ -1553,7 +1583,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         sourceTypesWithMembers.includes(postSource.type)
       ) {
         try {
-          await ensureSourcePermissions(ctx, partialPost.sourceId);
+          await ensureSourcePermissions(
+            ctx,
+            partialPost.sourceId,
+            undefined,
+            undefined,
+            partialPost,
+          );
         } catch (permissionError) {
           if (permissionError instanceof ForbiddenError) {
             const forbiddenError = permissionError as ForbiddenError;
@@ -1717,7 +1753,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const post = await ctx.con
         .getRepository(Post)
         .findOneByOrFail([{ id: args.id }, { slug: args.id }]);
-      await ensureSourcePermissions(ctx, post.sourceId);
+      await ensureSourcePermissions(
+        ctx,
+        post.sourceId,
+        undefined,
+        undefined,
+        post,
+      );
 
       return queryPaginatedByDate(
         ctx,
@@ -1913,6 +1955,33 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .getRawOne();
 
       return result;
+    },
+    briefingPosts: async (
+      _,
+      args: ConnectionArguments,
+      ctx: AuthContext,
+      info,
+    ): Promise<ConnectionRelay<GQLPost>> => {
+      return queryPaginatedByDate(
+        ctx,
+        info,
+        args,
+        { key: 'createdAt' },
+        {
+          queryBuilder: (builder) => {
+            builder.queryBuilder = builder.queryBuilder
+              .andWhere(`${builder.alias}.authorId = :briefingUserId`, {
+                briefingUserId: ctx.userId,
+              })
+              .andWhere(`${builder.alias}.type = :type`, {
+                type: PostType.Brief,
+              });
+
+            return builder;
+          },
+          orderByKey: 'DESC',
+        },
+      );
     },
   },
   Mutation: {
@@ -2472,7 +2541,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
-      await ensureSourcePermissions(ctx, post.sourceId);
+      await ensureSourcePermissions(
+        ctx,
+        post.sourceId,
+        undefined,
+        undefined,
+        post,
+      );
       if (post.type !== PostType.Article) {
         await notifyView(
           ctx.log,
@@ -2681,6 +2756,54 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           ),
         }),
       );
+    },
+    generateBriefing: async (
+      _,
+      { type }: { type: BriefingType },
+      ctx: AuthContext,
+    ): Promise<{ postId: string }> => {
+      // TODO feat-brief replace with check, if user generated single brief on demand generation
+      // is no longer available
+      if (isProd && !ctx.isTeamMember) {
+        throw new ForbiddenError('Not allowed for you yet');
+      }
+
+      const pendingBrief = await queryReadReplica(
+        ctx.con,
+        async ({ queryRunner }) => {
+          return queryRunner.manager.getRepository(BriefPost).findOne({
+            select: ['id'],
+            where: { visible: false },
+          });
+        },
+      );
+
+      if (pendingBrief) {
+        throw new ConflictError('There is already a briefing being generated');
+      }
+
+      const postId = await generateShortId();
+
+      const post = ctx.con.getRepository(BriefPost).create({
+        id: postId,
+        shortId: postId,
+        authorId: ctx.userId,
+        private: true,
+        visible: false,
+      });
+
+      await ctx.con.getRepository(BriefPost).save(post);
+
+      triggerTypedEvent(logger, 'api.v1.brief-generate', {
+        userId: ctx.userId,
+        postId,
+        frequency: type,
+        modelName: BriefingModel.Default,
+      });
+
+      return {
+        postId,
+      };
     },
   },
   Subscription: {
