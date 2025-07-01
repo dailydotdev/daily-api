@@ -32,9 +32,10 @@ const generateMarkdown = (data: Briefing): string => {
     markdown += `## ${section.title}\n\n`;
 
     for (const item of section.items) {
-      markdown += `### ${item.title}\n\n`;
-      markdown += `${item.body}\n\n`;
+      markdown += `- **${item.title}**: ${item.body}\n`;
     }
+
+    markdown += '\n';
   }
 
   return markdown.trim();
