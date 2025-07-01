@@ -5,6 +5,7 @@ import {
   initializeGraphQLTesting,
   MockContext,
   saveFixtures,
+  testMutationErrorCode,
   testQueryErrorCode,
 } from '../../helpers';
 import {
@@ -38,8 +39,11 @@ import { randomUUID } from 'crypto';
 import { deleteKeysByPattern, ioRedisPool } from '../../../src/redis';
 import { rateLimiterName } from '../../../src/directive/rateLimit';
 import { badUsersFixture } from '../../fixture/user';
-import { skadiBoostClient } from '../../../src/integrations/skadi/clients';
+import { skadiApiClient } from '../../../src/integrations/skadi/api/clients';
 import { pickImageUrl } from '../../../src/common/post';
+import { updateFlagsStatement } from '../../../src/common';
+import { UserTransaction } from '../../../src/entity/user/UserTransaction';
+import { getBalance } from '../../../src/common/njord';
 
 jest.mock('../../../src/common/pubsub', () => ({
   ...(jest.requireActual('../../../src/common/pubsub') as Record<
@@ -50,9 +54,9 @@ jest.mock('../../../src/common/pubsub', () => ({
   notifyContentRequested: jest.fn(),
 }));
 
-// Mock the skadiBoostClient
-jest.mock('../../../src/integrations/skadi/clients', () => ({
-  skadiBoostClient: {
+// Mock the skadiApiClient
+jest.mock('../../../src/integrations/skadi/api/clients', () => ({
+  skadiApiClient: {
     getCampaignById: jest.fn(),
     estimatePostBoostReach: jest.fn(),
     startPostCampaign: jest.fn(),
@@ -60,6 +64,15 @@ jest.mock('../../../src/integrations/skadi/clients', () => ({
     getCampaigns: jest.fn(),
     getAd: jest.fn(),
   },
+}));
+
+// Mock the getBalance function
+jest.mock('../../../src/common/njord', () => ({
+  ...(jest.requireActual('../../../src/common/njord') as Record<
+    string,
+    unknown
+  >),
+  getBalance: jest.fn(),
 }));
 
 let con: DataSource;
@@ -245,7 +258,7 @@ describe('query postCampaignById', () => {
     loggedUser = '1';
 
     // Mock the skadi client to return the share post campaign
-    (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+    (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
       campaignId: 'mock-campaign-id',
       postId: 'p1',
       status: 'active',
@@ -320,7 +333,7 @@ describe('query postCampaignById', () => {
         });
 
         // Mock the skadi client to return the share post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'share-campaign-id',
           postId: 'share-post-1',
           status: 'active',
@@ -379,7 +392,7 @@ describe('query postCampaignById', () => {
         });
 
         // Mock the skadi client to return the share post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'share-campaign-id-2',
           postId: 'share-post-2',
           status: 'active',
@@ -438,7 +451,7 @@ describe('query postCampaignById', () => {
         });
 
         // Mock the skadi client to return the share post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'share-campaign-id-3',
           postId: 'share-post-3',
           status: 'active',
@@ -485,7 +498,7 @@ describe('query postCampaignById', () => {
         } as unknown as Partial<FreeformPost>);
 
         // Mock the skadi client to return the freeform post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'freeform-campaign-id',
           postId: freeformPost.id,
           status: 'active',
@@ -531,7 +544,7 @@ describe('query postCampaignById', () => {
         } as unknown as Partial<FreeformPost>);
 
         // Mock the skadi client to return the freeform post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'freeform-campaign-id-2',
           postId: freeformPost.id,
           status: 'active',
@@ -587,7 +600,7 @@ describe('query postCampaignById', () => {
         });
 
         // Mock the skadi client to return the article post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'article-campaign-id',
           postId: articlePost.id,
           status: 'active',
@@ -633,7 +646,7 @@ describe('query postCampaignById', () => {
         });
 
         // Mock the skadi client to return the article post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'article-campaign-id-2',
           postId: articlePost.id,
           status: 'active',
@@ -689,7 +702,7 @@ describe('query postCampaignById', () => {
         });
 
         // Mock the skadi client to return the welcome post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'welcome-campaign-id',
           postId: welcomePost.id,
           status: 'active',
@@ -736,7 +749,7 @@ describe('query postCampaignById', () => {
         });
 
         // Mock the skadi client to return the collection post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'collection-campaign-id',
           postId: collectionPost.id,
           status: 'active',
@@ -784,7 +797,7 @@ describe('query postCampaignById', () => {
         });
 
         // Mock the skadi client to return the YouTube post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'youtube-campaign-id',
           postId: youtubePost.id,
           status: 'active',
@@ -846,7 +859,7 @@ describe('query postCampaignById', () => {
         });
 
         // Mock the skadi client to return the share post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'share-campaign-no-image',
           postId: sharePost.id,
           status: 'active',
@@ -900,7 +913,7 @@ describe('query postCampaignById', () => {
         });
 
         // Mock the skadi client to return the post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'null-title-campaign',
           postId: nullTitlePost.id,
           status: 'active',
@@ -945,7 +958,7 @@ describe('query postCampaignById', () => {
         });
 
         // Mock the skadi client to return the post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'undefined-title-campaign',
           postId: undefinedTitlePost.id,
           status: 'active',
@@ -991,7 +1004,7 @@ describe('query postCampaigns', () => {
             post {
               id
               title
-              image
+              image 
               shortId
               permalink
               engagements
@@ -1033,7 +1046,7 @@ describe('query postCampaigns', () => {
     loggedUser = '1';
 
     // Mock the skadi client to return empty campaigns
-    (skadiBoostClient.getCampaigns as jest.Mock).mockResolvedValue({
+    (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValue({
       promotedPosts: [],
       impressions: 0,
       clicks: 0,
@@ -1097,7 +1110,7 @@ describe('query postCampaigns', () => {
     ]);
 
     // Mock the skadi client to return campaigns
-    (skadiBoostClient.getCampaigns as jest.Mock).mockResolvedValue({
+    (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValue({
       promotedPosts: [
         {
           campaignId: 'campaign-1',
@@ -1210,7 +1223,7 @@ describe('query postCampaigns', () => {
     });
 
     // Mock the skadi client to return campaigns
-    (skadiBoostClient.getCampaigns as jest.Mock).mockResolvedValue({
+    (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValue({
       promotedPosts: [
         {
           campaignId: 'campaign-3',
@@ -1279,7 +1292,7 @@ describe('query postCampaigns', () => {
     await con.getRepository(ArticlePost).save(posts);
 
     // Mock the skadi client to return campaigns for first page (limit 2)
-    (skadiBoostClient.getCampaigns as jest.Mock).mockResolvedValueOnce({
+    (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValueOnce({
       promotedPosts: posts.slice(0, 2).map((post, index) => ({
         campaignId: `campaign-${index + 1}`,
         postId: post.id,
@@ -1298,7 +1311,7 @@ describe('query postCampaigns', () => {
     });
 
     // Mock the skadi client to return campaigns for second page (offset 2, limit 2)
-    (skadiBoostClient.getCampaigns as jest.Mock).mockResolvedValueOnce({
+    (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValueOnce({
       promotedPosts: posts.slice(2, 4).map((post, index) => ({
         campaignId: `campaign-${index + 3}`,
         postId: post.id,
@@ -1349,7 +1362,7 @@ describe('query postCampaigns', () => {
     expect(res2.data.postCampaigns.stats).toBeNull(); // No stats on subsequent requests
 
     // Verify that the correct offset was sent to Skadi for the second request
-    expect(skadiBoostClient.getCampaigns).toHaveBeenCalledWith({
+    expect(skadiApiClient.getCampaigns).toHaveBeenCalledWith({
       userId: '1',
       offset: 2, // cursorToOffset('YXJyYXljb25uZWN0aW9uOjI=') = 2
       limit: 2,
@@ -1420,7 +1433,7 @@ describe('query postCampaigns', () => {
     });
 
     // Mock the skadi client to return campaigns for different post types
-    (skadiBoostClient.getCampaigns as jest.Mock).mockResolvedValue({
+    (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValue({
       promotedPosts: [
         {
           campaignId: 'campaign-1',
@@ -1534,7 +1547,7 @@ describe('query postCampaigns', () => {
     });
 
     // Mock the skadi client to return campaigns with zero values
-    (skadiBoostClient.getCampaigns as jest.Mock).mockResolvedValue({
+    (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValue({
       promotedPosts: [
         {
           campaignId: 'campaign-zero',
@@ -1597,7 +1610,7 @@ describe('query postCampaigns', () => {
     });
 
     // Mock the skadi client to return campaigns with decimal USD amounts
-    (skadiBoostClient.getCampaigns as jest.Mock).mockResolvedValue({
+    (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValue({
       promotedPosts: [
         {
           campaignId: 'campaign-decimal',
@@ -1639,6 +1652,765 @@ describe('query postCampaigns', () => {
       clicks: 50,
       totalSpend: 1575, // Converted from USD to cores
       engagements: 1159, // 65+32+12+50+1000 = 1159
+    });
+  });
+});
+
+describe('mutation startPostBoost', () => {
+  const MUTATION = `
+    mutation StartPostBoost($postId: ID!, $duration: Int!, $budget: Int!) {
+      startPostBoost(postId: $postId, duration: $duration, budget: $budget) {
+        transactionId
+        balance {
+          amount
+        }
+      }
+    }
+  `;
+
+  const params = { postId: 'p1', duration: 7, budget: 5000 };
+
+  beforeEach(async () => {
+    isTeamMember = true; // TODO: remove when we are about to run production
+    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return an error if duration is less than 1', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...params, duration: 0 } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should return an error if duration is greater than 30', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...params, duration: 31 } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should return an error if budget is less than 1000', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...params, budget: 999 } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should return an error if budget is greater than 100000', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...params, budget: 100001 } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should return an error if budget is not divisible by 1000', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...params, budget: 1500 } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should return an error if post does not exist', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...params, postId: 'nonexistent' } },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return an error if user is not the author or scout of the post', async () => {
+    loggedUser = '2'; // User 2 is not the author or scout of post p1
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return an error if post is already boosted', async () => {
+    loggedUser = '1';
+    // Set the post as already boosted
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement<Post>({ campaignId: 'mock-id' }),
+      },
+    );
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should handle skadi integration failure gracefully', async () => {
+    loggedUser = '1';
+
+    // Ensure the post is not boosted initially
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement<Post>({ campaignId: null }),
+      },
+    );
+
+    // Mock skadi client to throw an error
+    (skadiApiClient.startPostCampaign as jest.Mock).mockRejectedValue(
+      new Error('Skadi service unavailable'),
+    );
+
+    // Get initial transaction count
+    const initialTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { senderId: '1', referenceType: 'PostBoost' },
+      });
+
+    // This test validates that the mutation handles external service failures
+    // In a real scenario, this would test the error handling when skadi service is down
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, duration: 1, budget: 1000 },
+    });
+
+    // The mutation should fail due to external service issues
+    // but the validation logic should pass
+    expect(res.errors).toBeTruthy();
+
+    // Verify no new transactions were created
+    const finalTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { senderId: '1', referenceType: 'PostBoost' },
+      });
+    expect(finalTransactionCount).toBe(initialTransactionCount);
+
+    // Verify the boosted flag is still false
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.campaignId).toBeFalsy();
+  });
+
+  it('should handle transfer failure gracefully', async () => {
+    loggedUser = '1';
+
+    // Ensure the post is not boosted initially
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement<Post>({ campaignId: null }),
+      },
+    );
+
+    // Mock skadi client to succeed but transfer to fail
+    (skadiApiClient.startPostCampaign as jest.Mock).mockResolvedValue({
+      campaignId: 'mock-campaign-id',
+    });
+
+    // Get initial transaction count
+    const initialTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { senderId: '1', referenceType: 'PostBoost' },
+      });
+
+    // This test validates that the mutation handles transfer failures
+    // In a real scenario, this would test the error handling when transfer fails
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, duration: 1, budget: 1000 },
+    });
+
+    // The mutation should fail due to external service issues
+    // but the validation logic should pass
+    expect(res.errors).toBeTruthy();
+
+    // Verify no new transactions were created
+    const finalTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { senderId: '1', referenceType: 'PostBoost' },
+      });
+    expect(finalTransactionCount).toBe(initialTransactionCount);
+
+    // Verify the boosted flag is still false
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.campaignId).toBeFalsy();
+  });
+
+  it('should verify no transactions are created when validation fails', async () => {
+    loggedUser = '1';
+
+    // Ensure the post is not boosted initially
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement<Post>({ campaignId: null }),
+      },
+    );
+
+    // Get initial transaction count
+    const initialTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { senderId: '1', referenceType: 'PostBoost' },
+      });
+
+    // Try to boost with invalid parameters
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, duration: 0 }, // Invalid duration
+    });
+
+    // Should fail validation
+    expect(res.errors).toBeTruthy();
+
+    // Verify no new transactions were created
+    const finalTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { senderId: '1', referenceType: 'PostBoost' },
+      });
+    expect(finalTransactionCount).toBe(initialTransactionCount);
+
+    // Verify the boosted flag is still false
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.campaignId).toBeFalsy();
+  });
+
+  it('should verify no transactions are created when post does not exist', async () => {
+    loggedUser = '1';
+
+    // Get initial transaction count
+    const initialTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { senderId: '1', referenceType: 'PostBoost' },
+      });
+
+    // Try to boost a non-existent post
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, postId: 'nonexistent' },
+    });
+
+    // Should fail with not found error
+    expect(res.errors).toBeTruthy();
+
+    // Verify no new transactions were created
+    const finalTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { senderId: '1', referenceType: 'PostBoost' },
+      });
+    expect(finalTransactionCount).toBe(initialTransactionCount);
+
+    // Verify the original post's boosted flag is unchanged
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.campaignId).toBeFalsy();
+  });
+
+  it('should verify no transactions are created when user is not authorized', async () => {
+    loggedUser = '2'; // User 2 is not the author or scout of post p1
+
+    // Ensure the post is not boosted initially
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement<Post>({ campaignId: null }),
+      },
+    );
+
+    // Get initial transaction count for user 2
+    const initialTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { senderId: '2', referenceType: 'PostBoost' },
+      });
+
+    // Try to boost without authorization
+    const res = await client.mutate(MUTATION, {
+      variables: params,
+    });
+
+    // Should fail with not found error
+    expect(res.errors).toBeTruthy();
+
+    // Verify no new transactions were created for user 2
+    const finalTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { senderId: '2', referenceType: 'PostBoost' },
+      });
+    expect(finalTransactionCount).toBe(initialTransactionCount);
+
+    // Verify the boosted flag is still false
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.campaignId).toBeFalsy();
+  });
+
+  it('should verify no transactions are created when post is already boosted', async () => {
+    loggedUser = '1';
+
+    // Set the post as already boosted
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement<Post>({ campaignId: 'mock-id' }),
+      },
+    );
+
+    // Get initial transaction count
+    const initialTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { senderId: '1', referenceType: 'PostBoost' },
+      });
+
+    // Try to boost an already boosted post
+    const res = await client.mutate(MUTATION, {
+      variables: params,
+    });
+
+    // Should fail with validation error
+    expect(res.errors).toBeTruthy();
+
+    // Verify no new transactions were created
+    const finalTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { senderId: '1', referenceType: 'PostBoost' },
+      });
+    expect(finalTransactionCount).toBe(initialTransactionCount);
+
+    // Verify the boosted flag remains true (unchanged)
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.campaignId).toBe('mock-id');
+  });
+
+  it('should successfully start post boost campaign', async () => {
+    loggedUser = '1';
+
+    // Ensure the post is not boosted initially
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement<Post>({ campaignId: null }),
+      },
+    );
+
+    // Mock skadi client to succeed
+    (skadiApiClient.startPostCampaign as jest.Mock).mockResolvedValue({
+      campaignId: 'mock-campaign-id',
+    });
+
+    // Mock getBalance to return a balance
+    (getBalance as jest.Mock).mockResolvedValue({
+      amount: 10000, // 10000 cores balance
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, duration: 1, budget: 1000 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.startPostBoost.transactionId).toBeDefined();
+    expect(res.data.startPostBoost.balance.amount).toBe(10000);
+
+    // Verify the boosted flag is now set
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.campaignId).toBe('mock-campaign-id');
+
+    // Verify the skadi client was called with correct parameters
+    expect(skadiApiClient.startPostCampaign).toHaveBeenCalledWith({
+      postId: 'p1',
+      userId: '1',
+      durationInDays: 1,
+      budget: 10, // Converted from cores to USD (1000 cores = 10 USD)
+    });
+
+    // Verify getBalance was called
+    expect(getBalance).toHaveBeenCalledWith({ userId: '1' });
+  });
+
+  it('should handle skadi integration failure gracefully', async () => {
+    loggedUser = '1';
+
+    // Ensure the post is not boosted initially
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement<Post>({ campaignId: null }),
+      },
+    );
+
+    // Mock skadi client to throw an error
+    (skadiApiClient.startPostCampaign as jest.Mock).mockRejectedValue(
+      new Error('Skadi service unavailable'),
+    );
+
+    // Get initial transaction count
+    const initialTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { senderId: '1', referenceType: 'PostBoost' },
+      });
+
+    // This test validates that the mutation handles external service failures
+    // In a real scenario, this would test the error handling when skadi service is down
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, duration: 1, budget: 1000 },
+    });
+
+    // The mutation should fail due to external service issues
+    // but the validation logic should pass
+    expect(res.errors).toBeTruthy();
+
+    // Verify no new transactions were created
+    const finalTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { senderId: '1', referenceType: 'PostBoost' },
+      });
+    expect(finalTransactionCount).toBe(initialTransactionCount);
+
+    // Verify the boosted flag is still false
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.campaignId).toBeFalsy();
+  });
+});
+
+describe('mutation cancelPostBoost', () => {
+  const MUTATION = `
+    mutation CancelPostBoost($postId: ID!) {
+      cancelPostBoost(postId: $postId) {
+        _
+      }
+    }
+  `;
+
+  const params = { postId: 'p1' };
+
+  beforeEach(async () => {
+    isTeamMember = true; // TODO: remove when we are about to run production
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        authorId: '1',
+        flags: updateFlagsStatement<Post>({ campaignId: 'mock-id' }),
+      },
+    );
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return an error if post does not exist', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { postId: 'nonexistent' } },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return an error if user is not the author or scout of the post', async () => {
+    loggedUser = '2'; // User 2 is not the author or scout of post p1
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return an error if post is not currently boosted', async () => {
+    loggedUser = '1';
+    // Ensure the post is not boosted
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement<Post>({ campaignId: null }),
+      },
+    );
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should successfully cancel post boost when post is boosted', async () => {
+    loggedUser = '1';
+
+    // Mock skadi client to succeed
+    (skadiApiClient.cancelPostCampaign as jest.Mock).mockResolvedValue({
+      success: true,
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: params,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.cancelPostBoost._).toBe(true);
+
+    // Verify the boosted flag is now false
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.campaignId).toBeFalsy();
+  });
+
+  it('should verify boosted flag remains unchanged when validation fails', async () => {
+    loggedUser = '1';
+
+    // Ensure the post is not boosted initially
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement<Post>({ campaignId: null }),
+      },
+    );
+
+    // Try to cancel boost on a non-boosted post
+    const res = await client.mutate(MUTATION, {
+      variables: params,
+    });
+
+    // Should fail validation
+    expect(res.errors).toBeTruthy();
+
+    // Verify the boosted flag remains false (unchanged)
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.campaignId).toBeFalsy();
+  });
+
+  it('should verify boosted flag remains unchanged when post does not exist', async () => {
+    loggedUser = '1';
+
+    // Try to cancel boost on a non-existent post
+    const res = await client.mutate(MUTATION, {
+      variables: { postId: 'nonexistent' },
+    });
+
+    // Should fail with not found error
+    expect(res.errors).toBeTruthy();
+
+    // Verify the original post's boosted flag is unchanged
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    // The boosted flag should be whatever it was before (false by default)
+    expect(post?.flags?.campaignId).toBe('mock-id');
+  });
+
+  it('should verify boosted flag remains unchanged when user is not authorized', async () => {
+    loggedUser = '2'; // User 2 is not the author or scout of post p1
+
+    // Try to cancel boost without authorization
+    const res = await client.mutate(MUTATION, {
+      variables: params,
+    });
+
+    // Should fail with not found error
+    expect(res.errors).toBeTruthy();
+
+    // Verify the boosted flag remains true (unchanged)
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.campaignId).toBe('mock-id');
+  });
+
+  it('should work for post scout as well as author', async () => {
+    loggedUser = '1';
+
+    // Set user as scout instead of author
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        authorId: '2', // Different author
+        scoutId: '1', // Current user is scout
+      },
+    );
+
+    // Mock skadi client to succeed
+    (skadiApiClient.cancelPostCampaign as jest.Mock).mockResolvedValue({
+      success: true,
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: params,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.cancelPostBoost._).toBe(true);
+
+    // Verify the boosted flag is now false
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.campaignId).toBeFalsy();
+  });
+});
+
+describe('query boostEstimatedReach', () => {
+  const QUERY = `
+    query BoostEstimatedReach($postId: ID!, $duration: Int!, $budget: Int!) {
+      boostEstimatedReach(postId: $postId, duration: $duration, budget: $budget) {
+        min
+        max
+      }
+    }
+  `;
+
+  const params = { postId: 'p1', duration: 7, budget: 5000 };
+
+  beforeEach(async () => {
+    isTeamMember = true; // TODO: remove when we are about to run production
+    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: params },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return an error if duration is less than 1', async () => {
+    loggedUser = '1';
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { ...params, duration: 0 } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should return an error if duration is greater than 30', async () => {
+    loggedUser = '1';
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { ...params, duration: 31 } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should return an error if budget is less than 1000', async () => {
+    loggedUser = '1';
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { ...params, budget: 999 } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should return an error if budget is greater than 100000', async () => {
+    loggedUser = '1';
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { ...params, budget: 100001 } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should return an error if budget is not divisible by 1000', async () => {
+    loggedUser = '1';
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { ...params, budget: 1500 } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should return an error if post does not exist', async () => {
+    loggedUser = '1';
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { ...params, postId: 'nonexistent' } },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return an error if user is not the author or scout of the post', async () => {
+    loggedUser = '2'; // User 2 is not the author or scout of post p1
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: params },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return an error if post is already boosted', async () => {
+    loggedUser = '1';
+    // Set the post as already boosted
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement<Post>({ campaignId: 'mock-id' }),
+      },
+    );
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: params },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should the response returned by skadi client', async () => {
+    loggedUser = '1';
+
+    // Mock the skadi client to return impressions
+    (skadiApiClient.estimatePostBoostReach as jest.Mock).mockResolvedValue({
+      impressions: 100,
+      clicks: 10,
+      users: 50,
+    });
+
+    const res = await client.query(QUERY, {
+      variables: { ...params, duration: 1, budget: 1000 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.boostEstimatedReach).toEqual({
+      max: 108, // 100 + (100 * 0.08) = 108
+      min: 92, // 100 - (100 * 0.08) = 92
+    });
+
+    // Verify the skadi client was called with correct parameters
+    expect(skadiApiClient.estimatePostBoostReach).toHaveBeenCalledWith({
+      postId: 'p1',
+      userId: '1',
+      durationInDays: 1,
+      budget: 1000,
     });
   });
 });

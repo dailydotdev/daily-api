@@ -130,6 +130,7 @@ import type {
   StartPostBoostArgs,
 } from '../common/post/boost';
 import {
+  coresToUsd,
   getBalance,
   throwUserTransactionError,
   transferCores,
@@ -143,7 +144,7 @@ import {
   UserTransactionStatus,
   UserTransactionType,
 } from '../entity/user/UserTransaction';
-import { skadiBoostClient } from '../integrations/skadi/clients';
+import { skadiApiClient } from '../integrations/skadi/api/clients';
 import {
   validatePostBoostArgs,
   validatePostBoostPermissions,
@@ -880,13 +881,9 @@ export const typeDefs = /* GraphQL */ `
     amount: Int!
   }
 
-  type Reach {
+  type PostBoostEstimate {
     min: Int!
     max: Int!
-  }
-
-  type PostBoostEstimate {
-    estimatedReach: Reach!
   }
 
   type CampaignPost {
@@ -2084,21 +2081,28 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const post = await validatePostBoostPermissions(ctx, postId);
       checkPostAlreadyBoosted(post);
 
-      const { estimatedReach } = await skadiBoostClient.estimatePostBoostReach({
+      const { impressions } = await skadiApiClient.estimatePostBoostReach({
         postId,
         userId: ctx.userId,
-        duration,
+        durationInDays: duration,
         budget,
       });
 
-      return { estimatedReach };
+      // We do plus-minus 8% of the generated value
+      const difference = impressions * 0.08;
+      const estimatedReach = {
+        min: Math.max(impressions - difference, 0),
+        max: impressions + difference,
+      };
+
+      return estimatedReach;
     },
     postCampaignById: async (
       _,
       { id }: { id: string },
       ctx: Context,
     ): Promise<GQLBoostedPost> => {
-      const campaign = await skadiBoostClient.getCampaignById({
+      const campaign = await skadiApiClient.getCampaignById({
         campaignId: id,
         userId: ctx.userId!,
       });
@@ -2136,7 +2140,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         (nodeSize) => nodeSize === first,
         (_, i) => offsetToCursor(offset + i + 1),
         async () => {
-          const campaigns = await skadiBoostClient.getCampaigns({
+          const campaigns = await skadiApiClient.getCampaigns({
             userId,
             offset,
             limit: first!,
@@ -2586,15 +2590,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const total = budget * duration;
 
       const request = await ctx.con.transaction(async (entityManager) => {
-        const { campaignId } = await skadiBoostClient
-          .startPostCampaign
-          //   {
-          //   postId,
-          //   duration,
-          //   budget: coresToUsd(budget),
-          //   userId,
-          // }
-          ();
+        const { campaignId } = await skadiApiClient.startPostCampaign({
+          postId,
+          durationInDays: duration,
+          budget: coresToUsd(budget),
+          userId,
+        });
 
         const userTransaction = await entityManager
           .getRepository(UserTransaction)
@@ -2684,7 +2685,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             { flags: updateFlagsStatement<Post>({ campaignId: null }) },
           );
 
-        await skadiBoostClient.cancelPostCampaign({
+        await skadiApiClient.cancelPostCampaign({
           postId,
           userId: ctx.userId,
         });
