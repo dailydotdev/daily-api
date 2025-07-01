@@ -374,6 +374,26 @@ export const typeDefs = /* GraphQL */ `
     Cover video
     """
     coverVideo: String
+
+    """
+    Number of posts used to create content of this post, for example in briefs
+    """
+    posts: Int
+
+    """
+    Number of sources used to create content of this post, for example in briefs
+    """
+    sources: Int
+
+    """
+    Total time saved by reading this post, in minutes
+    """
+    savedTime: Int
+
+    """
+    Time the post was generated
+    """
+    generatedAt: DateTime
   }
 
   type UserPostFlagsPublic {
