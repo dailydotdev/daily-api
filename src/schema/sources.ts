@@ -1226,8 +1226,8 @@ export const ensureUserSourceExists = async (userId: string, con: DataSource) =>
       .values({
         id: user.id,
         userId: user.id,
-        handle: user.username,
-        name: user.username,
+        handle: user.id,
+        name: user.id,
         type: SourceType.User,
         private: false,
         flags: {

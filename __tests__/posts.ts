@@ -3400,7 +3400,6 @@ describe('mutation submitExternalLink', () => {
 
   describe('user source', () => {
     beforeEach(async () => {
-      await con.getRepository(User).update({ id: '1' }, { username: 'user1' });
       await con.getRepository(Feed).save({
         id: '1',
         userId: '1',
@@ -4062,7 +4061,6 @@ describe('mutation createFreeformPost', () => {
 
   describe('user source', () => {
     beforeEach(async () => {
-      await con.getRepository(User).update({ id: '1' }, { username: 'user1' });
       await con.getRepository(Feed).save({
         id: '1',
         userId: '1',
