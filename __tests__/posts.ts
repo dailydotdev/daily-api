@@ -3401,6 +3401,10 @@ describe('mutation submitExternalLink', () => {
   describe('user source', () => {
     beforeEach(async () => {
       await con.getRepository(User).update({ id: '1' }, { username: 'user1' });
+      await con.getRepository(Feed).save({
+        id: '1',
+        userId: '1',
+      });
     });
 
     it('should create user source if it does not already exist when sharing', async () => {
@@ -4059,6 +4063,10 @@ describe('mutation createFreeformPost', () => {
   describe('user source', () => {
     beforeEach(async () => {
       await con.getRepository(User).update({ id: '1' }, { username: 'user1' });
+      await con.getRepository(Feed).save({
+        id: '1',
+        userId: '1',
+      });
     });
 
     it('should create user source if it does not already exist when sharing', async () => {
