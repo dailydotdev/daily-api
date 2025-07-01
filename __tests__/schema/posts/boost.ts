@@ -39,7 +39,7 @@ import { randomUUID } from 'crypto';
 import { deleteKeysByPattern, ioRedisPool } from '../../../src/redis';
 import { rateLimiterName } from '../../../src/directive/rateLimit';
 import { badUsersFixture } from '../../fixture/user';
-import { skadiBoostClient } from '../../../src/integrations/skadi/clients';
+import { skadiApiClient } from '../../../src/integrations/skadi/api/clients';
 import { pickImageUrl } from '../../../src/common/post';
 import { updateFlagsStatement } from '../../../src/common';
 import { UserTransaction } from '../../../src/entity/user/UserTransaction';
@@ -54,9 +54,9 @@ jest.mock('../../../src/common/pubsub', () => ({
   notifyContentRequested: jest.fn(),
 }));
 
-// Mock the skadiBoostClient
-jest.mock('../../../src/integrations/skadi/clients', () => ({
-  skadiBoostClient: {
+// Mock the skadiApiClient
+jest.mock('../../../src/integrations/skadi/api/clients', () => ({
+  skadiApiClient: {
     getCampaignById: jest.fn(),
     estimatePostBoostReach: jest.fn(),
     startPostCampaign: jest.fn(),
@@ -258,7 +258,7 @@ describe('query postCampaignById', () => {
     loggedUser = '1';
 
     // Mock the skadi client to return the share post campaign
-    (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+    (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
       campaignId: 'mock-campaign-id',
       postId: 'p1',
       status: 'active',
@@ -333,7 +333,7 @@ describe('query postCampaignById', () => {
         });
 
         // Mock the skadi client to return the share post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'share-campaign-id',
           postId: 'share-post-1',
           status: 'active',
@@ -392,7 +392,7 @@ describe('query postCampaignById', () => {
         });
 
         // Mock the skadi client to return the share post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'share-campaign-id-2',
           postId: 'share-post-2',
           status: 'active',
@@ -451,7 +451,7 @@ describe('query postCampaignById', () => {
         });
 
         // Mock the skadi client to return the share post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'share-campaign-id-3',
           postId: 'share-post-3',
           status: 'active',
@@ -498,7 +498,7 @@ describe('query postCampaignById', () => {
         } as unknown as Partial<FreeformPost>);
 
         // Mock the skadi client to return the freeform post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'freeform-campaign-id',
           postId: freeformPost.id,
           status: 'active',
@@ -544,7 +544,7 @@ describe('query postCampaignById', () => {
         } as unknown as Partial<FreeformPost>);
 
         // Mock the skadi client to return the freeform post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'freeform-campaign-id-2',
           postId: freeformPost.id,
           status: 'active',
@@ -600,7 +600,7 @@ describe('query postCampaignById', () => {
         });
 
         // Mock the skadi client to return the article post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'article-campaign-id',
           postId: articlePost.id,
           status: 'active',
@@ -646,7 +646,7 @@ describe('query postCampaignById', () => {
         });
 
         // Mock the skadi client to return the article post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'article-campaign-id-2',
           postId: articlePost.id,
           status: 'active',
@@ -702,7 +702,7 @@ describe('query postCampaignById', () => {
         });
 
         // Mock the skadi client to return the welcome post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'welcome-campaign-id',
           postId: welcomePost.id,
           status: 'active',
@@ -749,7 +749,7 @@ describe('query postCampaignById', () => {
         });
 
         // Mock the skadi client to return the collection post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'collection-campaign-id',
           postId: collectionPost.id,
           status: 'active',
@@ -797,7 +797,7 @@ describe('query postCampaignById', () => {
         });
 
         // Mock the skadi client to return the YouTube post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'youtube-campaign-id',
           postId: youtubePost.id,
           status: 'active',
@@ -859,7 +859,7 @@ describe('query postCampaignById', () => {
         });
 
         // Mock the skadi client to return the share post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'share-campaign-no-image',
           postId: sharePost.id,
           status: 'active',
@@ -913,7 +913,7 @@ describe('query postCampaignById', () => {
         });
 
         // Mock the skadi client to return the post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'null-title-campaign',
           postId: nullTitlePost.id,
           status: 'active',
@@ -958,7 +958,7 @@ describe('query postCampaignById', () => {
         });
 
         // Mock the skadi client to return the post campaign
-        (skadiBoostClient.getCampaignById as jest.Mock).mockResolvedValue({
+        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
           campaignId: 'undefined-title-campaign',
           postId: undefinedTitlePost.id,
           status: 'active',
@@ -1046,7 +1046,7 @@ describe('query postCampaigns', () => {
     loggedUser = '1';
 
     // Mock the skadi client to return empty campaigns
-    (skadiBoostClient.getCampaigns as jest.Mock).mockResolvedValue({
+    (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValue({
       promotedPosts: [],
       impressions: 0,
       clicks: 0,
@@ -1110,7 +1110,7 @@ describe('query postCampaigns', () => {
     ]);
 
     // Mock the skadi client to return campaigns
-    (skadiBoostClient.getCampaigns as jest.Mock).mockResolvedValue({
+    (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValue({
       promotedPosts: [
         {
           campaignId: 'campaign-1',
@@ -1223,7 +1223,7 @@ describe('query postCampaigns', () => {
     });
 
     // Mock the skadi client to return campaigns
-    (skadiBoostClient.getCampaigns as jest.Mock).mockResolvedValue({
+    (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValue({
       promotedPosts: [
         {
           campaignId: 'campaign-3',
@@ -1292,7 +1292,7 @@ describe('query postCampaigns', () => {
     await con.getRepository(ArticlePost).save(posts);
 
     // Mock the skadi client to return campaigns for first page (limit 2)
-    (skadiBoostClient.getCampaigns as jest.Mock).mockResolvedValueOnce({
+    (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValueOnce({
       promotedPosts: posts.slice(0, 2).map((post, index) => ({
         campaignId: `campaign-${index + 1}`,
         postId: post.id,
@@ -1311,7 +1311,7 @@ describe('query postCampaigns', () => {
     });
 
     // Mock the skadi client to return campaigns for second page (offset 2, limit 2)
-    (skadiBoostClient.getCampaigns as jest.Mock).mockResolvedValueOnce({
+    (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValueOnce({
       promotedPosts: posts.slice(2, 4).map((post, index) => ({
         campaignId: `campaign-${index + 3}`,
         postId: post.id,
@@ -1362,7 +1362,7 @@ describe('query postCampaigns', () => {
     expect(res2.data.postCampaigns.stats).toBeNull(); // No stats on subsequent requests
 
     // Verify that the correct offset was sent to Skadi for the second request
-    expect(skadiBoostClient.getCampaigns).toHaveBeenCalledWith({
+    expect(skadiApiClient.getCampaigns).toHaveBeenCalledWith({
       userId: '1',
       offset: 2, // cursorToOffset('YXJyYXljb25uZWN0aW9uOjI=') = 2
       limit: 2,
@@ -1433,7 +1433,7 @@ describe('query postCampaigns', () => {
     });
 
     // Mock the skadi client to return campaigns for different post types
-    (skadiBoostClient.getCampaigns as jest.Mock).mockResolvedValue({
+    (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValue({
       promotedPosts: [
         {
           campaignId: 'campaign-1',
@@ -1547,7 +1547,7 @@ describe('query postCampaigns', () => {
     });
 
     // Mock the skadi client to return campaigns with zero values
-    (skadiBoostClient.getCampaigns as jest.Mock).mockResolvedValue({
+    (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValue({
       promotedPosts: [
         {
           campaignId: 'campaign-zero',
@@ -1610,7 +1610,7 @@ describe('query postCampaigns', () => {
     });
 
     // Mock the skadi client to return campaigns with decimal USD amounts
-    (skadiBoostClient.getCampaigns as jest.Mock).mockResolvedValue({
+    (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValue({
       promotedPosts: [
         {
           campaignId: 'campaign-decimal',
@@ -1781,7 +1781,7 @@ describe('mutation startPostBoost', () => {
     );
 
     // Mock skadi client to throw an error
-    (skadiBoostClient.startPostCampaign as jest.Mock).mockRejectedValue(
+    (skadiApiClient.startPostCampaign as jest.Mock).mockRejectedValue(
       new Error('Skadi service unavailable'),
     );
 
@@ -1827,7 +1827,7 @@ describe('mutation startPostBoost', () => {
     );
 
     // Mock skadi client to succeed but transfer to fail
-    (skadiBoostClient.startPostCampaign as jest.Mock).mockResolvedValue({
+    (skadiApiClient.startPostCampaign as jest.Mock).mockResolvedValue({
       campaignId: 'mock-campaign-id',
     });
 
@@ -2021,7 +2021,7 @@ describe('mutation startPostBoost', () => {
     );
 
     // Mock skadi client to succeed
-    (skadiBoostClient.startPostCampaign as jest.Mock).mockResolvedValue({
+    (skadiApiClient.startPostCampaign as jest.Mock).mockResolvedValue({
       campaignId: 'mock-campaign-id',
     });
 
@@ -2043,10 +2043,10 @@ describe('mutation startPostBoost', () => {
     expect(post?.flags?.campaignId).toBe('mock-campaign-id');
 
     // Verify the skadi client was called with correct parameters
-    expect(skadiBoostClient.startPostCampaign).toHaveBeenCalledWith({
+    expect(skadiApiClient.startPostCampaign).toHaveBeenCalledWith({
       postId: 'p1',
       userId: '1',
-      duration: 1,
+      durationInDays: 1,
       budget: 10, // Converted from cores to USD (1000 cores = 10 USD)
     });
 
@@ -2066,7 +2066,7 @@ describe('mutation startPostBoost', () => {
     );
 
     // Mock skadi client to throw an error
-    (skadiBoostClient.startPostCampaign as jest.Mock).mockRejectedValue(
+    (skadiApiClient.startPostCampaign as jest.Mock).mockRejectedValue(
       new Error('Skadi service unavailable'),
     );
 
@@ -2171,7 +2171,7 @@ describe('mutation cancelPostBoost', () => {
     loggedUser = '1';
 
     // Mock skadi client to succeed
-    (skadiBoostClient.cancelPostCampaign as jest.Mock).mockResolvedValue({
+    (skadiApiClient.cancelPostCampaign as jest.Mock).mockResolvedValue({
       success: true,
     });
 
@@ -2257,7 +2257,7 @@ describe('mutation cancelPostBoost', () => {
     );
 
     // Mock skadi client to succeed
-    (skadiBoostClient.cancelPostCampaign as jest.Mock).mockResolvedValue({
+    (skadiApiClient.cancelPostCampaign as jest.Mock).mockResolvedValue({
       success: true,
     });
 
@@ -2278,10 +2278,8 @@ describe('query boostEstimatedReach', () => {
   const QUERY = `
     query BoostEstimatedReach($postId: ID!, $duration: Int!, $budget: Int!) {
       boostEstimatedReach(postId: $postId, duration: $duration, budget: $budget) {
-        estimatedReach {
-          min
-          max
-        }
+        min
+        max
       }
     }
   `;
@@ -2390,12 +2388,11 @@ describe('query boostEstimatedReach', () => {
   it('should the response returned by skadi client', async () => {
     loggedUser = '1';
 
-    // Mock the skadi client to return estimated reach
-    (skadiBoostClient.estimatePostBoostReach as jest.Mock).mockResolvedValue({
-      estimatedReach: {
-        min: 80,
-        max: 120,
-      },
+    // Mock the skadi client to return impressions
+    (skadiApiClient.estimatePostBoostReach as jest.Mock).mockResolvedValue({
+      impressions: 100,
+      clicks: 10,
+      users: 50,
     });
 
     const res = await client.query(QUERY, {
@@ -2403,16 +2400,16 @@ describe('query boostEstimatedReach', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.boostEstimatedReach.estimatedReach).toEqual({
-      max: 120,
-      min: 80,
+    expect(res.data.boostEstimatedReach).toEqual({
+      max: 108, // 100 + (100 * 0.08) = 108
+      min: 92, // 100 - (100 * 0.08) = 92
     });
 
     // Verify the skadi client was called with correct parameters
-    expect(skadiBoostClient.estimatePostBoostReach).toHaveBeenCalledWith({
+    expect(skadiApiClient.estimatePostBoostReach).toHaveBeenCalledWith({
       postId: 'p1',
       userId: '1',
-      duration: 1,
+      durationInDays: 1,
       budget: 1000,
     });
   });
