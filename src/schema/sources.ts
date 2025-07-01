@@ -1219,8 +1219,11 @@ export const ensureUserSourceExists = async (userId: string, con: DataSource) =>
       .getRepository(User)
       .findOneByOrFail({ id: userId });
 
-    await entityManager.getRepository(SourceUser).upsert(
-      {
+    await entityManager
+      .createQueryBuilder()
+      .insert()
+      .into(SourceUser)
+      .values({
         id: user.id,
         userId: user.id,
         handle: user.username,
@@ -1232,24 +1235,22 @@ export const ensureUserSourceExists = async (userId: string, con: DataSource) =>
             user.reputation >= REPUTATION_THRESHOLD && !user.flags.vordr,
           vordr: user.flags.vordr ?? false,
         },
-      },
-      ['id'],
-    );
+      })
+      .orIgnore()
+      .execute();
 
-    const sourceMemberExists = await entityManager
-      .getRepository(SourceMember)
-      .findOne({
-        where: { sourceId: user.id, userId: user.id },
-      });
-
-    if (!sourceMemberExists) {
-      await entityManager.getRepository(SourceMember).insert({
+    await entityManager
+      .createQueryBuilder()
+      .insert()
+      .into(SourceMember)
+      .values({
         sourceId: user.id,
         userId: user.id,
         role: SourceMemberRoles.Admin,
         referralToken: randomUUID(),
-      });
-    }
+      })
+      .orIgnore()
+      .execute();
   });
 
 const sourceByFeed = async (
