@@ -11,4 +11,7 @@ export class BriefPost extends Post {
 
   @Column({ nullable: true })
   readTime?: number;
+
+  @Column({ type: 'text', array: true, default: [] })
+  collectionSources: string[];
 }

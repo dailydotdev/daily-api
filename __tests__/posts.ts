@@ -98,6 +98,7 @@ import {
 } from '../src/entity/user/UserTransaction';
 import { Product, ProductType } from '../src/entity/Product';
 import { BriefingModel, BriefingType } from '../src/integrations/feed';
+import { UserBriefingRequest } from '@dailydotdev/schema';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -8255,10 +8256,12 @@ describe('mutation generateBriefing', () => {
     expect(res.data.generateBriefing.postId).toBeDefined();
 
     expectTypedEvent('api.v1.brief-generate', {
-      userId: loggedUser,
-      frequency: variables.type,
+      payload: new UserBriefingRequest({
+        userId: loggedUser,
+        frequency: variables.type,
+        modelName: BriefingModel.Default,
+      }),
       postId: res.data.generateBriefing.postId,
-      modelName: BriefingModel.Default,
     });
   });
 

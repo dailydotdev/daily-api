@@ -1,16 +1,11 @@
-import {
-  FeedConfig,
-  FeedResponse,
-  IFeedClient,
-  BriefingModel,
-  type Briefing,
-  type UserBriefingRequest,
-} from './types';
+import { FeedConfig, FeedResponse, IFeedClient, BriefingModel } from './types';
 import { RequestInit } from 'node-fetch';
 import { fetchOptions as globalFetchOptions } from '../../http';
 import { fetchParse } from '../retry';
 import { GenericMetadata } from '../lofn';
 import { GarmrNoopService, IGarmrClient, IGarmrService } from '../garmr';
+import { Briefing, UserBriefingRequest } from '@dailydotdev/schema';
+import type { JsonValue } from '@bufbuild/protobuf';
 
 type RawFeedServiceResponse = {
   data: { post_id: string; metadata: Record<string, string> }[];
@@ -87,9 +82,7 @@ export class FeedClient implements IFeedClient, IGarmrClient {
     modelName = BriefingModel.Default,
   }: UserBriefingRequest): Promise<Briefing> {
     const result = await this.garmr.execute(() => {
-      // TODO feat-brief move to env and set type from schema
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return fetchParse<any>(`${this.url}/api/user/briefing`, {
+      return fetchParse<JsonValue>(`${this.url}/api/user/briefing`, {
         ...this.fetchOptions,
         method: 'POST',
         body: JSON.stringify({
@@ -100,8 +93,6 @@ export class FeedClient implements IFeedClient, IGarmrClient {
       });
     });
 
-    return {
-      sections: result.sections,
-    };
+    return Briefing.fromJson(result);
   }
 }

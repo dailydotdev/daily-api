@@ -20,11 +20,10 @@ import {
 import {
   ContentUpdatedMessage,
   type TransferResponse,
+  type UserBriefingRequest,
 } from '@dailydotdev/schema';
 import { SourcePostModeration } from '../entity/SourcePostModeration';
 import type { UserTransaction } from '../entity/user/UserTransaction';
-import type { UserBriefingRequest } from '../integrations/feed';
-import type { BriefPost } from '../entity/posts/BriefPost';
 
 export type PubSubSchema = {
   'pub-request': {
@@ -139,11 +138,13 @@ export type PubSubSchema = {
     organizationId: Organization['id'];
     memberId: User['id'];
   };
-  'api.v1.brief-generate': UserBriefingRequest & {
+  'api.v1.brief-generate': {
+    payload: UserBriefingRequest;
     postId: string;
   };
   'api.v1.brief-ready': {
-    post: BriefPost;
+    payload: UserBriefingRequest;
+    postId: string;
   };
 };
 

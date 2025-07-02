@@ -135,24 +135,3 @@ export enum BriefingType {
 export enum BriefingModel {
   Default = 'ai_briefing',
 }
-
-// TODO feat-brief replace with schema
-export type UserBriefingRequest = {
-  userId: string;
-  frequency: BriefingType;
-  modelName: string;
-};
-
-export type BriefingItem = {
-  title: string;
-  body: string;
-};
-
-export type BriefingSection = {
-  title: string;
-  items: BriefingItem[];
-};
-
-export type Briefing = {
-  sections: BriefingSection[];
-};
