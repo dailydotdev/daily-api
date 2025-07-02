@@ -259,13 +259,13 @@ describe('query postCampaignById', () => {
 
     // Mock the skadi client to return the share post campaign
     (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-      campaign_id: 'mock-campaign-id',
-      post_id: 'p1',
+      campaignId: 'mock-campaign-id',
+      postId: 'p1',
       status: 'active',
       budget: '1000',
-      current_budget: '500',
-      started_at: new Date().getTime(),
-      ended_at: new Date('2024-12-31').getTime(), // Future date
+      currentBudget: '500',
+      startedAt: new Date().getTime(),
+      endedAt: new Date('2024-12-31').getTime(), // Future date
       impressions: 50,
       clicks: 10,
     });
@@ -334,13 +334,13 @@ describe('query postCampaignById', () => {
 
         // Mock the skadi client to return the share post campaign
         (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaign_id: 'share-campaign-id',
-          post_id: 'share-post-1',
+          campaignId: 'share-campaign-id',
+          postId: 'share-post-1',
           status: 'active',
           budget: '1000',
-          current_budget: '500',
-          started_at: new Date().getTime(),
-          ended_at: new Date('2024-12-31').getTime(), // Future date
+          currentBudget: '500',
+          startedAt: new Date().getTime(),
+          endedAt: new Date('2024-12-31').getTime(), // Future date
           impressions: 50,
           clicks: 10,
         });
@@ -393,13 +393,13 @@ describe('query postCampaignById', () => {
 
         // Mock the skadi client to return the share post campaign
         (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaign_id: 'share-campaign-id-2',
-          post_id: 'share-post-2',
+          campaignId: 'share-campaign-id-2',
+          postId: 'share-post-2',
           status: 'active',
           budget: '1000',
-          current_budget: '500',
-          started_at: new Date().getTime(),
-          ended_at: new Date('2024-12-31').getTime(), // Future date
+          currentBudget: '500',
+          startedAt: new Date().getTime(),
+          endedAt: new Date('2024-12-31').getTime(), // Future date
           impressions: 50,
           clicks: 10,
         });
@@ -452,13 +452,13 @@ describe('query postCampaignById', () => {
 
         // Mock the skadi client to return the share post campaign
         (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaign_id: 'share-campaign-id-3',
-          post_id: 'share-post-3',
+          campaignId: 'share-campaign-id-3',
+          postId: 'share-post-3',
           status: 'active',
           budget: '1000',
-          current_budget: '500',
-          started_at: new Date().getTime(),
-          ended_at: new Date('2024-12-31').getTime(), // Future date
+          currentBudget: '500',
+          startedAt: new Date().getTime(),
+          endedAt: new Date('2024-12-31').getTime(), // Future date
           impressions: 50,
           clicks: 10,
         });
@@ -499,13 +499,13 @@ describe('query postCampaignById', () => {
 
         // Mock the skadi client to return the freeform post campaign
         (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaign_id: 'freeform-campaign-id',
-          post_id: freeformPost.id,
+          campaignId: 'freeform-campaign-id',
+          postId: freeformPost.id,
           status: 'active',
           budget: '1000',
-          current_budget: '500',
-          started_at: new Date().getTime(),
-          ended_at: new Date('2024-12-31').getTime(), // Future date
+          currentBudget: '500',
+          startedAt: new Date().getTime(),
+          endedAt: new Date('2024-12-31').getTime(), // Future date
           impressions: 50,
           clicks: 10,
         });
@@ -545,13 +545,13 @@ describe('query postCampaignById', () => {
 
         // Mock the skadi client to return the freeform post campaign
         (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaign_id: 'freeform-campaign-id-2',
-          post_id: freeformPost.id,
+          campaignId: 'freeform-campaign-id-2',
+          postId: freeformPost.id,
           status: 'active',
           budget: '1000',
-          current_budget: '500',
-          started_at: new Date().getTime(),
-          ended_at: new Date('2024-12-31').getTime(), // Future date
+          currentBudget: '500',
+          startedAt: new Date().getTime(),
+          endedAt: new Date('2024-12-31').getTime(), // Future date
           impressions: 50,
           clicks: 10,
         });
@@ -601,13 +601,13 @@ describe('query postCampaignById', () => {
 
         // Mock the skadi client to return the article post campaign
         (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaign_id: 'article-campaign-id',
-          post_id: articlePost.id,
+          campaignId: 'article-campaign-id',
+          postId: articlePost.id,
           status: 'active',
           budget: '1000',
-          current_budget: '500',
-          started_at: new Date().getTime(),
-          ended_at: new Date('2024-12-31').getTime(), // Future date
+          currentBudget: '500',
+          startedAt: new Date().getTime(),
+          endedAt: new Date('2024-12-31').getTime(), // Future date
           impressions: 50,
           clicks: 10,
         });
@@ -647,13 +647,13 @@ describe('query postCampaignById', () => {
 
         // Mock the skadi client to return the article post campaign
         (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaign_id: 'article-campaign-id-2',
-          post_id: articlePost.id,
+          campaignId: 'article-campaign-id-2',
+          postId: articlePost.id,
           status: 'active',
           budget: '1000',
-          current_budget: '500',
-          started_at: new Date().getTime(),
-          ended_at: null,
+          currentBudget: '500',
+          startedAt: new Date().getTime(),
+          endedAt: null,
           impressions: 50,
           clicks: 10,
         });
@@ -703,13 +703,13 @@ describe('query postCampaignById', () => {
 
         // Mock the skadi client to return the welcome post campaign
         (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaign_id: 'welcome-campaign-id',
-          post_id: welcomePost.id,
+          campaignId: 'welcome-campaign-id',
+          postId: welcomePost.id,
           status: 'active',
           budget: '1000',
-          current_budget: '500',
-          started_at: new Date().getTime(),
-          ended_at: null,
+          currentBudget: '500',
+          startedAt: new Date().getTime(),
+          endedAt: null,
           impressions: 50,
           clicks: 10,
         });
@@ -750,13 +750,13 @@ describe('query postCampaignById', () => {
 
         // Mock the skadi client to return the collection post campaign
         (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaign_id: 'collection-campaign-id',
-          post_id: collectionPost.id,
+          campaignId: 'collection-campaign-id',
+          postId: collectionPost.id,
           status: 'active',
           budget: '1000',
-          current_budget: '500',
-          started_at: new Date().getTime(),
-          ended_at: null,
+          currentBudget: '500',
+          startedAt: new Date().getTime(),
+          endedAt: null,
           impressions: 50,
           clicks: 10,
         });
@@ -798,13 +798,13 @@ describe('query postCampaignById', () => {
 
         // Mock the skadi client to return the YouTube post campaign
         (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaign_id: 'youtube-campaign-id',
-          post_id: youtubePost.id,
+          campaignId: 'youtube-campaign-id',
+          postId: youtubePost.id,
           status: 'active',
           budget: '1000',
-          current_budget: '500',
-          started_at: new Date().getTime(),
-          ended_at: null,
+          currentBudget: '500',
+          startedAt: new Date().getTime(),
+          endedAt: null,
           impressions: 50,
           clicks: 10,
         });
@@ -860,13 +860,13 @@ describe('query postCampaignById', () => {
 
         // Mock the skadi client to return the share post campaign
         (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaign_id: 'share-campaign-no-image',
-          post_id: sharePost.id,
+          campaignId: 'share-campaign-no-image',
+          postId: sharePost.id,
           status: 'active',
           budget: '1000',
-          current_budget: '500',
-          started_at: new Date().getTime(),
-          ended_at: null,
+          currentBudget: '500',
+          startedAt: new Date().getTime(),
+          endedAt: null,
           impressions: 50,
           clicks: 10,
         });
@@ -914,13 +914,13 @@ describe('query postCampaignById', () => {
 
         // Mock the skadi client to return the post campaign
         (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaign_id: 'null-title-campaign',
-          post_id: nullTitlePost.id,
+          campaignId: 'null-title-campaign',
+          postId: nullTitlePost.id,
           status: 'active',
           budget: '1000',
-          current_budget: '500',
-          started_at: new Date().getTime(),
-          ended_at: null,
+          currentBudget: '500',
+          startedAt: new Date().getTime(),
+          endedAt: null,
           impressions: 50,
           clicks: 10,
         });
@@ -959,13 +959,13 @@ describe('query postCampaignById', () => {
 
         // Mock the skadi client to return the post campaign
         (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaign_id: 'undefined-title-campaign',
-          post_id: undefinedTitlePost.id,
+          campaignId: 'undefined-title-campaign',
+          postId: undefinedTitlePost.id,
           status: 'active',
           budget: '1000',
-          current_budget: '500',
-          started_at: new Date().getTime(),
-          ended_at: null,
+          currentBudget: '500',
+          startedAt: new Date().getTime(),
+          endedAt: null,
           impressions: 50,
           clicks: 10,
         });
@@ -1111,34 +1111,34 @@ describe('query postCampaigns', () => {
 
     // Mock the skadi client to return campaigns
     (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValue({
-      promoted_posts: [
+      promotedPosts: [
         {
-          campaign_id: 'campaign-1',
-          post_id: 'post-1',
+          campaignId: 'campaign-1',
+          postId: 'post-1',
           status: 'active',
           budget: '10.5', // 10.5 USD = 1050 cores
-          current_budget: '5.25', // 5.25 USD = 525 cores
-          started_at: new Date('2024-01-01').getTime(),
-          ended_at: null,
+          currentBudget: '5.25', // 5.25 USD = 525 cores
+          startedAt: new Date('2024-01-01').getTime(),
+          endedAt: null,
           impressions: 1000,
           clicks: 50,
         },
         {
-          campaign_id: 'campaign-2',
-          post_id: 'post-2',
+          campaignId: 'campaign-2',
+          postId: 'post-2',
           status: 'active',
           budget: '20.0', // 20 USD = 2000 cores
-          current_budget: '10.0', // 10 USD = 1000 cores
-          started_at: new Date('2024-01-02').getTime(),
-          ended_at: null,
+          currentBudget: '10.0', // 10 USD = 1000 cores
+          startedAt: new Date('2024-01-02').getTime(),
+          endedAt: null,
           impressions: 2000,
           clicks: 100,
         },
       ],
       impressions: 3000,
       clicks: 150,
-      total_spend: '30.5', // 30.5 USD = 3050 cores
-      post_ids: ['post-1', 'post-2'],
+      totalSpend: '30.5', // 30.5 USD = 3050 cores
+      postIds: ['post-1', 'post-2'],
     });
 
     const res = await client.query(QUERY, { variables: { first: 10 } });
@@ -1224,23 +1224,23 @@ describe('query postCampaigns', () => {
 
     // Mock the skadi client to return campaigns
     (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValue({
-      promoted_posts: [
+      promotedPosts: [
         {
-          campaign_id: 'campaign-3',
-          post_id: 'post-3',
+          campaignId: 'campaign-3',
+          postId: 'post-3',
           status: 'active',
           budget: '15.0',
-          current_budget: '7.5',
-          started_at: new Date('2024-01-03').getTime(),
-          ended_at: null,
+          currentBudget: '7.5',
+          startedAt: new Date('2024-01-03').getTime(),
+          endedAt: null,
           impressions: 1500,
           clicks: 75,
         },
       ],
       impressions: 1500,
       clicks: 75,
-      total_spend: '15.0',
-      post_ids: ['post-3'],
+      totalSpend: '15.0',
+      postIds: ['post-3'],
     });
 
     const res = await client.query(QUERY, {
@@ -1293,40 +1293,40 @@ describe('query postCampaigns', () => {
 
     // Mock the skadi client to return campaigns for first page (limit 2)
     (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValueOnce({
-      promoted_posts: posts.slice(0, 2).map((post, index) => ({
-        campaign_id: `campaign-${index + 1}`,
-        post_id: post.id,
+      promotedPosts: posts.slice(0, 2).map((post, index) => ({
+        campaignId: `campaign-${index + 1}`,
+        postId: post.id,
         status: 'active',
         budget: '10.0',
-        current_budget: '5.0',
-        started_at: new Date(`2024-01-0${index + 1}`).getTime(),
-        ended_at: null,
+        currentBudget: '5.0',
+        startedAt: new Date(`2024-01-0${index + 1}`).getTime(),
+        endedAt: null,
         impressions: 1000 + index * 100,
         clicks: 50 + index * 10,
       })),
       impressions: 2100,
       clicks: 60,
-      total_spend: '20.0',
-      post_ids: posts.slice(0, 2).map((p) => p.id),
+      totalSpend: '20.0',
+      postIds: posts.slice(0, 2).map((p) => p.id),
     });
 
     // Mock the skadi client to return campaigns for second page (offset 2, limit 2)
     (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValueOnce({
-      promoted_posts: posts.slice(2, 4).map((post, index) => ({
-        campaign_id: `campaign-${index + 3}`,
-        post_id: post.id,
+      promotedPosts: posts.slice(2, 4).map((post, index) => ({
+        campaignId: `campaign-${index + 3}`,
+        postId: post.id,
         status: 'active',
         budget: '10.0',
-        current_budget: '5.0',
-        started_at: new Date(`2024-01-0${index + 3}`).getTime(),
-        ended_at: null,
+        currentBudget: '5.0',
+        startedAt: new Date(`2024-01-0${index + 3}`).getTime(),
+        endedAt: null,
         impressions: 1000 + (index + 2) * 100,
         clicks: 50 + (index + 2) * 10,
       })),
       impressions: 2300,
       clicks: 80,
-      total_spend: '20.0',
-      post_ids: posts.slice(2, 4).map((p) => p.id),
+      totalSpend: '20.0',
+      postIds: posts.slice(2, 4).map((p) => p.id),
     });
 
     // First request - limit to 2
@@ -1434,45 +1434,45 @@ describe('query postCampaigns', () => {
 
     // Mock the skadi client to return campaigns for different post types
     (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValue({
-      promoted_posts: [
+      promotedPosts: [
         {
-          campaign_id: 'campaign-1',
-          post_id: 'article-post',
+          campaignId: 'campaign-1',
+          postId: 'article-post',
           status: 'active',
           budget: '10.0',
-          current_budget: '5.0',
-          started_at: new Date('2024-01-01').getTime(),
-          ended_at: null,
+          currentBudget: '5.0',
+          startedAt: new Date('2024-01-01').getTime(),
+          endedAt: null,
           impressions: 1000,
           clicks: 50,
         },
         {
-          campaign_id: 'campaign-2',
-          post_id: 'freeform-post',
+          campaignId: 'campaign-2',
+          postId: 'freeform-post',
           status: 'active',
           budget: '10.0',
-          current_budget: '5.0',
-          started_at: new Date('2024-01-02').getTime(),
-          ended_at: null,
+          currentBudget: '5.0',
+          startedAt: new Date('2024-01-02').getTime(),
+          endedAt: null,
           impressions: 1000,
           clicks: 50,
         },
         {
-          campaign_id: 'campaign-3',
-          post_id: 'share-post',
+          campaignId: 'campaign-3',
+          postId: 'share-post',
           status: 'active',
           budget: '10.0',
-          current_budget: '5.0',
-          started_at: new Date('2024-01-03').getTime(),
-          ended_at: null,
+          currentBudget: '5.0',
+          startedAt: new Date('2024-01-03').getTime(),
+          endedAt: null,
           impressions: 1000,
           clicks: 50,
         },
       ],
       impressions: 3000,
       clicks: 150,
-      total_spend: '30.0',
-      post_ids: ['article-post', 'freeform-post', 'share-post'],
+      totalSpend: '30.0',
+      postIds: ['article-post', 'freeform-post', 'share-post'],
     });
 
     const res = await client.query(QUERY, { variables: { first: 10 } });
@@ -1548,23 +1548,23 @@ describe('query postCampaigns', () => {
 
     // Mock the skadi client to return campaigns with zero values
     (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValue({
-      promoted_posts: [
+      promotedPosts: [
         {
-          campaign_id: 'campaign-zero',
-          post_id: 'zero-post',
+          campaignId: 'campaign-zero',
+          postId: 'zero-post',
           status: 'active',
           budget: '0.0',
-          current_budget: '0.0',
-          started_at: new Date('2024-01-01').getTime(),
-          ended_at: null,
+          currentBudget: '0.0',
+          startedAt: new Date('2024-01-01').getTime(),
+          endedAt: null,
           impressions: 0,
           clicks: 0,
         },
       ],
       impressions: 0,
       clicks: 0,
-      total_spend: '0.0',
-      post_ids: ['zero-post'],
+      totalSpend: '0.0',
+      postIds: ['zero-post'],
     });
 
     const res = await client.query(QUERY, { variables: { first: 10 } });
@@ -1611,23 +1611,23 @@ describe('query postCampaigns', () => {
 
     // Mock the skadi client to return campaigns with decimal USD amounts
     (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValue({
-      promoted_posts: [
+      promotedPosts: [
         {
-          campaign_id: 'campaign-decimal',
-          post_id: 'decimal-post',
+          campaignId: 'campaign-decimal',
+          postId: 'decimal-post',
           status: 'active',
           budget: '15.75', // 15.75 USD = 1575 cores
-          current_budget: '7.875', // 7.875 USD = 787 cores
-          started_at: new Date('2024-01-01').getTime(),
-          ended_at: null,
+          currentBudget: '7.875', // 7.875 USD = 787 cores
+          startedAt: new Date('2024-01-01').getTime(),
+          endedAt: null,
           impressions: 1000,
           clicks: 50,
         },
       ],
       impressions: 1000,
       clicks: 50,
-      total_spend: '15.75', // 15.75 USD = 1575 cores
-      post_ids: ['decimal-post'],
+      totalSpend: '15.75', // 15.75 USD = 1575 cores
+      postIds: ['decimal-post'],
     });
 
     const res = await client.query(QUERY, { variables: { first: 10 } });
@@ -2022,7 +2022,7 @@ describe('mutation startPostBoost', () => {
 
     // Mock skadi client to succeed
     (skadiApiClient.startPostCampaign as jest.Mock).mockResolvedValue({
-      campaign_id: 'mock-campaign-id',
+      campaignId: 'mock-campaign-id',
     });
 
     // Mock getBalance to return a balance
