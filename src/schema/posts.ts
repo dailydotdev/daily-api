@@ -765,7 +765,7 @@ export const typeDefs = /* GraphQL */ `
     id: String
     title: String!
     image: String!
-    similarPosts: [Post!]
+    relatedPublicPosts: [Post!]
   }
 
   type PostQuestion {
@@ -2439,13 +2439,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         return fetchLinkPreview(cleanUrl);
       }
 
-      const similarPosts = await ctx.con.getRepository(SharePost).find({
+      const relatedPublicPosts = await ctx.con.getRepository(SharePost).find({
         where: { sharedPostId: post.id, private: false },
         take: 10,
         order: { createdAt: 'DESC' },
       });
 
-      return { ...post, similarPosts };
+      return { ...post, relatedPublicPosts };
     },
     submitExternalLink: async (
       _,

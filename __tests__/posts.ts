@@ -3489,7 +3489,7 @@ describe('mutation checkLinkPreview', () => {
         id
         title
         image
-        similarPosts {
+        relatedPublicPosts {
           id
           source {
             id
@@ -3644,27 +3644,27 @@ describe('mutation checkLinkPreview', () => {
     expect(res.data.checkLinkPreview.id).toEqual(foundPost.id);
   });
 
-  it('should return similar posts', async () => {
+  it('should return related public posts', async () => {
     loggedUser = '1';
 
     await saveFixtures(con, SharePost, [
       {
-        id: 'similarPost1',
-        shortId: 'similarPost1',
+        id: 'relatedPost1',
+        shortId: 'relatedPost1',
         sharedPostId: 'p1',
         sourceId: 'squad',
         createdAt: addDays(new Date(), -1),
       },
       {
-        id: 'similarPost2',
-        shortId: 'similarPost2',
+        id: 'relatedPost2',
+        shortId: 'relatedPost2',
         sharedPostId: 'p1',
         sourceId: 'user',
         createdAt: new Date(),
       },
       {
-        id: 'similarPost3',
-        shortId: 'similarPost3',
+        id: 'relatedPost3',
+        shortId: 'relatedPost3',
         sharedPostId: 'p1',
         sourceId: 'user',
         private: true,
@@ -3673,12 +3673,12 @@ describe('mutation checkLinkPreview', () => {
     const url = 'http://p1.com';
     const res = await client.mutate(MUTATION, { variables: { url } });
     expect(res.data.checkLinkPreview).toBeTruthy();
-    expect(res.data.checkLinkPreview.similarPosts).toHaveLength(2);
-    expect(res.data.checkLinkPreview.similarPosts[0].id).toEqual(
-      'similarPost2',
+    expect(res.data.checkLinkPreview.relatedPublicPosts).toHaveLength(2);
+    expect(res.data.checkLinkPreview.relatedPublicPosts[0].id).toEqual(
+      'relatedPost2',
     );
-    expect(res.data.checkLinkPreview.similarPosts[1].id).toEqual(
-      'similarPost1',
+    expect(res.data.checkLinkPreview.relatedPublicPosts[1].id).toEqual(
+      'relatedPost1',
     );
   });
 });
