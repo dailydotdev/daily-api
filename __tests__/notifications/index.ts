@@ -72,6 +72,7 @@ import {
   UserTransactionProcessor,
   UserTransactionStatus,
 } from '../../src/entity/user/UserTransaction';
+import type { ChangeObject } from '../../src/types';
 
 const userId = '1';
 const commentFixture: Reference<Comment> = {
@@ -1622,5 +1623,44 @@ describe('plus notifications', () => {
     expect(actual.notification.targetUrl).toContain(`/squads/${squad.handle}`);
     expect(actual.avatars?.[0]?.image).toEqual(gifter.image);
     expect(actual.attachments!.length).toEqual(0);
+  });
+});
+
+describe('brief notifications', () => {
+  beforeEach(async () => {
+    jest.resetAllMocks();
+    await saveFixtures(con, User, usersFixture);
+  });
+
+  it('should notify when user brief is ready', async () => {
+    const post = postsFixture[0] as ChangeObject<Post>;
+
+    const type = NotificationType.BriefingReady;
+    const ctx: NotificationPostContext = {
+      userIds: ['1'],
+      source: sourcesFixture.find(
+        (item) => item.id === 'unknown',
+      ) as Reference<Source>,
+      post,
+    };
+
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['1']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual(post.id);
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/posts/p1',
+    );
+    expect(actual.attachments!.length).toEqual(0);
+    expect(actual.avatars).toEqual([
+      {
+        image: emptyImage,
+        name: 'Brief',
+        referenceId: 'brief',
+        targetUrl: '',
+        type: 'brief',
+      },
+    ]);
   });
 });
