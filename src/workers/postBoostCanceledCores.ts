@@ -15,8 +15,9 @@ const worker: TypedWorker<'api.v1.post-boost-canceled'> = {
   handler: async (message, con, logger): Promise<void> => {
     const { data } = message;
     const { userId, postId, refundAmountUsd, campaignId } = data;
+    const toRefund = parseFloat(refundAmountUsd);
 
-    if (refundAmountUsd < 0) {
+    if (toRefund < 0) {
       logger.error(
         {
           data,
@@ -47,7 +48,7 @@ const worker: TypedWorker<'api.v1.post-boost-canceled'> = {
               status: UserTransactionStatus.Success,
               productId: null,
               senderId: systemUser.id,
-              value: usdToCores(refundAmountUsd),
+              value: usdToCores(toRefund),
               valueIncFees: 0,
               fee: 0,
               flags: { note: 'Post boost canceled' },

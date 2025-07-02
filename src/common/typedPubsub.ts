@@ -142,7 +142,7 @@ export type PubSubSchema = {
     postId: Post['id'];
     userId: User['id'];
     campaignId: string;
-    refundAmountUsd: number;
+    refundAmountUsd: string;
   };
   'api.v1.post-boost-completed': {
     postId: Post['id'];
