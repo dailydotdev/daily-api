@@ -2732,8 +2732,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const user = await ctx.con.getRepository(User).findOneByOrFail({
         id: ctx.userId,
       });
-      const { claimed } = await addClaimableItemsToUser(ctx.con, user);
-      return { claimed };
+      return await addClaimableItemsToUser(ctx.con, user);
     },
   },
   User: {
