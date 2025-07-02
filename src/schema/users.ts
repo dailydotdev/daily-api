@@ -115,7 +115,10 @@ import {
 import { Company } from '../entity/Company';
 import { UserCompany } from '../entity/UserCompany';
 import { generateVerifyCode } from '../ids';
-import { validateUserUpdate } from '../entity/user/utils';
+import {
+  addClaimableItemsToUser,
+  validateUserUpdate,
+} from '../entity/user/utils';
 import { getRestoreStreakCache } from '../workers/cdc/primary';
 import { ReportEntity, ReportReason } from '../entity/common';
 import { reportFunctionMap } from '../common/reporting';
@@ -1193,6 +1196,11 @@ export const typeDefs = /* GraphQL */ `
     Request an app account token that is used for StoreKit
     """
     requestAppAccountToken: ID @auth
+
+    """
+    Claim unclaimed user ClaimableItem
+    """
+    claimUnclaimedItem: Bool @auth
   }
 `;
 
@@ -2711,6 +2719,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       );
 
       return token;
+    },
+    claimUnclaimedItem: async (_, __, ctx: AuthContext) => {
+      const user = await ctx.con.getRepository(User).findOneByOrFail({
+        id: ctx.userId,
+      });
+      const { claimed } = await addClaimableItemsToUser(ctx.con, user);
+      return { claimed };
     },
   },
   User: {

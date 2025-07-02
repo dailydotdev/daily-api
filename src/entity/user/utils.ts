@@ -432,6 +432,11 @@ export const addClaimableItemsToUser = async (
       );
     }),
   ]);
+
+  return {
+    claimed: !!subscription,
+    userId: body.id,
+  };
 };
 
 export const validateUserUpdate = async (
