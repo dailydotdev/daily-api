@@ -214,7 +214,7 @@ const digestTypeToFunctionMap: Record<
     );
   },
   [UserPersonalizedDigestType.Brief]: async () => {
-    // brief is sent through different workers after genearation
+    // brief is sent through different workers after generation
   },
 };
 
