@@ -5,21 +5,26 @@ import { DayOfWeek } from '../../common';
 export enum UserPersonalizedDigestSendType {
   weekly = 'weekly',
   workdays = 'workdays',
+  daily = 'daily',
 }
 
 export enum UserPersonalizedDigestType {
   Digest = 'digest',
   ReadingReminder = 'reading_reminder',
   StreakReminder = 'streak_reminder',
+  Brief = 'brief',
 }
 
 export type UserPersonalizedDigestFlags = Partial<{
   sendType: UserPersonalizedDigestSendType;
+  email: boolean;
+  inApp: boolean;
+  slack: boolean;
 }>;
 
 export type UserPersonalizedDigestFlagsPublic = Pick<
   UserPersonalizedDigestFlags,
-  'sendType'
+  'sendType' | 'email' | 'inApp' | 'slack'
 >;
 
 @Entity()

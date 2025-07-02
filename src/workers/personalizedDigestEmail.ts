@@ -40,6 +40,7 @@ const sendTypeToFeatureMap: Record<
 > = {
   [UserPersonalizedDigestSendType.weekly]: features.personalizedDigest,
   [UserPersonalizedDigestSendType.workdays]: features.dailyDigest,
+  [UserPersonalizedDigestSendType.daily]: features.dailyDigest,
 };
 
 const digestTypeToFunctionMap: Record<
@@ -211,6 +212,9 @@ const digestTypeToFunctionMap: Record<
         deduplicate,
       },
     );
+  },
+  [UserPersonalizedDigestType.Brief]: async () => {
+    // brief is sent through different workers after genearation
   },
 };
 

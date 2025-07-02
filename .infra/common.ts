@@ -367,7 +367,7 @@ export const workers: Worker[] = [
   },
   {
     topic: 'api.v1.brief-ready',
-    subscription: 'api.user-brief-ready',
+    subscription: 'api.user-brief-ready-notification',
   },
 ];
 

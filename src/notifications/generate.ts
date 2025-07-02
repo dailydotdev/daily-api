@@ -177,6 +177,8 @@ export const notificationTitleMap: Record<
   },
   post_boost_completed: () =>
     `Your boost just wrapped up! Dive into the ads dashboard to see how it performed!`,
+  briefing_ready: () =>
+    `<strong>Hey there! I just crafted a fresh Brief for you</strong> — a quick, high-signal summary of what's shaping the dev world today.`,
 };
 
 export const generateNotificationMap: Record<
@@ -497,4 +499,15 @@ export const generateNotificationMap: Record<
       .uniqueKey(
         `${ctx.campaignId}-${ctx.user.id}-${new Date().toISOString()}`,
       ),
+  briefing_ready: (
+    builder: NotificationBuilder,
+    ctx: NotificationPostContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Bell)
+      .avatarBriefing()
+      .referencePost(ctx.post)
+      .targetPost(ctx.post)
+      .uniqueKey(ctx.post.id);
+  },
 };
