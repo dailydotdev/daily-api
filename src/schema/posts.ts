@@ -2152,7 +2152,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new NotFoundError('Campaign does not exist!');
       }
 
-      const post = await getBoostedPost(ctx.con, campaign.post_id);
+      const post = await getBoostedPost(ctx.con, campaign.postId);
 
       return {
         campaign: getFormattedCampaign(campaign),
@@ -2187,21 +2187,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             limit: first!,
           });
 
-          if (!campaigns?.promoted_posts?.length) {
+          if (!campaigns?.promotedPosts?.length) {
             return [];
           }
 
           if (isFirstRequest && stats) {
             stats.clicks = campaigns.clicks;
             stats.impressions = campaigns.impressions;
-            stats.totalSpend = usdToCores(parseFloat(campaigns.total_spend));
+            stats.totalSpend = usdToCores(parseFloat(campaigns.totalSpend));
 
-            const sum = await getTotalEngagements(con, campaigns.post_ids);
+            const sum = await getTotalEngagements(con, campaigns.postIds);
 
             stats.engagements = sum + campaigns.clicks + campaigns.impressions;
           }
 
-          return consolidateCampaignsWithPosts(campaigns.promoted_posts, con);
+          return consolidateCampaignsWithPosts(campaigns.promotedPosts, con);
         },
       );
 
@@ -2662,13 +2662,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const total = budget * duration;
 
       const request = await ctx.con.transaction(async (entityManager) => {
-        const { campaign_id: campaignId } =
-          await skadiApiClient.startPostCampaign({
-            postId,
-            durationInDays: duration,
-            budget: coresToUsd(budget),
-            userId,
-          });
+        const { campaignId } = await skadiApiClient.startPostCampaign({
+          postId,
+          durationInDays: duration,
+          budget: coresToUsd(budget),
+          userId,
+        });
 
         const userTransaction = await entityManager
           .getRepository(UserTransaction)

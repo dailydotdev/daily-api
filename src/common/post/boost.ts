@@ -4,6 +4,7 @@ import { AuthContext } from '../../Context';
 import { Bookmark, Post, PostType, type ConnectionManager } from '../../entity';
 import { getPostPermalink } from '../../schema/posts';
 import {
+  type GetCampaignResponse,
   type PromotedPost,
   type PromotedPostList,
 } from '../../integrations/skadi';
@@ -159,7 +160,7 @@ export const getBoostedPost = async (
 
 export const getFormattedBoostedPost = (
   post: GetBoostedPost,
-  campaign: PromotedPost,
+  campaign: GetCampaignResponse,
 ): GQLBoostedPost['post'] => {
   const { id, shortId, sharedImage, sharedTitle } = post;
   let image: string | undefined = post.image;
@@ -187,25 +188,17 @@ export const getFormattedBoostedPost = (
 };
 
 export const getFormattedCampaign = ({
-  campaign_id,
   budget,
-  current_budget,
-  clicks,
-  started_at,
-  ended_at,
-  status,
-  impressions,
-  post_id,
-}: PromotedPost): GQLPromotedPost => ({
-  campaignId: campaign_id,
+  currentBudget,
+  startedAt,
+  endedAt,
+  ...campaign
+}: GetCampaignResponse): GQLPromotedPost => ({
+  ...campaign,
   budget: usdToCores(parseFloat(budget)),
-  currentBudget: usdToCores(parseFloat(current_budget)),
-  startedAt: debeziumTimeToDate(started_at),
-  endedAt: debeziumTimeToDate(ended_at),
-  clicks,
-  status,
-  impressions,
-  postId: post_id,
+  currentBudget: usdToCores(parseFloat(currentBudget)),
+  startedAt: debeziumTimeToDate(startedAt),
+  endedAt: debeziumTimeToDate(endedAt),
 });
 
 export interface BoostedPostStats
@@ -218,10 +211,10 @@ export interface BoostedPostConnection extends Connection<GQLBoostedPost> {
 }
 
 export const consolidateCampaignsWithPosts = async (
-  campaigns: PromotedPost[],
+  campaigns: GetCampaignResponse[],
   con: ConnectionManager,
 ): Promise<GQLBoostedPost[]> => {
-  const ids = campaigns.map(({ post_id: postId }) => postId);
+  const ids = campaigns.map(({ postId }) => postId);
   const builder = getBoostedPostBuilder(con);
   const postAlias = 'p1';
   const bookmarkAlias = 'b';
@@ -239,7 +232,7 @@ export const consolidateCampaignsWithPosts = async (
 
   return campaigns.map((campaign) => ({
     campaign: getFormattedCampaign(campaign),
-    post: getFormattedBoostedPost(mapped[campaign.post_id], campaign),
+    post: getFormattedBoostedPost(mapped[campaign.postId], campaign),
   }));
 };
 
