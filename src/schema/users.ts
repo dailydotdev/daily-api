@@ -1015,6 +1015,14 @@ export const typeDefs = /* GraphQL */ `
 
   ${toGQLEnum(UploadPreset, 'UploadPreset')}
 
+  """
+  User claimed return object
+  """
+  type UserClaim {
+    claimed: Boolean!
+    userId: String!
+  }
+
   extend type Mutation {
     """
     Clear users image based on type
@@ -1200,7 +1208,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Claim unclaimed user ClaimableItem
     """
-    claimUnclaimedItem: Bool @auth
+    claimUnclaimedItem: UserClaim @auth
   }
 `;
 
