@@ -124,6 +124,7 @@ import { ensurePostRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
 import { BriefingModel, BriefingType } from '../integrations/feed';
 import { BriefPost } from '../entity/posts/BriefPost';
+import { UserBriefingRequest } from '@dailydotdev/schema';
 
 export interface GQLPost {
   id: string;
@@ -374,6 +375,26 @@ export const typeDefs = /* GraphQL */ `
     Cover video
     """
     coverVideo: String
+
+    """
+    Number of posts used to create content of this post, for example in briefs
+    """
+    posts: Int
+
+    """
+    Number of sources used to create content of this post, for example in briefs
+    """
+    sources: Int
+
+    """
+    Total time saved by reading this post, in minutes
+    """
+    savedTime: Int
+
+    """
+    Time the post was generated
+    """
+    generatedAt: DateTime
   }
 
   type UserPostFlagsPublic {
@@ -2795,10 +2816,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       await ctx.con.getRepository(BriefPost).save(post);
 
       triggerTypedEvent(logger, 'api.v1.brief-generate', {
-        userId: ctx.userId,
+        payload: new UserBriefingRequest({
+          userId: ctx.userId,
+          frequency: type,
+          modelName: BriefingModel.Default,
+        }),
         postId,
-        frequency: type,
-        modelName: BriefingModel.Default,
       });
 
       return {

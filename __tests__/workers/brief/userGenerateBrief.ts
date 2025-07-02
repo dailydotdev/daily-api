@@ -11,6 +11,16 @@ import { BriefPost } from '../../../src/entity/posts/BriefPost';
 import { sourcesFixture } from '../../fixture';
 import { generateShortId } from '../../../src/ids';
 import nock from 'nock';
+import { UserBriefingRequest } from '@dailydotdev/schema';
+import { triggerTypedEvent } from '../../../src/common';
+
+jest.mock('../../../src/common/typedPubsub', () => ({
+  ...(jest.requireActual('../../../src/common/typedPubsub') as Record<
+    string,
+    unknown
+  >),
+  triggerTypedEvent: jest.fn(),
+}));
 
 let con: DataSource;
 
@@ -34,10 +44,12 @@ describe('userGenerateBrief worker', () => {
 
   it('should skip if post not found', async () => {
     await expectSuccessfulTypedBackground(worker, {
-      userId: '1',
+      payload: new UserBriefingRequest({
+        userId: '1',
+        frequency: BriefingType.Daily,
+        modelName: 'default',
+      }),
       postId: 'not-exist-brief-id',
-      frequency: BriefingType.Daily,
-      modelName: 'default',
     });
   });
 
@@ -84,10 +96,12 @@ describe('userGenerateBrief worker', () => {
       });
 
     await expectSuccessfulTypedBackground(worker, {
-      userId: '1',
+      payload: new UserBriefingRequest({
+        userId: '1',
+        frequency: BriefingType.Daily,
+        modelName: BriefingModel.Default,
+      }),
       postId,
-      frequency: BriefingType.Daily,
-      modelName: BriefingModel.Default,
     });
 
     const briefPost = await con.getRepository(BriefPost).findOne({
@@ -106,5 +120,19 @@ describe('userGenerateBrief worker', () => {
 
 - **AI agents are still pretty dumb, and dangerous**: Salesforce's CRMArena-Pro benchmark found AI agents only 58% successful on single tasks and 35% on multi-step CRM tasks, often mishandling sensitive data due to poor confidentiality awareness.
 - **Threads gets Fediverse feed**: Meta's Threads now offers a dedicated opt-in feed for ActivityPub content and improved profile search for Fediverse users, marking its most prominent integration with the open social web to date.`);
+
+    expect(triggerTypedEvent).toHaveBeenCalledWith(
+      expect.anything(),
+      'api.v1.brief-ready',
+      {
+        payload: new UserBriefingRequest({
+          userId: '1',
+          frequency: BriefingType.Daily,
+          modelName: BriefingModel.Default,
+        }),
+        postId,
+      },
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
   });
 });
