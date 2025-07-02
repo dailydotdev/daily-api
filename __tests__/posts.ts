@@ -99,6 +99,7 @@ import {
 import { Product, ProductType } from '../src/entity/Product';
 import { BriefingModel, BriefingType } from '../src/integrations/feed';
 import { UserBriefingRequest } from '@dailydotdev/schema';
+import { addDays } from 'date-fns';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -3482,12 +3483,18 @@ describe('mutation submitExternalLink', () => {
 });
 
 describe('mutation checkLinkPreview', () => {
-  const MUTATION = `
+  const MUTATION = /* GraphQL */ `
     mutation CheckLinkPreview($url: String!) {
       checkLinkPreview(url: $url) {
         id
         title
         image
+        similarPosts {
+          id
+          source {
+            id
+          }
+        }
       }
     }
   `;
@@ -3635,6 +3642,44 @@ describe('mutation checkLinkPreview', () => {
     const res = await client.mutate(MUTATION, { variables: { url } });
     expect(res.data.checkLinkPreview).toBeTruthy();
     expect(res.data.checkLinkPreview.id).toEqual(foundPost.id);
+  });
+
+  it('should return similar posts', async () => {
+    loggedUser = '1';
+
+    await saveFixtures(con, SharePost, [
+      {
+        id: 'similarPost1',
+        shortId: 'similarPost1',
+        sharedPostId: 'p1',
+        sourceId: 'squad',
+        createdAt: addDays(new Date(), -1),
+      },
+      {
+        id: 'similarPost2',
+        shortId: 'similarPost2',
+        sharedPostId: 'p1',
+        sourceId: 'user',
+        createdAt: new Date(),
+      },
+      {
+        id: 'similarPost3',
+        shortId: 'similarPost3',
+        sharedPostId: 'p1',
+        sourceId: 'user',
+        private: true,
+      },
+    ]);
+    const url = 'http://p1.com';
+    const res = await client.mutate(MUTATION, { variables: { url } });
+    expect(res.data.checkLinkPreview).toBeTruthy();
+    expect(res.data.checkLinkPreview.similarPosts).toHaveLength(2);
+    expect(res.data.checkLinkPreview.similarPosts[0].id).toEqual(
+      'similarPost2',
+    );
+    expect(res.data.checkLinkPreview.similarPosts[1].id).toEqual(
+      'similarPost1',
+    );
   });
 });
 
