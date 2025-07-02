@@ -52,9 +52,9 @@ describe('postBoostCanceledCores worker', () => {
   it('should create a user transaction and transfer cores when post exists', async () => {
     const userId = '1';
     const postId = 'p1';
-    const refundAmountUsd = 5.5;
+    const refundAmountUsd = '5.5';
     const campaignId = 'campaign-123';
-    const expectedCores = Math.floor(usdToCores(refundAmountUsd));
+    const expectedCores = Math.floor(usdToCores(parseFloat(refundAmountUsd)));
 
     await expectSuccessfulTypedBackground(worker, {
       userId,
@@ -86,7 +86,7 @@ describe('postBoostCanceledCores worker', () => {
   it('should not create a transaction when post does not exist', async () => {
     const userId = '1';
     const postId = 'non-existent-post';
-    const refundAmountUsd = 5.5;
+    const refundAmountUsd = '5.5';
     const campaignId = 'campaign-123';
 
     await expectSuccessfulTypedBackground(worker, {
@@ -106,7 +106,7 @@ describe('postBoostCanceledCores worker', () => {
   it('should handle decimal USD amounts correctly', async () => {
     const userId = '2';
     const postId = 'p2';
-    const refundAmountUsd = 3.7521;
+    const refundAmountUsd = '3.7521';
     const campaignId = 'campaign-456';
 
     await expectSuccessfulTypedBackground(worker, {
@@ -128,9 +128,9 @@ describe('postBoostCanceledCores worker', () => {
   it('should handle zero USD refund amount', async () => {
     const userId = '3';
     const postId = 'p3';
-    const refundAmountUsd = 0;
+    const refundAmountUsd = '0';
     const campaignId = 'campaign-789';
-    const expectedCores = Math.floor(usdToCores(refundAmountUsd));
+    const expectedCores = Math.floor(usdToCores(parseFloat(refundAmountUsd)));
 
     await expectSuccessfulTypedBackground(worker, {
       userId,
@@ -151,9 +151,9 @@ describe('postBoostCanceledCores worker', () => {
   it('should handle large USD amounts', async () => {
     const userId = '4';
     const postId = 'p4';
-    const refundAmountUsd = 100.99;
+    const refundAmountUsd = '100.99';
     const campaignId = 'campaign-large';
-    const expectedCores = Math.floor(usdToCores(refundAmountUsd));
+    const expectedCores = Math.floor(usdToCores(parseFloat(refundAmountUsd)));
 
     await expectSuccessfulTypedBackground(worker, {
       userId,
@@ -174,7 +174,7 @@ describe('postBoostCanceledCores worker', () => {
   it('should create unique transaction IDs for each request', async () => {
     const userId = '1';
     const postId = 'p1';
-    const refundAmountUsd = 5.5;
+    const refundAmountUsd = '5.5';
     const campaignId = 'campaign-123';
 
     // Create two transactions for the same user
@@ -203,7 +203,7 @@ describe('postBoostCanceledCores worker', () => {
   it('should handle different campaign IDs correctly', async () => {
     const userId = '2';
     const postId = 'p2';
-    const refundAmountUsd = 5.5;
+    const refundAmountUsd = '5.5';
     const campaignId1 = 'campaign-abc';
     const campaignId2 = 'campaign-def';
 
@@ -233,9 +233,9 @@ describe('postBoostCanceledCores worker', () => {
   it('should handle edge case with very small USD amount', async () => {
     const userId = '3';
     const postId = 'p3';
-    const refundAmountUsd = 0.01;
+    const refundAmountUsd = '0.01';
     const campaignId = 'campaign-small';
-    const expectedCores = Math.floor(usdToCores(refundAmountUsd));
+    const expectedCores = Math.floor(usdToCores(parseFloat(refundAmountUsd)));
 
     await expectSuccessfulTypedBackground(worker, {
       userId,
@@ -256,7 +256,7 @@ describe('postBoostCanceledCores worker', () => {
   it('should handle negative USD amount (edge case)', async () => {
     const userId = '4';
     const postId = 'p4';
-    const refundAmountUsd = -1.5;
+    const refundAmountUsd = '-1.5';
     const campaignId = 'campaign-negative';
 
     await expectSuccessfulTypedBackground(worker, {
