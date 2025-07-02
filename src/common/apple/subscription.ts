@@ -51,6 +51,7 @@ const getSubscriptionStatus = (
     case NotificationTypeV2.REVOKE: // We don't support Family Sharing, but to be on the safe side
       return SubscriptionStatus.Expired;
     case NotificationTypeV2.CONSUMPTION_REQUEST:
+    case NotificationTypeV2.REFUND_DECLINED:
       return undefined;
     default:
       logger.error(
