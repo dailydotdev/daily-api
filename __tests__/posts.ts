@@ -3647,6 +3647,16 @@ describe('mutation checkLinkPreview', () => {
   it('should return related public posts', async () => {
     loggedUser = '1';
 
+    await saveFixtures(con, Source, {
+      id: 'user',
+      name: 'User',
+      image: 'http//image.com/user',
+      handle: 'user',
+      type: SourceType.User,
+      active: true,
+      private: false,
+    });
+
     await saveFixtures(con, SharePost, [
       {
         id: 'relatedPost1',
