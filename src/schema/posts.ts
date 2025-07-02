@@ -2194,7 +2194,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           if (isFirstRequest && stats) {
             stats.clicks = campaigns.clicks;
             stats.impressions = campaigns.impressions;
-            stats.totalSpend = usdToCores(campaigns.totalSpend);
+            stats.totalSpend = usdToCores(parseFloat(campaigns.totalSpend));
 
             const sum = await getTotalEngagements(con, campaigns.postIds);
 
@@ -2744,8 +2744,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       const post = await validatePostBoostPermissions(ctx, postId);
+      const campaignId = post?.flags?.campaignId;
 
-      if (!post.flags?.campaignId) {
+      if (!campaignId) {
         throw new ValidationError('Post is not currently boosted');
       }
 
@@ -2758,7 +2759,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           );
 
         await skadiApiClient.cancelPostCampaign({
-          postId,
+          campaignId,
           userId: ctx.userId,
         });
       });
