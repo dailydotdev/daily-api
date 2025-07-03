@@ -30,6 +30,7 @@ import {
   NotificationBundleV2,
   NotificationStreakContext,
   Reference,
+  type NotificationBoostContext,
   type NotificationOrganizationContext,
   type NotificationUserTopReaderContext,
 } from './types';
@@ -196,6 +197,13 @@ export class NotificationBuilder {
     });
   }
 
+  referenceBoost(ctx: NotificationBoostContext): NotificationBuilder {
+    return this.enrichNotification({
+      referenceId: ctx.campaignId,
+      referenceType: 'boost',
+    });
+  }
+
   icon(icon: NotificationIcon): NotificationBuilder {
     return this.enrichNotification({ icon });
   }
@@ -343,6 +351,18 @@ export class NotificationBuilder {
       referenceId: ctx.userTopReader.id,
       image: emptyImage,
     });
+    return this;
+  }
+
+  avatarBriefing(): NotificationBuilder {
+    this.avatars.push({
+      type: 'brief',
+      name: 'Brief',
+      targetUrl: '',
+      referenceId: 'brief',
+      image: emptyImage,
+    });
+
     return this;
   }
 
