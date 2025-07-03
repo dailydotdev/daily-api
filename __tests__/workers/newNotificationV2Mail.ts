@@ -31,6 +31,8 @@ import {
   Submission,
   SubmissionStatus,
   User,
+  UserPersonalizedDigest,
+  UserPersonalizedDigestType,
   WelcomePost,
 } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
@@ -1337,6 +1339,39 @@ it('should not invoke squad_blocked email', async () => {
     notification: {
       id: notificationId,
       userId: '1',
+    },
+  });
+  expect(sendEmail).toHaveBeenCalledTimes(0);
+});
+
+it('should not send brief email notification if the user prefers not to receive them', async () => {
+  const userId = '1';
+
+  const ctx: NotificationPostContext = {
+    userIds: ['1'],
+    source: sourcesFixture.find(
+      (item) => item.id === 'unknown',
+    ) as Reference<Source>,
+    post: postsFixture[0] as Reference<Post>,
+  };
+
+  await con.getRepository(UserPersonalizedDigest).save({
+    userId: '1',
+    type: UserPersonalizedDigestType.Brief,
+    flags: {
+      email: false,
+    },
+  } as UserPersonalizedDigest);
+
+  const notificationId = await saveNotificationV2Fixture(
+    con,
+    NotificationType.BriefingReady,
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId,
     },
   });
   expect(sendEmail).toHaveBeenCalledTimes(0);
