@@ -354,6 +354,18 @@ export class NotificationBuilder {
     return this;
   }
 
+  avatarBriefing(): NotificationBuilder {
+    this.avatars.push({
+      type: 'brief',
+      name: 'Brief',
+      targetUrl: '',
+      referenceId: 'brief',
+      image: emptyImage,
+    });
+
+    return this;
+  }
+
   descriptionComment(comment: Reference<Comment>): NotificationBuilder {
     return this.enrichNotification({
       description: simplifyComment(comment.content),

@@ -32,6 +32,7 @@ import { userTopReaderAdded } from './userTopReaderAdded';
 import { userReceivedAward } from '../transactions/userReceivedAward';
 import { organizationUserJoined } from '../organization/organizationUserJoined';
 import postBoostCompleted from './postBoostCompleted';
+import { userBriefReadyNotification } from './userBriefReadyNotification';
 
 export function notificationWorkerToWorker(worker: NotificationWorker): Worker {
   return {
@@ -102,6 +103,7 @@ const notificationWorkers: NotificationWorker[] = [
   userReceivedAward,
   organizationUserJoined,
   postBoostCompleted,
+  userBriefReadyNotification,
 ];
 
 export const workers = [...notificationWorkers.map(notificationWorkerToWorker)];

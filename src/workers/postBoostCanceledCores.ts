@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { systemUser } from '../common';
+import { isProd, systemUser } from '../common';
 import { transferCores, usdToCores } from '../common/njord';
 import { Post } from '../entity';
 import {
@@ -13,6 +13,11 @@ import { TypedWorker } from './worker';
 const worker: TypedWorker<'api.v1.post-boost-canceled'> = {
   subscription: 'api.post-boost-canceled-cores',
   handler: async (message, con, logger): Promise<void> => {
+    // TODO: remove this before we hit production
+    if (isProd) {
+      return;
+    }
+
     const { data } = message;
     const { userId, postId, refundAmountUsd, campaignId } = data;
     const toRefund = parseFloat(refundAmountUsd);
