@@ -219,26 +219,42 @@ const digestTypeToFunctionMap: Record<
     );
   },
   [UserPersonalizedDigestType.Brief]: async (data, con, logger) => {
-    const { userId } = data.personalizedDigest;
-    const postId = await generateShortId();
+    const currentDate = new Date();
 
-    const post = con.getRepository(BriefPost).create({
-      id: postId,
-      shortId: postId,
-      authorId: userId,
-      private: true,
-      visible: false,
-    });
+    const { personalizedDigest, deduplicate = true } = data;
 
-    await con.getRepository(BriefPost).save(post);
+    await con.transaction(async (entityManager) => {
+      await dedupedSend(
+        async () => {
+          const { userId } = personalizedDigest;
+          const postId = await generateShortId();
 
-    triggerTypedEvent(logger, 'api.v1.brief-generate', {
-      payload: new UserBriefingRequest({
-        userId,
-        frequency: data.personalizedDigest.flags.sendType,
-        modelName: BriefingModel.Default,
-      }),
-      postId,
+          const post = entityManager.getRepository(BriefPost).create({
+            id: postId,
+            shortId: postId,
+            authorId: userId,
+            private: true,
+            visible: false,
+          });
+
+          await entityManager.getRepository(BriefPost).save(post);
+
+          triggerTypedEvent(logger, 'api.v1.brief-generate', {
+            payload: new UserBriefingRequest({
+              userId,
+              frequency: data.personalizedDigest.flags.sendType,
+              modelName: BriefingModel.Default,
+            }),
+            postId,
+          });
+        },
+        {
+          con: entityManager,
+          personalizedDigest,
+          date: currentDate,
+          deduplicate,
+        },
+      );
     });
   },
 };
