@@ -60,6 +60,7 @@ import { transactionBalanceLogWorker } from './transactionBalanceLog';
 import { userBoughtCores } from './transactions/userBoughtCores';
 import { organizationUserLeft } from './organization/organizationUserLeft';
 import { organizationUserRemoved } from './organization/organizationUserRemoved';
+import postBoostCanceledCores from './postBoostCanceledCores';
 import { userGenerateBriefWorker } from './brief/userGenerateBrief';
 
 export { Worker } from './worker';
@@ -124,6 +125,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   userBoughtCores,
   organizationUserLeft,
   organizationUserRemoved,
+  postBoostCanceledCores,
   userGenerateBriefWorker,
 ];
 
