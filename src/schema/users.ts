@@ -1016,11 +1016,10 @@ export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(UploadPreset, 'UploadPreset')}
 
   """
-  User claimed return object
+  User claimed item return object
   """
   type UserClaim {
     claimed: Boolean!
-    userId: String!
   }
 
   extend type Mutation {
