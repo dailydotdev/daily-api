@@ -237,7 +237,7 @@ const digestTypeToFunctionMap: Record<
             visible: false,
           });
 
-          await entityManager.getRepository(BriefPost).save(post);
+          await entityManager.getRepository(BriefPost).insert(post);
 
           triggerTypedEvent(logger, 'api.v1.brief-generate', {
             payload: new UserBriefingRequest({

@@ -3197,7 +3197,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         visible: false,
       });
 
-      await ctx.con.getRepository(BriefPost).save(post);
+      await ctx.con.getRepository(BriefPost).insert(post);
 
       triggerTypedEvent(logger, 'api.v1.brief-generate', {
         payload: new UserBriefingRequest({
