@@ -82,6 +82,7 @@ import {
   Settings,
   type PostTranslation,
   determineSharedPostId,
+  SharePost,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -812,6 +813,7 @@ export const typeDefs = /* GraphQL */ `
     id: String
     title: String!
     image: String!
+    relatedPublicPosts: [Post!]
   }
 
   type PostQuestion {
@@ -2808,7 +2810,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         return fetchLinkPreview(cleanUrl);
       }
 
-      return post;
+      const relatedPublicPosts = await ctx.con.getRepository(SharePost).find({
+        where: {
+          sharedPostId: post.id,
+          private: false,
+          deleted: false,
+          visible: true,
+        },
+        take: 10,
+        order: { createdAt: 'DESC' },
+      });
+
+      return { ...post, relatedPublicPosts };
     },
     submitExternalLink: async (
       _,
