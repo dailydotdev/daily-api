@@ -2440,7 +2440,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       const relatedPublicPosts = await ctx.con.getRepository(SharePost).find({
-        where: { sharedPostId: post.id, private: false },
+        where: {
+          sharedPostId: post.id,
+          private: false,
+          deleted: false,
+          visible: true,
+        },
         take: 10,
         order: { createdAt: 'DESC' },
       });
