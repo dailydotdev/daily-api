@@ -62,6 +62,7 @@ import { organizationUserLeft } from './organization/organizationUserLeft';
 import { organizationUserRemoved } from './organization/organizationUserRemoved';
 import postBoostCanceledCores from './postBoostCanceledCores';
 import { userGenerateBriefWorker } from './brief/userGenerateBrief';
+import { userUpdatedPlusSubscriptionBriefWorker } from './userUpdatedPlusSubscriptionBrief';
 
 export { Worker } from './worker';
 
@@ -127,6 +128,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   organizationUserRemoved,
   postBoostCanceledCores,
   userGenerateBriefWorker,
+  userUpdatedPlusSubscriptionBriefWorker,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
