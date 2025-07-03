@@ -172,7 +172,10 @@ describe('userUpdatedPlusSubscriptionBrief worker', () => {
   });
 
   it('should not replace subscription if flags empty', async () => {
-    const before: ChangeObject<ObjectType> = { ...base, flags: '{}' };
+    const before: ChangeObject<ObjectType> = {
+      ...base,
+      subscriptionFlags: JSON.stringify({}),
+    };
 
     const digestBefore = await con
       .getRepository(UserPersonalizedDigest)
@@ -201,7 +204,7 @@ describe('userUpdatedPlusSubscriptionBrief worker', () => {
   it('should not replace subscription if flags the same', async () => {
     const before: ChangeObject<ObjectType> = {
       ...base,
-      flags: '{subscriptionId: "1234"}',
+      subscriptionFlags: JSON.stringify({ subscriptionId: '1234' }),
     };
 
     const digestBefore = await con
