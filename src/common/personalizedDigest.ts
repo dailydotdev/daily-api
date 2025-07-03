@@ -420,7 +420,7 @@ export const schedulePersonalizedDigestSubscriptions = async ({
 }: {
   queryBuilder: SelectQueryBuilder<UserPersonalizedDigest>;
   logger: FastifyBaseLogger;
-  sendType: UserPersonalizedDigestSendType;
+  sendType: UserPersonalizedDigestSendType[];
   handler: ({
     personalizedDigest,
     emailBatchId,

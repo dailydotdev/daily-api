@@ -2,6 +2,7 @@ import {
   dedupedSend,
   getPersonalizedDigestEmailPayload,
   sendEmail,
+  triggerTypedEvent,
 } from '../common';
 import {
   Settings,
@@ -24,6 +25,10 @@ import deepmerge from 'deepmerge';
 import { FastifyBaseLogger } from 'fastify';
 import { sendReadingReminderPush, sendStreakReminderPush } from '../onesignal';
 import { isSameDayInTimezone } from '../common/timezone';
+import { UserBriefingRequest } from '@dailydotdev/schema';
+import { BriefingModel } from '../integrations/feed/types';
+import { generateShortId } from '../ids';
+import { BriefPost } from '../entity/posts/BriefPost';
 
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
@@ -213,18 +218,34 @@ const digestTypeToFunctionMap: Record<
       },
     );
   },
-  [UserPersonalizedDigestType.Brief]: async () => {
-    // brief is sent through different workers after generation
+  [UserPersonalizedDigestType.Brief]: async (data, con, logger) => {
+    const { userId } = data.personalizedDigest;
+    const postId = await generateShortId();
+
+    const post = con.getRepository(BriefPost).create({
+      id: postId,
+      shortId: postId,
+      authorId: userId,
+      private: true,
+      visible: false,
+    });
+
+    await con.getRepository(BriefPost).save(post);
+
+    triggerTypedEvent(logger, 'api.v1.brief-generate', {
+      payload: new UserBriefingRequest({
+        userId,
+        frequency: data.personalizedDigest.flags.sendType,
+        modelName: BriefingModel.Default,
+      }),
+      postId,
+    });
   },
 };
 
 const worker: Worker = workerToExperimentWorker({
   subscription: 'api.personalized-digest-email',
   handler: async (message, con, logger, pubsub, allocationClient) => {
-    if (process.env.NODE_ENV === 'development') {
-      return;
-    }
-
     const data = messageToJson<Data>(message);
     await digestTypeToFunctionMap[data.personalizedDigest.type](
       data,

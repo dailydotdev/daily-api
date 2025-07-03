@@ -78,7 +78,11 @@ https://app.daily.dev`,
   });
 
   fastify.post<{
-    Body: { userIds: string[]; config?: PersonalizedDigestFeatureConfig };
+    Body: {
+      userIds: string[];
+      config?: PersonalizedDigestFeatureConfig;
+      type?: UserPersonalizedDigestType;
+    };
   }>('/digest/send', async (req, res) => {
     const authorization = req.headers.authorization;
 
@@ -94,7 +98,8 @@ https://app.daily.dev`,
     const userCountLimit = 100;
     res.header('content-type', 'application/json');
 
-    const { userIds, config } = req.body || {};
+    const { userIds, config, type } = req.body || {};
+    const digestType = type ?? UserPersonalizedDigestType.Digest;
 
     if (!Array.isArray(userIds)) {
       return res.status(400).send({ message: 'userIds must be an array' });
@@ -115,7 +120,7 @@ https://app.daily.dev`,
         const con = await createOrGetConnection();
         const personalizedDigest = await con
           .getRepository(UserPersonalizedDigest)
-          .findOneBy({ userId, type: UserPersonalizedDigestType.Digest });
+          .findOneBy({ userId, type: digestType });
 
         if (!personalizedDigest) {
           return;
