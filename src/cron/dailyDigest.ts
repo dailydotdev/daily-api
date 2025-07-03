@@ -45,7 +45,7 @@ const cron: Cron = {
           digestCronTime,
         },
       )
-      .andWhere(`upd.flags->>'sendType' IN (:sendTypes)`, {
+      .andWhere(`upd.flags->>'sendType' IN (:...sendTypes)`, {
         sendTypes,
       })
       .andWhere(`upd.type in (:...digestTypes)`, { digestTypes });
