@@ -17,10 +17,14 @@ import {
 import { Cron } from './cron';
 import { addHours, startOfHour, subDays } from 'date-fns';
 
-const sendType = UserPersonalizedDigestSendType.workdays;
+const sendTypes = [
+  UserPersonalizedDigestSendType.workdays,
+  UserPersonalizedDigestSendType.daily,
+];
 const digestTypes = [
   UserPersonalizedDigestType.Digest,
   UserPersonalizedDigestType.ReadingReminder,
+  UserPersonalizedDigestType.Brief,
 ];
 
 const cron: Cron = {
@@ -41,8 +45,8 @@ const cron: Cron = {
           digestCronTime,
         },
       )
-      .andWhere(`upd.flags->>'sendType' = :sendType`, {
-        sendType,
+      .andWhere(`upd.flags->>'sendType' IN (:...sendTypes)`, {
+        sendTypes,
       })
       .andWhere(`upd.type in (:...digestTypes)`, { digestTypes });
 
@@ -70,7 +74,11 @@ const cron: Cron = {
 
         const sendDateInTimezone = utcToZonedTime(emailSendTimestamp, timezone);
 
-        if (isWeekend(sendDateInTimezone, weekStart)) {
+        if (
+          personalizedDigest.flags.sendType ===
+            UserPersonalizedDigestSendType.workdays &&
+          isWeekend(sendDateInTimezone, weekStart)
+        ) {
           return;
         }
 
@@ -82,7 +90,7 @@ const cron: Cron = {
           emailBatchId,
         });
       },
-      sendType,
+      sendType: sendTypes,
     });
   },
 };

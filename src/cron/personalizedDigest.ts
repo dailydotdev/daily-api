@@ -17,7 +17,10 @@ import { Cron } from './cron';
 import { Brackets } from 'typeorm';
 
 const sendType = UserPersonalizedDigestSendType.weekly;
-const digestTypes = [UserPersonalizedDigestType.Digest];
+const digestTypes = [
+  UserPersonalizedDigestType.Digest,
+  UserPersonalizedDigestType.Brief,
+];
 
 const cron: Cron = {
   name: 'personalized-digest',
@@ -86,7 +89,7 @@ const cron: Cron = {
           emailBatchId,
         });
       },
-      sendType,
+      sendType: [sendType],
     });
   },
 };

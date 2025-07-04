@@ -1,4 +1,8 @@
-import { expectSuccessfulBackground, saveFixtures } from '../helpers';
+import {
+  expectSuccessfulBackground,
+  expectTypedEvent,
+  saveFixtures,
+} from '../helpers';
 import worker from '../../src/workers/personalizedDigestEmail';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
@@ -9,6 +13,7 @@ import {
   Source,
   User,
   UserPersonalizedDigest,
+  UserPersonalizedDigestSendType,
   UserPersonalizedDigestType,
   UserStreak,
 } from '../../src/entity';
@@ -30,6 +35,9 @@ import {
   sendStreakReminderPush,
 } from '../../src/onesignal';
 import { SubscriptionCycles } from '../../src/paddle';
+import { UserBriefingRequest } from '@dailydotdev/schema';
+import { BriefingModel } from '../../src/integrations/feed/types';
+import { BriefPost } from '../../src/entity/posts/BriefPost';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -75,6 +83,14 @@ jest.mock('../../src/growthbook', () => ({
       },
     };
   },
+}));
+
+jest.mock('../../src/common/typedPubsub', () => ({
+  ...(jest.requireActual('../../src/common/typedPubsub') as Record<
+    string,
+    unknown
+  >),
+  triggerTypedEvent: jest.fn(),
 }));
 
 let con: DataSource;
@@ -991,6 +1007,61 @@ describe('personalizedDigestEmail worker', () => {
       });
 
       expect(nockScope.isDone()).toBe(true);
+    });
+  });
+
+  describe('briefing', () => {
+    it('should schedule post generation', async () => {
+      await con.getRepository(UserPersonalizedDigest).update(
+        {
+          userId: '1',
+        },
+        {
+          type: UserPersonalizedDigestType.Brief,
+          flags: {
+            sendType: UserPersonalizedDigestSendType.daily,
+          },
+        },
+      );
+
+      const personalizedDigest = await con
+        .getRepository(UserPersonalizedDigest)
+        .findOneBy({
+          userId: '1',
+        });
+
+      expect(personalizedDigest).toBeTruthy();
+      expect(personalizedDigest!.lastSendDate).toBeNull();
+
+      const postBefore = await con.getRepository(BriefPost).findOneBy({
+        authorId: '1',
+      });
+
+      expect(postBefore).toBeNull();
+
+      await expectSuccessfulBackground(worker, {
+        personalizedDigest,
+        emailBatchId: 'test-email-batch-id',
+      });
+
+      const postAfter = await con.getRepository(BriefPost).findOneBy({
+        authorId: '1',
+      });
+
+      expect(postAfter).toBeTruthy();
+      expect(postAfter!.type).toBe(PostType.Brief);
+      expect(postAfter!.authorId).toBe('1');
+      expect(postAfter!.private).toBeTruthy();
+      expect(postAfter!.visible).toBeFalsy();
+
+      expectTypedEvent('api.v1.brief-generate', {
+        payload: new UserBriefingRequest({
+          userId: '1',
+          frequency: UserPersonalizedDigestSendType.daily,
+          modelName: BriefingModel.Default,
+        }),
+        postId: postAfter!.id,
+      });
     });
   });
 });

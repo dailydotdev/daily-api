@@ -131,7 +131,10 @@ describe('dailyDigest cron', () => {
       {
         digestCount: usersToSchedule.length,
         emailBatchId: expect.any(String),
-        sendType,
+        sendType: [
+          UserPersonalizedDigestSendType.workdays,
+          UserPersonalizedDigestSendType.daily,
+        ],
       },
       'personalized digest sent',
     );

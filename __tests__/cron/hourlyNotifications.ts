@@ -162,7 +162,7 @@ describe('hourlyNotifications cron', () => {
       {
         digestCount: usersToSchedule.length,
         emailBatchId: expect.any(String),
-        sendType,
+        sendType: [UserPersonalizedDigestSendType.workdays],
       },
       'personalized digest sent',
     );
