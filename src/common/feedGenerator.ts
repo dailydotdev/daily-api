@@ -451,12 +451,15 @@ export const applyFeedWhere = (
   }
 
   if (!allowSquadPosts) {
-    newBuilder = newBuilder.andWhere(`source.type != '${SourceType.Squad}'`);
+    newBuilder = newBuilder.andWhere(`source.type != :type`, {
+      type: SourceType.Squad,
+    });
   }
 
   if (removeNonPublicThresholdSquads) {
     newBuilder = newBuilder.andWhere(
-      `(source.type != '${SourceType.Squad}' OR (source.flags->>'publicThreshold')::boolean IS TRUE)`,
+      `(source.type NOT IN (:...types) OR (source.flags->>'publicThreshold')::boolean IS TRUE)`,
+      { types: [SourceType.Squad, SourceType.User] },
     );
   }
 
