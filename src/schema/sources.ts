@@ -2126,7 +2126,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return queryBuilder
             .addOrderBy(`${alias}."createdAt"`, 'DESC')
             .innerJoin(Source, 's', `${alias}."sourceId" = s.id`)
-            .andWhere('s.private = false');
+            .andWhere('s.private = false')
+            .andWhere('s.type != :type', {
+              type: SourceType.User,
+            });
         },
         args,
         ctx,
