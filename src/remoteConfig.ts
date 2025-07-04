@@ -1,6 +1,6 @@
 import { GrowthBook } from '@growthbook/growthbook';
 import { logger } from './logger';
-import { isProd } from './common/utils';
+import { isProd, isTest } from './common';
 import type { CoresRole } from './types';
 import type { PurchaseType } from './common/plus';
 
@@ -28,6 +28,7 @@ type RemoteConfigValue = {
   paddleIps: string[];
   paddleTestDiscountIds: string[];
   paddleProductIds: Partial<Record<PurchaseType, string>>;
+  funnelIds: Record<string, string>;
 };
 
 class RemoteConfig {
@@ -56,7 +57,15 @@ class RemoteConfig {
 
   get vars(): Partial<RemoteConfigValue> {
     if (!process.env.GROWTHBOOK_API_CONFIG_CLIENT_KEY) {
-      return {};
+      return {
+        ...(!isProd &&
+          !isTest && {
+            funnelIds: {
+              web_funnel_id: 'paid-v1',
+              onboarding_funnel_id: 'organic-v1',
+            },
+          }),
+      };
     }
 
     if (!this.gb) {

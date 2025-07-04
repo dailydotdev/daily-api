@@ -50,6 +50,8 @@ import {
   submitArticleThreshold,
   mapCloudinaryUrl,
   THREE_MONTHS_IN_SECONDS,
+  isProd,
+  isTest,
 } from '../common';
 import { AccessToken, signJwt } from '../auth';
 import { cookies, setCookie, setRawCookie } from '../cookies';
@@ -79,6 +81,7 @@ import { getBalance, type GetBalanceResult } from '../common/njord';
 import { logger } from '../logger';
 import { freyjaClient, type FunnelState } from '../integrations/freyja';
 import { isUserPartOfOrganization } from '../common/plus';
+import { remoteConfig } from '../remoteConfig';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -784,6 +787,10 @@ const resolveDynamicFunnelId = (featureKey: string, userId: string): string => {
   const gbClient = getUserGrowthBookInstance(userId, {
     allocationClient,
   });
+  if (!isProd && !isTest) {
+    // In development, we use a static value for the feature key
+    return remoteConfig?.vars?.funnelIds?.[featureKey] || 'off';
+  }
   return gbClient.getFeatureValue(featureKey, 'off');
 };
 
