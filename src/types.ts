@@ -49,9 +49,6 @@ declare global {
       POPULAR_FEED: string;
       INTERNAL_FEED: string;
       ROASTER_URL: string;
-      MEILI_ORIGIN: string;
-      MEILI_TOKEN: string;
-      MEILI_INDEX: string;
       MAGNI_ORIGIN: string;
       ANALYTICS_URL: string;
       POST_SCRAPER_ORIGIN: string;

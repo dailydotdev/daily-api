@@ -10,7 +10,7 @@ import {
   SearchSession,
 } from '../integrations';
 import { ValidationError } from 'apollo-server-errors';
-import { GQLEmptyResponse, meiliOffsetGenerator } from './common';
+import { GQLEmptyResponse, mimirOffsetGenerator } from './common';
 import { Connection as ConnectionRelay } from 'graphql-relay/connection/connection';
 import graphorm from '../graphorm';
 import { ConnectionArguments } from 'graphql-relay/index';
@@ -22,7 +22,7 @@ import {
   toGQLEnum,
 } from '../common';
 import { GQLPost } from './posts';
-import { MeiliPagination, searchMeili } from '../integrations/meilisearch';
+import { MeiliPagination } from '../integrations/meilisearch';
 import { Keyword, Post, Source, SourceType, UserPost } from '../entity';
 import {
   defaultSearchLimit,
@@ -319,14 +319,14 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-const meiliSearchResolver = feedResolver(
+const mimirSearchResolver = feedResolver(
   (
     ctx,
     { ids }: FeedArgs & { ids: string[]; pagination: MeiliPagination },
     builder,
     alias,
   ) => fixedIdsFeedBuilder(ctx, ids, builder, alias),
-  meiliOffsetGenerator(),
+  mimirOffsetGenerator(),
   (ctx, args, page, builder) => builder,
   {
     removeHiddenPosts: true,
@@ -426,10 +426,8 @@ const mimirFilterBuilder = ({
         field: 'time',
         condition: {
           value: new TimeRangeFilter({
-            startTimestamp: Math.floor(
-              timeRange.start / 1000,
-            ) as unknown as bigint,
-            endTimestamp: Math.floor(timeRange.end / 1000) as unknown as bigint,
+            startTimestamp: BigInt(Math.floor(timeRange.start / 1000)),
+            endTimestamp: BigInt(Math.floor(timeRange.end / 1000)),
           }),
           case: 'timeRangeFilter' as const,
         },
@@ -554,12 +552,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       const mimirSearchRes = await mimirClient.search(searchReq);
+      const idsArr = mimirSearchRes.result?.length
+        ? mimirSearchRes.result.map((id) => id.postId)
+        : ['nosuchid'];
 
-      const res = await meiliSearchResolver(
+      const res = await mimirSearchResolver(
         source,
         {
           ...args,
-          ids: mimirSearchRes.result.map((x) => x.postId),
+          ids: idsArr,
           pagination: {
             limit,
             offset,

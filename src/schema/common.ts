@@ -154,7 +154,7 @@ export const getSearchQuery = (param: string): string =>
 export const processSearchQuery = (query: string): string =>
   query.trim().split(' ').join(' & ') + ':*';
 
-export const meiliOffsetGenerator = <
+export const mimirOffsetGenerator = <
   TReturn extends { id: string },
 >(): PageGenerator<
   TReturn,

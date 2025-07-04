@@ -12,7 +12,6 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import nock from 'nock';
 import { magniOrigin, SearchResultFeedback } from '../src/integrations';
-import { meiliIndex, meiliOrigin } from '../src/integrations/meilisearch';
 import {
   ArticlePost,
   Feed,
@@ -29,6 +28,7 @@ import { ghostUser, updateFlagsStatement } from '../src/common';
 import { ContentPreferenceUser } from '../src/entity/contentPreference/ContentPreferenceUser';
 import { ContentPreferenceStatus } from '../src/entity/contentPreference/types';
 import { ContentPreferenceSource } from '../src/entity/contentPreference/ContentPreferenceSource';
+import { SearchResponse } from '@dailydotdev/schema';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -320,25 +320,17 @@ describe('query searchPostSuggestions', () => {
   }
 `;
 
-  const mockMeili = (params: string, res: string) => {
-    nock(meiliOrigin)
-      .get(
-        `/indexes/${meiliIndex}/search?${params}&attributesToSearchOn=title&filter=private=false`,
-      )
-      .matchHeader('Authorization', `Bearer ${process.env.MEILI_TOKEN}`)
-      .reply(204, res);
+  const nockMimir = (params: string, res: string) => {
+    nock('http://localhost:7600').post(`/v1/search`).reply(204, res);
   };
 
   beforeEach(async () => {
     await saveFixtures(con, Source, sourcesFixture);
     await saveFixtures(con, ArticlePost, postsFixture);
-    mockMeili(
-      'q=p1&attributesToRetrieve=post_id,title',
+    nockMimir(
+      'q=p1',
       JSON.stringify({
-        hits: [
-          { post_id: 'p2', title: 'P2' },
-          { post_id: 'p1', title: 'P1' },
-        ],
+        result: [{ postId: 'p2' }, { postId: 'p1' }],
       }),
     );
   });
@@ -394,10 +386,10 @@ describe('query searchPostSuggestions', () => {
 
   it('should return empty search suggestion if no hits found', async () => {
     nock.cleanAll();
-    mockMeili(
-      'q=p1&attributesToRetrieve=post_id,title',
+    nockMimir(
+      'q=p1',
       JSON.stringify({
-        hits: [],
+        result: [],
       }),
     );
 
