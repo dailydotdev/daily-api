@@ -401,7 +401,7 @@ const mimirFilterBuilder = ({
     new Filter({
       field: 'private',
       condition: {
-        value: { value: false },
+        value: new BoolFilter({ value: false }),
         case: MimirFilterCases.BoolFilter,
       },
     }),
