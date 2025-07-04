@@ -369,6 +369,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.brief-ready',
     subscription: 'api.user-brief-ready-notification',
   },
+  {
+    topic: 'user-updated',
+    subscription: 'api.user-updated-plus-subscribed-brief',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
