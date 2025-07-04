@@ -36,6 +36,7 @@ import { ContentPreference } from '../entity/contentPreference/ContentPreference
 import { ContentPreferenceType } from '../entity/contentPreference/types';
 import { mimirClient } from '../integrations/mimir';
 import {
+  BoolFilter,
   Filter,
   Operation,
   Quantifier,
@@ -383,6 +384,12 @@ const getTimeRangeForSearchTime = (time: SearchTime) => {
   }
 };
 
+const MimirFilterCases = {
+  BoolFilter: 'boolFilter',
+  StringListFilter: 'stringListFilter',
+  TimeRangeFilter: 'timeRangeFilter',
+} as const;
+
 const mimirFilterBuilder = ({
   contentCuration = [],
   time,
@@ -395,7 +402,7 @@ const mimirFilterBuilder = ({
       field: 'private',
       condition: {
         value: { value: false },
-        case: 'boolFilter' as const,
+        case: MimirFilterCases.BoolFilter,
       },
     }),
   ];
@@ -410,7 +417,7 @@ const mimirFilterBuilder = ({
             quantifier: Quantifier.ANY,
             operation: Operation.INCLUDE,
           }),
-          case: 'stringListFilter' as const,
+          case: MimirFilterCases.StringListFilter,
         },
       }),
     );
@@ -429,7 +436,7 @@ const mimirFilterBuilder = ({
             startTimestamp: BigInt(Math.floor(timeRange.start / 1000)),
             endTimestamp: BigInt(Math.floor(timeRange.end / 1000)),
           }),
-          case: 'timeRangeFilter' as const,
+          case: MimirFilterCases.TimeRangeFilter,
         },
       }),
     );

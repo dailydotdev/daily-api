@@ -28,7 +28,6 @@ import { ghostUser, updateFlagsStatement } from '../src/common';
 import { ContentPreferenceUser } from '../src/entity/contentPreference/ContentPreferenceUser';
 import { ContentPreferenceStatus } from '../src/entity/contentPreference/types';
 import { ContentPreferenceSource } from '../src/entity/contentPreference/ContentPreferenceSource';
-import { SearchResponse } from '@dailydotdev/schema';
 
 let con: DataSource;
 let state: GraphQLTestingState;
