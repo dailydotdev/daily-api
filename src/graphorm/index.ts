@@ -17,6 +17,8 @@ import {
   UserStats,
   UserSubscriptionFlags,
   type PostTranslation,
+  PostType,
+  type PostFlagsPublic,
 } from '../entity';
 import {
   OrganizationMemberRole,
@@ -481,6 +483,12 @@ const obj = new GraphORM({
       },
       flags: {
         jsonType: true,
+        transform: (value: PostFlagsPublic): PostFlagsPublic => {
+          return {
+            ...value,
+            generatedAt: transformDate(value.generatedAt),
+          };
+        },
       },
       userState: {
         relation: {
@@ -516,8 +524,17 @@ const obj = new GraphORM({
               .where(
                 `${childAlias}.id = ANY(${parentAlias}."collectionSources")`,
               )
-              .limit(3);
+              .limit(6);
           },
+        },
+        transform: (value: Source[], ctx: Context, parent): Source[] => {
+          const post = parent as Post;
+
+          if (post.type === PostType.Brief) {
+            return value.slice(0, 6);
+          }
+
+          return value.slice(0, 3);
         },
       },
       numCollectionSources: {

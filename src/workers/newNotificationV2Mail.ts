@@ -20,6 +20,8 @@ import {
   SquadSource,
   Submission,
   User,
+  UserPersonalizedDigest,
+  UserPersonalizedDigestType,
   UserTopReader,
   WelcomePost,
 } from '../entity';
@@ -99,6 +101,8 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   user_received_award: CioTransactionalMessageTemplateId.UserReceivedAward,
   organization_member_joined:
     CioTransactionalMessageTemplateId.OrganizationMemberJoined,
+  post_boost_completed: '', // TODO: check with product
+  briefing_ready: '',
 };
 
 type TemplateData = Record<string, unknown>;
@@ -111,6 +115,7 @@ type TemplateDataFunc = (
   avatars: NotificationAvatarV2[],
 ) => Promise<TemplateData | null>;
 const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
+  post_boost_completed: async () => ({}),
   source_post_approved: async (con, user, notification) => {
     const post = await con.getRepository(Post).findOne({
       where: { id: notification.referenceId },
@@ -949,6 +954,26 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
         image: member.image,
       },
     };
+  },
+  briefing_ready: async (con, user) => {
+    const personalizedDigest: Pick<
+      UserPersonalizedDigest,
+      'userId' | 'flags'
+    > | null = await con.getRepository(UserPersonalizedDigest).findOne({
+      select: ['userId', 'flags'],
+      where: {
+        userId: user.id,
+        type: UserPersonalizedDigestType.Brief,
+      },
+    });
+
+    if (!personalizedDigest?.flags?.email) {
+      return null;
+    }
+
+    // TODO feat-brief send email once template is ready
+
+    return {};
   },
 };
 

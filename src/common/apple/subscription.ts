@@ -28,7 +28,7 @@ import {
 const getSubscriptionStatus = (
   notificationType: ResponseBodyV2DecodedPayload['notificationType'],
   subtype?: ResponseBodyV2DecodedPayload['subtype'],
-): SubscriptionStatus => {
+): SubscriptionStatus | undefined => {
   switch (notificationType) {
     case NotificationTypeV2.SUBSCRIBED:
     case NotificationTypeV2.DID_RENEW:
@@ -50,6 +50,9 @@ const getSubscriptionStatus = (
     case NotificationTypeV2.EXPIRED:
     case NotificationTypeV2.REVOKE: // We don't support Family Sharing, but to be on the safe side
       return SubscriptionStatus.Expired;
+    case NotificationTypeV2.CONSUMPTION_REQUEST:
+    case NotificationTypeV2.REFUND_DECLINED:
+      return undefined;
     default:
       logger.error(
         {
@@ -219,6 +222,13 @@ export const handleAppleSubscription = async ({
     notification.notificationType,
     notification.subtype,
   );
+
+  if (typeof subscriptionStatus === 'undefined') {
+    // we don't handle some notification types so then we skip updating the subscription
+    // until notification type we support arrives
+
+    return;
+  }
 
   const subscriptionFlags = renewalInfoToSubscriptionFlags(renewalInfo);
 

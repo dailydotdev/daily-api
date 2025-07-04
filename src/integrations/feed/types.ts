@@ -126,3 +126,12 @@ export type FeedFlagsFilters = {
   };
   min_day_range?: FeedFlags['minDayRange'];
 };
+
+export enum BriefingType {
+  Daily = 'daily',
+  Weekly = 'weekly',
+}
+
+export enum BriefingModel {
+  Default = 'ai_briefing',
+}

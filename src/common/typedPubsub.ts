@@ -20,6 +20,7 @@ import {
 import {
   ContentUpdatedMessage,
   type TransferResponse,
+  type UserBriefingRequest,
 } from '@dailydotdev/schema';
 import { SourcePostModeration } from '../entity/SourcePostModeration';
 import type { UserTransaction } from '../entity/user/UserTransaction';
@@ -136,6 +137,25 @@ export type PubSubSchema = {
   'api.v1.organization-user-removed': {
     organizationId: Organization['id'];
     memberId: User['id'];
+  };
+  'api.v1.post-boost-canceled': {
+    postId: Post['id'];
+    userId: User['id'];
+    campaignId: string;
+    refundAmountUsd: string;
+  };
+  'api.v1.post-boost-completed': {
+    postId: Post['id'];
+    userId: User['id'];
+    campaignId: string;
+  };
+  'api.v1.brief-generate': {
+    payload: UserBriefingRequest;
+    postId: string;
+  };
+  'api.v1.brief-ready': {
+    payload: UserBriefingRequest;
+    postId: string;
   };
 };
 

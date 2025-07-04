@@ -69,6 +69,7 @@ declare global {
       NJORD_ORIGIN: string;
       OPEN_EXCHANGE_RATES_APP_ID?: string;
       SKADI_ORIGIN: string;
+      SKADI_API_ORIGIN: string;
 
       APPLE_APP_APPLE_ID: string;
       APPLE_APP_BUNDLE_ID: string;

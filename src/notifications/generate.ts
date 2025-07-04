@@ -28,6 +28,7 @@ import {
   NotificationUpvotersContext,
   NotificationUserContext,
   type NotificationAwardContext,
+  type NotificationBoostContext,
   type NotificationOrganizationContext,
   type NotificationUserTopReaderContext,
 } from './types';
@@ -174,6 +175,10 @@ export const notificationTitleMap: Record<
   }: NotificationOrganizationContext) => {
     return `<strong>Your team is growing!</strong> ${user.name} just joined your organization ${organization.name}. They now have access to daily.dev Plus ✧`;
   },
+  post_boost_completed: () =>
+    `Your boost just wrapped up! Dive into the ads dashboard to see how it performed!`,
+  briefing_ready: () =>
+    `<strong>Hey there! I just crafted a fresh Brief for you</strong> — a quick, high-signal summary of what's shaping the dev world today.`,
 };
 
 export const generateNotificationMap: Record<
@@ -481,4 +486,28 @@ export const generateNotificationMap: Record<
       .targetUrl(getOrganizationPermalink(ctx.organization))
       .icon(NotificationIcon.Bell)
       .avatarOrganization(ctx.organization),
+  post_boost_completed: (builder, ctx: NotificationBoostContext) =>
+    builder
+      .icon(NotificationIcon.DailyDev)
+      .referenceBoost(ctx)
+      .avatarUser(ctx.user)
+      .targetUrl(notificationsLink)
+      .setTargetUrlParameter([
+        ['post_boost', 'true'],
+        ['c_id', ctx.campaignId],
+      ])
+      .uniqueKey(
+        `${ctx.campaignId}-${ctx.user.id}-${new Date().toISOString()}`,
+      ),
+  briefing_ready: (
+    builder: NotificationBuilder,
+    ctx: NotificationPostContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Bell)
+      .avatarBriefing()
+      .referencePost(ctx.post)
+      .targetPost(ctx.post)
+      .uniqueKey(ctx.post.id);
+  },
 };

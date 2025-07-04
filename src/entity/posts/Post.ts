@@ -22,6 +22,7 @@ export enum PostType {
   Welcome = 'welcome',
   Collection = 'collection',
   VideoYouTube = 'video:youtube',
+  Brief = 'brief',
 }
 
 export const postTypes: string[] = Object.values(PostType);
@@ -44,12 +45,23 @@ export type PostFlags = Partial<{
   deletedBy: string;
   vordr: boolean;
   coverVideo: string;
+  campaignId: string | null;
   originalUrl: string;
+  posts: number;
+  sources: number;
+  savedTime: number;
+  generatedAt: Date;
 }>;
 
 export type PostFlagsPublic = Pick<
   PostFlags,
-  'private' | 'promoteToPublic' | 'coverVideo'
+  | 'private'
+  | 'promoteToPublic'
+  | 'coverVideo'
+  | 'posts'
+  | 'sources'
+  | 'savedTime'
+  | 'generatedAt'
 >;
 
 export type PostContentQuality = Partial<{

@@ -115,7 +115,10 @@ import {
 import { Company } from '../entity/Company';
 import { UserCompany } from '../entity/UserCompany';
 import { generateVerifyCode } from '../ids';
-import { validateUserUpdate } from '../entity/user/utils';
+import {
+  addClaimableItemsToUser,
+  validateUserUpdate,
+} from '../entity/user/utils';
 import { getRestoreStreakCache } from '../workers/cdc/primary';
 import { ReportEntity, ReportReason } from '../entity/common';
 import { reportFunctionMap } from '../common/reporting';
@@ -1012,6 +1015,13 @@ export const typeDefs = /* GraphQL */ `
 
   ${toGQLEnum(UploadPreset, 'UploadPreset')}
 
+  """
+  User claimed item return object
+  """
+  type UserClaim {
+    claimed: Boolean!
+  }
+
   extend type Mutation {
     """
     Clear users image based on type
@@ -1193,6 +1203,11 @@ export const typeDefs = /* GraphQL */ `
     Request an app account token that is used for StoreKit
     """
     requestAppAccountToken: ID @auth
+
+    """
+    Claim unclaimed user ClaimableItem
+    """
+    claimUnclaimedItem: UserClaim @auth
   }
 `;
 
@@ -2711,6 +2726,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       );
 
       return token;
+    },
+    claimUnclaimedItem: async (_, __, ctx: AuthContext) => {
+      const user = await ctx.con.getRepository(User).findOneByOrFail({
+        id: ctx.userId,
+      });
+      return addClaimableItemsToUser(ctx.con, user);
     },
   },
   User: {

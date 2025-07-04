@@ -1,6 +1,8 @@
 import {
   Connection as ConnectionRelay,
   ConnectionArguments,
+  cursorToOffset,
+  offsetToCursor,
 } from 'graphql-relay';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
@@ -12,6 +14,7 @@ import {
   canModeratePosts,
   SourcePermissions,
   sourceTypesWithMembers,
+  ensureUserSourceExists,
 } from './sources';
 import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
@@ -47,6 +50,10 @@ import {
   type SourcePostModerationArgs,
   getAllModerationItemsAsAdmin,
   getTranslationRecord,
+  systemUser,
+  parseBigInt,
+  triggerTypedEvent,
+  isProd,
 } from '../common';
 import {
   ArticlePost,
@@ -75,17 +82,19 @@ import {
   Settings,
   type PostTranslation,
   determineSharedPostId,
+  SharePost,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
+  ConflictError,
   NotFoundError,
   SubmissionFailErrorMessage,
+  TransferError,
   TypeOrmError,
   TypeORMQueryFailedError,
 } from '../errors';
 import { GQLBookmarkList } from './bookmarks';
 import { getMentions } from './comments';
-import graphorm from '../graphorm';
 import { GQLUser } from './users';
 import {
   getRedisObject,
@@ -118,6 +127,43 @@ import { queryReadReplica } from '../common/queryReadReplica';
 import { remoteConfig } from '../remoteConfig';
 import { ensurePostRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
+import type {
+  BoostedPostConnection,
+  BoostedPostStats,
+  GQLBoostedPost,
+  StartPostBoostArgs,
+} from '../common/post/boost';
+import {
+  coresToUsd,
+  getBalance,
+  throwUserTransactionError,
+  transferCores,
+  usdToCores,
+  type TransactionCreated,
+} from '../common/njord';
+import { randomUUID } from 'crypto';
+import {
+  UserTransaction,
+  UserTransactionProcessor,
+  UserTransactionStatus,
+  UserTransactionType,
+} from '../entity/user/UserTransaction';
+import { skadiApiClient } from '../integrations/skadi/api/clients';
+import {
+  validatePostBoostArgs,
+  validatePostBoostPermissions,
+  checkPostAlreadyBoosted,
+  getTotalEngagements,
+  getFormattedBoostedPost,
+  getBoostedPost,
+  consolidateCampaignsWithPosts,
+  getFormattedCampaign,
+} from '../common/post/boost';
+import type { PostBoostReach } from '../integrations/skadi';
+import graphorm from '../graphorm';
+import { BriefingModel, BriefingType } from '../integrations/feed';
+import { BriefPost } from '../entity/posts/BriefPost';
+import { UserBriefingRequest } from '@dailydotdev/schema';
 
 export interface GQLPost {
   id: string;
@@ -164,6 +210,7 @@ export interface GQLPost {
   userState?: GQLUserPost;
   slug?: string;
   translation?: Partial<Record<keyof PostTranslation, boolean>>;
+  permalink?: string;
 }
 
 interface PinPostArgs {
@@ -240,6 +287,8 @@ export type GQLPostCodeSnippet = Pick<
 >;
 
 export const typeDefs = /* GraphQL */ `
+  ${toGQLEnum(BriefingType, 'BriefingType')}
+
   """
   Post moderation item
   """
@@ -366,6 +415,30 @@ export const typeDefs = /* GraphQL */ `
     Cover video
     """
     coverVideo: String
+
+    """
+    The current campaign running for the post
+    """
+    campaignId: String
+    """
+    Number of posts used to create content of this post, for example in briefs
+    """
+    posts: Int
+
+    """
+    Number of sources used to create content of this post, for example in briefs
+    """
+    sources: Int
+
+    """
+    Total time saved by reading this post, in minutes
+    """
+    savedTime: Int
+
+    """
+    Time the post was generated
+    """
+    generatedAt: DateTime
   }
 
   type UserPostFlagsPublic {
@@ -675,6 +748,11 @@ export const typeDefs = /* GraphQL */ `
     Featured award for the post, currently the most expensive one
     """
     featuredAward: UserPost
+
+    """
+    The amount of total engagements for the post
+    """
+    engagements: Int
   }
 
   type PostConnection {
@@ -735,6 +813,7 @@ export const typeDefs = /* GraphQL */ `
     id: String
     title: String!
     image: String!
+    relatedPublicPosts: [Post!]
   }
 
   type PostQuestion {
@@ -829,6 +908,53 @@ export const typeDefs = /* GraphQL */ `
 
   type PostBalance {
     amount: Int!
+  }
+
+  type PostBoostEstimate {
+    min: Int!
+    max: Int!
+  }
+
+  type CampaignPost {
+    campaignId: String!
+    postId: String!
+    status: String!
+    budget: Int!
+    currentBudget: Int!
+    startedAt: DateTime!
+    endedAt: DateTime
+    impressions: Int!
+    clicks: Int!
+  }
+
+  type CampaignData {
+    impressions: Int!
+    engagements: Int!
+    clicks: Int!
+    totalSpend: Int!
+  }
+
+  type BoostedPost {
+    post: Post!
+    campaign: CampaignPost!
+  }
+
+  type BoostedPostEdge {
+    node: BoostedPost!
+    """
+    Used in before and after args
+    """
+    cursor: String!
+  }
+
+  type BoostedPostConnection {
+    pageInfo: PageInfo!
+    edges: [BoostedPostEdge]!
+    stats: CampaignData
+  }
+
+  type GenerateBriefingResponse {
+    postId: String!
   }
 
   extend type Query {
@@ -987,6 +1113,56 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): PostBalance!
+
+    """
+    Estimate the reach for a post boost campaign
+    """
+    boostEstimatedReach(
+      """
+      ID of the post to boost
+      """
+      postId: ID!
+      """
+      Duration of the boost in days (1-30)
+      """
+      duration: Int!
+      """
+      Budget for the boost in cores (1000-100000, must be divisible by 1000)
+      """
+      budget: Int!
+    ): PostBoostEstimate! @auth
+
+    postCampaignById(
+      """
+      ID of the campaign to fetch
+      """
+      id: ID!
+    ): BoostedPost! @auth
+
+    postCampaigns(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+    ): BoostedPostConnection! @auth
+
+    """
+    Get user briefing posts
+    """
+    briefingPosts(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+    ): PostConnection! @auth
   }
 
   extend type Mutation {
@@ -1211,6 +1387,34 @@ export const typeDefs = /* GraphQL */ `
     clickbaitPost(id: ID!): EmptyResponse @auth(requires: [MODERATOR])
 
     """
+    Start a post boost campaign
+    """
+    startPostBoost(
+      """
+      ID of the post to boost
+      """
+      postId: ID!
+      """
+      Duration of the boost in days (1-30)
+      """
+      duration: Int!
+      """
+      Budget for the boost in cores (1000-100000, must be divisible by 1000)
+      """
+      budget: Int!
+    ): TransactionCreated @auth
+
+    """
+    Cancel an existing post boost campaign
+    """
+    cancelPostBoost(
+      """
+      ID of the post to cancel boost for
+      """
+      postId: ID!
+    ): EmptyResponse @auth
+
+    """
     Fetch external link's title and image preview
     """
     checkLinkPreview(
@@ -1379,6 +1583,11 @@ export const typeDefs = /* GraphQL */ `
       """
       externalLink: String
     ): SourcePostModeration! @auth
+
+    """
+    Generate new briefing for the user
+    """
+    generateBriefing(type: BriefingType!): GenerateBriefingResponse! @auth
   }
 
   extend type Subscription {
@@ -1541,7 +1750,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<GQLPost> => {
       const partialPost = await ctx.con.getRepository(Post).findOneOrFail({
-        select: ['id', 'sourceId', 'private'],
+        select: ['id', 'sourceId', 'private', 'authorId', 'type'],
         relations: ['source'],
         where: [{ id }, { slug: id }],
       });
@@ -1552,7 +1761,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         sourceTypesWithMembers.includes(postSource.type)
       ) {
         try {
-          await ensureSourcePermissions(ctx, partialPost.sourceId);
+          await ensureSourcePermissions(
+            ctx,
+            partialPost.sourceId,
+            undefined,
+            undefined,
+            partialPost,
+          );
         } catch (permissionError) {
           if (permissionError instanceof ForbiddenError) {
             const forbiddenError = permissionError as ForbiddenError;
@@ -1716,7 +1931,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const post = await ctx.con
         .getRepository(Post)
         .findOneByOrFail([{ id: args.id }, { slug: args.id }]);
-      await ensureSourcePermissions(ctx, post.sourceId);
+      await ensureSourcePermissions(
+        ctx,
+        post.sourceId,
+        undefined,
+        undefined,
+        post,
+      );
 
       return queryPaginatedByDate(
         ctx,
@@ -1912,6 +2133,131 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .getRawOne();
 
       return result;
+    },
+    boostEstimatedReach: async (
+      _,
+      args: Omit<StartPostBoostArgs, 'userId'>,
+      ctx: AuthContext,
+    ): Promise<PostBoostReach> => {
+      const { postId, duration, budget } = args;
+      validatePostBoostArgs(args);
+      const post = await validatePostBoostPermissions(ctx, postId);
+      checkPostAlreadyBoosted(post);
+
+      const { impressions } = await skadiApiClient.estimatePostBoostReach({
+        postId,
+        userId: ctx.userId,
+        durationInDays: duration,
+        budget,
+      });
+
+      // We do plus-minus 8% of the generated value
+      const difference = impressions * 0.08;
+      const estimatedReach = {
+        min: Math.max(impressions - difference, 0),
+        max: impressions + difference,
+      };
+
+      return estimatedReach;
+    },
+    postCampaignById: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLBoostedPost> => {
+      const campaign = await skadiApiClient.getCampaignById({
+        campaignId: id,
+        userId: ctx.userId!,
+      });
+
+      if (!campaign) {
+        throw new NotFoundError('Campaign does not exist!');
+      }
+
+      const post = await getBoostedPost(ctx.con, campaign.postId);
+
+      return {
+        campaign: getFormattedCampaign(campaign),
+        post: getFormattedBoostedPost(post, campaign),
+      };
+    },
+    postCampaigns: async (
+      _,
+      args: ConnectionArguments,
+      ctx: AuthContext,
+    ): Promise<BoostedPostConnection> => {
+      const { con, userId } = ctx;
+      const { first, after } = args;
+      const isFirstRequest = !after;
+      const stats: BoostedPostStats | undefined = isFirstRequest
+        ? {
+            impressions: 0,
+            clicks: 0,
+            totalSpend: 0,
+            engagements: 0,
+          }
+        : undefined;
+      const offset = after ? cursorToOffset(after) : 0;
+      const paginated = await graphorm.queryPaginatedIntegration(
+        () => !!after,
+        (nodeSize) => nodeSize === first,
+        (_, i) => offsetToCursor(offset + i + 1),
+        async () => {
+          const campaigns = await skadiApiClient.getCampaigns({
+            userId,
+            offset,
+            limit: first!,
+          });
+
+          if (!campaigns?.promotedPosts?.length) {
+            return [];
+          }
+
+          if (isFirstRequest && stats) {
+            stats.clicks = campaigns.clicks;
+            stats.impressions = campaigns.impressions;
+            stats.totalSpend = usdToCores(parseFloat(campaigns.totalSpend));
+
+            const sum = await getTotalEngagements(con, campaigns.postIds);
+
+            stats.engagements = sum + campaigns.clicks + campaigns.impressions;
+          }
+
+          return consolidateCampaignsWithPosts(campaigns.promotedPosts, con);
+        },
+      );
+
+      return {
+        ...paginated,
+        stats,
+      };
+    },
+    briefingPosts: async (
+      _,
+      args: ConnectionArguments,
+      ctx: AuthContext,
+      info,
+    ): Promise<ConnectionRelay<GQLPost>> => {
+      return queryPaginatedByDate(
+        ctx,
+        info,
+        args,
+        { key: 'createdAt' },
+        {
+          queryBuilder: (builder) => {
+            builder.queryBuilder = builder.queryBuilder
+              .andWhere(`${builder.alias}.authorId = :briefingUserId`, {
+                briefingUserId: ctx.userId,
+              })
+              .andWhere(`${builder.alias}.type = :type`, {
+                type: PostType.Brief,
+              });
+
+            return builder;
+          },
+          orderByKey: 'DESC',
+        },
+      );
     },
   },
   Mutation: {
@@ -2146,6 +2492,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('Title can not be an empty string!');
       }
 
+      if (sourceId === userId) {
+        await ensureUserSourceExists(userId, con);
+      }
+
       await Promise.all([
         ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
         ensurePostRateLimit(ctx.con, ctx.userId),
@@ -2320,6 +2670,124 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       );
     },
+    startPostBoost: async (
+      _,
+      args: Omit<StartPostBoostArgs, 'userId'>,
+      ctx: AuthContext,
+    ): Promise<TransactionCreated> => {
+      const { postId, duration, budget } = args;
+      validatePostBoostArgs(args);
+      const post = await validatePostBoostPermissions(ctx, postId);
+      checkPostAlreadyBoosted(post);
+
+      const { userId } = ctx;
+      const total = budget * duration;
+
+      const request = await ctx.con.transaction(async (entityManager) => {
+        const { campaignId } = await skadiApiClient.startPostCampaign({
+          postId,
+          durationInDays: duration,
+          budget: coresToUsd(budget),
+          userId,
+        });
+
+        const userTransaction = await entityManager
+          .getRepository(UserTransaction)
+          .save(
+            entityManager.getRepository(UserTransaction).create({
+              id: randomUUID(),
+              processor: UserTransactionProcessor.Njord,
+              receiverId: systemUser.id,
+              status: UserTransactionStatus.Success,
+              productId: null,
+              senderId: userId,
+              value: total,
+              valueIncFees: 0,
+              fee: 0,
+              request: ctx.requestMeta,
+              flags: { note: 'Post boost' },
+              referenceId: campaignId,
+              referenceType: UserTransactionType.PostBoost,
+            }),
+          );
+
+        await entityManager
+          .getRepository(Post)
+          .update(
+            { id: postId },
+            { flags: updateFlagsStatement<Post>({ campaignId }) },
+          );
+
+        try {
+          // TODO: remove this once we move past testing phase
+          if (isProd || ctx.isTeamMember) {
+            return {
+              transaction: {
+                transactionId: userTransaction.id,
+                balance: { amount: (await getBalance({ userId })).amount },
+              },
+            };
+          }
+
+          const transfer = await transferCores({
+            ctx,
+            transaction: userTransaction,
+            entityManager,
+          });
+
+          return {
+            transfer,
+            transaction: {
+              transactionId: userTransaction.id,
+              balance: {
+                amount: parseBigInt(transfer.senderBalance!.newBalance),
+              },
+            },
+          };
+        } catch (error) {
+          if (error instanceof TransferError) {
+            await throwUserTransactionError({
+              ctx,
+              entityManager,
+              error,
+              transaction: userTransaction,
+            });
+          }
+
+          throw error;
+        }
+      });
+
+      return request.transaction;
+    },
+    cancelPostBoost: async (
+      _,
+      { postId }: { postId: string },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const post = await validatePostBoostPermissions(ctx, postId);
+      const campaignId = post?.flags?.campaignId;
+
+      if (!campaignId) {
+        throw new ValidationError('Post is not currently boosted');
+      }
+
+      await ctx.con.transaction(async (entityManager) => {
+        await entityManager
+          .getRepository(Post)
+          .update(
+            { id: postId },
+            { flags: updateFlagsStatement<Post>({ campaignId: null }) },
+          );
+
+        await skadiApiClient.cancelPostCampaign({
+          campaignId,
+          userId: ctx.userId,
+        });
+      });
+
+      return { _: true };
+    },
     checkLinkPreview: async (
       _,
       { url }: SubmitExternalLinkArgs,
@@ -2342,7 +2810,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         return fetchLinkPreview(cleanUrl);
       }
 
-      return post;
+      const relatedPublicPosts = await ctx.con.getRepository(SharePost).find({
+        where: {
+          sharedPostId: post.id,
+          private: false,
+          deleted: false,
+          visible: true,
+        },
+        take: 10,
+        order: { createdAt: 'DESC' },
+      });
+
+      return { ...post, relatedPublicPosts };
     },
     submitExternalLink: async (
       _,
@@ -2351,6 +2830,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<GQLEmptyResponse> => {
       if (!isValidHttpUrl(url)) {
         throw new ValidationError('Invalid URL provided');
+      }
+
+      if (sourceId === ctx.userId) {
+        await ensureUserSourceExists(ctx.userId, ctx.con);
       }
 
       await Promise.all([
@@ -2463,7 +2946,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
-      await ensureSourcePermissions(ctx, post.sourceId);
+      await ensureSourcePermissions(
+        ctx,
+        post.sourceId,
+        undefined,
+        undefined,
+        post,
+      );
       if (post.type !== PostType.Article) {
         await notifyView(
           ctx.log,
@@ -2672,6 +3161,56 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           ),
         }),
       );
+    },
+    generateBriefing: async (
+      _,
+      { type }: { type: BriefingType },
+      ctx: AuthContext,
+    ): Promise<{ postId: string }> => {
+      // TODO feat-brief replace with check, if user generated single brief on demand generation
+      // is no longer available
+      if (isProd && !ctx.isTeamMember) {
+        throw new ForbiddenError('Not allowed for you yet');
+      }
+
+      const pendingBrief = await queryReadReplica(
+        ctx.con,
+        async ({ queryRunner }) => {
+          return queryRunner.manager.getRepository(BriefPost).findOne({
+            select: ['id'],
+            where: { visible: false },
+          });
+        },
+      );
+
+      if (pendingBrief) {
+        throw new ConflictError('There is already a briefing being generated');
+      }
+
+      const postId = await generateShortId();
+
+      const post = ctx.con.getRepository(BriefPost).create({
+        id: postId,
+        shortId: postId,
+        authorId: ctx.userId,
+        private: true,
+        visible: false,
+      });
+
+      await ctx.con.getRepository(BriefPost).save(post);
+
+      triggerTypedEvent(logger, 'api.v1.brief-generate', {
+        payload: new UserBriefingRequest({
+          userId: ctx.userId,
+          frequency: type,
+          modelName: BriefingModel.Default,
+        }),
+        postId,
+      });
+
+      return {
+        postId,
+      };
     },
   },
   Subscription: {
