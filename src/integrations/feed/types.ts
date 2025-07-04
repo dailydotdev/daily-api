@@ -1,5 +1,5 @@
 import { Context } from '../../Context';
-import type { FeedFlags } from '../../entity';
+import { SourceType, type FeedFlags } from '../../entity';
 import { GenericMetadata } from '../lofn';
 
 export type FeedResponse = {
@@ -62,7 +62,7 @@ export type FeedConfig = {
   followed_sources?: string[];
   squad_ids?: string[];
   providers?: Record<string, FeedProvider>;
-  source_types?: ('machine' | 'squad' | 'user')[];
+  source_types?: SourceType[];
   cursor?: string;
   post_id?: string;
   allowed_languages?: string[];
@@ -113,7 +113,7 @@ export type FeedVersion =
   | 'f1';
 
 export const baseFeedConfig: Partial<FeedConfig> = {
-  source_types: ['machine', 'squad', 'user'],
+  source_types: [SourceType.Machine, SourceType.Squad, SourceType.User],
   allowed_languages: ['en'],
 };
 
