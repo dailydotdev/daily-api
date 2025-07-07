@@ -10,6 +10,7 @@ import {
   ATTR_URL_FULL,
 } from '@opentelemetry/semantic-conventions';
 import { Message } from '@bufbuild/protobuf';
+import { isTest } from '../common';
 
 export class AbortError extends Error {
   public originalError: Error;
@@ -142,8 +143,11 @@ export async function fetchParseBinary<T extends Message<T>>(
   parser: T,
 ): Promise<T> {
   const res = await fetch(url, fetchOpts);
+  if (isTest) {
+    // Jest only support mocks of JSON
+    return parser.fromJson(await res.json());
+  }
 
   const binaryResult = new Uint8Array(await res.arrayBuffer());
-
   return parser.fromBinary(binaryResult);
 }

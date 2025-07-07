@@ -404,10 +404,8 @@ export const addClaimableItemsToUser = async (
         subscriptionFlags: subscription.flags as UserSubscriptionFlags,
       });
     });
-  }
 
-  await Promise.allSettled([
-    sendAnalyticsEvent([
+    await sendAnalyticsEvent([
       {
         event_name: AnalyticsEventName.ClaimSubscription,
         event_timestamp: new Date(),
@@ -420,18 +418,20 @@ export const addClaimableItemsToUser = async (
         { error },
         'Failed to send analytics event for claimed subscription',
       );
-    }),
-    identifyAnonymousFunnelSubscription({
-      cio,
-      email: body.email,
-      claimedSub: true,
-    }).catch((error) => {
-      logger.warn(
-        { error },
-        'Failed to identify anonymous funnel subscription',
-      );
-    }),
-  ]);
+    });
+  }
+
+  await identifyAnonymousFunnelSubscription({
+    cio,
+    email: body.email,
+    claimedSub: true,
+  }).catch((error) => {
+    logger.warn({ error }, 'Failed to identify anonymous funnel subscription');
+  });
+
+  return {
+    claimed: !!subscription,
+  };
 };
 
 export const validateUserUpdate = async (
