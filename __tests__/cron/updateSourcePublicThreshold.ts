@@ -12,6 +12,7 @@ import {
   SQUAD_IMAGE_PLACEHOLDER,
   SquadSource,
   User,
+  type SourceUser,
 } from '../../src/entity';
 import { updateFlagsStatement } from '../../src/common';
 import { usersFixture } from '../fixture';
@@ -114,7 +115,21 @@ describe('updateSourcePublicThreshold', () => {
     expect(source!.flags.publicThreshold).toBeFalsy();
   });
 
-  it('should update public threshold if all checks passed', async () => {
+  it('should not update machine source', async () => {
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'a' }, {
+      type: SourceType.Machine,
+      image: 'not null',
+      description: 'not null',
+      flags: updateFlagsStatement({ totalMembers: 3, totalPosts: 3 }),
+      memberPostingRank: sourceRoleRank[SourceMemberRoles.Moderator],
+    } as DeepPartial<SquadSource>);
+    await expectSuccessfulCron(cron);
+    const source = await repo.findOneBy({ id: 'a' });
+    expect(source!.flags.publicThreshold).toBeFalsy();
+  });
+
+  it('should update public threshold on squad if all checks passed', async () => {
     const repo = con.getRepository(Source);
     await repo.update({ id: 'a' }, {
       type: SourceType.Squad,
@@ -176,5 +191,66 @@ describe('updateSourcePublicThreshold', () => {
     await expectSuccessfulCron(cron);
     const source = await repo.findOneBy({ id: 'a' });
     expect(source!.flags.publicThreshold).toBeTruthy();
+  });
+
+  it('should update public threshold on user source if all checks passed', async () => {
+    const repo = con.getRepository(Source);
+
+    await saveFixtures(con, User, [{ ...usersFixture[0], reputation: 500 }]);
+    await con.getRepository(Feed).insert({
+      id: usersFixture[0].id,
+      userId: usersFixture[0].id,
+    });
+    await saveFixtures(con, ContentPreferenceSource, [
+      {
+        userId: usersFixture[0].id,
+        feedId: usersFixture[0].id,
+        referenceId: 'a',
+        status: ContentPreferenceStatus.Follow,
+        flags: { role: SourceMemberRoles.Admin },
+      },
+    ]);
+
+    await repo.update({ id: 'a' }, {
+      type: SourceType.User,
+      userId: usersFixture[0].id,
+    } as DeepPartial<SourceUser>);
+
+    expect(
+      (await repo.findOneByOrFail({ id: 'a' })).flags.publicThreshold,
+    ).toBeFalsy();
+
+    await expectSuccessfulCron(cron);
+
+    const source = await repo.findOneByOrFail({ id: 'a' });
+    expect(source.flags.publicThreshold).toBeTruthy();
+  });
+
+  it('should not update public threshold on user source if user reputation is low', async () => {
+    const repo = con.getRepository(Source);
+
+    await saveFixtures(con, User, [{ ...usersFixture[0], reputation: 10 }]);
+    await con.getRepository(Feed).insert({
+      id: usersFixture[0].id,
+      userId: usersFixture[0].id,
+    });
+    await saveFixtures(con, ContentPreferenceSource, [
+      {
+        userId: usersFixture[0].id,
+        feedId: usersFixture[0].id,
+        referenceId: 'a',
+        status: ContentPreferenceStatus.Follow,
+        flags: { role: SourceMemberRoles.Admin },
+      },
+    ]);
+
+    await repo.update({ id: 'a' }, {
+      type: SourceType.User,
+      userId: usersFixture[0].id,
+    } as DeepPartial<SourceUser>);
+    await expectSuccessfulCron(cron);
+
+    const source = await repo.findOneByOrFail({ id: 'a' });
+    expect(source.flags.publicThreshold).toBeFalsy();
   });
 });
