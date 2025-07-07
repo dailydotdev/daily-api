@@ -18,29 +18,33 @@ export const updateSourcePublicThreshold: Cron = {
       .set({ flags: updateFlagsStatement({ publicThreshold: true }) })
       .where(
         /* sql */ `
-          "type" IN (:...sourceTypes) AND
-          (
+          "type" IN (:...sourceTypes)
+          AND (
             "type" != :squadSourceType
             OR (
-              "type" = :squadSourceType AND
-              "image" IS NOT NULL AND
-              "image" != :imagePlaceholder AND
-              "description" IS NOT NULL
+              "type" = :squadSourceType
+              AND "image" IS NOT NULL
+              AND "image" != :imagePlaceholder
+              AND "description" IS NOT NULL
             )
-          ) AND
-          (flags->>'publicThreshold')::boolean IS NOT TRUE AND
-          (flags->>'vordr')::boolean IS NOT TRUE AND
-          (
+          )
+          AND (flags->>'publicThreshold')::boolean IS NOT TRUE
+          AND (flags->>'vordr')::boolean IS NOT TRUE
+          AND (
             (
-              "type" = :squadSourceType AND
-              (flags->>'totalMembers')::int >= 3 AND (flags->>'totalPosts')::int >= 3
-            ) OR
-            EXISTS (SELECT 1
+              "type" = :squadSourceType
+              AND (flags->>'totalMembers')::int >= 3
+              AND (flags->>'totalPosts')::int >= 3
+            )
+            OR EXISTS (SELECT 1
               FROM "content_preference" cp
               JOIN "user" u ON cp."userId" = u.id
-              WHERE cp."referenceId" = "source".id AND cp.type = 'source'
-                  AND cp.flags->>'role' = 'admin' AND u.reputation >= :threshold
-                  AND (u.flags->>'vordr')::boolean IS NOT TRUE
+              WHERE
+                cp."referenceId" = "source".id
+                AND cp.type = 'source'
+                AND cp.flags->>'role' = 'admin'
+                AND u.reputation >= :threshold
+                AND (u.flags->>'vordr')::boolean IS NOT TRUE
             )
           )
       `,
