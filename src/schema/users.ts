@@ -2202,6 +2202,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         sendType = UserPersonalizedDigestSendType.workdays,
       } = args;
 
+      if (type === UserPersonalizedDigestType.Brief && !ctx.isPlus) {
+        throw new ConflictError(
+          'You need to be Plus member to subscribe to brief digest',
+        );
+      }
+
       if (!isNullOrUndefined(hour) && (hour < 0 || hour > 23)) {
         throw new ValidationError('Invalid hour');
       }
