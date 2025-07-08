@@ -410,7 +410,7 @@ export const getPersonalizedDigestEmailPayload = async ({
   };
 };
 
-export const digestPreferredHourOffset = 4;
+export const digestPreferredHourOffset = 2;
 
 export const schedulePersonalizedDigestSubscriptions = async ({
   queryBuilder,
