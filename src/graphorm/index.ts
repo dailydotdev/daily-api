@@ -1080,6 +1080,7 @@ const obj = new GraphORM({
           return {
             sendType: value?.sendType ?? UserPersonalizedDigestSendType.weekly,
             email: value?.email,
+            slack: value?.slack,
           };
         },
       },

@@ -16,7 +16,7 @@ import {
   User,
   type Post,
 } from '../entity';
-import { SourceType, SourceUser, UNKNOWN_SOURCE } from '../entity/Source';
+import { BRIEFING_SOURCE, SourceType, SourceUser } from '../entity/Source';
 import {
   SourceMemberRoles,
   sourceRoleRank,
@@ -1182,7 +1182,7 @@ export const ensureSourcePermissions = async (
       .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
 
     if (
-      source.id === UNKNOWN_SOURCE &&
+      source.id === BRIEFING_SOURCE &&
       ctx.userId &&
       post?.type === PostType.Brief &&
       post.authorId === ctx.userId
