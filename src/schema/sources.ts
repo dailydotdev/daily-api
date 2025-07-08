@@ -2298,11 +2298,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLSource> => {
-      const current = await ensureSourcePermissions(
+      const source = await ensureSourcePermissions(
         ctx,
         sourceId,
         SourcePermissions.Edit,
       );
+
+      if (source.type !== SourceType.Squad) {
+        throw new ForbiddenError(
+          'Access denied! You do not have permission for this action!',
+        );
+      }
+
       const handle = await validateSquadData(
         {
           handle: inputHandle,
@@ -2313,7 +2320,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           categoryId,
         },
         ctx.con,
-        inputHandle !== current.handle,
+        inputHandle !== source.handle,
       );
 
       const updates: Partial<SquadSource> = {
@@ -2334,7 +2341,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           updates.categoryId = categoryId;
         }
 
-        if (current.private !== isPrivate) {
+        if (source.private !== isPrivate) {
           updates.private = isPrivate;
         }
       }
@@ -2378,7 +2385,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { sourceId }: { sourceId: string },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Delete);
+      const source = await ensureSourcePermissions(
+        ctx,
+        sourceId,
+        SourcePermissions.Delete,
+      );
+
+      if (source.type !== SourceType.Squad) {
+        throw new ForbiddenError(
+          'Access denied! You do not have permission for this action!',
+        );
+      }
+
       await ctx.con.getRepository(Source).delete({
         id: sourceId,
       });
@@ -2389,7 +2407,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { sourceId }: { sourceId: string },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Leave);
+      const source = await ensureSourcePermissions(
+        ctx,
+        sourceId,
+        SourcePermissions.Leave,
+      );
+
+      if (source.type !== SourceType.Squad) {
+        throw new ForbiddenError(
+          'Access denied! You do not have permission for this action!',
+        );
+      }
+
       await removeSourceMember({
         con: ctx.con,
         userId: ctx.userId,
@@ -2402,15 +2431,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { sourceId, memberId, role }: UpdateMemberRoleArgs,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
+      let source: Source;
+
       if (role === SourceMemberRoles.Blocked) {
-        await ensureSourcePermissions(
+        source = await ensureSourcePermissions(
           ctx,
           sourceId,
           SourcePermissions.MemberRemove,
           memberId,
         );
       } else {
-        await ensureSourcePermissions(
+        source = await ensureSourcePermissions(
           ctx,
           sourceId,
           SourcePermissions.MemberRoleUpdate,
@@ -2419,6 +2450,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         if (!Object.values(SourceMemberRoles).includes(role)) {
           throw new ValidationError('Role does not exist!');
         }
+      }
+
+      if (source.type !== SourceType.Squad) {
+        throw new ForbiddenError(
+          'Access denied! You do not have permission for this action!',
+        );
       }
 
       await ctx.con.transaction(async (entityManager) => {
@@ -2457,11 +2494,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { sourceId, memberId }: UpdateMemberRoleArgs,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      await ensureSourcePermissions(
+      const source = await ensureSourcePermissions(
         ctx,
         sourceId,
         SourcePermissions.MemberUnblock,
       );
+
+      if (source.type !== SourceType.Squad) {
+        throw new ForbiddenError(
+          'Access denied! You do not have permission for this action!',
+        );
+      }
 
       await ctx.con.transaction(async (entityManager) => {
         await entityManager
@@ -2485,6 +2528,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const source = await ctx.con
         .getRepository(Source)
         .findOneByOrFail({ id: sourceId });
+
       if (source.type !== SourceType.Squad) {
         throw new ForbiddenError(
           'Access denied! You do not have permission for this action!',
