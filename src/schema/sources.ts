@@ -2494,21 +2494,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { sourceId, memberId }: UpdateMemberRoleArgs,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      const source = await ctx.con
-        .getRepository(Source)
-        .findOneByOrFail({ id: sourceId });
+      const source = await ensureSourcePermissions(
+        ctx,
+        sourceId,
+        SourcePermissions.MemberUnblock,
+      );
 
       if (source.type !== SourceType.Squad) {
         throw new ForbiddenError(
           'Access denied! You do not have permission for this action!',
         );
       }
-
-      await ensureSourcePermissions(
-        ctx,
-        sourceId,
-        SourcePermissions.MemberUnblock,
-      );
 
       await ctx.con.transaction(async (entityManager) => {
         await entityManager
