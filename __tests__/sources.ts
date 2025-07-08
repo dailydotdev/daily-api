@@ -1594,7 +1594,7 @@ describe('membersCount field', () => {
       { type: SourceType.User },
     );
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       {
         mutation: UPDATE_MEMBER_ROLE,
@@ -2648,7 +2648,7 @@ describe('mutation editSquad', () => {
       { type: SourceType.User },
     );
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       { mutation: MUTATION, variables },
       'FORBIDDEN',
@@ -3320,7 +3320,7 @@ describe('mutation unblockMember', () => {
       { type: SourceType.User },
     );
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       { mutation: MUTATION, variables: { sourceId: 'a', memberId: '3' } },
       'FORBIDDEN',
@@ -3404,7 +3404,7 @@ describe('mutation leaveSource', () => {
       { type: SourceType.User },
     );
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       { mutation: MUTATION, variables },
       'FORBIDDEN',
@@ -3484,7 +3484,7 @@ describe('mutation deleteSource', () => {
       { type: SourceType.User },
     );
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       { mutation: MUTATION, variables },
       'FORBIDDEN',
