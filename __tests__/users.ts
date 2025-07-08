@@ -145,6 +145,7 @@ let app: FastifyInstance;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
+let isPlus: boolean;
 const userTimezone = 'Pacific/Midway';
 
 jest.mock('../src/common/paddle/index.ts', () => ({
@@ -183,7 +184,7 @@ beforeAll(async () => {
         undefined,
         undefined,
         undefined,
-        undefined,
+        isPlus,
         'US',
       ),
   );
@@ -195,6 +196,7 @@ const now = new Date();
 
 beforeEach(async () => {
   loggedUser = null;
+  isPlus = false;
   nock.cleanAll();
   jest.clearAllMocks();
 
@@ -4616,6 +4618,7 @@ describe('query personalizedDigest', () => {
       personalizedDigest {
         type
         flags {
+          email
           sendType
         }
       }
@@ -4636,6 +4639,7 @@ describe('query personalizedDigest', () => {
         type: UserPersonalizedDigestType.Digest,
         flags: {
           sendType: UserPersonalizedDigestSendType.workdays,
+          email: true,
         },
       });
 
@@ -4645,6 +4649,7 @@ describe('query personalizedDigest', () => {
       expect(res.data.personalizedDigest.length).toEqual(1);
       expect(res.data.personalizedDigest[0].flags).toEqual({
         sendType: UserPersonalizedDigestSendType.workdays,
+        email: true,
       });
     });
 
@@ -4655,16 +4660,20 @@ describe('query personalizedDigest', () => {
       expect(res.data.personalizedDigest.length).toEqual(1);
       expect(res.data.personalizedDigest[0].flags).toEqual({
         sendType: UserPersonalizedDigestSendType.weekly,
+        email: null,
       });
     });
   });
 });
 
 describe('mutation subscribePersonalizedDigest', () => {
-  const MUTATION = `mutation SubscribePersonalizedDigest($hour: Int, $day: Int, $type: DigestType) {
-    subscribePersonalizedDigest(hour: $hour, day: $day, type: $type) {
+  const MUTATION = `mutation SubscribePersonalizedDigest($hour: Int, $day: Int, $type: DigestType, $sendType: UserPersonalizedDigestSendType, $email: Boolean) {
+    subscribePersonalizedDigest(hour: $hour, day: $day, type: $type, sendType: $sendType, email: $email) {
       preferredDay
       preferredHour
+      flags {
+        email
+      }
     }
   }`;
 
@@ -4778,12 +4787,16 @@ describe('mutation subscribePersonalizedDigest', () => {
       variables: {
         day: DayOfWeek.Wednesday,
         hour: 17,
+        email: true,
       },
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.subscribePersonalizedDigest).toMatchObject({
       preferredDay: DayOfWeek.Wednesday,
       preferredHour: 17,
+      flags: {
+        email: true,
+      },
     });
   });
 
@@ -4831,6 +4844,46 @@ describe('mutation subscribePersonalizedDigest', () => {
     expect(digest.flags).toEqual({
       sendType: UserPersonalizedDigestSendType.workdays,
     });
+  });
+
+  it('should subscribe to brief', async () => {
+    loggedUser = '1';
+    isPlus = true;
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        type: UserPersonalizedDigestType.Brief,
+        sendType: UserPersonalizedDigestSendType.daily,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.subscribePersonalizedDigest).toMatchObject({
+      preferredDay: DayOfWeek.Monday,
+      preferredHour: 9,
+    });
+    const digest = await con.getRepository(UserPersonalizedDigest).findOneBy({
+      userId: loggedUser,
+      type: UserPersonalizedDigestType.Brief,
+    });
+    expect(digest).toBeDefined();
+    expect(digest!.flags).toEqual({
+      sendType: UserPersonalizedDigestSendType.daily,
+    });
+  });
+
+  it('should not subscribe to brief when user is not plus member', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          type: UserPersonalizedDigestType.Brief,
+        },
+      },
+      'CONFLICT',
+    );
   });
 });
 

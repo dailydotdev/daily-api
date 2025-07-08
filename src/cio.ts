@@ -12,7 +12,7 @@ import { CioUnsubscribeTopic, getFirstName } from './common/mailing';
 import { getShortGenericInviteLink } from './common/links';
 import type { UserCompany } from './entity/UserCompany';
 import type { Company } from './entity/Company';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import { logger } from './logger';
 
 export const cio = new TrackClient(
@@ -129,7 +129,10 @@ export const getIdentifyAttributes = async (
       select: ['userId'],
       where: {
         userId: id,
-        type: UserPersonalizedDigestType.Digest,
+        type: In([
+          UserPersonalizedDigestType.Digest,
+          UserPersonalizedDigestType.Brief,
+        ]),
       },
     }),
   ]);
