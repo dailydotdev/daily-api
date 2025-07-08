@@ -3477,6 +3477,10 @@ describe('mutation deleteSource', () => {
   it('should not delete non-squad source', async () => {
     loggedUser = '1';
 
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '1' }, { role: SourceMemberRoles.Admin });
+
     await con.getRepository(Source).update(
       {
         id: 's1',
