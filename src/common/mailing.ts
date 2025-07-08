@@ -150,7 +150,10 @@ export const syncSubscription = async function (
         if (!digest) {
           await manager.getRepository(UserPersonalizedDigest).delete({
             userId: customer.id,
-            type: UserPersonalizedDigestType.Digest,
+            type: In([
+              UserPersonalizedDigestType.Digest,
+              UserPersonalizedDigestType.Brief,
+            ]),
           });
         }
       },
@@ -306,11 +309,16 @@ export const syncSubscriptionsWithActiveState = async ({
       await con.getRepository(UserPersonalizedDigest).update(
         {
           userId: In(current),
-          type: UserPersonalizedDigestType.Digest,
-          flags: Raw(
-            () =>
-              `flags->>'sendType' = '${UserPersonalizedDigestSendType.workdays}'`,
-          ),
+          type: In([
+            UserPersonalizedDigestType.Digest,
+            UserPersonalizedDigestType.Brief,
+          ]),
+          flags: Raw(() => `flags->>'sendType' IN (:...digestTypes)`, {
+            digestTypes: [
+              UserPersonalizedDigestType.Digest,
+              UserPersonalizedDigestType.Brief,
+            ],
+          }),
         },
         {
           preferredDay: 3,
