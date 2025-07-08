@@ -1541,24 +1541,24 @@ query Source($id: ID!) {
 });
 
 describe('membersCount field', () => {
-  const QUERY = `
-query Source($id: ID!) {
-  source(id: $id) {
-    membersCount
-    flags {
-      totalMembers
+  const QUERY = /* GraphQL */ `
+    query Source($id: ID!) {
+      source(id: $id) {
+        membersCount
+        flags {
+          totalMembers
+        }
+      }
     }
-  }
-}
   `;
 
-  const UPDATE_MEMBER_ROLE = `
-mutation UpdateMemberRole($sourceId: ID!, $memberId: ID!, $role: String!) {
-  updateMemberRole(sourceId: $sourceId, memberId: $memberId, role: $role) {
-    _
-  }
-} 
-`;
+  const UPDATE_MEMBER_ROLE = /* GraphQL */ `
+    mutation UpdateMemberRole($sourceId: ID!, $memberId: ID!, $role: String!) {
+      updateMemberRole(sourceId: $sourceId, memberId: $memberId, role: $role) {
+        _
+      }
+    }
+  `;
 
   it('should return number of members', async () => {
     loggedUser = '1';
@@ -1582,6 +1582,31 @@ mutation UpdateMemberRole($sourceId: ID!, $memberId: ID!, $role: String!) {
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.source.membersCount).toEqual(1);
+  });
+
+  it('should throw error if trying to update role of member of non-squad source', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(Source).update(
+      {
+        id: 'a',
+      },
+      { type: SourceType.User },
+    );
+
+    testMutationErrorCode(
+      client,
+      {
+        mutation: UPDATE_MEMBER_ROLE,
+        variables: {
+          sourceId: 'a',
+          memberId: '2',
+          role: SourceMemberRoles.Blocked,
+        },
+      },
+      'FORBIDDEN',
+      'Access denied! You do not have permission for this action!',
+    );
   });
 });
 
@@ -2384,13 +2409,36 @@ describe('mutation createSquad', () => {
 });
 
 describe('mutation editSquad', () => {
-  const MUTATION = `
-  mutation EditSquad($sourceId: ID!, $name: String!, $handle: String!, $description: String, $memberPostingRole: String, $memberInviteRole: String, $isPrivate: Boolean, $categoryId: ID, $moderationRequired: Boolean) {
-  editSquad(sourceId: $sourceId, name: $name, handle: $handle, description: $description, memberPostingRole: $memberPostingRole, memberInviteRole: $memberInviteRole, isPrivate: $isPrivate, categoryId: $categoryId, moderationRequired: $moderationRequired) {
-    id
-    category { id }
-  }
-}`;
+  const MUTATION = /* GraphQL */ `
+    mutation EditSquad(
+      $sourceId: ID!
+      $name: String!
+      $handle: String!
+      $description: String
+      $memberPostingRole: String
+      $memberInviteRole: String
+      $isPrivate: Boolean
+      $categoryId: ID
+      $moderationRequired: Boolean
+    ) {
+      editSquad(
+        sourceId: $sourceId
+        name: $name
+        handle: $handle
+        description: $description
+        memberPostingRole: $memberPostingRole
+        memberInviteRole: $memberInviteRole
+        isPrivate: $isPrivate
+        categoryId: $categoryId
+        moderationRequired: $moderationRequired
+      ) {
+        id
+        category {
+          id
+        }
+      }
+    }
+  `;
 
   const variables = {
     sourceId: 's1',
@@ -2584,6 +2632,24 @@ describe('mutation editSquad', () => {
       client,
       { mutation: MUTATION, variables: { ...variables, sourceId: 'fake' } },
       'NOT_FOUND',
+    );
+  });
+
+  it('should throw error if trying to edit non-squad source', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(Source).update(
+      {
+        id: 's1',
+      },
+      { type: SourceType.User },
+    );
+
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'FORBIDDEN',
+      'Access denied! You do not have permission for this action!',
     );
   });
 
@@ -3140,7 +3206,7 @@ describe('mutation updateMemberRole', () => {
 });
 
 describe('mutation unblockMember', () => {
-  const MUTATION = `
+  const MUTATION = /* GraphQL */ `
     mutation UnblockMember($sourceId: ID!, $memberId: ID!) {
       unblockMember(sourceId: $sourceId, memberId: $memberId) {
         _
@@ -3240,15 +3306,34 @@ describe('mutation unblockMember', () => {
       .findOneBy({ userId: '3', referenceId: 'a' });
     expect(contentPreference).toBeNull();
   });
+
+  it('should throw error if trying to unblock member of non-squad source', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(Source).update(
+      {
+        id: 'a',
+      },
+      { type: SourceType.User },
+    );
+
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { sourceId: 'a', memberId: '3' } },
+      'FORBIDDEN',
+      'Access denied! You do not have permission for this action!',
+    );
+  });
 });
 
 describe('mutation leaveSource', () => {
-  const MUTATION = `
-  mutation LeaveSource($sourceId: ID!) {
-  leaveSource(sourceId: $sourceId) {
-    _
-  }
-}`;
+  const MUTATION = /* GraphQL */ `
+    mutation LeaveSource($sourceId: ID!) {
+      leaveSource(sourceId: $sourceId) {
+        _
+      }
+    }
+  `;
 
   const variables = {
     sourceId: 's1',
@@ -3306,6 +3391,24 @@ describe('mutation leaveSource', () => {
     expect(sourceMembers).toEqual(0);
   });
 
+  it('should throw error if trying to leave non-squad source', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(Source).update(
+      {
+        id: 's1',
+      },
+      { type: SourceType.User },
+    );
+
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'FORBIDDEN',
+      'Access denied! You do not have permission for this action!',
+    );
+  });
+
   it('should leave squad even if the user is the admin', async () => {
     loggedUser = '1';
     await con
@@ -3321,12 +3424,13 @@ describe('mutation leaveSource', () => {
 });
 
 describe('mutation deleteSource', () => {
-  const MUTATION = `
-  mutation DeleteSource($sourceId: ID!) {
-  deleteSource(sourceId: $sourceId) {
-    _
-  }
-}`;
+  const MUTATION = /* GraphQL */ `
+    mutation DeleteSource($sourceId: ID!) {
+      deleteSource(sourceId: $sourceId) {
+        _
+      }
+    }
+  `;
 
   beforeEach(async () => {
     await con.getRepository(SquadSource).save({
@@ -3367,6 +3471,24 @@ describe('mutation deleteSource', () => {
     );
   });
 
+  it('should not delete non-squad source', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(Source).update(
+      {
+        id: 's1',
+      },
+      { type: SourceType.User },
+    );
+
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'FORBIDDEN',
+      'Access denied! You do not have permission for this action!',
+    );
+  });
+
   it('should delete source and members', async () => {
     loggedUser = '1';
     await con
@@ -3385,12 +3507,13 @@ describe('mutation deleteSource', () => {
 });
 
 describe('mutation joinSource', () => {
-  const MUTATION = `
-  mutation JoinSource($sourceId: ID!, $token: String) {
-  joinSource(sourceId: $sourceId, token: $token) {
-    id
-  }
-}`;
+  const MUTATION = /* GraphQL */ `
+    mutation JoinSource($sourceId: ID!, $token: String) {
+      joinSource(sourceId: $sourceId, token: $token) {
+        id
+      }
+    }
+  `;
 
   const variables = {
     sourceId: 's1',
@@ -3529,9 +3652,11 @@ describe('mutation joinSource', () => {
 
   it('should throw error when joining non squad source', async () => {
     loggedUser = '1';
+
     await con
       .getRepository(Source)
       .update({ id: 'a' }, { type: SourceType.Machine });
+
     return testMutationErrorCode(
       client,
       { mutation: MUTATION, variables: { sourceId: 'a' } },
