@@ -31,31 +31,43 @@ export const userUpdatedPlusSubscriptionBriefWorker: TypedWorker<'user-updated'>
       }
 
       if (afterFlags?.subscriptionId === '' || !afterFlags?.subscriptionId) {
-        await con.getRepository(UserPersonalizedDigest).update(
-          {
+        await con.transaction(async (entityManager) => {
+          await entityManager.delete(UserPersonalizedDigest, {
             userId: user.id,
-            type: UserPersonalizedDigestType.Brief,
-          },
-          {
             type: UserPersonalizedDigestType.Digest,
-            flags: updateFlagsStatement<UserPersonalizedDigest>({
-              sendType: UserPersonalizedDigestSendType.workdays,
-            }),
-          },
-        );
+          });
+          await entityManager.getRepository(UserPersonalizedDigest).update(
+            {
+              userId: user.id,
+              type: UserPersonalizedDigestType.Brief,
+            },
+            {
+              type: UserPersonalizedDigestType.Digest,
+              flags: updateFlagsStatement<UserPersonalizedDigest>({
+                sendType: UserPersonalizedDigestSendType.workdays,
+              }),
+            },
+          );
+        });
       } else {
-        await con.getRepository(UserPersonalizedDigest).update(
-          {
+        await con.transaction(async (entityManager) => {
+          await entityManager.delete(UserPersonalizedDigest, {
             userId: user.id,
-            type: UserPersonalizedDigestType.Digest,
-          },
-          {
             type: UserPersonalizedDigestType.Brief,
-            flags: updateFlagsStatement<UserPersonalizedDigest>({
-              sendType: UserPersonalizedDigestSendType.daily,
-            }),
-          },
-        );
+          });
+          await entityManager.getRepository(UserPersonalizedDigest).update(
+            {
+              userId: user.id,
+              type: UserPersonalizedDigestType.Digest,
+            },
+            {
+              type: UserPersonalizedDigestType.Brief,
+              flags: updateFlagsStatement<UserPersonalizedDigest>({
+                sendType: UserPersonalizedDigestSendType.daily,
+              }),
+            },
+          );
+        });
       }
     },
   };

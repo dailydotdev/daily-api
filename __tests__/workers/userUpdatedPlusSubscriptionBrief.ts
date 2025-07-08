@@ -115,6 +115,15 @@ describe('userUpdatedPlusSubscriptionBrief worker', () => {
       preferredDay: 1,
       preferredHour: 16,
     });
+
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: base.id,
+        type: UserPersonalizedDigestType.Digest,
+      });
+
+    expect(personalizedDigest).toBeNull();
   });
 
   it('should not replace subscription if user is special user', async () => {
@@ -280,6 +289,15 @@ describe('userUpdatedPlusSubscriptionBrief worker', () => {
       preferredDay: 1,
       preferredHour: 16,
     });
+
+    const briefDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: base.id,
+        type: UserPersonalizedDigestType.Brief,
+      });
+
+    expect(briefDigest).toBeNull();
   });
 
   it('should not replace subscription if user is not subscribed to digest', async () => {
@@ -310,5 +328,119 @@ describe('userUpdatedPlusSubscriptionBrief worker', () => {
       });
 
     expect(digestAfter).toBeNull();
+  });
+
+  it('should remove brief subscription if user is subscribed to digest already', async () => {
+    await con.getRepository(UserPersonalizedDigest).save({
+      userId: '1',
+      type: UserPersonalizedDigestType.Brief,
+      flags: {
+        sendType: UserPersonalizedDigestSendType.daily,
+      },
+      preferredDay: 1,
+      preferredHour: 16,
+    });
+
+    const oldBase = {
+      ...base,
+      subscriptionFlags: JSON.stringify({ subscriptionId: '1234' }),
+    };
+
+    const digestBefore = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: base.id,
+        type: UserPersonalizedDigestType.Brief,
+      });
+
+    expect(digestBefore).toBeDefined();
+
+    await expectSuccessfulTypedBackground(worker, {
+      newProfile: base,
+      user: oldBase,
+    } as unknown as PubSubSchema['user-updated']);
+
+    const digestAfter = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: base.id,
+        type: UserPersonalizedDigestType.Digest,
+      });
+
+    expect(digestAfter).toMatchObject({
+      userId: base.id,
+      type: UserPersonalizedDigestType.Digest,
+      flags: {
+        sendType: UserPersonalizedDigestSendType.workdays,
+      },
+      preferredDay: 1,
+      preferredHour: 16,
+    });
+
+    const briefDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: base.id,
+        type: UserPersonalizedDigestType.Brief,
+      });
+
+    expect(briefDigest).toBeNull();
+  });
+
+  it('should remove digest subscription if user is subscribed to brief already', async () => {
+    await con.getRepository(UserPersonalizedDigest).save({
+      userId: '1',
+      type: UserPersonalizedDigestType.Brief,
+      flags: {
+        sendType: UserPersonalizedDigestSendType.daily,
+      },
+      preferredDay: 1,
+      preferredHour: 16,
+    });
+
+    const newBase = {
+      ...base,
+      subscriptionFlags: JSON.stringify({ subscriptionId: '1234' }),
+    };
+
+    const digestBefore = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: newBase.id,
+        type: UserPersonalizedDigestType.Digest,
+      });
+
+    expect(digestBefore).toBeDefined();
+
+    await expectSuccessfulTypedBackground(worker, {
+      newProfile: newBase,
+      user: base,
+    } as unknown as PubSubSchema['user-updated']);
+
+    const digestAfter = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: newBase.id,
+        type: UserPersonalizedDigestType.Brief,
+      });
+
+    expect(digestAfter).toMatchObject({
+      userId: newBase.id,
+      type: UserPersonalizedDigestType.Brief,
+      flags: {
+        sendType: UserPersonalizedDigestSendType.daily,
+      },
+      preferredDay: 1,
+      preferredHour: 16,
+    });
+
+    const briefDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: base.id,
+        type: UserPersonalizedDigestType.Digest,
+      });
+
+    expect(briefDigest).toBeNull();
   });
 });
