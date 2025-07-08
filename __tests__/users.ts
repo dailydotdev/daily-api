@@ -4620,6 +4620,7 @@ describe('query personalizedDigest', () => {
         flags {
           email
           sendType
+          slack
         }
       }
   }`;
@@ -4640,6 +4641,7 @@ describe('query personalizedDigest', () => {
         flags: {
           sendType: UserPersonalizedDigestSendType.workdays,
           email: true,
+          slack: true,
         },
       });
 
@@ -4650,6 +4652,7 @@ describe('query personalizedDigest', () => {
       expect(res.data.personalizedDigest[0].flags).toEqual({
         sendType: UserPersonalizedDigestSendType.workdays,
         email: true,
+        slack: true,
       });
     });
 
@@ -4661,6 +4664,7 @@ describe('query personalizedDigest', () => {
       expect(res.data.personalizedDigest[0].flags).toEqual({
         sendType: UserPersonalizedDigestSendType.weekly,
         email: null,
+        slack: null,
       });
     });
   });

@@ -723,6 +723,7 @@ export const typeDefs = /* GraphQL */ `
   type PersonalizedDigestFlagsPublic {
     sendType: UserPersonalizedDigestSendType
     email: Boolean
+    slack: Boolean
   }
 
   type UserPersonalizedDigest {
@@ -1071,6 +1072,11 @@ export const typeDefs = /* GraphQL */ `
       Send digest over email
       """
       email: Boolean
+
+      """
+      Send digest over slack
+      """
+      slack: Boolean
     ): UserPersonalizedDigest @auth
 
     """
@@ -2199,6 +2205,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         type?: UserPersonalizedDigestType;
         sendType?: UserPersonalizedDigestSendType;
         email?: boolean;
+        slack?: boolean;
       },
       ctx: AuthContext,
     ): Promise<GQLUserPersonalizedDigest> => {
@@ -2208,6 +2215,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         type = UserPersonalizedDigestType.Digest,
         sendType = UserPersonalizedDigestSendType.workdays,
         email,
+        slack,
       } = args;
 
       if (type === UserPersonalizedDigestType.Brief && !ctx.isPlus) {
@@ -2233,6 +2241,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       if (!isNullOrUndefined(email)) {
         flags.email = email;
+      }
+
+      if (!isNullOrUndefined(slack)) {
+        flags.slack = slack;
       }
 
       const personalizedDigest = await repo.save({

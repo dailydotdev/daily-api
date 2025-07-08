@@ -83,6 +83,7 @@ import {
   type PostTranslation,
   determineSharedPostId,
   SharePost,
+  BRIEFING_SOURCE,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -3195,6 +3196,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         authorId: ctx.userId,
         private: true,
         visible: false,
+        sourceId: BRIEFING_SOURCE,
       });
 
       await ctx.con.getRepository(BriefPost).insert(post);

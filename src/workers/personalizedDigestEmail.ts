@@ -5,6 +5,7 @@ import {
   triggerTypedEvent,
 } from '../common';
 import {
+  BRIEFING_SOURCE,
   Settings,
   User,
   UserPersonalizedDigest,
@@ -235,6 +236,7 @@ const digestTypeToFunctionMap: Record<
             authorId: userId,
             private: true,
             visible: false,
+            sourceId: BRIEFING_SOURCE,
           });
 
           await entityManager.getRepository(BriefPost).insert(post);
