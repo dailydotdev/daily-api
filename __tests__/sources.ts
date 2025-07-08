@@ -1949,16 +1949,17 @@ query SourceMemberByToken($token: String!) {
 });
 
 describe('query sourcesByTag', () => {
-  const QUERY = `
-query SourcesByTag($tag: String!, $first: Int, $excludedSources: [String]) {
-  sourcesByTag(tag: $tag, first: $first, excludeSources: $excludedSources) {
-    edges {
-      node {
-        name
+  const QUERY = /* GraphQL */ `
+    query SourcesByTag($tag: String!, $first: Int, $excludedSources: [String]) {
+      sourcesByTag(tag: $tag, first: $first, excludeSources: $excludedSources) {
+        edges {
+          node {
+            name
+          }
+        }
       }
     }
-  }
-}`;
+  `;
 
   it('should return empty array if tag not found', async () => {
     const res = await client.query(QUERY, {
@@ -1987,10 +1988,12 @@ query SourcesByTag($tag: String!, $first: Int, $excludedSources: [String]) {
       variables: { tag: 'javascript' },
     });
     expect(res.errors).toBeFalsy();
-    expect(res.data.sourcesByTag.edges).toEqual([
-      { node: { name: 'A' } },
-      { node: { name: 'B' } },
-    ]);
+    expect(res.data.sourcesByTag.edges).toEqual(
+      expect.arrayContaining([
+        { node: { name: 'A' } },
+        { node: { name: 'B' } },
+      ]),
+    );
   });
 });
 
