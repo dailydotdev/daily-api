@@ -4620,6 +4620,7 @@ describe('query personalizedDigest', () => {
         flags {
           email
           sendType
+          slack
         }
       }
   }`;
