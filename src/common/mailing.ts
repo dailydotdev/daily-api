@@ -313,10 +313,10 @@ export const syncSubscriptionsWithActiveState = async ({
             UserPersonalizedDigestType.Digest,
             UserPersonalizedDigestType.Brief,
           ]),
-          flags: Raw(() => `flags->>'sendType' IN (:...digestTypes)`, {
-            digestTypes: [
-              UserPersonalizedDigestType.Digest,
-              UserPersonalizedDigestType.Brief,
+          flags: Raw(() => `flags->>'sendType' IN (:...sendTypes)`, {
+            sendTypes: [
+              UserPersonalizedDigestSendType.workdays,
+              UserPersonalizedDigestSendType.daily,
             ],
           }),
         },

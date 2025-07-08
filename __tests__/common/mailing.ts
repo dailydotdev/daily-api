@@ -1,18 +1,18 @@
 import nock from 'nock';
-import { DataSource, In, Not } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import { saveFixtures } from '../helpers';
 import createOrGetConnection from '../../src/db';
 import {
   User,
   UserPersonalizedDigest,
+  UserPersonalizedDigestSendType,
   UserPersonalizedDigestType,
 } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
 import {
   CioUnsubscribeTopic,
-  ghostUser,
   syncSubscription,
-  systemUser,
+  updateFlagsStatement,
 } from '../../src/common';
 
 let con: DataSource;
@@ -24,18 +24,33 @@ beforeAll(async () => {
 beforeEach(async () => {
   nock.cleanAll();
   process.env.CIO_APP_KEY = 'test';
-  await saveFixtures(con, User, usersFixture);
+  await saveFixtures(
+    con,
+    User,
+    usersFixture.map((item) => {
+      return {
+        ...item,
+        id: `mss-${item.id}`,
+      };
+    }),
+  );
 });
 
 describe('mailing', () => {
   describe('syncSubscription', () => {
     it('sync subscriptions for the given users', async () => {
+      let users = await con.getRepository(User).find({
+        where: {
+          id: In(usersFixture.map((user) => `mss-${user.id}`)),
+        },
+      });
+
       nock(`https://api.customer.io`)
         .post('/v1/customers/attributes', {
-          ids: usersFixture.map((user) => user.id),
+          ids: users.map((user) => user.id),
         })
         .reply(200, {
-          customers: usersFixture.map((user) => ({
+          customers: users.map((user) => ({
             id: user.id,
             attributes: {
               cio_subscription_preferences: JSON.stringify({
@@ -53,13 +68,13 @@ describe('mailing', () => {
         });
 
       await syncSubscription(
-        usersFixture.map((user) => user.id as string),
+        users.map((user) => user.id as string),
         con,
       );
 
-      const users = await con.getRepository(User).find({
+      users = await con.getRepository(User).find({
         where: {
-          id: Not(In([ghostUser.id, systemUser.id])),
+          id: In(usersFixture.map((user) => `mss-${user.id}`)),
         },
       });
 
@@ -76,6 +91,80 @@ describe('mailing', () => {
         expect(digests[index]).toMatchObject({
           userId: user.id,
           type: UserPersonalizedDigestType.Digest,
+        });
+        expect(user.followingEmail).toBe(false);
+        expect(user.awardEmail).toBe(false);
+      });
+    });
+
+    it('sync digest subscription with brief', async () => {
+      let users = await con.getRepository(User).find({
+        where: {
+          id: In(usersFixture.map((user) => `mss-${user.id}`)),
+        },
+      });
+
+      await con.getRepository(UserPersonalizedDigest).update(
+        {
+          userId: In(users.map((user) => user.id)),
+        },
+        {
+          type: UserPersonalizedDigestType.Brief,
+          flags: updateFlagsStatement<UserPersonalizedDigest>({
+            sendType: UserPersonalizedDigestSendType.daily,
+          }),
+        },
+      );
+
+      nock(`https://api.customer.io`)
+        .post('/v1/customers/attributes', {
+          ids: users.map((user) => user.id),
+        })
+        .reply(200, {
+          customers: users.map((user) => ({
+            id: user.id,
+            attributes: {
+              cio_subscription_preferences: JSON.stringify({
+                topics: {
+                  [`topic_${CioUnsubscribeTopic.Marketing}`]: false,
+                  [`topic_${CioUnsubscribeTopic.Digest}`]: true,
+                  [`topic_${CioUnsubscribeTopic.Notifications}`]: true,
+                  [`topic_${CioUnsubscribeTopic.Follow}`]: false,
+                  [`topic_${CioUnsubscribeTopic.Award}`]: false,
+                },
+              }),
+            },
+            unsubscribed: false,
+          })),
+        });
+
+      await syncSubscription(
+        users.map((user) => user.id as string),
+        con,
+      );
+
+      users = await con.getRepository(User).find({
+        where: {
+          id: In(usersFixture.map((user) => `mss-${user.id}`)),
+        },
+      });
+
+      const digests = await con.getRepository(UserPersonalizedDigest).findBy({
+        userId: In(users.map((user) => user.id)),
+        type: UserPersonalizedDigestType.Brief,
+      });
+
+      expect(digests).toHaveLength(4);
+
+      users.forEach((user, index) => {
+        expect(user.acceptedMarketing).toBe(false);
+        expect(user.notificationEmail).toBe(true);
+        expect(digests[index]).toMatchObject({
+          userId: user.id,
+          type: UserPersonalizedDigestType.Brief,
+          flags: {
+            sendType: UserPersonalizedDigestSendType.daily,
+          },
         });
         expect(user.followingEmail).toBe(false);
         expect(user.awardEmail).toBe(false);
