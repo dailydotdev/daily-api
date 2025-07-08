@@ -1183,6 +1183,13 @@ export const ensureSourcePermissions = async (
 
     if (
       source.id === BRIEFING_SOURCE &&
+      permission === SourcePermissions.ConnectSlack
+    ) {
+      return source;
+    }
+
+    if (
+      source.id === BRIEFING_SOURCE &&
       ctx.userId &&
       post?.type === PostType.Brief &&
       post.authorId === ctx.userId
