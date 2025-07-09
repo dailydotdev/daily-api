@@ -1,6 +1,6 @@
 import { GrowthBook } from '@growthbook/growthbook';
 import { logger } from './logger';
-import { isProd, isTest } from './common';
+import { isProd, isTest } from './common/utils';
 import type { CoresRole } from './types';
 import type { PurchaseType } from './common/plus';
 
