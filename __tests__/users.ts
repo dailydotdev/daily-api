@@ -58,6 +58,7 @@ import {
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import {
+  bskySocialUrlMatch,
   CioTransactionalMessageTemplateId,
   codepenSocialUrlMatch,
   DayOfWeek,
@@ -65,6 +66,7 @@ import {
   getTimezonedStartOfISOWeek,
   ghostUser,
   githubSocialUrlMatch,
+  type GQLUserTopReader,
   linkedinSocialUrlMatch,
   mastodonSocialUrlMatch,
   portfolioLimit,
@@ -73,14 +75,12 @@ import {
   sendEmail,
   socialUrlMatch,
   stackoverflowSocialUrlMatch,
+  systemUser,
   threadsSocialUrlMatch,
   twitterSocialUrlMatch,
-  type GQLUserTopReader,
-  UploadPreset,
-  updateSubscriptionFlags,
-  bskySocialUrlMatch,
   updateFlagsStatement,
-  systemUser,
+  updateSubscriptionFlags,
+  UploadPreset,
 } from '../src/common';
 import { DataSource, In, IsNull } from 'typeorm';
 import createOrGetConnection from '../src/db';
@@ -114,7 +114,7 @@ import { ContentPreferenceStatus } from '../src/entity/contentPreference/types';
 import { identifyUserPersonalizedDigest } from '../src/cio';
 import type { GQLUser } from '../src/schema/users';
 import { cancelSubscription } from '../src/common/paddle';
-import { isPlusMember } from '../src/paddle';
+import { isPlusMember, SubscriptionCycles } from '../src/paddle';
 import { CoresRole, StreakRestoreCoresPrice } from '../src/types';
 import {
   UserTransaction,
@@ -123,7 +123,11 @@ import {
 } from '../src/entity/user/UserTransaction';
 import { DeletedUser } from '../src/entity/user/DeletedUser';
 import { randomUUID } from 'crypto';
-import { ClaimableItem, ClaimableItemTypes } from '../src/entity/ClaimableItem';
+import {
+  ClaimableItem,
+  ClaimableItemFlags,
+  ClaimableItemTypes,
+} from '../src/entity/ClaimableItem';
 import { addClaimableItemsToUser } from '../src/entity/user/utils';
 import { getGeo } from '../src/common/geo';
 import { SubscriptionProvider, SubscriptionStatus } from '../src/common/plus';
@@ -141,6 +145,7 @@ let app: FastifyInstance;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
+let isPlus: boolean;
 const userTimezone = 'Pacific/Midway';
 
 jest.mock('../src/common/paddle/index.ts', () => ({
@@ -179,7 +184,7 @@ beforeAll(async () => {
         undefined,
         undefined,
         undefined,
-        undefined,
+        isPlus,
         'US',
       ),
   );
@@ -191,6 +196,7 @@ const now = new Date();
 
 beforeEach(async () => {
   loggedUser = null;
+  isPlus = false;
   nock.cleanAll();
   jest.clearAllMocks();
 
@@ -4612,7 +4618,9 @@ describe('query personalizedDigest', () => {
       personalizedDigest {
         type
         flags {
+          email
           sendType
+          slack
         }
       }
   }`;
@@ -4632,6 +4640,8 @@ describe('query personalizedDigest', () => {
         type: UserPersonalizedDigestType.Digest,
         flags: {
           sendType: UserPersonalizedDigestSendType.workdays,
+          email: true,
+          slack: true,
         },
       });
 
@@ -4641,6 +4651,8 @@ describe('query personalizedDigest', () => {
       expect(res.data.personalizedDigest.length).toEqual(1);
       expect(res.data.personalizedDigest[0].flags).toEqual({
         sendType: UserPersonalizedDigestSendType.workdays,
+        email: true,
+        slack: true,
       });
     });
 
@@ -4651,16 +4663,21 @@ describe('query personalizedDigest', () => {
       expect(res.data.personalizedDigest.length).toEqual(1);
       expect(res.data.personalizedDigest[0].flags).toEqual({
         sendType: UserPersonalizedDigestSendType.weekly,
+        email: null,
+        slack: null,
       });
     });
   });
 });
 
 describe('mutation subscribePersonalizedDigest', () => {
-  const MUTATION = `mutation SubscribePersonalizedDigest($hour: Int, $day: Int, $type: DigestType) {
-    subscribePersonalizedDigest(hour: $hour, day: $day, type: $type) {
+  const MUTATION = `mutation SubscribePersonalizedDigest($hour: Int, $day: Int, $type: DigestType, $sendType: UserPersonalizedDigestSendType, $email: Boolean) {
+    subscribePersonalizedDigest(hour: $hour, day: $day, type: $type, sendType: $sendType, email: $email) {
       preferredDay
       preferredHour
+      flags {
+        email
+      }
     }
   }`;
 
@@ -4774,12 +4791,16 @@ describe('mutation subscribePersonalizedDigest', () => {
       variables: {
         day: DayOfWeek.Wednesday,
         hour: 17,
+        email: true,
       },
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.subscribePersonalizedDigest).toMatchObject({
       preferredDay: DayOfWeek.Wednesday,
       preferredHour: 17,
+      flags: {
+        email: true,
+      },
     });
   });
 
@@ -4827,6 +4848,46 @@ describe('mutation subscribePersonalizedDigest', () => {
     expect(digest.flags).toEqual({
       sendType: UserPersonalizedDigestSendType.workdays,
     });
+  });
+
+  it('should subscribe to brief', async () => {
+    loggedUser = '1';
+    isPlus = true;
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        type: UserPersonalizedDigestType.Brief,
+        sendType: UserPersonalizedDigestSendType.daily,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.subscribePersonalizedDigest).toMatchObject({
+      preferredDay: DayOfWeek.Monday,
+      preferredHour: 9,
+    });
+    const digest = await con.getRepository(UserPersonalizedDigest).findOneBy({
+      userId: loggedUser,
+      type: UserPersonalizedDigestType.Brief,
+    });
+    expect(digest).toBeDefined();
+    expect(digest!.flags).toEqual({
+      sendType: UserPersonalizedDigestSendType.daily,
+    });
+  });
+
+  it('should not subscribe to brief when user is not plus member', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          type: UserPersonalizedDigestType.Brief,
+        },
+      },
+      'CONFLICT',
+    );
   });
 });
 
@@ -6514,78 +6575,153 @@ describe('query checkCoresRole', () => {
 });
 
 describe('add claimable items to user', () => {
-  it('should add the claimable item to the user', async () => {
-    const userId = randomUUID();
-    const claimableItemUuid = randomUUID();
+  describe('utility function', () => {
+    it('should add the claimable item to the user', async () => {
+      const userId = randomUUID();
+      const claimableItemUuid = randomUUID();
 
-    const flags = {
-      cycle: 'yearly',
-      status: 'active',
-      provider: 'paddle',
-      createdAt: new Date(),
-      customerId: 'ctm_01jktawy94f7ypbn7x8wdvtv86',
-      subscriptionId: 'sub_01jv95ymhjr71a700kpx8txt2j',
-    };
+      const flags: ClaimableItemFlags = {
+        cycle: SubscriptionCycles.Yearly,
+        status: SubscriptionStatus.Active,
+        provider: SubscriptionProvider.Paddle,
+        createdAt: new Date(),
+        // customerId: 'ctm_01jktawy94f7ypbn7x8wdvtv86',
+        subscriptionId: 'sub_01jv95ymhjr71a700kpx8txt2j',
+      };
 
-    await con.getRepository(ClaimableItem).save({
-      id: claimableItemUuid,
-      type: ClaimableItemTypes.Plus,
-      email: 'john.doe@example.com',
-      flags,
+      await con.getRepository(ClaimableItem).save({
+        id: claimableItemUuid,
+        type: ClaimableItemTypes.Plus,
+        email: 'john.doe@example.com',
+        flags,
+      });
+
+      await con.getRepository(User).save({
+        id: userId,
+        name: 'John Doe',
+        email: 'john.doe@example.com',
+      });
+
+      await addClaimableItemsToUser(con, {
+        id: userId,
+        email: 'john.doe@example.com',
+        createdAt: new Date(),
+        name: '',
+        infoConfirmed: false,
+        acceptedMarketing: false,
+        experienceLevel: null,
+        language: null,
+      });
+
+      const user = await con.getRepository(User).findOneBy({ id: userId });
+      expect(user).not.toBeNull();
+      expect(user?.subscriptionFlags).toBeDefined();
+      expect(user?.subscriptionFlags?.cycle).toEqual(flags.cycle);
+      expect(user?.subscriptionFlags?.status).toEqual(flags.status);
+      expect(user?.subscriptionFlags?.provider).toEqual(flags.provider);
+
+      const claimableItem = await con.getRepository(ClaimableItem).findOneBy({
+        id: claimableItemUuid,
+      });
+      expect(claimableItem).not.toBeNull();
+      expect(claimableItem?.claimedAt).not.toBeNull();
     });
 
-    await con.getRepository(User).save({
-      id: userId,
-      name: 'John Doe',
-      email: 'john.doe@example.com',
-    });
+    it('should create user but not add any claimable items if there were none found', async () => {
+      const userId = randomUUID();
+      await con.getRepository(User).save({
+        id: userId,
+        name: 'Clark Kent',
+        email: 'clark.kent@example.com',
+      });
 
-    await addClaimableItemsToUser(con, {
-      id: userId,
-      email: 'john.doe@example.com',
-      createdAt: new Date(),
-      name: '',
-      infoConfirmed: false,
-      acceptedMarketing: false,
-      experienceLevel: null,
-      language: null,
-    });
+      await addClaimableItemsToUser(con, {
+        id: userId,
+        email: 'clark.kent@example.com',
+        createdAt: new Date(),
+        name: 'Clark Kent',
+        infoConfirmed: false,
+        acceptedMarketing: false,
+        experienceLevel: null,
+        language: null,
+      });
 
-    const user = await con.getRepository(User).findOneBy({ id: userId });
-    expect(user).not.toBeNull();
-    expect(user?.subscriptionFlags).toBeDefined();
-    expect(user?.subscriptionFlags?.cycle).toEqual(flags.cycle);
-    expect(user?.subscriptionFlags?.status).toEqual(flags.status);
-    expect(user?.subscriptionFlags?.provider).toEqual(flags.provider);
-
-    const claimableItem = await con.getRepository(ClaimableItem).findOneBy({
-      id: claimableItemUuid,
+      const user = await con.getRepository(User).findOneBy({ id: userId });
+      expect(user).not.toBeNull();
+      expect(user?.subscriptionFlags).toMatchObject({});
     });
-    expect(claimableItem).not.toBeNull();
-    expect(claimableItem?.claimedAt).not.toBeNull();
   });
 
-  it('should create user but not add any claimable items if there were none found', async () => {
-    const userId = randomUUID();
-    await con.getRepository(User).save({
-      id: userId,
-      name: 'Clark Kent',
-      email: 'clark.kent@example.com',
+  describe('mutation claimUnclaimedItem', () => {
+    const MUTATION = /* GraphQL */ `
+      mutation ClaimUnclaimedItem {
+        claimUnclaimedItem {
+          claimed
+        }
+      }
+    `;
+
+    it('should throw an error if the user is not logged in', async () => {
+      await testMutationErrorCode(
+        client,
+        { mutation: MUTATION },
+        'UNAUTHENTICATED',
+      );
     });
 
-    await addClaimableItemsToUser(con, {
-      id: userId,
-      email: 'clark.kent@example.com',
-      createdAt: new Date(),
-      name: 'Clark Kent',
-      infoConfirmed: false,
-      acceptedMarketing: false,
-      experienceLevel: null,
-      language: null,
+    it('should not add a subscription if the user have no claimable items', async () => {
+      loggedUser = '1-claim';
+      await con.getRepository(User).save({
+        id: loggedUser,
+        name: 'John Doe',
+        email: 'johnclaim@email.com',
+      });
+
+      const res = await client.mutate(MUTATION);
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.claimUnclaimedItem.claimed).toBeFalsy();
     });
 
-    const user = await con.getRepository(User).findOneBy({ id: userId });
-    expect(user).not.toBeNull();
-    expect(user?.subscriptionFlags).toMatchObject({});
+    it('should add subscription if already have a claimable item', async () => {
+      loggedUser = '1-claim';
+      const claimableItemUuid = randomUUID();
+
+      const flags: ClaimableItemFlags = {
+        cycle: SubscriptionCycles.Yearly,
+        status: SubscriptionStatus.Active,
+        provider: SubscriptionProvider.Paddle,
+        createdAt: new Date(),
+        subscriptionId: 'sub_01jv95ymhjr71a700kpx8txt2j',
+      };
+
+      await con.getRepository(User).save({
+        id: loggedUser,
+        name: 'John Doe',
+        email: 'johnclaim@email.com',
+      });
+
+      await con.getRepository(ClaimableItem).save({
+        id: claimableItemUuid,
+        type: ClaimableItemTypes.Plus,
+        email: 'johnclaim@email.com',
+        flags,
+      });
+
+      const res = await client.mutate(MUTATION);
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.claimUnclaimedItem.claimed).toBeTruthy();
+
+      const user = await con.getRepository(User).findOneBy({
+        id: loggedUser,
+      });
+
+      expect(user).not.toBeNull();
+      expect(user?.subscriptionFlags).toBeDefined();
+      expect(user?.subscriptionFlags).toEqual(
+        JSON.parse(JSON.stringify(flags)),
+      );
+    });
   });
 });

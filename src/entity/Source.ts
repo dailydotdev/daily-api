@@ -53,6 +53,8 @@ export const defaultPublicSourceFlags: SourceFlagsPublic = {
 
 export const UNKNOWN_SOURCE = 'unknown';
 
+export const BRIEFING_SOURCE = 'briefing';
+
 @Entity()
 @Index('IDX_source_activ_priva_img_name_handl_type', [
   'active',

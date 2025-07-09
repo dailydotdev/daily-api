@@ -64,6 +64,7 @@ describe('GET /p/snotra/all_sources', () => {
     expect(body).toEqual([
       { name: 'a' },
       { name: 'b' },
+      { name: 'briefing' },
       { name: 'c' },
       { name: 'community' },
     ]);

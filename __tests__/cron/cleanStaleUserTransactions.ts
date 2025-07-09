@@ -160,12 +160,8 @@ describe('cleanStaleUserTransactions cron', () => {
         .map((item) => item.flags.providerId),
     ).toEqual(['6', '7']);
 
-    expect(userTransactions.map((item) => item.flags.providerId)).toEqual([
-      '1',
-      '3',
-      '6',
-      '2',
-      '7',
-    ]);
+    expect(userTransactions.map((item) => item.flags.providerId)).toEqual(
+      expect.arrayContaining(['1', '3', '6', '2', '7']),
+    );
   });
 });

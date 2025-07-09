@@ -196,4 +196,43 @@ describe('userUpdatedCio', () => {
       'cio_subscription_preferences.topics.topic_9': true,
     });
   });
+
+  it('should support brief subscription', async () => {
+    mocked(getShortGenericInviteLink).mockImplementation(async () => '');
+
+    await con.getRepository(User).save({
+      ...usersFixture[0],
+      id: 'uucu1',
+      github: 'uucu1',
+      hashnode: 'uucu1',
+      email: 'uucu1@daily.dev',
+      twitter: 'uucu1',
+      username: 'uucu1',
+    });
+
+    await con.getRepository(UserPersonalizedDigest).update(
+      {
+        userId: 'uucu1',
+      },
+      {
+        type: UserPersonalizedDigestType.Brief,
+      },
+    );
+
+    await con.getRepository(UserPersonalizedDigest).findBy({
+      userId: 'uucu1',
+      type: UserPersonalizedDigestType.Brief,
+    });
+
+    await expectSuccessfulTypedBackground(worker, {
+      newProfile: { ...base },
+      user: base,
+    } as unknown as PubSubSchema['user-updated']);
+    expect(mocked(cio.identify).mock.calls[0][1]).toMatchObject({
+      'cio_subscription_preferences.topics.topic_4': true,
+      'cio_subscription_preferences.topics.topic_7': true,
+      'cio_subscription_preferences.topics.topic_8': true,
+      'cio_subscription_preferences.topics.topic_9': true,
+    });
+  });
 });

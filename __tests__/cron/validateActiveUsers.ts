@@ -9,6 +9,7 @@ import {
   User,
   UserPersonalizedDigest,
   UserPersonalizedDigestSendType,
+  UserPersonalizedDigestType,
 } from '../../src/entity';
 import { badUsersFixture, plusUsersFixture, usersFixture } from '../fixture';
 import { updateFlagsStatement } from '../../src/common';
@@ -57,6 +58,45 @@ describe('users for downgrade', () => {
   });
 
   it('should downgrade daily digest to weekly digest', async () => {
+    const downgradeUsers = ['4', '1'];
+
+    jest.spyOn(gcp, 'getUsersActiveState').mockResolvedValue({
+      reactivateUsers: [],
+      inactiveUsers: [],
+      downgradeUsers,
+    });
+
+    await con
+      .getRepository(UserPersonalizedDigest)
+      .createQueryBuilder()
+      .update({
+        preferredDay: 1,
+        preferredHour: 4,
+        type: UserPersonalizedDigestType.Brief,
+        flags: updateFlagsStatement({
+          digestSendType: UserPersonalizedDigestSendType.daily,
+        }),
+      })
+      .execute();
+    await expectSuccessfulCron(cron);
+
+    const digests = await con.getRepository(UserPersonalizedDigest).find({
+      where: {
+        flags: JsonContains({
+          digestSendType: UserPersonalizedDigestSendType.weekly,
+        }),
+      },
+    });
+    const downgradedOnly = digests.every(
+      ({ userId, preferredDay, preferredHour }) =>
+        downgradeUsers.includes(userId) &&
+        preferredDay === 3 &&
+        preferredHour === 9,
+    );
+    expect(downgradedOnly).toEqual(true);
+  });
+
+  it('should downgrade workdays digest to weekly digest', async () => {
     const downgradeUsers = ['4', '1'];
 
     jest.spyOn(gcp, 'getUsersActiveState').mockResolvedValue({
