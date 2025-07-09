@@ -97,7 +97,8 @@ export const getAttachmentForPostType = async <TPostType extends PostType>({
       break;
     }
     case PostType.Freeform:
-    case PostType.Welcome: {
+    case PostType.Welcome:
+    case PostType.Brief: {
       const freeformPost = post as FreeformPost & WelcomePost;
 
       if (freeformPost.title) {
