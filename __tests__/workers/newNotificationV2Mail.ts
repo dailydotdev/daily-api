@@ -8,12 +8,14 @@ import {
   formatMailDate,
   notificationsLink,
   sendEmail,
+  updateFlagsStatement,
 } from '../../src/common';
 import worker, {
   notificationToTemplateId,
 } from '../../src/workers/newNotificationV2Mail';
 import {
   ArticlePost,
+  BRIEFING_SOURCE,
   CollectionPost,
   Comment,
   FreeformPost,
@@ -32,6 +34,7 @@ import {
   SubmissionStatus,
   User,
   UserPersonalizedDigest,
+  UserPersonalizedDigestSendType,
   UserPersonalizedDigestType,
   WelcomePost,
 } from '../../src/entity';
@@ -77,6 +80,7 @@ import {
 } from '../../src/entity/user/UserTransaction';
 import { env } from 'node:process';
 import { Product, ProductType } from '../../src/entity/Product';
+import { BriefPost } from '../../src/entity/posts/BriefPost';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -1961,5 +1965,194 @@ describe('source_post_submitted notification', () => {
       commentary: 'Content',
     });
     expect(args.transactional_message_id).toEqual('61');
+  });
+});
+
+describe('briefing_ready notification', () => {
+  beforeEach(async () => {
+    await con.getRepository(BriefPost).save({
+      id: 'bnp-1',
+      shortId: 'bnp-1',
+      sourceId: BRIEFING_SOURCE,
+      visible: true,
+      private: true,
+      authorId: '1',
+      title: 'Presidential briefing',
+      content: `## Must know
+
+- **OpenAI gets a DoD contract, Microsoft gets salty**: OpenAI landed a $200 million contract with the US Department of Defense for AI tools, marking its first direct federal government partnership. This move, reported by The Verge and TechCrunch, signals a shift from OpenAI’s previous stance on military use. It also puts them in direct competition with Microsoft, their main investor, who previously handled government AI contracts through Azure. The tension is real, with OpenAI reportedly considering an antitrust complaint against Microsoft to loosen their grip.
+
+## Good to know
+
+- **AI agents are still pretty dumb, and dangerous**: Salesforce's CRMArena-Pro benchmark found AI agents only 58% successful on single tasks and 35% on multi-step CRM tasks, often mishandling sensitive data due to poor confidentiality awareness.
+- **Threads gets Fediverse feed**: Meta's Threads now offers a dedicated opt-in feed for ActivityPub content and improved profile search for Fediverse users, marking its most prominent integration with the open social web to date.`,
+      flags: {
+        posts: 91,
+        sources: 42,
+        savedTime: 320,
+        generatedAt: new Date(),
+      },
+      readTime: 4,
+      contentJSON: [
+        {
+          title: 'Must know',
+          items: [
+            {
+              title: 'OpenAI gets a DoD contract, Microsoft gets salty',
+              body: 'OpenAI landed a $200 million contract with the US Department of Defense for AI tools, marking its first direct federal government partnership. This move, reported by The Verge and TechCrunch, signals a shift from OpenAI’s previous stance on military use. It also puts them in direct competition with Microsoft, their main investor, who previously handled government AI contracts through Azure. The tension is real, with OpenAI reportedly considering an antitrust complaint against Microsoft to loosen their grip.',
+            },
+          ],
+        },
+        {
+          title: 'Good to know',
+          items: [
+            {
+              title: 'AI agents are still pretty dumb, and dangerous',
+              body: "Salesforce's CRMArena-Pro benchmark found AI agents only 58% successful on single tasks and 35% on multi-step CRM tasks, often mishandling sensitive data due to poor confidentiality awareness.",
+            },
+            {
+              title: 'Threads gets Fediverse feed',
+              body: "Meta's Threads now offers a dedicated opt-in feed for ActivityPub content and improved profile search for Fediverse users, marking its most prominent integration with the open social web to date.",
+            },
+          ],
+        },
+      ],
+    });
+
+    await con.getRepository(UserPersonalizedDigest).save({
+      userId: '1',
+      type: UserPersonalizedDigestType.Brief,
+      flags: {
+        sendType: UserPersonalizedDigestSendType.daily,
+        email: true,
+      },
+    });
+  });
+
+  it('should send email', async () => {
+    const postContext = await buildPostContext(con, 'bnp-1');
+
+    const ctx: NotificationPostContext = {
+      ...postContext!,
+      userIds: ['1'],
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.BriefingReady,
+      ctx,
+    );
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+
+    expect(args.message_data).toMatchObject({
+      isPlus: false,
+      posts_number: '91',
+      read_link: 'http://localhost:5002/posts/bnp-1',
+      read_time: '4 minutes',
+      saved_time: '5 hours',
+      sources_number: '42',
+      sections: [
+        {
+          title: 'Must know',
+          items: [
+            {
+              title: 'OpenAI gets a DoD contract, Microsoft gets salty',
+              body: 'OpenAI landed a $200 million contract with the US Department of Defense for AI tools, marking its first direct federal government partnership. This move, reported by The Verge and TechCrunch, signals a shift from OpenAI’s previous stance on military use. It also puts them in direct competition with Microsoft, their main investor, who previously handled government AI contracts through Azure. The tension is real, with OpenAI reportedly considering an antitrust complaint against Microsoft to loosen their grip.',
+            },
+          ],
+        },
+        {
+          title: 'Good to know',
+          items: [
+            {
+              title: 'AI agents are still pretty dumb, and dangerous',
+              body: "Salesforce's CRMArena-Pro benchmark found AI agents only 58% successful on single tasks and 35% on multi-step CRM tasks, often mishandling sensitive data due to poor confidentiality awareness.",
+            },
+            {
+              title: 'Threads gets Fediverse feed',
+              body: "Meta's Threads now offers a dedicated opt-in feed for ActivityPub content and improved profile search for Fediverse users, marking its most prominent integration with the open social web to date.",
+            },
+          ],
+        },
+      ],
+    });
+    expect(args.transactional_message_id).toEqual('81');
+  });
+
+  it('should not send email if digest flag is not true', async () => {
+    await con.getRepository(UserPersonalizedDigest).update(
+      {
+        userId: '1',
+        type: UserPersonalizedDigestType.Brief,
+      },
+      {
+        flags: updateFlagsStatement<UserPersonalizedDigest>({
+          email: false,
+        }),
+      },
+    );
+
+    const postContext = await buildPostContext(con, 'bnp-1');
+
+    const ctx: NotificationPostContext = {
+      ...postContext!,
+      userIds: ['1'],
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.BriefingReady,
+      ctx,
+    );
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(0);
+  });
+
+  it('should not send email if contentJSON is missing', async () => {
+    await con.getRepository(BriefPost).update(
+      {
+        id: `bnp-1`,
+      },
+      {
+        contentJSON: null,
+      },
+    );
+
+    const postContext = await buildPostContext(con, 'bnp-1');
+
+    const ctx: NotificationPostContext = {
+      ...postContext!,
+      userIds: ['1'],
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.BriefingReady,
+      ctx,
+    );
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(0);
   });
 });
