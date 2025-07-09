@@ -789,10 +789,6 @@ const resolveDynamicFunnelId = (
   const gbClient = getUserGrowthBookInstance(userId, {
     allocationClient,
   });
-  if (!process.env.GROWTHBOOK_API_CONFIG_CLIENT_KEY && !isTest) {
-    // In development, we use a static value for the feature key
-    return remoteConfig?.vars?.funnelIds?.[featureKey] || 'off';
-  }
   return gbClient.getFeatureValue(featureKey, 'off');
 };
 

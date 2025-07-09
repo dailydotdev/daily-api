@@ -61,13 +61,12 @@ class RemoteConfig {
   get vars(): Partial<RemoteConfigValue> {
     if (!process.env.GROWTHBOOK_API_CONFIG_CLIENT_KEY) {
       return {
-        ...(!isProd &&
-          !isTest && {
-            funnelIds: {
-              web_funnel_id: 'paid-v1',
-              onboarding_funnel_id: 'organic-v1',
-            },
-          }),
+        ...(!isTest && {
+          funnelIds: {
+            web_funnel_id: 'paid-v1',
+            onboarding_funnel_id: 'organic-v1',
+          },
+        }),
       };
     }
 
