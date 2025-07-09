@@ -1661,6 +1661,7 @@ describe('mutation startPostBoost', () => {
     mutation StartPostBoost($postId: ID!, $duration: Int!, $budget: Int!) {
       startPostBoost(postId: $postId, duration: $duration, budget: $budget) {
         transactionId
+        referenceId
         balance {
           amount
         }
@@ -2036,6 +2037,7 @@ describe('mutation startPostBoost', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.startPostBoost.transactionId).toBeDefined();
+    expect(res.data.startPostBoost.referenceId).toBe('mock-campaign-id');
     expect(res.data.startPostBoost.balance.amount).toBe(10000);
 
     // Verify the boosted flag is now set

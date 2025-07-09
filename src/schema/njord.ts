@@ -80,6 +80,11 @@ export const typeDefs = /* GraphQL */ `
     Balance of the user
     """
     balance: UserBalance!
+
+    """
+    Reference id of the relevant entity
+    """
+    referenceId: ID
   }
 
   type ProductFlagsPublic {
