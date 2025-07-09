@@ -1063,5 +1063,111 @@ describe('personalizedDigestEmail worker', () => {
         postId: postAfter!.id,
       });
     });
+
+    it('should schedule daily generation when workdays is selected', async () => {
+      await con.getRepository(UserPersonalizedDigest).update(
+        {
+          userId: '1',
+        },
+        {
+          type: UserPersonalizedDigestType.Brief,
+          flags: {
+            sendType: UserPersonalizedDigestSendType.workdays,
+          },
+        },
+      );
+
+      const personalizedDigest = await con
+        .getRepository(UserPersonalizedDigest)
+        .findOneBy({
+          userId: '1',
+        });
+
+      expect(personalizedDigest).toBeTruthy();
+      expect(personalizedDigest!.lastSendDate).toBeNull();
+
+      const postBefore = await con.getRepository(BriefPost).findOneBy({
+        authorId: '1',
+      });
+
+      expect(postBefore).toBeNull();
+
+      await expectSuccessfulBackground(worker, {
+        personalizedDigest,
+        emailBatchId: 'test-email-batch-id',
+      });
+
+      const postAfter = await con.getRepository(BriefPost).findOneBy({
+        authorId: '1',
+      });
+
+      expect(postAfter).toBeTruthy();
+      expect(postAfter!.type).toBe(PostType.Brief);
+      expect(postAfter!.authorId).toBe('1');
+      expect(postAfter!.private).toBeTruthy();
+      expect(postAfter!.visible).toBeFalsy();
+
+      expectTypedEvent('api.v1.brief-generate', {
+        payload: new UserBriefingRequest({
+          userId: '1',
+          frequency: UserPersonalizedDigestSendType.daily,
+          modelName: BriefingModel.Default,
+        }),
+        postId: postAfter!.id,
+      });
+    });
+
+    it('should schedule weekly generation when sendType is null', async () => {
+      await con.getRepository(UserPersonalizedDigest).update(
+        {
+          userId: '1',
+        },
+        {
+          type: UserPersonalizedDigestType.Brief,
+          flags: {
+            sendType: () => 'null',
+          },
+        },
+      );
+
+      const personalizedDigest = await con
+        .getRepository(UserPersonalizedDigest)
+        .findOneBy({
+          userId: '1',
+        });
+
+      expect(personalizedDigest).toBeTruthy();
+      expect(personalizedDigest!.lastSendDate).toBeNull();
+
+      const postBefore = await con.getRepository(BriefPost).findOneBy({
+        authorId: '1',
+      });
+
+      expect(postBefore).toBeNull();
+
+      await expectSuccessfulBackground(worker, {
+        personalizedDigest,
+        emailBatchId: 'test-email-batch-id',
+      });
+
+      const postAfter = await con.getRepository(BriefPost).findOneBy({
+        authorId: '1',
+      });
+
+      expect(postAfter).toBeTruthy();
+      expect(postAfter!.type).toBe(PostType.Brief);
+      expect(postAfter!.authorId).toBe('1');
+      expect(postAfter!.private).toBeTruthy();
+      expect(postAfter!.visible).toBeFalsy();
+
+      expectTypedEvent('api.v1.brief-generate', {
+        payload: new UserBriefingRequest({
+          userId: '1',
+          frequency: UserPersonalizedDigestSendType.daily,
+          modelName: BriefingModel.Default,
+        }),
+        postId: postAfter!.id,
+      });
+    });
   });
 });
