@@ -49,7 +49,7 @@ import {
   getSourceLink,
   submitArticleThreshold,
   mapCloudinaryUrl,
-  THREE_MONTHS_IN_SECONDS,
+  THREE_MONTHS_IN_SECONDS, isTest,
 } from '../common';
 import { AccessToken, signJwt } from '../auth';
 import { cookies, setCookie, setRawCookie } from '../cookies';
@@ -788,7 +788,7 @@ const resolveDynamicFunnelId = (
   const gbClient = getUserGrowthBookInstance(userId, {
     allocationClient,
   });
-  if (!process.env.GROWTHBOOK_API_CONFIG_CLIENT_KEY) {
+  if (!process.env.GROWTHBOOK_API_CONFIG_CLIENT_KEY && !isTest) {
     // In development, we use a static value for the feature key
     return remoteConfig?.vars?.funnelIds?.[featureKey] || 'off';
   }
