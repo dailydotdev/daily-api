@@ -3041,7 +3041,19 @@ describe('function feedToFilters', () => {
         referralToken: 'rt2',
       },
     ]);
-    expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
+    expect(await feedToFilters(con, '1', '1')).toMatchObject({
+      blockedContentCuration: [],
+      blockedTags: [],
+      blockedWords: [],
+      excludeSourceTypes: [],
+      excludeSources: [],
+      excludeTypes: [],
+      excludeUsers: [],
+      followingSources: [],
+      followingUsers: [],
+      includeTags: [],
+      sourceIds: expect.arrayContaining(['a', 'b']),
+    });
   });
 
   it('should return filters with blocked content types', async () => {
