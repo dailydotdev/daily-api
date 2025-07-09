@@ -186,8 +186,8 @@ export class SkadiApiClient implements ISkadiApiClient {
       );
 
       return {
-        promotedPosts: response.promoted_posts?.map(mapCampaign),
-        postIds: response.post_ids,
+        promotedPosts: response.promoted_posts?.map(mapCampaign) ?? [],
+        postIds: response.post_ids ?? [],
         totalSpend: response.total_spend,
         impressions: response.impressions,
         clicks: response.clicks,
