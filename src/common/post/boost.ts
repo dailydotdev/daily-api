@@ -99,7 +99,7 @@ interface CampaignBoostedPost
   image: string;
   permalink: string;
   engagements: number;
-  commentsPermalink: string;
+  commentsPermalink?: string;
 }
 
 export interface GQLBoostedPost {
@@ -183,7 +183,7 @@ export const getFormattedBoostedPost = (
     title,
     image: mapCloudinaryUrl(image) ?? pickImageUrl({ createdAt: new Date() }),
     permalink: getPostPermalink({ shortId }),
-    commentsPermalink: getDiscussionLink(post.slug),
+    commentsPermalink: post.slug ? getDiscussionLink(post.slug) : undefined,
     engagements:
       post.bookmarks +
       post.comments +
