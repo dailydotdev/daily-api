@@ -131,7 +131,10 @@ describe('dailyDigest cron', () => {
       {
         digestCount: usersToSchedule.length,
         emailBatchId: expect.any(String),
-        sendType,
+        sendType: [
+          UserPersonalizedDigestSendType.workdays,
+          UserPersonalizedDigestSendType.daily,
+        ],
       },
       'personalized digest sent',
     );
@@ -454,6 +457,35 @@ describe('dailyDigest cron', () => {
         expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(
           usersFixture.length,
         );
+      });
+
+      it('should schedule send time on weekend if sendType is daily', async () => {
+        jest.setSystemTime(
+          setHours(setDay(new Date(), DayOfWeek.Saturday), 12),
+        );
+        const usersToSchedule = usersFixture;
+
+        await con.getRepository(UserPersonalizedDigest).save(
+          usersToSchedule.map((item) => ({
+            userId: item.id,
+            preferredDay,
+            preferredHour: fakePreferredHour,
+            flags: {
+              sendType: UserPersonalizedDigestSendType.daily,
+            },
+          })),
+        );
+
+        await expectSuccessfulCron(cron);
+
+        const scheduledPersonalizedDigests = await con
+          .getRepository(UserPersonalizedDigest)
+          .findBy({
+            preferredDay,
+          });
+
+        expect(scheduledPersonalizedDigests).toHaveLength(4);
+        expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(4);
       });
     });
   });

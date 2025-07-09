@@ -67,7 +67,7 @@ const cron: Cron = {
           emailBatchId,
         });
       },
-      sendType,
+      sendType: [sendType],
     });
   },
 };

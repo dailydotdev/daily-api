@@ -1079,6 +1079,8 @@ const obj = new GraphORM({
         ): UserPersonalizedDigestFlagsPublic => {
           return {
             sendType: value?.sendType ?? UserPersonalizedDigestSendType.weekly,
+            email: value?.email,
+            slack: value?.slack,
           };
         },
       },

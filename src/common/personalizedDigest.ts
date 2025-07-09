@@ -16,7 +16,7 @@ import { FeedClient } from '../integrations/feed/clients';
 import { addNotificationUtm, baseNotificationEmailData } from './mailing';
 import { findPostImageFromContent, pickImageUrl } from './post';
 import { getDiscussionLink } from './links';
-import { DataSource, SelectQueryBuilder } from 'typeorm';
+import { DataSource, SelectQueryBuilder, type EntityManager } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import { zonedTimeToUtc } from 'date-fns-tz';
 import fastq from 'fastq';
@@ -410,7 +410,7 @@ export const getPersonalizedDigestEmailPayload = async ({
   };
 };
 
-export const digestPreferredHourOffset = 4;
+export const digestPreferredHourOffset = 2;
 
 export const schedulePersonalizedDigestSubscriptions = async ({
   queryBuilder,
@@ -420,7 +420,7 @@ export const schedulePersonalizedDigestSubscriptions = async ({
 }: {
   queryBuilder: SelectQueryBuilder<UserPersonalizedDigest>;
   logger: FastifyBaseLogger;
-  sendType: UserPersonalizedDigestSendType;
+  sendType: UserPersonalizedDigestSendType[];
   handler: ({
     personalizedDigest,
     emailBatchId,
@@ -478,7 +478,7 @@ export const schedulePersonalizedDigestSubscriptions = async ({
 type SetEmailSendDateProps = {
   personalizedDigest: UserPersonalizedDigest;
   deduplicate: boolean;
-  con: DataSource;
+  con: DataSource | EntityManager;
   date: Date;
 };
 

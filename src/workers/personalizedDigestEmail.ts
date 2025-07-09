@@ -2,8 +2,10 @@ import {
   dedupedSend,
   getPersonalizedDigestEmailPayload,
   sendEmail,
+  triggerTypedEvent,
 } from '../common';
 import {
+  BRIEFING_SOURCE,
   Settings,
   User,
   UserPersonalizedDigest,
@@ -24,6 +26,10 @@ import deepmerge from 'deepmerge';
 import { FastifyBaseLogger } from 'fastify';
 import { sendReadingReminderPush, sendStreakReminderPush } from '../onesignal';
 import { isSameDayInTimezone } from '../common/timezone';
+import { UserBriefingRequest } from '@dailydotdev/schema';
+import { BriefingModel } from '../integrations/feed/types';
+import { generateShortId } from '../ids';
+import { BriefPost } from '../entity/posts/BriefPost';
 
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
@@ -213,18 +219,51 @@ const digestTypeToFunctionMap: Record<
       },
     );
   },
-  [UserPersonalizedDigestType.Brief]: async () => {
-    // brief is sent through different workers after generation
+  [UserPersonalizedDigestType.Brief]: async (data, con, logger) => {
+    const currentDate = new Date();
+
+    const { personalizedDigest, deduplicate = true } = data;
+
+    await con.transaction(async (entityManager) => {
+      await dedupedSend(
+        async () => {
+          const { userId } = personalizedDigest;
+          const postId = await generateShortId();
+
+          const post = entityManager.getRepository(BriefPost).create({
+            id: postId,
+            shortId: postId,
+            authorId: userId,
+            private: true,
+            visible: false,
+            sourceId: BRIEFING_SOURCE,
+          });
+
+          await entityManager.getRepository(BriefPost).insert(post);
+
+          triggerTypedEvent(logger, 'api.v1.brief-generate', {
+            payload: new UserBriefingRequest({
+              userId,
+              frequency: data.personalizedDigest.flags.sendType,
+              modelName: BriefingModel.Default,
+            }),
+            postId,
+          });
+        },
+        {
+          con: entityManager,
+          personalizedDigest,
+          date: currentDate,
+          deduplicate,
+        },
+      );
+    });
   },
 };
 
 const worker: Worker = workerToExperimentWorker({
   subscription: 'api.personalized-digest-email',
   handler: async (message, con, logger, pubsub, allocationClient) => {
-    if (process.env.NODE_ENV === 'development') {
-      return;
-    }
-
     const data = messageToJson<Data>(message);
     await digestTypeToFunctionMap[data.personalizedDigest.type](
       data,
