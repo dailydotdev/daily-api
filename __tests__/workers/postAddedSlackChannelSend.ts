@@ -2,7 +2,9 @@ import { expectSuccessfulTypedBackground, saveFixtures } from '../helpers';
 import { postAddedSlackChannelSendWorker as worker } from '../../src/workers/postAddedSlackChannelSend';
 import {
   ArticlePost,
+  BRIEFING_SOURCE,
   Post,
+  PostType,
   Source,
   SourceMember,
   SourceType,
@@ -25,6 +27,7 @@ import { ChangeObject } from '../../src/types';
 import { SourceMemberRoles } from '../../src/roles';
 import { addSeconds } from 'date-fns';
 import { SlackApiErrorCode } from '../../src/errors';
+import type { BriefPost } from '../../src/entity/posts/BriefPost';
 
 const conversationsJoin = jest.fn().mockResolvedValue({
   ok: true,
@@ -362,6 +365,38 @@ describe('postAddedSlackChannelSend worker', () => {
       text: 'New post: <http://localhost:5002/posts/p1?utm_source=notification&utm_medium=slack&utm_campaign=new_post|http://localhost:5002/posts/p1>',
       unfurl_links: false,
     });
+  });
+
+  it('should not send a message to the slack channel if the post is brief', async () => {
+    const post = await con.getRepository(ArticlePost).findOneByOrFail({
+      id: 'p1',
+    });
+
+    await expectSuccessfulTypedBackground(worker, {
+      post: {
+        ...post,
+        type: PostType.Brief,
+      } as unknown as ChangeObject<BriefPost>,
+    });
+
+    expect(conversationsJoin).toHaveBeenCalledTimes(0);
+    expect(chatPostMessage).toHaveBeenCalledTimes(0);
+  });
+
+  it('should not send a message to the slack channel if the post source is briefing', async () => {
+    const post = await con.getRepository(ArticlePost).findOneByOrFail({
+      id: 'p1',
+    });
+
+    await expectSuccessfulTypedBackground(worker, {
+      post: {
+        ...post,
+        sourceId: BRIEFING_SOURCE,
+      } as unknown as ChangeObject<BriefPost>,
+    });
+
+    expect(conversationsJoin).toHaveBeenCalledTimes(0);
+    expect(chatPostMessage).toHaveBeenCalledTimes(0);
   });
 
   describe('vordr', () => {

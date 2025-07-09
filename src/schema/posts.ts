@@ -2805,6 +2805,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .select('id, title, image')
         .where([{ canonicalUrl: canonicalUrl }, { url: cleanUrl }])
         .andWhere({ deleted: false })
+        .orderBy('"createdAt"', 'ASC')
         .getRawOne();
 
       if (!post) {
