@@ -24,7 +24,7 @@ import { SendEmailRequestWithTemplate } from 'customerio-node/dist/lib/api/reque
 import { v4 as uuidv4 } from 'uuid';
 import { DayOfWeek } from './date';
 import { GarmrService } from '../integrations/garmr';
-import { baseFeedConfig } from '../integrations/feed';
+import { baseFeedConfig, BriefingType } from '../integrations/feed';
 import { FeedConfigName } from '../integrations/feed';
 import { isPlusMember } from '../paddle';
 import { mapCloudinaryUrl } from './cloudinary';
@@ -546,3 +546,18 @@ export const dedupedSend = async (
 };
 
 export const getDigestCronTime = (): string => 'NOW()';
+
+export const digestSendTypeToBriefingType = (
+  sendType: UserPersonalizedDigestSendType | undefined | null,
+): BriefingType => {
+  switch (sendType) {
+    case UserPersonalizedDigestSendType.daily:
+    case UserPersonalizedDigestSendType.workdays:
+      return BriefingType.Daily;
+    case UserPersonalizedDigestSendType.weekly:
+      return BriefingType.Weekly;
+    default:
+      // sendeType null means weekly for legacy users
+      return BriefingType.Weekly;
+  }
+};
