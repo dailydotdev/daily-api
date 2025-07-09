@@ -50,7 +50,6 @@ import {
   submitArticleThreshold,
   mapCloudinaryUrl,
   THREE_MONTHS_IN_SECONDS,
-  isTest,
 } from '../common';
 import { AccessToken, signJwt } from '../auth';
 import { cookies, setCookie, setRawCookie } from '../cookies';
@@ -80,7 +79,7 @@ import { getBalance, type GetBalanceResult } from '../common/njord';
 import { logger } from '../logger';
 import { freyjaClient, type FunnelState } from '../integrations/freyja';
 import { isUserPartOfOrganization } from '../common/plus';
-import { remoteConfig, RemoteConfigValue } from '../remoteConfig';
+import { RemoteConfigValue } from '../remoteConfig';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
