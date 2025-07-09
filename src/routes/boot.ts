@@ -49,7 +49,8 @@ import {
   getSourceLink,
   submitArticleThreshold,
   mapCloudinaryUrl,
-  THREE_MONTHS_IN_SECONDS, isTest,
+  THREE_MONTHS_IN_SECONDS,
+  isTest,
 } from '../common';
 import { AccessToken, signJwt } from '../auth';
 import { cookies, setCookie, setRawCookie } from '../cookies';
