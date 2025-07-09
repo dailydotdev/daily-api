@@ -1,9 +1,8 @@
-import { isSpecialUser, updateFlagsStatement } from '../common';
+import { isSpecialUser } from '../common';
 import { TypedWorker } from './worker';
 import {
   User,
   UserPersonalizedDigest,
-  UserPersonalizedDigestSendType,
   UserPersonalizedDigestType,
 } from '../entity';
 
@@ -43,9 +42,6 @@ export const userUpdatedPlusSubscriptionBriefWorker: TypedWorker<'user-updated'>
             },
             {
               type: UserPersonalizedDigestType.Digest,
-              flags: updateFlagsStatement<UserPersonalizedDigest>({
-                sendType: UserPersonalizedDigestSendType.workdays,
-              }),
             },
           );
         });
@@ -62,9 +58,6 @@ export const userUpdatedPlusSubscriptionBriefWorker: TypedWorker<'user-updated'>
             },
             {
               type: UserPersonalizedDigestType.Brief,
-              flags: updateFlagsStatement<UserPersonalizedDigest>({
-                sendType: UserPersonalizedDigestSendType.daily,
-              }),
             },
           );
         });

@@ -110,7 +110,7 @@ describe('userUpdatedPlusSubscriptionBrief worker', () => {
       userId: newBase.id,
       type: UserPersonalizedDigestType.Brief,
       flags: {
-        sendType: UserPersonalizedDigestSendType.daily,
+        sendType: UserPersonalizedDigestSendType.workdays,
       },
       preferredDay: 1,
       preferredHour: 16,
@@ -249,7 +249,7 @@ describe('userUpdatedPlusSubscriptionBrief worker', () => {
       {
         type: UserPersonalizedDigestType.Brief,
         flags: updateFlagsStatement<UserPersonalizedDigest>({
-          sendType: UserPersonalizedDigestSendType.daily,
+          sendType: UserPersonalizedDigestSendType.workdays,
         }),
       },
     );
@@ -335,7 +335,7 @@ describe('userUpdatedPlusSubscriptionBrief worker', () => {
       userId: '1',
       type: UserPersonalizedDigestType.Brief,
       flags: {
-        sendType: UserPersonalizedDigestSendType.daily,
+        sendType: UserPersonalizedDigestSendType.workdays,
       },
       preferredDay: 1,
       preferredHour: 16,
@@ -428,7 +428,7 @@ describe('userUpdatedPlusSubscriptionBrief worker', () => {
       userId: newBase.id,
       type: UserPersonalizedDigestType.Brief,
       flags: {
-        sendType: UserPersonalizedDigestSendType.daily,
+        sendType: UserPersonalizedDigestSendType.workdays,
       },
       preferredDay: 1,
       preferredHour: 16,
