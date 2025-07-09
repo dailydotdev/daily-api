@@ -88,6 +88,7 @@ export const userGenerateBriefWorker: TypedWorker<'api.v1.brief-generate'> = {
           generatedAt: new Date(),
         },
         collectionSources: brief.sourceIds || [],
+        contentJSON: brief.sections.map((section) => section.toJson()),
       });
       post.visible = getPostVisible({ post });
 
