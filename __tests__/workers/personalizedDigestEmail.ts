@@ -1117,16 +1117,14 @@ describe('personalizedDigestEmail worker', () => {
       });
     });
 
-    it('should schedule weekly generation when sendType is null', async () => {
+    it('should schedule weekly generation when sendType is not set', async () => {
       await con.getRepository(UserPersonalizedDigest).update(
         {
           userId: '1',
         },
         {
           type: UserPersonalizedDigestType.Brief,
-          flags: {
-            sendType: () => 'null',
-          },
+          flags: {},
         },
       );
 
@@ -1163,7 +1161,7 @@ describe('personalizedDigestEmail worker', () => {
       expectTypedEvent('api.v1.brief-generate', {
         payload: new UserBriefingRequest({
           userId: '1',
-          frequency: UserPersonalizedDigestSendType.daily,
+          frequency: UserPersonalizedDigestSendType.weekly,
           modelName: BriefingModel.Default,
         }),
         postId: postAfter!.id,

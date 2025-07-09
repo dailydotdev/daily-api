@@ -292,7 +292,6 @@ describe('postAddedSlackChannelSendBrief worker', () => {
     await expectSuccessfulTypedBackground(worker, {
       post: {
         ...post,
-        authorId: null,
       } as unknown as ChangeObject<BriefPost>,
     });
 
@@ -320,7 +319,6 @@ describe('postAddedSlackChannelSendBrief worker', () => {
     await expectSuccessfulTypedBackground(worker, {
       post: {
         ...post,
-        authorId: null,
       } as unknown as ChangeObject<BriefPost>,
     });
 
