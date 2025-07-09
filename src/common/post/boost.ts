@@ -145,8 +145,9 @@ export const getBoostedPost = async (
   id: string,
 ): Promise<GetBoostedPost> => {
   const builder = getBoostedPostBuilder(con);
-  const bookmarks = getBookmarksCountBuilder(builder).where({ postId: id });
-  const result = await getBoostedPostBuilder(con)
+  const bookmarks =
+    getBookmarksCountBuilder(builder).where(`b."postId" = p1.id`);
+  const result = await builder
     .addSelect(`(${bookmarks.getQuery()})::int`, 'bookmarks')
     .where({ id })
     .getRawOne();
