@@ -28,7 +28,10 @@ type RemoteConfigValue = {
   paddleIps: string[];
   paddleTestDiscountIds: string[];
   paddleProductIds: Partial<Record<PurchaseType, string>>;
-  funnelIds: Record<string, string>;
+  funnelIds: Partial<{
+     web_funnel_id: string,
+     onboarding_funnel_id: string
+  }>;
 };
 
 class RemoteConfig {
