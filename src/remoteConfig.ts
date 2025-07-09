@@ -4,7 +4,7 @@ import { isProd, isTest } from './common';
 import type { CoresRole } from './types';
 import type { PurchaseType } from './common/plus';
 
-type RemoteConfigValue = {
+export type RemoteConfigValue = {
   inc: number;
   vordrWords: string[];
   vordrIps: string[];
@@ -29,8 +29,8 @@ type RemoteConfigValue = {
   paddleTestDiscountIds: string[];
   paddleProductIds: Partial<Record<PurchaseType, string>>;
   funnelIds: Partial<{
-     web_funnel_id: string,
-     onboarding_funnel_id: string
+    web_funnel_id: string;
+    onboarding_funnel_id: string;
   }>;
 };
 

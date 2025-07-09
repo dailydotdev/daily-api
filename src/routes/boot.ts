@@ -79,7 +79,7 @@ import { getBalance, type GetBalanceResult } from '../common/njord';
 import { logger } from '../logger';
 import { freyjaClient, type FunnelState } from '../integrations/freyja';
 import { isUserPartOfOrganization } from '../common/plus';
-import { remoteConfig } from '../remoteConfig';
+import { remoteConfig, RemoteConfigValue } from '../remoteConfig';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -781,7 +781,10 @@ const COMPANION_QUERY = parse(`query Post($url: String) {
 
 const allocationClient = new ExperimentAllocationClient();
 // Uses Growthbook to resolve the funnel id
-const resolveDynamicFunnelId = (featureKey: string, userId: string): string => {
+const resolveDynamicFunnelId = (
+  featureKey: FunnelBootConfig['featureKey'],
+  userId: string,
+): string => {
   const gbClient = getUserGrowthBookInstance(userId, {
     allocationClient,
   });
@@ -802,7 +805,7 @@ const shouldResumeSession = (
   if (!sessionFunnel?.session) {
     return false;
   }
-  // If session user and current user don't match
+  // If the session user and current user don't match
   if (sessionFunnel.session.userId !== userId) {
     return false;
   }
@@ -821,7 +824,7 @@ const shouldResumeSession = (
 const getFunnel = async (
   req: FastifyRequest,
   res: FastifyReply,
-  featureKey: string,
+  featureKey: FunnelBootConfig['featureKey'],
   sessionId: string | undefined,
 ) => {
   const userId = req.userId || req.trackingId;
@@ -851,7 +854,9 @@ const getFunnel = async (
     query.v ? Number(query.v) : undefined,
   );
 
-  const getCookieKeyFromFeatureKey = (featureKey: string) => {
+  const getCookieKeyFromFeatureKey = (
+    featureKey: FunnelBootConfig['featureKey'],
+  ) => {
     return Object.entries(funnelBoots).reduce(
       (acc, [funnelKey, funnelConfig]) => {
         if (funnelConfig.featureKey === featureKey) {
@@ -935,7 +940,7 @@ const generateFunnelBootMiddle = (funnel: FunnelBootConfig): BootMiddleware => {
 };
 
 type FunnelBootConfig = {
-  featureKey: string;
+  featureKey: keyof RemoteConfigValue['funnelIds'];
   cookieKey: string;
 };
 
