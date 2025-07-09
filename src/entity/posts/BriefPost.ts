@@ -14,4 +14,7 @@ export class BriefPost extends Post {
 
   @Column({ type: 'text', array: true, default: [] })
   collectionSources: string[];
+
+  @Column({ type: 'jsonb', nullable: true })
+  contentJSON: object | null;
 }
