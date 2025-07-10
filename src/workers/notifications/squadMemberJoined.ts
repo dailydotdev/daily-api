@@ -1,5 +1,8 @@
 import { messageToJson } from '../worker';
-import { NotificationType } from '../../notifications/common';
+import {
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../../notifications/common';
 import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
 import {
@@ -24,16 +27,17 @@ const worker: NotificationWorker = {
   handler: async (message, con, logger) => {
     const { sourceMember: member }: Data = messageToJson(message);
     const logDetails = { member, messageId: message.messageId };
-    const admins = await getSubscribedMembers(
+    const admins = await getSubscribedMembers({
       con,
-      NotificationType.SquadMemberJoined,
-      member.sourceId,
-      {
+      type: NotificationType.SquadMemberJoined,
+      byNotStatus: NotificationPreferenceStatus.Muted,
+      referenceId: member.sourceId,
+      where: {
         sourceId: member.sourceId,
         userId: Not(In([member.userId])),
         role: SourceMemberRoles.Admin,
       },
-    );
+    });
 
     const doneBy = await con
       .getRepository(User)

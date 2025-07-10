@@ -37,12 +37,33 @@ export const uniquePostOwners = (
     (userId) => userId && !ignoreIds.includes(userId),
   ) as string[];
 
-export const getSubscribedMembers = (
-  con: DataSource,
-  type: NotificationType,
-  referenceId: string,
-  where: ObjectLiteral,
-) => {
+type GetSubscribedMembersBase = {
+  con: DataSource;
+  type: NotificationType;
+  referenceId: string;
+  where: ObjectLiteral;
+};
+
+type GetSubscribedMembers = GetSubscribedMembersBase &
+  (
+    | {
+        byStatus: NotificationPreferenceStatus;
+        byNotStatus?: never;
+      }
+    | {
+        byStatus?: never;
+        byNotStatus: NotificationPreferenceStatus;
+      }
+  );
+
+export const getSubscribedMembers = ({
+  con,
+  type,
+  byStatus,
+  byNotStatus,
+  referenceId,
+  where,
+}: GetSubscribedMembers) => {
   const builder = con.getRepository(SourceMember).createQueryBuilder('sm');
   const memberQuery = builder.select('"userId"').where(where);
   const muteQuery = builder
@@ -54,11 +75,13 @@ export const getSubscribedMembers = (
       notificationType: type,
       referenceId,
       type: notificationPreferenceMap[type],
-      status: NotificationPreferenceStatus.Muted,
+      status: byStatus || byNotStatus,
     });
 
   return memberQuery
-    .andWhere(`EXISTS(${muteQuery.getQuery()}) IS FALSE`)
+    .andWhere(
+      `EXISTS(${muteQuery.getQuery()}) IS ${!!byStatus ? 'TRUE' : 'FALSE'}`,
+    )
     .getRawMany<SourceMember>();
 };
 
@@ -151,10 +174,16 @@ export async function articleNewCommentHandler(
       : NotificationType.ArticleNewComment;
 
   if (source.type === SourceType.Squad) {
-    const members = await getSubscribedMembers(con, type, post.id, {
-      userId: In(users),
-      sourceId: source.id,
-      role: Not(SourceMemberRoles.Blocked),
+    const members = await getSubscribedMembers({
+      con,
+      type,
+      referenceId: post.id,
+      byNotStatus: NotificationPreferenceStatus.Muted,
+      where: {
+        userId: In(users),
+        sourceId: source.id,
+        role: Not(SourceMemberRoles.Blocked),
+      },
     });
 
     if (!members.length) {

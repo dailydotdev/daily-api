@@ -79,11 +79,13 @@ const worker: NotificationWorker = {
           select: { mentionedUserId: true },
           where: { postId: post.id },
         });
-        const members = await getSubscribedMembers(
+
+        const members = await getSubscribedMembers({
           con,
-          NotificationType.SquadPostAdded,
-          source.id,
-          {
+          type: NotificationType.SquadPostAdded,
+          byStatus: NotificationPreferenceStatus.Subscribed,
+          referenceId: source.id,
+          where: {
             sourceId: source.id,
             userId: Not(
               In([
@@ -93,7 +95,8 @@ const worker: NotificationWorker = {
             ),
             role: Not(SourceMemberRoles.Blocked),
           },
-        );
+        });
+
         if (members.length) {
           notifs.push({
             type: NotificationType.SquadPostAdded,

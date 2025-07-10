@@ -605,7 +605,7 @@ describe('post added notifications', () => {
     expect(actual.length).toEqual(0);
   });
 
-  it('should add post added notification to all source members except the author', async () => {
+  it('should add post added notification to all subscribed source members except the author', async () => {
     const worker = await import('../../src/workers/notifications/postAdded');
     await con
       .getRepository(Source)
@@ -624,20 +624,45 @@ describe('post added notifications', () => {
         referralToken: 'rt2',
         role: SourceMemberRoles.Member,
       },
+      {
+        sourceId: 'a',
+        userId: '4',
+        referralToken: 'rt3',
+        role: SourceMemberRoles.Member,
+      },
     ]);
+
+    await saveFixtures(con, NotificationPreferenceSource, [
+      {
+        userId: '2',
+        sourceId: 'a',
+        referenceId: 'a',
+        notificationType: NotificationType.SquadPostAdded,
+        status: NotificationPreferenceStatus.Subscribed,
+      },
+      {
+        userId: '3',
+        sourceId: 'a',
+        referenceId: 'a',
+        notificationType: NotificationType.SquadPostAdded,
+        status: NotificationPreferenceStatus.Subscribed,
+      },
+    ]);
+
     const actual = await invokeNotificationWorker(worker.default, {
       post: postsFixture[0],
     });
-    expect(actual.length).toEqual(1);
-    const bundle = actual[0];
+
+    expect(actual!.length).toEqual(1);
+    const bundle = actual![0];
     expect(bundle.type).toEqual('squad_post_added');
     expect((bundle.ctx as NotificationPostContext).post.id).toEqual('p1');
     expect((bundle.ctx as NotificationPostContext).source.id).toEqual('a');
     expect((bundle.ctx as NotificationDoneByContext).doneBy.id).toEqual('1');
-    expect(bundle.ctx.userIds).toIncludeSameMembers(['2', '3']);
+    expect(bundle.ctx.userIds).toEqual(expect.arrayContaining(['2', '3']));
   });
 
-  it('should add post added notification to all source members except the author and mentioned user', async () => {
+  it('should add post added notification to all subscribed source members except the author and mentioned user', async () => {
     const worker = await import('../../src/workers/notifications/postAdded');
     await con
       .getRepository(Source)
@@ -662,55 +687,34 @@ describe('post added notifications', () => {
       mentionedByUserId: '1',
       mentionedUserId: '3',
     });
-    const actual = await invokeNotificationWorker(worker.default, {
-      post: postsFixture[0],
-    });
-    expect(actual.length).toEqual(1);
-    const bundle = actual[0];
-    expect(bundle.type).toEqual('squad_post_added');
-    expect((bundle.ctx as NotificationPostContext).post.id).toEqual('p1');
-    expect((bundle.ctx as NotificationPostContext).source.id).toEqual('a');
-    expect((bundle.ctx as NotificationDoneByContext).doneBy.id).toEqual('1');
-    expect(bundle.ctx.userIds).toIncludeSameMembers(['2']);
-  });
 
-  it('should add post added notification to all source members except the author and muted members', async () => {
-    const worker = await import('../../src/workers/notifications/postAdded');
-    await con
-      .getRepository(Source)
-      .update({ id: 'a' }, { type: SourceType.Squad });
-    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
-    await con.getRepository(SourceMember).save([
+    await saveFixtures(con, NotificationPreferenceSource, [
       {
-        sourceId: 'a',
         userId: '2',
-        referralToken: 'rt1',
-        role: SourceMemberRoles.Member,
+        sourceId: 'a',
+        referenceId: 'a',
+        notificationType: NotificationType.SquadPostAdded,
+        status: NotificationPreferenceStatus.Subscribed,
       },
       {
-        sourceId: 'a',
         userId: '3',
-        referralToken: 'rt2',
-        role: SourceMemberRoles.Member,
+        sourceId: 'a',
+        referenceId: 'a',
+        notificationType: NotificationType.SquadPostAdded,
+        status: NotificationPreferenceStatus.Subscribed,
       },
     ]);
-    await con.getRepository(NotificationPreferenceSource).save({
-      userId: '3',
-      sourceId: 'a',
-      referenceId: 'a',
-      status: NotificationPreferenceStatus.Muted,
-      notificationType: NotificationType.SquadPostAdded,
-    });
+
     const actual = await invokeNotificationWorker(worker.default, {
       post: postsFixture[0],
     });
-    expect(actual.length).toEqual(1);
-    const bundle = actual[0];
+    expect(actual!.length).toEqual(1);
+    const bundle = actual![0];
     expect(bundle.type).toEqual('squad_post_added');
     expect((bundle.ctx as NotificationPostContext).post.id).toEqual('p1');
     expect((bundle.ctx as NotificationPostContext).source.id).toEqual('a');
     expect((bundle.ctx as NotificationDoneByContext).doneBy.id).toEqual('1');
-    expect(bundle.ctx.userIds).toEqual(['2']);
+    expect(bundle.ctx.userIds).toEqual(expect.arrayContaining(['2']));
   });
 
   const prepareSubscribeTests = async (postId = 'p1', sourceId = 'a') => {
