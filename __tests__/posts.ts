@@ -8340,4 +8340,31 @@ describe('mutation generateBriefing', () => {
       'CONFLICT',
     );
   });
+
+  it('should throw existing post data if briefing is already generating', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables,
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+
+    const resError = await client.mutate(MUTATION, {
+      variables,
+    });
+
+    expect(resError.errors).toBeTruthy();
+
+    expect(resError.errors?.[0].extensions?.postId).toEqual(
+      res.data.generateBriefing.postId,
+    );
+    expect(resError.errors?.[0].extensions?.createdAt).toEqual(
+      expect.any(String),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+  });
 });
