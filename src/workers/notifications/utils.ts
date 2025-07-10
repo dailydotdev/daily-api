@@ -54,8 +54,51 @@ type GetSubscribedMembers = GetSubscribedMembersBase &
         byStatus?: never;
         byNotStatus: NotificationPreferenceStatus;
       }
+    | {
+        byStatus?: never;
+        byNotStatus?: never;
+      }
   );
 
+/**
+ * Get members based on their notification preferences for a specific notification type and reference ID.
+ * This function allows filtering members who are 'subscribed' (opt-in) or
+ * who are NOT 'muted' (opt-out) for the given notification criteria.
+ *
+ * @param {object} params - The parameters for filtering members.
+ * @param {DataSource} params.con - The database connection (TypeORM DataSource instance).
+ * @param {NotificationType} params.type - The type of notification (e.g., `NotificationType.ArticleNewComment`).
+ * @param {string} params.referenceId - The reference ID associated with the notification (e.g., 'post123').
+ * @param {ObjectLiteral} params.where - Additional conditions for filtering `SourceMember` (e.g., `{ sourceId: '...', role: Not(SourceMemberRoles.Blocked) }`).
+ * @param {NotificationPreferenceStatus} [params.byStatus] - **Mutually Exclusive with `byNotStatus`**.
+ *   Filter by a specific `NotificationPreferenceStatus`. Use this for 'opt-in' scenarios (e.g., `NotificationPreferenceStatus.Subscribed`).
+ *   If provided, only members with a preference matching this status will be returned.
+ * @param {NotificationPreferenceStatus} [params.byNotStatus] - **Mutually Exclusive with `byStatus`**.
+ *   Filter by members who do NOT have a preference matching this status. Use this for 'opt-out' scenarios
+ *   (e.g., `NotificationPreferenceStatus.Muted`). If provided, members who have *no preference*
+ *   for the given type/referenceId, or whose preference is *not* this status, will be returned.
+ * @returns {Promise<SourceMember[]>} A promise that resolves to an array of `SourceMember` objects.
+ * @throws {Error} If the database query fails or if both `byStatus` and `byNotStatus` are provided simultaneously.
+ * @example
+ * // Get members subscribed to new comments on 'post123' in 'source123', excluding blocked roles
+ * const subscribedMembers = await getSubscribedMembers({
+ *   con: dataSource,
+ *   type: NotificationType.ArticleNewComment,
+ *   byStatus: NotificationPreferenceStatus.Subscribed,
+ *   referenceId: 'post123',
+ *   where: { sourceId: 'source123', role: Not('blocked') }, // Assuming Not() is imported or defined
+ * });
+ *
+ * @example
+ * // Get members who are NOT muted for new comments on 'post123' in 'source123', excluding blocked roles
+ * const notMutedMembers = await getSubscribedMembers({
+ *   con: dataSource,
+ *   type: NotificationType.ArticleNewComment,
+ *   byNotStatus: NotificationPreferenceStatus.Muted,
+ *   referenceId: 'post123',
+ *   where: { sourceId: 'source123', role: Not('blocked') },
+ * });
+ */
 export const getSubscribedMembers = ({
   con,
   type,
