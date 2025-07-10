@@ -58,6 +58,7 @@ import {
   notifyView,
   pickImageUrl,
   postScraperOrigin,
+  triggerTypedEvent,
   updateFlagsStatement,
   WATERCOOLER_ID,
 } from '../src/common';
@@ -8366,5 +8367,27 @@ describe('mutation generateBriefing', () => {
     );
 
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it('should start briefing generation if other user brief is generating', async () => {
+    loggedUser = '2';
+
+    const res = await client.mutate(MUTATION, {
+      variables,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+
+    loggedUser = '1';
+
+    const res2 = await client.mutate(MUTATION, {
+      variables,
+    });
+
+    expect(res2.errors).toBeFalsy();
+
+    expect(res2.errors).toBeFalsy();
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(2);
   });
 });

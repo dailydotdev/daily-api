@@ -3182,7 +3182,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         async ({ queryRunner }) => {
           return queryRunner.manager.getRepository(BriefPost).findOne({
             select: ['id', 'createdAt'],
-            where: { visible: false },
+            where: { visible: false, authorId: ctx.userId },
           });
         },
       );
