@@ -178,7 +178,7 @@ export const notificationTitleMap: Record<
   post_boost_completed: () =>
     `Your boost just wrapped up! Dive into the ads dashboard to see how it performed!`,
   briefing_ready: () =>
-    `<strong>Hey there! I just crafted a fresh Brief for you</strong> — a quick, high-signal summary of what's shaping the dev world today.`,
+    `<strong>Your presidential briefing is ready!</strong> Cut through the noise. Read what actually matters.`,
 };
 
 export const generateNotificationMap: Record<

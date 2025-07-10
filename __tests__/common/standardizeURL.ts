@@ -39,7 +39,6 @@ describe('standardizeURL', () => {
 
   it('should keep query in excluded domains', () => {
     Object.entries(domainAllowedSearchParams).forEach(([domain, params]) => {
-      console.log(params.values[0]);
       const { url, canonicalUrl } = standardizeURL(
         `https://${domain}/posts/1?${Array.from(params)[0]}=lorem&foo=baz`,
       );
