@@ -72,7 +72,7 @@ export const userGenerateBriefWorker: TypedWorker<'api.v1.brief-generate'> = {
       const brief = await feedClient.getUserBrief(briefRequest);
 
       const content = generateMarkdown(brief);
-      const title = format(new Date(), 'MMM d');
+      const title = format(new Date(), 'MMM d, yyyy');
 
       const post = con.getRepository(BriefPost).create({
         id: postId,
