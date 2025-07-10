@@ -139,9 +139,9 @@ export class SkadiApiClient implements ISkadiApiClient {
       );
 
       return {
-        impressions: response.impressions,
-        clicks: response.clicks,
-        users: response.users,
+        impressions: response.impressions ?? 0,
+        clicks: response.clicks ?? 0,
+        users: response.users ?? 0,
       };
     });
   }
