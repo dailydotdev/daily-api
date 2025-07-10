@@ -84,6 +84,7 @@ import {
   determineSharedPostId,
   SharePost,
   BRIEFING_SOURCE,
+  UserAction,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -3171,10 +3172,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { type }: { type: BriefingType },
       ctx: AuthContext,
     ): Promise<{ postId: string }> => {
-      // TODO feat-brief replace with check, if user generated single brief on demand generation
-      // is no longer available
-      if (isProd && !ctx.isTeamMember) {
-        throw new ForbiddenError('Not allowed for you yet');
+      // for now allow multiple on demand generations for team members
+      if (!ctx.isTeamMember) {
+        const action = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+          queryRunner.manager.getRepository(UserAction).findOne({
+            select: ['completedAt'],
+            where: {
+              userId: ctx.userId,
+              type: UserActionType.GeneratedBrief,
+            },
+          }),
+        );
+
+        if (action?.completedAt) {
+          throw new ForbiddenError(
+            'Not allowed for you anymore, go to /briefing page to learn more',
+          );
+        }
       }
 
       const pendingBrief = await queryReadReplica(

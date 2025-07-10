@@ -35,6 +35,8 @@ import {
   SourceUser,
   SquadSource,
   User,
+  UserAction,
+  UserActionType,
   UserPost,
   View,
   WelcomePost,
@@ -58,6 +60,7 @@ import {
   notifyView,
   pickImageUrl,
   postScraperOrigin,
+  triggerTypedEvent,
   updateFlagsStatement,
   WATERCOOLER_ID,
 } from '../src/common';
@@ -8331,6 +8334,8 @@ describe('mutation generateBriefing', () => {
 
     expect(res.errors).toBeFalsy();
 
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+
     await testMutationErrorCode(
       client,
       {
@@ -8339,5 +8344,27 @@ describe('mutation generateBriefing', () => {
       },
       'CONFLICT',
     );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it('should not start briefing generation if generated brief action exists', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(UserAction).save({
+      userId: loggedUser,
+      type: UserActionType.GeneratedBrief,
+    });
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'FORBIDDEN',
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
   });
 });
