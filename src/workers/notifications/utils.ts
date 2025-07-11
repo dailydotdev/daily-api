@@ -63,39 +63,15 @@ export const getOptInNotifications = async ({
     },
   });
 
-/**
- * Get members who haven't explicitly opted out of a notification type and reference ID.
- * This function is used for 'opt-out' scenarios, returning members who either have
- * no preference or whose preference is not the specified status.
- *
- * @param {object} params - The parameters for filtering members.
- * @param {DataSource} params.con - The database connection (TypeORM DataSource instance).
- * @param {NotificationType} params.type - The type of notification (e.g., `NotificationType.ArticleNewComment`).
- * @param {string} params.referenceId - The reference ID associated with the notification (e.g., 'post123').
- * @param {ObjectLiteral} params.where - Additional conditions for filtering `SourceMember` (e.g., `{ sourceId: '...', role: Not(SourceMemberRoles.Blocked) }`).
- * @param {NotificationPreferenceStatus} params.status - The status to exclude, typically `NotificationPreferenceStatus.Muted`.
- * @returns {Promise<SourceMember[]>} A promise that resolves to an array of `SourceMember` objects.
- * @throws {Error} If the database query fails.
- * @example
- * // Get members who are NOT muted for new comments on 'post123' in 'source123', excluding blocked roles
- * const notMutedMembers = await getOptOutMembers({
- *   con: dataSource,
- *   type: NotificationType.ArticleNewComment,
- *   status: NotificationPreferenceStatus.Muted,
- *   referenceId: 'post123',
- *   where: { sourceId: 'source123', role: Not('blocked') },
- * });
- */
-export const getOptOutMembers = ({
-  con,
-  type,
-  status,
-  referenceId,
-  where,
-}: GetMembersParams) => {
+export const getSubscribedMembers = (
+  con: DataSource,
+  type: NotificationType,
+  referenceId: string,
+  where: ObjectLiteral,
+) => {
   const builder = con.getRepository(SourceMember).createQueryBuilder('sm');
   const memberQuery = builder.select('"userId"').where(where);
-  const preferenceQuery = builder
+  const muteQuery = builder
     .subQuery()
     .select('np."userId"')
     .from(NotificationPreference, 'np')
@@ -104,11 +80,11 @@ export const getOptOutMembers = ({
       notificationType: type,
       referenceId,
       type: notificationPreferenceMap[type],
-      status,
+      status: NotificationPreferenceStatus.Muted,
     });
 
   return memberQuery
-    .andWhere(`EXISTS(${preferenceQuery.getQuery()}) IS FALSE`)
+    .andWhere(`EXISTS(${muteQuery.getQuery()}) IS FALSE`)
     .getRawMany<SourceMember>();
 };
 
@@ -201,16 +177,10 @@ export async function articleNewCommentHandler(
       : NotificationType.ArticleNewComment;
 
   if (source.type === SourceType.Squad) {
-    const members = await getOptOutMembers({
-      con,
-      type,
-      referenceId: post.id,
-      status: NotificationPreferenceStatus.Muted,
-      where: {
-        userId: In(users),
-        sourceId: source.id,
-        role: Not(SourceMemberRoles.Blocked),
-      },
+    const members = await getSubscribedMembers(con, type, post.id, {
+      userId: In(users),
+      sourceId: source.id,
+      role: Not(SourceMemberRoles.Blocked),
     });
 
     if (!members.length) {

@@ -1,8 +1,5 @@
 import { messageToJson } from '../worker';
-import {
-  NotificationPreferenceStatus,
-  NotificationType,
-} from '../../notifications/common';
+import { NotificationType } from '../../notifications/common';
 import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
 import {
@@ -16,7 +13,7 @@ import {
 import { In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
 import { insertOrIgnoreAction } from '../../schema/actions';
-import { getOptOutMembers } from './utils';
+import { getSubscribedMembers } from './utils';
 
 interface Data {
   sourceMember: ChangeObject<SourceMember>;
@@ -27,17 +24,16 @@ const worker: NotificationWorker = {
   handler: async (message, con, logger) => {
     const { sourceMember: member }: Data = messageToJson(message);
     const logDetails = { member, messageId: message.messageId };
-    const admins = await getOptOutMembers({
+    const admins = await getSubscribedMembers(
       con,
-      type: NotificationType.SquadMemberJoined,
-      status: NotificationPreferenceStatus.Muted,
-      referenceId: member.sourceId,
-      where: {
+      NotificationType.SquadMemberJoined,
+      member.sourceId,
+      {
         sourceId: member.sourceId,
         userId: Not(In([member.userId])),
         role: SourceMemberRoles.Admin,
       },
-    });
+    );
 
     const doneBy = await con
       .getRepository(User)
