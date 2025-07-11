@@ -3,6 +3,7 @@ import {
   Comment,
   NotificationPreference,
   NotificationPreferencePost,
+  NotificationPreferenceSource,
   Post,
   PostType,
   SharePost,
@@ -42,56 +43,25 @@ type GetMembersParams = {
   type: NotificationType;
   referenceId: string;
   where: ObjectLiteral;
-  status: NotificationPreferenceStatus;
+  status?: NotificationPreferenceStatus;
 };
 
-/**
- * Get members who have explicitly opted in for a notification type and reference ID.
- * This function is used for 'opt-in' scenarios, where members must explicitly subscribe.
- *
- * @param {object} params - The parameters for filtering members.
- * @param {DataSource} params.con - The database connection (TypeORM DataSource instance).
- * @param {NotificationType} params.type - The type of notification (e.g., `NotificationType.ArticleNewComment`).
- * @param {string} params.referenceId - The reference ID associated with the notification (e.g., 'post123').
- * @param {ObjectLiteral} params.where - Additional conditions for filtering `SourceMember` (e.g., `{ sourceId: '...', role: Not(SourceMemberRoles.Blocked) }`).
- * @param {NotificationPreferenceStatus} params.status - The status to filter by, typically `NotificationPreferenceStatus.Subscribed`.
- * @returns {Promise<SourceMember[]>} A promise that resolves to an array of `SourceMember` objects.
- * @throws {Error} If the database query fails.
- * @example
- * // Get members subscribed to new comments on 'post123' in 'source123', excluding blocked roles
- * const subscribedMembers = await getOptInMembers({
- *   con: dataSource,
- *   type: NotificationType.ArticleNewComment,
- *   status: NotificationPreferenceStatus.Subscribed,
- *   referenceId: 'post123',
- *   where: { sourceId: 'source123', role: Not('blocked') }, // Assuming Not() is imported or defined
- * });
- */
-export const getOptInMembers = ({
+export const getOptInNotifications = async ({
   con,
   type,
   status,
   referenceId,
-  where,
-}: GetMembersParams) => {
-  const builder = con.getRepository(SourceMember).createQueryBuilder('sm');
-  const memberQuery = builder.select('"userId"').where(where);
-  const preferenceQuery = builder
-    .subQuery()
-    .select('np."userId"')
-    .from(NotificationPreference, 'np')
-    .where(`"np"."userId" = "${memberQuery.alias}"."userId"`)
-    .andWhere({
+  where = {},
+}: GetMembersParams) =>
+  con.getRepository(NotificationPreferenceSource).find({
+    where: {
+      referenceId: referenceId,
       notificationType: type,
-      referenceId,
       type: notificationPreferenceMap[type],
-      status,
-    });
-
-  return memberQuery
-    .andWhere(`EXISTS(${preferenceQuery.getQuery()}) IS TRUE`)
-    .getRawMany<SourceMember>();
-};
+      status: status,
+      ...where,
+    },
+  });
 
 /**
  * Get members who haven't explicitly opted out of a notification type and reference ID.
