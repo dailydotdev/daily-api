@@ -15,6 +15,7 @@ import { pickImageUrl } from '../post';
 import { NotFoundError } from '../../errors';
 import { usdToCores } from '../njord';
 import { debeziumTimeToDate, type ObjectSnakeToCamelCase } from '../utils';
+import { getDiscussionLink } from '../links';
 
 export interface GQLPromotedPost
   extends ObjectSnakeToCamelCase<
@@ -93,10 +94,12 @@ export const checkPostAlreadyBoosted = (post: Pick<Post, 'flags'>): void => {
   }
 };
 
-interface CampaignBoostedPost extends Pick<Post, 'id' | 'shortId' | 'title'> {
+interface CampaignBoostedPost
+  extends Pick<Post, 'id' | 'shortId' | 'title' | 'slug'> {
   image: string;
   permalink: string;
   engagements: number;
+  commentsPermalink?: string;
 }
 
 export interface GQLBoostedPost {
@@ -130,6 +133,7 @@ const getBoostedPostBuilder = (con: ConnectionManager, alias = 'p1') =>
     .createQueryBuilder(alias)
     .select(`"${alias}".id`, 'id')
     .addSelect(`"${alias}"."shortId"`, 'shortId')
+    .addSelect(`"${alias}".slug`, 'slug')
     .addSelect(`"${alias}".image`, 'image')
     .addSelect(`"${alias}".title`, 'title')
     .addSelect(`"${alias}".type`, 'type')
@@ -145,8 +149,9 @@ export const getBoostedPost = async (
   id: string,
 ): Promise<GetBoostedPost> => {
   const builder = getBoostedPostBuilder(con);
-  const bookmarks = getBookmarksCountBuilder(builder).where({ postId: id });
-  const result = await getBoostedPostBuilder(con)
+  const bookmarks =
+    getBookmarksCountBuilder(builder).where(`b."postId" = p1.id`);
+  const result = await builder
     .addSelect(`(${bookmarks.getQuery()})::int`, 'bookmarks')
     .where({ id })
     .getRawOne();
@@ -162,7 +167,7 @@ export const getFormattedBoostedPost = (
   post: GetBoostedPost,
   campaign: GetCampaignResponse,
 ): GQLBoostedPost['post'] => {
-  const { id, shortId, sharedImage, sharedTitle } = post;
+  const { id, shortId, sharedImage, sharedTitle, slug } = post;
   let image: string | undefined = post.image;
   let title = post.title;
 
@@ -173,10 +178,12 @@ export const getFormattedBoostedPost = (
 
   return {
     id,
+    slug,
     shortId,
     title,
     image: mapCloudinaryUrl(image) ?? pickImageUrl({ createdAt: new Date() }),
     permalink: getPostPermalink({ shortId }),
+    commentsPermalink: post.slug ? getDiscussionLink(post.slug) : undefined,
     engagements:
       post.bookmarks +
       post.comments +

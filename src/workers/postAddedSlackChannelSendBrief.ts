@@ -3,42 +3,42 @@ import { TypedWorker } from './worker';
 import fastq from 'fastq';
 import {
   BRIEFING_SOURCE,
-  Post,
   PostType,
-  SourceMember,
-  SourceType,
+  UserPersonalizedDigest,
+  UserPersonalizedDigestType,
 } from '../entity';
 import {
   getAttachmentForPostType,
   getSlackClient,
 } from '../common/userIntegration';
-import { addNotificationUtm, addPrivateSourceJoinParams } from '../common';
-import { SourceMemberRoles } from '../roles';
+import { addNotificationUtm } from '../common';
 import { SlackApiError, SlackApiErrorCode } from '../errors';
 import { counters } from '../telemetry/metrics';
+import { BriefPost } from '../entity/posts/BriefPost';
 
 const sendQueueConcurrency = 10;
 
-const skipPostTypes = [PostType.Brief];
-const skipSources = [BRIEFING_SOURCE];
-
-export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'> =
+export const postAddedSlackChannelSendBriefWorker: TypedWorker<'api.v1.post-visible'> =
   {
-    subscription: 'api.post-added-slack-channel-send',
+    subscription: 'api.post-added-slack-channel-send-brief',
     handler: async (message, con, logger): Promise<void> => {
       const { data } = message;
 
       try {
-        if (skipPostTypes.includes(data.post.type)) {
+        if (data.post.sourceId !== BRIEFING_SOURCE) {
           return;
         }
 
-        if (skipSources.includes(data.post.sourceId)) {
+        if (data.post.type !== PostType.Brief) {
           return;
         }
 
-        const [post, integrations] = await Promise.all([
-          con.getRepository(Post).findOneOrFail({
+        if (!data.post.authorId) {
+          return;
+        }
+
+        const [post, integrations, personalizedDigest] = await Promise.all([
+          con.getRepository(BriefPost).findOneOrFail({
             where: {
               id: data.post.id,
             },
@@ -50,12 +50,25 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
           con.getRepository(UserSourceIntegrationSlack).find({
             where: {
               sourceId: data.post.sourceId,
+              userIntegration: {
+                userId: data.post.authorId,
+              },
             },
             relations: {
               userIntegration: true,
             },
           }),
+          con.getRepository(UserPersonalizedDigest).findOne({
+            where: {
+              type: UserPersonalizedDigestType.Brief,
+              userId: data.post.authorId,
+            },
+          }),
         ]);
+
+        if (!personalizedDigest?.flags?.slack) {
+          return;
+        }
 
         if (integrations.length === 0) {
           return;
@@ -66,47 +79,15 @@ export const postAddedSlackChannelSendWorker: TypedWorker<'api.v1.post-visible'>
         }
 
         const source = await post.source;
-        const sourceTypeName =
-          source.type === SourceType.Squad ? 'Squad' : 'source';
-
-        const postLinkPlain = `${process.env.COMMENTS_PREFIX}/posts/${post.id}`;
+        const postLinkPlain = `${process.env.COMMENTS_PREFIX}/posts/${post.slug}`;
         const postLinkUrl = new URL(postLinkPlain);
-        let postLink = addNotificationUtm(
+        const postLink = addNotificationUtm(
           postLinkUrl.toString(),
           'slack',
           'new_post',
         );
 
-        if (source.private && source.type === SourceType.Squad) {
-          const admin: Pick<SourceMember, 'referralToken'> | null = await con
-            .getRepository(SourceMember)
-            .findOne({
-              select: ['referralToken'],
-              where: {
-                sourceId: source.id,
-                role: SourceMemberRoles.Admin,
-              },
-              order: {
-                createdAt: 'ASC',
-              },
-            });
-
-          if (admin?.referralToken) {
-            postLink = addPrivateSourceJoinParams({
-              url: postLink,
-              source,
-              referralToken: admin.referralToken,
-            });
-          }
-        }
-
-        const author = await post.author;
-        const authorName = author?.name || author?.username;
-        let messageText = `New post: <${postLink}|${postLinkPlain}>`;
-
-        if (sourceTypeName === 'Squad' && authorName) {
-          messageText = `${authorName} shared a new post: <${postLink}|${postLinkPlain}>`;
-        }
+        const messageText = `<${postLink}|${postLinkPlain}>`;
 
         const attachment = await getAttachmentForPostType({
           con,

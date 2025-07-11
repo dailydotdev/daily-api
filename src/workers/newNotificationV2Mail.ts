@@ -33,6 +33,7 @@ import {
   formatMailDate,
   getOrganizationPermalink,
   getSourceLink,
+  liveTimerDateFormat,
   mapCloudinaryUrl,
   pickImageUrl,
   sendEmail,
@@ -54,6 +55,10 @@ import { SourcePostModeration } from '../entity/SourcePostModeration';
 import { UserTransaction } from '../entity/user/UserTransaction';
 import { formatCoresCurrency } from '../common/number';
 import { ContentPreferenceOrganization } from '../entity/contentPreference/ContentPreferenceOrganization';
+import { BriefPost } from '../entity/posts/BriefPost';
+import { isPlusMember } from '../paddle';
+import { BriefingSection } from '@dailydotdev/schema';
+import type { JsonValue } from '@bufbuild/protobuf';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -102,7 +107,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   organization_member_joined:
     CioTransactionalMessageTemplateId.OrganizationMemberJoined,
   post_boost_completed: '', // TODO: check with product
-  briefing_ready: '',
+  briefing_ready: '81',
 };
 
 type TemplateData = Record<string, unknown>;
@@ -955,7 +960,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       },
     };
   },
-  briefing_ready: async (con, user) => {
+  briefing_ready: async (con, user, notification) => {
     const personalizedDigest: Pick<
       UserPersonalizedDigest,
       'userId' | 'flags'
@@ -971,9 +976,44 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       return null;
     }
 
-    // TODO feat-brief send email once template is ready
+    const post = await con.getRepository(BriefPost).findOne({
+      where: { id: notification.referenceId },
+      relations: {
+        author: true,
+      },
+    });
 
-    return {};
+    if (!post) {
+      return null;
+    }
+
+    if (!Array.isArray(post.contentJSON)) {
+      return null;
+    }
+
+    const author = await post.author;
+
+    if (!author) {
+      return null;
+    }
+
+    return {
+      isPlus: isPlusMember(author.subscriptionFlags?.cycle),
+      posts_number: post.flags.posts ?? 0,
+      sources_number: post.flags.sources ?? 0,
+      read_time: liveTimerDateFormat({
+        value: new Date(),
+        now: new Date(Date.now() + (post.readTime ?? 0) * 60 * 1000),
+      }),
+      saved_time: liveTimerDateFormat({
+        value: new Date(),
+        now: new Date(Date.now() + (post.flags.savedTime ?? 0) * 60 * 1000),
+      }),
+      read_link: `${process.env.COMMENTS_PREFIX}/posts/${post.id}`,
+      sections: post.contentJSON.map((item: JsonValue) =>
+        BriefingSection.fromJson(item),
+      ),
+    };
   },
 };
 
@@ -997,8 +1037,21 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     const { id } = data.notification;
+
+    if (data.notification.type === NotificationType.BriefingReady) {
+      logger.info({ data }, 'debug brief email send notification received');
+    }
+
     const [notification, attachments, avatars] =
       await getNotificationV2AndChildren(con, id);
+
+    if (data.notification.type === NotificationType.BriefingReady) {
+      logger.info(
+        { data, notification, attachments, avatars },
+        'debug brief email send notification retrieved',
+      );
+    }
+
     if (!notification) {
       return;
     }
@@ -1038,6 +1091,14 @@ const worker: Worker = {
                   : undefined,
             },
           });
+
+          if (data.notification.type === NotificationType.BriefingReady) {
+            logger.info(
+              { data, notification, attachments, avatars, users },
+              'debug brief email send users retrieved',
+            );
+          }
+
           if (!users.length) {
             return;
           }
@@ -1052,6 +1113,21 @@ const worker: Worker = {
                 attachments,
                 avatars,
               );
+
+              if (data.notification.type === NotificationType.BriefingReady) {
+                logger.info(
+                  {
+                    data,
+                    notification,
+                    attachments,
+                    avatars,
+                    user,
+                    templateData,
+                  },
+                  'debug brief email send template data retrieved',
+                );
+              }
+
               if (!templateData) {
                 return;
               }

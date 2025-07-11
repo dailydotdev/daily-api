@@ -139,9 +139,9 @@ export class SkadiApiClient implements ISkadiApiClient {
       );
 
       return {
-        impressions: response.impressions,
-        clicks: response.clicks,
-        users: response.users,
+        impressions: response.impressions ?? 0,
+        clicks: response.clicks ?? 0,
+        users: response.users ?? 0,
       };
     });
   }
@@ -151,7 +151,7 @@ export class SkadiApiClient implements ISkadiApiClient {
     userId,
   }: GetCampaignByIdProps): Promise<ObjectSnakeToCamelCase<PromotedPost>> {
     return this.garmr.execute(async () => {
-      const response = await fetchParse<PromotedPost>(
+      const response = await fetchParse<{ promoted_post: PromotedPost }>(
         `${this.url}/promote/post/get`,
         {
           ...this.fetchOptions,
@@ -163,7 +163,7 @@ export class SkadiApiClient implements ISkadiApiClient {
         },
       );
 
-      return mapCampaign(response);
+      return mapCampaign(response.promoted_post);
     });
   }
 
@@ -186,8 +186,8 @@ export class SkadiApiClient implements ISkadiApiClient {
       );
 
       return {
-        promotedPosts: response.promoted_posts.map(mapCampaign),
-        postIds: response.post_ids,
+        promotedPosts: response.promoted_posts?.map(mapCampaign) ?? [],
+        postIds: response.post_ids ?? [],
         totalSpend: response.total_spend,
         impressions: response.impressions,
         clicks: response.clicks,

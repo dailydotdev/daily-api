@@ -1004,7 +1004,7 @@ describe('query postCampaigns', () => {
             post {
               id
               title
-              image 
+              image
               shortId
               permalink
               engagements
@@ -1661,6 +1661,7 @@ describe('mutation startPostBoost', () => {
     mutation StartPostBoost($postId: ID!, $duration: Int!, $budget: Int!) {
       startPostBoost(postId: $postId, duration: $duration, budget: $budget) {
         transactionId
+        referenceId
         balance {
           amount
         }
@@ -2036,6 +2037,7 @@ describe('mutation startPostBoost', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.startPostBoost.transactionId).toBeDefined();
+    expect(res.data.startPostBoost.referenceId).toBe('mock-campaign-id');
     expect(res.data.startPostBoost.balance.amount).toBe(10000);
 
     // Verify the boosted flag is now set
@@ -2401,8 +2403,8 @@ describe('query boostEstimatedReach', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.boostEstimatedReach).toEqual({
-      max: 108, // 100 + (100 * 0.08) = 108
-      min: 92, // 100 - (100 * 0.08) = 92
+      max: 100,
+      min: 100,
     });
 
     // Verify the skadi client was called with correct parameters

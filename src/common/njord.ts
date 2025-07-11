@@ -512,6 +512,7 @@ export type AwardInput = Pick<
 export type TransactionCreated = {
   transactionId: string;
   balance: GetBalanceResult;
+  referenceId?: string;
 };
 
 const canAward = async ({

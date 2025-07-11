@@ -1,5 +1,6 @@
 import {
   dedupedSend,
+  digestSendTypeToBriefingType,
   getPersonalizedDigestEmailPayload,
   sendEmail,
   triggerTypedEvent,
@@ -244,7 +245,9 @@ const digestTypeToFunctionMap: Record<
           triggerTypedEvent(logger, 'api.v1.brief-generate', {
             payload: new UserBriefingRequest({
               userId,
-              frequency: data.personalizedDigest.flags.sendType,
+              frequency: digestSendTypeToBriefingType(
+                data.personalizedDigest.flags.sendType,
+              ),
               modelName: BriefingModel.Default,
             }),
             postId,

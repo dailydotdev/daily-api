@@ -373,6 +373,10 @@ export const workers: Worker[] = [
     topic: 'user-updated',
     subscription: 'api.user-updated-plus-subscribed-brief',
   },
+  {
+    topic: 'api.v1.post-visible',
+    subscription: 'api.post-added-slack-channel-send-brief',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

@@ -4,10 +4,11 @@ import { BriefPost } from '../../entity/posts/BriefPost';
 import { FeedClient } from '../../integrations/feed';
 import { GarmrService } from '../../integrations/garmr';
 import type { TypedWorker } from '../worker';
-import { getPostVisible, parseReadTime } from '../../entity';
+import { getPostVisible, parseReadTime, UserActionType } from '../../entity';
 import { triggerTypedEvent } from '../../common/typedPubsub';
 import type { Briefing } from '@dailydotdev/schema';
 import { updateFlagsStatement } from '../../common';
+import { insertOrIgnoreAction } from '../../schema/actions';
 
 const feedClient = new FeedClient(process.env.BRIEFING_FEED, {
   garmr: new GarmrService({
@@ -72,7 +73,7 @@ export const userGenerateBriefWorker: TypedWorker<'api.v1.brief-generate'> = {
       const brief = await feedClient.getUserBrief(briefRequest);
 
       const content = generateMarkdown(brief);
-      const title = format(new Date(), 'MMM d');
+      const title = format(new Date(), 'MMM d, yyyy');
 
       const post = con.getRepository(BriefPost).create({
         id: postId,
@@ -88,6 +89,7 @@ export const userGenerateBriefWorker: TypedWorker<'api.v1.brief-generate'> = {
           generatedAt: new Date(),
         },
         collectionSources: brief.sourceIds || [],
+        contentJSON: brief.sections.map((section) => section.toJson()),
       });
       post.visible = getPostVisible({ post });
 
@@ -114,6 +116,12 @@ export const userGenerateBriefWorker: TypedWorker<'api.v1.brief-generate'> = {
       );
 
       await triggerTypedEvent(logger, 'api.v1.brief-ready', data);
+
+      await insertOrIgnoreAction(
+        con,
+        data.payload.userId,
+        UserActionType.GeneratedBrief,
+      );
     } catch (originalError) {
       // TODO feat-brief for now catch error and stop, in the future retry and add dead letter after X attempts
       const err = originalError as Error;
