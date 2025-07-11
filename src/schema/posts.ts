@@ -2811,22 +2811,35 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             }),
           );
 
-        const transfer = await transferCores({
-          ctx: { userId },
-          transaction: userTransaction,
-          entityManager,
-        });
+        try {
+          const transfer = await transferCores({
+            ctx: { userId },
+            transaction: userTransaction,
+            entityManager,
+          });
 
-        return {
-          transfer,
-          transaction: {
-            referenceId: campaignId,
-            transactionId: userTransaction.id,
-            balance: {
-              amount: parseBigInt(transfer.receiverBalance?.newBalance),
+          return {
+            transfer,
+            transaction: {
+              referenceId: campaignId,
+              transactionId: userTransaction.id,
+              balance: {
+                amount: parseBigInt(transfer.receiverBalance?.newBalance),
+              },
             },
-          },
-        };
+          };
+        } catch (error) {
+          if (error instanceof TransferError) {
+            await throwUserTransactionError({
+              ctx,
+              entityManager,
+              error,
+              transaction: userTransaction,
+            });
+          }
+
+          throw error;
+        }
       });
 
       return result.transaction;
