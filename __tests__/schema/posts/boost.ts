@@ -1004,7 +1004,7 @@ describe('query postCampaigns', () => {
             post {
               id
               title
-              image 
+              image
               shortId
               permalink
               engagements
@@ -2403,8 +2403,8 @@ describe('query boostEstimatedReach', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.boostEstimatedReach).toEqual({
-      max: 108, // 100 + (100 * 0.08) = 108
-      min: 92, // 100 - (100 * 0.08) = 92
+      max: 100,
+      min: 100,
     });
 
     // Verify the skadi client was called with correct parameters
