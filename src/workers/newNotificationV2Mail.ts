@@ -35,6 +35,7 @@ import {
   getSourceLink,
   liveTimerDateFormat,
   mapCloudinaryUrl,
+  personalizedDigestNotificationTypes,
   pickImageUrl,
   sendEmail,
   truncatePostToTweet,
@@ -1037,21 +1038,8 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     const { id } = data.notification;
-
-    if (data.notification.type === NotificationType.BriefingReady) {
-      logger.info({ data }, 'debug brief email send notification received');
-    }
-
     const [notification, attachments, avatars] =
       await getNotificationV2AndChildren(con, id);
-
-    if (data.notification.type === NotificationType.BriefingReady) {
-      logger.info(
-        { data, notification, attachments, avatars },
-        'debug brief email send notification retrieved',
-      );
-    }
-
     if (!notification) {
       return;
     }
@@ -1066,6 +1054,9 @@ const worker: Worker = {
           const isAwardNotification =
             notification.type === NotificationType.UserReceivedAward;
 
+          const digestNotification =
+            personalizedDigestNotificationTypes.includes(notification.type);
+
           const users = await con.getRepository(User).find({
             select: ['id', 'username', 'email'],
             where: {
@@ -1074,31 +1065,26 @@ const worker: Worker = {
               notificationEmail:
                 !isFollowNotification &&
                 !isAwardNotification &&
+                !digestNotification &&
                 notification.public
                   ? true
                   : undefined,
               followingEmail:
                 isFollowNotification &&
                 !isAwardNotification &&
+                !digestNotification &&
                 notification.public
                   ? true
                   : undefined,
               awardEmail:
                 !isFollowNotification &&
                 isAwardNotification &&
+                !digestNotification &&
                 notification.public
                   ? true
                   : undefined,
             },
           });
-
-          if (data.notification.type === NotificationType.BriefingReady) {
-            logger.info(
-              { data, notification, attachments, avatars, users },
-              'debug brief email send users retrieved',
-            );
-          }
-
           if (!users.length) {
             return;
           }
@@ -1113,21 +1099,6 @@ const worker: Worker = {
                 attachments,
                 avatars,
               );
-
-              if (data.notification.type === NotificationType.BriefingReady) {
-                logger.info(
-                  {
-                    data,
-                    notification,
-                    attachments,
-                    avatars,
-                    user,
-                    templateData,
-                  },
-                  'debug brief email send template data retrieved',
-                );
-              }
-
               if (!templateData) {
                 return;
               }

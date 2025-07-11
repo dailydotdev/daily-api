@@ -358,10 +358,6 @@ export const workers: Worker[] = [
     subscription: 'api.post-boost-completed-notification',
   },
   {
-    topic: 'api.v1.post-boost-canceled',
-    subscription: 'api.post-boost-canceled-cores',
-  },
-  {
     topic: 'api.v1.brief-generate',
     subscription: 'api.user-generate-brief',
   },
