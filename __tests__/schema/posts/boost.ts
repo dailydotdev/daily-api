@@ -43,7 +43,6 @@ import { skadiApiClient } from '../../../src/integrations/skadi/api/clients';
 import { pickImageUrl } from '../../../src/common/post';
 import { updateFlagsStatement } from '../../../src/common';
 import { UserTransaction } from '../../../src/entity/user/UserTransaction';
-import { getBalance } from '../../../src/common/njord';
 import {
   createMockNjordTransport,
   createMockNjordErrorTransport,
@@ -189,6 +188,15 @@ beforeEach(async () => {
     },
   ]);
   await deleteKeysByPattern(`${rateLimiterName}:*`);
+
+  isTeamMember = true; // TODO: remove when we are about to run production
+  await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
+
+  // Create a fresh transport and client for each test
+  const mockTransport = createMockNjordTransport();
+  jest
+    .spyOn(njordCommon, 'getNjordClient')
+    .mockImplementation(() => createClient(Credits, mockTransport));
 });
 
 afterAll(() => disposeGraphQLTesting(state));
@@ -2024,10 +2032,22 @@ describe('mutation startPostBoost', () => {
       campaignId: 'mock-campaign-id',
     });
 
-    // Mock getBalance to return a balance
-    (getBalance as jest.Mock).mockResolvedValue({
-      amount: 10000, // 10000 cores balance
+    // Set up initial balance for user '1' in the mock transport
+    const testNjordClient = njordCommon.getNjordClient();
+    await testNjordClient.transfer({
+      idempotencyKey: 'initial-balance-start',
+      transfers: [
+        {
+          sender: { id: 'system', type: EntityType.SYSTEM },
+          receiver: { id: '1', type: EntityType.USER },
+          amount: 10000, // Initial balance
+        },
+      ],
     });
+
+    jest
+      .spyOn(njordCommon, 'getNjordClient')
+      .mockImplementation(() => testNjordClient);
 
     const res = await client.mutate(MUTATION, {
       variables: { ...params, duration: 1, budget: 1000 },
@@ -2049,9 +2069,6 @@ describe('mutation startPostBoost', () => {
       durationInDays: 1,
       budget: 10, // Converted from cores to USD (1000 cores = 10 USD)
     });
-
-    // Verify getBalance was called
-    expect(getBalance).toHaveBeenCalledWith({ userId: '1' });
   });
 
   it('should handle skadi integration failure gracefully', async () => {
@@ -2117,10 +2134,6 @@ describe('mutation cancelPostBoost', () => {
   const params = { postId: 'p1' };
 
   beforeEach(async () => {
-    const mockTransport = createMockNjordTransport();
-    jest
-      .spyOn(njordCommon, 'getNjordClient')
-      .mockImplementation(() => createClient(Credits, mockTransport));
     isTeamMember = true; // TODO: remove when we are about to run production
     await con.getRepository(Post).update(
       { id: 'p1' },
