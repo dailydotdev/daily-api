@@ -1037,8 +1037,21 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     const { id } = data.notification;
+
+    if (data.notification.type === NotificationType.BriefingReady) {
+      logger.info({ data }, 'debug brief email send notification received');
+    }
+
     const [notification, attachments, avatars] =
       await getNotificationV2AndChildren(con, id);
+
+    if (data.notification.type === NotificationType.BriefingReady) {
+      logger.info(
+        { data, notification, attachments, avatars },
+        'debug brief email send notification retrieved',
+      );
+    }
+
     if (!notification) {
       return;
     }
@@ -1078,6 +1091,14 @@ const worker: Worker = {
                   : undefined,
             },
           });
+
+          if (data.notification.type === NotificationType.BriefingReady) {
+            logger.info(
+              { data, notification, attachments, avatars, users },
+              'debug brief email send users retrieved',
+            );
+          }
+
           if (!users.length) {
             return;
           }
@@ -1092,6 +1113,21 @@ const worker: Worker = {
                 attachments,
                 avatars,
               );
+
+              if (data.notification.type === NotificationType.BriefingReady) {
+                logger.info(
+                  {
+                    data,
+                    notification,
+                    attachments,
+                    avatars,
+                    user,
+                    templateData,
+                  },
+                  'debug brief email send template data retrieved',
+                );
+              }
+
               if (!templateData) {
                 return;
               }
