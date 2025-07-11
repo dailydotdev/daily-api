@@ -22,7 +22,7 @@ import {
 } from '../../notifications/common';
 import { NotificationHandlerReturn, NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
-import { buildPostContext, getOptInNotifications } from './utils';
+import { buildPostContext, getOptInSubscribedMembers } from './utils';
 import { SourceMemberRoles } from '../../roles';
 import { insertOrIgnoreAction } from '../../schema/actions';
 import { In, Not } from 'typeorm';
@@ -86,10 +86,9 @@ const worker: NotificationWorker = {
           }),
         ]);
 
-        const members = await getOptInNotifications({
+        const members = await getOptInSubscribedMembers({
           con,
           type: NotificationType.SquadPostAdded,
-          status: NotificationPreferenceStatus.Subscribed,
           referenceId: source.id,
           where: {
             sourceId: source.id,

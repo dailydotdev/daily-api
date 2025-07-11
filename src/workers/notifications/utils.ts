@@ -3,7 +3,6 @@ import {
   Comment,
   NotificationPreference,
   NotificationPreferencePost,
-  NotificationPreferenceSource,
   Post,
   PostType,
   SharePost,
@@ -43,25 +42,32 @@ type GetMembersParams = {
   type: NotificationType;
   referenceId: string;
   where: ObjectLiteral;
-  status?: NotificationPreferenceStatus;
 };
 
-export const getOptInNotifications = async ({
+export const getOptInSubscribedMembers = async ({
   con,
   type,
-  status,
   referenceId,
-  where = {},
-}: GetMembersParams) =>
-  con.getRepository(NotificationPreferenceSource).find({
-    where: {
-      referenceId: referenceId,
+  where,
+}: GetMembersParams) => {
+  const builder = con.getRepository(SourceMember).createQueryBuilder('sm');
+  const memberQuery = builder.select('"userId"').where(where);
+  const subscribedquery = builder
+    .subQuery()
+    .select('np."userId"')
+    .from(NotificationPreference, 'np')
+    .where(`"np"."userId" = "${memberQuery.alias}"."userId"`)
+    .andWhere({
       notificationType: type,
+      referenceId,
       type: notificationPreferenceMap[type],
-      status: status,
-      ...where,
-    },
-  });
+      status: NotificationPreferenceStatus.Subscribed,
+    });
+
+  return memberQuery
+    .andWhere(`EXISTS(${subscribedquery.getQuery()}) IS TRUE`)
+    .getRawMany<SourceMember>();
+};
 
 export const getSubscribedMembers = (
   con: DataSource,
