@@ -2823,7 +2823,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             referenceId: campaignId,
             transactionId: userTransaction.id,
             balance: {
-              amount: parseBigInt(transfer.receiverBalance!.newBalance),
+              amount: parseBigInt(transfer.receiverBalance?.newBalance),
             },
           },
         };
