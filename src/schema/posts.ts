@@ -2153,14 +2153,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         budget,
       });
 
-      // We do plus-minus 8% of the generated value
-      const difference = impressions * 0.08;
-      const estimatedReach = {
-        min: Math.max(impressions - difference, 0),
-        max: impressions + difference,
-      };
+      // // We do plus-minus 8% of the generated value
+      // const difference = impressions * 0.08;
+      // const estimatedReach = {
+      //   min: Math.max(impressions - difference, 0),
+      //   max: impressions + difference,
+      // };
 
-      return estimatedReach;
+      return { min: impressions, max: impressions };
     },
     postCampaignById: async (
       _,
