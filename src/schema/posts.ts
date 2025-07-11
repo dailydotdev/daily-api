@@ -2812,6 +2812,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           );
 
         try {
+          // TODO: remove this once we move past testing phase
+          if (isProd || ctx.isTeamMember) {
+            return {
+              transaction: {
+                referenceId: campaignId,
+                transactionId: userTransaction.id,
+                balance: { amount: (await getBalance({ userId })).amount },
+              },
+            };
+          }
+
           const transfer = await transferCores({
             ctx: { userId },
             transaction: userTransaction,
