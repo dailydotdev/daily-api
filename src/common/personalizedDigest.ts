@@ -31,6 +31,7 @@ import { mapCloudinaryUrl } from './cloudinary';
 import { queryReadReplica } from './queryReadReplica';
 import { counters } from '../telemetry/metrics';
 import { SkadiAd, skadiPersonalizedDigestClient } from '../integrations/skadi';
+import { NotificationType } from '../notifications/common';
 
 type TemplatePostData = Pick<
   ArticlePost,
@@ -561,3 +562,7 @@ export const digestSendTypeToBriefingType = (
       return BriefingType.Weekly;
   }
 };
+
+export const personalizedDigestNotificationTypes = [
+  NotificationType.BriefingReady,
+];

@@ -35,6 +35,7 @@ import {
   getSourceLink,
   liveTimerDateFormat,
   mapCloudinaryUrl,
+  personalizedDigestNotificationTypes,
   pickImageUrl,
   sendEmail,
   truncatePostToTweet,
@@ -1053,6 +1054,9 @@ const worker: Worker = {
           const isAwardNotification =
             notification.type === NotificationType.UserReceivedAward;
 
+          const digestNotification =
+            personalizedDigestNotificationTypes.includes(notification.type);
+
           const users = await con.getRepository(User).find({
             select: ['id', 'username', 'email'],
             where: {
@@ -1061,18 +1065,21 @@ const worker: Worker = {
               notificationEmail:
                 !isFollowNotification &&
                 !isAwardNotification &&
+                !digestNotification &&
                 notification.public
                   ? true
                   : undefined,
               followingEmail:
                 isFollowNotification &&
                 !isAwardNotification &&
+                !digestNotification &&
                 notification.public
                   ? true
                   : undefined,
               awardEmail:
                 !isFollowNotification &&
                 isAwardNotification &&
+                !digestNotification &&
                 notification.public
                   ? true
                   : undefined,
