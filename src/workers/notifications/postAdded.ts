@@ -21,7 +21,7 @@ import {
 } from '../../notifications/common';
 import { NotificationHandlerReturn, NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
-import { buildPostContext, getSubscribedMembers } from './utils';
+import { buildPostContext, getOptInMembers } from './utils';
 import { In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
 import { insertOrIgnoreAction } from '../../schema/actions';
@@ -80,10 +80,10 @@ const worker: NotificationWorker = {
           where: { postId: post.id },
         });
 
-        const members = await getSubscribedMembers({
+        const members = await getOptInMembers({
           con,
           type: NotificationType.SquadPostAdded,
-          byStatus: NotificationPreferenceStatus.Subscribed,
+          status: NotificationPreferenceStatus.Subscribed,
           referenceId: source.id,
           where: {
             sourceId: source.id,

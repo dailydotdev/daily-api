@@ -16,7 +16,7 @@ import {
 import { In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
 import { insertOrIgnoreAction } from '../../schema/actions';
-import { getSubscribedMembers } from './utils';
+import { getOptOutMembers } from './utils';
 
 interface Data {
   sourceMember: ChangeObject<SourceMember>;
@@ -27,10 +27,10 @@ const worker: NotificationWorker = {
   handler: async (message, con, logger) => {
     const { sourceMember: member }: Data = messageToJson(message);
     const logDetails = { member, messageId: message.messageId };
-    const admins = await getSubscribedMembers({
+    const admins = await getOptOutMembers({
       con,
       type: NotificationType.SquadMemberJoined,
-      byNotStatus: NotificationPreferenceStatus.Muted,
+      status: NotificationPreferenceStatus.Muted,
       referenceId: member.sourceId,
       where: {
         sourceId: member.sourceId,
